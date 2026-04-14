@@ -33,27 +33,29 @@ export default function HeaderActions({
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
 
-  const applyButtonDisabled = !onApply || !!applyDisabled
-  const resetButtonDisabled = !onReset || !!resetDisabled
-  const searchButtonDisabled = !onSearchToggle
   const minimizeOrRestoreAction = onRestore ?? onMinimize
   const minimizeOrRestoreTitle = onRestore
     ? UI_COPY.floatingPanelRestore
     : onMinimize
       ? UI_COPY.floatingPanelMinimize
       : undefined
+  const showSearchButton = typeof onSearchToggle === 'function'
+  const showApplyButton = typeof onApply === 'function' && !applyDisabled
+  const showResetButton = typeof onReset === 'function' && !resetDisabled
+  const showCloseButton = typeof onClose === 'function'
 
   return (
     <div className="flex max-w-full flex-wrap items-center justify-end gap-1">
-      <IconButton
-        className="App-toolbar__btn"
-        title={UI_LABELS.search}
-        onClick={onSearchToggle}
-        disabled={searchButtonDisabled}
-        showTooltip
-      >
-        <SearchIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
+      {showSearchButton ? (
+        <IconButton
+          className="App-toolbar__btn"
+          title={UI_LABELS.search}
+          onClick={onSearchToggle}
+          showTooltip
+        >
+          <SearchIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      ) : null}
       {onPinToggle && (
         <IconButton
           className={getPinToggleButtonClassName(pinned)}
@@ -69,24 +71,26 @@ export default function HeaderActions({
           )}
         </IconButton>
       )}
-      <IconButton
-        className="App-toolbar__btn"
-        title={UI_LABELS.apply}
-        onClick={onApply}
-        disabled={applyButtonDisabled}
-        showTooltip
-      >
-        <SaveIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
-      <IconButton
-        className="App-toolbar__btn"
-        title={UI_LABELS.reset}
-        onClick={onReset}
-        disabled={resetButtonDisabled}
-        showTooltip
-      >
-        <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
+      {showApplyButton ? (
+        <IconButton
+          className="App-toolbar__btn"
+          title={UI_LABELS.apply}
+          onClick={onApply}
+          showTooltip
+        >
+          <SaveIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      ) : null}
+      {showResetButton ? (
+        <IconButton
+          className="App-toolbar__btn"
+          title={UI_LABELS.reset}
+          onClick={onReset}
+          showTooltip
+        >
+          <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      ) : null}
       {minimizeOrRestoreAction && minimizeOrRestoreTitle && (
         <IconButton
           className="App-toolbar__btn"
@@ -102,9 +106,11 @@ export default function HeaderActions({
         </IconButton>
       )}
 
-      <IconButton className="App-toolbar__btn" title={UI_LABELS.close} onClick={onClose} showTooltip>
-        <CloseIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-      </IconButton>
+      {showCloseButton ? (
+        <IconButton className="App-toolbar__btn" title={UI_LABELS.close} onClick={onClose} showTooltip>
+          <CloseIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      ) : null}
     </div>
   )
 }

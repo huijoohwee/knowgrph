@@ -256,26 +256,24 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
                         </IconButton>
                       </li>
                     ) : null}
-                    {sourceFilesPanelIntegration.onCreateFolder ? (
+                    {sourceFilesPanelIntegration.onCreateFolder && sourceFilesPanelIntegration.canWrite ? (
                       <li className="list-none">
                         <IconButton
                           title="New folder"
                           tooltipContent="New folder"
                           showTooltip
-                          disabled={!sourceFilesPanelIntegration.canWrite}
                           onClick={() => void sourceFilesPanelIntegration.onCreateFolder?.(null)}
                         >
                           <FolderPlus className={sourceFilesPanelIntegration.iconClassName} strokeWidth={1.5} aria-hidden="true" />
                         </IconButton>
                       </li>
                     ) : null}
-                    {sourceFilesPanelIntegration.onCreateFile ? (
+                    {sourceFilesPanelIntegration.onCreateFile && sourceFilesPanelIntegration.canWrite ? (
                       <li className="list-none">
                         <IconButton
                           title="New file"
                           tooltipContent="New file"
                           showTooltip
-                          disabled={!sourceFilesPanelIntegration.canWrite}
                           onClick={() => sourceFilesPanelIntegration.onCreateFile?.(null)}
                         >
                           <FilePlus className={sourceFilesPanelIntegration.iconClassName} strokeWidth={1.5} aria-hidden="true" />

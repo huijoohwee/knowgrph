@@ -37,7 +37,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     onConvertToLoopNode,
   } = args
 
-  if (!visible) return null
+  if (!visible || !active) return null
 
   return (
     <nav
@@ -57,43 +57,45 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
         showTooltip
         onClick={() => emitSidePanelOpen({ tab: 'node', open: true })}
         className="App-toolbar__btn"
-        disabled={!active}
       >
         <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
       </IconButton>
 
-      <IconButton
-        title={UI_LABELS.enableHandlesForAllInputs}
-        tooltipContent={UI_COPY.flowNodeQuickEditorEnableHandles}
-        showTooltip
-        onClick={onEnableHandlesForAllInputs}
-        className="App-toolbar__btn"
-        disabled={!active || enableHandlesDisabled}
-      >
-        <Share2 className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-      </IconButton>
+      {!enableHandlesDisabled ? (
+        <IconButton
+          title={UI_LABELS.enableHandlesForAllInputs}
+          tooltipContent={UI_COPY.flowNodeQuickEditorEnableHandles}
+          showTooltip
+          onClick={onEnableHandlesForAllInputs}
+          className="App-toolbar__btn"
+        >
+          <Share2 className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      ) : null}
 
-      <IconButton
-        title={UI_LABELS.convertToLoopNode}
-        tooltipContent={UI_COPY.flowNodeQuickEditorConvertToLoop}
-        showTooltip
-        onClick={onConvertToLoopNode}
-        className="App-toolbar__btn"
-        disabled={!active || convertToLoopDisabled}
-      >
-        <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-      </IconButton>
+      {!convertToLoopDisabled ? (
+        <IconButton
+          title={UI_LABELS.convertToLoopNode}
+          tooltipContent={UI_COPY.flowNodeQuickEditorConvertToLoop}
+          showTooltip
+          onClick={onConvertToLoopNode}
+          className="App-toolbar__btn"
+        >
+          <GitMerge className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      ) : null}
 
-      <IconButton
-        title={UI_LABELS.duplicate}
-        tooltipContent={UI_COPY.flowNodeQuickEditorDuplicate}
-        showTooltip
-        onClick={onDuplicate}
-        className="App-toolbar__btn"
-        disabled={!active || duplicateDisabled}
-      >
-        <Copy className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-      </IconButton>
+      {!duplicateDisabled ? (
+        <IconButton
+          title={UI_LABELS.duplicate}
+          tooltipContent={UI_COPY.flowNodeQuickEditorDuplicate}
+          showTooltip
+          onClick={onDuplicate}
+          className="App-toolbar__btn"
+        >
+          <Copy className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      ) : null}
 
       <IconButton
         title={UI_LABELS.clearOutput}
@@ -101,7 +103,6 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
         showTooltip
         onClick={onClearOutput}
         className="App-toolbar__btn"
-        disabled={!active}
       >
         <Eraser className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
       </IconButton>
@@ -112,7 +113,6 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
         showTooltip
         onClick={onHelp}
         className="App-toolbar__btn"
-        disabled={!active}
       >
         <HelpCircle className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
       </IconButton>
@@ -123,7 +123,6 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
         showTooltip
         onClick={onRemove}
         className={cn('App-toolbar__btn', 'text-red-700 dark:text-red-400')}
-        disabled={!active}
       >
         <Trash2 className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
       </IconButton>

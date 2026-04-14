@@ -72,6 +72,7 @@ export type MonacoTextEditorProps = {
   hideLongHtmlBlocks?: boolean
   paddingTopPx?: number
   paddingBottomPx?: number
+  forceLineNumberColumn?: boolean
   className?: string
   textareaClassName?: string
   ariaLabel?: string
@@ -234,6 +235,7 @@ const buildMonacoEditorOptions = (
     wordWrap: boolean
     paddingTopPx?: number
     paddingBottomPx?: number
+    forceLineNumberColumn?: boolean
   },
 ): Monaco.editor.IStandaloneEditorConstructionOptions => ({
   readOnly: !!args.readOnly,
@@ -302,14 +304,15 @@ const buildMonacoEditorOptions = (
   unicodeHighlight: settings.monacoUnicodeHighlightEnabled ? {} : { nonBasicASCII: false, invisibleCharacters: false, ambiguousCharacters: false },
   matchBrackets: settings.monacoMatchBracketsEnabled ? 'always' : 'never',
   renderLineHighlight: settings.monacoRenderLineHighlightEnabled ? 'line' : 'none',
-  glyphMargin: settings.monacoGlyphMarginEnabled,
+  glyphMargin: args.forceLineNumberColumn || settings.monacoGlyphMarginEnabled,
   overviewRulerLanes: settings.monacoOverviewRulerLanesEnabled ? 2 : 0,
-  lineDecorationsWidth: settings.monacoLineDecorationsWidthEnabled ? 10 : 0,
+  lineDecorationsWidth: args.forceLineNumberColumn ? 10 : (settings.monacoLineDecorationsWidthEnabled ? 10 : 0),
   renderWhitespace: settings.monacoRenderWhitespaceEnabled ? 'selection' : 'none',
   renderControlCharacters: settings.monacoRenderControlCharactersEnabled,
   smoothScrolling: settings.monacoSmoothScrollingEnabled,
   parameterHints: { enabled: settings.monacoParameterHintsEnabled },
-  lineNumbers: settings.monacoLineNumbersEnabled ? 'on' : 'off',
+  lineNumbers: args.forceLineNumberColumn || settings.monacoLineNumbersEnabled ? 'on' : 'off',
+  lineNumbersMinChars: args.forceLineNumberColumn ? 4 : 3,
   folding: settings.monacoFoldingEnabled,
   selectionHighlight: settings.monacoSelectionHighlightEnabled,
   occurrencesHighlight: settings.monacoOccurrencesHighlightEnabled ? 'singleFile' : 'off',
@@ -347,6 +350,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     hideLongHtmlBlocks,
     paddingTopPx,
     paddingBottomPx,
+    forceLineNumberColumn,
     className,
     textareaClassName,
     ariaLabel,
@@ -863,6 +867,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
           wordWrap: !!wordWrap,
           paddingTopPx,
           paddingBottomPx,
+          forceLineNumberColumn,
         }),
       })
 
@@ -1107,6 +1112,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     wordWrap,
     paddingTopPx,
     paddingBottomPx,
+    forceLineNumberColumn,
   ])
 
   React.useEffect(() => {
@@ -1310,7 +1316,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
           ref={el => {
             hostRef.current = el
           }}
-          className={['h-full w-full', UI_THEME_TOKENS.input.bg].join(' ')}
+          className={['h-full w-full kg-monaco-editor-host', UI_THEME_TOKENS.input.bg].join(' ')}
         />
       ) : (
         <PlainTextInputEditor

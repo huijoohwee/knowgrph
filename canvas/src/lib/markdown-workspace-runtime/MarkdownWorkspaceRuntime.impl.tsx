@@ -2641,12 +2641,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         onSaveAs={() => void saveAsActiveFileNow()}
         onToggleFullscreen={toggleFullscreen}
         presentationApiRef={presentationApiRef}
-        contentMode={contentMode}
-        setContentMode={setContentModeFromUser}
-        nodeQuickEditorAvailable={nodeQuickEditorAvailable}
-        nodeQuickEditorFormat={nodeQuickEditorFormat}
-        setNodeQuickEditorFormat={setNodeQuickEditorFormat}
-        onCopyNodeQuickEditor={onCopyNodeQuickEditor}
         isEditing={effectiveIsEditing}
         isMarkdown={effectiveIsMarkdown}
         onFormatAction={handleFormatAction}

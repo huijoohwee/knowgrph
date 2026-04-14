@@ -33,7 +33,8 @@ export function useWorkspaceScrollSync(args: {
   activeDocumentKey: string
   layoutMode: MarkdownWorkspaceLayoutMode
   showWebpageHtml: boolean
-  editorHandle: MonacoTextEditorHandle | null
+  markdownEditorHandle: MonacoTextEditorHandle | null
+  jsonEditorHandle: MonacoTextEditorHandle | null
   viewerEl: HTMLElement | null
   setViewerEl: (next: HTMLElement | null) => void
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>
@@ -63,18 +64,32 @@ export function useWorkspaceScrollSync(args: {
   }, [args.showWebpageHtml, args.setViewerEl])
 
   React.useEffect(() => {
-    if (!args.editorHandle) return
-    const sub = args.editorHandle.onDidScrollChange(() => {
-      setSavedRatio(getEditorScrollRatio(args.editorHandle!))
-    })
+    const disposers: Array<{ dispose: () => void }> = []
+    if (args.markdownEditorHandle) {
+      disposers.push(
+        args.markdownEditorHandle.onDidScrollChange(() => {
+          setSavedRatio(getEditorScrollRatio(args.markdownEditorHandle!))
+        }),
+      )
+    }
+    if (args.jsonEditorHandle) {
+      disposers.push(
+        args.jsonEditorHandle.onDidScrollChange(() => {
+          setSavedRatio(getEditorScrollRatio(args.jsonEditorHandle!))
+        }),
+      )
+    }
+    if (!disposers.length) return
     return () => {
-      try {
-        sub.dispose()
-      } catch {
-        void 0
+      for (const sub of disposers) {
+        try {
+          sub.dispose()
+        } catch {
+          void 0
+        }
       }
     }
-  }, [args.editorHandle, setSavedRatio])
+  }, [args.jsonEditorHandle, args.markdownEditorHandle, setSavedRatio])
 
   React.useEffect(() => {
     if (!args.viewerEl) return
@@ -93,15 +108,17 @@ export function useWorkspaceScrollSync(args: {
       if (args.viewerEl) {
         setScrollRatio(args.viewerEl, ratio)
       }
-      if (args.editorHandle && (args.layoutMode === 'editor' || args.layoutMode === 'split')) {
-        setEditorScrollRatio(args.editorHandle, ratio)
+      if (args.layoutMode === 'editor' || args.layoutMode === 'split') {
+        if (args.markdownEditorHandle) setEditorScrollRatio(args.markdownEditorHandle, ratio)
+        if (args.jsonEditorHandle) setEditorScrollRatio(args.jsonEditorHandle, ratio)
       }
       return
     }
     const iframe = args.iframeRef.current
     if (!iframe) return
-    if (args.editorHandle && (args.layoutMode === 'editor' || args.layoutMode === 'split')) {
-      setEditorScrollRatio(args.editorHandle, ratio)
+    if (args.layoutMode === 'editor' || args.layoutMode === 'split') {
+      if (args.markdownEditorHandle) setEditorScrollRatio(args.markdownEditorHandle, ratio)
+      if (args.jsonEditorHandle) setEditorScrollRatio(args.jsonEditorHandle, ratio)
     }
     const sendRatioToIframe = (r: number) => {
       try {
@@ -118,15 +135,16 @@ export function useWorkspaceScrollSync(args: {
     return () => {
       iframe.removeEventListener('load', handleLoad)
     }
-  }, [args.editorHandle, args.iframeRef, args.layoutMode, args.showWebpageHtml, args.viewerEl, getSavedRatio])
+  }, [args.iframeRef, args.jsonEditorHandle, args.layoutMode, args.markdownEditorHandle, args.showWebpageHtml, args.viewerEl, getSavedRatio])
 
-  useSyncScrollEditorHandleElements(args.editorHandle, args.viewerEl, args.layoutMode === 'split' && !args.showWebpageHtml)
+  useSyncScrollEditorHandleElements(args.markdownEditorHandle, args.viewerEl, args.layoutMode === 'split' && !args.showWebpageHtml)
+  useSyncScrollEditorHandleElements(args.jsonEditorHandle, args.viewerEl, args.layoutMode === 'split' && !args.showWebpageHtml)
 
   React.useEffect(() => {
     if (!args.showWebpageHtml) return
     const iframe = args.iframeRef.current
     if (!iframe) return
-    if (!args.editorHandle) return
+    if (!args.markdownEditorHandle && !args.jsonEditorHandle) return
 
     const lockRef = { owner: null as 'editor' | 'iframe' | null, until: 0 }
     const canSync = (owner: 'editor' | 'iframe') => {
@@ -151,7 +169,9 @@ export function useWorkspaceScrollSync(args: {
       if (!canSync('editor')) return
       lockRef.owner = 'editor'
       lockRef.until = Date.now() + 180
-      const ratio = getEditorScrollRatio(args.editorHandle!)
+      const baseHandle = args.markdownEditorHandle || args.jsonEditorHandle
+      if (!baseHandle) return
+      const ratio = getEditorScrollRatio(baseHandle)
       setSavedRatio(ratio)
       sendRatioToIframe(ratio)
     }
@@ -167,22 +187,33 @@ export function useWorkspaceScrollSync(args: {
       if (!canSync('iframe')) return
       lockRef.owner = 'iframe'
       lockRef.until = Date.now() + 180
-      setEditorScrollRatio(args.editorHandle!, ratio)
+      if (args.markdownEditorHandle) setEditorScrollRatio(args.markdownEditorHandle, ratio)
+      if (args.jsonEditorHandle) setEditorScrollRatio(args.jsonEditorHandle, ratio)
     }
 
-    const sub = args.editorHandle.onDidScrollChange(() => {
-      if (args.layoutMode !== 'split') return
-      handleEditorScroll()
-    })
+    const subs: Array<{ dispose: () => void }> = []
+    if (args.markdownEditorHandle) {
+      subs.push(args.markdownEditorHandle.onDidScrollChange(() => {
+        if (args.layoutMode !== 'split') return
+        handleEditorScroll()
+      }))
+    }
+    if (args.jsonEditorHandle) {
+      subs.push(args.jsonEditorHandle.onDidScrollChange(() => {
+        if (args.layoutMode !== 'split') return
+        handleEditorScroll()
+      }))
+    }
     window.addEventListener('message', handleMessage)
     return () => {
-      try {
-        sub.dispose()
-      } catch {
-        void 0
+      for (const sub of subs) {
+        try {
+          sub.dispose()
+        } catch {
+          void 0
+        }
       }
       window.removeEventListener('message', handleMessage)
     }
-  }, [args.editorHandle, args.iframeRef, args.layoutMode, args.showWebpageHtml, setSavedRatio])
+  }, [args.iframeRef, args.jsonEditorHandle, args.layoutMode, args.markdownEditorHandle, args.showWebpageHtml, setSavedRatio])
 }
-

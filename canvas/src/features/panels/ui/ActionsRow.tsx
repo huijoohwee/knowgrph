@@ -14,13 +14,13 @@ function ActionsRowImpl({ actions, className }: { actions: Action[]; className?:
   return (
     <div className={className || 'mb-2 flex items-center gap-2'}>
       {actions.map(a => {
+        if (a.disabled) return null
         if (a.label === 'Format') {
           return (
             <IconButton
               key={a.label}
               title={a.label}
               onClick={() => void a.onClick()}
-              disabled={a.disabled}
               className="App-toolbar__btn flex items-center justify-center"
               showTooltip
             >
@@ -35,7 +35,6 @@ function ActionsRowImpl({ actions, className }: { actions: Action[]; className?:
               key={a.label}
               title={a.label}
               onClick={() => void a.onClick()}
-              disabled={a.disabled}
               className={`App-toolbar__btn flex items-center justify-center ${uiPrimaryIconActiveClassName}`}
               showTooltip
             >
@@ -50,8 +49,7 @@ function ActionsRowImpl({ actions, className }: { actions: Action[]; className?:
             data-kg-spotlight={a.spotlightId}
             type="button"
             onClick={() => void a.onClick()}
-            disabled={a.disabled}
-            className={`App-toolbar__btn text-xs ${a.variant === 'primary' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'} ${a.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`App-toolbar__btn text-xs ${a.variant === 'primary' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
           >
             {a.label}
           </button>

@@ -195,15 +195,16 @@ export function GraphFieldsListPanelBody({
               orderedAllCuratorColumnKeys.length,
             )}
           </div>
-          <IconButton
-            title={UI_LABELS.newField}
-            onClick={() => setNewFieldOpen(v => !v)}
-            disabled={!graphDataPresent}
-            className="App-toolbar__btn"
-            showTooltip
-          >
-            <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-          </IconButton>
+          {graphDataPresent ? (
+            <IconButton
+              title={UI_LABELS.newField}
+              onClick={() => setNewFieldOpen(v => !v)}
+              className="App-toolbar__btn"
+              showTooltip
+            >
+              <Plus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+            </IconButton>
+          ) : null}
         </div>
       </header>
       {searchOpen && (

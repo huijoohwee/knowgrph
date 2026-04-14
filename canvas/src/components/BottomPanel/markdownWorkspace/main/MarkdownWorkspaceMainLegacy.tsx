@@ -30,6 +30,7 @@ import { MarkdownWorkspaceDerivedViewer, type MarkdownWorkspaceDerivedViewerKind
 import { buildBipartiteMarkdownFromJsonText } from '@/features/markdown/bipartiteJsonToMarkdown'
 import { jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
 import { buildJsonMarkdownConfigFromPreferences } from '@/features/markdown/jsonMarkdownPreferences'
+import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { useWorkspaceExportBridge } from './useWorkspaceExportBridge'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 
@@ -73,13 +74,6 @@ export type MarkdownWorkspaceMainProps = {
   onWebpageChangeView?: (view: WebpageViewMode) => void
   onWebpageUpdateMeta?: (patch: { fidelityLevel?: 1 | 2 | 3 | 4 }) => void
 
-  contentMode?: 'document' | 'nodeQuickEditor'
-  setContentMode?: (mode: 'document' | 'nodeQuickEditor') => void
-  nodeQuickEditorAvailable?: boolean
-  nodeQuickEditorFormat?: 'json' | 'markdown'
-  setNodeQuickEditorFormat?: (format: 'json' | 'markdown') => void
-  onCopyNodeQuickEditor?: () => void
-
   activeText: string
   setActiveText: (next: string) => void
   editorTextOverride?: string | null
@@ -109,7 +103,13 @@ function sanitizeInvalidDataUrls(raw: string): string {
 
 export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(props: MarkdownWorkspaceMainProps) {
   const panelTypography = usePanelTypography()
-  const [editorHandle, setEditorHandle] = React.useState<MonacoTextEditorHandle | null>(null)
+  const [markdownEditorHandle, setMarkdownEditorHandle] = React.useState<MonacoTextEditorHandle | null>(null)
+  const [jsonEditorHandle, setJsonEditorHandle] = React.useState<MonacoTextEditorHandle | null>(null)
+  const [splitPaneVisibility, setSplitPaneVisibility] = React.useState<{ json: boolean; markdown: boolean; viewer: boolean }>({
+    json: true,
+    markdown: true,
+    viewer: true,
+  })
   const [viewerEl, setViewerEl] = React.useState<HTMLElement | null>(null)
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
@@ -140,12 +140,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     webpageWorkspaceMeta,
     onWebpageChangeView,
     onWebpageUpdateMeta,
-    contentMode,
-    setContentMode,
-    nodeQuickEditorAvailable,
-    nodeQuickEditorFormat,
-    setNodeQuickEditorFormat,
-    onCopyNodeQuickEditor,
     activeText,
     setActiveText,
     editorTextOverride,
@@ -216,12 +210,20 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     }
   }, [viewerKind, viewerMode])
   React.useEffect(() => {
+    if (layoutMode !== 'editor') return
+    if (viewerKind === 'markdown' || viewerKind === 'json') return
+    setViewerKind('markdown')
+  }, [layoutMode, viewerKind])
+  React.useEffect(() => {
     if (layoutMode !== 'viewer') return
-    if (viewerKind !== 'markdown') return
-    if (viewerMode !== 'read') return
-    if (contentMode !== 'nodeQuickEditor') return
-    setContentMode?.('document')
-  }, [contentMode, layoutMode, setContentMode, viewerKind, viewerMode])
+    if (viewerKind !== 'markdown') {
+      setViewerKind('markdown')
+      return
+    }
+    if (viewerMode !== 'read') {
+      setViewerMode('read')
+    }
+  }, [layoutMode, viewerKind, viewerMode])
 
   const workspaceEditorMode = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,
@@ -247,15 +249,19 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     [workspaceEditorMode],
   )
 
-  const viewerKindOptions = React.useMemo<Array<MarkdownWorkspaceDerivedViewerKind>>(
-    () => ['markdown', 'json'],
-    [],
+  const editorVariantUri = React.useCallback(
+    (variant: 'markdown' | 'json') => {
+      const base = String(editorUri || '').trim()
+      if (!base) return `inmemory://workspace/${variant}`
+      return `${base}#${variant}`
+    },
+    [editorUri],
   )
 
   React.useEffect(() => {
-    if (viewerKindOptions.includes(viewerKind)) return
-    setViewerKind(viewerKindOptions[0] || 'markdown')
-  }, [viewerKind, viewerKindOptions])
+    if (viewerKind === 'markdown' || viewerKind === 'json') return
+    setViewerKind('markdown')
+  }, [viewerKind])
 
   const jsonDerivedMarkdownBase = React.useMemo(() => {
     if (isMarkdown) return null
@@ -287,6 +293,23 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     setJsonDerivedMarkdownDraft(jsonDerivedMarkdownBase)
   }, [activeDocumentKey, isJsonMarkdownEditing, jsonDerivedMarkdownBase])
   const markdownEditText = isJsonMarkdownEditing ? (jsonDerivedMarkdownDraft ?? jsonDerivedMarkdownBase ?? '') : null
+  const sourceEditorTextRaw = typeof editorTextOverride === 'string' ? editorTextOverride : activeText
+  const jsonEditorText = React.useMemo(() => {
+    if (isMarkdown) {
+      const docName = String(activeDocumentKey || editorUri || 'workspace.md')
+      try {
+        return JSON.stringify(buildMarkdownJsonLd(docName, sourceEditorTextRaw), null, 2)
+      } catch {
+        return '{}'
+      }
+    }
+    const text = String(sourceEditorTextRaw || '')
+    try {
+      return JSON.stringify(JSON.parse(text), null, 2)
+    } catch {
+      return text
+    }
+  }, [activeDocumentKey, editorUri, isMarkdown, sourceEditorTextRaw])
 
   const needsMarkdownViewerText = !showWebpageHtml
   const sourceViewerTextRaw = typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText
@@ -340,7 +363,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     activeDocumentKey,
     layoutMode,
     showWebpageHtml,
-    editorHandle,
+    markdownEditorHandle,
+    jsonEditorHandle,
     viewerEl,
     setViewerEl,
     iframeRef,
@@ -431,7 +455,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     viewerInlineEditActiveRef.current = active
     onViewerInlineEditStateChange?.(active)
   }, [onViewerInlineEditStateChange])
-  const renderEditorPane = React.useCallback(
+  const renderMarkdownEditorPane = React.useCallback(
     () => (
       <MarkdownEditorPane
         value={markdownEditText ?? (typeof editorTextOverride === 'string' ? editorTextOverride : activeText)}
@@ -450,27 +474,66 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         editorRef={editorRef}
         onCaretLine={onEditorCaretLine}
         panelTypography={panelTypography}
-        readOnly={disableEditorMutations}
+        readOnly={disableEditorMutations || !isMarkdown}
         themeMode={themeMode}
-        language={editorLanguage}
-        uri={editorUri}
-        onEditorHandle={setEditorHandle}
+        language="markdown"
+        uri={editorVariantUri('markdown')}
+        onEditorHandle={setMarkdownEditorHandle}
+        ariaLabel="Markdown Editor Text"
       />
     ),
     [
       activeText,
       disableEditorMutations,
-      editorLanguage,
       editorRef,
       editorTextOverride,
-      editorUri,
+      editorVariantUri,
       isJsonMarkdownEditing,
+      isMarkdown,
       markdownEditText,
       markdownWordWrap,
       onEditorCaretLine,
       panelTypography,
       setActiveText,
       setJsonDerivedMarkdownDraft,
+      themeMode,
+    ],
+  )
+  const renderJsonEditorPane = React.useCallback(
+    () => (
+      <MarkdownEditorPane
+        value={jsonEditorText}
+        onChange={
+          disableEditorMutations || isMarkdown
+            ? () => void 0
+            : (next: string) => {
+                setActiveText(next)
+              }
+        }
+        wordWrap={markdownWordWrap}
+        editorRef={editorRef}
+        onCaretLine={onEditorCaretLine}
+        panelTypography={panelTypography}
+        readOnly={disableEditorMutations || isMarkdown}
+        themeMode={themeMode}
+        language="json"
+        uri={editorVariantUri('json')}
+        onEditorHandle={setJsonEditorHandle}
+        ariaLabel="JSON Editor Text"
+      />
+    ),
+    [
+      activeText,
+      disableEditorMutations,
+      editorRef,
+      editorTextOverride,
+      editorVariantUri,
+      isMarkdown,
+      jsonEditorText,
+      markdownWordWrap,
+      onEditorCaretLine,
+      panelTypography,
+      setActiveText,
       themeMode,
     ],
   )
@@ -607,8 +670,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     </React.Suspense>
   )
 
-  const renderEditor = renderEditorPane
-
   return (
     <MarkdownWorkspaceLayout
       toolbarProps={{
@@ -623,10 +684,10 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         markdownTextHighlight,
         setMarkdownTextHighlight,
         viewerKind,
-        viewerKindOptions,
-        setViewerKind,
         viewerMode,
         setViewerMode: handleSetViewerMode,
+        splitPaneVisibility,
+        setSplitPaneVisibility,
         onSaveAs,
         onExportWorkspaceFile: handleExportWorkspaceFile,
         onExportMarkdown: handleExportMarkdown,
@@ -637,12 +698,6 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onExportPdf: handleExportPdf,
         onToggleFullscreen,
         presentationApiRef,
-        contentMode,
-        setContentMode,
-        nodeQuickEditorAvailable,
-        nodeQuickEditorFormat,
-        setNodeQuickEditorFormat,
-        onCopyNodeQuickEditor,
         isEditing,
         isMarkdown,
         onFormatAction,
@@ -652,7 +707,9 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
         onWebpageUpdateMeta,
       }}
       layoutMode={layoutMode}
-      renderEditor={renderEditor}
+      renderMarkdownEditor={renderMarkdownEditorPane}
+      renderJsonEditor={renderJsonEditorPane}
+      splitPaneVisibility={splitPaneVisibility}
       viewer={viewer}
       presentation={presentation}
       slidesGallery={slidesGallery}

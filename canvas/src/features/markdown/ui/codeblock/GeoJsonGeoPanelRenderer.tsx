@@ -313,37 +313,36 @@ export function GeoJsonGeoPanelRenderer(props: {
             {statusText}
           </p>
           <menu className="flex items-center gap-1" aria-label="GeoJSON actions">
-            {canAttemptLoadGraph ? (
+            {canAttemptLoadGraph && graphState !== 'loading' ? (
               <IconButton
                 className={`App-toolbar__btn ${uiPrimaryIconActiveClassName}`}
                 title={UI_COPY.markdownGeoJsonLoadGraphTitle}
                 onClick={handleLoadGraphData}
-                disabled={graphState === 'loading'}
                 showTooltip
               >
                 <Network className="w-4 h-4 LaunchButton__icon" aria-hidden="true" strokeWidth={1.5} />
               </IconButton>
             ) : null}
-            {canAttemptRegister ? (
+            {canAttemptRegister && datasetState !== 'registering' ? (
               <IconButton
                 className={`App-toolbar__btn ${uiPrimaryIconActiveClassName}`}
                 title={UI_COPY.markdownGeoJsonAddDatasetTitle}
                 onClick={handleRegisterDataset}
-                disabled={datasetState === 'registering'}
                 showTooltip
               >
                 <Database className="w-4 h-4 LaunchButton__icon" aria-hidden="true" strokeWidth={1.5} />
               </IconButton>
             ) : null}
-            <IconButton
-              className={`App-toolbar__btn ${uiPrimaryIconActiveClassName}`}
-              title={UI_COPY.geospatialModeOnTitle}
-              onClick={() => requestOpen?.()}
-              disabled={!canOpenPanel}
-              showTooltip
-            >
-              <MapIcon className="w-4 h-4 LaunchButton__icon" aria-hidden="true" strokeWidth={1.5} />
-            </IconButton>
+            {canOpenPanel ? (
+              <IconButton
+                className={`App-toolbar__btn ${uiPrimaryIconActiveClassName}`}
+                title={UI_COPY.geospatialModeOnTitle}
+                onClick={() => requestOpen?.()}
+                showTooltip
+              >
+                <MapIcon className="w-4 h-4 LaunchButton__icon" aria-hidden="true" strokeWidth={1.5} />
+              </IconButton>
+            ) : null}
           </menu>
         </section>
       ) : null}

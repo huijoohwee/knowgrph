@@ -512,4 +512,9 @@ html, body, #root {
   .MainPanelContainer .monaco-editor .sticky-scroll {
     top: 36px;
   }
+
+  /* Keep Monaco gutter/line-number column visually separated from text area. */
+  .kg-monaco-editor-host .monaco-editor .margin {
+    border-right: 1px solid var(--kg-divider) !important;
+  }
 }

@@ -128,12 +128,16 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
       <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border}`}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <IconButton className="App-toolbar__btn" title={UI_LABELS.undo} onClick={() => undoHistory()} disabled={!canUndo} showTooltip>
-              <ResetIcon className={`${iconSizeClass} rotate-180`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-            </IconButton>
-            <IconButton className="App-toolbar__btn" title={UI_LABELS.redo} onClick={() => redoHistory()} disabled={!canRedo} showTooltip>
-              <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-            </IconButton>
+            {canUndo ? (
+              <IconButton className="App-toolbar__btn" title={UI_LABELS.undo} onClick={() => undoHistory()} showTooltip>
+                <ResetIcon className={`${iconSizeClass} rotate-180`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
+            ) : null}
+            {canRedo ? (
+              <IconButton className="App-toolbar__btn" title={UI_LABELS.redo} onClick={() => redoHistory()} showTooltip>
+                <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+              </IconButton>
+            ) : null}
             <IconButton className="App-toolbar__btn" title="Snapshot" onClick={applySnapshot} showTooltip>
               <SaveIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
             </IconButton>

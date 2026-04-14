@@ -184,6 +184,7 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
     const firstLine = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')[0]
     return String(firstLine || '').trim() === '---'
   }, [markdownDocumentText])
+  const hasActiveSourceFile = activeSourceFile != null
 
   React.useEffect(() => {
     if (props.annotateDisplayMode !== 'render') return
@@ -291,45 +292,48 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 />
               </section>
             </li>
-            <li className="list-none">
-              <IconButton
-                className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
-                title="Open in editor"
-                tooltipContent="Open in editor"
-                onClick={() => {
-                  setMarkdownPresentationMode?.(false)
-                  setMarkdownLayoutMode('editor')
-                }}
-                disabled={!activeSourceFile}
-                showTooltip
-              >
-                <FileText className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-              </IconButton>
-            </li>
-            <li className="list-none">
-              <IconButton
-                className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
-                title="Export"
-                tooltipContent="Export"
-                onClick={() => sourceFilesIngestIntegration.onExport({ fileId: activeSourceFile?.id || null })}
-                disabled={!activeSourceFile}
-                showTooltip
-              >
-                <Download className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-              </IconButton>
-            </li>
-            <li className="list-none">
-              <IconButton
-                className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
-                title="Clear Source File"
-                tooltipContent="Clear Source File"
-                onClick={() => sourceFilesIngestIntegration.onClear({ fileId: activeSourceFile?.id || null })}
-                disabled={!activeSourceFile}
-                showTooltip
-              >
-                <Eraser className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-              </IconButton>
-            </li>
+            {hasActiveSourceFile ? (
+              <li className="list-none">
+                <IconButton
+                  className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
+                  title="Open in editor"
+                  tooltipContent="Open in editor"
+                  onClick={() => {
+                    setMarkdownPresentationMode?.(false)
+                    setMarkdownLayoutMode('editor')
+                  }}
+                  showTooltip
+                >
+                  <FileText className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+                </IconButton>
+              </li>
+            ) : null}
+            {hasActiveSourceFile ? (
+              <li className="list-none">
+                <IconButton
+                  className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
+                  title="Export"
+                  tooltipContent="Export"
+                  onClick={() => sourceFilesIngestIntegration.onExport({ fileId: activeSourceFile?.id || null })}
+                  showTooltip
+                >
+                  <Download className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+                </IconButton>
+              </li>
+            ) : null}
+            {hasActiveSourceFile ? (
+              <li className="list-none">
+                <IconButton
+                  className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
+                  title="Clear Source File"
+                  tooltipContent="Clear Source File"
+                  onClick={() => sourceFilesIngestIntegration.onClear({ fileId: activeSourceFile?.id || null })}
+                  showTooltip
+                >
+                  <Eraser className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+                </IconButton>
+              </li>
+            ) : null}
             {statusPill ? (
               <li className="list-none">
                 <span
@@ -344,14 +348,13 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
             ) : null}
           </menu>
         ) : null}
-        {onFormatAction ? (
+        {onFormatAction && isEditing ? (
           <menu className={MARKDOWN_TOOLBAR_MENU_CLASSNAME} aria-label="Formatting">
             <li className="list-none">
               <IconButton
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Bold"
                 tooltipContent="Bold"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('bold')}
                 showTooltip
               >
@@ -363,7 +366,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Italic"
                 tooltipContent="Italic"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('italic')}
                 showTooltip
               >
@@ -375,7 +377,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Strikethrough"
                 tooltipContent="Strike"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('strike')}
                 showTooltip
               >
@@ -387,7 +388,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Inline code"
                 tooltipContent="Inline code"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('inlineCode')}
                 showTooltip
               >
@@ -399,7 +399,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Link"
                 tooltipContent="Link"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('link')}
                 showTooltip
               >
@@ -411,7 +410,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Heading"
                 tooltipContent="Heading"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('heading2')}
                 showTooltip
               >
@@ -423,7 +421,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Bulleted list"
                 tooltipContent="Bulleted list"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('bulletList')}
                 showTooltip
               >
@@ -435,7 +432,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Numbered list"
                 tooltipContent="Numbered list"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('numberedList')}
                 showTooltip
               >
@@ -447,7 +443,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Quote"
                 tooltipContent="Quote"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('blockquote')}
                 showTooltip
               >
@@ -459,7 +454,6 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
                 title="Normalize ASCII blocks"
                 tooltipContent="Normalize ASCII blocks"
-                disabled={!isEditing}
                 onClick={() => onFormatAction('normalizeAsciiBlocks')}
                 showTooltip
               >
@@ -557,84 +551,75 @@ export function ViewerHeaderRow(props: ViewerHeaderRowProps) {
                 </IconButton>
               </li>
             ) : null}
-            <li className="list-none">
-              <IconButton
-                className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
-                title={
-                  sourceFilesPanelIntegration.canWrite
-                    ? 'New folder'
-                    : sourceFilesPanelIntegration.accessMode
-                      ? 'New folder (requires write support)'
-                      : 'New folder'
-                }
-                tooltipContent="New folder"
-                disabled={!sourceFilesPanelIntegration.canWrite}
-                onClick={() => {
-                  if (!sourceFilesPanelIntegration.canWrite || !sourceFilesPanelIntegration.onCreateFolder) return
-                  void Promise.resolve(sourceFilesPanelIntegration.onCreateFolder(null))
-                }}
-                showTooltip
-              >
-                <FolderPlus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-              </IconButton>
-            </li>
-            <li className="list-none">
-              <IconButton
-                className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
-                title={
-                  sourceFilesPanelIntegration.canWrite
-                    ? 'New source file'
-                    : sourceFilesPanelIntegration.accessMode
-                      ? 'New source file (requires write support)'
-                      : 'New source file'
-                }
-                tooltipContent="New source file"
-                disabled={!sourceFilesPanelIntegration.canWrite}
-                onClick={() => {
-                  if (!sourceFilesPanelIntegration.canWrite || !sourceFilesPanelIntegration.onCreateFile) return
-                  sourceFilesPanelIntegration.onCreateFile(null)
-                }}
-                showTooltip
-              >
-                <FilePlus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-              </IconButton>
-            </li>
+            {sourceFilesPanelIntegration.canWrite && sourceFilesPanelIntegration.onCreateFolder ? (
+              <li className="list-none">
+                <IconButton
+                  className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
+                  title="New folder"
+                  tooltipContent="New folder"
+                  onClick={() => {
+                    void Promise.resolve(sourceFilesPanelIntegration.onCreateFolder?.(null))
+                  }}
+                  showTooltip
+                >
+                  <FolderPlus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+                </IconButton>
+              </li>
+            ) : null}
+            {sourceFilesPanelIntegration.canWrite && sourceFilesPanelIntegration.onCreateFile ? (
+              <li className="list-none">
+                <IconButton
+                  className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
+                  title="New source file"
+                  tooltipContent="New source file"
+                  onClick={() => {
+                    sourceFilesPanelIntegration.onCreateFile?.(null)
+                  }}
+                  showTooltip
+                >
+                  <FilePlus className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+                </IconButton>
+              </li>
+            ) : null}
           </menu>
         ) : null}
-        <IconButton
-          className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
-          title={applyButtonTitle}
-          tooltipContent={applyButtonTitle}
-          disabled={!isEditing}
-          onClick={() => {
-            void onApplyMarkdown()
-          }}
-          showTooltip
-        >
-          <Check className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-        </IconButton>
+        {isEditing ? (
+          <IconButton
+            className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
+            title={applyButtonTitle}
+            tooltipContent={applyButtonTitle}
+            onClick={() => {
+              void onApplyMarkdown()
+            }}
+            showTooltip
+          >
+            <Check className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+          </IconButton>
+        ) : null}
         {onSaveRequested || onSaveAsRequested ? (
           <>
-            <IconButton
-              className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
-              title="Save"
-              tooltipContent="Save"
-              onClick={() => onSaveRequested?.()}
-              disabled={!isEditing || !onSaveRequested}
-              showTooltip
-            >
-              <Save className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-            </IconButton>
-            <IconButton
-              className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
-              title="Save As..."
-              tooltipContent="Save As..."
-              onClick={() => onSaveAsRequested?.()}
-              disabled={!isEditing || !onSaveAsRequested}
-              showTooltip
-            >
-              <FileDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-            </IconButton>
+            {isEditing && onSaveRequested ? (
+              <IconButton
+                className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
+                title="Save"
+                tooltipContent="Save"
+                onClick={() => onSaveRequested?.()}
+                showTooltip
+              >
+                <Save className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+              </IconButton>
+            ) : null}
+            {isEditing && onSaveAsRequested ? (
+              <IconButton
+                className={MARKDOWN_TOOLBAR_ICON_BUTTON_CLASSNAME}
+                title="Save As..."
+                tooltipContent="Save As..."
+                onClick={() => onSaveAsRequested?.()}
+                showTooltip
+              >
+                <FileDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+              </IconButton>
+            ) : null}
           </>
         ) : null}
         <IconButton

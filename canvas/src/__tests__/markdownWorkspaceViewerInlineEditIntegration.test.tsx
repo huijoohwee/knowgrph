@@ -173,6 +173,14 @@ export async function testMarkdownWorkspaceViewerUsesInlineFloatingFormattingSso
     if (workspaceFormattingMenu) {
       throw new Error('expected viewer workspace toolbar to defer duplicate formatting buttons to the inline floating toolbar SSOT')
     }
+    const workspaceContentMenu = container.querySelector('menu[aria-label="Content"]') as HTMLElement | null
+    if (workspaceContentMenu) {
+      throw new Error('expected viewer workspace toolbar to hide content-mode controls when there is no actionable mode switch')
+    }
+    const workspaceDerivedViewsMenu = container.querySelector('menu[aria-label="Derived views"]') as HTMLElement | null
+    if (workspaceDerivedViewsMenu) {
+      throw new Error('expected workspace header to omit Monaco document selector and avoid duplicate mode switching')
+    }
 
     const host = container.querySelector('[data-start-line="1"]') as HTMLElement | null
     if (!host) throw new Error('expected viewer first line host')
@@ -209,6 +217,220 @@ export async function testMarkdownWorkspaceViewerUsesInlineFloatingFormattingSso
     if (!inlineToolbar) throw new Error('expected inline floating formatting toolbar after viewer click-to-edit selection')
     const boldButton = inlineToolbar.querySelector('button[title="Bold"]') as HTMLButtonElement | null
     if (!boldButton) throw new Error('expected inline floating formatting toolbar to keep Bold action available')
+  } finally {
+    try {
+      await act(async () => {
+        root.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
+export async function testMarkdownWorkspaceEditorOmitsDocumentSelectorInHeader() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          explorerOpen: false,
+          setExplorerOpen: () => void 0,
+          layoutMode: 'editor',
+          setLayoutMode: () => void 0,
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => void 0,
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => void 0,
+          onToggleFullscreen: () => void 0,
+          presentationApiRef: { current: null },
+          isEditing: true,
+          isMarkdown: true,
+          onFormatAction: () => void 0,
+          activeText: ['Editor line one', '', 'Editor line two'].join('\n'),
+          setActiveText: () => void 0,
+          activeDocumentKey: '/editor-mode-test.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => void 0,
+          showInViewer: () => void 0,
+          showInPresentation: () => void 0,
+          showInSlidesGallery: () => void 0,
+          editorUri: 'file:///editor-mode-test.md',
+          editorLanguage: 'markdown',
+          editorRef: { current: null },
+        }),
+      )
+      await tick(6)
+    })
+
+    const derivedViewsMenu = container.querySelector('menu[aria-label="Derived views"]') as HTMLElement | null
+    if (derivedViewsMenu) throw new Error('expected Monaco editor header to omit document selector and rely on editor-language SSOT')
+    const monacoEditors = container.querySelector('section[aria-label="Monaco editors"]') as HTMLElement | null
+    if (!monacoEditors) throw new Error('expected editor layout to render dedicated Monaco editor surfaces')
+    const jsonEditorPane = monacoEditors.querySelector('section[aria-label="JSON Editor"]') as HTMLElement | null
+    if (!jsonEditorPane) throw new Error('expected editor layout to include JSON Editor pane')
+    const markdownEditorPane = monacoEditors.querySelector('section[aria-label="Markdown Editor"]') as HTMLElement | null
+    if (!markdownEditorPane) throw new Error('expected editor layout to include Markdown Editor pane')
+    const jsonEditorTextarea = container.querySelector('textarea[aria-label="JSON Editor Text"]') as HTMLTextAreaElement | null
+    if (!jsonEditorTextarea) throw new Error('expected JSON editor textarea surface in workspace editor')
+    if (!String(jsonEditorTextarea.value || '').trim().startsWith('{')) {
+      throw new Error('expected JSON editor pane to show JSON content instead of markdown source text')
+    }
+    const markdownEditorTextarea = container.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
+    if (!markdownEditorTextarea) throw new Error('expected markdown editor textarea surface in workspace editor')
+    if (!String(markdownEditorTextarea.value || '').includes('Editor line one')) {
+      throw new Error('expected markdown editor pane to keep markdown source text')
+    }
+
+    const contentMenu = container.querySelector('menu[aria-label="Content"]') as HTMLElement | null
+    if (contentMenu) throw new Error('expected legacy content-mode toggle menu to be removed from workspace header')
+
+    const nodeQuickEditorFormatMenu = container.querySelector('menu[aria-label="Document format in Node Quick Editor"]') as HTMLElement | null
+    if (nodeQuickEditorFormatMenu) throw new Error('expected legacy node quick editor document-format menu to be removed from workspace header')
+  } finally {
+    try {
+      await act(async () => {
+        root.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
+export async function testMarkdownWorkspaceSplitOmitsDocumentSelectorInHeader() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          explorerOpen: false,
+          setExplorerOpen: () => void 0,
+          layoutMode: 'split',
+          setLayoutMode: () => void 0,
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => void 0,
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => void 0,
+          onToggleFullscreen: () => void 0,
+          presentationApiRef: { current: null },
+          isEditing: true,
+          isMarkdown: true,
+          onFormatAction: () => void 0,
+          activeText: ['Split line one', '', 'Split line two'].join('\n'),
+          setActiveText: () => void 0,
+          activeDocumentKey: '/split-mode-test.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => void 0,
+          showInViewer: () => void 0,
+          showInPresentation: () => void 0,
+          showInSlidesGallery: () => void 0,
+          editorUri: 'file:///split-mode-test.md',
+          editorLanguage: 'markdown',
+          editorRef: { current: null },
+        }),
+      )
+      await tick(6)
+    })
+
+    const splitView = container.querySelector('section[aria-label="Split view"]') as HTMLElement | null
+    if (!splitView) throw new Error('expected split layout to render JSON/Markdown editor panes plus viewer')
+    const splitJsonEditorPane = splitView.querySelector('section[aria-label="JSON Editor"]') as HTMLElement | null
+    if (!splitJsonEditorPane) throw new Error('expected split layout to include JSON Editor pane')
+    const splitMarkdownEditorPane = splitView.querySelector('section[aria-label="Markdown Editor"]') as HTMLElement | null
+    if (!splitMarkdownEditorPane) throw new Error('expected split layout to include Markdown Editor pane')
+    const splitViewerPane = splitView.querySelector('section[aria-label="Viewer"]') as HTMLElement | null
+    if (!splitViewerPane) throw new Error('expected split layout to include WYSIWYG viewer pane')
+    const derivedViewsMenu = container.querySelector('menu[aria-label="Derived views"]') as HTMLElement | null
+    if (derivedViewsMenu) throw new Error('expected split header to omit Monaco document selector and avoid duplicate mode switching')
+  } finally {
+    try {
+      await act(async () => {
+        root.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
+export async function testMarkdownWorkspaceSplitButtonOpensPaneSelector() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          explorerOpen: false,
+          setExplorerOpen: () => void 0,
+          layoutMode: 'split',
+          setLayoutMode: () => void 0,
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => void 0,
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => void 0,
+          onToggleFullscreen: () => void 0,
+          presentationApiRef: { current: null },
+          isEditing: true,
+          isMarkdown: true,
+          onFormatAction: () => void 0,
+          activeText: ['Split line one', '', 'Split line two'].join('\n'),
+          setActiveText: () => void 0,
+          activeDocumentKey: '/split-selector-test.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => void 0,
+          showInViewer: () => void 0,
+          showInPresentation: () => void 0,
+          showInSlidesGallery: () => void 0,
+          editorUri: 'file:///split-selector-test.md',
+          editorLanguage: 'markdown',
+          editorRef: { current: null },
+        }),
+      )
+      await tick(6)
+    })
+
+    const splitButton = container.querySelector('button[title="Split"]') as HTMLButtonElement | null
+    if (!splitButton) throw new Error('expected split layout button')
+    const legacyViewerButton = container.querySelector('button[title^="Viewer"]') as HTMLButtonElement | null
+    if (legacyViewerButton) throw new Error('expected viewer button to be consolidated into split and removed from toolbar')
+    await act(async () => {
+      splitButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await tick(4)
+    })
+
+    const selectorDialog = doc.querySelector('[aria-label="Split panes selector"]') as HTMLElement | null
+    if (!selectorDialog) throw new Error('expected split button click to open split panes selector')
+    const legacyEditorButton = container.querySelector('button[title="Editor"]') as HTMLButtonElement | null
+    if (legacyEditorButton) throw new Error('expected editor button to be consolidated into split and removed from toolbar')
+    const splitPanesMenu = selectorDialog.querySelector('menu[aria-label="Split panes"]') as HTMLElement | null
+    if (!splitPanesMenu) throw new Error('expected split panes multi-select menu')
   } finally {
     try {
       await act(async () => {

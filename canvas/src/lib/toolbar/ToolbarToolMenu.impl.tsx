@@ -424,13 +424,13 @@ export function ToolbarToolMenu({
     <>
       {floatingPanelViewButtonSpecs.map(spec => {
         if (spec.hidden) return null
+        if (spec.disabled) return null
         const Icon = spec.icon
         return (
           <IconButton
             key={spec.view}
             title={spec.title}
             onClick={() => handleSelectView(spec.view)}
-            disabled={spec.disabled}
             className={`App-toolbar__btn ${
               floatingPanelView === spec.view ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
             }`}

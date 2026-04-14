@@ -15,6 +15,7 @@ export function MarkdownEditorPane(props: {
   language: string
   uri: string
   onEditorHandle?: (h: MonacoTextEditorHandle | null) => void
+  ariaLabel?: string
 }) {
   const rafIdRef = React.useRef<number | null>(null)
   const lastSelectionStartRef = React.useRef<number | null>(null)
@@ -75,11 +76,12 @@ export function MarkdownEditorPane(props: {
         themeMode={props.themeMode}
         wordWrap={props.wordWrap}
         readOnly={!!props.readOnly}
+        forceLineNumberColumn={true}
         paddingTopPx={12}
         paddingBottomPx={12}
         className="flex-1 min-h-0 w-full overflow-hidden"
         textareaClassName={`flex-1 min-h-0 w-full resize-none box-border px-4 py-3 ${props.panelTypography.panelTextClass} leading-5 ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.input.border} border outline-none ${props.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} overflow-auto`}
-        ariaLabel="Markdown Editor Text"
+        ariaLabel={props.ariaLabel || 'Markdown Editor Text'}
         editorRef={props.editorRef}
         onHandle={props.onEditorHandle}
         onSelectionChangeOffsets={({ startOffset }) => scheduleEmitCaretLine(startOffset)}
@@ -87,4 +89,3 @@ export function MarkdownEditorPane(props: {
     </section>
   )
 }
-

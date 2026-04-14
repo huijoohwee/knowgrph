@@ -14,6 +14,7 @@ export const FitToViewButton = () => {
   const { disabled, handleFitToView } = useFitToViewAction()
 
   const iconSizeClass = getIconSizeClass(uiIconScale);
+  if (disabled) return null
 
   return (
     <IconButton
@@ -22,7 +23,6 @@ export const FitToViewButton = () => {
       tooltipContent={UI_COPY.fitToViewTooltip}
       onClick={handleFitToView}
       showTooltip
-      disabled={disabled}
     >
       <Scan className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
     </IconButton>

@@ -1,9 +1,6 @@
 import React from 'react'
 import {
   Columns,
-  Code,
-  Edit3,
-  Eye,
   LayoutGrid,
   LayoutPanelTop,
   Maximize2,
@@ -19,13 +16,14 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { WorkspaceHeader, WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
 import IconButton from '@/components/IconButton'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
+import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { MarkdownPresentationApi } from './markdownWorkspace/markdownWorkspaceTypes'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { WorkspaceModeSelect } from './markdownWorkspace/WorkspaceModeSelect'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_LABELS } from '@/lib/config'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import {
   MarkdownWorkspaceDisplayMenu,
@@ -48,10 +46,10 @@ export type MarkdownWorkspaceToolbarProps = {
   setMarkdownTextHighlight: (next: boolean) => void
 
   viewerKind?: 'markdown' | 'html' | 'json'
-  viewerKindOptions?: Array<'markdown' | 'html' | 'json'>
-  setViewerKind?: (next: 'markdown' | 'html' | 'json') => void
   viewerMode?: 'read' | 'table' | 'multiDimTable' | 'kanban'
   setViewerMode?: (next: 'read' | 'table' | 'multiDimTable' | 'kanban') => void
+  splitPaneVisibility?: { json: boolean; markdown: boolean; viewer: boolean }
+  setSplitPaneVisibility?: (next: { json: boolean; markdown: boolean; viewer: boolean }) => void
   onSaveAs?: () => void
   onExportWorkspaceFile?: () => void
   onExportMarkdown?: () => void
@@ -62,13 +60,6 @@ export type MarkdownWorkspaceToolbarProps = {
   onExportPdf?: () => void
   onToggleFullscreen: () => void
   presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
-
-  contentMode?: 'document' | 'nodeQuickEditor'
-  setContentMode?: (mode: 'document' | 'nodeQuickEditor') => void
-  nodeQuickEditorAvailable?: boolean
-  nodeQuickEditorFormat?: 'json' | 'markdown'
-  setNodeQuickEditorFormat?: (format: 'json' | 'markdown') => void
-  onCopyNodeQuickEditor?: () => void
 
   isEditing: boolean
   isMarkdown: boolean
@@ -100,10 +91,10 @@ export function MarkdownWorkspaceToolbar({
   markdownTextHighlight,
   setMarkdownTextHighlight,
   viewerKind,
-  viewerKindOptions,
-  setViewerKind,
   viewerMode,
   setViewerMode,
+  splitPaneVisibility,
+  setSplitPaneVisibility,
   onSaveAs,
   onExportWorkspaceFile,
   onExportMarkdown,
@@ -114,12 +105,6 @@ export function MarkdownWorkspaceToolbar({
   onExportPdf,
   onToggleFullscreen,
   presentationApiRef,
-  contentMode = 'document',
-  setContentMode,
-  nodeQuickEditorAvailable,
-  nodeQuickEditorFormat = 'json',
-  setNodeQuickEditorFormat,
-  onCopyNodeQuickEditor,
   isEditing,
   isMarkdown,
   onFormatAction,
@@ -132,10 +117,21 @@ export function MarkdownWorkspaceToolbar({
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const canNavigateSlides = layoutMode === 'presentation'
   const inlineFloatingFormattingOwnsViewerSurface =
-    contentMode === 'document'
-    && layoutMode === 'viewer'
+    layoutMode === 'viewer'
     && viewerKind === 'markdown'
     && viewerMode === 'read'
+  const showWorkspaceFormattingMenu = !inlineFloatingFormattingOwnsViewerSurface && isEditing && isMarkdown
+  const showMarkdownDisplayMenu = viewerKind === 'markdown' && (viewerMode === 'read' || !viewerMode)
+  const [splitSelectorOpen, setSplitSelectorOpen] = React.useState(false)
+  const splitButtonRef = React.useRef<HTMLButtonElement | null>(null)
+  const effectiveSplitPanes = splitPaneVisibility || { json: true, markdown: true, viewer: true }
+  const toggleSplitPane = React.useCallback((key: 'json' | 'markdown' | 'viewer') => {
+    if (!setSplitPaneVisibility) return
+    const current = effectiveSplitPanes
+    const enabledCount = Number(current.json) + Number(current.markdown) + Number(current.viewer)
+    if (current[key] && enabledCount <= 1) return
+    setSplitPaneVisibility({ ...current, [key]: !current[key] })
+  }, [effectiveSplitPanes, setSplitPaneVisibility])
 
   const webpageControls = React.useMemo(() => {
     const meta = webpageWorkspaceMeta
@@ -258,136 +254,26 @@ export function MarkdownWorkspaceToolbar({
           </menu>
         ) : null}
 
-        {!webpageControls && viewerKind && setViewerKind ? (
-          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Derived views">
-            <li className="list-none">
-              <WorkspaceModeSelect<'markdown' | 'html' | 'json'>
-                ariaLabel="Viewer content"
-                value={viewerKind}
-                options={(viewerKindOptions && viewerKindOptions.length > 0
-                  ? viewerKindOptions
-                  : (['markdown', 'html', 'json'] as Array<'markdown' | 'html' | 'json'>)).map(v => ({
-                  value: v as 'markdown' | 'html' | 'json',
-                  label: v === 'markdown' ? 'Markdown' : v === 'html' ? 'HTML' : 'JSON',
-                }))}
-                onChange={setViewerKind}
-              />
-            </li>
-            {viewerMode && setViewerMode ? (
-              <li className="list-none">
-                <WorkspaceModeSelect<'read' | 'table' | 'multiDimTable' | 'kanban'>
-                  ariaLabel="Viewer mode"
-                  value={viewerMode}
-                  options={[
-                    { value: 'read', label: 'Read' },
-                    { value: 'table', label: 'Table' },
-                    { value: 'multiDimTable', label: 'Multi-dimensional Table' },
-                    { value: 'kanban', label: 'Kanban' },
-                  ]}
-                  onChange={setViewerMode}
-                />
-              </li>
-            ) : null}
-          </menu>
-        ) : null}
-        {typeof setContentMode === 'function' ? (
-          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Content">
-            <li className="list-none">
-              <button
-                type="button"
-                className={TOOLBAR_BUTTON_CLASSNAME}
-                aria-pressed={contentMode === 'document'}
-                title="Document"
-                onClick={() => setContentMode('document')}
-              >
-                <Edit3 className="w-4 h-4" strokeWidth={1.6} />
-              </button>
-            </li>
-            <li className="list-none">
-              <button
-                type="button"
-                className={TOOLBAR_BUTTON_CLASSNAME}
-                aria-pressed={contentMode === 'nodeQuickEditor'}
-                title="Node Quick Editor"
-                disabled={!nodeQuickEditorAvailable}
-                onClick={() => {
-                  if (!nodeQuickEditorAvailable) return
-                  setContentMode('nodeQuickEditor')
-                }}
-              >
-                <Code className="w-4 h-4" strokeWidth={1.6} />
-              </button>
-            </li>
-            </menu>
-          ) : null}
-        {contentMode === 'nodeQuickEditor' ? (
-          <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Node Quick Editor format">
-            <li className="list-none">
-              <button
-                type="button"
-                className={TOOLBAR_BUTTON_CLASSNAME}
-                aria-pressed={nodeQuickEditorFormat === 'json'}
-                title="JSON"
-                onClick={() => setNodeQuickEditorFormat?.('json')}
-              >
-                <span className={panelTypography.microLabelClass}>JSON</span>
-              </button>
-            </li>
-            <li className="list-none">
-              <button
-                type="button"
-                className={TOOLBAR_BUTTON_CLASSNAME}
-                aria-pressed={nodeQuickEditorFormat === 'markdown'}
-                title="Markdown"
-                onClick={() => setNodeQuickEditorFormat?.('markdown')}
-              >
-                <span className={panelTypography.microLabelClass}>MD</span>
-              </button>
-            </li>
-            <li className="list-none">
-              <button
-                type="button"
-                className={TOOLBAR_BUTTON_CLASSNAME}
-                title="Copy"
-                onClick={() => onCopyNodeQuickEditor?.()}
-              >
-                <span className={panelTypography.microLabelClass}>Copy</span>
-              </button>
-            </li>
-          </menu>
-        ) : null}
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Layout mode">
           <li className="list-none">
             <button
               type="button"
+              ref={el => {
+                splitButtonRef.current = el
+              }}
               className={TOOLBAR_BUTTON_CLASSNAME}
               aria-pressed={layoutMode === 'split'}
               title="Split"
-              onClick={() => setLayoutMode('split')}
+              onClick={() => {
+                if (layoutMode !== 'split') {
+                  setLayoutMode('split')
+                  setSplitSelectorOpen(true)
+                  return
+                }
+                setSplitSelectorOpen(prev => !prev)
+              }}
             >
               <Columns className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              aria-pressed={layoutMode === 'editor'}
-              title="Editor"
-              onClick={() => setLayoutMode('editor')}
-            >
-              <Edit3 className="w-4 h-4" strokeWidth={1.6} />
-            </button>
-          </li>
-          <li className="list-none">
-            <button
-              type="button"
-              className={TOOLBAR_BUTTON_CLASSNAME}
-              aria-pressed={layoutMode === 'viewer'}
-              title={`Viewer\n${UI_COPY.markdownInlineEditHint}`}
-              onClick={() => setLayoutMode('viewer')}
-            >
-              <Eye className="w-4 h-4" strokeWidth={1.6} />
             </button>
           </li>
           <li className="list-none">
@@ -413,12 +299,57 @@ export function MarkdownWorkspaceToolbar({
             </button>
           </li>
         </menu>
+        <AnchoredPopover
+          open={splitSelectorOpen && layoutMode === 'split'}
+          anchorEl={splitButtonRef.current}
+          ariaLabel="Split panes selector"
+          placement="bottom-start"
+          minWidthPx={220}
+          maxWidthPx={320}
+          maxHeightPx={120}
+          onClose={() => setSplitSelectorOpen(false)}
+        >
+          <section className={`${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded p-2 shadow-sm`}>
+            <menu className="flex items-center gap-2 list-none m-0 p-0" aria-label="Split panes">
+              <li className="list-none">
+                <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={effectiveSplitPanes.json}
+                    onChange={() => toggleSplitPane('json')}
+                  />
+                  <span>JSON</span>
+                </label>
+              </li>
+              <li className="list-none">
+                <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={effectiveSplitPanes.markdown}
+                    onChange={() => toggleSplitPane('markdown')}
+                  />
+                  <span>Markdown</span>
+                </label>
+              </li>
+              <li className="list-none">
+                <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={effectiveSplitPanes.viewer}
+                    onChange={() => toggleSplitPane('viewer')}
+                  />
+                  <span>Viewer</span>
+                </label>
+              </li>
+            </menu>
+          </section>
+        </AnchoredPopover>
         <MarkdownWorkspacePresentationNavMenu
           canNavigateSlides={canNavigateSlides}
           toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
           presentationApiRef={presentationApiRef}
         />
-        {!inlineFloatingFormattingOwnsViewerSurface ? (
+        {showWorkspaceFormattingMenu ? (
           <MarkdownWorkspaceFormattingMenu
             toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
             isEditing={isEditing}
@@ -426,13 +357,15 @@ export function MarkdownWorkspaceToolbar({
             onFormatAction={onFormatAction}
           />
         ) : null}
-        <MarkdownWorkspaceDisplayMenu
-          toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
-          markdownTextHighlight={markdownTextHighlight}
-          setMarkdownTextHighlight={setMarkdownTextHighlight}
-          markdownWordWrap={markdownWordWrap}
-          setMarkdownWordWrap={setMarkdownWordWrap}
-        />
+        {showMarkdownDisplayMenu ? (
+          <MarkdownWorkspaceDisplayMenu
+            toolbarButtonClassName={TOOLBAR_BUTTON_CLASSNAME}
+            markdownTextHighlight={markdownTextHighlight}
+            setMarkdownTextHighlight={setMarkdownTextHighlight}
+            markdownWordWrap={markdownWordWrap}
+            setMarkdownWordWrap={setMarkdownWordWrap}
+          />
+        ) : null}
         <menu className="flex items-center gap-1 list-none m-0 p-0" aria-label="Actions">
           <li className="list-none">
             <button type="button" className={TOOLBAR_BUTTON_CLASSNAME} title="Fullscreen" onClick={onToggleFullscreen}>

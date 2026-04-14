@@ -36,13 +36,6 @@ export type MarkdownWorkspaceMainProps = {
   onWebpageChangeView?: (view: WebpageViewMode) => void
   onWebpageUpdateMeta?: (patch: { fidelityLevel?: 1 | 2 | 3 | 4 }) => void
 
-  contentMode?: 'document' | 'nodeQuickEditor'
-  setContentMode?: (mode: 'document' | 'nodeQuickEditor') => void
-  nodeQuickEditorAvailable?: boolean
-  nodeQuickEditorFormat?: 'json' | 'markdown'
-  setNodeQuickEditorFormat?: (format: 'json' | 'markdown') => void
-  onCopyNodeQuickEditor?: () => void
-
   activeText: string
   setActiveText: (next: string) => void
   editorTextOverride?: string | null

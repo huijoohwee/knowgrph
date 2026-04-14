@@ -340,15 +340,16 @@ export function GraphTableToolbar(props: GraphTableToolbarProps) {
         </select>
       </label>
 
-      <IconButton
-        title="Reset column widths"
-        showTooltip
-        onClick={props.resetColumnWidths}
-        disabled={!hasCustomWidths}
-        className={iconButtonClass}
-      >
-        <Ruler className="w-4 h-4" aria-hidden="true" />
-      </IconButton>
+      {hasCustomWidths ? (
+        <IconButton
+          title="Reset column widths"
+          showTooltip
+          onClick={props.resetColumnWidths}
+          className={iconButtonClass}
+        >
+          <Ruler className="w-4 h-4" aria-hidden="true" />
+        </IconButton>
+      ) : null}
     </CollapsibleToolbar>
   )
 }
