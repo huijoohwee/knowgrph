@@ -107,6 +107,10 @@ export const testGeospatialOverlayHostSvgFallbackAppliesMaplikeVisualPolish = ()
     'kg-geo-fallback-map-filter',
     'kg-geo-fallback-sphere-shadow',
     'kg-geo-fallback-point-shadow',
+    'SVG_FALLBACK_GRATICULE_MINOR_STEP',
+    'SVG_FALLBACK_GRATICULE_MAJOR_STEP',
+    'minorGraticulePath',
+    'majorGraticulePath',
     'rgba(37,99,235,0.92)',
     'rgba(249,115,22,0.98)',
   ]

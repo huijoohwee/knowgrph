@@ -9,7 +9,7 @@ import { colorForDataset } from './colors'
 import { isPointOnlyFeatureCollection } from './selection'
 import { normalizePersistedGeospatialStyleUrl } from './features/geospatial/basemapStyle'
 import type { FeatureCollection } from 'geojson'
-import { geoEquirectangular, geoGraticule10, geoPath } from 'd3'
+import { geoEquirectangular, geoGraticule, geoPath } from 'd3'
 
 type GeospatialOverlayHostProps = {
   active?: boolean
@@ -71,6 +71,8 @@ const HIGH_FIDELITY_WORLD_SVG_WIDTH = 494.7
 const HIGH_FIDELITY_WORLD_SVG_HEIGHT = 265.7
 const SVG_FALLBACK_VIEWBOX_WIDTH = 1000
 const SVG_FALLBACK_VIEWBOX_HEIGHT = 560
+const SVG_FALLBACK_GRATICULE_MINOR_STEP: [number, number] = [10, 10]
+const SVG_FALLBACK_GRATICULE_MAJOR_STEP: [number, number] = [45, 45]
 
 function SvgGeospatialFallback(args: {
   featureCollection: FeatureCollection
@@ -115,6 +117,8 @@ function SvgGeospatialFallback(args: {
   const areaPathBuilder = React.useMemo(() => geoPath(projection), [projection])
   const pointPathBuilder = React.useMemo(() => geoPath(projection).pointRadius(4), [projection])
   const selectedPointPathBuilder = React.useMemo(() => geoPath(projection).pointRadius(6), [projection])
+  const minorGraticule = React.useMemo(() => geoGraticule().step(SVG_FALLBACK_GRATICULE_MINOR_STEP), [])
+  const majorGraticule = React.useMemo(() => geoGraticule().step(SVG_FALLBACK_GRATICULE_MAJOR_STEP), [])
   const worldTopLeft = React.useMemo(() => projection([-180, 90]) || [0, 0], [projection])
   const worldBottomRight = React.useMemo(() => projection([180, -90]) || [width, height], [projection, width, height])
   const svgImageX = Math.min(worldTopLeft[0], worldBottomRight[0])
@@ -123,7 +127,8 @@ function SvgGeospatialFallback(args: {
   const svgImageHeight = (svgImageWidth * HIGH_FIDELITY_WORLD_SVG_HEIGHT) / HIGH_FIDELITY_WORLD_SVG_WIDTH
   const svgImageYAdjusted = svgImageY + (Math.abs(worldBottomRight[1] - worldTopLeft[1]) - svgImageHeight) / 2
   const spherePath = React.useMemo(() => areaPathBuilder({ type: 'Sphere' } as never) || '', [areaPathBuilder])
-  const graticulePath = React.useMemo(() => areaPathBuilder(geoGraticule10() as never) || '', [areaPathBuilder])
+  const minorGraticulePath = React.useMemo(() => areaPathBuilder(minorGraticule() as never) || '', [areaPathBuilder, minorGraticule])
+  const majorGraticulePath = React.useMemo(() => areaPathBuilder(majorGraticule() as never) || '', [areaPathBuilder, majorGraticule])
   const pointsPath = React.useMemo(() => pointPathBuilder(args.featureCollection as never) || '', [pointPathBuilder, args.featureCollection])
   const selectedPath = React.useMemo(
     () => selectedPointPathBuilder(args.selectedFeatureCollection as never) || '',
@@ -135,18 +140,18 @@ function SvgGeospatialFallback(args: {
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" aria-label="Fallback geospatial basemap">
         <defs>
           <linearGradient id="kg-geo-fallback-bg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgb(228 239 246)" />
-            <stop offset="44%" stopColor="rgb(206 224 236)" />
-            <stop offset="100%" stopColor="rgb(184 205 221)" />
+            <stop offset="0%" stopColor="rgb(232 242 248)" />
+            <stop offset="44%" stopColor="rgb(210 227 238)" />
+            <stop offset="100%" stopColor="rgb(187 208 223)" />
           </linearGradient>
           <radialGradient id="kg-geo-fallback-ocean-sheen" cx="50%" cy="42%" r="78%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.38)" />
-            <stop offset="52%" stopColor="rgba(255,255,255,0.16)" />
-            <stop offset="100%" stopColor="rgba(15,23,42,0.08)" />
+            <stop offset="0%" stopColor="rgba(255,255,255,0.42)" />
+            <stop offset="48%" stopColor="rgba(255,255,255,0.18)" />
+            <stop offset="100%" stopColor="rgba(15,23,42,0.07)" />
           </radialGradient>
           <linearGradient id="kg-geo-fallback-land-wash" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.16)" />
-            <stop offset="100%" stopColor="rgba(148,163,184,0.10)" />
+            <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
+            <stop offset="100%" stopColor="rgba(148,163,184,0.08)" />
           </linearGradient>
           <linearGradient id="kg-geo-fallback-frame-stroke" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="rgba(255,255,255,0.92)" />
@@ -166,9 +171,9 @@ function SvgGeospatialFallback(args: {
               "
             />
             <feComponentTransfer>
-              <feFuncR type="gamma" amplitude="1" exponent="0.82" offset="0" />
-              <feFuncG type="gamma" amplitude="1" exponent="0.84" offset="0" />
-              <feFuncB type="gamma" amplitude="1" exponent="0.88" offset="0" />
+              <feFuncR type="gamma" amplitude="1" exponent="0.8" offset="0" />
+              <feFuncG type="gamma" amplitude="1" exponent="0.82" offset="0" />
+              <feFuncB type="gamma" amplitude="1" exponent="0.87" offset="0" />
             </feComponentTransfer>
           </filter>
           <filter id="kg-geo-fallback-sphere-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -188,14 +193,16 @@ function SvgGeospatialFallback(args: {
             height={svgImageHeight}
             preserveAspectRatio="none"
             filter="url(#kg-geo-fallback-map-filter)"
-            opacity="0.9"
+            opacity="0.92"
           />
           <rect x={svgImageX} y={svgImageYAdjusted} width={svgImageWidth} height={svgImageHeight} fill="url(#kg-geo-fallback-land-wash)" />
         </g>
         <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.26)" strokeWidth="3.2" filter="url(#kg-geo-fallback-sphere-shadow)" />
         <path d={spherePath} fill="none" stroke="url(#kg-geo-fallback-frame-stroke)" strokeWidth="1.2" />
-        <path d={graticulePath} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="0.8" />
-        <path d={graticulePath} fill="none" stroke="rgba(100,116,139,0.08)" strokeWidth="1.45" />
+        <path d={minorGraticulePath} fill="none" stroke="rgba(255,255,255,0.11)" strokeWidth="0.55" />
+        <path d={minorGraticulePath} fill="none" stroke="rgba(148,163,184,0.07)" strokeWidth="0.95" />
+        <path d={majorGraticulePath} fill="none" stroke="rgba(255,255,255,0.17)" strokeWidth="0.95" />
+        <path d={majorGraticulePath} fill="none" stroke="rgba(71,85,105,0.10)" strokeWidth="1.55" />
         <path d={pointsPath} fill="rgba(37,99,235,0.92)" stroke="rgba(255,255,255,0.98)" strokeWidth="2.2" filter="url(#kg-geo-fallback-point-shadow)" />
         <path d={pointsPath} fill="none" stroke="rgba(29,78,216,0.74)" strokeWidth="0.95" />
         <path d={selectedPath} fill="rgba(249,115,22,0.98)" stroke="rgba(255,255,255,1)" strokeWidth="3" filter="url(#kg-geo-fallback-point-shadow)" />
