@@ -163,6 +163,18 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Editor: Monaco',
     responsibility: 'Enable Monaco bracket pair colorization',
   },
+  monacoCodeLensEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco code lens overlays',
+  },
+  monacoLightbulbEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco lightbulb code-action affordance',
+  },
+  monacoInlayHintsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco inlay hints',
+  },
   uiHeaderRowHeightClass: {
     area: 'UI Density: Headers',
     responsibility: 'Tailwind class for primary header row min-height',

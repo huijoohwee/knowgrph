@@ -111,6 +111,9 @@ type MonacoCapabilitySettings = {
   monacoOccurrencesHighlightEnabled: boolean
   monacoGuidesEnabled: boolean
   monacoBracketPairColorizationEnabled: boolean
+  monacoCodeLensEnabled: boolean
+  monacoLightbulbEnabled: boolean
+  monacoInlayHintsEnabled: boolean
 }
 
 const resolveConfiguredMonacoLanguage = (language: string, settings: MonacoCapabilitySettings): string => {
@@ -150,6 +153,21 @@ const preloadEagerMonacoLanguageContributions = async (settings: MonacoCapabilit
   await Promise.all(tasks)
 }
 
+const loadOptionalMonacoContributions = async (settings: MonacoCapabilitySettings): Promise<void> => {
+  const tasks: Promise<unknown>[] = []
+  if (settings.monacoCodeLensEnabled) {
+    tasks.push(import('monaco-editor/esm/vs/editor/contrib/codelens/browser/codelensController'))
+  }
+  if (settings.monacoLightbulbEnabled) {
+    tasks.push(import('monaco-editor/esm/vs/editor/contrib/codeAction/browser/codeActionContributions'))
+  }
+  if (settings.monacoInlayHintsEnabled) {
+    tasks.push(import('monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsContribution'))
+  }
+  if (!tasks.length) return
+  await Promise.all(tasks)
+}
+
 const buildMonacoEditorOptions = (
   settings: MonacoCapabilitySettings,
   args: {
@@ -180,6 +198,9 @@ const buildMonacoEditorOptions = (
     bracketPairs: settings.monacoGuidesEnabled,
   },
   bracketPairColorization: { enabled: settings.monacoBracketPairColorizationEnabled },
+  codeLens: settings.monacoCodeLensEnabled,
+  lightbulb: { enabled: settings.monacoLightbulbEnabled ? 'onCode' : 'off' },
+  inlayHints: { enabled: settings.monacoInlayHintsEnabled ? 'on' : 'off' },
   padding: {
     top:
       typeof args.paddingTopPx === 'number' && Number.isFinite(args.paddingTopPx) && args.paddingTopPx > 0
@@ -241,6 +262,9 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       monacoOccurrencesHighlightEnabled: s.monacoOccurrencesHighlightEnabled,
       monacoGuidesEnabled: s.monacoGuidesEnabled,
       monacoBracketPairColorizationEnabled: s.monacoBracketPairColorizationEnabled,
+      monacoCodeLensEnabled: s.monacoCodeLensEnabled,
+      monacoLightbulbEnabled: s.monacoLightbulbEnabled,
+      monacoInlayHintsEnabled: s.monacoInlayHintsEnabled,
     })),
   )
 
@@ -628,6 +652,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       const monaco = await import('monaco-editor/esm/vs/editor/editor.api')
       const resolvedLanguage = resolveConfiguredMonacoLanguage(language, monacoSettings)
       await preloadEagerMonacoLanguageContributions(monacoSettings)
+      await loadOptionalMonacoContributions(monacoSettings)
       await loadMonacoLanguageContribution(resolvedLanguage)
       const { ensureMonacoEnvironment } = await import('./monacoEnvironment')
       const { acquireTextModel } = await import('./monacoModelRegistry')

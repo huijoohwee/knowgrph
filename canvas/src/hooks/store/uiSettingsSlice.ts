@@ -186,6 +186,12 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   monacoBracketPairColorizationEnabled: lsBool(LS_KEYS.monacoBracketPairColorizationEnabled, false),
   setMonacoBracketPairColorizationEnabled: (v: boolean) =>
     set({ monacoBracketPairColorizationEnabled: lsSetBool(LS_KEYS.monacoBracketPairColorizationEnabled, !!v) }),
+  monacoCodeLensEnabled: lsBool(LS_KEYS.monacoCodeLensEnabled, false),
+  setMonacoCodeLensEnabled: (v: boolean) => set({ monacoCodeLensEnabled: lsSetBool(LS_KEYS.monacoCodeLensEnabled, !!v) }),
+  monacoLightbulbEnabled: lsBool(LS_KEYS.monacoLightbulbEnabled, false),
+  setMonacoLightbulbEnabled: (v: boolean) => set({ monacoLightbulbEnabled: lsSetBool(LS_KEYS.monacoLightbulbEnabled, !!v) }),
+  monacoInlayHintsEnabled: lsBool(LS_KEYS.monacoInlayHintsEnabled, false),
+  setMonacoInlayHintsEnabled: (v: boolean) => set({ monacoInlayHintsEnabled: lsSetBool(LS_KEYS.monacoInlayHintsEnabled, !!v) }),
 
   richMediaPanelMode: (() => {
     const raw = readLsString(LS_KEYS.renderRichMediaPanelMode, 'snapshot')

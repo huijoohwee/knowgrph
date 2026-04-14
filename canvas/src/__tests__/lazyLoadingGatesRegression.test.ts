@@ -70,6 +70,15 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!monacoSettingsRegistryText.includes("key: 'monacoBracketPairColorizationEnabled'")) {
     throw new Error('expected MainPanel settings registry to expose Monaco bracket pair colorization toggle control')
   }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoCodeLensEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco code lens toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoLightbulbEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco lightbulb toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoInlayHintsEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco inlay hints toggle control')
+  }
   if (!monacoTextEditorText.includes('links: settings.monacoLinksEnabled')) {
     throw new Error('expected MonacoTextEditor to wire Monaco links through MainPanel capability settings')
   }
@@ -87,6 +96,24 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   }
   if (!monacoTextEditorText.includes('bracketPairColorization: { enabled: settings.monacoBracketPairColorizationEnabled }')) {
     throw new Error('expected MonacoTextEditor to wire bracket pair colorization through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("import('monaco-editor/esm/vs/editor/contrib/codelens/browser/codelensController')")) {
+    throw new Error('expected MonacoTextEditor to lazy-load code lens contrib only when enabled')
+  }
+  if (!monacoTextEditorText.includes("import('monaco-editor/esm/vs/editor/contrib/codeAction/browser/codeActionContributions')")) {
+    throw new Error('expected MonacoTextEditor to lazy-load lightbulb contrib only when enabled')
+  }
+  if (!monacoTextEditorText.includes("import('monaco-editor/esm/vs/editor/contrib/inlayHints/browser/inlayHintsContribution')")) {
+    throw new Error('expected MonacoTextEditor to lazy-load inlay hints contrib only when enabled')
+  }
+  if (!monacoTextEditorText.includes('codeLens: settings.monacoCodeLensEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire code lens through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("lightbulb: { enabled: settings.monacoLightbulbEnabled ? 'onCode' : 'off' }")) {
+    throw new Error('expected MonacoTextEditor to wire lightbulb through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("inlayHints: { enabled: settings.monacoInlayHintsEnabled ? 'on' : 'off' }")) {
+    throw new Error('expected MonacoTextEditor to wire inlay hints through MainPanel capability settings')
   }
 
   const markdownCodeBlockText = readFileSync(resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx'), 'utf8')

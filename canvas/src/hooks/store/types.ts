@@ -456,6 +456,12 @@ export interface GraphState {
   setMonacoGuidesEnabled: (v: boolean) => void;
   monacoBracketPairColorizationEnabled: boolean;
   setMonacoBracketPairColorizationEnabled: (v: boolean) => void;
+  monacoCodeLensEnabled: boolean;
+  setMonacoCodeLensEnabled: (v: boolean) => void;
+  monacoLightbulbEnabled: boolean;
+  setMonacoLightbulbEnabled: (v: boolean) => void;
+  monacoInlayHintsEnabled: boolean;
+  setMonacoInlayHintsEnabled: (v: boolean) => void;
   threeIframeOverlayPoolMax: number;
   setThreeIframeOverlayPoolMax: (v: number) => void;
   richMediaPanelMode: 'snapshot' | 'embed';
