@@ -23,11 +23,33 @@ const SINGAPORE_CENTER_LAT = 1.3521
 const INITIAL_3D_ZOOM = 2.8
 const INITIAL_3D_PITCH = 0
 const INITIAL_3D_BEARING = 0
+const SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'
+
+const resolveBasemapStyle = (rawStyleUrl: string | null | undefined) => {
+  const trimmed = String(rawStyleUrl || '').trim()
+  const lower = trimmed.toLowerCase()
+  if (!trimmed) return null
+  if (trimmed === SAFE_SVG_FALLBACK_STYLE_SENTINEL) return null
+  if (trimmed === 'kg:style:raster-osm') return null
+  if (lower.includes('demotiles.maplibre.org')) return null
+  if (lower.includes('tiles.openfreemap.org/styles/liberty')) return null
+  return trimmed
+}
 
 const isAbortLike = (err: unknown): boolean => {
   const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : String(err || '')
   const lower = msg.toLowerCase()
   return lower.includes('err_aborted') || lower.includes('aborterror')
+}
+
+const isKnownUnsafeGlobeRuntimeError = (err: unknown): boolean => {
+  const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : String(err || '')
+  const lower = msg.toLowerCase()
+  return (
+    lower.includes("cannot set properties of undefined (setting '0')") ||
+    lower.includes('undefined is not an object') ||
+    lower.includes('this.int16[')
+  )
 }
 
 export function useMapLibreBasemap(args: {
@@ -41,12 +63,25 @@ export function useMapLibreBasemap(args: {
   vectorFallbackMs: number
 }): BasemapResult {
   const { enabled, containerRef, targetStyleUrl, canvasRenderMode, projectionMode, viewportSizingMode, vectorFallbackMs } = args
+  const [runtimeProjectionMode, setRuntimeProjectionMode] = React.useState<'mercator' | 'globe'>(projectionMode)
   const [state, setState] = React.useState<BasemapResult>({
     map: null,
     probe: EMPTY_PROBE,
     mapError: null,
     styleRevision: 0,
   })
+
+  React.useEffect(() => {
+    if (!enabled) {
+      setRuntimeProjectionMode(projectionMode)
+      return
+    }
+    if (projectionMode === 'mercator') {
+      setRuntimeProjectionMode('mercator')
+      return
+    }
+    setRuntimeProjectionMode(prev => (prev === 'mercator' ? prev : projectionMode))
+  }, [enabled, projectionMode])
 
   const setProbe = React.useCallback((next: BasemapProbe) => {
     setState((prev: BasemapResult) => {
@@ -131,9 +166,15 @@ export function useMapLibreBasemap(args: {
           })
         }
 
-        let style = String(targetStyleUrl || '').trim() || 'https://tiles.openfreemap.org/styles/liberty'
-        if (style.includes('demotiles.maplibre.org')) {
-          style = 'https://tiles.openfreemap.org/styles/liberty'
+        const style = resolveBasemapStyle(targetStyleUrl)
+
+        if (style == null) {
+          setState((prev: BasemapResult) =>
+            prev.map || prev.mapError || prev.styleRevision !== 0 || prev.probe !== EMPTY_PROBE
+              ? { ...prev, map: null, probe: EMPTY_PROBE, mapError: null, styleRevision: 0 }
+              : prev,
+          )
+          return
         }
 
         if (debug) {
@@ -172,13 +213,18 @@ export function useMapLibreBasemap(args: {
           const msg = err instanceof Error ? err.message : String(err || '')
           const trimmed = msg.trim()
           if (!trimmed) return
+          if (runtimeProjectionMode === 'globe' && isKnownUnsafeGlobeRuntimeError(trimmed)) {
+            setRuntimeProjectionMode('mercator')
+            setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+            return
+          }
           setState((prev: BasemapResult) => ({ ...prev, mapError: trimmed }))
         })
 
         map.on?.('style.load', () => {
           if (cancelled) return
           try {
-            if (projectionMode === 'globe') {
+            if (runtimeProjectionMode === 'globe') {
               map.setProjection?.({ type: 'globe' })
             } else {
               map.setProjection?.({ type: 'mercator' })
@@ -329,7 +375,7 @@ export function useMapLibreBasemap(args: {
       }
       map = null
     }
-  }, [enabled, containerRef, targetStyleUrl, canvasRenderMode, projectionMode, viewportSizingMode, vectorFallbackMs, computeProbe, debug, setProbe])
+  }, [enabled, containerRef, targetStyleUrl, canvasRenderMode, runtimeProjectionMode, viewportSizingMode, vectorFallbackMs, computeProbe, debug, setProbe])
 
   return state
 }

@@ -32,7 +32,10 @@ const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --in
 const CHAT_PROXY_PREFIX = '/__chat_proxy'
 const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
+const CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
+const CHAT_PROXY_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
 const CHAT_PROXY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
+const CHAT_PROXY_BYTEPLUS_HOSTS = new Set([CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST, CHAT_PROXY_BYTEPLUS_EU_WEST_HOST])
 const CHAT_LOG_MAX_BODY_BYTES = 1024 * 1024
 const CHAT_LOG_MAX_FIELD_LENGTH = 20_000
 const chatLogsDir = path.resolve(repoRoot, 'logs')
@@ -47,16 +50,18 @@ const readSingleHeader = (value: unknown): string => {
 
 const isLocalChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_LOCAL_HOSTS.has(normalizeHost(value))
 
+const isBytePlusChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_BYTEPLUS_HOSTS.has(normalizeHost(value))
+
 const parseAllowedChatProxyHosts = (): Set<string> => {
   const envValue = String(process.env.KNOWGRPH_CHAT_PROXY_ALLOWED_HOSTS || '').trim()
-  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST])
+  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   const out = new Set<string>()
   envValue
     .split(',')
     .map(part => normalizeHost(part))
     .filter(Boolean)
     .forEach(host => out.add(host))
-  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST])
+  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, ...CHAT_PROXY_BYTEPLUS_HOSTS])
   return out
 }
 
@@ -1602,7 +1607,8 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const providerHeader = normalizeHost(readSingleHeader(req.headers['x-kg-chat-provider']))
     const gatewayMode = String(process.env.KNOWGRPH_CHAT_GATEWAY_MODE || '').trim().toLowerCase()
     const localGatewayOnly = gatewayMode === 'local-only' || (gatewayMode.endsWith('-only') && gatewayMode !== 'openai-only')
-    const localProviderSelected = providerHeader.length > 0 && providerHeader !== 'openai'
+    const localProviderSelected = providerHeader === 'lmstudio-local'
+    const bytePlusProviderSelected = providerHeader === 'byteplus-modelark'
     if (localGatewayOnly && providerHeader === 'openai') {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -1617,6 +1623,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       if (localGatewayOnly || localProviderSelected) {
         return localGatewayBase || legacyLocalUpstream || String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
       }
+      if (bytePlusProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST}`
       if (providerHeader === 'openai') return 'https://api.openai.com'
       if (requestedUpstreamRaw) return requestedUpstreamRaw
       return String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
@@ -1649,13 +1656,23 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     const requiresOpenAiKey = !localGatewayOnly && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
+    const requiresBytePlusKey = !localGatewayOnly && (bytePlusProviderSelected || isBytePlusChatUpstreamHost(upstreamHostname))
     const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || '').trim()
-    const headerOpenAiApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
-    const openAiApiKey = (headerOpenAiApiKey || envOpenAiApiKey).slice(0, 512)
+    const envBytePlusApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY || '').trim()
+    const headerProviderApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
+    const openAiApiKey = (headerProviderApiKey || envOpenAiApiKey).slice(0, 512)
+    const bytePlusApiKey = (headerProviderApiKey || envBytePlusApiKey).slice(0, 512)
+    const providerApiKey = requiresBytePlusKey ? bytePlusApiKey : openAiApiKey
     if (requiresOpenAiKey && !openAiApiKey) {
       res.statusCode = 500
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify({ ok: false, error: 'Missing OpenAI API key for chat proxy upstream' }))
+      return
+    }
+    if (requiresBytePlusKey && !providerApiKey) {
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Missing BytePlus API key for chat proxy upstream' }))
       return
     }
     const suffix = parsedReq.pathname.slice(CHAT_PROXY_PREFIX.length) || '/v1/chat/completions'
@@ -1733,7 +1750,9 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       }
       if (contentType) headers.set('Content-Type', contentType)
       if (accept) headers.set('Accept', accept)
-      if (requiresOpenAiKey) headers.set('Authorization', `Bearer ${openAiApiKey}`)
+      if (requiresOpenAiKey || requiresBytePlusKey) headers.set('Authorization', `Bearer ${providerApiKey}`)
+      const clientRequestId = readSingleHeader(req.headers['x-client-request-id']).slice(0, 512)
+      if (clientRequestId) headers.set('X-Client-Request-Id', clientRequestId)
       const upstreamRes = await fetch(upstreamUrl.toString(), {
         method,
         headers,

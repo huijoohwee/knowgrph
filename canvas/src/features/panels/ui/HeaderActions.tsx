@@ -44,7 +44,7 @@ export default function HeaderActions({
       : undefined
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex max-w-full flex-wrap items-center justify-end gap-1">
       <IconButton
         className="App-toolbar__btn"
         title={UI_LABELS.search}

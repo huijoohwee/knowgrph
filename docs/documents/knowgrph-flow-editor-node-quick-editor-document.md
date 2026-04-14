@@ -27,6 +27,7 @@
 - **Toolbar actions**: open selected node in Sidepane, enable Handles for all inputs, convert selected node to a Loop node (schema + draft-graph edits only; no hidden background work; idempotent updates). The toolbar hides on unselect or outside click.
 - **Baseline lock**: enable-handles action is gated when Document Structure baseline lock is enabled.
 - **Multi-node overlays**: multiple Node Quick Editors may be open at the same time; overlays must remain visible and operable without DOM id collisions.
+- **AI profile awareness**: Flow Editor Manager should surface the active official AI profile (BytePlus/OpenAI/local), region, and model through the shared chat settings path and link back to MainPanel Settings `chat` search instead of duplicating provider controls.
 
 ### Multi-node layout (detached)
 

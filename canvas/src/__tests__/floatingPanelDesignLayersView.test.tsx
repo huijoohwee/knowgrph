@@ -108,7 +108,12 @@ export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() 
 
     for (let i = 0; i < 10; i++) await tick()
 
-    const shellBody = dom.window.document.querySelector(`[aria-label="${UI_LABELS.floatingPanel}"]`)
+    const shellBodies = Array.from(
+      dom.window.document.querySelectorAll(`[aria-label="${UI_LABELS.floatingPanel}"]`),
+    ) as HTMLElement[]
+    const shellBody = shellBodies.find((el): el is HTMLElement =>
+      String(el.getAttribute('class') || '').includes('mt-1'),
+    )
     if (!(shellBody instanceof dom.window.HTMLElement)) {
       throw new Error('expected floating panel shell body')
     }

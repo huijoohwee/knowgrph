@@ -19,7 +19,9 @@
   },
   "dependencies": {
     "@turf/bbox": "^7.2.0",
+    "@types/d3": "^7.4.3",
     "@types/geojson": "^7946.0.16",
+    "d3": "^7.9.0",
     "grph-shared": "file:../grph-shared",
     "zustand": "^5.0.3"
   },

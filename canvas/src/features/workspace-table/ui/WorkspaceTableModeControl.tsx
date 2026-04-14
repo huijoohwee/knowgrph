@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
+import { warmGraphTableDb } from '@/features/graph-table-db/graphTableDb'
 import {
   JSON_IMPORT_WORKSPACE_TARGET_LABELS,
   JSON_IMPORT_WORKSPACE_TARGET_OPTIONS,
@@ -48,7 +48,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
     })),
   )
 
-  const tableWorkspaceOpen = isWorkspaceTableOpen({ workspaceViewMode, editorWorkspacePane })
+  const tableWorkspaceOpen = workspaceViewMode === 'editor' && editorWorkspacePane === 'graphTable'
   const prefs = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,
     workspaceTablePreferencesStore.getSnapshot,
@@ -61,18 +61,24 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   const jsonTableMaxColumns = prefs.jsonTableMaxColumns
   const workspaceCellSelectPanelPlacement = prefs.workspaceCellSelectPanelPlacement as WorkspaceCellSelectPanelPlacement
 
+  const openWorkspaceTableFromControl = React.useCallback(() => {
+    // Keep this control independent from toolbar-owned helper chunks so SettingsView can lazy-load without re-entering Toolbar.
+    if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
+    if (editorWorkspacePane !== 'graphTable') setEditorWorkspacePane('graphTable')
+    if (typeof window === 'undefined') return
+    void warmGraphTableDb()
+  }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
+
   const handleWorkspaceEditorModeChanged = React.useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
       const next = event.currentTarget.value as WorkspaceEditorMode
       workspaceTablePreferencesStore.setWorkspaceEditorMode(next)
-      openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
+      openWorkspaceTableFromControl()
     },
-    [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode],
+    [openWorkspaceTableFromControl],
   )
 
-  const handleOpenTable = React.useCallback(() => {
-    openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
-  }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
+  const handleOpenTable = openWorkspaceTableFromControl
 
   const handleJsonImportTargetChanged = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     workspaceTablePreferencesStore.setJsonImportTarget(event.currentTarget.value as JsonImportWorkspaceTarget)

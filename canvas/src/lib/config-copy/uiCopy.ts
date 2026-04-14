@@ -102,7 +102,7 @@ export const UI_COPY = {
   searchEdgesPlaceholder: 'Search edges…',
   searchHistoryPlaceholder: 'Search history…',
   searchFlowEditorManagerRegistryPlaceholder: 'Search mappings…',
-  flowEditorManagerHeaderTooltip: 'Manage Node Quick Editor mappings and neutral specifications.',
+  flowEditorManagerHeaderTooltip: 'Manage Node Quick Editor mappings and neutral specifications while reusing the current official AI chat profile.',
   flowEditorManagerImportRegistryTooltip: 'Import Node Quick Editor bundle (.json)',
   flowEditorManagerExportRegistryTooltip: 'Export selected mapping as JSON',
   flowEditorManagerExportRegistrySelectToExportTooltip: 'Export all mappings as JSON',
@@ -153,11 +153,11 @@ export const UI_COPY = {
   chatResponseMissingContentError: 'Chat response did not include content.',
   chatEndpointOkStatus: 'Chat endpoint responded successfully.',
   chatEndpointUnreachableStatus:
-    'Chat endpoint appears unreachable. Ensure the local LM Studio (Qwen) or other chat server is running.',
+    'Chat endpoint appears unreachable. Check the selected official provider endpoint, proxy routing, or local gateway.',
   chatUnableToReachEndpointError: (endpoint: string) =>
-    `Unable to reach chat endpoint at ${endpoint}. Ensure the LM Studio (Qwen) or local chat server is running and accessible from the browser.`,
+    `Unable to reach chat endpoint at ${endpoint}. Check the selected official provider endpoint, API key, proxy allowlist, or local gateway.`,
   chatUnableToReachEndpointGenericError:
-    'Unable to reach chat endpoint. Configure a reachable URL in Settings and ensure the local chat server is running.',
+    'Unable to reach chat endpoint. Configure a reachable official provider or local gateway URL in Settings.',
   chatInputPlaceholder: 'Ask a question about the current graph or selection.',
   chatHistoryCountStatus: (count: number) => `History: ${count} messages`,
   frontmatterModeTooltip: 'Frontmatter Mode: focus canvas and panels on Mermaid frontmatter graph',

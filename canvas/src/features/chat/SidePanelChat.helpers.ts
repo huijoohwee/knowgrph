@@ -103,8 +103,14 @@ export const shouldRetryWithModelFallback = (status: number, detail: string): bo
   return false
 }
 
-export const loadAvailableModelIds = async (endpoint: string): Promise<string[]> => {
-  const res = await fetch(endpoint, { method: 'GET' })
+export const loadAvailableModelIds = async (
+  endpoint: string,
+  headers?: HeadersInit,
+): Promise<string[]> => {
+  const res = await fetch(endpoint, {
+    method: 'GET',
+    headers,
+  })
   if (!res.ok) return []
   const data = (await res.json()) as { data?: unknown }
   const list = Array.isArray(data?.data) ? data.data : []

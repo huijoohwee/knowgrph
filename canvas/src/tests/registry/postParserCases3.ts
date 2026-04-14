@@ -3,6 +3,10 @@ import type { TestCaseTuple } from '../runner/testRunnerTypes'
 export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.panels.tablist.ariaRoles","@/__tests__/panelSemanticContract.test","testPanelHeaderUsesAriaTablist"],
   ["ui.panels.container.usesKgPanelBg","@/__tests__/panelSemanticContract.test","testMainPanelContainerUsesKgPanelBg"],
+  ["ui.panels.shell.responsiveWrapping","@/__tests__/panelSemanticContract.test","testPanelShellUsesResponsiveWrapping"],
+  ["ui.panels.keyValueRows.mobileSingleColumnFallback","@/__tests__/panelSemanticContract.test","testKeyValueRowsUseMobileSingleColumnFallback"],
+  ["ui.toolbar.rendererView.lazyLoadsWorkspaceTableModeControl","@/__tests__/panelSemanticContract.test","testToolbarRendererViewLazyLoadsWorkspaceTableModeControl"],
+  ["ui.workspaceTable.modeControl.avoidsToolbarSsotBridge","@/__tests__/panelSemanticContract.test","testWorkspaceTableModeControlAvoidsToolbarSsotBridge"],
   ["design.layers.normalizePreservesOrderAndAddsNew","@/__tests__/designLayersState.test","testDesignLayersNormalizePreservesOrderAndAddsNew"],
   ["design.layers.toggleAndMove","@/__tests__/designLayersState.test","testDesignLayersToggleAndMove"],
   ["design.renderer.posEq.detectsEquality","@/__tests__/designRendererSlice.test","testDesignFramePosEqDetectsEquality"],

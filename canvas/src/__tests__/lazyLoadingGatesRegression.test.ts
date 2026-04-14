@@ -18,8 +18,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (monacoTextEditorText.includes("stickyScrollContribution")) {
     throw new Error('expected MonacoTextEditor to avoid eagerly importing sticky scroll contrib')
   }
-  if (monacoTextEditorText.includes('stickyScroll: {')) {
-    throw new Error('expected MonacoTextEditor to avoid enabling sticky scroll by default on the slim Monaco path')
+  if (monacoTextEditorText.includes('stickyScroll: { enabled: true }')) {
+    throw new Error('expected MonacoTextEditor to avoid enabling sticky scroll unconditionally on the slim Monaco path')
   }
   if (!monacoTextEditorText.includes("const resolvedLanguage = resolveConfiguredMonacoLanguage(language, monacoSettings)")) {
     throw new Error('expected MonacoTextEditor to resolve Monaco language support from MainPanel Monaco capability settings')
@@ -97,6 +97,129 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!monacoSettingsRegistryText.includes("key: 'monacoColorDecoratorsEnabled'")) {
     throw new Error('expected MainPanel settings registry to expose Monaco color decorators toggle control')
   }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoUnicodeHighlightEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco unicode highlight toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoMatchBracketsEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco match-brackets toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoRenderLineHighlightEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco render-line-highlight toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoGlyphMarginEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco glyph-margin toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoOverviewRulerLanesEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco overview-ruler-lanes toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoLineDecorationsWidthEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco line-decorations-width toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoRenderWhitespaceEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco render-whitespace toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoRenderControlCharactersEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco render-control-characters toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoSmoothScrollingEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco smooth-scrolling toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoScrollBeyondLastLineEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco scroll-beyond-last-line toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoMouseWheelZoomEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco mouse-wheel-zoom toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoCursorBlinkingEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco cursor-blinking toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoCursorSmoothCaretAnimationEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco cursor smooth caret animation toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoWordWrapEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco word-wrap toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoWrappingIndentEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco wrapping-indent toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoWrappingStrategyEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco wrapping-strategy toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoCursorWidthEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco cursor-width toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoCursorStyleEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco cursor-style toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoCursorSurroundingLinesEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco cursor-surrounding-lines toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoCursorSurroundingLinesStyleEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco cursor-surrounding-lines-style toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoCursorHeightEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco cursor-height toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoStickyScrollEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco sticky-scroll toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoSelectionClipboardEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco selection-clipboard toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoCopyWithSyntaxHighlightingEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco copy-with-syntax-highlighting toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoOccurrencesHighlightDelayEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco occurrences-highlight-delay toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoFormatOnPasteEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco format-on-paste toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoFormatOnTypeEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco format-on-type toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoAutoClosingBracketsEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco auto-closing-brackets toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoAutoClosingQuotesEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco auto-closing-quotes toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoAutoIndentEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco auto-indent toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoAutoSurroundEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco auto-surround toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoMatchOnWordStartOnlyEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco match-on-word-start-only toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoFindSeedSearchStringFromSelectionEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco find seed-from-selection toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoFindCursorMoveOnTypeEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco find cursor-move-on-type toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoFindFindOnTypeEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco find-on-type toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoFindLoopEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco find-loop toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoAutoClosingDeleteEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco auto-closing-delete toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoAutoClosingCommentsEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco auto-closing-comments toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoEmptySelectionClipboardEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco empty-selection-clipboard toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoColumnSelectionEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco column-selection toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoWordSeparatorsEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco word-separators toggle control')
+  }
   if (!monacoTextEditorText.includes('links: settings.monacoLinksEnabled')) {
     throw new Error('expected MonacoTextEditor to wire Monaco links through MainPanel capability settings')
   }
@@ -154,6 +277,132 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!monacoTextEditorText.includes('colorDecorators: settings.monacoColorDecoratorsEnabled')) {
     throw new Error('expected MonacoTextEditor to wire color decorators through MainPanel capability settings')
   }
+  if (!monacoTextEditorText.includes('unicodeHighlight: settings.monacoUnicodeHighlightEnabled ? {} : { nonBasicASCII: false, invisibleCharacters: false, ambiguousCharacters: false }')) {
+    throw new Error('expected MonacoTextEditor to wire unicode highlight through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("matchBrackets: settings.monacoMatchBracketsEnabled ? 'always' : 'never'")) {
+    throw new Error('expected MonacoTextEditor to wire matchBrackets through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("renderLineHighlight: settings.monacoRenderLineHighlightEnabled ? 'line' : 'none'")) {
+    throw new Error('expected MonacoTextEditor to wire renderLineHighlight through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('glyphMargin: settings.monacoGlyphMarginEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire glyphMargin through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('overviewRulerLanes: settings.monacoOverviewRulerLanesEnabled ? 2 : 0')) {
+    throw new Error('expected MonacoTextEditor to wire overviewRulerLanes through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('lineDecorationsWidth: settings.monacoLineDecorationsWidthEnabled ? 10 : 0')) {
+    throw new Error('expected MonacoTextEditor to wire lineDecorationsWidth through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("renderWhitespace: settings.monacoRenderWhitespaceEnabled ? 'selection' : 'none'")) {
+    throw new Error('expected MonacoTextEditor to wire renderWhitespace through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('renderControlCharacters: settings.monacoRenderControlCharactersEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire renderControlCharacters through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('smoothScrolling: settings.monacoSmoothScrollingEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire smoothScrolling through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('scrollBeyondLastLine: settings.monacoScrollBeyondLastLineEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire scrollBeyondLastLine through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('mouseWheelZoom: settings.monacoMouseWheelZoomEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire mouseWheelZoom through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("cursorBlinking: settings.monacoCursorBlinkingEnabled ? 'blink' : 'solid'")) {
+    throw new Error('expected MonacoTextEditor to wire cursorBlinking through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("cursorSmoothCaretAnimation: settings.monacoCursorSmoothCaretAnimationEnabled ? 'on' : 'off'")) {
+    throw new Error('expected MonacoTextEditor to wire cursorSmoothCaretAnimation through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("wordWrap: settings.monacoWordWrapEnabled || args.wordWrap ? 'on' : 'off'")) {
+    throw new Error('expected MonacoTextEditor to wire wordWrap override through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("wrappingIndent: settings.monacoWrappingIndentEnabled ? 'indent' : 'none'")) {
+    throw new Error('expected MonacoTextEditor to wire wrappingIndent through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("wrappingStrategy: settings.monacoWrappingStrategyEnabled ? 'advanced' : 'simple'")) {
+    throw new Error('expected MonacoTextEditor to wire wrappingStrategy through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('cursorWidth: settings.monacoCursorWidthEnabled ? 2 : 1')) {
+    throw new Error('expected MonacoTextEditor to wire cursorWidth through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("cursorStyle: settings.monacoCursorStyleEnabled ? 'block' : 'line'")) {
+    throw new Error('expected MonacoTextEditor to wire cursorStyle through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('cursorSurroundingLines: settings.monacoCursorSurroundingLinesEnabled ? 3 : 0')) {
+    throw new Error('expected MonacoTextEditor to wire cursorSurroundingLines through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("cursorSurroundingLinesStyle: settings.monacoCursorSurroundingLinesStyleEnabled ? 'all' : 'default'")) {
+    throw new Error('expected MonacoTextEditor to wire cursorSurroundingLinesStyle through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('cursorHeight: settings.monacoCursorHeightEnabled ? 1.2 : 1')) {
+    throw new Error('expected MonacoTextEditor to wire cursorHeight through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('stickyScroll: { enabled: settings.monacoStickyScrollEnabled }')) {
+    throw new Error('expected MonacoTextEditor to wire stickyScroll through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('selectionClipboard: settings.monacoSelectionClipboardEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire selectionClipboard through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('copyWithSyntaxHighlighting: settings.monacoCopyWithSyntaxHighlightingEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire copyWithSyntaxHighlighting through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('occurrencesHighlightDelay: settings.monacoOccurrencesHighlightDelayEnabled ? 400 : 250')) {
+    throw new Error('expected MonacoTextEditor to wire occurrencesHighlightDelay through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('formatOnPaste: settings.monacoFormatOnPasteEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire formatOnPaste through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('formatOnType: settings.monacoFormatOnTypeEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire formatOnType through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("autoClosingBrackets: settings.monacoAutoClosingBracketsEnabled ? 'always' : 'never'")) {
+    throw new Error('expected MonacoTextEditor to wire autoClosingBrackets through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("autoClosingQuotes: settings.monacoAutoClosingQuotesEnabled ? 'always' : 'never'")) {
+    throw new Error('expected MonacoTextEditor to wire autoClosingQuotes through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("autoIndent: settings.monacoAutoIndentEnabled ? 'full' : 'none'")) {
+    throw new Error('expected MonacoTextEditor to wire autoIndent through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("autoSurround: settings.monacoAutoSurroundEnabled ? 'languageDefined' : 'never'")) {
+    throw new Error('expected MonacoTextEditor to wire autoSurround through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('matchOnWordStartOnly: settings.monacoMatchOnWordStartOnlyEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire matchOnWordStartOnly through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("seedSearchStringFromSelection: settings.monacoFindSeedSearchStringFromSelectionEnabled ? 'selection' : 'never'")) {
+    throw new Error('expected MonacoTextEditor to wire find.seedSearchStringFromSelection through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('cursorMoveOnType: settings.monacoFindCursorMoveOnTypeEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire find.cursorMoveOnType through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('findOnType: settings.monacoFindFindOnTypeEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire find.findOnType through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('loop: settings.monacoFindLoopEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire find.loop through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("autoClosingDelete: settings.monacoAutoClosingDeleteEnabled ? 'always' : 'never'")) {
+    throw new Error('expected MonacoTextEditor to wire autoClosingDelete through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("autoClosingComments: settings.monacoAutoClosingCommentsEnabled ? 'always' : 'never'")) {
+    throw new Error('expected MonacoTextEditor to wire autoClosingComments through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('emptySelectionClipboard: settings.monacoEmptySelectionClipboardEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire emptySelectionClipboard through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('columnSelection: settings.monacoColumnSelectionEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire columnSelection through MainPanel capability settings')
+  }
+  if (
+    !monacoTextEditorText.includes('wordSeparators: settings.monacoWordSeparatorsEnabled ?') ||
+    !monacoTextEditorText.includes("`~!@#$%^&*()-=+[{]}\\\\|;:\\'\",.<>/?'")
+  ) {
+    throw new Error('expected MonacoTextEditor to wire wordSeparators through MainPanel capability settings')
+  }
 
   const markdownCodeBlockText = readFileSync(resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx'), 'utf8')
   if (!markdownCodeBlockText.includes('MermaidDiagramLazy') || !markdownCodeBlockText.includes('React.Suspense')) {
@@ -193,8 +442,11 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!inlineMarkdownGeoJsonText.includes("from 'gympgrph/map-preview'")) {
     throw new Error('expected inline markdown GeoJSON preview to import the narrow gympgrph map-preview entry')
   }
-  if (inlineMarkdownGeoJsonText.includes("from 'gympgrph'")) {
-    throw new Error('expected inline markdown GeoJSON preview to avoid the heavy gympgrph root entry')
+  if (
+    inlineMarkdownGeoJsonText.includes("colorForDataset, useMapLibreBasemap } from 'gympgrph'") ||
+    inlineMarkdownGeoJsonText.includes("computeBoundsFromCollections, useMapLibreBasemap } from 'gympgrph'")
+  ) {
+    throw new Error('expected inline markdown GeoJSON preview to avoid routing preview helpers through the heavy gympgrph root entry')
   }
 
   const viteConfigText = readFileSync(resolve(root, 'vite.config.ts'), 'utf8')

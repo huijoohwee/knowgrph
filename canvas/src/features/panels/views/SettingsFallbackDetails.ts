@@ -199,6 +199,170 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Editor: Monaco',
     responsibility: 'Enable Monaco color decorators',
   },
+  monacoUnicodeHighlightEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco unicode highlighting',
+  },
+  monacoMatchBracketsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco bracket matching emphasis',
+  },
+  monacoRenderLineHighlightEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco active line highlight',
+  },
+  monacoGlyphMarginEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco glyph margin',
+  },
+  monacoOverviewRulerLanesEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco overview ruler lanes',
+  },
+  monacoLineDecorationsWidthEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco line decorations width gutter',
+  },
+  monacoRenderWhitespaceEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco whitespace rendering markers',
+  },
+  monacoRenderControlCharactersEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco control-character rendering markers',
+  },
+  monacoSmoothScrollingEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco smooth scrolling',
+  },
+  monacoScrollBeyondLastLineEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco scrolling beyond the last line',
+  },
+  monacoMouseWheelZoomEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco mouse-wheel zoom',
+  },
+  monacoCursorBlinkingEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco cursor blinking',
+  },
+  monacoCursorSmoothCaretAnimationEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco smooth caret animation',
+  },
+  monacoWordWrapEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco word wrap override',
+  },
+  monacoWrappingIndentEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco wrapped-line indentation',
+  },
+  monacoWrappingStrategyEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco advanced wrapping strategy',
+  },
+  monacoCursorWidthEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable wider Monaco cursor width',
+  },
+  monacoCursorStyleEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable alternate Monaco cursor style',
+  },
+  monacoCursorSurroundingLinesEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco cursor surrounding lines',
+  },
+  monacoCursorSurroundingLinesStyleEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco cursor surrounding lines style',
+  },
+  monacoCursorHeightEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable taller Monaco cursor height',
+  },
+  monacoStickyScrollEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco sticky scroll',
+  },
+  monacoSelectionClipboardEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco selection clipboard integration',
+  },
+  monacoCopyWithSyntaxHighlightingEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco copy with syntax highlighting',
+  },
+  monacoOccurrencesHighlightDelayEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco longer occurrences highlight delay',
+  },
+  monacoFormatOnPasteEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco format-on-paste behavior',
+  },
+  monacoFormatOnTypeEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco format-on-type behavior',
+  },
+  monacoAutoClosingBracketsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco auto-closing brackets',
+  },
+  monacoAutoClosingQuotesEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco auto-closing quotes',
+  },
+  monacoAutoIndentEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco auto-indent behavior',
+  },
+  monacoAutoSurroundEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco auto-surround behavior',
+  },
+  monacoMatchOnWordStartOnlyEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco match-on-word-start-only search behavior',
+  },
+  monacoFindSeedSearchStringFromSelectionEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco find seed-from-selection behavior',
+  },
+  monacoFindCursorMoveOnTypeEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco find cursor-move-on-type behavior',
+  },
+  monacoFindFindOnTypeEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco find-on-type behavior',
+  },
+  monacoFindLoopEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco find loop behavior',
+  },
+  monacoAutoClosingDeleteEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco auto-closing delete behavior',
+  },
+  monacoAutoClosingCommentsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco auto-closing comments',
+  },
+  monacoEmptySelectionClipboardEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco empty-selection clipboard behavior',
+  },
+  monacoColumnSelectionEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco column selection',
+  },
+  monacoWordSeparatorsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco default word separators',
+  },
   uiHeaderRowHeightClass: {
     area: 'UI Density: Headers',
     responsibility: 'Tailwind class for primary header row min-height',
@@ -416,6 +580,8 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   chatModel: { area: 'Chat', responsibility: 'Chat model name (OpenAI-compatible)' },
   chatTemperature: { area: 'Chat', responsibility: 'Chat completion temperature' },
   chatSystemPrompt: { area: 'Chat', responsibility: 'Optional system prompt for Chat' },
+  chatContextScope: { area: 'Chat', responsibility: 'Chat context scope for selection, workspace, or hybrid AI prompts' },
+  integrationConfigsJson: { area: 'Integrations', responsibility: 'JSON settings for AI chat routing and simulation command defaults' },
   CLICK_URL: { area: 'Config Constants', responsibility: 'Toolbar badge click URL' },
   PUBLIC_FALLBACK_JSON: { area: 'Dataset Loading', responsibility: 'Fallback dataset path' },
   KG_INPUT_PATH: { area: 'Pipeline Env', responsibility: 'Pipeline input path' },

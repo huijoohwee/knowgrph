@@ -65,8 +65,53 @@ export const testGeospatialOverlayHostSupportsMapLibreGlobeRenderer = () => {
   const text = readUtf8(hostPath)
   if (!text.includes('useMapLibreBasemap')) throw new Error('Expected GeospatialOverlayHost to use MapLibre basemap hook')
   if (!text.includes('basemap3d')) throw new Error('Expected GeospatialOverlayHost to create dedicated 3D basemap instance')
-  if (!text.includes("projectionMode: 'globe'")) throw new Error('Expected GeospatialOverlayHost 3D view to use MapLibre globe projection')
+  if (!text.includes("projectionMode: 'mercator'")) throw new Error('Expected GeospatialOverlayHost 3D view to use stable MapLibre mercator projection')
   if (!text.includes('geospatialViewMode')) throw new Error('Expected host to read geospatialViewMode')
+}
+
+export const testGeospatialOverlayHostProvidesSvgFallbackBasemapAndDisablesDefaultMapLibreRuntime = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes('function SvgGeospatialFallback')) {
+    throw new Error('Expected GeospatialOverlayHost to provide a built-in SVG fallback basemap surface')
+  }
+  if (!text.includes('const mapLibreRuntimeEnabled = false')) {
+    throw new Error('Expected GeospatialOverlayHost default runtime path to disable MapLibre basemap mounting')
+  }
+  if (!text.includes('<SvgGeospatialFallback')) {
+    throw new Error('Expected GeospatialOverlayHost to render the SVG fallback basemap')
+  }
+}
+
+export const testGeospatialOverlayHostSvgFallbackRendersHighFidelitySvgBasemap = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes('HIGH_FIDELITY_WORLD_SVG_URL')) {
+    throw new Error('Expected GeospatialOverlayHost SVG fallback to reference a local high-fidelity SVG basemap asset')
+  }
+  if (!text.includes('simple-world-map-edit.svg')) {
+    throw new Error('Expected GeospatialOverlayHost SVG fallback to use the vendored world SVG asset')
+  }
+  if (!text.includes('<image')) {
+    throw new Error('Expected GeospatialOverlayHost SVG fallback to place the SVG basemap image into the fallback surface')
+  }
+}
+
+export const testGeospatialOverlayHostSvgFallbackAppliesMaplikeVisualPolish = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  const requiredSnippets = [
+    'kg-geo-fallback-ocean-sheen',
+    'kg-geo-fallback-frame-stroke',
+    'kg-geo-fallback-map-filter',
+    'kg-geo-fallback-point-shadow',
+    'rgba(59,130,246,0.92)',
+    'rgba(245,158,11,0.98)',
+  ]
+  const missing = requiredSnippets.filter(snippet => !text.includes(snippet))
+  if (missing.length) {
+    throw new Error(`Expected GeospatialOverlayHost SVG fallback to include refined MapLibre-like styling: ${missing.join(', ')}`)
+  }
 }
 
 export const testGeospatialOverlayHostAvoidsClusteredGeoJsonOnGlobeRenderer = () => {
@@ -74,6 +119,17 @@ export const testGeospatialOverlayHostAvoidsClusteredGeoJsonOnGlobeRenderer = ()
   const text = readUtf8(hostPath)
   if (!text.includes("viewMode === 'map2d' && isPointOnlyFeatureCollection")) {
     throw new Error('Expected GeospatialOverlayHost to restrict GeoJSON clustering to 2D MapLibre mode')
+  }
+}
+
+export const testGeospatialOverlayHostSkipsGraphGeoJsonProjectionIn3d = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes("if (viewMode === 'map3d')")) {
+    throw new Error('Expected GeospatialOverlayHost to short-circuit graph GeoJSON projection in 3D mode')
+  }
+  if (!text.includes("graphDataAppliedRef.current[viewMode] = ''")) {
+    throw new Error('Expected GeospatialOverlayHost to reset applied graph source state when 3D projection is skipped')
   }
 }
 
@@ -224,6 +280,53 @@ export const testGympgrphMapLibreBasemapSupportsGlobeProjection = () => {
   if (!text.includes("projectionMode: 'mercator' | 'globe'")) throw new Error('Expected basemap hook to support mercator and globe projection modes')
   if (!text.includes("map.setProjection?.({ type: 'globe' })")) throw new Error('Expected basemap hook to set globe projection in 3D mode')
   if (!text.includes("canvasRenderMode === '3d'")) throw new Error('Expected basemap hook to apply 3D camera defaults')
+}
+
+export const testGympgrphMapLibreBasemapBlankDefaultStaysOffForSvgFallback = () => {
+  const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const text = readUtf8(hookPath)
+  if (!text.includes("if (!trimmed) return null")) {
+    throw new Error('Expected empty basemap style URL to stay off so the SVG fallback remains authoritative')
+  }
+  if (!text.includes("if (trimmed === SAFE_SVG_FALLBACK_STYLE_SENTINEL) return null")) {
+    throw new Error('Expected SVG fallback basemap sentinel to keep MapLibre disabled')
+  }
+  if (!text.includes("tiles.openfreemap.org/styles/liberty")) {
+    throw new Error('Expected hook to classify the previous OpenFreeMap Liberty default path as non-default')
+  }
+  const helperPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'basemapStyle.ts')
+  const helperText = readUtf8(helperPath)
+  if (!helperText.includes("SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'")) {
+    throw new Error('Expected basemap style helper to expose an SVG fallback sentinel')
+  }
+}
+
+export const testGympgrphGeospatialStyleStorageNormalizesUnsafeRemoteStyles = () => {
+  const helperPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'basemapStyle.ts')
+  const helperText = readUtf8(helperPath)
+  if (!helperText.includes('normalizePersistedGeospatialStyleUrl')) {
+    throw new Error('Expected a shared geospatial basemap style normalization helper')
+  }
+  if (!helperText.includes("if (lower.startsWith('http://') || lower.startsWith('https://')) return ''")) {
+    throw new Error('Expected persisted remote style URLs to normalize back to the safe default path')
+  }
+
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const hostText = readUtf8(hostPath)
+  if (!hostText.includes('normalizePersistedGeospatialStyleUrl(raw)')) {
+    throw new Error('Expected GeospatialHost to normalize persisted style URLs when reading runtime basemap state')
+  }
+}
+
+export const testGympgrphMapLibreBasemapFallsBackFromUnsafeGlobeRuntimeErrors = () => {
+  const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const text = readUtf8(hookPath)
+  if (!text.includes('isKnownUnsafeGlobeRuntimeError')) {
+    throw new Error('Expected basemap hook to classify known unsafe globe runtime errors')
+  }
+  if (!text.includes("setRuntimeProjectionMode('mercator')")) {
+    throw new Error('Expected basemap hook to fall back from globe to mercator on known unsafe runtime errors')
+  }
 }
 
 export const testGympgrphMapLibreLoggerSuppressesAbortNoise = () => {

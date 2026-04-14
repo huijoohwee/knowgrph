@@ -228,7 +228,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
               ref={mainPanelCardRef}
               className={[
                 'pointer-events-auto',
-                effectiveMainPanelCollapsed ? 'w-[80vw] max-w-[1200px] h-fit' : 'w-[80vw] h-[80vh] max-w-[1200px] max-h-[800px]',
+                effectiveMainPanelCollapsed ? 'w-[96vw] sm:w-[80vw] max-w-[1200px] h-fit' : 'w-[96vw] sm:w-[80vw] h-[85vh] sm:h-[80vh] max-w-[1200px] max-h-[800px]',
               ].join(' ')}
               style={{
                 position: 'absolute',

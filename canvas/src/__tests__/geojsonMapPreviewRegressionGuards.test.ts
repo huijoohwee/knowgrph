@@ -132,15 +132,27 @@ export function testInlineMarkdownGeoJsonMapReusesSharedBasemapHook() {
   }
 }
 
+export function testInlineMarkdownGeoJsonMapAvoidsLiveGeoJsonMapLibreSources() {
+  const inlinePath = resolve(process.cwd(), 'src', 'features', 'geospatial', 'InlineMarkdownGeoJsonLayerMap.tsx')
+  const text = readFileSync(inlinePath, 'utf8')
+
+  if (text.includes('ensureDatasetLayer(')) {
+    throw new Error('Expected InlineMarkdownGeoJsonLayerMap to avoid live MapLibre dataset-layer hydration for GeoJSON previews')
+  }
+  if (text.includes('setGeoJsonSourceData(')) {
+    throw new Error('Expected InlineMarkdownGeoJsonLayerMap to avoid live MapLibre source data writes for GeoJSON previews')
+  }
+}
+
 export function testMapLibreBasemapBootTimeoutDoesNotRequireStrictStyleLoadedOnly() {
-  const p = resolve(process.cwd(), '..', '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const p = resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
   const text = readFileSync(p, 'utf8')
 
   const requiredSnippets = [
     'probe.tilesLoaded',
-    'probe.sourceLoaded',
-    "Basemap did not load. Check style URL, CORS, or network.",
-    'args.containerRef.current',
+    'const el = containerRef.current',
+    'vectorFallbackMs',
+    "Math.max(1_500, Math.floor(vectorFallbackMs))",
   ]
   const missing = requiredSnippets.filter(s => !text.includes(s))
   if (missing.length) {

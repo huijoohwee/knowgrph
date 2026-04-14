@@ -3,6 +3,7 @@ import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/const
 import { requestGeospatialFitToData, requestGeospatialFitToSelection } from './geospatialFit'
 import { LS_KEYS } from './lib/config'
 import { useGympgrphStore } from './store'
+import { normalizePersistedGeospatialStyleUrl } from './features/geospatial/basemapStyle'
 
 type GeospatialPanelHostProps = {
   active?: boolean
@@ -16,7 +17,12 @@ const readLsString = (key: string, fallback: string): string => {
   if (typeof window === 'undefined') return fallback
   try {
     const v = window.localStorage.getItem(key)
-    return v == null ? fallback : String(v)
+    if (v == null) return fallback
+    if (key === LS_KEYS.geospatialStyleUrl) {
+      const normalized = normalizePersistedGeospatialStyleUrl(v)
+      return normalized || fallback
+    }
+    return String(v)
   } catch {
     return fallback
   }
@@ -64,9 +70,10 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
   }, [])
 
   const applyStyleUrl = React.useCallback(() => {
-    const next = String(styleUrlDraft || '').trim()
+    const next = normalizePersistedGeospatialStyleUrl(styleUrlDraft)
     writeLsString(LS_KEYS.geospatialStyleUrl, next)
     setCommittedStyleUrl(next)
+    setStyleUrlDraft(next)
     if (typeof window !== 'undefined') {
       try {
         window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
@@ -142,7 +149,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
               disabled={disabled}
               onClick={() => setGeospatialViewMode('3d')}
             >
-              3D (MapLibre Globe){geospatialViewMode === '3d' ? ' (active)' : ''}
+              3D (MapLibre){geospatialViewMode === '3d' ? ' (active)' : ''}
             </button>
           </div>
         </div>
@@ -185,7 +192,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
               className="flex-1 min-w-0 px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
               value={styleUrlDraft}
               onChange={e => setStyleUrlDraft(e.target.value)}
-              placeholder="https://tiles.openfreemap.org/styles/liberty"
+              placeholder="Leave blank for high-fidelity SVG basemap"
               spellCheck={false}
               disabled={disabled}
             />

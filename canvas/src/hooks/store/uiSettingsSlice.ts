@@ -209,6 +209,142 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   monacoColorDecoratorsEnabled: lsBool(LS_KEYS.monacoColorDecoratorsEnabled, false),
   setMonacoColorDecoratorsEnabled: (v: boolean) =>
     set({ monacoColorDecoratorsEnabled: lsSetBool(LS_KEYS.monacoColorDecoratorsEnabled, !!v) }),
+  monacoUnicodeHighlightEnabled: lsBool(LS_KEYS.monacoUnicodeHighlightEnabled, false),
+  setMonacoUnicodeHighlightEnabled: (v: boolean) =>
+    set({ monacoUnicodeHighlightEnabled: lsSetBool(LS_KEYS.monacoUnicodeHighlightEnabled, !!v) }),
+  monacoMatchBracketsEnabled: lsBool(LS_KEYS.monacoMatchBracketsEnabled, false),
+  setMonacoMatchBracketsEnabled: (v: boolean) =>
+    set({ monacoMatchBracketsEnabled: lsSetBool(LS_KEYS.monacoMatchBracketsEnabled, !!v) }),
+  monacoRenderLineHighlightEnabled: lsBool(LS_KEYS.monacoRenderLineHighlightEnabled, false),
+  setMonacoRenderLineHighlightEnabled: (v: boolean) =>
+    set({ monacoRenderLineHighlightEnabled: lsSetBool(LS_KEYS.monacoRenderLineHighlightEnabled, !!v) }),
+  monacoGlyphMarginEnabled: lsBool(LS_KEYS.monacoGlyphMarginEnabled, false),
+  setMonacoGlyphMarginEnabled: (v: boolean) =>
+    set({ monacoGlyphMarginEnabled: lsSetBool(LS_KEYS.monacoGlyphMarginEnabled, !!v) }),
+  monacoOverviewRulerLanesEnabled: lsBool(LS_KEYS.monacoOverviewRulerLanesEnabled, false),
+  setMonacoOverviewRulerLanesEnabled: (v: boolean) =>
+    set({ monacoOverviewRulerLanesEnabled: lsSetBool(LS_KEYS.monacoOverviewRulerLanesEnabled, !!v) }),
+  monacoLineDecorationsWidthEnabled: lsBool(LS_KEYS.monacoLineDecorationsWidthEnabled, false),
+  setMonacoLineDecorationsWidthEnabled: (v: boolean) =>
+    set({ monacoLineDecorationsWidthEnabled: lsSetBool(LS_KEYS.monacoLineDecorationsWidthEnabled, !!v) }),
+  monacoRenderWhitespaceEnabled: lsBool(LS_KEYS.monacoRenderWhitespaceEnabled, false),
+  setMonacoRenderWhitespaceEnabled: (v: boolean) =>
+    set({ monacoRenderWhitespaceEnabled: lsSetBool(LS_KEYS.monacoRenderWhitespaceEnabled, !!v) }),
+  monacoRenderControlCharactersEnabled: lsBool(LS_KEYS.monacoRenderControlCharactersEnabled, false),
+  setMonacoRenderControlCharactersEnabled: (v: boolean) =>
+    set({ monacoRenderControlCharactersEnabled: lsSetBool(LS_KEYS.monacoRenderControlCharactersEnabled, !!v) }),
+  monacoSmoothScrollingEnabled: lsBool(LS_KEYS.monacoSmoothScrollingEnabled, false),
+  setMonacoSmoothScrollingEnabled: (v: boolean) =>
+    set({ monacoSmoothScrollingEnabled: lsSetBool(LS_KEYS.monacoSmoothScrollingEnabled, !!v) }),
+  monacoScrollBeyondLastLineEnabled: lsBool(LS_KEYS.monacoScrollBeyondLastLineEnabled, false),
+  setMonacoScrollBeyondLastLineEnabled: (v: boolean) =>
+    set({ monacoScrollBeyondLastLineEnabled: lsSetBool(LS_KEYS.monacoScrollBeyondLastLineEnabled, !!v) }),
+  monacoMouseWheelZoomEnabled: lsBool(LS_KEYS.monacoMouseWheelZoomEnabled, false),
+  setMonacoMouseWheelZoomEnabled: (v: boolean) =>
+    set({ monacoMouseWheelZoomEnabled: lsSetBool(LS_KEYS.monacoMouseWheelZoomEnabled, !!v) }),
+  monacoCursorBlinkingEnabled: lsBool(LS_KEYS.monacoCursorBlinkingEnabled, false),
+  setMonacoCursorBlinkingEnabled: (v: boolean) =>
+    set({ monacoCursorBlinkingEnabled: lsSetBool(LS_KEYS.monacoCursorBlinkingEnabled, !!v) }),
+  monacoCursorSmoothCaretAnimationEnabled: lsBool(LS_KEYS.monacoCursorSmoothCaretAnimationEnabled, false),
+  setMonacoCursorSmoothCaretAnimationEnabled: (v: boolean) =>
+    set({
+      monacoCursorSmoothCaretAnimationEnabled: lsSetBool(LS_KEYS.monacoCursorSmoothCaretAnimationEnabled, !!v),
+    }),
+  monacoWordWrapEnabled: lsBool(LS_KEYS.monacoWordWrapEnabled, false),
+  setMonacoWordWrapEnabled: (v: boolean) =>
+    set({ monacoWordWrapEnabled: lsSetBool(LS_KEYS.monacoWordWrapEnabled, !!v) }),
+  monacoWrappingIndentEnabled: lsBool(LS_KEYS.monacoWrappingIndentEnabled, false),
+  setMonacoWrappingIndentEnabled: (v: boolean) =>
+    set({ monacoWrappingIndentEnabled: lsSetBool(LS_KEYS.monacoWrappingIndentEnabled, !!v) }),
+  monacoWrappingStrategyEnabled: lsBool(LS_KEYS.monacoWrappingStrategyEnabled, false),
+  setMonacoWrappingStrategyEnabled: (v: boolean) =>
+    set({ monacoWrappingStrategyEnabled: lsSetBool(LS_KEYS.monacoWrappingStrategyEnabled, !!v) }),
+  monacoCursorWidthEnabled: lsBool(LS_KEYS.monacoCursorWidthEnabled, false),
+  setMonacoCursorWidthEnabled: (v: boolean) =>
+    set({ monacoCursorWidthEnabled: lsSetBool(LS_KEYS.monacoCursorWidthEnabled, !!v) }),
+  monacoCursorStyleEnabled: lsBool(LS_KEYS.monacoCursorStyleEnabled, false),
+  setMonacoCursorStyleEnabled: (v: boolean) =>
+    set({ monacoCursorStyleEnabled: lsSetBool(LS_KEYS.monacoCursorStyleEnabled, !!v) }),
+  monacoCursorSurroundingLinesEnabled: lsBool(LS_KEYS.monacoCursorSurroundingLinesEnabled, false),
+  setMonacoCursorSurroundingLinesEnabled: (v: boolean) =>
+    set({ monacoCursorSurroundingLinesEnabled: lsSetBool(LS_KEYS.monacoCursorSurroundingLinesEnabled, !!v) }),
+  monacoCursorSurroundingLinesStyleEnabled: lsBool(LS_KEYS.monacoCursorSurroundingLinesStyleEnabled, false),
+  setMonacoCursorSurroundingLinesStyleEnabled: (v: boolean) =>
+    set({
+      monacoCursorSurroundingLinesStyleEnabled: lsSetBool(LS_KEYS.monacoCursorSurroundingLinesStyleEnabled, !!v),
+    }),
+  monacoCursorHeightEnabled: lsBool(LS_KEYS.monacoCursorHeightEnabled, false),
+  setMonacoCursorHeightEnabled: (v: boolean) =>
+    set({ monacoCursorHeightEnabled: lsSetBool(LS_KEYS.monacoCursorHeightEnabled, !!v) }),
+  monacoStickyScrollEnabled: lsBool(LS_KEYS.monacoStickyScrollEnabled, false),
+  setMonacoStickyScrollEnabled: (v: boolean) =>
+    set({ monacoStickyScrollEnabled: lsSetBool(LS_KEYS.monacoStickyScrollEnabled, !!v) }),
+  monacoSelectionClipboardEnabled: lsBool(LS_KEYS.monacoSelectionClipboardEnabled, false),
+  setMonacoSelectionClipboardEnabled: (v: boolean) =>
+    set({ monacoSelectionClipboardEnabled: lsSetBool(LS_KEYS.monacoSelectionClipboardEnabled, !!v) }),
+  monacoCopyWithSyntaxHighlightingEnabled: lsBool(LS_KEYS.monacoCopyWithSyntaxHighlightingEnabled, false),
+  setMonacoCopyWithSyntaxHighlightingEnabled: (v: boolean) =>
+    set({
+      monacoCopyWithSyntaxHighlightingEnabled: lsSetBool(LS_KEYS.monacoCopyWithSyntaxHighlightingEnabled, !!v),
+    }),
+  monacoOccurrencesHighlightDelayEnabled: lsBool(LS_KEYS.monacoOccurrencesHighlightDelayEnabled, false),
+  setMonacoOccurrencesHighlightDelayEnabled: (v: boolean) =>
+    set({
+      monacoOccurrencesHighlightDelayEnabled: lsSetBool(LS_KEYS.monacoOccurrencesHighlightDelayEnabled, !!v),
+    }),
+  monacoFormatOnPasteEnabled: lsBool(LS_KEYS.monacoFormatOnPasteEnabled, false),
+  setMonacoFormatOnPasteEnabled: (v: boolean) =>
+    set({ monacoFormatOnPasteEnabled: lsSetBool(LS_KEYS.monacoFormatOnPasteEnabled, !!v) }),
+  monacoFormatOnTypeEnabled: lsBool(LS_KEYS.monacoFormatOnTypeEnabled, false),
+  setMonacoFormatOnTypeEnabled: (v: boolean) =>
+    set({ monacoFormatOnTypeEnabled: lsSetBool(LS_KEYS.monacoFormatOnTypeEnabled, !!v) }),
+  monacoAutoClosingBracketsEnabled: lsBool(LS_KEYS.monacoAutoClosingBracketsEnabled, false),
+  setMonacoAutoClosingBracketsEnabled: (v: boolean) =>
+    set({ monacoAutoClosingBracketsEnabled: lsSetBool(LS_KEYS.monacoAutoClosingBracketsEnabled, !!v) }),
+  monacoAutoClosingQuotesEnabled: lsBool(LS_KEYS.monacoAutoClosingQuotesEnabled, false),
+  setMonacoAutoClosingQuotesEnabled: (v: boolean) =>
+    set({ monacoAutoClosingQuotesEnabled: lsSetBool(LS_KEYS.monacoAutoClosingQuotesEnabled, !!v) }),
+  monacoAutoIndentEnabled: lsBool(LS_KEYS.monacoAutoIndentEnabled, false),
+  setMonacoAutoIndentEnabled: (v: boolean) =>
+    set({ monacoAutoIndentEnabled: lsSetBool(LS_KEYS.monacoAutoIndentEnabled, !!v) }),
+  monacoAutoSurroundEnabled: lsBool(LS_KEYS.monacoAutoSurroundEnabled, false),
+  setMonacoAutoSurroundEnabled: (v: boolean) =>
+    set({ monacoAutoSurroundEnabled: lsSetBool(LS_KEYS.monacoAutoSurroundEnabled, !!v) }),
+  monacoMatchOnWordStartOnlyEnabled: lsBool(LS_KEYS.monacoMatchOnWordStartOnlyEnabled, false),
+  setMonacoMatchOnWordStartOnlyEnabled: (v: boolean) =>
+    set({ monacoMatchOnWordStartOnlyEnabled: lsSetBool(LS_KEYS.monacoMatchOnWordStartOnlyEnabled, !!v) }),
+  monacoFindSeedSearchStringFromSelectionEnabled: lsBool(LS_KEYS.monacoFindSeedSearchStringFromSelectionEnabled, false),
+  setMonacoFindSeedSearchStringFromSelectionEnabled: (v: boolean) =>
+    set({
+      monacoFindSeedSearchStringFromSelectionEnabled: lsSetBool(
+        LS_KEYS.monacoFindSeedSearchStringFromSelectionEnabled,
+        !!v,
+      ),
+    }),
+  monacoFindCursorMoveOnTypeEnabled: lsBool(LS_KEYS.monacoFindCursorMoveOnTypeEnabled, false),
+  setMonacoFindCursorMoveOnTypeEnabled: (v: boolean) =>
+    set({ monacoFindCursorMoveOnTypeEnabled: lsSetBool(LS_KEYS.monacoFindCursorMoveOnTypeEnabled, !!v) }),
+  monacoFindFindOnTypeEnabled: lsBool(LS_KEYS.monacoFindFindOnTypeEnabled, false),
+  setMonacoFindFindOnTypeEnabled: (v: boolean) =>
+    set({ monacoFindFindOnTypeEnabled: lsSetBool(LS_KEYS.monacoFindFindOnTypeEnabled, !!v) }),
+  monacoFindLoopEnabled: lsBool(LS_KEYS.monacoFindLoopEnabled, false),
+  setMonacoFindLoopEnabled: (v: boolean) =>
+    set({ monacoFindLoopEnabled: lsSetBool(LS_KEYS.monacoFindLoopEnabled, !!v) }),
+  monacoAutoClosingDeleteEnabled: lsBool(LS_KEYS.monacoAutoClosingDeleteEnabled, false),
+  setMonacoAutoClosingDeleteEnabled: (v: boolean) =>
+    set({ monacoAutoClosingDeleteEnabled: lsSetBool(LS_KEYS.monacoAutoClosingDeleteEnabled, !!v) }),
+  monacoAutoClosingCommentsEnabled: lsBool(LS_KEYS.monacoAutoClosingCommentsEnabled, false),
+  setMonacoAutoClosingCommentsEnabled: (v: boolean) =>
+    set({ monacoAutoClosingCommentsEnabled: lsSetBool(LS_KEYS.monacoAutoClosingCommentsEnabled, !!v) }),
+  monacoEmptySelectionClipboardEnabled: lsBool(LS_KEYS.monacoEmptySelectionClipboardEnabled, false),
+  setMonacoEmptySelectionClipboardEnabled: (v: boolean) =>
+    set({ monacoEmptySelectionClipboardEnabled: lsSetBool(LS_KEYS.monacoEmptySelectionClipboardEnabled, !!v) }),
+  monacoColumnSelectionEnabled: lsBool(LS_KEYS.monacoColumnSelectionEnabled, false),
+  setMonacoColumnSelectionEnabled: (v: boolean) =>
+    set({ monacoColumnSelectionEnabled: lsSetBool(LS_KEYS.monacoColumnSelectionEnabled, !!v) }),
+  monacoWordSeparatorsEnabled: lsBool(LS_KEYS.monacoWordSeparatorsEnabled, false),
+  setMonacoWordSeparatorsEnabled: (v: boolean) =>
+    set({ monacoWordSeparatorsEnabled: lsSetBool(LS_KEYS.monacoWordSeparatorsEnabled, !!v) }),
 
   richMediaPanelMode: (() => {
     const raw = readLsString(LS_KEYS.renderRichMediaPanelMode, 'snapshot')

@@ -20,10 +20,10 @@ import { DEFAULT_CANVAS_2D_RENDERER, DEFAULT_CANVAS_3D_MODE } from '@/lib/config
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
+  normalizeChatEndpointUrlInput,
   CHAT_DEFAULT_PROVIDER,
   normalizeChatModelIdForProvider,
   normalizeChatProviderId,
-  resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
 import {
   DEFAULT_INTEGRATION_CONFIGS,
@@ -306,8 +306,7 @@ export const createUiSlice = (set: SetGraph) => {
       LS_KEYS.chatEndpointUrl,
       CHAT_DEFAULT_ENDPOINT_URL,
       value => {
-        if (typeof value !== 'string') return CHAT_DEFAULT_ENDPOINT_URL
-        return resolveChatEndpointForRequest(value) || CHAT_DEFAULT_ENDPOINT_URL
+        return normalizeChatEndpointUrlInput(value, CHAT_DEFAULT_PROVIDER)
       },
     ),
     chatModel: lsJson<string | null>(
@@ -598,12 +597,12 @@ export const createUiSlice = (set: SetGraph) => {
           .slice(0, 512),
       }),
     setChatEndpointUrl: (url: string | null) =>
-      set({
+      set(state => ({
         chatEndpointUrl: lsSetJson(
           LS_KEYS.chatEndpointUrl,
-          resolveChatEndpointForRequest(url) || CHAT_DEFAULT_ENDPOINT_URL,
+          normalizeChatEndpointUrlInput(url, state.chatProvider),
         ),
-      }),
+      })),
     setChatModel: (model: string | null) =>
       set(state => {
         const nextProvider = normalizeChatProviderId(state.chatProvider)

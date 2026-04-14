@@ -7,7 +7,9 @@ import { computeBoundsFromCollections } from './geo'
 import { clearGeoJsonSourceData, ensureDatasetLayer, setGeoJsonSourceData } from './maplibreLayers'
 import { colorForDataset } from './colors'
 import { isPointOnlyFeatureCollection } from './selection'
+import { normalizePersistedGeospatialStyleUrl } from './features/geospatial/basemapStyle'
 import type { FeatureCollection } from 'geojson'
+import { geoEquirectangular, geoGraticule10, geoPath } from 'd3'
 
 type GeospatialOverlayHostProps = {
   active?: boolean
@@ -64,6 +66,132 @@ type FeatureProjection = {
   signature: string
 }
 
+const HIGH_FIDELITY_WORLD_SVG_URL = new URL('./features/geospatial/assets/simple-world-map-edit.svg', import.meta.url).href
+const HIGH_FIDELITY_WORLD_SVG_WIDTH = 494.7
+const HIGH_FIDELITY_WORLD_SVG_HEIGHT = 265.7
+
+function SvgGeospatialFallback(args: {
+  featureCollection: FeatureCollection
+  selectedFeatureCollection: FeatureCollection
+  className: string
+}): React.ReactElement {
+  const width = 1000
+  const height = 560
+  const projection = React.useMemo(() => {
+    const equirect = geoEquirectangular()
+    const features = Array.isArray(args.featureCollection.features) ? args.featureCollection.features : []
+    if (features.length > 0) {
+      try {
+        equirect.fitExtent(
+          [
+            [32, 32],
+            [width - 32, height - 32],
+          ],
+          args.featureCollection,
+        )
+      } catch {
+        equirect.fitExtent(
+          [
+            [12, 12],
+            [width - 12, height - 12],
+          ],
+          { type: 'Sphere' } as never,
+        )
+      }
+    } else {
+      equirect.fitExtent(
+        [
+          [12, 12],
+          [width - 12, height - 12],
+        ],
+        { type: 'Sphere' } as never,
+      )
+    }
+    return equirect
+  }, [args.featureCollection])
+
+  const worldTopLeft = React.useMemo(() => projection([-180, 90]) || [0, 0], [projection])
+  const worldBottomRight = React.useMemo(() => projection([180, -90]) || [width, height], [projection, width, height])
+  const svgImageX = Math.min(worldTopLeft[0], worldBottomRight[0])
+  const svgImageY = Math.min(worldTopLeft[1], worldBottomRight[1])
+  const svgImageWidth = Math.abs(worldBottomRight[0] - worldTopLeft[0])
+  const svgImageHeight = (svgImageWidth * HIGH_FIDELITY_WORLD_SVG_HEIGHT) / HIGH_FIDELITY_WORLD_SVG_WIDTH
+  const svgImageYAdjusted = svgImageY + (Math.abs(worldBottomRight[1] - worldTopLeft[1]) - svgImageHeight) / 2
+  const spherePath = React.useMemo(() => geoPath(projection)({ type: 'Sphere' } as never) || '', [projection])
+  const graticulePath = React.useMemo(() => geoPath(projection)(geoGraticule10() as never) || '', [projection])
+  const pointsPath = React.useMemo(() => geoPath(projection).pointRadius(4)(args.featureCollection as never) || '', [projection, args.featureCollection])
+  const selectedPath = React.useMemo(
+    () => geoPath(projection).pointRadius(6)(args.selectedFeatureCollection as never) || '',
+    [projection, args.selectedFeatureCollection],
+  )
+
+  return (
+    <div className={args.className}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" aria-label="Fallback geospatial basemap">
+        <defs>
+          <linearGradient id="kg-geo-fallback-bg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgb(216 231 240)" />
+            <stop offset="48%" stopColor="rgb(195 215 229)" />
+            <stop offset="100%" stopColor="rgb(172 197 214)" />
+          </linearGradient>
+          <radialGradient id="kg-geo-fallback-ocean-sheen" cx="50%" cy="42%" r="78%">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.34)" />
+            <stop offset="58%" stopColor="rgba(255,255,255,0.12)" />
+            <stop offset="100%" stopColor="rgba(15,23,42,0.10)" />
+          </radialGradient>
+          <linearGradient id="kg-geo-fallback-frame-stroke" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.85)" />
+            <stop offset="100%" stopColor="rgba(71,85,105,0.70)" />
+          </linearGradient>
+          <clipPath id="kg-geo-fallback-sphere-clip">
+            <path d={spherePath} />
+          </clipPath>
+          <filter id="kg-geo-fallback-map-filter" x="-10%" y="-10%" width="120%" height="120%">
+            <feColorMatrix
+              type="matrix"
+              values="
+                0.84 0.00 0.00 0 0.10
+                0.00 0.86 0.00 0 0.11
+                0.00 0.00 0.90 0 0.12
+                0.00 0.00 0.00 1 0
+              "
+            />
+            <feComponentTransfer>
+              <feFuncR type="gamma" amplitude="1" exponent="0.9" offset="0" />
+              <feFuncG type="gamma" amplitude="1" exponent="0.9" offset="0" />
+              <feFuncB type="gamma" amplitude="1" exponent="0.9" offset="0" />
+            </feComponentTransfer>
+          </filter>
+          <filter id="kg-geo-fallback-point-shadow" x="-100%" y="-100%" width="300%" height="300%">
+            <feDropShadow dx="0" dy="1.2" stdDeviation="1.6" floodColor="rgba(15,23,42,0.35)" />
+          </filter>
+        </defs>
+        <rect x="0" y="0" width={width} height={height} fill="url(#kg-geo-fallback-bg)" />
+        <g clipPath="url(#kg-geo-fallback-sphere-clip)" opacity="0.96">
+          <image
+            href={HIGH_FIDELITY_WORLD_SVG_URL}
+            x={svgImageX}
+            y={svgImageYAdjusted}
+            width={svgImageWidth}
+            height={svgImageHeight}
+            preserveAspectRatio="none"
+            filter="url(#kg-geo-fallback-map-filter)"
+          />
+          <rect x={svgImageX} y={svgImageYAdjusted} width={svgImageWidth} height={svgImageHeight} fill="rgba(255,255,255,0.08)" />
+        </g>
+        <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.28)" strokeWidth="3" />
+        <path d={spherePath} fill="none" stroke="url(#kg-geo-fallback-frame-stroke)" strokeWidth="1.2" />
+        <path d={graticulePath} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="0.85" />
+        <path d={graticulePath} fill="none" stroke="rgba(71,85,105,0.10)" strokeWidth="1.6" />
+        <path d={pointsPath} fill="rgba(59,130,246,0.92)" stroke="rgba(255,255,255,0.96)" strokeWidth="2.25" filter="url(#kg-geo-fallback-point-shadow)" />
+        <path d={pointsPath} fill="none" stroke="rgba(30,64,175,0.82)" strokeWidth="1.1" />
+        <path d={selectedPath} fill="rgba(245,158,11,0.98)" stroke="rgba(255,255,255,1)" strokeWidth="3" filter="url(#kg-geo-fallback-point-shadow)" />
+        <path d={selectedPath} fill="none" stroke="rgba(120,53,15,0.92)" strokeWidth="1.35" />
+      </svg>
+    </div>
+  )
+}
+
 function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds: Set<string>): FeatureProjection {
   const features: FeatureCollection['features'] = []
   const signatureParts: string[] = []
@@ -108,7 +236,14 @@ const readStyleUrl = (): string | null => {
   if (typeof window === 'undefined') return null
   try {
     const raw = window.localStorage.getItem(LS_KEYS.geospatialStyleUrl) || ''
-    const s = raw.trim()
+    const s = normalizePersistedGeospatialStyleUrl(raw)
+    if (s !== raw.trim()) {
+      if (s) {
+        window.localStorage.setItem(LS_KEYS.geospatialStyleUrl, s)
+      } else {
+        window.localStorage.removeItem(LS_KEYS.geospatialStyleUrl)
+      }
+    }
     return s || null
   } catch {
     return null
@@ -159,9 +294,10 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   }, [graphFeatureCollection, selectedNodeIds])
   const selectedBounds = React.useMemo(() => computeBoundsFromCollections([selectedFeatureCollection]), [selectedFeatureCollection])
   const graphDataKey = React.useMemo(() => graphProjection.signature, [graphProjection.signature])
+  const mapLibreRuntimeEnabled = false
 
   const basemap2d = useMapLibreBasemap({
-    enabled: show2d,
+    enabled: show2d && mapLibreRuntimeEnabled,
     rootRef,
     containerRef: map2dContainerRef,
     targetStyleUrl,
@@ -171,12 +307,12 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     vectorFallbackMs: 2_000,
   })
   const basemap3d = useMapLibreBasemap({
-    enabled: show3d,
+    enabled: show3d && mapLibreRuntimeEnabled,
     rootRef,
     containerRef: map3dContainerRef,
     targetStyleUrl,
     canvasRenderMode: '3d',
-    projectionMode: 'globe',
+    projectionMode: 'mercator',
     viewportSizingMode: 'fit',
     vectorFallbackMs: 2_000,
   })
@@ -192,6 +328,12 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       const { basemapMap, styleRevision, viewMode } = args
       if (!basemapMap) return
       if (styleRevision <= 0) return
+      if (viewMode === 'map3d') {
+        clearGeoJsonSourceData(basemapMap, graphSourceIdClustered)
+        clearGeoJsonSourceData(basemapMap, graphSourceIdUnclustered)
+        graphDataAppliedRef.current[viewMode] = ''
+        return
+      }
       const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
       if (featureCount <= 0) {
         clearGeoJsonSourceData(basemapMap, graphSourceIdClustered)
@@ -306,6 +448,11 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
 
   return (
     <div ref={rootRef} className="relative w-full h-full" style={{ width: '100%', height: '100%' }}>
+      <SvgGeospatialFallback
+        featureCollection={graphFeatureCollection}
+        selectedFeatureCollection={selectedFeatureCollection}
+        className="absolute inset-0 pointer-events-none opacity-100"
+      />
       <div
         ref={map2dContainerRef}
         className={show2d ? 'absolute inset-0 pointer-events-auto opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}

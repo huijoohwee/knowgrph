@@ -98,35 +98,36 @@ const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(
   uiPanelMicroLabelTextSizeClass: string
 }) {
   const { pipelineStatus, exportStatus, devStatusMetrics, uiPanelMicroLabelTextSizeClass } = props
+  const statusClassName = `${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} kg-truncate-chip`
 
   return (
-    <>
+    <span className="flex min-w-0 flex-wrap items-center gap-1 pl-1">
       {pipelineStatus && (
-        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[120px]`}>
+        <span className={statusClassName}>
           {pipelineStatus}
         </span>
       )}
       {devStatusMetrics && (
-        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
+        <span className={statusClassName}>
           {devStatusMetrics.counter}
         </span>
       )}
       {devStatusMetrics && (
-        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[56px]`}>
+        <span className={statusClassName}>
           {devStatusMetrics.hierarchyBadge}
         </span>
       )}
       {devStatusMetrics && (
-        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[132px]`}>
+        <span className={statusClassName}>
           {devStatusMetrics.suffix}
         </span>
       )}
       {exportStatus && (
-        <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} truncate max-w-[160px]`}>
+        <span className={statusClassName}>
           {exportStatus}
         </span>
       )}
-    </>
+    </span>
   )
 })
 
@@ -369,8 +370,8 @@ export function ToolbarToolMenu({
     const safeWidth = Math.max(0.15, Math.min(0.6, widthRatio))
     const safeHeight = Math.max(0.3, Math.min(0.9, heightRatio))
     return {
-      width: `${Math.round(safeWidth * 100)}vw`,
-      height: `${Math.round(safeHeight * 100)}vh`,
+      width: `min(calc(100vw - 1rem - var(--kg-safe-left) - var(--kg-safe-right)), max(18rem, ${Math.round(safeWidth * 100)}vw))`,
+      height: `min(calc(100vh - 1rem - var(--kg-safe-top) - var(--kg-safe-bottom)), max(20rem, ${Math.round(safeHeight * 100)}vh))`,
     }
   }, [floatingPanelWidthRatio, floatingPanelHeightRatio])
 
@@ -500,12 +501,12 @@ export function ToolbarToolMenu({
       <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
         <aside
           ref={toolMenuCardRef}
-          className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-[260px] max-w-xs w-80 p-0 ${!floatingPanelPinned ? 'cursor-move' : ''}`}
+          className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-0 w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] p-0 ${!floatingPanelPinned ? 'cursor-move' : ''}`}
           style={toolMenuCardStyle}
           onPointerDown={handleFloatingPanelPointerDown}
         >
-          <header className="flex items-center justify-between gap-2 w-full">
-            <nav className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
+          <header className="flex w-full flex-wrap items-start justify-between gap-1 sm:items-center sm:gap-2">
+            <nav className={`flex min-w-0 flex-1 flex-wrap items-center gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
               <FloatingPanelHeaderStatus
                 pipelineStatus={pipelineStatus}
@@ -535,13 +536,13 @@ export function ToolbarToolMenu({
     <section className={floatingPanelRootClassName} style={floatingPanelRootStyle}>
       <aside
         ref={toolMenuCardRef}
-        className={`pointer-events-auto ModalContainer flex flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+        className={`pointer-events-auto ModalContainer flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
         style={{ ...toolMenuCardStyle, ...floatingPanelSizeStyle }}
         onPointerDown={handleFloatingPanelPointerDown}
       >
-        <section className="px-2 py-1 flex flex-col gap-1 min-w-[260px] min-h-[36px] h-full" aria-label="Floating panel">
-          <header className={`flex items-center justify-between gap-2 w-full select-none ${!floatingPanelPinned ? 'cursor-move' : ''}`}>
-            <nav className={`flex items-center gap-1 min-w-0 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
+        <section className="px-2 py-1 flex h-full min-h-[36px] min-w-0 flex-col gap-1" aria-label="Floating panel">
+          <header className={`flex w-full flex-wrap items-start justify-between gap-1 select-none sm:items-center sm:gap-2 ${!floatingPanelPinned ? 'cursor-move' : ''}`}>
+            <nav className={`flex min-w-0 flex-1 flex-wrap items-center gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
               <FloatingPanelHeaderStatus
                 pipelineStatus={pipelineStatus}
@@ -593,8 +594,8 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerRendererHeaderActions} />}
             {floatingPanelView === 'graphTraversal' && (
               <section className="space-y-2" aria-label="Graph traversal">
-                <header className="flex items-center justify-between gap-2" aria-label="Graph traversal actions">
-                  <nav className="flex items-center gap-2" aria-label="Traversal tools">
+                <header className="flex flex-wrap items-start justify-between gap-2 sm:items-center" aria-label="Graph traversal actions">
+                  <nav className="flex flex-wrap items-center gap-2" aria-label="Traversal tools">
                     <button
                       type="button"
                       className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}

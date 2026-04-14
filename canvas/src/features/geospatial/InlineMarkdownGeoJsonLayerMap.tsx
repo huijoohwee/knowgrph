@@ -1,11 +1,7 @@
 import React from 'react'
 import {
-  coerceFeatureCollectionIds,
   colorForDataset,
   computeBoundsFromCollections,
-  ensureDatasetLayer,
-  isPointOnlyFeatureCollection,
-  setGeoJsonSourceData,
   useMapLibreBasemap,
 } from 'gympgrph/map-preview'
 import type { FeatureCollection } from 'geojson'
@@ -20,80 +16,7 @@ const sanitizeId = (raw: string): string => {
   return s.replace(/[^a-zA-Z0-9._:-]+/g, '_').slice(0, 80) || 'dataset'
 }
 
-const FALLBACK_BASEMAP_BG_LAYER_ID = 'kg-md-basemap-fallback:bg'
-const FALLBACK_BASEMAP_GRATICULE_SOURCE_ID = 'kg-md-basemap-fallback:graticule'
-const FALLBACK_BASEMAP_GRATICULE_LAYER_ID = 'kg-md-basemap-fallback:graticule-lines'
-
-const FALLBACK_GRATICULE_FC = {
-  type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      properties: {},
-      geometry: geoGraticule10(),
-    },
-  ],
-} as const
-
-const ensureFallbackBasemapLayers = (map: any, enabled: boolean) => {
-  if (!map) return
-  if (!enabled) return
-
-  let beforeId = ''
-  try {
-    const style = map.getStyle?.()
-    const layers = Array.isArray(style?.layers) ? style.layers : []
-    const firstNonBg = layers.find((l: any) => l && typeof l === 'object' && String(l.type || '') !== 'background')
-    beforeId = typeof firstNonBg?.id === 'string' ? firstNonBg.id : ''
-  } catch {
-    beforeId = ''
-  }
-
-  try {
-    if (!map.getLayer?.(FALLBACK_BASEMAP_BG_LAYER_ID)) {
-      map.addLayer?.(
-        {
-          id: FALLBACK_BASEMAP_BG_LAYER_ID,
-          type: 'background',
-          paint: { 'background-color': 'rgba(15,23,42,1)' },
-        },
-        beforeId || undefined,
-      )
-    }
-  } catch {
-    void 0
-  }
-
-  try {
-    if (!map.getSource?.(FALLBACK_BASEMAP_GRATICULE_SOURCE_ID)) {
-      map.addSource?.(FALLBACK_BASEMAP_GRATICULE_SOURCE_ID, {
-        type: 'geojson',
-        data: FALLBACK_GRATICULE_FC as never,
-      })
-    }
-  } catch {
-    void 0
-  }
-
-  try {
-    if (!map.getLayer?.(FALLBACK_BASEMAP_GRATICULE_LAYER_ID)) {
-      map.addLayer?.(
-        {
-          id: FALLBACK_BASEMAP_GRATICULE_LAYER_ID,
-          type: 'line',
-          source: FALLBACK_BASEMAP_GRATICULE_SOURCE_ID,
-          paint: {
-            'line-color': 'rgba(148,163,184,0.28)',
-            'line-width': 1,
-          },
-        },
-        beforeId || undefined,
-      )
-    }
-  } catch {
-    void 0
-  }
-}
+const SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'
 
 function GeoJsonSvgPreview(args: {
   fc: FeatureCollection
@@ -229,7 +152,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   const [error, setError] = React.useState<string | null>(null)
   const [basemapWarning, setBasemapWarning] = React.useState<string | null>(null)
 
-  const targetStyleUrl = 'kg:style:raster-osm'
+  const targetStyleUrl = SAFE_SVG_FALLBACK_STYLE_SENTINEL
   const normalizedGeoJsonText = React.useMemo(() => String(geojsonText || '').trim(), [geojsonText])
   const parsedGeoJsonHash = React.useMemo(() => (normalizedGeoJsonText ? hashText(normalizedGeoJsonText) : ''), [normalizedGeoJsonText])
 
@@ -382,11 +305,6 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     setError(prev => prev || msg)
   }, [basemap.mapError])
 
-  const basemapHasBaseSource = React.useMemo(() => {
-    const probe = basemap.probe
-    return Boolean(probe.tileSourceId && probe.tilesLoaded && probe.canvasW > 0 && probe.canvasH > 0)
-  }, [basemap.probe])
-
   const containerGridStyle = React.useMemo(() => {
     return {
       backgroundColor: 'rgba(15,23,42,1)',
@@ -397,19 +315,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     } as const
   }, [])
 
-  const fallbackInjectedForStyleRevRef = React.useRef<number>(-1)
-  React.useEffect(() => {
-    const map = basemap.map
-    if (!map) return
-    const rev = basemap.styleRevision
-    if (rev <= 0) return
-    if (basemapHasBaseSource) return
-    if (fallbackInjectedForStyleRevRef.current === rev) return
-    fallbackInjectedForStyleRevRef.current = rev
-    ensureFallbackBasemapLayers(map, true)
-  }, [basemap.map, basemap.styleRevision, basemapHasBaseSource])
-
-  const lastAppliedDataKeyRef = React.useRef<string>('')
+  const lastFitDataKeyRef = React.useRef<string>('')
   React.useEffect(() => {
     const map = basemap.map
     if (!map) return
@@ -420,30 +326,20 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     }
     const safeDatasetId = sanitizeId(datasetId)
     const dataKey = `${basemap.styleRevision}:${safeDatasetId}:${parsedGeoJsonHash}`
-    if (lastAppliedDataKeyRef.current === dataKey) return
-    const srcId = `kg-md-geojson:${safeDatasetId}`
-    try {
-      const fc = coerceFeatureCollectionIds(parsed.fc, safeDatasetId)
-      const pointOnly = isPointOnlyFeatureCollection(fc, 200)
-      const cluster = pointOnly && Array.isArray(fc.features) && fc.features.length >= 200
-      ensureDatasetLayer(map, srcId, colorForDataset(safeDatasetId), cluster ? { cluster: true } : undefined)
-      setGeoJsonSourceData(map, srcId, fc)
-      lastAppliedDataKeyRef.current = dataKey
-      setError(null)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      setError(msg || 'GeoJSON render failed')
-      return
-    }
-
+    if (lastFitDataKeyRef.current === dataKey) return
     if (parsed.bounds) {
       try {
         map.fitBounds(parsed.bounds, { padding: 24, duration: 0 })
+        lastFitDataKeyRef.current = dataKey
+        setError(null)
       } catch {
-        void 0
+        setError('GeoJSON preview fit failed')
       }
+      return
     }
-  }, [basemap.map, basemap.styleRevision, basemapHasBaseSource, datasetId, parsed.bounds, parsed.fc, parsedGeoJsonHash])
+    lastFitDataKeyRef.current = dataKey
+    setError(null)
+  }, [basemap.map, basemap.styleRevision, datasetId, parsed.bounds, parsed.fc, parsedGeoJsonHash])
 
   React.useEffect(() => {
     const map = basemap.map

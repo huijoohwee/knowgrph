@@ -12,8 +12,12 @@ import { SidePanelChatFooter, SidePanelChatMessagesSection } from './SidePanelCh
 import { buildBoundedGraphSystemPrompt, buildMarkdownNodeSnippetPrompt, buildWorkspaceWideContextPrompt } from './chatPromptHelpers'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
+  buildChatProxyHeaders,
   getDefaultChatModelForProvider,
   getChatModelOptions,
+  getChatProviderLabel,
+  getChatProviderRegionLabel,
+  getChatRecommendedModelHint,
   normalizeChatModelIdForProvider,
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
@@ -67,6 +71,22 @@ export default function SidePanelChat() {
   const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
 
   const historyKey = React.useMemo(() => buildHistoryKey(graphData), [graphData])
+  const chatProviderLabel = React.useMemo(
+    () => getChatProviderLabel(chatProvider),
+    [chatProvider],
+  )
+  const chatProviderRegion = React.useMemo(
+    () => getChatProviderRegionLabel(chatProvider, chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL),
+    [chatEndpointUrl, chatProvider],
+  )
+  const chatProviderSummary = React.useMemo(() => {
+    const modelLabel = typeof chatModel === 'string' && chatModel.trim() ? chatModel.trim() : 'model pending'
+    return `${chatProviderLabel} · ${chatProviderRegion} · ${modelLabel}`
+  }, [chatModel, chatProviderLabel, chatProviderRegion])
+  const chatProviderHint = React.useMemo(
+    () => getChatRecommendedModelHint(chatProvider),
+    [chatProvider],
+  )
   const sourceFilesSignature = React.useMemo(() => {
     const compact = Array.isArray(sourceFiles)
       ? sourceFiles
@@ -296,11 +316,14 @@ export default function SidePanelChat() {
       abortRef.current = controller
 
       const sendChat = async (model: string) => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-        const sanitizedApiKey = String(chatApiKey || '').trim()
-        headers['X-KG-Chat-Provider'] = String(chatProvider || '').trim()
-        if (sanitizedApiKey) {
-          headers['X-KG-Chat-Api-Key'] = sanitizedApiKey
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...buildChatProxyHeaders({
+            provider: chatProvider,
+            apiKey: chatApiKey,
+            endpointUrl: chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
+            clientRequestId: `kg-chat-${toShortId()}`,
+          }),
         }
         return await fetch(requestUrl, {
           method: 'POST',
@@ -336,7 +359,17 @@ export default function SidePanelChat() {
         const allowFallback = shouldRetryWithModelFallback(res.status, initialDetail)
         if (allowFallback) {
           const modelsEndpoint = resolveChatEndpointForModels(chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL)
-          const ids = modelsEndpoint ? await loadAvailableModelIds(modelsEndpoint) : []
+          const ids = modelsEndpoint
+            ? await loadAvailableModelIds(
+              modelsEndpoint,
+              buildChatProxyHeaders({
+                provider: chatProvider,
+                apiKey: chatApiKey,
+                endpointUrl: chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
+                clientRequestId: `kg-chat-models-${toShortId()}`,
+              }),
+            )
+            : []
           const preferredFallback = providerModelOptions.find(id => ids.includes(id) && id !== effectiveModel) || ''
           const fallback = preferredFallback || ids.find(id => id !== effectiveModel) || ids[0] || ''
           if (fallback && fallback !== effectiveModel) {
@@ -541,6 +574,8 @@ export default function SidePanelChat() {
         connectivity={connectivity}
         connectivityDetail={connectivityDetail}
         currentNode={currentNode}
+        providerSummary={chatProviderSummary}
+        providerHint={chatProviderHint}
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
         isSubmitDisabled={!input.trim() || isLoading || !chatModel}

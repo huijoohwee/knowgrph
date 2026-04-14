@@ -85,6 +85,8 @@ type FooterProps = {
   connectivity: 'unknown' | 'ok' | 'error'
   connectivityDetail: string | null
   currentNode: GraphNode | null
+  providerSummary: string
+  providerHint: string
   uiPanelTextFontClass: string
   uiPanelMicroLabelTextSizeClass: string
   isSubmitDisabled: boolean
@@ -100,6 +102,8 @@ export function SidePanelChatFooter({
   connectivity,
   connectivityDetail,
   currentNode,
+  providerSummary,
+  providerHint,
   uiPanelTextFontClass,
   uiPanelMicroLabelTextSizeClass,
   isSubmitDisabled,
@@ -125,6 +129,13 @@ export function SidePanelChatFooter({
           {connectivity === 'ok' ? UI_COPY.chatEndpointOkStatus : connectivityDetail || UI_COPY.chatEndpointUnreachableStatus}
         </div>
       )}
+
+      <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+        {providerSummary}
+      </div>
+      <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
+        {providerHint}
+      </div>
 
       <form onSubmit={onSubmit} className="space-y-2">
         <div className={`w-full border rounded overflow-hidden h-[88px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>

@@ -118,6 +118,7 @@ function TabHeaderImpl({
       className={
         [
           'HeaderBar',
+          'flex-wrap items-start gap-y-1 sm:flex-nowrap sm:items-center',
           'select-none',
           onDragStart ? 'cursor-move' : '',
           onToggle ? 'cursor-pointer' : '',
@@ -130,13 +131,13 @@ function TabHeaderImpl({
       onPointerDown={handlePointerDown}
       aria-expanded={typeof collapsed === 'boolean' ? !collapsed : undefined}
     >
-      <nav className="flex items-center gap-2 min-w-0" aria-label="Panel tabs">
+      <nav className="flex min-w-0 flex-1 items-center overflow-x-auto" aria-label="Panel tabs">
         {tabs.length > 0 && (
           <section
             role="tablist"
             aria-label="Tabs"
             aria-orientation="horizontal"
-            className={`flex items-center gap-1 min-w-0 ${tabVariant === 'icon' ? '' : 'overflow-x-auto whitespace-nowrap'}`}
+            className={`flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain pb-[1px] ${tabVariant === 'icon' ? '' : 'whitespace-nowrap'}`}
           >
             {tabs.map(t => {
               if (tabVariant === 'icon') {
@@ -184,11 +185,11 @@ function TabHeaderImpl({
           </section>
         )}
       </nav>
-      <section className="flex items-center gap-2 shrink-0" aria-label="Panel tools">
+      <section className="flex w-full flex-wrap items-center justify-end gap-1 sm:w-auto sm:shrink-0 sm:gap-2" aria-label="Panel tools">
         {onSearchChange && (
           <section
-            className={`overflow-hidden transition-[width] duration-200 ease-out ${
-              searchVisible ? 'w-72' : 'w-0'
+            className={`overflow-hidden transition-[width,flex-basis,opacity] duration-200 ease-out ${
+              searchVisible ? 'basis-full w-full sm:basis-auto sm:w-72' : 'basis-0 w-0'
             }`}
           >
             <label htmlFor={inputId} className="sr-only">
@@ -199,7 +200,7 @@ function TabHeaderImpl({
               value={searchQuery || ''}
               onChange={e => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder || 'Search'}
-              className={`h-7 w-72 px-2 text-xs border border-gray-300 rounded-lg bg-white transition-opacity duration-150 select-text ${
+              className={`h-[var(--kg-control-height)] w-full min-w-0 px-2 text-xs border border-gray-300 rounded-lg bg-white transition-opacity duration-150 select-text ${
                 searchVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             />

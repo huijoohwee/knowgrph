@@ -17,13 +17,17 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { readGlobalEdgeType, type GlobalEdgeType, withGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { LayoutModeRendererSettings } from '@/features/toolbar/ui/LayoutModeRendererSettings'
 import { readLayoutMode2d, type LayoutMode2d } from '@/lib/graph/layoutMode'
-import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
   WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE,
   WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
 import { isBipartiteCanvas2dRenderer, isD3Like2dRenderer } from '@/lib/config.render'
+
+const WorkspaceTableModeControlLazy = React.lazy(async () => {
+  const module = await import('@/features/workspace-table/ui/WorkspaceTableModeControl')
+  return { default: module.WorkspaceTableModeControl }
+})
 
 export function ToolbarToolMenuRendererView(props: {
   onRegisterActions?: (actions: {
@@ -181,7 +185,9 @@ export function ToolbarToolMenuRendererView(props: {
 
   return (
     <div className="flex flex-col gap-2">
-      <WorkspaceTableModeControl />
+      <React.Suspense fallback={null}>
+        <WorkspaceTableModeControlLazy />
+      </React.Suspense>
       <RendererPaletteSettings />
       <RendererHoverSettings />
       <LayoutModeRendererSettings

@@ -120,6 +120,47 @@ type MonacoCapabilitySettings = {
   monacoDragAndDropEnabled: boolean
   monacoDropIntoEditorEnabled: boolean
   monacoColorDecoratorsEnabled: boolean
+  monacoUnicodeHighlightEnabled: boolean
+  monacoMatchBracketsEnabled: boolean
+  monacoRenderLineHighlightEnabled: boolean
+  monacoGlyphMarginEnabled: boolean
+  monacoOverviewRulerLanesEnabled: boolean
+  monacoLineDecorationsWidthEnabled: boolean
+  monacoRenderWhitespaceEnabled: boolean
+  monacoRenderControlCharactersEnabled: boolean
+  monacoSmoothScrollingEnabled: boolean
+  monacoScrollBeyondLastLineEnabled: boolean
+  monacoMouseWheelZoomEnabled: boolean
+  monacoCursorBlinkingEnabled: boolean
+  monacoCursorSmoothCaretAnimationEnabled: boolean
+  monacoWordWrapEnabled: boolean
+  monacoWrappingIndentEnabled: boolean
+  monacoWrappingStrategyEnabled: boolean
+  monacoCursorWidthEnabled: boolean
+  monacoCursorStyleEnabled: boolean
+  monacoCursorSurroundingLinesEnabled: boolean
+  monacoCursorSurroundingLinesStyleEnabled: boolean
+  monacoCursorHeightEnabled: boolean
+  monacoStickyScrollEnabled: boolean
+  monacoSelectionClipboardEnabled: boolean
+  monacoCopyWithSyntaxHighlightingEnabled: boolean
+  monacoOccurrencesHighlightDelayEnabled: boolean
+  monacoFormatOnPasteEnabled: boolean
+  monacoFormatOnTypeEnabled: boolean
+  monacoAutoClosingBracketsEnabled: boolean
+  monacoAutoClosingQuotesEnabled: boolean
+  monacoAutoIndentEnabled: boolean
+  monacoAutoSurroundEnabled: boolean
+  monacoMatchOnWordStartOnlyEnabled: boolean
+  monacoFindSeedSearchStringFromSelectionEnabled: boolean
+  monacoFindCursorMoveOnTypeEnabled: boolean
+  monacoFindFindOnTypeEnabled: boolean
+  monacoFindLoopEnabled: boolean
+  monacoAutoClosingDeleteEnabled: boolean
+  monacoAutoClosingCommentsEnabled: boolean
+  monacoEmptySelectionClipboardEnabled: boolean
+  monacoColumnSelectionEnabled: boolean
+  monacoWordSeparatorsEnabled: boolean
 }
 
 const resolveConfiguredMonacoLanguage = (language: string, settings: MonacoCapabilitySettings): string => {
@@ -185,11 +226,43 @@ const buildMonacoEditorOptions = (
 ): Monaco.editor.IStandaloneEditorConstructionOptions => ({
   readOnly: !!args.readOnly,
   minimap: { enabled: settings.monacoMinimapEnabled },
-  scrollBeyondLastLine: false,
-  wordWrap: args.wordWrap ? 'on' : 'off',
+  scrollBeyondLastLine: settings.monacoScrollBeyondLastLineEnabled,
+  wordWrap: settings.monacoWordWrapEnabled || args.wordWrap ? 'on' : 'off',
   fontLigatures: false,
   automaticLayout: true,
   contextmenu: false,
+  mouseWheelZoom: settings.monacoMouseWheelZoomEnabled,
+  cursorBlinking: settings.monacoCursorBlinkingEnabled ? 'blink' : 'solid',
+  cursorSmoothCaretAnimation: settings.monacoCursorSmoothCaretAnimationEnabled ? 'on' : 'off',
+  cursorWidth: settings.monacoCursorWidthEnabled ? 2 : 1,
+  cursorHeight: settings.monacoCursorHeightEnabled ? 1.2 : 1,
+  cursorStyle: settings.monacoCursorStyleEnabled ? 'block' : 'line',
+  cursorSurroundingLines: settings.monacoCursorSurroundingLinesEnabled ? 3 : 0,
+  cursorSurroundingLinesStyle: settings.monacoCursorSurroundingLinesStyleEnabled ? 'all' : 'default',
+  stickyScroll: { enabled: settings.monacoStickyScrollEnabled },
+  selectionClipboard: settings.monacoSelectionClipboardEnabled,
+  copyWithSyntaxHighlighting: settings.monacoCopyWithSyntaxHighlightingEnabled,
+  occurrencesHighlightDelay: settings.monacoOccurrencesHighlightDelayEnabled ? 400 : 250,
+  formatOnPaste: settings.monacoFormatOnPasteEnabled,
+  formatOnType: settings.monacoFormatOnTypeEnabled,
+  autoClosingBrackets: settings.monacoAutoClosingBracketsEnabled ? 'always' : 'never',
+  autoClosingQuotes: settings.monacoAutoClosingQuotesEnabled ? 'always' : 'never',
+  autoIndent: settings.monacoAutoIndentEnabled ? 'full' : 'none',
+  autoSurround: settings.monacoAutoSurroundEnabled ? 'languageDefined' : 'never',
+  matchOnWordStartOnly: settings.monacoMatchOnWordStartOnlyEnabled,
+  find: {
+    seedSearchStringFromSelection: settings.monacoFindSeedSearchStringFromSelectionEnabled ? 'selection' : 'never',
+    cursorMoveOnType: settings.monacoFindCursorMoveOnTypeEnabled,
+    findOnType: settings.monacoFindFindOnTypeEnabled,
+    loop: settings.monacoFindLoopEnabled,
+  },
+  autoClosingDelete: settings.monacoAutoClosingDeleteEnabled ? 'always' : 'never',
+  autoClosingComments: settings.monacoAutoClosingCommentsEnabled ? 'always' : 'never',
+  emptySelectionClipboard: settings.monacoEmptySelectionClipboardEnabled,
+  columnSelection: settings.monacoColumnSelectionEnabled,
+  wordSeparators: settings.monacoWordSeparatorsEnabled ? '`~!@#$%^&*()-=+[{]}\\|;:\'",.<>/?' : '',
+  wrappingIndent: settings.monacoWrappingIndentEnabled ? 'indent' : 'none',
+  wrappingStrategy: settings.monacoWrappingStrategyEnabled ? 'advanced' : 'simple',
   hover: { enabled: settings.monacoHoverEnabled },
   links: settings.monacoLinksEnabled,
   quickSuggestions: settings.monacoQuickSuggestionsEnabled,
@@ -200,6 +273,15 @@ const buildMonacoEditorOptions = (
   dragAndDrop: settings.monacoDragAndDropEnabled,
   dropIntoEditor: { enabled: settings.monacoDropIntoEditorEnabled },
   colorDecorators: settings.monacoColorDecoratorsEnabled,
+  unicodeHighlight: settings.monacoUnicodeHighlightEnabled ? {} : { nonBasicASCII: false, invisibleCharacters: false, ambiguousCharacters: false },
+  matchBrackets: settings.monacoMatchBracketsEnabled ? 'always' : 'never',
+  renderLineHighlight: settings.monacoRenderLineHighlightEnabled ? 'line' : 'none',
+  glyphMargin: settings.monacoGlyphMarginEnabled,
+  overviewRulerLanes: settings.monacoOverviewRulerLanesEnabled ? 2 : 0,
+  lineDecorationsWidth: settings.monacoLineDecorationsWidthEnabled ? 10 : 0,
+  renderWhitespace: settings.monacoRenderWhitespaceEnabled ? 'selection' : 'none',
+  renderControlCharacters: settings.monacoRenderControlCharactersEnabled,
+  smoothScrolling: settings.monacoSmoothScrollingEnabled,
   parameterHints: { enabled: settings.monacoParameterHintsEnabled },
   lineNumbers: settings.monacoLineNumbersEnabled ? 'on' : 'off',
   folding: settings.monacoFoldingEnabled,
@@ -285,6 +367,47 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       monacoDragAndDropEnabled: s.monacoDragAndDropEnabled,
       monacoDropIntoEditorEnabled: s.monacoDropIntoEditorEnabled,
       monacoColorDecoratorsEnabled: s.monacoColorDecoratorsEnabled,
+      monacoUnicodeHighlightEnabled: s.monacoUnicodeHighlightEnabled,
+      monacoMatchBracketsEnabled: s.monacoMatchBracketsEnabled,
+      monacoRenderLineHighlightEnabled: s.monacoRenderLineHighlightEnabled,
+      monacoGlyphMarginEnabled: s.monacoGlyphMarginEnabled,
+      monacoOverviewRulerLanesEnabled: s.monacoOverviewRulerLanesEnabled,
+      monacoLineDecorationsWidthEnabled: s.monacoLineDecorationsWidthEnabled,
+      monacoRenderWhitespaceEnabled: s.monacoRenderWhitespaceEnabled,
+      monacoRenderControlCharactersEnabled: s.monacoRenderControlCharactersEnabled,
+      monacoSmoothScrollingEnabled: s.monacoSmoothScrollingEnabled,
+      monacoScrollBeyondLastLineEnabled: s.monacoScrollBeyondLastLineEnabled,
+      monacoMouseWheelZoomEnabled: s.monacoMouseWheelZoomEnabled,
+      monacoCursorBlinkingEnabled: s.monacoCursorBlinkingEnabled,
+      monacoCursorSmoothCaretAnimationEnabled: s.monacoCursorSmoothCaretAnimationEnabled,
+      monacoWordWrapEnabled: s.monacoWordWrapEnabled,
+      monacoWrappingIndentEnabled: s.monacoWrappingIndentEnabled,
+      monacoWrappingStrategyEnabled: s.monacoWrappingStrategyEnabled,
+      monacoCursorWidthEnabled: s.monacoCursorWidthEnabled,
+      monacoCursorStyleEnabled: s.monacoCursorStyleEnabled,
+      monacoCursorSurroundingLinesEnabled: s.monacoCursorSurroundingLinesEnabled,
+      monacoCursorSurroundingLinesStyleEnabled: s.monacoCursorSurroundingLinesStyleEnabled,
+      monacoCursorHeightEnabled: s.monacoCursorHeightEnabled,
+      monacoStickyScrollEnabled: s.monacoStickyScrollEnabled,
+      monacoSelectionClipboardEnabled: s.monacoSelectionClipboardEnabled,
+      monacoCopyWithSyntaxHighlightingEnabled: s.monacoCopyWithSyntaxHighlightingEnabled,
+      monacoOccurrencesHighlightDelayEnabled: s.monacoOccurrencesHighlightDelayEnabled,
+      monacoFormatOnPasteEnabled: s.monacoFormatOnPasteEnabled,
+      monacoFormatOnTypeEnabled: s.monacoFormatOnTypeEnabled,
+      monacoAutoClosingBracketsEnabled: s.monacoAutoClosingBracketsEnabled,
+      monacoAutoClosingQuotesEnabled: s.monacoAutoClosingQuotesEnabled,
+      monacoAutoIndentEnabled: s.monacoAutoIndentEnabled,
+      monacoAutoSurroundEnabled: s.monacoAutoSurroundEnabled,
+      monacoMatchOnWordStartOnlyEnabled: s.monacoMatchOnWordStartOnlyEnabled,
+      monacoFindSeedSearchStringFromSelectionEnabled: s.monacoFindSeedSearchStringFromSelectionEnabled,
+      monacoFindCursorMoveOnTypeEnabled: s.monacoFindCursorMoveOnTypeEnabled,
+      monacoFindFindOnTypeEnabled: s.monacoFindFindOnTypeEnabled,
+      monacoFindLoopEnabled: s.monacoFindLoopEnabled,
+      monacoAutoClosingDeleteEnabled: s.monacoAutoClosingDeleteEnabled,
+      monacoAutoClosingCommentsEnabled: s.monacoAutoClosingCommentsEnabled,
+      monacoEmptySelectionClipboardEnabled: s.monacoEmptySelectionClipboardEnabled,
+      monacoColumnSelectionEnabled: s.monacoColumnSelectionEnabled,
+      monacoWordSeparatorsEnabled: s.monacoWordSeparatorsEnabled,
     })),
   )
 

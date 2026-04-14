@@ -321,6 +321,53 @@ export const renderSettingInput = (
       />
     )
   }
+  if (key === 'chatSystemPrompt' || key === 'integrationConfigsJson') {
+    const str = String(v ?? '')
+    const rows = key === 'integrationConfigsJson' ? 6 : 4
+    const minHeightClass = key === 'integrationConfigsJson' ? 'min-h-24' : 'min-h-16'
+    return (
+      <PlainTextInputEditor
+        multiline
+        rows={rows}
+        value={str}
+        spellCheck={false}
+        onChange={next => {
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: next }))
+        }}
+        className={`${minHeightClass} px-2 py-1 text-left font-mono text-xs`}
+      />
+    )
+  }
+  if (key === 'chatModel') {
+    const str = String(v ?? '')
+    return (
+      <PlainTextInputEditor
+        value={str}
+        list="settings-chat-model-options"
+        spellCheck={false}
+        onChange={next => {
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: next }))
+        }}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-left`}
+      />
+    )
+  }
+  if (key === 'chatEndpointUrl') {
+    const str = String(v ?? '')
+    return (
+      <PlainTextInputEditor
+        value={str}
+        spellCheck={false}
+        onChange={next => {
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: next }))
+        }}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-left`}
+      />
+    )
+  }
   if (options && options.length > 0) {
     const raw = String(v ?? '')
     const normalized = options.includes(raw) ? raw : options[0]

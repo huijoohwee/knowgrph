@@ -110,13 +110,13 @@
 - `markdownWordWrap`
 - `markdownTextHighlight`
 
----
-
 ## Chat Settings: Endpoint, Model, Context
 
-- `chatEndpointUrl` and `chatApiKey` configure an OpenAI-compatible chat endpoint; local LM Studio calls must route through the same-origin proxy path instead of direct localhost URLs.
-- `chatModel` must be a valid `/v1/models` id; chat runtime extracts real upstream error text and may auto-switch to a discovered working model when the configured id is invalid.
+- `chatProvider` defaults to BytePlus ModelArk (`ap-southeast-1`) with OpenAI as the secondary official profile; preserve canonical official endpoint URLs in Settings even though requests route through the same-origin proxy.
+- `chatEndpointUrl` and `chatApiKey` configure an OpenAI-compatible chat endpoint; official BytePlus/OpenAI calls use Bearer auth through the proxy and may attach `X-Client-Request-Id` for request tracing.
+- `chatModel` accepts custom provider model ids via text input with shared suggestions; Settings can refresh `/v1/models` from the configured endpoint without forcing a static option list.
 - `chatContextScope` selects selection-only, workspace-wide (default), or hybrid context; hybrid adds workspace-wide file context to selection-derived graph and markdown snippets while keeping behavior bounded and schema-neutral.
+- `integrationConfigsJson` remains the SSOT for AI chat enable/open-tab routing and simulation command defaults; MainPanel Integrations should show live Chat status, expose format/enable-disable helpers, and open a `chat` Settings search with matching groups expanded so `chatProvider`, `chatContextScope`, and `integrationConfigsJson` stay visible together.
 
 ---
 

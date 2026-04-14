@@ -9,7 +9,7 @@ import MainPanelSettingsHeader from '@/features/panels/ui/MainPanelSettingsHeade
 import MainPanelWorkflowHeader from '@/features/panels/ui/MainPanelWorkflowHeader'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { BarChart3, HelpCircle, MonitorPlay, Settings, Workflow, History as HistoryIcon, Table } from 'lucide-react'
+import { BarChart3, HelpCircle, MonitorPlay, Settings, Workflow, History as HistoryIcon, Table, Plug } from 'lucide-react'
 import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
@@ -218,7 +218,7 @@ export default function MainPanel({
       tabs={MAIN_PANEL_TABS}
       tabVariant="icon"
       tabIconByKey={{
-        integrations: Workflow,
+        integrations: Plug,
         workflow: Workflow,
         flowEditorManager: Table,
         graphFields: ({ className, strokeWidth }) => {
@@ -292,10 +292,10 @@ export default function MainPanel({
         />
       }
       footer={(
-        <footer className={`w-full flex items-center justify-between ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}>
-          <p>{footerLabel}</p>
+        <footer className={`w-full flex flex-wrap items-center justify-between gap-1 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}>
+          <p className="min-w-0 flex-1 truncate">{footerLabel}</p>
           {traversalChip && (
-            <section className={`inline-flex items-center px-2 py-[1px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label={UI_LABELS.graphTraversal}>
+            <section className={`inline-flex max-w-full flex-wrap items-center gap-x-1 gap-y-0.5 px-2 py-[1px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`} aria-label={UI_LABELS.graphTraversal}>
               <span className="font-semibold mr-1">{UI_LABELS.graphTraversal}</span>
               <span className="mr-1">{traversalChip.modeLabel}</span>
               <span className="mx-0.5">•</span>
@@ -311,7 +311,7 @@ export default function MainPanel({
         </footer>
       )}
     >
-      <section className="h-full min-h-0 px-3 py-2 overflow-hidden" aria-label="Main panel content">
+      <section className="h-full min-h-0 px-2 py-2 sm:px-3 overflow-hidden" aria-label="Main panel content">
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-help-panel" aria-labelledby="main-panel-help-tab" hidden={tab !== 'help'}>
           {tab === 'help' && <HelpView searchQuery={search} />}
         </section>

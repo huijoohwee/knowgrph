@@ -8,7 +8,20 @@ import { getLocalStorage } from '@/lib/persistence'
 import { FALLBACK_DETAILS } from './SettingsFallbackDetails'
 import { renderSettingInput } from '@/features/settings/ui'
 import { UI_ANCHORS } from '@/lib/config'
-import { resolveChatEndpointForHealth } from '@/lib/chatEndpoint'
+import { buildChatProxyHeaders, resolveChatEndpointForHealth } from '@/lib/chatEndpoint'
+
+const getSettingsSearchHints = (key: string): string[] => {
+  if (key === 'chatContextScope') {
+    return ['chat ai assistant context scope selection workspace hybrid']
+  }
+  if (key === 'chatProvider' || key === 'chatEndpointUrl' || key === 'chatApiKey' || key === 'chatModel') {
+    return ['chat ai byteplus modelark openai official provider endpoint api key model']
+  }
+  if (key === 'integrationConfigsJson') {
+    return ['integrations ai chat aiChat simulationCommands openTab commandPrefix provider']
+  }
+  return []
+}
 
 export function useSettingsView({
   searchQuery,
@@ -123,6 +136,12 @@ export function useSettingsView({
     try {
       const res = await fetch(healthUrl, {
         method: 'GET',
+        headers: buildChatProxyHeaders({
+          provider: values.chatProvider,
+          apiKey: values.chatApiKey,
+          endpointUrl: values.chatEndpointUrl,
+          clientRequestId: `kg-chat-health-${Date.now().toString(36)}`,
+        }),
       })
       if (res.ok) {
         const data = await res.json()
@@ -161,6 +180,7 @@ export function useSettingsView({
         imports: source?.imports || [],
         notes: source?.notes || FALLBACK_DETAILS[s.key]?.notes || '',
       }
+      const searchHints = getSettingsSearchHints(s.key)
       const index = normalizeText(
         [
           details.area,
@@ -172,6 +192,7 @@ export function useSettingsView({
           ...(details.functions || []),
           ...(details.imports || []),
           details.notes || '',
+          ...searchHints,
         ].join(' '),
       )
       const anchorId = s.key === 'uiIconScale' ? UI_ANCHORS.settingsUiIconScale : undefined

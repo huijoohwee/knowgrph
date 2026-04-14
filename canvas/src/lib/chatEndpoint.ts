@@ -2,21 +2,39 @@ import { coerceHttpUrl } from '@/lib/url'
 
 export const CHAT_PROXY_PATH_PREFIX = '/__chat_proxy'
 export const CHAT_COMPLETIONS_PATH = '/v1/chat/completions'
-export const CHAT_DEFAULT_ENDPOINT_URL = `${CHAT_PROXY_PATH_PREFIX}${CHAT_COMPLETIONS_PATH}`
+export const CHAT_BYTEPLUS_COMPLETIONS_PATH = '/api/v3/chat/completions'
+export const CHAT_OPENAI_COMPLETIONS_PATH = '/v1/chat/completions'
+export const CHAT_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
+export const CHAT_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
+export const CHAT_OPENAI_HOST = 'api.openai.com'
+export const CHAT_BYTEPLUS_AP_SOUTHEAST_BASE = `https://${CHAT_BYTEPLUS_AP_SOUTHEAST_HOST}`
+export const CHAT_BYTEPLUS_EU_WEST_BASE = `https://${CHAT_BYTEPLUS_EU_WEST_HOST}`
+export const CHAT_OPENAI_BASE = `https://${CHAT_OPENAI_HOST}`
+export const CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL = `${CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
+export const CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL = `${CHAT_BYTEPLUS_EU_WEST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
+export const CHAT_OPENAI_ENDPOINT_URL = `${CHAT_OPENAI_BASE}${CHAT_OPENAI_COMPLETIONS_PATH}`
 export const CHAT_PROVIDER_OPENAI = 'openai'
+export const CHAT_PROVIDER_BYTEPLUS = 'byteplus-modelark'
 export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
-export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_LM_STUDIO] as const
+export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_LM_STUDIO] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
+export const CHAT_BYTEPLUS_MODEL_OPTIONS = [] as const
 export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-4o-mini-tts', 'gpt-realtime-mini'] as const
 export const CHAT_LOCAL_MODEL_OPTIONS = ['qwen/qwen3.5-9b@q4_k_m'] as const
-export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_OPENAI
-export const CHAT_DEFAULT_MODEL = CHAT_OPENAI_MODEL_OPTIONS[0]
+export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_BYTEPLUS
+export const CHAT_DEFAULT_MODEL = ''
+export const CHAT_DEFAULT_ENDPOINT_URL = CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL
 export const CHAT_LOCAL_DEFAULT_MODEL = CHAT_LOCAL_MODEL_OPTIONS[0]
 export const CHAT_LEGACY_DEFAULT_MODEL = 'lmstudio-community/Qwen3.5-9B-Q4_K_M.gguf'
 const CHAT_MODEL_ALIASES: Record<string, string> = {
   'gpt-5.4 nano': 'gpt-5.4-nano',
   'gpt-4o mini tts': 'gpt-4o-mini-tts',
   'gpt-realtime-mini': 'gpt-realtime-mini',
+}
+const CHAT_PROVIDER_LABELS: Record<ChatProviderId, string> = {
+  [CHAT_PROVIDER_BYTEPLUS]: 'BytePlus ModelArk',
+  [CHAT_PROVIDER_OPENAI]: 'OpenAI',
+  [CHAT_PROVIDER_LM_STUDIO]: 'Local Gateway',
 }
 
 const toCleanInput = (value: unknown): string => {
@@ -31,7 +49,35 @@ const isLocalHost = (hostname: string): boolean => {
 
 const isTrustedOpenAiHost = (hostname: string): boolean => {
   const host = String(hostname || '').toLowerCase()
-  return host === 'api.openai.com'
+  return host === CHAT_OPENAI_HOST
+}
+
+const isTrustedBytePlusHost = (hostname: string): boolean => {
+  const host = String(hostname || '').toLowerCase()
+  return host === CHAT_BYTEPLUS_AP_SOUTHEAST_HOST || host === CHAT_BYTEPLUS_EU_WEST_HOST
+}
+
+const getProviderDefaultUpstreamBase = (provider: unknown): string | null => {
+  const normalizedProvider = normalizeChatProviderId(provider)
+  if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) return CHAT_BYTEPLUS_AP_SOUTHEAST_BASE
+  if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_BASE
+  return null
+}
+
+const getProviderDefaultEndpointUrl = (provider: unknown): string => {
+  const normalizedProvider = normalizeChatProviderId(provider)
+  if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) return CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL
+  if (normalizedProvider === CHAT_PROVIDER_OPENAI) return CHAT_OPENAI_ENDPOINT_URL
+  return `${CHAT_PROXY_PATH_PREFIX}${CHAT_COMPLETIONS_PATH}`
+}
+
+const toAsciiRequestId = (value: unknown): string => {
+  const raw = typeof value === 'string' ? value : ''
+  const next = raw
+    .trim()
+    .replace(/[^\x20-\x7E]/g, '')
+    .slice(0, 512)
+  return next
 }
 
 const toProxyPathFromLocalUrl = (url: URL): string => {
@@ -79,19 +125,43 @@ export function normalizeChatModelId(value: unknown): string {
 
 export function normalizeChatProviderId(value: unknown): ChatProviderId {
   const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  if (raw === CHAT_PROVIDER_BYTEPLUS || raw === 'byteplus' || raw === 'modelark') return CHAT_PROVIDER_BYTEPLUS
+  if (raw === CHAT_PROVIDER_OPENAI) return CHAT_PROVIDER_OPENAI
   if (raw === CHAT_PROVIDER_LM_STUDIO) return CHAT_PROVIDER_LM_STUDIO
-  return CHAT_PROVIDER_OPENAI
+  return CHAT_DEFAULT_PROVIDER
 }
 
 export function getChatModelOptions(provider: unknown): readonly string[] {
   const normalizedProvider = normalizeChatProviderId(provider)
+  if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) return CHAT_BYTEPLUS_MODEL_OPTIONS
   if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return CHAT_LOCAL_MODEL_OPTIONS
   return CHAT_OPENAI_MODEL_OPTIONS
 }
 
+export function getChatProviderLabel(provider: unknown): string {
+  return CHAT_PROVIDER_LABELS[normalizeChatProviderId(provider)]
+}
+
+export function getChatProviderRegionLabel(provider: unknown, endpointUrl?: unknown): string {
+  const normalizedProvider = normalizeChatProviderId(provider)
+  if (normalizedProvider === CHAT_PROVIDER_OPENAI) return 'Global'
+  if (normalizedProvider === CHAT_PROVIDER_LM_STUDIO) return 'Local'
+  const upstream = resolveChatUpstreamBaseForProxy(endpointUrl, normalizedProvider)
+  const host = (() => {
+    if (!upstream) return ''
+    try {
+      return new URL(upstream).hostname
+    } catch {
+      return ''
+    }
+  })()
+  if (host === CHAT_BYTEPLUS_EU_WEST_HOST) return 'EU-West-1'
+  return 'AP-Southeast-1'
+}
+
 export function getDefaultChatModelForProvider(provider: unknown): string {
   const options = getChatModelOptions(provider)
-  return options[0] || CHAT_DEFAULT_MODEL
+  return options[0] || ''
 }
 
 export function normalizeChatModelIdForProvider(value: unknown, provider: unknown): string {
@@ -101,6 +171,25 @@ export function normalizeChatModelIdForProvider(value: unknown, provider: unknow
   if (raw === CHAT_LEGACY_DEFAULT_MODEL) return CHAT_LOCAL_DEFAULT_MODEL
   const alias = CHAT_MODEL_ALIASES[raw.toLowerCase()]
   return alias || raw
+}
+
+export function normalizeChatEndpointUrlInput(value: unknown, provider?: unknown): string {
+  const raw = toCleanInput(value)
+  if (!raw) return getProviderDefaultEndpointUrl(provider || CHAT_DEFAULT_PROVIDER)
+  if (raw.startsWith('/')) {
+    return resolveChatEndpointForRequest(raw) || getProviderDefaultEndpointUrl(provider || CHAT_DEFAULT_PROVIDER)
+  }
+  const absolute = coerceHttpUrl(raw)
+  if (!absolute) return getProviderDefaultEndpointUrl(provider || CHAT_DEFAULT_PROVIDER)
+  try {
+    const parsed = new URL(absolute)
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname)) {
+      return parsed.toString()
+    }
+  } catch {
+    void 0
+  }
+  return getProviderDefaultEndpointUrl(provider || CHAT_DEFAULT_PROVIDER)
 }
 
 export function resolveChatEndpointForRequest(value: unknown): string | null {
@@ -114,13 +203,70 @@ export function resolveChatEndpointForRequest(value: unknown): string | null {
   if (!absolute) return null
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname)) {
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname)) {
       return toProxyPathFromLocalUrl(parsed)
     }
     return null
   } catch {
     return null
   }
+}
+
+export function resolveChatUpstreamBaseForProxy(value: unknown, provider: unknown): string | null {
+  const raw = toCleanInput(value)
+  if (!raw || raw.startsWith('/')) {
+    return getProviderDefaultUpstreamBase(provider)
+  }
+  const absolute = coerceHttpUrl(raw)
+  if (!absolute) return getProviderDefaultUpstreamBase(provider)
+  try {
+    const parsed = new URL(absolute)
+    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname)) {
+      return parsed.origin
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function buildChatProxyHeaders(args: {
+  provider: unknown
+  apiKey?: unknown
+  endpointUrl?: unknown
+  clientRequestId?: unknown
+}): Record<string, string> {
+  const headers: Record<string, string> = {}
+  const provider = normalizeChatProviderId(args.provider)
+  headers['X-KG-Chat-Provider'] = provider
+  const sanitizedApiKey = String(args.apiKey || '').trim()
+  if (sanitizedApiKey) {
+    headers['X-KG-Chat-Api-Key'] = sanitizedApiKey
+  }
+  const upstreamBase = resolveChatUpstreamBaseForProxy(args.endpointUrl, provider)
+  if (upstreamBase) {
+    headers['X-KG-Chat-Upstream'] = upstreamBase
+  }
+  const clientRequestId = toAsciiRequestId(args.clientRequestId)
+  if (clientRequestId) {
+    headers['X-Client-Request-Id'] = clientRequestId
+  }
+  return headers
+}
+
+export function getChatRecommendedModelHint(provider: unknown): string {
+  const normalizedProvider = normalizeChatProviderId(provider)
+  if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) {
+    return 'Use a ModelArk endpoint ID or refresh the provider catalog.'
+  }
+  if (normalizedProvider === CHAT_PROVIDER_OPENAI) {
+    return 'Use an OpenAI model id and keep API keys server-routed through the proxy.'
+  }
+  return 'Use a locally served OpenAI-compatible model id.'
+}
+
+export function getChatDefaultEndpointUrlForProvider(provider: unknown): string {
+  return getProviderDefaultEndpointUrl(provider)
 }
 
 export function resolveChatEndpointForHealth(value: unknown): string | null {
