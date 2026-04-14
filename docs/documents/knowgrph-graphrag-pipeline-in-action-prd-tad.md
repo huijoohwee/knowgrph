@@ -148,7 +148,7 @@ mermaid: |
 **Status**: Implemented (Enhanced v2.1)  
 **Previous Version**: 1.0.0
 
-> Canonical index document. Keep this file under 600 lines; continue TAD core and validation/appendix detail in the companion documents linked below.
+> Canonical index document. Keep this file sub-600; continue TAD core and validation/appendix detail in the companion documents linked below.
 
 ---
 

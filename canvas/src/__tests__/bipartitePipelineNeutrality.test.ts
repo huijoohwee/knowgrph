@@ -1,5 +1,5 @@
 import { normalizeBipartiteApiGraphData, parseBipartiteApiGraphPayload } from '@/features/bipartite/apiGraphBipartite'
-import { buildBipartiteSourceMeta } from '@/lib/bipartite/source'
+import { buildBipartiteApiMetaUrl, buildBipartiteApiUrl, buildBipartiteSourceMeta } from '@/lib/bipartite/source'
 
 export function testBipartiteNormalizeKeepsNeutralSourceMetadata() {
   const payload = parseBipartiteApiGraphPayload({
@@ -88,5 +88,22 @@ export function testBipartiteNormalizeAcceptsSideAliases() {
   const meta = (graph.metadata || {}) as Record<string, unknown>
   if (meta.graphKind !== 'bipartite') {
     throw new Error(`expected graphKind bipartite, got ${String(meta.graphKind || '')}`)
+  }
+}
+
+export function testBipartiteApiUrlsStaySharedAcrossRuntimeAndDataFetches() {
+  const runtimeUrl = buildBipartiteApiMetaUrl()
+  if (runtimeUrl !== '/api/graph?view=meta') {
+    throw new Error(`expected shared runtime meta url, got ${runtimeUrl}`)
+  }
+
+  const runUrl = buildBipartiteApiUrl({ apiRunId: 'year-series-2026' })
+  if (runUrl !== '/api/graph?run=year-series-2026') {
+    throw new Error(`expected run url to reuse shared api endpoint, got ${runUrl}`)
+  }
+
+  const sourceMeta = buildBipartiteSourceMeta({ kind: 'api', apiRunId: 'year-series-2026' })
+  if (sourceMeta.endpoint !== runUrl) {
+    throw new Error(`expected source meta endpoint to match shared run url, got ${String(sourceMeta.endpoint || '')}`)
   }
 }

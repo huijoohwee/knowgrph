@@ -379,6 +379,38 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     area: 'Editor: Monaco',
     responsibility: 'Enable Monaco auto-closing overtype behavior',
   },
+  monacoMouseStyleEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco default mouse cursor style',
+  },
+  monacoRenderFinalNewlineEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco final newline rendering',
+  },
+  monacoAccessibilitySupportEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco accessibility support',
+  },
+  monacoScrollbarUseShadowsEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco scrollbar shadows',
+  },
+  monacoScrollbarAlwaysConsumeMouseWheelEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable Monaco scrollbar mouse-wheel consumption',
+  },
+  monacoHorizontalScrollbarSizeEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable larger Monaco horizontal scrollbar size',
+  },
+  monacoVerticalScrollbarSizeEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable larger Monaco vertical scrollbar size',
+  },
+  monacoMouseWheelScrollSensitivityEnabled: {
+    area: 'Editor: Monaco',
+    responsibility: 'Enable higher Monaco mouse-wheel scroll sensitivity',
+  },
   uiHeaderRowHeightClass: {
     area: 'UI Density: Headers',
     responsibility: 'Tailwind class for primary header row min-height',

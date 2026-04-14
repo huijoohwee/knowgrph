@@ -1,9 +1,6 @@
 import React from 'react'
 import MainPanelFrame from '@/features/panels/ui/MainPanelFrame'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
-import HelpView from '@/features/panels/views/HelpView'
-import DashboardView from '@/features/panels/views/DashboardView'
-import WorkflowSection from '@/features/panels/views/WorkflowSection'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelSettingsHeader from '@/features/panels/ui/MainPanelSettingsHeader'
 import MainPanelWorkflowHeader from '@/features/panels/ui/MainPanelWorkflowHeader'
@@ -90,6 +87,9 @@ const GraphFieldsViewLazy = React.lazy(() => import('@/features/panels/views/Gra
 const PreviewPanelViewLazy = React.lazy(() => import('./views/PreviewPanelView'))
 const SettingsViewLazy = React.lazy(() => import('@/features/panels/views/SettingsView'))
 const HistoryViewLazy = React.lazy(() => import('@/features/panels/views/HistoryView'))
+const HelpViewLazy = React.lazy(() => import('@/features/panels/views/HelpView'))
+const DashboardViewLazy = React.lazy(() => import('@/features/panels/views/DashboardView'))
+const WorkflowSectionLazy = React.lazy(() => import('@/features/panels/views/WorkflowSection'))
 
 export default function MainPanel({
   onClose,
@@ -313,7 +313,11 @@ export default function MainPanel({
     >
       <section className="h-full min-h-0 px-2 py-2 sm:px-3 overflow-hidden" aria-label="Main panel content">
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-help-panel" aria-labelledby="main-panel-help-tab" hidden={tab !== 'help'}>
-          {tab === 'help' && <HelpView searchQuery={search} />}
+          {tab === 'help' && (
+            <React.Suspense fallback={null}>
+              <HelpViewLazy searchQuery={search} />
+            </React.Suspense>
+          )}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-integrations-panel" aria-labelledby="main-panel-integrations-tab" hidden={tab !== 'integrations'}>
           {tab === 'integrations' && (
@@ -329,7 +333,9 @@ export default function MainPanel({
                 className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.primary} ${panelTypography.panelTextClass}`}
                 data-kg-anchor={UI_ANCHORS.workflowPanel}
               >
-                <WorkflowSection searchQuery={search} onRegisterActions={setWorkflowActions} />
+                <React.Suspense fallback={null}>
+                  <WorkflowSectionLazy searchQuery={search} onRegisterActions={setWorkflowActions} />
+                </React.Suspense>
               </section>
             </MainPanelBody>
           )}
@@ -355,7 +361,11 @@ export default function MainPanel({
           )}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-dashboard-panel" aria-labelledby="main-panel-dashboard-tab" hidden={tab !== 'dashboard'}>
-          {tab === 'dashboard' && <DashboardView />}
+          {tab === 'dashboard' && (
+            <React.Suspense fallback={null}>
+              <DashboardViewLazy />
+            </React.Suspense>
+          )}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-preview-panel" aria-labelledby="main-panel-preview-tab" hidden={tab !== 'preview'}>
           {tab === 'preview' && (

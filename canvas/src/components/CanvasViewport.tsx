@@ -45,7 +45,9 @@ const GeospatialOverlayHostLazy = React.lazy(async (): Promise<{ default: React.
 const GraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
 const FlowCanvasLazy = React.lazy(() => importWithRetry(() => import('@/components/FlowCanvas'), { retries: 2, retryDelayMs: 50 }))
 const DesignCanvasLazy = React.lazy(() => import('@/components/DesignCanvas'))
-const FlowEditorCanvasLazy = React.lazy(() => import('@/components/FlowEditorCanvas'))
+const FlowEditorCanvasLazy = React.lazy(() =>
+  importWithRetry(() => import('@/components/FlowEditorCanvas'), { retries: 2, retryDelayMs: 50 }),
+)
 const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const LaunchSpotlightLazy = React.lazy(() => import('@/features/spotlight/LaunchSpotlight'))

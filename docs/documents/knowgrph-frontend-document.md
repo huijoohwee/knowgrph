@@ -1,6 +1,6 @@
 # Knowgrph Canvas Frontend: Universal Technical Specification
 
-> Canonical index document. Keep this file under 600 lines; continue interaction and operations detail in `knowgrph-frontend-document-interactions-and-operations.md`.
+> Canonical index document. Keep this file sub-600; continue interaction and operations detail in `knowgrph-frontend-document-interactions-and-operations.md`.
 
 ## Design Mantras
 

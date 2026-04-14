@@ -7,6 +7,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.panels.keyValueRows.mobileSingleColumnFallback","@/__tests__/panelSemanticContract.test","testKeyValueRowsUseMobileSingleColumnFallback"],
   ["ui.toolbar.rendererView.lazyLoadsWorkspaceTableModeControl","@/__tests__/panelSemanticContract.test","testToolbarRendererViewLazyLoadsWorkspaceTableModeControl"],
   ["ui.workspaceTable.modeControl.avoidsToolbarSsotBridge","@/__tests__/panelSemanticContract.test","testWorkspaceTableModeControlAvoidsToolbarSsotBridge"],
+  ["ui.mainPanel.lazyLoadsInactiveHeavyTabs","@/__tests__/panelSemanticContract.test","testMainPanelLazyLoadsInactiveHeavyTabs"],
   ["design.layers.normalizePreservesOrderAndAddsNew","@/__tests__/designLayersState.test","testDesignLayersNormalizePreservesOrderAndAddsNew"],
   ["design.layers.toggleAndMove","@/__tests__/designLayersState.test","testDesignLayersToggleAndMove"],
   ["design.renderer.posEq.detectsEquality","@/__tests__/designRendererSlice.test","testDesignFramePosEqDetectsEquality"],

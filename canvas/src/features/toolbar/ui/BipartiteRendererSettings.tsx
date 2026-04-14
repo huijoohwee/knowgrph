@@ -2,6 +2,7 @@ import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { buildBipartiteApiMetaUrl } from '@/lib/bipartite/source'
 import { useShallow } from 'zustand/react/shallow'
 
 type ApiRuntimeRun = {
@@ -305,7 +306,7 @@ export function BipartiteRendererSettings() {
     let cancelled = false
     const load = async () => {
       try {
-        const res = await fetch('/api/graph?view=meta', { cache: 'no-store' })
+        const res = await fetch(buildBipartiteApiMetaUrl(), { cache: 'no-store' })
         if (!res.ok) return
         const parsed = (await res.json()) as unknown
         if (cancelled || !parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return

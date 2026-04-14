@@ -3,7 +3,7 @@
 **Document Version**: 1.0.2  
 **Date**: 2026-01-23  
 **Status**: Active (reference implementation extracted to `gympgrph`; Knowgrph hosts it via a plugin bridge)
-> Canonical index document. Keep this file under 600 lines; continue integration contracts plus extension/delivery/validation detail in the companion documents linked below.
+> Canonical index document. Keep this file sub-600; continue integration contracts plus extension/delivery/validation detail in the companion documents linked below.
 ---
 
 ## Document Purpose

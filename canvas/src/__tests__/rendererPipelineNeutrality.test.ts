@@ -32,6 +32,9 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!canvasViewportText.includes('supportsCanvas2dMinimap(canvas2dRenderer)')) {
     throw new Error('expected CanvasViewport minimap gating to use the shared helper')
   }
+  if (!canvasViewportText.includes("importWithRetry(() => import('@/components/FlowEditorCanvas')")) {
+    throw new Error('expected FlowEditorCanvas lazy loading to reuse importWithRetry for startup module fetch resilience')
+  }
   if (!rendererSelectText.includes('isD3Like2dRenderer(state.canvas2dRenderer)')) {
     throw new Error('expected Canvas2dRendererSelect to reuse the shared D3-like helper')
   }

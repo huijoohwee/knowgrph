@@ -71,8 +71,33 @@ const HIGH_FIDELITY_WORLD_SVG_WIDTH = 494.7
 const HIGH_FIDELITY_WORLD_SVG_HEIGHT = 265.7
 const SVG_FALLBACK_VIEWBOX_WIDTH = 1000
 const SVG_FALLBACK_VIEWBOX_HEIGHT = 560
-const SVG_FALLBACK_GRATICULE_MINOR_STEP: [number, number] = [10, 10]
-const SVG_FALLBACK_GRATICULE_MAJOR_STEP: [number, number] = [45, 45]
+const SVG_FALLBACK_STYLE = {
+  graticuleMinorStep: [10, 10] as const,
+  graticuleMajorStep: [30, 30] as const,
+  oceanGradientStops: ['rgb(236 244 249)', 'rgb(214 229 239)', 'rgb(191 209 223)'] as const,
+  oceanSheenStops: ['rgba(255,255,255,0.44)', 'rgba(255,255,255,0.19)', 'rgba(15,23,42,0.06)'] as const,
+  landWashStops: ['rgba(255,255,255,0.20)', 'rgba(148,163,184,0.07)'] as const,
+  frameStrokeStops: ['rgba(255,255,255,0.94)', 'rgba(71,85,105,0.78)'] as const,
+  mapFilterMatrix: `
+                0.64 0.00 0.00 0 0.24
+                0.00 0.68 0.00 0 0.25
+                0.00 0.00 0.73 0 0.28
+                0.00 0.00 0.00 1 0
+              `,
+  mapGamma: ['0.79', '0.81', '0.86'] as const,
+  sphereShadow: 'rgba(15,23,42,0.16)',
+  pointShadow: 'rgba(15,23,42,0.35)',
+  minorGridLight: 'rgba(255,255,255,0.10)',
+  minorGridDark: 'rgba(148,163,184,0.06)',
+  majorGridLight: 'rgba(255,255,255,0.18)',
+  majorGridDark: 'rgba(71,85,105,0.11)',
+  pointFill: 'rgba(37,99,235,0.92)',
+  pointOutline: 'rgba(255,255,255,0.98)',
+  pointStroke: 'rgba(29,78,216,0.74)',
+  selectedFill: 'rgba(249,115,22,0.98)',
+  selectedOutline: 'rgba(255,255,255,1)',
+  selectedStroke: 'rgba(154,52,18,0.88)',
+} as const
 
 function SvgGeospatialFallback(args: {
   featureCollection: FeatureCollection
@@ -117,8 +142,8 @@ function SvgGeospatialFallback(args: {
   const areaPathBuilder = React.useMemo(() => geoPath(projection), [projection])
   const pointPathBuilder = React.useMemo(() => geoPath(projection).pointRadius(4), [projection])
   const selectedPointPathBuilder = React.useMemo(() => geoPath(projection).pointRadius(6), [projection])
-  const minorGraticule = React.useMemo(() => geoGraticule().step(SVG_FALLBACK_GRATICULE_MINOR_STEP), [])
-  const majorGraticule = React.useMemo(() => geoGraticule().step(SVG_FALLBACK_GRATICULE_MAJOR_STEP), [])
+  const minorGraticule = React.useMemo(() => geoGraticule().step(SVG_FALLBACK_STYLE.graticuleMinorStep), [])
+  const majorGraticule = React.useMemo(() => geoGraticule().step(SVG_FALLBACK_STYLE.graticuleMajorStep), [])
   const worldTopLeft = React.useMemo(() => projection([-180, 90]) || [0, 0], [projection])
   const worldBottomRight = React.useMemo(() => projection([180, -90]) || [width, height], [projection, width, height])
   const svgImageX = Math.min(worldTopLeft[0], worldBottomRight[0])
@@ -140,22 +165,22 @@ function SvgGeospatialFallback(args: {
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" aria-label="Fallback geospatial basemap">
         <defs>
           <linearGradient id="kg-geo-fallback-bg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgb(232 242 248)" />
-            <stop offset="44%" stopColor="rgb(210 227 238)" />
-            <stop offset="100%" stopColor="rgb(187 208 223)" />
+            <stop offset="0%" stopColor={SVG_FALLBACK_STYLE.oceanGradientStops[0]} />
+            <stop offset="44%" stopColor={SVG_FALLBACK_STYLE.oceanGradientStops[1]} />
+            <stop offset="100%" stopColor={SVG_FALLBACK_STYLE.oceanGradientStops[2]} />
           </linearGradient>
           <radialGradient id="kg-geo-fallback-ocean-sheen" cx="50%" cy="42%" r="78%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.42)" />
-            <stop offset="48%" stopColor="rgba(255,255,255,0.18)" />
-            <stop offset="100%" stopColor="rgba(15,23,42,0.07)" />
+            <stop offset="0%" stopColor={SVG_FALLBACK_STYLE.oceanSheenStops[0]} />
+            <stop offset="48%" stopColor={SVG_FALLBACK_STYLE.oceanSheenStops[1]} />
+            <stop offset="100%" stopColor={SVG_FALLBACK_STYLE.oceanSheenStops[2]} />
           </radialGradient>
           <linearGradient id="kg-geo-fallback-land-wash" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
-            <stop offset="100%" stopColor="rgba(148,163,184,0.08)" />
+            <stop offset="0%" stopColor={SVG_FALLBACK_STYLE.landWashStops[0]} />
+            <stop offset="100%" stopColor={SVG_FALLBACK_STYLE.landWashStops[1]} />
           </linearGradient>
           <linearGradient id="kg-geo-fallback-frame-stroke" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.92)" />
-            <stop offset="100%" stopColor="rgba(71,85,105,0.78)" />
+            <stop offset="0%" stopColor={SVG_FALLBACK_STYLE.frameStrokeStops[0]} />
+            <stop offset="100%" stopColor={SVG_FALLBACK_STYLE.frameStrokeStops[1]} />
           </linearGradient>
           <clipPath id="kg-geo-fallback-sphere-clip">
             <path d={spherePath} />
@@ -163,24 +188,19 @@ function SvgGeospatialFallback(args: {
           <filter id="kg-geo-fallback-map-filter" x="-10%" y="-10%" width="120%" height="120%">
             <feColorMatrix
               type="matrix"
-              values="
-                0.66 0.00 0.00 0 0.22
-                0.00 0.69 0.00 0 0.24
-                0.00 0.00 0.74 0 0.27
-                0.00 0.00 0.00 1 0
-              "
+              values={SVG_FALLBACK_STYLE.mapFilterMatrix}
             />
             <feComponentTransfer>
-              <feFuncR type="gamma" amplitude="1" exponent="0.8" offset="0" />
-              <feFuncG type="gamma" amplitude="1" exponent="0.82" offset="0" />
-              <feFuncB type="gamma" amplitude="1" exponent="0.87" offset="0" />
+              <feFuncR type="gamma" amplitude="1" exponent={SVG_FALLBACK_STYLE.mapGamma[0]} offset="0" />
+              <feFuncG type="gamma" amplitude="1" exponent={SVG_FALLBACK_STYLE.mapGamma[1]} offset="0" />
+              <feFuncB type="gamma" amplitude="1" exponent={SVG_FALLBACK_STYLE.mapGamma[2]} offset="0" />
             </feComponentTransfer>
           </filter>
           <filter id="kg-geo-fallback-sphere-shadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="2.5" stdDeviation="5" floodColor="rgba(15,23,42,0.18)" />
+            <feDropShadow dx="0" dy="2.5" stdDeviation="5" floodColor={SVG_FALLBACK_STYLE.sphereShadow} />
           </filter>
           <filter id="kg-geo-fallback-point-shadow" x="-100%" y="-100%" width="300%" height="300%">
-            <feDropShadow dx="0" dy="1.2" stdDeviation="1.6" floodColor="rgba(15,23,42,0.35)" />
+            <feDropShadow dx="0" dy="1.2" stdDeviation="1.6" floodColor={SVG_FALLBACK_STYLE.pointShadow} />
           </filter>
         </defs>
         <rect x="0" y="0" width={width} height={height} fill="url(#kg-geo-fallback-bg)" />
@@ -199,14 +219,14 @@ function SvgGeospatialFallback(args: {
         </g>
         <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.26)" strokeWidth="3.2" filter="url(#kg-geo-fallback-sphere-shadow)" />
         <path d={spherePath} fill="none" stroke="url(#kg-geo-fallback-frame-stroke)" strokeWidth="1.2" />
-        <path d={minorGraticulePath} fill="none" stroke="rgba(255,255,255,0.11)" strokeWidth="0.55" />
-        <path d={minorGraticulePath} fill="none" stroke="rgba(148,163,184,0.07)" strokeWidth="0.95" />
-        <path d={majorGraticulePath} fill="none" stroke="rgba(255,255,255,0.17)" strokeWidth="0.95" />
-        <path d={majorGraticulePath} fill="none" stroke="rgba(71,85,105,0.10)" strokeWidth="1.55" />
-        <path d={pointsPath} fill="rgba(37,99,235,0.92)" stroke="rgba(255,255,255,0.98)" strokeWidth="2.2" filter="url(#kg-geo-fallback-point-shadow)" />
-        <path d={pointsPath} fill="none" stroke="rgba(29,78,216,0.74)" strokeWidth="0.95" />
-        <path d={selectedPath} fill="rgba(249,115,22,0.98)" stroke="rgba(255,255,255,1)" strokeWidth="3" filter="url(#kg-geo-fallback-point-shadow)" />
-        <path d={selectedPath} fill="none" stroke="rgba(154,52,18,0.88)" strokeWidth="1.25" />
+        <path d={minorGraticulePath} fill="none" stroke={SVG_FALLBACK_STYLE.minorGridLight} strokeWidth="0.55" />
+        <path d={minorGraticulePath} fill="none" stroke={SVG_FALLBACK_STYLE.minorGridDark} strokeWidth="0.95" />
+        <path d={majorGraticulePath} fill="none" stroke={SVG_FALLBACK_STYLE.majorGridLight} strokeWidth="0.95" />
+        <path d={majorGraticulePath} fill="none" stroke={SVG_FALLBACK_STYLE.majorGridDark} strokeWidth="1.55" />
+        <path d={pointsPath} fill={SVG_FALLBACK_STYLE.pointFill} stroke={SVG_FALLBACK_STYLE.pointOutline} strokeWidth="2.2" filter="url(#kg-geo-fallback-point-shadow)" />
+        <path d={pointsPath} fill="none" stroke={SVG_FALLBACK_STYLE.pointStroke} strokeWidth="0.95" />
+        <path d={selectedPath} fill={SVG_FALLBACK_STYLE.selectedFill} stroke={SVG_FALLBACK_STYLE.selectedOutline} strokeWidth="3" filter="url(#kg-geo-fallback-point-shadow)" />
+        <path d={selectedPath} fill="none" stroke={SVG_FALLBACK_STYLE.selectedStroke} strokeWidth="1.25" />
       </svg>
     </div>
   )

@@ -148,6 +148,14 @@ This root document exists as the auto-generated settings registry table surface 
 | `monacoEmptySelectionClipboardEnabled` | boolean | store |  |  |
 | `monacoColumnSelectionEnabled` | boolean | store |  |  |
 | `monacoWordSeparatorsEnabled` | boolean | store |  |  |
+| `monacoMultiCursorModifierEnabled` | boolean | store |  |  |
+| `monacoMultiCursorMergeOverlappingEnabled` | boolean | store |  |  |
+| `monacoMultiCursorPasteEnabled` | boolean | store |  |  |
+| `monacoAutoClosingOvertypeEnabled` | boolean | store |  |  |
+| `monacoMouseStyleEnabled` | boolean | store |  |  |
+| `monacoRenderFinalNewlineEnabled` | boolean | store |  |  |
+| `monacoAccessibilitySupportEnabled` | boolean | store |  |  |
+| `monacoScrollbarUseShadowsEnabled` | boolean | store |  |  |
 | `pdfImportIncludeImages` | boolean | store | `kg:import:pdf:includeImages` | `import.pdf` |
 | `pdfImportMaxPages` | number | store | `kg:import:pdf:maxPages` | `import.pdf` |
 | `pdfImportMaxPdfBytes` | number | store | `kg:import:pdf:maxPdfBytes` | `import.pdf` |

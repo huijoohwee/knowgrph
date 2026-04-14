@@ -232,6 +232,30 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!monacoSettingsRegistryText.includes("key: 'monacoAutoClosingOvertypeEnabled'")) {
     throw new Error('expected MainPanel settings registry to expose Monaco auto-closing-overtype toggle control')
   }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoMouseStyleEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco mouse-style toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoRenderFinalNewlineEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco render-final-newline toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoAccessibilitySupportEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco accessibility-support toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoScrollbarUseShadowsEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco scrollbar-use-shadows toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoScrollbarAlwaysConsumeMouseWheelEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco scrollbar-always-consume-mouse-wheel toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoHorizontalScrollbarSizeEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco horizontal-scrollbar-size toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoVerticalScrollbarSizeEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco vertical-scrollbar-size toggle control')
+  }
+  if (!monacoSettingsRegistryText.includes("key: 'monacoMouseWheelScrollSensitivityEnabled'")) {
+    throw new Error('expected MainPanel settings registry to expose Monaco mouse-wheel-scroll-sensitivity toggle control')
+  }
   if (!monacoTextEditorText.includes('links: settings.monacoLinksEnabled')) {
     throw new Error('expected MonacoTextEditor to wire Monaco links through MainPanel capability settings')
   }
@@ -426,6 +450,30 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   }
   if (!monacoTextEditorText.includes("autoClosingOvertype: settings.monacoAutoClosingOvertypeEnabled ? 'always' : 'never'")) {
     throw new Error('expected MonacoTextEditor to wire autoClosingOvertype through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("mouseStyle: settings.monacoMouseStyleEnabled ? 'default' : 'text'")) {
+    throw new Error('expected MonacoTextEditor to wire mouseStyle through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("renderFinalNewline: settings.monacoRenderFinalNewlineEnabled ? 'dimmed' : 'off'")) {
+    throw new Error('expected MonacoTextEditor to wire renderFinalNewline through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes("accessibilitySupport: settings.monacoAccessibilitySupportEnabled ? 'on' : 'off'")) {
+    throw new Error('expected MonacoTextEditor to wire accessibilitySupport through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('useShadows: settings.monacoScrollbarUseShadowsEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire scrollbar.useShadows through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('alwaysConsumeMouseWheel: settings.monacoScrollbarAlwaysConsumeMouseWheelEnabled')) {
+    throw new Error('expected MonacoTextEditor to wire scrollbar.alwaysConsumeMouseWheel through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('horizontalScrollbarSize: settings.monacoHorizontalScrollbarSizeEnabled ? 16 : 12')) {
+    throw new Error('expected MonacoTextEditor to wire horizontalScrollbarSize through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('verticalScrollbarSize: settings.monacoVerticalScrollbarSizeEnabled ? 18 : 14')) {
+    throw new Error('expected MonacoTextEditor to wire verticalScrollbarSize through MainPanel capability settings')
+  }
+  if (!monacoTextEditorText.includes('mouseWheelScrollSensitivity: settings.monacoMouseWheelScrollSensitivityEnabled ? 1.5 : 1')) {
+    throw new Error('expected MonacoTextEditor to wire mouseWheelScrollSensitivity through MainPanel capability settings')
   }
 
   const markdownCodeBlockText = readFileSync(resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx'), 'utf8')

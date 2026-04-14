@@ -10,6 +10,7 @@ export type BipartiteSourceMeta = {
 
 export const BIPARTITE_API_ENDPOINT = '/api/graph'
 export const BIPARTITE_FIXTURE_ENDPOINT = '/__bipartite_fixture'
+export const BIPARTITE_API_META_VIEW = 'meta'
 
 export const UNKNOWN_BIPARTITE_SOURCE_META: BipartiteSourceMeta = {
   kind: 'unknown',
@@ -20,6 +21,27 @@ const sanitizeSourcePart = (value: unknown): string => {
   const raw = typeof value === 'string' ? value.trim() : String(value ?? '').trim()
   if (!raw) return ''
   return raw.replace(/\s+/g, '-')
+}
+
+const sanitizeBipartiteQueryValue = (value: unknown): string => {
+  return typeof value === 'string' ? value.trim() : String(value ?? '').trim()
+}
+
+export function buildBipartiteApiUrl(args?: {
+  apiRunId?: string | null
+  view?: string | null
+}): string {
+  const params = new URLSearchParams()
+  const apiRunId = sanitizeBipartiteQueryValue(args?.apiRunId)
+  const view = sanitizeBipartiteQueryValue(args?.view)
+  if (apiRunId) params.set('run', apiRunId)
+  if (view) params.set('view', view)
+  const query = params.toString()
+  return query ? `${BIPARTITE_API_ENDPOINT}?${query}` : BIPARTITE_API_ENDPOINT
+}
+
+export function buildBipartiteApiMetaUrl(): string {
+  return buildBipartiteApiUrl({ view: BIPARTITE_API_META_VIEW })
 }
 
 export function buildBipartiteSourceMeta(args?: {
@@ -33,7 +55,7 @@ export function buildBipartiteSourceMeta(args?: {
     return {
       kind,
       id: runId ? `api:${runId}` : 'api:graph',
-      endpoint: BIPARTITE_API_ENDPOINT,
+      endpoint: buildBipartiteApiUrl({ apiRunId: runId || null }),
     }
   }
   if (kind === 'fixture') {

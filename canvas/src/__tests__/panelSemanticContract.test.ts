@@ -91,3 +91,27 @@ export const testWorkspaceTableModeControlAvoidsToolbarSsotBridge = () => {
     throw new Error('Expected WorkspaceTableModeControl to warm GraphTableDb directly')
   }
 }
+
+export const testMainPanelLazyLoadsInactiveHeavyTabs = () => {
+  const root = process.cwd()
+  const filePath = path.resolve(root, 'src', 'features', 'panels', 'MainPanel.tsx')
+  const text = readUtf8(filePath)
+  if (text.includes("import HelpView from '@/features/panels/views/HelpView'")) {
+    throw new Error('Expected MainPanel to avoid a static HelpView import')
+  }
+  if (text.includes("import DashboardView from '@/features/panels/views/DashboardView'")) {
+    throw new Error('Expected MainPanel to avoid a static DashboardView import')
+  }
+  if (text.includes("import WorkflowSection from '@/features/panels/views/WorkflowSection'")) {
+    throw new Error('Expected MainPanel to avoid a static WorkflowSection import')
+  }
+  if (!text.includes("const HelpViewLazy = React.lazy(() => import('@/features/panels/views/HelpView'))")) {
+    throw new Error('Expected MainPanel to lazy-load HelpView')
+  }
+  if (!text.includes("const DashboardViewLazy = React.lazy(() => import('@/features/panels/views/DashboardView'))")) {
+    throw new Error('Expected MainPanel to lazy-load DashboardView')
+  }
+  if (!text.includes("const WorkflowSectionLazy = React.lazy(() => import('@/features/panels/views/WorkflowSection'))")) {
+    throw new Error('Expected MainPanel to lazy-load WorkflowSection')
+  }
+}

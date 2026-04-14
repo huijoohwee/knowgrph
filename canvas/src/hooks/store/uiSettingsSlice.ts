@@ -359,6 +359,37 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   monacoAutoClosingOvertypeEnabled: lsBool(LS_KEYS.monacoAutoClosingOvertypeEnabled, false),
   setMonacoAutoClosingOvertypeEnabled: (v: boolean) =>
     set({ monacoAutoClosingOvertypeEnabled: lsSetBool(LS_KEYS.monacoAutoClosingOvertypeEnabled, !!v) }),
+  monacoMouseStyleEnabled: lsBool(LS_KEYS.monacoMouseStyleEnabled, false),
+  setMonacoMouseStyleEnabled: (v: boolean) =>
+    set({ monacoMouseStyleEnabled: lsSetBool(LS_KEYS.monacoMouseStyleEnabled, !!v) }),
+  monacoRenderFinalNewlineEnabled: lsBool(LS_KEYS.monacoRenderFinalNewlineEnabled, false),
+  setMonacoRenderFinalNewlineEnabled: (v: boolean) =>
+    set({ monacoRenderFinalNewlineEnabled: lsSetBool(LS_KEYS.monacoRenderFinalNewlineEnabled, !!v) }),
+  monacoAccessibilitySupportEnabled: lsBool(LS_KEYS.monacoAccessibilitySupportEnabled, false),
+  setMonacoAccessibilitySupportEnabled: (v: boolean) =>
+    set({ monacoAccessibilitySupportEnabled: lsSetBool(LS_KEYS.monacoAccessibilitySupportEnabled, !!v) }),
+  monacoScrollbarUseShadowsEnabled: lsBool(LS_KEYS.monacoScrollbarUseShadowsEnabled, false),
+  setMonacoScrollbarUseShadowsEnabled: (v: boolean) =>
+    set({ monacoScrollbarUseShadowsEnabled: lsSetBool(LS_KEYS.monacoScrollbarUseShadowsEnabled, !!v) }),
+  monacoScrollbarAlwaysConsumeMouseWheelEnabled: lsBool(LS_KEYS.monacoScrollbarAlwaysConsumeMouseWheelEnabled, false),
+  setMonacoScrollbarAlwaysConsumeMouseWheelEnabled: (v: boolean) =>
+    set({
+      monacoScrollbarAlwaysConsumeMouseWheelEnabled: lsSetBool(
+        LS_KEYS.monacoScrollbarAlwaysConsumeMouseWheelEnabled,
+        !!v,
+      ),
+    }),
+  monacoHorizontalScrollbarSizeEnabled: lsBool(LS_KEYS.monacoHorizontalScrollbarSizeEnabled, false),
+  setMonacoHorizontalScrollbarSizeEnabled: (v: boolean) =>
+    set({ monacoHorizontalScrollbarSizeEnabled: lsSetBool(LS_KEYS.monacoHorizontalScrollbarSizeEnabled, !!v) }),
+  monacoVerticalScrollbarSizeEnabled: lsBool(LS_KEYS.monacoVerticalScrollbarSizeEnabled, false),
+  setMonacoVerticalScrollbarSizeEnabled: (v: boolean) =>
+    set({ monacoVerticalScrollbarSizeEnabled: lsSetBool(LS_KEYS.monacoVerticalScrollbarSizeEnabled, !!v) }),
+  monacoMouseWheelScrollSensitivityEnabled: lsBool(LS_KEYS.monacoMouseWheelScrollSensitivityEnabled, false),
+  setMonacoMouseWheelScrollSensitivityEnabled: (v: boolean) =>
+    set({
+      monacoMouseWheelScrollSensitivityEnabled: lsSetBool(LS_KEYS.monacoMouseWheelScrollSensitivityEnabled, !!v),
+    }),
 
   richMediaPanelMode: (() => {
     const raw = readLsString(LS_KEYS.renderRichMediaPanelMode, 'snapshot')

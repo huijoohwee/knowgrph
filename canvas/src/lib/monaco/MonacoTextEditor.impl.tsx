@@ -165,6 +165,14 @@ type MonacoCapabilitySettings = {
   monacoMultiCursorMergeOverlappingEnabled: boolean
   monacoMultiCursorPasteEnabled: boolean
   monacoAutoClosingOvertypeEnabled: boolean
+  monacoMouseStyleEnabled: boolean
+  monacoRenderFinalNewlineEnabled: boolean
+  monacoAccessibilitySupportEnabled: boolean
+  monacoScrollbarUseShadowsEnabled: boolean
+  monacoScrollbarAlwaysConsumeMouseWheelEnabled: boolean
+  monacoHorizontalScrollbarSizeEnabled: boolean
+  monacoVerticalScrollbarSizeEnabled: boolean
+  monacoMouseWheelScrollSensitivityEnabled: boolean
 }
 
 const resolveConfiguredMonacoLanguage = (language: string, settings: MonacoCapabilitySettings): string => {
@@ -230,11 +238,20 @@ const buildMonacoEditorOptions = (
 ): Monaco.editor.IStandaloneEditorConstructionOptions => ({
   readOnly: !!args.readOnly,
   minimap: { enabled: settings.monacoMinimapEnabled },
+  scrollbar: {
+    useShadows: settings.monacoScrollbarUseShadowsEnabled,
+    alwaysConsumeMouseWheel: settings.monacoScrollbarAlwaysConsumeMouseWheelEnabled,
+    horizontalScrollbarSize: settings.monacoHorizontalScrollbarSizeEnabled ? 16 : 12,
+    verticalScrollbarSize: settings.monacoVerticalScrollbarSizeEnabled ? 18 : 14,
+  },
   scrollBeyondLastLine: settings.monacoScrollBeyondLastLineEnabled,
   wordWrap: settings.monacoWordWrapEnabled || args.wordWrap ? 'on' : 'off',
   fontLigatures: false,
   automaticLayout: true,
   contextmenu: false,
+  accessibilitySupport: settings.monacoAccessibilitySupportEnabled ? 'on' : 'off',
+  mouseStyle: settings.monacoMouseStyleEnabled ? 'default' : 'text',
+  mouseWheelScrollSensitivity: settings.monacoMouseWheelScrollSensitivityEnabled ? 1.5 : 1,
   mouseWheelZoom: settings.monacoMouseWheelZoomEnabled,
   cursorBlinking: settings.monacoCursorBlinkingEnabled ? 'blink' : 'solid',
   cursorSmoothCaretAnimation: settings.monacoCursorSmoothCaretAnimationEnabled ? 'on' : 'off',
@@ -263,6 +280,7 @@ const buildMonacoEditorOptions = (
   autoClosingDelete: settings.monacoAutoClosingDeleteEnabled ? 'always' : 'never',
   autoClosingComments: settings.monacoAutoClosingCommentsEnabled ? 'always' : 'never',
   autoClosingOvertype: settings.monacoAutoClosingOvertypeEnabled ? 'always' : 'never',
+  renderFinalNewline: settings.monacoRenderFinalNewlineEnabled ? 'dimmed' : 'off',
   emptySelectionClipboard: settings.monacoEmptySelectionClipboardEnabled,
   columnSelection: settings.monacoColumnSelectionEnabled,
   wordSeparators: settings.monacoWordSeparatorsEnabled ? '`~!@#$%^&*()-=+[{]}\\|;:\'",.<>/?' : '',
@@ -420,6 +438,14 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
       monacoMultiCursorMergeOverlappingEnabled: s.monacoMultiCursorMergeOverlappingEnabled,
       monacoMultiCursorPasteEnabled: s.monacoMultiCursorPasteEnabled,
       monacoAutoClosingOvertypeEnabled: s.monacoAutoClosingOvertypeEnabled,
+      monacoMouseStyleEnabled: s.monacoMouseStyleEnabled,
+      monacoRenderFinalNewlineEnabled: s.monacoRenderFinalNewlineEnabled,
+      monacoAccessibilitySupportEnabled: s.monacoAccessibilitySupportEnabled,
+      monacoScrollbarUseShadowsEnabled: s.monacoScrollbarUseShadowsEnabled,
+      monacoScrollbarAlwaysConsumeMouseWheelEnabled: s.monacoScrollbarAlwaysConsumeMouseWheelEnabled,
+      monacoHorizontalScrollbarSizeEnabled: s.monacoHorizontalScrollbarSizeEnabled,
+      monacoVerticalScrollbarSizeEnabled: s.monacoVerticalScrollbarSizeEnabled,
+      monacoMouseWheelScrollSensitivityEnabled: s.monacoMouseWheelScrollSensitivityEnabled,
     })),
   )
 

@@ -27,7 +27,7 @@ mermaid: |
 
 Universal syntax guide for presentation frameworks
 
-> Canonical index document. Keep this file under 600 lines; continue advanced syntax and export guidance in `knowgrph-markdown-slide-styling-guidelines-advanced-and-export.md`.
+> Canonical index document. Keep this file sub-600; continue advanced syntax and export guidance in `knowgrph-markdown-slide-styling-guidelines-advanced-and-export.md`.
 
 > Status: This document distinguishes between **fully supported semantics** in the Knowgrph canvas markdown viewer and **structurally accepted only** features that are rendered as plain content without special behavior.
 

@@ -50,7 +50,7 @@
 - Style-relative URLs are resolved against a trailing-slash base (for example `.../styles/liberty/`) so `sprite`, `glyphs`, and `source.url` relative paths resolve correctly.
 - Runtime overlay status is surfaced via a native in-app toast (top-right, below the toolbar) so it stays visible above the Floating Panel and other UI layers.
 - Hover and click popups are rendered by MapLibre (not by the host UI) to keep POI feedback colocated with the map.
-- The SVG fallback is the current host default: ocean/land/frame/graticule styling is precomputed, avoids per-frame recomputation, and must not regress to square raster tiles or other legacy fallback paths.
+- The SVG fallback is the current host default: ocean/land/frame styling is precomputed, the grid uses memoized `10°` minor and `30°` major graticule layers for finer granularity, and the host must not regress to square raster tiles or other legacy fallback paths.
 - If the basemap stays blank after refresh while requests succeed, the most common cause is a **0px-height overlay container** (e.g. `canvas=1728x0`). The overlay is mounted via a portal and forces viewport-sized layout (`100vw/100vh` with px fallbacks) and calls `map.resize()` to avoid this dead state.
 
 ### Troubleshooting: “Loaded” but blank

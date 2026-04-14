@@ -101,14 +101,15 @@ export const testGeospatialOverlayHostSvgFallbackAppliesMaplikeVisualPolish = ()
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const text = readUtf8(hostPath)
   const requiredSnippets = [
+    'SVG_FALLBACK_STYLE = {',
     'kg-geo-fallback-ocean-sheen',
     'kg-geo-fallback-land-wash',
     'kg-geo-fallback-frame-stroke',
     'kg-geo-fallback-map-filter',
     'kg-geo-fallback-sphere-shadow',
     'kg-geo-fallback-point-shadow',
-    'SVG_FALLBACK_GRATICULE_MINOR_STEP',
-    'SVG_FALLBACK_GRATICULE_MAJOR_STEP',
+    'graticuleMinorStep',
+    'graticuleMajorStep',
     'minorGraticulePath',
     'majorGraticulePath',
     'rgba(37,99,235,0.92)',

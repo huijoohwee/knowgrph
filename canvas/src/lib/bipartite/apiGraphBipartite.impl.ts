@@ -6,9 +6,9 @@ import { writeSubgraphs, type UserSubgraph } from '@/lib/graph/subgraphs'
 import { useShallow } from 'zustand/react/shallow'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import {
-  BIPARTITE_API_ENDPOINT,
   BIPARTITE_FIXTURE_ENDPOINT,
   buildBipartiteSourceMeta,
+  buildBipartiteApiUrl,
   type BipartiteSourceMeta,
   UNKNOWN_BIPARTITE_SOURCE_META,
 } from '@/lib/bipartite/source'
@@ -855,9 +855,7 @@ export function normalizeBipartiteApiGraphData(args: {
 }
 
 async function fetchApiGraphPayload(apiRunId: string): Promise<ApiGraphPayload> {
-  const params = new URLSearchParams()
-  if (String(apiRunId || '').trim()) params.set('run', String(apiRunId || '').trim())
-  const url = params.size > 0 ? `${BIPARTITE_API_ENDPOINT}?${params.toString()}` : BIPARTITE_API_ENDPOINT
+  const url = buildBipartiteApiUrl({ apiRunId })
   const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const contentType = String(res.headers.get('content-type') || '').toLowerCase()
