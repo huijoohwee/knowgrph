@@ -116,6 +116,8 @@
 - `chatEndpointUrl` and `chatApiKey` configure an OpenAI-compatible chat endpoint; official BytePlus/OpenAI calls use Bearer auth through the proxy and may attach `X-Client-Request-Id` for request tracing.
 - `chatModel` accepts custom provider model ids via text input with shared suggestions; Settings can refresh `/v1/models` from the configured endpoint without forcing a static option list.
 - `chatContextScope` selects selection-only, workspace-wide (default), or hybrid context; hybrid adds workspace-wide file context to selection-derived graph and markdown snippets while keeping behavior bounded and schema-neutral.
+- FloatingPanel Chat injects a strict Markdown response contract system prompt that encourages parameterized follow-up turns (one `yaml` metadata block when non-trivial) and forbids secrets; the UI renders streaming responses via a throttled overlay and commits the final assistant message once to avoid per-chunk re-render and chat-history persistence churn.
+- `chatHistoryWorkspacePath` optionally pins a workspace Markdown file path to append chat exchanges; when empty, the first successful chat will create `/chats/ch-yyyymmddhhmmss.md` and continue appending there so the history is viewable and editable in the Workspace Editor.
 - `integrationConfigsJson` remains the SSOT for AI chat enable/open-tab routing and simulation command defaults; MainPanel Integrations should show live Chat status, expose format/enable-disable helpers, and open a `chat` Settings search with matching groups expanded so `chatProvider`, `chatContextScope`, and `integrationConfigsJson` stay visible together.
 
 ---

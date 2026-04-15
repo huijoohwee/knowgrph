@@ -1660,7 +1660,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     }
     const requiresOpenAiKey = !localGatewayOnly && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
     const requiresBytePlusKey = !localGatewayOnly && (bytePlusProviderSelected || isBytePlusChatUpstreamHost(upstreamHostname))
-    const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || '').trim()
+    const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim()
     const envBytePlusApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY || '').trim()
     const headerProviderApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
     const openAiApiKey = (headerProviderApiKey || envOpenAiApiKey).slice(0, 512)
@@ -1678,7 +1678,11 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({ ok: false, error: 'Missing BytePlus API key for chat proxy upstream' }))
       return
     }
-    const suffix = parsedReq.pathname.slice(CHAT_PROXY_PREFIX.length) || '/v1/chat/completions'
+    let suffix = parsedReq.pathname.slice(CHAT_PROXY_PREFIX.length) || '/v1/chat/completions'
+    if (providerHeader === 'openai') {
+      if (suffix === '/api/v3/chat/completions') suffix = '/v1/chat/completions'
+      if (suffix === '/api/v3/models') suffix = '/v1/models'
+    }
     const upstreamPath = suffix.startsWith('/') ? suffix : `/${suffix}`
     const upstreamUrl = new URL(`${upstreamPath}${parsedReq.search || ''}`, upstreamBase)
     let timeoutId: ReturnType<typeof setTimeout> | null = null

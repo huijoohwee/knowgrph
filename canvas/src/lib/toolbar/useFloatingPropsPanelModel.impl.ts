@@ -357,7 +357,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     }
 
     emitSidePanelOpen({ tab: 'chat', open: true })
-    emitChatInputAppend({ text, mode: 'append' })
+    const wrapped = ['Selection context (from canvas):', '', '````text', text, '````'].join('\n')
+    emitChatInputAppend({ text: wrapped, mode: 'append' })
   }, [edgeContextId, graphData, nodeContextId])
 
   const doStartEdgeFromNode = React.useCallback(() => {

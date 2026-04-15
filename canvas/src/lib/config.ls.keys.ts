@@ -317,6 +317,7 @@ export const LS_KEYS = {
   chatContextScope: 'kg:chat:contextScope',
   integrationConfigsJson: 'kg:integrations:configs',
   chatHistoryPrefix: 'kg:chat:history:',
+  chatHistoryWorkspacePath: 'kg:chat:history:workspacePath',
   workspaceViewMode: 'kg:ui:workspace:viewMode',
   editorWorkspacePane: 'kg:ui:workspace:editor:pane',
   workspaceCellSelectPanelPlacement: 'kg:ui:workspace:cellSelectPanelPlacement',

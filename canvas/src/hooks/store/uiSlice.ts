@@ -24,6 +24,9 @@ import {
   CHAT_DEFAULT_PROVIDER,
   normalizeChatModelIdForProvider,
   normalizeChatProviderId,
+  CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
+  CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
+  CHAT_OPENAI_ENDPOINT_URL,
 } from '@/lib/chatEndpoint'
 import {
   DEFAULT_INTEGRATION_CONFIGS,
@@ -37,6 +40,21 @@ import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/l
 type SetGraph = StoreApi<GraphState>['setState']
 
 export const createUiSlice = (set: SetGraph) => {
+  const initialChatProvider = lsJson<string>(
+    LS_KEYS.chatProvider,
+    CHAT_DEFAULT_PROVIDER,
+    value => normalizeChatProviderId(value),
+  )
+  const initialChatEndpointUrl = lsJson<string | null>(
+    LS_KEYS.chatEndpointUrl,
+    normalizeChatEndpointUrlInput(null, initialChatProvider),
+    value => normalizeChatEndpointUrlInput(value, initialChatProvider),
+  )
+  const initialChatModel = lsJson<string | null>(
+    LS_KEYS.chatModel,
+    CHAT_DEFAULT_MODEL,
+    value => normalizeChatModelIdForProvider(value, initialChatProvider),
+  )
   return {
     ...createPanelLayoutUiSlice(set),
 
@@ -296,29 +314,23 @@ export const createUiSlice = (set: SetGraph) => {
     uiOverlayOpacity: lsNum(LS_KEYS.overlayOpacity, 0.95),
     uiPanelOpacity: lsNum(LS_KEYS.panelOpacity, 0.95),
     uiToolbarOpacity: lsNum(LS_KEYS.toolbarOpacity, 0.95),
-    chatProvider: lsJson<string>(
-      LS_KEYS.chatProvider,
-      CHAT_DEFAULT_PROVIDER,
-      value => normalizeChatProviderId(value),
-    ),
+    chatProvider: initialChatProvider,
     chatApiKey: '',
-    chatEndpointUrl: lsJson<string | null>(
-      LS_KEYS.chatEndpointUrl,
-      CHAT_DEFAULT_ENDPOINT_URL,
-      value => {
-        return normalizeChatEndpointUrlInput(value, CHAT_DEFAULT_PROVIDER)
-      },
-    ),
-    chatModel: lsJson<string | null>(
-      LS_KEYS.chatModel,
-      CHAT_DEFAULT_MODEL,
-      value => normalizeChatModelIdForProvider(value, CHAT_DEFAULT_PROVIDER),
-    ),
+    chatEndpointUrl: initialChatEndpointUrl,
+    chatModel: initialChatModel,
     chatTemperature: lsNum(LS_KEYS.chatTemperature, 0.3),
     chatSystemPrompt: lsJson<string | null>(
       LS_KEYS.chatSystemPrompt,
       null,
       value => (typeof value === 'string' ? value : null),
+    ),
+    chatHistoryWorkspacePath: lsJson<string | null>(
+      LS_KEYS.chatHistoryWorkspacePath,
+      null,
+      value => {
+        const raw = typeof value === 'string' ? value.trim() : ''
+        return raw ? raw : null
+      },
     ),
     chatContextScope: lsJson<'selection' | 'workspace' | 'hybrid'>(
       LS_KEYS.chatContextScope,
@@ -584,9 +596,22 @@ export const createUiSlice = (set: SetGraph) => {
         const normalizedProvider = normalizeChatProviderId(provider)
         if (state.chatProvider === normalizedProvider) return {}
         const nextModel = normalizeChatModelIdForProvider(state.chatModel, normalizedProvider)
+        const prevEndpoint = String(state.chatEndpointUrl || '').trim()
+        const prevProviderDefault = normalizeChatEndpointUrlInput(null, state.chatProvider)
+        const shouldResetEndpoint =
+          !prevEndpoint ||
+          prevEndpoint === prevProviderDefault ||
+          prevEndpoint === CHAT_DEFAULT_ENDPOINT_URL ||
+          prevEndpoint === CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL ||
+          prevEndpoint === CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL ||
+          prevEndpoint === CHAT_OPENAI_ENDPOINT_URL
+        const nextEndpoint = shouldResetEndpoint
+          ? normalizeChatEndpointUrlInput(null, normalizedProvider)
+          : normalizeChatEndpointUrlInput(prevEndpoint, normalizedProvider)
         return {
           chatProvider: lsSetJson(LS_KEYS.chatProvider, normalizedProvider),
           chatModel: lsSetJson(LS_KEYS.chatModel, nextModel),
+          chatEndpointUrl: lsSetJson(LS_KEYS.chatEndpointUrl, nextEndpoint),
         }
       }),
     setChatApiKey: (apiKey: string | null) =>
@@ -625,6 +650,13 @@ export const createUiSlice = (set: SetGraph) => {
         chatSystemPrompt: lsSetJson(
           LS_KEYS.chatSystemPrompt,
           v && typeof v === 'string' ? v : null,
+        ),
+      }),
+    setChatHistoryWorkspacePath: (path: string | null) =>
+      set({
+        chatHistoryWorkspacePath: lsSetJson(
+          LS_KEYS.chatHistoryWorkspacePath,
+          String(path || '').trim() || null,
         ),
       }),
     setChatContextScope: (scope: 'selection' | 'workspace' | 'hybrid') =>

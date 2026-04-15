@@ -10,6 +10,7 @@ import {
   CHAT_PROVIDER_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_LOCAL_MODEL_OPTIONS,
+  normalizeChatEndpointUrlInput,
 } from '@/lib/chatEndpoint'
 import { DEFAULT_INTEGRATION_CONFIGS, stringifyIntegrationConfigs } from '@/features/integrations/config'
 
@@ -368,7 +369,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().chatEndpointUrl,
     write: (v) => s().setChatEndpointUrl(String(v || '').trim() || null),
     docKey: 'chatEndpointUrl',
-    default: () => CHAT_DEFAULT_ENDPOINT_URL,
+    default: () => normalizeChatEndpointUrlInput(null, s().chatProvider),
   },
   {
     key: 'chatApiKey',
@@ -405,6 +406,15 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().chatSystemPrompt,
     write: (v) => s().setChatSystemPrompt(String(v || '').trim() || null),
     docKey: 'chatSystemPrompt',
+    default: () => null,
+  },
+  {
+    key: 'chatHistoryWorkspacePath',
+    type: 'string',
+    source: 'localStorage',
+    read: () => s().chatHistoryWorkspacePath,
+    write: (v) => s().setChatHistoryWorkspacePath(String(v || '').trim() || null),
+    docKey: 'chatHistoryWorkspacePath',
     default: () => null,
   },
   {

@@ -456,6 +456,7 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   chatContextScope: 'ui.chat',
   integrationConfigsJson: 'ui.chat',
   chatHistoryPrefix: 'ui.chat',
+  chatHistoryWorkspacePath: 'ui.chat',
   workspaceViewMode: 'ui.workspace',
   documentStructureBaselineLock: 'ui.baseline',
   workspacePreviewWidthPx: 'ui.workspace',

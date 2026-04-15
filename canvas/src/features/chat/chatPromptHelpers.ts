@@ -26,6 +26,14 @@ const serializeGraphValue = (raw: unknown): string => {
   return JSON.stringify(String(raw))
 }
 
+const wrapFence = (content: string, lang: string): string => {
+  const safeLang = String(lang || '').trim() || 'text'
+  const safe = String(content || '').replace(/\r\n/g, '\n')
+  const open = `\`\`\`\`${safeLang}`
+  const close = '````'
+  return [open, safe, close].join('\n')
+}
+
 export const buildBoundedGraphSystemPrompt = (
   graphData: GraphData | null,
   currentNode: GraphNode | null,
@@ -163,7 +171,7 @@ export const buildMarkdownNodeSnippetPrompt = (
     'Markdown excerpt associated with the selected node (line-range aligned).',
     `Line range: ${sliceStart}-${sliceEnd}`,
     'Snippet:',
-    trimmedSnippet,
+    wrapFence(trimmedSnippet, 'markdown'),
   ].join('\n')
 }
 
@@ -172,7 +180,7 @@ const CHAT_WORKSPACE_CONTEXT_MAX_SOURCE_FILES = 8
 const CHAT_WORKSPACE_CONTEXT_MAX_EXPLORER_FILES = 10
 const CHAT_WORKSPACE_CONTEXT_MAX_FILE_SNIPPET_CHARS = 2_400
 const CHAT_WORKSPACE_CONTEXT_CACHE_LIMIT = 24
-const CHAT_WORKSPACE_CONTEXT_CACHE_TTL_MS = 12_000
+const CHAT_WORKSPACE_CONTEXT_CACHE_TTL_MS = 60_000
 
 type WorkspaceContextCacheEntry = {
   value: string | null
@@ -228,7 +236,7 @@ export const buildWorkspaceWideContextPrompt = async ({
   if (editorText) {
     appendSection(
       'Workspace Editor (active document):',
-      [`File: ${editorName}`, 'Content:', editorText].join('\n'),
+      [`File: ${editorName}`, 'Content:', wrapFence(editorText, 'markdown')].join('\n'),
     )
   }
 
@@ -245,7 +253,7 @@ export const buildWorkspaceWideContextPrompt = async ({
       if (!snippet) continue
       sourceLines.push(`File: ${name}`)
       sourceLines.push('Content:')
-      sourceLines.push(snippet)
+      sourceLines.push(wrapFence(snippet, 'markdown'))
       sourceLines.push('')
     }
     appendSection('Source Files (enabled):', sourceLines.join('\n').trim())
@@ -273,7 +281,7 @@ export const buildWorkspaceWideContextPrompt = async ({
       if (!snippet) continue
       explorerLines.push(`Path: ${path}`)
       explorerLines.push('Content:')
-      explorerLines.push(snippet)
+      explorerLines.push(wrapFence(snippet, 'markdown'))
       explorerLines.push('')
     }
     appendSection('Explorer files (workspace):', explorerLines.join('\n').trim())

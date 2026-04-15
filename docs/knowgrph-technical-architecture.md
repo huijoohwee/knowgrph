@@ -51,6 +51,7 @@ This root document exists as the auto-generated settings registry table surface 
 | `chatModel` | string | localStorage | `kg:chat:model` | `ui.chat` |
 | `chatTemperature` | number | localStorage | `kg:chat:temperature` | `ui.chat` |
 | `chatSystemPrompt` | string | localStorage | `kg:chat:systemPrompt` | `ui.chat` |
+| `chatHistoryWorkspacePath` | string | localStorage | `kg:chat:history:workspacePath` | `ui.chat` |
 | `chatContextScope` | string | localStorage | `kg:chat:contextScope` | `ui.chat` |
 | `integrationConfigsJson` | string | localStorage | `kg:integrations:configs` | `ui.chat` |
 | `canvasSnapEnabled` | boolean | store |  |  |
@@ -156,6 +157,10 @@ This root document exists as the auto-generated settings registry table surface 
 | `monacoRenderFinalNewlineEnabled` | boolean | store |  |  |
 | `monacoAccessibilitySupportEnabled` | boolean | store |  |  |
 | `monacoScrollbarUseShadowsEnabled` | boolean | store |  |  |
+| `monacoScrollbarAlwaysConsumeMouseWheelEnabled` | boolean | store |  |  |
+| `monacoHorizontalScrollbarSizeEnabled` | boolean | store |  |  |
+| `monacoVerticalScrollbarSizeEnabled` | boolean | store |  |  |
+| `monacoMouseWheelScrollSensitivityEnabled` | boolean | store |  |  |
 | `pdfImportIncludeImages` | boolean | store | `kg:import:pdf:includeImages` | `import.pdf` |
 | `pdfImportMaxPages` | number | store | `kg:import:pdf:maxPages` | `import.pdf` |
 | `pdfImportMaxPdfBytes` | number | store | `kg:import:pdf:maxPdfBytes` | `import.pdf` |

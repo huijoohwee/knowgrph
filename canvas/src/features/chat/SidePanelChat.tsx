@@ -10,6 +10,7 @@ import { WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE } from '@/lib/asy
 import type { ChatMessage } from './SidePanelChatSections'
 import { SidePanelChatFooter, SidePanelChatMessagesSection } from './SidePanelChatSections'
 import { buildBoundedGraphSystemPrompt, buildMarkdownNodeSnippetPrompt, buildWorkspaceWideContextPrompt } from './chatPromptHelpers'
+import { CHAT_RESPONSE_CONTRACT_PROMPT } from './chatResponseContract'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   buildChatProxyHeaders,
@@ -18,10 +19,12 @@ import {
   getChatProviderLabel,
   getChatProviderRegionLabel,
   getChatRecommendedModelHint,
+  normalizeChatEndpointUrlInput,
   normalizeChatModelIdForProvider,
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
+import { appendChatHistoryWorkspaceFile } from '@/features/chat/chatHistoryWorkspace'
 import {
   buildHistoryKey,
   CHAT_HISTORY_COALESCE_DELAY_MS,
@@ -55,6 +58,8 @@ export default function SidePanelChat() {
   const chatContextScope = useGraphStore(s => s.chatContextScope || 'workspace')
   const setChatModel = useGraphStore(s => s.setChatModel)
   const pushChatExchangeLog = useGraphStore(s => s.pushChatExchangeLog)
+  const chatHistoryWorkspacePath = useGraphStore(s => s.chatHistoryWorkspacePath || null)
+  const setChatHistoryWorkspacePath = useGraphStore(s => s.setChatHistoryWorkspacePath)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const docLocationRevision = useGraphStore(s => s.docLocationRevision)
@@ -65,9 +70,11 @@ export default function SidePanelChat() {
   const [errorText, setErrorText] = React.useState<string | null>(null)
   const [connectivity, setConnectivity] = React.useState<'unknown' | 'ok' | 'error'>('unknown')
   const [connectivityDetail, setConnectivityDetail] = React.useState<string | null>(null)
+  const [streamingAssistant, setStreamingAssistant] = React.useState<{ id: string; text: string } | null>(null)
 
   const abortRef = React.useRef<AbortController | null>(null)
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
+  const scrollRafRef = React.useRef<number | null>(null)
   const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
 
   const historyKey = React.useMemo(() => buildHistoryKey(graphData), [graphData])
@@ -156,7 +163,12 @@ export default function SidePanelChat() {
   }, [historyKey])
 
   React.useEffect(() => {
-    const history = messages.slice(-80)
+    const history = (() => {
+      const base = messages.slice(-80)
+      const streamingId = streamingAssistant?.id || ''
+      if (!streamingId) return base
+      return base.filter(m => !(m.id === streamingId && m.role === 'assistant' && !String(m.content || '').trim()))
+    })()
     putChatHistoryCache(historyKey, history)
     const taskKey = toHistoryTaskKey(historyKey)
     const signature = hashSignatureParts([
@@ -172,7 +184,7 @@ export default function SidePanelChat() {
       signature,
       scopeKey: WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE,
     })
-  }, [historyKey, messages])
+  }, [historyKey, messages, streamingAssistant ? streamingAssistant.id : ''])
 
   React.useEffect(() => {
     return () => {
@@ -184,12 +196,24 @@ export default function SidePanelChat() {
   React.useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    try {
-      el.scrollTop = el.scrollHeight
-    } catch {
-      void 0
+    const bottomDistancePx = el.scrollHeight - (el.scrollTop + el.clientHeight)
+    if (bottomDistancePx > 160) return
+    const prev = scrollRafRef.current
+    if (typeof prev === 'number') {
+      try {
+        cancelAnimationFrame(prev)
+      } catch {
+        void 0
+      }
     }
-  }, [messages.length])
+    scrollRafRef.current = requestAnimationFrame(() => {
+      try {
+        el.scrollTop = el.scrollHeight
+      } catch {
+        void 0
+      }
+    })
+  }, [messages.length, streamingAssistant ? streamingAssistant.text.length : 0])
 
   React.useEffect(() => {
     return () => {
@@ -197,6 +221,19 @@ export default function SidePanelChat() {
       if (!ctrl) return
       try {
         ctrl.abort()
+      } catch {
+        void 0
+      }
+    }
+  }, [])
+
+  React.useEffect(() => {
+    return () => {
+      const id = scrollRafRef.current
+      scrollRafRef.current = null
+      if (typeof id !== 'number') return
+      try {
+        cancelAnimationFrame(id)
       } catch {
         void 0
       }
@@ -244,7 +281,9 @@ export default function SidePanelChat() {
       setConnectivityDetail(null)
       return
     }
-    const requestUrl = resolveChatEndpointForRequest(chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL)
+    const requestUrl = resolveChatEndpointForRequest(
+      normalizeChatEndpointUrlInput(chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL, chatProvider),
+    )
     if (!requestUrl) {
       setErrorText(UI_COPY.chatMissingEndpointAndModelError)
       setConnectivity('unknown')
@@ -256,6 +295,7 @@ export default function SidePanelChat() {
     setConnectivityDetail(null)
     const userMessageId = toShortId()
     const assistantMessageId = toShortId()
+    setStreamingAssistant({ id: assistantMessageId, text: '' })
     const nextMessages: ChatMessage[] = [
       ...messages,
       { id: userMessageId, role: 'user', content: trimmed },
@@ -263,16 +303,14 @@ export default function SidePanelChat() {
     ]
     const seededHistory = nextMessages.slice(-80)
     putChatHistoryCache(historyKey, seededHistory)
-    const seededStorage = getLocalStorage()
-    if (seededStorage) {
-      writeJsonToStorage(seededStorage, historyKey, seededHistory)
-    }
     setMessages(nextMessages)
     setInput('')
     setIsLoading(true)
 
     try {
       const payloadMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = []
+
+      payloadMessages.push({ role: 'system', content: CHAT_RESPONSE_CONTRACT_PROMPT })
 
       const includeSelectionContext = chatContextScope === 'selection' || chatContextScope === 'hybrid'
       const includeWorkspaceContext = chatContextScope === 'workspace' || chatContextScope === 'hybrid'
@@ -349,9 +387,11 @@ export default function SidePanelChat() {
         res = await sendChat(effectiveModel)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error || '')
-        if (!/aborted/i.test(message) || controller.signal.aborted) {
-          throw error
-        }
+        const lowered = message.toLowerCase()
+        const isRetryable =
+          !controller.signal.aborted &&
+          (/aborted/i.test(message) || lowered.includes('failed to fetch') || lowered.includes('networkerror') || lowered.includes('err_aborted'))
+        if (!isRetryable) throw error
         res = await sendChat(effectiveModel)
       }
       if (!res.ok) {
@@ -385,6 +425,7 @@ export default function SidePanelChat() {
           setConnectivity('ok')
           setConnectivityDetail(null)
           setErrorText(`${statusText}${suffix}`.trim())
+          setStreamingAssistant(null)
           setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
           setIsLoading(false)
           abortRef.current = null
@@ -401,6 +442,13 @@ export default function SidePanelChat() {
         let buffer = ''
         let assistantText = ''
         let done = false
+        let lastUiFlushMs = 0
+        const flushUi = (force: boolean) => {
+          const nowMs = Date.now()
+          if (!force && nowMs - lastUiFlushMs < 60) return
+          lastUiFlushMs = nowMs
+          setStreamingAssistant({ id: assistantMessageId, text: assistantText })
+        }
         while (!done) {
           const chunk = await reader.read()
           if (chunk.done) break
@@ -416,14 +464,16 @@ export default function SidePanelChat() {
               const next = extractAssistantDelta(JSON.parse(raw) as unknown)
               if (!next) continue
               assistantText += next
-              setMessages(prev => prev.map(m => (m.id === assistantMessageId ? { ...m, content: assistantText } : m)))
+              flushUi(false)
             } catch {
               void 0
             }
           }
         }
+        flushUi(true)
         if (!assistantText) {
           setErrorText(UI_COPY.chatResponseMissingContentError)
+          setStreamingAssistant(null)
           setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
           const nowMs = Date.now()
           pushChatExchangeLog({
@@ -444,11 +494,38 @@ export default function SidePanelChat() {
           abortRef.current = null
           return
         }
+
+        setMessages(prev => prev.map(m => (m.id === assistantMessageId ? { ...m, content: assistantText } : m)))
+        setStreamingAssistant(null)
+        const nowMs = Date.now()
+        pushChatExchangeLog({
+          request: trimmed,
+          response: assistantText,
+          status: 'ok',
+          model: effectiveModel,
+          tsMs: nowMs,
+        })
+        void persistChatExchangeLog({
+          request: trimmed,
+          response: assistantText,
+          status: 'ok',
+          model: effectiveModel,
+          timestampMs: nowMs,
+        })
+        void appendChatHistoryWorkspaceFile({
+          requestedPath: chatHistoryWorkspacePath,
+          onResolvedPath: p => setChatHistoryWorkspacePath(p),
+          timestampMs: nowMs,
+          providerSummary: chatProviderSummary,
+          userText: trimmed,
+          assistantText,
+        })
       } else {
         const data = (await res.json()) as unknown
         const assistantText = extractAssistantDelta(data)
         if (!assistantText) {
           setErrorText(UI_COPY.chatResponseMissingContentError)
+          setStreamingAssistant(null)
           setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
           const nowMs = Date.now()
           pushChatExchangeLog({
@@ -470,6 +547,7 @@ export default function SidePanelChat() {
           return
         }
         setMessages(prev => prev.map(m => (m.id === assistantMessageId ? { ...m, content: assistantText } : m)))
+        setStreamingAssistant(null)
         const nowMs = Date.now()
         pushChatExchangeLog({
           request: trimmed,
@@ -485,6 +563,14 @@ export default function SidePanelChat() {
           model: effectiveModel,
           timestampMs: nowMs,
         })
+        void appendChatHistoryWorkspaceFile({
+          requestedPath: chatHistoryWorkspacePath,
+          onResolvedPath: p => setChatHistoryWorkspacePath(p),
+          timestampMs: nowMs,
+          providerSummary: chatProviderSummary,
+          userText: trimmed,
+          assistantText,
+        })
       }
 
       setConnectivity('ok')
@@ -495,6 +581,7 @@ export default function SidePanelChat() {
       const raw = err instanceof Error ? err.message : String(err || '')
       if (raw && raw.toLowerCase().includes('aborted')) {
         const nowMs = Date.now()
+        setStreamingAssistant(null)
         pushChatExchangeLog({
           request: trimmed,
           response: raw || 'Request aborted',
@@ -509,6 +596,7 @@ export default function SidePanelChat() {
           model: chatModel || '',
           timestampMs: nowMs,
         })
+        setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
         setConnectivity('unknown')
         setConnectivityDetail(null)
         setIsLoading(false)
@@ -529,6 +617,7 @@ export default function SidePanelChat() {
         : raw || UI_COPY.chatRequestFailedGenericError
 
       setErrorText(friendly)
+      setStreamingAssistant(null)
       setConnectivity('error')
       setConnectivityDetail(friendly)
       const nowMs = Date.now()
@@ -559,6 +648,7 @@ export default function SidePanelChat() {
           messages={messages}
           isLoading={isLoading}
           historyKey={historyKey}
+          streamingAssistant={streamingAssistant}
           uiPanelTextFontClass={uiPanelTextFontClass}
           uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
           uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}

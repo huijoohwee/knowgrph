@@ -703,6 +703,8 @@ export interface GraphState {
   chatModel: string | null;
   chatTemperature: number;
   chatSystemPrompt: string | null;
+  chatHistoryWorkspacePath: string | null;
+  setChatHistoryWorkspacePath: (path: string | null) => void;
   setChatContextScope: (scope: 'selection' | 'workspace' | 'hybrid') => void;
   chatContextScope: 'selection' | 'workspace' | 'hybrid';
   integrationConfigsJson: string;

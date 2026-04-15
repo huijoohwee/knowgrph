@@ -7,10 +7,42 @@ import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 
+const ChatMessageRow = React.memo(function ChatMessageRow({
+  message,
+  uiPanelTextFontClass,
+  uiPanelKeyValueTextSizeClass,
+  overrideText,
+}: {
+  message: ChatMessage
+  uiPanelTextFontClass: string
+  uiPanelKeyValueTextSizeClass: string
+  overrideText?: string | null
+}) {
+  const content = typeof overrideText === 'string' ? overrideText : message.content
+  const isUser = message.role === 'user'
+  return (
+    <div className="flex">
+      <div
+        className={[
+          'max-w-[85%] rounded px-3 py-2 mb-1 whitespace-pre-wrap break-words',
+          uiPanelTextFontClass,
+          uiPanelKeyValueTextSizeClass,
+          isUser
+            ? `ml-auto ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
+            : `mr-auto ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`,
+        ].join(' ')}
+      >
+        {content}
+      </div>
+    </div>
+  )
+})
+
 type MessagesSectionProps = {
   messages: ChatMessage[]
   isLoading: boolean
   historyKey: string
+  streamingAssistant?: { id: string; text: string } | null
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass: string
   uiPanelMicroLabelTextSizeClass: string
@@ -21,6 +53,7 @@ export function SidePanelChatMessagesSection({
   messages,
   isLoading,
   historyKey,
+  streamingAssistant,
   uiPanelTextFontClass,
   uiPanelKeyValueTextSizeClass,
   uiPanelMicroLabelTextSizeClass,
@@ -58,20 +91,13 @@ export function SidePanelChatMessagesSection({
       )}
 
       {messages.map(m => (
-        <div key={m.id} className="flex">
-          <div
-            className={[
-              'max-w-[85%] rounded px-3 py-2 mb-1 whitespace-pre-wrap break-words',
-              uiPanelTextFontClass,
-              uiPanelKeyValueTextSizeClass,
-              m.role === 'user'
-                ? `ml-auto ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
-                : `mr-auto ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`,
-            ].join(' ')}
-          >
-            {m.content}
-          </div>
-        </div>
+        <ChatMessageRow
+          key={m.id}
+          message={m}
+          uiPanelTextFontClass={uiPanelTextFontClass}
+          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+          overrideText={streamingAssistant && streamingAssistant.id === m.id ? streamingAssistant.text : null}
+        />
       ))}
     </>
   )
