@@ -1,13 +1,39 @@
 import React from 'react'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsEvents'
+import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { isFrontmatterOnlyDoc, normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { bulkSetWorkspaceEntrySources } from '@/features/workspace-fs/sourceIndex'
 import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
-import { fetchWorkspaceUrlContent, importWorkspaceLocalFiles, importWorkspaceLocalFolder, importWorkspaceUrl } from '../workspaceImport'
+import {
+  fetchWorkspaceUrlContent,
+  hydrateWorkspaceFileFromPendingLocalImport,
+  importWorkspaceLocalFiles,
+  importWorkspaceLocalFolder,
+  importWorkspaceUrl,
+} from '../workspaceImport'
+import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
 import type { UseWorkspaceFileActionsArgs } from './types'
+
+export async function pickFirstCreatedFilePathForImportFocus(fs: WorkspaceFs, createdPaths: string[]): Promise<string | null> {
+  const normalized = Array.isArray(createdPaths) ? createdPaths.map(path => String(path || '').trim()).filter(Boolean) : []
+  if (normalized.length === 0) return null
+
+  try {
+    const createdSet = new Set(normalized)
+    const entries = await fs.listEntries()
+    const firstFile = entries.find(entry => entry.kind === 'file' && createdSet.has(String(entry.path || '').trim()))
+    if (firstFile) return String(firstFile.path || '').trim() || null
+  } catch {
+    void 0
+  }
+
+  const fileLike = normalized.find(path => /\/[^/]+\.[^/]+$/.test(path))
+  if (fileLike) return fileLike
+  return normalized[0] || null
+}
 
 function looksLikeJsShellText(text: string): boolean {
   const t = String(text || '')
@@ -33,6 +59,22 @@ export function useWorkspaceImportActions(args: {
   const { importJobRef, status, focusAfterImport } = args.core
   const { getFs, refresh, openedPath, activeDocumentKey, setActiveText, setEntries, lastLoadedRef, setActiveMarkdownDocument } = args.ctx
 
+  const forceWorkspaceEditorCanvasLanding = React.useCallback(() => {
+    try {
+      ensureEditorCanvasLandingForDuration(2000)
+    } catch {
+      void 0
+    }
+  }, [])
+
+  const hydratePendingImportedPaths = React.useCallback(async (fs: WorkspaceFs, createdPaths: string[]) => {
+    for (const path of createdPaths || []) {
+      const nextPath = String(path || '').trim()
+      if (!nextPath) continue
+      await hydrateWorkspaceFileFromPendingLocalImport({ fs, path: nextPath }).catch(() => null)
+    }
+  }, [])
+
   const handleImportLocalFiles = React.useCallback(
     async (files: FileList | null) => {
       const snapshot = files ? Array.from(files) : []
@@ -55,6 +97,7 @@ export function useWorkspaceImportActions(args: {
         )
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
+        await hydratePendingImportedPaths(fs, res.createdPaths)
         await refresh()
         try {
           const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
@@ -64,7 +107,8 @@ export function useWorkspaceImportActions(args: {
         } catch {
           void 0
         }
-        const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
+        forceWorkspaceEditorCanvasLanding()
+        const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
           await focusAfterImport(createdPath, { applyToGraph: true, jobId })
         }
@@ -83,7 +127,7 @@ export function useWorkspaceImportActions(args: {
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [focusAfterImport, getFs, refresh, importJobRef, status],
+    [focusAfterImport, forceWorkspaceEditorCanvasLanding, getFs, hydratePendingImportedPaths, refresh, importJobRef, status],
   )
 
   const handleImportLocalFolder = React.useCallback(
@@ -102,6 +146,7 @@ export function useWorkspaceImportActions(args: {
         )
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
+        await hydratePendingImportedPaths(fs, res.createdPaths)
         await refresh()
         try {
           const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
@@ -111,7 +156,8 @@ export function useWorkspaceImportActions(args: {
         } catch {
           void 0
         }
-        const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
+        forceWorkspaceEditorCanvasLanding()
+        const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
           await focusAfterImport(createdPath, { applyToGraph: true, jobId })
         }
@@ -130,7 +176,7 @@ export function useWorkspaceImportActions(args: {
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [focusAfterImport, getFs, refresh, importJobRef, status],
+    [focusAfterImport, forceWorkspaceEditorCanvasLanding, getFs, hydratePendingImportedPaths, refresh, importJobRef, status],
   )
 
   const handleImportUrl = React.useCallback(
@@ -218,7 +264,7 @@ export function useWorkspaceImportActions(args: {
           failed > 0 && firstFailure
             ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
             : ''
-        const createdPath = res.createdPaths.find(p => typeof p === 'string' && p.trim()) || null
+        const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         const source = createdPath ? res.sources.find(s => s.path === createdPath)?.source : res.sources[0]?.source
         const sourceUrl = source && source.kind === 'url' ? source.url : null
 

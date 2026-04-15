@@ -60,6 +60,17 @@ export function LaunchDropdown({
 
   const bridge = getMarkdownWorkspaceActionBridge()
 
+  const ensureWorkspaceEditorCanvasVisible = React.useCallback(() => {
+    try {
+      const state = useGraphStore.getState()
+      if (state.workspaceViewMode !== 'editor') state.setWorkspaceViewMode('editor')
+      if (state.editorWorkspacePane !== 'markdown') state.setEditorWorkspacePane('markdown')
+      if (state.workspaceCanvasPaneOpen !== true) state.setWorkspaceCanvasPaneOpen(true)
+    } catch {
+      void 0
+    }
+  }, [])
+
   React.useEffect(() => {
     if (!open) return
     setUrlInputOpen(false)
@@ -358,6 +369,7 @@ export function LaunchDropdown({
                     setUrlInputOpen(false)
                     return
                   }
+                  ensureWorkspaceEditorCanvasVisible()
                   onClose()
                   if (typeof bridge.importUrl === 'function') bridge.importUrl(draft)
                   else void importUrlFallback(draft)
@@ -434,6 +446,7 @@ export function LaunchDropdown({
                       e.preventDefault()
                       const next = String(urlDraft || '').trim()
                       if (!next) return
+                      ensureWorkspaceEditorCanvasVisible()
                       onClose()
                       if (typeof bridge.importUrl === 'function') bridge.importUrl(next)
                       else void importUrlFallback(next)
@@ -454,6 +467,7 @@ export function LaunchDropdown({
                       onClick={() => {
                         const next = String(urlDraft || '').trim()
                         if (!next) return
+                        ensureWorkspaceEditorCanvasVisible()
                         onClose()
                         bridge.importWebsite?.(next)
                         setUrlInputOpen(false)

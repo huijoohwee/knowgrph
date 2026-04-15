@@ -246,7 +246,8 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     }
     ;(window as MainPanelOpenReadyWindow).__KG_MAIN_PANEL_OPEN_READY__ = true
     window.addEventListener(MAIN_PANEL_OPEN_EVENT, handler as EventListener)
-    window.dispatchEvent(new Event(MAIN_PANEL_OPEN_READY_EVENT))
+    const EventCtor = typeof window.Event === 'function' ? window.Event : Event
+    window.dispatchEvent(new EventCtor(MAIN_PANEL_OPEN_READY_EVENT))
     return () => {
       ;(window as MainPanelOpenReadyWindow).__KG_MAIN_PANEL_OPEN_READY__ = false
       window.removeEventListener(MAIN_PANEL_OPEN_EVENT, handler as EventListener)

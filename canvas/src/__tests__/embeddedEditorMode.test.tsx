@@ -8,39 +8,56 @@ import Toolbar from '@/components/Toolbar'
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 import { EmbeddedCanvasPreviewFrame } from '@/components/EmbeddedCanvasPreviewFrame'
 import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
+import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect'
 import { FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID } from '@/lib/config'
 
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
 }
 
-export async function testToolbarEditorButtonTogglesWorkspaceViewMode() {
+export async function testToolbarWorkspaceViewDropdownSelectsEditorWorkspace() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
   try {
+    useGraphStore.getState().resetAll()
     useGraphStore.getState().setWorkspaceViewMode('canvas')
 
     const container = dom.window.document.getElementById('root')
     if (!container) throw new Error('missing root container')
 
     const root = createRoot(container)
-    root.render(
-      <Toolbar onZoomIn={() => {}} onZoomOut={() => {}} onReset={() => {}} onZoomSelection={() => {}} />,
-    )
+    await act(async () => {
+      root.render(<EditorWorkspaceSelect iconSizeClass="h-4 w-4" iconStrokeWidth={1.6} />)
+    })
 
     await tick()
 
-    const editorBtn = dom.window.document.querySelector('button[aria-label="Editor"]') as HTMLButtonElement | null
-    const statusBtn = dom.window.document.querySelector('button[aria-label="Status"]') as HTMLButtonElement | null
-    if (!editorBtn) throw new Error('expected Editor button')
-    if (!statusBtn) throw new Error('expected Status button')
+    const workspaceViewBtn = dom.window.document.querySelector('button[aria-label="Workspace View"]') as HTMLButtonElement | null
+    if (!workspaceViewBtn) {
+      const html = String(container.innerHTML || '')
+      throw new Error(`expected Workspace View button. root.innerHTML=${html.slice(0, 1200)}`)
+    }
 
-    editorBtn.click()
+    await act(async () => {
+      workspaceViewBtn.click()
+    })
     await tick()
-    if (useGraphStore.getState().workspaceViewMode !== 'editor') throw new Error('expected workspaceViewMode to be editor after click')
 
-    editorBtn.click()
+    const menuButtons = Array.from(dom.window.document.querySelectorAll('menu button')) as HTMLButtonElement[]
+    const editorOption =
+      menuButtons.find(btn => String(btn.title || '').trim() === 'Editor Workspace') ||
+      menuButtons.find(btn => String(btn.textContent || '').includes('Editor Workspace')) ||
+      null
+    if (!editorOption) throw new Error('expected Editor Workspace option')
+
+    await act(async () => {
+      editorOption.click()
+    })
     await tick()
-    if (useGraphStore.getState().workspaceViewMode !== 'canvas') throw new Error('expected workspaceViewMode to be canvas after second click')
+    if (useGraphStore.getState().workspaceViewMode !== 'editor') {
+      throw new Error('expected workspaceViewMode to be editor after selecting Editor Workspace')
+    }
 
     root.unmount()
   } finally {
@@ -50,6 +67,7 @@ export async function testToolbarEditorButtonTogglesWorkspaceViewMode() {
       void 0
     }
     restore()
+    restoreWindow()
   }
 }
 

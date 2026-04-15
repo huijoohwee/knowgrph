@@ -3,6 +3,7 @@ import type { WorkspaceImportResult } from '@/components/BottomPanel/markdownWor
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
 
 type PushUiToast = (toast: UiToastInput) => void
 
@@ -24,28 +25,40 @@ async function focusFirstImportedWorkspaceFile(args: {
   fs: WorkspaceFs
   createdPaths: string[]
 }): Promise<void> {
-  const firstPath = Array.isArray(args.createdPaths) ? String(args.createdPaths.find(Boolean) || '').trim() : ''
-  if (!firstPath) return
+  const createdPaths = Array.isArray(args.createdPaths) ? args.createdPaths.map(p => String(p || '').trim()).filter(Boolean) : []
+  if (createdPaths.length === 0) return
   try {
-    const [{ workspaceBasename, workspaceDocumentKey }, { normalizeMermaidMmdToMarkdown }] = await Promise.all([
+    const [{ workspaceBasename, workspaceDocumentKey }, { normalizeMermaidMmdToMarkdown }, { pickFirstCreatedFilePathForImportFocus }] = await Promise.all([
       import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
       import('grph-shared/markdown/mermaidInput') as Promise<typeof import('grph-shared/markdown/mermaidInput')>,
+      import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions') as Promise<
+        typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
+      >,
     ])
+
+    const firstPath = (await pickFirstCreatedFilePathForImportFocus(args.fs as unknown as any, createdPaths)) || ''
+    if (!firstPath) return
+
     const text = String((await args.fs.readFileText(firstPath).catch(() => '')) || '')
     const docKey = workspaceDocumentKey(firstPath)
     const name = docKey || workspaceBasename(firstPath) || firstPath
     const state = useGraphStore.getState()
-    state.setWorkspaceViewMode('editor')
+
     await state.setActiveMarkdownDocument({
       name,
       text: normalizeMermaidMmdToMarkdown(name, text),
       normalizeMermaidMmd: false,
       sourceUrl: null,
       jsonSourceText: null,
-      workspaceViewMode: 'editor',
       applyToGraph: true,
       forceApplyToGraph: true,
     })
+
+    try {
+      ensureEditorCanvasLandingForDuration(2000)
+    } catch {
+      void 0
+    }
   } catch {
     void 0
   }
