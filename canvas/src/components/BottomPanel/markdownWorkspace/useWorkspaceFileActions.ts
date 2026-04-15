@@ -41,6 +41,8 @@ export function useWorkspaceFileActions(args: UseWorkspaceFileActionsArgs): Work
       setEntries: args.setEntries,
       lastLoadedRef: args.lastLoadedRef,
       setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+      setActivePathSafe: args.setActivePathSafe,
+      setSelectionPathSafe: args.setSelectionPathSafe,
     },
   })
 
@@ -53,6 +55,7 @@ export function useWorkspaceFileActions(args: UseWorkspaceFileActionsArgs): Work
     handleImportWebsite: websiteImport.handleImportWebsite,
     refreshFileFromSource: mutationActions.refreshFileFromSource,
     onDeleteEntry: mutationActions.onDeleteEntry,
+    onRenameEntry: mutationActions.onRenameEntry,
     onClearFile: mutationActions.onClearFile,
     canClearActiveSelection: mutationActions.canClearActiveSelection,
     canDeleteActive: mutationActions.canDeleteActive,

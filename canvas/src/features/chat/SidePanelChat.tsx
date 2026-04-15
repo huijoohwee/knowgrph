@@ -10,7 +10,7 @@ import { WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE } from '@/lib/asy
 import type { ChatMessage } from './SidePanelChatSections'
 import { SidePanelChatFooter, SidePanelChatMessagesSection } from './SidePanelChatSections'
 import { buildBoundedGraphSystemPrompt, buildMarkdownNodeSnippetPrompt, buildWorkspaceWideContextPrompt } from './chatPromptHelpers'
-import { CHAT_RESPONSE_CONTRACT_PROMPT } from './chatResponseContract'
+import { CHAT_KGC_RESPONSE_CONTRACT_PROMPT, CHAT_RESPONSE_CONTRACT_PROMPT } from './chatResponseContract'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   buildChatProxyHeaders,
@@ -24,7 +24,14 @@ import {
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
-import { appendChatHistoryWorkspaceFile } from '@/features/chat/chatHistoryWorkspace'
+import {
+  appendChatHistoryWorkspaceFile,
+  ensureChatHistoryWorkspaceFilePath,
+  isKgcStructuredMarkdown,
+  upsertChatHistoryWorkspaceDraft,
+} from '@/features/chat/chatHistoryWorkspace'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import {
   buildHistoryKey,
   CHAT_HISTORY_COALESCE_DELAY_MS,
@@ -35,12 +42,31 @@ import {
   parseErrorBody,
   parseLine,
   parseSseEvents,
+  extractKgcBlockFromAssistantText,
   persistChatExchangeLog,
   putChatHistoryCache,
   shouldRetryWithModelFallback,
   toHistoryTaskKey,
   toShortId,
 } from '@/features/chat/SidePanelChat.helpers'
+
+const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-request'
+
+const toConciseBulletText = (raw: string, maxWords = 50): string => {
+  const cleaned = String(raw || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/````[\s\S]*?````/g, ' ')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .replace(/[#>*_`]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const words = cleaned.split(' ').filter(Boolean)
+  if (words.length === 0) return 'No response content.'
+  const sliced = words.slice(0, Math.max(1, maxWords))
+  const suffix = words.length > sliced.length ? '…' : ''
+  return `${sliced.join(' ')}${suffix}`
+}
 
 export default function SidePanelChat() {
   const graphData = useGraphStore(s => s.graphData)
@@ -58,8 +84,20 @@ export default function SidePanelChat() {
   const chatContextScope = useGraphStore(s => s.chatContextScope || 'workspace')
   const setChatModel = useGraphStore(s => s.setChatModel)
   const pushChatExchangeLog = useGraphStore(s => s.pushChatExchangeLog)
+  const chatStorageTarget = useGraphStore(s => (s.chatStorageTarget === 'chatHistory' ? 'chatHistory' : 'chatKnowgrph'))
+  const chatLocalStorageRootPath = useGraphStore(s => s.chatLocalStorageRootPath || '/Users/huijoohwee/Documents/GitHub/sandbox/chat-log')
+  const chatKnowgrphStorageMode = useGraphStore(s => (s.chatKnowgrphStorageMode === 'cloud' ? 'cloud' : 'local'))
+  const chatKnowgrphWorkspacePath = useGraphStore(s => s.chatKnowgrphWorkspacePath || null)
+  const chatKnowgrphCloudUrl = useGraphStore(s => s.chatKnowgrphCloudUrl || null)
+  const setChatKnowgrphWorkspacePath = useGraphStore(s => s.setChatKnowgrphWorkspacePath)
   const chatHistoryWorkspacePath = useGraphStore(s => s.chatHistoryWorkspacePath || null)
+  const chatHistoryStorageMode = useGraphStore(s => (s.chatHistoryStorageMode === 'cloud' ? 'cloud' : 'local'))
+  const chatHistoryCloudUrl = useGraphStore(s => s.chatHistoryCloudUrl || null)
   const setChatHistoryWorkspacePath = useGraphStore(s => s.setChatHistoryWorkspacePath)
+  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
+  const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
+  const workspaceViewMode = useGraphStore(s => (s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'))
+  const editorWorkspacePane = useGraphStore(s => (s.editorWorkspacePane === 'graphTable' ? 'graphTable' : 'markdown'))
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const docLocationRevision = useGraphStore(s => s.docLocationRevision)
@@ -71,11 +109,15 @@ export default function SidePanelChat() {
   const [connectivity, setConnectivity] = React.useState<'unknown' | 'ok' | 'error'>('unknown')
   const [connectivityDetail, setConnectivityDetail] = React.useState<string | null>(null)
   const [streamingAssistant, setStreamingAssistant] = React.useState<{ id: string; text: string } | null>(null)
+  const [streamingWorkspacePath, setStreamingWorkspacePath] = React.useState<string | null>(null)
 
   const abortRef = React.useRef<AbortController | null>(null)
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const scrollRafRef = React.useRef<number | null>(null)
   const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
+  const streamFollowRef = React.useRef<{ path: string; atMs: number } | null>(null)
+  const streamDraftTextRef = React.useRef<{ path: string; text: string } | null>(null)
+  const streamRevealSeqRef = React.useRef(0)
 
   const historyKey = React.useMemo(() => buildHistoryKey(graphData), [graphData])
   const chatProviderLabel = React.useMemo(
@@ -122,6 +164,39 @@ export default function SidePanelChat() {
       sourceFilesSignature,
     ])
   }, [docLocationRevision, markdownDocumentName, markdownText, sourceFilesSignature])
+
+  const openWorkspaceMarkdownPath = React.useCallback((path: string) => {
+    const normalized = normalizeWorkspacePath(path)
+    setWorkspaceViewMode('editor')
+    setEditorWorkspacePane('markdown')
+    useMarkdownExplorerStore.getState().setActivePath(normalized)
+  }, [setEditorWorkspacePane, setWorkspaceViewMode])
+
+  const followWorkspaceMarkdownPath = React.useCallback((path: string) => {
+    const normalized = normalizeWorkspacePath(path)
+    const nowMs = Date.now()
+    const prevFollow = streamFollowRef.current
+    const samePath = !!prevFollow && prevFollow.path === normalized
+    if (!samePath || workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
+    if (!samePath || editorWorkspacePane !== 'markdown') setEditorWorkspacePane('markdown')
+    const explorer = useMarkdownExplorerStore.getState()
+    const activePath = String(explorer.activePath || '').trim()
+    if (!samePath || activePath !== normalized) explorer.setActivePath(normalized)
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent(MARKDOWN_LAYOUT_REQUEST_EVENT, { detail: { mode: 'split' } }))
+      } catch {
+        void 0
+      }
+    }
+    if (!samePath || nowMs - prevFollow.atMs >= 180) {
+      // Alternate the reveal target line so repeated tail-follow requests always produce a state change.
+      streamRevealSeqRef.current = (streamRevealSeqRef.current + 1) % 2
+      const tailLine = Number.MAX_SAFE_INTEGER - streamRevealSeqRef.current
+      explorer.requestRevealLine(tailLine)
+      streamFollowRef.current = { path: normalized, atMs: nowMs }
+    }
+  }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
 
   const currentNode = React.useMemo(() => {
     if (!graphData || !selectedNodeId) return null
@@ -271,6 +346,104 @@ export default function SidePanelChat() {
     }
   }
 
+  const finalizeAssistantSuccess = React.useCallback(async (
+    args: {
+      assistantMessageId: string
+      requestText: string
+      modelId: string
+      rawAssistantText: string
+      timestampMs: number
+      traceId?: string
+      knownKnowgrphPath?: string | null
+    },
+  ) => {
+    const { assistantMessageId, requestText, modelId, rawAssistantText, timestampMs, knownKnowgrphPath } = args
+    const traceId = String(args.traceId || '').trim() || `trace-${timestampMs}-${assistantMessageId}`
+    const extracted = chatStorageTarget === 'chatKnowgrph'
+      ? extractKgcBlockFromAssistantText(rawAssistantText)
+      : { answer: rawAssistantText, kgc: null }
+    const assistantTextForKgc = (extracted.kgc && isKgcStructuredMarkdown(extracted.kgc))
+      ? extracted.kgc
+      : (extracted.answer || rawAssistantText)
+    let resolvedKnowgrphPath = ''
+    resolvedKnowgrphPath = await appendChatHistoryWorkspaceFile({
+      storageType: 'chatKnowgrph',
+      title: 'Knowledge Graph Canvas Storage',
+      traceId,
+      requestedPath: knownKnowgrphPath || chatKnowgrphWorkspacePath,
+      defaultLocalRootPath: chatLocalStorageRootPath,
+      onResolvedPath: p => setChatKnowgrphWorkspacePath(p),
+      timestampMs,
+      providerSummary: chatProviderSummary,
+      userText: requestText,
+      assistantText: assistantTextForKgc,
+    })
+    if (chatKnowgrphStorageMode !== 'local') {
+      void chatKnowgrphCloudUrl
+    }
+
+    if (chatStorageTarget === 'chatHistory') {
+      if (chatHistoryStorageMode === 'local') {
+        await appendChatHistoryWorkspaceFile({
+          storageType: 'chatHistory',
+          title: 'Chat History Storage',
+          traceId,
+          requestedPath: chatHistoryWorkspacePath,
+          defaultLocalRootPath: chatLocalStorageRootPath,
+          onResolvedPath: p => setChatHistoryWorkspacePath(p),
+          timestampMs,
+          providerSummary: chatProviderSummary,
+          userText: requestText,
+          assistantText: rawAssistantText,
+        })
+      } else {
+        void chatHistoryCloudUrl
+      }
+    }
+
+    const knowgrphRawPath = String(resolvedKnowgrphPath || chatKnowgrphWorkspacePath || '').trim()
+    const knowgrphPath = knowgrphRawPath ? normalizeWorkspacePath(knowgrphRawPath) : ''
+    const knowgrphLabel = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : ''
+    const concise = toConciseBulletText(rawAssistantText, knowgrphPath ? 49 : 50)
+    const lines = [`- ${concise}`]
+    if (chatStorageTarget === 'chatKnowgrph' && knowgrphPath) lines.push(`- [${knowgrphLabel}](${knowgrphPath})`)
+    const finalAssistantText = lines.join('\n')
+
+    setMessages(prev => prev.map(m => (m.id === assistantMessageId ? { ...m, content: finalAssistantText } : m)))
+    setStreamingAssistant(null)
+    streamFollowRef.current = null
+    streamDraftTextRef.current = null
+
+    pushChatExchangeLog({
+      request: requestText,
+      response: finalAssistantText,
+      status: 'ok',
+      model: modelId,
+      tsMs: timestampMs,
+    })
+    void persistChatExchangeLog({
+      request: requestText,
+      response: finalAssistantText,
+      status: 'ok',
+      model: modelId,
+      timestampMs,
+    })
+
+  }, [
+    chatHistoryCloudUrl,
+    chatHistoryStorageMode,
+    chatHistoryWorkspacePath,
+    chatKnowgrphCloudUrl,
+    chatKnowgrphStorageMode,
+    chatKnowgrphWorkspacePath,
+    chatLocalStorageRootPath,
+    chatProviderSummary,
+    chatStorageTarget,
+    setChatHistoryWorkspacePath,
+    setChatKnowgrphWorkspacePath,
+    pushChatExchangeLog,
+  ])
+
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async ev => {
     ev.preventDefault()
     const trimmed = input.trim()
@@ -295,6 +468,8 @@ export default function SidePanelChat() {
     setConnectivityDetail(null)
     const userMessageId = toShortId()
     const assistantMessageId = toShortId()
+    const requestTimestampMs = Date.now()
+    const traceId = `trace-${requestTimestampMs}-${assistantMessageId}`
     setStreamingAssistant({ id: assistantMessageId, text: '' })
     const nextMessages: ChatMessage[] = [
       ...messages,
@@ -308,9 +483,37 @@ export default function SidePanelChat() {
     setIsLoading(true)
 
     try {
+      let liveKgcPath: string | null = null
+      if (chatStorageTarget === 'chatKnowgrph') {
+        liveKgcPath = await ensureChatHistoryWorkspaceFilePath({
+          requestedPath: chatKnowgrphWorkspacePath,
+          timestampMs: requestTimestampMs,
+          storageType: 'chatKnowgrph',
+          defaultLocalRootPath: chatLocalStorageRootPath,
+          onResolvedPath: p => setChatKnowgrphWorkspacePath(p),
+        })
+        setStreamingWorkspacePath(liveKgcPath)
+        followWorkspaceMarkdownPath(liveKgcPath)
+        await upsertChatHistoryWorkspaceDraft({
+          requestedPath: liveKgcPath,
+          onResolvedPath: p => setChatKnowgrphWorkspacePath(p),
+          timestampMs: requestTimestampMs,
+          providerSummary: chatProviderSummary,
+          userText: trimmed,
+          assistantText: '',
+          storageType: 'chatKnowgrph',
+          defaultLocalRootPath: chatLocalStorageRootPath,
+          title: 'Knowledge Graph Canvas Storage',
+          traceId,
+        })
+      }
+
       const payloadMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = []
 
-      payloadMessages.push({ role: 'system', content: CHAT_RESPONSE_CONTRACT_PROMPT })
+      payloadMessages.push({
+        role: 'system',
+        content: chatStorageTarget === 'chatKnowgrph' ? CHAT_KGC_RESPONSE_CONTRACT_PROMPT : CHAT_RESPONSE_CONTRACT_PROMPT,
+      })
 
       const includeSelectionContext = chatContextScope === 'selection' || chatContextScope === 'hybrid'
       const includeWorkspaceContext = chatContextScope === 'workspace' || chatContextScope === 'hybrid'
@@ -442,12 +645,34 @@ export default function SidePanelChat() {
         let buffer = ''
         let assistantText = ''
         let done = false
-        let lastUiFlushMs = 0
-        const flushUi = (force: boolean) => {
+        let lastDraftFlushMs = 0
+        let pendingDraftWrite: Promise<unknown> | null = null
+        const flushDraft = (force: boolean) => {
+          if (chatStorageTarget !== 'chatKnowgrph') return
+          if (!liveKgcPath) return
           const nowMs = Date.now()
-          if (!force && nowMs - lastUiFlushMs < 60) return
-          lastUiFlushMs = nowMs
-          setStreamingAssistant({ id: assistantMessageId, text: assistantText })
+          if (!force && nowMs - lastDraftFlushMs < 160) return
+          const prevDraft = streamDraftTextRef.current
+          if (!force && prevDraft && prevDraft.path === liveKgcPath && prevDraft.text === assistantText) return
+          lastDraftFlushMs = nowMs
+          followWorkspaceMarkdownPath(liveKgcPath)
+          streamDraftTextRef.current = { path: liveKgcPath, text: assistantText }
+          pendingDraftWrite = upsertChatHistoryWorkspaceDraft({
+            requestedPath: liveKgcPath,
+            onResolvedPath: p => setChatKnowgrphWorkspacePath(p),
+            timestampMs: requestTimestampMs,
+            providerSummary: chatProviderSummary,
+            userText: trimmed,
+            assistantText,
+            storageType: 'chatKnowgrph',
+            defaultLocalRootPath: chatLocalStorageRootPath,
+            title: 'Knowledge Graph Canvas Storage',
+            traceId,
+          })
+            .then(() => {
+              followWorkspaceMarkdownPath(liveKgcPath)
+            })
+            .catch(() => void 0)
         }
         while (!done) {
           const chunk = await reader.read()
@@ -464,13 +689,20 @@ export default function SidePanelChat() {
               const next = extractAssistantDelta(JSON.parse(raw) as unknown)
               if (!next) continue
               assistantText += next
-              flushUi(false)
+              flushDraft(false)
             } catch {
               void 0
             }
           }
         }
-        flushUi(true)
+        flushDraft(true)
+        if (pendingDraftWrite) {
+          try {
+            await pendingDraftWrite
+          } catch {
+            void 0
+          }
+        }
         if (!assistantText) {
           setErrorText(UI_COPY.chatResponseMissingContentError)
           setStreamingAssistant(null)
@@ -495,34 +727,40 @@ export default function SidePanelChat() {
           return
         }
 
-        setMessages(prev => prev.map(m => (m.id === assistantMessageId ? { ...m, content: assistantText } : m)))
-        setStreamingAssistant(null)
         const nowMs = Date.now()
-        pushChatExchangeLog({
-          request: trimmed,
-          response: assistantText,
-          status: 'ok',
-          model: effectiveModel,
-          tsMs: nowMs,
-        })
-        void persistChatExchangeLog({
-          request: trimmed,
-          response: assistantText,
-          status: 'ok',
-          model: effectiveModel,
+        await finalizeAssistantSuccess({
+          assistantMessageId,
+          requestText: trimmed,
+          modelId: effectiveModel,
+          rawAssistantText: assistantText,
           timestampMs: nowMs,
+          traceId,
+          knownKnowgrphPath: liveKgcPath,
         })
-        void appendChatHistoryWorkspaceFile({
-          requestedPath: chatHistoryWorkspacePath,
-          onResolvedPath: p => setChatHistoryWorkspacePath(p),
-          timestampMs: nowMs,
-          providerSummary: chatProviderSummary,
-          userText: trimmed,
-          assistantText,
-        })
+        setStreamingWorkspacePath(null)
+        streamFollowRef.current = null
+        streamDraftTextRef.current = null
       } else {
         const data = (await res.json()) as unknown
         const assistantText = extractAssistantDelta(data)
+        if (chatStorageTarget === 'chatKnowgrph' && liveKgcPath) {
+          try {
+            await upsertChatHistoryWorkspaceDraft({
+              requestedPath: liveKgcPath,
+              onResolvedPath: p => setChatKnowgrphWorkspacePath(p),
+              timestampMs: requestTimestampMs,
+              providerSummary: chatProviderSummary,
+              userText: trimmed,
+              assistantText: assistantText || '',
+              storageType: 'chatKnowgrph',
+              defaultLocalRootPath: chatLocalStorageRootPath,
+              title: 'Knowledge Graph Canvas Storage',
+              traceId,
+            })
+          } catch {
+            void 0
+          }
+        }
         if (!assistantText) {
           setErrorText(UI_COPY.chatResponseMissingContentError)
           setStreamingAssistant(null)
@@ -546,37 +784,28 @@ export default function SidePanelChat() {
           abortRef.current = null
           return
         }
-        setMessages(prev => prev.map(m => (m.id === assistantMessageId ? { ...m, content: assistantText } : m)))
-        setStreamingAssistant(null)
         const nowMs = Date.now()
-        pushChatExchangeLog({
-          request: trimmed,
-          response: assistantText,
-          status: 'ok',
-          model: effectiveModel,
-          tsMs: nowMs,
-        })
-        void persistChatExchangeLog({
-          request: trimmed,
-          response: assistantText,
-          status: 'ok',
-          model: effectiveModel,
+        await finalizeAssistantSuccess({
+          assistantMessageId,
+          requestText: trimmed,
+          modelId: effectiveModel,
+          rawAssistantText: assistantText,
           timestampMs: nowMs,
+          traceId,
+          knownKnowgrphPath: liveKgcPath,
         })
-        void appendChatHistoryWorkspaceFile({
-          requestedPath: chatHistoryWorkspacePath,
-          onResolvedPath: p => setChatHistoryWorkspacePath(p),
-          timestampMs: nowMs,
-          providerSummary: chatProviderSummary,
-          userText: trimmed,
-          assistantText,
-        })
+        setStreamingWorkspacePath(null)
+        streamFollowRef.current = null
+        streamDraftTextRef.current = null
       }
 
       setConnectivity('ok')
       setConnectivityDetail(null)
       setIsLoading(false)
       abortRef.current = null
+      setStreamingWorkspacePath(null)
+      streamFollowRef.current = null
+      streamDraftTextRef.current = null
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : String(err || '')
       if (raw && raw.toLowerCase().includes('aborted')) {
@@ -601,6 +830,9 @@ export default function SidePanelChat() {
         setConnectivityDetail(null)
         setIsLoading(false)
         abortRef.current = null
+        setStreamingWorkspacePath(null)
+        streamFollowRef.current = null
+        streamDraftTextRef.current = null
         return
       }
       const lowered = raw.toLowerCase()
@@ -638,6 +870,9 @@ export default function SidePanelChat() {
       setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
       setIsLoading(false)
       abortRef.current = null
+      setStreamingWorkspacePath(null)
+      streamFollowRef.current = null
+      streamDraftTextRef.current = null
     }
   }
 
@@ -652,6 +887,7 @@ export default function SidePanelChat() {
           uiPanelTextFontClass={uiPanelTextFontClass}
           uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
           uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
+          onOpenWorkspacePath={openWorkspaceMarkdownPath}
           setMessages={setMessages}
         />
       </div>
@@ -666,6 +902,11 @@ export default function SidePanelChat() {
         currentNode={currentNode}
         providerSummary={chatProviderSummary}
         providerHint={chatProviderHint}
+          writingWorkspaceFileLabel={
+            isLoading && chatStorageTarget === 'chatKnowgrph' && streamingWorkspacePath
+              ? `Writing to ${(streamingWorkspacePath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md')}...`
+              : null
+          }
         uiPanelTextFontClass={uiPanelTextFontClass}
         uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
         isSubmitDisabled={!input.trim() || isLoading || !chatModel}

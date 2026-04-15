@@ -87,6 +87,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workflowPreset.exportBrandedPaths","@/__tests__/workflowPresetPipeline.test","testExportFunctionsAcceptBrandedPaths"],
   ["ui.media.mediaInteractiveDefaults","@/__tests__/mediaInteractiveDefaults.test","testMediaInteractiveDefaults"],
   ["workspace.import.localFiles","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLocalFilesCreatesExpectedEntries"],
+  ["workspace.import.localFiles.launchFallbackActivatesWorkspaceAndCanvas","@/__tests__/workspaceImportLocal.test","testLaunchDropdownImportLocalFilesFallbackActivatesWorkspaceAndCanvasState"],
   ["workspace.import.localFiles.svgFidelity","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLocalFilesSvgPreservesBytes"],
   ["workspace.import.localFiles.largeFileLazyHydrate","@/__tests__/workspaceImportLocal.test","testWorkspaceImportLargeLocalFileDefersHydrationUntilOpen"],
   ["workspace.import.workspaceFileJsonLd","@/__tests__/workspaceImportLocal.test","testWorkspaceImportWorkspaceFileJsonLdConvertsToMarkdown"],

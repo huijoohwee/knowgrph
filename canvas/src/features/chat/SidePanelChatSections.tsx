@@ -7,16 +7,58 @@ import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 
+const WORKSPACE_LINK_RE = /\[([^\]]+)\]\((\/[^\s)]+\.md)\)/g
+
+const renderMessageWithWorkspaceLinks = (
+  raw: string,
+  onOpenWorkspacePath?: (path: string) => void,
+): React.ReactNode => {
+  const content = String(raw || '')
+  if (!content || typeof onOpenWorkspacePath !== 'function') return content
+  const nodes: React.ReactNode[] = []
+  let last = 0
+  let index = 0
+  WORKSPACE_LINK_RE.lastIndex = 0
+  for (;;) {
+    const match = WORKSPACE_LINK_RE.exec(content)
+    if (!match) break
+    const start = match.index
+    const end = start + match[0].length
+    if (start > last) nodes.push(content.slice(last, start))
+    const label = String(match[1] || '').trim() || 'Open'
+    const path = String(match[2] || '').trim()
+    nodes.push(
+      <button
+        key={`workspace-link-${index}-${path}`}
+        type="button"
+        className={[
+          'inline-flex items-center rounded px-1.5 py-0.5 border',
+          UI_THEME_TOKENS.status.info,
+        ].join(' ')}
+        onClick={() => onOpenWorkspacePath(path)}
+      >
+        {label}
+      </button>,
+    )
+    last = end
+    index += 1
+  }
+  if (last < content.length) nodes.push(content.slice(last))
+  return nodes.length > 0 ? nodes : content
+}
+
 const ChatMessageRow = React.memo(function ChatMessageRow({
   message,
   uiPanelTextFontClass,
   uiPanelKeyValueTextSizeClass,
   overrideText,
+  onOpenWorkspacePath,
 }: {
   message: ChatMessage
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass: string
   overrideText?: string | null
+  onOpenWorkspacePath?: (path: string) => void
 }) {
   const content = typeof overrideText === 'string' ? overrideText : message.content
   const isUser = message.role === 'user'
@@ -24,15 +66,17 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
     <div className="flex">
       <div
         className={[
-          'max-w-[85%] rounded px-3 py-2 mb-1 whitespace-pre-wrap break-words',
+          'max-w-[85%] rounded px-3 py-2 mb-1 whitespace-pre-wrap break-words leading-relaxed border',
           uiPanelTextFontClass,
           uiPanelKeyValueTextSizeClass,
           isUser
-            ? `ml-auto ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
-            : `mr-auto ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary}`,
+            ? `ml-auto ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} ${UI_THEME_TOKENS.button.activeBorder}`
+            : `mr-auto ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.panel.border}`,
         ].join(' ')}
       >
-        {content}
+        {message.role === 'assistant'
+          ? renderMessageWithWorkspaceLinks(content, onOpenWorkspacePath)
+          : content}
       </div>
     </div>
   )
@@ -46,6 +90,7 @@ type MessagesSectionProps = {
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass: string
   uiPanelMicroLabelTextSizeClass: string
+  onOpenWorkspacePath?: (path: string) => void
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
 }
 
@@ -57,6 +102,7 @@ export function SidePanelChatMessagesSection({
   uiPanelTextFontClass,
   uiPanelKeyValueTextSizeClass,
   uiPanelMicroLabelTextSizeClass,
+  onOpenWorkspacePath,
   setMessages,
 }: MessagesSectionProps) {
   return (
@@ -90,15 +136,23 @@ export function SidePanelChatMessagesSection({
         </div>
       )}
 
-      {messages.map(m => (
-        <ChatMessageRow
-          key={m.id}
-          message={m}
-          uiPanelTextFontClass={uiPanelTextFontClass}
-          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
-          overrideText={streamingAssistant && streamingAssistant.id === m.id ? streamingAssistant.text : null}
-        />
-      ))}
+      {messages.map(m => {
+        const rawOverrideText = streamingAssistant && streamingAssistant.id === m.id ? streamingAssistant.text : null
+        const overrideText = typeof rawOverrideText === 'string' && rawOverrideText.trim() ? rawOverrideText : null
+        const resolvedText = typeof overrideText === 'string' ? overrideText : m.content
+        const hidePendingAssistant = m.role === 'assistant' && !String(resolvedText || '').trim()
+        if (hidePendingAssistant) return null
+        return (
+          <ChatMessageRow
+            key={m.id}
+            message={m}
+            uiPanelTextFontClass={uiPanelTextFontClass}
+            uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+            overrideText={overrideText}
+            onOpenWorkspacePath={onOpenWorkspacePath}
+          />
+        )
+      })}
     </>
   )
 }
@@ -113,6 +167,7 @@ type FooterProps = {
   currentNode: GraphNode | null
   providerSummary: string
   providerHint: string
+  writingWorkspaceFileLabel?: string | null
   uiPanelTextFontClass: string
   uiPanelMicroLabelTextSizeClass: string
   isSubmitDisabled: boolean
@@ -130,6 +185,7 @@ export function SidePanelChatFooter({
   currentNode,
   providerSummary,
   providerHint,
+  writingWorkspaceFileLabel,
   uiPanelTextFontClass,
   uiPanelMicroLabelTextSizeClass,
   isSubmitDisabled,
@@ -162,6 +218,11 @@ export function SidePanelChatFooter({
       <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
         {providerHint}
       </div>
+      {writingWorkspaceFileLabel && (
+        <div className={[uiPanelTextFontClass, 'text-[10px]', 'inline-flex items-center rounded px-1.5 py-0.5 border', UI_THEME_TOKENS.status.info].join(' ')}>
+          {writingWorkspaceFileLabel}
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="space-y-2">
         <div className={`w-full border rounded overflow-hidden h-[88px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>

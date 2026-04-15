@@ -13,8 +13,15 @@ import {
   buildSettingsKeyTooltip,
   buildSettingsValueTooltip,
 } from '@/lib/config'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { useSettingsView } from './useSettingsView'
 import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
+import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
+import { importLocalFilesFallback, importUrlFallback } from '@/features/toolbar/launchDropdownFallbacks'
 import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
@@ -39,6 +46,8 @@ import {
   parseIntegrationConfigsJson,
   stringifyIntegrationConfigs,
 } from '@/features/integrations/config'
+
+const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
 export default function SettingsView({
   searchQuery,
@@ -74,6 +83,16 @@ export default function SettingsView({
   const [chatModelsStatus, setChatModelsStatus] = React.useState<string | null>(null)
   const [isRefreshingChatModels, setIsRefreshingChatModels] = React.useState(false)
   const [discoveredChatModels, setDiscoveredChatModels] = React.useState<string[]>([])
+  const [knowgrphPathStatus, setKnowgrphPathStatus] = React.useState<string | null>(null)
+  const [isUpdatingKnowgrphPath, setIsUpdatingKnowgrphPath] = React.useState(false)
+  const [chatHistoryPathStatus, setChatHistoryPathStatus] = React.useState<string | null>(null)
+  const [isUpdatingChatHistoryPath, setIsUpdatingChatHistoryPath] = React.useState(false)
+  const kgcLocalImportInputRef = React.useRef<HTMLInputElement | null>(null)
+  const localImportInputRef = React.useRef<HTMLInputElement | null>(null)
+  const bridge = getMarkdownWorkspaceActionBridge()
+  const pushUiToast = useGraphStore(s => s.pushUiToast)
+  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
+  const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const normalizedChatProvider = React.useMemo(
     () => String(values.chatProvider || '').trim() || CHAT_PROVIDER_BYTEPLUS,
     [values.chatProvider],
@@ -120,6 +139,185 @@ export default function SettingsView({
     Object.keys(patch).forEach(key => dirtyRef.current.add(key))
     setValues(prev => ({ ...prev, ...patch }))
   }, [dirtyRef, setValues])
+
+  const openWorkspaceFile = React.useCallback((path: string) => {
+    const normalized = normalizeWorkspacePath(path)
+    setWorkspaceViewMode('editor')
+    setEditorWorkspacePane('markdown')
+    useMarkdownExplorerStore.getState().setActivePath(normalized)
+  }, [setEditorWorkspacePane, setWorkspaceViewMode])
+
+  const createAndSelectChatHistoryFile = React.useCallback(async () => {
+    setIsUpdatingChatHistoryPath(true)
+    setChatHistoryPathStatus(null)
+    try {
+      const created = await createNewChatHistoryWorkspaceFilePath(Date.now(), {
+        storageType: 'chatHistory',
+        defaultLocalRootPath: String(values.chatLocalStorageRootPath || '').trim() || null,
+      })
+      patchChatValues({
+        chatHistoryStorageMode: 'local',
+        chatHistoryCloudUrl: '',
+        chatHistoryWorkspacePath: created,
+      })
+      openWorkspaceFile(created)
+      setChatHistoryPathStatus(created)
+    } catch (err) {
+      setChatHistoryPathStatus(err instanceof Error ? err.message : String(err || 'Failed to create file'))
+    } finally {
+      setIsUpdatingChatHistoryPath(false)
+    }
+  }, [openWorkspaceFile, patchChatValues, values.chatLocalStorageRootPath])
+
+  const createAndSelectKnowgrphFile = React.useCallback(async () => {
+    setIsUpdatingKnowgrphPath(true)
+    setKnowgrphPathStatus(null)
+    try {
+      const created = await createNewChatHistoryWorkspaceFilePath(Date.now(), {
+        storageType: 'chatKnowgrph',
+        defaultLocalRootPath: String(values.chatLocalStorageRootPath || '').trim() || null,
+      })
+      patchChatValues({
+        chatKnowgrphStorageMode: 'local',
+        chatKnowgrphCloudUrl: '',
+        chatKnowgrphWorkspacePath: created,
+      })
+      openWorkspaceFile(created)
+      setKnowgrphPathStatus(created)
+    } catch (err) {
+      setKnowgrphPathStatus(err instanceof Error ? err.message : String(err || 'Failed to create file'))
+    } finally {
+      setIsUpdatingKnowgrphPath(false)
+    }
+  }, [openWorkspaceFile, patchChatValues, values.chatLocalStorageRootPath])
+
+  const useActiveWorkspaceFileAsKnowgrph = React.useCallback(() => {
+    setKnowgrphPathStatus(null)
+    const active = useMarkdownExplorerStore.getState().activePath
+    const normalized = active ? normalizeWorkspacePath(active) : null
+    if (!normalized || !normalized.toLowerCase().endsWith('.md')) {
+      setKnowgrphPathStatus('No active markdown file is selected in Workspace Editor.')
+      return
+    }
+    patchChatValues({
+      chatKnowgrphStorageMode: 'local',
+      chatKnowgrphCloudUrl: '',
+      chatKnowgrphWorkspacePath: normalized,
+    })
+    openWorkspaceFile(normalized)
+    setKnowgrphPathStatus(normalized)
+  }, [openWorkspaceFile, patchChatValues])
+
+  const useActiveWorkspaceFileAsChatHistory = React.useCallback(() => {
+    setChatHistoryPathStatus(null)
+    const active = useMarkdownExplorerStore.getState().activePath
+    const normalized = active ? normalizeWorkspacePath(active) : null
+    if (!normalized || !normalized.toLowerCase().endsWith('.md')) {
+      setChatHistoryPathStatus('No active markdown file is selected in Workspace Editor.')
+      return
+    }
+    patchChatValues({
+      chatHistoryStorageMode: 'local',
+      chatHistoryCloudUrl: '',
+      chatHistoryWorkspacePath: normalized,
+    })
+    openWorkspaceFile(normalized)
+    setChatHistoryPathStatus(normalized)
+  }, [openWorkspaceFile, patchChatValues])
+
+  const openFilePicker = React.useCallback((el: HTMLInputElement | null) => {
+    if (!el) return
+    try {
+      const anyEl = el as unknown as { showPicker?: () => void }
+      if (typeof anyEl.showPicker === 'function') {
+        anyEl.showPicker()
+        return
+      }
+    } catch {
+      void 0
+    }
+    try {
+      el.click()
+    } catch {
+      void 0
+    }
+  }, [])
+
+  const syncChatHistoryPathFromActiveFile = React.useCallback((attempt = 0) => {
+    const active = useMarkdownExplorerStore.getState().activePath
+    const normalized = active ? normalizeWorkspacePath(active) : ''
+    if (normalized && normalized.toLowerCase().endsWith('.md')) {
+      patchChatValues({
+        chatHistoryStorageMode: 'local',
+        chatHistoryCloudUrl: '',
+        chatHistoryWorkspacePath: normalized,
+      })
+      setChatHistoryPathStatus(normalized)
+      return
+    }
+    if (attempt >= 8) return
+    window.setTimeout(() => syncChatHistoryPathFromActiveFile(attempt + 1), 250)
+  }, [patchChatValues])
+
+  const syncKnowgrphPathFromActiveFile = React.useCallback((attempt = 0) => {
+    const active = useMarkdownExplorerStore.getState().activePath
+    const normalized = active ? normalizeWorkspacePath(active) : ''
+    if (normalized && normalized.toLowerCase().endsWith('.md')) {
+      patchChatValues({
+        chatKnowgrphStorageMode: 'local',
+        chatKnowgrphCloudUrl: '',
+        chatKnowgrphWorkspacePath: normalized,
+      })
+      setKnowgrphPathStatus(normalized)
+      return
+    }
+    if (attempt >= 8) return
+    window.setTimeout(() => syncKnowgrphPathFromActiveFile(attempt + 1), 250)
+  }, [patchChatValues])
+
+  const importLocalFilesForChatHistory = React.useCallback((files: FileList | null) => {
+    const snapshot = files ? Array.from(files) : []
+    if (snapshot.length === 0) return
+    setChatHistoryPathStatus('Importing local files...')
+    patchChatValues({ chatHistoryStorageMode: 'local', chatHistoryCloudUrl: '' })
+    if (typeof bridge.importLocalFiles === 'function') bridge.importLocalFiles(files)
+    else void importLocalFilesFallback({ files, pushUiToast })
+    syncChatHistoryPathFromActiveFile(0)
+  }, [bridge.importLocalFiles, patchChatValues, pushUiToast, syncChatHistoryPathFromActiveFile])
+
+  const importCloudUrlForChatHistory = React.useCallback(() => {
+    const next = String(values.chatHistoryCloudUrl || '').trim()
+    if (!next) {
+      setChatHistoryPathStatus('Set chatHistoryCloudUrl first.')
+      return
+    }
+    patchChatValues({ chatHistoryStorageMode: 'cloud', chatHistoryCloudUrl: next })
+    setChatHistoryPathStatus(`Importing URL: ${next}`)
+    if (typeof bridge.importUrl === 'function') bridge.importUrl(next)
+    else void importUrlFallback({ urlRaw: next, pushUiToast })
+  }, [bridge.importUrl, patchChatValues, pushUiToast, values.chatHistoryCloudUrl])
+
+  const importLocalFilesForKnowgrph = React.useCallback((files: FileList | null) => {
+    const snapshot = files ? Array.from(files) : []
+    if (snapshot.length === 0) return
+    setKnowgrphPathStatus('Importing local files...')
+    patchChatValues({ chatKnowgrphStorageMode: 'local', chatKnowgrphCloudUrl: '' })
+    if (typeof bridge.importLocalFiles === 'function') bridge.importLocalFiles(files)
+    else void importLocalFilesFallback({ files, pushUiToast })
+    syncKnowgrphPathFromActiveFile(0)
+  }, [bridge.importLocalFiles, patchChatValues, pushUiToast, syncKnowgrphPathFromActiveFile])
+
+  const importCloudUrlForKnowgrph = React.useCallback(() => {
+    const next = String(values.chatKnowgrphCloudUrl || '').trim()
+    if (!next) {
+      setKnowgrphPathStatus('Set chatKnowgrphCloudUrl first.')
+      return
+    }
+    patchChatValues({ chatKnowgrphStorageMode: 'cloud', chatKnowgrphCloudUrl: next })
+    setKnowgrphPathStatus(`Importing URL: ${next}`)
+    if (typeof bridge.importUrl === 'function') bridge.importUrl(next)
+    else void importUrlFallback({ urlRaw: next, pushUiToast })
+  }, [bridge.importUrl, patchChatValues, pushUiToast, values.chatKnowgrphCloudUrl])
 
   const patchIntegrationJson = React.useCallback((updater: (current: ReturnType<typeof parseIntegrationConfigsJson>) => ReturnType<typeof parseIntegrationConfigsJson>) => {
     const current = parseIntegrationConfigsJson(
@@ -237,6 +435,30 @@ export default function SettingsView({
 
   return (
     <article className="min-h-full flex flex-col space-y-0">
+      <input
+        ref={kgcLocalImportInputRef}
+        type="file"
+        multiple
+        accept={WORKSPACE_IMPORT_ACCEPT}
+        className="hidden"
+        onChange={e => {
+          const files = e.currentTarget.files
+          importLocalFilesForKnowgrph(files)
+          e.currentTarget.value = ''
+        }}
+      />
+      <input
+        ref={localImportInputRef}
+        type="file"
+        multiple
+        accept={WORKSPACE_IMPORT_ACCEPT}
+        className="hidden"
+        onChange={e => {
+          const files = e.currentTarget.files
+          importLocalFilesForChatHistory(files)
+          e.currentTarget.value = ''
+        }}
+      />
       <section className="space-y-0">
         <header className={`sticky top-0 z-10 border-b ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
           <KeyTypeValueRow
@@ -538,32 +760,198 @@ export default function SettingsView({
                                     {renderInput(s.key, s.type, writable, s.options)}
                                   </span>
                                 )
-                              if (s.key !== 'chatSystemPrompt') return inputNode
-                              return (
-                                <div className="flex items-center gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    {inputNode}
-                                  </div>
-                                  {chatHealthStatus && (
-                                    <span className={statusPillClassName} title={chatHealthStatus}>
-                                      <span className="truncate overflow-hidden whitespace-nowrap">
-                                        {chatHealthStatus}
+                              if (s.key === 'chatSystemPrompt') {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      {inputNode}
+                                    </div>
+                                    {chatHealthStatus && (
+                                      <span className={statusPillClassName} title={chatHealthStatus}>
+                                        <span className="truncate overflow-hidden whitespace-nowrap">
+                                          {chatHealthStatus}
+                                        </span>
                                       </span>
-                                    </span>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      checkChatHealth()
-                                    }}
-                                    disabled={isCheckingHealth}
-                                    className={pillButtonClassName}
-                                  >
-                                    {isCheckingHealth ? 'Checking...' : 'Check Health'}
-                                  </button>
-                                </div>
-                              )
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        checkChatHealth()
+                                      }}
+                                      disabled={isCheckingHealth}
+                                      className={pillButtonClassName}
+                                    >
+                                      {isCheckingHealth ? 'Checking...' : 'Check Health'}
+                                    </button>
+                                  </div>
+                                )
+                              }
+                              if (s.key === 'chatHistoryWorkspacePath') {
+                                const currentPath = typeof values.chatHistoryWorkspacePath === 'string'
+                                  ? values.chatHistoryWorkspacePath.trim()
+                                  : ''
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      {inputNode}
+                                      {chatHistoryPathStatus && (
+                                        <div className={`mt-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+                                          {chatHistoryPathStatus}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        openFilePicker(localImportInputRef.current)
+                                      }}
+                                      className={pillButtonClassName}
+                                    >
+                                      Import Local
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        useActiveWorkspaceFileAsChatHistory()
+                                      }}
+                                      className={pillButtonClassName}
+                                    >
+                                      Use Active
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        void createAndSelectChatHistoryFile()
+                                      }}
+                                      disabled={isUpdatingChatHistoryPath}
+                                      className={pillButtonClassName}
+                                    >
+                                      {isUpdatingChatHistoryPath ? 'Creating...' : 'New File'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        if (!currentPath) {
+                                          setChatHistoryPathStatus('Chat history path is not set.')
+                                          return
+                                        }
+                                        openWorkspaceFile(currentPath)
+                                      }}
+                                      disabled={!currentPath}
+                                      className={pillButtonClassName}
+                                    >
+                                      Open
+                                    </button>
+                                  </div>
+                                )
+                              }
+                              if (s.key === 'chatKnowgrphWorkspacePath') {
+                                const currentPath = typeof values.chatKnowgrphWorkspacePath === 'string'
+                                  ? values.chatKnowgrphWorkspacePath.trim()
+                                  : ''
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      {inputNode}
+                                      {knowgrphPathStatus && (
+                                        <div className={`mt-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+                                          {knowgrphPathStatus}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        openFilePicker(kgcLocalImportInputRef.current)
+                                      }}
+                                      className={pillButtonClassName}
+                                    >
+                                      Import Local
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        useActiveWorkspaceFileAsKnowgrph()
+                                      }}
+                                      className={pillButtonClassName}
+                                    >
+                                      Use Active
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        void createAndSelectKnowgrphFile()
+                                      }}
+                                      disabled={isUpdatingKnowgrphPath}
+                                      className={pillButtonClassName}
+                                    >
+                                      {isUpdatingKnowgrphPath ? 'Creating...' : 'New File'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        if (!currentPath) {
+                                          setKnowgrphPathStatus('chatKnowgrph path is not set.')
+                                          return
+                                        }
+                                        openWorkspaceFile(currentPath)
+                                      }}
+                                      disabled={!currentPath}
+                                      className={pillButtonClassName}
+                                    >
+                                      Open
+                                    </button>
+                                  </div>
+                                )
+                              }
+                              if (s.key === 'chatHistoryCloudUrl') {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      {inputNode}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        importCloudUrlForChatHistory()
+                                      }}
+                                      className={pillButtonClassName}
+                                    >
+                                      Import URL
+                                    </button>
+                                  </div>
+                                )
+                              }
+                              if (s.key === 'chatKnowgrphCloudUrl') {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      {inputNode}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        importCloudUrlForKnowgrph()
+                                      }}
+                                      className={pillButtonClassName}
+                                    >
+                                      Import URL
+                                    </button>
+                                  </div>
+                                )
+                              }
+                              return inputNode
                             })()}
                           </div>
                         )}

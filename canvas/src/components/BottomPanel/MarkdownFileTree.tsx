@@ -43,11 +43,59 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
   onSelectFile: (path: WorkspacePath) => void
   onSelectFolder?: (path: WorkspacePath) => void
   sourcesByPath?: WorkspaceSourceIndex | null
+  onRevealInFinder?: (path: WorkspacePath) => void
+  onRenameEntry?: (path: WorkspacePath, nextName: string) => void
+  onDeleteEntry?: (path: WorkspacePath) => void
   renderFileRight?: (args: { entry: WorkspaceEntry; isActive: boolean }) => React.ReactNode
 }) {
-  const { entries, expandedPaths, toggleExpanded, activePath, onSelectFile, onSelectFolder, sourcesByPath, renderFileRight } = props
+  const {
+    entries,
+    expandedPaths,
+    toggleExpanded,
+    activePath,
+    onSelectFile,
+    onSelectFolder,
+    sourcesByPath,
+    onRevealInFinder,
+    onRenameEntry,
+    onDeleteEntry,
+    renderFileRight,
+  } = props
   const panelTypography = usePanelTypography()
   const tree = React.useMemo(() => buildTree(entries), [entries])
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; entry: WorkspaceEntry } | null>(null)
+
+  const closeContextMenu = React.useCallback(() => {
+    setContextMenu(null)
+  }, [])
+
+  React.useEffect(() => {
+    if (!contextMenu) return
+    const onPointerDown = () => closeContextMenu()
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeContextMenu()
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onEscape)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onEscape)
+    }
+  }, [closeContextMenu, contextMenu])
+
+  const copyToClipboard = React.useCallback(async (text: string) => {
+    const value = String(text || '')
+    if (!value) return false
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value)
+        return true
+      }
+    } catch {
+      void 0
+    }
+    return false
+  }, [])
 
   const renderNode = (node: Node, depth: number) => {
     const entry = node.entry
@@ -99,6 +147,11 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
                 onSelectFile(entry.path)
               }
             }}
+            onContextMenu={event => {
+              event.preventDefault()
+              event.stopPropagation()
+              setContextMenu({ x: event.clientX, y: event.clientY, entry })
+            }}
           >
             {isFolder ? (
               isExpanded ? (
@@ -126,5 +179,90 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     )
   }
 
-  return <nav className="min-h-0 overflow-auto" aria-label="Source files">{renderNode(tree, 0)}</nav>
+  return (
+    <nav className="min-h-0 overflow-auto" aria-label="Source files">
+      {renderNode(tree, 0)}
+      {contextMenu ? (
+        <section
+          className={`fixed z-[120] min-w-[180px] rounded border shadow-lg ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onPointerDown={event => event.stopPropagation()}
+        >
+          <ul className="list-none m-0 p-1">
+            <li className="list-none">
+              <button
+                type="button"
+                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={() => {
+                  onRevealInFinder?.(contextMenu.entry.path)
+                  closeContextMenu()
+                }}
+              >
+                Reveal in Finder
+              </button>
+            </li>
+            <li className="list-none">
+              <button
+                type="button"
+                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={() => {
+                  void copyToClipboard(contextMenu.entry.path)
+                  closeContextMenu()
+                }}
+              >
+                Copy Path
+              </button>
+            </li>
+            <li className="list-none">
+              <button
+                type="button"
+                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={() => {
+                  const relative = String(contextMenu.entry.path || '').replace(/^\/+/, '')
+                  void copyToClipboard(relative)
+                  closeContextMenu()
+                }}
+              >
+                Copy Relative Path
+              </button>
+            </li>
+            <li className="list-none">
+              <button
+                type="button"
+                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={() => {
+                  const current = String(contextMenu.entry.name || '').trim()
+                  const next = window.prompt('Rename', current)
+                  if (!next || String(next).trim() === current) {
+                    closeContextMenu()
+                    return
+                  }
+                  onRenameEntry?.(contextMenu.entry.path, String(next).trim())
+                  closeContextMenu()
+                }}
+              >
+                Rename
+              </button>
+            </li>
+            <li className="list-none">
+              <button
+                type="button"
+                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.status.error} ${UI_THEME_TOKENS.button.hoverBg}`}
+                onClick={() => {
+                  if (!window.confirm(`Delete ${contextMenu.entry.path}?`)) {
+                    closeContextMenu()
+                    return
+                  }
+                  onDeleteEntry?.(contextMenu.entry.path)
+                  closeContextMenu()
+                }}
+              >
+                Delete
+              </button>
+            </li>
+          </ul>
+        </section>
+      ) : null}
+    </nav>
+  )
 })

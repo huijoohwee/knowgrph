@@ -133,6 +133,16 @@ export const loadAvailableModelIds = async (
 }
 
 export const CHAT_HISTORY_COALESCE_DELAY_MS = 220
+
+export const extractKgcBlockFromAssistantText = (
+  raw: string,
+): { answer: string; kgc: string | null } => {
+  const text = String(raw || '').replace(/\r\n/g, '\n')
+  const match = text.match(/(^|\n)\s*```+kgc\s*\n([\s\S]*?)\n\s*```+/i)
+  const kgc = match && typeof match[2] === 'string' ? match[2].trim() : null
+  const answer = (match ? text.replace(match[0], '') : text).trim()
+  return { answer, kgc }
+}
 const CHAT_HISTORY_CACHE_LIMIT = 80
 const chatHistoryCache = new Map<string, ChatMessage[]>()
 

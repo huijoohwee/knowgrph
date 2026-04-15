@@ -15,7 +15,9 @@ let cachedSourceIndexRev = 0
 const noteNextSourceIndex = (next: WorkspaceSourceIndex): WorkspaceSourceIndex => {
   cachedSourceIndex = next
   cachedSourceIndexRev += 1
-  lsSetJsonCoalesced(LS_KEYS.markdownWorkspaceSourcesByPath, next, { signature: `rev:${cachedSourceIndexRev}` })
+  // Let the shared runtime+persistence scheduler coalesce bursts naturally (last-write-wins).
+  // Avoid rev-based signatures that defeat cross-cycle suppression/dedupe.
+  lsSetJsonCoalesced(LS_KEYS.markdownWorkspaceSourcesByPath, next)
   return next
 }
 

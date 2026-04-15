@@ -82,6 +82,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - SidePanel tabs header must use semantic navigation elements (`<header>` + `<nav>`/`<menu>`), not generic wrappers.
 - MainPanel tab behavior must come from one metadata path for tab labels, searchable tabs, search placeholders, and footer copy; headers, search rows, footers, and key/value rows must wrap responsively on narrow widths instead of overlapping, and Settings lazy-load helpers must not depend on toolbar-owned init chunks.
 - FloatingPanel shell behavior must come from one metadata path for view buttons, shared header status chips, full-height body views, and renderer-only header actions; cap shell width to the viewport, let header/status rows wrap, and keep inactive views unmounted.
+- FloatingPanel Chat response and persistence contract: enforce markdown-syntax-guidelines-aligned output (variables/sigils/tables/flow blocks), include one optional `response:` YAML metadata block for Flow Editor (2D) + Multi-dimensional Table + Kanban follow-up parameterization, and commit one final chat bubble: concise bullets (≤50 words) plus a workspace link to the current `kgc_yyyymmddhhmmss.md` under `chatLocalStorageRootPath` (no per-message files). For `chatKnowgrph`, streaming writes in-progress turns into the active `kgc_*.md` Workspace Editor Split view with tail-follow, then persists a deterministic computing-flow-sample-compatible KGC block ending with `---` for ingest and render.
 
 ### Canvas Interaction Panel (Floating)
 

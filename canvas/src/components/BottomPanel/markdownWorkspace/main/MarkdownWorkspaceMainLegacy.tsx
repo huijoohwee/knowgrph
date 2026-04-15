@@ -296,9 +296,11 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const sourceEditorTextRaw = typeof editorTextOverride === 'string' ? editorTextOverride : activeText
   const jsonEditorText = React.useMemo(() => {
     if (isMarkdown) {
+      const sourceText = String(sourceEditorTextRaw || '')
+      if (!sourceText.trim()) return ''
       const docName = String(activeDocumentKey || editorUri || 'workspace.md')
       try {
-        return JSON.stringify(buildMarkdownJsonLd(docName, sourceEditorTextRaw), null, 2)
+        return JSON.stringify(buildMarkdownJsonLd(docName, sourceText), null, 2)
       } catch {
         return '{}'
       }
@@ -523,10 +525,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       />
     ),
     [
-      activeText,
       disableEditorMutations,
       editorRef,
-      editorTextOverride,
       editorVariantUri,
       isMarkdown,
       jsonEditorText,

@@ -30,3 +30,7 @@ export const WORKSPACE_SYNC_TASK_FLOW_QUICK_EDITOR_VIEW_STATE = 'flow-quick-edit
 export const WORKSPACE_SYNC_SCOPE_FLOW_QUICK_EDITOR_RUNTIME_PERSISTENCE = 'flow-quick-editor:runtime-persistence'
 export const WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE = 'renderer:edge-type:view-state'
 export const WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE = 'renderer:edge-type:runtime-persistence'
+
+export const WORKSPACE_SYNC_TASK_WORKSPACE_TABLE_PREFS_NOTIFY = 'workspace-table:prefs:notify'
+export const WORKSPACE_SYNC_SCOPE_WORKSPACE_TABLE_PREFS_RUNTIME_PERSISTENCE =
+  'workspace-table:prefs:runtime-persistence'

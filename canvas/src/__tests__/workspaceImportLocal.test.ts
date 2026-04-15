@@ -1,5 +1,9 @@
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { importLocalFilesFallback } from '@/features/toolbar/launchDropdownFallbacks'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
   importWorkspaceLocalFiles,
@@ -29,6 +33,48 @@ export async function testWorkspaceImportLocalFilesCreatesExpectedEntries() {
     const names = entries.filter(e => e.kind === 'file').map(e => e.name).sort()
     if (!names.includes('a.md') || !names.includes('b.txt')) {
       throw new Error(`expected imported files to exist, got: ${names.join(', ')}`)
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testLaunchDropdownImportLocalFilesFallbackActivatesWorkspaceAndCanvasState() {
+  const { restore } = initJsdomHarness()
+  try {
+    resetWorkspaceFsForTests()
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.setWorkspaceViewMode('canvas')
+
+    const text = ['---', 'mermaid: |', '  graph LR', '    A --> B', '---', '', '# Imported', ''].join('\n')
+    const file = createFile('imported.md', text)
+    await importLocalFilesFallback({
+      files: [file] as unknown as FileList,
+      pushUiToast: () => void 0,
+    })
+
+    const next = useGraphStore.getState()
+    const explorer = useMarkdownExplorerStore.getState()
+    if (String(next.markdownDocumentText || '').trim().length === 0) {
+      throw new Error('expected fallback local import to set non-empty markdownDocumentText')
+    }
+    if (String(next.markdownDocumentName || '').trim() !== 'imported.md') {
+      throw new Error(`expected fallback local import to set markdownDocumentName to imported.md, got ${String(next.markdownDocumentName || '')}`)
+    }
+    if (String(explorer.activePath || '').trim() !== '/imported.md') {
+      throw new Error(`expected fallback local import to set explorer activePath /imported.md, got ${String(explorer.activePath || '')}`)
+    }
+    if (next.workspaceViewMode !== 'canvas') {
+      throw new Error(`expected fallback local import to preserve canvas mode, got ${String(next.workspaceViewMode || '')}`)
+    }
+    const fs = await getWorkspaceFs()
+    const entries = await fs.listEntries()
+    const importedPath = entries.find(e => e.kind === 'file' && e.name === 'imported.md')?.path || ''
+    if (!importedPath) throw new Error('expected imported.md to exist in workspace fs')
+    const importedText = await fs.readFileText(importedPath)
+    if (String(importedText || '').trim().length === 0) {
+      throw new Error('expected imported.md workspace file text to be non-empty')
     }
   } finally {
     restore()

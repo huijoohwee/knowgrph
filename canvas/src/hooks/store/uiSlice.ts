@@ -324,8 +324,62 @@ export const createUiSlice = (set: SetGraph) => {
       null,
       value => (typeof value === 'string' ? value : null),
     ),
+    chatStorageTarget: lsJson<'chatKnowgrph' | 'chatHistory'>(
+      LS_KEYS.chatStorageTarget,
+      'chatKnowgrph',
+      value => {
+        const raw = String(value || '').trim().toLowerCase()
+        if (raw === 'chathistory') return 'chatHistory'
+        return 'chatKnowgrph'
+      },
+    ),
+    chatLocalStorageRootPath: lsJson<string>(
+      LS_KEYS.chatLocalStorageRootPath,
+      '/Users/huijoohwee/Documents/GitHub/sandbox/chat-log',
+      value => {
+        const raw = typeof value === 'string' ? value.trim() : ''
+        return raw || '/Users/huijoohwee/Documents/GitHub/sandbox/chat-log'
+      },
+    ),
+    chatKnowgrphStorageMode: lsJson<'local' | 'cloud'>(
+      LS_KEYS.chatKnowgrphStorageMode,
+      'local',
+      value => (String(value || '').trim().toLowerCase() === 'cloud' ? 'cloud' : 'local'),
+    ),
+    chatKnowgrphWorkspacePath: lsJson<string | null>(
+      LS_KEYS.chatKnowgrphWorkspacePath,
+      null,
+      value => {
+        const raw = typeof value === 'string' ? value.trim() : ''
+        return raw ? raw : null
+      },
+    ),
+    chatKnowgrphCloudUrl: lsJson<string | null>(
+      LS_KEYS.chatKnowgrphCloudUrl,
+      null,
+      value => {
+        const raw = typeof value === 'string' ? value.trim() : ''
+        return raw ? raw : null
+      },
+    ),
     chatHistoryWorkspacePath: lsJson<string | null>(
       LS_KEYS.chatHistoryWorkspacePath,
+      null,
+      value => {
+        const raw = typeof value === 'string' ? value.trim() : ''
+        return raw ? raw : null
+      },
+    ),
+    chatHistoryStorageMode: lsJson<'local' | 'cloud'>(
+      LS_KEYS.chatHistoryStorageMode,
+      'local',
+      value => {
+        const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
+        return raw === 'cloud' ? 'cloud' : 'local'
+      },
+    ),
+    chatHistoryCloudUrl: lsJson<string | null>(
+      LS_KEYS.chatHistoryCloudUrl,
       null,
       value => {
         const raw = typeof value === 'string' ? value.trim() : ''
@@ -652,11 +706,79 @@ export const createUiSlice = (set: SetGraph) => {
           v && typeof v === 'string' ? v : null,
         ),
       }),
+    setChatStorageTarget: (target: 'chatKnowgrph' | 'chatHistory') =>
+      set({
+        chatStorageTarget: lsSetJson(
+          LS_KEYS.chatStorageTarget,
+          target === 'chatHistory' ? 'chatHistory' : 'chatKnowgrph',
+        ),
+      }),
+    setChatLocalStorageRootPath: (path: string | null) =>
+      set(state => {
+        const nextRoot = String(path || '').trim() || '/Users/huijoohwee/Documents/GitHub/sandbox/chat-log'
+        const normalizedRoot = nextRoot.replace(/\\/g, '/').replace(/\/+$/, '')
+        const isUnderRoot = (candidate: string | null | undefined): boolean => {
+          const raw = String(candidate || '').trim()
+          if (!raw) return false
+          const normalized = raw.replace(/\\/g, '/').replace(/\/+$/, '')
+          if (!normalizedRoot) return false
+          if (normalized === normalizedRoot) return true
+          return normalized.startsWith(`${normalizedRoot}/`)
+        }
+        const keepKnowgrphPath = isUnderRoot(state.chatKnowgrphWorkspacePath)
+        const keepHistoryPath = isUnderRoot(state.chatHistoryWorkspacePath)
+        return {
+          chatLocalStorageRootPath: lsSetJson(LS_KEYS.chatLocalStorageRootPath, nextRoot),
+          chatKnowgrphWorkspacePath: lsSetJson(
+            LS_KEYS.chatKnowgrphWorkspacePath,
+            keepKnowgrphPath ? String(state.chatKnowgrphWorkspacePath || '').trim() || null : null,
+          ),
+          chatHistoryWorkspacePath: lsSetJson(
+            LS_KEYS.chatHistoryWorkspacePath,
+            keepHistoryPath ? String(state.chatHistoryWorkspacePath || '').trim() || null : null,
+          ),
+        }
+      }),
+    setChatKnowgrphStorageMode: (mode: 'local' | 'cloud') =>
+      set({
+        chatKnowgrphStorageMode: lsSetJson(
+          LS_KEYS.chatKnowgrphStorageMode,
+          mode === 'cloud' ? 'cloud' : 'local',
+        ),
+      }),
+    setChatKnowgrphWorkspacePath: (path: string | null) =>
+      set({
+        chatKnowgrphWorkspacePath: lsSetJson(
+          LS_KEYS.chatKnowgrphWorkspacePath,
+          String(path || '').trim() || null,
+        ),
+      }),
+    setChatKnowgrphCloudUrl: (url: string | null) =>
+      set({
+        chatKnowgrphCloudUrl: lsSetJson(
+          LS_KEYS.chatKnowgrphCloudUrl,
+          String(url || '').trim() || null,
+        ),
+      }),
     setChatHistoryWorkspacePath: (path: string | null) =>
       set({
         chatHistoryWorkspacePath: lsSetJson(
           LS_KEYS.chatHistoryWorkspacePath,
           String(path || '').trim() || null,
+        ),
+      }),
+    setChatHistoryStorageMode: (mode: 'local' | 'cloud') =>
+      set({
+        chatHistoryStorageMode: lsSetJson(
+          LS_KEYS.chatHistoryStorageMode,
+          mode === 'cloud' ? 'cloud' : 'local',
+        ),
+      }),
+    setChatHistoryCloudUrl: (url: string | null) =>
+      set({
+        chatHistoryCloudUrl: lsSetJson(
+          LS_KEYS.chatHistoryCloudUrl,
+          String(url || '').trim() || null,
         ),
       }),
     setChatContextScope: (scope: 'selection' | 'workspace' | 'hybrid') =>

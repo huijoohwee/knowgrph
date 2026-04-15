@@ -57,6 +57,9 @@ export async function testMarkdownWorkspaceExplorerTocShowsHeadingNumbers() {
         onRefreshActiveFromSource: () => void 0,
         canDeleteActive: false,
         onDeleteActive: () => void 0,
+        onRevealInFinder: () => void 0,
+        onRenameEntry: () => void 0,
+        onDeleteEntry: () => void 0,
       }),
     )
 

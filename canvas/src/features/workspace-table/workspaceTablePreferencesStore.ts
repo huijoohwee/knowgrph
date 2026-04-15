@@ -25,7 +25,11 @@ import {
 } from '@/features/workspace-table/cellSelectPanelPlacement'
 
 import { WORKSPACE_TABLE_PREFS_EVENT } from '@/features/workspace-table/workspaceTablePreferencesEvents'
-import { cancelCoalescedTask, scheduleCoalescedTask } from '@/lib/async/coalescedScheduler'
+import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import {
+  WORKSPACE_SYNC_SCOPE_WORKSPACE_TABLE_PREFS_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_TASK_WORKSPACE_TABLE_PREFS_NOTIFY,
+} from '@/lib/async/workspaceSyncKeys'
 
 export type WorkspaceTablePreferencesSnapshot = {
   workspaceEditorMode: WorkspaceEditorMode
@@ -57,7 +61,19 @@ const isSameSnapshot = (
   left.jsonTableMaxColumns === right.jsonTableMaxColumns
 
 let cachedSnapshot: WorkspaceTablePreferencesSnapshot | null = null
-let workspaceTablePreferencesSubscriptionSeq = 0
+const subscribers = new Set<() => void>()
+let listenersAttached = false
+let detachListeners: (() => void) | null = null
+
+const buildSnapshotSignature = (snap: WorkspaceTablePreferencesSnapshot): string =>
+  [
+    snap.workspaceEditorMode,
+    snap.workspaceCellSelectPanelPlacement,
+    snap.jsonImportTarget,
+    snap.jsonMarkdownMode,
+    String(snap.jsonTableMaxRows),
+    String(snap.jsonTableMaxColumns),
+  ].join('|')
 
 const readSnapshot = (): WorkspaceTablePreferencesSnapshot => {
   const next = buildSnapshot()
@@ -81,24 +97,67 @@ const isWorkspacePreferenceStorageKey = (storageKey: string | null): boolean =>
   storageKey === LS_KEYS.jsonMarkdownTableMaxRows ||
   storageKey === LS_KEYS.jsonMarkdownTableMaxColumns
 
+const notifySubscribersCoalesced = (): void => {
+  if (subscribers.size === 0) return
+  const snap = readSnapshot()
+  const signature = buildSnapshotSignature(snap)
+  scheduleWorkspaceSyncTask(
+    WORKSPACE_SYNC_TASK_WORKSPACE_TABLE_PREFS_NOTIFY,
+    () => {
+      const items = [...subscribers]
+      for (const fn of items) {
+        try {
+          fn()
+        } catch {
+          void 0
+        }
+      }
+    },
+    0,
+    { scopeKey: WORKSPACE_SYNC_SCOPE_WORKSPACE_TABLE_PREFS_RUNTIME_PERSISTENCE, signature },
+  )
+}
+
+const ensureListenersAttached = (): void => {
+  if (listenersAttached) return
+  if (typeof window === 'undefined') return
+  const handleChanged = () => notifySubscribersCoalesced()
+  const handleStorage = (event: StorageEvent) => {
+    if (!isWorkspacePreferenceStorageKey(event.key)) return
+    notifySubscribersCoalesced()
+  }
+  window.addEventListener(WORKSPACE_TABLE_PREFS_EVENT, handleChanged)
+  window.addEventListener('storage', handleStorage)
+  listenersAttached = true
+
+  detachListeners = () => {
+    try {
+      window.removeEventListener(WORKSPACE_TABLE_PREFS_EVENT, handleChanged)
+      window.removeEventListener('storage', handleStorage)
+    } catch {
+      void 0
+    }
+    listenersAttached = false
+  }
+}
+
+const cleanupListenersIfIdle = (): void => {
+  if (!listenersAttached) return
+  if (subscribers.size > 0) return
+  cancelWorkspaceSyncTask(WORKSPACE_SYNC_TASK_WORKSPACE_TABLE_PREFS_NOTIFY)
+  const cleanup = detachListeners
+  detachListeners = null
+  if (cleanup) cleanup()
+}
+
 export const workspaceTablePreferencesStore = {
   subscribe(onStoreChange: () => void): () => void {
     if (typeof window === 'undefined') return () => void 0
-    const scheduleKey = `workspace-table-preferences:subscribe:${workspaceTablePreferencesSubscriptionSeq += 1}`
-    const scheduleOnStoreChange = () => {
-      scheduleCoalescedTask(scheduleKey, onStoreChange, 0)
-    }
-    const handleChanged = () => scheduleOnStoreChange()
-    const handleStorage = (event: StorageEvent) => {
-      if (!isWorkspacePreferenceStorageKey(event.key)) return
-      scheduleOnStoreChange()
-    }
-    window.addEventListener(WORKSPACE_TABLE_PREFS_EVENT, handleChanged)
-    window.addEventListener('storage', handleStorage)
+    ensureListenersAttached()
+    subscribers.add(onStoreChange)
     return () => {
-      window.removeEventListener(WORKSPACE_TABLE_PREFS_EVENT, handleChanged)
-      window.removeEventListener('storage', handleStorage)
-      cancelCoalescedTask(scheduleKey)
+      subscribers.delete(onStoreChange)
+      cleanupListenersIfIdle()
     }
   },
   getSnapshot: readSnapshot,

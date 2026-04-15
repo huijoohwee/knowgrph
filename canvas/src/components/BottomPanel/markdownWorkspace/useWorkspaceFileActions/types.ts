@@ -41,6 +41,7 @@ export type WorkspaceFileActions = {
   handleImportUrl: (urlRaw: string) => Promise<void>
   handleImportWebsite: (urlRaw: string) => Promise<void>
   onDeleteEntry: (path: WorkspacePath) => void
+  onRenameEntry: (path: WorkspacePath, nextName: string) => void
   onClearFile: (path: WorkspacePath) => void
   refreshFileFromSource: (path: WorkspacePath) => Promise<void>
   canClearActiveSelection: boolean

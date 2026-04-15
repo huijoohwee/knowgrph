@@ -17,6 +17,12 @@ const getSettingsSearchHints = (key: string): string[] => {
   if (key === 'chatProvider' || key === 'chatEndpointUrl' || key === 'chatApiKey' || key === 'chatModel') {
     return ['chat ai byteplus modelark openai official provider endpoint api key model']
   }
+  if (key === 'chatHistoryStorageMode' || key === 'chatHistoryWorkspacePath' || key === 'chatHistoryCloudUrl') {
+    return ['chat history workspace file path markdown cloud url github']
+  }
+  if (key === 'chatStorageTarget' || key === 'chatLocalStorageRootPath' || key === 'chatKnowgrphStorageMode' || key === 'chatKnowgrphWorkspacePath' || key === 'chatKnowgrphCloudUrl') {
+    return ['chat storage chatKnowgrph chatHistory local cloud markdown file path url']
+  }
   if (key === 'integrationConfigsJson') {
     return ['integrations ai chat aiChat simulationCommands openTab commandPrefix provider']
   }

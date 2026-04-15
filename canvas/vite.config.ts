@@ -34,6 +34,7 @@ const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR =
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
 const CHAT_PROXY_PREFIX = '/__chat_proxy'
 const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
+const KG_FS_WRITE_PATH = '/__kg_fs_write'
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
 const CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 const CHAT_PROXY_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
@@ -1044,6 +1045,28 @@ const chatLogDevPlugin = {
         return
       }
       createChatLogAppendHandler()(req, res, next)
+    })
+  },
+}
+
+const kgFsWriteDevPlugin = {
+  name: 'knowgrph-kg-fs-write-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(KG_FS_WRITE_PATH)) {
+        next()
+        return
+      }
+      createKgFsWriteHandler()(req, res, next)
+    })
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(KG_FS_WRITE_PATH)) {
+        next()
+        return
+      }
+      createKgFsWriteHandler()(req, res, next)
     })
   },
 }
@@ -4065,6 +4088,96 @@ function createRepoFileHandler(): import('vite').Connect.NextHandleFunction {
   }
 }
 
+function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
+  const MAX_BODY_BYTES = 2_000_000
+  const allowedRoots = [
+    path.resolve(repoRoot),
+    path.resolve(repoRoot, '..'),
+  ]
+  const isAllowed = (candidate: string): boolean => {
+    const resolved = path.resolve(candidate)
+    return allowedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))
+  }
+  return async (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', '*')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.end()
+      return
+    }
+    if (req.method !== 'POST') {
+      next()
+      return
+    }
+    let body = ''
+    let tooLarge = false
+    await new Promise<void>((resolve) => {
+      req.on('data', (chunk) => {
+        if (tooLarge) return
+        body += chunk
+        if (body.length > MAX_BODY_BYTES) {
+          tooLarge = true
+          try {
+            req.destroy()
+          } catch {
+            void 0
+          }
+        }
+      })
+      req.on('end', () => resolve())
+      req.on('error', () => resolve())
+      req.on('close', () => resolve())
+    })
+    if (tooLarge) {
+      res.statusCode = 413
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Body too large' }))
+      return
+    }
+    let parsed: { path?: unknown; text?: unknown } | null = null
+    try {
+      parsed = JSON.parse(body) as { path?: unknown; text?: unknown }
+    } catch {
+      parsed = null
+    }
+    const absPath = typeof parsed?.path === 'string' ? parsed.path.trim() : ''
+    const text = typeof parsed?.text === 'string' ? parsed.text : ''
+    if (!absPath || absPath.includes('\u0000')) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Missing path' }))
+      return
+    }
+    if (!absPath.endsWith('.md')) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Only .md is allowed' }))
+      return
+    }
+    if (!isAllowed(absPath)) {
+      res.statusCode = 403
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Forbidden' }))
+      return
+    }
+    try {
+      await fs.mkdir(path.dirname(absPath), { recursive: true })
+      await fs.writeFile(absPath, text, 'utf8')
+      res.statusCode = 200
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: true }))
+    } catch (e: unknown) {
+      const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: msg || 'Write failed' }))
+    }
+  }
+}
+
 function createWebpageAssetProxyHandler(): import('vite').Connect.NextHandleFunction {
   return async (req, res, next) => {
     if (req.method === 'OPTIONS') {
@@ -4947,6 +5060,7 @@ export default defineConfig(({ command }) => ({
           remoteFetchProxyDevPlugin,
           chatProxyDevPlugin,
           chatLogDevPlugin,
+          kgFsWriteDevPlugin,
           webpageProxyDevPlugin,
           localGeoDatasetDevPlugin,
           pdfConvertDevPlugin,

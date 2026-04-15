@@ -88,8 +88,7 @@ export const coerceCodebaseRelPath = (raw: unknown): string => {
 
   const isAbsLike = candidateAbs.startsWith('/') || /^[a-zA-Z]:\//.test(candidateAbs)
   if (isAbsLike && looksLikeHostAbsoluteFsPath(candidateAbs)) {
-    const base = basenameOf(candidateAbs)
-    return base ? normalizeRelSegments(base) : ''
+    return normalizeRelSegments(candidateAbs)
   }
 
   return normalizeRelSegments(candidateAbs)

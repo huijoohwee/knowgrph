@@ -38,6 +38,8 @@ import { shouldAutosaveWorkspaceFile } from '@/components/BottomPanel/markdownWo
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
+
+const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-request'
 import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
@@ -2143,6 +2145,20 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     requestRevealLine(null)
   }, [requestRevealLine, requestedRevealLine])
 
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onLayoutRequest = (ev: Event) => {
+      const e = ev as CustomEvent<{ mode?: unknown } | undefined>
+      const mode = String(e.detail?.mode || '').trim().toLowerCase()
+      if (mode !== 'split') return
+      setLayoutMode(prev => (prev === 'split' ? prev : 'split'))
+    }
+    window.addEventListener(MARKDOWN_LAYOUT_REQUEST_EVENT, onLayoutRequest as EventListener)
+    return () => {
+      window.removeEventListener(MARKDOWN_LAYOUT_REQUEST_EVENT, onLayoutRequest as EventListener)
+    }
+  }, [])
+
   const revealLineInEditor = React.useCallback(
     (line: number, endLine?: number) => {
       if (!Number.isFinite(line) || line <= 0) return
@@ -2495,6 +2511,49 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     return !!(src && src.kind === 'url' && String((src as { url?: unknown }).url || '').trim())
   }, [selectionEntry, selectionPath, sourcesByPath])
 
+  const revealInFinder = React.useCallback(
+    (path: WorkspacePath) => {
+      const normalized = normalizeWorkspacePath(path)
+      const src = sourcesByPath ? sourcesByPath[normalized] : null
+      if (src && src.kind === 'url' && String(src.url || '').trim()) {
+        try {
+          window.open(String(src.url || '').trim(), '_blank', 'noopener,noreferrer')
+          setStatusWithAutoClear('Opened source URL', 1400)
+          return
+        } catch {
+          void 0
+        }
+      }
+      const localName = src && src.kind === 'local' ? String(src.originalName || '').trim() : ''
+      const localLooksAbsolute =
+        !!localName &&
+        (localName.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(localName))
+      if (localLooksAbsolute) {
+        try {
+          const fileUrl = `file://${localName.replace(/\\/g, '/')}`
+          window.open(fileUrl, '_blank', 'noopener,noreferrer')
+          setStatusWithAutoClear('Opened local file URL', 1600)
+          return
+        } catch {
+          void 0
+        }
+      }
+      if (src && src.kind === 'local') {
+        try {
+          const relative = normalized.replace(/^\/+/, '')
+          void navigator.clipboard?.writeText(relative || normalized)
+          setStatusWithAutoClear('Copied workspace-relative path', 1800)
+        } catch {
+          void 0
+        }
+      }
+      setSelectionPathSafe(normalized)
+      setActivePathSafe(normalized)
+      setStatusWithAutoClear('Revealed in Source Files explorer', 1800)
+    },
+    [setActivePathSafe, setSelectionPathSafe, setStatusWithAutoClear, sourcesByPath],
+  )
+
   const openBacklink = React.useCallback(
     (args: { path: WorkspacePath; line: number }) => {
       setActivePathSafe(args.path)
@@ -2616,6 +2675,9 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             }}
             canDeleteActive={fileActions.canDeleteActive}
             onDeleteActive={fileActions.onDeleteActive}
+            onRevealInFinder={revealInFinder}
+            onRenameEntry={fileActions.onRenameEntry}
+            onDeleteEntry={fileActions.onDeleteEntry}
             renderSourceFileRight={renderSourceFileRight}
           />
 

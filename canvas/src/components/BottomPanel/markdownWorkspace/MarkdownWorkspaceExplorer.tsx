@@ -60,6 +60,9 @@ export type MarkdownWorkspaceExplorerProps = {
   onRefreshActiveFromSource: () => void
   canDeleteActive: boolean
   onDeleteActive: () => void
+  onRevealInFinder: (path: WorkspacePath) => void
+  onRenameEntry: (path: WorkspacePath, nextName: string) => void
+  onDeleteEntry: (path: WorkspacePath) => void
 
   renderSourceFileRight?: (args: { entry: WorkspaceEntry; isActive: boolean }) => React.ReactNode
 }
@@ -213,6 +216,9 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     onRefreshActiveFromSource,
     canDeleteActive,
     onDeleteActive,
+    onRevealInFinder,
+    onRenameEntry,
+    onDeleteEntry,
     renderSourceFileRight,
   } = props
   const panelTypography = usePanelTypography()
@@ -474,6 +480,9 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
               onSelectFile={onSelectFile}
               onSelectFolder={onSelectFolder}
               sourcesByPath={sourcesByPath}
+              onRevealInFinder={onRevealInFinder}
+              onRenameEntry={onRenameEntry}
+              onDeleteEntry={onDeleteEntry}
               renderFileRight={renderSourceFileRight}
             />
           )}

@@ -308,6 +308,71 @@ export async function testMarkdownWorkspaceEditorOmitsDocumentSelectorInHeader()
   }
 }
 
+export async function testMarkdownWorkspaceEditorKeepsJsonPaneBlankForEmptyMarkdown() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          explorerOpen: false,
+          setExplorerOpen: () => void 0,
+          layoutMode: 'editor',
+          setLayoutMode: () => void 0,
+          markdownWordWrap: true,
+          setMarkdownWordWrap: () => void 0,
+          markdownTextHighlight: false,
+          setMarkdownTextHighlight: () => void 0,
+          onToggleFullscreen: () => void 0,
+          presentationApiRef: { current: null },
+          isEditing: true,
+          isMarkdown: true,
+          onFormatAction: () => void 0,
+          activeText: '',
+          setActiveText: () => void 0,
+          activeDocumentKey: '/empty-init-test.md',
+          highlightedLineRange: null,
+          revealLineInEditor: () => void 0,
+          showInViewer: () => void 0,
+          showInPresentation: () => void 0,
+          showInSlidesGallery: () => void 0,
+          editorUri: 'file:///empty-init-test.md',
+          editorLanguage: 'markdown',
+          editorRef: { current: null },
+        }),
+      )
+      await tick(6)
+    })
+
+    const jsonEditorTextarea = container.querySelector('textarea[aria-label="JSON Editor Text"]') as HTMLTextAreaElement | null
+    if (!jsonEditorTextarea) throw new Error('expected JSON editor textarea surface in workspace editor')
+    if (String(jsonEditorTextarea.value || '') !== '') {
+      throw new Error('expected JSON editor pane to stay blank for empty markdown input')
+    }
+    const markdownEditorTextarea = container.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
+    if (!markdownEditorTextarea) throw new Error('expected markdown editor textarea surface in workspace editor')
+    if (String(markdownEditorTextarea.value || '') !== '') {
+      throw new Error('expected markdown editor pane to stay blank for empty markdown input')
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
+  }
+}
+
 export async function testMarkdownWorkspaceSplitOmitsDocumentSelectorInHeader() {
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document

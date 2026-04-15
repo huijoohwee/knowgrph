@@ -1,6 +1,6 @@
 import React from 'react'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
-import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
 import {
   extractYamlFrontmatterBlock,
   normalizeWebpageFrontmatterView,
@@ -10,18 +10,42 @@ import {
 } from '@/lib/markdown/frontmatter'
 import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { fetchWorkspaceUrlContent } from '../workspaceImport'
-import { loadWorkspaceSourceIndex, removeWorkspaceEntrySourcesForPrefix } from '@/features/workspace-fs/sourceIndex'
+import { loadWorkspaceSourceIndex, removeWorkspaceEntrySourcesForPrefix, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { UseWorkspaceFileActionsArgs } from './types'
 
 export function useWorkspaceMutationActions(args: {
   core: { status: ReturnType<typeof import('./core').useWorkspaceStatusHelpers> }
   ctx: Pick<
     UseWorkspaceFileActionsArgs,
-    'getFs' | 'refresh' | 'openedPath' | 'selectionPath' | 'selectionEntryKind' | 'activeDocumentKey' | 'setActiveText' | 'setEntries' | 'lastLoadedRef' | 'setActiveMarkdownDocument'
+    | 'getFs'
+    | 'refresh'
+    | 'openedPath'
+    | 'selectionPath'
+    | 'selectionEntryKind'
+    | 'activeDocumentKey'
+    | 'setActiveText'
+    | 'setEntries'
+    | 'lastLoadedRef'
+    | 'setActiveMarkdownDocument'
+    | 'setActivePathSafe'
+    | 'setSelectionPathSafe'
   >
 }) {
   const { status } = args.core
-  const { getFs, refresh, openedPath, selectionPath, selectionEntryKind, activeDocumentKey, setActiveText, setEntries, lastLoadedRef, setActiveMarkdownDocument } = args.ctx
+  const {
+    getFs,
+    refresh,
+    openedPath,
+    selectionPath,
+    selectionEntryKind,
+    activeDocumentKey,
+    setActiveText,
+    setEntries,
+    lastLoadedRef,
+    setActiveMarkdownDocument,
+    setActivePathSafe,
+    setSelectionPathSafe,
+  } = args.ctx
 
   const refreshFileFromSource = React.useCallback(
     async (path: WorkspacePath) => {
@@ -97,6 +121,129 @@ export function useWorkspaceMutationActions(args: {
       }
     },
     [getFs, refresh, status],
+  )
+
+  const renameEntry = React.useCallback(
+    async (path: WorkspacePath, nextNameRaw: string) => {
+      const sourcePath = normalizeWorkspacePath(path)
+      const nextName = String(nextNameRaw || '').trim()
+      if (!sourcePath || sourcePath === WORKSPACE_ROOT_PATH) return
+      if (!nextName || nextName.includes('/') || nextName.includes('\\')) {
+        status.setStatusError('Invalid name')
+        return
+      }
+      status.setStatusProgress('Renaming')
+      try {
+        const fs = await getFs()
+        const list = await fs.listEntries()
+        const target = list.find(e => normalizeWorkspacePath(e.path) === sourcePath)
+        if (!target) {
+          status.setStatusError('Path not found')
+          return
+        }
+        const parentPath = normalizeWorkspacePath(target.parentPath || WORKSPACE_ROOT_PATH)
+        const nextPath = normalizeWorkspacePath(`${parentPath === WORKSPACE_ROOT_PATH ? '' : parentPath}/${nextName}`)
+        if (nextPath === sourcePath) {
+          status.setStatusInfo('Unchanged')
+          return
+        }
+        if (list.some(e => normalizeWorkspacePath(e.path) === nextPath)) {
+          status.setStatusError('Name already exists')
+          return
+        }
+
+        const sourceIndex = loadWorkspaceSourceIndex()
+        const sourcePrefix = sourcePath.endsWith('/') ? sourcePath : `${sourcePath}/`
+        const nextPrefix = nextPath.endsWith('/') ? nextPath : `${nextPath}/`
+
+        if (target.kind === 'file') {
+          const text = String((await fs.readFileText(sourcePath)) || '')
+          await fs.createFile({ parentPath, name: nextName, text })
+        } else {
+          await fs.createFolder({ parentPath, name: nextName })
+          const descendants = list
+            .filter(e => normalizeWorkspacePath(e.path).startsWith(sourcePrefix))
+            .sort((a, b) => normalizeWorkspacePath(a.path).length - normalizeWorkspacePath(b.path).length)
+          for (const entry of descendants) {
+            const oldPath = normalizeWorkspacePath(entry.path)
+            const rel = oldPath.slice(sourcePrefix.length)
+            const mapped = normalizeWorkspacePath(`${nextPrefix}${rel}`)
+            const mappedParent = normalizeWorkspacePath(entry.parentPath ? `${nextPath}/${normalizeWorkspacePath(entry.parentPath).slice(sourcePath.length + 1)}` : nextPath)
+            if (entry.kind === 'folder') {
+              await fs.createFolder({ parentPath: mappedParent, name: normalizeWorkspacePath(mapped).split('/').pop() || 'folder' })
+            } else {
+              const text = String((await fs.readFileText(oldPath)) || '')
+              await fs.createFile({ parentPath: mappedParent, name: normalizeWorkspacePath(mapped).split('/').pop() || 'file.md', text })
+            }
+          }
+        }
+
+        await fs.deleteEntry(sourcePath)
+        removeWorkspaceEntrySourcesForPrefix(sourcePath)
+        const applySourceMove = (fromPath: WorkspacePath, toPath: WorkspacePath) => {
+          const src = sourceIndex[normalizeWorkspacePath(fromPath)]
+          if (!src) return
+          setWorkspaceEntrySource(toPath, src)
+        }
+        applySourceMove(sourcePath, nextPath)
+        for (const [k] of Object.entries(sourceIndex)) {
+          const normalized = normalizeWorkspacePath(k)
+          if (!normalized.startsWith(sourcePrefix)) continue
+          const rel = normalized.slice(sourcePrefix.length)
+          applySourceMove(normalized, normalizeWorkspacePath(`${nextPrefix}${rel}`))
+        }
+
+        if (selectionPath && normalizeWorkspacePath(selectionPath).startsWith(sourcePrefix)) {
+          const rel = normalizeWorkspacePath(selectionPath).slice(sourcePrefix.length)
+          setSelectionPathSafe(normalizeWorkspacePath(`${nextPrefix}${rel}`))
+        } else if (selectionPath && normalizeWorkspacePath(selectionPath) === sourcePath) {
+          setSelectionPathSafe(nextPath)
+        }
+        const remappedOpenedPath = (() => {
+          if (!openedPath) return null
+          const normalizedOpened = normalizeWorkspacePath(openedPath)
+          if (normalizedOpened === sourcePath) return nextPath
+          if (normalizedOpened.startsWith(sourcePrefix)) {
+            const rel = normalizedOpened.slice(sourcePrefix.length)
+            return normalizeWorkspacePath(`${nextPrefix}${rel}`)
+          }
+          return null
+        })()
+        if (remappedOpenedPath) {
+          setActivePathSafe(remappedOpenedPath)
+          const latestText = String((await fs.readFileText(remappedOpenedPath)) || '')
+          lastLoadedRef.current = { path: remappedOpenedPath, text: latestText }
+          setActiveText(latestText)
+          const nextDocumentKey = workspaceDocumentKey(remappedOpenedPath)
+          if (nextDocumentKey || activeDocumentKey) {
+            void setActiveMarkdownDocument({
+              name: nextDocumentKey || activeDocumentKey,
+              text: latestText,
+              normalizeMermaidMmd: false,
+              sourceUrl: null,
+            })
+          }
+        }
+
+        await refresh()
+        status.setStatusInfo('Renamed')
+      } catch (e) {
+        status.setStatusError(`Rename failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      }
+    },
+    [
+      activeDocumentKey,
+      getFs,
+      lastLoadedRef,
+      openedPath,
+      refresh,
+      selectionPath,
+      setActiveMarkdownDocument,
+      setActivePathSafe,
+      setActiveText,
+      setSelectionPathSafe,
+      status,
+    ],
   )
 
   const clearFile = React.useCallback(
@@ -193,6 +340,10 @@ export function useWorkspaceMutationActions(args: {
     void deleteEntry(path)
   }, [deleteEntry])
 
+  const onRenameEntry = React.useCallback((path: WorkspacePath, nextName: string) => {
+    void renameEntry(path, nextName)
+  }, [renameEntry])
+
   const onClearFile = React.useCallback((path: WorkspacePath) => {
     void clearFile(path)
   }, [clearFile])
@@ -208,6 +359,7 @@ export function useWorkspaceMutationActions(args: {
   return {
     refreshFileFromSource,
     onDeleteEntry,
+    onRenameEntry,
     onClearFile,
     canClearActiveSelection,
     canDeleteActive,
@@ -215,4 +367,3 @@ export function useWorkspaceMutationActions(args: {
     onDeleteActive,
   }
 }
-
