@@ -46,6 +46,7 @@ When `chatStorageTarget=chatKnowgrph`, the `kgc` block is validated before final
 - `V-01` Color sigil HEX is exactly 6 uppercase digits.
 - `V-02` No quoted span ≥ 15 words.
 - `V-03` `{{key}}` refs must resolve from context/frontmatter or inline declarations, and KGC body/`solution_md` must stay substantively linked and non-thin.
+- KGC body must carry the real answer content; `{{solution_md}}` may support linkage but must not be the entire body output.
 - `V-04` Inline-code arrays must be valid JSON.
 - `V-05` `compute: |` blocks are pure (forbid `fetch`, `document`, `window`).
 - `V-06` H1–H4 headings must not end with `...`.
@@ -58,8 +59,8 @@ On failure, Chat re-prompts up to 3 attempts using:
 - `reason: ...`
 - A truncated invalid output excerpt (reference only)
 
-If attempts are exhausted, Chat surfaces `@flag:validation-failed` and still persists a parser-safe deterministic KGC fallback so Workspace surfaces never ingest broken Markdown.
+If attempts are exhausted, Chat surfaces a user-facing validation failure message and still persists a parser-safe deterministic KGC fallback so Workspace surfaces never ingest broken Markdown.
 
 ## Persistence Contract
-- The Workspace `kgc_*.md` file keeps the leading block as the latest standalone parseable KGC document.
-- Append-only chat turn history is kept in a trailing section.
+- The Workspace `kgc_*.md` file is the standalone canonical KGC document.
+- Do not append `<!-- kg-chat-history -->` or any chat-history trailer to `kgc_*.md`.

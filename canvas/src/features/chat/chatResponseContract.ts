@@ -37,6 +37,8 @@ export const CHAT_KGC_RESPONSE_CONTRACT_PROMPT = [
   '  6) close frontmatter with `---`, then include non-empty markdown body sections referencing frontmatter variables via `{{key}}`.',
   '- `solution_md: |` must contain the full useful answer, not a one-line summary or placeholder.',
   '- If the request is multi-part or complex, `solution_md: |` must cover the requested parts with structured markdown content.',
+  '- Never include fenced code blocks inside the `kgc` document, including inside `solution_md: |` or markdown body sections.',
+  '- The markdown body must contain the actual answer content; do not use a body shell that only prints `{{solution_md}}`.',
   '- Use guideline-safe placeholders like `TBD` or `—` instead of empty values.',
   '- Variable references must follow guideline syntax: `{{key}}`, optional `{{key:value}}`, optional `{{key|fallback}}`.',
   '- Annotation sigils, when used, must follow guideline-safe forms only: `` `#HEX:text` ``, `` `bg#HEX:text` ``, or `` `#HEX|bg#HEX:text` `` (6-digit HEX).',

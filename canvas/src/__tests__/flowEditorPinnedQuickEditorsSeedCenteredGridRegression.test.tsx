@@ -268,3 +268,97 @@ export async function testFlowEditorPinnedQuickEditorsReseedWhenViewportStabiliz
     restoreWindow()
   }
 }
+
+export async function testFlowEditorPinnedQuickEditorsReseedWhenInitiallyStacked() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    useGraphStore.setState(s => ({
+      ...s,
+      graphData: {
+        type: 'Graph',
+        nodes: [
+          { id: 'n1', label: 'n1', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n2', label: 'n2', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n3', label: 'n3', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n4', label: 'n4', type: 'Anchor', x: 0, y: 0, properties: {} },
+        ],
+        edges: [],
+        metadata: { kind: 'test', source: 'flowEditorPinnedQuickEditorsInitialStack' },
+      },
+      graphDataRevision: (s.graphDataRevision || 0) + 1,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'flowEditor',
+      frontmatterModeEnabled: false,
+      documentSemanticMode: 'document',
+      documentStructureBaselineLock: false,
+    }))
+
+    api.setZoomState({ k: 1, x: 0, y: 0 })
+    api.setOpenQuickEditorNodeIds(['n1', 'n2', 'n3', 'n4'])
+    api.setFlowNodeQuickEditorPinnedByNodeId({})
+    api.setFlowNodeQuickEditorWorldPosByNodeId({
+      n1: { x: 400, y: 300 },
+      n2: { x: 400, y: 300 },
+      n3: { x: 400, y: 300 },
+      n4: { x: 400, y: 300 },
+    })
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+
+    const ids = ['n1', 'n2', 'n3', 'n4']
+    const readWorld = () =>
+      ((useGraphStore.getState() as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        .flowNodeQuickEditorWorldPosByNodeId || {}) as Record<string, { x: number; y: number }>
+
+    const worldById = await (async () => {
+      const deadline = Date.now() + 1200
+      while (Date.now() < deadline) {
+        const current = readWorld()
+        const unique = new Set(ids.map(id => `${Math.round((current[id]?.x || 0) * 1000)}:${Math.round((current[id]?.y || 0) * 1000)}`))
+        if (unique.size >= 2) return current
+        await new Promise<void>(resolve => setTimeout(resolve, 5))
+      }
+      throw new Error('expected stacked quick-editors to reseed into spread positions')
+    })()
+
+    const panelScale = computeNodeQuickEditorScale(1, null, { mode: 'pinnedInCanvas' })
+    const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+    const rects = ids.map(id => {
+      const p = worldById[id]!
+      return { id, left: p.x, top: p.y, right: p.x + panelScreen.width, bottom: p.y + panelScreen.height }
+    })
+    for (let i = 0; i < rects.length; i += 1) {
+      const a = rects[i]!
+      for (let j = i + 1; j < rects.length; j += 1) {
+        const b = rects[j]!
+        const overlapX = a.left < b.right && b.left < a.right
+        const overlapY = a.top < b.bottom && b.top < a.bottom
+        if (overlapX && overlapY) throw new Error(`expected no overlap after reseed: ${a.id} vs ${b.id}`)
+      }
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}

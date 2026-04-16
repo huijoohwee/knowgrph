@@ -415,6 +415,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (k == null || x == null || y == null) return null
     return { k, x, y }
   }, [])
+  const latestAutoSeedWorldPosByNodeIdRef = React.useRef<Record<string, { x: number; y: number }>>({})
 
   const getLiveContainmentGroupAabbForNode = React.useCallback((nodeId: string) => {
     const id = String(nodeId || '').trim()
@@ -469,10 +470,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
     const st = useGraphStore.getState()
     const openIds = Array.isArray(st.openQuickEditorNodeIds) ? st.openQuickEditorNodeIds : []
-    const pinnedById = st.flowNodeQuickEditorPinnedByNodeId || {}
     const worldById =
       (st as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
         .flowNodeQuickEditorWorldPosByNodeId || {}
+    const autoSeedWorldById = latestAutoSeedWorldPosByNodeIdRef.current || {}
     const t =
       getLiveZoomTransform() ||
       getEffectiveZoomStateForKey({
@@ -490,10 +491,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     for (let i = 0; i < openIds.length; i += 1) {
       const openId = String(openIds[i] || '').trim()
       if (!openId) continue
-      const pinnedRaw = pinnedById[openId]
-      const pinned = typeof pinnedRaw === 'boolean' ? pinnedRaw : true
-      if (!pinned) continue
-      const world = worldById[openId]
+      const world = worldById[openId] || autoSeedWorldById[openId]
       if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
       overlayAabbByNodeId[openId] = {
         minX: world.x,
@@ -554,6 +552,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
     const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
     const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+    const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
+    const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
     const quickEditorGrid = readQuickEditorGridLayoutSettings(schema)
 
     const GAP_SCREEN_PX = Math.max(24, quickEditorGrid.gapPx)
@@ -628,7 +628,41 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const currentLayoutSignature = `${baseGraphDataRevision}|${zoomViewKeyRef.current || ''}|${viewportW}x${viewportH}|${bucketSignature}`
         return snapshot.signature !== '' && snapshot.signature !== currentLayoutSignature && isSameWorldPos(current, snapshot.positions[id])
       })
-    const pending = Array.from(new Set([...pendingRaw, ...reseedEligible])).sort((a, b) => a.localeCompare(b))
+    const overlapEligible = (() => {
+      const idsByBucket = new Map<string, string[]>()
+      for (let i = 0; i < pinnedOpenIds.length; i += 1) {
+        const id = pinnedOpenIds[i]!
+        const world = worldById[id]
+        if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
+        const group = getLiveContainmentGroupAabbForNode(id)
+        const bucketId = group ? `group:${group.groupId}` : VIEWPORT_BUCKET_ID
+        const list = idsByBucket.get(bucketId) || []
+        list.push(id)
+        idsByBucket.set(bucketId, list)
+      }
+      const overlappingIds = new Set<string>()
+      const hasOverlap = (aId: string, bId: string) => {
+        const a = worldById[aId]
+        const b = worldById[bId]
+        if (!a || !b) return false
+        const overlapX = a.x < b.x + panelWorldW && b.x < a.x + panelWorldW
+        const overlapY = a.y < b.y + panelWorldH && b.y < a.y + panelWorldH
+        return overlapX && overlapY
+      }
+      for (const ids of idsByBucket.values()) {
+        for (let i = 0; i < ids.length; i += 1) {
+          const a = ids[i]!
+          for (let j = i + 1; j < ids.length; j += 1) {
+            const b = ids[j]!
+            if (!hasOverlap(a, b)) continue
+            overlappingIds.add(a)
+            overlappingIds.add(b)
+          }
+        }
+      }
+      return Array.from(overlappingIds)
+    })()
+    const pending = Array.from(new Set([...pendingRaw, ...reseedEligible, ...overlapEligible])).sort((a, b) => a.localeCompare(b))
     if (pending.length === 0) return
 
     const currentLayoutSignature = `${baseGraphDataRevision}|${zoomViewKeyRef.current || ''}|${viewportW}x${viewportH}|${bucketSignature}`
@@ -673,6 +707,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       signature: currentLayoutSignature,
       positions: nextAutoSeedPositions,
     }
+    latestAutoSeedWorldPosByNodeIdRef.current = nextAutoSeedPositions
     if (!changed) return
     st.setFlowNodeQuickEditorWorldPosByNodeId(nextWorld)
   }, [active, baseGraphDataRevision, getLiveZoomTransform, openQuickEditorNodeIds, schema, viewportH, viewportW])

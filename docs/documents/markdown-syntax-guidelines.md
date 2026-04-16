@@ -14,6 +14,8 @@ Provide a strict, renderer-safe Markdown contract for {{product}} Chat output th
 - Variables use `{{key}}`, optional `{{key:value}}`, optional `{{key|fallback}}`.
 - For chatKnowgrph KGC output, include YAML frontmatter first, then a non-empty markdown body that references declared frontmatter variables via `{{}}`.
 - For multi-part or complex chatKnowgrph requests, `solution_md` must contain the substantive answer content, not a thin one-line summary.
+- Never include fenced code blocks or chat-history trailers inside the canonical `kgc` document.
+- The markdown body itself must carry the real answer content; do not rely on a `{{solution_md}}` shell as the body.
 - Annotation sigils use inline code only: `#HEX:text`, `bg#HEX:text`, or `#HEX|bg#HEX:text` where HEX is exactly 6 uppercase digits.
 - Prefer frontmatter `flow:` YAML for flow graphs; keep schema stable and parseable.
 

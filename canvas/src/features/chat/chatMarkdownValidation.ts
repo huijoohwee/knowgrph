@@ -208,6 +208,17 @@ const estimateRequestComplexityScore = (raw: string): number => {
   return score
 }
 
+const validateNoNestedCodeFences = (md: string): ChatMarkdownValidationError | null => {
+  const text = String(md || '').replace(/\r\n/g, '\n')
+  if (/```+/.test(text)) {
+    return {
+      ruleId: 'V-03',
+      message: 'Nested code fences are forbidden inside the `kgc` document. Use YAML block scalars and plain markdown body sections instead.',
+    }
+  }
+  return null
+}
+
 const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidationError | null => {
   const parsed = extractLeadingFrontmatterAndBody(md)
   if (!parsed) {
@@ -254,6 +265,12 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
   if (!parsed) return null
   const requestMd = extractTopLevelYamlBlockScalar(parsed.frontmatter, 'request_md')
   const solutionMd = extractTopLevelYamlBlockScalar(parsed.frontmatter, 'solution_md')
+  if (/\{\{\s*solution_md(?:[:|][^}]*)?\s*\}\}/.test(parsed.body)) {
+    return {
+      ruleId: 'V-03',
+      message: 'Markdown body must contain the actual solution content, not only a {{solution_md}} placeholder shell.',
+    }
+  }
   if (isPlaceholderLike(solutionMd)) {
     return {
       ruleId: 'V-03',
@@ -263,6 +280,13 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
 
   const requestWords = countWordLikeTokens(requestMd)
   const solutionWords = countWordLikeTokens(solutionMd)
+  const bodyRenderableWords = countWordLikeTokens(
+    parsed.body
+      .replace(/\{\{[^}]+\}\}/g, ' ')
+      .replace(/^#+\s+/gm, ' ')
+      .replace(/^\s*[-*]\s+/gm, ' ')
+      .replace(/^\s*\d+\.\s+/gm, ' '),
+  )
   const bodyHeadingCount = countMatches(parsed.body, /^##?\s+/gm)
   if (bodyHeadingCount < 3) {
     return {
@@ -277,10 +301,19 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
     : requestWords >= 24
       ? Math.min(120, Math.max(18, Math.floor(requestWords * 0.45)))
       : 0
+  const minBodyWords = minSolutionWords > 0
+    ? Math.max(24, Math.floor(minSolutionWords * 0.65))
+    : 0
   if (minSolutionWords > 0 && solutionWords < minSolutionWords) {
     return {
       ruleId: 'V-03',
       message: `solution_md is too thin for this request. Expand it into a substantive markdown answer (need at least ~${minSolutionWords} words for this request complexity).`,
+    }
+  }
+  if (minBodyWords > 0 && bodyRenderableWords < minBodyWords) {
+    return {
+      ruleId: 'V-03',
+      message: `Markdown body is too thin for this request. Put the real answer content directly in the body (need at least ~${minBodyWords} renderable words).`,
     }
   }
   return null
@@ -414,6 +447,7 @@ export const validateChatMarkdown = (args: {
     validateSigilsUpperHex,
     validateLongQuotes,
     md2 => validateVariableRefsResolvable(md2, args.resolvableVarKeys),
+    validateNoNestedCodeFences,
     validateFrontmatterBodyVariableLink,
     validateSubstantiveKgcPayload,
     validateInlineJsonArrays,

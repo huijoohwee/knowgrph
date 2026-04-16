@@ -154,6 +154,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["viewport.flowEditor.overlay.drag.pinnedPansNotNodeDrag","@/__tests__/flowEditorPinnedQuickEditorDragPansCanvasRegression.test","testFlowEditorPinnedQuickEditorDragDoesNotProxyNodeDrag"],
   ["viewport.flowEditor.overlay.initCenteredGrid","@/__tests__/flowEditorPinnedQuickEditorsSeedCenteredGridRegression.test","testFlowEditorPinnedQuickEditorsInitCenteredEvenGrid"],
   ["viewport.flowEditor.overlay.reseedsAfterViewportStabilizes","@/__tests__/flowEditorPinnedQuickEditorsSeedCenteredGridRegression.test","testFlowEditorPinnedQuickEditorsReseedWhenViewportStabilizes"],
+  ["viewport.flowEditor.overlay.reseedsWhenInitiallyStacked","@/__tests__/flowEditorPinnedQuickEditorsSeedCenteredGridRegression.test","testFlowEditorPinnedQuickEditorsReseedWhenInitiallyStacked"],
   ["viewport.flowEditor.drag.collectiveMode","@/__tests__/flowEditorSelectModeOverridesSingleToMultiRegression.test","testFlowEditorSelectModeOverridesSingleToMulti"],
   ["viewport.flowEditor.drag.doesNotDisableCanvasNodeDrag","@/__tests__/flowEditorDoesNotDisableCanvasNodeDragWhenEditorsPinnedRegression.test","testFlowEditorDoesNotDisableCanvasNodeDragWhenEditorsPinned"],
   ["viewport.flowEditor.groups.panWhenUnselected","@/__tests__/flowEditorGroupHitPrefersPanWhenUnselectedRegression.test","testFlowEditorGroupHitPrefersPanWhenUnselected"],

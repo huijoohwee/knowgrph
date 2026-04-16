@@ -412,6 +412,17 @@ export default function SidePanelChat() {
     }
   }
 
+  const buildValidationFailedUiText = React.useCallback((knowgrphPath: string): string => {
+    const normalized = String(knowgrphPath || '').trim()
+    const label = normalized ? (normalized.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : 'kgc.md'
+    const lines = [
+      '- Validation failed after 3 correction attempts.',
+      '- Saved a canonical fallback KGC document for continued editing.',
+    ]
+    if (normalized) lines.push(`- [${label}](${normalized})`)
+    return lines.join('\n')
+  }, [])
+
   const finalizeAssistantSuccess = React.useCallback(async (
     args: {
       assistantMessageId: string
@@ -431,9 +442,15 @@ export default function SidePanelChat() {
     const extracted = chatStorageTarget === 'chatKnowgrph'
       ? extractKgcBlockFromAssistantText(rawAssistantText)
       : { answer: rawAssistantText, kgc: null }
-    const assistantTextForKgc = (extracted.kgc && isKgcStructuredMarkdown(extracted.kgc))
-      ? extracted.kgc
-      : (extracted.answer || rawAssistantText)
+    const validationFailureNote = [
+      'Validation failed after retry exhaustion.',
+      'Keep the leading KGC document canonical and inspect the chat history trail for the failed attempt context.',
+    ].join(' ')
+    const assistantTextForKgc = status === 'error'
+      ? (extracted.answer || validationFailureNote)
+      : (extracted.kgc && isKgcStructuredMarkdown(extracted.kgc))
+        ? extracted.kgc
+        : (extracted.answer || rawAssistantText)
     let resolvedKnowgrphPath = ''
     resolvedKnowgrphPath = await appendChatHistoryWorkspaceFile({
       storageType: 'chatKnowgrph',
@@ -522,6 +539,7 @@ export default function SidePanelChat() {
     chatLocalStorageRootPath,
     chatProviderSummary,
     chatStorageTarget,
+    buildValidationFailedUiText,
     setChatHistoryWorkspacePath,
     setChatKnowgrphWorkspacePath,
     pushChatExchangeLog,
@@ -939,12 +957,9 @@ export default function SidePanelChat() {
             continue
           }
           finalStatus = 'error'
-          setErrorText('@flag:validation-failed')
           const knowgrphPath = liveKgcPath ? normalizeWorkspacePath(liveKgcPath) : ''
-          const label = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : 'kgc.md'
-          finalOverride = knowgrphPath
-            ? ['- @flag:validation-failed', `- [${label}](${knowgrphPath})`].join('\n')
-            : '- @flag:validation-failed'
+          finalOverride = buildValidationFailedUiText(knowgrphPath)
+          setErrorText('Validation failed after 3 correction attempts.')
           break
         }
         if (!isKgcStructuredMarkdown(kgc)) {
@@ -957,12 +972,9 @@ export default function SidePanelChat() {
             continue
           }
           finalStatus = 'error'
-          setErrorText('@flag:validation-failed')
           const knowgrphPath = liveKgcPath ? normalizeWorkspacePath(liveKgcPath) : ''
-          const label = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : 'kgc.md'
-          finalOverride = knowgrphPath
-            ? ['- @flag:validation-failed', `- [${label}](${knowgrphPath})`].join('\n')
-            : '- @flag:validation-failed'
+          finalOverride = buildValidationFailedUiText(knowgrphPath)
+          setErrorText('Validation failed after 3 correction attempts.')
           break
         }
 
@@ -984,12 +996,9 @@ export default function SidePanelChat() {
         }
 
         finalStatus = 'error'
-        setErrorText('@flag:validation-failed')
         const knowgrphPath = liveKgcPath ? normalizeWorkspacePath(liveKgcPath) : ''
-        const label = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : 'kgc.md'
-        finalOverride = knowgrphPath
-          ? ['- @flag:validation-failed', `- [${label}](${knowgrphPath})`].join('\n')
-          : '- @flag:validation-failed'
+        finalOverride = buildValidationFailedUiText(knowgrphPath)
+        setErrorText('Validation failed after 3 correction attempts.')
         break
       }
 

@@ -71,6 +71,7 @@ export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
     'Variable references must follow guideline syntax',
     'Annotation sigils, when used, must follow guideline-safe forms',
     'full useful answer, not a one-line summary or placeholder',
+    'Never include fenced code blocks inside the `kgc` document',
   ]
   requiredSnippets.forEach(snippet => {
     if (!prompt.includes(snippet)) {
@@ -116,6 +117,9 @@ export function testBuildKgcStructuredTurnProducesSampleCompatibleSections() {
   }
   if (!doc.includes('UNIQUE_TAIL_9f4c2a')) {
     throw new Error('Expected synthesized KGC turn to preserve full assistant payload in solution_md')
+  }
+  if (doc.includes('{{solution_md}}')) {
+    throw new Error('Expected synthesized KGC turn to place the actual assistant content in the markdown body, not a {{solution_md}} shell')
   }
 
   const parsed = tryParseMarkdownFrontmatterFlowGraph('kgc-turn.md', doc)
@@ -182,13 +186,90 @@ export function testNormalizeKgcAssistantBodyForStorageFallsBackToDeterministicT
   if (!normalized.includes('solution_md: |')) {
     throw new Error('Expected normalized fallback turn to preserve the full assistant body in solution_md')
   }
+  if (normalized.includes('```kgc') || normalized.includes('\\`\\`\\`kgc')) {
+    throw new Error('Expected normalized fallback turn to strip fenced kgc markers from canonical content')
+  }
+}
+
+export function testNormalizeKgcAssistantBodyForStorageExtractsBodyFromNestedKgcAttempt() {
+  const invalidAssistant = [
+    '```kgc',
+    '---',
+    '# ── DOCUMENT IDENTITY ──',
+    'doc:',
+    '  id: "doc:invalid"',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
+    'subject: "nested body test"',
+    'action: "respond"',
+    'goal: "persist"',
+    'solution: "body extraction"',
+    'request_md: |',
+    '  test request',
+    'solution_md: |',
+    '  short summary',
+    '# ── NODES ──',
+    'nodes:',
+    '  - @node:n-a: { label: "{{subject}}", type: input }',
+    '  - @node:n-b: { label: "{{solution}}", type: output }',
+    '# ── EDGES ──',
+    'edges:',
+    '  - @edge:n-a:turn → n-b:turn',
+    '# ── FLOW EDITOR (interactive + computable) ──',
+    'flow:',
+    '  computed: false',
+    '  nodes:',
+    '    - id: n-a',
+    '      type: input',
+    '      label: "{{subject}}"',
+    '      position: { x: 0, y: 0 }',
+    '      handles:',
+    '        source: [turn]',
+    '      data:',
+    '        text: "{{subject}}"',
+    '    - id: n-b',
+    '      type: output',
+    '      label: "{{solution}}"',
+    '      position: { x: 10, y: 0 }',
+    '      handles:',
+    '        target: [turn]',
+    '      data:',
+    '        text: "{{solution}}"',
+    '  edges:',
+    '    - source: n-a.turn',
+    '      target: n-b.turn',
+    '---',
+    '',
+    '# {{subject}}',
+    '',
+    '## Intent',
+    '- Action: {{action}}',
+    '- Goal: {{goal}}',
+    '',
+    '## Request',
+    '{{request_md}}',
+    '',
+    '## Solution',
+    'Useful extracted body content.',
+    '```',
+  ].join('\n')
+  const normalized = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 16, 13, 14, 52),
+    requestText: 'Explain the active graph',
+    assistantText: invalidAssistant,
+  })
+  if (!normalized.includes('Useful extracted body content.')) {
+    throw new Error('Expected fallback normalization to extract useful markdown body content from nested kgc attempt')
+  }
+  if (normalized.includes('```kgc') || normalized.includes('\\`\\`\\`kgc')) {
+    throw new Error('Expected extracted-body fallback to omit fenced kgc markers')
+  }
 }
 
 export function testBuildKgcWorkspaceDocumentKeepsLatestTurnParseableWithHistoryTrail() {
   const canonical = buildKgcStructuredTurn({
     timestampMs: Date.UTC(2026, 3, 16, 8, 0, 0),
     requestText: 'Map the active workspace into flow, table, and kanban surfaces',
-    assistantText: 'Build a canonical KGC turn with one parseable leading document and a preserved history trail.',
+    assistantText: 'Build a canonical KGC turn with one parseable leading document and no appended history trailer.',
   })
   const workspaceDoc = buildKgcWorkspaceDocument({
     canonicalKgc: canonical,
@@ -210,6 +291,9 @@ export function testBuildKgcWorkspaceDocumentKeepsLatestTurnParseableWithHistory
       '```',
     ].join('\n'),
   })
+  if (workspaceDoc.includes('<!-- kg-chat-history -->') || workspaceDoc.includes('# Chat turns')) {
+    throw new Error('Expected chatKnowgrph workspace document to omit append-only history trailer content')
+  }
   const parsed = tryParseMarkdownFrontmatterFlowGraph('kgc-workspace.md', workspaceDoc)
   if (!parsed) throw new Error('Expected composed KGC workspace document to stay parseable from the leading canonical KGC block')
   const nodes = parsed.graphData.nodes || []
@@ -295,5 +379,88 @@ export function testValidateChatMarkdownRejectsThinSolutionMdForComplexRequest()
   }
   if (validation.failedRuleId !== 'V-03') {
     throw new Error(`Expected V-03 failure for thin linked body content, got ${validation.failedRuleId || 'none'}`)
+  }
+}
+
+export function testValidateChatMarkdownRejectsNestedCodeFencesInsideKgc() {
+  const markdown = [
+    '---',
+    '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
+    'doc:',
+    '  id: "doc:kgc:test:nested-fence"',
+    '  title: "chatKnowgrph turn"',
+    '  type: chatKnowgrph',
+    '  version: "1.0.0"',
+    '  created: "2026-04-16"',
+    '',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ────────────────────────────────',
+    'subject: "nested fence test"',
+    'action: "respond"',
+    'goal: "persist one ingestible chat turn"',
+    'solution: "invalid nested fence"',
+    'request_md: |',
+    '  test request',
+    'solution_md: |',
+    '  ```kgc',
+    '  ---',
+    '  bad: true',
+    '  ```',
+    '',
+    '# ── NODES ────────────────────────────────────────────────────────────────────',
+    'nodes:',
+    '  - @node:n-request: { label: "{{subject}}", type: input }',
+    '  - @node:n-response: { label: "{{solution}}", type: output }',
+    '',
+    '# ── EDGES ────────────────────────────────────────────────────────────────────',
+    'edges:',
+    '  - @edge:n-request:turn → n-response:turn',
+    '',
+    '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
+    'flow:',
+    '  direction: LR',
+    '  computed: false',
+    '  nodes:',
+    '    - id: n-request',
+    '      type: input',
+    '      label: "{{subject}}"',
+    '      position: { x: 0, y: 0 }',
+    '      handles:',
+    '        source: [turn]',
+    '      data:',
+    '        text: "{{subject}}"',
+    '    - id: n-response',
+    '      type: output',
+    '      label: "{{solution}}"',
+    '      position: { x: 200, y: 0 }',
+    '      handles:',
+    '        target: [turn]',
+    '      data:',
+    '        text: "{{solution}}"',
+    '  edges:',
+    '    - source: n-request.turn',
+    '      target: n-response.turn',
+    '---',
+    '',
+    '# {{subject}}',
+    '',
+    '## Intent',
+    '- Action: {{action}}',
+    '- Goal: {{goal}}',
+    '',
+    '## Request',
+    '{{request_md}}',
+    '',
+    '## Solution',
+    '{{solution_md}}',
+  ].join('\n')
+  const validation = validateChatMarkdown({
+    markdown,
+    resolvableVarKeys: buildResolvableVarKeySet({ frontmatter: null, markdown }),
+  })
+  if (validation.ok) {
+    throw new Error('Expected nested fenced block inside KGC to fail validation')
+  }
+  if (validation.failedRuleId !== 'V-03') {
+    throw new Error(`Expected V-03 failure for nested fenced block, got ${validation.failedRuleId || 'none'}`)
   }
 }
