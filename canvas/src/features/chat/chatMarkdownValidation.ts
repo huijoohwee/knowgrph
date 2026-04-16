@@ -172,6 +172,20 @@ const extractTopLevelYamlBlockScalar = (frontmatter: string, key: string): strin
   return ''
 }
 
+const extractBodySectionMarkdown = (body: string, heading: string): string => {
+  const text = String(body || '').replace(/\r\n/g, '\n')
+  if (!text) return ''
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const rx = new RegExp(`^##\\s+${escapedHeading}\\s*$`, 'im')
+  const match = rx.exec(text)
+  if (!match || typeof match.index !== 'number') return ''
+  const start = match.index + match[0].length
+  const tail = text.slice(start).replace(/^\s*\n/, '')
+  const nextHeadingMatch = /^\s*##\s+/m.exec(tail)
+  const section = nextHeadingMatch ? tail.slice(0, nextHeadingMatch.index) : tail
+  return section.trim()
+}
+
 const countWordLikeTokens = (raw: string): number => {
   return String(raw || '')
     .replace(/\r\n/g, '\n')
@@ -281,6 +295,10 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
   if (!parsed) return null
   const requestMd = extractTopLevelYamlBlockScalar(parsed.frontmatter, 'request_md')
   const solutionMd = extractTopLevelYamlBlockScalar(parsed.frontmatter, 'solution_md')
+  const requestSection = extractBodySectionMarkdown(parsed.body, 'Request')
+  const solutionSection = extractBodySectionMarkdown(parsed.body, 'Solution')
+  const effectiveRequest = requestSection || requestMd
+  const effectiveSolution = solutionSection || solutionMd
   if (/^#{1,6}\s+\{\{(?:solution|solution_md)(?:[:|][^}]*)?\}\}\s*$/m.test(parsed.body)) {
     return {
       ruleId: 'V-03',
@@ -293,15 +311,15 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
       message: 'Markdown body must contain the actual solution content, not only a {{solution_md}} placeholder shell.',
     }
   }
-  if (isPlaceholderLike(solutionMd)) {
+  if (isPlaceholderLike(effectiveSolution)) {
     return {
       ruleId: 'V-03',
-      message: 'solution_md must contain the full useful answer, not a placeholder or streaming marker.',
+      message: 'Solution content must contain the full useful answer, not a placeholder or streaming marker.',
     }
   }
 
-  const requestWords = countWordLikeTokens(requestMd)
-  const solutionWords = countWordLikeTokens(solutionMd)
+  const requestWords = countWordLikeTokens(effectiveRequest)
+  const solutionWords = countWordLikeTokens(effectiveSolution)
   const bodyRenderableWords = countWordLikeTokens(
     parsed.body
       .replace(/\{\{[^}]+\}\}/g, ' ')
@@ -317,7 +335,7 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
     }
   }
 
-  const complexityScore = estimateRequestComplexityScore(requestMd)
+  const complexityScore = estimateRequestComplexityScore(effectiveRequest)
   const minSolutionWords = complexityScore >= 2 || requestWords >= 40
     ? Math.min(180, Math.max(36, Math.floor(requestWords * 0.8)))
     : requestWords >= 24
@@ -329,7 +347,7 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
   if (minSolutionWords > 0 && solutionWords < minSolutionWords) {
     return {
       ruleId: 'V-03',
-      message: `solution_md is too thin for this request. Expand it into a substantive markdown answer (need at least ~${minSolutionWords} words for this request complexity).`,
+      message: `Solution content is too thin for this request. Expand it into a substantive markdown answer (need at least ~${minSolutionWords} words for this request complexity).`,
     }
   }
   if (minBodyWords > 0 && bodyRenderableWords < minBodyWords) {

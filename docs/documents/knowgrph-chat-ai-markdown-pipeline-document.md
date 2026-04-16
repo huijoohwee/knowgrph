@@ -59,7 +59,7 @@ On failure, Chat re-prompts up to 3 attempts using:
 - `reason: ...`
 - A truncated invalid output excerpt (reference only)
 
-If attempts are exhausted, Chat surfaces a user-facing validation failure message and still persists a parser-safe deterministic KGC fallback so Workspace surfaces never ingest broken Markdown.
+If attempts are exhausted, Chat persists a parser-safe deterministic KGC fallback while still returning a concise answer; Workspace surfaces never ingest broken Markdown.
 
 ## Persistence Contract
 - The Workspace `kgc_*.md` file is the standalone canonical KGC document.

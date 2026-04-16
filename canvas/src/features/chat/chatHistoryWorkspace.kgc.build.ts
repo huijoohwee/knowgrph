@@ -48,19 +48,6 @@ const wrapFence = (content: string, lang: string): string => {
 
 const yamlString = (value: string): string => JSON.stringify(String(value || ''))
 
-const yamlBlock = (value: string, indent = 2): string => {
-  const raw = String(value || '').replace(/\r\n/g, '\n')
-  const pad = ' '.repeat(Math.max(0, indent))
-  if (!raw) return '|'
-  const lines = raw.split('\n')
-  return ['|', ...lines.map(l => {
-    const trimmed = l.trim()
-    const withSafeBoundaries = trimmed === '---' || trimmed === '...' ? `\\${trimmed}` : l
-    const safe = withSafeBoundaries.replace(/```/g, '\\`\\`\\`')
-    return `${pad}${safe}`
-  })].join('\n')
-}
-
 const normalizeInlineValue = (value: string, fallback: string, maxChars = 160): string => {
   const cleaned = String(value || '')
     .replace(/\r\n/g, '\n')
@@ -131,6 +118,14 @@ const normalizeRecoveredAssistantBody = (raw: string): string => {
     .replace(/^##\s+Request\s*[\s\S]*?(?=\n##\s+Solution\b|$)/i, '')
     .replace(/^##\s+Solution\s*\n+/i, '')
   return normalizeBlankLines(text)
+}
+
+const sanitizeAssistantBodyForKgc = (raw: string): string => {
+  return normalizeBlankLines(
+    String(raw || '')
+      .replace(/^\s*```+[^\n]*$/gm, '')
+      .replace(/^\s*\\`\\`\\`[^\n]*$/gm, '')
+  )
 }
 
 const isUsableRecoveredBody = (raw: string): boolean => {
@@ -323,9 +318,11 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
   const created = formatIsoDateOnly(args.timestampMs)
   const subject = normalizeInlineValue(args.requestText, 'chat request')
   const recoveredAssistantMdRaw = deriveCanonicalAssistantMarkdownBody(args.assistantText)
-  const assistantMd = recoveredAssistantMdRaw === KGC_RECOVERY_OMITTED_NOTE
-    ? buildDeterministicKgcRecoverySolutionMd(args.requestText)
-    : recoveredAssistantMdRaw
+  const assistantMd = sanitizeAssistantBodyForKgc(
+    recoveredAssistantMdRaw === KGC_RECOVERY_OMITTED_NOTE
+      ? buildDeterministicKgcRecoverySolutionMd(args.requestText)
+      : recoveredAssistantMdRaw
+  ) || 'TBD'
   const solution = normalizeInlineValue(summarizeAssistantBodyForSolutionScalar(assistantMd), 'assistant response')
   const requestNodeId = toKgcNodeId(subject, 'n-user-request')
   const responseNodeId = toKgcNodeId(solution, 'n-ai-response')
@@ -345,8 +342,6 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
     `action:   ${yamlString('respond to the active request')}`,
     `goal:     ${yamlString('persist one ingestible chat turn')}`,
     `solution: ${yamlString(solution)}`,
-    `request_md: ${yamlBlock(requestMd)}`,
-    `solution_md: ${yamlBlock(assistantMd)}`,
     '',
     '# ── NODES ────────────────────────────────────────────────────────────────────',
     'nodes:',
@@ -402,7 +397,7 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
     '- Goal: {{goal}}',
     '',
     '## Request',
-    '{{request_md}}',
+    requestMd,
     '',
     '## Solution',
     assistantMd,
@@ -451,4 +446,3 @@ export const buildKgcDraftEntry = (args: {
     '',
   ].join('\n')
 }
-

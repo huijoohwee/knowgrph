@@ -19,8 +19,6 @@ const KGC_REQUIRED_VARIABLE_MARKERS = [
   '\naction:',
   '\ngoal:',
   '\nsolution:',
-  '\nrequest_md:',
-  '\nsolution_md:',
 ] as const
 
 const countMatches = (text: string, pattern: RegExp): number => {
@@ -149,4 +147,3 @@ export const isKgcStructuredMarkdown = (raw: string): boolean => {
   const edges = Array.isArray(parsed.graphData.edges) ? parsed.graphData.edges : []
   return nodes.length >= 2 && edges.length >= 1
 }
-

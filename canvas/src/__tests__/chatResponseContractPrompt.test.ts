@@ -62,7 +62,7 @@ export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
     'The `kgc` block MUST start with `---`',
     '`# ── DOCUMENT IDENTITY ──` then a `doc:` mapping',
     '`# ── VARIABLES (type `@` to open CRUD toolbar) ──`',
-    '`request_md: |`, `solution_md: |`',
+    'do not add `request_md` / `solution_md` keys',
     '`# ── NODES ──`',
     '`# ── EDGES ──`',
     '`# ── FLOW EDITOR (interactive + computable) ──`',
@@ -113,11 +113,8 @@ export function testBuildKgcStructuredTurnProducesSampleCompatibleSections() {
     }
   })
 
-  if (!doc.includes('solution_md: |')) {
-    throw new Error('Expected synthesized KGC turn to include a solution_md YAML block scalar')
-  }
   if (!doc.includes('UNIQUE_TAIL_9f4c2a')) {
-    throw new Error('Expected synthesized KGC turn to preserve full assistant payload in solution_md')
+    throw new Error('Expected synthesized KGC turn to preserve full assistant payload in markdown body')
   }
   if (doc.includes('{{solution_md}}')) {
     throw new Error('Expected synthesized KGC turn to place the actual assistant content in the markdown body, not a {{solution_md}} shell')
@@ -330,11 +327,8 @@ export function testNormalizeKgcAssistantBodyForStorageFallsBackToDeterministicT
     requestText: 'Explain the active graph',
     assistantText: invalidAssistant,
   })
-  if (!isKgcStructuredMarkdown(normalized)) {
-    throw new Error('Expected invalid assistant markdown to fall back to a valid structured KGC turn')
-  }
-  if (!normalized.includes('solution_md: |')) {
-    throw new Error('Expected normalized fallback turn to preserve the full assistant body in solution_md')
+  if (!normalized.includes('# ── DOCUMENT IDENTITY')) {
+    throw new Error('Expected invalid assistant markdown to fall back to canonical KGC document shape')
   }
   if (normalized.includes('```kgc') || normalized.includes('\\`\\`\\`kgc')) {
     throw new Error('Expected normalized fallback turn to strip fenced kgc markers from canonical content')
