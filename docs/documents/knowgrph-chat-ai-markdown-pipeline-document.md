@@ -63,4 +63,8 @@ If attempts are exhausted, Chat surfaces a user-facing validation failure messag
 
 ## Persistence Contract
 - The Workspace `kgc_*.md` file is the standalone canonical KGC document.
+- `chatKnowgrph` creates canonical files in the `kgc_yyyymmddhhmmss.md` pattern.
+- On write, canonical KGC identity metadata (`doc.id`, `doc.created`) is normalized from the `kgc_*.md` filename timestamp.
+- Structural acceptance requires frontmatter↔body linkage: every body `{{key}}` reference must be declared in top-level YAML frontmatter.
 - Do not append `<!-- kg-chat-history -->` or any chat-history trailer to `kgc_*.md`.
+- Continuation: fallback recovery and streaming handoff details are documented in `docs/documents/knowgrph-chat-ai-markdown-pipeline-document.fallback-recovery.md`.

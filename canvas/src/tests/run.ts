@@ -538,6 +538,13 @@ export const runAllTests = async () => {
   await runSchemaTests(results)
   await runJsonLdTests(results)
 
+  const modKgcTurn = await import('./smoke/kgcTurnGeneration.smoke')
+  await execTest(
+    results,
+    'chat.kgc.turnGeneration.parseable',
+    modKgcTurn.testKgcTurnGenerationIsParseableAndStable,
+  )
+
   const modFitAll = await import('../__tests__/fitAllTransformCentersWhenNoCoordsRegression.test')
   await execTest(
     results,

@@ -40,8 +40,10 @@ export const CHAT_KGC_RESPONSE_CONTRACT_PROMPT = [
   '- Never include fenced code blocks inside the `kgc` document, including inside `solution_md: |` or markdown body sections.',
   '- The markdown body must contain the actual answer content; do not use a body shell that only prints `{{solution_md}}`.',
   '- Use guideline-safe placeholders like `TBD` or `—` instead of empty values.',
+  '- `subject`, `action`, `goal`, and `solution` must be concrete text values; do not use `{{}}` placeholders in these frontmatter scalar fields.',
   '- Variable references must follow guideline syntax: `{{key}}`, optional `{{key:value}}`, optional `{{key|fallback}}`.',
   '- Annotation sigils, when used, must follow guideline-safe forms only: `` `#HEX:text` ``, `` `bg#HEX:text` ``, or `` `#HEX|bg#HEX:text` `` (6-digit HEX).',
+  '- For PRD/TAD-style requests, align sectioning with the canonical KGC template (`kgc-ai-pipeline-prd-tad.md`): include explicit Problem/Solution flow and User Flow + Work Flow + Data Flow coverage.',
   '- Never output secrets (API keys/tokens).',
 ].join('\n')
 

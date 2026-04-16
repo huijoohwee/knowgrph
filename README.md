@@ -116,6 +116,12 @@ python3 -m venv .venv
 ./.venv/bin/python -m knowgrph_parser smoke --timeout-seconds 20
 ```
 
+### MCP (Model Context Protocol)
+
+This repo includes a small **MCP server** that exposes selected `knowgrph_parser` commands as MCP tools so external users can run the pipeline from MCP clients (Claude Desktop, Claude Code, Cursor).
+
+See: [`mcp/README.md`](./mcp/README.md)
+
 ### Documentation Automation
 
 - From code registries to consistent docs: CLI tooling → regenerates markdown tables and registries → keeps UI, schema fixtures, and documentation aligned.

@@ -98,6 +98,7 @@ export function testBuildKgcStructuredTurnProducesSampleCompatibleSections() {
     '---',
     '# ── DOCUMENT IDENTITY',
     'doc:',
+    'doc:kgc:turn:',
     '# ── VARIABLES (type `@` to open CRUD toolbar)',
     'nodes:',
     '@node:',
@@ -121,6 +122,9 @@ export function testBuildKgcStructuredTurnProducesSampleCompatibleSections() {
   if (doc.includes('{{solution_md}}')) {
     throw new Error('Expected synthesized KGC turn to place the actual assistant content in the markdown body, not a {{solution_md}} shell')
   }
+  if (/^\s*solution:\s*["']?.*\{\{[^}]+\}\}.*["']?\s*$/m.test(doc)) {
+    throw new Error('Expected synthesized KGC turn to keep frontmatter solution scalar concrete (no template refs)')
+  }
 
   const parsed = tryParseMarkdownFrontmatterFlowGraph('kgc-turn.md', doc)
   if (!parsed) throw new Error('Expected synthesized KGC turn to parse as a frontmatter flow graph')
@@ -128,6 +132,152 @@ export function testBuildKgcStructuredTurnProducesSampleCompatibleSections() {
   const edges = parsed.graphData.edges || []
   if (nodes.length < 2) throw new Error(`Expected >=2 parsed nodes, got ${nodes.length}`)
   if (edges.length < 1) throw new Error(`Expected >=1 parsed edges, got ${edges.length}`)
+}
+
+export function testIsKgcStructuredMarkdownRejectsTemplateRefInSolutionScalar() {
+  const invalid = [
+    '---',
+    '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
+    'doc:',
+    '  id: "doc:kgc:turn:20260416120000"',
+    '  title: "chatKnowgrph turn"',
+    '  type: chatKnowgrph',
+    '  version: "1.0.0"',
+    '  created: "2026-04-16"',
+    '',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ────────────────────────────────',
+    'subject: "linkage test"',
+    'action: "respond"',
+    'goal: "persist"',
+    'solution: "{{solution}}"',
+    'request_md: |',
+    '  run linkage validation',
+    'solution_md: |',
+    '  linkage validation output',
+    '',
+    '# ── NODES ────────────────────────────────────────────────────────────────────',
+    'nodes:',
+    '  - @node:n-request: { label: "{{subject}}", type: input }',
+    '  - @node:n-response: { label: "{{solution}}", type: output }',
+    '',
+    '# ── EDGES ────────────────────────────────────────────────────────────────────',
+    'edges:',
+    '  - @edge:n-request:turn → n-response:turn',
+    '',
+    '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
+    'flow:',
+    '  direction: LR',
+    '  computed: false',
+    '  nodes:',
+    '    - id: n-request',
+    '      type: input',
+    '      label: "{{subject}}"',
+    '      position: { x: 0, y: 0 }',
+    '      handles:',
+    '        source: [turn]',
+    '      data:',
+    '        text: "{{subject}}"',
+    '    - id: n-response',
+    '      type: output',
+    '      label: "{{solution}}"',
+    '      position: { x: 200, y: 0 }',
+    '      handles:',
+    '        target: [turn]',
+    '      data:',
+    '        text: "{{solution}}"',
+    '  edges:',
+    '    - source: n-request.turn',
+    '      target: n-response.turn',
+    '---',
+    '',
+    '# {{subject}}',
+    '',
+    '## Intent',
+    '- Action: {{action}}',
+    '- Goal: {{goal}}',
+    '',
+    '## Request',
+    '{{request_md}}',
+    '',
+    '## Solution',
+    'Valid body content',
+  ].join('\n')
+  if (isKgcStructuredMarkdown(invalid)) {
+    throw new Error('Expected KGC structured validator to reject template refs in required frontmatter scalars')
+  }
+}
+
+export function testIsKgcStructuredMarkdownRejectsBodyRefsMissingFromFrontmatter() {
+  const invalid = [
+    '---',
+    '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
+    'doc:',
+    '  id: "doc:kgc:turn:20260416120000"',
+    '  title: "chatKnowgrph turn"',
+    '  type: chatKnowgrph',
+    '  version: "1.0.0"',
+    '  created: "2026-04-16"',
+    '',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ────────────────────────────────',
+    'subject: "linkage test"',
+    'action: "respond"',
+    'goal: "persist"',
+    'solution: "verify linkage"',
+    'request_md: |',
+    '  run linkage validation',
+    'solution_md: |',
+    '  linkage validation output',
+    '',
+    '# ── NODES ────────────────────────────────────────────────────────────────────',
+    'nodes:',
+    '  - @node:n-request: { label: "{{subject}}", type: input }',
+    '  - @node:n-response: { label: "{{solution}}", type: output }',
+    '',
+    '# ── EDGES ────────────────────────────────────────────────────────────────────',
+    'edges:',
+    '  - @edge:n-request:turn → n-response:turn',
+    '',
+    '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
+    'flow:',
+    '  direction: LR',
+    '  computed: false',
+    '  nodes:',
+    '    - id: n-request',
+    '      type: input',
+    '      label: "{{subject}}"',
+    '      position: { x: 0, y: 0 }',
+    '      handles:',
+    '        source: [turn]',
+    '      data:',
+    '        text: "{{subject}}"',
+    '    - id: n-response',
+    '      type: output',
+    '      label: "{{solution}}"',
+    '      position: { x: 200, y: 0 }',
+    '      handles:',
+    '        target: [turn]',
+    '      data:',
+    '        text: "{{solution}}"',
+    '  edges:',
+    '    - source: n-request.turn',
+    '      target: n-response.turn',
+    '---',
+    '',
+    '# {{subject}}',
+    '',
+    '## Intent',
+    '- Action: {{action}}',
+    '- Goal: {{goal}}',
+    '',
+    '## Request',
+    '{{request_md}}',
+    '',
+    '## Solution',
+    'Use unresolved linkage key: {{missing_key}}',
+  ].join('\n')
+  if (isKgcStructuredMarkdown(invalid)) {
+    throw new Error('Expected KGC structured validator to reject markdown body refs missing from frontmatter keys')
+  }
 }
 
 export function testIsKgcStructuredMarkdownRejectsSnippetOnlyPseudoKgc() {
@@ -188,6 +338,9 @@ export function testNormalizeKgcAssistantBodyForStorageFallsBackToDeterministicT
   }
   if (normalized.includes('```kgc') || normalized.includes('\\`\\`\\`kgc')) {
     throw new Error('Expected normalized fallback turn to strip fenced kgc markers from canonical content')
+  }
+  if (/\n\s*kgc\s*\n/.test(normalized) || normalized.includes('\\---')) {
+    throw new Error('Expected normalized fallback turn to strip residual kgc / \\--- artifact lines from canonical content')
   }
 }
 
@@ -262,6 +415,206 @@ export function testNormalizeKgcAssistantBodyForStorageExtractsBodyFromNestedKgc
   }
   if (normalized.includes('```kgc') || normalized.includes('\\`\\`\\`kgc')) {
     throw new Error('Expected extracted-body fallback to omit fenced kgc markers')
+  }
+  if (/\n\s*kgc\s*\n/.test(normalized) || normalized.includes('\\---')) {
+    throw new Error('Expected extracted-body fallback to omit residual kgc / \\--- artifact lines')
+  }
+}
+
+export function testNormalizeKgcAssistantBodyForStorageExtractsBodyFromEmbeddedMalformedKgcArtifact() {
+  const invalidAssistant = [
+    '- Short useful summary line.',
+    '',
+    'kgc',
+    '\\---',
+    '# ── DOCUMENT IDENTITY ──',
+    'doc:',
+    '  id: "doc:invalid"',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
+    'subject: "artifact test"',
+    'action: "respond"',
+    'goal: "persist"',
+    'solution: "artifact body extraction"',
+    'request_md: |',
+    '  test request',
+    'solution_md: |',
+    '  _Streaming..._',
+    '# ── NODES ──',
+    'nodes:',
+    '  - @node:n-a: { label: "{{subject}}", type: input }',
+    '  - @node:n-b: { label: "{{solution}}", type: output }',
+    '# ── EDGES ──',
+    'edges:',
+    '  - @edge:n-a:turn → n-b:turn',
+    '# ── FLOW EDITOR (interactive + computable) ──',
+    'flow:',
+    '  computed: false',
+    '\\---',
+    '',
+    '## Bootstrap plan',
+    '',
+    '### MVP',
+    '- Keep the useful body content.',
+    '- Strip malformed kgc artifacts.',
+  ].join('\n')
+  const normalized = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 16, 13, 46, 1),
+    requestText: 'Explain the active graph',
+    assistantText: invalidAssistant,
+  })
+  if (!normalized.includes('## Bootstrap plan')) {
+    throw new Error('Expected fallback normalization to extract embedded useful markdown body from malformed kgc artifact')
+  }
+  if (normalized.includes('Previous invalid KGC attempt was omitted')) {
+    throw new Error('Expected embedded useful body to win over omission-note fallback')
+  }
+  if (/\n\s*kgc\s*\n/.test(normalized) || normalized.includes('\\---')) {
+    throw new Error('Expected extracted embedded body to omit kgc / \\--- artifact lines')
+  }
+}
+
+export function testNormalizeKgcAssistantBodyForStorageStripsRecoveredDocumentShell() {
+  const invalidAssistant = [
+    '```kgc',
+    '---',
+    '# ── DOCUMENT IDENTITY ──',
+    'doc:',
+    '  id: "doc:invalid"',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
+    'subject: "artifact test"',
+    'action: "respond"',
+    'goal: "persist"',
+    'solution: "artifact body extraction"',
+    'request_md: |',
+    '  test request',
+    'solution_md: |',
+    '  _Streaming..._',
+    '# ── NODES ──',
+    'nodes:',
+    '  - @node:n-a: { label: "{{subject}}", type: input }',
+    '  - @node:n-b: { label: "{{solution}}", type: output }',
+    '# ── EDGES ──',
+    'edges:',
+    '  - @edge:n-a:turn → n-b:turn',
+    '# ── FLOW EDITOR (interactive + computable) ──',
+    'flow:',
+    '  computed: false',
+    '---',
+    '',
+    '# {{subject}}',
+    '',
+    '## Intent',
+    '- Action: {{action}}',
+    '- Goal: {{goal}}',
+    '',
+    '## Request',
+    '{{request_md}}',
+    '',
+    '## Solution',
+    '### MVP',
+    '- Keep the useful body content.',
+    '- Strip malformed kgc artifacts.',
+    '```',
+  ].join('\n')
+  const normalized = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 16, 14, 34, 17),
+    requestText: 'Explain the active graph',
+    assistantText: invalidAssistant,
+  })
+  if (!normalized.includes('### MVP')) {
+    throw new Error('Expected recovered body content to remain present after stripping the embedded document shell')
+  }
+  if (normalized.includes('## Solution\n# {{subject}}') || normalized.includes('## Solution\n## {{subject}}')) {
+    throw new Error('Expected fallback normalization to strip duplicated recovered document title shell from body content')
+  }
+}
+
+export function testNormalizeKgcAssistantBodyForStorageUsesFrontmatterSolutionMdWhenBodyMissing() {
+  const invalidAssistant = [
+    '```kgc',
+    '---',
+    '# ── DOCUMENT IDENTITY ──',
+    'doc:',
+    '  id: "doc:invalid"',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
+    'subject: "frontmatter fallback test"',
+    'action: "respond"',
+    'goal: "persist"',
+    'solution: "frontmatter scalar"',
+    'request_md: |',
+    '  request text',
+    'solution_md: |',
+    '  ### Salvaged from solution_md',
+    '  - keep this useful content',
+    '# ── NODES ──',
+    'nodes:',
+    '  - @node:n-a: { label: "{{subject}}", type: input }',
+    '  - @node:n-b: { label: "{{solution}}", type: output }',
+    '# ── EDGES ──',
+    'edges:',
+    '  - @edge:n-a:turn → n-b:turn',
+    '# ── FLOW EDITOR (interactive + computable) ──',
+    'flow:',
+    '  computed: false',
+    '```',
+  ].join('\n')
+  const normalized = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 16, 16, 8, 35),
+    requestText: 'Explain the active graph',
+    assistantText: invalidAssistant,
+  })
+  if (!normalized.includes('### Salvaged from solution_md')) {
+    throw new Error('Expected fallback normalization to salvage useful content from frontmatter solution_md when body extraction fails')
+  }
+  if (normalized.includes('Previous invalid KGC attempt was omitted')) {
+    throw new Error('Expected frontmatter solution_md salvage to avoid omission-note fallback')
+  }
+}
+
+export function testNormalizeKgcAssistantBodyForStorageStripsSolutionPlaceholderHeading() {
+  const invalidAssistant = [
+    '```kgc',
+    '---',
+    '# ── DOCUMENT IDENTITY ──',
+    'doc:',
+    '  id: "doc:invalid"',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
+    'subject: "placeholder heading test"',
+    'action: "respond"',
+    'goal: "persist"',
+    'solution: "placeholder heading"',
+    'request_md: |',
+    '  request text',
+    'solution_md: |',
+    '  short summary',
+    '# ── NODES ──',
+    'nodes:',
+    '  - @node:n-a: { label: "{{subject}}", type: input }',
+    '  - @node:n-b: { label: "{{solution}}", type: output }',
+    '# ── EDGES ──',
+    'edges:',
+    '  - @edge:n-a:turn → n-b:turn',
+    '# ── FLOW EDITOR (interactive + computable) ──',
+    'flow:',
+    '  computed: false',
+    '---',
+    '',
+    '## {{solution}}',
+    '',
+    '### Execution',
+    '- Keep concrete heading content.',
+    '```',
+  ].join('\n')
+  const normalized = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 16, 17, 10, 12),
+    requestText: 'Explain the active graph',
+    assistantText: invalidAssistant,
+  })
+  if (normalized.includes('## {{solution}}')) {
+    throw new Error('Expected fallback normalization to strip placeholder-only solution headings from recovered body')
+  }
+  if (!normalized.includes('### Execution')) {
+    throw new Error('Expected fallback normalization to preserve useful concrete body sections')
   }
 }
 

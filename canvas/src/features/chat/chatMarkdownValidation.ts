@@ -62,7 +62,8 @@ const validateSigilsUpperHex = (md: string): ChatMarkdownValidationError | null 
 }
 
 const validateLongQuotes = (md: string): ChatMarkdownValidationError | null => {
-  const text = String(md || '')
+  const parsed = extractLeadingFrontmatterAndBody(md)
+  const text = parsed ? parsed.body : String(md || '')
   const spans: string[] = []
   const doubleRx = /"([^"]+)"/g
   const singleRx = /'([^']+)'/g
@@ -244,6 +245,21 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
     }
   }
   const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
+  for (const scalarKey of ['subject', 'action', 'goal', 'solution'] as const) {
+    const scalar = extractTopLevelYamlBlockScalar(parsed.frontmatter, scalarKey).trim()
+    if (!scalar) {
+      return {
+        ruleId: 'V-03',
+        message: `Frontmatter key "${scalarKey}" must be non-empty.`,
+      }
+    }
+    if (/\{\{[^}]+\}\}/.test(scalar)) {
+      return {
+        ruleId: 'V-03',
+        message: `Frontmatter key "${scalarKey}" must be concrete text, not a template placeholder.`,
+      }
+    }
+  }
   for (const ref of refs) {
     const idxColon = ref.indexOf(':')
     const idxPipe = ref.indexOf('|')
@@ -265,6 +281,12 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
   if (!parsed) return null
   const requestMd = extractTopLevelYamlBlockScalar(parsed.frontmatter, 'request_md')
   const solutionMd = extractTopLevelYamlBlockScalar(parsed.frontmatter, 'solution_md')
+  if (/^#{1,6}\s+\{\{(?:solution|solution_md)(?:[:|][^}]*)?\}\}\s*$/m.test(parsed.body)) {
+    return {
+      ruleId: 'V-03',
+      message: 'Markdown body headings must not be pure solution placeholders. Put concrete section titles and actual answer content.',
+    }
+  }
   if (/\{\{\s*solution_md(?:[:|][^}]*)?\s*\}\}/.test(parsed.body)) {
     return {
       ruleId: 'V-03',

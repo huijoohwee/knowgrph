@@ -1,0 +1,19 @@
+{
+  "name": "@knowgrph/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server exposing Knowgrph pipeline commands as tools",
+  "license": "MIT",
+  "main": "server.js",
+  "scripts": {
+    "start": "node ./server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+

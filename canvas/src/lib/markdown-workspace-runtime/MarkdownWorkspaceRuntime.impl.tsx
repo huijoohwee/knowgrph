@@ -357,9 +357,13 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
   React.useEffect(() => {
     if (contentMode !== 'nodeQuickEditor') return
+    if (activePath && isMarkdownPath(activePath)) {
+      setContentModeAuto('document')
+      return
+    }
     if (nodeQuickEditorAvailable) return
     setContentModeAuto('document')
-  }, [contentMode, nodeQuickEditorAvailable, setContentModeAuto])
+  }, [activePath, contentMode, nodeQuickEditorAvailable, setContentModeAuto])
 
   React.useEffect(() => {
     if (!nodeQuickEditorAvailable) return
@@ -2150,8 +2154,8 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     const onLayoutRequest = (ev: Event) => {
       const e = ev as CustomEvent<{ mode?: unknown } | undefined>
       const mode = String(e.detail?.mode || '').trim().toLowerCase()
-      if (mode !== 'split') return
-      setLayoutMode(prev => (prev === 'split' ? prev : 'split'))
+      if (mode !== 'split' && mode !== 'editor') return
+      setLayoutMode(prev => (prev === mode ? prev : mode))
     }
     window.addEventListener(MARKDOWN_LAYOUT_REQUEST_EVENT, onLayoutRequest as EventListener)
     return () => {
