@@ -698,10 +698,18 @@ export interface GraphState {
   clearChatExchangeLogs: () => void;
   mediaNodeOpacity: number;
   chatProvider: string;
+  chatAuthMode: 'serverManaged' | 'byok';
+  setChatAuthMode: (mode: 'serverManaged' | 'byok') => void;
   chatApiKey: string;
   chatEndpointUrl: string | null;
   chatModel: string | null;
   chatTemperature: number;
+  chatMaxCompletionTokens: number;
+  setChatMaxCompletionTokens: (v: number) => void;
+  chatGraphSummaryMaxTokens: number;
+  setChatGraphSummaryMaxTokens: (v: number) => void;
+  chatGuidelineDigestMaxTokens: number;
+  setChatGuidelineDigestMaxTokens: (v: number) => void;
   chatSystemPrompt: string | null;
   chatStorageTarget: 'chatKnowgrph' | 'chatHistory';
   setChatStorageTarget: (target: 'chatKnowgrph' | 'chatHistory') => void;

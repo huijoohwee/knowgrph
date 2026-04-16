@@ -51,7 +51,14 @@ This root document exists as the auto-generated settings registry table surface 
 | `chatModel` | string | localStorage | `kg:chat:model` | `ui.chat` |
 | `chatTemperature` | number | localStorage | `kg:chat:temperature` | `ui.chat` |
 | `chatSystemPrompt` | string | localStorage | `kg:chat:systemPrompt` | `ui.chat` |
+| `chatStorageTarget` | string | localStorage | `kg:chat:storage:target` | `ui.chat` |
+| `chatLocalStorageRootPath` | string | localStorage | `kg:chat:storage:localRootPath` | `ui.chat` |
+| `chatKnowgrphStorageMode` | string | localStorage | `kg:chat:chatKnowgrph:storageMode` | `ui.chat` |
+| `chatKnowgrphWorkspacePath` | string | localStorage | `kg:chat:chatKnowgrph:workspacePath` | `ui.chat` |
+| `chatKnowgrphCloudUrl` | string | localStorage | `kg:chat:chatKnowgrph:cloudUrl` | `ui.chat` |
+| `chatHistoryStorageMode` | string | localStorage | `kg:chat:history:storageMode` | `ui.chat` |
 | `chatHistoryWorkspacePath` | string | localStorage | `kg:chat:history:workspacePath` | `ui.chat` |
+| `chatHistoryCloudUrl` | string | localStorage | `kg:chat:history:cloudUrl` | `ui.chat` |
 | `chatContextScope` | string | localStorage | `kg:chat:contextScope` | `ui.chat` |
 | `integrationConfigsJson` | string | localStorage | `kg:integrations:configs` | `ui.chat` |
 | `canvasSnapEnabled` | boolean | store |  |  |

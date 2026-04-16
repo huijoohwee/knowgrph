@@ -167,12 +167,18 @@ type FooterProps = {
   currentNode: GraphNode | null
   providerSummary: string
   providerHint: string
+  modelId: string
+  modelOptions: string[]
+  onModelChanged: (modelId: string) => void
   writingWorkspaceFileLabel?: string | null
   uiPanelTextFontClass: string
   uiPanelMicroLabelTextSizeClass: string
   isSubmitDisabled: boolean
   onSubmit: React.FormEventHandler<HTMLFormElement>
   onStop: () => void
+  showNewChatButton?: boolean
+  isNewChatDisabled?: boolean
+  onNewChat?: () => void
 }
 
 export function SidePanelChatFooter({
@@ -185,12 +191,18 @@ export function SidePanelChatFooter({
   currentNode,
   providerSummary,
   providerHint,
+  modelId,
+  modelOptions,
+  onModelChanged,
   writingWorkspaceFileLabel,
   uiPanelTextFontClass,
   uiPanelMicroLabelTextSizeClass,
   isSubmitDisabled,
   onSubmit,
   onStop,
+  showNewChatButton,
+  isNewChatDisabled,
+  onNewChat,
 }: FooterProps) {
   return (
     <div className={`border-t ${UI_THEME_TOKENS.panel.border} p-3 space-y-2`}>
@@ -215,6 +227,30 @@ export function SidePanelChatFooter({
       <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
         {providerSummary}
       </div>
+
+      {modelOptions.length > 0 && (
+        <div className="flex items-center justify-between gap-2">
+          <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
+            {UI_COPY.chatModelSelectLabel}
+          </div>
+          <select
+            value={modelId}
+            onChange={e => {
+              const next = e.target.value
+              if (!next) return
+              onModelChanged(next)
+            }}
+            disabled={isLoading || modelOptions.length <= 1}
+            className={`h-7 px-2 text-xs border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} disabled:opacity-60`}
+          >
+            {modelOptions.map(option => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className={[uiPanelTextFontClass, uiPanelMicroLabelTextSizeClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
         {providerHint}
       </div>
@@ -242,6 +278,16 @@ export function SidePanelChatFooter({
               : UI_COPY.chatNoSelectionContextStatus}
           </div>
           <div className="flex items-center gap-2">
+            {showNewChatButton && (
+              <button
+                type="button"
+                className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
+                onClick={onNewChat}
+                disabled={isNewChatDisabled}
+              >
+                {UI_COPY.chatNewChatButtonLabel}
+              </button>
+            )}
             {isLoading && (
               <button
                 type="button"

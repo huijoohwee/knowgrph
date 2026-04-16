@@ -154,6 +154,7 @@ export const UI_COPY = {
   chatEndpointOkStatus: 'Chat endpoint responded successfully.',
   chatEndpointUnreachableStatus:
     'Chat endpoint appears unreachable. Check the selected official provider endpoint, proxy routing, or local gateway.',
+  chatModelSelectLabel: 'Model',
   chatUnableToReachEndpointError: (endpoint: string) =>
     `Unable to reach chat endpoint at ${endpoint}. Check the selected official provider endpoint, API key, proxy allowlist, or local gateway.`,
   chatUnableToReachEndpointGenericError:
@@ -210,6 +211,8 @@ export const UI_COPY = {
   chatNoSelectionContextStatus: 'Using workspace-wide context from Explorer, Source Files, and Workspace Editor.',
   chatUsingSelectedNodeContextStatus: (label: string, type: string) =>
     `Using workspace-wide context plus selected node ${label} (${type}).`,
+  chatNewChatButtonLabel: 'New Chat',
+  chatNewChatFailedError: 'Unable to create a new chat workspace file. Try again.',
   chatStopButtonLabel: 'Stop',
   chatSendButtonLabel: 'Send',
   chatSendingButtonLabel: 'Sending…',

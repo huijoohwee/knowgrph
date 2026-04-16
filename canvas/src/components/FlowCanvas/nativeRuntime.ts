@@ -16,6 +16,7 @@ import { computeDynamicGroupResizeHandlePx, pxToWorld, readGroupResizeHandleConf
 import { computeDynamicNodePortHandlePx, computeZoomScaledPortHandlePx, shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
 import { drawInfiniteGridInWorldContext } from '@/lib/canvas/infiniteGrid'
 import { readEdgePathCurveOptions, traceEdgePathOnCanvas } from '@/lib/graph/edgeTypes'
+import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
 
@@ -313,6 +314,7 @@ export const computeFlowGroupAabb = (args: {
   group: GraphGroup
   paddingPx: number
   labelTopExtraPx: number
+  overlayAabbByNodeId?: Record<string, { minX: number; minY: number; maxX: number; maxY: number }> | null
 }): { minX: number; minY: number; maxX: number; maxY: number } | null => {
   const explicit = (args.group as unknown as { bounds?: unknown }).bounds
   const explicitAabb = (() => {
@@ -347,12 +349,33 @@ export const computeFlowGroupAabb = (args: {
     minY = Math.min(minY, y0)
     maxX = Math.max(maxX, x1)
     maxY = Math.max(maxY, y1)
+    const overlayAabb = args.overlayAabbByNodeId?.[id]
+    if (overlayAabb) {
+      const ox0 = Number(overlayAabb.minX)
+      const oy0 = Number(overlayAabb.minY)
+      const ox1 = Number(overlayAabb.maxX)
+      const oy1 = Number(overlayAabb.maxY)
+      if (Number.isFinite(ox0) && Number.isFinite(oy0) && Number.isFinite(ox1) && Number.isFinite(oy1) && ox1 > ox0 && oy1 > oy0) {
+        minX = Math.min(minX, ox0)
+        minY = Math.min(minY, oy0)
+        maxX = Math.max(maxX, ox1)
+        maxY = Math.max(maxY, oy1)
+      }
+    }
   }
   const computed =
     !Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)
       ? null
       : ({ minX, minY: minY - topExtra, maxX, maxY } as { minX: number; minY: number; maxX: number; maxY: number })
 
+  if (explicitAabb && computed) {
+    return {
+      minX: Math.min(explicitAabb.minX, computed.minX),
+      minY: Math.min(explicitAabb.minY, computed.minY),
+      maxX: Math.max(explicitAabb.maxX, computed.maxX),
+      maxY: Math.max(explicitAabb.maxY, computed.maxY),
+    }
+  }
   if (explicitAabb) return explicitAabb
   return computed
 }
@@ -1162,6 +1185,9 @@ export type FlowNativeDrawArgs = {
   renderGroups?: boolean
   renderNodes?: boolean
   grid?: { enabled: boolean; size: number; variant?: 'lines' | 'dots'; majorEvery?: number; dotRadiusPx?: number } | null
+  flowEditorQuickEditorOpenNodeIds?: string[]
+  flowEditorQuickEditorPinnedByNodeId?: Record<string, boolean>
+  flowEditorQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }>
 }
 
 const drawGroupResizeHandleOverlay = (rt: FlowNativeRuntime, args: { groupAabbById: Map<string, FlowGroupAabb> | null; selectedGroupId: string; enabled: boolean }) => {
@@ -1298,6 +1324,29 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   const renderNodes = args.renderNodes !== false
   const selectedGroupId = String(args.selectedGroupId || '').trim()
   const showGroupResizeHandle = args.showGroupResizeHandle === true
+  const quickEditorOverlayAabbByNodeId = (() => {
+    const openIds = Array.isArray(args.flowEditorQuickEditorOpenNodeIds) ? args.flowEditorQuickEditorOpenNodeIds : []
+    if (openIds.length === 0) return null
+    const pinnedByNodeId = args.flowEditorQuickEditorPinnedByNodeId || {}
+    const worldPosByNodeId = args.flowEditorQuickEditorWorldPosByNodeId || {}
+    const zoomK = typeof rt.transform?.k === 'number' && Number.isFinite(rt.transform.k) && rt.transform.k > 0 ? rt.transform.k : 1
+    const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
+    const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+    const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
+    const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
+    const out: Record<string, { minX: number; minY: number; maxX: number; maxY: number }> = {}
+    for (let i = 0; i < openIds.length; i += 1) {
+      const id = String(openIds[i] || '').trim()
+      if (!id) continue
+      const pinnedRaw = pinnedByNodeId[id]
+      const pinned = typeof pinnedRaw === 'boolean' ? pinnedRaw : true
+      if (!pinned) continue
+      const world = worldPosByNodeId[id]
+      if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
+      out[id] = { minX: world.x, minY: world.y, maxX: world.x + panelWorldW, maxY: world.y + panelWorldH }
+    }
+    return Object.keys(out).length > 0 ? out : null
+  })()
 
   const groupAabbById = (() => {
     const gCfg = rt.presentation.groups
@@ -1309,7 +1358,13 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
     m.clear()
     for (let i = 0; i < scene.groups.length; i += 1) {
       const g = scene.groups[i]
-      const aabb = computeFlowGroupAabb({ scene, group: g, paddingPx: padding, labelTopExtraPx: topExtra })
+      const aabb = computeFlowGroupAabb({
+        scene,
+        group: g,
+        paddingPx: padding,
+        labelTopExtraPx: topExtra,
+        overlayAabbByNodeId: quickEditorOverlayAabbByNodeId,
+      })
       if (!aabb) continue
       m.set(g.id, aabb)
     }

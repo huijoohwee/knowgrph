@@ -113,15 +113,19 @@
 ## Chat Settings: Endpoint, Model, Context
 
 - `chatProvider` defaults to BytePlus ModelArk (`ap-southeast-1`) with OpenAI as the secondary official profile; preserve canonical official endpoint URLs in Settings even though requests route through the same-origin proxy.
+- `chatAuthMode` selects `serverManaged` (default) vs `byok`.
+  - `serverManaged`: no user key is required; the server-side proxy injects a provider key from environment.
+  - `byok`: the user provides an API key for the current session only (store-only; never localStorage).
 - `chatEndpointUrl` and `chatApiKey` configure an OpenAI-compatible chat endpoint; official BytePlus/OpenAI calls use Bearer auth through the proxy and may attach `X-Client-Request-Id` for request tracing.
 - `chatModel` accepts custom provider model ids via text input with shared suggestions; Settings can refresh `/v1/models` from the configured endpoint without forcing a static option list.
 - `chatContextScope` selects selection-only, workspace-wide (default), or hybrid context; hybrid adds workspace-wide file context to selection-derived graph and markdown snippets while keeping behavior bounded and schema-neutral.
 - `chatStorageTarget` selects primary persistence target: `chatKnowgrph` (default) or `chatHistory`.
 - `chatLocalStorageRootPath` defaults to `/Users/huijoohwee/Documents/GitHub/sandbox/chat-log` and is used as the root folder for auto-created local markdown files.
 - `chatKnowgrphStorageMode` + `chatKnowgrphWorkspacePath` + `chatKnowgrphCloudUrl` configure Knowledge Graph Canvas storage (`kgc_yyyymmddhhmmss.md`, local/cloud).
+- In Chat UI with `chatStorageTarget=chatKnowgrph`, `New Chat` creates a fresh `kgc_yyyymmddhhmmss.md`, opens it in Workspace Editor (markdown pane), clears the active chat thread, and routes the next request/response into that new file.
 - `chatHistoryStorageMode` + `chatHistoryWorkspacePath` + `chatHistoryCloudUrl` configure Chat History storage (`chh_yyyymmddhhmmss.md`, local/cloud).
-- FloatingPanel Chat injects a strict Markdown response contract system prompt that encourages parameterized follow-up turns (one `yaml` metadata block when non-trivial) and forbids secrets; the Chat UI only shows one final assistant message: concise bullets (≤50 words) plus a workspace link to the current `kgc_yyyymmddhhmmss.md`.
-- For `chatKnowgrph`, streaming writes in-progress turns into the active `kgc_*.md` Workspace Editor document (Split layout, tail-follow); persistence must store a deterministic computing-flow-sample-compatible KGC block ending with `---` even when model output drifts.
+- FloatingPanel Chat injects a strict Markdown response contract system prompt; standard chat responses may include one `response:` YAML metadata block when non-trivial, while `chatKnowgrph` persists only the structured KGC contract. The Chat UI shows one final assistant message: concise bullets (≤50 words) plus a workspace link to the current `kgc_yyyymmddhhmmss.md`.
+- For `chatKnowgrph`, the saved `kgc_*.md` must keep its leading block as a standalone parseable KGC document that opens directly in Canvas, Workspace Editor, Multi-dimensional Table, and Kanban. Same-session history is appended in a trailing section, while validation requires ordered sections, non-empty `subject/action/goal/solution/request_md/solution_md`, and at least 2 nodes + 1 edge before accepting model output.
 - `chatHistoryWorkspacePath` optionally pins a workspace Markdown file path to append chat exchanges; when empty, the first successful chat will create `chh_yyyymmddhhmmss.md` under `chatLocalStorageRootPath` and continue appending there so the history is viewable and editable in the Workspace Editor.
 - `chatHistoryStorageMode` selects `local` (default, workspace file) vs `cloud` (reserved; does not write anywhere yet).
 - `chatHistoryCloudUrl` reserves a future sync target (e.g. GitHub URL) and is inert until a backend exists.

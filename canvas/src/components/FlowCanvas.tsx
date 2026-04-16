@@ -46,6 +46,7 @@ import { applyZoomRequestNative } from '@/components/FlowCanvas/applyZoomRequest
 import { setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { bindFlowCanvasNativeInteractions, type FlowCanvasDrag } from '@/components/FlowCanvas/bindNativeInteractions'
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
+import { placeFlowFallbackSeedPositions } from '@/components/FlowCanvas/seedFallbackPositions'
 import { useFlowComputedPositions } from '@/components/FlowCanvas/useFlowComputedPositions'
 import { fitFlowEditorPinnedQuickEditors } from '@/components/FlowCanvas/fitPinnedQuickEditors'
 import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
@@ -398,6 +399,9 @@ export default function FlowCanvas({
     renderGroups: undefined,
     renderNodes: undefined,
     grid: null,
+    flowEditorQuickEditorOpenNodeIds: undefined,
+    flowEditorQuickEditorPinnedByNodeId: undefined,
+    flowEditorQuickEditorWorldPosByNodeId: undefined,
   })
   const lastPointerInCanvasRef = React.useRef<null | { sx: number; sy: number; ts: number }>(null)
   const lastWheelIntentRef = React.useRef<null | { dir: 'in' | 'out'; ts: number }>(null)
@@ -761,9 +765,22 @@ export default function FlowCanvas({
     drawArgsRef.current.renderEdges = renderEdges
     drawArgsRef.current.renderGroups = renderGroups
     drawArgsRef.current.renderNodes = renderNodes
+    if (canvas2dRenderer === 'flowEditor') {
+      drawArgsRef.current.flowEditorQuickEditorOpenNodeIds = openQuickEditorNodeIds || []
+      drawArgsRef.current.flowEditorQuickEditorPinnedByNodeId = flowNodeQuickEditorPinnedByNodeId || {}
+      drawArgsRef.current.flowEditorQuickEditorWorldPosByNodeId = flowNodeQuickEditorWorldPosByNodeId || {}
+    } else {
+      drawArgsRef.current.flowEditorQuickEditorOpenNodeIds = undefined
+      drawArgsRef.current.flowEditorQuickEditorPinnedByNodeId = undefined
+      drawArgsRef.current.flowEditorQuickEditorWorldPosByNodeId = undefined
+    }
   }, [
     active,
     buildDrawArgs,
+    canvas2dRenderer,
+    flowNodeQuickEditorPinnedByNodeId,
+    flowNodeQuickEditorWorldPosByNodeId,
+    openQuickEditorNodeIds,
     renderEdges,
     renderGroups,
     renderNodes,
@@ -1393,18 +1410,7 @@ export default function FlowCanvas({
     const gap = 48
     const cellW = Math.max(120, Math.floor(flowConfigEffective.node.widthPx + gap))
     const cellH = Math.max(120, Math.floor(flowConfigEffective.node.heightPx + gap))
-    const aspect = viewportW / Math.max(1, viewportH)
-    const idealCols = Math.ceil(Math.sqrt(Math.max(1, ids.length) * Math.max(0.45, aspect)))
-    const maxCols = Math.max(1, Math.floor(Math.max(1, viewportW - 80) / Math.max(1, cellW)))
-    const cols = Math.max(1, Math.min(maxCols, idealCols))
-    const rows = Math.max(1, Math.ceil(ids.length / cols))
-    const gridW = (cols - 1) * cellW
-    const gridH = (rows - 1) * cellH
-
-    const cx = viewportW / 2
-    const cy = viewportH / 2
-    const startX = cx - gridW / 2
-    const startY = cy - gridH / 2
+    const seeded = placeFlowFallbackSeedPositions({ ids, cellW, cellH })
 
     const next: Record<string, { x: number; y: number }> = {}
     for (let i = 0; i < ids.length; i += 1) {
@@ -1415,12 +1421,12 @@ export default function FlowCanvas({
         const y0 = n ? (n as unknown as { y?: unknown }).y : null
         if (isFiniteNum(x0) && isFiniteNum(y0)) continue
       }
-      const col = i % cols
-      const row = Math.floor(i / cols)
-      next[id] = { x: startX + col * cellW, y: startY + row * cellH }
+      const pos = seeded[id]
+      if (!pos) continue
+      next[id] = pos
     }
     return Object.keys(next).length > 0 ? next : null
-  }, [computedPositions, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, sceneGraphData, viewportH, viewportW])
+  }, [computedPositions, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, sceneGraphData])
 
   const graphDataForZoom = React.useMemo(() => {
     if (!sceneGraphData) return null

@@ -13,6 +13,12 @@ import {
   normalizeChatEndpointUrlInput,
 } from '@/lib/chatEndpoint'
 import { DEFAULT_INTEGRATION_CONFIGS, stringifyIntegrationConfigs } from '@/features/integrations/config'
+import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
+import {
+  CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT,
+  CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT,
+  CHAT_AI_MARKDOWN_MAX_TOKENS_DEFAULT,
+} from '@/features/chat/chatAiMarkdownSpec'
 
 const s = () => useGraphStore.getState()
 
@@ -363,6 +369,16 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     options: [...CHAT_PROVIDER_OPTIONS],
   },
   {
+    key: 'chatAuthMode',
+    type: 'string',
+    source: 'localStorage',
+    read: () => s().chatAuthMode,
+    write: (v) => s().setChatAuthMode(String(v || '').trim() === 'byok' ? 'byok' : 'serverManaged'),
+    docKey: 'chatAuthMode',
+    default: () => 'serverManaged',
+    options: ['serverManaged', 'byok'],
+  },
+  {
     key: 'chatEndpointUrl',
     type: 'string',
     source: 'localStorage',
@@ -400,6 +416,33 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     default: () => 0.3,
   },
   {
+    key: 'chatMaxCompletionTokens',
+    type: 'number',
+    source: 'localStorage',
+    read: () => s().chatMaxCompletionTokens,
+    write: (v) => s().setChatMaxCompletionTokens(Number(v)),
+    docKey: 'chatMaxCompletionTokens',
+    default: () => CHAT_AI_MARKDOWN_MAX_TOKENS_DEFAULT,
+  },
+  {
+    key: 'chatGraphSummaryMaxTokens',
+    type: 'number',
+    source: 'localStorage',
+    read: () => s().chatGraphSummaryMaxTokens,
+    write: (v) => s().setChatGraphSummaryMaxTokens(Number(v)),
+    docKey: 'chatGraphSummaryMaxTokens',
+    default: () => CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT,
+  },
+  {
+    key: 'chatGuidelineDigestMaxTokens',
+    type: 'number',
+    source: 'localStorage',
+    read: () => s().chatGuidelineDigestMaxTokens,
+    write: (v) => s().setChatGuidelineDigestMaxTokens(Number(v)),
+    docKey: 'chatGuidelineDigestMaxTokens',
+    default: () => CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT,
+  },
+  {
     key: 'chatSystemPrompt',
     type: 'string',
     source: 'localStorage',
@@ -425,7 +468,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().chatLocalStorageRootPath,
     write: (v) => s().setChatLocalStorageRootPath(String(v || '').trim() || null),
     docKey: 'chatLocalStorageRootPath',
-    default: () => '/Users/huijoohwee/Documents/GitHub/sandbox/chat-log',
+    default: () => CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
   },
   {
     key: 'chatKnowgrphStorageMode',

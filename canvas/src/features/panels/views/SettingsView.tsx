@@ -109,6 +109,10 @@ export default function SettingsView({
     () => getChatRecommendedModelHint(values.chatProvider),
     [values.chatProvider],
   )
+  const chatAuthModeLabel = React.useMemo(
+    () => (String(values.chatAuthMode || '').trim() === 'byok' ? 'BYOK' : 'Server-managed Key'),
+    [values.chatAuthMode],
+  )
   const applyUiPanelDensityPreset = React.useCallback(
     (preset: 'comfortable' | 'compact') => {
       const patches: Record<string, string> =
@@ -139,6 +143,37 @@ export default function SettingsView({
     Object.keys(patch).forEach(key => dirtyRef.current.add(key))
     setValues(prev => ({ ...prev, ...patch }))
   }, [dirtyRef, setValues])
+
+  React.useEffect(() => {
+    const shouldApplyProvider = dirtyRef.current.has('chatProvider')
+    const shouldApplyAuthMode = dirtyRef.current.has('chatAuthMode')
+    const shouldApplyApiKey = dirtyRef.current.has('chatApiKey')
+    if (!shouldApplyProvider && !shouldApplyAuthMode && !shouldApplyApiKey) return
+
+    const nextProvider = String(values.chatProvider || '').trim()
+    const nextAuthMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
+    const nextApiKey = typeof values.chatApiKey === 'string' ? values.chatApiKey : ''
+
+    const store = useGraphStore.getState()
+    if (shouldApplyProvider) store.setChatProvider(nextProvider)
+    if (shouldApplyAuthMode) store.setChatAuthMode(nextAuthMode)
+    if (shouldApplyApiKey && nextAuthMode === 'byok') store.setChatApiKey(nextApiKey)
+
+    const updated = useGraphStore.getState()
+    const normalizedValues: Record<string, string> = {
+      chatProvider: String(updated.chatProvider || '').trim(),
+      chatAuthMode: updated.chatAuthMode === 'byok' ? 'byok' : 'serverManaged',
+      chatEndpointUrl: String(updated.chatEndpointUrl || ''),
+      chatModel: String(updated.chatModel || ''),
+      chatApiKey: String(updated.chatApiKey || ''),
+    }
+
+    if (shouldApplyProvider) dirtyRef.current.delete('chatProvider')
+    if (shouldApplyAuthMode) dirtyRef.current.delete('chatAuthMode')
+    if (shouldApplyApiKey) dirtyRef.current.delete('chatApiKey')
+
+    setValues(prev => ({ ...prev, ...normalizedValues }))
+  }, [dirtyRef, setValues, values.chatApiKey, values.chatAuthMode, values.chatProvider])
 
   const openWorkspaceFile = React.useCallback((path: string) => {
     const normalized = normalizeWorkspacePath(path)
@@ -403,9 +438,10 @@ export default function SettingsView({
     setIsRefreshingChatModels(true)
     setChatModelsStatus('Refreshing models...')
     try {
+      const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
       const ids = await loadAvailableModelIds(endpoint, buildChatProxyHeaders({
         provider: values.chatProvider,
-        apiKey: values.chatApiKey,
+        apiKey: authMode === 'byok' ? values.chatApiKey : null,
         endpointUrl: values.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
         clientRequestId: `kg-chat-models-${Date.now().toString(36)}`,
       }))
@@ -417,7 +453,7 @@ export default function SettingsView({
     } finally {
       setIsRefreshingChatModels(false)
     }
-  }, [values.chatApiKey, values.chatEndpointUrl, values.chatProvider])
+  }, [values.chatAuthMode, values.chatApiKey, values.chatEndpointUrl, values.chatProvider])
 
   const chatIntegration = React.useMemo(
     () => parseIntegrationConfigsJson(typeof values.integrationConfigsJson === 'string' ? values.integrationConfigsJson : null).aiChat,
@@ -535,6 +571,9 @@ export default function SettingsView({
                       </span>
                       <span className={`inline-flex items-center h-6 rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
                         {chatProviderRegion}
+                      </span>
+                      <span className={`inline-flex items-center h-6 rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+                        {chatAuthModeLabel}
                       </span>
                       <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
                         {chatProviderHint}

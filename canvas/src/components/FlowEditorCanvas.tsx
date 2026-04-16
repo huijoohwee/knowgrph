@@ -61,6 +61,7 @@ import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
 import { computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
+import { placeQuickEditorsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
 import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOverlayPanels'
@@ -69,6 +70,7 @@ import { FLOW_EDITOR_INTERACTION_FRAME_EVENT, FLOW_EDITOR_OVERLAY_ROOT_SELECTOR 
 import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
 import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -465,14 +467,60 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const best = groupById.get(bestId) || null
     if (!best) return null
 
+    const st = useGraphStore.getState()
+    const openIds = Array.isArray(st.openQuickEditorNodeIds) ? st.openQuickEditorNodeIds : []
+    const pinnedById = st.flowNodeQuickEditorPinnedByNodeId || {}
+    const worldById =
+      (st as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        .flowNodeQuickEditorWorldPosByNodeId || {}
+    const t =
+      getLiveZoomTransform() ||
+      getEffectiveZoomStateForKey({
+        zoomViewKey: zoomViewKeyRef.current,
+        zoomStateByKey: st.zoomStateByKey,
+        zoomState: st.zoomState,
+      }) ||
+      { k: 1, x: 0, y: 0 }
+    const zoomK = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+    const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
+    const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+    const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
+    const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
+    const overlayAabbByNodeId: Record<string, { minX: number; minY: number; maxX: number; maxY: number }> = {}
+    for (let i = 0; i < openIds.length; i += 1) {
+      const openId = String(openIds[i] || '').trim()
+      if (!openId) continue
+      const pinnedRaw = pinnedById[openId]
+      const pinned = typeof pinnedRaw === 'boolean' ? pinnedRaw : true
+      if (!pinned) continue
+      const world = worldById[openId]
+      if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
+      overlayAabbByNodeId[openId] = {
+        minX: world.x,
+        minY: world.y,
+        maxX: world.x + panelWorldW,
+        maxY: world.y + panelWorldH,
+      }
+    }
+
     const cfg = runtime.presentation.groups
-    const aabb = computeFlowGroupAabb({ scene, group: best as never, paddingPx: cfg.paddingPx, labelTopExtraPx: cfg.labelTopExtraPx })
+    const aabb = computeFlowGroupAabb({
+      scene,
+      group: best as never,
+      paddingPx: cfg.paddingPx,
+      labelTopExtraPx: cfg.labelTopExtraPx,
+      overlayAabbByNodeId,
+    })
     if (!aabb) return null
     return { groupId: bestId, ...aabb }
-  }, [])
+  }, [getLiveZoomTransform])
 
   const seededPinnedQuickEditorWorldPosKeyRef = React.useRef<string>('')
-  React.useEffect(() => {
+  const autoSeededPinnedQuickEditorSnapshotRef = React.useRef<{
+    signature: string
+    positions: Record<string, { x: number; y: number }>
+  }>({ signature: '', positions: {} })
+  useIsomorphicLayoutEffect(() => {
     if (!active) return
     const openIds = openQuickEditorNodeIds
     if (!Array.isArray(openIds) || openIds.length === 0) return
@@ -493,12 +541,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const w = worldById[id]
         return !(w && Number.isFinite(w.x) && Number.isFinite(w.y))
       })
-    if (pendingRaw.length === 0) return
-    const pending = [...pendingRaw].sort((a, b) => a.localeCompare(b))
-
-    const seedKey = `${pending.join(',')}|${baseGraphDataRevision}|${zoomViewKeyRef.current || ''}`
-    if (seededPinnedQuickEditorWorldPosKeyRef.current === seedKey) return
-    seededPinnedQuickEditorWorldPosKeyRef.current = seedKey
 
     const liveZoom = getLiveZoomTransform()
     const z =
@@ -521,25 +563,115 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const worldStep = quickEditorGrid.gridEnabled ? Math.max(1, quickEditorGrid.stepPx) : 1
     const snapWorld = (v: number) => (worldStep > 1 ? snapToGridPx(v, worldStep) : v)
 
-    const cols = Math.max(1, Math.ceil(Math.sqrt(pending.length)))
-    const rows = Math.max(1, Math.ceil(pending.length / cols))
-    const gridW = cols * cellW - gapWorld
-    const gridH = rows * cellH - gapWorld
-
     const center = viewportCenterToWorld({ transform: z, viewportW, viewportH })
-    const startX = snapWorld(center.x - gridW / 2)
-    const startY = snapWorld(center.y - gridH / 2)
+    const viewportHalfWorldW = viewportW / Math.max(0.001, zoomK) / 2
+    const viewportHalfWorldH = viewportH / Math.max(0.001, zoomK) / 2
+    const viewportBounds = {
+      minX: center.x - viewportHalfWorldW,
+      minY: center.y - viewportHalfWorldH,
+      maxX: center.x + viewportHalfWorldW,
+      maxY: center.y + viewportHalfWorldH,
+    }
+    const placeSpreadGridInBounds = (ids: string[], bounds: { minX: number; minY: number; maxX: number; maxY: number }) =>
+      placeQuickEditorsCenteredInGroupBounds({
+        ids,
+        bounds,
+        cellW,
+        cellH,
+        gapWorld,
+        snapWorld,
+      })
+
+    const VIEWPORT_BUCKET_ID = '__viewport__'
+    const pinnedOpenIds = openIds
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+      .filter(id => {
+        const v = pinnedById[id]
+        return typeof v === 'boolean' ? v : true
+      })
+      .sort((a, b) => a.localeCompare(b))
+    const allBoundsByBucket = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()
+    allBoundsByBucket.set(VIEWPORT_BUCKET_ID, viewportBounds)
+    for (let i = 0; i < pinnedOpenIds.length; i += 1) {
+      const id = pinnedOpenIds[i]!
+      const group = getLiveContainmentGroupAabbForNode(id)
+      if (!group) continue
+      allBoundsByBucket.set(`group:${group.groupId}`, { minX: group.minX, minY: group.minY, maxX: group.maxX, maxY: group.maxY })
+    }
+
+    const bucketSignature = Array.from(allBoundsByBucket.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([bucketId, bounds]) => {
+        const minX = Math.round(bounds.minX * 1000) / 1000
+        const minY = Math.round(bounds.minY * 1000) / 1000
+        const maxX = Math.round(bounds.maxX * 1000) / 1000
+        const maxY = Math.round(bounds.maxY * 1000) / 1000
+        return `${bucketId}:${minX},${minY},${maxX},${maxY}`
+      })
+      .join('|')
+
+    const snapshot = autoSeededPinnedQuickEditorSnapshotRef.current
+    const isSameWorldPos = (a: { x: number; y: number } | null | undefined, b: { x: number; y: number } | null | undefined) => {
+      if (!a || !b) return false
+      return Math.abs(a.x - b.x) <= 0.0001 && Math.abs(a.y - b.y) <= 0.0001
+    }
+    const reseedEligible = openIds
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+      .filter(id => {
+        const v = pinnedById[id]
+        const pinned = typeof v === 'boolean' ? v : true
+        if (!pinned) return false
+        const current = worldById[id]
+        if (!current || !Number.isFinite(current.x) || !Number.isFinite(current.y)) return false
+        const currentLayoutSignature = `${baseGraphDataRevision}|${zoomViewKeyRef.current || ''}|${viewportW}x${viewportH}|${bucketSignature}`
+        return snapshot.signature !== '' && snapshot.signature !== currentLayoutSignature && isSameWorldPos(current, snapshot.positions[id])
+      })
+    const pending = Array.from(new Set([...pendingRaw, ...reseedEligible])).sort((a, b) => a.localeCompare(b))
+    if (pending.length === 0) return
+
+    const currentLayoutSignature = `${baseGraphDataRevision}|${zoomViewKeyRef.current || ''}|${viewportW}x${viewportH}|${bucketSignature}`
+    const idsByBucket = new Map<string, string[]>()
+    const boundsByBucket = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()
+    boundsByBucket.set(VIEWPORT_BUCKET_ID, viewportBounds)
+    for (let i = 0; i < pending.length; i += 1) {
+      const id = pending[i]!
+      const group = getLiveContainmentGroupAabbForNode(id)
+      const bucketId = group ? `group:${group.groupId}` : VIEWPORT_BUCKET_ID
+      const list = idsByBucket.get(bucketId) || []
+      list.push(id)
+      idsByBucket.set(bucketId, list)
+      if (group) boundsByBucket.set(bucketId, { minX: group.minX, minY: group.minY, maxX: group.maxX, maxY: group.maxY })
+    }
+    const bucketIds = Array.from(idsByBucket.keys()).sort((a, b) => a.localeCompare(b))
+    const pendingSet = new Set(pending)
+    const seedKey = `${pending.join(',')}|${currentLayoutSignature}`
+    if (seededPinnedQuickEditorWorldPosKeyRef.current === seedKey) return
+    seededPinnedQuickEditorWorldPosKeyRef.current = seedKey
 
     const nextWorld = { ...worldById }
     let changed = false
-    for (let i = 0; i < pending.length; i += 1) {
-      const id = pending[i]!
-      const col = i % cols
-      const row = Math.floor(i / cols)
-      const next = { x: snapWorld(startX + col * cellW), y: snapWorld(startY + row * cellH) }
-      const prev = worldById[id]
-      if (!prev || Math.abs(prev.x - next.x) > 0.0001 || Math.abs(prev.y - next.y) > 0.0001) changed = true
-      nextWorld[id] = next
+    const nextAutoSeedPositions: Record<string, { x: number; y: number }> = {}
+    for (let i = 0; i < bucketIds.length; i += 1) {
+      const bucketId = bucketIds[i]!
+      const ids = (idsByBucket.get(bucketId) || [])
+        .filter(id => pendingSet.has(id))
+        .sort((a, b) => a.localeCompare(b))
+      if (ids.length === 0) continue
+      const bounds = boundsByBucket.get(bucketId) || viewportBounds
+      const placed = placeSpreadGridInBounds(ids, bounds)
+      for (let j = 0; j < placed.length; j += 1) {
+        const p = placed[j]!
+        const prev = worldById[p.id]
+        if (!prev || Math.abs(prev.x - p.x) > 0.0001 || Math.abs(prev.y - p.y) > 0.0001) changed = true
+        nextWorld[p.id] = { x: p.x, y: p.y }
+        nextAutoSeedPositions[p.id] = { x: p.x, y: p.y }
+      }
+    }
+    autoSeededPinnedQuickEditorSnapshotRef.current = {
+      signature: currentLayoutSignature,
+      positions: nextAutoSeedPositions,
     }
     if (!changed) return
     st.setFlowNodeQuickEditorWorldPosByNodeId(nextWorld)

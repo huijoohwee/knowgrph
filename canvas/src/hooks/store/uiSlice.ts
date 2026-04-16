@@ -33,6 +33,14 @@ import {
   parseIntegrationConfigsJson,
   stringifyIntegrationConfigs,
 } from '@/features/integrations/config'
+import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
+import {
+  CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT,
+  CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT,
+  CHAT_AI_MARKDOWN_MAX_TOKENS_DEFAULT,
+  clampChatCompletionTokens,
+  clampChatContextMaxTokens,
+} from '@/features/chat/chatAiMarkdownSpec'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { clampFillRatio } from 'grph-shared/zoom/presets'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
@@ -44,6 +52,11 @@ export const createUiSlice = (set: SetGraph) => {
     LS_KEYS.chatProvider,
     CHAT_DEFAULT_PROVIDER,
     value => normalizeChatProviderId(value),
+  )
+  const initialChatAuthMode = lsJson<'serverManaged' | 'byok'>(
+    LS_KEYS.chatAuthMode,
+    'serverManaged',
+    value => (value === 'byok' ? 'byok' : 'serverManaged'),
   )
   const initialChatEndpointUrl = lsJson<string | null>(
     LS_KEYS.chatEndpointUrl,
@@ -315,10 +328,22 @@ export const createUiSlice = (set: SetGraph) => {
     uiPanelOpacity: lsNum(LS_KEYS.panelOpacity, 0.95),
     uiToolbarOpacity: lsNum(LS_KEYS.toolbarOpacity, 0.95),
     chatProvider: initialChatProvider,
+    chatAuthMode: initialChatAuthMode,
     chatApiKey: '',
     chatEndpointUrl: initialChatEndpointUrl,
     chatModel: initialChatModel,
     chatTemperature: lsNum(LS_KEYS.chatTemperature, 0.3),
+    chatMaxCompletionTokens: clampChatCompletionTokens(
+      lsInt(LS_KEYS.chatMaxCompletionTokens, CHAT_AI_MARKDOWN_MAX_TOKENS_DEFAULT),
+    ),
+    chatGraphSummaryMaxTokens: clampChatContextMaxTokens(
+      lsInt(LS_KEYS.chatGraphSummaryMaxTokens, CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT),
+      CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT,
+    ),
+    chatGuidelineDigestMaxTokens: clampChatContextMaxTokens(
+      lsInt(LS_KEYS.chatGuidelineDigestMaxTokens, CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT),
+      CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT,
+    ),
     chatSystemPrompt: lsJson<string | null>(
       LS_KEYS.chatSystemPrompt,
       null,
@@ -335,10 +360,10 @@ export const createUiSlice = (set: SetGraph) => {
     ),
     chatLocalStorageRootPath: lsJson<string>(
       LS_KEYS.chatLocalStorageRootPath,
-      '/Users/huijoohwee/Documents/GitHub/sandbox/chat-log',
+      CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
       value => {
         const raw = typeof value === 'string' ? value.trim() : ''
-        return raw || '/Users/huijoohwee/Documents/GitHub/sandbox/chat-log'
+        return raw || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT
       },
     ),
     chatKnowgrphStorageMode: lsJson<'local' | 'cloud'>(
@@ -645,6 +670,18 @@ export const createUiSlice = (set: SetGraph) => {
     setUiOverlayOpacity: (v: number) => set({ uiOverlayOpacity: lsSetNum(LS_KEYS.overlayOpacity, v) }),
     setUiPanelOpacity: (v: number) => set({ uiPanelOpacity: lsSetNum(LS_KEYS.panelOpacity, v) }),
     setUiToolbarOpacity: (v: number) => set({ uiToolbarOpacity: lsSetNum(LS_KEYS.toolbarOpacity, v) }),
+    setChatAuthMode: (mode: 'serverManaged' | 'byok') =>
+      set(state => {
+        const next = mode === 'byok' ? 'byok' : 'serverManaged'
+        if (state.chatAuthMode === next) return {}
+        const patch: Partial<GraphState> = {
+          chatAuthMode: lsSetJson(LS_KEYS.chatAuthMode, next),
+        }
+        if (next === 'serverManaged' && state.chatApiKey) {
+          patch.chatApiKey = ''
+        }
+        return patch
+      }),
     setChatProvider: (provider: string) =>
       set(state => {
         const normalizedProvider = normalizeChatProviderId(provider)
@@ -669,11 +706,14 @@ export const createUiSlice = (set: SetGraph) => {
         }
       }),
     setChatApiKey: (apiKey: string | null) =>
-      set({
-        chatApiKey: String(apiKey || '')
+      set(state => {
+        const sanitized = String(apiKey || '')
           .replace(/[\r\n]/g, '')
           .trim()
-          .slice(0, 512),
+          .slice(0, 512)
+        if (state.chatAuthMode === 'serverManaged' && sanitized) return {}
+        if (state.chatApiKey === sanitized) return {}
+        return { chatApiKey: sanitized }
       }),
     setChatEndpointUrl: (url: string | null) =>
       set(state => ({
@@ -699,6 +739,30 @@ export const createUiSlice = (set: SetGraph) => {
           Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.3,
         ),
       }),
+    setChatMaxCompletionTokens: (v: number) =>
+      set({
+        chatMaxCompletionTokens: lsSetInt(
+          LS_KEYS.chatMaxCompletionTokens,
+          clampChatCompletionTokens(v),
+          { min: 64, max: 100_000 },
+        ),
+      }),
+    setChatGraphSummaryMaxTokens: (v: number) =>
+      set({
+        chatGraphSummaryMaxTokens: lsSetInt(
+          LS_KEYS.chatGraphSummaryMaxTokens,
+          clampChatContextMaxTokens(v, CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT),
+          { min: 16, max: 10_000 },
+        ),
+      }),
+    setChatGuidelineDigestMaxTokens: (v: number) =>
+      set({
+        chatGuidelineDigestMaxTokens: lsSetInt(
+          LS_KEYS.chatGuidelineDigestMaxTokens,
+          clampChatContextMaxTokens(v, CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT),
+          { min: 16, max: 10_000 },
+        ),
+      }),
     setChatSystemPrompt: (v: string | null) =>
       set({
         chatSystemPrompt: lsSetJson(
@@ -715,7 +779,7 @@ export const createUiSlice = (set: SetGraph) => {
       }),
     setChatLocalStorageRootPath: (path: string | null) =>
       set(state => {
-        const nextRoot = String(path || '').trim() || '/Users/huijoohwee/Documents/GitHub/sandbox/chat-log'
+        const nextRoot = String(path || '').trim() || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT
         const normalizedRoot = nextRoot.replace(/\\/g, '/').replace(/\/+$/, '')
         const isUnderRoot = (candidate: string | null | undefined): boolean => {
           const raw = String(candidate || '').trim()

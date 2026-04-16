@@ -125,7 +125,7 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   })
   await execTest(results, 'flow.groupAabb.explicitBoundsRemainStable', async () => {
     const mod = await modFlowGroupAabbIncludesMembersWhenBoundsExplicit()
-    await mod.testFlowGroupAabbPrefersExplicitBoundsWhenBoundsExist()
+    await mod.testFlowGroupAabbExpandsExplicitBoundsToContainMembers()
   })
   await execTest(results, 'flow.frontmatterFlow.portHandles.enabled', async () => {
     const mod = await modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression()

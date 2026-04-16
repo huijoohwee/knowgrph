@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { CHAT_KGC_RESPONSE_CONTRACT_PROMPT, CHAT_RESPONSE_CONTRACT_PROMPT, CHAT_RESPONSE_PARAMETER_KEYS } from '@/features/chat/chatResponseContract'
-import { buildKgcStructuredTurn, isKgcStructuredMarkdown } from '@/features/chat/chatHistoryWorkspace'
+import { buildResolvableVarKeySet, validateChatMarkdown } from '@/features/chat/chatMarkdownValidation'
+import { buildKgcStructuredTurn, buildKgcWorkspaceDocument, isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/features/chat/chatHistoryWorkspace'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 
 const readComputingFlowSample = (): string => {
@@ -56,12 +57,20 @@ export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
   const prompt = CHAT_KGC_RESPONSE_CONTRACT_PROMPT
   const requiredSnippets = [
     'exactly ONE fenced block with language tag `kgc`',
+    'standalone parseable markdown document',
+    'structured `kgc` block is the only persisted contract',
     'The `kgc` block MUST start with `---`',
     '`# ── DOCUMENT IDENTITY ──` then a `doc:` mapping',
     '`# ── VARIABLES (type `@` to open CRUD toolbar) ──`',
+    '`request_md: |`, `solution_md: |`',
     '`# ── NODES ──`',
     '`# ── EDGES ──`',
     '`# ── FLOW EDITOR (interactive + computable) ──`',
+    'include at least 2 flow nodes and 1 flow edge',
+    '`TBD` or `—`',
+    'Variable references must follow guideline syntax',
+    'Annotation sigils, when used, must follow guideline-safe forms',
+    'full useful answer, not a one-line summary or placeholder',
   ]
   requiredSnippets.forEach(snippet => {
     if (!prompt.includes(snippet)) {
@@ -115,4 +124,176 @@ export function testBuildKgcStructuredTurnProducesSampleCompatibleSections() {
   const edges = parsed.graphData.edges || []
   if (nodes.length < 2) throw new Error(`Expected >=2 parsed nodes, got ${nodes.length}`)
   if (edges.length < 1) throw new Error(`Expected >=1 parsed edges, got ${edges.length}`)
+}
+
+export function testIsKgcStructuredMarkdownRejectsSnippetOnlyPseudoKgc() {
+  const invalid = [
+    '---',
+    '# ── DOCUMENT IDENTITY ──',
+    'doc:',
+    '  id: "doc:invalid"',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
+    'subject: "bad"',
+    '# ── NODES ──',
+    'nodes:',
+    '  - @node:n-a: { label: "A", type: input }',
+    '# ── EDGES ──',
+    'edges:',
+    '  - @edge:n-a:turn → n-b:turn',
+    '# ── FLOW EDITOR (interactive + computable) ──',
+    'flow:',
+    '  computed: false',
+    '---',
+  ].join('\n')
+  if (isKgcStructuredMarkdown(invalid)) {
+    throw new Error('Expected snippet-only pseudo KGC markdown to fail strict validation')
+  }
+}
+
+export function testNormalizeKgcAssistantBodyForStorageFallsBackToDeterministicTurn() {
+  const invalidAssistant = [
+    '```kgc',
+    '---',
+    '# ── DOCUMENT IDENTITY ──',
+    'doc:',
+    '  id: "doc:invalid"',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
+    'subject: "invalid"',
+    '# ── NODES ──',
+    'nodes:',
+    '  - @node:n-a: { label: "A", type: input }',
+    '# ── EDGES ──',
+    'edges:',
+    '  - @edge:n-a:turn → n-b:turn',
+    '# ── FLOW EDITOR (interactive + computable) ──',
+    'flow:',
+    '  computed: false',
+    '---',
+    '```',
+  ].join('\n')
+  const normalized = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 15, 12, 35, 56),
+    requestText: 'Explain the active graph',
+    assistantText: invalidAssistant,
+  })
+  if (!isKgcStructuredMarkdown(normalized)) {
+    throw new Error('Expected invalid assistant markdown to fall back to a valid structured KGC turn')
+  }
+  if (!normalized.includes('solution_md: |')) {
+    throw new Error('Expected normalized fallback turn to preserve the full assistant body in solution_md')
+  }
+}
+
+export function testBuildKgcWorkspaceDocumentKeepsLatestTurnParseableWithHistoryTrail() {
+  const canonical = buildKgcStructuredTurn({
+    timestampMs: Date.UTC(2026, 3, 16, 8, 0, 0),
+    requestText: 'Map the active workspace into flow, table, and kanban surfaces',
+    assistantText: 'Build a canonical KGC turn with one parseable leading document and a preserved history trail.',
+  })
+  const workspaceDoc = buildKgcWorkspaceDocument({
+    canonicalKgc: canonical,
+    historyBody: [
+      '## 2026-04-16 08:00:00',
+      '',
+      'Trace-ID: trace-1',
+      '',
+      'Provider: test',
+      '',
+      '### user',
+      '```text',
+      'Map the active workspace into flow, table, and kanban surfaces',
+      '```',
+      '',
+      '### assistant',
+      '```kgc',
+      canonical,
+      '```',
+    ].join('\n'),
+  })
+  const parsed = tryParseMarkdownFrontmatterFlowGraph('kgc-workspace.md', workspaceDoc)
+  if (!parsed) throw new Error('Expected composed KGC workspace document to stay parseable from the leading canonical KGC block')
+  const nodes = parsed.graphData.nodes || []
+  const edges = parsed.graphData.edges || []
+  if (nodes.length < 2) throw new Error(`Expected composed workspace document to keep >=2 parsed nodes, got ${nodes.length}`)
+  if (edges.length < 1) throw new Error(`Expected composed workspace document to keep >=1 parsed edge, got ${edges.length}`)
+}
+
+export function testValidateChatMarkdownRejectsThinSolutionMdForComplexRequest() {
+  const markdown = [
+    '---',
+    '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
+    'doc:',
+    '  id: "doc:kgc:test:thin"',
+    '  title: "chatKnowgrph turn"',
+    '  type: chatKnowgrph',
+    '  version: "1.0.0"',
+    '  created: "2026-04-16"',
+    '',
+    '# ── VARIABLES (type `@` to open CRUD toolbar) ────────────────────────────────',
+    'subject: "Knowledge Graph Canvas pitch deck request"',
+    'action: "respond to the active request"',
+    'goal: "persist one ingestible chat turn"',
+    'solution: "short summary"',
+    'request_md: |',
+    '  Recommend: Knowledge Graph Canvas product; Pitch Deck+PRD+TAD, TCO; Solo founder; zero budget; Use Case -> Problem -> Solution; User Flow+Work Flow+Data Flow; monetization; Swipe payment flow.',
+    'solution_md: |',
+    '  Drafted a short summary only.',
+    '',
+    '# ── NODES ────────────────────────────────────────────────────────────────────',
+    'nodes:',
+    '  - @node:n-request: { label: "{{subject}}", type: input }',
+    '  - @node:n-response: { label: "{{solution}}", type: output }',
+    '',
+    '# ── EDGES ────────────────────────────────────────────────────────────────────',
+    'edges:',
+    '  - @edge:n-request:turn → n-response:turn',
+    '',
+    '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
+    'flow:',
+    '  direction: LR',
+    '  computed: false',
+    '  nodes:',
+    '    - id: n-request',
+    '      type: input',
+    '      label: "{{subject}}"',
+    '      position: { x: 0, y: 0 }',
+    '      handles:',
+    '        source: [turn]',
+    '      data:',
+    '        text: "{{subject}}"',
+    '    - id: n-response',
+    '      type: output',
+    '      label: "{{solution}}"',
+    '      position: { x: 200, y: 0 }',
+    '      handles:',
+    '        target: [turn]',
+    '      data:',
+    '        text: "{{solution}}"',
+    '  edges:',
+    '    - source: n-request.turn',
+    '      target: n-response.turn',
+    '---',
+    '',
+    '# {{subject}}',
+    '',
+    '## Intent',
+    '- Action: {{action}}',
+    '- Goal: {{goal}}',
+    '',
+    '## Request',
+    '{{request_md}}',
+    '',
+    '## Solution',
+    '{{solution_md}}',
+  ].join('\n')
+  const validation = validateChatMarkdown({
+    markdown,
+    resolvableVarKeys: buildResolvableVarKeySet({ frontmatter: null, markdown }),
+  })
+  if (validation.ok) {
+    throw new Error('Expected thin solution_md payload to fail chat markdown validation for a complex request')
+  }
+  if (validation.failedRuleId !== 'V-03') {
+    throw new Error(`Expected V-03 failure for thin linked body content, got ${validation.failedRuleId || 'none'}`)
+  }
 }

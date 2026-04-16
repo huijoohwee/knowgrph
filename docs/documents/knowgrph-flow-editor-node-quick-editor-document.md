@@ -19,6 +19,8 @@
 ## Supported Behaviors (MVP)
 
 - **Pin/Unpin**: pin locks the overlay to node-anchored positioning with an adjustable anchor offset; unpin detaches (floating) and enables header drag, persisting a viewport position.
+- **Containment envelopes**: layer/subgraph/cluster/group borders in Flow Editor must use a containment-safe AABB union (`explicit bounds ∪ computed member footprint`) so initialized quick-editor-heavy node sets do not render outside group borders on first paint.
+- **Pinned panel extents**: containment AABBs must also include zoom-aware pinned quick-editor panel world extents (actual panel box) for member nodes so group borders, edge blockers, and label avoidance remain consistent at every zoom level.
 - **Drag**: when unpinned (detached), header drag moves the overlay freely in the viewport (ignores pointerdown on interactive elements); when pinned, header drag adjusts the anchor offset so overlays and edges follow the pointer without bounce.
 - **Pinned multi-drag**: dragging a pinned overlay applies the same offset to all pinned overlays in the open list to preserve relative layout.
 - **Minimize/Restore**: collapses the editor body to header-only.
@@ -32,6 +34,7 @@
 ### Multi-node layout (detached)
 
 - Detached overlays must avoid full overlap. Default placement must use a deterministic grid/stack derived from the open-list order and the current viewport dimensions (no stale 0×0 viewport refs).
+- Pinned overlays seeded without existing world positions should distribute evenly inside the nearest containment group envelope first; if no containment group exists, use a deterministic centered viewport grid fallback.
 - Persist detached positions per node id so reopening multiple editors restores a stable layout.
 - When multiple detached overlays overlap, run a bounded collision pass that keeps the first overlay fixed and pushes others, using measured panel sizes and clamping back into the viewport.
 

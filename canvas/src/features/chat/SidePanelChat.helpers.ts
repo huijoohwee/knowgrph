@@ -138,10 +138,21 @@ export const extractKgcBlockFromAssistantText = (
   raw: string,
 ): { answer: string; kgc: string | null } => {
   const text = String(raw || '').replace(/\r\n/g, '\n')
-  const match = text.match(/(^|\n)\s*```+kgc\s*\n([\s\S]*?)\n\s*```+/i)
-  const kgc = match && typeof match[2] === 'string' ? match[2].trim() : null
-  const answer = (match ? text.replace(match[0], '') : text).trim()
-  return { answer, kgc }
+  const rx = /(^|\n)\s*```+kgc\s*\n([\s\S]*?)\n\s*```+/gi
+  const matches: Array<{ full: string; body: string }> = []
+  let m: RegExpExecArray | null
+  while ((m = rx.exec(text))) {
+    const full = String(m[0] || '')
+    const body = typeof m[2] === 'string' ? String(m[2] || '').trim() : ''
+    if (full && body) matches.push({ full, body })
+    if (matches.length > 2) break
+  }
+  if (matches.length !== 1) {
+    return { answer: text.trim(), kgc: null }
+  }
+  const match = matches[0]
+  const answer = text.replace(match.full, '').trim()
+  return { answer, kgc: match.body }
 }
 const CHAT_HISTORY_CACHE_LIMIT = 80
 const chatHistoryCache = new Map<string, ChatMessage[]>()

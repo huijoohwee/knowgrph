@@ -122,3 +122,149 @@ export async function testFlowEditorPinnedQuickEditorsInitCenteredEvenGrid() {
     restoreWindow()
   }
 }
+
+export async function testFlowEditorPinnedQuickEditorsReseedWhenViewportStabilizes() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as {
+      requestAnimationFrame?: (cb: (ts: number) => void) => number
+      ResizeObserver?: new (cb: ResizeObserverCallback) => ResizeObserver
+    }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+
+    const resizeObservers: ResizeObserverCallback[] = []
+    class ResizeObserverStub {
+      callback: ResizeObserverCallback
+      constructor(cb: ResizeObserverCallback) {
+        this.callback = cb
+        resizeObservers.push(cb)
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    ;(globalThis as unknown as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub
+    anyWindow.ResizeObserver = ResizeObserverStub as unknown as new (cb: ResizeObserverCallback) => ResizeObserver
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    useGraphStore.setState(s => ({
+      ...s,
+      graphData: {
+        type: 'Graph',
+        nodes: [
+          { id: 'n1', label: 'n1', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n2', label: 'n2', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n3', label: 'n3', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n4', label: 'n4', type: 'Anchor', x: 0, y: 0, properties: {} },
+        ],
+        edges: [],
+        metadata: { kind: 'test', source: 'flowEditorPinnedQuickEditorsViewportResize' },
+      },
+      graphDataRevision: (s.graphDataRevision || 0) + 1,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'flowEditor',
+      frontmatterModeEnabled: false,
+      documentSemanticMode: 'document',
+      documentStructureBaselineLock: false,
+    }))
+
+    api.setZoomState({ k: 1, x: 0, y: 0 })
+    api.setOpenQuickEditorNodeIds(['n1', 'n2', 'n3', 'n4'])
+    api.setFlowNodeQuickEditorWorldPosByNodeId({})
+    api.setFlowNodeQuickEditorPinnedByNodeId({})
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+
+    const ids = ['n1', 'n2', 'n3', 'n4']
+    const readWorld = () =>
+      ((useGraphStore.getState() as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        .flowNodeQuickEditorWorldPosByNodeId || {}) as Record<string, { x: number; y: number }>
+    const waitForSeed = async () => {
+      const deadline = Date.now() + 1200
+      while (Date.now() < deadline) {
+        const worldById = readWorld()
+        const ok = ids.every(id => {
+          const w = worldById[id]
+          return w && Number.isFinite(w.x) && Number.isFinite(w.y)
+        })
+        if (ok) return worldById
+        await new Promise<void>(resolve => setTimeout(resolve, 5))
+      }
+      throw new Error('expected seeded world positions')
+    }
+
+    const initialWorld = await waitForSeed()
+    const flowEditorRoot = doc.querySelector('section[aria-label="Flow Editor"]') as HTMLElement | null
+    if (!flowEditorRoot) throw new Error('expected flow editor root')
+
+    flowEditorRoot.getBoundingClientRect = () =>
+      ({
+        left: 540,
+        top: 24,
+        width: 260,
+        height: 600,
+        right: 800,
+        bottom: 624,
+        x: 540,
+        y: 24,
+        toJSON: () => ({}),
+      }) as DOMRect
+
+    for (let i = 0; i < resizeObservers.length; i += 1) {
+      resizeObservers[i]!([] as ResizeObserverEntry[], {} as ResizeObserver)
+    }
+
+    const resizedWorld = await (async () => {
+      const deadline = Date.now() + 1200
+      while (Date.now() < deadline) {
+        const worldById = readWorld()
+        const moved = ids.some(id => {
+          const a = initialWorld[id]
+          const b = worldById[id]
+          return !!a && !!b && (Math.abs(a.x - b.x) > 0.0001 || Math.abs(a.y - b.y) > 0.0001)
+        })
+        if (moved) return worldById
+        await new Promise<void>(resolve => setTimeout(resolve, 5))
+      }
+      throw new Error('expected reseeded world positions after viewport resize')
+    })()
+
+    const z = { k: 1, x: 0, y: 0 }
+    const center = viewportCenterToWorld({ transform: z, viewportW: 260, viewportH: 600 })
+    const panelScale = computeNodeQuickEditorScale(z.k, null, { mode: 'pinnedInCanvas' })
+    const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+    const panelWorldW = panelScreen.width / z.k
+    const panelWorldH = panelScreen.height / z.k
+    const centers = ids.map(id => {
+      const p = resizedWorld[id]!
+      return { x: p.x + panelWorldW / 2, y: p.y + panelWorldH / 2 }
+    })
+    const centroid = centers.reduce((acc, c) => ({ x: acc.x + c.x, y: acc.y + c.y }), { x: 0, y: 0 })
+    centroid.x /= centers.length
+    centroid.y /= centers.length
+
+    if (Math.abs(centroid.x - center.x) > 2 || Math.abs(centroid.y - center.y) > 2) {
+      throw new Error(`expected resized centroid ~${center.x},${center.y} got ${centroid.x},${centroid.y}`)
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}

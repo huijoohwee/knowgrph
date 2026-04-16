@@ -1,0 +1,75 @@
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+
+import { useContainerDims } from '@/hooks/useContainerDims'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { initWindowHarness } from '@/tests/lib/windowHarness'
+import { MemoryStorage } from '@/tests/lib/memoryStorage'
+
+function DimsProbe() {
+  const ref = React.useRef<HTMLDivElement | null>(null)
+  const dims = useContainerDims(ref)
+  return (
+    <section ref={ref} data-testid="probe">
+      {`${Math.floor(dims.width)}x${Math.floor(dims.height)}@${Math.floor(dims.left)},${Math.floor(dims.top)}`}
+    </section>
+  )
+}
+
+export async function testUseContainerDimsMeasuresMountedRectBeforeResizeObserverTicks() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    ;(globalThis as unknown as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub
+    ;(dom.window as unknown as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub
+
+    const proto = dom.window.HTMLElement.prototype as HTMLElement
+    const originalGetBoundingClientRect = proto.getBoundingClientRect
+    dom.window.HTMLElement.prototype.getBoundingClientRect = function () {
+      const el = this as HTMLElement
+      if (el.dataset.testid === 'probe') {
+        return {
+          left: 540,
+          top: 24,
+          width: 260,
+          height: 600,
+          right: 800,
+          bottom: 624,
+          x: 540,
+          y: 24,
+          toJSON: () => ({}),
+        } as DOMRect
+      }
+      return originalGetBoundingClientRect.call(this)
+    }
+
+    const container = dom.window.document.createElement('div')
+    dom.window.document.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(<DimsProbe />)
+
+    const deadline = Date.now() + 500
+    while (Date.now() < deadline) {
+      const text = container.textContent || ''
+      if (text.includes('260x600@540,24')) return
+      await new Promise<void>(resolve => setTimeout(resolve, 5))
+    }
+    throw new Error(`expected initial measured rect, got ${container.textContent || '<empty>'}`)
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}

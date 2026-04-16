@@ -14,8 +14,8 @@ const getSettingsSearchHints = (key: string): string[] => {
   if (key === 'chatContextScope') {
     return ['chat ai assistant context scope selection workspace hybrid']
   }
-  if (key === 'chatProvider' || key === 'chatEndpointUrl' || key === 'chatApiKey' || key === 'chatModel') {
-    return ['chat ai byteplus modelark openai official provider endpoint api key model']
+  if (key === 'chatProvider' || key === 'chatAuthMode' || key === 'chatEndpointUrl' || key === 'chatApiKey' || key === 'chatModel') {
+    return ['chat ai byteplus modelark openai official provider endpoint api key byok server-managed auth mode model']
   }
   if (key === 'chatHistoryStorageMode' || key === 'chatHistoryWorkspacePath' || key === 'chatHistoryCloudUrl') {
     return ['chat history workspace file path markdown cloud url github']
@@ -140,11 +140,12 @@ export function useSettingsView({
     setIsCheckingHealth(true)
     setChatHealthStatus('Checking...')
     try {
+      const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
       const res = await fetch(healthUrl, {
         method: 'GET',
         headers: buildChatProxyHeaders({
           provider: values.chatProvider,
-          apiKey: values.chatApiKey,
+          apiKey: authMode === 'byok' ? values.chatApiKey : null,
           endpointUrl: values.chatEndpointUrl,
           clientRequestId: `kg-chat-health-${Date.now().toString(36)}`,
         }),
@@ -160,7 +161,7 @@ export function useSettingsView({
     } finally {
       setIsCheckingHealth(false)
     }
-  }, [values.chatEndpointUrl])
+  }, [values.chatAuthMode, values.chatApiKey, values.chatEndpointUrl, values.chatProvider])
 
   const onGlobalReset = React.useCallback(() => {
     try {

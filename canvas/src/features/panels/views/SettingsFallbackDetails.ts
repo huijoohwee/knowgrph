@@ -1,6 +1,19 @@
 export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: string; notes?: string }> = {
   uiPanelOpacity: { area: 'Global Translucency', responsibility: 'Main Panel opacity' },
   uiToolbarOpacity: { area: 'Global Translucency', responsibility: 'Toolbar opacity' },
+  chatMaxCompletionTokens: {
+    area: 'Chat',
+    responsibility: 'Maximum completion tokens per response (provider-compatible key)',
+    notes: 'Used for max_tokens/max_completion_tokens depending on provider/model. Defaults to 2× the prior baseline.',
+  },
+  chatGraphSummaryMaxTokens: {
+    area: 'Chat',
+    responsibility: 'Max tokens for packContext.graph_summary (approx)',
+  },
+  chatGuidelineDigestMaxTokens: {
+    area: 'Chat',
+    responsibility: 'Max tokens for packContext.guideline_digest (approx)',
+  },
   canvasSnapEnabled: { area: 'Canvas Grid', responsibility: 'Snap-to-grid enabled (affects dragging, resizing, nudging)' },
   canvasSnapGridSize: { area: 'Canvas Grid', responsibility: 'Snap grid size (world units)', notes: 'Alt disables snapping while dragging. Arrow nudges follow the grid when enabled.' },
   canvasGridVisible: { area: 'Canvas Grid', responsibility: 'Show/hide the infinite canvas grid background' },
@@ -623,8 +636,9 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
     responsibility: 'Top threshold before anchored card flips below target',
   },
   chatProvider: { area: 'Chat', responsibility: 'Chat provider profile and model compatibility' },
+  chatAuthMode: { area: 'Chat', responsibility: 'Server-managed key default vs BYOK (API key stays session-only)' },
   chatEndpointUrl: { area: 'Chat', responsibility: 'Chat endpoint URL (OpenAI-compatible)' },
-  chatApiKey: { area: 'Chat', responsibility: 'Ephemeral API key (in-memory only, never localStorage)' },
+  chatApiKey: { area: 'Chat', responsibility: 'BYOK API key (in-memory only, never localStorage)' },
   chatModel: { area: 'Chat', responsibility: 'Chat model name (OpenAI-compatible)' },
   chatTemperature: { area: 'Chat', responsibility: 'Chat completion temperature' },
   chatSystemPrompt: { area: 'Chat', responsibility: 'Optional system prompt for Chat' },

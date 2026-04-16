@@ -304,7 +304,43 @@ export const renderSettingInput = (
       </div>
     )
   }
+  if (key === 'chatAuthMode') {
+    const raw = String(v ?? '').trim()
+    const normalized = raw === 'byok' ? 'byok' : 'serverManaged'
+    return (
+      <select
+        value={normalized}
+        onChange={e => {
+          const selected = e.target.value === 'byok' ? 'byok' : 'serverManaged'
+          dirtyRef.current.add(key)
+          setValues(prev => {
+            const next: Record<string, string | number | boolean> = { ...prev, [key]: selected }
+            if (selected === 'serverManaged') {
+              dirtyRef.current.add('chatApiKey')
+              next.chatApiKey = ''
+            }
+            return next
+          })
+        }}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded bg-white text-right`}
+      >
+        <option value="serverManaged">Server-managed Key</option>
+        <option value="byok">BYOK</option>
+      </select>
+    )
+  }
   if (key === 'chatApiKey') {
+    const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
+    if (authMode !== 'byok') {
+      return (
+        <PlainTextInputEditor
+          value=""
+          readOnly
+          placeholder="Server-managed Key"
+          className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`}
+        />
+      )
+    }
     const str = String(v || '')
     return (
       <input

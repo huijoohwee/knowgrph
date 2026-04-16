@@ -1,6 +1,7 @@
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
+import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 
 export type ChatHistoryWorkspaceAppendArgs = {
   requestedPath: string | null
@@ -34,6 +35,36 @@ type KgcStructuredTurnArgs = {
   assistantText: string
 }
 
+const KGC_REQUIRED_SECTION_ORDER = [
+  '# ── DOCUMENT IDENTITY',
+  'doc:',
+  '# ── VARIABLES (type `@` to open CRUD toolbar)',
+  '# ── NODES',
+  'nodes:',
+  '- @node:',
+  '# ── EDGES',
+  'edges:',
+  '- @edge:',
+  '# ── FLOW EDITOR (interactive + computable)',
+  'flow:',
+] as const
+
+const KGC_REQUIRED_VARIABLE_MARKERS = [
+  '\nsubject:',
+  '\naction:',
+  '\ngoal:',
+  '\nsolution:',
+  '\nrequest_md:',
+  '\nsolution_md:',
+] as const
+
+const KGC_HISTORY_MARKER = '<!-- kg-chat-history -->'
+
+const countMatches = (text: string, pattern: RegExp): number => {
+  const matches = text.match(pattern)
+  return Array.isArray(matches) ? matches.length : 0
+}
+
 const resolveFilePrefix = (args?: { storageType?: 'chatKnowgrph' | 'chatHistory' }): 'chh' | 'kgc' => {
   if (args?.storageType === 'chatKnowgrph') return 'kgc'
   return 'chh'
@@ -50,6 +81,22 @@ const formatIsoDateOnly = (timestampMs: number): string => {
   const yyyy = String(d.getFullYear())
   const mm = pad2(d.getMonth() + 1)
   const dd = pad2(d.getDate())
+  return `${yyyy}-${mm}-${dd}`
+}
+
+const tryParseCompactTimestampFromKgcFileName = (fileName: string): string | null => {
+  const raw = String(fileName || '').trim()
+  const m = raw.match(/^kgc_(\d{14})\.md$/i)
+  if (!m) return null
+  return String(m[1] || '').trim() || null
+}
+
+const compactTimestampToIsoDateOnly = (compact: string): string | null => {
+  const s = String(compact || '').trim()
+  if (!/^\d{14}$/.test(s)) return null
+  const yyyy = s.slice(0, 4)
+  const mm = s.slice(4, 6)
+  const dd = s.slice(6, 8)
   return `${yyyy}-${mm}-${dd}`
 }
 
@@ -94,7 +141,14 @@ const yamlBlock = (value: string, indent = 2): string => {
   const pad = ' '.repeat(Math.max(0, indent))
   if (!raw) return '|'
   const lines = raw.split('\n')
-  return ['|', ...lines.map(l => `${pad}${l}`)].join('\n')
+  return ['|', ...lines.map(l => {
+    const trimmed = l.trim()
+    // Keep markdown frontmatter delimiters inert inside block scalars so the
+    // workspace parser never mistakes preserved assistant prose for a new
+    // document boundary.
+    const safe = trimmed === '---' || trimmed === '...' ? `\\${trimmed}` : l
+    return `${pad}${safe}`
+  })].join('\n')
 }
 
 const normalizeInlineValue = (value: string, fallback: string, maxChars = 160): string => {
@@ -118,23 +172,49 @@ const toKgcNodeId = (value: string, fallback: string): string => {
 export const isKgcStructuredMarkdown = (raw: string): boolean => {
   const text = String(raw || '').replace(/\r\n/g, '\n').trim()
   if (!text.startsWith('---\n')) return false
-  const trimmedLines = text.split('\n').map(l => l.trimEnd())
-  while (trimmedLines.length > 0 && !trimmedLines[trimmedLines.length - 1]) trimmedLines.pop()
-  if (trimmedLines.length === 0 || trimmedLines[trimmedLines.length - 1] !== '---') return false
-  const required = [
-    '# ── DOCUMENT IDENTITY',
-    'doc:',
-    '# ── VARIABLES (type `@` to open CRUD toolbar)',
-    '# ── NODES',
-    'nodes:',
-    '- @node:',
-    '# ── EDGES',
-    'edges:',
-    '- @edge:',
-    '# ── FLOW EDITOR (interactive + computable)',
+  if (/^```+/m.test(text)) return false
+  const lines = text.split('\n')
+  let fmEnd = -1
+  for (let i = 1; i < lines.length; i += 1) {
+    if (String(lines[i] || '').trim() === '---') {
+      fmEnd = i
+      break
+    }
+  }
+  if (fmEnd < 0) return false
+  const frontmatter = lines.slice(0, fmEnd + 1).join('\n')
+  const markdownBody = lines.slice(fmEnd + 1).join('\n').trim()
+  if (!markdownBody) return false
+  if (!/\{\{[A-Za-z_][A-Za-z0-9_-]*[^}]*\}\}/.test(markdownBody)) return false
+  let searchFrom = 0
+  for (const marker of KGC_REQUIRED_SECTION_ORDER) {
+    const idx = frontmatter.indexOf(marker, searchFrom)
+    if (idx < 0) return false
+    searchFrom = idx + marker.length
+  }
+  if (!KGC_REQUIRED_VARIABLE_MARKERS.every(marker => frontmatter.includes(marker))) return false
+  if (countMatches(frontmatter, /(^|\n)\s*-\s*@node:/g) < 2) return false
+  if (countMatches(frontmatter, /(^|\n)\s*-\s*@edge:/g) < 1) return false
+  const flowStart = frontmatter.indexOf('\nflow:')
+  if (flowStart < 0) return false
+  const flowText = frontmatter.slice(flowStart + 1)
+  const requiredFlowSnippets = [
     'flow:',
+    'direction:',
+    'computed:',
+    '\n  nodes:',
+    '\n  edges:',
+    '\n    - id:',
+    '\n      type:',
+    '\n      data:',
   ]
-  return required.every(snippet => text.includes(snippet))
+  if (!requiredFlowSnippets.every(snippet => flowText.includes(snippet))) return false
+  if (/^\s*(subject|action|goal|solution)\s*:\s*["']?\s*["']?\s*$/m.test(frontmatter)) return false
+  const parsed = tryParseMarkdownFrontmatterFlowGraph('chatKnowgrph.kgc.md', text)
+  if (!parsed) return false
+  const nodes = Array.isArray(parsed.graphData.nodes) ? parsed.graphData.nodes : []
+  const edges = Array.isArray(parsed.graphData.edges) ? parsed.graphData.edges : []
+  return nodes.length >= 2 && edges.length >= 1
 }
 
 export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
@@ -144,8 +224,8 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
   const solution = normalizeInlineValue(args.assistantText, 'assistant response')
   const requestNodeId = toKgcNodeId(subject, 'n-user-request')
   const responseNodeId = toKgcNodeId(solution, 'n-ai-response')
-  const requestMd = String(args.requestText || '').replace(/\r\n/g, '\n').trim()
-  const assistantMd = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
+  const requestMd = String(args.requestText || '').replace(/\r\n/g, '\n').trim() || 'TBD'
+  const assistantMd = String(args.assistantText || '').replace(/\r\n/g, '\n').trim() || 'TBD'
   return [
     '---',
     '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
@@ -217,13 +297,113 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
     '      label: "responds"',
     '',
     '---',
+    '',
+    '# {{subject}}',
+    '',
+    '## Intent',
+    '- Action: {{action}}',
+    '- Goal: {{goal}}',
+    '',
+    '## Request',
+    '{{request_md}}',
+    '',
+    '## Solution',
+    '{{solution_md}}',
   ].join('\n')
 }
 
-const toKgcAssistantBodyForStorage = (args: KgcStructuredTurnArgs): string => {
+export const normalizeKgcAssistantBodyForStorage = (args: KgcStructuredTurnArgs): string => {
   const raw = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
   if (isKgcStructuredMarkdown(raw)) return raw
   return buildKgcStructuredTurn(args)
+}
+
+const extractBodyAfterLeadingFrontmatter = (raw: string): string => {
+  const text = String(raw || '').replace(/\r\n/g, '\n')
+  const lines = text.split('\n')
+  let lead = 0
+  while (lead < lines.length && !String(lines[lead] || '').trim()) lead += 1
+  if (String(lines[lead] || '').trim() !== '---') return text.trim()
+  for (let i = lead + 1; i < lines.length; i += 1) {
+    if (String(lines[i] || '').trim() !== '---') continue
+    return lines.slice(i + 1).join('\n').trim()
+  }
+  return ''
+}
+
+const normalizeKgcHistoryBody = (raw: string): string => {
+  let text = String(raw || '').replace(/\r\n/g, '\n').trim()
+  if (!text) return ''
+  if (text.startsWith(KGC_HISTORY_MARKER)) {
+    text = text.slice(KGC_HISTORY_MARKER.length).trim()
+  }
+  text = text.replace(/^# Knowledge Graph Canvas Storage\s*$/m, '').trim()
+  text = text.replace(/^\*KGC storage document\.\*\s*$/m, '').trim()
+  text = text.replace(/^\*Append-only turns live below; top structure stays stable for parsing\.\*\s*$/m, '').trim()
+  text = text.replace(/^# Chat turns\s*$/m, '').trim()
+  text = text.replace(/^## Chat turns\s*$/m, '').trim()
+  return text.trim()
+}
+
+const extractKgcHistoryBody = (raw: string): string => {
+  const text = String(raw || '').replace(/\r\n/g, '\n')
+  const markerIndex = text.indexOf(KGC_HISTORY_MARKER)
+  if (markerIndex >= 0) {
+    return normalizeKgcHistoryBody(text.slice(markerIndex))
+  }
+  return normalizeKgcHistoryBody(extractBodyAfterLeadingFrontmatter(text))
+}
+
+const buildKgcHistoryEntry = (args: {
+  timestampMs: number
+  traceId: string
+  providerSummary: string
+  userText: string
+  assistantText: string
+  inProgress?: boolean
+}): string => {
+  const canonicalKgc = normalizeKgcAssistantBodyForStorage({
+    timestampMs: args.timestampMs,
+    requestText: args.userText,
+    assistantText: args.assistantText,
+  })
+  const heading = args.inProgress
+    ? `## ${formatReadableTimestamp(args.timestampMs)} (in progress)`
+    : `## ${formatReadableTimestamp(args.timestampMs)}`
+  const body = [
+    heading,
+    '',
+    `Trace-ID: ${args.traceId}`,
+    '',
+    `Provider: ${String(args.providerSummary || '').trim() || 'unknown'}`,
+    '',
+    '### user',
+    wrapFence(args.userText, 'text'),
+    '',
+    '### assistant',
+    wrapFence(canonicalKgc, 'kgc'),
+  ]
+  if (args.inProgress) {
+    return [
+      draftStartTag(args.traceId),
+      ...body,
+      draftEndTag(args.traceId),
+    ].join('\n')
+  }
+  return body.join('\n')
+}
+
+export const buildKgcWorkspaceDocument = (args: {
+  canonicalKgc: string
+  historyBody?: string
+}): string => {
+  const canonical = String(args.canonicalKgc || '').replace(/\r\n/g, '\n').trim()
+  const historyBody = normalizeKgcHistoryBody(args.historyBody || '')
+  const lines = [canonical]
+  if (historyBody) {
+    lines.push('', KGC_HISTORY_MARKER, '', '# Chat turns', '', historyBody)
+  }
+  return `${lines.join('\n').trimEnd()}\n`
 }
 
 const looksLikeHostAbsoluteFsPath = (value: string): boolean => {
@@ -252,14 +432,15 @@ const mirrorWorkspaceFileToHostFs = async (args: { absolutePath: string; text: s
       } catch {
         void 0
       }
-    }, 1_000)
+    }, 5_000)
     try {
-      await fetch('/__kg_fs_write', {
+      const res = await fetch('/__kg_fs_write', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: abs, text: args.text }),
         signal: controller.signal,
       })
+      if (!res.ok) return
     } finally {
       window.clearTimeout(timeoutId)
     }
@@ -273,8 +454,9 @@ const buildKgcFrontmatter = (args: {
   providerSummary: string
   fileName: string
 }): string => {
-  const created = formatIsoDateOnly(args.timestampMs)
-  const compactId = formatCompactTimestamp(args.timestampMs)
+  const compactFromFile = tryParseCompactTimestampFromKgcFileName(args.fileName)
+  const compactId = compactFromFile || formatCompactTimestamp(args.timestampMs)
+  const created = compactTimestampToIsoDateOnly(compactId) || formatIsoDateOnly(args.timestampMs)
   return [
     '---',
     '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
@@ -356,6 +538,24 @@ const buildKgcFrontmatter = (args: {
     '',
     '## Chat turns',
   ].join('\n')
+}
+
+const normalizeKgcFrontmatterIdentityToFileName = (raw: string, fileName: string): string => {
+  const compact = tryParseCompactTimestampFromKgcFileName(fileName)
+  if (!compact) return raw
+  const created = compactTimestampToIsoDateOnly(compact)
+  let next = String(raw || '')
+  const idLineRe = /^(\s*id:\s*)(["']?)doc:kgc:\d{14}(["']?)\s*$/m
+  if (idLineRe.test(next)) {
+    next = next.replace(idLineRe, `$1"doc:kgc:${compact}"`)
+  }
+  if (created) {
+    const createdLineRe = /^(\s*created:\s*)(["']?)\d{4}-\d{2}-\d{2}(["']?)\s*$/m
+    if (createdLineRe.test(next)) {
+      next = next.replace(createdLineRe, `$1"${created}"`)
+    }
+  }
+  return next
 }
 
 const ensureFolderIfMissing = async (folderPath: WorkspacePath): Promise<void> => {
@@ -454,23 +654,15 @@ const buildKgcDraftEntry = (args: {
   userText: string
   assistantText: string
 }): string => {
-  const assistantBody = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
-  const normalizedAssistant = assistantBody || '_Streaming..._'
   return [
-    draftStartTag(args.traceId),
-    `## ${formatReadableTimestamp(args.timestampMs)} (in progress)`,
-    '',
-    `Trace-ID: ${args.traceId}`,
-    '',
-    `Provider: ${String(args.providerSummary || '').trim() || 'unknown'}`,
-    '',
-    '### user',
-    wrapFence(args.userText, 'text'),
-    '',
-    '### assistant',
-    normalizedAssistant,
-    '',
-    draftEndTag(args.traceId),
+    buildKgcHistoryEntry({
+      timestampMs: args.timestampMs,
+      traceId: args.traceId,
+      providerSummary: args.providerSummary,
+      userText: args.userText,
+      assistantText: args.assistantText || '_Streaming..._',
+      inProgress: true,
+    }),
     '',
   ].join('\n')
 }
@@ -560,8 +752,11 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
     await fs.ensureSeed()
     const existingRaw = (await fs.readFileText(key)) || ''
     const traceId = String(args.traceId || '').trim() || `trace-${args.timestampMs}`
-    const existing = stripDraftBlock(existingRaw, traceId)
     const fileName = key.split('/').filter(Boolean).slice(-1)[0] || `${prefix}.md`
+    const normalizedExistingRaw = prefix === 'kgc'
+      ? normalizeKgcFrontmatterIdentityToFileName(existingRaw, fileName)
+      : existingRaw
+    const existing = stripDraftBlock(normalizedExistingRaw, traceId)
     const baseTitle = args.title || (prefix === 'kgc' ? 'Knowledge Graph Canvas Storage' : 'Chat History Storage')
     const header = existing.trim()
       ? ''
@@ -569,14 +764,32 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
         ? [buildKgcFrontmatter({ timestampMs: args.timestampMs, providerSummary: args.providerSummary, fileName }), ''].join('\n')
         : [`# ${baseTitle}`, '', 'This file is managed by Knowgrph Chat.', ''].join('\n')
     const assistantBody = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
-    const kgcAssistantBody = toKgcAssistantBodyForStorage({
+    const kgcAssistantBody = normalizeKgcAssistantBodyForStorage({
       timestampMs: args.timestampMs,
       requestText: args.userText,
       assistantText: assistantBody || 'No response content.',
     })
-    const assistantSection = prefix === 'kgc'
-      ? ['### assistant', kgcAssistantBody, ''].join('\n')
-      : ['### assistant', wrapFence(args.assistantText, 'markdown'), ''].join('\n')
+    if (prefix === 'kgc') {
+      const existingHistoryBody = extractKgcHistoryBody(existing)
+      const nextHistoryBody = [
+        existingHistoryBody,
+        buildKgcHistoryEntry({
+          timestampMs: args.timestampMs,
+          traceId,
+          providerSummary: args.providerSummary,
+          userText: args.userText,
+          assistantText: kgcAssistantBody,
+        }),
+      ].filter(Boolean).join('\n\n')
+      const next = buildKgcWorkspaceDocument({
+        canonicalKgc: kgcAssistantBody,
+        historyBody: nextHistoryBody,
+      })
+      await fs.writeFileText(key, next)
+      void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
+      return
+    }
+    const assistantSection = ['### assistant', wrapFence(args.assistantText, 'markdown'), ''].join('\n')
 
     const entry = [
       `## ${formatReadableTimestamp(args.timestampMs)}`,
@@ -625,13 +838,41 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
     await fs.ensureSeed()
     const existingRaw = (await fs.readFileText(key)) || ''
     const fileName = key.split('/').filter(Boolean).slice(-1)[0] || `${prefix}.md`
-    const baseTitle = args.title || (prefix === 'kgc' ? 'Knowledge Graph Canvas Storage' : 'Chat History Storage')
+    const normalizedExistingRaw = prefix === 'kgc'
+      ? normalizeKgcFrontmatterIdentityToFileName(existingRaw, fileName)
+      : existingRaw
+    if (prefix === 'kgc') {
+      const canonicalKgc = normalizeKgcAssistantBodyForStorage({
+        timestampMs: args.timestampMs,
+        requestText: args.userText,
+        assistantText: String(args.assistantText || '').replace(/\r\n/g, '\n').trim() || '_Streaming..._',
+      })
+      const existing = stripDraftBlock(normalizedExistingRaw, traceId)
+      const existingHistoryBody = extractKgcHistoryBody(existing)
+      const draft = buildKgcDraftEntry({
+        timestampMs: args.timestampMs,
+        traceId,
+        providerSummary: args.providerSummary,
+        userText: args.userText,
+        assistantText: args.assistantText,
+      })
+      const nextHistoryBody = [existingHistoryBody, draft.trim()].filter(Boolean).join('\n\n')
+      const next = buildKgcWorkspaceDocument({
+        canonicalKgc,
+        historyBody: nextHistoryBody,
+      })
+      if (next === normalizedExistingRaw) return
+      await fs.writeFileText(key, next)
+      if (!existingRaw.trim()) {
+        void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
+      }
+      return
+    }
+    const baseTitle = args.title || 'Chat History Storage'
     const header = existingRaw.trim()
       ? ''
-      : prefix === 'kgc'
-        ? [buildKgcFrontmatter({ timestampMs: args.timestampMs, providerSummary: args.providerSummary, fileName }), ''].join('\n')
-        : [`# ${baseTitle}`, '', 'This file is managed by Knowgrph Chat.', ''].join('\n')
-    const existing = stripDraftBlock(existingRaw, traceId)
+      : [`# ${baseTitle}`, '', 'This file is managed by Knowgrph Chat.', ''].join('\n')
+    const existing = stripDraftBlock(normalizedExistingRaw, traceId)
     const draft = buildKgcDraftEntry({
       timestampMs: args.timestampMs,
       traceId,
@@ -641,8 +882,11 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
     })
     const joiner = existing.endsWith('\n') || !existing ? '' : '\n'
     const next = [existing, header, draft].filter(Boolean).join(joiner)
-    if (next === existingRaw) return
+    if (next === normalizedExistingRaw) return
     await fs.writeFileText(key, next)
+    if (!existingRaw.trim()) {
+      void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
+    }
   })
   inFlightByPath.set(key, run)
   try {

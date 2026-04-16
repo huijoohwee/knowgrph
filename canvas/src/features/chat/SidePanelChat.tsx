@@ -11,8 +11,12 @@ import type { ChatMessage } from './SidePanelChatSections'
 import { SidePanelChatFooter, SidePanelChatMessagesSection } from './SidePanelChatSections'
 import { buildBoundedGraphSystemPrompt, buildMarkdownNodeSnippetPrompt, buildWorkspaceWideContextPrompt } from './chatPromptHelpers'
 import { CHAT_KGC_RESPONSE_CONTRACT_PROMPT, CHAT_RESPONSE_CONTRACT_PROMPT } from './chatResponseContract'
+import { buildPackedContextSystemPrompt, packChatContext } from './chatContextPack'
+import { buildResolvableVarKeySet, validateChatMarkdown } from './chatMarkdownValidation'
+import { CHAT_AI_MARKDOWN_MAX_RETRY, clampChatCompletionTokens } from './chatAiMarkdownSpec'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
+  CHAT_PROVIDER_OPENAI,
   buildChatProxyHeaders,
   getDefaultChatModelForProvider,
   getChatModelOptions,
@@ -21,15 +25,18 @@ import {
   getChatRecommendedModelHint,
   normalizeChatEndpointUrlInput,
   normalizeChatModelIdForProvider,
+  normalizeChatProviderId,
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
 import {
   appendChatHistoryWorkspaceFile,
+  createNewChatHistoryWorkspaceFilePath,
   ensureChatHistoryWorkspaceFilePath,
   isKgcStructuredMarkdown,
   upsertChatHistoryWorkspaceDraft,
 } from '@/features/chat/chatHistoryWorkspace'
+import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import {
@@ -76,16 +83,20 @@ export default function SidePanelChat() {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-sm')
   const uiPanelMicroLabelTextSizeClass = useGraphStore(s => s.uiPanelMicroLabelTextSizeClass || 'text-xs')
   const chatProvider = useGraphStore(s => s.chatProvider)
+  const chatAuthMode = useGraphStore(s => (s.chatAuthMode === 'byok' ? 'byok' : 'serverManaged'))
   const chatApiKey = useGraphStore(s => s.chatApiKey)
   const chatEndpointUrl = useGraphStore(s => s.chatEndpointUrl)
   const chatModel = useGraphStore(s => s.chatModel)
   const chatTemperature = useGraphStore(s => s.chatTemperature)
+  const chatMaxCompletionTokens = useGraphStore(s => s.chatMaxCompletionTokens)
+  const chatGraphSummaryMaxTokens = useGraphStore(s => s.chatGraphSummaryMaxTokens)
+  const chatGuidelineDigestMaxTokens = useGraphStore(s => s.chatGuidelineDigestMaxTokens)
   const chatSystemPrompt = useGraphStore(s => s.chatSystemPrompt)
   const chatContextScope = useGraphStore(s => s.chatContextScope || 'workspace')
   const setChatModel = useGraphStore(s => s.setChatModel)
   const pushChatExchangeLog = useGraphStore(s => s.pushChatExchangeLog)
   const chatStorageTarget = useGraphStore(s => (s.chatStorageTarget === 'chatHistory' ? 'chatHistory' : 'chatKnowgrph'))
-  const chatLocalStorageRootPath = useGraphStore(s => s.chatLocalStorageRootPath || '/Users/huijoohwee/Documents/GitHub/sandbox/chat-log')
+  const chatLocalStorageRootPath = useGraphStore(s => s.chatLocalStorageRootPath || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT)
   const chatKnowgrphStorageMode = useGraphStore(s => (s.chatKnowgrphStorageMode === 'cloud' ? 'cloud' : 'local'))
   const chatKnowgrphWorkspacePath = useGraphStore(s => s.chatKnowgrphWorkspacePath || null)
   const chatKnowgrphCloudUrl = useGraphStore(s => s.chatKnowgrphCloudUrl || null)
@@ -136,6 +147,18 @@ export default function SidePanelChat() {
     () => getChatRecommendedModelHint(chatProvider),
     [chatProvider],
   )
+
+  const chatModelSelect = React.useMemo(() => {
+    const normalizedProvider = normalizeChatProviderId(chatProvider)
+    const options = Array.from(getChatModelOptions(normalizedProvider))
+    const normalizedModel = normalizeChatModelIdForProvider(chatModel, normalizedProvider)
+    const fallbackModel = normalizedModel || getDefaultChatModelForProvider(normalizedProvider)
+    const selected = fallbackModel || (options[0] || '')
+    const combined = options.includes(selected)
+      ? options
+      : [selected, ...options].filter(Boolean)
+    return { modelId: selected, options: combined }
+  }, [chatModel, chatProvider])
   const sourceFilesSignature = React.useMemo(() => {
     const compact = Array.isArray(sourceFiles)
       ? sourceFiles
@@ -164,6 +187,18 @@ export default function SidePanelChat() {
       sourceFilesSignature,
     ])
   }, [docLocationRevision, markdownDocumentName, markdownText, sourceFilesSignature])
+
+  const clearCurrentHistory = React.useCallback(() => {
+    setMessages([])
+    putChatHistoryCache(historyKey, [])
+    const storage = getLocalStorage()
+    if (!storage) return
+    try {
+      storage.removeItem(historyKey)
+    } catch {
+      void 0
+    }
+  }, [historyKey])
 
   const openWorkspaceMarkdownPath = React.useCallback((path: string) => {
     const normalized = normalizeWorkspacePath(path)
@@ -197,6 +232,37 @@ export default function SidePanelChat() {
       streamFollowRef.current = { path: normalized, atMs: nowMs }
     }
   }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
+
+  const handleNewChat = React.useCallback(async () => {
+    if (isLoading || chatStorageTarget !== 'chatKnowgrph') return
+    setErrorText(null)
+    setConnectivity('unknown')
+    setConnectivityDetail(null)
+    setInput('')
+    setStreamingAssistant(null)
+    setStreamingWorkspacePath(null)
+    streamFollowRef.current = null
+    streamDraftTextRef.current = null
+    const timestampMs = Date.now()
+    try {
+      const nextPath = await createNewChatHistoryWorkspaceFilePath(timestampMs, {
+        storageType: 'chatKnowgrph',
+        defaultLocalRootPath: chatLocalStorageRootPath,
+      })
+      setChatKnowgrphWorkspacePath(nextPath)
+      clearCurrentHistory()
+      followWorkspaceMarkdownPath(nextPath)
+    } catch {
+      setErrorText(UI_COPY.chatNewChatFailedError)
+    }
+  }, [
+    chatLocalStorageRootPath,
+    chatStorageTarget,
+    clearCurrentHistory,
+    followWorkspaceMarkdownPath,
+    isLoading,
+    setChatKnowgrphWorkspacePath,
+  ])
 
   const currentNode = React.useMemo(() => {
     if (!graphData || !selectedNodeId) return null
@@ -355,9 +421,12 @@ export default function SidePanelChat() {
       timestampMs: number
       traceId?: string
       knownKnowgrphPath?: string | null
+      status?: 'ok' | 'error'
+      finalAssistantOverride?: string | null
     },
   ) => {
     const { assistantMessageId, requestText, modelId, rawAssistantText, timestampMs, knownKnowgrphPath } = args
+    const status = args.status === 'error' ? 'error' : 'ok'
     const traceId = String(args.traceId || '').trim() || `trace-${timestampMs}-${assistantMessageId}`
     const extracted = chatStorageTarget === 'chatKnowgrph'
       ? extractKgcBlockFromAssistantText(rawAssistantText)
@@ -404,12 +473,26 @@ export default function SidePanelChat() {
     const knowgrphRawPath = String(resolvedKnowgrphPath || chatKnowgrphWorkspacePath || '').trim()
     const knowgrphPath = knowgrphRawPath ? normalizeWorkspacePath(knowgrphRawPath) : ''
     const knowgrphLabel = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : ''
-    const concise = toConciseBulletText(rawAssistantText, knowgrphPath ? 49 : 50)
+    const conciseSource =
+      chatStorageTarget === 'chatKnowgrph'
+        ? (extracted.answer || 'Structured KGC response saved to workspace.')
+        : rawAssistantText
+    const concise = toConciseBulletText(conciseSource, knowgrphPath ? 49 : 50)
     const lines = [`- ${concise}`]
     if (chatStorageTarget === 'chatKnowgrph' && knowgrphPath) lines.push(`- [${knowgrphLabel}](${knowgrphPath})`)
-    const finalAssistantText = lines.join('\n')
+    const finalAssistantText = typeof args.finalAssistantOverride === 'string' && args.finalAssistantOverride.trim()
+      ? args.finalAssistantOverride
+      : lines.join('\n')
 
-    setMessages(prev => prev.map(m => (m.id === assistantMessageId ? { ...m, content: finalAssistantText } : m)))
+    setMessages(prev => {
+      let found = false
+      const next = prev.map(m => {
+        if (m.id !== assistantMessageId) return m
+        found = true
+        return { ...m, content: finalAssistantText }
+      })
+      return found ? next : [...next, { id: assistantMessageId, role: 'assistant', content: finalAssistantText }]
+    })
     setStreamingAssistant(null)
     streamFollowRef.current = null
     streamDraftTextRef.current = null
@@ -417,14 +500,14 @@ export default function SidePanelChat() {
     pushChatExchangeLog({
       request: requestText,
       response: finalAssistantText,
-      status: 'ok',
+      status,
       model: modelId,
       tsMs: timestampMs,
     })
     void persistChatExchangeLog({
       request: requestText,
       response: finalAssistantText,
-      status: 'ok',
+      status,
       model: modelId,
       timestampMs,
     })
@@ -508,31 +591,36 @@ export default function SidePanelChat() {
         })
       }
 
-      const payloadMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = []
-
-      payloadMessages.push({
-        role: 'system',
-        content: chatStorageTarget === 'chatKnowgrph' ? CHAT_KGC_RESPONSE_CONTRACT_PROMPT : CHAT_RESPONSE_CONTRACT_PROMPT,
+      const packedContext = packChatContext({
+        graphData,
+        currentNode,
+        markdownText,
+        graphSummaryMaxTokens: chatGraphSummaryMaxTokens,
+        guidelineDigestMaxTokens: chatGuidelineDigestMaxTokens,
       })
-
       const includeSelectionContext = chatContextScope === 'selection' || chatContextScope === 'hybrid'
       const includeWorkspaceContext = chatContextScope === 'workspace' || chatContextScope === 'hybrid'
 
-      if (includeSelectionContext) {
-        payloadMessages.push({ role: 'system', content: buildBoundedGraphSystemPrompt(graphData, currentNode) })
-      }
-      if (chatSystemPrompt && typeof chatSystemPrompt === 'string' && chatSystemPrompt.trim()) {
-        payloadMessages.push({ role: 'system', content: chatSystemPrompt })
-      }
+      const systemMessages: { role: 'system'; content: string }[] = [
+        {
+          role: 'system',
+          content: chatStorageTarget === 'chatKnowgrph' ? CHAT_KGC_RESPONSE_CONTRACT_PROMPT : CHAT_RESPONSE_CONTRACT_PROMPT,
+        },
+        {
+          role: 'system',
+          content: buildPackedContextSystemPrompt(packedContext),
+        },
+      ]
 
       if (includeSelectionContext) {
+        systemMessages.push({ role: 'system', content: buildBoundedGraphSystemPrompt(graphData, currentNode) })
+      }
+      if (chatSystemPrompt && typeof chatSystemPrompt === 'string' && chatSystemPrompt.trim()) {
+        systemMessages.push({ role: 'system', content: chatSystemPrompt })
+      }
+      if (includeSelectionContext) {
         const markdownSnippet = buildMarkdownNodeSnippetPrompt(markdownText, currentNode, parseLine)
-        if (markdownSnippet) {
-          payloadMessages.push({
-            role: 'system',
-            content: markdownSnippet,
-          })
-        }
+        if (markdownSnippet) systemMessages.push({ role: 'system', content: markdownSnippet })
       }
       if (includeWorkspaceContext) {
         const workspaceContextPrompt = await buildWorkspaceWideContextPrompt({
@@ -541,42 +629,86 @@ export default function SidePanelChat() {
           sourceFiles,
           cacheKey: workspaceContextCacheKey,
         })
-        if (workspaceContextPrompt) {
-          payloadMessages.push({
-            role: 'system',
-            content: workspaceContextPrompt,
-          })
-        }
+        if (workspaceContextPrompt) systemMessages.push({ role: 'system', content: workspaceContextPrompt })
       }
 
-      nextMessages
+      const conversationMessages: { role: 'user' | 'assistant'; content: string }[] = nextMessages
         .filter(m => m.id !== assistantMessageId)
-        .forEach(m => payloadMessages.push({ role: m.role, content: m.content }))
+        .map(m => ({ role: m.role, content: m.content }))
+
+      const buildPayloadMessages = (correction: string | null) => {
+        const out: { role: 'system' | 'user' | 'assistant'; content: string }[] = [...systemMessages]
+        if (correction && correction.trim()) out.push({ role: 'system', content: correction })
+        out.push(...conversationMessages)
+        return out
+      }
 
       const controller = new AbortController()
       abortRef.current = controller
 
-      const sendChat = async (model: string) => {
+      const resolveTokenLimitKey = (): 'max_tokens' | 'max_completion_tokens' => {
+        const provider = normalizeChatProviderId(chatProvider)
+        if (provider === CHAT_PROVIDER_OPENAI) return 'max_completion_tokens'
+        return 'max_tokens'
+      }
+
+      const sendChat = async (
+        model: string,
+        messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+        tokenLimitKey: 'max_tokens' | 'max_completion_tokens' = resolveTokenLimitKey(),
+      ) => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           ...buildChatProxyHeaders({
             provider: chatProvider,
-            apiKey: chatApiKey,
+            apiKey: chatAuthMode === 'byok' ? chatApiKey : null,
             endpointUrl: chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
             clientRequestId: `kg-chat-${toShortId()}`,
           }),
         }
+        const tokenLimit = clampChatCompletionTokens(chatMaxCompletionTokens)
         return await fetch(requestUrl, {
           method: 'POST',
           headers,
           body: JSON.stringify({
             model,
-            messages: payloadMessages,
+            messages,
             temperature: clampTemperature(chatTemperature),
+            ...(tokenLimitKey === 'max_completion_tokens'
+              ? { max_completion_tokens: tokenLimit }
+              : { max_tokens: tokenLimit }),
             stream: true,
           }),
           signal: controller.signal,
         })
+      }
+
+      const wrapFence = (content: string, lang: string): string => {
+        const safeLang = String(lang || '').trim() || 'text'
+        const safe = String(content || '').replace(/\r\n/g, '\n')
+        const ticks = safe.includes('```') ? '````' : '```'
+        return [`${ticks}${safeLang}`, safe, ticks].join('\n')
+      }
+
+      const clipForPrompt = (raw: string, maxChars: number): string => {
+        const text = String(raw || '')
+        if (text.length <= maxChars) return text
+        return `${text.slice(0, Math.max(0, maxChars - 3))}...`
+      }
+
+      const buildCorrectionPrompt = (args: { ruleId: string; message: string; invalidMarkdown: string }) => {
+        const block = clipForPrompt(args.invalidMarkdown, 6000)
+        return [
+          '@flag:correction',
+          `failed_rule: ${args.ruleId}`,
+          `reason: ${args.message}`,
+          '',
+          'Return a corrected answer that fully satisfies ALL rules and the strict output format.',
+          'Fix only what is necessary; preserve section order and schema.',
+          '',
+          'Invalid output (for reference; do not repeat verbatim):',
+          wrapFence(block, 'markdown'),
+        ].join('\n')
       }
 
       const providerModelOptions = getChatModelOptions(chatProvider)
@@ -585,182 +717,189 @@ export default function SidePanelChat() {
         providerModelOptions.includes(normalizedProviderModel)
           ? normalizedProviderModel
           : getDefaultChatModelForProvider(chatProvider)
-      let res: Response
-      try {
-        res = await sendChat(effectiveModel)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error || '')
-        const lowered = message.toLowerCase()
-        const isRetryable =
-          !controller.signal.aborted &&
-          (/aborted/i.test(message) || lowered.includes('failed to fetch') || lowered.includes('networkerror') || lowered.includes('err_aborted'))
-        if (!isRetryable) throw error
-        res = await sendChat(effectiveModel)
-      }
-      if (!res.ok) {
-        const initialDetail = await parseErrorBody(res)
-        const allowFallback = shouldRetryWithModelFallback(res.status, initialDetail)
-        if (allowFallback) {
-          const modelsEndpoint = resolveChatEndpointForModels(chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL)
-          const ids = modelsEndpoint
-            ? await loadAvailableModelIds(
-              modelsEndpoint,
-              buildChatProxyHeaders({
-                provider: chatProvider,
-                apiKey: chatApiKey,
-                endpointUrl: chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
-                clientRequestId: `kg-chat-models-${toShortId()}`,
-              }),
-            )
-            : []
-          const preferredFallback = providerModelOptions.find(id => ids.includes(id) && id !== effectiveModel) || ''
-          const fallback = preferredFallback || ids.find(id => id !== effectiveModel) || ids[0] || ''
-          if (fallback && fallback !== effectiveModel) {
-            effectiveModel = fallback
-            setChatModel(fallback)
-            res = await sendChat(fallback)
-          }
+
+      const MAX_VALIDATION_ATTEMPTS = chatStorageTarget === 'chatKnowgrph' ? CHAT_AI_MARKDOWN_MAX_RETRY : 1
+      let attempt = 0
+      let correctionPrompt: string | null = null
+      let finalAssistantText = ''
+      let finalStatus: 'ok' | 'error' = 'ok'
+      let finalOverride: string | null = null
+
+      while (attempt < MAX_VALIDATION_ATTEMPTS) {
+        attempt += 1
+        const payloadMessages = buildPayloadMessages(correctionPrompt)
+        let tokenLimitKey = resolveTokenLimitKey()
+        let tokenParamFallbackTried = false
+        let res: Response
+        try {
+          res = await sendChat(effectiveModel, payloadMessages, tokenLimitKey)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error || '')
+          const lowered = message.toLowerCase()
+          const isRetryable =
+            !controller.signal.aborted &&
+            (/aborted/i.test(message) || lowered.includes('failed to fetch') || lowered.includes('networkerror') || lowered.includes('err_aborted'))
+          if (!isRetryable) throw error
+          res = await sendChat(effectiveModel, payloadMessages, tokenLimitKey)
         }
         if (!res.ok) {
-          const detail = initialDetail || (await parseErrorBody(res))
-          const statusText = UI_COPY.chatRequestFailedStatus(res.status)
-          const suffix = detail ? ` ${detail}` : ''
-          setConnectivity('ok')
-          setConnectivityDetail(null)
-          setErrorText(`${statusText}${suffix}`.trim())
-          setStreamingAssistant(null)
-          setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
-          setIsLoading(false)
-          abortRef.current = null
-          return
+          const initialDetail = await parseErrorBody(res)
+
+          const shouldRetryWithTokenFallback = (status: number, detail: string | null): boolean => {
+            if (status !== 400) return false
+            const text = String(detail || '')
+            return (
+              text.includes("Unsupported parameter: 'max_tokens'") ||
+              text.includes("Unsupported parameter: 'max_completion_tokens'") ||
+              text.includes('Use \'max_completion_tokens\' instead') ||
+              text.includes('Use "max_completion_tokens" instead')
+            )
+          }
+
+          if (!tokenParamFallbackTried && shouldRetryWithTokenFallback(res.status, initialDetail)) {
+            tokenParamFallbackTried = true
+            tokenLimitKey = tokenLimitKey === 'max_tokens' ? 'max_completion_tokens' : 'max_tokens'
+            res = await sendChat(effectiveModel, payloadMessages, tokenLimitKey)
+          }
+
+          const allowFallback = shouldRetryWithModelFallback(res.status, initialDetail)
+          if (allowFallback) {
+            const modelsEndpoint = resolveChatEndpointForModels(chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL)
+            const ids = modelsEndpoint
+              ? await loadAvailableModelIds(
+                modelsEndpoint,
+                buildChatProxyHeaders({
+                  provider: chatProvider,
+                  apiKey: chatAuthMode === 'byok' ? chatApiKey : null,
+                  endpointUrl: chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
+                  clientRequestId: `kg-chat-models-${toShortId()}`,
+                }),
+              )
+              : []
+            const preferredFallback = providerModelOptions.find(id => ids.includes(id) && id !== effectiveModel) || ''
+            const fallback = preferredFallback || ids.find(id => id !== effectiveModel) || ids[0] || ''
+            if (fallback && fallback !== effectiveModel) {
+              effectiveModel = fallback
+              setChatModel(fallback)
+              res = await sendChat(fallback, payloadMessages, tokenLimitKey)
+            }
+          }
+          if (!res.ok) {
+            const detail = initialDetail || (await parseErrorBody(res))
+            const statusText = UI_COPY.chatRequestFailedStatus(res.status)
+            const decorateServerManagedHint = (rawDetail: string): string => {
+              if (res.status !== 500) return rawDetail
+              if (chatAuthMode !== 'serverManaged') return rawDetail
+              const lowered = String(rawDetail || '').toLowerCase()
+              if (lowered.includes('missing openai api key')) {
+                return `${rawDetail} (Server-managed Key: set KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY or OPENAI_API_KEY in the hosting environment; for local dev set it in your shell/.env, for Pages set it in the Pages project env and redeploy.)`
+              }
+              return rawDetail
+            }
+            const decorated = detail ? decorateServerManagedHint(detail) : ''
+            const suffix = decorated ? ` ${decorated}` : ''
+            setConnectivity('error')
+            setConnectivityDetail(`Chat endpoint returned ${res.status}.`)
+            setErrorText(`${statusText}${suffix}`.trim())
+            setStreamingAssistant(null)
+            setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
+            setIsLoading(false)
+            abortRef.current = null
+            return
+          }
         }
-      }
 
-      const contentType = String(res.headers.get('content-type') || '').toLowerCase()
-      const isEventStream = contentType.includes('text/event-stream')
+        const contentType = String(res.headers.get('content-type') || '').toLowerCase()
+        const isEventStream = contentType.includes('text/event-stream')
 
-      if (isEventStream && res.body) {
-        const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
         let assistantText = ''
-        let done = false
-        let lastDraftFlushMs = 0
-        let pendingDraftWrite: Promise<unknown> | null = null
-        const flushDraft = (force: boolean) => {
-          if (chatStorageTarget !== 'chatKnowgrph') return
-          if (!liveKgcPath) return
-          const nowMs = Date.now()
-          if (!force && nowMs - lastDraftFlushMs < 160) return
-          const prevDraft = streamDraftTextRef.current
-          if (!force && prevDraft && prevDraft.path === liveKgcPath && prevDraft.text === assistantText) return
-          lastDraftFlushMs = nowMs
-          followWorkspaceMarkdownPath(liveKgcPath)
-          streamDraftTextRef.current = { path: liveKgcPath, text: assistantText }
-          pendingDraftWrite = upsertChatHistoryWorkspaceDraft({
-            requestedPath: liveKgcPath,
-            onResolvedPath: p => setChatKnowgrphWorkspacePath(p),
-            timestampMs: requestTimestampMs,
-            providerSummary: chatProviderSummary,
-            userText: trimmed,
-            assistantText,
-            storageType: 'chatKnowgrph',
-            defaultLocalRootPath: chatLocalStorageRootPath,
-            title: 'Knowledge Graph Canvas Storage',
-            traceId,
-          })
-            .then(() => {
-              followWorkspaceMarkdownPath(liveKgcPath)
-            })
-            .catch(() => void 0)
-        }
-        while (!done) {
-          const chunk = await reader.read()
-          if (chunk.done) break
-          buffer += decoder.decode(chunk.value, { stream: true })
-          const parsed = parseSseEvents(buffer)
-          buffer = parsed.rest
-          for (const raw of parsed.events) {
-            if (raw === '[DONE]') {
-              done = true
-              break
-            }
-            try {
-              const next = extractAssistantDelta(JSON.parse(raw) as unknown)
-              if (!next) continue
-              assistantText += next
-              flushDraft(false)
-            } catch {
-              void 0
-            }
-          }
-        }
-        flushDraft(true)
-        if (pendingDraftWrite) {
-          try {
-            await pendingDraftWrite
-          } catch {
-            void 0
-          }
-        }
-        if (!assistantText) {
-          setErrorText(UI_COPY.chatResponseMissingContentError)
-          setStreamingAssistant(null)
-          setMessages(prev => prev.filter(m => m.id !== assistantMessageId))
-          const nowMs = Date.now()
-          pushChatExchangeLog({
-            request: trimmed,
-            response: UI_COPY.chatResponseMissingContentError,
-            status: 'error',
-            model: effectiveModel,
-            tsMs: nowMs,
-          })
-          void persistChatExchangeLog({
-            request: trimmed,
-            response: UI_COPY.chatResponseMissingContentError,
-            status: 'error',
-            model: effectiveModel,
-            timestampMs: nowMs,
-          })
-          setIsLoading(false)
-          abortRef.current = null
-          return
-        }
 
-        const nowMs = Date.now()
-        await finalizeAssistantSuccess({
-          assistantMessageId,
-          requestText: trimmed,
-          modelId: effectiveModel,
-          rawAssistantText: assistantText,
-          timestampMs: nowMs,
-          traceId,
-          knownKnowgrphPath: liveKgcPath,
-        })
-        setStreamingWorkspacePath(null)
-        streamFollowRef.current = null
-        streamDraftTextRef.current = null
-      } else {
-        const data = (await res.json()) as unknown
-        const assistantText = extractAssistantDelta(data)
-        if (chatStorageTarget === 'chatKnowgrph' && liveKgcPath) {
-          try {
-            await upsertChatHistoryWorkspaceDraft({
+        if (isEventStream && res.body) {
+          const reader = res.body.getReader()
+          const decoder = new TextDecoder()
+          let buffer = ''
+          let done = false
+          let lastDraftFlushMs = 0
+          let pendingDraftWrite: Promise<unknown> | null = null
+          const flushDraft = (force: boolean) => {
+            if (chatStorageTarget !== 'chatKnowgrph') return
+            if (!liveKgcPath) return
+            const nowMs = Date.now()
+            if (!force && nowMs - lastDraftFlushMs < 160) return
+            const prevDraft = streamDraftTextRef.current
+            if (!force && prevDraft && prevDraft.path === liveKgcPath && prevDraft.text === assistantText) return
+            lastDraftFlushMs = nowMs
+            followWorkspaceMarkdownPath(liveKgcPath)
+            streamDraftTextRef.current = { path: liveKgcPath, text: assistantText }
+            pendingDraftWrite = upsertChatHistoryWorkspaceDraft({
               requestedPath: liveKgcPath,
               onResolvedPath: p => setChatKnowgrphWorkspacePath(p),
               timestampMs: requestTimestampMs,
               providerSummary: chatProviderSummary,
               userText: trimmed,
-              assistantText: assistantText || '',
+              assistantText,
               storageType: 'chatKnowgrph',
               defaultLocalRootPath: chatLocalStorageRootPath,
               title: 'Knowledge Graph Canvas Storage',
               traceId,
             })
-          } catch {
-            void 0
+              .then(() => {
+                followWorkspaceMarkdownPath(liveKgcPath)
+              })
+              .catch(() => void 0)
+          }
+          while (!done) {
+            const chunk = await reader.read()
+            if (chunk.done) break
+            buffer += decoder.decode(chunk.value, { stream: true })
+            const parsed = parseSseEvents(buffer)
+            buffer = parsed.rest
+            for (const raw of parsed.events) {
+              if (raw === '[DONE]') {
+                done = true
+                break
+              }
+              try {
+                const next = extractAssistantDelta(JSON.parse(raw) as unknown)
+                if (!next) continue
+                assistantText += next
+                flushDraft(false)
+              } catch {
+                void 0
+              }
+            }
+          }
+          flushDraft(true)
+          if (pendingDraftWrite) {
+            try {
+              await pendingDraftWrite
+            } catch {
+              void 0
+            }
+          }
+        } else {
+          const data = (await res.json()) as unknown
+          assistantText = extractAssistantDelta(data) || ''
+          if (chatStorageTarget === 'chatKnowgrph' && liveKgcPath) {
+            try {
+              await upsertChatHistoryWorkspaceDraft({
+                requestedPath: liveKgcPath,
+                onResolvedPath: p => setChatKnowgrphWorkspacePath(p),
+                timestampMs: requestTimestampMs,
+                providerSummary: chatProviderSummary,
+                userText: trimmed,
+                assistantText,
+                storageType: 'chatKnowgrph',
+                defaultLocalRootPath: chatLocalStorageRootPath,
+                title: 'Knowledge Graph Canvas Storage',
+                traceId,
+              })
+            } catch {
+              void 0
+            }
           }
         }
+
         if (!assistantText) {
           setErrorText(UI_COPY.chatResponseMissingContentError)
           setStreamingAssistant(null)
@@ -784,20 +923,92 @@ export default function SidePanelChat() {
           abortRef.current = null
           return
         }
-        const nowMs = Date.now()
-        await finalizeAssistantSuccess({
-          assistantMessageId,
-          requestText: trimmed,
-          modelId: effectiveModel,
-          rawAssistantText: assistantText,
-          timestampMs: nowMs,
-          traceId,
-          knownKnowgrphPath: liveKgcPath,
-        })
-        setStreamingWorkspacePath(null)
-        streamFollowRef.current = null
-        streamDraftTextRef.current = null
+
+        finalAssistantText = assistantText
+        if (chatStorageTarget !== 'chatKnowgrph') break
+
+        const extracted = extractKgcBlockFromAssistantText(assistantText)
+        const kgc = typeof extracted.kgc === 'string' ? extracted.kgc.trim() : ''
+        if (!kgc) {
+          if (attempt < MAX_VALIDATION_ATTEMPTS) {
+            correctionPrompt = buildCorrectionPrompt({
+              ruleId: 'V-03',
+              message: 'Missing required fenced `kgc` block (exactly one) in the response.',
+              invalidMarkdown: assistantText,
+            })
+            continue
+          }
+          finalStatus = 'error'
+          setErrorText('@flag:validation-failed')
+          const knowgrphPath = liveKgcPath ? normalizeWorkspacePath(liveKgcPath) : ''
+          const label = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : 'kgc.md'
+          finalOverride = knowgrphPath
+            ? ['- @flag:validation-failed', `- [${label}](${knowgrphPath})`].join('\n')
+            : '- @flag:validation-failed'
+          break
+        }
+        if (!isKgcStructuredMarkdown(kgc)) {
+          if (attempt < MAX_VALIDATION_ATTEMPTS) {
+            correctionPrompt = buildCorrectionPrompt({
+              ruleId: 'V-03',
+              message: 'The `kgc` block is not a standalone parseable chatKnowgrph document (section order / flow schema invalid).',
+              invalidMarkdown: kgc,
+            })
+            continue
+          }
+          finalStatus = 'error'
+          setErrorText('@flag:validation-failed')
+          const knowgrphPath = liveKgcPath ? normalizeWorkspacePath(liveKgcPath) : ''
+          const label = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : 'kgc.md'
+          finalOverride = knowgrphPath
+            ? ['- @flag:validation-failed', `- [${label}](${knowgrphPath})`].join('\n')
+            : '- @flag:validation-failed'
+          break
+        }
+
+        const resolvableVarKeys = buildResolvableVarKeySet({ frontmatter: packedContext.frontmatter, markdown: kgc })
+        const validation = validateChatMarkdown({ markdown: kgc, resolvableVarKeys })
+        if (validation.ok) break
+
+        const first = validation.errors[0]
+        const nextRule = first?.ruleId || 'V-03'
+        const nextMsg = first?.message || 'Validation failed.'
+
+        if (attempt < MAX_VALIDATION_ATTEMPTS) {
+          correctionPrompt = buildCorrectionPrompt({
+            ruleId: nextRule,
+            message: nextMsg,
+            invalidMarkdown: kgc,
+          })
+          continue
+        }
+
+        finalStatus = 'error'
+        setErrorText('@flag:validation-failed')
+        const knowgrphPath = liveKgcPath ? normalizeWorkspacePath(liveKgcPath) : ''
+        const label = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : 'kgc.md'
+        finalOverride = knowgrphPath
+          ? ['- @flag:validation-failed', `- [${label}](${knowgrphPath})`].join('\n')
+          : '- @flag:validation-failed'
+        break
       }
+
+      const nowMs = Date.now()
+      await finalizeAssistantSuccess({
+        assistantMessageId,
+        requestText: trimmed,
+        modelId: effectiveModel,
+        rawAssistantText: finalAssistantText,
+        timestampMs: nowMs,
+        traceId,
+        knownKnowgrphPath: liveKgcPath,
+        status: finalStatus,
+        finalAssistantOverride: finalOverride,
+      })
+
+      setStreamingWorkspacePath(null)
+      streamFollowRef.current = null
+      streamDraftTextRef.current = null
 
       setConnectivity('ok')
       setConnectivityDetail(null)
@@ -902,6 +1113,9 @@ export default function SidePanelChat() {
         currentNode={currentNode}
         providerSummary={chatProviderSummary}
         providerHint={chatProviderHint}
+        modelId={chatModelSelect.modelId}
+        modelOptions={chatModelSelect.options}
+        onModelChanged={setChatModel}
           writingWorkspaceFileLabel={
             isLoading && chatStorageTarget === 'chatKnowgrph' && streamingWorkspacePath
               ? `Writing to ${(streamingWorkspacePath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md')}...`
@@ -912,6 +1126,9 @@ export default function SidePanelChat() {
         isSubmitDisabled={!input.trim() || isLoading || !chatModel}
         onSubmit={handleSubmit}
         onStop={handleStop}
+        showNewChatButton={chatStorageTarget === 'chatKnowgrph'}
+        isNewChatDisabled={isLoading}
+        onNewChat={handleNewChat}
       />
     </div>
   )
