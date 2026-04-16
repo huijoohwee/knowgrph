@@ -208,6 +208,10 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
           }),
         }
         const tokenLimit = clampChatCompletionTokens(args.chatMaxCompletionTokens)
+        const effectiveTokenLimit =
+          args.chatStorageTarget === 'chatKnowgrph'
+            ? Math.max(4000, tokenLimit)
+            : tokenLimit
         return await fetch(requestUrl, {
           method: 'POST',
           headers,
@@ -216,8 +220,8 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
             messages,
             temperature: clampTemperature(args.chatTemperature),
             ...(tokenLimitKey === 'max_completion_tokens'
-              ? { max_completion_tokens: tokenLimit }
-              : { max_tokens: tokenLimit }),
+              ? { max_completion_tokens: effectiveTokenLimit }
+              : { max_tokens: effectiveTokenLimit }),
             stream: true,
           }),
           signal: controller.signal,

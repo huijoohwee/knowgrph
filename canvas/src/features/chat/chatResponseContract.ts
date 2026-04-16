@@ -41,6 +41,8 @@ export const CHAT_KGC_RESPONSE_CONTRACT_PROMPT = [
   '- The markdown body must contain the actual answer content; do not use a body shell that only prints `{{solution_md}}`.',
   '- Use guideline-safe placeholders like `TBD` or `—` instead of empty values.',
   '- `subject`, `action`, `goal`, and `solution` must be concrete text values; do not use `{{}}` placeholders in these frontmatter scalar fields.',
+  '- Keep `## Solution` complete and non-truncated; close delimiters such as `)`, `]`, and `}` before ending output.',
+  '- For PRD/TAD-shaped answers, mirror major body sections as actionable flow entities so `nodes`/`edges` stay aligned with section structure.',
   '- Variable references must follow guideline syntax: `{{key}}`, optional `{{key:value}}`, optional `{{key|fallback}}`.',
   '- Annotation sigils, when used, must follow guideline-safe forms only: `` `#HEX:text` ``, `` `bg#HEX:text` ``, or `` `#HEX|bg#HEX:text` `` (6-digit HEX).',
   '- For PRD/TAD-style requests, align sectioning with the canonical KGC template (`kgc-ai-pipeline-prd-tad.md`): include explicit Problem/Solution flow and User Flow + Work Flow + Data Flow coverage.',

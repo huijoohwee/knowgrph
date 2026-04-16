@@ -117,6 +117,9 @@ const normalizeRecoveredAssistantBody = (raw: string): string => {
     .replace(/^##\s+Intent\s*[\s\S]*?(?=\n##\s+Request\b|\n##\s+Solution\b|$)/i, '')
     .replace(/^##\s+Request\s*[\s\S]*?(?=\n##\s+Solution\b|$)/i, '')
     .replace(/^##\s+Solution\s*\n+/i, '')
+  if (/^##\s+Request\b/i.test(text) && /\n##\s+Solution\b/i.test(text)) {
+    text = text.replace(/^##\s+Request\s*[\s\S]*?\n##\s+Solution\s*/i, '')
+  }
   return normalizeBlankLines(text)
 }
 
@@ -313,6 +316,50 @@ const toKgcNodeId = (value: string, fallback: string): string => {
   return sliced ? `n-${sliced}` : fallback
 }
 
+type KgcDerivedSectionNode = {
+  id: string
+  title: string
+}
+
+const extractSolutionSectionTitles = (raw: string, maxSections = 8): string[] => {
+  const lines = String(raw || '').replace(/\r\n/g, '\n').split('\n')
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const line of lines) {
+    const m = /^\s*#{2,3}\s+(.+?)\s*$/.exec(line)
+    if (!m) continue
+    const title = normalizeInlineValue(stripTemplateRefsFromInline(String(m[1] || '')), '', 96)
+    if (!title) continue
+    const lower = title.toLowerCase()
+    if (lower === 'request' || lower === 'solution' || lower === 'intent') continue
+    if (seen.has(lower)) continue
+    seen.add(lower)
+    out.push(title)
+    if (out.length >= maxSections) break
+  }
+  return out
+}
+
+const buildDerivedSectionNodes = (raw: string, usedNodeIds: Set<string>): KgcDerivedSectionNode[] => {
+  const titles = extractSolutionSectionTitles(raw)
+  const nodes: KgcDerivedSectionNode[] = []
+  for (let i = 0; i < titles.length; i += 1) {
+    const title = titles[i]
+    let id = toKgcNodeId(title, `n-part-${i + 1}`)
+    if (usedNodeIds.has(id)) {
+      id = `${id.slice(0, 20)}-${i + 1}`
+    }
+    let n = 1
+    while (usedNodeIds.has(id)) {
+      n += 1
+      id = `${id.slice(0, 20)}-${n}`
+    }
+    usedNodeIds.add(id)
+    nodes.push({ id, title })
+  }
+  return nodes
+}
+
 export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
   const compactId = formatCompactTimestamp(args.timestampMs)
   const created = formatIsoDateOnly(args.timestampMs)
@@ -326,7 +373,37 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
   const solution = normalizeInlineValue(summarizeAssistantBodyForSolutionScalar(assistantMd), 'assistant response')
   const requestNodeId = toKgcNodeId(subject, 'n-user-request')
   const responseNodeId = toKgcNodeId(solution, 'n-ai-response')
+  const usedNodeIds = new Set<string>([requestNodeId, responseNodeId])
+  const sectionNodes = buildDerivedSectionNodes(assistantMd, usedNodeIds)
   const requestMd = String(args.requestText || '').replace(/\r\n/g, '\n').trim() || 'TBD'
+  const sectionFrontmatterNodeLines = sectionNodes.map(
+    section => `  - @node:${section.id}: { label: ${yamlString(section.title)}, type: default }`
+  )
+  const sectionFrontmatterEdgeLines = sectionNodes.map(
+    section => `  - @edge:${responseNodeId}:detail → ${section.id}:detail`
+  )
+  const sectionFlowNodeLines = sectionNodes.flatMap((section, index) => {
+    const y = 180 + index * 120
+    return [
+      '',
+      `    - id:    ${section.id}`,
+      '      type:  default',
+      `      label: ${yamlString(section.title)}`,
+      `      position: { x: 680, y: ${y} }`,
+      '      handles:',
+      '        target: [detail]',
+      '      data:',
+      '        role: "assistant-section"',
+      `        section: ${yamlString(section.title)}`,
+      '      annotation: "`bg#E6F1FB:section`"',
+    ]
+  })
+  const sectionFlowEdgeLines = sectionNodes.flatMap(section => ([
+    '',
+    `    - source: ${responseNodeId}.detail`,
+    `      target: ${section.id}.detail`,
+    '      label: "expands"',
+  ]))
   return [
     '---',
     '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
@@ -347,10 +424,12 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
     'nodes:',
     `  - @node:${requestNodeId}:  { label: "{{subject}}",  type: input   }`,
     `  - @node:${responseNodeId}: { label: "{{solution}}", type: output  }`,
+    ...sectionFrontmatterNodeLines,
     '',
     '# ── EDGES ────────────────────────────────────────────────────────────────────',
     'edges:',
     `  - @edge:${requestNodeId}:turn → ${responseNodeId}:turn`,
+    ...sectionFrontmatterEdgeLines,
     '',
     '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
     'flow:',
@@ -378,15 +457,18 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
     '      position: { x: 360, y: 60 }',
     '      handles:',
     '        target: [turn]',
+    '        source: [detail]',
     '      data:',
     '        role: "assistant"',
     '        text: "{{solution}}"',
     '      annotation: "`bg#EAF3DE:output`"',
+    ...sectionFlowNodeLines,
     '',
     '  edges:',
     `    - source: ${requestNodeId}.turn`,
     `      target: ${responseNodeId}.turn`,
     '      label: "responds"',
+    ...sectionFlowEdgeLines,
     '',
     '---',
     '',

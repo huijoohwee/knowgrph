@@ -223,6 +223,25 @@ const estimateRequestComplexityScore = (raw: string): number => {
   return score
 }
 
+const hasUnbalancedDelimiters = (raw: string): boolean => {
+  const text = String(raw || '')
+  const stack: string[] = []
+  const openToClose: Record<string, string> = { '(': ')', '[': ']', '{': '}' }
+  const closeToOpen: Record<string, string> = { ')': '(', ']': '[', '}': '{' }
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]
+    if (openToClose[ch]) {
+      stack.push(ch)
+      continue
+    }
+    if (!closeToOpen[ch]) continue
+    const last = stack[stack.length - 1]
+    if (!last || closeToOpen[ch] !== last) return true
+    stack.pop()
+  }
+  return stack.length > 0
+}
+
 const validateNoNestedCodeFences = (md: string): ChatMarkdownValidationError | null => {
   const text = String(md || '').replace(/\r\n/g, '\n')
   if (/```+/.test(text)) {
@@ -315,6 +334,12 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
     return {
       ruleId: 'V-03',
       message: 'Solution content must contain the full useful answer, not a placeholder or streaming marker.',
+    }
+  }
+  if (hasUnbalancedDelimiters(effectiveSolution)) {
+    return {
+      ruleId: 'V-03',
+      message: 'Solution content appears truncated or structurally incomplete (unbalanced delimiters). Regenerate a complete response.',
     }
   }
 
