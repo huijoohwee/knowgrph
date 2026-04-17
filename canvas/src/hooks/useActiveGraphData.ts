@@ -892,35 +892,9 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
         return lastKeywordRef.current.graph
       }
     }
-    const placeholderMediaNodes = (() => {
-      const nodes = Array.isArray(baseGraphData.nodes) ? baseGraphData.nodes : []
-      const out: typeof nodes = []
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        if (!n) continue
-        if (!hasNodeMedia(n) && pickKeywordTextFromNode(n as unknown as { id?: unknown; label?: unknown; type?: unknown; properties?: unknown }).length === 0) continue
-        out.push(n)
-        if (out.length >= 40) break
-      }
-      return out
-    })()
-    const { baselineGraphMetaKey, baselineDatasetKey, baselineSourceLayerHash } = computeBaselineIdentityKeys(baseGraphData)
-    return {
-      type: 'Graph',
-      context: '',
-      metadata: {
-        derived: true,
-        kind: 'keyword',
-        source: inputs.docId,
-        sourceLayerHash: inputs.sourceTextHash,
-        pending: true,
-        baselineGraphMetaKey,
-        ...(baselineDatasetKey ? { baselineDatasetKey } : {}),
-        ...(baselineSourceLayerHash ? { baselineSourceLayerHash } : {}),
-      } as unknown as GraphData['metadata'],
-      nodes: placeholderMediaNodes,
-      edges: [],
-    } as GraphData
+    // Avoid rendering synthetic pending placeholder graphs while keyword derivation is in-flight.
+    // Keep the canonical baseline graph visible until a real keyword graph is derived.
+    return baseGraphData
   }, [asyncBump, baseGraphData, hasStructuredWorkspaceGraph, keywordDeriveInputs, mode])
 
   const baseGraphDataRef = React.useRef<GraphData | null>(null)

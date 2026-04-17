@@ -1,5 +1,4 @@
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
-import { hashText } from '@/features/parsers/hash'
 import { FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import {
@@ -7,6 +6,7 @@ import {
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
 } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import type { RegistryEntry, RegistryPort } from '@/features/parsers/markdownFrontmatterFlowGraph.connections'
+import { hashText } from '@/features/parsers/hash'
 import { normalizeSigilId } from '@/features/parsers/markdownFrontmatterFlowGraph.sigil'
 
 const FRONTMATTER_REGISTRY_UPDATED_AT = '1970-01-01T00:00:00.000Z'
@@ -139,66 +139,12 @@ function categoryLayerIndex(category: string): number | null {
   return null
 }
 
-function tierForCategory(category: string): number | null {
-  const key = String(category || '').trim().toLowerCase()
-  if (!key) return null
-  if (key === 'source') return 0
-  if (key === 'timing') return 1
-  if (key === 'audio' || key === 'visual') return 1
-  if (key === 'overlay') return 2
-  if (key === 'assembly' || key === 'publish') return 3
-  if (key === 'output') return 4
-  return null
-}
-
-function buildDefaultSubgraphsFromNodes(rawNodes: ReadonlyArray<unknown>): Array<{ id: string; label: string; memberNodeIds: string[]; parentId?: string | null }> {
-  const byCategory = new Map<string, string[]>()
-  const byTier = new Map<number, string[]>()
-  for (let i = 0; i < rawNodes.length; i += 1) {
-    const row = rawNodes[i]
-    if (!isRecord(row)) continue
-    const id = asString(row.id)
-    if (!id) continue
-    const category = asString(row.category)
-    if (category) {
-      const list = byCategory.get(category) || []
-      list.push(id)
-      byCategory.set(category, list)
-    }
-    const tier = tierForCategory(category)
-    if (tier != null) {
-      const list = byTier.get(tier) || []
-      list.push(id)
-      byTier.set(tier, list)
-    }
-  }
-  const normalize = (ids: string[]): string[] => Array.from(new Set(ids)).filter(Boolean).sort((a, b) => a.localeCompare(b))
-  const out: Array<{ id: string; label: string; memberNodeIds: string[]; parentId?: string | null }> = []
-  const tierIds = Array.from(byTier.keys()).sort((a, b) => a - b)
-  for (let i = 0; i < tierIds.length; i += 1) {
-    const t = tierIds[i]
-    const ids = normalize(byTier.get(t) || [])
-    if (ids.length === 0) continue
-    out.push({ id: `tier-${t}`, label: `Tier ${t}`, memberNodeIds: ids, parentId: null })
-  }
-  const categoryKeys = Array.from(byCategory.keys()).sort((a, b) => a.localeCompare(b))
-  for (let i = 0; i < categoryKeys.length; i += 1) {
-    const cat = categoryKeys[i]
-    const ids = normalize(byCategory.get(cat) || [])
-    if (ids.length === 0) continue
-    const parentTier = tierForCategory(cat)
-    const parentId = parentTier != null ? `tier-${parentTier}` : null
-    out.push({ id: `cat-${cleanIdPart(cat) || hashText(cat)}`, label: cat, memberNodeIds: ids, parentId })
-  }
-  return out
-}
-
 export function normalizeSubgraphsFromFrontmatter(args: {
   meta: Record<string, unknown>
   rawNodes: ReadonlyArray<unknown>
 }): Array<{ id: string; label: string; memberNodeIds: string[]; parentId?: string | null; kind?: 'subgraph' | 'cluster' }> | null {
   const raw = args.meta[KG_SUBGRAPHS_KEY]
-  if (!Array.isArray(raw)) return buildDefaultSubgraphsFromNodes(args.rawNodes)
+  if (!Array.isArray(raw)) return null
   const nodeIdSet = new Set<string>()
   for (let i = 0; i < args.rawNodes.length; i += 1) {
     const row = args.rawNodes[i]
@@ -251,8 +197,11 @@ function normalizeRegistryPorts(args: { inputs: unknown; outputs: unknown }): Re
     if (seen.has(k)) return
     seen.add(k)
     const schemaPathRaw = asString(raw.schemaPath)
-    const schemaPath = schemaPathRaw || `properties.data.${portKey}`
-    ports.push({ portKey, direction: dir, schemaPath })
+    ports.push({
+      portKey,
+      direction: dir,
+      ...(schemaPathRaw ? { schemaPath: schemaPathRaw } : {}),
+    })
   }
   const inputs = Array.isArray(args.inputs) ? args.inputs : []
   const outputs = Array.isArray(args.outputs) ? args.outputs : []

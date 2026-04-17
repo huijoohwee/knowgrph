@@ -3,15 +3,18 @@ import React from 'react'
 import { UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 
 export type NodeOverlayEditorKvRow = {
   rowKey: string
   labelId: string
   inPortNode?: React.ReactNode
+  showInPortDot?: boolean
   keyNode: React.ReactNode
   typeNode: React.ReactNode
   valueNode: React.ReactNode
   outPortNode?: React.ReactNode
+  showOutPortDot?: boolean
 }
 
 export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvTable(props: {
@@ -41,7 +44,7 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
         >
           <span
             aria-hidden={true}
-            className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, UI_THEME_TOKENS.panel.border)}
+            className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, PORT_HANDLE_STROKE_CLASS)}
             style={{ width: `${safeDotSize}px`, height: `${safeDotSize}px`, transform: 'translate(-50%, -50%)' }}
           />
         </button>
@@ -89,7 +92,7 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
               className={cn('border-t', UI_THEME_TOKENS.table.cellBorder, UI_THEME_TOKENS.table.rowHover)}
             >
               <td className={cn('py-2 align-middle', UI_THEME_TOKENS.text.secondary)}>
-                {row.inPortNode ?? (forcePortDots ? dot('Input port') : null)}
+                {row.inPortNode ?? (forcePortDots && row.showInPortDot !== false ? dot('Input port') : null)}
               </td>
               <td id={row.labelId} className={cn('px-3 py-2 align-top', UI_THEME_TOKENS.text.primary)}>
                 {row.keyNode}
@@ -99,7 +102,7 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
                 <section className="w-full">{row.valueNode}</section>
               </td>
               <td className={cn('py-2 align-middle', UI_THEME_TOKENS.text.secondary)}>
-                {row.outPortNode ?? (forcePortDots ? dot('Output port') : null)}
+                {row.outPortNode ?? (forcePortDots && row.showOutPortDot !== false ? dot('Output port') : null)}
               </td>
             </tr>
           ))}

@@ -14,6 +14,15 @@ export function testFlowEditorFrontmatterUsesFlowFilterForQuickEditorOverlays() 
   if (!text.includes("if (kind === 'frontmatter-flow' && nodes.length > 0)")) {
     throw new Error('expected frontmatter-flow quick-editor derivation to always include all flow nodes')
   }
+  if (!text.includes('FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY')) {
+    throw new Error('expected frontmatter-flow quick-editor derivation to read flow quick-editor registry metadata key')
+  }
+  if (!text.includes('const enforceAllowedIds = allowedFlowNodeIds.size > 0')) {
+    throw new Error('expected frontmatter-flow quick-editor derivation to enforce registry-scoped flow node ids when available')
+  }
+  if (!text.includes("if (enforceAllowedIds && !allowedFlowNodeIds.has(id)) continue")) {
+    throw new Error('expected frontmatter-flow quick-editor derivation to exclude non-flow ids from overlay editors')
+  }
   if (text.includes('MAX_AUTO') || text.includes('MAX_VIEW')) {
     throw new Error('expected frontmatter-flow quick-editor derivation to avoid capped auto-open/viewport limits')
   }
@@ -139,6 +148,164 @@ export function testFlowEditorQuickEditorFormEmitsInteractionFrameOnScrollAndWhe
   }
 }
 
+export function testFrontmatterFlowContractSuppressesPortDotsForComputeAndDataRows() {
+  const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
+
+  if (!text.includes("rowKey: 'flow-compute'")) {
+    throw new Error('expected flow contract compute row to exist')
+  }
+  if (!text.includes("rowKey: 'flow-data'")) {
+    throw new Error('expected flow contract data row to exist')
+  }
+  if (!text.includes('showInPortDot: false')) {
+    throw new Error('expected flow contract to suppress input port dots for non-handle compute/data rows')
+  }
+  if (!text.includes('showOutPortDot: false')) {
+    throw new Error('expected flow contract to suppress output port dots for non-handle compute/data rows')
+  }
+}
+
+export function testQuickEditorWheelCaptureDoesNotBlockInternalScroll() {
+  const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
+  const text = readFileSync(panelPath, 'utf8')
+  const wheelCaptureStart = text.indexOf('onWheelCapture={e => {')
+  if (wheelCaptureStart < 0) {
+    throw new Error('expected quick-editor panel wheel capture handler')
+  }
+  const wheelCaptureBlock = text.slice(wheelCaptureStart, Math.min(text.length, wheelCaptureStart + 420))
+  if (!wheelCaptureBlock.includes('window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))')) {
+    throw new Error('expected quick-editor panel wheel capture to keep interaction-frame sync')
+  }
+  if (wheelCaptureBlock.includes('e.stopPropagation()')) {
+    throw new Error('expected quick-editor panel wheel capture to avoid stopPropagation so internal panel scroll remains usable')
+  }
+}
+
+export function testQuickEditorPortHandleTooltipUsesDirectionalHandlePath() {
+  const portHandlesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPortHandles.tsx')
+  const text = readFileSync(portHandlesPath, 'utf8')
+  if (!text.includes('const handlePath = readFlowHandlePath(p.dir)')) {
+    throw new Error('expected directional handle path mapping for port handles to reuse shared helper')
+  }
+  if (!text.includes('formatFlowHandleKeyValue({ dir: p.dir, portKey })')) {
+    throw new Error('expected port-handle tooltip/aria to include directional key:value contract via shared helper')
+  }
+  if (!text.includes('data-kg-port-path={handlePath}')) {
+    throw new Error('expected rendered port-handle elements to expose directional handle path metadata')
+  }
+}
+
+export function testFrontmatterFlowContractFormatsHandlesAsKeyValuePathEntries() {
+  const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
+  if (!text.includes('formatFlowHandleValueList')) {
+    throw new Error('expected frontmatter flow contract to reuse shared handle value formatter')
+  }
+  if (!text.includes("value={formatFlowHandlePathValue(flowPortTypes.target)}")) {
+    throw new Error('expected handles.target row value to render port key list in value column')
+  }
+  if (!text.includes("value={formatFlowHandlePathValue(flowPortTypes.source)}")) {
+    throw new Error('expected handles.source row value to render port key list in value column')
+  }
+  if (!text.includes('{readFlowHandlePath(\'out\')}')) {
+    throw new Error('expected handles.source key column to reuse shared directional path helper')
+  }
+  if (!text.includes('readFlowHandleTypeLabel(\'out\')')) {
+    throw new Error('expected handles.source type column to render out direction label')
+  }
+}
+
+export function testQuickEditorRegistryPortsUseDirectionalHandlePathKeyValue() {
+  const registrySectionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorRegistrySection.tsx')
+  const text = readFileSync(registrySectionPath, 'utf8')
+  if (!text.includes('const handlePath = readFlowHandlePath(isIn ? \'in\' : \'out\')')) {
+    throw new Error('expected quick-editor registry port rows to derive directional handle path from shared helper')
+  }
+  if (!text.includes('const handlePathValue = formatFlowHandleKeyValue({ dir: isIn ? \'in\' : \'out\', portKey })')) {
+    throw new Error('expected quick-editor registry port rows to format key:value metadata via shared helper')
+  }
+  if (!text.includes('keyNode: <span className={cn(\'min-w-0 truncate\', UI_THEME_TOKENS.text.primary)}>{handlePath}</span>')) {
+    throw new Error('expected quick-editor registry port key column to keep handles.source/handles.target path')
+  }
+  if (!text.includes('typeNode: <NodeOverlayEditorTypePill text={handleType} />')) {
+    throw new Error('expected quick-editor registry port type column to render in/out direction')
+  }
+  if (!text.includes('valueNode: <span className={cn(\'min-w-0 truncate\', UI_THEME_TOKENS.text.primary)}>{portKey}</span>')) {
+    throw new Error('expected quick-editor registry port value column to render standalone port key')
+  }
+}
+
+export function testFrontmatterFlowContractPrefersRegistryHandlesWhenPortTypesAreUntyped() {
+  const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
+  if (!text.includes('const flowRegistryHandles = React.useMemo(() => {')) {
+    throw new Error('expected quick-editor flow contract to derive handles from registry ports')
+  }
+  if (!text.includes('const target = connectedFlowHandles.target.length > 0')) {
+    throw new Error('expected target handle rows to prefer connected edge handles before registry/typed fallbacks')
+  }
+  if (!text.includes('const source = connectedFlowHandles.source.length > 0')) {
+    throw new Error('expected source handle rows to prefer connected edge handles before registry/typed fallbacks')
+  }
+  if (!text.includes('value={formatFlowHandlePathValue(flowHandleKeys.source)}')) {
+    throw new Error('expected handles.source value row to render unified flowHandleKeys source set')
+  }
+}
+
+export function testFrontmatterFlowContractMakesSourceEditableAndTargetReadOnly() {
+  const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
+  if (!text.includes("value={formatFlowHandlePathValue(flowHandleKeys.target)}")) {
+    throw new Error('expected handles.target flow contract row to exist')
+  }
+  if (!text.includes("value={formatFlowHandlePathValue(flowHandleKeys.source)}")) {
+    throw new Error('expected handles.source flow contract row to exist')
+  }
+  if (!text.includes('onChange={e => {') || !text.includes("onPatchProperties({ 'flow:portTypes': { in: inRec, out: nextOut } })")) {
+    throw new Error('expected handles.source flow contract row to be editable and persist updates through flow:portTypes out map')
+  }
+  if (!text.includes('showPortRows={!isFrontmatterFlow}')) {
+    throw new Error('expected frontmatter-flow mode to hide duplicate registry port rows')
+  }
+}
+
+export function testFrontmatterFlowContractKeepsTwoDotColumnsAlignedForHandleRows() {
+  const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
+  const targetStart = text.indexOf("rowKey: 'flow-handles-target'")
+  const sourceStart = text.indexOf("rowKey: 'flow-handles-source'")
+  if (targetStart < 0 || sourceStart < 0) {
+    throw new Error('expected frontmatter flow contract handle rows to be present')
+  }
+  const targetBlock = text.slice(targetStart, Math.min(text.length, sourceStart))
+  const sourceEnd = text.indexOf("...(hasFlowCompute ? [{", sourceStart)
+  const sourceBlock = text.slice(sourceStart, sourceEnd > sourceStart ? sourceEnd : Math.min(text.length, sourceStart + 1200))
+  if (!text.includes('inPortNode: renderFlowContractDot({') || !text.includes('outPortNode: renderFlowContractDot({')) {
+    throw new Error('expected flow contract handle rows to render explicit linked-state dot nodes')
+  }
+  if (targetBlock.includes('showOutPortDot: false') || sourceBlock.includes('showInPortDot: false')) {
+    throw new Error('expected flow contract handle rows to keep opposite-side fallback dots for consistent | dot | key | type | value | dot | alignment')
+  }
+}
+
+export function testFrontmatterFlowContractAvoidsSyntheticHandleAndDataFallbacks() {
+  const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
+  if (!text.includes('const hasFlowTargetHandles = flowPortTypes.target.length > 0')) {
+    throw new Error('expected frontmatter flow contract to gate handles.target row by actual declared handles')
+  }
+  if (!text.includes('const hasFlowSourceHandles = flowPortTypes.source.length > 0')) {
+    throw new Error('expected frontmatter flow contract to gate handles.source row by actual declared handles')
+  }
+  if (!text.includes("if (typeof raw === 'undefined') return ''")) {
+    throw new Error('expected frontmatter flow data renderer to avoid synthetic {} fallback when data key is absent')
+  }
+  if (!text.includes('onPatchProperties({ data: undefined })')) {
+    throw new Error('expected frontmatter flow data editor clear action to remove data key instead of writing synthetic {}')
+  }
+}
+
 export function testFlowEditorOverlayEdgesUseRendererEdgeTypeSsot() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
@@ -148,6 +315,32 @@ export function testFlowEditorOverlayEdgesUseRendererEdgeTypeSsot() {
   }
   if (text.includes('frontmatterFlowRenderSettings?.edgeType || readGlobalEdgeType(schema)')) {
     throw new Error('expected FlowEditor overlay edge rendering to avoid frontmatter edge-type override over renderer edge-type SSOT')
+  }
+}
+
+export function testFlowEditorDraftGraphHydrationIsNotClearedByFrontmatterRequirementGuard() {
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+
+  if (!text.includes('if (keywordModeActive) {')) {
+    throw new Error('expected FlowEditor draft graph hydration clear path to be limited to keyword mode only')
+  }
+  if (!text.includes('setDraftGraphData(prev => (prev === base ? prev : base))')) {
+    throw new Error('expected FlowEditor draft graph hydration to stay aligned with base graph for stable zoom/minimap state')
+  }
+  if (text.includes('if (!canEdit) {\n      setDraftGraphData(prev => (prev === null ? prev : null))')) {
+    throw new Error('expected FlowEditor draft graph hydration to avoid editability-driven clears that break zoom/minimap alignment')
+  }
+}
+
+export function testFlowEditorRenderGraphUsesBaseGraphWhenNotEditableForZoomMinimapAlignment() {
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  if (!text.includes('const graphDataForRender = canEdit ? draftGraphData : ((baseGraphData || null) as GraphData | null)')) {
+    throw new Error('expected FlowEditor render graph source to use base graph when not editable to keep zoom/minimap aligned with rendered graph elements')
+  }
+  if (!text.includes('graphData: graphDataForRender')) {
+    throw new Error('expected FlowEditor render graph derivation to use unified graphDataForRender source')
   }
 }
 

@@ -370,7 +370,19 @@ export function rawToGraphData(raw: unknown): GraphData {
     };
   }
 
-  return buildFallbackGraphFromAnyJson(raw);
+  // Do not synthesize inferred graph structures from arbitrary JSON.
+  // Render only explicit graph data when nodes/edges actually exist.
+  return {
+    context: 'raw-json',
+    type: 'Graph',
+    metadata: {
+      source: 'raw-json',
+      graphKind: 'graph',
+      empty: true,
+    },
+    nodes: [],
+    edges: [],
+  };
 }
 
 export function graphToRawJson(data: GraphData): Record<string, unknown> {

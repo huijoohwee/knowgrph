@@ -74,13 +74,10 @@ export function testWorkspaceSyncSubscriptionsUseSharedRuntimePersistenceKeys() 
   }
 }
 
-export function testFrontmatterFlowBuildsFallbackSubgraphMetadataWhenMissing() {
+export function testFrontmatterFlowDoesNotBuildSyntheticFallbackSubgraphMetadata() {
   const parserCorePath = resolve(process.cwd(), 'src', 'features', 'parsers', 'markdownFrontmatterFlowGraph.core.ts')
   const parserCoreText = readFileSync(parserCorePath, 'utf8')
-  if (!parserCoreText.includes("id: 'frontmatter:all'")) {
-    throw new Error('expected frontmatter flow parser to add fallback subgraph metadata when no explicit subgraphs are present')
-  }
-  if (!parserCoreText.includes('memberNodeIds')) {
-    throw new Error('expected fallback frontmatter subgraph metadata to include memberNodeIds')
+  if (parserCoreText.includes("id: 'frontmatter:all'")) {
+    throw new Error('expected frontmatter flow parser to avoid synthetic fallback subgraph metadata')
   }
 }

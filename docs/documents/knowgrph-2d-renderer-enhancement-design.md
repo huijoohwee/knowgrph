@@ -59,6 +59,7 @@
 - Initialization must be idempotent:
   - If a valid stored transform is applied, do not also auto-fit in the same init pass.
   - Bounds guard: do not apply stale transforms until graph bounds are computable.
+- Initialization group envelopes must derive from the same display-graph AABBs across D3, Bipartite, Flow, Design, and Flow Editor; Flow Editor extends these envelopes with zoom-aware pinned quick-editor overlay extents so panels remain contained inside cluster/subgraph/layer borders on first paint.
 
 ### 3) Layer Stack Ordering
 

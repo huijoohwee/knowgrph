@@ -137,6 +137,8 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     const st = useGraphStore.getState()
     const isFlowEditor = String(st.canvas2dRenderer || '') === 'flowEditor'
     if (!isFlowEditor && st.flowEditorOverlayWheelProxyEnabled === false) return
+    const ignoreWheelTarget = shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
+    if (ignoreWheelTarget) return
     const target = e.target
     const targetEl = target instanceof Element ? target : null
     const targetInCanvas = !!targetEl && (targetEl === canvasEl || canvasEl.contains(targetEl))

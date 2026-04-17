@@ -30,3 +30,22 @@ export function testKgcTurnGenerationIsParseableAndStable() {
     assert(!id.endsWith('-'), `expected flow node id to not end with '-', got: ${id}`)
   }
 }
+
+export function testKgcTurnGenerationMaterializesReusablePlaceholderKeys() {
+  const md = buildKgcStructuredTurn({
+    timestampMs: Date.UTC(2026, 3, 16, 18, 56, 20),
+    requestText: 'Draft a PRD/TAD aligned KGC response',
+    assistantText: [
+      '## Solution overview',
+      '- Build for {{product}} with owner {{owner|platform-ai}}.',
+      '- Keep status {{status:draft}} while validating.',
+    ].join('\n'),
+  })
+
+  assert(isKgcStructuredMarkdown(md), 'expected placeholder-rich KGC turn to remain structurally parseable')
+  assert(/\nproduct:\s+"/.test(md), 'expected {{product}} placeholder to materialize in frontmatter')
+  assert(/\nowner:\s+"/.test(md), 'expected {{owner}} placeholder to materialize in frontmatter')
+  assert(/\nstatus:\s+"/.test(md), 'expected {{status}} placeholder to materialize in frontmatter')
+  assert(md.includes('label: "{{product}}"'), 'expected placeholder node label to link {{product}}')
+  assert(md.includes('parameterizes'), 'expected placeholder linkage edges to include parameterizes label')
+}

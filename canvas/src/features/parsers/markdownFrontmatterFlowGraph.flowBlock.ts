@@ -12,6 +12,16 @@ function asString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
 }
 
+function isChatKnowgrphFlowContractRelaxed(meta: Record<string, unknown>): boolean {
+  if (meta['frontmatter:chatKnowgrphRelaxed'] === true) return true
+  const topType = asString(meta.type).toLowerCase()
+  if (topType === 'chatknowgrph') return true
+  const doc = meta.doc
+  if (!isRecord(doc)) return false
+  const docType = asString(doc.type).toLowerCase()
+  return docType === 'chatknowgrph'
+}
+
 function asFiniteNumber(v: unknown): number | null {
   if (typeof v === 'number' && Number.isFinite(v)) return v
   if (typeof v === 'string') {
@@ -266,6 +276,7 @@ function sanitizeFlowNodeContract(args: {
   outputs: Array<Record<string, unknown>>
   compute: string
   warnings: string[]
+  allowMixedHandles: boolean
 }): {
   inputs: Array<Record<string, unknown>>
   outputs: Array<Record<string, unknown>>
@@ -275,11 +286,11 @@ function sanitizeFlowNodeContract(args: {
   let inputs = args.inputs
   let outputs = args.outputs
   let compute = args.compute
-  if (type === 'input' && inputs.length > 0) {
+  if (!args.allowMixedHandles && type === 'input' && inputs.length > 0) {
     warnings.push(`Flow node contract violation: input node ${id} cannot declare target handles`)
     inputs = []
   }
-  if (type === 'output' && outputs.length > 0) {
+  if (!args.allowMixedHandles && type === 'output' && outputs.length > 0) {
     warnings.push(`Flow node contract violation: output node ${id} cannot declare source handles`)
     outputs = []
   }
@@ -345,6 +356,26 @@ function normalizeFlowDataValue(value: unknown): { value: unknown; hasPending: b
   return { value: out, hasPending }
 }
 
+function sanitizeChatKnowgrphNodeData(value: unknown): unknown {
+  if (!isRecord(value)) return value
+  const out: Record<string, unknown> = { ...(value as Record<string, unknown>) }
+  const reserved = [
+    'handles',
+    'inputs',
+    'outputs',
+    'connections',
+    'compute',
+    'source',
+    'target',
+    'sourceHandle',
+    'targetHandle',
+  ]
+  for (let i = 0; i < reserved.length; i += 1) {
+    delete out[reserved[i]!]
+  }
+  return out
+}
+
 function coerceFlowNodePorts(raw: unknown): Array<Record<string, unknown>> {
   const arr = Array.isArray(raw) ? raw : []
   const out: Array<Record<string, unknown>> = []
@@ -356,6 +387,59 @@ function coerceFlowNodePorts(raw: unknown): Array<Record<string, unknown>> {
     out.push({ port: key })
   }
   return out
+}
+
+function parseFlowEdgeEndpoint(rawNode: unknown, rawHandle: unknown): { nodeId: string; portKey: string } | null {
+  const nodeIdRaw = asString(rawNode)
+  const handleRaw = asString(rawHandle)
+  if (nodeIdRaw && handleRaw) return { nodeId: nodeIdRaw, portKey: handleRaw }
+  const dot = nodeIdRaw.lastIndexOf('.')
+  if (dot < 0) return null
+  const nodeId = nodeIdRaw.slice(0, dot).trim()
+  const portKey = nodeIdRaw.slice(dot + 1).trim()
+  if (!nodeId || !portKey) return null
+  return { nodeId, portKey }
+}
+
+function pruneFlowNodeHandlesByDeclaredConnections(args: {
+  nodes: Array<Record<string, unknown>>
+  connections: Array<Record<string, unknown>>
+  warnings: string[]
+}): void {
+  const usedInByNode = new Map<string, Set<string>>()
+  const usedOutByNode = new Map<string, Set<string>>()
+  const ensure = (m: Map<string, Set<string>>, id: string): Set<string> => {
+    const prev = m.get(id)
+    if (prev) return prev
+    const next = new Set<string>()
+    m.set(id, next)
+    return next
+  }
+  for (let i = 0; i < args.connections.length; i += 1) {
+    const row = args.connections[i]
+    const fromNode = asString(row.from_node)
+    const fromPort = asString(row.from_port)
+    const toNode = asString(row.to_node)
+    const toPort = asString(row.to_port)
+    if (fromNode && fromPort) ensure(usedOutByNode, fromNode).add(fromPort)
+    if (toNode && toPort) ensure(usedInByNode, toNode).add(toPort)
+  }
+  for (let i = 0; i < args.nodes.length; i += 1) {
+    const node = args.nodes[i]
+    const nodeId = asString(node.id)
+    if (!nodeId) continue
+    const oldInputs = Array.isArray(node.inputs) ? (node.inputs as Array<Record<string, unknown>>) : []
+    const oldOutputs = Array.isArray(node.outputs) ? (node.outputs as Array<Record<string, unknown>>) : []
+    const keepIn = usedInByNode.get(nodeId) || new Set<string>()
+    const keepOut = usedOutByNode.get(nodeId) || new Set<string>()
+    const nextInputs = oldInputs.filter(p => keepIn.has(asString((p || {}).port)))
+    const nextOutputs = oldOutputs.filter(p => keepOut.has(asString((p || {}).port)))
+    if (nextInputs.length !== oldInputs.length || nextOutputs.length !== oldOutputs.length) {
+      args.warnings.push(`Flow chatKnowgrph contract: pruned unreferenced handles for node ${nodeId}`)
+      node.inputs = nextInputs
+      node.outputs = nextOutputs
+    }
+  }
 }
 
 function buildFlowTemplateVars(
@@ -382,6 +466,7 @@ function buildFlowTemplateVars(
 export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Record<string, unknown> {
   const flow = isRecord(meta.flow) ? (meta.flow as Record<string, unknown>) : null
   if (!flow) return meta
+  const allowMixedHandles = isChatKnowgrphFlowContractRelaxed(meta)
   const vars = meta
   const pathCache = new Map<string, unknown>()
   const declarationCache = new Map<string, unknown>()
@@ -409,7 +494,11 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     const dataResolved = resolveTemplateValue(rawNode.data, vars, pathCache, declarationCache, resolvedStringCache)
     const dataNormalized = normalizeFlowDataValue(dataResolved)
     const computeRaw = asString(rawNode.compute)
-    const compute = computeRaw ? resolveTemplateString(computeRaw, vars, pathCache, declarationCache, resolvedStringCache) : ''
+    let compute = computeRaw ? resolveTemplateString(computeRaw, vars, pathCache, declarationCache, resolvedStringCache) : ''
+    if (allowMixedHandles && compute) {
+      flowWarnings.push(`Flow chatKnowgrph contract: compute removed for node ${id}`)
+      compute = ''
+    }
     const sanitized = sanitizeFlowNodeContract({
       id,
       type,
@@ -417,6 +506,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       outputs,
       compute,
       warnings: flowWarnings,
+      allowMixedHandles,
     })
     const next: Record<string, unknown> = {
       id,
@@ -425,7 +515,9 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       ...(x != null || y != null ? { pos: { ...(x != null ? { x } : {}), ...(y != null ? { y } : {}) } } : {}),
       inputs: sanitized.inputs,
       outputs: sanitized.outputs,
-      data: normalizeFlowNodeDataValue(dataNormalized.value),
+      data: normalizeFlowNodeDataValue(
+        allowMixedHandles ? sanitizeChatKnowgrphNodeData(dataNormalized.value) : dataNormalized.value,
+      ),
     }
     if (sanitized.compute) next.compute = sanitized.compute
     if (dataNormalized.hasPending) {
@@ -444,24 +536,29 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
   for (let i = 0; i < rawEdges.length; i += 1) {
     const row = rawEdges[i]
     if (!isRecord(row)) continue
-    const source = asString(row.source)
-    const sourceHandle = asString(row.sourceHandle)
-    const target = asString(row.target)
-    const targetHandle = asString(row.targetHandle)
-    if (!source || !target || !sourceHandle || !targetHandle) continue
+    const sourceEp = parseFlowEdgeEndpoint(row.source, row.sourceHandle)
+    const targetEp = parseFlowEdgeEndpoint(row.target, row.targetHandle)
+    if (!sourceEp || !targetEp) continue
     const labelRaw = asString(row.label)
     const label = labelRaw ? resolveTemplateString(labelRaw, flowVars, pathCache, declarationCache, resolvedStringCache) : ''
     const conn: Record<string, unknown> = {
       id: asString(row.id) || `flow-e${String(i + 1).padStart(2, '0')}`,
-      from_node: source,
-      from_port: sourceHandle,
-      to_node: target,
-      to_port: targetHandle,
+      from_node: sourceEp.nodeId,
+      from_port: sourceEp.portKey,
+      to_node: targetEp.nodeId,
+      to_port: targetEp.portKey,
       ...(label ? { label } : {}),
       ...(asBoolean(row.animated) === true ? { animated: true } : {}),
       ...(asString(row.type) ? { type: asString(row.type) } : {}),
     }
     normalizedConnections.push(conn)
+  }
+  if (allowMixedHandles) {
+    pruneFlowNodeHandlesByDeclaredConnections({
+      nodes: normalizedNodes,
+      connections: normalizedConnections,
+      warnings: flowWarnings,
+    })
   }
 
   for (let i = 0; i < normalizedNodes.length; i += 1) {
@@ -492,8 +589,8 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
 
   const next: Record<string, unknown> = {
     ...meta,
-    ...(normalizedNodes.length > 0 ? { nodes: normalizedNodes } : {}),
-    ...(normalizedConnections.length > 0 ? { connections: normalizedConnections } : {}),
+    nodes: normalizedNodes,
+    connections: normalizedConnections,
     [FRONTMATTER_FLOW_SETTINGS_KEY]: settings,
     ...(flowWarnings.length > 0 ? { [FRONTMATTER_FLOW_WARNINGS_KEY]: readFlowWarnings(flowWarnings) } : {}),
   }

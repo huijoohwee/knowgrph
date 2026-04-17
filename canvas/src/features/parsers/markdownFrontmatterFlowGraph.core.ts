@@ -38,6 +38,32 @@ function asString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
 }
 
+function isChatKnowgrphDoc(meta: Record<string, unknown>): boolean {
+  const topType = asString(meta.type).toLowerCase()
+  if (topType === 'chatknowgrph') return true
+  const doc = meta.doc
+  if (!isRecord(doc)) return false
+  const docType = asString(doc.type).toLowerCase()
+  return docType === 'chatknowgrph'
+}
+
+function isChatKnowgrphFrontmatterText(args: {
+  lines: string[]
+  frontmatterStartLine: number
+  frontmatterEndLineExclusive: number
+}): boolean {
+  const lines = Array.isArray(args.lines) ? args.lines : []
+  const start = Math.max(0, Math.floor(args.frontmatterStartLine))
+  const endExclusive = Math.min(lines.length, Math.max(start, Math.floor(args.frontmatterEndLineExclusive)))
+  if (endExclusive <= start) return false
+  for (let i = start; i < endExclusive; i += 1) {
+    const line = String(lines[i] || '').trim()
+    if (!line || line.startsWith('#')) continue
+    if (/^type\s*:\s*["']?chatknowgrph["']?\s*$/i.test(line)) return true
+  }
+  return false
+}
+
 function cleanIdPart(v: unknown): string {
   return String(typeof v === 'string' ? v : '').trim().replace(/[^a-zA-Z0-9_-]/g, '_')
 }
@@ -152,14 +178,26 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     frontmatterEndLineExclusive: Math.max(lead + 1, startIndex - 1),
   })
   const metaWithScalarFallback = { ...scalarFallback, ...metaWithFlowFallback }
+  const chatKnowgrphDoc =
+    isChatKnowgrphDoc(metaWithScalarFallback) ||
+    isChatKnowgrphFrontmatterText({
+      lines,
+      frontmatterStartLine: lead + 1,
+      frontmatterEndLineExclusive: Math.max(lead + 1, startIndex - 1),
+    })
+  const metaForNormalization = chatKnowgrphDoc
+    ? ({ ...metaWithScalarFallback, 'frontmatter:chatKnowgrphRelaxed': true } as Record<string, unknown>)
+    : metaWithScalarFallback
 
-  const metaRecord = normalizeMetaWithFlowBlock(metaWithScalarFallback as Record<string, unknown>)
-  const extracted = extractConnectionsAndSocketTypesFromMarkdownTables({
-    lines,
-    startIndex,
-    existingConnections: metaRecord.connections,
-    existingSocketTypes: metaRecord.socket_types,
-  })
+  const metaRecord = normalizeMetaWithFlowBlock(metaForNormalization as Record<string, unknown>)
+  const extracted = chatKnowgrphDoc
+    ? { connections: [], socketTypes: null as Record<string, unknown> | null }
+    : extractConnectionsAndSocketTypesFromMarkdownTables({
+        lines,
+        startIndex,
+        existingConnections: metaRecord.connections,
+        existingSocketTypes: metaRecord.socket_types,
+      })
   if ((!Array.isArray(metaRecord.connections) || metaRecord.connections.length === 0) && extracted.connections.length > 0) {
     metaRecord.connections = extracted.connections
   }
@@ -170,7 +208,9 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const normalized = normalizeNodes(metaRecord)
   if (!normalized) return null
 
-  const annotations = extractFrontmatterBodyAnnotations(lines, startIndex)
+  const annotations = chatKnowgrphDoc
+    ? { refs: [], nodeIds: [], edgeIds: [], clusterIds: [] }
+    : extractFrontmatterBodyAnnotations(lines, startIndex)
   const mermaidWiring = extractEdgesFromFrontmatterMermaidWiring({
     lines,
     frontmatterStartLine: lead,
@@ -194,10 +234,13 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const connParsed = parseConnections(metaRecord)
   ensureAugmentedPortsFromDeclaredConnections({ nodes: normalized.nodes, registry: normalized.registry, declared: connParsed.declared })
   const edgesFromConnections = connParsed.edges
-  const sigilEdges = normalizeEdgesFromSigilSpecs({
-    meta: metaRecord,
-    nodeIds: Array.from(knownNodeIds),
-  })
+  const hasFlowDerivedNodes = isRecord(metaRecord.flow)
+  const sigilEdges = chatKnowgrphDoc || hasFlowDerivedNodes
+    ? []
+    : normalizeEdgesFromSigilSpecs({
+        meta: metaRecord,
+        nodeIds: Array.from(knownNodeIds),
+      })
   const rawNodes = Array.isArray(metaRecord.nodes) ? (metaRecord.nodes as unknown[]) : []
   const nodeInputEdges = normalizeEdgesFromNodeInputs(rawNodes as Record<string, unknown>[])
   const baseEdges = edgesFromConnections.length > 0 ? edgesFromConnections : nodeInputEdges
@@ -206,24 +249,12 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     baseEdges,
     sigilEdges,
   })
-  const subgraphsBase = normalizeSubgraphsFromFrontmatter({ meta, rawNodes }) || []
+  const subgraphsBase = normalizeSubgraphsFromFrontmatter({ meta: metaRecord, rawNodes }) || []
   const mergedSubgraphs = mergeSubgraphs({
     baseSubgraphs: subgraphsBase,
     clusterSubgraphs: clusters.subgraphs,
   })
-  const subgraphs = (() => {
-    if (mergedSubgraphs.length > 0) return mergedSubgraphs
-    const memberNodeIds = normalized.nodes
-      .map(n => asString(n?.id))
-      .filter(Boolean)
-    if (memberNodeIds.length < 2) return mergedSubgraphs
-    return [{
-      id: 'frontmatter:all',
-      label: 'Frontmatter Graph',
-      memberNodeIds,
-      kind: 'subgraph' as const,
-    }]
-  })()
+  const subgraphs = mergedSubgraphs
 
   const frontmatterMeta = isRecord(metaRecord.meta) ? (metaRecord.meta as Record<string, unknown>) : null
   const stableId = asString(frontmatterMeta?.id) || cleanIdPart(name) || 'frontmatter'

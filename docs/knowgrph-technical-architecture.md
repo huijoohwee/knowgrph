@@ -46,10 +46,14 @@ This root document exists as the auto-generated settings registry table surface 
 | `spotlight.margin` | number | store |  |  |
 | `spotlight.nearTopThreshold` | number | store |  |  |
 | `chatProvider` | string | localStorage | `kg:chat:provider` | `ui.chat` |
+| `chatAuthMode` | string | localStorage | `kg:chat:authMode` | `ui.chat` |
 | `chatEndpointUrl` | string | localStorage | `kg:chat:endpointUrl` | `ui.chat` |
 | `chatApiKey` | string | store |  |  |
 | `chatModel` | string | localStorage | `kg:chat:model` | `ui.chat` |
 | `chatTemperature` | number | localStorage | `kg:chat:temperature` | `ui.chat` |
+| `chatMaxCompletionTokens` | number | localStorage | `kg:chat:maxCompletionTokens` | `ui.chat` |
+| `chatGraphSummaryMaxTokens` | number | localStorage | `kg:chat:context:graphSummaryMaxTokens` | `ui.chat` |
+| `chatGuidelineDigestMaxTokens` | number | localStorage | `kg:chat:context:guidelineDigestMaxTokens` | `ui.chat` |
 | `chatSystemPrompt` | string | localStorage | `kg:chat:systemPrompt` | `ui.chat` |
 | `chatStorageTarget` | string | localStorage | `kg:chat:storage:target` | `ui.chat` |
 | `chatLocalStorageRootPath` | string | localStorage | `kg:chat:storage:localRootPath` | `ui.chat` |

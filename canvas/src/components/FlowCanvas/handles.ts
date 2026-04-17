@@ -114,19 +114,16 @@ export function computeFlowHandlesByNode(args: {
         const raw = (props as Record<string, unknown>)[FLOW_EDGE_SOURCE_PORT_KEY]
         if (typeof raw === 'string' && raw.trim()) return raw.trim()
       }
-      const first = schemaFieldsByNodeId.get(source)?.[0] || null
-      if (first) return buildSchemaFieldPortKey(first)
-      return edgeId
+      return ''
     })()
     const targetPortKey = (() => {
       if (props && typeof props === 'object' && !Array.isArray(props)) {
         const raw = (props as Record<string, unknown>)[FLOW_EDGE_TARGET_PORT_KEY]
         if (typeof raw === 'string' && raw.trim()) return raw.trim()
       }
-      const first = schemaFieldsByNodeId.get(target)?.[0] || null
-      if (first) return buildSchemaFieldPortKey(first)
-      return edgeId
+      return ''
     })()
+    if (!sourcePortKey || !targetPortKey) continue
 
     if (nodeIdSet.has(target)) {
       const list = incomingByNode.get(target) || []

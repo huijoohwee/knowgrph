@@ -321,6 +321,69 @@ type KgcDerivedSectionNode = {
   title: string
 }
 
+type KgcDerivedPlaceholder = {
+  key: string
+  value: string
+}
+
+const KGC_KNOWN_PLACEHOLDER_DEFAULTS: Record<string, string> = {
+  product: 'Knowledge Graph Canvas',
+  doc_type: 'PRD + TAD',
+  owner: 'platform-ai',
+  version: '0.1.0',
+  status: 'draft',
+  ai_model: 'claude-sonnet-4-20250514',
+  pipeline: 'canvas -> chat context -> user intent -> ai markdown -> validation -> render/save',
+}
+
+const parsePlaceholderRef = (rawInner: string): { key: string; valueHint: string } | null => {
+  const inner = String(rawInner || '').trim()
+  if (!inner) return null
+  const idxColon = inner.indexOf(':')
+  const idxPipe = inner.indexOf('|')
+  if (idxColon >= 0 && (idxPipe < 0 || idxColon < idxPipe)) {
+    const key = inner.slice(0, idxColon).trim()
+    const valueHint = inner.slice(idxColon + 1).trim()
+    if (!key) return null
+    return { key, valueHint }
+  }
+  if (idxPipe >= 0) {
+    const key = inner.slice(0, idxPipe).trim()
+    const valueHint = inner.slice(idxPipe + 1).trim()
+    if (!key) return null
+    return { key, valueHint }
+  }
+  return { key: inner, valueHint: '' }
+}
+
+const buildDerivedPlaceholders = (args: {
+  requestMd: string
+  assistantMd: string
+  reservedKeys: Set<string>
+}): KgcDerivedPlaceholder[] => {
+  const text = [String(args.requestMd || ''), String(args.assistantMd || '')].join('\n')
+  const matches = Array.from(text.matchAll(/\{\{([^}]+)\}\}/g))
+  const out: KgcDerivedPlaceholder[] = []
+  const seen = new Set<string>()
+  for (const match of matches) {
+    const parsed = parsePlaceholderRef(String(match[1] || ''))
+    if (!parsed) continue
+    const key = parsed.key
+    if (!/^[A-Za-z_][A-Za-z0-9_-]{0,48}$/.test(key)) continue
+    if (args.reservedKeys.has(key)) continue
+    if (seen.has(key)) continue
+    seen.add(key)
+    const hinted = normalizeInlineValue(
+      stripTemplateRefsFromInline(parsed.valueHint),
+      KGC_KNOWN_PLACEHOLDER_DEFAULTS[key] || 'TBD',
+      160
+    )
+    out.push({ key, value: hinted })
+    if (out.length >= 10) break
+  }
+  return out
+}
+
 const extractSolutionSectionTitles = (raw: string, maxSections = 8): string[] => {
   const lines = String(raw || '').replace(/\r\n/g, '\n').split('\n')
   const out: string[] = []
@@ -374,13 +437,38 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
   const requestNodeId = toKgcNodeId(subject, 'n-user-request')
   const responseNodeId = toKgcNodeId(solution, 'n-ai-response')
   const usedNodeIds = new Set<string>([requestNodeId, responseNodeId])
-  const sectionNodes = buildDerivedSectionNodes(assistantMd, usedNodeIds)
   const requestMd = String(args.requestText || '').replace(/\r\n/g, '\n').trim() || 'TBD'
+  const derivedPlaceholders = buildDerivedPlaceholders({
+    requestMd,
+    assistantMd,
+    reservedKeys: new Set(['subject', 'action', 'goal', 'solution']),
+  })
+  const sectionNodes = buildDerivedSectionNodes(assistantMd, usedNodeIds)
+  const placeholderNodes = derivedPlaceholders.map((item, index) => {
+    let id = toKgcNodeId(item.key, `n-var-${index + 1}`)
+    if (usedNodeIds.has(id)) id = `${id.slice(0, 20)}-${index + 1}`
+    let n = 1
+    while (usedNodeIds.has(id)) {
+      n += 1
+      id = `${id.slice(0, 20)}-${n}`
+    }
+    usedNodeIds.add(id)
+    return { id, key: item.key }
+  })
+  const placeholderFrontmatterLines = derivedPlaceholders.map(
+    item => `${item.key}: ${yamlString(item.value)}`
+  )
   const sectionFrontmatterNodeLines = sectionNodes.map(
     section => `  - @node:${section.id}: { label: ${yamlString(section.title)}, type: default }`
   )
+  const placeholderFrontmatterNodeLines = placeholderNodes.map(
+    item => `  - @node:${item.id}: { label: "{{${item.key}}}", type: variable }`
+  )
   const sectionFrontmatterEdgeLines = sectionNodes.map(
     section => `  - @edge:${responseNodeId}:detail → ${section.id}:detail`
+  )
+  const placeholderFrontmatterEdgeLines = placeholderNodes.map(
+    item => `  - @edge:${responseNodeId}:param → ${item.id}:param`
   )
   const sectionFlowNodeLines = sectionNodes.flatMap((section, index) => {
     const y = 180 + index * 120
@@ -404,6 +492,29 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
     `      target: ${section.id}.detail`,
     '      label: "expands"',
   ]))
+  const placeholderFlowNodeLines = placeholderNodes.flatMap((item, index) => {
+    const y = 180 + index * 90
+    return [
+      '',
+      `    - id:    ${item.id}`,
+      '      type:  default',
+      `      label: "{{${item.key}}}"`,
+      `      position: { x: 980, y: ${y} }`,
+      '      handles:',
+      '        target: [param]',
+      '      data:',
+      '        role: "placeholder"',
+      `        key: ${yamlString(item.key)}`,
+      `        value: "{{${item.key}}}"`,
+      '      annotation: "`bg#F1EFE8:var`"',
+    ]
+  })
+  const placeholderFlowEdgeLines = placeholderNodes.flatMap(item => ([
+    '',
+    `    - source: ${responseNodeId}.param`,
+    `      target: ${item.id}.param`,
+    '      label: "parameterizes"',
+  ]))
   return [
     '---',
     '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
@@ -419,17 +530,20 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
     `action:   ${yamlString('respond to the active request')}`,
     `goal:     ${yamlString('persist one ingestible chat turn')}`,
     `solution: ${yamlString(solution)}`,
+    ...placeholderFrontmatterLines,
     '',
     '# ── NODES ────────────────────────────────────────────────────────────────────',
     'nodes:',
     `  - @node:${requestNodeId}:  { label: "{{subject}}",  type: input   }`,
     `  - @node:${responseNodeId}: { label: "{{solution}}", type: output  }`,
     ...sectionFrontmatterNodeLines,
+    ...placeholderFrontmatterNodeLines,
     '',
     '# ── EDGES ────────────────────────────────────────────────────────────────────',
     'edges:',
     `  - @edge:${requestNodeId}:turn → ${responseNodeId}:turn`,
     ...sectionFrontmatterEdgeLines,
+    ...placeholderFrontmatterEdgeLines,
     '',
     '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
     'flow:',
@@ -457,18 +571,20 @@ export const buildKgcStructuredTurn = (args: KgcStructuredTurnArgs): string => {
     '      position: { x: 360, y: 60 }',
     '      handles:',
     '        target: [turn]',
-    '        source: [detail]',
+    '        source: [detail, param]',
     '      data:',
     '        role: "assistant"',
     '        text: "{{solution}}"',
     '      annotation: "`bg#EAF3DE:output`"',
     ...sectionFlowNodeLines,
+    ...placeholderFlowNodeLines,
     '',
     '  edges:',
     `    - source: ${requestNodeId}.turn`,
     `      target: ${responseNodeId}.turn`,
     '      label: "responds"',
     ...sectionFlowEdgeLines,
+    ...placeholderFlowEdgeLines,
     '',
     '---',
     '',

@@ -11,9 +11,9 @@ import type { FlowConfig } from '@/components/FlowCanvas/config'
 export const testFlowHandlesByNodeDeterministicOrdering = () => {
   const nodes = [{ id: 'A' }, { id: 'B' }, { id: 'C' }]
   const edges = [
-    { id: 'e2', source: 'B', target: 'A' },
-    { id: 'e1', source: 'C', target: 'A' },
-    { id: 'e3', source: 'A', target: 'B' },
+    { id: 'e2', source: 'B', target: 'A', properties: { 'flow:sourcePortKey': 'b_out', 'flow:targetPortKey': 'a_in_2' } },
+    { id: 'e1', source: 'C', target: 'A', properties: { 'flow:sourcePortKey': 'c_out', 'flow:targetPortKey': 'a_in_1' } },
+    { id: 'e3', source: 'A', target: 'B', properties: { 'flow:sourcePortKey': 'a_out_1', 'flow:targetPortKey': 'b_in' } },
   ]
   const handlesByNode = computeFlowHandlesByNode({ nodes, edges })
   const a = handlesByNode.A
@@ -23,8 +23,8 @@ export const testFlowHandlesByNodeDeterministicOrdering = () => {
 
   const in0 = a.in[0]?.id
   const in1 = a.in[1]?.id
-  if (in0 !== buildFlowHandleId({ dir: 'in', edgeId: 'e2' })) throw new Error('node A incoming handle[0] should be in:e2')
-  if (in1 !== buildFlowHandleId({ dir: 'in', edgeId: 'e1' })) throw new Error('node A incoming handle[1] should be in:e1')
+  if (in0 !== buildFlowHandleId({ dir: 'in', edgeId: 'a_in_2' })) throw new Error('node A incoming handle[0] should be in:a_in_2')
+  if (in1 !== buildFlowHandleId({ dir: 'in', edgeId: 'a_in_1' })) throw new Error('node A incoming handle[1] should be in:a_in_1')
 
   const approx = (value: number, expected: number, eps: number) => Math.abs(value - expected) <= eps
   if (!approx(a.in[0]?.topPct ?? NaN, 33.3333, 0.25)) throw new Error('node A incoming handle[0] topPct mismatch')

@@ -203,7 +203,6 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
           if (e.ctrlKey === true || e.metaKey === true) {
             e.preventDefault()
           }
-          e.stopPropagation()
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
           }
@@ -344,6 +343,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         edges={portHandleEdges}
         minimized={minimized}
         forceEnabled={String(graphMetaKind || '').trim() === 'frontmatter-flow'}
+        strictHandleSet={String(graphMetaKind || '').trim() === 'frontmatter-flow'}
         toolMode={toolMode}
         pendingEdgeSourceId={pendingEdgeSourceId}
         onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}

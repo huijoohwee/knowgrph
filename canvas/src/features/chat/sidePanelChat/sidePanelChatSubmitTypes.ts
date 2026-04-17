@@ -1,7 +1,7 @@
 import type React from 'react'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { SourceFile } from '@/hooks/store/types'
 import type { ChatMessage } from '../SidePanelChatSections'
-import type { SourceFileEntry } from '@/features/markdown-explorer/store'
 
 export type SidePanelChatSubmitArgs = {
   historyKey: string
@@ -9,7 +9,7 @@ export type SidePanelChatSubmitArgs = {
   currentNode: GraphNode | null
   markdownText: string | null
   markdownDocumentName: string | null
-  sourceFiles: SourceFileEntry[]
+  sourceFiles: SourceFile[]
   workspaceContextCacheKey: string
 
   chatProvider: string

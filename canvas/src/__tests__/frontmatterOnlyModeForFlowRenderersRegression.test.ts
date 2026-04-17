@@ -34,3 +34,29 @@ export function testFlowRenderersDisableKeywordSelectionAndForceFrontmatterMode(
     throw new Error('expected renderer switch logic to auto-enable frontmatter mode for flow renderers')
   }
 }
+
+export function testFlowEditorRequiresMarkdownYamlFrontmatterInFrontmatterMode() {
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const uiCopyPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiCopy.ts')
+  const flowEditorCanvasText = readFileSync(flowEditorCanvasPath, 'utf8')
+  const uiCopyText = readFileSync(uiCopyPath, 'utf8')
+
+  if (!flowEditorCanvasText.includes('extractYamlFrontmatterBlock')) {
+    throw new Error('expected FlowEditorCanvas to reuse markdown frontmatter parser helper for markdown YAML requirement')
+  }
+  if (!flowEditorCanvasText.includes('const isMarkdownFile = React.useMemo(() => {')) {
+    throw new Error('expected FlowEditorCanvas to guard frontmatter requirement for *.md documents')
+  }
+  if (!flowEditorCanvasText.includes('const flowEditorApplicable = frontmatterDocumentModeActive && flowEditorFrontmatterRequirementSatisfied')) {
+    throw new Error('expected FlowEditorCanvas editability to require frontmatter document mode and YAML frontmatter eligibility')
+  }
+  if (!flowEditorCanvasText.includes("id: 'flow-editor-md-frontmatter-required'")) {
+    throw new Error('expected FlowEditorCanvas to emit stable SSOT toast id for missing YAML frontmatter in *.md files')
+  }
+  if (!flowEditorCanvasText.includes('UI_COPY.flowEditorYamlFrontmatterRequiredToast')) {
+    throw new Error('expected FlowEditorCanvas to reuse UI_COPY SSOT message for frontmatter requirement notifications')
+  }
+  if (!uiCopyText.includes('flowEditorYamlFrontmatterRequiredToast')) {
+    throw new Error('expected UI copy SSOT to define flow-editor markdown YAML frontmatter requirement toast text')
+  }
+}

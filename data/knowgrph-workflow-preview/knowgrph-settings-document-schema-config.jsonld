@@ -39,11 +39,6 @@
       "name": "ListItem"
     },
     {
-      "@id": "kg:class:table",
-      "@type": "kg:NodeType",
-      "name": "Table"
-    },
-    {
       "@id": "kg:class:mention",
       "@type": "kg:NodeType",
       "name": "Mention"
@@ -185,13 +180,6 @@
       "range": "string"
     },
     {
-      "@id": "kg:prop:codeblock:language",
-      "@type": "kg:Property",
-      "name": "language",
-      "owner": "CodeBlock",
-      "range": "string"
-    },
-    {
       "@id": "kg:prop:codeblock:order",
       "@type": "kg:Property",
       "name": "order",
@@ -274,27 +262,6 @@
       "name": "text",
       "owner": "ListItem",
       "range": "string"
-    },
-    {
-      "@id": "kg:prop:table:chunk_text",
-      "@type": "kg:Property",
-      "name": "chunk_text",
-      "owner": "Table",
-      "range": "string"
-    },
-    {
-      "@id": "kg:prop:table:markdown",
-      "@type": "kg:Property",
-      "name": "markdown",
-      "owner": "Table",
-      "range": "string"
-    },
-    {
-      "@id": "kg:prop:table:order",
-      "@type": "kg:Property",
-      "name": "order",
-      "owner": "Table",
-      "range": "number"
     },
     {
       "@id": "kg:prop:mention:blockid",

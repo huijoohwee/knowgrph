@@ -4,6 +4,7 @@ import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 import { UI_LABELS } from '@/lib/config'
 import type { SchemaFieldSpec } from '@/lib/graph/flowPorts'
 import { buildSchemaFieldPortKey } from '@/lib/graph/flowPorts'
+import { formatFlowHandleKeyValue, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { Trash2 } from 'lucide-react'
@@ -142,8 +143,8 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
             const fieldId = String(row.id || '').trim()
             const portKey = buildSchemaFieldPortKey(fieldId)
             const title = String(row.title || fieldId)
-            const inAria = `Input port: ${title}`
-            const outAria = `Output port: ${title}`
+            const inAria = formatFlowHandleKeyValue({ dir: 'in', portKey }) || `Input port: ${title}`
+            const outAria = formatFlowHandleKeyValue({ dir: 'out', portKey }) || `Output port: ${title}`
             const dotR = Math.max(1, dotSizePx / 2)
 
             return (
@@ -161,6 +162,7 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
                       data-kg-port-handle-kind="dot"
                       data-kg-port-dir="in"
                       data-kg-port-key={portKey}
+                      data-kg-port-path={readFlowHandlePath('in')}
                       className={cn('absolute top-1/2 left-0', UI_THEME_TOKENS.button.text)}
                       style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px`, transform: 'translate(0, -50%)' }}
                       onPointerDown={e => {
@@ -225,6 +227,7 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
                       data-kg-port-handle-kind="dot"
                       data-kg-port-dir="out"
                       data-kg-port-key={portKey}
+                      data-kg-port-path={readFlowHandlePath('out')}
                       className={cn('absolute top-1/2 right-0', UI_THEME_TOKENS.button.text)}
                       style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px`, transform: 'translate(0, -50%)' }}
                       onPointerDown={e => {

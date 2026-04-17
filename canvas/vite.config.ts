@@ -4936,6 +4936,10 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 5173,
     strictPort: false,
+    headers: {
+      // Prevent stale immutable cache entries from serving mismatched prebundled deps across restarts.
+      'Cache-Control': 'no-store',
+    },
     fs: {
       allow: [
         path.resolve(__dirname, '..'),

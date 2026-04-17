@@ -1,6 +1,7 @@
 import type { GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 
 const FRONTMATTER_ANNOTATION_WIRING_KEY = 'frontmatterAnnotationWiring' as const
 const FRONTMATTER_PRIMITIVE_KEY = 'frontmatter:primitive' as const
@@ -14,6 +15,25 @@ type AnnotationRefs = {
 
 function asString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
+}
+
+function canonicalEdgeEndpointId(v: unknown): string {
+  return asString(v)
+}
+
+function readEdgePort(v: unknown, key: string): string {
+  if (!isRecord(v)) return ''
+  return asString((v as Record<string, unknown>)[key])
+}
+
+function edgeDedupKeys(e: GraphEdge): string[] {
+  const source = canonicalEdgeEndpointId(e.source)
+  const target = canonicalEdgeEndpointId(e.target)
+  const keys: string[] = [`stl:${source}|${target}|${asString(e.label)}`]
+  const sourcePort = readEdgePort(e.properties, FLOW_EDGE_SOURCE_PORT_KEY)
+  const targetPort = readEdgePort(e.properties, FLOW_EDGE_TARGET_PORT_KEY)
+  if (sourcePort || targetPort) keys.push(`ports:${source}|${sourcePort}|${target}|${targetPort}`)
+  return keys
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -93,13 +113,21 @@ export function mergeEdges(args: {
   const uniq = new Set<string>()
   for (let i = 0; i < args.baseEdges.length; i += 1) {
     const e = args.baseEdges[i]
-    uniq.add(`${asString(e.source)}|${asString(e.target)}|${asString(e.label)}`)
+    const keys = edgeDedupKeys(e)
+    for (let k = 0; k < keys.length; k += 1) uniq.add(keys[k]!)
   }
   for (let i = 0; i < args.sigilEdges.length; i += 1) {
     const e = args.sigilEdges[i]
-    const k = `${asString(e.source)}|${asString(e.target)}|${asString(e.label)}`
-    if (uniq.has(k)) continue
-    uniq.add(k)
+    const keys = edgeDedupKeys(e)
+    let duplicated = false
+    for (let k = 0; k < keys.length; k += 1) {
+      if (uniq.has(keys[k]!)) {
+        duplicated = true
+        break
+      }
+    }
+    if (duplicated) continue
+    for (let k = 0; k < keys.length; k += 1) uniq.add(keys[k]!)
     out.push(e)
   }
   return out

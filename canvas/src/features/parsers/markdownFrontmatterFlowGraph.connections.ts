@@ -17,6 +17,10 @@ function asString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
 }
 
+function normalizeConnectionNodeId(v: unknown): string {
+  return asString(v)
+}
+
 function asBoolean(v: unknown): boolean | null {
   if (typeof v === 'boolean') return v
   if (typeof v === 'string') {
@@ -63,15 +67,15 @@ function parseDotEndpoint(raw: unknown): { nodeId: string; portKey: string } | n
   if (!s) return null
   const dot = s.lastIndexOf('.')
   if (dot < 0) return null
-  const nodeId = s.slice(0, dot).trim()
+  const nodeId = normalizeConnectionNodeId(s.slice(0, dot).trim())
   const portKey = s.slice(dot + 1).trim()
   if (!nodeId || !portKey) return null
   return { nodeId, portKey }
 }
 
 function extractConnectionEndpoints(row: Record<string, unknown>): { source: string; target: string; fromPort: string; toPort: string } | null {
-  const source = asString(row.from_node)
-  const target = asString(row.to_node)
+  const source = normalizeConnectionNodeId(row.from_node)
+  const target = normalizeConnectionNodeId(row.to_node)
   const fromPort = asString(row.from_port)
   const toPort = asString(row.to_port)
   if (source && target && fromPort && toPort) return { source, target, fromPort, toPort }

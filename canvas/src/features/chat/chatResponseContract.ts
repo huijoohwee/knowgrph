@@ -23,6 +23,7 @@ export const CHAT_KGC_RESPONSE_CONTRACT_PROMPT = [
   'The saved `kgc_*.md` must open directly in Infinite Canvas, Workspace Editor,',
   'Multi-dimensional Table, and Kanban, so the KGC block must be a standalone parseable',
   'markdown document with YAML frontmatter linked to markdown body via `{{}}` variables.',
+  'Treat this as a standalone parseable markdown document contract.',
   'Avoid churn: keep the same section order and do not invent extra top-level sections.',
   // ── Model spec ────────────────────────────────────────────────────────────
   'MODEL: claude-sonnet-4-20250514 · temperature 0.3 · max_tokens 1000.',
@@ -67,6 +68,7 @@ export const CHAT_KGC_RESPONSE_CONTRACT_PROMPT = [
   '- The markdown body must contain the actual answer content; do not use a body shell that only prints `{{solution_md}}`.',
   '- Use guideline-safe placeholders like `TBD` or `—` instead of empty values.',
   '- `subject`, `action`, `goal`, and `solution` must be concrete text values; do not use `{{}}` placeholders in these frontmatter scalar fields.',
+  '- Every reusable placeholder key used in markdown body (for example `{{product}}`, `{{owner}}`) must be declared as a concrete YAML variable key.',
   '- `confidence:` fields must be `low`, `medium`, or `high` only (V-07); drives dashed / partial / solid node stroke.',
   '- Headings (H1–H4) must not end with `...`; write the full title and let the UI truncate (V-06).',
   '- Keep `## Solution` complete and non-truncated; close delimiters such as `)`, `]`, and `}` before ending output.',

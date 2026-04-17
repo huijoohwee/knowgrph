@@ -72,6 +72,8 @@ export const UI_COPY = {
   flowNodeQuickEditorApplyConnectedValuesToEmptyFieldsLabel: 'Apply connected values to empty fields',
   flowNodeQuickEditorApplyAllSuffix: 'all',
   flowEditorNoDraftGraphToast: 'No draft graph loaded.',
+  flowEditorYamlFrontmatterRequiredToast:
+    'Flow Editor in Frontmatter Mode requires Markdown files (*.md) to include YAML frontmatter (--- ... ---) at the top.',
   flowEditorNodeNotFoundToast: (nodeId: string) => `Node not found: ${nodeId}`,
   flowEditorRunExportedToast: 'Exported Node Quick Editor bundle.',
   flowEditorRunFailedToast: 'Run failed.',

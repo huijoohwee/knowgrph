@@ -14,13 +14,19 @@ import {
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { FLOW_SCHEMA_FIELDS_PROPERTY_KEY, readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
+import {
+  FLOW_EDGE_SOURCE_PORT_KEY,
+  FLOW_EDGE_TARGET_PORT_KEY,
+  FLOW_SCHEMA_FIELDS_PROPERTY_KEY,
+  readSchemaFieldSpecs,
+} from '@/lib/graph/flowPorts'
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import {
   FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
 } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
+import { formatFlowHandleValueList, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
 import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
 import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
 import { NodeOverlayEditorParamsSection } from '@/components/FlowEditor/NodeOverlayEditorParamsSection'
@@ -30,6 +36,7 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/NodeOverlayEditorBeatByBeatSection'
 import type { GraphEdge } from '@/lib/graph/types'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
@@ -49,6 +56,18 @@ function cleanDomIdPart(v: unknown): string {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function parseHandleListInput(raw: string): string[] {
+  const s = String(raw || '').trim()
+  if (!s) return []
+  const body = s.startsWith('[') && s.endsWith(']') ? s.slice(1, -1) : s
+  const out = body
+    .split(',')
+    .map(part => part.trim().replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1'))
+    .map(v => String(v || '').trim())
+    .filter(Boolean)
+  return Array.from(new Set(out))
 }
 
 function isSmartMediaRegistryEntry(entry: NodeQuickEditorRegistryEntry | null | undefined): boolean {
@@ -155,21 +174,116 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     const source = Object.keys(outPortsRaw).map(k => String(k || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
     return { target, source }
   }, [properties])
+  const connectedFlowHandles = React.useMemo(() => {
+    const target = new Set<string>()
+    const source = new Set<string>()
+    const nodeId = String(node.id || '').trim()
+    const list = Array.isArray(edges) ? edges : []
+    for (let i = 0; i < list.length; i += 1) {
+      const e = list[i]
+      const src = String(e?.source || '').trim()
+      const tgt = String(e?.target || '').trim()
+      const props = (e?.properties || {}) as Record<string, unknown>
+      const srcKey = String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
+      const tgtKey = String(props[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
+      if (src === nodeId && srcKey) source.add(srcKey)
+      if (tgt === nodeId && tgtKey) target.add(tgtKey)
+    }
+    return {
+      target: Array.from(target).sort((a, b) => a.localeCompare(b)),
+      source: Array.from(source).sort((a, b) => a.localeCompare(b)),
+    }
+  }, [edges, node.id])
+  const flowRegistryHandles = React.useMemo(() => {
+    const ports = Array.isArray(registryEntry?.ports) ? registryEntry!.ports : []
+    const target = new Set<string>()
+    const source = new Set<string>()
+    for (let i = 0; i < ports.length; i += 1) {
+      const p = ports[i]
+      if (!p || p.isHidden === true) continue
+      const key = String(p.portKey || '').trim()
+      if (!key) continue
+      if (p.direction === 'input') target.add(key)
+      else if (p.direction === 'output') source.add(key)
+    }
+    return {
+      target: Array.from(target).sort((a, b) => a.localeCompare(b)),
+      source: Array.from(source).sort((a, b) => a.localeCompare(b)),
+    }
+  }, [registryEntry])
+  const flowHandleKeys = React.useMemo(() => {
+    const target = connectedFlowHandles.target.length > 0
+      ? connectedFlowHandles.target
+      : (flowRegistryHandles.target.length > 0 ? flowRegistryHandles.target : flowPortTypes.target)
+    const source = connectedFlowHandles.source.length > 0
+      ? connectedFlowHandles.source
+      : (flowRegistryHandles.source.length > 0 ? flowRegistryHandles.source : flowPortTypes.source)
+    return { target, source }
+  }, [
+    connectedFlowHandles.source,
+    connectedFlowHandles.target,
+    flowPortTypes.source,
+    flowPortTypes.target,
+    flowRegistryHandles.source,
+    flowRegistryHandles.target,
+  ])
   const flowCompute = pickString(properties['flow:compute'])
+  const hasFlowCompute = Object.prototype.hasOwnProperty.call(properties, 'flow:compute')
+  const hasFlowData = Object.prototype.hasOwnProperty.call(properties, 'data')
+  const hasFlowTargetHandles = flowHandleKeys.target.length > 0
+  const hasFlowSourceHandles = flowHandleKeys.source.length > 0
+  const formatFlowHandlePathValue = (handles: ReadonlyArray<string>): string => formatFlowHandleValueList(handles)
   const flowDataJson = React.useMemo(() => {
     const raw = properties.data
     if (typeof raw === 'string') return raw
-    if (typeof raw === 'undefined') return '{}'
+    if (typeof raw === 'undefined') return ''
     try {
-      return JSON.stringify(raw, null, 2)
+      return JSON.stringify(raw, null, 2) || ''
     } catch {
-      return '{}'
+      return ''
     }
   }, [properties.data])
   const { sizePx: dotSizePx, hitSizePx: dotHitPx } = React.useMemo(() => {
     const m = readPortHandleUiMetrics(schema)
     return { sizePx: Math.max(10, m.sizePx), hitSizePx: Math.max(18, m.hitSizePx + 2) }
   }, [schema])
+  const renderFlowContractDot = React.useCallback((args: { dir: 'in' | 'out'; linked: boolean; portKey: string }) => {
+    const safeDotSize = Math.max(6, Math.floor(dotSizePx))
+    const safeHit = Math.max(safeDotSize, Math.floor(dotHitPx))
+    const aria = args.linked
+      ? `${args.dir === 'in' ? 'Input' : 'Output'} edge-linked handle`
+      : `${args.dir === 'in' ? 'Input' : 'Output'} handle`
+    return (
+      <button
+        type="button"
+        aria-label={aria}
+        title={aria}
+        disabled
+        tabIndex={-1}
+        data-kg-port-handle="1"
+        data-kg-port-handle-kind="dot"
+        data-kg-port-dir={args.dir}
+        data-kg-port-key={args.portKey}
+        className={cn('relative block', UI_THEME_TOKENS.button.text, args.linked ? 'opacity-100' : 'opacity-50')}
+        style={{ width: `${safeHit}px`, height: `${safeHit}px` }}
+      >
+        <span
+          aria-hidden={true}
+          className={cn(
+            'absolute top-1/2 left-1/2 rounded-full',
+            PORT_HANDLE_STROKE_CLASS,
+            args.linked ? 'border-2' : 'border',
+          )}
+          style={{
+            width: `${safeDotSize}px`,
+            height: `${safeDotSize}px`,
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: args.linked ? 'var(--kg-canvas-accent)' : 'transparent',
+          }}
+        />
+      </button>
+    )
+  }, [dotHitPx, dotSizePx])
 
   const model = pickString(properties.model)
   const prompt = pickString(properties.prompt)
@@ -537,11 +651,16 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             dotHitPx={dotHitPx}
             forcePortDots
             rows={[
-              {
+              ...(hasFlowTargetHandles ? [{
                 rowKey: 'flow-handles-target',
                 labelId: `${idBase}-kv-flow-target`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-target`}>handles.target</label>,
-                typeNode: <NodeOverlayEditorTypePill text="string[]" />,
+                inPortNode: renderFlowContractDot({
+                  dir: 'in',
+                  linked: connectedFlowHandles.target.length > 0,
+                  portKey: flowHandleKeys.target[0] || '',
+                }),
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-target`}>{readFlowHandlePath('in')}</label>,
+                typeNode: <NodeOverlayEditorTypePill text={readFlowHandleTypeLabel('in')} />,
                 valueNode: (
                   <input
                     id={`${idBase}-flow-target`}
@@ -553,16 +672,21 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                       UI_THEME_TOKENS.input.border,
                       UI_THEME_TOKENS.input.text,
                     )}
-                    value={flowPortTypes.target.join(', ')}
+                    value={formatFlowHandlePathValue(flowHandleKeys.target)}
                     disabled
                   />
                 ),
-              },
-              {
+              }] : []),
+              ...(hasFlowSourceHandles ? [{
                 rowKey: 'flow-handles-source',
                 labelId: `${idBase}-kv-flow-source`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-source`}>handles.source</label>,
-                typeNode: <NodeOverlayEditorTypePill text="string[]" />,
+                outPortNode: renderFlowContractDot({
+                  dir: 'out',
+                  linked: connectedFlowHandles.source.length > 0,
+                  portKey: flowHandleKeys.source[0] || '',
+                }),
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-source`}>{readFlowHandlePath('out')}</label>,
+                typeNode: <NodeOverlayEditorTypePill text={readFlowHandleTypeLabel('out')} />,
                 valueNode: (
                   <input
                     id={`${idBase}-flow-source`}
@@ -574,14 +698,30 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                       UI_THEME_TOKENS.input.border,
                       UI_THEME_TOKENS.input.text,
                     )}
-                    value={flowPortTypes.source.join(', ')}
-                    disabled
+                    value={formatFlowHandlePathValue(flowHandleKeys.source)}
+                    onChange={e => {
+                      const nextKeys = parseHandleListInput(e.target.value || '')
+                      const raw = properties['flow:portTypes']
+                      const rec = isRecord(raw) ? raw : {}
+                      const inRec = isRecord(rec.in) ? ({ ...(rec.in as Record<string, unknown>) }) : {}
+                      const outRec = isRecord(rec.out) ? ({ ...(rec.out as Record<string, unknown>) }) : {}
+                      const nextOut: Record<string, unknown> = {}
+                      for (let i = 0; i < nextKeys.length; i += 1) {
+                        const key = nextKeys[i]
+                        if (!key) continue
+                        nextOut[key] = Object.prototype.hasOwnProperty.call(outRec, key) ? outRec[key] : 'UNSPECIFIED'
+                      }
+                      onPatchProperties({ 'flow:portTypes': { in: inRec, out: nextOut } })
+                    }}
+                    disabled={!active}
                   />
                 ),
-              },
-              {
+              }] : []),
+              ...(hasFlowCompute ? [{
                 rowKey: 'flow-compute',
                 labelId: `${idBase}-kv-flow-compute`,
+                showInPortDot: false,
+                showOutPortDot: false,
                 keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-compute`}>compute</label>,
                 typeNode: <NodeOverlayEditorTypePill text="code" />,
                 valueNode: (
@@ -597,10 +737,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     )}
                   />
                 ),
-              },
-              {
+              }] : []),
+              ...(hasFlowData ? [{
                 rowKey: 'flow-data',
                 labelId: `${idBase}-kv-flow-data`,
+                showInPortDot: false,
+                showOutPortDot: false,
                 keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-data`}>data</label>,
                 typeNode: <NodeOverlayEditorTypePill text="json" />,
                 valueNode: (
@@ -610,7 +752,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     onChange={next => {
                       const raw = String(next || '').trim()
                       if (!raw) {
-                        onPatchProperties({ data: {} })
+                        onPatchProperties({ data: undefined })
                         return
                       }
                       try {
@@ -628,7 +770,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     )}
                   />
                 ),
-              },
+              }] : []),
             ]}
           />
         </section>
@@ -702,6 +844,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           connectedValuesBySchemaPath={connectedValuesBySchemaPath}
           onSetProperties={onSetProperties}
           onSchemaPortHandleClick={onSchemaPortHandleClick}
+          showPortRows={!isFrontmatterFlow}
         />
       )}
 

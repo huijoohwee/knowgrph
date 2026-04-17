@@ -38,6 +38,7 @@ import {
   toShortId,
   putChatHistoryCache,
 } from '../SidePanelChat.helpers'
+import type { ChatMessage } from '../SidePanelChatSections'
 import type { SidePanelChatSubmitArgs } from './sidePanelChatSubmitTypes'
 
 const wrapFence = (content: string, lang: string): string => {
@@ -51,6 +52,15 @@ const clipForPrompt = (raw: string, maxChars: number): string => {
   const text = String(raw || '')
   if (text.length <= maxChars) return text
   return `${text.slice(0, Math.max(0, maxChars - 3))}...`
+}
+
+const toFiniteNumberOrUndefined = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return undefined
 }
 
 const buildCorrectionPrompt = (args: { ruleId: string; message: string; invalidMarkdown: string }) => {
@@ -136,8 +146,8 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
         graphData: args.graphData,
         currentNode: args.currentNode,
         markdownText: args.markdownText,
-        graphSummaryMaxTokens: args.chatGraphSummaryMaxTokens,
-        guidelineDigestMaxTokens: args.chatGuidelineDigestMaxTokens,
+        graphSummaryMaxTokens: toFiniteNumberOrUndefined(args.chatGraphSummaryMaxTokens),
+        guidelineDigestMaxTokens: toFiniteNumberOrUndefined(args.chatGuidelineDigestMaxTokens),
       })
       const includeSelectionContext = args.chatContextScope === 'selection' || args.chatContextScope === 'hybrid'
       const includeWorkspaceContext = args.chatContextScope === 'workspace' || args.chatContextScope === 'hybrid'

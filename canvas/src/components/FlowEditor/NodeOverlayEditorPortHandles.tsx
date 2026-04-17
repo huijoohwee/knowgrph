@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { PORT_HANDLE_LINE_CLASS, PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
+import { formatFlowHandleKeyValue, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
 
 type FlowEditorToolMode = 'select' | 'addEdge'
 
@@ -58,6 +59,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   edges: ReadonlyArray<GraphEdge>
   minimized: boolean
   forceEnabled?: boolean
+  strictHandleSet?: boolean
   toolMode?: FlowEditorToolMode
   pendingEdgeSourceId?: string | null
   onBeginAddEdgeFromNode?: (nodeId: string, portKey?: string | null) => void
@@ -88,9 +90,10 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
       nodeQuickEditorRegistry: args.registryEntries || null,
     })
     const base = byNode[nodeId] || { in: [], out: [] }
+    if (args.strictHandleSet === true) return base
     if (args.forceEnabled !== true && !shouldInjectDefaultFlowHandles(args.schema)) return base
     return ensureFlowHandlesHaveDefaults(base)
-  }, [args.forceEnabled, args.node?.properties, args.node?.type, args.registryEntries, args.schema, edges, nodeId])
+  }, [args.forceEnabled, args.node?.properties, args.node?.type, args.registryEntries, args.schema, args.strictHandleSet, edges, nodeId])
 
   const nodeDims = React.useMemo(() => {
     const n = {
@@ -155,12 +158,14 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
 
   const Dot = (p: { handleId: string; dir: 'in' | 'out'; idx: number; topPct: number }) => {
     const isIn = p.dir === 'in'
-    const aria = isIn ? `Input handle ${p.idx + 1}` : `Output handle ${p.idx + 1}`
+    const portKey = parseFlowHandleKey(p.handleId as never)
+    const handlePath = readFlowHandlePath(p.dir)
+    const keyValue = formatFlowHandleKeyValue({ dir: p.dir, portKey })
+    const aria = keyValue || (isIn ? `Input handle ${p.idx + 1}` : `Output handle ${p.idx + 1}`)
     const ringClass = isSource ? `ring-2 ring-inset ${UI_THEME_TOKENS.button.ring}` : ''
     const clickable = canClickHandle(p.dir)
     const hoverClass = clickable ? 'hover:opacity-100' : 'opacity-90'
     const cursorClass = clickable ? 'cursor-pointer' : 'cursor-default'
-    const portKey = parseFlowHandleKey(p.handleId as never)
     const socketType = readFlowPortSocketType(args.node?.properties, p.dir, portKey)
     const stroke = socketType ? socketStyleByType.get(socketType)?.color || '' : ''
 
@@ -173,6 +178,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
         data-kg-port-handle-kind="rail"
         data-kg-port-dir={p.dir}
         data-kg-port-key={parseFlowHandleKey(p.handleId as never)}
+        data-kg-port-path={handlePath}
         className={cn('absolute pointer-events-auto', cursorClass)}
         style={{
           top: `${Math.max(0, Math.min(100, p.topPct))}%`,

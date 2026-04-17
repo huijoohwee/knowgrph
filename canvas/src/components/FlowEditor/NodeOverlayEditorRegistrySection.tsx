@@ -6,6 +6,7 @@ import { getObjectPath, setObjectPath } from '@/lib/data/objectPath'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { formatFlowHandleKeyValue, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
@@ -80,6 +81,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   dotSizePx: number
   dotHitPx: number
   portHandlesEnabled: boolean
+  showPortRows?: boolean
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   onSetProperties: (properties: Record<string, unknown>) => void
   onSchemaPortHandleClick?: (args: { dir: 'in' | 'out'; portKey: string }) => void
@@ -98,6 +100,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     dotSizePx,
     dotHitPx,
     portHandlesEnabled,
+    showPortRows = true,
     connectedValuesBySchemaPath,
     onSetProperties,
     onSchemaPortHandleClick,
@@ -318,7 +321,10 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       const portKey = String(p.portKey || '').trim()
       if (!portKey) continue
       const isIn = p.direction === 'input'
-      const aria = `${isIn ? 'Input' : 'Output'} port: ${portKey}`
+      const handlePath = readFlowHandlePath(isIn ? 'in' : 'out')
+      const handleType = readFlowHandleTypeLabel(isIn ? 'in' : 'out')
+      const handlePathValue = formatFlowHandleKeyValue({ dir: isIn ? 'in' : 'out', portKey })
+      const aria = handlePathValue
 
       const portButton = (
         <button
@@ -329,6 +335,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           data-kg-port-handle-kind="dot"
           data-kg-port-dir={isIn ? 'in' : 'out'}
           data-kg-port-key={portKey}
+          data-kg-port-path={handlePath}
           className={cn('relative', UI_THEME_TOKENS.button.text)}
           style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px` }}
           onPointerDown={e => {
@@ -366,16 +373,17 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         labelId: `registry-port-${p.direction}-${portKey}-${idx}`,
         inPortNode: isIn ? portButton : null,
         outPortNode: !isIn ? portButton : null,
-        keyNode: <span className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.primary)}>{portKey}</span>,
-        typeNode: <NodeOverlayEditorTypePill text={isIn ? 'in' : 'out'} />,
-        valueNode: <span aria-hidden={true} />,
+        keyNode: <span className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.primary)}>{handlePath}</span>,
+        typeNode: <NodeOverlayEditorTypePill text={handleType} />,
+        valueNode: <span className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.primary)}>{portKey}</span>,
       })
     }
     return out
   }, [active, dotHitPx, dotSizePx, onSchemaPortHandleClick, portHandlesEnabled, registryPorts])
 
   if (!registryEntry) return null
-  if (registryFields.length === 0 && portRows.length === 0) return null
+  const visiblePortRows = showPortRows ? portRows : []
+  if (registryFields.length === 0 && visiblePortRows.length === 0) return null
 
   const hasAnyConnectedValues = !!connectedValuesBySchemaPath && Object.keys(connectedValuesBySchemaPath).length > 0
 
@@ -419,11 +427,11 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         />
       )}
 
-      {portRows.length > 0 && (
+      {visiblePortRows.length > 0 && (
         <NodeOverlayEditorKvTable
           ariaLabel="Registry ports"
           microLabelClass={microLabelClass}
-          rows={portRows}
+          rows={visiblePortRows}
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
           forcePortDots

@@ -80,7 +80,7 @@ export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   if (!socketTypes || typeof socketTypes !== 'object') throw new Error('expected socketTypes metadata')
 
   const subgraphs = meta[KG_SUBGRAPHS_KEY]
-  if (!Array.isArray(subgraphs) || subgraphs.length < 2) throw new Error('expected derived subgraphs')
+  if (typeof subgraphs !== 'undefined') throw new Error('expected no synthetic fallback subgraphs when frontmatter did not declare them')
 }
 
 export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeIdsAndPorts() {
@@ -680,6 +680,546 @@ export function testMarkdownFrontmatterFlowGraphParsesWorkflowFlowBlockWithHandl
   if (!settings) throw new Error('expected frontmatterFlowSettings in metadata')
   if (settings.direction !== 'LR') throw new Error('expected flow direction LR')
   if (settings.edgeType !== 'smoothstep') throw new Error('expected flow edgeType smoothstep')
+}
+
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphUsesLeadingKgcBlockOnlyAndDedupesEdges() {
+  const md = [
+    '---',
+    'doc:',
+    '  id: "doc:kgc:turn:demo"',
+    '  type: chatKnowgrph',
+    'flow:',
+    '  nodes:',
+    '    - id: n-in',
+    '      type: input',
+    '      handles:',
+    '        source: [turn]',
+    '    - id: n-out',
+    '      type: output',
+    '      handles:',
+    '        target: [turn]',
+    '  edges:',
+    '    - id: e-front',
+    '      source: n-in.turn',
+    '      target: n-out.turn',
+    '---',
+    '',
+    '# Trailing chat history',
+    '',
+    '| Edge | From port | To port | Type |',
+    '|---|---|---|---|',
+    '| e-history | `n-in.turn` | `n-out.turn` | `STRING` |',
+    '',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-chat.md', md)
+  if (!res) throw new Error('expected chatKnowgrph frontmatter-flow parse result')
+
+  const g = res.graphData
+  if (g.nodes.length !== 2) throw new Error(`expected 2 nodes from leading KGC block, got ${g.nodes.length}`)
+  if (g.edges.length !== 1) throw new Error(`expected 1 deduped edge from leading KGC block, got ${g.edges.length}`)
+  const edge = g.edges[0]
+  if (String(edge.source || '') !== 'n-in' || String(edge.target || '') !== 'n-out') {
+    throw new Error('expected canonical edge endpoints without @node prefix drift')
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphFlowBlockParsesDottedEdgeEndpointsForQuickEditorLinks() {
+  const md = [
+    '---',
+    'doc:',
+    '  type: chatKnowgrph',
+    'flow:',
+    '  nodes:',
+    '    - id: n-in',
+    '      type: input',
+    '      handles:',
+    '        source: [turn]',
+    '    - id: n-out',
+    '      type: output',
+    '      handles:',
+    '        target: [turn]',
+    '  edges:',
+    '    - source: n-in.turn',
+    '      target: n-out.turn',
+    '      label: "responds"',
+    '---',
+    '',
+    '# trailing history',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-dotted-flow-edges.md', md)
+  if (!res) throw new Error('expected frontmatter flow parse result')
+  if (res.graphData.edges.length !== 1) throw new Error(`expected 1 parsed edge, got ${res.graphData.edges.length}`)
+  const edge = res.graphData.edges[0]!
+  const props = (edge.properties || {}) as Record<string, unknown>
+  if (String(edge.source || '') !== 'n-in' || String(edge.target || '') !== 'n-out') {
+    throw new Error('expected dotted endpoints to resolve to node ids')
+  }
+  if (String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'turn') throw new Error('expected source port from dotted endpoint')
+  if (String(props[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'turn') throw new Error('expected target port from dotted endpoint')
+  if (String(edge.label || '') !== 'responds') throw new Error('expected label from dotted flow edge declaration')
+}
+
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphKeepsOutputSourceHandlesForQuickEditorEdgeAnchors() {
+  const md = [
+    '---',
+    'doc:',
+    '  type: chatKnowgrph',
+    'flow:',
+    '  nodes:',
+    '    - id: n-in',
+    '      type: input',
+    '      handles:',
+    '        source: [turn]',
+    '    - id: n-out',
+    '      type: output',
+    '      handles:',
+    '        target: [turn]',
+    '        source: [detail]',
+    '  edges:',
+    '    - source: n-in.turn',
+    '      target: n-out.turn',
+    '    - source: n-out.detail',
+    '      target: n-in.turn',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-output-source-handle.md', md)
+  if (!res) throw new Error('expected chatKnowgrph flow parse result')
+  const registry = ((res.graphData.metadata || {}) as Record<string, unknown>)['flow:nodeQuickEditorRegistry']
+  if (!Array.isArray(registry)) throw new Error('expected quick editor registry metadata')
+  const form = registry.find((r: unknown) => {
+    const rec = (r || {}) as Record<string, unknown>
+    return String(rec.formId || '') === 'fm:n-out'
+  }) as Record<string, unknown> | undefined
+  if (!form) throw new Error('expected n-out quick editor form registry entry')
+  const ports = Array.isArray(form.ports) ? (form.ports as Array<Record<string, unknown>>) : []
+  const hasDetailOutput = ports.some(p => String(p.portKey || '') === 'detail' && String(p.direction || '') === 'output')
+  if (!hasDetailOutput) throw new Error('expected chatKnowgrph output node to keep source handle detail for quick-editor edge anchors')
+}
+
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphKeepsTurnEdgeDirectionAndHandleMapping() {
+  const md = [
+    '---',
+    'doc:',
+    '  type: chatKnowgrph',
+    'flow:',
+    '  nodes:',
+    '    - id: n-recommend-solo-founder-z',
+    '      type: input',
+    '      handles:',
+    '        source: [turn]',
+    '    - id: n-solution-1-use-case-prob',
+    '      type: output',
+    '      handles:',
+    '        target: [turn]',
+    '        source: [detail]',
+    '  edges:',
+    '    - source: n-recommend-solo-founder-z.turn',
+    '      target: n-solution-1-use-case-prob.turn',
+    '      label: "responds"',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-turn-direction.md', md)
+  if (!res) throw new Error('expected chatKnowgrph flow parse result')
+  if (res.graphData.edges.length !== 1) throw new Error(`expected exactly 1 edge, got ${res.graphData.edges.length}`)
+  const e = res.graphData.edges[0]!
+  const props = (e.properties || {}) as Record<string, unknown>
+  if (String(e.source || '') !== 'n-recommend-solo-founder-z') {
+    throw new Error('expected source node to remain n-recommend-solo-founder-z')
+  }
+  if (String(e.target || '') !== 'n-solution-1-use-case-prob') {
+    throw new Error('expected target node to remain n-solution-1-use-case-prob')
+  }
+  if (String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'turn') {
+    throw new Error('expected source handle mapping to port turn')
+  }
+  if (String(props[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'turn') {
+    throw new Error('expected target handle mapping to port turn')
+  }
+  if (String(e.label || '') !== 'responds') {
+    throw new Error('expected edge label responds')
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphFlowBlockOverridesLegacyTopLevelNodesAndEdges() {
+  const md = [
+    '---',
+    'doc:',
+    '  type: chatKnowgrph',
+    'nodes:',
+    '  - id: legacy-a',
+    '    label: "Legacy A"',
+    '  - id: legacy-b',
+    '    label: "Legacy B"',
+    'edges:',
+    '  - source: legacy-a.turn',
+    '    target: legacy-b.turn',
+    '    label: "legacy-edge"',
+    'flow:',
+    '  nodes:',
+    '    - id: flow-a',
+    '      type: input',
+    '      handles:',
+    '        source: [turn]',
+    '    - id: flow-b',
+    '      type: output',
+    '      handles:',
+    '        target: [turn]',
+    '  edges:',
+    '    - source: flow-a.turn',
+    '      target: flow-b.turn',
+    '      label: "flow-edge"',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-flow-overrides-legacy.md', md)
+  if (!res) throw new Error('expected parse result')
+  const nodeIds = new Set((res.graphData.nodes || []).map(n => String(n.id || '')))
+  if (nodeIds.has('legacy-a') || nodeIds.has('legacy-b')) {
+    throw new Error('expected legacy top-level nodes to be ignored when flow block is present')
+  }
+  if (!nodeIds.has('flow-a') || !nodeIds.has('flow-b')) {
+    throw new Error('expected only flow block nodes to remain')
+  }
+  if (res.graphData.edges.length !== 1) throw new Error(`expected only 1 flow edge, got ${res.graphData.edges.length}`)
+  const e = res.graphData.edges[0]!
+  if (String(e.source || '') !== 'flow-a' || String(e.target || '') !== 'flow-b' || String(e.label || '') !== 'flow-edge') {
+    throw new Error('expected only flow block edge to remain')
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphFlowBlockOverridesLegacyTopLevelEdgesOutsideChatMode() {
+  const md = [
+    '---',
+    'nodes:',
+    '  - id: legacy-a',
+    '    label: "Legacy A"',
+    '  - id: legacy-b',
+    '    label: "Legacy B"',
+    'edges:',
+    '  - source: legacy-a.turn',
+    '    target: legacy-b.turn',
+    '    label: "legacy-edge"',
+    'flow:',
+    '  nodes:',
+    '    - id: flow-a',
+    '      type: input',
+    '      handles:',
+    '        source: [turn]',
+    '    - id: flow-b',
+    '      type: output',
+    '      handles:',
+    '        target: [turn]',
+    '  edges:',
+    '    - source: flow-a.turn',
+    '      target: flow-b.turn',
+    '      label: "flow-edge"',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('flow-overrides-legacy-non-chat.md', md)
+  if (!res) throw new Error('expected parse result')
+  const nodeIds = new Set((res.graphData.nodes || []).map(n => String(n.id || '')))
+  if (nodeIds.has('legacy-a') || nodeIds.has('legacy-b')) {
+    throw new Error('expected legacy top-level nodes to be ignored when flow block is present')
+  }
+  if (!nodeIds.has('flow-a') || !nodeIds.has('flow-b')) {
+    throw new Error('expected only flow block nodes to remain')
+  }
+  if (res.graphData.edges.length !== 1) throw new Error(`expected only 1 flow edge, got ${res.graphData.edges.length}`)
+  const e = res.graphData.edges[0]!
+  if (String(e.source || '') !== 'flow-a' || String(e.target || '') !== 'flow-b' || String(e.label || '') !== 'flow-edge') {
+    throw new Error('expected only flow block edge to remain')
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphRemovesConflictingComputeAndWiringData() {
+  const md = [
+    '---',
+    'doc:',
+    '  type: chatKnowgrph',
+    'flow:',
+    '  nodes:',
+    '    - id: n-a',
+    '      type: input',
+    '      handles:',
+    '        source: [turn]',
+    '      compute: "return 42"',
+    '      data:',
+    '        text: "ok"',
+    '        handles: "legacy-should-be-removed"',
+    '        compute: "legacy-should-be-removed"',
+    '    - id: n-b',
+    '      type: output',
+    '      handles:',
+    '        target: [turn]',
+    '  edges:',
+    '    - source: n-a.turn',
+    '      target: n-b.turn',
+    '      label: "responds"',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-chat-clean-wire.md', md)
+  if (!res) throw new Error('expected parse result')
+  const nodeA = res.graphData.nodes.find(n => String(n.id || '') === 'n-a')
+  if (!nodeA) throw new Error('expected node n-a')
+  const props = (nodeA.properties || {}) as Record<string, unknown>
+  const data = (props.data || {}) as Record<string, unknown>
+  if (Object.prototype.hasOwnProperty.call(props, 'compute')) {
+    throw new Error('expected compute to be removed for chatKnowgrph flow nodes')
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'handles') || Object.prototype.hasOwnProperty.call(data, 'compute')) {
+    throw new Error('expected conflicting wiring/compute keys removed from chatKnowgrph node data')
+  }
+  if (String(data.text || '') !== 'ok') throw new Error('expected non-conflicting data to remain')
+}
+
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphParsesOnlyDeclaredFlowNodeIdsForQuickEditors() {
+  const md = [
+    '---',
+    'doc:',
+    '  type: chatKnowgrph',
+    'nodes:',
+    '  - id: legacy-n-1',
+    '    label: "Legacy 1"',
+    '  - id: legacy-n-2',
+    '    label: "Legacy 2"',
+    'flow:',
+    '  nodes:',
+    '    - id: n-recommend-solo-founder-z',
+    '      type: input',
+    '      handles:',
+    '        source: [turn]',
+    '    - id: n-solution-1-use-case-prob',
+    '      type: output',
+    '      handles:',
+    '        target: [turn]',
+    '        source: [detail]',
+    '    - id: n-1-use-case-problem-solut',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-use-case',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-problem',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-solo-founder-zero-budg',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-1-ship-a-wedge-in-7-14',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-2-tco-first-architectu',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-3-organic-growth-chann',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-4-conversion-loop-free',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '  edges:',
+    '    - source: n-recommend-solo-founder-z.turn',
+    '      target: n-solution-1-use-case-prob.turn',
+    '      label: "responds"',
+    '---',
+  ].join('\n')
+
+  const expected = [
+    'n-recommend-solo-founder-z',
+    'n-solution-1-use-case-prob',
+    'n-1-use-case-problem-solut',
+    'n-use-case',
+    'n-problem',
+    'n-2-solo-founder-zero-budg',
+    'n-2-1-ship-a-wedge-in-7-14',
+    'n-2-2-tco-first-architectu',
+    'n-2-3-organic-growth-chann',
+    'n-2-4-conversion-loop-free',
+  ].sort()
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-chat-only-flow-node-ids.md', md)
+  if (!res) throw new Error('expected parse result')
+  const actual = (res.graphData.nodes || []).map(n => String(n.id || '')).filter(Boolean).sort()
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`expected only declared flow node ids, got ${JSON.stringify(actual)}`)
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphKgcSampleUsesOnlyDeclaredTurnDetailPorts() {
+  const md = [
+    '---',
+    'doc:',
+    '  type: chatKnowgrph',
+    'flow:',
+    '  nodes:',
+    '    - id: n-recommend-solo-founder-z',
+    '      type: input',
+    '      handles:',
+    '        source: [turn]',
+    '    - id: n-solution-1-use-case-prob',
+    '      type: output',
+    '      handles:',
+    '        target: [turn]',
+    '        source: [detail]',
+    '    - id: n-1-use-case-problem-solut',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-use-case',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-problem',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-solo-founder-zero-budg',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-1-ship-a-wedge-in-7-14',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-2-tco-first-architectu',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-3-organic-growth-chann',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '    - id: n-2-4-conversion-loop-free',
+    '      type: default',
+    '      handles:',
+    '        target: [detail]',
+    '  edges:',
+    '    - source: n-recommend-solo-founder-z.turn',
+    '      target: n-solution-1-use-case-prob.turn',
+    '      label: "responds"',
+    '    - source: n-solution-1-use-case-prob.detail',
+    '      target: n-1-use-case-problem-solut.detail',
+    '      label: "expands"',
+    '    - source: n-solution-1-use-case-prob.detail',
+    '      target: n-use-case.detail',
+    '      label: "expands"',
+    '    - source: n-solution-1-use-case-prob.detail',
+    '      target: n-problem.detail',
+    '      label: "expands"',
+    '    - source: n-solution-1-use-case-prob.detail',
+    '      target: n-2-solo-founder-zero-budg.detail',
+    '      label: "expands"',
+    '    - source: n-solution-1-use-case-prob.detail',
+    '      target: n-2-1-ship-a-wedge-in-7-14.detail',
+    '      label: "expands"',
+    '    - source: n-solution-1-use-case-prob.detail',
+    '      target: n-2-2-tco-first-architectu.detail',
+    '      label: "expands"',
+    '    - source: n-solution-1-use-case-prob.detail',
+    '      target: n-2-3-organic-growth-chann.detail',
+    '      label: "expands"',
+    '    - source: n-solution-1-use-case-prob.detail',
+    '      target: n-2-4-conversion-loop-free.detail',
+    '      label: "expands"',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-flow-sample.md', md)
+  if (!res) throw new Error('expected parse result')
+  if (res.graphData.edges.length !== 9) throw new Error(`expected 9 flow edges, got ${res.graphData.edges.length}`)
+
+  const meta = (res.graphData.metadata || {}) as Record<string, unknown>
+  const registry = Array.isArray(meta['flow:nodeQuickEditorRegistry']) ? (meta['flow:nodeQuickEditorRegistry'] as Array<Record<string, unknown>>) : []
+  if (registry.length < 10) throw new Error(`expected quick-editor registry entries for flow nodes, got ${registry.length}`)
+
+  const forbiddenPortKeys = new Set(['compute', 'data'])
+  for (let i = 0; i < registry.length; i += 1) {
+    const rec = registry[i]
+    const ports = Array.isArray(rec.ports) ? (rec.ports as Array<Record<string, unknown>>) : []
+    for (let j = 0; j < ports.length; j += 1) {
+      const portKey = String(ports[j]?.portKey || '').trim()
+      if (forbiddenPortKeys.has(portKey)) {
+        throw new Error(`expected no hard-coded port handle "${portKey}"`)
+      }
+    }
+  }
+
+  const formInput = registry.find(r => String(r.formId || '') === 'fm:n-recommend-solo-founder-z') || null
+  if (!formInput) throw new Error('expected form registry for n-recommend-solo-founder-z')
+  const inputPorts = Array.isArray(formInput.ports) ? (formInput.ports as Array<Record<string, unknown>>) : []
+  const hasInputTurnSource = inputPorts.some(p => String(p.portKey || '') === 'turn' && String(p.direction || '') === 'output')
+  if (!hasInputTurnSource) throw new Error('expected n-recommend-solo-founder-z source handle turn')
+
+  const formOutput = registry.find(r => String(r.formId || '') === 'fm:n-solution-1-use-case-prob') || null
+  if (!formOutput) throw new Error('expected form registry for n-solution-1-use-case-prob')
+  const outputPorts = Array.isArray(formOutput.ports) ? (formOutput.ports as Array<Record<string, unknown>>) : []
+  const hasOutputTurnTarget = outputPorts.some(p => String(p.portKey || '') === 'turn' && String(p.direction || '') === 'input')
+  const hasOutputDetailSource = outputPorts.some(p => String(p.portKey || '') === 'detail' && String(p.direction || '') === 'output')
+  if (!hasOutputTurnTarget || !hasOutputDetailSource) {
+    throw new Error('expected n-solution-1-use-case-prob handles target.turn and source.detail')
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphPrunesUnreferencedHandlesAndKeepsEdgeMappedPorts() {
+  const md = [
+    '---',
+    'doc:',
+    '  type: chatKnowgrph',
+    'flow:',
+    '  nodes:',
+    '    - id: n-a',
+    '      type: input',
+    '      handles:',
+    '        source: [turn,unusedOut]',
+    '    - id: n-b',
+    '      type: output',
+    '      handles:',
+    '        target: [turn,unusedIn]',
+    '        source: [detail,unusedOut2]',
+    '  edges:',
+    '    - source: n-a.turn',
+    '      target: n-b.turn',
+    '      label: "responds"',
+    '    - source: n-b.detail',
+    '      target: n-a.turn',
+    '      label: "expands"',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-handle-prune.md', md)
+  if (!res) throw new Error('expected parse result')
+  const meta = (res.graphData.metadata || {}) as Record<string, unknown>
+  const registry = Array.isArray(meta['flow:nodeQuickEditorRegistry']) ? (meta['flow:nodeQuickEditorRegistry'] as Array<Record<string, unknown>>) : []
+  const formA = registry.find(r => String(r.formId || '') === 'fm:n-a')
+  const formB = registry.find(r => String(r.formId || '') === 'fm:n-b')
+  if (!formA || !formB) throw new Error('expected quick-editor registry forms for n-a and n-b')
+  const portsA = Array.isArray(formA.ports) ? formA.ports as Array<Record<string, unknown>> : []
+  const portsB = Array.isArray(formB.ports) ? formB.ports as Array<Record<string, unknown>> : []
+  const hasA_turn_out = portsA.some(p => String(p.portKey || '') === 'turn' && String(p.direction || '') === 'output')
+  const hasA_unusedOut = portsA.some(p => String(p.portKey || '') === 'unusedOut')
+  const hasB_turn_in = portsB.some(p => String(p.portKey || '') === 'turn' && String(p.direction || '') === 'input')
+  const hasB_detail_out = portsB.some(p => String(p.portKey || '') === 'detail' && String(p.direction || '') === 'output')
+  const hasB_unused = portsB.some(p => String(p.portKey || '').toLowerCase().includes('unused'))
+  if (!hasA_turn_out || !hasB_turn_in || !hasB_detail_out) {
+    throw new Error('expected edge-mapped handle ports to remain')
+  }
+  if (hasA_unusedOut || hasB_unused) {
+    throw new Error('expected unreferenced handles to be pruned in chatKnowgrph flow mode')
+  }
 }
 
 export function testMarkdownFrontmatterFlowGraphEnforcesNodeTypeHandleAndComputeContract() {
