@@ -130,6 +130,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["frontmatterMode.effective.noopWhenNoSeeds","@/__tests__/frontmatterModeEffective.test","testFrontmatterModeEffectiveNoopWhenNoSeeds"],
   ["frontmatterMode.effective.whenSeedsExist","@/__tests__/frontmatterModeEffective.test","testFrontmatterModeEffectiveWhenSeedsExist"],
   ["frontmatterMode.effective.frontmatterFlowContextWithoutMermaidSeeds","@/__tests__/frontmatterModeEffective.test","testFrontmatterModeEffectiveForFrontmatterFlowGraphWithoutMermaidSeeds"],
+  ["frontmatterPolicy.derivation.guards.skipKeywordTableComposedSource","@/__tests__/frontmatterOnlyPolicyDerivationGuards.test","testFrontmatterOnlyPolicySkipsKeywordTableAndComposedSourceDerivations"],
   ["layout.flow.elkMultipleHandles.deterministicOrdering","@/__tests__/flowElkMultipleHandles.test","testFlowHandlesByNodeDeterministicOrdering"],
   ["layout.flow.handles.defaultsInjected","@/__tests__/flowElkMultipleHandles.test","testFlowHandlesDefaultsAreInjectedWhenRequested"],
   ["layout.flow.schemaFieldPortKeys.stableHandles","@/__tests__/flowSchemaFieldPortKeys.test","testFlowSchemaFieldPortKeysCreateStableHandlesForSchemaFields"],

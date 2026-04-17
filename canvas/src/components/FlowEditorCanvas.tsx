@@ -1610,10 +1610,22 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         return typeof raw === 'string' ? raw.trim() : ''
       }
       const endpointNodeId = (raw: unknown): string => {
-        const s = String(raw || '').trim()
-        if (!s) return ''
-        const dot = s.indexOf('.')
-        return dot > 0 ? s.slice(0, dot).trim() : s
+        if (!raw) return ''
+        if (typeof raw === 'string') {
+          const s = raw.trim()
+          if (!s) return ''
+          const dot = s.indexOf('.')
+          return dot > 0 ? s.slice(0, dot).trim() : s
+        }
+        if (typeof raw === 'number') return Number.isFinite(raw) ? String(raw) : ''
+        if (typeof raw === 'object' && !Array.isArray(raw) && 'id' in (raw as Record<string, unknown>)) {
+          const idRaw = (raw as Record<string, unknown>).id
+          const id = typeof idRaw === 'string' ? idRaw.trim() : typeof idRaw === 'number' && Number.isFinite(idRaw) ? String(idRaw) : ''
+          if (!id) return ''
+          const dot = id.indexOf('.')
+          return dot > 0 ? id.slice(0, dot).trim() : id
+        }
+        return ''
       }
 
       const edges: Array<{

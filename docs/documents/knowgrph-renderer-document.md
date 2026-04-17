@@ -52,10 +52,10 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 ### Renderer Mode Matrix (2D: D3 Graph/Flowchart/Flow Canvas/Design/Flow Editor; 3D; Voxel)
 
 - **Shared derivation SSOT**:
-  - All renderers (2D D3 Graph/Flowchart/Flow Canvas/Design/Flow Editor, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
+  - All renderers (2D D3 Graph/Flowchart/Flow Canvas/Design, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
   - Derivation order: keyword base → optional frontmatter filter (Document mode only) → optional group collapse. Renderer toggles must not re-derive or fork this pipeline.
 - **Frontmatter Mode On/Off**:
-  - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), both 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes).
+  - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes). Flow Editor uses a frontmatter-only derived view: keyword/table/composed-source derivations are disabled while Flow/Flow Editor frontmatter-only policy is active so other document modes/renderers cannot interfere with Flow Editor graph state.
   - If `flow` block metadata exists, flow-derived nodes/connections are the canonical parser input for renderer surfaces; parser wiring must not merge legacy top-level `edges` into the rendered graph.
   - Flowchart renderer (compat id: `d3Bipartite`) is strict frontmatter mode: it renders only frontmatter Mermaid/flow-derived graph data from the local ingest→parse→render pipeline and must not fetch API/fixture fallback graphs.
   - Subgraph/group metadata must stay explicit-only (`kg:subgraphs` and cluster derivation); renderer paths must not rely on synthetic fallback groups such as `frontmatter:all`, tier buckets, or category buckets.
