@@ -43,6 +43,13 @@ function readEndpointId(v: unknown): string {
   return ''
 }
 
+function normalizeEndpointNodeId(raw: string): string {
+  const s = String(raw || '').trim()
+  if (!s) return ''
+  const dot = s.indexOf('.')
+  return dot > 0 ? s.slice(0, dot).trim() : s
+}
+
 export function filterGraphToFlowQuickEditorEligible(data: GraphData): GraphData {
   const allNodes = Array.isArray(data.nodes) ? (data.nodes as GraphNode[]) : []
   const allEdges = Array.isArray(data.edges) ? (data.edges as GraphEdge[]) : []
@@ -51,8 +58,8 @@ export function filterGraphToFlowQuickEditorEligible(data: GraphData): GraphData
 
   const nodes = allNodes.filter(n => eligible.has(String(n?.id || '').trim()))
   const edges = allEdges.filter(e => {
-    const src = readEndpointId((e as { source?: unknown }).source)
-    const tgt = readEndpointId((e as { target?: unknown }).target)
+    const src = normalizeEndpointNodeId(readEndpointId((e as { source?: unknown }).source))
+    const tgt = normalizeEndpointNodeId(readEndpointId((e as { target?: unknown }).target))
     return Boolean(src && tgt && eligible.has(src) && eligible.has(tgt))
   })
 

@@ -7,7 +7,6 @@ import { relaxFlowSceneNodePositions } from '@/components/FlowCanvas/relaxSceneP
 import { computeFlowDragRelaxPolicy } from '@/components/FlowCanvas/relaxStepPolicy'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { readZoomScaleExtent, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP } from '@/lib/graph/layoutDefaults'
-import { getFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { createInfiniteCanvasViewportController } from '@/lib/canvas/infinite-canvas-engine'
 import { mergeScaleExtentWithCurrent } from '@/lib/zoom/scaleExtent'
 import { clampScale } from '@/lib/canvas/viewport-transform'
@@ -24,6 +23,8 @@ import { createFlowNativePointerMoveHandler } from '@/components/FlowCanvas/inte
 import { createFlowNativePointerUpHandler } from '@/components/FlowCanvas/interactions/pointerUp'
 import { createFlowNativeContextMenuHandler } from '@/components/FlowCanvas/interactions/contextMenu'
 import { bindFlowNativeInteractionListeners } from '@/components/FlowCanvas/interactions/listeners'
+
+const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInteractionsArgs) {
   const canvasEl = args.canvasEl
@@ -137,9 +138,8 @@ export function bindFlowCanvasNativeInteractions(args: BindFlowCanvasNativeInter
 
   const computeScaleExtent = ({ schema, currentK }: { schema: any; currentK: number }) => {
     const [schemaMinScale, schemaMaxScale] = readZoomScaleExtent(schema)
-    const autoMinScale = getFlowAutoMinScale(runtime)
-    const maxK = schemaMaxScale
-    const minBase = autoMinScale != null ? autoMinScale : schemaMinScale
+    const maxK = Math.min(schemaMaxScale, FLOW_ZOOM_MAX_VISUAL_CAP)
+    const minBase = Math.min(schemaMinScale, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP)
     const minK = clampScale(minBase, { minK: DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, maxK })
     return mergeScaleExtentWithCurrent({ schemaMinK: minK, schemaMaxK: maxK, curMinK: currentK, curMaxK: currentK })
   }

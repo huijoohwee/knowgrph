@@ -27,6 +27,7 @@ import {
 import { buildBipartiteSourceMeta } from '@/lib/bipartite/source'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
+import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 
 let mermaidFrontmatterGeometryModulePromise: Promise<typeof import('@/lib/mermaid/mermaidFrontmatterGeometry')> | null = null
 
@@ -777,6 +778,10 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     keywordGraphMentionEdgesPerSourceNode,
     revision,
   } = useGraphStore(useShallow(selector))
+  const frontmatterOnlyPolicyActive = React.useMemo(() => {
+    return isFrontmatterOnlyPolicyActive({ canvasRenderMode, canvas2dRenderer })
+  }, [canvas2dRenderer, canvasRenderMode])
+  const effectiveMode: 'document' | 'keyword' = frontmatterOnlyPolicyActive ? 'document' : mode
 
   // Flowchart renderer is frontmatter-only and reuses local ingest->parse->render data.
   const wantsApiGraphBipartite = false
@@ -819,7 +824,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     if (wantsApiGraphBipartite) return null
     if (hasStructuredWorkspaceGraph) return null
     if (!baseGraphData) return null
-    if (mode !== 'keyword') return null
+    if (effectiveMode !== 'keyword') return null
 
     const baseMetaKey = buildGraphMetaKey(baseGraphData)
     const baseLayerHash = (() => {
@@ -885,7 +890,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     keywordSourceMaxLines,
     markdownName,
     markdownText,
-    mode,
+    effectiveMode,
     revision,
   ])
 
@@ -902,7 +907,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     void asyncBump
     if (!baseGraphData) return null
     if (hasStructuredWorkspaceGraph) return baseGraphData
-    if (mode !== 'keyword') return baseGraphData
+    if (effectiveMode !== 'keyword') return baseGraphData
 
     const inputs = keywordDeriveInputs
     if (!inputs) return null
@@ -921,7 +926,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     // Avoid rendering synthetic pending placeholder graphs while keyword derivation is in-flight.
     // Keep the canonical baseline graph visible until a real keyword graph is derived.
     return baseGraphData
-  }, [asyncBump, baseGraphData, hasStructuredWorkspaceGraph, keywordDeriveInputs, mode])
+  }, [asyncBump, baseGraphData, hasStructuredWorkspaceGraph, keywordDeriveInputs, effectiveMode])
 
   const baseGraphDataRef = React.useRef<GraphData | null>(null)
   React.useEffect(() => {
@@ -941,7 +946,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   React.useEffect(() => {
     if (!enabled) return
     if (!baseGraphData) return
-    if (mode !== 'keyword') return
+    if (effectiveMode !== 'keyword') return
     const inputs = debouncedKeywordPreviewInputs
     if (!inputs) return
 
@@ -1019,12 +1024,12 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
       }
       if (pendingPreviewKeyRef.current === inputs.cacheKey) pendingPreviewKeyRef.current = null
     }
-  }, [baseGraphData, debouncedKeywordPreviewInputs, enabled, markdownName, mode])
+  }, [baseGraphData, debouncedKeywordPreviewInputs, enabled, markdownName, effectiveMode])
 
   React.useEffect(() => {
     if (!enabled) return
     if (!baseGraphData) return
-    if (mode !== 'keyword') return
+    if (effectiveMode !== 'keyword') return
     const inputs = debouncedKeywordFullInputs
     if (!inputs) return
 
@@ -1109,20 +1114,20 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
         void 0
       }
     }
-  }, [baseGraphData, debouncedKeywordFullInputs, enabled, markdownName, mode])
+  }, [baseGraphData, debouncedKeywordFullInputs, enabled, markdownName, effectiveMode])
 
   React.useEffect(() => {
     if (!enabled) return
     const next = wantsApiGraphBipartite ? apiGraphBipartite : computed
     lastRef.current = next
     if (wantsApiGraphBipartite) return
-    if (mode === 'keyword' && keywordDeriveInputs) {
+    if (effectiveMode === 'keyword' && keywordDeriveInputs) {
       const cached = keywordGraphCache.get(keywordDeriveInputs.cacheKey)
       if (cached && cached.graph) {
         lastKeywordRef.current = { cacheKey: keywordDeriveInputs.cacheKey, docId: keywordDeriveInputs.docId, graph: cached.graph }
       }
     }
-  }, [apiGraphBipartite, computed, enabled, keywordDeriveInputs, mode, wantsApiGraphBipartite])
+  }, [apiGraphBipartite, computed, enabled, keywordDeriveInputs, effectiveMode, wantsApiGraphBipartite])
 
   const out = wantsApiGraphBipartite ? apiGraphBipartite : computed
   return enabled ? out : lastRef.current
@@ -1196,13 +1201,20 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     canvasRenderMode,
     canvas2dRenderer,
   } = useGraphStore(useShallow(selector))
+  const frontmatterOnlyPolicyActive = React.useMemo(
+    () => isFrontmatterOnlyPolicyActive({ canvasRenderMode, canvas2dRenderer }),
+    [canvasRenderMode, canvas2dRenderer],
+  )
+  const effectiveDocumentSemanticMode = frontmatterOnlyPolicyActive ? 'document' : documentSemanticMode
+  const effectiveFrontmatterModeEnabled = frontmatterOnlyPolicyActive ? true : frontmatterModeEnabled
+  const effectiveMultiDimTableModeEnabled = frontmatterOnlyPolicyActive ? false : multiDimTableModeEnabled
 
   const applyMermaidGeometryAttemptKeyRef = React.useRef<string>('')
   const applyMermaidGeometryInFlightRef = React.useRef(false)
   React.useEffect(() => {
     if (!enabled) return
-    if (!frontmatterModeEnabled) return
-    if (String(documentSemanticMode || 'document') !== 'document') return
+    if (!effectiveFrontmatterModeEnabled) return
+    if (String(effectiveDocumentSemanticMode || 'document') !== 'document') return
     const base = graphData
     if (!base) return
     if (String((base as unknown as { context?: unknown }).context || '') === 'frontmatter-mermaid') return
@@ -1211,7 +1223,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
         ? (base.metadata as Record<string, unknown>)
         : null
     if (meta && String(meta.layoutEngine || '') === 'mermaid') return
-    if (!computeEffectiveFrontmatterMode({ frontmatterModeEnabled: true, documentSemanticMode, graphData: base })) return
+    if (!computeEffectiveFrontmatterMode({ frontmatterModeEnabled: true, documentSemanticMode: effectiveDocumentSemanticMode, graphData: base })) return
     if (typeof window === 'undefined' || typeof document === 'undefined') return
 
     const attemptKey = `mermaidGeom:${buildGraphMetaKey(base)}:${base.nodes?.length || 0}:${base.edges?.length || 0}`
@@ -1240,7 +1252,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     return () => {
       cancelled = true
     }
-  }, [documentSemanticMode, enabled, frontmatterModeEnabled, graphData])
+  }, [effectiveDocumentSemanticMode, effectiveFrontmatterModeEnabled, enabled, graphData])
 
   const lastRef = React.useRef<GraphData | null>(null)
 
@@ -1261,20 +1273,20 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     }
     return deriveGraphDataForActiveView({
       graphData,
-      frontmatterModeEnabled,
-      multiDimTableModeEnabled,
-      documentSemanticMode,
+      frontmatterModeEnabled: effectiveFrontmatterModeEnabled,
+      multiDimTableModeEnabled: effectiveMultiDimTableModeEnabled,
+      documentSemanticMode: effectiveDocumentSemanticMode,
       documentStructureBaselineLock,
       collapsedGroupIds: [],
     })
   }, [
     canvas2dRenderer,
     canvasRenderMode,
-    documentSemanticMode,
-    frontmatterModeEnabled,
+    effectiveDocumentSemanticMode,
+    effectiveFrontmatterModeEnabled,
+    effectiveMultiDimTableModeEnabled,
     graphData,
     markdownText,
-    multiDimTableModeEnabled,
   ])
 
   const computed = React.useMemo(() => {

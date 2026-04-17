@@ -11,6 +11,19 @@ import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
 import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
 import { formatSignedPx, formatZoomPercent } from '@/lib/canvas/viewport-format'
 
+type FlowQuickEditorTraceEntry = {
+  ts?: number
+  doc?: string
+  graphNodes?: number
+  graphEdges?: number
+  openQuickEditorCount?: number
+  overlayCount?: number
+  overlayIdsHead?: string
+}
+
+const FLOW_QE_TRACE_LS_KEY = 'kg:debug:flowEditorQuickEditorTrace'
+const FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT = 'kg:flow:resetZoomFloorCache'
+
 type LaunchSpotlightStatusCardProps = {
   dismissed: boolean
   ready: boolean
@@ -178,6 +191,80 @@ export function LaunchSpotlightStatusCard({
   const cardStyle = getSpotlightCardStyle(anchor, dragPos, minimized)
   const schemaImport = typeof schemaImportLabel === 'string' ? schemaImportLabel.trim() : ''
   const schemaDetails = `${nodeTypes} node types · ${edgeLabels} edge labels`
+  const devTraceEnabled = React.useMemo(() => {
+    if (!import.meta.env.DEV) return false
+    if (typeof window === 'undefined') return false
+    try {
+      return window.localStorage?.getItem(FLOW_QE_TRACE_LS_KEY) === '1'
+    } catch {
+      return false
+    }
+  }, [])
+
+  const handleSummarizeQuickEditorTrace = React.useCallback(() => {
+    if (typeof window === 'undefined') return
+    const w = window as Window & { __KG_FLOW_EDITOR_QE_TRACE__?: Array<Record<string, unknown>> }
+    const rows = Array.isArray(w.__KG_FLOW_EDITOR_QE_TRACE__) ? w.__KG_FLOW_EDITOR_QE_TRACE__ : []
+    const normalized = rows.map(r => ({
+      ts: typeof r.ts === 'number' ? r.ts : 0,
+      doc: typeof r.doc === 'string' ? r.doc : '',
+      graphNodes: typeof r.graphNodes === 'number' ? r.graphNodes : 0,
+      graphEdges: typeof r.graphEdges === 'number' ? r.graphEdges : 0,
+      openQuickEditorCount: typeof r.openQuickEditorCount === 'number' ? r.openQuickEditorCount : 0,
+      overlayCount: typeof r.overlayCount === 'number' ? r.overlayCount : 0,
+      overlayIdsHead: typeof r.overlayIdsHead === 'string' ? r.overlayIdsHead : '',
+    })) as FlowQuickEditorTraceEntry[]
+    let drops = 0
+    let spikes = 0
+    for (let i = 1; i < normalized.length; i += 1) {
+      const prev = normalized[i - 1]
+      const curr = normalized[i]
+      if ((prev.overlayCount || 0) > 0 && (curr.overlayCount || 0) === 0) drops += 1
+      if ((prev.overlayCount || 0) === 0 && (curr.overlayCount || 0) > 0) spikes += 1
+    }
+    const last = normalized.length > 0 ? normalized[normalized.length - 1] : null
+    const summary = {
+      samples: normalized.length,
+      drops,
+      spikes,
+      lastDoc: last?.doc || '',
+      lastGraphNodes: last?.graphNodes || 0,
+      lastGraphEdges: last?.graphEdges || 0,
+      lastOpenQuickEditors: last?.openQuickEditorCount || 0,
+      lastOverlayCount: last?.overlayCount || 0,
+      lastOverlayIdsHead: last?.overlayIdsHead || '',
+      latestEntries: normalized.slice(-8),
+    }
+    console.info('[FlowEditor][QuickEditorTrace][Summary]', summary)
+  }, [])
+  const handleResetZoomFloorCache = React.useCallback(() => {
+    if (typeof window === 'undefined') return
+    try {
+      window.dispatchEvent(new CustomEvent(FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT))
+      console.info('[FlowEditor][ZoomFloorCache] reset requested')
+    } catch {
+      void 0
+    }
+  }, [])
+  const quickEditorTraceBadge = React.useMemo(() => {
+    if (!devTraceEnabled) return null
+    if (typeof window === 'undefined') return null
+    const w = window as Window & { __KG_FLOW_EDITOR_QE_TRACE__?: Array<Record<string, unknown>> }
+    const rows = Array.isArray(w.__KG_FLOW_EDITOR_QE_TRACE__) ? w.__KG_FLOW_EDITOR_QE_TRACE__ : []
+    let drops = 0
+    let spikes = 0
+    for (let i = 1; i < rows.length; i += 1) {
+      const prev = rows[i - 1]
+      const curr = rows[i]
+      const prevOverlay = typeof prev?.overlayCount === 'number' ? prev.overlayCount : 0
+      const currOverlay = typeof curr?.overlayCount === 'number' ? curr.overlayCount : 0
+      if (prevOverlay > 0 && currOverlay === 0) drops += 1
+      if (prevOverlay === 0 && currOverlay > 0) spikes += 1
+    }
+    const last = rows.length > 0 ? rows[rows.length - 1] : null
+    const lastOverlayCount = typeof last?.overlayCount === 'number' ? last.overlayCount : 0
+    return { drops, spikes, samples: rows.length, lastOverlayCount }
+  }, [devTraceEnabled, graphData?.nodes, graphData?.edges, selectedNodeId, zoomState?.k])
 
   return (
     <div className="fixed inset-0 z-[2000] pointer-events-none">
@@ -254,6 +341,34 @@ export function LaunchSpotlightStatusCard({
                   </div>
                   <div>Selected: {selectedLabel}</div>
                   {schemaImport ? <div>Import: {schemaImport}</div> : null}
+                  {quickEditorTraceBadge ? (
+                    <div className="mt-1">
+                      <span className={ingestionKindChipClass}>
+                        QE d/s {quickEditorTraceBadge.drops}/{quickEditorTraceBadge.spikes} · n={quickEditorTraceBadge.samples}
+                      </span>
+                      <span className={`${ingestionKindChipClass} ml-1`}>
+                        g/o {nodesCount.toLocaleString()}/{quickEditorTraceBadge.lastOverlayCount.toLocaleString()}
+                      </span>
+                    </div>
+                  ) : null}
+                  {devTraceEnabled ? (
+                    <div className="mt-1">
+                      <button
+                        type="button"
+                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 mr-1`}
+                        onClick={handleResetZoomFloorCache}
+                      >
+                        Reset Zoom Floor (dev)
+                      </button>
+                      <button
+                        type="button"
+                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100`}
+                        onClick={handleSummarizeQuickEditorTrace}
+                      >
+                        QE Trace Summary (dev)
+                      </button>
+                    </div>
+                  ) : null}
 
                   <section className="mt-2" aria-label="Viewport status">
                     <h3 className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide text-gray-500 mb-0.5`}>

@@ -1,5 +1,6 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildSourceLayerKeys, composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
+import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 
 let pendingComposeRaf: number | null = null
 
@@ -18,10 +19,7 @@ export function scheduleApplyComposedGraphFromSourceFiles() {
 
 export function applyComposedGraphFromSourceFiles() {
   const store = useGraphStore.getState()
-  if (store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor') {
-    const meta = (store.graphData?.metadata || {}) as Record<string, unknown>
-    if (String(meta.sourceLayerComposition || '') !== 'compose') return
-  }
+  if (isFrontmatterOnlyPolicyActive({ canvasRenderMode: store.canvasRenderMode, canvas2dRenderer: store.canvas2dRenderer })) return
   const layers = (store.sourceFiles || []).map(f => ({
     id: f.id,
     name: f.name,

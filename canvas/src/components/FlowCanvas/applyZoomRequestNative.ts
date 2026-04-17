@@ -10,6 +10,8 @@ import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanva
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
 
+const FLOW_ZOOM_MAX_VISUAL_CAP = 24
+
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
 
 export const cancelFlowZoomRequestAnim = (runtime: FlowNativeRuntime) => {
@@ -54,6 +56,8 @@ export const applyZoomRequestNative = (args: {
   }
   const t0 = args.runtime.transform || d3.zoomIdentity
   const [schemaMinK, schemaMaxK] = readZoomScaleExtent(schema)
+  const flowMinK = Math.min(schemaMinK, 0.000001)
+  const flowMaxK = Math.min(schemaMaxK, FLOW_ZOOM_MAX_VISUAL_CAP)
   const autoMinK = getFlowAutoMinScale(args.runtime)
   const resolved = resolveZoomRequest2d({
     zoomRequest: args.zoomRequest,
@@ -73,8 +77,8 @@ export const applyZoomRequestNative = (args: {
     selectedEdgeIds: args.selectedEdgeIds,
     selectedGroupIds: args.selectedGroupIds,
     currentTransform: t0,
-    schemaExtent: { minK: schemaMinK, maxK: schemaMaxK },
-    currentExtent: { minK: autoMinK ?? schemaMinK, maxK: schemaMaxK },
+    schemaExtent: { minK: flowMinK, maxK: flowMaxK },
+    currentExtent: { minK: autoMinK ?? flowMinK, maxK: flowMaxK },
     cacheKeyBase: '2d',
   })
   if (!resolved) {
@@ -82,7 +86,7 @@ export const applyZoomRequestNative = (args: {
     return
   }
   const nextMinScale = resolved.nextMinScale
-  if (typeof nextMinScale === 'number' && Number.isFinite(nextMinScale) && nextMinScale < schemaMinK) {
+  if (typeof nextMinScale === 'number' && Number.isFinite(nextMinScale) && nextMinScale < flowMinK) {
     const prev = getFlowAutoMinScale(args.runtime)
     const combined = prev == null ? nextMinScale : Math.min(prev, nextMinScale)
     setFlowAutoMinScale(args.runtime, combined)

@@ -74,6 +74,7 @@ const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 const EMPTY_STRING_ARRAY: string[] = []
 const EMPTY_BOOL_RECORD: Record<string, boolean> = {}
 const EMPTY_POS_RECORD: Record<string, { x: number; y: number }> = {}
+const FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT = 'kg:flow:resetZoomFloorCache'
 
 type FlowCanvasInteractionRuntimeProps = {
   active: boolean
@@ -1498,6 +1499,19 @@ export default function FlowCanvas({
     threeIframeOverlayBaseWidthRatioDefault,
     viewportW,
   ])
+
+  React.useEffect(() => {
+    if (!active) return
+    const onResetZoomFloor = () => {
+      const runtime = runtimeRef.current
+      if (!runtime) return
+      setFlowAutoMinScale(runtime, null)
+    }
+    window.addEventListener(FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT, onResetZoomFloor as EventListener)
+    return () => {
+      window.removeEventListener(FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT, onResetZoomFloor as EventListener)
+    }
+  }, [active])
 
   const nodesForFlowZoomCollective = React.useMemo(() => {
     if (!Array.isArray(nodesForFlowZoom) || nodesForFlowZoom.length === 0) return nodesForFlowZoom

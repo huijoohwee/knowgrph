@@ -161,6 +161,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["flow.quickEditor.seed.groupSpread.avoidsStackingInTinyBounds","@/__tests__/flowEditorQuickEditorSeedGroupSpread.test","testFlowEditorQuickEditorSeedGroupSpreadAvoidsStackingInTinyBounds"],
   ["flow.quickEditor.seed.groupSpread.deterministicLayout","@/__tests__/flowEditorQuickEditorSeedGroupSpread.test","testFlowEditorQuickEditorSeedGroupSpreadDeterministicLayout"],
   ["flow.quickEditor.seed.groupSpread.centeredOnTinyBounds","@/__tests__/flowEditorQuickEditorSeedGroupSpread.test","testFlowEditorQuickEditorSeedGroupSpreadStaysCenteredOnTinyGroupBounds"],
+  ["flow.quickEditor.eligibility.filter.keepsDottedEndpointEdges","@/__tests__/flowQuickEditorEligibility.test","testFlowQuickEditorEligibilityKeepsDottedEndpointEdges"],
   ["flow.seed.fallback.viewportInvariant","@/__tests__/flowFallbackSeedPositions.test","testFlowFallbackSeedPositionsAreViewportInvariant"],
   ["flow.seed.fallback.centeredAtWorldOrigin","@/__tests__/flowFallbackSeedPositions.test","testFlowFallbackSeedPositionsStayCenteredAtWorldOrigin"],
   ["mainPanel.flowEditorManager.registry.validateAndNormalize","@/__tests__/flowEditorManagerRegistry.test","testFlowEditorManagerRegistryValidatesAndNormalizes"],

@@ -6,7 +6,6 @@ import { unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
-import { getFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { clampScale, computePinchZoomTransform } from '@/lib/canvas/viewport-transform'
 import { readZoomSpeed, clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { clampFlowWheelZoomIncrementMultiplier, clampFlowWheelZoomSpeedMultiplier } from '@/lib/canvas/flow-zoom-tuning'
@@ -16,6 +15,8 @@ import { computeGroupResizeBottomRight } from '@/lib/canvas/groupResizeMath2d'
 import { applyGroupResizeDragSensitivity, computeDynamicGroupResizeHandlePx, pxToWorld } from '@/lib/canvas/groupResizeHandleConfig'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
+
+const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsContext) {
   const canvasEl = ctx.canvasEl
@@ -201,9 +202,8 @@ export function createFlowNativePointerMoveHandler(ctx: FlowNativeInteractionsCo
       const state = useGraphStore.getState()
       disableAutoZoomModesForUserGesture(state)
       const [schemaMinScale, schemaMaxScale] = readZoomScaleExtent(state.schema)
-      const autoMinScale = getFlowAutoMinScale(runtime)
-      const maxScale = schemaMaxScale
-      const minScaleBase = autoMinScale != null ? autoMinScale : schemaMinScale
+      const maxScale = Math.min(schemaMaxScale, FLOW_ZOOM_MAX_VISUAL_CAP)
+      const minScaleBase = Math.min(schemaMinScale, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP)
       const minScale = clampScale(minScaleBase, { minK: DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, maxK: maxScale })
       const minK = Math.min(minScale, drag.startTransform.k)
       const zoomSpeedRaw = readZoomSpeed(state.schema)

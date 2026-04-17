@@ -1609,6 +1609,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const raw = (props as Record<string, unknown>)[key]
         return typeof raw === 'string' ? raw.trim() : ''
       }
+      const endpointNodeId = (raw: unknown): string => {
+        const s = String(raw || '').trim()
+        if (!s) return ''
+        const dot = s.indexOf('.')
+        return dot > 0 ? s.slice(0, dot).trim() : s
+      }
 
       const edges: Array<{
         id: string
@@ -1621,8 +1627,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }> = []
       for (let i = 0; i < rawEdges.length; i += 1) {
         const id = String(rawEdges[i]?.id || '').trim()
-        const source = String(rawEdges[i]?.source || '').trim()
-        const target = String(rawEdges[i]?.target || '').trim()
+        const source = endpointNodeId(rawEdges[i]?.source)
+        const target = endpointNodeId(rawEdges[i]?.target)
         if (!id || !source || !target) continue
         if (!overlayIdSet.has(source) || !overlayIdSet.has(target)) continue
         const props = rawEdges[i]?.properties
@@ -3256,6 +3262,48 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (next.length > 0) lastStableOverlayEditorNodeIdsRef.current = next
     return next
   }, [flowEditorFrontmatterGraphAvailable, flowEditorViewActive, openQuickEditorNodeIds, overlayDraftNode?.id, renderGraphDataOverride, renderGraphDataOverride?.metadata, renderGraphDataOverride?.nodes])
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const w = window as Window & { localStorage?: Storage; __KG_FLOW_EDITOR_QE_TRACE__?: Array<Record<string, unknown>> }
+    let enabled = false
+    try {
+      enabled = Boolean(w.localStorage && w.localStorage.getItem('kg:debug:flowEditorQuickEditorTrace') === '1')
+    } catch {
+      enabled = false
+    }
+    if (!enabled) return
+
+    const graphNodes = Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride.nodes.length : 0
+    const graphEdges = Array.isArray(renderGraphDataOverride?.edges) ? renderGraphDataOverride.edges.length : 0
+    const entry: Record<string, unknown> = {
+      ts: Date.now(),
+      doc: activeDocumentKey,
+      active: active ? 1 : 0,
+      view: flowEditorViewActive ? 1 : 0,
+      frontmatterOnlyPolicyActive: frontmatterOnlyPolicyActive ? 1 : 0,
+      frontmatterGraph: flowEditorFrontmatterGraphAvailable ? 1 : 0,
+      graphNodes,
+      graphEdges,
+      openQuickEditorCount: Array.isArray(openQuickEditorNodeIds) ? openQuickEditorNodeIds.length : 0,
+      overlayCount: overlayEditorNodeIds.length,
+      overlayIdsHead: overlayEditorNodeIds.slice(0, 8).join(','),
+    }
+    const buf = Array.isArray(w.__KG_FLOW_EDITOR_QE_TRACE__) ? w.__KG_FLOW_EDITOR_QE_TRACE__ : []
+    buf.push(entry)
+    if (buf.length > 150) buf.splice(0, buf.length - 150)
+    w.__KG_FLOW_EDITOR_QE_TRACE__ = buf
+  }, [
+    active,
+    activeDocumentKey,
+    flowEditorFrontmatterGraphAvailable,
+    flowEditorViewActive,
+    frontmatterOnlyPolicyActive,
+    openQuickEditorNodeIds,
+    overlayEditorNodeIds,
+    renderGraphDataOverride?.edges,
+    renderGraphDataOverride?.nodes,
+  ])
 
   const seededFrontmatterAutoQuickEditorsKeyRef = React.useRef<string>('')
   React.useEffect(() => {
