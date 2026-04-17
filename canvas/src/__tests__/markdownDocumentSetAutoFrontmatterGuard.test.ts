@@ -3,6 +3,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 export async function testSetMarkdownDocumentDoesNotAutoEnableFrontmatterWhenDisabled() {
   const store = useGraphStore.getState()
   store.setDocumentStructureBaselineLock(false)
+  store.setCanvasRenderMode('2d')
+  store.setCanvas2dRenderer('d3')
   store.setFrontmatterModeEnabled(false)
 
   const before = useGraphStore.getState().frontmatterModeEnabled
@@ -29,6 +31,8 @@ ${fence}
 export async function testSetMarkdownDocumentAutoEnablesFrontmatterByDefault() {
   const store = useGraphStore.getState()
   store.setDocumentStructureBaselineLock(false)
+  store.setCanvasRenderMode('2d')
+  store.setCanvas2dRenderer('d3')
   store.setFrontmatterModeEnabled(false)
 
   const fence = '```'

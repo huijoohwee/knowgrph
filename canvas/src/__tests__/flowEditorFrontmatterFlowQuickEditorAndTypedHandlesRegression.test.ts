@@ -5,13 +5,16 @@ export function testFlowEditorFrontmatterUsesFlowFilterForQuickEditorOverlays() 
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
 
-  if (!text.includes('filterGraphToFrontmatterFlow')) {
-    throw new Error('expected FlowEditorCanvas to filter frontmatter mode using frontmatter-flow graph filtering')
+  if (!text.includes('filterGraphToFlowQuickEditorEligible')) {
+    throw new Error('expected FlowEditorCanvas to filter view graph using flow quick-editor eligibility filtering')
   }
   if (text.includes('filterGraphToFrontmatterMermaid')) {
     throw new Error('expected FlowEditorCanvas to avoid frontmatter-mermaid filtering for frontmatter-flow quick editor overlays')
   }
-  if (!text.includes("if (kind === 'frontmatter-flow' && nodes.length > 0)")) {
+  if (!text.includes('isFrontmatterFlowGraph')) {
+    throw new Error('expected FlowEditorCanvas to use shared frontmatter-flow graph detection helper')
+  }
+  if (!text.includes('if (isFrontmatterFlow && nodes.length > 0)')) {
     throw new Error('expected frontmatter-flow quick-editor derivation to always include all flow nodes')
   }
   if (!text.includes('FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY')) {
@@ -23,14 +26,14 @@ export function testFlowEditorFrontmatterUsesFlowFilterForQuickEditorOverlays() 
   if (!text.includes("if (!allowedFlowNodeIds.has(id)) continue")) {
     throw new Error('expected frontmatter-flow quick-editor derivation to exclude non-flow ids from overlay editors')
   }
-  if (!text.includes('if (frontmatterDocumentModeActive) return []')) {
-    throw new Error('expected frontmatter document mode to suppress non-frontmatter-flow quick-editor fallback ids')
+  if (!text.includes('if (flowEditorFrontmatterGraphAvailable) return []')) {
+    throw new Error('expected frontmatter-flow availability to suppress non-frontmatter quick-editor fallback ids')
   }
   if (!text.includes('if (!flowEditorViewActive) return []')) {
     throw new Error('expected flow editor quick-editor id derivation to avoid fallback ids whenever flow editor view is inactive')
   }
-  if (!text.includes('forceFrontmatterFlow: flowEditorFrontmatterGraphAvailable')) {
-    throw new Error('expected Flow Editor to force frontmatter-flow graph-family derivation when frontmatter-flow graph is available')
+  if (!text.includes('forceFrontmatterFlow: frontmatterOnlyPolicyActive')) {
+    throw new Error('expected Flow Editor to force flow-only graph-family derivation under frontmatter-only policy')
   }
   if (text.includes('MAX_AUTO') || text.includes('MAX_VIEW')) {
     throw new Error('expected frontmatter-flow quick-editor derivation to avoid capped auto-open/viewport limits')
@@ -80,7 +83,7 @@ export function testFrontmatterFlowQuickEditorFormShowsFlowContractAndOnlyShowsS
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
 
-  if (!text.includes("const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'")) {
+  if (!text.includes("const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow' || (nodeFormId && nodeFormId.startsWith('fm:'))")) {
     throw new Error('expected quick-editor form to detect frontmatter-flow mode')
   }
   if (!text.includes('isSmartMediaRegistryEntry')) {
@@ -394,8 +397,8 @@ export function testFlowEditorRenderGraphUsesBaseGraphWhenNotEditableForZoomMini
   if (!text.includes('if (!flowEditorViewActive) return []')) {
     throw new Error('expected quick-editor overlays to remain view-scoped instead of edit-lock scoped to avoid View Lock-induced renderer mutation')
   }
-  if (!text.includes('active={canEdit}')) {
-    throw new Error('expected quick-editor overlays to become read-only under View Lock while preserving Flow Editor overlay node model')
+  if (!text.includes('visible={flowEditorViewActive}') || !text.includes('active={canEdit}')) {
+    throw new Error('expected quick-editor overlays to stay visible in Flow Editor view while becoming read-only under View Lock')
   }
   if (text.includes('frontmatterDocumentModeActive')) {
     throw new Error('expected Flow Editor render graph source to avoid document-mode-only overlay gating')
@@ -411,8 +414,11 @@ export function testFlowEditorInactiveWarmMountDoesNotMutateQuickEditorsAcrossRe
   if (!text.includes('if (!flowEditorViewActive) return')) {
     throw new Error('expected FlowEditor quick-editor pruning effect to guard non-flow-editor view states')
   }
-  if (!text.includes("updateOpenQuickEditorNodeIds(prev => prev.filter(id => idSet.has(String(id || ''))))")) {
+  if (!text.includes('updateOpenQuickEditorNodeIds(prev => prev.filter')) {
     throw new Error('expected FlowEditor quick-editor pruning effect to stay scoped to active Flow Editor view')
+  }
+  if (!text.includes('idSet.has(s)')) {
+    throw new Error('expected FlowEditor quick-editor pruning effect to filter ids to current graph nodes')
   }
 }
 

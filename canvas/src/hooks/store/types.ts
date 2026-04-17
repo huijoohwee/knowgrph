@@ -320,7 +320,10 @@ export interface GraphState {
   documentNodeQuickEditorRegistry: NodeQuickEditorRegistryEntry[]
   effectiveNodeQuickEditorRegistry: NodeQuickEditorRegistryEntry[]
   setNodeQuickEditorRegistry: (entries: NodeQuickEditorRegistryEntry[]) => void
-  setDocumentNodeQuickEditorRegistry: (entries: NodeQuickEditorRegistryEntry[]) => void
+  setDocumentNodeQuickEditorRegistry: (
+    entries: NodeQuickEditorRegistryEntry[],
+    options?: { graphData?: GraphData | null },
+  ) => void
   upsertNodeQuickEditorRegistryEntry: (
     entry: Omit<NodeQuickEditorRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null },
   ) => { ok: true; id: string } | { ok: false; message: string }

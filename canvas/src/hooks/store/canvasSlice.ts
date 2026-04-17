@@ -51,6 +51,7 @@ import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKe
 import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { buildFlowQuickEditorEligibleNodeIdSet } from '@/lib/graph/flowQuickEditorEligibility'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { coerceCanvas2dRendererForSchema } from '@/lib/canvas/renderModeConstraints'
@@ -632,16 +633,20 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
           .map((n: any) => String(n?.id || '').trim())
           .filter((id: string) => id.length > 0),
       )
+      const eligibleFlowQuickEditorNodeIds = buildFlowQuickEditorEligibleNodeIdSet(nodes as any)
       const sourceQuickEditors = Array.isArray(state.openQuickEditorNodeIds) ? state.openQuickEditorNodeIds : []
       const targetQuickEditors = Array.isArray(nextQuickEditorBy[radialRenderer]) ? nextQuickEditorBy[radialRenderer] : []
       const sourceValid = sourceQuickEditors.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))
       const targetValid = targetQuickEditors.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))
       // Keep quick-editor state renderer-scoped: Flow Editor must not inherit open panels from other renderers.
-      const nextQuickEditors = targetValid
       const enforceFrontmatterOnly = isFrontmatterOnlyPolicyActive({
         canvasRenderMode: state.canvasRenderMode,
         canvas2dRenderer: radialRenderer,
       })
+      const nextQuickEditors =
+        enforceFrontmatterOnly && eligibleFlowQuickEditorNodeIds.size > 0
+          ? targetValid.filter(id => eligibleFlowQuickEditorNodeIds.has(id))
+          : targetValid
       const nextDocumentSemanticMode = enforceFrontmatterOnly ? 'document' : state.documentSemanticMode
       const nextFrontmatterModeEnabled = enforceFrontmatterOnly ? true : state.frontmatterModeEnabled
       const nextMultiDimTableModeEnabled = enforceFrontmatterOnly ? false : state.multiDimTableModeEnabled

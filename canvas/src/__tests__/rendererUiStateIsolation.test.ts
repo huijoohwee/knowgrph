@@ -63,3 +63,21 @@ export function testRendererUiStateIsolationFlowEditorDoesNotInheritQuickEditors
     throw new Error(`expected flowEditor quick editors to stay renderer-isolated, got ${JSON.stringify(seeded)}`)
   }
 }
+
+export function testRendererUiStateIsolationGraphDataSideEffectsDoNotOverrideFlowEditorRenderer() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'test-flow-editor-no-override',
+    nodes: [
+      { id: 'a', type: 'Node', label: 'a', properties: {}, x: 0, y: 0, vx: 0, vy: 0 },
+    ],
+    edges: [],
+    metadata: { kind: 'frontmatter-flow' },
+  } as never)
+  const state = useGraphStore.getState()
+  if (state.canvas2dRenderer !== 'flowEditor') {
+    throw new Error(`expected flowEditor renderer to remain active, got ${String(state.canvas2dRenderer)}`)
+  }
+}

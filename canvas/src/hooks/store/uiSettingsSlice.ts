@@ -672,6 +672,10 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   setFloatingPanelZIndex: (v: number) => set({ floatingPanelZIndex: v }),
   setBottomPanelTab: (tab: BottomTab) => set({ bottomPanelTab: tab }),
   setFrontmatterModeEnabled: (v: boolean) => {
+    const stateNow = get()
+    if (v !== true && isFrontmatterOnlyPolicyActive({ canvasRenderMode: stateNow.canvasRenderMode, canvas2dRenderer: stateNow.canvas2dRenderer })) {
+      return
+    }
     set(state => {
       const nextEnabled = v === true
       const prevEnabled = state.frontmatterModeEnabled === true
@@ -724,6 +728,10 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
   },
 
   setMultiDimTableModeEnabled: (v: boolean) => {
+    const stateNow = get()
+    if (v === true && isFrontmatterOnlyPolicyActive({ canvasRenderMode: stateNow.canvasRenderMode, canvas2dRenderer: stateNow.canvas2dRenderer })) {
+      return
+    }
     set(state => {
       const nextEnabled = v === true
       const prevEnabled = state.multiDimTableModeEnabled === true

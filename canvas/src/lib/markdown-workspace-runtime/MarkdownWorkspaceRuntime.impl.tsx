@@ -1825,13 +1825,11 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
               : null
             if (isStaleJob()) return
 
-            const shouldUseDirectGraphData = (() => {
-              if (store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor') {
-                const meta = (store.graphData?.metadata || {}) as Record<string, unknown>
-                return String(meta.sourceLayerComposition || '') !== 'compose'
-              }
-              return false
-            })()
+            const shouldUseDirectGraphDataFor = (graphData: GraphData | null | undefined) => {
+              if (!(store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor')) return false
+              const meta = ((graphData?.metadata || {}) as Record<string, unknown>)
+              return String(meta.sourceLayerComposition || '') !== 'compose'
+            }
 
             const applyComposedFromSourceFiles = async () => {
               if (isStaleJob()) return
@@ -1860,7 +1858,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
               } catch {
                 void 0
               }
-              if (shouldUseDirectGraphData) {
+              if (shouldUseDirectGraphDataFor(geoGraph)) {
                 try {
                   store.setGraphData(geoGraph)
                 } catch {
@@ -1885,7 +1883,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
               } catch {
                 void 0
               }
-              if (shouldUseDirectGraphData) {
+              if (shouldUseDirectGraphDataFor(cachedGraph)) {
                 try {
                   store.setGraphData(cachedGraph)
                 } catch {
@@ -1927,7 +1925,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
                 } catch {
                   void 0
                 }
-                if (shouldUseDirectGraphData) {
+                if (shouldUseDirectGraphDataFor(gd)) {
                   try {
                     store.setGraphData(gd)
                   } catch {

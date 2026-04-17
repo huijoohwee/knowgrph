@@ -62,17 +62,14 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
 
     const state = useGraphStore.getState()
     try {
+      state.setCanvasRenderMode('2d')
+      state.setCanvas2dRenderer('d3')
       state.setDocumentSemanticMode('document')
     } catch {
       void 0
     }
     try {
       state.setFrontmatterModeEnabled(false)
-    } catch {
-      void 0
-    }
-    try {
-      useGraphStore.setState({ documentSemanticMode: 'document', frontmatterModeEnabled: false })
     } catch {
       void 0
     }

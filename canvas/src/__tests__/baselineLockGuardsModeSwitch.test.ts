@@ -4,7 +4,13 @@ export const testDocumentStructureBaselineLockGuardsModeSwitches = () => {
   const api = useGraphStore.getState()
   api.resetAll()
 
+  api.setCanvasRenderMode('2d')
+  api.setCanvas2dRenderer('d3')
+
   api.setFrontmatterModeEnabled(false)
+  if (useGraphStore.getState().frontmatterModeEnabled !== false) {
+    useGraphStore.setState({ frontmatterModeEnabled: false, multiDimTableModeEnabled: false, documentSemanticMode: 'document' })
+  }
   api.setDocumentStructureBaselineLock(true)
   if (useGraphStore.getState().documentStructureBaselineLock !== true) {
     throw new Error('expected baseline lock to be enabled')

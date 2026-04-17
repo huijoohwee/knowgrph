@@ -99,3 +99,43 @@ export const testFlowNodeQuickEditorRegistryResolveHonorsFormOverrideOrFallsBack
   if (!fallback) throw new Error('expected a resolved entry for missing form')
   if (fallback.id !== 'a') throw new Error(`expected fallback default entry id=a, got ${String(fallback.id)}`)
 }
+
+export const testFlowNodeQuickEditorRegistryResolveFrontmatterFlowRequiresExactNodeForm = () => {
+  const registry = [
+    {
+      id: 'pack',
+      isEnabled: true,
+      nodeTypeId: 'Schema',
+      quickEditorTypeId: 'default',
+      formId: 'fm:n-pack',
+      fields: [{ fieldKey: 'title', fieldType: 'text' }],
+      ports: [],
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    },
+    {
+      id: 'other',
+      isEnabled: true,
+      nodeTypeId: 'Schema',
+      quickEditorTypeId: 'default',
+      formId: 'fm:n-other',
+      fields: [{ fieldKey: 'name', fieldType: 'text' }],
+      ports: [],
+      updatedAt: '2026-03-01T00:00:00.000Z',
+    },
+  ]
+
+  const match = resolveNodeQuickEditorRegistryEntry({
+    node: { id: 'n-pack', type: 'Schema', properties: {} },
+    registry,
+    graphMetaKind: 'frontmatter-flow',
+  })
+  if (!match) throw new Error('expected exact frontmatter-flow match for node id')
+  if (match.id !== 'pack') throw new Error(`expected exact frontmatter-flow entry id=pack, got ${String(match.id)}`)
+
+  const missing = resolveNodeQuickEditorRegistryEntry({
+    node: { id: 'n-missing', type: 'Schema', properties: {} },
+    registry,
+    graphMetaKind: 'frontmatter-flow',
+  })
+  if (missing) throw new Error(`expected no frontmatter-flow fallback for unmatched node id, got ${String(missing.id)}`)
+}

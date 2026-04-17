@@ -29,7 +29,7 @@ export const isFlowEditorCanvas2dRenderer = (id: Canvas2dRendererId | null | und
 }
 
 export const isFrontmatterOnlyCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'flow'
+  return id === 'flow' || id === 'flowEditor'
 }
 
 export const isFrontmatterOnlyPolicyActive = (args: {

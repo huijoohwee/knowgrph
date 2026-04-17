@@ -36,3 +36,20 @@ export const testMarkdownWorkspaceRuntimeQuickEditorAutoRestoreDoesNotMarkUserFo
     throw new Error('Expected markdown workspace UI actions to use user-driven content mode setter')
   }
 }
+
+export const testMarkdownWorkspaceRuntimeFlowEditorDirectApplyUsesIncomingGraphInsteadOfPreviousComposition = () => {
+  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const text = readUtf8(runtimePath)
+  if (!text.includes('const shouldUseDirectGraphDataFor = (graphData: GraphData | null | undefined) =>')) {
+    throw new Error('Expected markdown workspace runtime to compute direct-apply policy from incoming graph data')
+  }
+  if (!text.includes("return String(meta.sourceLayerComposition || '') !== 'compose'")) {
+    throw new Error('Expected flow editor direct-apply policy to keep non-composed incoming graphs direct')
+  }
+  if (!text.includes('if (shouldUseDirectGraphDataFor(gd))')) {
+    throw new Error('Expected parsed markdown graph apply path to use incoming graph data for direct/composed decision')
+  }
+  if (!text.includes('if (shouldUseDirectGraphDataFor(cachedGraph))')) {
+    throw new Error('Expected cached parsed graph apply path to use incoming graph data for direct/composed decision')
+  }
+}

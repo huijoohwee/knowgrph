@@ -40,8 +40,9 @@ const compareRegistryEntries = (a: NodeQuickEditorRegistryEntry, b: NodeQuickEdi
 }
 
 export function resolveNodeQuickEditorRegistryEntry(args: {
-  node: Pick<GraphNode, 'type' | 'properties'> | null | undefined
+  node: Pick<GraphNode, 'id' | 'type' | 'properties'> | null | undefined
   registry: ReadonlyArray<NodeQuickEditorRegistryEntry> | null | undefined
+  graphMetaKind?: string | null | undefined
 }): NodeQuickEditorRegistryEntry | null {
   const nodeType = pickString(args.node?.type)
   if (!nodeType) return null
@@ -51,9 +52,23 @@ export function resolveNodeQuickEditorRegistryEntry(args: {
   const props = (args.node?.properties || {}) as Record<string, JSONValue | undefined>
   const wantType = pickString(props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY])
   const wantForm = pickString(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY])
+  const nodeId = pickString(args.node?.id)
+  const isFrontmatterFlow = pickString(args.graphMetaKind) === 'frontmatter-flow' || (wantForm && wantForm.startsWith('fm:'))
 
   const candidatesAll = getRegistryIndex(reg).byNodeType.get(nodeType) || []
   if (candidatesAll.length === 0) return null
+
+  if (isFrontmatterFlow) {
+    const expectedForm = wantForm || (nodeId ? `fm:${nodeId}` : '')
+    if (!expectedForm) return null
+    for (let i = 0; i < candidatesAll.length; i += 1) {
+      const e = candidatesAll[i]
+      if (!e) continue
+      if (wantType && e.quickEditorTypeId !== wantType) continue
+      if (e.formId === expectedForm) return e
+    }
+    return null
+  }
 
   const restrictByType = (() => {
     if (!wantType) return null

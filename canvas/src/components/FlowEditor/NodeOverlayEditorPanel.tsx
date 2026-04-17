@@ -185,6 +185,13 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     [active, node.id, onBeginAddEdgeFromNode, onFinalizeAddEdgeToNode, pendingEdgeSourceId],
   )
 
+  const isFrontmatterFlow = React.useMemo(() => {
+    if (String(graphMetaKind || '').trim() === 'frontmatter-flow') return true
+    const props = (node.properties || {}) as Record<string, unknown>
+    const formId = typeof props['flow:quickEditorFormId'] === 'string' ? String(props['flow:quickEditorFormId'] || '').trim() : ''
+    return Boolean(formId && formId.startsWith('fm:'))
+  }, [graphMetaKind, node.properties])
+
   return (
     <FloatingPanel
       as="section"
@@ -342,8 +349,8 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         registryEntries={registryEntries}
         edges={portHandleEdges}
         minimized={minimized}
-        forceEnabled={String(graphMetaKind || '').trim() === 'frontmatter-flow'}
-        strictHandleSet={String(graphMetaKind || '').trim() === 'frontmatter-flow'}
+        forceEnabled={isFrontmatterFlow}
+        strictHandleSet={isFrontmatterFlow}
         toolMode={toolMode}
         pendingEdgeSourceId={pendingEdgeSourceId}
         onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}

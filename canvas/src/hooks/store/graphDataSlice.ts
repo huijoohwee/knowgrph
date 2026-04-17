@@ -24,6 +24,7 @@ import {
   isGraphDataTablePropertyColumnKey,
   type GraphDataTableColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
+import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 
 type SetGraph = StoreApi<GraphState>['setState']
 export type GetGraph = StoreApi<GraphState>['getState']
@@ -496,7 +497,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       void 0
     }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata)
+      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch {
       void 0
     }
@@ -555,7 +556,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         const mode = get().schema.layout?.mode
         if (mode === 'radial') {
           const curRenderer = get().canvas2dRenderer
-          if (curRenderer !== 'd3' && curRenderer !== 'd3Bipartite') {
+          if (curRenderer !== 'd3' && curRenderer !== 'd3Bipartite' && !isFlowEditorCanvas2dRenderer(curRenderer)) {
             const setCanvas2dRenderer = get().setCanvas2dRenderer
             if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
           }
@@ -664,7 +665,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyLayoutAutosuggestFromMetadata(get, committed.metadata)
     } catch { void 0 }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, committed.metadata)
+      applyNodeQuickEditorRegistryFromMetadata(get, committed.metadata, committed)
     } catch { void 0 }
 
     set({ lifecycleStage: 'committed' })
@@ -1262,7 +1263,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
     } catch { void 0 }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata)
+      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch { void 0 }
     try {
       lsSetJson(LS_KEYS.graphData, nextGraphData)
@@ -1324,7 +1325,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
     } catch { void 0 }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata)
+      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch { void 0 }
     try {
       lsSetJson(LS_KEYS.graphData, nextGraphData)
@@ -1395,7 +1396,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
     } catch { void 0 }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata)
+      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch { void 0 }
     try {
       lsSetJson(LS_KEYS.graphData, nextGraphData)

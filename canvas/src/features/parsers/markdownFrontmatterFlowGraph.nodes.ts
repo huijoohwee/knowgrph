@@ -274,7 +274,7 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     const layer = categoryLayerIndex(category)
     const ports = normalizeRegistryPorts({ inputs: row.inputs, outputs: row.outputs })
     const portTypes = normalizeFlowPortTypes({ inputs: row.inputs, outputs: row.outputs })
-    const formId = `fm:${cleanIdPart(id) || hashText(id)}`
+    const formId = `fm:${id}`
     const propsFromRow = isRecord(row.properties) ? (row.properties as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
     const visualOverrides = normalizeVisualOverrides(row.visual)
     const paramsFromRow = isRecord(row.params) ? (row.params as unknown as JSONValue) : null
@@ -315,18 +315,16 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
       ...(y != null ? { y } : {}),
       properties,
     })
-    if (ports.length > 0) {
-      registry.push({
-        id: `qer-fm-${cleanIdPart(type) || 'node'}-${cleanIdPart(id) || hashText(id)}`,
-        isEnabled: true,
-        nodeTypeId: type,
-        quickEditorTypeId: type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? 'ports' : 'default',
-        formId,
-        fields: [],
-        ports,
-        updatedAt: FRONTMATTER_REGISTRY_UPDATED_AT,
-      })
-    }
+    registry.push({
+      id: `qer-fm-${cleanIdPart(type) || 'node'}-${cleanIdPart(id) || hashText(id)}`,
+      isEnabled: true,
+      nodeTypeId: type,
+      quickEditorTypeId: type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? 'ports' : 'default',
+      formId,
+      fields: [],
+      ports,
+      updatedAt: FRONTMATTER_REGISTRY_UPDATED_AT,
+    })
   }
   if (nodes.length === 0) return null
   return { nodes, registry }

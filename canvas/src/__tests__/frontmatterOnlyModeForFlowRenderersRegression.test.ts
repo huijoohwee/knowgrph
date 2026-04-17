@@ -17,8 +17,8 @@ export function testFlowCanvasRemainsFrontmatterOnlyButFlowEditorIsStandalone() 
   if (!renderConfigText.includes('isFrontmatterOnlyCanvas2dRenderer')) {
     throw new Error('expected shared renderer helper to identify frontmatter-only renderers')
   }
-  if (!renderConfigText.includes("return id === 'flow'")) {
-    throw new Error('expected only Flow Canvas to remain frontmatter-only')
+  if (!renderConfigText.includes("return id === 'flow' || id === 'flowEditor'")) {
+    throw new Error('expected Flow Canvas and Flow Editor to remain frontmatter-only')
   }
   if (!modeSelectText.includes('isFrontmatterOnlyPolicyActive')) {
     throw new Error('expected document mode selector to use centralized frontmatter-only policy helper')
@@ -64,8 +64,8 @@ export function testCanvasViewRendererSwitchToFlowEditorDoesNotForceDocumentMode
   if (!text.includes('isFrontmatterOnlyCanvas2dRenderer(nextRenderer)')) {
     throw new Error('expected canvas view renderer switch to detect only frontmatter-only renderer')
   }
-  if (text.includes("nextRenderer === 'flowEditor'") && text.includes("setDocumentSemanticMode('document')")) {
-    throw new Error('expected Flow Editor renderer switch to avoid forcing document semantic mode')
+  if (!text.includes("setDocumentSemanticMode('document')")) {
+    throw new Error('expected frontmatter-only renderer switch to force document semantic mode')
   }
   if (!text.includes('const frontmatterOnlyAllowed = isFrontmatterOnlyPolicyActive({ canvasRenderMode, canvas2dRenderer })')) {
     throw new Error('expected canvas view actions to compute frontmatter-only guard from centralized policy helper')

@@ -163,8 +163,9 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }, [idBase])
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
-  const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || String(graphMetaKind || '').trim() === 'frontmatter-flow'
-  const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
+  const nodeFormId = typeof properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' ? String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim() : ''
+  const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow' || (nodeFormId && nodeFormId.startsWith('fm:'))
+  const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
   const flowPortTypes = React.useMemo(() => {
     const raw = properties['flow:portTypes']
     if (!isRecord(raw)) return { target: [] as string[], source: [] as string[] }

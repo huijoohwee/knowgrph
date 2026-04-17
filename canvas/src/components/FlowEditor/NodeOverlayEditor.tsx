@@ -49,6 +49,7 @@ const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 170
 const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
 
 type NodeOverlayEditorProps = {
+  visible?: boolean
   active: boolean
   node: GraphNode
   viewportW: number
@@ -165,8 +166,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   }, [nodeId, selectedNodeId, stackIndex])
 
   const registryEntry: NodeQuickEditorRegistryEntry | null = React.useMemo(
-    () => resolveNodeQuickEditorRegistryEntry({ node, registry: nodeQuickEditorRegistry }),
-    [node, nodeQuickEditorRegistry],
+    () => resolveNodeQuickEditorRegistryEntry({ node, registry: nodeQuickEditorRegistry, graphMetaKind }),
+    [graphMetaKind, node, nodeQuickEditorRegistry],
   )
 
   const asideRef = React.useRef<HTMLElement | null>(null)
@@ -1143,7 +1144,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
 })
 
 const NodeOverlayEditor = React.memo(function NodeOverlayEditor(props: NodeOverlayEditorProps) {
-  if (props.active !== true) return null
+  if (props.visible === false) return null
   return <NodeOverlayEditorInner {...props} />
 })
 

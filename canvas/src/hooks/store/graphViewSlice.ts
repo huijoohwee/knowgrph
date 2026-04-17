@@ -10,6 +10,12 @@ import {
   WORKSPACE_SYNC_TASK_FLOW_QUICK_EDITOR_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
+import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { buildFlowQuickEditorEligibleNodeIdSet } from '@/lib/graph/flowQuickEditorEligibility'
+
+const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY = 'flow:quickEditorFormId' as const
+const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY = 'flow:nodeQuickEditorFormId' as const
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -28,7 +34,45 @@ const normalizeOpenQuickEditorNodeIds = (ids: string[], graphData: GraphState['g
   const normalized = normalizeIds(Array.isArray(ids) ? ids : [])
   if (!graphData) return normalized
   const nodeIds = new Set<string>((graphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
-  return normalized.filter(id => nodeIds.has(id))
+  const validNodeIds = normalized.filter(id => nodeIds.has(id))
+  if (!isFrontmatterFlowGraph(graphData)) {
+    const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+    const eligible = buildFlowQuickEditorEligibleNodeIdSet(nodes as any)
+    if (eligible.size === 0) return validNodeIds
+    return validNodeIds.filter(id => eligible.has(id))
+  }
+
+  const metadata = ((graphData.metadata || {}) as Record<string, unknown>)
+
+  const registryRaw = metadata[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+  const registry = Array.isArray(registryRaw) ? registryRaw : []
+  const allowedFormIds = new Set<string>()
+  for (let i = 0; i < registry.length; i += 1) {
+    const entry = registry[i] as Record<string, unknown> | null
+    const formId = typeof entry?.formId === 'string' ? String(entry.formId || '').trim() : ''
+    if (!formId) continue
+    allowedFormIds.add(formId)
+  }
+  if (allowedFormIds.size === 0) return []
+
+  const nodeById = new Map<string, Record<string, unknown>>()
+  for (let i = 0; i < (graphData.nodes || []).length; i += 1) {
+    const node = (graphData.nodes || [])[i]
+    const nodeId = String(node?.id || '').trim()
+    if (!nodeId || nodeById.has(nodeId)) continue
+    nodeById.set(nodeId, (node?.properties || {}) as Record<string, unknown>)
+  }
+  return validNodeIds.filter(id => {
+    const props = nodeById.get(id) || {}
+    const explicitFormId =
+      typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string'
+        ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
+        : typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY] === 'string'
+          ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY] || '').trim()
+          : ''
+    const expectedFormId = explicitFormId || `fm:${id}`
+    return allowedFormIds.has(expectedFormId)
+  })
 }
 
 const FLOW_QUICK_EDITOR_PERSIST_DELAY_MS = 90

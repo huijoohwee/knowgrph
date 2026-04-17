@@ -11,6 +11,11 @@ import {
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { validateNodeQuickEditorRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+
+const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY = 'flow:quickEditorFormId' as const
+const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY = 'flow:nodeQuickEditorFormId' as const
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -113,18 +118,60 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
     if (typeof setCanvasRenderMode === 'function') setCanvasRenderMode('2d')
 
     const setCanvas2dRenderer = get().setCanvas2dRenderer
-    if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3Bipartite')
+    const currentRenderer = get().canvas2dRenderer
+    if (typeof setCanvas2dRenderer === 'function' && !isFlowEditorCanvas2dRenderer(currentRenderer)) {
+      setCanvas2dRenderer('d3Bipartite')
+    }
   }
 }
 
-export function applyNodeQuickEditorRegistryFromMetadata(get: GetGraph, metadata: unknown) {
+export function applyNodeQuickEditorRegistryFromMetadata(get: GetGraph, metadata: unknown, graphData?: GraphData | null) {
   const metadataRecord = isRecord(metadata) ? metadata : ({} as Record<string, unknown>)
   const raw = metadataRecord[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
   const rawArr = Array.isArray(raw) ? raw : []
 
-  const validated = rawArr
+  const validatedRaw = rawArr
     .map(item => validateNodeQuickEditorRegistryEntry(item))
     .filter((e): e is NonNullable<typeof e> => !!e)
+  const validated = (() => {
+    const graph = graphData || null
+    if (!graph) return validatedRaw
+    if (!isFrontmatterFlowGraph(graph)) return validatedRaw
+
+    const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+    const expectedByFormId = new Map<string, string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      const nodeId = String(node?.id || '').trim()
+      if (!nodeId) continue
+      const props = (node?.properties || {}) as Record<string, unknown>
+      const explicitFormId =
+        typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string'
+          ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
+          : typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY] === 'string'
+            ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY] || '').trim()
+            : ''
+      const expectedFormId = explicitFormId || `fm:${nodeId}`
+      if (!expectedFormId) continue
+      expectedByFormId.set(expectedFormId, String(node?.type || 'Node') || 'Node')
+    }
+    if (expectedByFormId.size === 0) return []
+
+    const out: typeof validatedRaw = []
+    const seenFormIds = new Set<string>()
+    for (let i = 0; i < validatedRaw.length; i += 1) {
+      const entry = validatedRaw[i]
+      const formId = String(entry.formId || '').trim()
+      if (!formId || seenFormIds.has(formId)) continue
+      const expectedNodeType = expectedByFormId.get(formId) || ''
+      if (!expectedNodeType) continue
+      const entryNodeType = String(entry.nodeTypeId || '').trim()
+      if (entryNodeType && expectedNodeType && entryNodeType !== expectedNodeType) continue
+      seenFormIds.add(formId)
+      out.push(entry)
+    }
+    return out
+  })()
 
   const current = Array.isArray(get().documentNodeQuickEditorRegistry) ? get().documentNodeQuickEditorRegistry : []
   const currentSig = computeRegistrySignature(current)
@@ -133,7 +180,7 @@ export function applyNodeQuickEditorRegistryFromMetadata(get: GetGraph, metadata
 
   const setRegistry = get().setDocumentNodeQuickEditorRegistry
   if (typeof setRegistry !== 'function') return
-  setRegistry(validated)
+  setRegistry(validated, { graphData: graphData || null })
 }
 
 export function syncGraphFieldsWithGraphData(
