@@ -4,7 +4,7 @@ import { FileText, GitMerge, Table, Tags } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
-import { isFrontmatterOnlyCanvas2dRenderer } from '@/lib/config.render'
+import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 
 type DocumentModeSelectProps = {
   iconSizeClass: string
@@ -36,7 +36,7 @@ export function DocumentModeSelect({ iconSizeClass, iconStrokeWidth, ensureBasel
       setMultiDimTableModeEnabled: s.setMultiDimTableModeEnabled,
     })),
   )
-  const frontmatterOnlyAllowed = canvasRenderMode === '2d' && isFrontmatterOnlyCanvas2dRenderer(canvas2dRenderer)
+  const frontmatterOnlyAllowed = isFrontmatterOnlyPolicyActive({ canvasRenderMode, canvas2dRenderer })
 
   const activeMode: DocumentModeValue = multiDimTableModeEnabled
     ? 'multiDimTable'

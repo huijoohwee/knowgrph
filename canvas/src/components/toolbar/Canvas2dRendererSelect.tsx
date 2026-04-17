@@ -5,7 +5,7 @@ import type { Canvas2dRendererId } from '@/lib/config'
 import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
-import { isD3Like2dRenderer, isFrontmatterOnlyCanvas2dRenderer } from '@/lib/config.render'
+import { isD3Like2dRenderer, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { getVoxelModeInapplicableReason, isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
 import type { CanvasViewOptionId, CanvasViewModelState } from '@/components/toolbar/canvasViewTypes'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions, getCanvasViewTriggerState } from '@/components/toolbar/canvasViewMenu'
@@ -48,7 +48,10 @@ export function Canvas2dRendererSelect({
     })),
   )
 
-  const frontmatterOnlyAllowed = state.canvasRenderMode === '2d' && isFrontmatterOnlyCanvas2dRenderer(state.canvas2dRenderer)
+  const frontmatterOnlyAllowed = isFrontmatterOnlyPolicyActive({
+    canvasRenderMode: state.canvasRenderMode,
+    canvas2dRenderer: state.canvas2dRenderer,
+  })
   const isD3Like2dLayoutToggle = isD3Like2dRenderer(state.canvas2dRenderer)
   const voxelApplicable = isVoxelModeApplicable({
     canvas2dRenderer: state.canvas2dRenderer,

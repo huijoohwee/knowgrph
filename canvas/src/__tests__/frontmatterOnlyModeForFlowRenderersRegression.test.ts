@@ -20,16 +20,16 @@ export function testFlowCanvasRemainsFrontmatterOnlyButFlowEditorIsStandalone() 
   if (!renderConfigText.includes("return id === 'flow'")) {
     throw new Error('expected only Flow Canvas to remain frontmatter-only')
   }
-  if (!modeSelectText.includes("isFrontmatterOnlyCanvas2dRenderer(canvas2dRenderer)")) {
-    throw new Error('expected document mode selector to use the shared frontmatter-only renderer helper')
+  if (!modeSelectText.includes('isFrontmatterOnlyPolicyActive')) {
+    throw new Error('expected document mode selector to use centralized frontmatter-only policy helper')
   }
   if (!modeSelectText.includes('disabled: frontmatterOnlyAllowed')) {
     throw new Error('expected only frontmatter-only renderer mode options to be disabled')
   }
-  if (!uiSettingsSliceText.includes('isFrontmatterOnlyCanvas2dRenderer(stateNow.canvas2dRenderer)')) {
+  if (!uiSettingsSliceText.includes('isFrontmatterOnlyPolicyActive')) {
     throw new Error('expected semantic-mode store setter to block keyword mode only for frontmatter-only renderer')
   }
-  if (!canvasSliceText.includes('isFrontmatterOnlyCanvas2dRenderer(radialRenderer)')) {
+  if (!canvasSliceText.includes('isFrontmatterOnlyPolicyActive')) {
     throw new Error('expected renderer switch logic to enforce frontmatter-only state only for the frontmatter-only renderer')
   }
   if (!canvasSliceText.includes('nextFrontmatterModeEnabled = enforceFrontmatterOnly ? true')) {
@@ -67,8 +67,8 @@ export function testCanvasViewRendererSwitchToFlowEditorDoesNotForceDocumentMode
   if (text.includes("nextRenderer === 'flowEditor'") && text.includes("setDocumentSemanticMode('document')")) {
     throw new Error('expected Flow Editor renderer switch to avoid forcing document semantic mode')
   }
-  if (!text.includes("const frontmatterOnlyAllowed = canvasRenderMode === '2d' && isFrontmatterOnlyCanvas2dRenderer(canvas2dRenderer)")) {
-    throw new Error('expected canvas view actions to compute frontmatter-only guard from the shared renderer helper')
+  if (!text.includes('const frontmatterOnlyAllowed = isFrontmatterOnlyPolicyActive({ canvasRenderMode, canvas2dRenderer })')) {
+    throw new Error('expected canvas view actions to compute frontmatter-only guard from centralized policy helper')
   }
   if (!text.includes("if (geospatialEnabled || frontmatterOnlyAllowed) return")) {
     throw new Error('expected canvas view actions to block keyword/table document modes only when geospatial or frontmatter-only renderer is active')

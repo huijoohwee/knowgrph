@@ -27,7 +27,7 @@ import {
   lsSetJsonCoalesced,
 } from '@/lib/persistence'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
-import { isCanvas2dRendererId, isFrontmatterOnlyCanvas2dRenderer } from '@/lib/config.render'
+import { isCanvas2dRendererId, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import {
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
   FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
@@ -638,7 +638,10 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       const targetValid = targetQuickEditors.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))
       // Keep quick-editor state renderer-scoped: Flow Editor must not inherit open panels from other renderers.
       const nextQuickEditors = targetValid
-      const enforceFrontmatterOnly = state.canvasRenderMode === '2d' && isFrontmatterOnlyCanvas2dRenderer(radialRenderer)
+      const enforceFrontmatterOnly = isFrontmatterOnlyPolicyActive({
+        canvasRenderMode: state.canvasRenderMode,
+        canvas2dRenderer: radialRenderer,
+      })
       const nextDocumentSemanticMode = enforceFrontmatterOnly ? 'document' : state.documentSemanticMode
       const nextFrontmatterModeEnabled = enforceFrontmatterOnly ? true : state.frontmatterModeEnabled
       const nextMultiDimTableModeEnabled = enforceFrontmatterOnly ? false : state.multiDimTableModeEnabled

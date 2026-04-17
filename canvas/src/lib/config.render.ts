@@ -32,6 +32,13 @@ export const isFrontmatterOnlyCanvas2dRenderer = (id: Canvas2dRendererId | null 
   return id === 'flow'
 }
 
+export const isFrontmatterOnlyPolicyActive = (args: {
+  canvasRenderMode: unknown
+  canvas2dRenderer: Canvas2dRendererId | null | undefined
+}): boolean => {
+  return String(args.canvasRenderMode || '') === '2d' && isFrontmatterOnlyCanvas2dRenderer(args.canvas2dRenderer)
+}
+
 export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined): Canvas2dSurfaceId | null => {
   if (isD3Like2dRenderer(id)) return 'd3'
   if (id === 'flow') return 'flow'

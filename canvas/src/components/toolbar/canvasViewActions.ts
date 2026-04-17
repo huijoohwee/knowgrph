@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
 import { SNAP_GRID_SIZE_DEFAULT } from '@/lib/canvas/snapGridSize'
 import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
-import { isFrontmatterOnlyCanvas2dRenderer } from '@/lib/config.render'
+import { isFrontmatterOnlyCanvas2dRenderer, isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 
 type CanvasViewActionParams = {
   id: CanvasViewOptionId
@@ -53,7 +53,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   } = params
 
   if (!ensureBaselineUnlocked()) return
-  const frontmatterOnlyAllowed = canvasRenderMode === '2d' && isFrontmatterOnlyCanvas2dRenderer(canvas2dRenderer)
+  const frontmatterOnlyAllowed = isFrontmatterOnlyPolicyActive({ canvasRenderMode, canvas2dRenderer })
 
   if (id.startsWith('renderer:')) {
     if (id === 'renderer:menu') return
