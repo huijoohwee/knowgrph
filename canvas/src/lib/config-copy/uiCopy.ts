@@ -7,14 +7,15 @@ const COPY_FAILED = 'Copy failed'
 const MISSING_PATH = 'Missing path'
 const FAILED_TO_LOAD_MARKDOWN = 'Failed to load markdown'
 const EMPTY_RESPONSE = 'Empty response'
-const BASELINE_LOCKED_TOAST = 'Mode switches are locked (baseline). Click the lock icon to unlock.'
+const BASELINE_LOCKED_TOAST = 'View Lock is ON. Turn it OFF to drag or edit graph elements.'
 const SELECTION_CLEARED_MODE_TOAST = 'Selection cleared: not available in the target mode.'
 const CANVAS_VIEW_RENDERER_D3_TITLE = '2D Renderer: D3 Graph'
-const CANVAS_VIEW_RENDERER_D3_BIPARTITE_TITLE = '2D Renderer: D3 Bipartite'
-const CANVAS_VIEW_RENDERER_FLOW_TITLE = '2D Renderer: Flow'
+const CANVAS_VIEW_RENDERER_D3_BIPARTITE_TITLE = '2D Renderer: Flowchart'
+const CANVAS_VIEW_RENDERER_FLOW_TITLE = '2D Renderer: Flow Canvas'
 const CANVAS_VIEW_RENDERER_FLOW_EDITOR_TITLE = '2D Renderer: Flow Editor'
 const CANVAS_VIEW_RENDERER_DESIGN_TITLE = '2D Renderer: Design'
-const CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP = '2D Renderer: switch between D3, D3 Bipartite, Flow, Design, and Flow Editor.'
+const CANVAS_VIEW_RENDERER_TOGGLE_TOOLTIP =
+  '2D Renderer: switch between D3, Flowchart, Flow Canvas, Design, and Flow Editor.'
 
 export const UI_COPY = {
   invalidJsonLabel: 'Invalid JSON',
@@ -189,7 +190,7 @@ export const UI_COPY = {
     'Pin to View: toggle to keep the current camera transform across graph updates and turn off Fit to Screen / Zoom to Selection while pinned.',
   zoomToSelectionTooltip: 'Zoom to Selection mode: toggle to keep the camera centered on the active selection and turn off Fit to Screen while focused.',
   zoomMenuTooltip: 'Zoom: Pin to View, Fit to View, Fit to Screen, and Zoom to Selection controls.',
-  interactionModeTooltip: 'Interaction: Navigate (clear selection), baseline lock, and multi-select controls.',
+  interactionModeTooltip: 'Interaction: Navigate (clear selection), View Lock (drag/edit gate), and multi-select controls.',
   canvasGridTooltip: 'Grid: toggle grid visibility + snap-to-grid. Configure variant/size in Settings. Hold Alt while dragging to temporarily disable snapping.',
   renderMediaAsNodesTooltip: 'Rich Media: shows or hides media overlays on media-capable nodes without reloading.',
   launchTooltip: 'Launch',

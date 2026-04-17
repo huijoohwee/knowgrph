@@ -13,6 +13,16 @@ ClawdChat itself is not required to run Knowgrph—your users still connect to *
 
 ## What tools are exposed?
 
+### UI launcher
+
+- `knowgrph.ui.launch` — starts the **Canvas Vite dev server** and returns a mode-specific URL:
+  - `target=canvas` → normal Canvas
+  - `target=workspaceEditor` → opens Workspace Editor (`?openEditorWorkspace=1`)
+  - `target=geospatial` → enables Geospatial overlay (`?kgGeo=1`, DEV behavior)
+- `knowgrph.ui.stop` — stops the dev server started by `knowgrph.ui.launch`
+
+### Pipeline / data tools
+
 1. `knowgrph.pipeline`
    - Runs: `python -m knowgrph_parser pipeline ...`
    - Typical use: convert GraphData JSON → A0 CSV/JSON-LD + codebase-index artifacts
@@ -64,6 +74,7 @@ Add a server entry similar to:
 
 Then you can call:
 
+- `knowgrph.ui.launch` with `{ "target": "workspaceEditor" }` (or `canvas` / `geospatial`)
 - `knowgrph.pipeline` with `{ "mode": "pipeline", "inputPath": "data/outputs/graph.json", "outputDir": "data/outputs" }`
 - `knowgrph.graphrag_pipeline` with `{ "inputDir": "data/raw", "outDir": "data/graphrag" }`
 
@@ -76,4 +87,3 @@ If you truly need to allow external paths, set:
 ```bash
 KNOWGRPH_ALLOW_EXTERNAL_PATHS=1
 ```
-

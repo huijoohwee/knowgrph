@@ -18,7 +18,7 @@ import { ThemeMode, ResolvedThemeMode, getInitialThemeMode, persistThemeMode, ap
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import type { GraphData } from '@/lib/graph/types'
 import type { ZoomRequest } from '@/lib/zoom/requests'
-import { isFlowCanvas2dRenderer } from '@/lib/config.render'
+import { isFrontmatterOnlyCanvas2dRenderer } from '@/lib/config.render'
 
 const nodeHasMediaLikeProps = (node: { properties?: unknown } | null): boolean => {
   if (!node) return false
@@ -790,7 +790,8 @@ export const createUiSettingsSlice = (set: SetGraph, get: GetGraph) => {
       return
     }
     const stateNow = get()
-    const keywordBlockedForRenderer = v === 'keyword' && stateNow.canvasRenderMode === '2d' && isFlowCanvas2dRenderer(stateNow.canvas2dRenderer)
+    const keywordBlockedForRenderer =
+      v === 'keyword' && stateNow.canvasRenderMode === '2d' && isFrontmatterOnlyCanvas2dRenderer(stateNow.canvas2dRenderer)
     const nextMode: DocumentSemanticMode = keywordBlockedForRenderer ? 'document' : (v === 'keyword' ? 'keyword' : 'document')
     const prevMode: DocumentSemanticMode = (get().documentSemanticMode || 'document') as DocumentSemanticMode
     if (nextMode === prevMode) return

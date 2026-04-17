@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
@@ -680,6 +681,258 @@ export function testMarkdownFrontmatterFlowGraphParsesWorkflowFlowBlockWithHandl
   if (!settings) throw new Error('expected frontmatterFlowSettings in metadata')
   if (settings.direction !== 'LR') throw new Error('expected flow direction LR')
   if (settings.edgeType !== 'smoothstep') throw new Error('expected flow edgeType smoothstep')
+}
+
+export function testMarkdownFrontmatterFlowGraphParsesWrappedNodeFieldEnvelopeAndEdgeHandles() {
+  const md = [
+    '---',
+    'flow:',
+    '  direction: LR',
+    '  edgeType: smoothstep',
+    '  snapToGrid: true',
+    '  gridSize: 20',
+    '  computed: true',
+    '  nodes:',
+    '    - id:      {key: id,      type: string,   value: "n-canvas"}',
+    '      type:    {key: type,    type: string,   value: "input"}',
+    '      label:   {key: label,   type: string,   value: "Knowledge Graph Canvas"}',
+    '      handles: {key: handles, type: object,   value: {source: [signal]}}',
+    '      data:    {key: data,    type: object,   value: {pain: "AI responses ignore graph structure", goal: "structured context for every prompt"}}',
+    '      compute: {key: compute, type: function, value: "(inputs) => ({ signal: { node: inputs.__selected_node ?? null, fm: inputs.__frontmatter ?? {}, summary: inputs.__graph_summary ?? \\"\\" } })"}',
+    '    - id:      {key: id,      type: string,   value: "n-ai"}',
+    '      type:    {key: type,    type: string,   value: "default"}',
+    '      label:   {key: label,   type: string,   value: "generateMarkdown()"}',
+    '      handles: {key: handles, type: object,   value: {target: [context, correction], source: [md]}}',
+    '      data:    {key: data,    type: object,   value: {model: "claude-sonnet-4-20250514", temperature: 0.3}}',
+    '    - id:      {key: id,      type: string,   value: "n-validate"}',
+    '      type:    {key: type,    type: string,   value: "default"}',
+    '      label:   {key: label,   type: string,   value: "validateMarkdown()"}',
+    '      handles: {key: handles, type: object,   value: {target: [md], source: [valid_md, correction]}}',
+    '      data:    {key: data,    type: object,   value: {rules: ["V-01","V-02"], max_retry: 3}}',
+    '    - id:      {key: id,      type: string,   value: "n-render"}',
+    '      type:    {key: type,    type: string,   value: "output"}',
+    '      label:   {key: label,   type: string,   value: "renderCanvas()"}',
+    '      handles: {key: handles, type: object,   value: {target: [valid_md]}}',
+    '      data:    {key: data,    type: object,   value: {stores: ["flow_nodes","flow_edges"], triggers: "canvas re-render"}}',
+    '  edges:',
+    '    - { id: e3, source: n-ai,       sourceHandle: md,         target: n-validate, targetHandle: md,         animated: true }',
+    '    - { id: e4, source: n-validate, sourceHandle: valid_md,   target: n-render,   targetHandle: valid_md,   animated: true, label: "validated MD" }',
+    '    - { id: e5, source: n-validate, sourceHandle: correction, target: n-ai,       targetHandle: correction, animated: true, label: "@flag:correction" }',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('wrapped-flow-envelope.md', md)
+  if (!res) throw new Error('expected parse result for wrapped flow node field envelope')
+  const g = res.graphData
+  if (g.nodes.length !== 4) throw new Error(`expected 4 flow nodes, got ${g.nodes.length}`)
+  if (g.edges.length !== 3) throw new Error(`expected 3 flow edges, got ${g.edges.length}`)
+
+  const e5 = g.edges.find(e => String(e.id || '') === 'e5') || null
+  if (!e5) throw new Error('expected e5 edge')
+  const e5Props = (e5.properties || {}) as Record<string, unknown>
+  if (String(e5.source || '') !== 'n-validate' || String(e5.target || '') !== 'n-ai') {
+    throw new Error('expected e5 endpoints n-validate -> n-ai')
+  }
+  if (String(e5Props[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'correction') throw new Error('expected e5 source handle correction')
+  if (String(e5Props[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'correction') throw new Error('expected e5 target handle correction')
+
+  const meta = (g.metadata || {}) as Record<string, unknown>
+  const registry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
+    ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
+    : []
+  const aiForm = registry.find(r => String(r.formId || '') === 'fm:n-ai') || null
+  const validateForm = registry.find(r => String(r.formId || '') === 'fm:n-validate') || null
+  if (!aiForm || !validateForm) throw new Error('expected registry entries for n-ai and n-validate')
+  const aiPorts = Array.isArray(aiForm.ports) ? (aiForm.ports as Array<Record<string, unknown>>) : []
+  const validatePorts = Array.isArray(validateForm.ports) ? (validateForm.ports as Array<Record<string, unknown>>) : []
+  const hasAiCorrectionIn = aiPorts.some(p => String(p.portKey || '') === 'correction' && String(p.direction || '') === 'input')
+  const hasValidateCorrectionOut = validatePorts.some(p => String(p.portKey || '') === 'correction' && String(p.direction || '') === 'output')
+  if (!hasAiCorrectionIn || !hasValidateCorrectionOut) {
+    throw new Error('expected wrapped-flow envelope handles to map correction ports into quick-editor registry')
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphParsesAllWrappedNodeIdsIntoQuickEditorForms() {
+  const md = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id:      {key: id,      type: string,   value: "n-canvas"}',
+    '      type:    {key: type,    type: string,   value: "input"}',
+    '      handles: {key: handles, type: object,   value: {source: [signal]}}',
+    '    - id:      {key: id,      type: string,   value: "n-pack"}',
+    '      type:    {key: type,    type: string,   value: "default"}',
+    '      handles: {key: handles, type: object,   value: {target: [signal], source: [context]}}',
+    '    - id:      {key: id,      type: string,   value: "n-ai"}',
+    '      type:    {key: type,    type: string,   value: "default"}',
+    '      handles: {key: handles, type: object,   value: {target: [context, correction], source: [md]}}',
+    '    - id:      {key: id,      type: string,   value: "n-validate"}',
+    '      type:    {key: type,    type: string,   value: "default"}',
+    '      handles: {key: handles, type: object,   value: {target: [md], source: [valid_md, correction]}}',
+    '    - id:      {key: id,      type: string,   value: "n-render"}',
+    '      type:    {key: type,    type: string,   value: "output"}',
+    '      handles: {key: handles, type: object,   value: {target: [valid_md]}}',
+    '  edges:',
+    '    - { id: e1, source: n-canvas,   sourceHandle: signal,     target: n-pack,     targetHandle: signal }',
+    '    - { id: e2, source: n-pack,     sourceHandle: context,    target: n-ai,       targetHandle: context }',
+    '    - { id: e3, source: n-ai,       sourceHandle: md,         target: n-validate, targetHandle: md }',
+    '    - { id: e4, source: n-validate, sourceHandle: valid_md,   target: n-render,   targetHandle: valid_md }',
+    '    - { id: e5, source: n-validate, sourceHandle: correction, target: n-ai,       targetHandle: correction }',
+    '---',
+  ].join('\n')
+
+  const expectedNodeIds = ['n-canvas', 'n-pack', 'n-ai', 'n-validate', 'n-render'].sort()
+  const res = tryParseMarkdownFrontmatterFlowGraph('wrapped-flow-ids.md', md)
+  if (!res) throw new Error('expected parse result for wrapped node ids')
+  const g = res.graphData
+  const actualNodeIds = (g.nodes || []).map(n => String(n.id || '')).filter(Boolean).sort()
+  if (JSON.stringify(actualNodeIds) !== JSON.stringify(expectedNodeIds)) {
+    throw new Error(`expected wrapped node ids parsed into graph nodes, got ${JSON.stringify(actualNodeIds)}`)
+  }
+
+  const meta = (g.metadata || {}) as Record<string, unknown>
+  const registry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
+    ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
+    : []
+  const formIds = registry.map(r => String(r.formId || '')).filter(Boolean)
+  for (let i = 0; i < expectedNodeIds.length; i += 1) {
+    const formId = `fm:${expectedNodeIds[i]}`
+    if (!formIds.includes(formId)) throw new Error(`expected quick-editor form for wrapped node id ${expectedNodeIds[i]}`)
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphFlowBlockIgnoresMermaidAndRendersOnlyFlowNodesForQuickEditors() {
+  const md = [
+    '---',
+    'mermaid: |',
+    '  flowchart TB',
+    '    extra_a["extra-a"] --> extra_b["extra-b"]',
+    'flow:',
+    '  nodes:',
+    '    - id:      {key: id,      type: string,   value: "n-canvas"}',
+    '      type:    {key: type,    type: string,   value: "input"}',
+    '      handles: {key: handles, type: object,   value: {source: [signal]}}',
+    '    - id:      {key: id,      type: string,   value: "n-pack"}',
+    '      type:    {key: type,    type: string,   value: "default"}',
+    '      handles: {key: handles, type: object,   value: {target: [signal], source: [context]}}',
+    '    - id:      {key: id,      type: string,   value: "n-ai"}',
+    '      type:    {key: type,    type: string,   value: "default"}',
+    '      handles: {key: handles, type: object,   value: {target: [context, correction], source: [md]}}',
+    '    - id:      {key: id,      type: string,   value: "n-validate"}',
+    '      type:    {key: type,    type: string,   value: "default"}',
+    '      handles: {key: handles, type: object,   value: {target: [md], source: [valid_md, correction]}}',
+    '    - id:      {key: id,      type: string,   value: "n-render"}',
+    '      type:    {key: type,    type: string,   value: "output"}',
+    '      handles: {key: handles, type: object,   value: {target: [valid_md]}}',
+    '  edges:',
+    '    - { id: e1, source: n-canvas,   sourceHandle: signal,     target: n-pack,     targetHandle: signal }',
+    '    - { id: e2, source: n-pack,     sourceHandle: context,    target: n-ai,       targetHandle: context }',
+    '    - { id: e3, source: n-ai,       sourceHandle: md,         target: n-validate, targetHandle: md }',
+    '    - { id: e4, source: n-validate, sourceHandle: valid_md,   target: n-render,   targetHandle: valid_md }',
+    '    - { id: e5, source: n-validate, sourceHandle: correction, target: n-ai,       targetHandle: correction }',
+    '---',
+  ].join('\n')
+
+  const expectedNodeIds = ['n-canvas', 'n-pack', 'n-ai', 'n-validate', 'n-render'].sort()
+  const res = tryParseMarkdownFrontmatterFlowGraph('flow-block-ignore-mermaid.md', md)
+  if (!res) throw new Error('expected parse result for flow block with mermaid side payload')
+  const actualNodeIds = (res.graphData.nodes || []).map(n => String(n.id || '')).filter(Boolean).sort()
+  if (JSON.stringify(actualNodeIds) !== JSON.stringify(expectedNodeIds)) {
+    throw new Error(`expected only flow node ids from flow block, got ${JSON.stringify(actualNodeIds)}`)
+  }
+  const meta = (res.graphData.metadata || {}) as Record<string, unknown>
+  const registry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
+    ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
+    : []
+  const formIds = registry.map(r => String(r.formId || '')).filter(Boolean).sort()
+  const expectedFormIds = expectedNodeIds.map(id => `fm:${id}`).sort()
+  if (JSON.stringify(formIds) !== JSON.stringify(expectedFormIds)) {
+    throw new Error(`expected only flow node quick-editor forms, got ${JSON.stringify(formIds)}`)
+  }
+}
+
+export async function testMarkdownLoaderFlowBlockSkipsMarkdownStructureNodesForQuickEditors() {
+  const md = [
+    '---',
+    'title: Loader Isolation',
+    'flow:',
+    '  nodes:',
+    '    - id: a',
+    '      type: input',
+    '      handles: { source: [out] }',
+    '    - id: b',
+    '      type: output',
+    '      handles: { target: [out] }',
+    '  edges:',
+    '    - { id: e1, source: a, sourceHandle: out, target: b, targetHandle: out }',
+    '---',
+    '',
+    '# architecture-overview',
+    '',
+    '- List 2',
+    '',
+    '| Table 1 |',
+    '| --- |',
+    '| Paragraph 1 |',
+  ].join('\n')
+
+  const res = await loadGraphDataFromTextViaParser('loader-flow-isolation.md', md, { applyToStore: false, syncMarkdownDocument: false })
+  if (!res?.graphData) throw new Error('expected loader graph data')
+  const g = res.graphData
+  if (String(g.context || '').trim() !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+  const ids = (g.nodes || []).map(n => String(n.id || '').trim()).filter(Boolean).sort()
+  const expected = ['a', 'b']
+  if (JSON.stringify(ids) !== JSON.stringify(expected)) {
+    throw new Error(`expected only flow node ids from flow block, got ${JSON.stringify(ids)}`)
+  }
+  const meta = (g.metadata || {}) as Record<string, unknown>
+  const registry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
+    ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
+    : []
+  const forms = registry.map(r => String(r.formId || '').trim()).filter(Boolean).sort()
+  if (JSON.stringify(forms) !== JSON.stringify(['fm:a', 'fm:b'])) {
+    throw new Error(`expected only flow quick-editor forms for loader parse, got ${JSON.stringify(forms)}`)
+  }
+}
+
+export function testMarkdownFrontmatterFlowGraphParsesWrappedFlowSettingsAndMultilineComputeEnvelope() {
+  const md = [
+    '---',
+    'flow:',
+    '  direction:  {key: direction,  type: string,  value: LR}',
+    '  edgeType:   {key: edgeType,   type: string,  value: smoothstep}',
+    '  snapToGrid: {key: snapToGrid, type: boolean, value: true}',
+    '  computed:   {key: computed,   type: boolean, value: true}',
+    '  nodes:',
+    '    - id:      {key: id,      type: string,   value: "n-a"}',
+    '      type:    {key: type,    type: string,   value: "input"}',
+    '      handles: {key: handles, type: object,   value: {source: [signal]}}',
+    '      compute: {key: compute, type: function, value: |',
+    '        (inputs) => ({',
+    '          signal: { ok: true }',
+    '        })',
+    '      }',
+    '    - id:      {key: id,      type: string,   value: "n-b"}',
+    '      type:    {key: type,    type: string,   value: "output"}',
+    '      handles: {key: handles, type: object,   value: {target: [signal]}}',
+    '  edges:',
+    '    - { id: e1, source: n-a, sourceHandle: signal, target: n-b, targetHandle: signal }',
+    '---',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('wrapped-flow-settings-compute.md', md)
+  if (!res) throw new Error('expected wrapped flow settings + multiline compute envelope parse result')
+  const g = res.graphData
+  if (String(g.context || '').trim() !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+  const ids = (g.nodes || []).map(n => String(n.id || '').trim()).filter(Boolean).sort()
+  if (JSON.stringify(ids) !== JSON.stringify(['n-a', 'n-b'])) {
+    throw new Error(`expected n-a/n-b flow nodes only, got ${JSON.stringify(ids)}`)
+  }
+  const meta = (g.metadata || {}) as Record<string, unknown>
+  const settings = (meta.frontmatterFlowSettings || {}) as Record<string, unknown>
+  if (String(settings.direction || '').trim() !== 'LR') throw new Error('expected wrapped flow.direction to parse as LR')
+  if (String(settings.edgeType || '').trim() !== 'smoothstep') throw new Error('expected wrapped flow.edgeType to parse as smoothstep')
+  if (settings.snapToGrid !== true || settings.computed !== true) throw new Error('expected wrapped flow boolean settings to parse as true')
 }
 
 export function testMarkdownFrontmatterFlowGraphChatKnowgrphUsesLeadingKgcBlockOnlyAndDedupesEdges() {

@@ -800,14 +800,14 @@ export default function FlowCanvas({
   const storeGraphData = useActiveGraphRenderData(active)
   const renderGraphData = graphDataOverride !== undefined ? graphDataOverride : storeGraphData
 
-  const allowMutations = allowNodeDragOverride !== false
+  const allowMutations = allowNodeDragOverride !== false && documentStructureBaselineLock !== true
   const effectiveFrontmatter = React.useMemo(() => {
     return computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
       documentSemanticMode,
       graphData: renderGraphData,
     })
-  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, renderGraphData])
+  }, [documentSemanticMode, frontmatterModeEnabled, renderGraphData])
 
   const collapsedGroupIdsKey = React.useMemo(() => {
     return buildCollapsedGroupIdsKey(collapsedGroupIds)

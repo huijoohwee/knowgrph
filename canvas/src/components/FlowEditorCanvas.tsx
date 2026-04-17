@@ -8,7 +8,6 @@ import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
 import { computeFlowGroupAabb } from '@/components/FlowCanvas/nativeRuntime'
 import { coerceJsonObject, safeJsonStringify, tryParseJson } from '@/components/FlowEditor/flowEditorJson'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
-import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useContainerDims } from '@/hooks/useContainerDims'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
@@ -22,7 +21,6 @@ import {
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
   FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY,
   LS_KEYS,
-  UI_COPY,
 } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { screenToWorld, viewportCenterToWorld, worldToScreen } from '@/lib/zoom/viewport'
@@ -48,7 +46,6 @@ import {
   pickDefaultSchemaFieldPortKey,
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
-import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { filterGraphToFrontmatterFlow } from '@/lib/graph/layerDerivation'
 import { canAddEdge } from '@/features/schema/validation'
@@ -72,7 +69,6 @@ import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
 import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
-import { extractYamlFrontmatterBlock } from '@/lib/markdown/frontmatter'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -125,19 +121,12 @@ function readQuickEditorGridLayoutSettings(schema: unknown): { gridEnabled: bool
 
 function deriveFlowEditorViewGraph(args: {
   graphData: GraphData | null
-  frontmatterModeEnabled: boolean
-  documentSemanticMode: string
-  documentStructureBaselineLock: boolean
   collapsedGroupIds: string[]
+  forceFrontmatterFlow?: boolean
 }): GraphData | null {
   const base = args.graphData
   if (!base) return null
-  const effectiveFrontmatter = computeEffectiveFrontmatterMode({
-    frontmatterModeEnabled: args.frontmatterModeEnabled === true && args.documentStructureBaselineLock !== true,
-    documentSemanticMode: args.documentSemanticMode,
-    graphData: base,
-  })
-  const filtered = effectiveFrontmatter ? filterGraphToFrontmatterFlow(base) : base
+  const filtered = args.forceFrontmatterFlow === true ? filterGraphToFrontmatterFlow(base) : base
   if (!Array.isArray(args.collapsedGroupIds) || args.collapsedGroupIds.length === 0) return filtered
   return deriveGraphDataWithGroupCollapse({
     graphData: filtered,
@@ -294,8 +283,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       floatingPanelZIndex: s.floatingPanelZIndex,
     })),
   )
-  const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
-  const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
   const selectedNodeIds = useGraphStore(s => (Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : []))
   const selectedEdgeId = useGraphStore(s => (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null))
@@ -319,47 +306,40 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const setSchema = useGraphStore(s => s.setSchema)
   const toggleGroupCollapsed = useGraphStore(s => s.toggleGroupCollapsed)
 
-  const storeRenderGraphData = useActiveGraphRenderData(active)
-  const storeRenderGraphKind = React.useMemo(() => {
-    const meta = (storeRenderGraphData?.metadata || {}) as Record<string, unknown>
-    return String(meta.kind || '').trim() || null
-  }, [storeRenderGraphData])
-  const isMarkdownFile = React.useMemo(() => {
-    const name = String(markdownDocumentName || '').trim()
-    return /\.md$/i.test(name)
-  }, [markdownDocumentName])
-  const hasMarkdownYamlFrontmatter = React.useMemo(() => {
-    if (!isMarkdownFile) return true
-    const text = String(markdownDocumentText || '')
-    return extractYamlFrontmatterBlock(text) != null
-  }, [isMarkdownFile, markdownDocumentText])
-  const frontmatterDocumentModeActive = frontmatterModeEnabled === true && String(documentSemanticMode || '').trim() === 'document'
-  const flowEditorFrontmatterRequirementSatisfied = !isMarkdownFile || hasMarkdownYamlFrontmatter
-  const flowEditorApplicable = frontmatterDocumentModeActive && flowEditorFrontmatterRequirementSatisfied
-  const keywordModeActive = documentSemanticMode === 'keyword' || storeRenderGraphKind === 'keyword'
-  const canEdit = active && !keywordModeActive && flowEditorApplicable
+  const baseGraphKind = React.useMemo(() => {
+    const meta = (baseGraphData?.metadata || {}) as Record<string, unknown>
+    const byKind = String(meta.kind || '').trim()
+    if (byKind) return byKind
+    return String(baseGraphData?.context || '').trim()
+  }, [baseGraphData])
+  const flowEditorFrontmatterGraphAvailable = baseGraphKind === 'frontmatter-flow'
+  const flowEditorViewActive = active
+  const canEdit = active && !documentStructureBaselineLock
   const collapsedGroupIdsKey = React.useMemo(() => buildCollapsedGroupIdsKey(collapsedGroupIds), [collapsedGroupIds])
   const collapsedGroupIdsForView = React.useMemo(
     () => (collapsedGroupIdsKey ? collapsedGroupIdsKey.split('|').filter(Boolean) : []),
     [collapsedGroupIdsKey],
   )
   const zoomGraphData = React.useMemo((): GraphData | null => {
-    if (keywordModeActive) return (storeRenderGraphData || null) as GraphData | null
     return deriveFlowEditorViewGraph({
       graphData: (baseGraphData || null) as GraphData | null,
-      frontmatterModeEnabled: frontmatterModeEnabled === true,
-      documentSemanticMode,
-      documentStructureBaselineLock,
       collapsedGroupIds: collapsedGroupIdsForView,
+      forceFrontmatterFlow: flowEditorFrontmatterGraphAvailable,
     })
   }, [
     baseGraphData,
     collapsedGroupIdsForView,
-    documentSemanticMode,
-    documentStructureBaselineLock,
-    frontmatterModeEnabled,
-    keywordModeActive,
-    storeRenderGraphData,
+    flowEditorFrontmatterGraphAvailable,
+  ])
+  const flowEditorBaseGraphData = React.useMemo((): GraphData | null => {
+    return deriveFlowEditorViewGraph({
+      graphData: (baseGraphData || null) as GraphData | null,
+      collapsedGroupIds: [],
+      forceFrontmatterFlow: flowEditorFrontmatterGraphAvailable,
+    })
+  }, [
+    baseGraphData,
+    flowEditorFrontmatterGraphAvailable,
   ])
 
   const zoomViewKey = React.useMemo(() => {
@@ -780,26 +760,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [active])
 
   React.useEffect(() => {
-    if (!active) return
-    if (!isMarkdownFile) return
-    if (!frontmatterDocumentModeActive) return
-    if (hasMarkdownYamlFrontmatter) return
-    upsertUiToast({
-      id: 'flow-editor-md-frontmatter-required',
-      kind: 'warning',
-      message: UI_COPY.flowEditorYamlFrontmatterRequiredToast,
-      ttlMs: 6000,
-      log: false,
-    })
-  }, [
-    active,
-    frontmatterDocumentModeActive,
-    hasMarkdownYamlFrontmatter,
-    isMarkdownFile,
-    upsertUiToast,
-  ])
-
-  React.useEffect(() => {
     if (!active) {
       setInspectorPortalHost(null)
       return
@@ -817,42 +777,31 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   React.useEffect(() => {
     if (!active) return
-    if (keywordModeActive) {
-      setDraftGraphData(prev => (prev === null ? prev : null))
-      return
-    }
-    const base = baseGraphData as GraphData | null
+    const base = flowEditorBaseGraphData as GraphData | null
     setDraftGraphData(prev => (prev === base ? prev : base))
-  }, [active, baseGraphData, baseGraphDataRevision, keywordModeActive])
+  }, [active, baseGraphDataRevision, flowEditorBaseGraphData])
 
   const renderGraphDataOverride = React.useMemo((): GraphData | null => {
-    if (keywordModeActive) return (storeRenderGraphData || null) as GraphData | null
-    const graphDataForRender = canEdit ? draftGraphData : ((baseGraphData || null) as GraphData | null)
+    const graphDataForRender = flowEditorViewActive ? draftGraphData : ((baseGraphData || null) as GraphData | null)
     return deriveFlowEditorViewGraph({
       graphData: graphDataForRender,
-      frontmatterModeEnabled: frontmatterModeEnabled === true,
-      documentSemanticMode,
-      documentStructureBaselineLock,
       collapsedGroupIds: collapsedGroupIdsForView,
+      forceFrontmatterFlow: flowEditorFrontmatterGraphAvailable,
     })
   }, [
     baseGraphData,
-    canEdit,
     collapsedGroupIdsForView,
-    documentSemanticMode,
-    documentStructureBaselineLock,
     draftGraphData,
-    frontmatterModeEnabled,
-    keywordModeActive,
-    storeRenderGraphData,
+    flowEditorFrontmatterGraphAvailable,
+    flowEditorViewActive,
   ])
   const frontmatterFlowRenderSettings = React.useMemo(() => {
     return readFrontmatterFlowRenderSettings(renderGraphDataOverride)
   }, [renderGraphDataOverride])
 
   const overlayOnlyModeEnabled = React.useMemo(() => {
-    return canEdit
-  }, [canEdit])
+    return flowEditorViewActive
+  }, [flowEditorViewActive])
 
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
@@ -2033,11 +1982,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [active, draftGraphData, overlayOnlyModeEnabled, setOpenQuickEditorNodeIds])
 
   React.useEffect(() => {
+    if (!active) return
+    if (!flowEditorViewActive) return
     if (!draftGraphData) return
     const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
     const idSet = new Set(nodes.map(n => String(n.id || '')).filter(Boolean))
     updateOpenQuickEditorNodeIds(prev => prev.filter(id => idSet.has(String(id || ''))))
-  }, [draftGraphData, updateOpenQuickEditorNodeIds])
+  }, [active, draftGraphData, flowEditorViewActive, updateOpenQuickEditorNodeIds])
 
   React.useEffect(() => {
     nodeQuickEditorRegistryRef.current = nodeQuickEditorRegistry
@@ -3141,6 +3092,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   )
 
   const overlayEditorNodeIds = React.useMemo(() => {
+    if (!flowEditorViewActive) return []
     const kind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
     const metadata = ((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>)
     const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? (renderGraphDataOverride?.nodes as GraphNode[]) : []
@@ -3188,7 +3140,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         if (!nodeId) continue
         allowedFlowNodeIds.add(nodeId)
       }
-      const enforceAllowedIds = allowedFlowNodeIds.size > 0
+      if (allowedFlowNodeIds.size === 0) return []
       const next: string[] = []
       const seen = new Set<string>()
       for (let i = 0; i < nodes.length; i += 1) {
@@ -3196,13 +3148,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const id = String(n?.id || '').trim()
         if (!id || seen.has(id)) continue
         if (String(n?.type || '') === 'Section') continue
-        if (enforceAllowedIds && !allowedFlowNodeIds.has(id)) continue
+        if (!allowedFlowNodeIds.has(id)) continue
         seen.add(id)
         next.push(id)
       }
       return next.sort(compareByVisualIndex)
     }
-
     const next: string[] = []
     const seen = new Set<string>()
     for (const id of openQuickEditorNodeIds) {
@@ -3214,7 +3165,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const sel = String(overlayDraftNode?.id || '').trim()
     if (sel && !seen.has(sel)) next.push(sel)
     return next
-  }, [openQuickEditorNodeIds, overlayDraftNode?.id, renderGraphDataOverride?.metadata, renderGraphDataOverride?.nodes])
+  }, [flowEditorViewActive, openQuickEditorNodeIds, overlayDraftNode?.id, renderGraphDataOverride?.metadata, renderGraphDataOverride?.nodes])
 
   const seededFrontmatterAutoQuickEditorsKeyRef = React.useRef<string>('')
   React.useEffect(() => {
@@ -3255,7 +3206,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [nodeQuickEditorRegistry, overlayEditorNodeIds, renderGraphDataOverride])
 
   const overlayEditorElements = React.useMemo(() => {
-    if (!canEdit) return []
+    if (!flowEditorViewActive) return []
     const edges = (renderGraphDataOverride?.edges || []) as GraphEdge[]
     const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? (renderGraphDataOverride?.nodes as GraphNode[]) : []
     const nodeById = new Map<string, GraphNode>()
@@ -3284,7 +3235,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         return (
           <FlowEditorNodeQuickEditorOverlay
             key={`qe-${id}`}
-            active={active}
+            active={canEdit}
             node={node}
             graphMetaKind={graphMetaKind}
             edges={edges}
@@ -3338,6 +3289,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       .filter(Boolean)
   }, [
     canEdit,
+    flowEditorViewActive,
     beginAddEdgeFromNode,
     canvasWindowOffset,
     clearNodeOutputById,

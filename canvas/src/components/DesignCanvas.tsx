@@ -834,7 +834,7 @@ export default function DesignCanvas({
   const useWebpageLayoutGraph = useMemo(() => {
     const graphForMode = (activeRenderGraphData || snapshot.graphData) as GraphData | null
     const effectiveFrontmatter = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: snapshot.frontmatterModeEnabled === true && snapshot.documentStructureBaselineLock !== true,
+      frontmatterModeEnabled: snapshot.frontmatterModeEnabled === true,
       documentSemanticMode: snapshot.documentSemanticMode,
       graphData: graphForMode,
     })
@@ -842,7 +842,6 @@ export default function DesignCanvas({
   }, [
     activeRenderGraphData,
     snapshot.documentSemanticMode,
-    snapshot.documentStructureBaselineLock,
     snapshot.frontmatterModeEnabled,
     snapshot.graphData,
   ])
@@ -1834,6 +1833,7 @@ export default function DesignCanvas({
       args: { id: string; handle: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'; rect: { x: number; y: number; w: number; h: number } },
     ) => {
       if (!active) return
+      if (snapshot.documentStructureBaselineLock === true) return
       if (isSpacePanHeld()) return
       if (snapshot.canvasPointerMode2d === 'pan') return
       if (e.button !== 0) return
@@ -1868,7 +1868,7 @@ export default function DesignCanvas({
       }
       resizePendingRef.current = { id, x: args.rect.x, y: args.rect.y, w, h }
     }
-  }, [active, pointerToWorld, snapshot.canvasPointerMode2d])
+  }, [active, pointerToWorld, snapshot.canvasPointerMode2d, snapshot.documentStructureBaselineLock])
 
   const dimsRef = useRef({ width: dims.width, height: dims.height })
   useEffect(() => {
@@ -3556,6 +3556,7 @@ export default function DesignCanvas({
                         stroke="transparent"
                         onPointerDown={e => {
                           if (!active) return
+                          if (snapshot.documentStructureBaselineLock === true) return
                           if (!allowGroupResize) return
                           if (isSpacePanHeld()) return
                           e.stopPropagation()
@@ -3725,6 +3726,7 @@ export default function DesignCanvas({
                 transform={`translate(${p.x},${p.y})`}
                 onPointerDown={e => {
                   if (!active) return
+                  if (snapshot.documentStructureBaselineLock === true) return
                   if (isSpacePanHeld()) return
                   if (snapshot.canvasPointerMode2d === 'pan') return
                   e.stopPropagation()

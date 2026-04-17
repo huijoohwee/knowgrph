@@ -54,7 +54,7 @@ export function InteractionModeSelect({ iconSizeClass, iconStrokeWidth, ensureBa
         },
         {
           key: 'lock' as const,
-          label: 'Mode switch: Lock',
+          label: documentStructureBaselineLock ? 'View Lock: ON' : 'View Lock: OFF',
           Icon: documentStructureBaselineLock ? Lock : Unlock,
         },
         {

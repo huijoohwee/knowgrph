@@ -300,13 +300,20 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     if (raw.startsWith('properties') || raw.startsWith('metadata') || raw.startsWith('label') || raw.startsWith('type')) return raw
     return `properties.${raw}`
   }, [])
+  const flowRegistryFormId = String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
+  const flowRegistryFormIdExpected = flowRegistryFormId || `fm:${String(node.id || '').trim()}`
 
   const registryOptions = React.useMemo(
-    () =>
-      (registryEntries || []).filter(
+    () => {
+      const all = (registryEntries || []).filter(
         entry => entry && entry.isEnabled && entry.nodeTypeId === nodeTypeId,
-      ),
-    [nodeTypeId, registryEntries],
+      )
+      if (!isFrontmatterFlow) return all
+      const expected = String(flowRegistryFormIdExpected || '').trim()
+      if (!expected) return []
+      return all.filter(entry => String(entry.formId || '').trim() === expected)
+    },
+    [flowRegistryFormIdExpected, isFrontmatterFlow, nodeTypeId, registryEntries],
   )
   const registrySelectionId = registryEntry?.id || ''
   const hasRegistryOptions = registryOptions.length > 0

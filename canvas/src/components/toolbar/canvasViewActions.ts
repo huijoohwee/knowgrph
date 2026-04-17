@@ -3,6 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { togglePortHandlesEnabledInSchema } from '@/lib/graph/portHandlesBehavior'
 import { SNAP_GRID_SIZE_DEFAULT } from '@/lib/canvas/snapGridSize'
 import type { CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
+import { isFrontmatterOnlyCanvas2dRenderer } from '@/lib/config.render'
 
 type CanvasViewActionParams = {
   id: CanvasViewOptionId
@@ -52,10 +53,18 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   } = params
 
   if (!ensureBaselineUnlocked()) return
+  const frontmatterOnlyAllowed = canvasRenderMode === '2d' && isFrontmatterOnlyCanvas2dRenderer(canvas2dRenderer)
 
   if (id.startsWith('renderer:')) {
     if (id === 'renderer:menu') return
-    setCanvas2dRenderer(id.slice('renderer:'.length) as Canvas2dRendererId)
+    const nextRenderer = id.slice('renderer:'.length) as Canvas2dRendererId
+    if (nextRenderer === canvas2dRenderer) return
+    setCanvas2dRenderer(nextRenderer)
+    if (isFrontmatterOnlyCanvas2dRenderer(nextRenderer)) {
+      if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
+      if (!frontmatterModeEnabled) setFrontmatterModeEnabled(true)
+      if (documentSemanticMode !== 'document') setDocumentSemanticMode('document')
+    }
     return
   }
   if (id === 'layout:block' || id === 'layout:radial') {
@@ -86,22 +95,32 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
     return
   }
   if (id === 'document:documentStructure') {
+    if (geospatialEnabled) return
+    if (frontmatterOnlyAllowed) {
+      if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
+      if (!frontmatterModeEnabled) setFrontmatterModeEnabled(true)
+      if (documentSemanticMode !== 'document') setDocumentSemanticMode('document')
+      return
+    }
     if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
     if (frontmatterModeEnabled) setFrontmatterModeEnabled(false)
     setDocumentSemanticMode('document')
     return
   }
   if (id === 'document:keyword') {
+    if (geospatialEnabled || frontmatterOnlyAllowed) return
     if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
     if (frontmatterModeEnabled) setFrontmatterModeEnabled(false)
     setDocumentSemanticMode('keyword')
     return
   }
   if (id === 'document:frontmatter') {
+    if (geospatialEnabled) return
     setFrontmatterModeEnabled(true)
     return
   }
   if (id === 'document:multiDimTable') {
+    if (geospatialEnabled || frontmatterOnlyAllowed) return
     setMultiDimTableModeEnabled(true)
     return
   }

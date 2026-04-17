@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
@@ -59,3 +61,40 @@ export const testMermaidFrontmatterModeKeepsMermaidNodesAndGroups = async () => 
   if (!hasGroupA) throw new Error('expected Mermaid subgraph to produce a group')
 }
 
+const resolveMermaidDocCandidates = (): string[] => {
+  const cwd = process.cwd()
+  return [
+    path.resolve(cwd, '..', '..', 'sandbox', 'demo', 'md-demo-00.md'),
+    path.resolve(cwd, '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-prd-tad.md'),
+  ]
+}
+
+export const testMermaidFrontmatterPipelineSupportsDemoAndKgcDocs = async () => {
+  const docs = resolveMermaidDocCandidates().filter(p => fs.existsSync(p))
+  if (docs.length === 0) return
+
+  for (let i = 0; i < docs.length; i += 1) {
+    const docPath = docs[i]!
+    const md = fs.readFileSync(docPath, 'utf8')
+    const res = await loadGraphDataFromTextViaParser(docPath, md, { applyToStore: false })
+    if (!res?.graphData) throw new Error(`expected graphData for ${path.basename(docPath)}`)
+    const base = res.graphData
+    const baseNodes = Array.isArray(base.nodes) ? base.nodes : []
+    const baseEdges = Array.isArray(base.edges) ? base.edges : []
+    const isFrontmatterFlow = String((base as { context?: unknown }).context || '').trim() === 'frontmatter-flow'
+    if (isFrontmatterFlow) {
+      if (baseNodes.length === 0 || baseEdges.length === 0) {
+        throw new Error(`expected non-empty frontmatter-flow graph for ${path.basename(docPath)}`)
+      }
+      continue
+    }
+    const filtered = filterGraphToFrontmatterMermaid(base)
+    const filteredNodes = Array.isArray(filtered.nodes) ? filtered.nodes : []
+    const filteredEdges = Array.isArray(filtered.edges) ? filtered.edges : []
+    const hasMermaidNode = filteredNodes.some(n => String((n as { type?: unknown }).type || '') === 'MermaidNode')
+    if (!hasMermaidNode) throw new Error(`expected MermaidNode for ${path.basename(docPath)}`)
+    if (filteredNodes.length === 0 || filteredEdges.length === 0) {
+      throw new Error(`expected non-empty frontmatter mermaid graph for ${path.basename(docPath)}`)
+    }
+  }
+}

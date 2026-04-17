@@ -27,7 +27,7 @@ import {
   lsSetJsonCoalesced,
 } from '@/lib/persistence'
 import { coerceViewportControlsPreset } from '@/lib/canvas/viewport-controls'
-import { isCanvas2dRendererId, isFlowCanvas2dRenderer } from '@/lib/config.render'
+import { isCanvas2dRendererId, isFrontmatterOnlyCanvas2dRenderer } from '@/lib/config.render'
 import {
   FLOW_WHEEL_ZOOM_SMOOTH_MAX_DURATION_DEFAULT_MS,
   FLOW_WHEEL_ZOOM_SMOOTH_DURATION_MAX_MS,
@@ -499,7 +499,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
           const semanticMode = String(st.documentSemanticMode || 'document')
           const graphDataForView = (st.graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) || null
           const frontmatter = computeEffectiveFrontmatterMode({
-            frontmatterModeEnabled: st.frontmatterModeEnabled === true && st.documentStructureBaselineLock !== true,
+            frontmatterModeEnabled: st.frontmatterModeEnabled === true,
             documentSemanticMode: semanticMode,
             graphData: (st.graphData as any) || null,
           })
@@ -636,9 +636,9 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       const targetQuickEditors = Array.isArray(nextQuickEditorBy[radialRenderer]) ? nextQuickEditorBy[radialRenderer] : []
       const sourceValid = sourceQuickEditors.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))
       const targetValid = targetQuickEditors.map(id => String(id || '').trim()).filter(id => nodeIdSet.has(id))
-      const shouldSeedFlowEditorFromSource = radialRenderer === 'flowEditor' && targetValid.length < 1 && sourceValid.length > 0
-      const nextQuickEditors = shouldSeedFlowEditorFromSource ? sourceValid : targetValid
-      const enforceFrontmatterOnly = state.canvasRenderMode === '2d' && isFlowCanvas2dRenderer(radialRenderer)
+      // Keep quick-editor state renderer-scoped: Flow Editor must not inherit open panels from other renderers.
+      const nextQuickEditors = targetValid
+      const enforceFrontmatterOnly = state.canvasRenderMode === '2d' && isFrontmatterOnlyCanvas2dRenderer(radialRenderer)
       const nextDocumentSemanticMode = enforceFrontmatterOnly ? 'document' : state.documentSemanticMode
       const nextFrontmatterModeEnabled = enforceFrontmatterOnly ? true : state.frontmatterModeEnabled
       const nextMultiDimTableModeEnabled = enforceFrontmatterOnly ? false : state.multiDimTableModeEnabled

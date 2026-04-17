@@ -44,6 +44,32 @@ export const parseMarkdownFrontmatter = (
   if (endIndex < 0) return { meta: {}, startIndex: 0 }
 
   const frontmatterText = lines.slice(1, endIndex).join('\n')
+  const recoverFrontmatterMermaidLiteral = (raw: string): string => {
+    const srcLines = String(raw || '').split('\n')
+    for (let i = 0; i < srcLines.length; i += 1) {
+      const line = srcLines[i] || ''
+      const match = /^(\s*)mermaid\s*:\s*(\||>)\s*$/.exec(line)
+      if (!match) continue
+      const baseIndent = (match[1] || '').length
+      const block: string[] = []
+      let minIndent = Number.POSITIVE_INFINITY
+      for (let j = i + 1; j < srcLines.length; j += 1) {
+        const next = srcLines[j] || ''
+        if (!next.trim()) {
+          block.push('')
+          continue
+        }
+        const indent = (next.match(/^\s*/) || [''])[0].length
+        if (indent <= baseIndent) break
+        if (indent < minIndent) minIndent = indent
+        block.push(next)
+      }
+      if (block.length === 0) return ''
+      const trimIndent = Number.isFinite(minIndent) ? minIndent : 0
+      return block.map(l => (l.length >= trimIndent ? l.slice(trimIndent) : l.trimStart())).join('\n').trim()
+    }
+    return ''
+  }
   const repairFrontmatterYaml = (raw: string): string => {
     const src = String(raw || '')
     if (!src) return src
@@ -94,6 +120,13 @@ export const parseMarkdownFrontmatter = (
       }
     } catch {
       meta = {}
+    }
+  }
+
+  if (Object.keys(meta).length === 0) {
+    const mermaidLiteral = recoverFrontmatterMermaidLiteral(frontmatterText)
+    if (mermaidLiteral) {
+      meta = { mermaid: mermaidLiteral }
     }
   }
 

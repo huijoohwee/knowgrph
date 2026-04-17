@@ -46,6 +46,7 @@
 - Scope: `/GitHub/{knowgrph,gympgrph,curagrph}` → import → render.
 - Support all `/GitHub/sandbox/` test data; no hardcoding.
 - Centralize configs (labels, boxes, collisions, timing, knobs); reuse shared utilities.
+- For arbitrary JSON ingest, render only explicit graph entities (`nodes`/`edges`); forbid synthetic placeholder/fallback graph construction when entities are absent.
 - Keep the computing-flow sample and its pipeline docs aligned as the canonical ingest→parse→render fixture/docs pair; oversized docs may split into companion files, but the original filename remains the sub-600 canonical index with continuation links.
 - Embedded Markdown GeoJSON must extract requests through one shared helper, then reuse the same graph-load and geospatial auto-enable contract as file imports.
 - Resolve cross‑repo conflicts; remove legacy/conflicting/stale code.
@@ -71,8 +72,8 @@
 | Frontmatter flow templating | Resolve frontmatter values first, then a second pass of dotted node-scoped refs such as `{{node.data.key}}` before edge labels and node payloads finalize. | Keep markdown sample imports deterministic and prevent stale literal refs from leaking into rendered flow labels. |
 | Bipartite source neutrality | Normalize API, fixture, and workspace bipartite payloads through one source-meta contract and shared edge roles. | Forbid filename-gated workspace JSON detection, sample fallback content, or `/api/graph`-specific styling assumptions in the 2D bipartite path. |
 | Bipartite workspace source identity | Use neutral workspace source/context ids and inline parse hints in shared workspace JSON fallback parsing. | Prevent residual fake `.json` names or `workspace-json` tokens from leaking file-specific assumptions into the bipartite workspace path. |
-| 2D renderer family neutrality | Centralize D3-like, surface-mount, and minimap decisions in shared renderer helpers; keep workspace JSON fallback parsing generic and workspace bipartite payloads source-tagged. | Reduce branch duplication across D3/Bipartite/Flow/Design/Flow Editor and avoid file-specific fallback cues in the shared 2D pipeline. |
-| Adjacent 2D helper neutrality | Reuse shared renderer-id and family helpers in persistence, store bootstrap/setters, minimap/editor gating, and D3 scene/schema activation. | Prevent stale inline allowlists and repeated D3/Bipartite or Flow Editor checks in adjacent surfaces after host-level cleanup. |
+| 2D renderer family neutrality | Centralize D3-like, surface-mount, and minimap decisions in shared renderer helpers; keep workspace JSON fallback parsing generic and workspace flowchart payloads source-tagged. | Reduce branch duplication across D3/Flowchart/Flow Canvas/Design/Flow Editor and avoid file-specific fallback cues in the shared 2D pipeline. |
+| Adjacent 2D helper neutrality | Reuse shared renderer-id and family helpers in persistence, store bootstrap/setters, minimap/editor gating, and D3 scene/schema activation. | Prevent stale inline allowlists and repeated D3/Flowchart or Flow Editor checks in adjacent surfaces after host-level cleanup. |
 
 ### Markdown Workspace Import Stability
 
@@ -86,6 +87,12 @@
 This section is the end-to-end *runtime* pipeline inside the Canvas app: user imports text/data → parsers normalize into `GraphData` → store commits → Canvas and Multi-dimensional Table render from the same derived `GraphData`. It is schema-driven and domain-agnostic: node `type` / edge `label` are treated as opaque strings and all domain fields live under `properties`/`metadata` per the AgenticRAG structural contract.
 
 When changing shared packages that are wired via `file:` links (for example `curagrph` or `gympgrph`), restart or rebuild the Canvas dev server so the preview reflects the current checkout and not a stale build.
+
+### Guardrails: No Synthetic Render Data
+
+- `rawToGraphData` must output non-empty graph nodes/edges only from explicit input graph entities.
+- If input payloads do not contain valid `nodes` or `edges` arrays, the runtime returns an empty graph envelope (`metadata.empty=true`) instead of inferred placeholder graph content.
+- Renderer surfaces must treat this empty envelope as “no data available,” not as a signal to synthesize display nodes.
 
 ### Happy Path Call Graphs (Functions Only)
 

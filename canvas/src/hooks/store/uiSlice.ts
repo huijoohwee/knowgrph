@@ -16,7 +16,6 @@ import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage'
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
-import { DEFAULT_CANVAS_2D_RENDERER, DEFAULT_CANVAS_3D_MODE } from '@/lib/config.render'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
@@ -101,85 +100,9 @@ export const createUiSlice = (set: SetGraph) => {
         const next = enabled === false ? false : true
         if (state.documentStructureBaselineLock === next) return {}
         lsSetBool(LS_KEYS.documentStructureBaselineLock, next)
-        if (!next) {
-          const snap = state.documentStructureBaselineSnapshot
-          if (!snap) return { documentStructureBaselineLock: false } as Partial<GraphState>
-          lsSetJson(LS_KEYS.canvas2dRenderer, snap.canvas2dRenderer)
-          lsSetBool(LS_KEYS.viewportPinned, snap.viewPinned === true)
-          lsSetBool(LS_KEYS.viewportFitToScreen, snap.fitToScreenMode === true)
-          lsSetBool(LS_KEYS.viewportZoomToSelection, snap.zoomToSelectionMode === true)
-          return {
-            documentStructureBaselineLock: false,
-            documentStructureBaselineSnapshot: null,
-            documentSemanticMode: snap.documentSemanticMode,
-            frontmatterModeEnabled: snap.frontmatterModeEnabled,
-            canvasRenderMode: snap.canvasRenderMode,
-            canvas3dMode: snap.canvas3dMode,
-            canvas2dRenderer: snap.canvas2dRenderer,
-            canvasRenderModeLastFree: snap.canvasRenderModeLastFree,
-            canvasRenderModeIsAuto: snap.canvasRenderModeIsAuto,
-            viewPinned: snap.viewPinned,
-            fitToScreenMode: snap.fitToScreenMode,
-            zoomToSelectionMode: snap.zoomToSelectionMode,
-            zoomState: snap.zoomState,
-            zoomStateByKey: snap.zoomStateByKey,
-            zoomRequest: null,
-            selectedNodeId: snap.selectedNodeId,
-            selectedEdgeId: snap.selectedEdgeId,
-            selectedGroupId: snap.selectedGroupId,
-            selectedNodeIds: snap.selectedNodeIds,
-            selectedEdgeIds: snap.selectedEdgeIds,
-            selectedGroupIds: snap.selectedGroupIds,
-            collapsedGroupIds: snap.collapsedGroupIds,
-          } as Partial<GraphState>
-        }
-        const snapshot = state.documentStructureBaselineSnapshot || {
-          documentSemanticMode: state.documentSemanticMode,
-          frontmatterModeEnabled: state.frontmatterModeEnabled,
-          canvasRenderMode: state.canvasRenderMode,
-          canvas3dMode: state.canvas3dMode,
-          canvas2dRenderer: state.canvas2dRenderer,
-          canvasRenderModeLastFree: state.canvasRenderModeLastFree,
-          canvasRenderModeIsAuto: state.canvasRenderModeIsAuto,
-          viewPinned: state.viewPinned,
-          fitToScreenMode: state.fitToScreenMode,
-          zoomToSelectionMode: state.zoomToSelectionMode,
-          zoomState: state.zoomState,
-          zoomStateByKey: state.zoomStateByKey,
-          selectedNodeId: state.selectedNodeId,
-          selectedEdgeId: state.selectedEdgeId,
-          selectedGroupId: state.selectedGroupId,
-          selectedNodeIds: state.selectedNodeIds,
-          selectedEdgeIds: state.selectedEdgeIds,
-          selectedGroupIds: state.selectedGroupIds,
-          collapsedGroupIds: state.collapsedGroupIds,
-        }
-        lsSetJson(LS_KEYS.canvas2dRenderer, DEFAULT_CANVAS_2D_RENDERER)
-        lsSetBool(LS_KEYS.viewportPinned, false)
-        lsSetBool(LS_KEYS.viewportFitToScreen, true)
-        lsSetBool(LS_KEYS.viewportZoomToSelection, false)
         return {
-          documentStructureBaselineLock: true,
-          documentStructureBaselineSnapshot: snapshot,
-          documentSemanticMode: 'document',
-          frontmatterModeEnabled: false,
-          canvasRenderMode: '2d',
-          canvas3dMode: DEFAULT_CANVAS_3D_MODE,
-          canvas2dRenderer: DEFAULT_CANVAS_2D_RENDERER,
-          canvasRenderModeLastFree: '2d',
-          canvasRenderModeIsAuto: false,
-          viewPinned: false,
-          fitToScreenMode: true,
-          zoomToSelectionMode: false,
-          zoomState: null,
-          zoomRequest: null,
-          selectedNodeId: null,
-          selectedEdgeId: null,
-          selectedGroupId: null,
-          selectedNodeIds: [],
-          selectedEdgeIds: [],
-          selectedGroupIds: [],
-          collapsedGroupIds: [],
+          documentStructureBaselineLock: next,
+          documentStructureBaselineSnapshot: null,
         } as Partial<GraphState>
       }),
     codeHighlightDurationMs: 1000,

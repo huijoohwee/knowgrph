@@ -6,7 +6,7 @@ import type { GraphState } from '@/hooks/useGraphStore'
 import { keywordGraphCache, KEYWORD_GRAPH_ALGO_VERSION } from '@/features/semantic-mode/keywordGraph'
 import { hashText } from '@/features/parsers/hash'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
-import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
+import { filterGraphToFrontmatterMermaid, hasFrontmatterMermaidSeeds } from '@/lib/graph/layerDerivation'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
@@ -17,14 +17,16 @@ import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { deriveKeywordGraphInWorker, deriveKeywordGraphPreviewInWorker } from '@/features/semantic-mode/keywordGraphWorker'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { parseGraph } from '@/lib/graph/io/adapter'
+import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
+import { parseJsonLd } from '@/lib/graph/jsonld'
 import {
   normalizeBipartiteApiGraphData,
   parseBipartiteApiGraphPayload,
   useApiGraphBipartiteGraphData,
 } from '@/features/bipartite/apiGraphBipartite'
 import { buildBipartiteSourceMeta } from '@/lib/bipartite/source'
-import { isBipartiteCanvas2dRenderer } from '@/lib/config.render'
 import type { Canvas2dRendererId } from '@/lib/config'
+import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 
 let mermaidFrontmatterGeometryModulePromise: Promise<typeof import('@/lib/mermaid/mermaidFrontmatterGeometry')> | null = null
 
@@ -725,6 +727,16 @@ const INACTIVE_GRAPH_SLICE = {
   revision: 0,
 } as const
 
+function isFrontmatterFlowGraphData(graphData: GraphData | null | undefined): boolean {
+  if (!graphData) return false
+  if (String(graphData.context || '').trim() === 'frontmatter-flow') return true
+  const meta =
+    graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+      ? (graphData.metadata as Record<string, unknown>)
+      : null
+  return String(meta?.kind || '').trim() === 'frontmatter-flow'
+}
+
 export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   const selector = React.useMemo(
     () =>
@@ -766,13 +778,27 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     revision,
   } = useGraphStore(useShallow(selector))
 
-  const wantsApiGraphBipartite = enabled && canvasRenderMode === '2d' && isBipartiteCanvas2dRenderer(canvas2dRenderer)
+  // Flowchart renderer is frontmatter-only and reuses local ingest->parse->render data.
+  const wantsApiGraphBipartite = false
   const workspaceJsonGraphData = React.useMemo(
     () => (enabled && !wantsApiGraphBipartite ? parseWorkspaceJsonGraphData({ markdownName, markdownText }) : null),
     [enabled, markdownName, markdownText, wantsApiGraphBipartite],
   )
-  const hasStructuredWorkspaceGraph = !!workspaceJsonGraphData
-  const baseGraphData = workspaceJsonGraphData || baseGraphDataRaw
+  const workspaceFrontmatterMermaidGraphData = React.useMemo(() => {
+    if (!enabled || wantsApiGraphBipartite) return null
+    const text = String(markdownText || '')
+    if (!text.trim()) return null
+    if (!containsFrontmatterMermaid(text)) return null
+    try {
+      const jsonld = buildMarkdownJsonLd(markdownName || 'workspace:frontmatter.md', text)
+      const parsed = parseJsonLd(jsonld)
+      return toWorkspaceJsonGraphData(parsed)
+    } catch {
+      return null
+    }
+  }, [enabled, markdownName, markdownText, wantsApiGraphBipartite])
+  const hasStructuredWorkspaceGraph = !!workspaceJsonGraphData || !!workspaceFrontmatterMermaidGraphData
+  const baseGraphData = workspaceJsonGraphData || workspaceFrontmatterMermaidGraphData || baseGraphDataRaw
   const { graphData: apiGraphBipartite } = useApiGraphBipartiteGraphData(wantsApiGraphBipartite)
 
   const lastRef = React.useRef<GraphData | null>(null)
@@ -1134,7 +1160,10 @@ const INACTIVE_RENDER_SLICE = {
   multiDimTableModeEnabled: false,
   documentSemanticMode: 'document',
   documentStructureBaselineLock: false,
+  markdownText: null as string | null,
   collapsedGroupIds: [] as string[],
+  canvasRenderMode: '2d' as '2d' | '3d',
+  canvas2dRenderer: 'd3' as Canvas2dRendererId,
 } as const
 
 export function useActiveGraphRenderData(enabled: boolean = true): GraphData | null {
@@ -1148,20 +1177,31 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
             multiDimTableModeEnabled: s.multiDimTableModeEnabled === true,
             documentSemanticMode: String(s.documentSemanticMode || 'document'),
             documentStructureBaselineLock: s.documentStructureBaselineLock === true,
+            markdownText: s.markdownDocumentText || null,
             collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
+            canvasRenderMode: (s.canvasRenderMode || '2d') as '2d' | '3d',
+            canvas2dRenderer: (s.canvas2dRenderer || 'd3') as Canvas2dRendererId,
           })
         : () => INACTIVE_RENDER_SLICE,
     [enabled],
   )
 
-  const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, documentStructureBaselineLock, collapsedGroupIds } = useGraphStore(useShallow(selector))
+  const {
+    frontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    documentSemanticMode,
+    documentStructureBaselineLock,
+    markdownText,
+    collapsedGroupIds,
+    canvasRenderMode,
+    canvas2dRenderer,
+  } = useGraphStore(useShallow(selector))
 
   const applyMermaidGeometryAttemptKeyRef = React.useRef<string>('')
   const applyMermaidGeometryInFlightRef = React.useRef(false)
   React.useEffect(() => {
     if (!enabled) return
     if (!frontmatterModeEnabled) return
-    if (documentStructureBaselineLock === true) return
     if (String(documentSemanticMode || 'document') !== 'document') return
     const base = graphData
     if (!base) return
@@ -1200,7 +1240,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     return () => {
       cancelled = true
     }
-  }, [documentSemanticMode, documentStructureBaselineLock, enabled, frontmatterModeEnabled, graphData])
+  }, [documentSemanticMode, enabled, frontmatterModeEnabled, graphData])
 
   const lastRef = React.useRef<GraphData | null>(null)
 
@@ -1210,6 +1250,15 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
 
   const viewGraphData = React.useMemo(() => {
     if (!graphData) return null
+    const flowchartMode = canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
+    if (flowchartMode) {
+      const hasYamlFrontmatterMermaid = containsFrontmatterMermaid(String(markdownText || ''))
+      if (!hasYamlFrontmatterMermaid) return null
+      if (isFrontmatterFlowGraphData(graphData)) return graphData
+      const source = hasFrontmatterMermaidSeeds(graphData) ? graphData : null
+      if (!source) return null
+      return filterGraphToFrontmatterMermaid(source)
+    }
     return deriveGraphDataForActiveView({
       graphData,
       frontmatterModeEnabled,
@@ -1218,7 +1267,15 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
       documentStructureBaselineLock,
       collapsedGroupIds: [],
     })
-  }, [documentSemanticMode, frontmatterModeEnabled, graphData, multiDimTableModeEnabled])
+  }, [
+    canvas2dRenderer,
+    canvasRenderMode,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    graphData,
+    markdownText,
+    multiDimTableModeEnabled,
+  ])
 
   const computed = React.useMemo(() => {
     if (!viewGraphData) return null

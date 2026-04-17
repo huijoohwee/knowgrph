@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
+import net from "node:net";
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -14,6 +15,17 @@ const KNOWGRPH_ROOT = resolveRootDir();
 const PYTHON_BIN = process.env.KNOWGRPH_PYTHON?.trim() || "python3";
 const ALLOW_EXTERNAL_PATHS =
   (process.env.KNOWGRPH_ALLOW_EXTERNAL_PATHS || "").trim().toLowerCase() === "1";
+const DEFAULT_UI_HOST = process.env.KNOWGRPH_UI_HOST?.trim() || "127.0.0.1";
+const DEFAULT_UI_PORT = Number(process.env.KNOWGRPH_UI_PORT?.trim() || "5173");
+
+/** @type {null | { pid: number, host: string, port: number, startedAtMs: number }} */
+let canvasDevServer = null;
+
+const UI_TARGETS = /** @type {const} */ ({
+  canvas: { label: "Canvas", query: "" },
+  workspaceEditor: { label: "Workspace Editor", query: "openEditorWorkspace=1" },
+  geospatial: { label: "Geospatial", query: "kgGeo=1" },
+});
 
 function resolveRootDir() {
   const envRoot = process.env.KNOWGRPH_ROOT?.trim();
@@ -54,6 +66,68 @@ function truncate(text) {
   const head = text.slice(0, Math.floor(MAX_OUTPUT_CHARS * 0.7));
   const tail = text.slice(text.length - Math.floor(MAX_OUTPUT_CHARS * 0.3));
   return `${head}\n\n…(truncated ${text.length - MAX_OUTPUT_CHARS} chars)…\n\n${tail}`;
+}
+
+function buildCanvasUrl({ host, port, target }) {
+  const base = `http://${host}:${port}/`;
+  const t = UI_TARGETS[target] || UI_TARGETS.canvas;
+  if (!t.query) return base;
+  return `${base}?${t.query}`;
+}
+
+function waitForTcpPort({ host, port, timeoutMs = 8000 }) {
+  const startedAt = Date.now();
+  return new Promise((resolve) => {
+    const attempt = () => {
+      const socket = net.connect({ host, port });
+      socket.once("connect", () => {
+        socket.end();
+        resolve(true);
+      });
+      socket.once("error", () => {
+        socket.destroy();
+        if (Date.now() - startedAt >= timeoutMs) return resolve(false);
+        setTimeout(attempt, 250);
+      });
+    };
+    attempt();
+  });
+}
+
+function startCanvasDevServer({ host, port }) {
+  if (canvasDevServer?.pid) {
+    return { ok: true, reused: true, pid: canvasDevServer.pid };
+  }
+
+  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+  const args = ["--prefix", "canvas", "run", "dev", "--", "--host", host, "--port", String(port), "--strictPort"];
+
+  const child = spawn(npmCommand, args, {
+    cwd: KNOWGRPH_ROOT,
+    env: process.env,
+    detached: true,
+    stdio: ["ignore", "ignore", "ignore"],
+  });
+
+  // Detach so MCP call can return immediately.
+  child.unref();
+  canvasDevServer = { pid: child.pid, host, port, startedAtMs: Date.now() };
+  return { ok: true, reused: false, pid: child.pid };
+}
+
+function stopProcessGroup(pid) {
+  try {
+    // On POSIX, negative PID kills the entire process group.
+    process.kill(-pid, "SIGTERM");
+    return true;
+  } catch {
+    try {
+      process.kill(pid, "SIGTERM");
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 function runCommand(command, args, { cwd, timeoutMs }) {
@@ -136,6 +210,45 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
+        name: "knowgrph.ui.launch",
+        description:
+          "Launch the Knowgrph Canvas UI (Vite dev server) and return a URL pre-configured for Canvas / Workspace Editor / Geospatial mode.",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            target: {
+              type: "string",
+              enum: ["canvas", "workspaceEditor", "geospatial"],
+              default: "canvas",
+              description: "Which UI experience to open.",
+            },
+            host: {
+              type: "string",
+              description: "Host to bind and open. Default: 127.0.0.1 (or KNOWGRPH_UI_HOST).",
+            },
+            port: {
+              type: "number",
+              description: "Port for the dev server. Default: 5173 (or KNOWGRPH_UI_PORT).",
+            },
+            waitForReady: {
+              type: "boolean",
+              description: "If true, waits briefly for the port to accept TCP connections before returning.",
+              default: true,
+            },
+          },
+        },
+      },
+      {
+        name: "knowgrph.ui.stop",
+        description: "Stop the running Knowgrph Canvas dev server (if started by knowgrph.ui.launch).",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {},
+        },
+      },
+      {
         name: "knowgrph.pipeline",
         description:
           "Run the Knowgrph pipeline (GraphData -> A0 CSV/JSON-LD + codebase index artifacts) or run a preset DuckDB example query.",
@@ -202,6 +315,44 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const args = request.params?.arguments ?? {};
 
   try {
+    if (toolName === "knowgrph.ui.launch") {
+      const target = typeof args.target === "string" ? args.target : "canvas";
+      const host = typeof args.host === "string" && args.host.trim() ? args.host.trim() : DEFAULT_UI_HOST;
+      const port = typeof args.port === "number" && Number.isFinite(args.port) ? Number(args.port) : DEFAULT_UI_PORT;
+      const waitForReady = typeof args.waitForReady === "boolean" ? args.waitForReady : true;
+
+      const startResult = startCanvasDevServer({ host, port });
+      const ready = waitForReady ? await waitForTcpPort({ host, port, timeoutMs: 8000 }) : true;
+      const url = buildCanvasUrl({ host, port, target });
+
+      const outputText = [
+        `Target: ${String(target)}`,
+        `URL: ${url}`,
+        `Dev server: ${startResult.reused ? "already running (reused)" : "started"}`,
+        `PID: ${String(startResult.pid)}`,
+        ready ? "Status: ready" : "Status: starting (port not ready yet; retry in a few seconds)",
+        "",
+        "Notes:",
+        "- Workspace Editor uses query param ?openEditorWorkspace=1",
+        "- Geospatial uses query param ?kgGeo=1 (DEV behavior)",
+      ].join("\n");
+
+      return { content: [{ type: "text", text: outputText }], isError: false };
+    }
+
+    if (toolName === "knowgrph.ui.stop") {
+      if (!canvasDevServer?.pid) {
+        return { content: [{ type: "text", text: "No Canvas dev server is currently tracked as running." }], isError: false };
+      }
+      const pid = canvasDevServer.pid;
+      const ok = stopProcessGroup(pid);
+      canvasDevServer = null;
+      return {
+        content: [{ type: "text", text: ok ? `Stopped Canvas dev server (PID ${pid}).` : `Failed to stop PID ${pid}.` }],
+        isError: !ok,
+      };
+    }
+
     if (toolName === "knowgrph.pipeline") {
       const mode = typeof args.mode === "string" ? args.mode : "pipeline";
       const timeoutMs = typeof args.timeoutMs === "number" ? args.timeoutMs : undefined;
@@ -334,4 +485,3 @@ main().catch((error) => {
   process.stderr.write(`knowgrph-mcp: fatal error: ${error instanceof Error ? error.stack : String(error)}\n`);
   process.exit(1);
 });
-

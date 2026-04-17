@@ -9,9 +9,9 @@ export function getNextCanvas2dRendererId(current: Canvas2dRendererId): Canvas2d
 }
 
 export function getCanvas2dRendererLabel(id: Canvas2dRendererId): string {
-  if (id === 'd3Bipartite') return 'Bipartite'
+  if (id === 'd3Bipartite') return 'Flowchart'
   if (id === 'flowEditor') return 'Edit'
-  if (id === 'flow') return 'Flow'
+  if (id === 'flow') return 'Flow Canvas'
   if (id === 'design') return 'Design'
   return 'D3'
 }

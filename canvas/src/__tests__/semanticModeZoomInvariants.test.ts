@@ -163,3 +163,48 @@ export function testSchemaUpdateCarriesZoomStateAcrossLayoutKey() {
     env.restore()
   }
 }
+
+export function testFlowEditorZoomKeyIgnoresDocumentModeCoupling() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'test',
+    metadata: { kind: 'doc', source: 'test', sourceLayerHash: 'base:v1:abc' },
+    nodes: [{ id: 'n1', label: 'N1', type: 'Entity', properties: {} }],
+    edges: [],
+  }
+
+  const base = {
+    canvasRenderMode: '2d' as const,
+    canvas2dRenderer: 'flowEditor',
+    schema: { ...defaultSchema },
+    graphData,
+    documentStructureBaselineLock: false,
+    renderMediaAsNodes: false,
+    mediaPanelDensity: 'default',
+    collapsedGroupIds: [],
+  }
+
+  const documentKey = buildActive2dZoomViewKey({
+    ...base,
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+  })
+  const keywordKey = buildActive2dZoomViewKey({
+    ...base,
+    documentSemanticMode: 'keyword',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+  })
+  const tableKey = buildActive2dZoomViewKey({
+    ...base,
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: true,
+  })
+
+  if (!documentKey || !keywordKey || !tableKey) throw new Error('expected Flow Editor zoom keys')
+  if (documentKey !== keywordKey || documentKey !== tableKey) {
+    throw new Error('expected Flow Editor zoom key to stay stable across document/keyword/table mode toggles')
+  }
+}

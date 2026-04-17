@@ -49,31 +49,32 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - `canvas/src/components/GraphCanvas/layout/*.ts` handles positioning (Force, Radial, Tree, Mermaid).
   - Uses `layoutPositionCacheByMode` to persist stable layouts across re-renders.
 
-### Renderer Mode Matrix (2D: D3 Graph/D3 Bipartite/Flow/Design/Flow Editor; 3D; Voxel)
+### Renderer Mode Matrix (2D: D3 Graph/Flowchart/Flow Canvas/Design/Flow Editor; 3D; Voxel)
 
 - **Shared derivation SSOT**:
-  - All renderers (2D D3 Graph/D3 Bipartite/Flow/Design/Flow Editor, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
+  - All renderers (2D D3 Graph/Flowchart/Flow Canvas/Design/Flow Editor, 3D, Voxel, Geospatial) consume the same SSOT-derived `graphDataForDisplay`.
   - Derivation order: keyword base → optional frontmatter filter (Document mode only) → optional group collapse. Renderer toggles must not re-derive or fork this pipeline.
 - **Frontmatter Mode On/Off**:
   - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), both 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes).
   - If `flow` block metadata exists, flow-derived nodes/connections are the canonical parser input for renderer surfaces; parser wiring must not merge legacy top-level `edges` into the rendered graph.
+  - Flowchart renderer (compat id: `d3Bipartite`) is strict frontmatter mode: it renders only frontmatter Mermaid/flow-derived graph data from the local ingest→parse→render pipeline and must not fetch API/fixture fallback graphs.
   - Subgraph/group metadata must stay explicit-only (`kg:subgraphs` and cluster derivation); renderer paths must not rely on synthetic fallback groups such as `frontmatter:all`, tier buckets, or category buckets.
   - Frontmatter Mode **Off**: renderers fall back to the Markdown→JSON‑LD pipeline; the active graph is still `graphDataForDisplay`, and mode switches are view‑only (no store mutations of imported Markdown/JSON‑LD).
 - **2D vs 3D renderer parity**:
-  - 2D D3 runs force/layout; 2D Flow/Design reuse the same visibility, collective fit geometry, and zoom behavior without re-running D3 forces.
+  - 2D D3 runs force/layout; 2D Flow Canvas/Design reuse the same visibility, collective fit geometry, and zoom behavior without re-running D3 forces.
   - 3D reuses 2D layout positions (when present) as a baseline and applies its own camera + depth presentation, but must not introduce a separate derivation pipeline or a different node/edge set.
   - Switching 2D↔3D must preserve selection and view keys (per‑renderer zoom keys are isolated; layout caches are renderer‑variant aware but share the same schema/layout fingerprint).
   - Standard 3D stays available for Block/frontmatter-flow graphs and reuses the same display-graph + layout-cache path as 2D; only Radial auto-demotes to 2D.
-- **Voxel Mode (3D D3-Bipartite sub-mode)**:
-  - Voxel Mode is a 3D sub-mode gated to D3 Bipartite with Block layout; radial layouts do not expose voxel controls. It reuses the same SSOT `graphDataForDisplay` and D3 Bipartite lane layout as its XY baseline.
-  - XY positions in Voxel Mode are derived from the active D3 Bipartite seed (layout-position cache or live node positions) without re-running a separate layout pipeline. Voxel cubes sit on the XY ground plane (`z=0`) and must not introduce vertical “Z columns” when parity mode is enabled.
+- **Voxel Mode (3D Flowchart sub-mode)**:
+  - Voxel Mode is a 3D sub-mode gated to Flowchart (compat id: `d3Bipartite`) with Block layout; radial layouts do not expose voxel controls. It reuses the same SSOT `graphDataForDisplay` and Flowchart lane layout as its XY baseline.
+  - XY positions in Voxel Mode are derived from the active Flowchart seed (layout-position cache or live node positions) without re-running a separate layout pipeline. Voxel cubes sit on the XY ground plane (`z=0`) and must not introduce vertical “Z columns” when parity mode is enabled.
   - Seed selection is keyed by the same layout-position cache key as 2D (`datasetKey + layoutMode + semanticMode + frontmatterMode + viewKey`) so switching between Infinite Canvas variants (Document/Keyword/Frontmatter/Multi-dimensional Table) and 2D/3D/Voxel reuses the same SSOT layout where applicable.
   - Voxel grouping and color should prefer imported metadata first (`visual:layer`, `layer:label`, `layer:color`, `visual:color`) and fall back to hashed cluster styling only when explicit layer metadata is absent; PMF and other structured imports must not need renderer-local color remapping.
   - Voxel entry points must stay unavailable while Geospatial Mode is enabled; standalone 3D/Voxel selectors and shared canvas view actions should route users back toward Document Mode instead of mutating renderer/schema state behind the geospatial surface.
-  - Mode switches (2D D3 ↔ 3D ↔ Voxel) are view-only: they must not mutate GraphData, change semantic-mode baselines, or fork a voxel-specific derivation pipeline. Voxel drag interactions update positions in the same coordinate space as D3 Bipartite and keep cubes constrained to the ground plane while preserving lane/group relationships.
+  - Mode switches (2D D3 ↔ 3D ↔ Voxel) are view-only: they must not mutate GraphData, change semantic-mode baselines, or fork a voxel-specific derivation pipeline. Voxel drag interactions update positions in the same coordinate space as Flowchart and keep cubes constrained to the ground plane while preserving lane/group relationships.
 - **Animation Mode (2D D3 radial + 3D)**:
   - Toolbar Animation switch (beside Rich Media) is view-only and toggles between Force-directed Graph (default) and Orbit-style nested radial animation. It must not mutate GraphData, schema, or layout caches; it only controls how existing radial layouts are animated.
-  - Orbit-style nested radial animation is bounded: driven by `schema.layout.forces.radialOrbit*` knobs, restricted to 2D D3 radial (non-Bipartite) and document/keyword/frontmatter/multi-dimensional table modes, and implemented as a render-frame animator that never restarts D3 simulation or re-derives topology.
+  - Orbit-style nested radial animation is bounded: driven by `schema.layout.forces.radialOrbit*` knobs, restricted to 2D D3 radial (non-Flowchart) and document/keyword/frontmatter/multi-dimensional table modes, and implemented as a render-frame animator that never restarts D3 simulation or re-derives topology.
   - 3D animation (globe particles, hub orbits, arc travellers, camera ellipse path) reuses the same SSOT GraphData and layout fingerprint as 2D; camera/particle/orbit configs live under `schema.three.*` and must not fork a separate derivation or node/edge set.
 - **Rich Media On/Off**:
   - Rich Media detection (image/svg/video/iframe) is shared across Markdown Viewer, 2D/3D Canvas, Design, and Geospatial surfaces via `getNodeMediaSpec` and friends; Script/Imgs/Fid defaults are auto, driven by shared heuristics.
@@ -91,7 +92,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Default is `bezier`; Straight/Step/Smoothstep override per‑edge path geometry without changing graph semantics or edge labels.
 - Directive: For `frontmatter-flow`, renderer-specific defaults must yield to `metadata.frontmatterFlowSettings.edgeType` and `direction` so Flow and Flow Editor stay visually aligned without separate parsing logic.
 - **Renderer coverage**:
-  - 2D D3/D3 Bipartite, Flow, Design, Flow Editor, and 3D all respect the global edge type via a shared `edgeTypes` utility (`buildEdgePathD/traceEdgePathOnCanvas`) instead of duplicating path logic.
+  - 2D D3/Flowchart, Flow Canvas, Design, Flow Editor, and 3D all respect the global edge type via a shared `edgeTypes` utility (`buildEdgePathD/traceEdgePathOnCanvas`) instead of duplicating path logic.
   - D3 uses the global type to decide whether to generate SVG path curves or straight/step/smoothstep polylines; Flow/Flow Editor use the same utility for Canvas2D overlays; Design wireframes reuse the same path generator for DOM snapshot edges; 3D maps edge type to curvature defaults (Straight/Step→0, Smoothstep→minimum curvature).
 - **Precedence and overrides**:
   - Global edge type is view‑only and must not change GraphData; it controls rendering only.
@@ -244,9 +245,9 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Flow and Flow Editor do not run D3 forces but must reuse the same SSOT inputs as D3: visibility filter, collective fit geometry, and zoom behavior. Initial view honors the same bounds guards and idempotent init policy.
 - When the Document Structure baseline lock is active, Flow and Flow Editor must disable auto zoom modes and maintain parity with the D3 baseline; switching between 2D variants restores each variant’s own zoom state via isolated view keys. See [autoZoom2dPolicy.ts](../../canvas/src/features/zoom/autoZoom2dPolicy.ts) and [FlowCanvas tests](../../canvas/src/__tests__/flowCanvasIntegration.test.ts#L143-L184).
 
-### 2D D3 Bipartite Layout (Super-Groups)
+### 2D Flowchart Layout (Super-Groups)
 
-- **Scope**: 2D D3 Bipartite renderer (canvas2dRenderer=`d3Bipartite`) consumes a bipartite graph where `node.type∈{problem,solution}` and cluster ids come from metadata (`cluster`, `clusters[]`, or cluster_gap_ratios keys).
+- **Scope**: 2D Flowchart renderer (compat id: `canvas2dRenderer="d3Bipartite"`) consumes a bipartite graph where `node.type∈{problem,solution}` and cluster ids come from metadata (`cluster`, `clusters[]`, or cluster_gap_ratios keys).
 - **Hierarchy** (SSOT):
   - Root super-group: `Bipartite` contains all problem+solution nodes.
   - Side super-groups: `Problems` and `Solutions` each contain their side’s nodes.
@@ -255,7 +256,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - **Layout invariants**:
   - Problems and Solutions occupy separated left/right lanes derived from `visual:xIndex` and schema forces; switching 2D renderer variants must not reassign nodes across sides.
   - Super-group/group envelopes, headers, and cluster outlines are part of fit geometry (collective bounds) and must remain visible during interaction (click/drag/zoom) without requiring renderer switching.
-  - Edge visibility in Bipartite mode uses schema + per-edge visual opacity/width only; selection/highlight may dim but must not fully hide the bipartite “line” structure when nodes are visible.
+  - Edge visibility in Flowchart mode uses schema + per-edge visual opacity/width only; selection/highlight may dim but must not fully hide the bipartite “line” structure when nodes are visible.
 
 ### Selection Zoom (Node/Edge vs Graph)
 - Zoom-to-selection operates on a selection subset (selected node ids and/or edge endpoints) and must share duration/timing knobs across 2D renderers.

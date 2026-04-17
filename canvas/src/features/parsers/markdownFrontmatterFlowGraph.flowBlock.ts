@@ -1,4 +1,5 @@
 import { load as parseYaml } from 'js-yaml'
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { isUnsafeFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 
 const FRONTMATTER_FLOW_SETTINGS_KEY = 'frontmatterFlowSettings' as const
@@ -70,19 +71,69 @@ function repairYamlInlineColonSpacing(raw: string): string {
   return out.join('\n')
 }
 
+export function repairFlowInlineEnvelopeBlockScalars(raw: string): string {
+  const src = String(raw || '')
+  if (!src) return src
+  const lines = src.split('\n')
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = String(lines[i] || '')
+    const m = /^(\s*)([A-Za-z0-9_.-]+)\s*:\s*\{\s*key:\s*([^,]+?),\s*type:\s*([^,]+?),\s*value:\s*\|\s*$/.exec(line)
+    if (!m) {
+      out.push(line)
+      continue
+    }
+    const indent = m[1] || ''
+    const indentLen = indent.length
+    const fieldKey = String(m[2] || '').trim()
+    const keyPart = String(m[3] || '').trim()
+    const typePart = String(m[4] || '').trim()
+    if (!fieldKey || !keyPart || !typePart) {
+      out.push(line)
+      continue
+    }
+    out.push(`${indent}${fieldKey}:`)
+    out.push(`${indent}  key: ${keyPart}`)
+    out.push(`${indent}  type: ${typePart}`)
+    out.push(`${indent}  value: |`)
+    let consumedClosingBrace = false
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const bodyLine = String(lines[j] || '')
+      if (/^\s*\}\s*$/.test(bodyLine) && countIndent(bodyLine) <= indentLen) {
+        consumedClosingBrace = true
+        i = j
+        break
+      }
+      out.push(bodyLine ? `  ${bodyLine}` : bodyLine)
+    }
+    if (!consumedClosingBrace) {
+      // Keep original line if malformed envelope to avoid destructive rewrite.
+      out.pop()
+      out.pop()
+      out.pop()
+      out.pop()
+      out.push(line)
+    }
+  }
+  return out.join('\n')
+}
+
 function parseFlowObjectFromYamlBlock(rawBlock: string): Record<string, unknown> | null {
   const block = String(rawBlock || '')
   if (!block) return null
+  const repairedBlock = repairFlowInlineEnvelopeBlockScalars(repairYamlInlineColonSpacing(block))
   try {
-    const parsed = parseYaml(block) as unknown
+    const parsed = parseYaml(repairedBlock) as unknown
     if (isRecord(parsed) && isRecord(parsed.flow)) return parsed.flow as Record<string, unknown>
   } catch {
     void 0
   }
   try {
-    const repaired = repairYamlInlineColonSpacing(block)
-    const parsed = parseYaml(repaired) as unknown
-    if (isRecord(parsed) && isRecord(parsed.flow)) return parsed.flow as Record<string, unknown>
+    const synthetic = `---\n${repairedBlock}\n---`
+    const fm = parseMarkdownFrontmatter(splitMarkdownLines(synthetic))
+    if (isRecord(fm.meta) && isRecord((fm.meta as Record<string, unknown>).flow)) {
+      return (fm.meta as Record<string, unknown>).flow as Record<string, unknown>
+    }
   } catch {
     void 0
   }
@@ -389,6 +440,20 @@ function coerceFlowNodePorts(raw: unknown): Array<Record<string, unknown>> {
   return out
 }
 
+function unwrapFlowNodeFieldValue(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  if (!Object.prototype.hasOwnProperty.call(raw, 'value')) return raw
+  return (raw as Record<string, unknown>).value
+}
+
+function normalizeFlowNodeEnvelope(rawNode: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(rawNode)) {
+    out[k] = unwrapFlowNodeFieldValue(v)
+  }
+  return out
+}
+
 function parseFlowEdgeEndpoint(rawNode: unknown, rawHandle: unknown): { nodeId: string; portKey: string } | null {
   const nodeIdRaw = asString(rawNode)
   const handleRaw = asString(rawHandle)
@@ -466,34 +531,36 @@ function buildFlowTemplateVars(
 export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Record<string, unknown> {
   const flow = isRecord(meta.flow) ? (meta.flow as Record<string, unknown>) : null
   if (!flow) return meta
+  const readFlowValue = (v: unknown): unknown => unwrapFlowNodeFieldValue(v)
   const allowMixedHandles = isChatKnowgrphFlowContractRelaxed(meta)
   const vars = meta
   const pathCache = new Map<string, unknown>()
   const declarationCache = new Map<string, unknown>()
   const resolvedStringCache = new Map<string, string>()
   const flowWarnings: string[] = []
-  const rawNodes = Array.isArray(flow.nodes) ? flow.nodes : []
+  const rawNodes = Array.isArray(readFlowValue(flow.nodes)) ? (readFlowValue(flow.nodes) as unknown[]) : []
   const normalizedNodes: Array<Record<string, unknown>> = []
   for (let i = 0; i < rawNodes.length; i += 1) {
     const rawNode = rawNodes[i]
     if (!isRecord(rawNode)) continue
-    const id = asString(rawNode.id)
+    const normalizedRawNode = normalizeFlowNodeEnvelope(rawNode as Record<string, unknown>)
+    const id = asString(normalizedRawNode.id)
     if (!id) continue
-    const rawType = asString(rawNode.type)
+    const rawType = asString(normalizedRawNode.type)
     const type = normalizeFlowNodeType(rawType)
     if (rawType && rawType !== type) {
       flowWarnings.push(`Flow node type normalized to default: ${id}`)
     }
-    const labelRaw = asString(rawNode.label)
-    const position = isRecord(rawNode.position) ? (rawNode.position as Record<string, unknown>) : null
-    const x = position ? asFiniteNumber(position.x) : asFiniteNumber((rawNode as Record<string, unknown>).pos_x)
-    const y = position ? asFiniteNumber(position.y) : asFiniteNumber((rawNode as Record<string, unknown>).pos_y)
-    const handles = isRecord(rawNode.handles) ? (rawNode.handles as Record<string, unknown>) : null
+    const labelRaw = asString(normalizedRawNode.label)
+    const position = isRecord(normalizedRawNode.position) ? (normalizedRawNode.position as Record<string, unknown>) : null
+    const x = position ? asFiniteNumber(position.x) : asFiniteNumber((normalizedRawNode as Record<string, unknown>).pos_x)
+    const y = position ? asFiniteNumber(position.y) : asFiniteNumber((normalizedRawNode as Record<string, unknown>).pos_y)
+    const handles = isRecord(normalizedRawNode.handles) ? (normalizedRawNode.handles as Record<string, unknown>) : null
     const inputs = coerceFlowNodePorts(handles?.target)
     const outputs = coerceFlowNodePorts(handles?.source)
-    const dataResolved = resolveTemplateValue(rawNode.data, vars, pathCache, declarationCache, resolvedStringCache)
+    const dataResolved = resolveTemplateValue(normalizedRawNode.data, vars, pathCache, declarationCache, resolvedStringCache)
     const dataNormalized = normalizeFlowDataValue(dataResolved)
-    const computeRaw = asString(rawNode.compute)
+    const computeRaw = asString(normalizedRawNode.compute)
     let compute = computeRaw ? resolveTemplateString(computeRaw, vars, pathCache, declarationCache, resolvedStringCache) : ''
     if (allowMixedHandles && compute) {
       flowWarnings.push(`Flow chatKnowgrph contract: compute removed for node ${id}`)
@@ -521,17 +588,17 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     }
     if (sanitized.compute) next.compute = sanitized.compute
     if (dataNormalized.hasPending) {
-      const props = isRecord(rawNode.properties) ? ({ ...rawNode.properties } as Record<string, unknown>) : {}
+      const props = isRecord(normalizedRawNode.properties) ? ({ ...normalizedRawNode.properties } as Record<string, unknown>) : {}
       props['frontmatter:waiting'] = true
       next.properties = props
-    } else if (isRecord(rawNode.properties)) {
-      next.properties = rawNode.properties
+    } else if (isRecord(normalizedRawNode.properties)) {
+      next.properties = normalizedRawNode.properties
     }
     normalizedNodes.push(next)
   }
   const flowVars = buildFlowTemplateVars(vars, normalizedNodes)
 
-  const rawEdges = Array.isArray(flow.edges) ? flow.edges : []
+  const rawEdges = Array.isArray(readFlowValue(flow.edges)) ? (readFlowValue(flow.edges) as unknown[]) : []
   const normalizedConnections: Array<Record<string, unknown>> = []
   for (let i = 0; i < rawEdges.length; i += 1) {
     const row = rawEdges[i]
@@ -573,18 +640,18 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     if (computeRaw) node.compute = resolveTemplateString(computeRaw, flowVars, pathCache, declarationCache, resolvedStringCache)
   }
 
-  const rawDirection = asString(flow.direction).toUpperCase()
+  const rawDirection = asString(readFlowValue(flow.direction)).toUpperCase()
   const direction = rawDirection === 'LR' || rawDirection === 'TB' || rawDirection === 'RL' || rawDirection === 'BT' ? rawDirection : 'LR'
-  const rawEdgeType = asString(flow.edgeType).toLowerCase()
+  const rawEdgeType = asString(readFlowValue(flow.edgeType)).toLowerCase()
   const edgeType = rawEdgeType === 'default' || rawEdgeType === 'straight' || rawEdgeType === 'step' || rawEdgeType === 'smoothstep' || rawEdgeType === 'bezier'
     ? rawEdgeType
     : 'bezier'
   const settings: Record<string, unknown> = {
     direction,
     edgeType,
-    ...(asBoolean(flow.snapToGrid) != null ? { snapToGrid: asBoolean(flow.snapToGrid) } : {}),
-    ...(asFiniteNumber(flow.gridSize) != null ? { gridSize: Math.max(1, Math.floor(asFiniteNumber(flow.gridSize) as number)) } : {}),
-    ...(asBoolean(flow.computed) != null ? { computed: asBoolean(flow.computed) } : {}),
+    ...(asBoolean(readFlowValue(flow.snapToGrid)) != null ? { snapToGrid: asBoolean(readFlowValue(flow.snapToGrid)) } : {}),
+    ...(asFiniteNumber(readFlowValue(flow.gridSize)) != null ? { gridSize: Math.max(1, Math.floor(asFiniteNumber(readFlowValue(flow.gridSize)) as number)) } : {}),
+    ...(asBoolean(readFlowValue(flow.computed)) != null ? { computed: asBoolean(readFlowValue(flow.computed)) } : {}),
   }
 
   const next: Record<string, unknown> = {

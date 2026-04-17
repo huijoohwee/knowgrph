@@ -28,7 +28,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L38; canvas/src/hooks/store/uiSlice.ts:L670"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L38; canvas/src/hooks/store/uiSlice.ts:L593"
   },
   "uiPanelOpacity": {
     "area": "Global Translucency",
@@ -45,7 +45,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L47; canvas/src/hooks/store/uiSlice.ts:L671"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L47; canvas/src/hooks/store/uiSlice.ts:L594"
   },
   "uiToolbarOpacity": {
     "area": "Global Translucency",
@@ -62,7 +62,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L56; canvas/src/hooks/store/uiSlice.ts:L672"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L56; canvas/src/hooks/store/uiSlice.ts:L595"
   },
   "selectionFlashDurationMs": {
     "area": "Selection Flash",
@@ -79,7 +79,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L65; canvas/src/hooks/store/uiSettingsSlice.ts:L1031"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L65; canvas/src/hooks/store/uiSettingsSlice.ts:L1032"
   },
   "selectionFlashOpacity": {
     "area": "Selection Flash",
@@ -96,7 +96,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L74; canvas/src/hooks/store/uiSettingsSlice.ts:L1036"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L74; canvas/src/hooks/store/uiSettingsSlice.ts:L1037"
   },
   "uiIconScale": {
     "area": "UI Density: Icons",
@@ -113,7 +113,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L83; canvas/src/hooks/store/uiSlice.ts:L597"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L83; canvas/src/hooks/store/uiSlice.ts:L520"
   },
   "uiPanelTextFontClass": {
     "area": "UI Density: Panels",
@@ -130,7 +130,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L97; canvas/src/hooks/store/uiSlice.ts:L517"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L97; canvas/src/hooks/store/uiSlice.ts:L440"
   },
   "uiPanelKeyValueTextSizeClass": {
     "area": "UI Density: Panels",
@@ -147,7 +147,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L106; canvas/src/hooks/store/uiSlice.ts:L509"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L106; canvas/src/hooks/store/uiSlice.ts:L432"
   },
   "uiPanelKeyValueInputClass": {
     "area": "UI Density: Panels",
@@ -164,7 +164,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L115; canvas/src/hooks/store/uiSlice.ts:L525"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L115; canvas/src/hooks/store/uiSlice.ts:L448"
   },
   "uiPanelMonospaceTextClass": {
     "area": "UI Density: Panels",
@@ -181,7 +181,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L124; canvas/src/hooks/store/uiSlice.ts:L550"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L124; canvas/src/hooks/store/uiSlice.ts:L473"
   },
   "uiPanelRowDensityDefaultClass": {
     "area": "UI Density: Panels",
@@ -198,7 +198,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L133; canvas/src/hooks/store/uiSlice.ts:L534"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L133; canvas/src/hooks/store/uiSlice.ts:L457"
   },
   "uiHeaderRowHeightClass": {
     "area": "UI Density: Headers",
@@ -215,7 +215,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L142; canvas/src/hooks/store/uiSlice.ts:L565"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L142; canvas/src/hooks/store/uiSlice.ts:L488"
   },
   "uiHeaderRowPaddingClass": {
     "area": "UI Density: Headers",
@@ -232,7 +232,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L151; canvas/src/hooks/store/uiSlice.ts:L573"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L151; canvas/src/hooks/store/uiSlice.ts:L496"
   },
   "uiSectionHeaderRowHeightClass": {
     "area": "UI Density: Headers",
@@ -249,7 +249,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L160; canvas/src/hooks/store/uiSlice.ts:L581"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L160; canvas/src/hooks/store/uiSlice.ts:L504"
   },
   "uiSectionHeaderRowPaddingClass": {
     "area": "UI Density: Headers",
@@ -266,7 +266,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L169; canvas/src/hooks/store/uiSlice.ts:L589"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L169; canvas/src/hooks/store/uiSlice.ts:L512"
   },
   "uiIconFormat": {
     "area": "UI Density: Icons",
@@ -283,7 +283,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L178; canvas/src/hooks/store/uiSlice.ts:L601"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L178; canvas/src/hooks/store/uiSlice.ts:L524"
   },
   "uiIconStrokeWidth": {
     "area": "UI Density: Icons",
@@ -300,7 +300,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L193; canvas/src/hooks/store/uiSlice.ts:L605"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L193; canvas/src/hooks/store/uiSlice.ts:L528"
   },
   "uiIconColorClass": {
     "area": "UI Density: Icons",
@@ -317,7 +317,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L202; canvas/src/hooks/store/uiSlice.ts:L609"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L202; canvas/src/hooks/store/uiSlice.ts:L532"
   },
   "uiIconHoverBgClass": {
     "area": "UI Density: Icons",
@@ -334,7 +334,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L211; canvas/src/hooks/store/uiSlice.ts:L616"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L211; canvas/src/hooks/store/uiSlice.ts:L539"
   },
   "uiIconButtonPaddingClass": {
     "area": "UI Density: Icons",
@@ -351,7 +351,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L220; canvas/src/hooks/store/uiSlice.ts:L623"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L220; canvas/src/hooks/store/uiSlice.ts:L546"
   },
   "uiIconPillClass": {
     "area": "UI Density: Icons",
@@ -368,7 +368,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L229; canvas/src/hooks/store/uiSlice.ts:L630"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L229; canvas/src/hooks/store/uiSlice.ts:L553"
   },
   "uiIconPillLegendTextSizeClass": {
     "area": "UI Density: Icons",
@@ -385,7 +385,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L239; canvas/src/hooks/store/uiSlice.ts:L652"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L239; canvas/src/hooks/store/uiSlice.ts:L575"
   },
   "uiIconPillBadgeTextSizeClass": {
     "area": "UI Density: Icons",
@@ -402,7 +402,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L248; canvas/src/hooks/store/uiSlice.ts:L659"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L248; canvas/src/hooks/store/uiSlice.ts:L582"
   },
   "uiIconBadgeChipClass": {
     "area": "UI Density: Icons",
@@ -419,7 +419,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L257; canvas/src/hooks/store/uiSlice.ts:L638"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L257; canvas/src/hooks/store/uiSlice.ts:L561"
   },
   "uiIconBadgeChipTextSizeClass": {
     "area": "UI Density: Icons",
@@ -436,7 +436,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L266; canvas/src/hooks/store/uiSlice.ts:L645"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L266; canvas/src/hooks/store/uiSlice.ts:L568"
   },
   "uiPanelMicroLabelTextSizeClass": {
     "area": "UI Density: Panels",
@@ -453,7 +453,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L275; canvas/src/hooks/store/uiSlice.ts:L557"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L275; canvas/src/hooks/store/uiSlice.ts:L480"
   },
   "uiIconAnimationEnabled": {
     "area": "UI Density: Icons",
@@ -470,7 +470,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L284; canvas/src/hooks/store/uiSlice.ts:L666"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L284; canvas/src/hooks/store/uiSlice.ts:L589"
   },
   "themeMode": {
     "area": "UI Appearance",
@@ -558,7 +558,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L335; canvas/src/hooks/store/uiSlice.ts:L928"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L335; canvas/src/hooks/store/uiSlice.ts:L851"
   },
   "spotlight.margin": {
     "area": "Launch Spotlight Layout",
@@ -575,7 +575,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L344; canvas/src/hooks/store/uiSettingsSlice.ts:L1043"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L344; canvas/src/hooks/store/uiSettingsSlice.ts:L1044"
   },
   "spotlight.nearTopThreshold": {
     "area": "Launch Spotlight Layout",
@@ -592,7 +592,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L353; canvas/src/hooks/store/uiSettingsSlice.ts:L1047"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L353; canvas/src/hooks/store/uiSettingsSlice.ts:L1048"
   },
   "chatProvider": {
     "area": "Chat",
@@ -609,7 +609,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L362; canvas/src/hooks/store/uiSlice.ts:L685"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L362; canvas/src/hooks/store/uiSlice.ts:L608"
   },
   "chatAuthMode": {
     "area": "Chat",
@@ -626,7 +626,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L372; canvas/src/hooks/store/uiSlice.ts:L673"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L372; canvas/src/hooks/store/uiSlice.ts:L596"
   },
   "chatEndpointUrl": {
     "area": "Chat",
@@ -643,7 +643,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L382; canvas/src/hooks/store/uiSlice.ts:L718"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L382; canvas/src/hooks/store/uiSlice.ts:L641"
   },
   "chatApiKey": {
     "area": "Chat",
@@ -660,7 +660,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L391; canvas/src/hooks/store/uiSlice.ts:L708"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L391; canvas/src/hooks/store/uiSlice.ts:L631"
   },
   "chatModel": {
     "area": "Chat",
@@ -677,7 +677,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L400; canvas/src/hooks/store/uiSlice.ts:L725"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L400; canvas/src/hooks/store/uiSlice.ts:L648"
   },
   "chatTemperature": {
     "area": "Chat",
@@ -694,7 +694,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L410; canvas/src/hooks/store/uiSlice.ts:L735"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L410; canvas/src/hooks/store/uiSlice.ts:L658"
   },
   "chatMaxCompletionTokens": {
     "area": "Chat",
@@ -711,7 +711,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L419; canvas/src/hooks/store/uiSlice.ts:L742"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L419; canvas/src/hooks/store/uiSlice.ts:L665"
   },
   "chatGraphSummaryMaxTokens": {
     "area": "Chat",
@@ -728,7 +728,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L428; canvas/src/hooks/store/uiSlice.ts:L750"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L428; canvas/src/hooks/store/uiSlice.ts:L673"
   },
   "chatGuidelineDigestMaxTokens": {
     "area": "Chat",
@@ -745,7 +745,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L437; canvas/src/hooks/store/uiSlice.ts:L758"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L437; canvas/src/hooks/store/uiSlice.ts:L681"
   },
   "chatSystemPrompt": {
     "area": "Chat",
@@ -762,7 +762,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L446; canvas/src/hooks/store/uiSlice.ts:L766"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L446; canvas/src/hooks/store/uiSlice.ts:L689"
   },
   "chatStorageTarget": {
     "area": "—",
@@ -779,7 +779,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L455; canvas/src/hooks/store/uiSlice.ts:L773"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L455; canvas/src/hooks/store/uiSlice.ts:L696"
   },
   "chatLocalStorageRootPath": {
     "area": "—",
@@ -796,7 +796,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L465; canvas/src/hooks/store/uiSlice.ts:L780"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L465; canvas/src/hooks/store/uiSlice.ts:L703"
   },
   "chatKnowgrphStorageMode": {
     "area": "—",
@@ -813,7 +813,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L474; canvas/src/hooks/store/uiSlice.ts:L806"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L474; canvas/src/hooks/store/uiSlice.ts:L729"
   },
   "chatKnowgrphWorkspacePath": {
     "area": "—",
@@ -830,7 +830,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L484; canvas/src/hooks/store/uiSlice.ts:L813"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L484; canvas/src/hooks/store/uiSlice.ts:L736"
   },
   "chatKnowgrphCloudUrl": {
     "area": "—",
@@ -847,7 +847,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L493; canvas/src/hooks/store/uiSlice.ts:L820"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L493; canvas/src/hooks/store/uiSlice.ts:L743"
   },
   "chatHistoryStorageMode": {
     "area": "—",
@@ -864,7 +864,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L502; canvas/src/hooks/store/uiSlice.ts:L834"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L502; canvas/src/hooks/store/uiSlice.ts:L757"
   },
   "chatHistoryWorkspacePath": {
     "area": "—",
@@ -881,7 +881,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L512; canvas/src/hooks/store/uiSlice.ts:L827"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L512; canvas/src/hooks/store/uiSlice.ts:L750"
   },
   "chatHistoryCloudUrl": {
     "area": "—",
@@ -898,7 +898,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L521; canvas/src/hooks/store/uiSlice.ts:L841"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L521; canvas/src/hooks/store/uiSlice.ts:L764"
   },
   "chatContextScope": {
     "area": "Chat",
@@ -915,7 +915,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L530; canvas/src/hooks/store/uiSlice.ts:L848"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L530; canvas/src/hooks/store/uiSlice.ts:L771"
   },
   "integrationConfigsJson": {
     "area": "Integrations",
@@ -932,7 +932,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L547; canvas/src/hooks/store/uiSlice.ts:L855"
+    "lineRange": "canvas/src/features/settings/registry-ui.ui.ts:L547; canvas/src/hooks/store/uiSlice.ts:L778"
   },
   "canvasSnapEnabled": {
     "area": "Canvas Grid",
@@ -1181,7 +1181,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-geo.ts:L8; canvas/src/hooks/store/uiSlice.ts:L863"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-geo.ts:L8; canvas/src/hooks/store/uiSlice.ts:L786"
   },
   "bipartite.dataSource": {
     "area": "—",
@@ -2763,7 +2763,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L1102; canvas/src/hooks/store/uiSlice.ts:L866"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L1103; canvas/src/hooks/store/uiSlice.ts:L789"
   },
   "pdfImportMaxPages": {
     "area": "—",
@@ -2780,7 +2780,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L17; canvas/src/hooks/store/uiSlice.ts:L867"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L17; canvas/src/hooks/store/uiSlice.ts:L790"
   },
   "pdfImportMaxPdfBytes": {
     "area": "—",
@@ -2797,7 +2797,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L26; canvas/src/hooks/store/uiSlice.ts:L869"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L26; canvas/src/hooks/store/uiSlice.ts:L792"
   },
   "pdfImportFetchTimeoutMs": {
     "area": "—",
@@ -2814,7 +2814,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L35; canvas/src/hooks/store/uiSlice.ts:L871"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L35; canvas/src/hooks/store/uiSlice.ts:L794"
   },
   "pdfImportUploadTimeoutMs": {
     "area": "—",
@@ -2831,7 +2831,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L44; canvas/src/hooks/store/uiSlice.ts:L873"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L44; canvas/src/hooks/store/uiSlice.ts:L796"
   },
   "pdfImportConvertTimeoutMs": {
     "area": "—",
@@ -2848,7 +2848,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L53; canvas/src/hooks/store/uiSlice.ts:L875"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L53; canvas/src/hooks/store/uiSlice.ts:L798"
   },
   "pdfImportStreamDecodeCacheMaxBytes": {
     "area": "—",
@@ -2865,7 +2865,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L62; canvas/src/hooks/store/uiSlice.ts:L877"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L62; canvas/src/hooks/store/uiSlice.ts:L800"
   },
   "pdfImportContentStreamMaxDecodeBytes": {
     "area": "—",
@@ -2882,7 +2882,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L71; canvas/src/hooks/store/uiSlice.ts:L879"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L71; canvas/src/hooks/store/uiSlice.ts:L802"
   },
   "pdfImportPageContentMaxBytes": {
     "area": "—",
@@ -2899,7 +2899,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L80; canvas/src/hooks/store/uiSlice.ts:L881"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L80; canvas/src/hooks/store/uiSlice.ts:L804"
   },
   "pdfImportCmapMaxBytes": {
     "area": "—",
@@ -2916,7 +2916,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L89; canvas/src/hooks/store/uiSlice.ts:L883"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L89; canvas/src/hooks/store/uiSlice.ts:L806"
   },
   "pdfImportMaxToUnicodeStreamBytes": {
     "area": "—",
@@ -2933,7 +2933,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L98; canvas/src/hooks/store/uiSlice.ts:L885"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L98; canvas/src/hooks/store/uiSlice.ts:L808"
   },
   "pdfImportToUnicodeMaxDecodeBytes": {
     "area": "—",
@@ -2950,7 +2950,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L107; canvas/src/hooks/store/uiSlice.ts:L887"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L107; canvas/src/hooks/store/uiSlice.ts:L810"
   },
   "pdfImportImageStreamMaxDecodeBytes": {
     "area": "—",
@@ -2967,7 +2967,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L116; canvas/src/hooks/store/uiSlice.ts:L889"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L116; canvas/src/hooks/store/uiSlice.ts:L812"
   },
   "pdfImportMaxTextContentBytesPerPage": {
     "area": "—",
@@ -2984,7 +2984,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L125; canvas/src/hooks/store/uiSlice.ts:L891"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L125; canvas/src/hooks/store/uiSlice.ts:L814"
   },
   "pdfImportMaxTextStreamBytes": {
     "area": "—",
@@ -3001,7 +3001,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L134; canvas/src/hooks/store/uiSlice.ts:L893"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L134; canvas/src/hooks/store/uiSlice.ts:L816"
   },
   "pdfImportMaxFormXObjectBytes": {
     "area": "—",
@@ -3018,7 +3018,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L143; canvas/src/hooks/store/uiSlice.ts:L895"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L143; canvas/src/hooks/store/uiSlice.ts:L818"
   },
   "pdfImportMaxFormXObjectStreamBytes": {
     "area": "—",
@@ -3035,7 +3035,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L152; canvas/src/hooks/store/uiSlice.ts:L897"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L152; canvas/src/hooks/store/uiSlice.ts:L820"
   },
   "pdfImportMaxFormXObjectCount": {
     "area": "—",
@@ -3052,7 +3052,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L161; canvas/src/hooks/store/uiSlice.ts:L899"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L161; canvas/src/hooks/store/uiSlice.ts:L822"
   },
   "pdfImportEmbedImages": {
     "area": "Import: PDF",
@@ -3069,7 +3069,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L170; canvas/src/hooks/store/uiSlice.ts:L901"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L170; canvas/src/hooks/store/uiSlice.ts:L824"
   },
   "pdfImportMaxExtractedImagesPerPage": {
     "area": "Import: PDF",
@@ -3086,7 +3086,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L179; canvas/src/hooks/store/uiSlice.ts:L902"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L179; canvas/src/hooks/store/uiSlice.ts:L825"
   },
   "pdfImportMaxEmbeddedImagesPerPage": {
     "area": "Import: PDF",
@@ -3103,7 +3103,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L188; canvas/src/hooks/store/uiSlice.ts:L904"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L188; canvas/src/hooks/store/uiSlice.ts:L827"
   },
   "pdfImportMaxEmbeddedTotalBytes": {
     "area": "Import: PDF",
@@ -3120,7 +3120,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L197; canvas/src/hooks/store/uiSlice.ts:L906"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L197; canvas/src/hooks/store/uiSlice.ts:L829"
   },
   "pdfImportMaxEmbeddedAssetBytes": {
     "area": "Import: PDF",
@@ -3137,7 +3137,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L206; canvas/src/hooks/store/uiSlice.ts:L908"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L206; canvas/src/hooks/store/uiSlice.ts:L831"
   },
   "pdfImportReconstructTables": {
     "area": "—",
@@ -3154,7 +3154,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L215; canvas/src/hooks/store/uiSlice.ts:L910"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L215; canvas/src/hooks/store/uiSlice.ts:L833"
   },
   "pdfImportTableMinColumns": {
     "area": "—",
@@ -3171,7 +3171,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L224; canvas/src/hooks/store/uiSlice.ts:L911"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L224; canvas/src/hooks/store/uiSlice.ts:L834"
   },
   "pdfImportTableMinRows": {
     "area": "—",
@@ -3188,7 +3188,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L233; canvas/src/hooks/store/uiSlice.ts:L913"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L233; canvas/src/hooks/store/uiSlice.ts:L836"
   },
   "pdfImportTableMaxRows": {
     "area": "—",
@@ -3205,7 +3205,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L242; canvas/src/hooks/store/uiSlice.ts:L915"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L242; canvas/src/hooks/store/uiSlice.ts:L838"
   },
   "pdfImportProvider": {
     "area": "Import: PDF",
@@ -3222,7 +3222,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L251; canvas/src/hooks/store/uiSlice.ts:L917"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L251; canvas/src/hooks/store/uiSlice.ts:L840"
   },
   "pdfImportDoclingEndpoint": {
     "area": "Import: PDF",
@@ -3239,7 +3239,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L261; canvas/src/hooks/store/uiSlice.ts:L919"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L261; canvas/src/hooks/store/uiSlice.ts:L842"
   },
   "pdfImportProviderFallbackToNative": {
     "area": "Import: PDF",
@@ -3256,7 +3256,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L270; canvas/src/hooks/store/uiSlice.ts:L921"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L270; canvas/src/hooks/store/uiSlice.ts:L844"
   },
   "pdfImportOcrEnabled": {
     "area": "Import: PDF",
@@ -3273,7 +3273,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L279; canvas/src/hooks/store/uiSlice.ts:L923"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L279; canvas/src/hooks/store/uiSlice.ts:L846"
   },
   "pdfImportOcrMode": {
     "area": "Import: PDF",
@@ -3290,7 +3290,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L288; canvas/src/hooks/store/uiSlice.ts:L925"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-pdf.ts:L288; canvas/src/hooks/store/uiSlice.ts:L848"
   },
   "youtubeTranscriptOutputDir": {
     "area": "—",
@@ -3307,7 +3307,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L1061"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L1062"
   },
   "youtubeTranscriptOutputFormat": {
     "area": "—",
@@ -3324,7 +3324,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L1064"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-youtube.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L1065"
   },
   "webpageImportIncludeImages": {
     "area": "—",
@@ -3341,7 +3341,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L1067"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L8; canvas/src/hooks/store/uiSettingsSlice.ts:L1068"
   },
   "webpageImportView": {
     "area": "—",
@@ -3358,7 +3358,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L1070"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L17; canvas/src/hooks/store/uiSettingsSlice.ts:L1071"
   },
   "webpageViewerScriptPolicy": {
     "area": "—",
@@ -3375,7 +3375,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L1073"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L30; canvas/src/hooks/store/uiSettingsSlice.ts:L1074"
   },
   "webpageArtifactFidelityMaxLevel": {
     "area": "—",
@@ -3392,7 +3392,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L1076"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L40; canvas/src/hooks/store/uiSettingsSlice.ts:L1077"
   },
   "websiteImportDiscoverSitemap": {
     "area": "—",
@@ -3409,7 +3409,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L1082"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L49; canvas/src/hooks/store/uiSettingsSlice.ts:L1083"
   },
   "websiteImportGenerateWebpageArtifactDocs": {
     "area": "—",
@@ -3426,7 +3426,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L1085"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L58; canvas/src/hooks/store/uiSettingsSlice.ts:L1086"
   },
   "websiteImportMaxPages": {
     "area": "—",
@@ -3443,7 +3443,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L1088"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L1089"
   },
   "websiteImportConcurrency": {
     "area": "—",
@@ -3460,7 +3460,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L1094"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L1095"
   },
   "websiteImportOutputDirRel": {
     "area": "—",
@@ -3477,7 +3477,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L1100"
+    "lineRange": "canvas/src/features/settings/registry-ui.import-webpage.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L1101"
   },
   "viewport.fitFillRatio": {
     "area": "—",
@@ -3493,7 +3493,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/uiSlice.ts:L190"
+    "lineRange": "canvas/src/hooks/store/uiSlice.ts:L113"
   },
   "schema.layout.forces.physics2dChargeScale": {
     "area": "Graph Physics 2D",
@@ -4171,7 +4171,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L940"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L67; canvas/src/hooks/store/uiSettingsSlice.ts:L941"
   },
   "keyword.source.maxChars": {
     "area": "—",
@@ -4188,7 +4188,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L946"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L76; canvas/src/hooks/store/uiSettingsSlice.ts:L947"
   },
   "keyword.graph.previewDebounceMs": {
     "area": "—",
@@ -4205,7 +4205,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L952"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L85; canvas/src/hooks/store/uiSettingsSlice.ts:L953"
   },
   "keyword.graph.fullDebounceMs": {
     "area": "—",
@@ -4222,7 +4222,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L94; canvas/src/hooks/store/uiSettingsSlice.ts:L958"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L94; canvas/src/hooks/store/uiSettingsSlice.ts:L959"
   },
   "keyword.graph.edgesPerNode": {
     "area": "—",
@@ -4239,7 +4239,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L103; canvas/src/hooks/store/uiSettingsSlice.ts:L964"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L103; canvas/src/hooks/store/uiSettingsSlice.ts:L965"
   },
   "keyword.graph.maxEdges": {
     "area": "—",
@@ -4256,7 +4256,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L112; canvas/src/hooks/store/uiSettingsSlice.ts:L970"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L112; canvas/src/hooks/store/uiSettingsSlice.ts:L971"
   },
   "keyword.graph.mentionEdgesPerSourceNode": {
     "area": "—",
@@ -4273,7 +4273,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L121; canvas/src/hooks/store/uiSettingsSlice.ts:L976"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L121; canvas/src/hooks/store/uiSettingsSlice.ts:L977"
   },
   "codeHighlightDurationMs": {
     "area": "Editor Behavior & Timing",
@@ -4290,7 +4290,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L130; canvas/src/hooks/store/uiSlice.ts:L505"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L130; canvas/src/hooks/store/uiSlice.ts:L428"
   },
   "codeSelectThrottleMs": {
     "area": "Editor Behavior & Timing",
@@ -4307,7 +4307,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L139; canvas/src/hooks/store/uiSlice.ts:L506"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L139; canvas/src/hooks/store/uiSlice.ts:L429"
   },
   "codeHighlightUntilClick": {
     "area": "Editor Behavior & Timing",
@@ -4324,7 +4324,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L148; canvas/src/hooks/store/uiSlice.ts:L507"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L148; canvas/src/hooks/store/uiSlice.ts:L430"
   },
   "enableTabSync": {
     "area": "Tab Sync",
@@ -4341,7 +4341,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L157; canvas/src/hooks/store/uiSettingsSlice.ts:L1052"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L157; canvas/src/hooks/store/uiSettingsSlice.ts:L1053"
   },
   "enableVirtualTables": {
     "area": "Graph Data Table Virtualization",
@@ -4358,7 +4358,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L166; canvas/src/hooks/store/uiSettingsSlice.ts:L1053"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L166; canvas/src/hooks/store/uiSettingsSlice.ts:L1054"
   },
   "multiDimTableModeEnabled": {
     "area": "—",
@@ -4772,7 +4772,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/hooks/store/panelLayoutUiSlice.ts:L101; canvas/src/hooks/store/uiSettingsSlice.ts:L982"
+    "lineRange": "canvas/src/hooks/store/panelLayoutUiSlice.ts:L101; canvas/src/hooks/store/uiSettingsSlice.ts:L983"
   },
   "schema.behavior.hover.content.type": {
     "area": "Graph Hover Preview",

@@ -43,7 +43,7 @@ export function testRendererUiStateIsolationKeepsOpenQuickEditorsPerRenderer() {
   }
 }
 
-export function testRendererUiStateIsolationSeedsFlowEditorQuickEditorFromSourceRenderer() {
+export function testRendererUiStateIsolationFlowEditorDoesNotInheritQuickEditorsFromSourceRenderer() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setGraphData({
     type: 'Graph',
@@ -59,7 +59,7 @@ export function testRendererUiStateIsolationSeedsFlowEditorQuickEditorFromSource
   useGraphStore.getState().setCanvas2dRenderer('flowEditor')
   const afterFlowEditor = useGraphStore.getState()
   const seeded = afterFlowEditor.openQuickEditorNodeIds || []
-  if (seeded.length !== 1 || seeded[0] !== 'a') {
-    throw new Error(`expected flowEditor to seed quick editors from source renderer, got ${JSON.stringify(seeded)}`)
+  if (seeded.length !== 0) {
+    throw new Error(`expected flowEditor quick editors to stay renderer-isolated, got ${JSON.stringify(seeded)}`)
   }
 }

@@ -153,7 +153,7 @@ function Minimap() {
     const schemaEffective = schema || defaultSchema
     const semanticModeKey = multiDimTableModeEnabled ? `${String(documentSemanticMode || 'document')}:mdtbl` : String(documentSemanticMode || 'document')
     const effectiveFrontmatter = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
       documentSemanticMode: String(documentSemanticMode || 'document'),
       graphData,
     })

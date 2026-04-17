@@ -131,6 +131,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     zoomState,
     fitToScreenMode,
     zoomToSelectionMode,
+    documentStructureBaselineLock,
     graphCanvasArrangeRequest,
     clearGraphCanvasArrangeRequest,
     selectedNodeId,
@@ -168,6 +169,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           zoomState: null,
           fitToScreenMode: false,
           zoomToSelectionMode: false,
+          documentStructureBaselineLock: false,
           graphCanvasArrangeRequest: null,
           clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
           selectedNodeId: null,
@@ -204,6 +206,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         zoomState: s.zoomState || null,
         fitToScreenMode: s.fitToScreenMode === true,
         zoomToSelectionMode: s.zoomToSelectionMode === true,
+        documentStructureBaselineLock: s.documentStructureBaselineLock === true,
         graphCanvasArrangeRequest: s.graphCanvasArrangeRequest,
         clearGraphCanvasArrangeRequest: s.clearGraphCanvasArrangeRequest,
         selectedNodeId: s.selectedNodeId,
@@ -232,10 +235,21 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const selectedEdgeIdsRef = useGraphStoreKeyRef('selectedEdgeIds')
   const graphDataRevisionRef = useGraphStoreKeyRef('graphDataRevision')
 
-  const schemaRef = useRef(schema)
+  const interactionSchema = useMemo<GraphSchema>(() => {
+    if (documentStructureBaselineLock !== true) return schema
+    return {
+      ...schema,
+      behavior: {
+        ...(schema?.behavior || {}),
+        allowNodeDrag: false,
+      },
+    }
+  }, [documentStructureBaselineLock, schema])
+
+  const schemaRef = useRef(interactionSchema)
   useEffect(() => {
-    schemaRef.current = schema
-  }, [schema])
+    schemaRef.current = interactionSchema
+  }, [interactionSchema])
 
   const schemaLayoutEngineJson = useMemo(() => buildSchemaLayoutEngineJson2d(schema), [schema])
   const schemaNodesPresentationJson = useMemo(() => {
@@ -243,7 +257,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       nodeShapeMode: schema?.behavior?.nodeShapeMode || 'auto',
       portHandles: schema?.behavior?.portHandles || null,
       nodeShapes: schema?.nodeShapes || null,
-      allowNodeDrag: schema?.behavior?.allowNodeDrag !== false,
+      allowNodeDrag: documentStructureBaselineLock !== true && schema?.behavior?.allowNodeDrag !== false,
       hoverEnabled: schema?.behavior?.hover?.enabled !== false,
       expansion: schema?.behavior?.expansion || null,
       renderMediaAsNodes,
@@ -251,6 +265,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     })
   }, [
     mediaPanelDensity,
+    documentStructureBaselineLock,
     renderMediaAsNodes,
     schema?.behavior?.allowNodeDrag,
     schema?.behavior?.expansion,

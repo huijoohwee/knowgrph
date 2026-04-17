@@ -79,6 +79,7 @@ export type PdfImportProvider = 'native' | 'docling-remote'
 export type PdfImportOcrMode = 'fallback' | 'always'
 
 export type DocumentStructureBaselineSnapshot = {
+  graphDataRevision: number
   documentSemanticMode: DocumentSemanticMode
   frontmatterModeEnabled: boolean
   canvasRenderMode: '2d' | '3d'

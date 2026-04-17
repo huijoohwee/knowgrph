@@ -123,9 +123,9 @@ const markdownSpec: ParserSpec = {
     const raw = String(text || '')
     const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
     const panelFlow = frontmatterFlow ? null : tryParseMarkdownPanelFlowGraph(name, raw)
+    if (frontmatterFlow) return frontmatterFlow
     const maxChars = 500000
     if (raw.length > maxChars) {
-      if (frontmatterFlow) return frontmatterFlow
       if (panelFlow) return panelFlow
       const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
       const stem = baseName.replace(/\.(md|markdown|mmd)$/i, '') || 'markdown'
@@ -189,8 +189,8 @@ const markdownSpec: ParserSpec = {
       ingestionMetrics,
     }
     let graphData: GraphData = { ...baseGraph, metadata: nextMeta }
-    const extra = frontmatterFlow?.graphData || panelFlow?.graphData || null
-    const extraWarnings = frontmatterFlow?.warnings || panelFlow?.warnings || []
+    const extra = panelFlow?.graphData || null
+    const extraWarnings = panelFlow?.warnings || []
     if (extra) {
       graphData = mergeGraphDataPreferOverlay({ base: graphData, overlay: extra })
     }
@@ -201,9 +201,9 @@ const markdownSpec: ParserSpec = {
     const raw = String(text || '')
     const frontmatterFlow = tryParseMarkdownFrontmatterFlowGraph(name, raw)
     const panelFlow = frontmatterFlow ? null : tryParseMarkdownPanelFlowGraph(name, raw)
+    if (frontmatterFlow) return frontmatterFlow
     const maxChars = 500000
     if (raw.length > maxChars) {
-      if (frontmatterFlow) return frontmatterFlow
       if (panelFlow) return panelFlow
       const baseName = (name || '').replace(/\\/g, '/').split('/').pop() || ''
       const stem = baseName.replace(/\.(md|markdown|mmd)$/i, '') || 'markdown'
@@ -268,8 +268,8 @@ const markdownSpec: ParserSpec = {
     }
 
     let graphData: GraphData = { ...baseGraph, metadata: nextMeta }
-    const extra = frontmatterFlow?.graphData || panelFlow?.graphData || null
-    const extraWarnings = frontmatterFlow?.warnings || panelFlow?.warnings || []
+    const extra = panelFlow?.graphData || null
+    const extraWarnings = panelFlow?.warnings || []
     if (extra) {
       graphData = mergeGraphDataPreferOverlay({ base: graphData, overlay: extra })
     }

@@ -38,7 +38,7 @@ export const getCanvasViewRendererOptions = (): CanvasViewRendererOption[] => [
     id: 'flow' as const,
     title: UI_COPY.canvasViewRendererFlowTitle,
     Icon: GitMerge,
-    label: 'Flow',
+    label: 'Canvas',
   },
   {
     id: 'design' as const,
@@ -99,7 +99,7 @@ export const buildCanvasViewOptions = (
       enableHint: disabledForGeospatial
         ? 'Switch to Document Mode to enable'
         : disabledForVoxel
-          ? 'Switch to D3 or D3 Bipartite'
+          ? 'Switch to D3 or Flowchart'
           : disabledForRadial
             ? 'Switch layout mode to Block to enable'
             : undefined,
@@ -130,12 +130,12 @@ export const buildCanvasViewOptions = (
           disabledReason: state.geospatialEnabled
             ? 'Disabled in Geospatial Mode'
             : !state.isD3Like2dLayoutToggle
-              ? 'Available for D3 and D3 Bipartite renderer'
+              ? 'Available for D3 and Flowchart renderer'
               : undefined,
           enableHint: state.geospatialEnabled
             ? 'Switch to Document Mode to enable'
             : !state.isD3Like2dLayoutToggle
-              ? 'Switch renderer to D3 or D3 Bipartite'
+              ? 'Switch renderer to D3 or Flowchart'
               : undefined,
         },
         {
@@ -147,12 +147,12 @@ export const buildCanvasViewOptions = (
           disabledReason: state.geospatialEnabled
             ? 'Disabled in Geospatial Mode'
             : !state.isD3Like2dLayoutToggle
-              ? 'Available for D3 and D3 Bipartite renderer'
+              ? 'Available for D3 and Flowchart renderer'
               : undefined,
           enableHint: state.geospatialEnabled
             ? 'Switch to Document Mode to enable'
             : !state.isD3Like2dLayoutToggle
-              ? 'Switch renderer to D3 or D3 Bipartite'
+              ? 'Switch renderer to D3 or Flowchart'
               : undefined,
         },
       ],

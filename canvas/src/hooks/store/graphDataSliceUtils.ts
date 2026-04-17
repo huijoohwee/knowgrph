@@ -118,8 +118,8 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
 }
 
 export function applyNodeQuickEditorRegistryFromMetadata(get: GetGraph, metadata: unknown) {
-  if (!isRecord(metadata)) return
-  const raw = metadata[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+  const metadataRecord = isRecord(metadata) ? metadata : ({} as Record<string, unknown>)
+  const raw = metadataRecord[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
   const rawArr = Array.isArray(raw) ? raw : []
 
   const validated = rawArr

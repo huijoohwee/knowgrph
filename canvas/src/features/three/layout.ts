@@ -43,7 +43,7 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
       (graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) ||
       null
     const effectiveFrontmatter = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true && documentStructureBaselineLock !== true,
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
       documentSemanticMode: semanticModeBase as 'document' | 'keyword',
       graphData: (graphDataForViewOverride || graphData) as any,
     })

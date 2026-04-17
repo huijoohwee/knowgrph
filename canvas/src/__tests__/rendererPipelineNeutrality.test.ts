@@ -13,6 +13,8 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   const minimapText = readFileSync(resolve(root, 'features', 'minimap', 'Minimap.tsx'), 'utf8')
   const canvasSyncRuntimeText = readFileSync(resolve(root, 'features', 'canvas', 'CanvasSyncRuntime.tsx'), 'utf8')
   const toolbarToolMenuText = readFileSync(resolve(root, 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'), 'utf8')
+  const uiCopyText = readFileSync(resolve(root, 'lib', 'config-copy', 'uiCopy.ts'), 'utf8')
+  const rendererRegistryText = readFileSync(resolve(root, 'lib', 'renderer', 'canvas2dRendererRegistry.ts'), 'utf8')
 
   if (!renderConfigText.includes('export const getCanvas2dSurfaceId')) {
     throw new Error('expected shared renderer surface helper in config.render')
@@ -56,6 +58,15 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
   if (!toolbarToolMenuText.includes('isFlowEditorCanvas2dRenderer(canvas2dRenderer)')) {
     throw new Error('expected toolbar inspector slot routing to reuse the shared Flow Editor helper')
   }
+  if (!uiCopyText.includes('2D Renderer: Flow Canvas')) {
+    throw new Error('expected Flow renderer to be labeled as 2D Renderer: Flow Canvas')
+  }
+  if (uiCopyText.includes('2D Renderer: Flow\'')) {
+    throw new Error('expected legacy 2D Renderer: Flow naming to be removed')
+  }
+  if (!rendererRegistryText.includes("if (id === 'flow') return 'Flow Canvas'")) {
+    throw new Error('expected renderer registry label for flow to be Flow Canvas')
+  }
 }
 
 export function testWorkspaceJsonPipelineStaysNeutralAndFileAgnostic() {
@@ -79,6 +90,9 @@ export function testWorkspaceJsonPipelineStaysNeutralAndFileAgnostic() {
   }
   if (!text.includes("const WORKSPACE_GRAPH_SOURCE_KIND = 'workspace'")) {
     throw new Error('expected workspace JSON pipeline to tag workspace source kind explicitly')
+  }
+  if (text.includes('return { ...graphData, nodes: [], edges: [] }')) {
+    throw new Error('expected flowchart path to avoid synthetic empty graph placeholders')
   }
   if (!perDocumentUiStateText.includes('isCanvas2dRendererId(raw.canvas2dRenderer)')) {
     throw new Error('expected per-document UI persistence to reuse the shared 2D renderer id validator')

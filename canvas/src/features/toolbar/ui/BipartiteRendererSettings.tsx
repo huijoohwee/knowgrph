@@ -484,13 +484,13 @@ export function BipartiteRendererSettings() {
   )
 
   return (
-    <CollapsibleSection title="Bipartite" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
+    <CollapsibleSection title="Flowchart" defaultCollapsed={false} stickyHeader={false} headerClassName={`px-2 ${uiPanelTextFontClass}`}>
       <div
         className="px-3 py-2 space-y-2"
         style={safeAreaAware ? { paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' } : undefined}
       >
         <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>
-          Maps the selected bipartite source into the existing 2D D3 scene without file-specific assumptions.
+          Maps the selected flowchart source into the existing 2D Flowchart scene without file-specific assumptions.
         </div>
         {preferStackedControls ? (
           <div className={`text-[10px] ${UI_THEME_TOKENS.text.secondary} leading-snug`}>

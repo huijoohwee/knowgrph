@@ -5,6 +5,7 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 
 export function buildActive2dZoomViewKey(args: {
   canvasRenderMode: unknown
@@ -28,12 +29,16 @@ export function buildActive2dZoomViewKey(args: {
   const documentSemanticMode = String(args.documentSemanticMode || '')
   const frontmatterModeEnabled = args.frontmatterModeEnabled === true
   const multiDimTableModeEnabled = args.multiDimTableModeEnabled === true
+  const flowEditorStandalone = isFlowEditorCanvas2dRenderer(canvas2dRenderer as any)
+  const graphKind = String(((graphData?.metadata || {}) as Record<string, unknown>).kind || '').trim()
 
-  const effectiveFrontmatter = computeEffectiveFrontmatterMode({
-    frontmatterModeEnabled,
-    documentSemanticMode,
-    graphData,
-  })
+  const effectiveFrontmatter = flowEditorStandalone
+    ? graphKind === 'frontmatter-flow'
+    : computeEffectiveFrontmatterMode({
+        frontmatterModeEnabled,
+        documentSemanticMode,
+        graphData,
+      })
 
   const mediaPanelDensity = String(args.mediaPanelDensity || '')
   const renderMediaAsNodes = args.renderMediaAsNodes === true
@@ -42,7 +47,9 @@ export function buildActive2dZoomViewKey(args: {
 
   const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
 
-  const semanticKey = multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
+  const semanticKey = flowEditorStandalone
+    ? 'flowEditor'
+    : (multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode)
 
   const base = buildZoomViewKey({
     canvasRenderMode,

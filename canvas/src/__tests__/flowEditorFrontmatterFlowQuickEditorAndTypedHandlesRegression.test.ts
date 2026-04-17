@@ -17,11 +17,20 @@ export function testFlowEditorFrontmatterUsesFlowFilterForQuickEditorOverlays() 
   if (!text.includes('FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY')) {
     throw new Error('expected frontmatter-flow quick-editor derivation to read flow quick-editor registry metadata key')
   }
-  if (!text.includes('const enforceAllowedIds = allowedFlowNodeIds.size > 0')) {
-    throw new Error('expected frontmatter-flow quick-editor derivation to enforce registry-scoped flow node ids when available')
+  if (!text.includes('if (allowedFlowNodeIds.size === 0) return []')) {
+    throw new Error('expected frontmatter-flow quick-editor derivation to avoid synthetic fallback when registry ids are missing')
   }
-  if (!text.includes("if (enforceAllowedIds && !allowedFlowNodeIds.has(id)) continue")) {
+  if (!text.includes("if (!allowedFlowNodeIds.has(id)) continue")) {
     throw new Error('expected frontmatter-flow quick-editor derivation to exclude non-flow ids from overlay editors')
+  }
+  if (!text.includes('if (frontmatterDocumentModeActive) return []')) {
+    throw new Error('expected frontmatter document mode to suppress non-frontmatter-flow quick-editor fallback ids')
+  }
+  if (!text.includes('if (!flowEditorViewActive) return []')) {
+    throw new Error('expected flow editor quick-editor id derivation to avoid fallback ids whenever flow editor view is inactive')
+  }
+  if (!text.includes('forceFrontmatterFlow: flowEditorFrontmatterGraphAvailable')) {
+    throw new Error('expected Flow Editor to force frontmatter-flow graph-family derivation when frontmatter-flow graph is available')
   }
   if (text.includes('MAX_AUTO') || text.includes('MAX_VIEW')) {
     throw new Error('expected frontmatter-flow quick-editor derivation to avoid capped auto-open/viewport limits')
@@ -289,6 +298,37 @@ export function testFrontmatterFlowContractKeepsTwoDotColumnsAlignedForHandleRow
   }
 }
 
+export function testFrontmatterFlowQuickEditorRegistryOptionsAreScopedToCurrentFormId() {
+  const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
+  if (!text.includes('const flowRegistryFormId = String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || \'\').trim()')) {
+    throw new Error('expected frontmatter quick-editor registry scoping to read current node formId SSOT')
+  }
+  if (!text.includes('const flowRegistryFormIdExpected = flowRegistryFormId || `fm:${String(node.id || \'\').trim()}`')) {
+    throw new Error('expected frontmatter quick-editor registry scoping to use node-id form fallback when explicit formId is absent')
+  }
+  if (!text.includes('if (!isFrontmatterFlow) return all')) {
+    throw new Error('expected non-frontmatter behavior to keep existing nodeType-scoped registry options')
+  }
+  if (!text.includes('if (!expected) return []')) {
+    throw new Error('expected frontmatter quick-editor registry options to avoid broad fallback when no resolvable form id exists')
+  }
+  if (!text.includes('return all.filter(entry => String(entry.formId || \'\').trim() === expected)')) {
+    throw new Error('expected frontmatter quick-editor registry options to restrict to current node formId only')
+  }
+}
+
+export function testQuickEditorRegistryMetadataMissingClearsDocumentRegistryToAvoidStaleFallbacks() {
+  const graphDataSliceUtilsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graphDataSliceUtils.ts')
+  const text = readFileSync(graphDataSliceUtilsPath, 'utf8')
+  if (!text.includes('const metadataRecord = isRecord(metadata) ? metadata : ({} as Record<string, unknown>)')) {
+    throw new Error('expected quick-editor registry metadata reader to coerce missing metadata to empty record')
+  }
+  if (!text.includes('const rawArr = Array.isArray(raw) ? raw : []')) {
+    throw new Error('expected quick-editor registry metadata reader to treat missing registry payload as empty and clear stale entries')
+  }
+}
+
 export function testFrontmatterFlowContractAvoidsSyntheticHandleAndDataFallbacks() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
@@ -322,8 +362,11 @@ export function testFlowEditorDraftGraphHydrationIsNotClearedByFrontmatterRequir
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
 
-  if (!text.includes('if (keywordModeActive) {')) {
-    throw new Error('expected FlowEditor draft graph hydration clear path to be limited to keyword mode only')
+  if (!text.includes('const flowEditorBaseGraphData = React.useMemo((): GraphData | null => {')) {
+    throw new Error('expected FlowEditor draft graph hydration to derive a stable Flow Editor graph-family source')
+  }
+  if (!text.includes('const base = flowEditorBaseGraphData as GraphData | null')) {
+    throw new Error('expected FlowEditor draft graph hydration to avoid raw store graph fallback under view-lock transitions')
   }
   if (!text.includes('setDraftGraphData(prev => (prev === base ? prev : base))')) {
     throw new Error('expected FlowEditor draft graph hydration to stay aligned with base graph for stable zoom/minimap state')
@@ -331,16 +374,45 @@ export function testFlowEditorDraftGraphHydrationIsNotClearedByFrontmatterRequir
   if (text.includes('if (!canEdit) {\n      setDraftGraphData(prev => (prev === null ? prev : null))')) {
     throw new Error('expected FlowEditor draft graph hydration to avoid editability-driven clears that break zoom/minimap alignment')
   }
+  if (text.includes('keywordModeActive')) {
+    throw new Error('expected FlowEditor draft graph hydration to stay independent from keyword-mode coupling')
+  }
 }
 
 export function testFlowEditorRenderGraphUsesBaseGraphWhenNotEditableForZoomMinimapAlignment() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
-  if (!text.includes('const graphDataForRender = canEdit ? draftGraphData : ((baseGraphData || null) as GraphData | null)')) {
-    throw new Error('expected FlowEditor render graph source to use base graph when not editable to keep zoom/minimap aligned with rendered graph elements')
+  if (!text.includes('const flowEditorViewActive = active')) {
+    throw new Error('expected Flow Editor view activation to stay renderer-scoped and independent from document modes')
+  }
+  if (!text.includes('const graphDataForRender = flowEditorViewActive ? draftGraphData : ((baseGraphData || null) as GraphData | null)')) {
+    throw new Error('expected FlowEditor render graph source to keep draft graph active in Flow Editor view even when edit lock is ON')
   }
   if (!text.includes('graphData: graphDataForRender')) {
     throw new Error('expected FlowEditor render graph derivation to use unified graphDataForRender source')
+  }
+  if (!text.includes('if (!flowEditorViewActive) return []')) {
+    throw new Error('expected quick-editor overlays to remain view-scoped instead of edit-lock scoped to avoid View Lock-induced renderer mutation')
+  }
+  if (!text.includes('active={canEdit}')) {
+    throw new Error('expected quick-editor overlays to become read-only under View Lock while preserving Flow Editor overlay node model')
+  }
+  if (text.includes('frontmatterDocumentModeActive')) {
+    throw new Error('expected Flow Editor render graph source to avoid document-mode-only overlay gating')
+  }
+}
+
+export function testFlowEditorInactiveWarmMountDoesNotMutateQuickEditorsAcrossRenderers() {
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  if (!text.includes('if (!active) return')) {
+    throw new Error('expected FlowEditor quick-editor pruning effect to guard inactive warm mounts')
+  }
+  if (!text.includes('if (!flowEditorViewActive) return')) {
+    throw new Error('expected FlowEditor quick-editor pruning effect to guard non-flow-editor view states')
+  }
+  if (!text.includes("updateOpenQuickEditorNodeIds(prev => prev.filter(id => idSet.has(String(id || ''))))")) {
+    throw new Error('expected FlowEditor quick-editor pruning effect to stay scoped to active Flow Editor view')
   }
 }
 

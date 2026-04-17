@@ -28,6 +28,10 @@ export const isFlowEditorCanvas2dRenderer = (id: Canvas2dRendererId | null | und
   return id === 'flowEditor'
 }
 
+export const isFrontmatterOnlyCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'flow'
+}
+
 export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined): Canvas2dSurfaceId | null => {
   if (isD3Like2dRenderer(id)) return 'd3'
   if (id === 'flow') return 'flow'
