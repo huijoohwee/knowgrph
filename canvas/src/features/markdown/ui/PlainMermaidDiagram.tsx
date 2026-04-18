@@ -1,17 +1,6 @@
 import React from 'react'
 import { renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
-
-const normalizeMermaidClickSyntax = (code: string): string => {
-  const lines = String(code || '').split('\n')
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = String(lines[i] || '')
-    const match = /^(\s*click\s+([A-Za-z0-9_.:-]+))\s+(".*)$/.exec(line)
-    if (!match) continue
-    if (/\s+(href|call)\s+/i.test(line)) continue
-    lines[i] = `${match[1]} href ${match[3]}`
-  }
-  return lines.join('\n')
-}
+import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
 
 const sanitizeMermaidSvg = (raw: string): string => {
   const input = String(raw || '').trim()
@@ -68,7 +57,7 @@ export function PlainMermaidDiagram({
     let cancelled = false
     void (async () => {
       try {
-        const normalized = normalizeMermaidClickSyntax(String(code || '').trim())
+        const normalized = normalizeMermaidCodeForRuntime(String(code || '').trim())
         if (!normalized) {
           if (!cancelled) setError('Mermaid diagram code is empty')
           return

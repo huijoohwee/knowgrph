@@ -28,10 +28,15 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
 }) {
   const { ariaLabel, microLabelClass, rows, showHeader = false, dotSizePx = 10, dotHitPx = 18, forcePortDots } = props
 
+  const safeDotSize = React.useMemo(() => {
+    return Number.isFinite(dotSizePx) ? Math.max(6, Math.floor(dotSizePx)) : 10
+  }, [dotSizePx])
+  const safeHit = React.useMemo(() => {
+    return Number.isFinite(dotHitPx) ? Math.max(safeDotSize, Math.floor(dotHitPx)) : 18
+  }, [dotHitPx, safeDotSize])
+
   const dot = React.useCallback(
     (ariaLabel: string) => {
-      const safeDotSize = Number.isFinite(dotSizePx) ? Math.max(6, Math.floor(dotSizePx)) : 10
-      const safeHit = Number.isFinite(dotHitPx) ? Math.max(safeDotSize, Math.floor(dotHitPx)) : 18
       return (
         <button
           type="button"
@@ -50,18 +55,18 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
         </button>
       )
     },
-    [dotHitPx, dotSizePx],
+    [safeDotSize, safeHit],
   )
 
   return (
     <section className="-mx-3" aria-label={ariaLabel}>
-      <table className="w-full border-collapse" aria-label={ariaLabel}>
+      <table className="w-full border-collapse table-fixed" aria-label={ariaLabel}>
         <colgroup>
-          <col style={{ width: '1%' }} />
+          <col style={{ width: `${safeHit}px` }} />
           <col style={{ width: '29%' }} />
           <col style={{ width: '10%' }} />
           <col style={{ width: '59%' }} />
-          <col style={{ width: '1%' }} />
+          <col style={{ width: `${safeHit}px` }} />
         </colgroup>
         <caption className={cn('sr-only', microLabelClass)}>
           {UI_LABELS.flowNodeQuickEditorKeyLabel} / {UI_LABELS.flowNodeQuickEditorTypeLabel} / {UI_LABELS.flowNodeQuickEditorValueLabel}

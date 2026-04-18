@@ -34,6 +34,8 @@ export function computeEffectiveFrontmatterMode(args: {
   graphData: GraphData | null
 }): boolean {
   if (args.frontmatterModeEnabled !== true) return false
+  const semantic = String(args.documentSemanticMode || '').trim().toLowerCase()
+  if (semantic && semantic !== 'document') return false
   if (!args.graphData) return false
   if (isFrontmatterFlowGraph(args.graphData)) return true
   return hasFrontmatterMermaidSeeds(args.graphData)

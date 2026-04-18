@@ -1,6 +1,7 @@
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashText } from '@/features/parsers/hash'
 import { cleanupMermaidRenderArtifacts, ensureMermaidInitialized, ensureStandardMermaidInitialized, loadMermaidRuntimeApi } from '@/lib/mermaid/mermaidRuntime'
+import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
 
 type MermaidTheme = 'light' | 'dark'
 type MermaidSvgProfile = 'default' | 'plain'
@@ -25,8 +26,10 @@ const renderMermaidSvgCachedWithProfile = async (args: {
   theme: MermaidTheme
   profile: MermaidSvgProfile
 }): Promise<MermaidRenderResult> => {
-  const code = String(args.code || '').trim()
-  if (!code) return { svg: '' }
+  const trimmed = String(args.code || '').trim()
+  if (!trimmed) return { svg: '' }
+  const code = normalizeMermaidCodeForRuntime(trimmed)
+  if (!code.trim()) return { svg: '' }
   const theme = args.theme === 'dark' ? 'dark' : 'light'
   const profile = args.profile
   const key = `${profile}|${theme}|${hashText(code)}`

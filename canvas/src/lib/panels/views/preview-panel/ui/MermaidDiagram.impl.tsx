@@ -1,5 +1,6 @@
 import React from 'react'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
 import type { MermaidInitConfig } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
 import { LS_KEYS } from '@/lib/config'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
@@ -70,18 +71,6 @@ const buildMermaidConfig = (opts: {
     ...(Object.keys(fm).length ? fm : {}),
     ...(themeVariables ? { themeVariables: mergedThemeVariables } : {}),
   }
-}
-
-const normalizeMermaidClickSyntax = (code: string): string => {
-  const lines = String(code || '').split('\n')
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = String(lines[i] || '')
-    const match = /^(\s*click\s+([A-Za-z0-9_.:-]+))\s+(".*)$/.exec(line)
-    if (!match) continue
-    if (/\s+(href|call)\s+/i.test(line)) continue
-    lines[i] = `${match[1]} href ${match[3]}`
-  }
-  return lines.join('\n')
 }
 
 const extractMermaidErrorFromSvg = (svg: string): string | null => {
@@ -385,7 +374,7 @@ export function MermaidDiagram({
           setError('Mermaid diagram code is not a Mermaid definition')
           return
         }
-        const normalizedCode = normalizeMermaidClickSyntax(trimmedCode)
+        const normalizedCode = normalizeMermaidCodeForRuntime(trimmedCode)
         const mermaid = await ensureMermaidInitialized(config, normalizedCode)
         if (cancelled) return
         cleanupMermaidRenderArtifacts(renderId)

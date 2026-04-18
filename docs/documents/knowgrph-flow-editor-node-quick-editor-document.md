@@ -12,6 +12,7 @@
 - **Shell**: reuse the host `FloatingPanel` element wrapper for consistent ARIA + theming.
 - **Semantics**: semantic HTML only (`aside/section/header/nav/menu/form/fieldset/legend/label/input/select/textarea/button/table/thead/tbody/tr/th/td`).
 - **Frontmatter-only policy**: When the 2D renderer is Flow/Flow Editor, the active view graph comes only from frontmatter-flow data; keyword/table/composed-source pipelines stay disabled so other document modes/renderers cannot mutate Flow Editor graph state.
+- **Flow block sources**: frontmatter-flow graphs may be parsed from either YAML frontmatter or an explicit top-level Markdown-body `flow:` block terminated by a Markdown `---` divider; parsing must not depend on filename or other document modes.
 - **Key/Value rows**: Node, Smart fields, Mapping, and Registry fields render as schema-like rows with **In Port / Key / Type / Value / Out Port** columns (1%/29%/10%/59%/1%) using SSOT typography/tokens; port dots render for every key row and value inputs/selects align to the same left/right borders without horizontal scrolling.
 - **Toolbar**: AI-Flow-style icon toolbar for quick actions; hidden by default and shown only when the node is selected (top-center, outside the panel border), with no “More” menu.
 
@@ -83,6 +84,7 @@
 - Shared gating helper is `isPortHandlesShowAllInputsEnabled(schema)` so Flow scene-building and UI actions cannot drift.
 - For `metadata.kind=frontmatter-flow` overlays, quick-editor handle rendering must stay strict and flow-derived: use declared flow handles plus edge/registry-derived typed ports only, and do not synthesize fallback default handles.
 - Frontmatter-flow overlay contracts must not render absent hardcoded ports (for example `compute` or `data`) unless those keys are explicitly present on the node properties.
+- **Envelope-driven rows**: for flow blocks that wrap node fields as `{key,type,value}`, quick-editor rows must render only declared fields (no synthetic key/type fallback) and map them to real node properties (`handles → frontmatter:handles`, `data → properties.data`, `compute → properties.flow:compute`).
 
 ### Schema Field Ports (Database-schema-node style)
 

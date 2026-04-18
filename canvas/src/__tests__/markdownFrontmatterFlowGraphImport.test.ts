@@ -84,6 +84,99 @@ export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   if (typeof subgraphs !== 'undefined') throw new Error('expected no synthetic fallback subgraphs when frontmatter did not declare them')
 }
 
+export function testMarkdownFlowBlockInBodyParsesNodesEdgesAndQuickEditorFields() {
+  const md = [
+    '# Title',
+    '',
+    'flow:',
+    '  direction:  {key: direction,  type: string,  value: LR}',
+    '  edgeType:   {key: edgeType,   type: string,  value: smoothstep}',
+    '  nodes:',
+    '    - id:      {key: id,      type: string,   value: "n-canvas"}',
+    '      type:    {key: type,    type: string,   value: "input"}',
+    '      label:   {key: label,   type: string,   value: "Canvas"}',
+    '      handles: {key: handles, type: object,   value: {source: [signal]}}',
+    '      data:    {key: data,    type: object,   value: {pain: "x"}}',
+    '      compute: {key: compute, type: function, value: |',
+    '        (inputs) => ({ signal: inputs.x ?? null })',
+    '      }',
+    '    - id:      {key: id,      type: string,   value: "n-pack"}',
+    '      type:    {key: type,    type: string,   value: "default"}',
+    '      label:   {key: label,   type: string,   value: "Pack"}',
+    '      handles: {key: handles, type: object,   value: {target: [signal]}}',
+    '      compute: {key: compute, type: function, value: |',
+    '        (inputs) => ({})',
+    '      }',
+    '  edges:',
+    '    - { id: e1, source: n-canvas, sourceHandle: signal, target: n-pack, targetHandle: signal, animated: true }',
+    '---',
+    '',
+    '## Body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-ai-pipeline-prd-tad.md', md)
+  if (!res) throw new Error('expected a flow graph parse result from markdown body')
+  const g = res.graphData
+  if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+  if (g.nodes.length !== 2) throw new Error(`expected 2 nodes, got ${g.nodes.length}`)
+  if (g.edges.length !== 1) throw new Error(`expected 1 edge, got ${g.edges.length}`)
+
+  const canvas = g.nodes.find(n => n.id === 'n-canvas')
+  if (!canvas) throw new Error('expected node n-canvas')
+  const canvasProps = (canvas.properties || {}) as Record<string, unknown>
+  const handlesValue = canvasProps['frontmatter:handles']
+  if (!handlesValue || typeof handlesValue !== 'object') throw new Error('expected frontmatter:handles to be preserved for quick editor')
+  if (!canvasProps.data || typeof canvasProps.data !== 'object') throw new Error('expected data property for quick editor')
+  if (typeof canvasProps['flow:compute'] !== 'string') throw new Error('expected flow:compute property for quick editor')
+
+  const meta = (g.metadata || {}) as Record<string, unknown>
+  const registry = meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+  if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected quick editor registry entries')
+  const canvasEntry = registry.find(e => String((e as { formId?: unknown })?.formId || '').trim() === 'fm:n-canvas') as
+    | { fields?: unknown[] }
+    | undefined
+  if (!canvasEntry) throw new Error('expected registry entry for fm:n-canvas')
+  const fields = Array.isArray(canvasEntry.fields) ? canvasEntry.fields : []
+  const fieldKeys = fields.map(f => String((f as { fieldKey?: unknown })?.fieldKey || '')).filter(Boolean)
+  if (!fieldKeys.includes('handles')) throw new Error('expected handles quick editor field from envelope')
+  if (!fieldKeys.includes('data')) throw new Error('expected data quick editor field from envelope')
+  if (!fieldKeys.includes('compute')) throw new Error('expected compute quick editor field from envelope')
+
+  const e1 = g.edges.find(e => String(e.id || '') === 'e1')
+  if (!e1) throw new Error('expected edge e1')
+  const e1Props = (e1.properties || {}) as Record<string, unknown>
+  if (e1Props[FLOW_EDGE_SOURCE_PORT_KEY] !== 'signal') throw new Error('expected e1 source port signal')
+  if (e1Props[FLOW_EDGE_TARGET_PORT_KEY] !== 'signal') throw new Error('expected e1 target port signal')
+}
+
+export function testMarkdownFrontmatterFlowGraphParsesInlineEnvelopeBlockScalarBraceOnLastLine() {
+  const md = [
+    '---',
+    'title: x',
+    'flow:',
+    '  nodes:',
+    '    - id:      {key: id,      type: string, value: "n-canvas"}',
+    '      type:    {key: type,    type: string, value: "input"}',
+    '      label:   {key: label,   type: string, value: "Canvas"}',
+    '      handles: {key: handles, type: object, value: {source: [signal]}}',
+    '      compute: {key: compute, type: function, value: |',
+    '        (inputs) => ({ ok: true })}',
+    '  edges: []',
+    '---',
+    '',
+    '# body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('inline-envelope-brace.md', md)
+  if (!res) throw new Error('expected parse result')
+  if (res.graphData.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+  const node = res.graphData.nodes.find(n => n.id === 'n-canvas')
+  if (!node) throw new Error('expected node')
+  const props = (node.properties || {}) as Record<string, unknown>
+  if (typeof props['flow:compute'] !== 'string') throw new Error('expected flow:compute string')
+  if (String(props['flow:compute']).includes('})}')) throw new Error('expected trailing brace to be repaired out of compute')
+}
+
 export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeIdsAndPorts() {
   const md = [
     '---',
@@ -1514,8 +1607,12 @@ export function testMarkdownFrontmatterFlowGraphEnforcesNodeTypeHandleAndCompute
   if (!inputNode || !outputNode) throw new Error('expected input and output nodes')
   const inputProps = (inputNode.properties || {}) as Record<string, unknown>
   const outputProps = (outputNode.properties || {}) as Record<string, unknown>
-  if (typeof inputProps['flow:compute'] === 'string' && inputProps['flow:compute']) throw new Error('expected input compute to be dropped')
-  if (typeof outputProps['flow:compute'] === 'string' && outputProps['flow:compute']) throw new Error('expected output compute to be dropped')
+  if (typeof inputProps['flow:compute'] !== 'string' || !String(inputProps['flow:compute']).trim()) {
+    throw new Error('expected input compute to be preserved')
+  }
+  if (typeof outputProps['flow:compute'] !== 'string' || !String(outputProps['flow:compute']).trim()) {
+    throw new Error('expected output compute to be preserved')
+  }
   const inputPortTypes = (inputProps['flow:portTypes'] || {}) as { in?: Record<string, unknown>; out?: Record<string, unknown> }
   const outputPortTypes = (outputProps['flow:portTypes'] || {}) as { in?: Record<string, unknown>; out?: Record<string, unknown> }
   if (inputPortTypes.in && Object.keys(inputPortTypes.in).length > 0) throw new Error('expected input node to have no target handles')

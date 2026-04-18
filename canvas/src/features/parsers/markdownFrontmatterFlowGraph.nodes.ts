@@ -6,6 +6,9 @@ import {
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
 } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import type { RegistryEntry, RegistryPort } from '@/features/parsers/markdownFrontmatterFlowGraph.connections'
+import {
+  FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY,
+} from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import { hashText } from '@/features/parsers/hash'
 import { normalizeSigilId } from '@/features/parsers/markdownFrontmatterFlowGraph.sigil'
 
@@ -276,6 +279,25 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     const portTypes = normalizeFlowPortTypes({ inputs: row.inputs, outputs: row.outputs })
     const formId = `fm:${id}`
     const propsFromRow = isRecord(row.properties) ? (row.properties as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
+    const fieldsFromRow = (() => {
+      const raw = (propsFromRow as unknown as Record<string, unknown>)[FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY]
+      if (!Array.isArray(raw)) return [] as Array<{ fieldKey: string; fieldType: string; schemaPath?: string }>
+      const out: Array<{ fieldKey: string; fieldType: string; schemaPath?: string }> = []
+      const seen = new Set<string>()
+      for (let j = 0; j < raw.length; j += 1) {
+        const item = raw[j]
+        if (!isRecord(item)) continue
+        const fieldKey = asString((item as Record<string, unknown>).fieldKey)
+        const fieldType = asString((item as Record<string, unknown>).fieldType)
+        const schemaPath = asString((item as Record<string, unknown>).schemaPath)
+        if (!fieldKey || !fieldType) continue
+        const uniq = `${fieldKey}|${schemaPath}`
+        if (seen.has(uniq)) continue
+        seen.add(uniq)
+        out.push({ fieldKey, fieldType, ...(schemaPath ? { schemaPath } : {}) })
+      }
+      return out
+    })()
     const visualOverrides = normalizeVisualOverrides(row.visual)
     const paramsFromRow = isRecord(row.params) ? (row.params as unknown as JSONValue) : null
     const hasDataFromRow = Object.prototype.hasOwnProperty.call(row, 'data')
@@ -321,7 +343,7 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
       nodeTypeId: type,
       quickEditorTypeId: type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? 'ports' : 'default',
       formId,
-      fields: [],
+      fields: fieldsFromRow,
       ports,
       updatedAt: FRONTMATTER_REGISTRY_UPDATED_AT,
     })

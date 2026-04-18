@@ -5,6 +5,9 @@ import { isUnsafeFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 const FRONTMATTER_FLOW_SETTINGS_KEY = 'frontmatterFlowSettings' as const
 const FRONTMATTER_FLOW_WARNINGS_KEY = 'frontmatterFlowWarnings' as const
 
+export const FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY = 'frontmatter:quickEditorFields' as const
+export const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
@@ -99,11 +102,41 @@ export function repairFlowInlineEnvelopeBlockScalars(raw: string): string {
     let consumedClosingBrace = false
     for (let j = i + 1; j < lines.length; j += 1) {
       const bodyLine = String(lines[j] || '')
+      const trimmedBody = bodyLine.trim()
       if (/^\s*\}\s*$/.test(bodyLine) && countIndent(bodyLine) <= indentLen) {
         consumedClosingBrace = true
         i = j
         break
       }
+
+      const bodyIndent = countIndent(bodyLine)
+      if (trimmedBody && bodyIndent <= indentLen) {
+        consumedClosingBrace = true
+        i = j - 1
+        break
+      }
+
+      if (bodyIndent > indentLen && /\}\s*$/.test(bodyLine) && !/^\s*\}\s*$/.test(bodyLine)) {
+        let k = j + 1
+        while (k < lines.length) {
+          const nextRaw = String(lines[k] || '')
+          const nextTrimmed = nextRaw.trim()
+          if (!nextTrimmed) {
+            k += 1
+            continue
+          }
+          if (countIndent(nextRaw) <= indentLen) {
+            const stripped = bodyLine.replace(/\}\s*$/, '')
+            out.push(stripped ? `  ${stripped}` : stripped)
+            consumedClosingBrace = true
+            i = j
+            break
+          }
+          break
+        }
+        if (consumedClosingBrace) break
+      }
+
       out.push(bodyLine ? `  ${bodyLine}` : bodyLine)
     }
     if (!consumedClosingBrace) {
@@ -176,6 +209,88 @@ export function tryParseFlowBlockFromFrontmatterLines(args: {
   }
   const flowBlock = lines.slice(flowLine, blockEnd).join('\n')
   return parseFlowObjectFromYamlBlock(flowBlock)
+}
+
+export function tryParseFlowBlockFromMarkdownBodyLines(args: {
+  lines: string[]
+  startLine?: number
+  endLineExclusive?: number
+}): Record<string, unknown> | null {
+  const lines = Array.isArray(args.lines) ? args.lines : []
+  if (lines.length === 0) return null
+  const start = Math.max(0, Math.floor(args.startLine ?? 0))
+  const endExclusive = Math.min(lines.length, Math.max(start + 1, Math.floor(args.endLineExclusive ?? lines.length)))
+  if (endExclusive <= start) return null
+
+  let flowLine = -1
+  let flowIndent = 0
+  let inFence = false
+  for (let i = start; i < endExclusive; i += 1) {
+    const rawLine = String(lines[i] || '')
+    const trimmed = rawLine.trim()
+    if (trimmed.startsWith('```')) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+    if (!trimmed || trimmed.startsWith('#')) continue
+    if (/^flow\s*:\s*$/.test(trimmed)) {
+      flowLine = i
+      flowIndent = countIndent(rawLine)
+      break
+    }
+  }
+  if (flowLine < 0) return null
+
+  let blockEnd = endExclusive
+  for (let i = flowLine + 1; i < endExclusive; i += 1) {
+    const rawLine = String(lines[i] || '')
+    const trimmed = rawLine.trim()
+    if (!trimmed) continue
+    const indent = countIndent(rawLine)
+    if (trimmed.startsWith('```') && indent <= flowIndent) {
+      blockEnd = i
+      break
+    }
+    if (indent <= flowIndent && trimmed === '---') {
+      blockEnd = i
+      break
+    }
+    if (indent <= flowIndent && trimmed.startsWith('#')) {
+      blockEnd = i
+      break
+    }
+    if (indent <= flowIndent && /^[A-Za-z0-9_.-]+\s*:/.test(trimmed)) {
+      blockEnd = i
+      break
+    }
+  }
+
+  const flowBlock = lines.slice(flowLine, blockEnd).join('\n')
+  return parseFlowObjectFromYamlBlock(flowBlock)
+}
+
+function extractQuickEditorFieldSpecsFromFlowNode(rawNode: Record<string, unknown>): Array<{ fieldKey: string; fieldType: string; schemaPath: string }> {
+  const out: Array<{ fieldKey: string; fieldType: string; schemaPath: string }> = []
+  for (const [k, v] of Object.entries(rawNode)) {
+    const fieldName = asString(k)
+    if (!fieldName) continue
+    if (!isRecord(v)) continue
+    const rec = v as Record<string, unknown>
+    const fieldKey = asString(rec.key)
+    const fieldType = asString(rec.type)
+    if (!fieldKey || !fieldType) continue
+
+    const schemaPath = (() => {
+      if (fieldName === 'compute') return 'flow:compute'
+      if (fieldName === 'handles') return FRONTMATTER_FLOW_HANDLES_VALUE_KEY
+      return fieldName
+    })()
+
+    if (fieldName === 'id' || fieldName === 'type' || fieldName === 'label' || fieldName === 'pos' || fieldName === 'position') continue
+    out.push({ fieldKey, fieldType, schemaPath })
+  }
+  return out
 }
 
 function getPathValue(
@@ -344,10 +459,6 @@ function sanitizeFlowNodeContract(args: {
   if (!args.allowMixedHandles && type === 'output' && outputs.length > 0) {
     warnings.push(`Flow node contract violation: output node ${id} cannot declare source handles`)
     outputs = []
-  }
-  if ((type === 'input' || type === 'output') && compute) {
-    warnings.push(`Flow node contract violation: ${type} node ${id} cannot declare compute`)
-    compute = ''
   }
   if (compute && isUnsafeFlowComputeSource(compute)) {
     warnings.push(`Flow node compute rejected as unsafe: ${id}`)
@@ -575,6 +686,11 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       warnings: flowWarnings,
       allowMixedHandles,
     })
+    const baseProps = isRecord(normalizedRawNode.properties) ? ({ ...normalizedRawNode.properties } as Record<string, unknown>) : {}
+    const quickEditorFields = extractQuickEditorFieldSpecsFromFlowNode(rawNode as Record<string, unknown>)
+    if (quickEditorFields.length > 0) baseProps[FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY] = quickEditorFields
+    if (handles && Object.keys(handles).length > 0) baseProps[FRONTMATTER_FLOW_HANDLES_VALUE_KEY] = handles
+
     const next: Record<string, unknown> = {
       id,
       type,
@@ -588,11 +704,10 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     }
     if (sanitized.compute) next.compute = sanitized.compute
     if (dataNormalized.hasPending) {
-      const props = isRecord(normalizedRawNode.properties) ? ({ ...normalizedRawNode.properties } as Record<string, unknown>) : {}
-      props['frontmatter:waiting'] = true
-      next.properties = props
-    } else if (isRecord(normalizedRawNode.properties)) {
-      next.properties = normalizedRawNode.properties
+      baseProps['frontmatter:waiting'] = true
+      next.properties = baseProps
+    } else if (Object.keys(baseProps).length > 0) {
+      next.properties = baseProps
     }
     normalizedNodes.push(next)
   }

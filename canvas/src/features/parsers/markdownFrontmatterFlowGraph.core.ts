@@ -6,6 +6,7 @@ import {
   normalizeMetaWithFlowBlock,
   repairFlowInlineEnvelopeBlockScalars,
   tryParseFlowBlockFromFrontmatterLines,
+  tryParseFlowBlockFromMarkdownBodyLines,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import {
   buildConnectionWarnings,
@@ -136,7 +137,47 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   text: string,
 ): { graphData: GraphData; warnings: string[] } | null {
   const raw = repairFlowInlineEnvelopeBlockScalars(String(text || '').replace(/^\uFEFF/, ''))
-  if (!raw.trimStart().startsWith('---')) return null
+  if (!raw.trimStart().startsWith('---')) {
+    const lines = splitMarkdownLines(raw)
+    const flowFromBody = tryParseFlowBlockFromMarkdownBodyLines({ lines })
+    if (!flowFromBody) return null
+
+    const metaRecord = normalizeMetaWithFlowBlock({ flow: flowFromBody } as Record<string, unknown>)
+    const normalized = normalizeNodes(metaRecord)
+    if (!normalized) return null
+
+    const connParsed = parseConnections(metaRecord)
+    ensureAugmentedPortsFromDeclaredConnections({ nodes: normalized.nodes, registry: normalized.registry, declared: connParsed.declared })
+
+    const edges = connParsed.edges
+    const frontmatterMeta = isRecord(metaRecord.meta) ? (metaRecord.meta as Record<string, unknown>) : null
+    const stableId = asString(frontmatterMeta?.id) || cleanIdPart(name) || 'frontmatter'
+    const sourceLayerHash = hashText(`frontmatter-flow|${stableId}`)
+    const socketTypes = readSocketTypes(metaRecord)
+    const warnings = [...readFlowWarnings(metaRecord), ...buildConnectionWarnings({ meta: metaRecord, socketTypes, declared: connParsed.declared })]
+    const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null
+    const metadata = buildFrontmatterFlowMetadata({
+      sourceLayerHash,
+      frontmatterMeta,
+      socketTypes,
+      flowSettings,
+      annotations: { refs: [], nodeIds: [], edgeIds: [], clusterIds: [] },
+      registry: normalized.registry,
+      subgraphs: [],
+    })
+
+    warnings.sort((a, b) => a.localeCompare(b))
+    return {
+      graphData: {
+        type: 'Graph',
+        context: 'frontmatter-flow',
+        nodes: normalized.nodes,
+        edges,
+        metadata,
+      },
+      warnings,
+    }
+  }
 
   const lines = splitMarkdownLines(raw)
   let lead = 0

@@ -22,6 +22,7 @@ import {
 import { MarkdownGraphBuilder } from '@/features/parsers/markdownJsonLdBuilder'
 import * as wikiLinks from 'grph-shared/markdown/wikiLinks'
 import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
+import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
 import { extractHtmlAttr, looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { sanitizeIframeSrcdoc } from '@/lib/render/sanitizeIframeSrcdoc'
 
@@ -690,7 +691,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         addRel: (s, k, t) => builder.addRel(s, k, t),
         mkMeta,
       }
-      parseMermaidFrontmatter(diagram.code, parserCtx)
+      parseMermaidFrontmatter(normalizeMermaidCodeForRuntime(diagram.code), parserCtx)
     }
   }
 
@@ -777,7 +778,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
           addRel: (s, k, t) => builder.addRel(s, k, t),
           mkMeta,
         }
-        parseMermaidFrontmatter(diagram.code, parserCtx)
+        parseMermaidFrontmatter(normalizeMermaidCodeForRuntime(diagram.code), parserCtx)
       }
       
       // If we are in anchors-only mode, we might want to skip creating the CodeBlock node itself

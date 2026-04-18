@@ -67,6 +67,72 @@ function valuesEqual(a: unknown, b: unknown): boolean {
   }
 }
 
+function normalizeJsonLikeValueText(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'undefined') return ''
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+const JsonLikeValueEditor = React.memo(function JsonLikeValueEditor(props: {
+  id: string
+  value: unknown
+  active: boolean
+  placeholder?: string
+  className: string
+  mode: 'json' | 'object'
+  onCommit: (nextValue: unknown) => void
+}) {
+  const normalize = React.useCallback((v: unknown) => normalizeJsonLikeValueText(v), [])
+  const lastNormalizedRef = React.useRef<string>(normalize(props.value))
+  const [text, setText] = React.useState(() => lastNormalizedRef.current)
+
+  React.useEffect(() => {
+    const nextNormalized = normalize(props.value)
+    if (text === lastNormalizedRef.current) {
+      setText(nextNormalized)
+    }
+    lastNormalizedRef.current = nextNormalized
+  }, [normalize, props.value, text])
+
+  return (
+    <PlainTextInputEditor
+      id={props.id}
+      className={props.className}
+      multiline
+      value={text}
+      placeholder={props.placeholder}
+      onChange={next => setText(next)}
+      onBlur={() => {
+        if (!props.active) return
+        const raw = String(text || '')
+        if (!raw.trim()) {
+          props.onCommit(undefined)
+          return
+        }
+        if (props.mode === 'json') {
+          props.onCommit(raw)
+          return
+        }
+        try {
+          const parsed = JSON.parse(raw)
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            setText(lastNormalizedRef.current)
+            return
+          }
+          props.onCommit(parsed)
+        } catch {
+          setText(lastNormalizedRef.current)
+        }
+      }}
+      disabled={!props.active}
+    />
+  )
+})
+
 export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayEditorRegistrySection(props: {
   active: boolean
   properties: Record<string, unknown>
@@ -252,8 +318,9 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       continue
     }
 
-    if (fieldType === 'json') {
-      const v = typeof cur === 'string' ? cur : typeof cur === 'undefined' ? '' : JSON.stringify(cur)
+    if (fieldType === 'json' || fieldType === 'object') {
+      const mode = fieldType === 'object' ? 'object' : 'json'
+      const v = normalizeJsonLikeValueText(cur)
       rows.push({
         rowKey,
         labelId,
@@ -261,8 +328,12 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         typeNode,
         valueNode: (
           <section className="w-full">
-            <PlainTextInputEditor
+            <JsonLikeValueEditor
               id={id}
+              mode={mode}
+              value={cur}
+              active={active}
+              placeholder={!v && connectedValueText ? connectedValueText : undefined}
               className={cn(
                 'w-full h-24 px-2 py-1 rounded-md border',
                 monospaceTextClass,
@@ -270,11 +341,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
                 UI_THEME_TOKENS.input.border,
                 UI_THEME_TOKENS.input.text,
               )}
-              multiline
-              value={v}
-              placeholder={!v && connectedValueText ? connectedValueText : undefined}
-              onChange={next => setValue(next || undefined)}
-              disabled={!active}
+              onCommit={next => setValue(next)}
             />
             {connectedMeta}
           </section>
@@ -423,7 +490,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           rows={rows}
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
-          forcePortDots
         />
       )}
 

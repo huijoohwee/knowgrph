@@ -1,5 +1,7 @@
 import React from 'react'
 
+import { Braces, Code, Type as TypeIcon } from 'lucide-react'
+
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -13,7 +15,9 @@ import {
 } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { getIconSizeClass } from '@/lib/ui/icons'
 import { cn } from '@/lib/utils'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
@@ -26,11 +30,11 @@ import {
   FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
 } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
-import { formatFlowHandleValueList, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
+import { formatFlowHandleKeyValue, formatFlowHandleValueList, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
 import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
 import { NodeOverlayEditorRegistrySection } from '@/components/FlowEditor/NodeOverlayEditorRegistrySection'
 import { NodeOverlayEditorParamsSection } from '@/components/FlowEditor/NodeOverlayEditorParamsSection'
-import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
+import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/NodeOverlayEditorBeatByBeatSection'
@@ -166,6 +170,53 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const nodeFormId = typeof properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' ? String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim() : ''
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow' || (nodeFormId && nodeFormId.startsWith('fm:'))
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
+
+  const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
+  const typeIconSizeClass = React.useMemo(() => getIconSizeClass(uiIconScale), [uiIconScale])
+  const typeIconStrokeWidth = React.useMemo(() => {
+    const raw = typeof uiIconStrokeWidth === 'number' && Number.isFinite(uiIconStrokeWidth) ? uiIconStrokeWidth : 1.75
+    return Math.max(0.75, Math.min(3, raw))
+  }, [uiIconStrokeWidth])
+
+  const flowEnvelopeValueBoxClass = React.useMemo(() => {
+    return cn(
+      keyValueInputClass,
+      textSizeClass,
+      'text-left',
+      'h-24',
+      monospaceTextClass,
+      UI_THEME_TOKENS.input.bg,
+      UI_THEME_TOKENS.input.border,
+      UI_THEME_TOKENS.input.text,
+    )
+  }, [keyValueInputClass, monospaceTextClass, textSizeClass])
+
+  const kvTypeBoxClass = React.useMemo(() => {
+    return cn(
+      'w-full h-6',
+      'flex items-center justify-start',
+      'px-2',
+      textSizeClass,
+      UI_THEME_TOKENS.input.text,
+    )
+  }, [textSizeClass])
+
+  const renderKvTypeBox = React.useCallback((value: string) => {
+    const text = String(value || '').trim()
+    const Icon = text === 'object' ? Braces : text === 'function' ? Code : TypeIcon
+    return (
+      <section className={kvTypeBoxClass} aria-label={text || 'type'}>
+        <Icon
+          className={cn(typeIconSizeClass, UI_THEME_TOKENS.text.primary, 'block')}
+          strokeWidth={typeIconStrokeWidth}
+          aria-hidden={true}
+          color="var(--kg-text-primary)"
+          style={{ stroke: 'currentColor' }}
+        />
+      </section>
+    )
+  }, [kvTypeBoxClass, typeIconSizeClass, typeIconStrokeWidth])
   const flowPortTypes = React.useMemo(() => {
     const raw = properties['flow:portTypes']
     if (!isRecord(raw)) return { target: [] as string[], source: [] as string[] }
@@ -323,7 +374,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     const formId = String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
     return formId === 'videoGeneration' || formId === 'nodeQuickEditor'
   }, [properties, registryEntry])
-  const showSmartMediaFields = !hideFields && (!isFrontmatterFlow || hasSmartMediaSelection)
+  const showSmartMediaFields = !hideFields && !isFrontmatterFlow
 
   const registryOptionIdsSig = React.useMemo(() => {
     return (registryOptions || []).map(e => String(e.id || '')).join('|')
@@ -409,10 +460,32 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           forcePortDots
           rows={[
             {
+              rowKey: 'node-type',
+              labelId: `${idBase}-kv-node-type`,
+              keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.type}>type</label>,
+              typeNode: renderKvTypeBox('string'),
+              valueNode: (
+                <input
+                  id={ids.type}
+                  className={cn(
+                    keyValueInputClass,
+                    textSizeClass,
+                    'text-left',
+                    UI_THEME_TOKENS.input.bg,
+                    UI_THEME_TOKENS.input.border,
+                    UI_THEME_TOKENS.input.text,
+                  )}
+                  value={String(node.type || '')}
+                  readOnly
+                  disabled
+                />
+              ),
+            },
+            {
               rowKey: 'node-label',
               labelId: `${idBase}-kv-node-label`,
-              keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.label}>{UI_LABELS.name}</label>,
-              typeNode: <NodeOverlayEditorTypePill text="text" />,
+              keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.label}>label</label>,
+              typeNode: renderKvTypeBox('string'),
               valueNode: (
                 <input
                   ref={labelInputRef}
@@ -651,139 +724,147 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       )}
 
       {!hideFields && isFrontmatterFlow && (
-        <section className="min-w-0 mt-4" aria-label="Flow Contract">
+        <section className="min-w-0 mt-4" aria-label="Flow Envelope">
           <NodeOverlayEditorKvTable
-            ariaLabel="Flow Contract"
+            ariaLabel="Flow Envelope"
             microLabelClass={microLabelClass}
             dotSizePx={dotSizePx}
             dotHitPx={dotHitPx}
             forcePortDots
-            rows={[
-              ...(hasFlowTargetHandles ? [{
-                rowKey: 'flow-handles-target',
-                labelId: `${idBase}-kv-flow-target`,
-                inPortNode: renderFlowContractDot({
-                  dir: 'in',
-                  linked: connectedFlowHandles.target.length > 0,
-                  portKey: flowHandleKeys.target[0] || '',
-                }),
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-target`}>{readFlowHandlePath('in')}</label>,
-                typeNode: <NodeOverlayEditorTypePill text={readFlowHandleTypeLabel('in')} />,
-                valueNode: (
-                  <input
-                    id={`${idBase}-flow-target`}
-                    className={cn(
-                      keyValueInputClass,
-                      textSizeClass,
-                      'text-left',
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                    value={formatFlowHandlePathValue(flowHandleKeys.target)}
-                    disabled
-                  />
-                ),
-              }] : []),
-              ...(hasFlowSourceHandles ? [{
-                rowKey: 'flow-handles-source',
-                labelId: `${idBase}-kv-flow-source`,
-                outPortNode: renderFlowContractDot({
-                  dir: 'out',
-                  linked: connectedFlowHandles.source.length > 0,
-                  portKey: flowHandleKeys.source[0] || '',
-                }),
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-source`}>{readFlowHandlePath('out')}</label>,
-                typeNode: <NodeOverlayEditorTypePill text={readFlowHandleTypeLabel('out')} />,
-                valueNode: (
-                  <input
-                    id={`${idBase}-flow-source`}
-                    className={cn(
-                      keyValueInputClass,
-                      textSizeClass,
-                      'text-left',
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                    value={formatFlowHandlePathValue(flowHandleKeys.source)}
-                    onChange={e => {
-                      const nextKeys = parseHandleListInput(e.target.value || '')
-                      const raw = properties['flow:portTypes']
-                      const rec = isRecord(raw) ? raw : {}
-                      const inRec = isRecord(rec.in) ? ({ ...(rec.in as Record<string, unknown>) }) : {}
-                      const outRec = isRecord(rec.out) ? ({ ...(rec.out as Record<string, unknown>) }) : {}
-                      const nextOut: Record<string, unknown> = {}
-                      for (let i = 0; i < nextKeys.length; i += 1) {
-                        const key = nextKeys[i]
-                        if (!key) continue
-                        nextOut[key] = Object.prototype.hasOwnProperty.call(outRec, key) ? outRec[key] : 'UNSPECIFIED'
-                      }
-                      onPatchProperties({ 'flow:portTypes': { in: inRec, out: nextOut } })
-                    }}
-                    disabled={!active}
-                  />
-                ),
-              }] : []),
-              ...(hasFlowCompute ? [{
-                rowKey: 'flow-compute',
-                labelId: `${idBase}-kv-flow-compute`,
-                showInPortDot: false,
-                showOutPortDot: false,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-compute`}>compute</label>,
-                typeNode: <NodeOverlayEditorTypePill text="code" />,
-                valueNode: (
-                  <PlainTextInputEditor
-                    id={`${idBase}-flow-compute`}
-                    value={flowCompute}
-                    onChange={next => onPatchProperties({ 'flow:compute': next || undefined })}
-                    disabled={!active}
-                    multiline
-                    className={cn(
-                      'w-full h-24 px-2 py-1 rounded-md border',
-                      monospaceTextClass,
-                    )}
-                  />
-                ),
-              }] : []),
-              ...(hasFlowData ? [{
-                rowKey: 'flow-data',
-                labelId: `${idBase}-kv-flow-data`,
-                showInPortDot: false,
-                showOutPortDot: false,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-data`}>data</label>,
-                typeNode: <NodeOverlayEditorTypePill text="json" />,
-                valueNode: (
-                  <PlainTextInputEditor
-                    id={`${idBase}-flow-data`}
-                    value={flowDataJson}
-                    onChange={next => {
-                      const raw = String(next || '').trim()
-                      if (!raw) {
-                        onPatchProperties({ data: undefined })
-                        return
-                      }
+            rows={(() => {
+              const rows: NodeOverlayEditorKvRow[] = []
+
+              const handlesValue = (properties as Record<string, unknown>)['frontmatter:handles']
+              const handlesRec = handlesValue && typeof handlesValue === 'object' && !Array.isArray(handlesValue)
+                ? (handlesValue as Record<string, unknown>)
+                : null
+              const inPorts = Array.isArray(handlesRec?.target) ? (handlesRec!.target as unknown[]) : []
+              const outPorts = Array.isArray(handlesRec?.source) ? (handlesRec!.source as unknown[]) : []
+              const inKeys = Array.from(new Set(inPorts.map(v => String(v || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+              const outKeys = Array.from(new Set(outPorts.map(v => String(v || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+
+              const renderPortButton = (dir: 'in' | 'out', portKey: string) => {
+                const aria = formatFlowHandleKeyValue({ dir, portKey })
+                return (
+                  <button
+                    key={`${dir}:${portKey}`}
+                    type="button"
+                    aria-label={aria}
+                    title={aria}
+                    data-kg-port-handle="1"
+                    data-kg-port-handle-kind="dot"
+                    data-kg-port-dir={dir}
+                    data-kg-port-key={portKey}
+                    data-kg-port-path={readFlowHandlePath(dir)}
+                    className={cn('relative block', UI_THEME_TOKENS.button.text)}
+                    style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px` }}
+                    onPointerDown={e => {
                       try {
-                        const parsed = JSON.parse(raw)
-                        onPatchProperties({ data: parsed })
+                        e.stopPropagation()
                       } catch {
                         void 0
                       }
                     }}
-                    disabled={!active}
-                    multiline
-                    className={cn(
-                      'w-full h-32 px-2 py-1 rounded-md border',
-                      monospaceTextClass,
-                    )}
-                  />
-                ),
-              }] : []),
-            ]}
+                    onClick={e => {
+                      try {
+                        e.stopPropagation()
+                      } catch {
+                        void 0
+                      }
+                      if (!active || !portHandlesEnabled) return
+                      onSchemaPortHandleClick?.({ dir, portKey })
+                    }}
+                    disabled={!active || !portHandlesEnabled}
+                  >
+                    <span
+                      aria-hidden={true}
+                      className={cn('absolute top-1/2 left-1/2 rounded-full border', UI_THEME_TOKENS.panel.bg, PORT_HANDLE_STROKE_CLASS)}
+                      style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
+                    />
+                  </button>
+                )
+              }
+
+              if (handlesRec) {
+                rows.push({
+                  rowKey: 'flow-envelope-handles',
+                  labelId: `${idBase}-kv-flow-envelope-handles`,
+                  inPortNode: inKeys.length > 0
+                    ? <section className="flex flex-col items-center gap-1">{inKeys.map(k => renderPortButton('in', k))}</section>
+                    : undefined,
+                  outPortNode: outKeys.length > 0
+                    ? <section className="flex flex-col items-center gap-1">{outKeys.map(k => renderPortButton('out', k))}</section>
+                    : undefined,
+                  keyNode: (
+                    <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-envelope-handles`}>
+                      handles
+                    </label>
+                  ),
+                  typeNode: renderKvTypeBox('object'),
+                  valueNode: (
+                    <PlainTextInputEditor
+                      id={`${idBase}-flow-envelope-handles`}
+                      value={JSON.stringify(handlesRec, null, 2)}
+                      disabled
+                      multiline
+                      className={flowEnvelopeValueBoxClass}
+                    />
+                  ),
+                })
+              }
+
+              if (hasFlowData) {
+                rows.push({
+                  rowKey: 'flow-envelope-data',
+                  labelId: `${idBase}-kv-flow-envelope-data`,
+                  keyNode: (
+                    <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-envelope-data`}>
+                      data
+                    </label>
+                  ),
+                  typeNode: renderKvTypeBox('object'),
+                  valueNode: (
+                    <PlainTextInputEditor
+                      id={`${idBase}-flow-envelope-data`}
+                      value={flowDataJson}
+                      disabled
+                      multiline
+                      className={flowEnvelopeValueBoxClass}
+                    />
+                  ),
+                })
+              }
+
+              if (hasFlowCompute) {
+                rows.push({
+                  rowKey: 'flow-envelope-compute',
+                  labelId: `${idBase}-kv-flow-envelope-compute`,
+                  keyNode: (
+                    <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-envelope-compute`}>
+                      compute
+                    </label>
+                  ),
+                  typeNode: renderKvTypeBox('function'),
+                  valueNode: (
+                    <PlainTextInputEditor
+                      id={`${idBase}-flow-envelope-compute`}
+                      value={flowCompute}
+                      onChange={next => onPatchProperties({ 'flow:compute': next || undefined })}
+                      disabled={!active}
+                      multiline
+                      className={flowEnvelopeValueBoxClass}
+                    />
+                  ),
+                })
+              }
+
+              return rows
+            })()}
           />
         </section>
       )}
 
+      {!isFrontmatterFlow && (
       <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowEditorMapping}>
         <NodeOverlayEditorKvTable
           ariaLabel={UI_LABELS.flowEditorMapping}
@@ -824,17 +905,29 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           ]}
         />
       </section>
+      )}
 
-      <NodeOverlayEditorBeatByBeatSection
-        node={node}
-        graphMetaKind={graphMetaKind}
-        edges={edges || []}
-        microLabelClass={microLabelClass}
-        monospaceTextClass={monospaceTextClass}
-        compact={hideFields}
-      />
+      {!isFrontmatterFlow && (
+        <NodeOverlayEditorBeatByBeatSection
+          node={node}
+          graphMetaKind={graphMetaKind}
+          edges={edges || []}
+          microLabelClass={microLabelClass}
+          monospaceTextClass={monospaceTextClass}
+          compact={hideFields}
+        />
+      )}
 
-      {!hideFields && registryEntry && (
+      {!isFrontmatterFlow && !hideFields && registryEntry && !(
+        isFrontmatterFlow &&
+        String(registryEntry.formId || '').trim() === `fm:${String(node.id || '').trim()}` &&
+        Array.isArray(registryEntry.fields) &&
+        registryEntry.fields.length > 0 &&
+        registryEntry.fields.every(f => {
+          const k = String((f as { fieldKey?: unknown })?.fieldKey || '').trim()
+          return k === 'type' || k === 'label' || k === 'handles' || k === 'data' || k === 'compute'
+        })
+      ) && (
         <NodeOverlayEditorRegistrySection
           active={active}
           properties={properties}
@@ -856,7 +949,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {!hideFields && (
+      {!isFrontmatterFlow && !hideFields && (
         <NodeOverlayEditorParamsSection
           active={active}
           properties={properties}
@@ -872,7 +965,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {(schemaFields.length > 0 || (registryEntry?.quickEditorTypeId || '').toLowerCase().includes('schema')) && (
+      {!isFrontmatterFlow && (schemaFields.length > 0 || (registryEntry?.quickEditorTypeId || '').toLowerCase().includes('schema')) && (
         <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowNodeQuickEditorSchemaLegend}>
           <NodeOverlayEditorSchemaTable
             active={active}
