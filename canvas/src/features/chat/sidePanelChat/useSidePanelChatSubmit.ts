@@ -14,7 +14,10 @@ import {
 } from '@/lib/chatEndpoint'
 import { clampChatCompletionTokens } from '../chatAiMarkdownSpec'
 import { packChatContext, buildPackedContextSystemPrompt } from '../chatContextPack'
-import { CHAT_KGC_RESPONSE_CONTRACT_PROMPT, CHAT_RESPONSE_CONTRACT_PROMPT } from '../chatResponseContract'
+import {
+  CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT,
+  CHAT_BASE_RESPONSE_CONTRACT_PROMPT,
+} from '../chatResponseBaseContract'
 import {
   buildBoundedGraphSystemPrompt,
   buildMarkdownNodeSnippetPrompt,
@@ -37,6 +40,7 @@ import {
   shouldRetryWithModelFallback,
   toShortId,
   putChatHistoryCache,
+  extractKgcBlockFromAssistantText,
 } from '../SidePanelChat.helpers'
 import type { ChatMessage } from '../SidePanelChatSections'
 import type { SidePanelChatSubmitArgs } from './sidePanelChatSubmitTypes'
@@ -155,7 +159,10 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
       const systemMessages: { role: 'system'; content: string }[] = [
         {
           role: 'system',
-          content: args.chatStorageTarget === 'chatKnowgrph' ? CHAT_KGC_RESPONSE_CONTRACT_PROMPT : CHAT_RESPONSE_CONTRACT_PROMPT,
+          content:
+            args.chatStorageTarget === 'chatKnowgrph'
+              ? CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT
+              : CHAT_BASE_RESPONSE_CONTRACT_PROMPT,
         },
         {
           role: 'system',
@@ -433,24 +440,7 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
         finalAssistantText = assistantText
         if (args.chatStorageTarget !== 'chatKnowgrph') break
 
-        const extracted = (() => {
-          const text = String(assistantText || '').replace(/\r\n/g, '\n')
-          const rx = /(^|\n)\s*```+kgc\s*\n([\s\S]*?)\n\s*```+/gi
-          const matches: Array<{ full: string; body: string }> = []
-          let m: RegExpExecArray | null
-          while ((m = rx.exec(text))) {
-            const full = String(m[0] || '')
-            const body = typeof m[2] === 'string' ? String(m[2] || '').trim() : ''
-            if (full && body) matches.push({ full, body })
-            if (matches.length > 2) break
-          }
-          if (matches.length !== 1) {
-            return { answer: text.trim(), kgc: null }
-          }
-          const match = matches[0]
-          const answer = text.replace(match.full, '').trim()
-          return { answer, kgc: match.body }
-        })()
+        const extracted = extractKgcBlockFromAssistantText(assistantText)
         const kgc = typeof extracted.kgc === 'string' ? extracted.kgc.trim() : ''
         if (!kgc) {
           finalStatus = 'ok'

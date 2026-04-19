@@ -5,7 +5,6 @@ import { useToolMenuShortcuts } from '@/features/toolbar/useToolMenuShortcuts'
 import { useToolMenuState } from '@/features/toolbar/useToolMenuState'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
-  DESIGN_LAYERS_PANEL_OPEN_EVENT,
   PROPS_PANEL_OPEN_EVENT,
   RENDERER_FLOATING_PANEL_OPEN_EVENT,
   RENDERER_PANEL_OPEN_EVENT,
@@ -47,7 +46,7 @@ export function ToolbarMenuLauncher({
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
     {
-      view: 'propsPanel' | 'interaction' | 'designLayers' | 'domTree' | 'domInspect' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+      view: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
       seq: number
     } | null
   >(null)
@@ -122,35 +121,6 @@ export function ToolbarMenuLauncher({
       setIsToolMenuOpen(true)
     }
 
-    const handleOpenDesignLayersPanel = (event: Event) => {
-      floatingPanelRequestSeqRef.current += 1
-      setFloatingPanelRequestedView({
-        view: 'designLayers',
-        seq: floatingPanelRequestSeqRef.current,
-      })
-      try {
-        const isPinned = lsBool(LS_KEYS.floatingPanelPinned, false)
-        const custom = event as CustomEvent<PropsPanelOpenEventDetail>
-        const detail = custom.detail
-        const clientX = detail && typeof detail.clientX === 'number' ? detail.clientX : null
-        const clientY = detail && typeof detail.clientY === 'number' ? detail.clientY : null
-        if (!isPinned && clientX !== null && clientY !== null && Number.isFinite(clientX) && Number.isFinite(clientY)) {
-          const padding = 8
-          const estimatedWidth = 320
-          const estimatedHeight = 420
-          const maxLeft = Math.max(padding, window.innerWidth - estimatedWidth - padding)
-          const maxTop = Math.max(padding, window.innerHeight - estimatedHeight - padding)
-          setToolMenuDragPos({
-            top: Math.min(Math.max(padding, clientY), maxTop),
-            left: Math.min(Math.max(padding, clientX), maxLeft),
-          })
-        }
-      } catch {
-        void 0
-      }
-      setIsToolMenuOpen(true)
-    }
-
     const handleOpenRenderer = () => {
       floatingPanelRequestSeqRef.current += 1
       setFloatingPanelRequestedView({
@@ -163,18 +133,22 @@ export function ToolbarMenuLauncher({
     const handleOpenSidePanel = (ev: Event) => {
       const e = ev as CustomEvent<SidePanelOpenEventDetail | undefined>
       const tab = e.detail?.tab
+      if (tab === 'inspector' || tab === 'node') {
+        if (e.detail?.open === false) return
+        _onOpenMainPanel('workflowManager')
+        closeToolMenu()
+        return
+      }
       const requested =
         tab === 'chat'
           ? 'chat'
           : tab === 'geo'
             ? 'geo'
-            : tab === 'inspector' || tab === 'node'
-              ? 'inspector'
-              : null
+            : null
       if (!requested) return
       floatingPanelRequestSeqRef.current += 1
       setFloatingPanelRequestedView({
-        view: requested === 'geo' && !geospatialModeEnabled ? 'inspector' : requested,
+        view: requested === 'geo' && !geospatialModeEnabled ? 'propsPanel' : requested,
         seq: floatingPanelRequestSeqRef.current,
       })
       if (e.detail?.open === false) {
@@ -185,18 +159,16 @@ export function ToolbarMenuLauncher({
     }
 
     window.addEventListener(PROPS_PANEL_OPEN_EVENT, handleOpenPropsPanel)
-    window.addEventListener(DESIGN_LAYERS_PANEL_OPEN_EVENT, handleOpenDesignLayersPanel)
     window.addEventListener(RENDERER_PANEL_OPEN_EVENT, handleOpenRenderer)
     window.addEventListener(RENDERER_FLOATING_PANEL_OPEN_EVENT, handleOpenRenderer)
     window.addEventListener(SIDE_PANEL_OPEN_EVENT, handleOpenSidePanel as EventListener)
     return () => {
       window.removeEventListener(PROPS_PANEL_OPEN_EVENT, handleOpenPropsPanel)
-      window.removeEventListener(DESIGN_LAYERS_PANEL_OPEN_EVENT, handleOpenDesignLayersPanel)
       window.removeEventListener(RENDERER_PANEL_OPEN_EVENT, handleOpenRenderer)
       window.removeEventListener(RENDERER_FLOATING_PANEL_OPEN_EVENT, handleOpenRenderer)
       window.removeEventListener(SIDE_PANEL_OPEN_EVENT, handleOpenSidePanel as EventListener)
     }
-  }, [closeToolMenu, geospatialModeEnabled, setIsToolMenuOpen, setToolMenuDragPos])
+  }, [_onOpenMainPanel, closeToolMenu, geospatialModeEnabled, setIsToolMenuOpen, setToolMenuDragPos])
 
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const iconSizeClass = getIconSizeClass(uiIconScale)
@@ -224,7 +196,7 @@ export function ToolbarMenuLauncher({
           onClose={() => setLaunchOpen(false)}
           onOpenWorkflowPanel={() => {
             setLaunchOpen(false)
-            _onOpenMainPanel('workflow')
+            _onOpenMainPanel('workflowManager')
           }}
           onLaunchSpotlight={onLaunchSpotlight}
           onLaunchStatus={onLaunchStatus}

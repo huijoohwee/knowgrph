@@ -46,6 +46,14 @@ const readComputingFlowSamplePath = (): string => {
   return path.resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-sample.md')
 }
 
+const readKgcPipelinePrdTadPath = (): string => {
+  const envPath = typeof process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH === 'string'
+    ? process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  return path.resolve(process.cwd(), '..', '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-prd-tad.md')
+}
+
 const toSimpleFlowGraph = (graphData: { nodes?: unknown; edges?: unknown }) => {
   const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as Array<{ id?: unknown }>) : []
   const edges = Array.isArray(graphData.edges)
@@ -308,6 +316,30 @@ export const testImportRenderPipelineFrontmatterFlowSampleInfiniteCanvas = async
     layoutPositionCacheByMode: useGraphStore.getState().layoutPositionCacheByMode,
   })
   if (!layout.cacheKey.trim()) throw new Error('expected layout cache key for Infinite Canvas computing-flow sample')
+}
+
+export const testImportRenderPipelineKgcPipelinePrdTadAutoAppliesFlowEditorDocumentModes = async () => {
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setCanvasRenderMode('3d')
+  useGraphStore.getState().setCanvas2dRenderer('d3')
+  useGraphStore.getState().setDocumentSemanticMode('keyword')
+  useGraphStore.getState().setFrontmatterModeEnabled(false)
+  useGraphStore.getState().setMultiDimTableModeEnabled(true)
+
+  const samplePath = readKgcPipelinePrdTadPath()
+  if (!fs.existsSync(samplePath)) return
+  const text = fs.readFileSync(samplePath, 'utf8')
+  const parsed = await loadGraphDataFromTextViaParser(samplePath, text, { applyToStore: true, syncMarkdownDocument: false })
+  if (!parsed?.graphData) throw new Error('expected graphData from KGC pipeline PRD/TAD import')
+  if (String(parsed.graphData.context || '').trim() !== 'frontmatter-flow') {
+    throw new Error('expected frontmatter-flow context from KGC pipeline PRD/TAD import')
+  }
+  const store = useGraphStore.getState()
+  if (store.canvasRenderMode !== '2d') throw new Error(`expected 2d render mode, got ${String(store.canvasRenderMode)}`)
+  if (store.canvas2dRenderer !== 'flowEditor') throw new Error(`expected flowEditor renderer, got ${String(store.canvas2dRenderer)}`)
+  if (store.documentSemanticMode !== 'document') throw new Error(`expected document semantic mode, got ${String(store.documentSemanticMode)}`)
+  if (store.frontmatterModeEnabled !== true) throw new Error('expected frontmatter mode enabled')
+  if (store.multiDimTableModeEnabled !== false) throw new Error('expected multi-dimensional table mode disabled')
 }
 
 export const testImportRenderPipelineFrontmatterFlowSampleThreeModeBlockLayout = async () => {

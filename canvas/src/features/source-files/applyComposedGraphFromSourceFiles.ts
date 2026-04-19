@@ -1,6 +1,7 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildSourceLayerKeys, composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 
 let pendingComposeRaf: number | null = null
 
@@ -53,7 +54,9 @@ export function applyComposedGraphFromSourceFiles() {
 
   if (prevContentKey === contentKey && prevOrderKey !== orderKey) {
     store.setGraphDataPreservingLayout(graphData)
+    applyFrontmatterFlowImportModes(graphData)
     return
   }
   store.setGraphData(graphData)
+  applyFrontmatterFlowImportModes(graphData)
 }

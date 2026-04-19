@@ -25,22 +25,23 @@ Canonical source: `docs/documents/markdown-syntax-guidelines.md`.
 
 ## Phase 2 · AI Markdown Generation
 Chat uses the provider proxy and sends:
-- Contract system prompt (`chatKnowgrph` vs standard)
+- Base contract system prompt (`chatResponseBaseContract.ts`; `chatKnowgrph` vs standard)
 - `packContext()` system prompt
 - Optional bounded subgraph context and workspace-wide context
 - Conversation history
 
 When `chatStorageTarget=chatKnowgrph`, the assistant must output:
-- A concise bullet answer (≤ 50 words)
-- Exactly one fenced `kgc` block containing a standalone parseable KGC document with YAML frontmatter + linked markdown body (`{{}}`)
+- A standalone parseable KGC markdown document aligned to `kgc-ai-pipeline-chat-response-base-template.md`
+- Deterministic frontmatter↔body variable linkage using `{{}}`
+- Canonical pipeline surfaces (`runtime`, `pipeline`, `mermaid`, `flow`) with validation-safe enums and pure compute blocks
 
 ## Phase 3 · Validation Gate (`validateMarkdown()`)
 When `chatStorageTarget=chatKnowgrph`, the `kgc` block is validated before final persistence:
 
 ### Structural Gate
-- Exactly one `kgc` fenced block must exist.
-- The `kgc` body must be a standalone parseable chatKnowgrph document.
-- No nested code fences inside the `kgc` body.
+- Accept either one fenced `kgc` block or one raw standalone KGC markdown document.
+- The KGC body must stay standalone parseable for Canvas/Workspace/Table/Kanban.
+- No nested code fences inside the persisted KGC document.
 
 ### Syntax Rules (V-01..V-07)
 - `V-01` Color sigil HEX is exactly 6 uppercase digits.
@@ -66,5 +67,6 @@ If attempts are exhausted, Chat persists a parser-safe deterministic KGC fallbac
 - `chatKnowgrph` creates canonical files in the `kgc_yyyymmddhhmmss.md` pattern.
 - On write, canonical KGC identity metadata (`doc.id`, `doc.created`) is normalized from the `kgc_*.md` filename timestamp.
 - Structural acceptance requires frontmatter↔body linkage: every body `{{key}}` reference must be declared in top-level YAML frontmatter.
+- Base-template Tier B sentinel keys (`product/domain/subject/objective/artifact/owner/version/status`) are allowed as unresolved placeholders when declared in frontmatter.
 - Do not append `<!-- kg-chat-history -->` or any chat-history trailer to `kgc_*.md`.
 - Continuation: fallback recovery and streaming handoff details are documented in `docs/documents/knowgrph-chat-ai-markdown-pipeline-document.fallback-recovery.md`.

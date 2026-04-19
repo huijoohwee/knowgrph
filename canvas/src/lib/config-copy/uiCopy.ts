@@ -416,7 +416,7 @@ export const UI_COPY = {
   graphFieldsAgenticFieldSettingsDescription:
     `Field Settings → map node and edge properties to AgenticRAG JSON-LD roles (see ${AGENTIC_RAG_SCHEMA_URL}/node-schema.jsonld and ${AGENTIC_RAG_SCHEMA_URL}/edge-schema.jsonld) so Multi-dimensional Table, schema docs, and workflows share a single field interpretation.`,
   graphFieldsAgenticLegendChipLabel: 'AgenticRAG node fields',
-  graphFieldsIconLegendHeaderLabel: 'Graph Fields icon legend',
+  graphFieldsIconLegendHeaderLabel: 'Help Icon Library legend',
   validationRequiredFieldsTitle: 'Required fields',
   validationPropertyTypesTitle: 'Property types',
   validationAdditionalOptionsJsonTitle: 'Additional options (JSON)',

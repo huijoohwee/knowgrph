@@ -21,6 +21,26 @@ const KGC_REQUIRED_VARIABLE_MARKERS = [
   '\nsolution:',
 ] as const
 
+const BASE_TEMPLATE_TIER_B_KEYS = [
+  'product',
+  'domain',
+  'subject',
+  'objective',
+  'artifact',
+  'owner',
+  'version',
+  'status',
+] as const
+
+const isBaseTemplateFrontmatter = (frontmatter: string, keys: Set<string>): boolean => {
+  if (!keys.has('runtime') || !keys.has('pipeline') || !keys.has('mermaid') || !keys.has('flow')) return false
+  return BASE_TEMPLATE_TIER_B_KEYS.every(key => keys.has(key)) &&
+    frontmatter.includes('\nruntime:') &&
+    frontmatter.includes('\npipeline:') &&
+    frontmatter.includes('\nmermaid:') &&
+    frontmatter.includes('\nflow:')
+}
+
 const countMatches = (text: string, pattern: RegExp): number => {
   const matches = text.match(pattern)
   return Array.isArray(matches) ? matches.length : 0
@@ -110,6 +130,23 @@ export const isKgcStructuredMarkdown = (raw: string): boolean => {
     const key = extractVarRefKey(ref)
     if (!key) continue
     if (!frontmatterKeys.has(key)) return false
+  }
+  if (isBaseTemplateFrontmatter(parsedFrontmatterBody.frontmatter, frontmatterKeys)) {
+    if (!markdownBody.includes('## Flow Graph') || !markdownBody.includes('## Pipeline')) return false
+    const baseScalars = ['title', 'graphId', 'doc_type', 'date', 'ai_model'] as const
+    for (const key of baseScalars) {
+      const scalar = extractTopLevelYamlBlockScalar(parsedFrontmatterBody.frontmatter, key).trim()
+      if (!scalar) return false
+    }
+    for (const key of BASE_TEMPLATE_TIER_B_KEYS) {
+      const scalar = extractTopLevelYamlBlockScalar(parsedFrontmatterBody.frontmatter, key).trim()
+      if (!scalar) return false
+    }
+    const parsed = tryParseMarkdownFrontmatterFlowGraph('chatKnowgrph.kgc.base.md', text)
+    if (!parsed) return false
+    const nodes = Array.isArray(parsed.graphData.nodes) ? parsed.graphData.nodes : []
+    const edges = Array.isArray(parsed.graphData.edges) ? parsed.graphData.edges : []
+    return nodes.length >= 2 && edges.length >= 1
   }
   let searchFrom = 0
   for (const marker of KGC_REQUIRED_SECTION_ORDER) {

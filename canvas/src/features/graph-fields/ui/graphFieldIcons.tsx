@@ -3,6 +3,41 @@ import { fieldKindLabel } from '@/features/graph-fields/graphFields'
 import type { GraphFieldKind, GraphFieldScope } from '@/features/graph-fields/graphFields'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
+export function resolveFieldTypeIconKind(fieldTypeLabel: string): GraphFieldKind {
+  const normalized = String(fieldTypeLabel || '').trim().toLowerCase()
+  if (!normalized) return 'string'
+  if (
+    normalized === 'string' ||
+    normalized === 'text' ||
+    normalized === 'enum' ||
+    normalized === 'mapping' ||
+    normalized === 'function' ||
+    normalized === 'in' ||
+    normalized === 'out'
+  ) {
+    return 'string'
+  }
+  if (normalized === 'array' || normalized === 'list') {
+    return 'array'
+  }
+  if (
+    normalized === 'number' ||
+    normalized === 'int' ||
+    normalized === 'integer' ||
+    normalized === 'float' ||
+    normalized === 'decimal'
+  ) {
+    return 'number'
+  }
+  if (normalized === 'bool' || normalized === 'boolean' || normalized === 'checkbox') {
+    return 'boolean'
+  }
+  if (normalized === 'object' || normalized === 'json') {
+    return 'object'
+  }
+  return 'string'
+}
+
 export function GripDotsIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className ?? 'w-4 h-4'}>
@@ -140,8 +175,31 @@ export function FieldTypeBadgeIcon({
   strokeWidth?: number
 }) {
   const label = typeof fieldTypeLabel === 'string' && fieldTypeLabel.trim() ? fieldTypeLabel : fieldKindLabel(kind)
+  const safeStrokeWidth =
+    typeof strokeWidth === 'number' && Number.isFinite(strokeWidth)
+      ? Math.max(1.5, Math.min(2.5, Math.round(strokeWidth)))
+      : 2
+  const iconClassName = [className ?? 'w-4 h-4'].filter(Boolean).join(' ')
+  const iconColor = 'var(--kg-text-secondary, #6b7280)'
+  const iconStyle = {
+    fill: 'none',
+    opacity: 1,
+    display: 'block',
+    width: '16px',
+    height: '16px',
+    minWidth: '16px',
+    minHeight: '16px',
+    shapeRendering: 'geometricPrecision',
+  } as const
   const normalized = label.toLowerCase()
   const isText =
+    normalized === 'string' ||
+    normalized === 'text' ||
+    normalized === 'enum' ||
+    normalized === 'mapping' ||
+    normalized === 'function' ||
+    normalized === 'in' ||
+    normalized === 'out' ||
     normalized.includes('single line') ||
     normalized.includes('long text') ||
     normalized.includes('text')
@@ -150,20 +208,21 @@ export function FieldTypeBadgeIcon({
     normalized.includes('decimal') ||
     normalized.includes('currency')
   const isBoolean = normalized.includes('checkbox')
-  const isMultiSelect = normalized.includes('multi-select')
+  const isMultiSelect = normalized.includes('multi-select') || normalized.includes('array') || normalized.includes('list')
   const isSingleSelect = normalized.includes('single-select')
   const isDateTime = normalized.includes('date time')
   const isUrl = normalized.includes('url')
-  const isJson = normalized.includes('json')
+  const isJson = normalized.includes('json') || normalized.includes('object')
 
   return (
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={className ?? 'w-4 h-4'}
+      className={iconClassName}
+      style={iconStyle}
       fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth}
+      stroke={iconColor}
+      strokeWidth={safeStrokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -198,7 +257,7 @@ export function FieldTypeBadgeIcon({
       {isSingleSelect ? (
         <>
           <circle cx="12" cy="12" r="5" />
-          <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+          <circle cx="12" cy="12" r="2.5" fill={iconColor} />
         </>
       ) : null}
       {isDateTime ? (

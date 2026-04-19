@@ -149,6 +149,33 @@ const extractTopLevelFrontmatterKeys = (frontmatter: string): Set<string> => {
   return keys
 }
 
+const BASE_TEMPLATE_TIER_B_KEYS = [
+  'product',
+  'domain',
+  'subject',
+  'objective',
+  'artifact',
+  'owner',
+  'version',
+  'status',
+] as const
+
+const isBaseTemplateFrontmatter = (frontmatter: string, keys: Set<string>): boolean => {
+  if (!keys.has('runtime') || !keys.has('pipeline') || !keys.has('mermaid') || !keys.has('flow')) return false
+  return BASE_TEMPLATE_TIER_B_KEYS.every(key => keys.has(key)) &&
+    frontmatter.includes('\nruntime:') &&
+    frontmatter.includes('\npipeline:') &&
+    frontmatter.includes('\nmermaid:') &&
+    frontmatter.includes('\nflow:')
+}
+
+const isBaseTemplateMarkdown = (md: string): boolean => {
+  const parsed = extractLeadingFrontmatterAndBody(md)
+  if (!parsed) return false
+  const keys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
+  return isBaseTemplateFrontmatter(parsed.frontmatter, keys)
+}
+
 const extractTopLevelYamlBlockScalar = (frontmatter: string, key: string): string => {
   const lines = String(frontmatter || '').replace(/\r\n/g, '\n').split('\n')
   const keyLabel = `${String(key || '').trim()}:`
@@ -278,6 +305,32 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
     }
   }
   const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
+  const isBaseTemplate = isBaseTemplateFrontmatter(parsed.frontmatter, fmKeys)
+  if (isBaseTemplate) {
+    for (const key of BASE_TEMPLATE_TIER_B_KEYS) {
+      const scalar = extractTopLevelYamlBlockScalar(parsed.frontmatter, key).trim()
+      if (!scalar) {
+        return {
+          ruleId: 'V-03',
+          message: `Base-template frontmatter key "${key}" must be non-empty.`,
+        }
+      }
+    }
+    for (const ref of refs) {
+      const idxColon = ref.indexOf(':')
+      const idxPipe = ref.indexOf('|')
+      const cut = [idxColon, idxPipe].filter(i => i >= 0).sort((a, b) => a - b)[0]
+      const key = cut != null ? ref.slice(0, cut).trim() : ref
+      if (!key) continue
+      if (!fmKeys.has(key)) {
+        return {
+          ruleId: 'V-03',
+          message: `Body variable {{${key}}} is not declared in YAML frontmatter.`,
+        }
+      }
+    }
+    return null
+  }
   for (const scalarKey of ['subject', 'action', 'goal', 'solution'] as const) {
     const scalar = extractTopLevelYamlBlockScalar(parsed.frontmatter, scalarKey).trim()
     if (!scalar) {
@@ -386,6 +439,8 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
 
 const validateVariableRefsResolvable = (md: string, vars: Set<string>): ChatMarkdownValidationError | null => {
   const text = String(md || '')
+  const isBaseTemplate = isBaseTemplateMarkdown(md)
+  const baseSentinelKeys = new Set<string>(BASE_TEMPLATE_TIER_B_KEYS)
   const rx = /\{\{([^}]+)\}\}/g
   let m: RegExpExecArray | null
   while ((m = rx.exec(text))) {
@@ -397,6 +452,7 @@ const validateVariableRefsResolvable = (md: string, vars: Set<string>): ChatMark
     const key = cut != null ? inner.slice(0, cut).trim() : inner
     if (!key) continue
     if (!vars.has(key)) {
+      if (isBaseTemplate && baseSentinelKeys.has(key)) continue
       return {
         ruleId: 'V-03',
         message: `Unresolved variable reference: {{${key}}}. Declare it in frontmatter/context or inline as {{${key}:value}}.`,

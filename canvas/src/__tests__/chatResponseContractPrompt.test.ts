@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { CHAT_KGC_RESPONSE_CONTRACT_PROMPT, CHAT_RESPONSE_CONTRACT_PROMPT, CHAT_RESPONSE_PARAMETER_KEYS } from '@/features/chat/chatResponseContract'
+import {
+  CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT,
+  CHAT_BASE_RESPONSE_CONTRACT_PROMPT,
+  CHAT_RESPONSE_BASE_PARAMETER_KEYS_GENERIC,
+} from '@/features/chat/chatResponseBaseContract'
 import { buildResolvableVarKeySet, validateChatMarkdown } from '@/features/chat/chatMarkdownValidation'
 import { buildKgcStructuredTurn, buildKgcWorkspaceDocument, isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/features/chat/chatHistoryWorkspace'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
@@ -10,16 +14,30 @@ const readComputingFlowSample = (): string => {
   return readFileSync(p, 'utf8')
 }
 
+const readBaseTemplateSample = (): string => {
+  const p = resolve(
+    process.cwd(),
+    '..',
+    '..',
+    'huijoohwee.github.io',
+    'docs',
+    'kgc-ai-pipeline-chat-response-base-template.md',
+  )
+  return readFileSync(p, 'utf8')
+}
+
 export function testChatResponseContractPromptIncludesMarkdownGuidelineAndSurfaceKeys() {
-  const prompt = CHAT_RESPONSE_CONTRACT_PROMPT
+  const prompt = CHAT_BASE_RESPONSE_CONTRACT_PROMPT
 
   const requiredSnippets = [
     'markdown syntax guidelines',
     'Flow Editor (2D), Multi-dimensional Table, and Kanban',
-    '`@node:*`, `@edge:*`, and `{{variable}}`',
-    'ONE fenced `yaml` block with root key `response:`',
+    '@edge:src:handle→tgt:handle',
+    'ONE fenced yaml block with',
+    'root key response:',
+    'Tier B keys: product, domain, subject, objective, artifact, owner, version, status.',
     'Never leave empty cells.',
-    '`TBD` (unknown) or `—` (not applicable)',
+    'TBD (unknown) or — (not applicable)',
   ]
   requiredSnippets.forEach(snippet => {
     if (!prompt.includes(snippet)) {
@@ -27,7 +45,7 @@ export function testChatResponseContractPromptIncludesMarkdownGuidelineAndSurfac
     }
   })
 
-  CHAT_RESPONSE_PARAMETER_KEYS.forEach(key => {
+  CHAT_RESPONSE_BASE_PARAMETER_KEYS_GENERIC.forEach(key => {
     if (!prompt.includes(`\`${key}\``)) {
       throw new Error(`Expected chat response contract prompt to include response key: ${key}`)
     }
@@ -36,7 +54,7 @@ export function testChatResponseContractPromptIncludesMarkdownGuidelineAndSurfac
 
 export function testChatResponseContractPromptStaysCompatibleWithComputingFlowSample() {
   const sample = readComputingFlowSample()
-  const prompt = CHAT_RESPONSE_CONTRACT_PROMPT
+  const prompt = CHAT_BASE_RESPONSE_CONTRACT_PROMPT
 
   const sampleSnippets = ['flow:', '@node:', '@edge:', '{{subject}}', 'TBD']
   sampleSnippets.forEach(snippet => {
@@ -45,7 +63,7 @@ export function testChatResponseContractPromptStaysCompatibleWithComputingFlowSa
     }
   })
 
-  const promptSnippets = ['flow blocks', '@node:*', '@edge:*', '`{{variable}}`', '`TBD`', '`—`']
+  const promptSnippets = ['flow blocks', '@node:*', '@edge:src:handle→tgt:handle', 'Tier B sentinels excepted', 'TBD (unknown)', 'not applicable']
   promptSnippets.forEach(snippet => {
     if (!prompt.includes(snippet)) {
       throw new Error(`Expected chat response contract prompt to cover sample-compatible token: ${snippet}`)
@@ -54,28 +72,36 @@ export function testChatResponseContractPromptStaysCompatibleWithComputingFlowSa
 }
 
 export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
-  const prompt = CHAT_KGC_RESPONSE_CONTRACT_PROMPT
+  const prompt = CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT
+  const template = readBaseTemplateSample()
   const requiredSnippets = [
-    'exactly ONE fenced block with language tag `kgc`',
-    'standalone parseable markdown document',
-    'structured `kgc` block is the only persisted contract',
-    'The `kgc` block MUST start with `---`',
-    '`# ── DOCUMENT IDENTITY ──` then a `doc:` mapping',
-    '`# ── VARIABLES (type `@` to open CRUD toolbar) ──`',
-    'do not add `request_md` / `solution_md` keys',
-    '`# ── NODES ──`',
-    '`# ── EDGES ──`',
-    '`# ── FLOW EDITOR (interactive + computable) ──`',
-    'include at least 2 flow nodes and 1 flow edge',
-    '`TBD` or `—`',
-    'Variable references must follow guideline syntax',
-    'Annotation sigils, when used, must follow guideline-safe forms',
-    'full useful answer, not a one-line summary or placeholder',
-    'Never include fenced code blocks inside the `kgc` document',
+    'kgc-ai-pipeline-chat-response-base-template.md',
+    'pipeline[*].node MUST match flow.nodes[*].id',
+    'IDs EXACTLY — this triple-linkage is the machine-readable contract.',
+    'Node IDs other than the five canonical in the base template:',
+    'n-trigger, n-pack, n-process, n-validate, n-deliver',
+    'BASE TEMPLATE EXCEPTION: Tier B domain identity keys',
+    'V-07  Confidence enum: values must be exactly low, medium, or high.',
+    'position: on any flow: node (auto-layout owns placement)',
+    'Missing ## Customization Guide section in any base template output',
   ]
   requiredSnippets.forEach(snippet => {
     if (!prompt.includes(snippet)) {
       throw new Error(`Expected KGC response contract prompt to include: ${snippet}`)
+    }
+  })
+
+  const templateSnippets = [
+    'runtime:',
+    'pipeline:',
+    'mermaid: |',
+    'flow:',
+    '## Customization Guide',
+    '@edge:n-validate:correction→n-process:correction',
+  ]
+  templateSnippets.forEach(snippet => {
+    if (!template.includes(snippet)) {
+      throw new Error(`Expected base template fixture to include snippet: ${snippet}`)
     }
   })
 }

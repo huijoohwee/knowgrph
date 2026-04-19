@@ -250,7 +250,6 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
     if (d.length > 0) return d
     return g
   }
-
   const upsert = (entry: Omit<NodeQuickEditorRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null }) => {
     const state = get()
     const prev = state.nodeQuickEditorRegistry || []

@@ -3,11 +3,9 @@ import MainPanelFrame from '@/features/panels/ui/MainPanelFrame'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelSettingsHeader from '@/features/panels/ui/MainPanelSettingsHeader'
-import MainPanelWorkflowHeader from '@/features/panels/ui/MainPanelWorkflowHeader'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { BarChart3, HelpCircle, MonitorPlay, Settings, Workflow, History as HistoryIcon, Table, Plug } from 'lucide-react'
-import { GraphFieldsIcon } from '@/features/graph-fields/ui/graphFieldIcons'
+import { BarChart3, HelpCircle, MonitorPlay, Settings, History as HistoryIcon, Table, Plug } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
@@ -15,10 +13,8 @@ import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
 type MainPanelTab =
   | 'integrations'
-  | 'workflow'
-  | 'flowEditorManager'
+  | 'workflowManager'
   | 'help'
-  | 'graphFields'
   | 'dashboard'
   | 'preview'
   | 'settings'
@@ -27,10 +23,8 @@ type MainPanelTab =
 function isMainPanelTab(key: string): key is MainPanelTab {
   return (
     key === 'integrations' ||
-    key === 'workflow' ||
-    key === 'flowEditorManager' ||
+    key === 'workflowManager' ||
     key === 'help' ||
-    key === 'graphFields' ||
     key === 'dashboard' ||
     key === 'preview' ||
     key === 'settings' ||
@@ -40,18 +34,14 @@ function isMainPanelTab(key: string): key is MainPanelTab {
 
 const SEARCHABLE_MAIN_PANEL_TABS = new Set<MainPanelTab>([
   'help',
-  'graphFields',
   'settings',
-  'workflow',
   'history',
-  'flowEditorManager',
+  'workflowManager',
 ])
 
 const MAIN_PANEL_TABS: Array<{ key: MainPanelTab; label: string }> = [
   { key: 'integrations', label: UI_LABELS.integrations },
-  { key: 'workflow', label: UI_LABELS.workflowManager },
-  { key: 'flowEditorManager', label: UI_LABELS.flowEditorManager },
-  { key: 'graphFields', label: UI_LABELS.graphFields },
+  { key: 'workflowManager', label: UI_LABELS.workflowManager },
   { key: 'dashboard', label: UI_LABELS.dashboard },
   { key: 'preview', label: UI_LABELS.previewPanel },
   { key: 'settings', label: UI_LABELS.settings },
@@ -61,17 +51,14 @@ const MAIN_PANEL_TABS: Array<{ key: MainPanelTab; label: string }> = [
 
 const MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB: Partial<Record<MainPanelTab, string>> = {
   help: UI_COPY.searchShortcutsPlaceholder,
-  graphFields: UI_COPY.searchFieldsPlaceholder,
   settings: UI_COPY.searchSettingsPlaceholder,
   history: UI_LABELS.search,
-  workflow: UI_LABELS.search,
-  flowEditorManager: UI_COPY.searchFlowEditorManagerRegistryPlaceholder,
+  workflowManager: UI_COPY.searchFlowEditorManagerRegistryPlaceholder,
 }
 
-const MAIN_PANEL_FOOTER_LABEL_BY_TAB: Record<Exclude<MainPanelTab, 'graphFields'>, string> = {
+const MAIN_PANEL_FOOTER_LABEL_BY_TAB: Record<MainPanelTab, string> = {
   integrations: UI_LABELS.integrations,
-  workflow: UI_LABELS.ragGraphRAGWorkflow,
-  flowEditorManager: UI_LABELS.flowEditorManager,
+  workflowManager: UI_LABELS.workflowManager,
   help: UI_LABELS.help,
   dashboard: UI_LABELS.dashboard,
   preview: UI_LABELS.previewPanel,
@@ -83,13 +70,11 @@ const mainPanelTabSupportsSearch = (tab: MainPanelTab): boolean => SEARCHABLE_MA
 
 const IntegrationsHubViewLazy = React.lazy(() => import('./views/IntegrationsHubView'))
 const FlowEditorManagerViewLazy = React.lazy(() => import('@/features/panels/views/FlowEditorManagerView'))
-const GraphFieldsViewLazy = React.lazy(() => import('@/features/panels/views/GraphFieldsView'))
 const PreviewPanelViewLazy = React.lazy(() => import('./views/PreviewPanelView'))
 const SettingsViewLazy = React.lazy(() => import('@/features/panels/views/SettingsView'))
 const HistoryViewLazy = React.lazy(() => import('@/features/panels/views/HistoryView'))
 const HelpViewLazy = React.lazy(() => import('@/features/panels/views/HelpView'))
 const DashboardViewLazy = React.lazy(() => import('@/features/panels/views/DashboardView'))
-const WorkflowSectionLazy = React.lazy(() => import('@/features/panels/views/WorkflowSection'))
 
 export default function MainPanel({
   onClose,
@@ -115,7 +100,6 @@ export default function MainPanel({
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
   const [tab, setTab] = React.useState<MainPanelTab>('help')
-  const [graphFieldsStatus, setGraphFieldsStatus] = React.useState<string>(UI_COPY.noGraphLoaded)
   const [settingsActions, setSettingsActions] = React.useState<{
     apply?: () => void
     reset?: () => void
@@ -125,30 +109,21 @@ export default function MainPanel({
     allCollapsed?: boolean
   }>({ allCollapsed: true })
 
-  const [flowEditorManagerActions, setFlowEditorManagerActions] = React.useState<{
+  const [workflowManagerActions, setWorkflowManagerActions] = React.useState<{
     apply?: () => void
     reset?: () => void
     applyDisabled?: boolean
     resetDisabled?: boolean
   }>({ applyDisabled: true, resetDisabled: true })
 
-  const [workflowActions, setWorkflowActions] = React.useState<{
-    collapseAll?: () => void
-    expandAll?: () => void
-    allCollapsed?: boolean
-  }>({ allCollapsed: true })
-
   const panelTypography = usePanelTypography()
-  const setGraphFieldsStatusStable = React.useCallback((next: string) => {
-    setGraphFieldsStatus(prev => (prev === next ? prev : next))
-  }, [])
-  const setFlowEditorManagerActionsStable = React.useCallback((next: {
+  const setWorkflowManagerActionsStable = React.useCallback((next: {
     apply?: () => void
     reset?: () => void
     applyDisabled?: boolean
     resetDisabled?: boolean
   }) => {
-    setFlowEditorManagerActions(prev => {
+    setWorkflowManagerActions(prev => {
       const same =
         prev.apply === next.apply &&
         prev.reset === next.reset &&
@@ -163,7 +138,7 @@ export default function MainPanel({
   const graphData = useActiveGraphData()
   const searchVisible = searchOpen && mainPanelTabSupportsSearch(tab)
   const searchPlaceholder = MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB[tab] || UI_LABELS.search
-  const footerLabel = tab === 'graphFields' ? graphFieldsStatus : MAIN_PANEL_FOOTER_LABEL_BY_TAB[tab]
+  const footerLabel = MAIN_PANEL_FOOTER_LABEL_BY_TAB[tab]
 
   const traversalChip = React.useMemo(() => {
     const summary = lastTraversalSummary
@@ -219,23 +194,7 @@ export default function MainPanel({
       tabVariant="icon"
       tabIconByKey={{
         integrations: Plug,
-        workflow: Workflow,
-        flowEditorManager: Table,
-        graphFields: ({ className, strokeWidth }) => {
-          const resolvedStrokeWidth =
-            typeof strokeWidth === 'number'
-              ? strokeWidth
-              : typeof strokeWidth === 'string'
-                ? Number(strokeWidth)
-              : undefined
-
-          return (
-            <GraphFieldsIcon
-              className={className}
-              strokeWidth={Number.isFinite(resolvedStrokeWidth) ? resolvedStrokeWidth : 2}
-            />
-          )
-        },
+        workflowManager: Table,
         dashboard: BarChart3,
         preview: MonitorPlay,
         settings: Settings,
@@ -263,30 +222,30 @@ export default function MainPanel({
           onApply={
             tab === 'settings'
               ? settingsActions.apply
-              : tab === 'flowEditorManager'
-                ? flowEditorManagerActions.apply
+              : tab === 'workflowManager'
+                ? workflowManagerActions.apply
                 : undefined
           }
           onReset={
             tab === 'settings'
               ? settingsActions.reset
-              : tab === 'flowEditorManager'
-                ? flowEditorManagerActions.reset
+              : tab === 'workflowManager'
+                ? workflowManagerActions.reset
                 : undefined
           }
           onClose={onClose}
           applyDisabled={
             tab === 'settings'
               ? !settingsActions.apply
-              : tab === 'flowEditorManager'
-                ? flowEditorManagerActions.applyDisabled
+              : tab === 'workflowManager'
+                ? workflowManagerActions.applyDisabled
                 : true
           }
           resetDisabled={
             tab === 'settings'
               ? !settingsActions.reset
-              : tab === 'flowEditorManager'
-                ? flowEditorManagerActions.resetDisabled
+              : tab === 'workflowManager'
+                ? workflowManagerActions.resetDisabled
                 : true
           }
         />
@@ -326,37 +285,16 @@ export default function MainPanel({
             </React.Suspense>
           )}
         </section>
-        <section className="h-full min-h-0" role="tabpanel" id="main-panel-workflow-panel" aria-labelledby="main-panel-workflow-tab" hidden={tab !== 'workflow'}>
-          {tab === 'workflow' && (
-            <MainPanelBody header={<MainPanelWorkflowHeader workflowActions={workflowActions} />}>
-              <section
-                className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.primary} ${panelTypography.panelTextClass}`}
-                data-kg-anchor={UI_ANCHORS.workflowPanel}
-              >
-                <React.Suspense fallback={null}>
-                  <WorkflowSectionLazy searchQuery={search} onRegisterActions={setWorkflowActions} />
-                </React.Suspense>
-              </section>
-            </MainPanelBody>
-          )}
-        </section>
         <section
           className="h-full min-h-0"
           role="tabpanel"
-          id="main-panel-flowEditorManager-panel"
-          aria-labelledby="main-panel-flowEditorManager-tab"
-          hidden={tab !== 'flowEditorManager'}
+          id="main-panel-workflowManager-panel"
+          aria-labelledby="main-panel-workflowManager-tab"
+          hidden={tab !== 'workflowManager'}
         >
-          {tab === 'flowEditorManager' && (
+          {tab === 'workflowManager' && (
             <React.Suspense fallback={null}>
-              <FlowEditorManagerViewLazy searchQuery={search} onRegisterActions={setFlowEditorManagerActionsStable} />
-            </React.Suspense>
-          )}
-        </section>
-        <section className="h-full min-h-0" role="tabpanel" id="main-panel-graphFields-panel" aria-labelledby="main-panel-graphFields-tab" hidden={tab !== 'graphFields'}>
-          {tab === 'graphFields' && (
-            <React.Suspense fallback={null}>
-              <GraphFieldsViewLazy onStatusChange={setGraphFieldsStatusStable} searchQuery={search} />
+              <FlowEditorManagerViewLazy searchQuery={search} onRegisterActions={setWorkflowManagerActionsStable} />
             </React.Suspense>
           )}
         </section>

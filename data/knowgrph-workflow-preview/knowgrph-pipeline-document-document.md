@@ -23,6 +23,7 @@
     - HackaMap Public Graph Contract (`hackamap-public-graph-contract`)
     - Markdown Workspace Import Stability (`markdown-workspace-import-stability`)
   - Runtime Canvas Pipeline (Import → Render) (`runtime-canvas-pipeline-import-render`)
+    - Guardrails: No Synthetic Render Data (`guardrails-no-synthetic-render-data`)
     - Happy Path Call Graphs (Functions Only) (`happy-path-call-graphs-functions-only`)
       - Journey 1: Import JSON/CSV → See Nodes On MapLibre (`journey-1-import-jsoncsv-see-nodes-on-maplibre`)
       - Journey 2: Click Map POI → Host Selects Node → Canvas + Map Highlight (`journey-2-click-map-poi-host-selects-node-canvas-map-highlight`)

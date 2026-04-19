@@ -64,7 +64,7 @@ function repairYamlInlineColonSpacing(raw: string): string {
       out.push(line)
       continue
     }
-    const m = /^(\s*[-]?\s*[A-Za-z0-9_.-]+):(["'].*)$/.exec(line)
+    const m = /^(\s*[-]?\s*[A-Za-z0-9_.-]+):([^\s].*)$/.exec(line)
     if (m) {
       out.push(`${m[1]}: ${m[2]}`)
       continue
@@ -293,6 +293,40 @@ function extractQuickEditorFieldSpecsFromFlowNode(rawNode: Record<string, unknow
   return out
 }
 
+function collectDeclaredFlowNodePropertyValues(args: {
+  rawNode: Record<string, unknown>
+  normalizedRawNode: Record<string, unknown>
+  vars: Record<string, unknown>
+  pathCache: Map<string, unknown>
+  declarationCache: Map<string, unknown>
+  resolvedStringCache: Map<string, string>
+}): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(args.rawNode)) {
+    const fieldName = asString(k)
+    if (!fieldName) continue
+    if (
+      fieldName === 'id' ||
+      fieldName === 'type' ||
+      fieldName === 'label' ||
+      fieldName === 'pos' ||
+      fieldName === 'position' ||
+      fieldName === 'handles' ||
+      fieldName === 'data' ||
+      fieldName === 'compute'
+    ) {
+      continue
+    }
+    const rawValue = isRecord(v) && Object.prototype.hasOwnProperty.call(v, 'value')
+      ? (v as Record<string, unknown>).value
+      : (args.normalizedRawNode as Record<string, unknown>)[fieldName]
+    const resolved = resolveTemplateValue(rawValue, args.vars, args.pathCache, args.declarationCache, args.resolvedStringCache)
+    if (typeof resolved === 'undefined') continue
+    out[fieldName] = resolved
+  }
+  return out
+}
+
 function getPathValue(
   source: Record<string, unknown>,
   path: string,
@@ -468,12 +502,12 @@ function sanitizeFlowNodeContract(args: {
 }
 
 function normalizeFlowNodeDataValue(value: unknown): unknown {
-  if (typeof value === 'undefined') return {}
+  if (typeof value === 'undefined') return undefined
   if (value === null) return null
   if (Array.isArray(value)) return value
   if (isRecord(value)) return value
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
-  return {}
+  return undefined
 }
 
 function readFlowWarnings(raw: string[]): string[] {
@@ -690,7 +724,22 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     const quickEditorFields = extractQuickEditorFieldSpecsFromFlowNode(rawNode as Record<string, unknown>)
     if (quickEditorFields.length > 0) baseProps[FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY] = quickEditorFields
     if (handles && Object.keys(handles).length > 0) baseProps[FRONTMATTER_FLOW_HANDLES_VALUE_KEY] = handles
+    const declaredProps = collectDeclaredFlowNodePropertyValues({
+      rawNode: rawNode as Record<string, unknown>,
+      normalizedRawNode,
+      vars,
+      pathCache,
+      declarationCache,
+      resolvedStringCache,
+    })
+    for (const [propKey, propValue] of Object.entries(declaredProps)) {
+      if (typeof baseProps[propKey] !== 'undefined') continue
+      baseProps[propKey] = propValue
+    }
 
+    const normalizedData = normalizeFlowNodeDataValue(
+      allowMixedHandles ? sanitizeChatKnowgrphNodeData(dataNormalized.value) : dataNormalized.value,
+    )
     const next: Record<string, unknown> = {
       id,
       type,
@@ -698,9 +747,7 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       ...(x != null || y != null ? { pos: { ...(x != null ? { x } : {}), ...(y != null ? { y } : {}) } } : {}),
       inputs: sanitized.inputs,
       outputs: sanitized.outputs,
-      data: normalizeFlowNodeDataValue(
-        allowMixedHandles ? sanitizeChatKnowgrphNodeData(dataNormalized.value) : dataNormalized.value,
-      ),
+      ...(typeof normalizedData !== 'undefined' ? { data: normalizedData } : {}),
     }
     if (sanitized.compute) next.compute = sanitized.compute
     if (dataNormalized.hasPending) {

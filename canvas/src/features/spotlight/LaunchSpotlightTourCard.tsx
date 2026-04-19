@@ -56,7 +56,7 @@ export function LaunchSpotlightTourCard({
     const currentStep = steps[idx]
     if (currentStep.id === 1) {
       try {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflow' } }))
+        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflowManager' } }))
       } catch {
         void 0
       }
@@ -68,7 +68,7 @@ export function LaunchSpotlightTourCard({
       }
     } else if (currentStep.id === 3) {
       try {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflow' } }))
+        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflowManager' } }))
       } catch {
         void 0
       }

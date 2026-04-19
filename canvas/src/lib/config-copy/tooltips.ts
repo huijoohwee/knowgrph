@@ -429,7 +429,7 @@ export const IGNORE_CODEBASE_PATHS_TOOLTIP =
   'Ignore codebase paths \u2192 exclude selected files and directories from AgenticRAG indexing and traversal \u2192 keep GraphRAG workflows focused on relevant code while avoiding noisy or generated artifacts.';
 
 export const GRAPH_FIELDS_ICON_LEGEND_TOOLTIP = buildRoleActionOutcomeTooltip({
-  role: 'Graph Fields icon legend',
+  role: 'Help Icon Library legend',
   actions: [
     'align scope, origin, visibility, and field-type badges with AgenticRAG-style node and edge properties',
   ],
@@ -440,7 +440,7 @@ export const GRAPH_FIELDS_ICON_LEGEND_TOOLTIP = buildRoleActionOutcomeTooltip({
 export const WORKFLOW_LINKS_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Workflow links',
   actions: [
-    'jump into Workflow and Graph Fields tabs mapped to the 8-stage GraphRAG pipeline',
+    'jump into Workflow Manager sections mapped to the 8-stage GraphRAG pipeline, including embedded Graph Fields',
   ],
   outcome:
     'keep Schema, Curation, Index, and Agentic reasoning steps aligned with AgenticRAG JSON-LD exports.',

@@ -177,6 +177,69 @@ export function testMarkdownFrontmatterFlowGraphParsesInlineEnvelopeBlockScalarB
   if (String(props['flow:compute']).includes('})}')) throw new Error('expected trailing brace to be repaired out of compute')
 }
 
+export function testMarkdownFrontmatterFlowGraphParsesNoSpaceEnvelopeObjectKeysForQuickEditorVisibility() {
+  const md = [
+    '---',
+    'flow:',
+    '  nodes:',
+    '    - id:           {key: id,           type: string,  value: "n-canvas"}',
+    '      type:         {key: type,         type: string,  value: "input"}',
+    '      label:        {key: label,        type: string,  value: "S01"}',
+    '      handles:      {key: handles,      type: object,  value: {source: [signal]}}',
+    '      applies_rules:{key: applies_rules,type: array,   value: []}',
+    '      compute:      {key: compute,      type: function, value: |',
+    '        (inputs) => ({ signal: inputs.x ?? null })',
+    '      }',
+    '    - id:           {key: id,           type: string,  value: "n-pack"}',
+    '      type:         {key: type,         type: string,  value: "default"}',
+    '      label:        {key: label,        type: string,  value: "S02"}',
+    '      handles:      {key: handles,      type: object,  value: {target: [signal], source: [context]}}',
+    '      applies_rules:{key: applies_rules,type: array,   value: []}',
+    '      compute:      {key: compute,      type: function, value: |',
+    '        (inputs) => ({ context: inputs.signal ?? null })',
+    '      }',
+    '  edges:',
+    '    - {id: e1, source: n-canvas, sourceHandle: signal, target: n-pack, targetHandle: signal}',
+    '---',
+    '',
+    '# body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('kgc-no-space-envelope.md', md)
+  if (!res) throw new Error('expected parse result for no-space envelope keys')
+  const g = res.graphData
+  if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+  if ((g.nodes || []).length !== 2) throw new Error(`expected 2 nodes, got ${(g.nodes || []).length}`)
+  if ((g.edges || []).length !== 1) throw new Error(`expected 1 edge, got ${(g.edges || []).length}`)
+
+  const nodeIds = new Set((g.nodes || []).map(n => String(n.id || '').trim()).filter(Boolean))
+  if (!nodeIds.has('n-canvas') || !nodeIds.has('n-pack')) {
+    throw new Error(`expected parsed node ids n-canvas,n-pack, got ${Array.from(nodeIds).join(',')}`)
+  }
+
+  const quickEditorForms = (g.nodes || [])
+    .map(n => String(((n.properties || {}) as Record<string, unknown>)['flow:quickEditorFormId'] || '').trim())
+    .filter(Boolean)
+    .sort()
+  if (quickEditorForms.join(',') !== 'fm:n-canvas,fm:n-pack') {
+    throw new Error(`expected node-scoped quick-editor forms, got ${quickEditorForms.join(',')}`)
+  }
+
+  const canvasNode = (g.nodes || []).find(n => String(n.id || '').trim() === 'n-canvas')
+  if (!canvasNode) throw new Error('expected n-canvas node')
+  const canvasProps = (canvasNode.properties || {}) as Record<string, unknown>
+  if (String(canvasProps.phase || '') !== 'emit') throw new Error('expected declared phase to persist in node properties')
+  const actor = canvasProps.actor
+  if (!Array.isArray(actor) || actor.length !== 2) throw new Error('expected declared actor array to persist in node properties')
+  const appliesRules = canvasProps.applies_rules
+  if (!Array.isArray(appliesRules)) throw new Error('expected declared applies_rules to persist in node properties')
+  if (String(canvasProps.db_writes || '') !== 'flow_nodes') throw new Error('expected declared db_writes to persist in node properties')
+  if (String(canvasProps.retry_arc || '') !== '—') throw new Error('expected declared retry_arc to persist in node properties')
+  if (String(canvasProps.confidence || '') !== 'high') throw new Error('expected declared confidence to persist in node properties')
+  if (String(canvasProps.status || '') !== 'TBD') throw new Error('expected declared status to persist in node properties')
+  if (String(canvasProps.kanban || '') !== 'done') throw new Error('expected declared kanban to persist in node properties')
+}
+
 export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeIdsAndPorts() {
   const md = [
     '---',
@@ -1715,6 +1778,15 @@ function readMarkdownSyntaxComputingFlowRfSamplePath(): string {
   return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-rf-sample.md')
 }
 
+function readKgcAiPipelinePrdTadPath(): string {
+  const envPath = typeof process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH === 'string'
+    ? process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  const cwd = process.cwd()
+  return path.resolve(cwd, '..', '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-prd-tad.md')
+}
+
 export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingFlowSample() {
   const samplePath = readMarkdownSyntaxComputingFlowSamplePath()
   if (!samplePath || !fs.existsSync(samplePath)) return
@@ -1781,6 +1853,46 @@ export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingF
 
   const flowWarnings = res.warnings.filter(w => w.includes('Flow node contract violation') || w.includes('Flow node compute rejected as unsafe'))
   if (flowWarnings.length > 0) throw new Error(`expected no flow contract warnings for sample, got: ${flowWarnings.join(' | ')}`)
+}
+
+export function testMarkdownFrontmatterFlowGraphFidelityKgcAiPipelinePrdTadTopLevelSections() {
+  const samplePath = readKgcAiPipelinePrdTadPath()
+  if (!samplePath || !fs.existsSync(samplePath)) return
+  const md = fs.readFileSync(samplePath, 'utf8')
+  const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)
+  if (!res) throw new Error('expected KGC pipeline PRD/TAD frontmatter parse result')
+  const g = res.graphData
+  if (String(g.context || '').trim() !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+  if (!Array.isArray(g.nodes) || g.nodes.length !== 5) throw new Error(`expected 5 flow nodes, got ${g.nodes.length}`)
+  if (!Array.isArray(g.edges) || g.edges.length !== 5) throw new Error(`expected 5 flow edges, got ${g.edges.length}`)
+
+  const meta = (g.metadata || {}) as Record<string, unknown>
+  const frontmatterMeta = (meta.frontmatterMeta || null) as Record<string, unknown> | null
+  if (!frontmatterMeta || typeof frontmatterMeta !== 'object') throw new Error('expected metadata.frontmatterMeta for top-level frontmatter sections')
+
+  if (String(frontmatterMeta.product || '') !== '{{product}}') throw new Error('expected Tier B placeholder product in frontmatterMeta')
+  if (String(frontmatterMeta.subject || '') !== '{{subject}}') throw new Error('expected Tier B placeholder subject in frontmatterMeta')
+  const runtime = (frontmatterMeta.runtime || null) as Record<string, unknown> | null
+  if (!runtime || typeof runtime !== 'object') throw new Error('expected runtime block in frontmatterMeta')
+  const runtimeEntry = (runtime.entry || null) as Record<string, unknown> | null
+  const runtimeExit = (runtime.exit || null) as Record<string, unknown> | null
+  if (String(runtimeEntry?.value || '') !== 'n-trigger') throw new Error('expected runtime.entry.value=n-trigger')
+  if (String(runtimeExit?.value || '') !== 'n-deliver') throw new Error('expected runtime.exit.value=n-deliver')
+
+  const pipeline = Array.isArray(frontmatterMeta.pipeline) ? frontmatterMeta.pipeline as Array<Record<string, unknown>> : null
+  if (!pipeline || pipeline.length !== 5) throw new Error('expected 5 pipeline steps in frontmatterMeta')
+  if (String((pipeline[0] || {}).seq || '') !== 'S01' || String((pipeline[4] || {}).seq || '') !== 'S05') {
+    throw new Error('expected pipeline S01..S05 sequence in frontmatterMeta')
+  }
+
+  const mermaid = String(frontmatterMeta.mermaid || '')
+  if (!mermaid.includes('flowchart LR')) throw new Error('expected mermaid block preserved in frontmatterMeta')
+  const flow = (frontmatterMeta.flow || null) as Record<string, unknown> | null
+  if (!flow || typeof flow !== 'object') throw new Error('expected flow block in frontmatterMeta')
+  const flowNodes = Array.isArray(flow.nodes) ? flow.nodes : []
+  if (flowNodes.length !== 5) throw new Error(`expected 5 flow.nodes in frontmatterMeta, got ${flowNodes.length}`)
+  const flowEdges = Array.isArray(flow.edges) ? flow.edges : []
+  if (flowEdges.length !== 5) throw new Error(`expected 5 flow.edges in frontmatterMeta, got ${flowEdges.length}`)
 }
 
 export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingFlowRfSample() {

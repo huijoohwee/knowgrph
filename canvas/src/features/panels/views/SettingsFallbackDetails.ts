@@ -27,7 +27,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   uiIconScale: {
     area: 'UI Density: Icons',
     responsibility: 'Global icon scale (toolbar, panels, bottom panel)',
-    notes: 'Options: compact (smaller icons, denser UI) or default (larger icons, more spacious). Applied via getIconSizeClass across HeaderActions, Toolbar, SearchPanel, History panels, Launch Spotlight status, Help/Workflow headers, Graph Fields icon legend, and bottom panel toolbars.',
+    notes: 'Options: compact (smaller icons, denser UI) or default (larger icons, more spacious). Applied via getIconSizeClass across HeaderActions, Toolbar, SearchPanel, History panels, Launch Spotlight status, Help/Workflow headers, Help Icon Library legend, and bottom panel toolbars.',
   },
   uiIconFormat: {
     area: 'UI Density: Icons',

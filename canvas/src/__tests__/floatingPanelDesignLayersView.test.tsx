@@ -36,7 +36,7 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
         toolMenuCardRef={{ current: null }}
         toolMenuCardStyle={{ top: 0, left: 0 }}
         onHeaderPointerDown={() => void 0}
-        requestedFloatingPanelView="designLayers"
+        requestedFloatingPanelView="propsPanel"
         requestedFloatingPanelViewSeq={1}
         onClose={() => void 0}
       />,
@@ -52,8 +52,8 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
     if (labels[0] !== UI_LABELS.propsPanel) {
       throw new Error(`expected first floating panel view to be ${UI_LABELS.propsPanel}, got ${labels[0]}`)
     }
-    if (labels[1] !== UI_LABELS.layerMode) {
-      throw new Error(`expected second floating panel view to be ${UI_LABELS.layerMode}, got ${labels[1]}`)
+    if (labels.includes(UI_LABELS.layerMode)) {
+      throw new Error(`expected floating panel views to exclude ${UI_LABELS.layerMode} after Workflow Manager consolidation`)
     }
 
     let designLayers: HTMLElement | null = null
@@ -63,10 +63,8 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
       if (designLayers) break
     }
 
-    if (!designLayers) throw new Error('expected Design Layers view to render')
-    const tag = designLayers.tagName.toLowerCase()
-    if (tag !== 'div') {
-      throw new Error(`expected Design Layers root tag to be div in floating panel, got ${tag}`)
+    if (designLayers) {
+      throw new Error('expected Design Layers view to be removed from floating panel after Workflow Manager consolidation')
     }
 
     root.unmount()

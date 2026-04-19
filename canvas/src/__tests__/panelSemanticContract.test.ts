@@ -111,7 +111,93 @@ export const testMainPanelLazyLoadsInactiveHeavyTabs = () => {
   if (!text.includes("const DashboardViewLazy = React.lazy(() => import('@/features/panels/views/DashboardView'))")) {
     throw new Error('Expected MainPanel to lazy-load DashboardView')
   }
-  if (!text.includes("const WorkflowSectionLazy = React.lazy(() => import('@/features/panels/views/WorkflowSection'))")) {
-    throw new Error('Expected MainPanel to lazy-load WorkflowSection')
+  if (text.includes("const WorkflowSectionLazy = React.lazy(() => import('@/features/panels/views/WorkflowSection'))")) {
+    throw new Error('Expected MainPanel to avoid legacy WorkflowSection lazy loading after consolidation into FlowEditorManager')
+  }
+}
+
+export const testWorkflowManagerReusesWorkspaceTableSsotForMultiDimView = () => {
+  const root = process.cwd()
+  const filePath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
+  const text = readUtf8(filePath)
+  if (!text.includes("from '@/features/workspace-table/workspaceTablePreferencesStore'")) {
+    throw new Error('Expected Workflow Manager to read workspace table mode from workspaceTablePreferencesStore SSOT')
+  }
+  if (!text.includes('workspaceEditorMode === \'multiDimTable\'')) {
+    throw new Error('Expected Workflow Manager to gate multi-dimensional table view by workspaceEditorMode SSOT')
+  }
+  if (!text.includes('<GraphTableWorkspace active />')) {
+    throw new Error('Expected Workflow Manager to render GraphTableWorkspace for multi-dimensional table mode')
+  }
+  if (text.includes('Legacy graph-manager controls are suppressed for frontmatter workflow processing.')) {
+    throw new Error('Expected Workflow Manager to remove dedicated workflow sections mode panel copy after Graph Fields consolidation')
+  }
+  if (text.includes('WorkflowManagerInspectorPanel')) {
+    throw new Error('Expected Workflow Manager to avoid dedicated inspector panel and reuse Graph Fields pane model')
+  }
+}
+
+export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsolidation = () => {
+  const root = process.cwd()
+  const filePath = path.resolve(root, 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const text = readUtf8(filePath)
+  if (text.includes("view: 'designLayers'")) {
+    throw new Error('Expected FloatingPanel to remove designLayers view after Workflow Manager consolidation')
+  }
+  if (text.includes("floatingPanelView === 'designLayers'")) {
+    throw new Error('Expected FloatingPanel to avoid rendering designLayers branch after consolidation')
+  }
+}
+
+export const testWorkflowManagerConsolidatedEntriesReuseGraphFieldsRightPane = () => {
+  const root = process.cwd()
+  const flowEditorGraphTabPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
+  const graphFieldsViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphFieldsView.tsx')
+  const graphTabText = readUtf8(flowEditorGraphTabPath)
+  const graphFieldsText = readUtf8(graphFieldsViewPath)
+
+  if (!graphTabText.includes('entryAliasLabels={WORKFLOW_ALIAS_LABELS}')) {
+    throw new Error('Expected Workflow Manager to pass consolidated workflow alias labels into GraphFieldsView')
+  }
+  if (!graphTabText.includes('entryOpenRequest={entryOpenRequest}')) {
+    throw new Error('Expected Workflow Manager to pass entry open requests into GraphFieldsView')
+  }
+  if (!graphFieldsText.includes('entryOpenRequest?:')) {
+    throw new Error('Expected GraphFieldsView to accept consolidated entry open requests')
+  }
+  if (!graphFieldsText.includes('setSelectedFieldId(target.id)')) {
+    throw new Error('Expected GraphFieldsView to open right-pane Field Settings by selecting a target field')
+  }
+  if (!graphFieldsText.includes('graphFields:entryOpen:')) {
+    throw new Error('Expected GraphFieldsView consolidated entry-open path to provide visible toast confirmation')
+  }
+  if (!graphFieldsText.includes('scrollIntoView')) {
+    throw new Error('Expected GraphFieldsView consolidated entry-open path to move focus toward right-pane Field Settings')
+  }
+}
+
+export const testWorkflowManagerNonWorkflowListsReuseGraphFieldsRightPane = () => {
+  const root = process.cwd()
+  const flowEditorGraphTabPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
+  const graphFieldsViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'GraphFieldsView.tsx')
+  const graphTabText = readUtf8(flowEditorGraphTabPath)
+  const graphFieldsText = readUtf8(graphFieldsViewPath)
+  if (!graphTabText.includes('aria-label="Graph Fields and Field Settings"')) {
+    throw new Error('Expected non-workflow Workflow Manager surface to include embedded Graph Fields right pane')
+  }
+  if (!graphTabText.includes('const GRAPH_FIELDS_ALIAS_LABELS = [')) {
+    throw new Error('Expected non-workflow Workflow Manager to define Graph Fields alias labels')
+  }
+  if (!graphTabText.includes("'Node'") || !graphTabText.includes("'Edges'") || !graphTabText.includes("'Clusters'") || !graphTabText.includes("'Renderer'") || !graphTabText.includes("'Layer Mode'")) {
+    throw new Error('Expected non-workflow alias list to cover Node/Edges/Clusters/Renderer/Layer Mode')
+  }
+  if (!graphTabText.includes('entryAliasLabels={GRAPH_FIELDS_ALIAS_LABELS}')) {
+    throw new Error('Expected non-workflow Workflow Manager to pass alias labels into GraphFieldsView')
+  }
+  if (!graphFieldsText.includes('aria-label="Graph Fields entry aliases"')) {
+    throw new Error('Expected GraphFieldsView to render alias buttons within Graph Fields surface')
+  }
+  if (!graphFieldsText.includes('onClick={() => onEntryAliasClick(label)}')) {
+    throw new Error('Expected GraphFieldsView alias clicks to route through the shared right-pane open handler')
   }
 }

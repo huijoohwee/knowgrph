@@ -104,6 +104,12 @@ export function testFrontmatterFlowQuickEditorFormShowsFlowContractAndOnlyShowsS
   if (!text.includes('flow:compute')) {
     throw new Error('expected frontmatter flow contract section to bind flow:compute')
   }
+  if (!text.includes('FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY')) {
+    throw new Error('expected frontmatter flow contract section to read declared quick-editor envelope fields metadata')
+  }
+  if (!text.includes('readObjectPathValue(properties as Record<string, unknown>, schemaPath)')) {
+    throw new Error('expected frontmatter flow contract section to render declared envelope field values by schema path')
+  }
   if (!text.includes('onPatchProperties({ data: parsed })')) {
     throw new Error('expected frontmatter flow contract section to parse and persist data json')
   }
@@ -225,6 +231,40 @@ export function testFrontmatterFlowContractFormatsHandlesAsKeyValuePathEntries()
   }
   if (!text.includes('readFlowHandleTypeLabel(\'out\')')) {
     throw new Error('expected handles.source type column to render out direction label')
+  }
+}
+
+export function testQuickEditorKvTableMaintainsFiveColumnLayoutAndValueContainment() {
+  const kvTablePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorKvTable.tsx')
+  const text = readFileSync(kvTablePath, 'utf8')
+  if (!text.includes("<col style={{ width: '29%' }} />")) {
+    throw new Error('expected KV table key column width contract')
+  }
+  if (!text.includes("<col style={{ width: '10%' }} />")) {
+    throw new Error('expected KV table type column width contract')
+  }
+  if (!text.includes("<col style={{ width: '59%' }} />")) {
+    throw new Error('expected KV table value column width contract')
+  }
+  if (!text.includes("className={cn('px-3 py-2 align-top overflow-hidden'")) {
+    throw new Error('expected KV table value column to enforce overflow containment')
+  }
+  if (!text.includes('<section className="w-full min-w-0">{row.valueNode}</section>')) {
+    throw new Error('expected KV table value node wrapper to enforce min-width alignment stability')
+  }
+}
+
+export function testQuickEditorKvTableKeepsDimRingPlaceholderDotsForNonEdgeRows() {
+  const kvTablePath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorKvTable.tsx')
+  const text = readFileSync(kvTablePath, 'utf8')
+  if (!text.includes('disabled')) {
+    throw new Error('expected placeholder dots to stay non-interactive for non-edge rows')
+  }
+  if (!text.includes("'opacity-50'")) {
+    throw new Error('expected placeholder dots to keep dim styling')
+  }
+  if (!text.includes('rounded-full border')) {
+    throw new Error('expected placeholder dots to keep ring style')
   }
 }
 

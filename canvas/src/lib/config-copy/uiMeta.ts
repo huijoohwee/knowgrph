@@ -74,7 +74,7 @@ export const UI_LABELS = {
   log: 'Log',
   help: 'Help',
   workflowManager: 'Workflow Manager',
-  flowEditorManager: 'Flow Editor Manager',
+  flowEditorManager: 'Workflow Manager',
   flowEditorMapping: 'Flow Editor Mapping',
   flowEditorSpecification: 'Flow Editor Specification',
   flowEditorGraph: 'Flow Editor Graph',

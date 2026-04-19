@@ -1,7 +1,5 @@
 import React from 'react'
 
-import { Braces, Code, Type as TypeIcon } from 'lucide-react'
-
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -15,9 +13,7 @@ import {
 } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { getIconSizeClass } from '@/lib/ui/icons'
 import { cn } from '@/lib/utils'
-import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
@@ -42,6 +38,9 @@ import type { GraphEdge } from '@/lib/graph/types'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 
+const FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY = 'frontmatter:quickEditorFields' as const
+const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
+
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
 }
@@ -60,6 +59,21 @@ function cleanDomIdPart(v: unknown): string {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function readObjectPathValue(root: Record<string, unknown>, schemaPathRaw: string): unknown {
+  const raw = String(schemaPathRaw || '').trim()
+  if (!raw) return undefined
+  const normalized = raw.startsWith('properties.') ? raw.slice('properties.'.length) : raw
+  if (Object.prototype.hasOwnProperty.call(root, normalized)) return root[normalized]
+  const parts = normalized.split('.').map(part => part.trim()).filter(Boolean)
+  if (parts.length === 0) return undefined
+  let cur: unknown = root
+  for (let i = 0; i < parts.length; i += 1) {
+    if (!isRecord(cur)) return undefined
+    cur = (cur as Record<string, unknown>)[parts[i]]
+  }
+  return cur
 }
 
 function parseHandleListInput(raw: string): string[] {
@@ -171,14 +185,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow' || (nodeFormId && nodeFormId.startsWith('fm:'))
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
 
-  const uiIconScale = useGraphStore(s => s.uiIconScale)
-  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
-  const typeIconSizeClass = React.useMemo(() => getIconSizeClass(uiIconScale), [uiIconScale])
-  const typeIconStrokeWidth = React.useMemo(() => {
-    const raw = typeof uiIconStrokeWidth === 'number' && Number.isFinite(uiIconStrokeWidth) ? uiIconStrokeWidth : 1.75
-    return Math.max(0.75, Math.min(3, raw))
-  }, [uiIconStrokeWidth])
-
   const flowEnvelopeValueBoxClass = React.useMemo(() => {
     return cn(
       keyValueInputClass,
@@ -192,31 +198,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     )
   }, [keyValueInputClass, monospaceTextClass, textSizeClass])
 
-  const kvTypeBoxClass = React.useMemo(() => {
-    return cn(
-      'w-full h-6',
-      'flex items-center justify-start',
-      'px-2',
-      textSizeClass,
-      UI_THEME_TOKENS.input.text,
-    )
-  }, [textSizeClass])
-
   const renderKvTypeBox = React.useCallback((value: string) => {
     const text = String(value || '').trim()
-    const Icon = text === 'object' ? Braces : text === 'function' ? Code : TypeIcon
-    return (
-      <section className={kvTypeBoxClass} aria-label={text || 'type'}>
-        <Icon
-          className={cn(typeIconSizeClass, UI_THEME_TOKENS.text.primary, 'block')}
-          strokeWidth={typeIconStrokeWidth}
-          aria-hidden={true}
-          color="var(--kg-text-primary)"
-          style={{ stroke: 'currentColor' }}
-        />
-      </section>
-    )
-  }, [kvTypeBoxClass, typeIconSizeClass, typeIconStrokeWidth])
+    if (!text) return null
+    return <NodeOverlayEditorTypePill text={text} />
+  }, [])
   const flowPortTypes = React.useMemo(() => {
     const raw = properties['flow:portTypes']
     if (!isRecord(raw)) return { target: [] as string[], source: [] as string[] }
@@ -374,7 +360,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     const formId = String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
     return formId === 'videoGeneration' || formId === 'nodeQuickEditor'
   }, [properties, registryEntry])
-  const showSmartMediaFields = !hideFields && !isFrontmatterFlow
+  const showSmartMediaFields = !hideFields && (!isFrontmatterFlow || hasSmartMediaSelection)
 
   const registryOptionIdsSig = React.useMemo(() => {
     return (registryOptions || []).map(e => String(e.id || '')).join('|')
@@ -785,29 +771,65 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                 )
               }
 
-              if (handlesRec) {
+              if (hasFlowTargetHandles || inKeys.length > 0) {
                 rows.push({
-                  rowKey: 'flow-envelope-handles',
-                  labelId: `${idBase}-kv-flow-envelope-handles`,
+                  rowKey: 'flow-handles-target',
+                  labelId: `${idBase}-kv-flow-handles-target`,
                   inPortNode: inKeys.length > 0
                     ? <section className="flex flex-col items-center gap-1">{inKeys.map(k => renderPortButton('in', k))}</section>
-                    : undefined,
-                  outPortNode: outKeys.length > 0
-                    ? <section className="flex flex-col items-center gap-1">{outKeys.map(k => renderPortButton('out', k))}</section>
-                    : undefined,
+                    : renderFlowContractDot({ dir: 'in', linked: false, portKey: '' }),
                   keyNode: (
-                    <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-envelope-handles`}>
-                      handles
+                    <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-handles-target`}>
+                      {readFlowHandlePath('in')}
                     </label>
                   ),
-                  typeNode: renderKvTypeBox('object'),
+                  typeNode: renderKvTypeBox(readFlowHandleTypeLabel('in')),
                   valueNode: (
                     <PlainTextInputEditor
-                      id={`${idBase}-flow-envelope-handles`}
-                      value={JSON.stringify(handlesRec, null, 2)}
+                      id={`${idBase}-flow-handles-target`}
+                      value={formatFlowHandlePathValue(flowHandleKeys.target)}
                       disabled
-                      multiline
-                      className={flowEnvelopeValueBoxClass}
+                      className={cn(
+                        keyValueInputClass,
+                        textSizeClass,
+                        'text-left',
+                        monospaceTextClass,
+                        UI_THEME_TOKENS.input.bg,
+                        UI_THEME_TOKENS.input.border,
+                        UI_THEME_TOKENS.input.text,
+                      )}
+                    />
+                  ),
+                })
+              }
+
+              if (hasFlowSourceHandles || outKeys.length > 0) {
+                rows.push({
+                  rowKey: 'flow-handles-source',
+                  labelId: `${idBase}-kv-flow-handles-source`,
+                  outPortNode: outKeys.length > 0
+                    ? <section className="flex flex-col items-center gap-1">{outKeys.map(k => renderPortButton('out', k))}</section>
+                    : renderFlowContractDot({ dir: 'out', linked: false, portKey: '' }),
+                  keyNode: (
+                    <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-handles-source`}>
+                      {readFlowHandlePath('out')}
+                    </label>
+                  ),
+                  typeNode: renderKvTypeBox(readFlowHandleTypeLabel('out')),
+                  valueNode: (
+                    <PlainTextInputEditor
+                      id={`${idBase}-flow-handles-source`}
+                      value={formatFlowHandlePathValue(flowHandleKeys.source)}
+                      disabled
+                      className={cn(
+                        keyValueInputClass,
+                        textSizeClass,
+                        'text-left',
+                        monospaceTextClass,
+                        UI_THEME_TOKENS.input.bg,
+                        UI_THEME_TOKENS.input.border,
+                        UI_THEME_TOKENS.input.text,
+                      )}
                     />
                   ),
                 })
@@ -851,6 +873,58 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                       value={flowCompute}
                       onChange={next => onPatchProperties({ 'flow:compute': next || undefined })}
                       disabled={!active}
+                      multiline
+                      className={flowEnvelopeValueBoxClass}
+                    />
+                  ),
+                })
+              }
+
+              const rawDeclaredFields = (properties as Record<string, unknown>)[FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY]
+              const declaredFields = Array.isArray(rawDeclaredFields) ? rawDeclaredFields : []
+              for (let fieldIndex = 0; fieldIndex < declaredFields.length; fieldIndex += 1) {
+                const spec = declaredFields[fieldIndex]
+                if (!spec || typeof spec !== 'object') continue
+                const rec = spec as Record<string, unknown>
+                const fieldKey = String(rec.fieldKey || '').trim()
+                const fieldType = String(rec.fieldType || '').trim() || 'unknown'
+                const schemaPath = String(rec.schemaPath || fieldKey).trim()
+                if (!fieldKey || !schemaPath) continue
+                if (
+                  schemaPath === FRONTMATTER_FLOW_HANDLES_VALUE_KEY ||
+                  schemaPath === 'flow:compute' ||
+                  schemaPath === 'data' ||
+                  fieldKey === 'handles' ||
+                  fieldKey === 'compute' ||
+                  fieldKey === 'data'
+                ) {
+                  continue
+                }
+                const rawValue = readObjectPathValue(properties as Record<string, unknown>, schemaPath)
+                if (typeof rawValue === 'undefined') continue
+                const valueText = typeof rawValue === 'string'
+                  ? rawValue
+                  : (() => {
+                      try {
+                        return JSON.stringify(rawValue, null, 2) || ''
+                      } catch {
+                        return String(rawValue)
+                      }
+                    })()
+                rows.push({
+                  rowKey: `flow-envelope-field-${fieldKey}-${fieldIndex}`,
+                  labelId: `${idBase}-kv-flow-envelope-field-${fieldIndex}`,
+                  keyNode: (
+                    <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-envelope-field-${fieldIndex}`}>
+                      {fieldKey}
+                    </label>
+                  ),
+                  typeNode: renderKvTypeBox(fieldType),
+                  valueNode: (
+                    <PlainTextInputEditor
+                      id={`${idBase}-flow-envelope-field-${fieldIndex}`}
+                      value={valueText}
+                      disabled
                       multiline
                       className={flowEnvelopeValueBoxClass}
                     />

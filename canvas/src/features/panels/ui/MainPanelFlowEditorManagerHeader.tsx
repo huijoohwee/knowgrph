@@ -8,13 +8,13 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getChatProviderLabel, getChatProviderRegionLabel } from '@/lib/chatEndpoint'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
-export type FlowEditorManagerTabKey = 'mapping' | 'specification' | 'graph'
+export type FlowEditorManagerTabKey = 'graph'
 
 export default function MainPanelFlowEditorManagerHeader(props: {
   activeTab: FlowEditorManagerTabKey
-  onTabChange: (tab: FlowEditorManagerTabKey) => void
+  workflowMode?: boolean
 }) {
-  const { activeTab, onTabChange } = props
+  const { workflowMode } = props
 
   const uiSectionHeaderRowHeightClass = useGraphStore(
     s => s.uiSectionHeaderRowHeightClass || 'min-h-[36px]',
@@ -53,6 +53,8 @@ export default function MainPanelFlowEditorManagerHeader(props: {
     )
   }, [])
 
+  const tabLabel = workflowMode ? 'Workflow' : UI_LABELS.flowEditorGraph
+
   return (
     <header
       className={[
@@ -60,7 +62,7 @@ export default function MainPanelFlowEditorManagerHeader(props: {
         uiSectionHeaderRowHeightClass,
         uiSectionHeaderRowPaddingClass,
       ].join(' ')}
-      aria-label={UI_LABELS.flowEditorManager}
+      aria-label={UI_LABELS.workflowManager}
     >
       <section
         className={[
@@ -70,68 +72,36 @@ export default function MainPanelFlowEditorManagerHeader(props: {
         aria-label="Title"
       >
         <Tooltip
-          content={UI_COPY.flowEditorManagerHeaderTooltip}
+          content={
+            workflowMode
+              ? 'Process frontmatter workflow sections from graph metadata with view-only toggles and upstream configuration updates.'
+              : UI_COPY.flowEditorManagerHeaderTooltip
+          }
           maxWidthPx={320}
           contentClassName={UI_THEME_TOKENS.tooltip.bg}
         >
-          <span>{UI_LABELS.flowEditorManager}</span>
+          <span>{UI_LABELS.workflowManager}</span>
         </Tooltip>
       </section>
 
       <section className="flex items-center gap-2">
-        <button
-          type="button"
-          className={`inline-flex items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}
-          onClick={openChatSettings}
-        >
-          {aiChatEnabled ? 'AI on' : 'AI off'}
-          {' · '}
-          {chatProviderLabel}
-          {' · '}
-          {chatRegionLabel}
-          {chatModel ? ` · ${chatModel}` : ''}
-        </button>
-        <nav className="flex items-center gap-1" aria-label="Flow Editor Manager tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'mapping'}
-          className={`App-toolbar__btn text-xs ${
-            activeTab === 'mapping'
-              ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
-              : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
-          }`}
-          onClick={() => onTabChange('mapping')}
-        >
-          {UI_LABELS.flowEditorMapping}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'specification'}
-          className={`App-toolbar__btn text-xs ${
-            activeTab === 'specification'
-              ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
-              : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
-          }`}
-          onClick={() => onTabChange('specification')}
-        >
-          {UI_LABELS.flowEditorSpecification}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'graph'}
-          className={`App-toolbar__btn text-xs ${
-            activeTab === 'graph'
-              ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`
-              : `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
-          }`}
-          onClick={() => onTabChange('graph')}
-        >
-          {UI_LABELS.flowEditorGraph}
-        </button>
-        </nav>
+        {!workflowMode ? (
+          <button
+            type="button"
+            className={`inline-flex items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}
+            onClick={openChatSettings}
+          >
+            {aiChatEnabled ? 'AI on' : 'AI off'}
+            {' · '}
+            {chatProviderLabel}
+            {' · '}
+            {chatRegionLabel}
+            {chatModel ? ` · ${chatModel}` : ''}
+          </button>
+        ) : null}
+        <section className={`inline-flex items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
+          {tabLabel}
+        </section>
       </section>
     </header>
   )

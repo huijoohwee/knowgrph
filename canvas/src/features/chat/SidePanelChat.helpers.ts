@@ -148,7 +148,20 @@ export const extractKgcBlockFromAssistantText = (
     if (matches.length > 2) break
   }
   if (matches.length !== 1) {
-    return { answer: text.trim(), kgc: null }
+    const trimmed = text.trim()
+    const looksLikeRawKgcDocument =
+      trimmed.startsWith('---') &&
+      (
+        trimmed.includes('# ── DOCUMENT IDENTITY') ||
+        (trimmed.includes('\nruntime:') &&
+          trimmed.includes('\npipeline:') &&
+          trimmed.includes('\nmermaid:') &&
+          trimmed.includes('\nflow:'))
+      )
+    if (looksLikeRawKgcDocument) {
+      return { answer: '', kgc: trimmed }
+    }
+    return { answer: trimmed, kgc: null }
   }
   const match = matches[0]
   const answer = text.replace(match.full, '').trim()

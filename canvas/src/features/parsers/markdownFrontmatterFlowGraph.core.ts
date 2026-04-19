@@ -106,6 +106,30 @@ function coerceFrontmatterScalar(raw: string): unknown {
   return value
 }
 
+function stripYamlInlineComment(raw: string): string {
+  const src = String(raw || '')
+  if (!src.includes('#')) return src
+  let inSingle = false
+  let inDouble = false
+  for (let i = 0; i < src.length; i += 1) {
+    const ch = src[i]
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle
+      continue
+    }
+    if (ch === '"' && !inSingle) {
+      const prev = i > 0 ? src[i - 1] : ''
+      if (prev !== '\\') inDouble = !inDouble
+      continue
+    }
+    if (ch === '#' && !inSingle && !inDouble) {
+      const prev = i > 0 ? src[i - 1] : ''
+      if (!prev || /\s/.test(prev)) return src.slice(0, i).trimEnd()
+    }
+  }
+  return src
+}
+
 function readFrontmatterScalarFallback(args: {
   lines: string[]
   frontmatterStartLine: number
@@ -124,12 +148,101 @@ function readFrontmatterScalarFallback(args: {
     if (!m) continue
     const key = asString(m[1])
     if (!key || Object.prototype.hasOwnProperty.call(out, key)) continue
-    const rawValue = String(m[2] || '')
+    const rawValue = stripYamlInlineComment(String(m[2] || ''))
     const value = rawValue.trim()
     if (!value || value === '|' || value === '>') continue
     out[key] = coerceFrontmatterScalar(value)
   }
   return out
+}
+
+function buildSourceFrontmatterMeta(meta: Record<string, unknown>): Record<string, unknown> | null {
+  if (!isRecord(meta)) return null
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(meta)) {
+    const k = asString(key)
+    if (!k) continue
+    if (k === 'nodes' || k === 'connections' || k === 'socket_types') continue
+    if (k === 'frontmatterFlowSettings' || k === 'frontmatterFlowWarnings') continue
+    if (k === 'frontmatter:chatKnowgrphRelaxed') continue
+    out[k] = value
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
+function readFrontmatterStableId(frontmatterMeta: Record<string, unknown> | null, fallbackName: string): string {
+  const id = asString(frontmatterMeta?.id)
+  if (id) return id
+  const graphId = asString(frontmatterMeta?.graphId)
+  if (graphId) return graphId
+  return cleanIdPart(fallbackName) || 'frontmatter'
+}
+
+function readTopLevelFrontmatterSectionValue(args: {
+  lines: string[]
+  frontmatterStartLine: number
+  frontmatterEndLineExclusive: number
+  key: 'runtime' | 'pipeline' | 'mermaid' | 'flow'
+}): unknown {
+  const lines = Array.isArray(args.lines) ? args.lines : []
+  const start = Math.max(0, Math.floor(args.frontmatterStartLine))
+  const endExclusive = Math.min(lines.length, Math.max(start, Math.floor(args.frontmatterEndLineExclusive)))
+  if (endExclusive <= start) return undefined
+  let sectionStart = -1
+  for (let i = start; i < endExclusive; i += 1) {
+    const raw = String(lines[i] || '')
+    const trimmed = raw.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    if (countIndent(raw) !== 0) continue
+    if (trimmed.startsWith(`${args.key}:`)) {
+      sectionStart = i
+      break
+    }
+  }
+  if (sectionStart < 0) return undefined
+  let sectionEnd = endExclusive
+  for (let i = sectionStart + 1; i < endExclusive; i += 1) {
+    const raw = String(lines[i] || '')
+    const trimmed = raw.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    if (countIndent(raw) !== 0) continue
+    if (/^[A-Za-z0-9_.-]+\s*:/.test(trimmed)) {
+      sectionEnd = i
+      break
+    }
+  }
+  const synthetic = ['---', ...lines.slice(sectionStart, sectionEnd), '---']
+  try {
+    const parsed = parseMarkdownFrontmatter(synthetic)
+    const meta = parsed.meta
+    if (!isRecord(meta)) return undefined
+    return (meta as Record<string, unknown>)[args.key]
+  } catch {
+    return undefined
+  }
+}
+
+function enrichSourceFrontmatterMetaFromRawLines(args: {
+  sourceFrontmatterMeta: Record<string, unknown> | null
+  lines: string[]
+  frontmatterStartLine: number
+  frontmatterEndLineExclusive: number
+}): Record<string, unknown> | null {
+  const base = isRecord(args.sourceFrontmatterMeta) ? { ...args.sourceFrontmatterMeta } : {}
+  const keys: Array<'runtime' | 'pipeline' | 'mermaid' | 'flow'> = ['runtime', 'pipeline', 'mermaid', 'flow']
+  for (let i = 0; i < keys.length; i += 1) {
+    const key = keys[i]
+    if (typeof base[key] !== 'undefined') continue
+    const value = readTopLevelFrontmatterSectionValue({
+      lines: args.lines,
+      frontmatterStartLine: args.frontmatterStartLine,
+      frontmatterEndLineExclusive: args.frontmatterEndLineExclusive,
+      key,
+    })
+    if (typeof value === 'undefined') continue
+    base[key] = value
+  }
+  return Object.keys(base).length > 0 ? base : null
 }
 
 export function tryParseMarkdownFrontmatterFlowGraph(
@@ -150,8 +263,8 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     ensureAugmentedPortsFromDeclaredConnections({ nodes: normalized.nodes, registry: normalized.registry, declared: connParsed.declared })
 
     const edges = connParsed.edges
-    const frontmatterMeta = isRecord(metaRecord.meta) ? (metaRecord.meta as Record<string, unknown>) : null
-    const stableId = asString(frontmatterMeta?.id) || cleanIdPart(name) || 'frontmatter'
+    const frontmatterMeta = buildSourceFrontmatterMeta(metaRecord)
+    const stableId = readFrontmatterStableId(frontmatterMeta, name)
     const sourceLayerHash = hashText(`frontmatter-flow|${stableId}`)
     const socketTypes = readSocketTypes(metaRecord)
     const warnings = [...readFlowWarnings(metaRecord), ...buildConnectionWarnings({ meta: metaRecord, socketTypes, declared: connParsed.declared })]
@@ -246,6 +359,12 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     : metaWithScalarFallback
 
   const metaRecord = normalizeMetaWithFlowBlock(metaForNormalization as Record<string, unknown>)
+  const sourceFrontmatterMeta = enrichSourceFrontmatterMetaFromRawLines({
+    sourceFrontmatterMeta: buildSourceFrontmatterMeta(metaWithScalarFallback),
+    lines,
+    frontmatterStartLine: lead + 1,
+    frontmatterEndLineExclusive: frontmatterClose,
+  })
   const extracted = chatKnowgrphDoc
     ? { connections: [], socketTypes: null as Record<string, unknown> | null }
     : extractConnectionsAndSocketTypesFromMarkdownTables({
@@ -318,8 +437,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   })
   const subgraphs = mergedSubgraphs
 
-  const frontmatterMeta = isRecord(metaRecord.meta) ? (metaRecord.meta as Record<string, unknown>) : null
-  const stableId = asString(frontmatterMeta?.id) || cleanIdPart(name) || 'frontmatter'
+  const stableId = readFrontmatterStableId(sourceFrontmatterMeta, name)
   const sourceLayerHash = hashText(`frontmatter-flow|${stableId}`)
 
   const socketTypes = readSocketTypes(metaRecord)
@@ -335,7 +453,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null
   const metadata = buildFrontmatterFlowMetadata({
     sourceLayerHash,
-    frontmatterMeta,
+    frontmatterMeta: sourceFrontmatterMeta,
     socketTypes,
     flowSettings,
     annotations,

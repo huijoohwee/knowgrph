@@ -8,10 +8,8 @@ import { createRafValueScheduler } from '@/lib/react/rafValueScheduler';
 
 export type MainPanelTabKey =
   | 'integrations'
-  | 'workflow'
-  | 'flowEditorManager'
+  | 'workflowManager'
   | 'help'
-  | 'graphFields'
   | 'dashboard'
   | 'preview'
   | 'settings'

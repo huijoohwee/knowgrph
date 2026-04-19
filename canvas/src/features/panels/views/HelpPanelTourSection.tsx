@@ -32,10 +32,10 @@ export function HelpPanelTourSection({ collapsed, onToggle }: HelpPanelTourSecti
         className={`list-disc pl-4 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-700 space-y-1`}
       >
         <li>
-          {UI_COPY.toolbarPrefix} load data, toggle 2D and 3D modes, open {UI_LABELS.graphFields}, and launch the guided workflow.
+          {UI_COPY.toolbarPrefix} load data, toggle 2D and 3D modes, open Workflow Manager, and launch the guided workflow.
         </li>
         <li>
-          {UI_COPY.mainPanelPrefix} switch between the Workflow Manager tab, Help tab, and {UI_LABELS.graphFields} to guide schema and graph setup.
+          {UI_COPY.mainPanelPrefix} use Workflow Manager and Help tabs to guide schema and graph setup; Graph Fields now lives inside Workflow Manager.
         </li>
         <li>
           {UI_COPY.bottomPanelPrefix} use Graph Data Table, Parser, Schema Configurator, Orchestrator (

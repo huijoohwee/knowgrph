@@ -213,7 +213,7 @@ export function BottomPanelCuratorToolbar({
               setGraphDataTablePanel('none')
               try {
                 if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'graphFields' } }))
+                  window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflowManager' } }))
                 }
               } catch {
                 void 0

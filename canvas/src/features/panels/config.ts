@@ -286,7 +286,7 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     title: 'Panel tour',
     descriptionShort:
       PANEL_TOUR_GRAPH_DATA_TABLE_LOCATION,
-    descriptionLong: `The panel tour explains how the toolbar, main panel, and bottom panel work together. Toolbar actions load data and toggle views, the main panel anchors Workflow, Help, and Graph Fields, and the bottom panel hosts Stats, Parser, Schema Configurator, Orchestrator (${getOrchestratorSectionListLabel()}), Renderer, History, and Export so schema design, curation, and exports stay aligned. Use the Graph Data Table workspace to edit, group, and aggregate node and edge rows.`,
+    descriptionLong: `The panel tour explains how the toolbar, main panel, and bottom panel work together. Toolbar actions load data and toggle views, the main panel anchors Workflow Manager and Help (with Graph Fields inside Workflow Manager), and the bottom panel hosts Stats, Parser, Schema Configurator, Orchestrator (${getOrchestratorSectionListLabel()}), Renderer, History, and Export so schema design, curation, and exports stay aligned. Use the Graph Data Table workspace to edit, group, and aggregate node and edge rows.`,
   },
   workflowLinks: {
     id: 'workflowLinks',
@@ -294,14 +294,14 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     descriptionShort:
       'Jump into the guided workflow or related panels that align with the 8-step GraphRAG pipeline.',
     descriptionLong:
-      `Workflow links provide jump targets into the guided Workflow Manager tab and Graph Fields so you can follow the Schema → Curation → Ingest → Enrich → Index → Reason → Produce → Reuse sequence from the RACI catalog without manually hunting for tabs. The Reason stage maps to the Orchestrator bottom-panel tab (${getOrchestratorSectionListLabel()}) anchored to AgenticRAG JSON-LD graphRAGPath and context IRIs.`,
+      `Workflow links provide jump targets into guided Workflow Manager sections (including Graph Fields) so you can follow the Schema → Curation → Ingest → Enrich → Index → Reason → Produce → Reuse sequence from the RACI catalog without manually hunting for tabs. The Reason stage maps to the Orchestrator bottom-panel tab (${getOrchestratorSectionListLabel()}) anchored to AgenticRAG JSON-LD graphRAGPath and context IRIs.`,
   },
   icons: {
     id: 'icons',
     title: 'Icon Library',
-    descriptionShort: `These icons appear in the ${UI_LABELS.graphFields} tab header and table to show scope, origin, visibility, and field type. Icons in this legend reuse the same UI Density: Icons settings and AgenticRAG-aligned field badges as canvas Graph Data Table tooltips.`,
+    descriptionShort: `These icons appear in the ${UI_LABELS.graphFields} section header and table inside Workflow Manager to show scope, origin, visibility, and field type. Icons in this legend reuse the same UI Density: Icons settings and AgenticRAG-aligned field badges as canvas Graph Data Table tooltips.`,
     descriptionLong:
-      'The Icon Library documents how scope, origin, visibility, and field-type icons map to Graph Fields concepts so Graph Data Table, Schema Configurator, and AgenticRAG pipelines interpret the same field settings consistently. The legend is anchored to AgenticRAG RoleActionOutcome entries for Graph Fields and Graph Fields icon legend, and follows the shared UI Density: Icons settings so toolbar, header, Graph Data Table, and tooltip icons remain visually aligned.',
+      'The Icon Library documents how scope, origin, visibility, and field-type icons map to Graph Fields concepts so Graph Data Table, Schema Configurator, and AgenticRAG pipelines interpret the same field settings consistently. The legend is anchored to AgenticRAG RoleActionOutcome entries for Graph Fields and Help Icon Library legend, and follows the shared UI Density: Icons settings so toolbar, header, Graph Data Table, and tooltip icons remain visually aligned.',
   },
 }
 

@@ -19,15 +19,13 @@ import { getPillClass } from '@/lib/ui';
 interface HelpWorkflowLinksSectionProps {
   collapsed: boolean;
   onToggle: (next: boolean) => void;
-  onOpenWorkflowTab: () => void;
-  onOpenGraphFieldsTab: () => void;
+  onOpenFlowEditorManagerTab: () => void;
 }
 
 export function HelpWorkflowLinksSection({
   collapsed,
   onToggle,
-  onOpenWorkflowTab,
-  onOpenGraphFieldsTab,
+  onOpenFlowEditorManagerTab,
 }: HelpWorkflowLinksSectionProps) {
   const uiIconPillBadgeTextSizeClass = useGraphStore.getState().uiIconPillBadgeTextSizeClass;
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -60,17 +58,10 @@ export function HelpWorkflowLinksSection({
         <button
           type="button"
           className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
-          onClick={onOpenWorkflowTab}
-        >
-          Open Workflow Manager tab
-        </button>
-        <button
-          type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
-          onClick={onOpenGraphFieldsTab}
+          onClick={onOpenFlowEditorManagerTab}
           data-kg-anchor={UI_ANCHORS.graphFields}
         >
-          Open {UI_LABELS.graphFields}
+          Open Workflow Manager (includes {UI_LABELS.graphFields})
         </button>
       </div>
       <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 space-y-1`}>
@@ -154,7 +145,7 @@ export function HelpWorkflowLinksSection({
                 contains
               </span>
               {' '}
-              work as long as they point at other nodes in the graph. Cluster layer appearance comes from `schema.metadata["canvas:graphLayers"]`, which the Main Panel Graph Fields tab exposes as editable presets so teams can tune cluster colors and opacity without changing renderer code.
+              work as long as they point at other nodes in the graph. Cluster layer appearance comes from `schema.metadata["canvas:graphLayers"]`, which the Main Panel Workflow Manager exposes as editable Graph Fields presets so teams can tune cluster colors and opacity without changing renderer code.
             </div>
           </div>
           <div className={`mt-0.5 flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>

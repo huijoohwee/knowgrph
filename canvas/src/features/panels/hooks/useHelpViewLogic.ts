@@ -126,20 +126,10 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
   const allSectionsCollapsed = Object.values(collapsedBySection).every(Boolean);
 
   // 7. Navigation handlers
-  const handleOpenWorkflowTab = React.useCallback(() => {
+  const handleOpenFlowEditorManagerTab = React.useCallback(() => {
     try {
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflow' } }));
-      }
-    } catch {
-      void 0;
-    }
-  }, []);
-
-  const handleOpenGraphFieldsTab = React.useCallback(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'graphFields' } }));
+        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflowManager' } }));
       }
     } catch {
       void 0;
@@ -170,8 +160,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
     expandAll,
     handleToggleSection,
     allSectionsCollapsed,
-    handleOpenWorkflowTab,
-    handleOpenGraphFieldsTab,
+    handleOpenFlowEditorManagerTab,
     handleOpenSettingsTab,
   };
 }

@@ -2,28 +2,29 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testGraphFieldsViewAddsSmartMediaQuickEditorGalleryPresetSetup() {
+  const flowEditorGraphTabPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'FlowEditorGraphTab.tsx')
   const graphFieldsViewPath = resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'GraphFieldsView.tsx')
-  const text = readFileSync(graphFieldsViewPath, 'utf8')
+  const text = readFileSync(flowEditorGraphTabPath, 'utf8')
+  const graphFieldsViewText = readFileSync(graphFieldsViewPath, 'utf8')
 
-  if (!text.includes('Quick Editor Gallery')) {
-    throw new Error('expected Graph Fields view to render Quick Editor Gallery section')
+  const hasConsolidatedEntryAlias =
+    text.includes('Consolidated Entries (click to open Field Settings)') &&
+    text.includes('Nodes · Quick Editor Gallery') &&
+    text.includes('Clusters · Samples')
+
+  if (text.includes('buildNodeQuickEditorDraftFromSmartFields')) {
+    throw new Error('expected Workflow Manager graph tab to avoid local quick editor preset setup logic after consolidation')
   }
-  if (!text.includes('max-h-28 overflow-auto')) {
-    throw new Error('expected Graph Fields quick editor gallery section to be scrollable')
+  if (!hasConsolidatedEntryAlias) {
+    throw new Error('expected Workflow Manager to keep legacy labels only as consolidated click aliases for Graph Fields right-pane')
   }
-  if (!text.includes('buildNodeQuickEditorDraftFromSmartFields')) {
-    throw new Error('expected Graph Fields quick editor gallery to use smart-media preset draft template')
+  if (!(text.includes('<GraphFieldsView') && text.includes('embedded={true}'))) {
+    throw new Error('expected Workflow Manager graph tab to reuse embedded GraphFieldsView in workflow mode')
   }
-  if (!text.includes('FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY')) {
-    throw new Error('expected Graph Fields quick editor setup to stamp node quick-editor type key')
+  if (graphFieldsViewText.includes('Quick Editor Gallery')) {
+    throw new Error('expected GraphFieldsView to avoid duplicate Quick Editor Gallery after consolidation')
   }
-  if (!text.includes('FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY')) {
-    throw new Error('expected Graph Fields quick editor setup to stamp node quick-editor form key')
-  }
-  if (!text.includes('upsertNodeQuickEditorRegistryEntry')) {
-    throw new Error('expected Graph Fields quick editor setup to upsert registry preset')
-  }
-  if (!text.includes('updateNode(nodeId, { properties: nextProps } as never)')) {
-    throw new Error('expected Graph Fields quick editor setup to apply preset mapping to selected node')
+  if (graphFieldsViewText.includes('FieldSamplesPanel')) {
+    throw new Error('expected GraphFieldsView to avoid duplicate standalone Samples panel after consolidation')
   }
 }

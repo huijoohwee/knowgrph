@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { FileCode, GitBranch, Hand, Layers, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { FileCode, GitBranch, Hand, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -16,7 +16,6 @@ import { uiPrimaryPillActiveClassName } from '@/features/toolbar/ui/toolbarStyle
 import { cn } from '@/lib/utils'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import {
-  FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   LS_KEYS,
   UI_LABELS,
   UI_SELECTORS,
@@ -24,7 +23,6 @@ import {
 import { lsBool } from '@/lib/persistence'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
-import DesignLayersPanel from '@/features/design/DesignLayersPanel'
 import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
 import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
@@ -37,7 +35,7 @@ import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 
-type FloatingPanelView = 'propsPanel' | 'interaction' | 'designLayers' | 'domTree' | 'domInspect' | 'inspector' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+type FloatingPanelView = 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
 type FloatingHeaderActions = {
   apply?: () => void
   reset?: () => void
@@ -83,10 +81,6 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
   return { default: c as React.ComponentType<GeospatialPanelHostProps> }
 })
 
-const GraphTableSelectionInspectorLazy = React.lazy(
-  () => import('@/features/graph-table/ui/GraphTableSelectionInspector'),
-)
-
 const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
 
 const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['chat', 'geo', 'interaction'])
@@ -128,27 +122,6 @@ const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(
         </span>
       )}
     </span>
-  )
-})
-
-const InspectorView = React.memo(function InspectorView(props: { geospatialModeEnabled: boolean }) {
-  const { geospatialModeEnabled } = props
-  const { workspaceViewMode, canvasRenderMode, canvas2dRenderer } = useGraphStore(
-    useShallow(s => ({
-      workspaceViewMode: s.workspaceViewMode,
-      canvasRenderMode: s.canvasRenderMode,
-      canvas2dRenderer: s.canvas2dRenderer,
-    })),
-  )
-
-  if (!geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && isFlowEditorCanvas2dRenderer(canvas2dRenderer)) {
-    return <div id={FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID} className="h-full" aria-label="Flow Editor Inspector Slot" />
-  }
-
-  return (
-    <React.Suspense fallback={null}>
-      <GraphTableSelectionInspectorLazy />
-    </React.Suspense>
   )
 })
 
@@ -395,7 +368,6 @@ export function ToolbarToolMenu({
   const floatingPanelViewButtonSpecs = React.useMemo<FloatingPanelViewButtonSpec[]>(
     () => [
       { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: SlidersHorizontal },
-      { view: 'designLayers', title: UI_LABELS.layerMode, icon: Layers, disabled: !domPanelsAvailable },
       {
         view: 'domTree',
         title: domLayoutReady ? 'DOM Tree' : domPanelsAvailable ? 'DOM Tree (loading)' : 'DOM Tree',
@@ -411,7 +383,6 @@ export function ToolbarToolMenu({
         hidden: geospatialModeEnabled,
       },
       { view: 'interaction', title: 'Interaction', icon: Hand },
-      { view: 'inspector', title: UI_LABELS.inspector, icon: FileCode, hidden: geospatialModeEnabled },
       { view: 'chat', title: UI_LABELS.chat, icon: MessageCircle },
       { view: 'geo', title: UI_LABELS.geo, icon: Map, disabled: !geospatialModeEnabled },
       { view: 'renderer', title: UI_LABELS.renderer, icon: MonitorPlay },
@@ -454,10 +425,10 @@ export function ToolbarToolMenu({
 
   React.useEffect(() => {
     if (geospatialModeEnabled) {
-      if (floatingPanelView === 'inspector') setFloatingPanelView('geo')
+      if (floatingPanelView === 'propsPanel') setFloatingPanelView('geo')
       return
     }
-    if (floatingPanelView === 'geo') setFloatingPanelView('inspector')
+    if (floatingPanelView === 'geo') setFloatingPanelView('propsPanel')
   }, [floatingPanelView, geospatialModeEnabled])
 
   React.useEffect(() => {
@@ -581,10 +552,8 @@ export function ToolbarToolMenu({
                 </section>
               </section>
             )}
-            {floatingPanelView === 'designLayers' && <DesignLayersPanel active={domPanelsAvailable} />}
             {floatingPanelView === 'domTree' && <DesignDomTreePanel active={domPanelsAvailable} />}
             {floatingPanelView === 'domInspect' && <DesignDomInspectPanel active={domPanelsAvailable} />}
-            {floatingPanelView === 'inspector' && <InspectorView geospatialModeEnabled={geospatialModeEnabled} />}
             {floatingPanelView === 'chat' && (
               <React.Suspense fallback={null}>
                 <SidePanelChatLazy />

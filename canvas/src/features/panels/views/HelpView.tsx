@@ -30,8 +30,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
     expandAll,
     handleToggleSection,
     allSectionsCollapsed,
-    handleOpenWorkflowTab,
-    handleOpenGraphFieldsTab,
+    handleOpenFlowEditorManagerTab,
     handleOpenSettingsTab,
   } = useHelpViewLogic({ searchQuery });
 
@@ -62,8 +61,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
           shortcuts={filteredShortcuts}
           onCopyAllShortcuts={applyShortcutsCopy}
           onLaunchSpotlight={launch}
-          onOpenWorkflowTab={handleOpenWorkflowTab}
-          onOpenGraphFieldsTab={handleOpenGraphFieldsTab}
+          onOpenFlowEditorManagerTab={handleOpenFlowEditorManagerTab}
           onOpenSettingsTab={handleOpenSettingsTab}
         />
         {(import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV && (

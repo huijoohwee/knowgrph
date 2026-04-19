@@ -85,6 +85,8 @@
 - For `metadata.kind=frontmatter-flow` overlays, quick-editor handle rendering must stay strict and flow-derived: use declared flow handles plus edge/registry-derived typed ports only, and do not synthesize fallback default handles.
 - Frontmatter-flow overlay contracts must not render absent hardcoded ports (for example `compute` or `data`) unless those keys are explicitly present on the node properties.
 - **Envelope-driven rows**: for flow blocks that wrap node fields as `{key,type,value}`, quick-editor rows must render only declared fields (no synthetic key/type fallback) and map them to real node properties (`handles → frontmatter:handles`, `data → properties.data`, `compute → properties.flow:compute`).
+- **Inline envelope tolerance**: parser normalization must accept node field lines using `key:{...}` (no space after `:`) and treat them the same as `key: {...}` so declared flow nodes keep their quick-editor form and handle contracts.
+- **Declared data only**: frontmatter-flow node normalization must omit `data` when it is not declared by author input; do not materialize synthetic `{}` placeholders.
 
 ### Schema Field Ports (Database-schema-node style)
 

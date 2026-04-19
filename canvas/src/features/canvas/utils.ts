@@ -1,7 +1,6 @@
 import * as d3 from 'd3'
 
 export const PROPS_PANEL_OPEN_EVENT = 'kg:propsPanelOpen' as const
-export const DESIGN_LAYERS_PANEL_OPEN_EVENT = 'kg:designLayersPanelOpen' as const
 export const RENDERER_PANEL_OPEN_EVENT = 'kg:rendererPanelOpen' as const
 export const RENDERER_FLOATING_PANEL_OPEN_EVENT = 'kg:floatingPanelOpen:renderer' as const
 export const SIDE_PANEL_OPEN_EVENT = 'kg:sidePanelOpen' as const
@@ -26,15 +25,6 @@ export function emitPropsPanelOpen(detail?: PropsPanelOpenEventDetail): void {
   if (typeof window === 'undefined') return
   try {
     window.dispatchEvent(new CustomEvent<PropsPanelOpenEventDetail>(PROPS_PANEL_OPEN_EVENT, { detail }))
-  } catch {
-    void 0
-  }
-}
-
-export function emitDesignLayersPanelOpen(detail?: PropsPanelOpenEventDetail): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.dispatchEvent(new CustomEvent<PropsPanelOpenEventDetail>(DESIGN_LAYERS_PANEL_OPEN_EVENT, { detail }))
   } catch {
     void 0
   }

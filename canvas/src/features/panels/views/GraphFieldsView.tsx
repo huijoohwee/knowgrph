@@ -1,31 +1,20 @@
 import React from 'react'
-import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_ANCHORS, UI_COPY } from '@/lib/config'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelGraphFieldsHeader from '@/features/panels/ui/MainPanelGraphFieldsHeader'
 import {
   AGENTIC_RAG_FIELD_KIND_META,
   computeDerivedFields,
   getAgenticRagFieldKind,
-  normalizeSelectOptionsAndDefaultValue,
-  normalizeSettingsForField,
   parseGraphFieldId,
   type GraphField,
   type GraphFieldId,
 } from '@/features/graph-fields/graphFields'
 import GraphFieldsListPanel from '@/features/panels/views/graph-fields/GraphFieldsListPanel'
 import FieldSettingsPanel from '@/features/panels/views/graph-fields/FieldSettingsPanel'
-import FieldSamplesPanel from '@/features/panels/views/graph-fields/FieldSamplesPanel'
 import { normalized } from '@/features/panels/utils/json'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
-import {
-  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
-  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
-} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
-import { buildNodeQuickEditorDraftFromSmartFields } from '@/features/flow-editor-manager/registryTemplates'
-import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
@@ -43,27 +32,27 @@ export type GraphFieldsSelectedView =
 type GraphFieldsViewProps = {
   onStatusChange: (msg: string) => void
   searchQuery?: string
+  embedded?: boolean
+  entryAliasLabels?: ReadonlyArray<string>
+  onEntryAliasClick?: ((label: string) => void) | null
+  entryOpenRequest?: {
+    token: number
+    entryLabel: string
+  } | null
 }
 
-export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFieldsViewProps) {
-  const { microLabelClass } = usePanelTypography()
+export default function GraphFieldsView({
+  onStatusChange,
+  searchQuery,
+  embedded = false,
+  entryAliasLabels = [],
+  onEntryAliasClick = null,
+  entryOpenRequest = null,
+}: GraphFieldsViewProps) {
   const graphData = useActiveGraphRenderData()
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
   const dismissUiToast = useGraphStore(s => s.dismissUiToast)
-  const {
-    selectedNodeId,
-    nodeQuickEditorRegistry,
-    upsertNodeQuickEditorRegistryEntry,
-    updateNode,
-  } = useGraphStore(
-    useShallow(s => ({
-      selectedNodeId: s.selectedNodeId,
-      nodeQuickEditorRegistry: s.nodeQuickEditorRegistry,
-      upsertNodeQuickEditorRegistryEntry: s.upsertNodeQuickEditorRegistryEntry,
-      updateNode: s.updateNode,
-    })),
-  )
   const settingsById = useGraphStore(s => s.graphFieldSettingsById)
   const setGraphFieldSettingsById = useGraphStore(s => s.setGraphFieldSettingsById)
   const graphDataTableVisibleColumns = useGraphStore(s => s.graphDataTableVisibleColumns)
@@ -73,6 +62,7 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
   const selectedFieldId = useGraphStore(s => s.selectedGraphFieldId)
   const setSelectedFieldId = useGraphStore(s => s.setSelectedGraphFieldId)
   const [selectedGlobalView, setSelectedGlobalView] = React.useState<GraphFieldsSelectedView>(null)
+  const fieldSettingsPaneRef = React.useRef<HTMLElement | null>(null)
 
   const derivedFields = React.useMemo<ReadonlyArray<GraphField>>(() => {
     if (!graphData) return []
@@ -162,35 +152,65 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
     return fields.find(f => f.id === selectedFieldId) || null
   }, [fields, selectedFieldId])
 
-  const selectedNode = React.useMemo(() => {
-    const nodeId = String(selectedNodeId || '').trim()
-    if (!nodeId || !graphData) return null
-    return (graphData.nodes || []).find(n => n && n.id === nodeId) || null
-  }, [graphData, selectedNodeId])
+  React.useEffect(() => {
+    if (!entryOpenRequest || !graphData || fields.length === 0) return
+    const label = normalized(entryOpenRequest.entryLabel).toLowerCase()
+    const rendererHint = label.includes('renderer')
+    const nodeHint = label.includes('node')
+    const edgeOnly = label.includes('edge')
+    const clusterHint = label.includes('cluster') || label.includes('sample') || label.includes('group')
+    const layerHint = label.includes('layer')
+    const flowHint = label.includes('workflow') || label.includes('step') || label.includes('tier b') || label.includes('runtime') || label.includes('pipeline') || label.includes('mermaid') || label.includes('flow')
+    const inspectorHint = label.includes('inspector')
 
-  const smartMediaPresetState = React.useMemo(() => {
-    const nodeTypeId = String(selectedNode?.type || '').trim()
-    if (!nodeTypeId) {
-      return {
-        nodeTypeId: '',
-        entryId: '',
-        isReady: false,
+    const byScope = (scope: 'node' | 'edge') => fields.find(f => f.scope === scope) || null
+    const byScopeNonChunkText = (scope: 'node' | 'edge') =>
+      fields.find(f => f.scope === scope && !normalized(f.key).includes('chunk_text')) || null
+    const byKeyContains = (parts: string[]) => {
+      for (const part of parts) {
+        const hit = fields.find(f => normalized(f.key).includes(normalized(part)))
+        if (hit) return hit
       }
+      return null
     }
-    const found = (nodeQuickEditorRegistry || []).find(e =>
-      e.nodeTypeId === nodeTypeId && e.quickEditorTypeId === 'default' && e.formId === 'nodeQuickEditor',
-    ) || null
-    return {
-      nodeTypeId,
-      entryId: String(found?.id || ''),
-      isReady: !!found,
-    }
-  }, [nodeQuickEditorRegistry, selectedNode])
 
-  const selectedSettings = React.useMemo(() => {
-    if (!selectedField) return null
-    return normalizeSettingsForField(selectedField, settingsById[selectedField.id])
-  }, [selectedField, settingsById])
+    let target: GraphField | null = null
+    if (edgeOnly) {
+      target = byScope('edge')
+    } else if (rendererHint) {
+      target = byKeyContains(['renderer', 'layout', 'style', 'theme', 'color']) || byScopeNonChunkText('node') || byScope('node')
+    } else if (layerHint) {
+      target = byKeyContains(['layer', 'cluster', 'group', 'subgraph']) || byScopeNonChunkText('node') || byScope('node')
+    } else if (nodeHint) {
+      target = byScope('node')
+    } else if (clusterHint) {
+      target = byKeyContains(['cluster', 'group', 'layer']) || byScopeNonChunkText('node') || byScope('node')
+    } else if (flowHint || inspectorHint) {
+      target = byKeyContains(['flow', 'pipeline', 'runtime', 'step', 'node']) || byScope('node')
+    }
+    if (!target && selectedFieldId) target = fields.find(f => f.id === selectedFieldId) || null
+    if (!target) target = fields[0] || null
+    if (!target) return
+
+    setSelectedGlobalView(prev => (prev === null ? prev : null))
+    if (selectedFieldId !== target.id) setSelectedFieldId(target.id)
+    try {
+      upsertUiToast({
+        id: `graphFields:entryOpen:${entryOpenRequest.token}`,
+        kind: 'neutral',
+        message: `Opened Field Settings via ${entryOpenRequest.entryLabel}: ${target.id}`,
+        ttlMs: 1800,
+      })
+    } catch {
+      void 0
+    }
+    try {
+      fieldSettingsPaneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+    } catch {
+      void 0
+    }
+    onStatusChange(`Opened Field Settings via ${entryOpenRequest.entryLabel}: ${target.id}`)
+  }, [entryOpenRequest, fields, graphData, onStatusChange, selectedFieldId, setSelectedFieldId, upsertUiToast])
 
   const resync = React.useCallback(() => {
     if (!graphData) return
@@ -200,59 +220,6 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
       onStatusChange(UI_COPY.syncedNoFieldsFoundStatus)
     }
   }, [fields, graphData, onStatusChange])
-
-  const applySamplesAsSelectOptions = React.useCallback(
-    (values: ReadonlyArray<string>) => {
-      if (!selectedField || !selectedSettings) return
-      if (selectedSettings.fieldType !== 'Multi-select' && selectedSettings.fieldType !== 'Single-select') return
-
-      const next = normalizeSelectOptionsAndDefaultValue({
-        fieldType: selectedSettings.fieldType,
-        selectOptions: [...selectedSettings.selectOptions, ...values],
-        defaultValue: selectedSettings.defaultValue,
-      })
-
-      const added = Math.max(0, next.selectOptions.length - selectedSettings.selectOptions.length)
-      setGraphFieldSettingsById({
-        ...settingsById,
-        [selectedField.id]: { ...selectedSettings, ...next },
-      })
-      if (added > 0) onStatusChange(UI_COPY.graphFieldsSamplesAddedToOptionsStatus(added))
-    },
-    [onStatusChange, selectedField, selectedSettings, setGraphFieldSettingsById, settingsById],
-  )
-
-  const setupSmartMediaQuickEditorPreset = React.useCallback(() => {
-    const node = selectedNode
-    const nodeId = String(node?.id || '').trim()
-    const nodeTypeId = String(node?.type || '').trim()
-    if (!node || !nodeId || !nodeTypeId) {
-      upsertUiToast({ id: 'graph-fields-smart-media-no-selected-node', kind: 'warning', message: 'Select a node first.', ttlMs: 2500 })
-      return
-    }
-    const draft = buildNodeQuickEditorDraftFromSmartFields({ nodeTypeId })
-    const result = upsertNodeQuickEditorRegistryEntry({
-      id: smartMediaPresetState.entryId || undefined,
-      isEnabled: true,
-      nodeTypeId: draft.nodeTypeId,
-      quickEditorTypeId: draft.quickEditorTypeId,
-      formId: draft.formId,
-      fields: draft.fields,
-      ports: draft.ports,
-      schemaMappings: Array.isArray(draft.schemaMappings) ? draft.schemaMappings : [],
-    })
-    if (result.ok !== true) {
-      upsertUiToast({ id: 'graph-fields-smart-media-setup-failed', kind: 'warning', message: result.message || 'Failed to setup smart-media preset.', ttlMs: 3500 })
-      return
-    }
-    const nextProps: Record<string, unknown> = {
-      ...(node.properties || {}),
-      [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: draft.quickEditorTypeId,
-      [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: draft.formId,
-    }
-    updateNode(nodeId, { properties: nextProps } as never)
-    upsertUiToast({ id: 'graph-fields-smart-media-setup-ok', kind: 'neutral', message: 'Smart-media quick-editor preset is set up for the selected node.', ttlMs: 2500 })
-  }, [selectedNode, smartMediaPresetState.entryId, updateNode, upsertNodeQuickEditorRegistryEntry, upsertUiToast])
 
   const lastRawNodesEdgesToastRevisionRef = React.useRef<number | null>(null)
 
@@ -279,74 +246,84 @@ export default function GraphFieldsView({ onStatusChange, searchQuery }: GraphFi
     })
   }, [dismissUiToast, graphData, graphDataRevision, upsertUiToast])
 
+  const content = (
+    <article
+      className="min-h-full flex flex-col overflow-visible"
+      data-kg-anchor={UI_ANCHORS.graphFields}
+    >
+      <div className="min-h-0">
+        <div className="min-h-0 min-w-0 grid grid-cols-3 gap-2">
+          <section className="col-span-2 min-h-0 overflow-auto">
+            <GraphFieldsListPanel
+            graphData={graphData}
+            graphDataRevision={graphDataRevision}
+            fields={fields}
+            visibleFieldIds={visibleFieldIds}
+            selectedFieldId={selectedFieldId}
+            setSelectedFieldId={setSelectedFieldId}
+            selectedGlobalView={selectedGlobalView}
+            setSelectedGlobalView={setSelectedGlobalView}
+            settingsById={settingsById}
+            setGraphFieldSettingsById={setGraphFieldSettingsById}
+            graphDataTableVisibleColumns={graphDataTableVisibleColumns}
+            graphDataTableColumnOrder={graphDataTableColumnOrder}
+            setGraphDataTableVisibleColumns={setGraphDataTableVisibleColumns}
+            setGraphDataTableColumnOrder={setGraphDataTableColumnOrder}
+            onStatusChange={onStatusChange}
+            />
+          </section>
+          <section ref={fieldSettingsPaneRef} className="col-span-1 min-h-0 overflow-auto">
+            <FieldSettingsPanel
+            graphData={graphData}
+            selectedField={selectedField}
+            selectedGlobalView={selectedGlobalView}
+            setSelectedGlobalView={setSelectedGlobalView}
+            settingsById={settingsById}
+            setGraphFieldSettingsById={setGraphFieldSettingsById}
+            onResync={resync}
+            onStatusChange={onStatusChange}
+            />
+          </section>
+        </div>
+      </div>
+    </article>
+  )
+
+  if (embedded) {
+    return (
+      <section className="h-full min-h-0 flex flex-col">
+        <section className="mb-2">
+          <MainPanelGraphFieldsHeader agenticLegend={agenticLegend} />
+        </section>
+        {entryAliasLabels.length > 0 && onEntryAliasClick ? (
+          <section className="mb-2 rounded border border-white/10 p-2" aria-label="Graph Fields entry aliases">
+            <section className={cn('text-[10px] mb-2', UI_THEME_TOKENS.text.tertiary)}>
+              Entry aliases (click to open Field Settings)
+            </section>
+            <section className="flex flex-wrap gap-1">
+              {entryAliasLabels.map(label => (
+                <button
+                  key={label}
+                  type="button"
+                  className={cn('App-toolbar__btn text-xs', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+                  onClick={() => onEntryAliasClick(label)}
+                >
+                  {label}
+                </button>
+              ))}
+            </section>
+          </section>
+        ) : null}
+        <section className="flex-1 min-h-0 w-full overflow-auto">
+          {content}
+        </section>
+      </section>
+    )
+  }
+
   return (
     <MainPanelBody header={<MainPanelGraphFieldsHeader agenticLegend={agenticLegend} />} scrollable={false}>
-      <article
-        className="h-full min-h-0 flex flex-col overflow-hidden"
-        data-kg-anchor={UI_ANCHORS.graphFields}
-      >
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="h-full min-h-0 min-w-0 overflow-hidden grid grid-cols-2 grid-rows-[auto_auto_minmax(0,1fr)_minmax(0,1fr)] gap-2">
-            <section className="col-span-2 rounded-md border border-white/10 p-2">
-              <WorkspaceTableModeControl />
-            </section>
-            <section className="col-span-2 rounded-md border border-white/10 p-2 min-h-0 max-h-28 overflow-auto" aria-label="Quick Editor Gallery">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className={cn('font-medium truncate', UI_THEME_TOKENS.text.primary)}>Quick Editor Gallery</p>
-                  <p className={cn('truncate', microLabelClass, UI_THEME_TOKENS.text.tertiary)}>
-                    Smart-media preset (Model, Prompt, Aspect ratio, Duration, Resolution, Generate audio, Fast, Reference image)
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className={cn('rounded-md border px-2 py-1 text-xs', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
-                  onClick={setupSmartMediaQuickEditorPreset}
-                  disabled={!selectedNode}
-                >
-                  {smartMediaPresetState.isReady ? 'Setup Selected Node' : 'Setup Preset'}
-                </button>
-              </div>
-            </section>
-            <GraphFieldsListPanel
-              graphData={graphData}
-              graphDataRevision={graphDataRevision}
-              fields={fields}
-              visibleFieldIds={visibleFieldIds}
-              selectedFieldId={selectedFieldId}
-              setSelectedFieldId={setSelectedFieldId}
-              selectedGlobalView={selectedGlobalView}
-              setSelectedGlobalView={setSelectedGlobalView}
-              settingsById={settingsById}
-              setGraphFieldSettingsById={setGraphFieldSettingsById}
-              graphDataTableVisibleColumns={graphDataTableVisibleColumns}
-              graphDataTableColumnOrder={graphDataTableColumnOrder}
-              setGraphDataTableVisibleColumns={setGraphDataTableVisibleColumns}
-              setGraphDataTableColumnOrder={setGraphDataTableColumnOrder}
-              onStatusChange={onStatusChange}
-            />
-            <FieldSettingsPanel
-              graphData={graphData}
-              selectedField={selectedField}
-              selectedGlobalView={selectedGlobalView}
-              setSelectedGlobalView={setSelectedGlobalView}
-              settingsById={settingsById}
-              setGraphFieldSettingsById={setGraphFieldSettingsById}
-              onResync={resync}
-              onStatusChange={onStatusChange}
-            />
-            <section className="min-h-0 overflow-hidden col-span-2" aria-label={UI_LABELS.samples}>
-              <FieldSamplesPanel
-                graphData={graphData}
-                selectedField={selectedField}
-                selectedSettings={selectedSettings}
-                onApplyAsSelectOptions={applySamplesAsSelectOptions}
-                onStatusChange={onStatusChange}
-              />
-            </section>
-          </div>
-        </div>
-      </article>
+      {content}
     </MainPanelBody>
   )
 }

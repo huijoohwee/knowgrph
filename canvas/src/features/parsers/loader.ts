@@ -17,6 +17,7 @@ import {
   buildNeo4jGraph,
 } from '@/lib/graph/db'
 import { pipelinePerfEnd, pipelinePerfMeasureAsync, pipelinePerfMeasureSync, pipelinePerfStart } from '@/lib/pipelinePerf'
+import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 
 export type LoaderResult = {
   parserId?: string
@@ -179,7 +180,12 @@ export async function loadGraphDataFromBackendViaParser(url: string): Promise<Lo
   try { useGraphStore.getState().clearGraphData() } catch { void 0 }
   const fetched = await fetchBackendGraphData(url)
   if (!fetched) return null
-  try { useGraphStore.getState().setGraphData(fetched.data) } catch { void 0 }
+  try {
+    useGraphStore.getState().setGraphData(fetched.data)
+    applyFrontmatterFlowImportModes(fetched.data)
+  } catch {
+    void 0
+  }
   const text = fetched.inputText || ''
   return {
     name: fetched.name,
@@ -273,6 +279,7 @@ export async function loadGraphDataFromTextViaParser(
         notifyLoaderProgress(options, 'Applying graph')
         try {
           useGraphStore.getState().setGraphData(graphData)
+          applyFrontmatterFlowImportModes(graphData)
         } catch {
           void 0
         }
@@ -304,6 +311,7 @@ export async function loadGraphDataFromTextViaParser(
     notifyLoaderProgress(options, 'Applying graph')
     try {
       useGraphStore.getState().setGraphData(graphData)
+      applyFrontmatterFlowImportModes(graphData)
     } catch {
       void 0
     }
