@@ -1,3 +1,5 @@
+import { buildDeterministicBaseTemplateKgcTurn } from './chatHistoryWorkspace.kgc.baseFallback'
+
 type KgcStructuredTurnArgs = {
   timestampMs: number
   requestText: string
@@ -607,7 +609,11 @@ import { isKgcStructuredMarkdown } from './chatHistoryWorkspace.kgc.parse'
 export const normalizeKgcAssistantBodyForStorage = (args: KgcStructuredTurnArgs): string => {
   const raw = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
   if (isKgcStructuredMarkdown(raw)) return raw
-  return buildKgcStructuredTurn(args)
+  return buildDeterministicBaseTemplateKgcTurn({
+    timestampMs: args.timestampMs,
+    fileName: '',
+    requestText: args.requestText,
+  })
 }
 
 export const buildKgcWorkspaceDocument = (args: {

@@ -5,6 +5,7 @@ import {
   buildKgcWorkspaceDocument,
   normalizeKgcAssistantBodyForStorage,
 } from './chatHistoryWorkspace.kgc.build'
+import { normalizeKgcFrontmatterIdentityToFileName } from './chatHistoryWorkspace.kgc.normalize'
 import { ensureHistoryFilePath, resolveFilePrefix } from './chatHistoryWorkspace.paths'
 import type { ChatHistoryWorkspaceAppendArgs, ChatHistoryWorkspaceDraftArgs } from './chatHistoryWorkspace.types'
 
@@ -115,7 +116,12 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
       assistantText: assistantBody || 'No response content.',
     })
     if (prefix === 'kgc') {
-      const next = buildKgcWorkspaceDocument({ canonicalKgc: kgcAssistantBody })
+      const normalizedIdentity = normalizeKgcFrontmatterIdentityToFileName({
+        markdown: kgcAssistantBody,
+        workspacePath: key,
+        timestampMs: args.timestampMs,
+      })
+      const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
       await fs.writeFileText(key, next)
       void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
       return
@@ -173,7 +179,12 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
         requestText: args.userText,
         assistantText: String(args.assistantText || '').replace(/\r\n/g, '\n').trim() || '_Streaming..._',
       })
-      const next = buildKgcWorkspaceDocument({ canonicalKgc })
+      const normalizedIdentity = normalizeKgcFrontmatterIdentityToFileName({
+        markdown: canonicalKgc,
+        workspacePath: key,
+        timestampMs: args.timestampMs,
+      })
+      const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
       if (next === existingRaw) return
       await fs.writeFileText(key, next)
       if (!existingRaw.trim()) {
@@ -209,4 +220,3 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
   }
   return key
 }
-

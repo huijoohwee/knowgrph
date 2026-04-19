@@ -271,10 +271,61 @@ const hasUnbalancedDelimiters = (raw: string): boolean => {
 
 const validateNoNestedCodeFences = (md: string): ChatMarkdownValidationError | null => {
   const text = String(md || '').replace(/\r\n/g, '\n')
-  if (/```+/.test(text)) {
+  const parsed = extractLeadingFrontmatterAndBody(text)
+  if (!parsed) {
+    if (!/```+/.test(text)) return null
     return {
       ruleId: 'V-03',
       message: 'Nested code fences are forbidden inside the `kgc` document. Use YAML block scalars and plain markdown body sections instead.',
+    }
+  }
+  const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
+  if (isBaseTemplateFrontmatter(parsed.frontmatter, fmKeys)) {
+    if (!/```+/.test(parsed.frontmatter)) return null
+    return {
+      ruleId: 'V-03',
+      message: 'Base-template KGC frontmatter must not contain fenced code blocks.',
+    }
+  }
+  if (!/```+/.test(text)) return null
+  return {
+    ruleId: 'V-03',
+    message: 'Nested code fences are forbidden inside the `kgc` document. Use YAML block scalars and plain markdown body sections instead.',
+  }
+}
+
+const validateBaseTemplateBodyShape = (frontmatter: string, body: string): ChatMarkdownValidationError | null => {
+  const requiredSections = [
+    '## Computing Flow Definition',
+    '## Flow Graph',
+    '## Pipeline',
+    '## PRD — Product Requirements',
+    '## TAD — Technical Architecture',
+    '## Open Questions',
+    '## Customization Guide',
+  ]
+  for (const section of requiredSections) {
+    if (body.includes(section)) continue
+    return {
+      ruleId: 'V-03',
+      message: `Base-template body is missing required section: ${section}.`,
+    }
+  }
+  const tierAKeys = ['title', 'graphId', 'doc_type', 'date', 'ai_model'] as const
+  for (const key of tierAKeys) {
+    const scalar = extractTopLevelYamlBlockScalar(frontmatter, key).trim()
+    if (!scalar) {
+      return {
+        ruleId: 'V-03',
+        message: `Base-template frontmatter key "${key}" must be non-empty.`,
+      }
+    }
+  }
+  const bodyWordCount = countWordLikeTokens(body.replace(/\{\{[^}]+\}\}/g, ' '))
+  if (bodyWordCount < 80) {
+    return {
+      ruleId: 'V-03',
+      message: 'Base-template body is too thin. Expand the markdown sections with concrete explanatory content.',
     }
   }
   return null
@@ -365,6 +416,10 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
 const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError | null => {
   const parsed = extractLeadingFrontmatterAndBody(md)
   if (!parsed) return null
+  const fmKeys = extractTopLevelFrontmatterKeys(parsed.frontmatter)
+  if (isBaseTemplateFrontmatter(parsed.frontmatter, fmKeys)) {
+    return validateBaseTemplateBodyShape(parsed.frontmatter, parsed.body)
+  }
   const requestMd = extractTopLevelYamlBlockScalar(parsed.frontmatter, 'request_md')
   const solutionMd = extractTopLevelYamlBlockScalar(parsed.frontmatter, 'solution_md')
   const requestSection = extractBodySectionMarkdown(parsed.body, 'Request')
@@ -484,7 +539,7 @@ const validateComputePurity = (md: string): ChatMarkdownValidationError | null =
   const lines = String(md || '').replace(/\r\n/g, '\n').split('\n')
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]
-    const m = /^(\s*)compute:\s*\|\s*$/.exec(line)
+    const m = /^(\s*)compute:\s*(?:\|\s*|\{[^{}]*\bvalue:\s*\|\s*)$/.exec(line)
     if (!m) continue
     const baseIndent = String(m[1] || '').length
     const bodyLines: string[] = []

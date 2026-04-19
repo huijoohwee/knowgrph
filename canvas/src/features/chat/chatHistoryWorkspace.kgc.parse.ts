@@ -1,26 +1,5 @@
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 
-const KGC_REQUIRED_SECTION_ORDER = [
-  '# ── DOCUMENT IDENTITY',
-  'doc:',
-  '# ── VARIABLES (type `@` to open CRUD toolbar)',
-  '# ── NODES',
-  'nodes:',
-  '- @node:',
-  '# ── EDGES',
-  'edges:',
-  '- @edge:',
-  '# ── FLOW EDITOR (interactive + computable)',
-  'flow:',
-] as const
-
-const KGC_REQUIRED_VARIABLE_MARKERS = [
-  '\nsubject:',
-  '\naction:',
-  '\ngoal:',
-  '\nsolution:',
-] as const
-
 const BASE_TEMPLATE_TIER_B_KEYS = [
   'product',
   'domain',
@@ -33,12 +12,13 @@ const BASE_TEMPLATE_TIER_B_KEYS = [
 ] as const
 
 const isBaseTemplateFrontmatter = (frontmatter: string, keys: Set<string>): boolean => {
-  if (!keys.has('runtime') || !keys.has('pipeline') || !keys.has('mermaid') || !keys.has('flow')) return false
+  if (!keys.has('runtime') || !keys.has('pipeline') || !keys.has('mermaid') || !keys.has('flow') || !keys.has('links')) return false
   return BASE_TEMPLATE_TIER_B_KEYS.every(key => keys.has(key)) &&
     frontmatter.includes('\nruntime:') &&
     frontmatter.includes('\npipeline:') &&
     frontmatter.includes('\nmermaid:') &&
-    frontmatter.includes('\nflow:')
+    frontmatter.includes('\nflow:') &&
+    frontmatter.includes('\nlinks:')
 }
 
 const countMatches = (text: string, pattern: RegExp): number => {
@@ -112,7 +92,19 @@ const extractVarRefKey = (raw: string): string => {
   return (cut == null ? ref : ref.slice(0, cut)).trim()
 }
 
-const hasTemplateRef = (value: string): boolean => /\{\{[^}]+\}\}/.test(String(value || ''))
+const BASE_TEMPLATE_REQUIRED_BODY_SECTIONS = [
+  '## Computing Flow Definition',
+  '## Flow Graph',
+  '## Pipeline',
+  '## PRD — Product Requirements',
+  '## TAD — Technical Architecture',
+  '## Open Questions',
+  '## Customization Guide',
+] as const
+
+const hasMandatoryBaseTemplateBodySections = (markdownBody: string): boolean => {
+  return BASE_TEMPLATE_REQUIRED_BODY_SECTIONS.every(section => markdownBody.includes(section))
+}
 
 export const isKgcStructuredMarkdown = (raw: string): boolean => {
   const text = String(raw || '').replace(/\r\n/g, '\n').trim()
@@ -131,54 +123,20 @@ export const isKgcStructuredMarkdown = (raw: string): boolean => {
     if (!key) continue
     if (!frontmatterKeys.has(key)) return false
   }
-  if (isBaseTemplateFrontmatter(parsedFrontmatterBody.frontmatter, frontmatterKeys)) {
-    if (!markdownBody.includes('## Flow Graph') || !markdownBody.includes('## Pipeline')) return false
-    const baseScalars = ['title', 'graphId', 'doc_type', 'date', 'ai_model'] as const
-    for (const key of baseScalars) {
-      const scalar = extractTopLevelYamlBlockScalar(parsedFrontmatterBody.frontmatter, key).trim()
-      if (!scalar) return false
-    }
-    for (const key of BASE_TEMPLATE_TIER_B_KEYS) {
-      const scalar = extractTopLevelYamlBlockScalar(parsedFrontmatterBody.frontmatter, key).trim()
-      if (!scalar) return false
-    }
-    const parsed = tryParseMarkdownFrontmatterFlowGraph('chatKnowgrph.kgc.base.md', text)
-    if (!parsed) return false
-    const nodes = Array.isArray(parsed.graphData.nodes) ? parsed.graphData.nodes : []
-    const edges = Array.isArray(parsed.graphData.edges) ? parsed.graphData.edges : []
-    return nodes.length >= 2 && edges.length >= 1
-  }
-  let searchFrom = 0
-  for (const marker of KGC_REQUIRED_SECTION_ORDER) {
-    const idx = frontmatter.indexOf(marker, searchFrom)
-    if (idx < 0) return false
-    searchFrom = idx + marker.length
-  }
-  if (!KGC_REQUIRED_VARIABLE_MARKERS.every(marker => frontmatter.includes(marker))) return false
-  if (countMatches(frontmatter, /(^|\n)\s*-\s*@node:/g) < 2) return false
-  if (countMatches(frontmatter, /(^|\n)\s*-\s*@edge:/g) < 1) return false
-  const requiredInlineScalars = ['subject', 'action', 'goal', 'solution'] as const
-  for (const k of requiredInlineScalars) {
-    const scalar = extractTopLevelYamlBlockScalar(parsedFrontmatterBody.frontmatter, k).trim()
+  if (!isBaseTemplateFrontmatter(parsedFrontmatterBody.frontmatter, frontmatterKeys)) return false
+  if (!hasMandatoryBaseTemplateBodySections(markdownBody)) return false
+  if (/```/.test(parsedFrontmatterBody.frontmatter)) return false
+  const baseScalars = ['title', 'graphId', 'doc_type', 'date', 'ai_model', '$schema'] as const
+  for (const key of baseScalars) {
+    const scalar = extractTopLevelYamlBlockScalar(parsedFrontmatterBody.frontmatter, key).trim()
     if (!scalar) return false
-    if (hasTemplateRef(scalar)) return false
   }
-  const flowStart = frontmatter.indexOf('\nflow:')
-  if (flowStart < 0) return false
-  const flowText = frontmatter.slice(flowStart + 1)
-  const requiredFlowSnippets = [
-    'flow:',
-    'direction:',
-    'computed:',
-    '\n  nodes:',
-    '\n  edges:',
-    '\n    - id:',
-    '\n      type:',
-    '\n      data:',
-  ]
-  if (!requiredFlowSnippets.every(snippet => flowText.includes(snippet))) return false
-  if (/^\s*(subject|action|goal|solution)\s*:\s*["']?\s*["']?\s*$/m.test(frontmatter)) return false
-  const parsed = tryParseMarkdownFrontmatterFlowGraph('chatKnowgrph.kgc.md', text)
+  for (const key of BASE_TEMPLATE_TIER_B_KEYS) {
+    const scalar = extractTopLevelYamlBlockScalar(parsedFrontmatterBody.frontmatter, key).trim()
+    if (!scalar) return false
+  }
+  if (countMatches(parsedFrontmatterBody.frontmatter, /(^|\n)\s*-\s*(?:\{id:\s*)?e[1-5]\b/g) < 5) return false
+  const parsed = tryParseMarkdownFrontmatterFlowGraph('chatKnowgrph.kgc.base.md', text)
   if (!parsed) return false
   const nodes = Array.isArray(parsed.graphData.nodes) ? parsed.graphData.nodes : []
   const edges = Array.isArray(parsed.graphData.edges) ? parsed.graphData.edges : []
