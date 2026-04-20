@@ -3,6 +3,7 @@ import {
   sanitizeRequestIntent,
   sanitizeScalar,
 } from './chatKgcRequestProfile'
+import { toKgcOutputWorkspacePath } from './chatHistoryWorkspace.paths'
 
 type BaseFallbackArgs = {
   timestampMs: number
@@ -37,6 +38,12 @@ const fallbackDomain = (domain: string, topics: string[]): string => domain || t
 const fallbackObjective = (objective: string): string => objective || '{{objective}}'
 const fallbackOwner = (owner: string): string => owner || '{{owner}}'
 const fallbackStatus = (status: string): string => status || '{{status}}'
+
+const deriveOutputTargetFileName = (fileName: string): string => {
+  const derived = toKgcOutputWorkspacePath(`/${String(fileName || '').trim() || 'kgc.md'}`)
+  const parts = String(derived || '').split('/').filter(Boolean)
+  return String(parts[parts.length - 1] || '').trim() || 'kgc-output.md'
+}
 
 const buildNamedTermSummary = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   return profile.namedTerms.join(', ')
@@ -112,7 +119,7 @@ const buildUseCaseText = (profile: ReturnType<typeof analyzeKgcRequest>): string
 
 const buildProblemText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   if (profile.signals.creativeScript) {
-    return `\`{{subject}}\` needs \`{{artifact}}\` that feels distinctive and production-ready without copying named source properties. The pipeline must preserve originality, keep shared document terms linked to frontmatter, and turn high-level inspiration into a clean creative brief rather than into derivative references.`
+    return `\`{{subject}}\` needs \`{{artifact}}\` that feels distinctive and production-ready without copying named source properties. The response should preserve originality, turn high-level inspiration into a clear brief, and keep brand or franchise references out of the final wording.`
   }
   const pressures = [
     profile.signals.zeroBudget ? 'zero-budget constraints' : '',
@@ -127,12 +134,12 @@ const buildProblemText = (profile: ReturnType<typeof analyzeKgcRequest>): string
     profile.signals.swipe || profile.signals.payments ? 'payment or checkout transitions' : '',
     profile.signals.rxdb || profile.signals.maplibre ? 'stated implementation boundaries' : '',
   ].filter(Boolean)
-  return `\`{{subject}}\` needs \`{{artifact}}\` for \`{{product}}\`${pressures.length ? ` under ${pressures.join(', ')}` : ''}. Generic prose is not enough because the stored response needs to make ${requiredCoverage.join(', ') || 'the stated request constraints'} explicit while keeping the graph-linked output valid, reusable, and aligned with the active query.`
+  return `\`{{subject}}\` needs \`{{artifact}}\` for \`{{product}}\`${pressures.length ? ` under ${pressures.join(', ')}` : ''}. Generic planning prose is not enough because the response has to make ${requiredCoverage.join(', ') || 'the stated request constraints'} explicit in a form that can guide delivery, monetization, and follow-up implementation decisions.`
 }
 
 const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   if (profile.signals.creativeScript) {
-    return 'Use one canonical five-node pipeline so request capture, context shaping, generation, validation, and persistence stay aligned across chat, storage, and renderer surfaces. The generated `{{artifact}}` should turn the request into an original script package with explicit tone, pacing, and guardrails while the graph contract remains universal and reusable.'
+    return 'Shape the response as one coherent script package with explicit tone, pacing, scene logic, and guardrails. Keep the wording original, keep the handoff reusable, and make the creative direction concrete enough that another pass can refine execution without reinterpreting the brief.'
   }
   const channels = [
     profile.signals.mcp ? '`{{product}}` as an MCP offer' : '',
@@ -141,7 +148,7 @@ const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     profile.signals.rxdb ? 'RxDB local-first state' : '',
     profile.signals.maplibre ? 'MapLibre spatial presentation' : '',
   ].filter(Boolean)
-  return `Use one canonical five-node pipeline so request capture, context shaping, generation, validation, and persistence stay aligned across chat, storage, and renderer surfaces. The generated \`{{artifact}}\` should convert the active request into a concrete response covering ${channels.join(', ') || 'the stated delivery surfaces'} while the graph contract remains universal and reusable.`
+  return `Recommend a lean response package that turns the request into an actionable offer covering ${channels.join(', ') || 'the stated delivery surfaces'}. Make the deliverable concrete enough for product, growth, monetization, and integration follow-through without drifting into boilerplate or restating the request verbatim.`
 }
 
 const buildUserFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -168,12 +175,12 @@ const buildMonetizationText = (profile: ReturnType<typeof analyzeKgcRequest>): s
 
 const buildIntegrationText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   const stack = [
-    profile.signals.openClaw ? 'OpenClaw owns marketplace listing and demand capture' : '',
-    profile.signals.swipe ? 'Swipe owns checkout, payment confirmation, and post-payment handoff' : '',
-    profile.signals.rxdb ? 'RxDB owns local-first state, draft persistence, and usage context' : '',
-    profile.signals.maplibre ? 'MapLibre owns spatial presentation where maps increase user value' : '',
+    profile.signals.openClaw ? 'OpenClaw can cover marketplace listing and demand capture' : '',
+    profile.signals.swipe ? 'Swipe can cover checkout, payment confirmation, and post-payment handoff' : '',
+    profile.signals.rxdb ? 'RxDB can cover local-first state, draft persistence, and usage context' : '',
+    profile.signals.maplibre ? 'MapLibre can cover spatial presentation where maps add user value' : '',
   ].filter(Boolean)
-  return `Integration references stay descriptive and bounded to ${stack.join(', ') || 'the stated request topics'}, while the pipeline contract remains tool-agnostic and reusable. Mention integrations only where they materially affect request scope, workflow, data flow, or monetization.`
+  return `Integration references should stay descriptive and bounded to ${stack.join(', ') || 'the stated request topics'}. Mention each integration only where it materially changes scope, workflow, data flow, monetization, or fulfillment.`
 }
 
 const buildWorkflowText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
@@ -214,14 +221,18 @@ const buildVariableLinkRows = (profile: ReturnType<typeof analyzeKgcRequest>): A
   ]
 }
 
-const buildSnapshotRows = (profile: ReturnType<typeof analyzeKgcRequest>): Array<[string, string, string]> => {
+const buildSnapshotRows = (
+  profile: ReturnType<typeof analyzeKgcRequest>,
+  fileName: string,
+): Array<[string, string, string]> => {
+  const outputTarget = profile.outputFile || deriveOutputTargetFileName(fileName)
   if (profile.signals.creativeScript) {
     return [
       ['Deliverable', '`{{artifact}}`', 'keeps the requested output format explicit'],
       ['Creative mode', 'original script package', 'keeps the body focused on content creation rather than planning prose'],
       ['Tone source', 'high-level inspiration only', 'keeps atmosphere without copying named properties'],
       ['Distinctiveness guard', profile.signals.trademarkAvoidance ? 'avoid direct trademark or franchise references' : 'keep the draft original', 'keeps the output safely differentiated'],
-      ['Output target', profile.outputFile || 'workspace markdown artifact', 'keeps the handoff destination visible'],
+      ['Output target', outputTarget, 'keeps the handoff destination visible'],
       ['Validation focus', 'clarity, originality, and body/frontmatter linkage', 'keeps persistence requirements aligned with the document contract'],
     ]
   }
@@ -244,6 +255,7 @@ const buildSnapshotRows = (profile: ReturnType<typeof analyzeKgcRequest>): Array
     ['Primary subject', '`{{product}}`', 'keeps the central subject consistent across body and frontmatter'],
     ['Audience or surface', profile.signals.externalUsers ? `external users through ${discoverySurface}` : discoverySurface, 'keeps the addressed surface tied to the request'],
     ['Deliverable', '`{{artifact}}`', 'keeps the stored output aligned with the requested artifact'],
+    ['Canonical output path', outputTarget, 'keeps companion output naming aligned with the stored KGC document'],
     ['Operating constraints', buildObjectiveSummary(profile) || fallbackObjective(profile.objective), 'keeps the active objective and constraints visible'],
     ['Action surfaces', monetizedActions, 'keeps user actions tied to the stated request context'],
     ['Transition step', checkoutStep, 'keeps handoff or transition moments explicit when present'],
@@ -258,6 +270,7 @@ const buildOpenQuestions = (args: {
   requestedSections: ReturnType<typeof analyzeKgcRequest>['requestedSections']
   signals: ReturnType<typeof analyzeKgcRequest>['signals']
   outputFile: string
+  defaultOutputTarget: string
 }): Array<{ id: string; question: string; status: string }> => {
   const artifact = args.artifact || 'the deliverable'
   if (args.signals.creativeScript) {
@@ -265,7 +278,7 @@ const buildOpenQuestions = (args: {
       `Which review criteria determine whether ${artifact} is clear, original, and complete enough to persist?`,
       args.outputFile
         ? `Should the final body optimize for the target handoff file \`${args.outputFile}\` or stay generic across script destinations?`
-        : 'Should the final body optimize for one specific script destination or stay generic across creative handoff surfaces?',
+        : `Should the final body optimize for the companion output file \`${args.defaultOutputTarget}\` or stay generic across creative handoff surfaces?`,
       args.signals.trademarkAvoidance
         ? 'Which tone or atmosphere cues are allowed while still avoiding direct trademark, franchise, or character references?'
         : 'Which tone or atmosphere cues should remain explicit instead of being inferred?',
@@ -311,19 +324,19 @@ const buildDocumentLead = (profile: ReturnType<typeof analyzeKgcRequest>): strin
     profile.signals.swipe || profile.signals.payments ? 'checkout transitions' : '',
     profile.signals.rxdb || profile.signals.maplibre ? 'implementation boundaries' : '',
   ].filter(Boolean)
-  return `> This document delivers \`{{artifact}}\` for \`{{subject}}\`. Shared terms stay linked to frontmatter so the stored output remains consistent, while the body stays focused on ${focus.join(', ') || 'the active request'} rather than on template narration.`
+  return `> This document packages \`{{artifact}}\` for \`{{subject}}\` around the active request. Shared terms stay aligned through frontmatter, while the body stays focused on ${focus.join(', ') || 'the active request'} instead of generic template narration.`
 }
 
 const buildComputingFlowIntro = (requestSummary: string): string => {
-  return `The execution contract below supports the current request: ${requestSummary}. Frontmatter keeps the stable machine contract, while the body keeps the reader-facing content centered on \`{{artifact}}\`, \`{{subject}}\`, and the active request scope.`
+  return `The execution contract below supports the current request: ${requestSummary}. The sections that follow keep product, actor, deliverable, and implementation details scoped to what the request actually asks for.`
 }
 
 const buildFlowGraphSummary = (profile: ReturnType<typeof analyzeKgcRequest>, artifact: string, domain: string): string => {
-  return `The graph below shows how the request moves from capture to delivery for \`${artifact}\`. Context stays bounded to ${buildFlowContextSummary(profile) || domain}, validation can return targeted correction, and accepted output is persisted without changing the shared graph contract.`
+  return `The graph below shows how the request moves from capture to delivery for \`${artifact}\`. Context stays bounded to ${buildFlowContextSummary(profile) || domain}, validation can return targeted correction, and accepted output stays ready for reuse across follow-up work.`
 }
 
 const buildPipelineIntro = (subject: string, objectiveSummary: string): string => {
-  return `The sequence below shows how the active request becomes stored output for ${subject}. Each step keeps shared identifiers stable while the reader-facing content stays bounded to ${objectiveSummary}.`
+  return `The sequence below shows how the active request becomes a stored deliverable for ${subject}. Each step keeps the work bounded to ${objectiveSummary}.`
 }
 
 const buildBody = (args: {
@@ -339,8 +352,9 @@ const buildBody = (args: {
   const domain = fallbackDomain(args.profile.domain, args.profile.topics)
   const objectiveSummary = buildObjectiveSummary(args.profile) || fallbackObjective(args.profile.objective)
   const owner = fallbackOwner(args.profile.owner)
+  const defaultOutputTarget = deriveOutputTargetFileName(args.fileName)
   const variableLinkRows = buildVariableLinkRows(args.profile)
-  const snapshotRows = buildSnapshotRows(args.profile)
+  const snapshotRows = buildSnapshotRows(args.profile, args.fileName)
   const usePlanningScaffold = Boolean(
     args.profile.requestedSections.useCase ||
     args.profile.requestedSections.problem ||
@@ -358,6 +372,7 @@ const buildBody = (args: {
     requestedSections: args.profile.requestedSections,
     signals: args.profile.signals,
     outputFile: args.profile.outputFile,
+    defaultOutputTarget,
   })
   const useCaseBlock = args.profile.requestedSections.useCase
     ? [
@@ -545,7 +560,7 @@ const buildBody = (args: {
         '',
         '### Non-Goals',
         '',
-        'This base path does not infer missing business decisions, create alternate legacy mappings, or encode project-specific vocabulary when the request does not provide it. Additional domain rules belong in downstream extensions, not in the universal base contract.',
+        'This base path does not infer missing business decisions, create alternate legacy mappings, or inject project-specific vocabulary when the request does not provide it. Domain-specific choices should be added only when the request or later context makes them explicit.',
         '',
         '### User Stories',
         '',

@@ -8,6 +8,11 @@ import {
 import { buildResolvableVarKeySet, validateChatMarkdown } from '@/features/chat/chatMarkdownValidation'
 import { isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/features/chat/chatHistoryWorkspace'
 import { normalizeKgcFrontmatterIdentityToFileName } from '@/features/chat/chatHistoryWorkspace.kgc.normalize'
+import {
+  toCanonicalKgcWorkspacePath,
+  toKgcOutputWorkspacePath,
+  toKgcTraceWorkspacePath,
+} from '@/features/chat/chatHistoryWorkspace.paths'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 
 const readComputingFlowSample = (): string => {
@@ -141,7 +146,7 @@ export function testKgcDeterministicFallbackIsStructuredAndValid() {
   if (!md.includes('Swipe') || !md.includes('solo founder')) {
     throw new Error('Expected deterministic fallback body to stay request-shaped for actor and payment context')
   }
-  if (!md.includes('This document delivers `{{artifact}}` for `{{subject}}`.')) {
+  if (!md.includes('This document packages `{{artifact}}` for `{{subject}}` around the active request.')) {
     throw new Error('Expected deterministic fallback lead to stay artifact-first instead of pipeline-first')
   }
   if (md.includes('This document turns one request into one reusable pipeline artifact.') || md.includes('The canonical five-node pipeline is applied to the current request:')) {
@@ -239,6 +244,36 @@ export function testKgcIdentityNormalizationEnforcesBaseTemplateScalars() {
   }
   if (!normalized.includes('owner `{{owner}}` · 2026-04-19')) {
     throw new Error('Expected normalized body meta line to preserve authored body content')
+  }
+}
+
+export function testKgcWorkspacePathCanonicalizationMapsTraceAndOutputToCanonical() {
+  const tracePath = '/sandbox/chat-log/kgc-trace_20260419180222.md'
+  const outputPath = '/sandbox/chat-log/kgc-output_20260419180222.svg'
+
+  if (toCanonicalKgcWorkspacePath(tracePath) !== '/sandbox/chat-log/kgc_20260419180222.md') {
+    throw new Error('Expected trace path to canonicalize to the runnable KGC markdown path')
+  }
+  if (toCanonicalKgcWorkspacePath(outputPath) !== '/sandbox/chat-log/kgc_20260419180222.md') {
+    throw new Error('Expected output companion path to canonicalize back to the runnable KGC markdown path')
+  }
+  if (toKgcTraceWorkspacePath('/sandbox/chat-log/kgc_20260419180222.md') !== tracePath) {
+    throw new Error('Expected canonical KGC path to derive a matching trace companion path')
+  }
+  if (toKgcOutputWorkspacePath(tracePath, 'png') !== '/sandbox/chat-log/kgc-output_20260419180222.png') {
+    throw new Error('Expected trace path to derive a matching output companion path')
+  }
+  if (toKgcOutputWorkspacePath(tracePath, 'html', { variant: 'viewer' }) !== '/sandbox/chat-log/kgc-output_20260419180222-viewer.html') {
+    throw new Error('Expected trace path to derive a stable variant output companion path')
+  }
+
+  const normalized = normalizeKgcFrontmatterIdentityToFileName({
+    markdown: readBaseTemplateSample(),
+    workspacePath: tracePath,
+    timestampMs: Date.UTC(2026, 3, 19, 18, 2, 22),
+  })
+  if (!normalized.includes('kgc_20260419180222.md')) {
+    throw new Error('Expected identity normalization to use the canonical KGC filename even when the workspace path points at a trace file')
   }
 }
 
@@ -342,11 +377,13 @@ export function testKgcDeterministicFallbackShapesLatestRecommendationQuery() {
     'pay-per-use',
     'conversion',
     'external users',
-    'Swipe owns checkout, payment confirmation, and post-payment handoff',
-    'OpenClaw owns marketplace listing and demand capture',
+    'Swipe can cover checkout, payment confirmation, and post-payment handoff',
+    'OpenClaw can cover marketplace listing and demand capture',
     'An external user discovers the `{{product}}` offer',
     'unlocks the paid entitlement or action',
     '### Request Snapshot',
+    'Canonical output path',
+    'kgc-output_20260420105432.md',
   ]
   requiredSnippets.forEach(snippet => {
     if (!md.includes(snippet)) {
@@ -437,7 +474,7 @@ export function testKgcDeterministicFallbackStaysNeutralForGenericRequest() {
     '### Guardrails',
     '`{{artifact}}`',
     '`{{subject}}`',
-    'This document delivers `{{artifact}}` for `{{subject}}`.',
+    'This document packages `{{artifact}}` for `{{subject}}` around the active request.',
   ]
   requiredSnippets.forEach(snippet => {
     if (!md.includes(snippet)) {

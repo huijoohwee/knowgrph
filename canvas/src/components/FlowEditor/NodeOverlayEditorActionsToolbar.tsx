@@ -4,7 +4,7 @@ import IconButton from '@/components/IconButton'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { cn } from '@/lib/utils'
-import { Copy, Eraser, GitMerge, HelpCircle, PanelRightOpen, Share2, Trash2 } from 'lucide-react'
+import { Copy, Eraser, GitMerge, HelpCircle, PanelRightOpen, Play, Share2, Trash2 } from 'lucide-react'
 
 export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEditorActionsToolbar(args: {
   visible: boolean
@@ -14,6 +14,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
   enableHandlesDisabled: boolean
   convertToLoopDisabled: boolean
   duplicateDisabled: boolean
+  onRun: () => void
   onDuplicate: () => void
   onClearOutput: () => void
   onHelp: () => void
@@ -29,6 +30,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     enableHandlesDisabled,
     convertToLoopDisabled,
     duplicateDisabled,
+    onRun,
     onDuplicate,
     onClearOutput,
     onHelp,
@@ -41,7 +43,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
 
   return (
     <nav
-      className="Island App-toolbar App-toolbar--compact w-fit"
+      className="Island App-toolbar App-toolbar--compact pointer-events-auto w-fit shadow-lg"
       aria-label={UI_LABELS.flowNodeQuickEditorActions}
       onPointerDownCapture={e => {
         try {
@@ -51,6 +53,16 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
         }
       }}
     >
+      <IconButton
+        title={UI_COPY.flowNodeQuickEditorRun}
+        tooltipContent={UI_COPY.flowNodeQuickEditorRun}
+        showTooltip
+        onClick={onRun}
+        className="App-toolbar__btn"
+      >
+        <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
       <IconButton
         title={UI_LABELS.openInSidepane}
         tooltipContent={UI_COPY.flowNodeQuickEditorOpenInSidepane}

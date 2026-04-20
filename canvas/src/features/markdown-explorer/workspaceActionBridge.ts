@@ -10,6 +10,7 @@ export type MarkdownWorkspaceActionBridge = {
     duplicateInWorkspace?: () => void
     workspaceFileJsonLd?: () => void
     markdown?: () => void
+    png?: () => void
     htmlViewer?: () => void
     htmlCanvas?: () => void
     json?: () => void
@@ -46,4 +47,3 @@ export function getMarkdownWorkspaceActionBridge(): MarkdownWorkspaceActionBridg
   }
   return merged
 }
-

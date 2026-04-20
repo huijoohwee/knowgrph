@@ -71,6 +71,11 @@ import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
 import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
+import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
+import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -162,6 +167,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
   onPatchProperties: (patch: Record<string, unknown>) => void
   onSetProperties: (properties: Record<string, unknown>) => void
   onValidate: () => void
+  onRun: () => void
   onDuplicate: () => void
   onRemove: () => void
   onClearOutput: () => void
@@ -198,6 +204,7 @@ const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuick
       onPatchProperties={args.onPatchProperties}
       onSetProperties={args.onSetProperties}
       onValidate={args.onValidate}
+      onRun={args.onRun}
       onDuplicate={args.onDuplicate}
       onRemove={args.onRemove}
       onClearOutput={args.onClearOutput}
@@ -2962,6 +2969,53 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       try {
         const id = String(nodeId || '').trim()
         if (!id) return
+        const activeWorkspacePath = typeof markdownDocumentName === 'string' ? markdownDocumentName.trim() : ''
+        if (activeWorkspacePath && isKgcWorkspaceCompanionPath(activeWorkspacePath)) {
+          const canonicalPath = toCanonicalKgcWorkspacePath(activeWorkspacePath)
+          const fs = await getWorkspaceFs()
+          await fs.ensureSeed()
+          const canonicalText = String(await fs.readFileText(canonicalPath) || '')
+          if (canonicalText.trim()) {
+            useMarkdownExplorerStore.getState().setActivePath(canonicalPath)
+            ensureEditorCanvasLandingForDuration(1500)
+            const state = useGraphStore.getState()
+            if (state.markdownDocumentName !== canonicalPath || state.markdownDocumentText !== canonicalText) {
+              void state.setActiveMarkdownDocument({
+                name: canonicalPath,
+                text: canonicalText,
+                normalizeMermaidMmd: false,
+                autoEnableFrontmatter: false,
+                sourceUrl: typeof markdownDocumentSourceUrl === 'string' ? markdownDocumentSourceUrl : null,
+              })
+            }
+            const ok = await state.applyMarkdownDocumentToGraph(canonicalPath, canonicalText, { force: true })
+            const outputResult = ok
+              ? await emitKgcRunOutput({
+                  canonicalPath,
+                  canonicalText,
+                  getStore: () => ({
+                    captureCanvasPngSnapshot: () => useGraphStore.getState().captureCanvasPngSnapshot(),
+                    captureCanvasSvgSnapshot: () => useGraphStore.getState().captureCanvasSvgSnapshot(),
+                  }),
+                })
+              : { path: null, kind: 'markdown' as const, degraded: false }
+            const outputName = outputResult.path ? canonicalPath.split('/').pop() : ''
+            const generatedName = outputResult.path ? outputResult.path.split('/').pop() : ''
+            upsertUiToast({
+              id: `flow-editor-run-${id}`,
+              kind: 'neutral',
+              message: ok
+                ? generatedName
+                  ? outputResult.degraded
+                    ? `Ran ${outputName || 'KGC document'} and generated ${generatedName} as a markdown fallback for video output.`
+                    : `Ran ${outputName || 'KGC document'} and generated ${generatedName}.`
+                  : `Ran ${outputName || 'KGC document'}.`
+                : `Opened ${canonicalPath.split('/').pop() || 'KGC document'}.`,
+              ttlMs: 2200,
+            })
+            return
+          }
+        }
         const draft = (draftGraphDataRef.current || draftGraphData) as GraphData | null
         if (!draft) {
           upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorNoDraftGraphToast, ttlMs: 2400 })
@@ -2992,7 +3046,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         upsertUiToast({ id: `flow-editor-run-failed-${String(nodeId || '')}`, kind: 'neutral', message: UI_COPY.flowEditorRunFailedToast, ttlMs: 2600 })
       }
     },
-    [draftGraphData, upsertUiToast],
+    [draftGraphData, markdownDocumentName, markdownDocumentSourceUrl, upsertUiToast],
   )
 
   const exportWorkflowBundle = React.useCallback(async () => {
@@ -3410,6 +3464,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             onPatchProperties={(patch) => patchNodePropertiesById(id, patch)}
             onSetProperties={(props) => setNodePropertiesById(id, props)}
             onValidate={() => validateNodeById(id)}
+            onRun={() => {
+              void runWorkflowNode(id)
+            }}
             onDuplicate={() => {
               const pinnedMap = flowNodeQuickEditorPinnedByNodeId || {}
               const pinned = forcePinnedToCanvas === true || pinnedMap[id] === true
@@ -3460,6 +3517,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     flowNodeQuickEditorPinnedByNodeId,
     removeNodeById,
     renameSchemaFieldIdByNodeId,
+    runWorkflowNode,
     scheduleOverlayCollisionResolve,
     setNodeLabelById,
     setNodePropertiesById,

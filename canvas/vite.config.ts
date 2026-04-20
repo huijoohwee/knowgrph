@@ -4089,7 +4089,7 @@ function createRepoFileHandler(): import('vite').Connect.NextHandleFunction {
 }
 
 function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
-  const MAX_BODY_BYTES = 2_000_000
+  const MAX_BODY_BYTES = 25_000_000
   const workspaceMirrorRoot = path.resolve(repoRoot, '..')
   const allowedRoots = [
     path.resolve(repoRoot),
@@ -4159,14 +4159,16 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({ ok: false, error: 'Body too large' }))
       return
     }
-    let parsed: { path?: unknown; text?: unknown } | null = null
+    let parsed: { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown } | null = null
     try {
-      parsed = JSON.parse(body) as { path?: unknown; text?: unknown }
+      parsed = JSON.parse(body) as { path?: unknown; text?: unknown; base64?: unknown; encoding?: unknown; mimeType?: unknown }
     } catch {
       parsed = null
     }
     const incomingPath = typeof parsed?.path === 'string' ? parsed.path.trim() : ''
     const text = typeof parsed?.text === 'string' ? parsed.text : ''
+    const base64 = typeof parsed?.base64 === 'string' ? parsed.base64 : ''
+    const encoding = typeof parsed?.encoding === 'string' ? parsed.encoding.trim().toLowerCase() : ''
     if (!incomingPath || incomingPath.includes('\u0000')) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -4176,10 +4178,13 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
     const requestedAbsPath = toHostPath(incomingPath)
     const kgcPathInfo = parseKgcPathInfo(requestedAbsPath)
     const absPath = kgcPathInfo.tracePath || kgcPathInfo.canonicalPath
-    if (!absPath.endsWith('.md')) {
+    const ext = String(path.extname(absPath) || '').toLowerCase()
+    const base = path.basename(absPath)
+    const isKgcOutputCompanion = /^kgc-output_\d{14}(?:-[a-z0-9-]+)?\.(md|html|svg|png|pdf|jpg|jpeg|webp|gif|mp4|webm|mov|glb)$/i.test(base)
+    if (!(ext === '.md' || isKgcOutputCompanion)) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({ ok: false, error: 'Only .md is allowed' }))
+      res.end(JSON.stringify({ ok: false, error: 'Only .md and supported kgc-output companion files are allowed' }))
       return
     }
     if (!isAllowed(absPath)) {
@@ -4190,7 +4195,16 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
     }
     try {
       await fs.mkdir(path.dirname(absPath), { recursive: true })
-      await fs.writeFile(absPath, text, 'utf8')
+      if (base64 && encoding === 'base64') {
+        await fs.writeFile(absPath, Buffer.from(base64, 'base64'))
+      } else if (typeof text === 'string') {
+        await fs.writeFile(absPath, text, 'utf8')
+      } else {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ ok: false, error: 'Missing content' }))
+        return
+      }
       if (kgcPathInfo.stem) {
         const stem = kgcPathInfo.stem
         const dir = path.dirname(kgcPathInfo.canonicalPath)

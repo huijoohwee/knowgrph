@@ -2,6 +2,7 @@ import { saveBlobWithPicker, downloadBlob } from '@/lib/graph/save'
 import type { UiToastInput } from '@/hooks/store/types'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { applyMediaProxySrc } from 'grph-shared/url'
+import { writeKgcCompanionOutputText } from '@/features/chat/chatHistoryWorkspace.output'
 
 export type SnapshotInlineAssetKind = 'image' | 'media' | 'asset'
 
@@ -14,6 +15,7 @@ export function resolveSnapshotInlineFetchUrl(absUrl: string, kind: SnapshotInli
 
 export async function exportHtmlViewerSnapshot(args: {
   exportBaseName: string
+  activeDocumentPath?: string | null
   showWebpageHtml: boolean
   iframeSrcDoc: string | null
   viewerEl: HTMLElement | null
@@ -306,6 +308,12 @@ export async function exportHtmlViewerSnapshot(args: {
       const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
       if (saved === '') return
       if (!saved) downloadBlob(blob, name)
+      await writeKgcCompanionOutputText({
+        workspacePath: args.activeDocumentPath,
+        extension: 'html',
+        variant: 'viewer',
+        text: html,
+      })
       return
     }
 
@@ -393,6 +401,12 @@ export async function exportHtmlViewerSnapshot(args: {
     const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
     if (saved === '') return
     if (!saved) downloadBlob(blob, name)
+    await writeKgcCompanionOutputText({
+      workspacePath: args.activeDocumentPath,
+      extension: 'html',
+      variant: 'viewer',
+      text: html,
+    })
   } catch {
     void 0
   }

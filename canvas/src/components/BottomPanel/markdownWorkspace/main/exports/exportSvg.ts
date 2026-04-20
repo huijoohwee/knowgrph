@@ -5,9 +5,11 @@ import { exportGraphAsCentered3dSvgMarkup } from '@/lib/graph/graphCenteredSvg3d
 import { lsBool } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
 import type { UiToastInput } from '@/hooks/store/types'
+import { writeKgcCompanionOutputText } from '@/features/chat/chatHistoryWorkspace.output'
 
 export async function exportCanvasSvg(args: {
   exportBaseName: string
+  activeDocumentPath?: string | null
   pushUiToast: (toast: UiToastInput) => void
   getStore: () => {
     graphData: unknown
@@ -53,6 +55,16 @@ export async function exportCanvasSvg(args: {
     }
 
     const suggested = `${args.exportBaseName}.svg`
+    const exportSvgAndCompanion = async (svgMarkup: string): Promise<void> => {
+      const normalized = String(svgMarkup || '').trim()
+      if (!normalized) return
+      await exportSvgSnapshot(normalized, suggested)
+      await writeKgcCompanionOutputText({
+        workspacePath: args.activeDocumentPath,
+        extension: 'svg',
+        text: normalized,
+      })
+    }
     const fallbackSize = readCanvasViewportSizeFromDom()
     const store = args.getStore()
     const geospatialEnabled = (() => {
@@ -86,7 +98,7 @@ export async function exportCanvasSvg(args: {
           threeEdgeRenderer: store.threeEdgeRenderer as any,
         })
         if (centered3d && centered3d.trim()) {
-          await exportSvgSnapshot(centered3d, suggested)
+          await exportSvgAndCompanion(centered3d)
           return
         }
       }
@@ -106,7 +118,7 @@ export async function exportCanvasSvg(args: {
           animated: workspaceEditorEnabled,
         })
         if (centered && centered.trim()) {
-          await exportSvgSnapshot(centered, suggested)
+          await exportSvgAndCompanion(centered)
           return
         }
       }
@@ -116,7 +128,7 @@ export async function exportCanvasSvg(args: {
       const svg = await store.captureCanvasSvgSnapshot()
       const trimmedSvg = normalizeSvgMarkup(svg || '', fallbackSize).trim()
       if (trimmedSvg) {
-        await exportSvgSnapshot(trimmedSvg, suggested)
+        await exportSvgAndCompanion(trimmedSvg)
         return
       }
     }
@@ -129,7 +141,7 @@ export async function exportCanvasSvg(args: {
         args.pushUiToast({ id: 'export-svg-missing-canvas-wrap', kind: 'warning', message: 'Failed to wrap canvas PNG into SVG.' })
         return
       }
-      await exportSvgSnapshot(wrapped, suggested)
+      await exportSvgAndCompanion(wrapped)
       return
     }
 
@@ -138,4 +150,3 @@ export async function exportCanvasSvg(args: {
     void 0
   }
 }
-

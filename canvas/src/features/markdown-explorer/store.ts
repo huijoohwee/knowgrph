@@ -3,6 +3,7 @@ import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
+import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 
 type MarkdownExplorerState = {
   activePath: WorkspacePath | null
@@ -29,7 +30,7 @@ export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
   requestedRevealLine: null,
   lastSetActivePath: null,
   setActivePath: (path: WorkspacePath | null) => {
-    const normalized = path ? normalizeWorkspacePath(path) : null
+    const normalized = path ? toCanonicalKgcWorkspacePath(normalizeWorkspacePath(path)) : null
     lsSetJson(LS_KEYS.markdownExplorerActivePath, normalized)
     set({
       activePath: normalized,

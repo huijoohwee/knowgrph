@@ -4,6 +4,7 @@ import {
   sanitizeRequestIntent,
 } from './chatKgcRequestProfile'
 import { buildDeterministicBaseTemplateKgcTurn } from './chatHistoryWorkspace.kgc.baseFallback'
+import { toCanonicalKgcWorkspacePath } from './chatHistoryWorkspace.paths'
 
 const splitLeadingFrontmatterAndBody = (raw: string): { frontmatter: string; body: string } | null => {
   const text = String(raw || '').replace(/\r\n/g, '\n')
@@ -130,7 +131,8 @@ const toIsoDate = (timestampMs: number): string => {
 const toFileName = (workspacePath: string, timestampMs: number): string => {
   const cleaned = String(workspacePath || '').trim()
   if (cleaned) {
-    const parts = cleaned.split('/').filter(Boolean)
+    const canonicalPath = toCanonicalKgcWorkspacePath(cleaned)
+    const parts = canonicalPath.split('/').filter(Boolean)
     const fileName = String(parts[parts.length - 1] || '').trim()
     if (fileName) return fileName
   }
@@ -145,7 +147,8 @@ const countMatches = (text: string, rx: RegExp): number => {
 const extractFileNameFromWorkspacePath = (workspacePath?: string): string => {
   const cleaned = String(workspacePath || '').trim()
   if (!cleaned) return 'kgc.md'
-  const parts = cleaned.split('/').filter(Boolean)
+  const canonicalPath = toCanonicalKgcWorkspacePath(cleaned)
+  const parts = canonicalPath.split('/').filter(Boolean)
   return String(parts[parts.length - 1] || '').trim() || 'kgc.md'
 }
 

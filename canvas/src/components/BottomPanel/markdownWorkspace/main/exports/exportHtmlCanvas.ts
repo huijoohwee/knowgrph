@@ -25,6 +25,7 @@ import { ensureSvgHasEdgeGeometry } from '@/lib/graph/svgEdgeGeometry'
 import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/markdownDesignSvgOverlay'
 import { captureLiveOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
 import { readViewportControlsPresetFromLocalStorage } from '@/lib/graph/htmlViewer/exportViewportControls'
+import { writeKgcCompanionOutputText } from '@/features/chat/chatHistoryWorkspace.output'
 
 const deriveThreeCameraStartup = (
   pose: { position?: { x?: number; y?: number; z?: number }; target?: { x?: number; y?: number; z?: number } } | null | undefined,
@@ -55,6 +56,7 @@ const deriveThreeCameraStartup = (
 
 export async function exportHtmlCanvasFromWorkspace(args: {
   exportBaseName: string
+  activeDocumentPath?: string | null
   pushUiToast: (toast: UiToastInput) => void
 }): Promise<void> {
   try {
@@ -403,6 +405,12 @@ export async function exportHtmlCanvasFromWorkspace(args: {
     const saved = await saveBlobWithPicker(blob, name, { description: 'HTML Files', accept: { 'text/html': ['.html'] } })
     if (saved === '') return
     if (!saved) downloadBlob(blob, name)
+    await writeKgcCompanionOutputText({
+      workspacePath: args.activeDocumentPath,
+      extension: 'html',
+      variant: `canvas-${wants3dExport ? '3d' : '2d'}`,
+      text: htmlViewer,
+    })
   } catch {
     void 0
   }

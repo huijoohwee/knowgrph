@@ -7,7 +7,11 @@ import {
 } from './chatHistoryWorkspace.kgc.build'
 import { isKgcStructuredMarkdown } from './chatHistoryWorkspace.kgc.parse'
 import { normalizeKgcFrontmatterIdentityToFileName } from './chatHistoryWorkspace.kgc.normalize'
-import { ensureHistoryFilePath, resolveFilePrefix } from './chatHistoryWorkspace.paths'
+import {
+  ensureHistoryFilePath,
+  resolveFilePrefix,
+  toKgcTraceWorkspacePath,
+} from './chatHistoryWorkspace.paths'
 import type { ChatHistoryWorkspaceAppendArgs, ChatHistoryWorkspaceDraftArgs } from './chatHistoryWorkspace.types'
 
 const inFlightByPath = new Map<string, Promise<void>>()
@@ -86,17 +90,6 @@ const stripDraftBlock = (existing: string, traceId: string): string => {
   return `${src.slice(0, startIdx)}${src.slice(endIdx + end.length)}`.replace(/\n{3,}/g, '\n\n').trimEnd() + '\n'
 }
 
-const deriveKgcTraceWorkspacePath = (workspacePath: string): string | null => {
-  const normalized = normalizeWorkspacePath(workspacePath)
-  const parts = normalized.split('/').filter(Boolean)
-  const base = String(parts[parts.length - 1] || '')
-  const m = /^(kgc_(\d{14}))\.md$/i.exec(base)
-  if (!m) return null
-  const ts = String(m[2] || '').trim()
-  parts[parts.length - 1] = `kgc-trace_${ts}.md`
-  return normalizeWorkspacePath(`/${parts.join('/')}`)
-}
-
 const writeWorkspaceFileTextEnsuringFile = async (args: {
   fs: Awaited<ReturnType<typeof getWorkspaceFs>>
   path: string
@@ -161,7 +154,7 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
       const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
       await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
       void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
-      const tracePath = deriveKgcTraceWorkspacePath(key)
+      const tracePath = toKgcTraceWorkspacePath(key)
       if (tracePath) {
         await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
         void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })
@@ -232,7 +225,7 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
         const next = [existing, draft].filter(Boolean).join(joiner)
         if (next === existingRaw) return
         await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
-        const tracePath = deriveKgcTraceWorkspacePath(key)
+        const tracePath = toKgcTraceWorkspacePath(key)
         if (tracePath) {
           await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
           void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })
@@ -256,7 +249,7 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
       const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
       if (next === existingRaw) return
       await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
-      const tracePath = deriveKgcTraceWorkspacePath(key)
+      const tracePath = toKgcTraceWorkspacePath(key)
       if (tracePath) {
         await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
         void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })

@@ -99,6 +99,7 @@ import {
 import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
 import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonText } from '@/lib/graph/io/nodeQuickEditorBundle'
 import { WorkspaceModeSelect } from '@/components/BottomPanel/markdownWorkspace/WorkspaceModeSelect'
+import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 
 const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
@@ -956,7 +957,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
   const setActivePathSafe = React.useCallback(
     (path: WorkspacePath) => {
-      const normalized = normalizeWorkspacePath(path)
+      const normalized = toCanonicalKgcWorkspacePath(normalizeWorkspacePath(path))
       lastRequestedActivePathRef.current = { path: normalized, atMs: Date.now() }
       setActivePath(normalized)
     },
@@ -1063,7 +1064,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [active, refresh])
 
   const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
-    setSelectionPath(normalizeWorkspacePath(path))
+    setSelectionPath(toCanonicalKgcWorkspacePath(normalizeWorkspacePath(path)))
   }, [])
 
 
@@ -1572,6 +1573,16 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     }
     setActivePathSafe(firstFile.path)
   }, [activePath, entries, lastSetActivePath, loading, setActivePathSafe])
+
+  React.useEffect(() => {
+    const path = String(activePath || '').trim()
+    if (!path) return
+    const canonicalPath = toCanonicalKgcWorkspacePath(path)
+    if (!canonicalPath || canonicalPath === path) return
+    if (!entries.some(e => e.kind === 'file' && e.path === canonicalPath)) return
+    setActivePathSafe(canonicalPath)
+    if (selectionPath === path) setSelectionPathSafe(canonicalPath)
+  }, [activePath, entries, selectionPath, setActivePathSafe, setSelectionPathSafe])
 
   React.useEffect(() => {
     const path = activePath

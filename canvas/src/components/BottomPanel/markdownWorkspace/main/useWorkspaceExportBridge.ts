@@ -57,8 +57,20 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     const text = String(markdownEditText ?? (typeof viewerTextOverride === 'string' ? viewerTextOverride : activeText))
     const mod = await import('./exports/exportMarkdown')
     const { exportMarkdownFile } = mod
-    await exportMarkdownFile({ exportBaseName, text })
+    await exportMarkdownFile({ exportBaseName, text, activeDocumentPath: activeDocumentKey })
   }, [activeText, exportBaseName, flushGraphWritebackForExport, markdownEditText, viewerTextOverride])
+
+  const handleExportPng = React.useCallback(async () => {
+    flushGraphWritebackForExport()
+    const mod = await import('./exports/exportPng')
+    const { exportCanvasPng } = mod
+    await exportCanvasPng({
+      exportBaseName,
+      activeDocumentPath: activeDocumentKey,
+      pushUiToast,
+      getStore: () => useGraphStore.getState(),
+    })
+  }, [activeDocumentKey, exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
   const handleExportHtmlViewer = React.useCallback(async () => {
     flushGraphWritebackForExport()
@@ -66,6 +78,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     const { exportHtmlViewerSnapshot } = mod
     await exportHtmlViewerSnapshot({
       exportBaseName,
+      activeDocumentPath: activeDocumentKey,
       showWebpageHtml,
       iframeSrcDoc,
       viewerEl,
@@ -78,8 +91,8 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     flushGraphWritebackForExport()
     const mod = await import('./exports/exportHtmlCanvas')
     const { exportHtmlCanvasFromWorkspace } = mod
-    await exportHtmlCanvasFromWorkspace({ exportBaseName, pushUiToast })
-  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
+    await exportHtmlCanvasFromWorkspace({ exportBaseName, activeDocumentPath: activeDocumentKey, pushUiToast })
+  }, [activeDocumentKey, exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
   const handleExportSvg = React.useCallback(async () => {
     flushGraphWritebackForExport()
@@ -87,10 +100,11 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
     const { exportCanvasSvg } = mod
     await exportCanvasSvg({
       exportBaseName,
+      activeDocumentPath: activeDocumentKey,
       pushUiToast,
       getStore: () => useGraphStore.getState(),
     })
-  }, [exportBaseName, flushGraphWritebackForExport, pushUiToast])
+  }, [activeDocumentKey, exportBaseName, flushGraphWritebackForExport, pushUiToast])
 
   const handleExportJson = React.useCallback(async () => {
     flushGraphWritebackForExport()
@@ -113,6 +127,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
         duplicateInWorkspace: onSaveAs,
         workspaceFileJsonLd: () => void handleExportWorkspaceFile(),
         markdown: () => void handleExportMarkdown(),
+        png: () => void handleExportPng(),
         htmlViewer: () => void handleExportHtmlViewer(),
         htmlCanvas: () => void handleExportHtmlCanvas(),
         json: () => void handleExportJson(),
@@ -125,6 +140,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
       handleExportHtmlViewer,
       handleExportJson,
       handleExportMarkdown,
+      handleExportPng,
       handleExportPdf,
       handleExportSvg,
       handleExportWorkspaceFile,
@@ -139,6 +155,7 @@ export function useWorkspaceExportBridge(args: UseWorkspaceExportBridgeArgs) {
   return {
     handleExportWorkspaceFile,
     handleExportMarkdown,
+    handleExportPng,
     handleExportHtmlViewer,
     handleExportHtmlCanvas,
     handleExportSvg,

@@ -51,6 +51,7 @@ export const UI_COPY = {
   flowNodeQuickEditorRemoveNode: 'Remove selected node',
   flowNodeQuickEditorMenu: 'More node actions',
   flowNodeQuickEditorOpenInSidepane: 'Open selected node in sidepane',
+  flowNodeQuickEditorRun: 'Run',
   flowNodeQuickEditorEnableHandles: 'Enable handles for all inputs',
   flowNodeQuickEditorConvertToLoop: 'Convert to loop node',
   flowNodeQuickEditorHelpToast: 'Node Quick Editor: both modes follow canvas zoom/pan. Pin disables drag; unpin enables drag. Escape closes the menu.',

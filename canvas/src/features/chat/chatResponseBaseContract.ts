@@ -67,6 +67,7 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   'For chatKnowgrph output, the answer itself must be the KGC document: start with `---` in the first chunk and do not wrap it in commentary.',
   'When the user request is non-empty, avoid placeholder-only lines in the body.',
   'When the request contains a long directive list, synthesize it into concise context-responsive prose instead of echoing the full request verbatim.',
+  'Keep the body centered on the user request and deliverable; do not spend body prose explaining the canvas, pipeline, or template itself unless the request explicitly asks for that explanation.',
   'Do not emit stock labels such as "Request Intent", "Monetization Focus", "Use Case", "Problem", or "Solution" unless the user explicitly asks for them.',
   'If the user explicitly asks for sections such as "Use Case", "Problem", "Solution", "User Flow", "Work Flow", "Data Flow", "Monetization", or "Integration", include those exact section labels in the body and fill them with fresh request-shaped content.',
   'Keep the graph contract universal and reusable: frontmatter structure, node IDs, retry wiring, and SSOT surfaces stay canonical even when the request-specific prose changes.',

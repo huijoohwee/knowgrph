@@ -10,9 +10,9 @@ import { WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE } from '@/lib/asy
 import type { ChatMessage } from './SidePanelChatSections'
 import { SidePanelChatFooter, SidePanelChatMessagesSection } from './SidePanelChatSections'
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
+import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
-import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   getDefaultChatModelForProvider,
@@ -35,22 +35,6 @@ import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFi
 import { useSidePanelChatSubmit } from '@/features/chat/sidePanelChat/useSidePanelChatSubmit'
 
 const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-request'
-const toCanonicalKgcWorkspacePath = (rawPath: string): string => {
-  const normalized = normalizeWorkspacePath(rawPath)
-  const parts = normalized.split('/').filter(Boolean)
-  const base = String(parts[parts.length - 1] || '')
-  const traceMatch = /^kgc-trace_(\d{14})\.md$/i.exec(base)
-  if (traceMatch) {
-    const ts = String(traceMatch[1] || '').trim()
-    parts[parts.length - 1] = `kgc_${ts}.md`
-    return normalizeWorkspacePath(`/${parts.join('/')}`)
-  }
-  const m = /^(kgc_\d{14})(?:-[a-z0-9-]+)?\.md$/i.exec(base)
-  if (!m) return normalized
-  const stem = String(m[1] || '').trim()
-  parts[parts.length - 1] = `${stem}.md`
-  return normalizeWorkspacePath(`/${parts.join('/')}`)
-}
 
 export default function SidePanelChat() {
   const graphData = useGraphStore(s => s.graphData)

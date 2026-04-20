@@ -47,6 +47,8 @@ import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = 140
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 170
 const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
+const QUICK_EDITOR_ACTIONS_TOOLBAR_OFFSET_PX = 40
+const QUICK_EDITOR_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
 
 type NodeOverlayEditorProps = {
   visible?: boolean
@@ -74,6 +76,7 @@ type NodeOverlayEditorProps = {
   onPatchProperties: (patch: Record<string, unknown>) => void
   onSetProperties: (properties: Record<string, unknown>) => void
   onValidate: () => void
+  onRun: () => void
   onDuplicate: () => void
   onRemove: () => void
   onClearOutput: () => void
@@ -109,6 +112,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   onPatchProperties,
   onSetProperties,
   onValidate,
+  onRun,
   onDuplicate,
   onRemove,
   onClearOutput,
@@ -281,6 +285,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   }, [defaultFloatingPos, quickEditorPos, resolveFloatingPos])
 
   const [toolbarVisible, setToolbarVisible] = React.useState(false)
+  const [toolbarDock, setToolbarDock] = React.useState<'above' | 'below'>('above')
   useOutsideClose(toolbarVisible, setToolbarVisible, asideRef)
 
   const labelInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -511,6 +516,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     })()
 
     if (shouldClampFloating && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) scheduleClampCommit(pos)
+    const nextToolbarDock = pos.top >= QUICK_EDITOR_ACTIONS_TOOLBAR_CLEARANCE_PX ? 'above' : 'below'
+    setToolbarDock(prev => (prev === nextToolbarDock ? prev : nextToolbarDock))
 
     const offset = canvasWindowOffsetRef.current
     const offsetLeft = Number.isFinite(offset.left) ? offset.left : 0
@@ -1078,15 +1085,19 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       }}
     >
       <div className="relative">
-        <div className="absolute left-1/2 -translate-x-1/2" style={{ top: -40 }}>
+        <div
+          className="absolute left-1/2 z-10 -translate-x-1/2 pointer-events-auto"
+          style={{ top: toolbarDock === 'above' ? -QUICK_EDITOR_ACTIONS_TOOLBAR_OFFSET_PX : 8 }}
+        >
           <NodeOverlayEditorActionsToolbar
-            visible={toolbarVisible && selectedNodeId === String(node.id || '').trim()}
+            visible={toolbarVisible}
             iconSizeClass={getIconSizeClass(uiIconScale)}
             iconStrokeWidth={uiIconStrokeWidth}
             active={active}
             enableHandlesDisabled={enableHandlesDisabled}
             convertToLoopDisabled={convertToLoopDisabled}
             duplicateDisabled={pinnedInCanvas || forcePinnedToCanvas === true}
+            onRun={onRun}
             onDuplicate={onDuplicate}
             onClearOutput={onClearOutput}
             onHelp={onHelp}

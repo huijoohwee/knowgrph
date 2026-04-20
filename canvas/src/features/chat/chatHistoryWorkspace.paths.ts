@@ -3,6 +3,13 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from './chatStorageConfig'
 
+type ChatHistoryStorageType = 'chatKnowgrph' | 'chatHistory'
+type KgcWorkspacePathKind = 'canonical' | 'trace' | 'output'
+
+const KGC_CANONICAL_FILE_RX = /^kgc_(\d{14})(?:-[a-z0-9-]+)?\.md$/i
+const KGC_TRACE_FILE_RX = /^kgc-trace_(\d{14})(?:-[a-z0-9-]+)?\.md$/i
+const KGC_OUTPUT_FILE_RX = /^kgc-output_(\d{14})(?:-[a-z0-9-]+)?\.[a-z0-9]+$/i
+
 export const resolveFilePrefix = (args?: { storageType?: 'chatKnowgrph' | 'chatHistory' }): 'chh' | 'kgc' => {
   if (args?.storageType === 'chatKnowgrph') return 'kgc'
   return 'chh'
@@ -56,18 +63,78 @@ const formatFilename = (prefix: 'chh' | 'kgc', timestampMs: number): string => {
   return `${prefix}_${formatCompactTimestamp(timestampMs)}.md`
 }
 
-const isCanonicalKgcFilename = (name: string): boolean => {
+const extractLastPathSegment = (workspacePath: string): string => {
+  const normalized = normalizeWorkspacePath(workspacePath)
+  const parts = normalized.split('/').filter(Boolean)
+  return String(parts[parts.length - 1] || '').trim()
+}
+
+const parseKgcWorkspacePath = (workspacePath: string): { timestamp: string; kind: KgcWorkspacePathKind } | null => {
+  const fileName = extractLastPathSegment(workspacePath)
+  const canonicalMatch = KGC_CANONICAL_FILE_RX.exec(fileName)
+  if (canonicalMatch?.[1]) {
+    return { timestamp: String(canonicalMatch[1]).trim(), kind: 'canonical' }
+  }
+  const traceMatch = KGC_TRACE_FILE_RX.exec(fileName)
+  if (traceMatch?.[1]) {
+    return { timestamp: String(traceMatch[1]).trim(), kind: 'trace' }
+  }
+  const outputMatch = KGC_OUTPUT_FILE_RX.exec(fileName)
+  if (outputMatch?.[1]) {
+    return { timestamp: String(outputMatch[1]).trim(), kind: 'output' }
+  }
+  return null
+}
+
+const replaceLastPathSegment = (workspacePath: string, nextFileName: string): WorkspacePath => {
+  const normalized = normalizeWorkspacePath(workspacePath)
+  const parts = normalized.split('/').filter(Boolean)
+  if (parts.length === 0) return normalizeWorkspacePath(`/${nextFileName}`)
+  parts[parts.length - 1] = String(nextFileName || '').trim()
+  return normalizeWorkspacePath(`/${parts.join('/')}`)
+}
+
+export const isCanonicalKgcFilename = (name: string): boolean => {
   return /^kgc_\d{14}\.md$/i.test(String(name || '').trim())
+}
+
+export const isKgcWorkspaceCompanionPath = (workspacePath: string): boolean => {
+  return parseKgcWorkspacePath(workspacePath) !== null
+}
+
+export const toCanonicalKgcWorkspacePath = (workspacePath: string): WorkspacePath => {
+  const normalized = normalizeWorkspacePath(workspacePath)
+  const parsed = parseKgcWorkspacePath(normalized)
+  if (!parsed) return normalized
+  return replaceLastPathSegment(normalized, `kgc_${parsed.timestamp}.md`)
+}
+
+export const toKgcTraceWorkspacePath = (workspacePath: string): WorkspacePath | null => {
+  const parsed = parseKgcWorkspacePath(workspacePath)
+  if (!parsed) return null
+  return replaceLastPathSegment(workspacePath, `kgc-trace_${parsed.timestamp}.md`)
+}
+
+export const toKgcOutputWorkspacePath = (
+  workspacePath: string,
+  extension = 'md',
+  args?: { variant?: string | null },
+): WorkspacePath | null => {
+  const parsed = parseKgcWorkspacePath(workspacePath)
+  if (!parsed) return null
+  const safeExtension = String(extension || 'md').replace(/^\./, '').trim().toLowerCase() || 'md'
+  const rawVariant = String(args?.variant || '').trim().toLowerCase()
+  const safeVariant = rawVariant.replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
+  const variantSuffix = safeVariant ? `-${safeVariant}` : ''
+  return replaceLastPathSegment(workspacePath, `kgc-output_${parsed.timestamp}${variantSuffix}.${safeExtension}`)
 }
 
 const shouldUseRequestedPath = (
   requestedPath: string,
-  storageType?: 'chatKnowgrph' | 'chatHistory',
+  storageType?: ChatHistoryStorageType,
 ): boolean => {
-  const normalized = normalizeWorkspacePath(requestedPath)
   if (storageType !== 'chatKnowgrph') return true
-  const fileName = normalized.split('/').filter(Boolean).slice(-1)[0] || ''
-  return isCanonicalKgcFilename(fileName)
+  return isKgcWorkspaceCompanionPath(requestedPath)
 }
 
 const createTimestampedWorkspaceFile = async (args: {
@@ -94,7 +161,7 @@ const createTimestampedWorkspaceFile = async (args: {
 }
 
 const resolveSessionScopeKey = (args?: {
-  storageType?: 'chatKnowgrph' | 'chatHistory'
+  storageType?: ChatHistoryStorageType
   defaultLocalRootPath?: string | null
 }): string => {
   const prefix = resolveFilePrefix(args)
@@ -120,7 +187,7 @@ const ensureWorkspaceFilePathExists = async (requestedPath: string): Promise<Wor
 
 export const createNewChatHistoryWorkspaceFilePath = async (
   timestampMs: number,
-  args?: { storageType?: 'chatKnowgrph' | 'chatHistory'; defaultLocalRootPath?: string | null },
+  args?: { storageType?: ChatHistoryStorageType; defaultLocalRootPath?: string | null },
 ): Promise<WorkspacePath> => {
   const prefix = resolveFilePrefix(args)
   const scopeKey = resolveSessionScopeKey(args)
@@ -143,15 +210,23 @@ export const createNewChatHistoryWorkspaceFilePath = async (
 export const ensureHistoryFilePath = async (
   requestedPath: string | null,
   timestampMs: number,
-  args?: { storageType?: 'chatKnowgrph' | 'chatHistory'; defaultLocalRootPath?: string | null },
+  args?: { storageType?: ChatHistoryStorageType; defaultLocalRootPath?: string | null },
 ): Promise<WorkspacePath> => {
   const scopeKey = resolveSessionScopeKey(args)
   const raw = typeof requestedPath === 'string' ? requestedPath.trim() : ''
   if (raw && shouldUseRequestedPath(raw, args?.storageType)) {
-    return await ensureWorkspaceFilePathExists(raw)
+    const resolvedRequestedPath = args?.storageType === 'chatKnowgrph'
+      ? toCanonicalKgcWorkspacePath(raw)
+      : normalizeWorkspacePath(raw)
+    return await ensureWorkspaceFilePathExists(resolvedRequestedPath)
   }
   const cached = sessionAutoPathByScope.get(scopeKey)
-  if (cached) return await ensureWorkspaceFilePathExists(cached)
+  if (cached) {
+    const resolvedCachedPath = args?.storageType === 'chatKnowgrph'
+      ? toCanonicalKgcWorkspacePath(cached)
+      : normalizeWorkspacePath(cached)
+    return await ensureWorkspaceFilePathExists(resolvedCachedPath)
+  }
   const inflight = sessionAutoInFlightByScope.get(scopeKey)
   if (inflight) return await inflight
   const nextInFlight = (async () => {
@@ -170,7 +245,7 @@ export const ensureHistoryFilePath = async (
 export const ensureChatHistoryWorkspaceFilePath = async (args: {
   requestedPath: string | null
   timestampMs: number
-  storageType?: 'chatKnowgrph' | 'chatHistory'
+  storageType?: ChatHistoryStorageType
   defaultLocalRootPath?: string | null
   onResolvedPath?: (path: string) => void
 }): Promise<string> => {

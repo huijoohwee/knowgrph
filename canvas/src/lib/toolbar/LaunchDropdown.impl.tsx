@@ -190,6 +190,7 @@ export function LaunchDropdown({
     exportActions?.duplicateInWorkspace ||
     exportActions?.workspaceFileJsonLd ||
     exportActions?.markdown ||
+    exportActions?.png ||
     exportActions?.htmlViewer ||
     exportActions?.htmlCanvas ||
     exportActions?.json ||
@@ -570,6 +571,19 @@ export function LaunchDropdown({
                       }}
                     >
                       <span className="truncate">Markdown (.md)</span>
+                    </button>
+                  </li>
+                  <li className="list-none">
+                    <button
+                      type="button"
+                      className={menuItemClass}
+                      onPointerDown={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        runExportAction('PNG', exportActions?.png)
+                      }}
+                    >
+                      <span className="truncate">PNG (.png)</span>
                     </button>
                   </li>
                   <li className="list-none">
