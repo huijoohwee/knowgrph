@@ -8,7 +8,6 @@ export {
 } from './chatHistoryWorkspace.kgc.parse'
 
 export {
-  buildKgcStructuredTurn,
   buildKgcWorkspaceDocument,
   normalizeKgcAssistantBodyForStorage,
 } from './chatHistoryWorkspace.kgc.build'
@@ -22,4 +21,3 @@ export {
   appendChatHistoryWorkspaceFile,
   upsertChatHistoryWorkspaceDraft,
 } from './chatHistoryWorkspace.persistence'
-

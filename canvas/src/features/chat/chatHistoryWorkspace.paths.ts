@@ -1,6 +1,7 @@
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
+import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from './chatStorageConfig'
 
 export const resolveFilePrefix = (args?: { storageType?: 'chatKnowgrph' | 'chatHistory' }): 'chh' | 'kgc' => {
   if (args?.storageType === 'chatKnowgrph') return 'kgc'
@@ -55,6 +56,20 @@ const formatFilename = (prefix: 'chh' | 'kgc', timestampMs: number): string => {
   return `${prefix}_${formatCompactTimestamp(timestampMs)}.md`
 }
 
+const isCanonicalKgcFilename = (name: string): boolean => {
+  return /^kgc_\d{14}\.md$/i.test(String(name || '').trim())
+}
+
+const shouldUseRequestedPath = (
+  requestedPath: string,
+  storageType?: 'chatKnowgrph' | 'chatHistory',
+): boolean => {
+  const normalized = normalizeWorkspacePath(requestedPath)
+  if (storageType !== 'chatKnowgrph') return true
+  const fileName = normalized.split('/').filter(Boolean).slice(-1)[0] || ''
+  return isCanonicalKgcFilename(fileName)
+}
+
 const createTimestampedWorkspaceFile = async (args: {
   fs: Awaited<ReturnType<typeof getWorkspaceFs>>
   parentPath: WorkspacePath
@@ -84,7 +99,7 @@ const resolveSessionScopeKey = (args?: {
 }): string => {
   const prefix = resolveFilePrefix(args)
   const rootRaw = String(args?.defaultLocalRootPath || '').trim()
-  const root = normalizeWorkspacePath(rootRaw || '/chats')
+  const root = normalizeWorkspacePath(rootRaw || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT)
   return `${prefix}:${root}`
 }
 
@@ -110,7 +125,7 @@ export const createNewChatHistoryWorkspaceFilePath = async (
   const prefix = resolveFilePrefix(args)
   const scopeKey = resolveSessionScopeKey(args)
   const rootPathRaw = String(args?.defaultLocalRootPath || '').trim()
-  const folder: WorkspacePath = normalizeWorkspacePath(rootPathRaw || '/chats')
+  const folder: WorkspacePath = normalizeWorkspacePath(rootPathRaw || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT)
   await ensureFolderTreeIfMissing(folder)
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
@@ -132,7 +147,9 @@ export const ensureHistoryFilePath = async (
 ): Promise<WorkspacePath> => {
   const scopeKey = resolveSessionScopeKey(args)
   const raw = typeof requestedPath === 'string' ? requestedPath.trim() : ''
-  if (raw) return await ensureWorkspaceFilePathExists(raw)
+  if (raw && shouldUseRequestedPath(raw, args?.storageType)) {
+    return await ensureWorkspaceFilePathExists(raw)
+  }
   const cached = sessionAutoPathByScope.get(scopeKey)
   if (cached) return await ensureWorkspaceFilePathExists(cached)
   const inflight = sessionAutoInFlightByScope.get(scopeKey)
@@ -170,4 +187,3 @@ export const ensureChatHistoryWorkspaceFilePath = async (args: {
   }
   return path
 }
-

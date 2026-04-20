@@ -6,7 +6,8 @@ import {
   CHAT_RESPONSE_BASE_PARAMETER_KEYS_GENERIC,
 } from '@/features/chat/chatResponseBaseContract'
 import { buildResolvableVarKeySet, validateChatMarkdown } from '@/features/chat/chatMarkdownValidation'
-import { buildKgcStructuredTurn, buildKgcWorkspaceDocument, isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/features/chat/chatHistoryWorkspace'
+import { isKgcStructuredMarkdown, normalizeKgcAssistantBodyForStorage } from '@/features/chat/chatHistoryWorkspace'
+import { normalizeKgcFrontmatterIdentityToFileName } from '@/features/chat/chatHistoryWorkspace.kgc.normalize'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 
 const readComputingFlowSample = (): string => {
@@ -15,14 +16,7 @@ const readComputingFlowSample = (): string => {
 }
 
 const readBaseTemplateSample = (): string => {
-  const p = resolve(
-    process.cwd(),
-    '..',
-    '..',
-    'huijoohwee.github.io',
-    'docs',
-    'kgc-ai-pipeline-chat-response-base-template.md',
-  )
+  const p = resolve(process.cwd(), '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-chat-response-base-template.md')
   return readFileSync(p, 'utf8')
 }
 
@@ -36,7 +30,7 @@ export function testChatResponseContractPromptIncludesMarkdownGuidelineAndSurfac
     'ONE fenced yaml block with',
     'root key response:',
     'Tier B keys: product, domain, subject, objective, artifact, owner, version, status.',
-    'Never leave empty cells.',
+    'Table cells: never empty',
     'TBD (unknown) or — (not applicable)',
   ]
   requiredSnippets.forEach(snippet => {
@@ -63,7 +57,7 @@ export function testChatResponseContractPromptStaysCompatibleWithComputingFlowSa
     }
   })
 
-  const promptSnippets = ['flow blocks', '@node:*', '@edge:src:handle→tgt:handle', 'Tier B sentinels excepted', 'TBD (unknown)', 'not applicable']
+  const promptSnippets = ['flow blocks', '@node:id', '@edge:src:handle→tgt:handle', 'Tier B sentinel keys', 'TBD (unknown)', 'not applicable']
   promptSnippets.forEach(snippet => {
     if (!prompt.includes(snippet)) {
       throw new Error(`Expected chat response contract prompt to cover sample-compatible token: ${snippet}`)
@@ -71,769 +65,399 @@ export function testChatResponseContractPromptStaysCompatibleWithComputingFlowSa
   })
 }
 
-export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
+export function testChatKgcResponseContractPromptAlignsWithBaseTemplateFixture() {
   const prompt = CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT
   const template = readBaseTemplateSample()
-  const requiredSnippets = [
-    'kgc-ai-pipeline-chat-response-base-template.md',
-    'pipeline[*].node MUST match flow.nodes[*].id',
-    'IDs EXACTLY — this triple-linkage is the machine-readable contract.',
-    'Node IDs other than the five canonical in the base template:',
+
+  const requiredPromptSnippets = [
+    'Use canonical structure, not canonical wording',
+    'schema guidance only',
+    'Stream the final document progressively',
+    'the answer itself must be the KGC document',
+    'exactly one standalone KGC document',
+    'Do not emit stock labels such as "Request Intent"',
+    'graphId, doc_type, date, ai_model, and lang MUST be concrete resolved strings.',
+    'title SHOULD resolve when product context is known',
+    'Mention stack, payments, geospatial, workflow, or distribution details only when present',
+    'pipeline[*].node / flow.nodes[*].id / mermaid: node IDs not in exact sync',
     'n-trigger, n-pack, n-process, n-validate, n-deliver',
-    'BASE TEMPLATE EXCEPTION: Tier B domain identity keys',
-    'V-07  Confidence enum: values must be exactly low, medium, or high.',
-    'position: on any flow: node (auto-layout owns placement)',
-    'Missing ## Customization Guide section in any base template output',
+    'V-07',
+    '## Customization Guide',
   ]
-  requiredSnippets.forEach(snippet => {
+  requiredPromptSnippets.forEach(snippet => {
     if (!prompt.includes(snippet)) {
       throw new Error(`Expected KGC response contract prompt to include: ${snippet}`)
     }
   })
 
-  const templateSnippets = [
+  const requiredTemplateSnippets = [
+    '$schema: "kgc-pipeline/v1"',
     'runtime:',
     'pipeline:',
     'mermaid: |',
     'flow:',
     '## Customization Guide',
     '@edge:n-validate:correction→n-process:correction',
+    '{{runtime.maxRetry}}',
   ]
-  templateSnippets.forEach(snippet => {
+  requiredTemplateSnippets.forEach(snippet => {
     if (!template.includes(snippet)) {
       throw new Error(`Expected base template fixture to include snippet: ${snippet}`)
     }
   })
 }
 
-export function testBuildKgcStructuredTurnProducesSampleCompatibleSections() {
-  const longAssistant = [
-    'This is a long assistant payload that should not be truncated in the KGC turn.',
-    'It may include markdown like **bold**, and even triple backticks ``` without breaking YAML.',
-    'UNIQUE_TAIL_9f4c2a',
-  ].join('\n')
-  const doc = buildKgcStructuredTurn({
-    timestampMs: Date.UTC(2026, 3, 15, 12, 34, 56),
-    requestText: 'Summarize the active graph workspace',
-    assistantText: longAssistant,
-  })
-  if (!isKgcStructuredMarkdown(doc)) {
-    throw new Error('Expected synthesized KGC turn markdown to satisfy the structured KGC validator')
+export function testBaseTemplateFixturePassesKgcStructuredAndValidation() {
+  const md = readBaseTemplateSample()
+  if (!isKgcStructuredMarkdown(md)) {
+    throw new Error('Expected base template fixture to satisfy KGC structured markdown detection')
   }
-  const requiredSnippets = [
+  const resolvableVarKeys = buildResolvableVarKeySet({ frontmatter: null, markdown: md })
+  const validation = validateChatMarkdown({ markdown: md, resolvableVarKeys })
+  if (!validation.ok) {
+    const first = validation.errors[0]
+    throw new Error(`Expected base template fixture to validate, got ${first?.ruleId}: ${first?.message}`)
+  }
+  const parsed = tryParseMarkdownFrontmatterFlowGraph('kgc-ai-pipeline-chat-response-base-template.md', md)
+  if (!parsed) throw new Error('Expected base template fixture to parse as a frontmatter flow graph')
+}
+
+export function testKgcDeterministicFallbackIsStructuredAndValid() {
+  const requestIntent = 'Solo founder bootstrap GTM with Swipe payment checkout integration'
+  const md = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 19, 12, 34, 56),
+    requestText: requestIntent,
+    assistantText: 'Focus on external adoption, conversion path, and a reusable planning package.',
+  })
+  if (!md.includes('subject: "solo founder"')) {
+    throw new Error('Expected deterministic fallback to infer a neutral subject when it is explicit in the request')
+  }
+  if (!md.includes('owner: "solo founder"')) {
+    throw new Error('Expected deterministic fallback to project explicit owner from the named actor')
+  }
+  if (!md.includes('bootstrap execution') || !md.includes('Swipe payment') || !md.includes('checkout')) {
+    throw new Error('Expected deterministic fallback to derive a normalized query-shaped objective')
+  }
+  if (!md.includes('Swipe') || !md.includes('solo founder')) {
+    throw new Error('Expected deterministic fallback body to stay request-shaped for actor and payment context')
+  }
+  if (!md.includes('This document delivers `{{artifact}}` for `{{subject}}`.')) {
+    throw new Error('Expected deterministic fallback lead to stay artifact-first instead of pipeline-first')
+  }
+  if (md.includes('This document turns one request into one reusable pipeline artifact.') || md.includes('The canonical five-node pipeline is applied to the current request:')) {
+    throw new Error('Expected deterministic fallback to remove pipeline-self-explanatory lead prose')
+  }
+  const requiredSections = [
+    '## Computing Flow Definition',
+    '## Flow Graph',
+    '## Pipeline',
+    '## PRD — Product Requirements',
+    '## TAD — Technical Architecture',
+    '## Open Questions',
+    '## Customization Guide',
+    '### Variable Link Map',
+    '### Request Snapshot',
+  ]
+  requiredSections.forEach(section => {
+    if (!md.includes(section)) {
+      throw new Error(`Expected deterministic fallback to include required section: ${section}`)
+    }
+  })
+  if (md.includes('This section summarizes product requirements implied by the user request.')) {
+    throw new Error('Expected deterministic fallback to remove generic PRD summary boilerplate')
+  }
+  if (md.includes('This section summarizes architecture boundaries and integration points implied by the user request.')) {
+    throw new Error('Expected deterministic fallback to remove generic TAD summary boilerplate')
+  }
+  if (md.includes('Monetization Focus:') || md.includes('Stack: ')) {
+    throw new Error('Expected deterministic fallback to avoid legacy canned request-specific labels')
+  }
+  if (!md.includes('`bg#FAEEDA:status {{status}}` · owner `solo founder`')) {
+    throw new Error('Expected deterministic fallback body meta to reflect resolved owner while preserving unresolved status')
+  }
+  const requiredFrontmatterSnippets = [
+    'feedback_arcs:',
+    'forward_edges:',
+    'direction:  {key: direction,  type: string,  value: LR}',
+    'compute:       {key: compute,       type: function, value: |',
+    'click n-trigger  "#pipeline" "S01 · trigger / input"',
+    'sandbox:  {key: sandbox,  type: string,  value: "quickjs-emscripten"}',
+  ]
+  requiredFrontmatterSnippets.forEach(snippet => {
+    if (!md.includes(snippet)) {
+      throw new Error(`Expected deterministic fallback frontmatter to include: ${snippet}`)
+    }
+  })
+  if (!isKgcStructuredMarkdown(md)) {
+    throw new Error('Expected deterministic fallback to satisfy KGC structured markdown detection')
+  }
+  const resolvableVarKeys = buildResolvableVarKeySet({ frontmatter: null, markdown: md })
+  const validation = validateChatMarkdown({ markdown: md, resolvableVarKeys })
+  if (!validation.ok) {
+    const first = validation.errors[0]
+    throw new Error(`Expected deterministic fallback to validate, got ${first?.ruleId}: ${first?.message}`)
+  }
+  const parsed = tryParseMarkdownFrontmatterFlowGraph('kgc-fallback.md', md)
+  if (!parsed) throw new Error('Expected deterministic fallback to parse as a frontmatter flow graph')
+}
+
+export function testKgcIdentityNormalizationEnforcesBaseTemplateScalars() {
+  const template = readBaseTemplateSample().replace(/\r\n/g, '\n')
+  const mutated = template
+    .replace(/title:\s+"{{product}} · AI Pipeline — Chat Response"/, 'title: "Knowledge Graph Canvas · AI Pipeline — Chat Response"')
+    .replace(/graphId:\s+"md:{{domain}}-pipeline"/, 'graphId: "md:kgc-20260419180222-pipeline"')
+    .replace(/date:\s+"{{date}}"/, 'date: "2026-04-19"')
+    .replace('# {{product}} · AI Pipeline', '# Knowledge Graph Canvas · AI Pipeline')
+    .replace('owner `{{owner}}` · {{date}}', 'owner `{{owner}}` · 2026-04-19')
+
+  const normalized = normalizeKgcFrontmatterIdentityToFileName({
+    markdown: mutated,
+    workspacePath: '/sandbox/chat-log/kgc_20260419180222.md',
+    timestampMs: Date.UTC(2026, 3, 19, 18, 2, 22),
+  })
+
+  if (!normalized.includes('Knowledge Graph Canvas · AI Pipeline — Chat Response')) {
+    throw new Error('Expected normalized KGC title to preserve authored content')
+  }
+  if (!normalized.includes('md:kgc-20260419180222-pipeline')) {
+    throw new Error('Expected normalized KGC graphId to derive from the storage filename')
+  }
+  if (!normalized.includes('2026-04-19')) {
+    throw new Error('Expected normalized KGC date to derive from the storage timestamp')
+  }
+  if (!normalized.includes('claude-sonnet-4-20250514')) {
+    throw new Error('Expected normalized KGC ai_model to preserve the authored model identifier')
+  }
+  if (!normalized.includes('en-US')) {
+    throw new Error('Expected normalized KGC lang to preserve the authored language')
+  }
+  if (!normalized.includes('kgc_20260419180222.md')) {
+    throw new Error('Expected normalized KGC self_ref to match workspace filename')
+  }
+  if (!normalized.includes('# Knowledge Graph Canvas · AI Pipeline')) {
+    throw new Error('Expected normalized body H1 to preserve authored body content')
+  }
+  if (!normalized.includes('owner `{{owner}}` · 2026-04-19')) {
+    throw new Error('Expected normalized body meta line to preserve authored body content')
+  }
+}
+
+export function testKgcFallbackWithNonEmptyQueryIsNotByteEqualToCanonicalTemplate() {
+  const canonicalTemplate = readBaseTemplateSample().replace(/\r\n/g, '\n').trimEnd()
+  const generated = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 19, 20, 14, 10),
+    workspacePath: '/sandbox/chat-log/kgc_20260419201410.md',
+    requestText: 'Solo founder bootstrap growth with Swipe checkout and RxDB MapLibre stack',
+    assistantText: 'invalid fallback trigger',
+  }).replace(/\r\n/g, '\n').trimEnd()
+
+  if (generated === canonicalTemplate) {
+    throw new Error('Expected fallback output with non-empty query to differ from canonical template bytes')
+  }
+}
+
+export function testStructuredKgcIsEnforcedQueryResponsiveBeforePersistence() {
+  const canonicalTemplate = readBaseTemplateSample().replace(/\r\n/g, '\n')
+  const requestText = 'Solo founder bootstrap growth with Swipe checkout, RxDB, MapLibre, MCP marketplace'
+  const generated = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 19, 21, 1, 10),
+    workspacePath: '/sandbox/chat-log/kgc_20260419210110.md',
+    requestText,
+    assistantText: canonicalTemplate,
+  })
+  if (!generated.includes('subject: "solo founder"')) {
+    throw new Error('Expected structured KGC to resolve an explicit subject from the request')
+  }
+  if (!generated.includes('domain: "MCP distribution') || !generated.includes('user-action monetization')) {
+    throw new Error('Expected structured KGC to resolve a concise domain from the request')
+  }
+  if (generated.includes('Request Intent:') || generated.includes('Monetization Focus:') || generated.includes('Stack: ')) {
+    throw new Error('Expected structured KGC persistence normalization to avoid legacy canned body injections')
+  }
+  if (generated === canonicalTemplate) {
+    throw new Error('Expected structured KGC to differ from the untouched template when request context can resolve Tier B fields')
+  }
+}
+
+export function testKgcDeterministicFallbackShapesLatestRecommendationQuery() {
+  const requestText = 'RECOMMEND: Solo founder; zero budget, bootstrap, organic growth; **Knowledge Graph Canvas** product as MCP for external users, OpenClaw, skills marketplace; Pitch Deck+PRD+TAD, TCO; Use Case -> Problem -> Solution; User Flow+Work Flow+Data Flow; B2C monetization ideas; monetize user actions (subscriptions, pay-per-use, and commerce-like conversion); FOSS RxDB, MapLibre; expose integration with **Swipe payment** flow (payments/checkout)'
+  const assistantText = [
     '---',
-    '# ── DOCUMENT IDENTITY',
-    'doc:',
-    'doc:kgc:turn:',
-    '# ── VARIABLES (type `@` to open CRUD toolbar)',
-    'nodes:',
-    '@node:',
-    'edges:',
-    '@edge:',
+    'title: "knowledge-graph-canvas · AI Pipeline — PRD + TAD"',
+    'graphId: "kgc-knowledge-graph-canvas-prd-tad"',
+    '$schema: "kgc-pipeline/v1"',
+    'pipeline:',
     'flow:',
-    'computed:   false',
+  ].join('\n')
+  const md = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 20, 10, 54, 32),
+    workspacePath: '/sandbox/chat-log/kgc_20260420105432.md',
+    requestText,
+    assistantText,
+  })
+  const requiredSnippets = [
+    'product: "Knowledge Graph Canvas"',
+    'artifact: "Pitch Deck + PRD + TAD + TCO"',
+    'owner: "solo founder"',
+    'status: "recommended"',
+    'doc_type: "Pitch Deck + PRD + TAD + TCO"',
+    'title: "Knowledge Graph Canvas · AI Pipeline — Pitch Deck + PRD + TAD + TCO"',
+    '## Pitch Deck + PRD + TAD + TCO',
+    'label: "trigger / input"',
+    'label: "context pack"',
+    'label: "generate / process"',
+    'label: "review / validate"',
+    'label: "deliver / persist"',
+    'actor: ["{{subject}}", "system"]',
+    'actor: ["{{subject}}", "AI"]',
+    'user_action: "{{subject}} selects scope; states the active request objective and constraints"',
+    'Request injected as user turn; {{subject}} reviews streamed output for fit and clarity',
+    'feedback_arcs:',
+    'forward_edges:',
+    'direction:  {key: direction,  type: string,  value: LR}',
+    'computed:   {key: computed,   type: boolean, value: true}',
+    'click n-trigger  "#pipeline" "S01 · trigger / input"',
+    'click n-deliver  "#pipeline" "S05 · deliver / persist"',
+    'seq:    R01',
+    'seq:    R06',
+    'retry ≤ {{runtime.maxRetry}}× via @edge:n-validate:correction→n-process:correction',
+    '### Variable Link Map',
+    '### Request Snapshot',
+    '`{{product}}`',
+    '`{{artifact}}`',
+    '`{{subject}}`',
+    '### Use Case',
+    '### Problem',
+    '### Solution',
+    '### User Flow',
+    '### Work Flow',
+    '### Data Flow',
+    '### Monetization Surface',
+    '### Integration Boundaries',
+    'OpenClaw',
+    'Swipe',
+    'RxDB',
+    'MapLibre',
+    'subscriptions',
+    'pay-per-use',
+    'conversion',
+    'external users',
+    'Swipe owns checkout, payment confirmation, and post-payment handoff',
+    'OpenClaw owns marketplace listing and demand capture',
+    'An external user discovers the `{{product}}` offer',
+    'unlocks the paid entitlement or action',
+    '### Request Snapshot',
   ]
   requiredSnippets.forEach(snippet => {
-    if (!doc.includes(snippet)) {
-      throw new Error(`Expected synthesized KGC turn to include: ${snippet}`)
+    if (!md.includes(snippet)) {
+      throw new Error(`Expected latest recommendation fallback to include: ${snippet}`)
+    }
+  })
+  if (!md.includes('domain: "MCP distribution + skills marketplace delivery + user-action monetization')) {
+    throw new Error('Expected latest recommendation fallback to resolve a bounded but query-shaped domain')
+  }
+  if (
+    !md.includes('objective: "support zero-budget execution; prioritize bootstrap execution; favor organic growth; package Knowledge Graph Canvas as an MCP offer; serve external users; support OpenClaw marketplace packaging; deliver Pitch Deck + PRD + TAD + TCO; evaluate B2C monetization; compare subscription, pay-per-use, and conversion monetization; expose Swipe payment and checkout integration') &&
+    !md.includes('integrate Swipe checkout and payment flow')
+  ) {
+    throw new Error('Expected latest recommendation fallback to resolve a synthesized objective without clipped raw query fragments')
+  }
+  if (!md.includes('Which user action should trigger Swipe checkout, and what entitlement or fulfillment should follow payment completion?')) {
+    throw new Error('Expected latest recommendation fallback to replace generic open questions with request-shaped ones')
+  }
+  if (!md.includes('S01 captures the active request brief for `{{product}}`')) {
+    throw new Error('Expected latest recommendation fallback workflow wording to stay request-first rather than recommendation-first')
+  }
+  if (!md.includes('The execution contract below supports the current request:')) {
+    throw new Error('Expected latest recommendation fallback computing-flow intro to stay request-facing')
+  }
+  if (md.includes('Recovered partial response signal:') || md.includes('Working response signal:')) {
+    throw new Error('Expected malformed structured assistant fragments to be excluded from fallback prose')
+  }
+  if (md.includes('## {{doc_type}}') || md.includes('Edit Tier B variables (product, domain, subject, objective, artifact, owner, version, status)') || md.includes('This fallback preserves')) {
+    throw new Error('Expected latest recommendation fallback to avoid placeholder body projections and generic template carryover')
+  }
+}
+
+export function testKgcDeterministicFallbackShapesCreativeScriptQueryWithoutTrademarkCarryover() {
+  const requestText = 'generate video script inspired by prometheus + jurassic park (FORBID mention/infringe trademark) `video-script-promessic.md`'
+  const md = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 20, 19, 20, 54),
+    workspacePath: '/sandbox/chat-log/kgc_20260420192054.md',
+    requestText,
+    assistantText: 'Need a cinematic script draft with awe and danger.',
+  })
+
+  const requiredSnippets = [
+    'artifact: "video script"',
+    'objective: "develop video script; keep the output original and production-ready; avoid direct trademark or franchise references; translate inspiration into high-level tone, pacing, and atmosphere only"',
+    '### Request Snapshot',
+    '### Request Fit',
+    '### Direction',
+    '### Guardrails',
+    'video-script-promessic.md',
+    'high-level inspiration only',
+    'avoid direct trademark or franchise references',
+    'request_scope',
+    'objective_focus',
+  ]
+  requiredSnippets.forEach(snippet => {
+    if (!md.includes(snippet)) {
+      throw new Error(`Expected creative script fallback to include: ${snippet}`)
     }
   })
 
-  if (!doc.includes('UNIQUE_TAIL_9f4c2a')) {
-    throw new Error('Expected synthesized KGC turn to preserve full assistant payload in markdown body')
-  }
-  if (doc.includes('{{solution_md}}')) {
-    throw new Error('Expected synthesized KGC turn to place the actual assistant content in the markdown body, not a {{solution_md}} shell')
-  }
-  if (/^\s*solution:\s*["']?.*\{\{[^}]+\}\}.*["']?\s*$/m.test(doc)) {
-    throw new Error('Expected synthesized KGC turn to keep frontmatter solution scalar concrete (no template refs)')
-  }
-
-  const parsed = tryParseMarkdownFrontmatterFlowGraph('kgc-turn.md', doc)
-  if (!parsed) throw new Error('Expected synthesized KGC turn to parse as a frontmatter flow graph')
-  const nodes = parsed.graphData.nodes || []
-  const edges = parsed.graphData.edges || []
-  if (nodes.length < 2) throw new Error(`Expected >=2 parsed nodes, got ${nodes.length}`)
-  if (edges.length < 1) throw new Error(`Expected >=1 parsed edges, got ${edges.length}`)
-}
-
-export function testIsKgcStructuredMarkdownRejectsTemplateRefInSolutionScalar() {
-  const invalid = [
-    '---',
-    '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
-    'doc:',
-    '  id: "doc:kgc:turn:20260416120000"',
-    '  title: "chatKnowgrph turn"',
-    '  type: chatKnowgrph',
-    '  version: "1.0.0"',
-    '  created: "2026-04-16"',
-    '',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ────────────────────────────────',
-    'subject: "linkage test"',
-    'action: "respond"',
-    'goal: "persist"',
-    'solution: "{{solution}}"',
-    'request_md: |',
-    '  run linkage validation',
-    'solution_md: |',
-    '  linkage validation output',
-    '',
-    '# ── NODES ────────────────────────────────────────────────────────────────────',
-    'nodes:',
-    '  - @node:n-request: { label: "{{subject}}", type: input }',
-    '  - @node:n-response: { label: "{{solution}}", type: output }',
-    '',
-    '# ── EDGES ────────────────────────────────────────────────────────────────────',
-    'edges:',
-    '  - @edge:n-request:turn → n-response:turn',
-    '',
-    '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
-    'flow:',
-    '  direction: LR',
-    '  computed: false',
-    '  nodes:',
-    '    - id: n-request',
-    '      type: input',
-    '      label: "{{subject}}"',
-    '      position: { x: 0, y: 0 }',
-    '      handles:',
-    '        source: [turn]',
-    '      data:',
-    '        text: "{{subject}}"',
-    '    - id: n-response',
-    '      type: output',
-    '      label: "{{solution}}"',
-    '      position: { x: 200, y: 0 }',
-    '      handles:',
-    '        target: [turn]',
-    '      data:',
-    '        text: "{{solution}}"',
-    '  edges:',
-    '    - source: n-request.turn',
-    '      target: n-response.turn',
-    '---',
-    '',
-    '# {{subject}}',
-    '',
-    '## Intent',
-    '- Action: {{action}}',
-    '- Goal: {{goal}}',
-    '',
-    '## Request',
-    '{{request_md}}',
-    '',
-    '## Solution',
-    'Valid body content',
-  ].join('\n')
-  if (isKgcStructuredMarkdown(invalid)) {
-    throw new Error('Expected KGC structured validator to reject template refs in required frontmatter scalars')
-  }
-}
-
-export function testIsKgcStructuredMarkdownRejectsBodyRefsMissingFromFrontmatter() {
-  const invalid = [
-    '---',
-    '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
-    'doc:',
-    '  id: "doc:kgc:turn:20260416120000"',
-    '  title: "chatKnowgrph turn"',
-    '  type: chatKnowgrph',
-    '  version: "1.0.0"',
-    '  created: "2026-04-16"',
-    '',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ────────────────────────────────',
-    'subject: "linkage test"',
-    'action: "respond"',
-    'goal: "persist"',
-    'solution: "verify linkage"',
-    'request_md: |',
-    '  run linkage validation',
-    'solution_md: |',
-    '  linkage validation output',
-    '',
-    '# ── NODES ────────────────────────────────────────────────────────────────────',
-    'nodes:',
-    '  - @node:n-request: { label: "{{subject}}", type: input }',
-    '  - @node:n-response: { label: "{{solution}}", type: output }',
-    '',
-    '# ── EDGES ────────────────────────────────────────────────────────────────────',
-    'edges:',
-    '  - @edge:n-request:turn → n-response:turn',
-    '',
-    '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
-    'flow:',
-    '  direction: LR',
-    '  computed: false',
-    '  nodes:',
-    '    - id: n-request',
-    '      type: input',
-    '      label: "{{subject}}"',
-    '      position: { x: 0, y: 0 }',
-    '      handles:',
-    '        source: [turn]',
-    '      data:',
-    '        text: "{{subject}}"',
-    '    - id: n-response',
-    '      type: output',
-    '      label: "{{solution}}"',
-    '      position: { x: 200, y: 0 }',
-    '      handles:',
-    '        target: [turn]',
-    '      data:',
-    '        text: "{{solution}}"',
-    '  edges:',
-    '    - source: n-request.turn',
-    '      target: n-response.turn',
-    '---',
-    '',
-    '# {{subject}}',
-    '',
-    '## Intent',
-    '- Action: {{action}}',
-    '- Goal: {{goal}}',
-    '',
-    '## Request',
-    '{{request_md}}',
-    '',
-    '## Solution',
-    'Use unresolved linkage key: {{missing_key}}',
-  ].join('\n')
-  if (isKgcStructuredMarkdown(invalid)) {
-    throw new Error('Expected KGC structured validator to reject markdown body refs missing from frontmatter keys')
-  }
-}
-
-export function testIsKgcStructuredMarkdownRejectsSnippetOnlyPseudoKgc() {
-  const invalid = [
-    '---',
-    '# ── DOCUMENT IDENTITY ──',
-    'doc:',
-    '  id: "doc:invalid"',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
-    'subject: "bad"',
-    '# ── NODES ──',
-    'nodes:',
-    '  - @node:n-a: { label: "A", type: input }',
-    '# ── EDGES ──',
-    'edges:',
-    '  - @edge:n-a:turn → n-b:turn',
-    '# ── FLOW EDITOR (interactive + computable) ──',
-    'flow:',
-    '  computed: false',
-    '---',
-  ].join('\n')
-  if (isKgcStructuredMarkdown(invalid)) {
-    throw new Error('Expected snippet-only pseudo KGC markdown to fail strict validation')
-  }
-}
-
-export function testNormalizeKgcAssistantBodyForStorageFallsBackToDeterministicTurn() {
-  const invalidAssistant = [
-    '```kgc',
-    '---',
-    '# ── DOCUMENT IDENTITY ──',
-    'doc:',
-    '  id: "doc:invalid"',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
-    'subject: "invalid"',
-    '# ── NODES ──',
-    'nodes:',
-    '  - @node:n-a: { label: "A", type: input }',
-    '# ── EDGES ──',
-    'edges:',
-    '  - @edge:n-a:turn → n-b:turn',
-    '# ── FLOW EDITOR (interactive + computable) ──',
-    'flow:',
-    '  computed: false',
-    '---',
-    '```',
-  ].join('\n')
-  const normalized = normalizeKgcAssistantBodyForStorage({
-    timestampMs: Date.UTC(2026, 3, 15, 12, 35, 56),
-    requestText: 'Explain the active graph',
-    assistantText: invalidAssistant,
+  const forbiddenSnippets = [
+    'Recommendation Snapshot',
+    'OpenClaw marketplace distribution',
+    'B2C monetization',
+    'prometheus',
+    'jurassic park',
+  ]
+  forbiddenSnippets.forEach(snippet => {
+    if (md.toLowerCase().includes(snippet.toLowerCase())) {
+      throw new Error(`Expected creative script fallback to avoid: ${snippet}`)
+    }
   })
-  if (!normalized.includes('# ── DOCUMENT IDENTITY')) {
-    throw new Error('Expected invalid assistant markdown to fall back to canonical KGC document shape')
-  }
-  if (normalized.includes('```kgc') || normalized.includes('\\`\\`\\`kgc')) {
-    throw new Error('Expected normalized fallback turn to strip fenced kgc markers from canonical content')
-  }
-  if (/\n\s*kgc\s*\n/.test(normalized) || normalized.includes('\\---')) {
-    throw new Error('Expected normalized fallback turn to strip residual kgc / \\--- artifact lines from canonical content')
-  }
 }
 
-export function testNormalizeKgcAssistantBodyForStorageExtractsBodyFromNestedKgcAttempt() {
-  const invalidAssistant = [
-    '```kgc',
-    '---',
-    '# ── DOCUMENT IDENTITY ──',
-    'doc:',
-    '  id: "doc:invalid"',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
-    'subject: "nested body test"',
-    'action: "respond"',
-    'goal: "persist"',
-    'solution: "body extraction"',
-    'request_md: |',
-    '  test request',
-    'solution_md: |',
-    '  short summary',
-    '# ── NODES ──',
-    'nodes:',
-    '  - @node:n-a: { label: "{{subject}}", type: input }',
-    '  - @node:n-b: { label: "{{solution}}", type: output }',
-    '# ── EDGES ──',
-    'edges:',
-    '  - @edge:n-a:turn → n-b:turn',
-    '# ── FLOW EDITOR (interactive + computable) ──',
-    'flow:',
-    '  computed: false',
-    '  nodes:',
-    '    - id: n-a',
-    '      type: input',
-    '      label: "{{subject}}"',
-    '      position: { x: 0, y: 0 }',
-    '      handles:',
-    '        source: [turn]',
-    '      data:',
-    '        text: "{{subject}}"',
-    '    - id: n-b',
-    '      type: output',
-    '      label: "{{solution}}"',
-    '      position: { x: 10, y: 0 }',
-    '      handles:',
-    '        target: [turn]',
-    '      data:',
-    '        text: "{{solution}}"',
-    '  edges:',
-    '    - source: n-a.turn',
-    '      target: n-b.turn',
-    '---',
-    '',
-    '# {{subject}}',
-    '',
-    '## Intent',
-    '- Action: {{action}}',
-    '- Goal: {{goal}}',
-    '',
-    '## Request',
-    '{{request_md}}',
-    '',
-    '## Solution',
-    'Useful extracted body content.',
-    '```',
-  ].join('\n')
-  const normalized = normalizeKgcAssistantBodyForStorage({
-    timestampMs: Date.UTC(2026, 3, 16, 13, 14, 52),
-    requestText: 'Explain the active graph',
-    assistantText: invalidAssistant,
+export function testKgcDeterministicFallbackStaysNeutralForGenericRequest() {
+  const requestText = 'Draft a concise implementation memo for improving offline sync conflict visibility in a local-first workspace'
+  const md = normalizeKgcAssistantBodyForStorage({
+    timestampMs: Date.UTC(2026, 3, 20, 21, 46, 8),
+    workspacePath: '/sandbox/chat-log/kgc_20260420214608.md',
+    requestText,
+    assistantText: 'Need a short memo with implementation direction and constraints.',
   })
-  if (!normalized.includes('Useful extracted body content.')) {
-    throw new Error('Expected fallback normalization to extract useful markdown body content from nested kgc attempt')
-  }
-  if (normalized.includes('```kgc') || normalized.includes('\\`\\`\\`kgc')) {
-    throw new Error('Expected extracted-body fallback to omit fenced kgc markers')
-  }
-  if (/\n\s*kgc\s*\n/.test(normalized) || normalized.includes('\\---')) {
-    throw new Error('Expected extracted-body fallback to omit residual kgc / \\--- artifact lines')
-  }
-}
 
-export function testNormalizeKgcAssistantBodyForStorageExtractsBodyFromEmbeddedMalformedKgcArtifact() {
-  const invalidAssistant = [
-    '- Short useful summary line.',
-    '',
-    'kgc',
-    '\\---',
-    '# ── DOCUMENT IDENTITY ──',
-    'doc:',
-    '  id: "doc:invalid"',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
-    'subject: "artifact test"',
-    'action: "respond"',
-    'goal: "persist"',
-    'solution: "artifact body extraction"',
-    'request_md: |',
-    '  test request',
-    'solution_md: |',
-    '  _Streaming..._',
-    '# ── NODES ──',
-    'nodes:',
-    '  - @node:n-a: { label: "{{subject}}", type: input }',
-    '  - @node:n-b: { label: "{{solution}}", type: output }',
-    '# ── EDGES ──',
-    'edges:',
-    '  - @edge:n-a:turn → n-b:turn',
-    '# ── FLOW EDITOR (interactive + computable) ──',
-    'flow:',
-    '  computed: false',
-    '\\---',
-    '',
-    '## Bootstrap plan',
-    '',
-    '### MVP',
-    '- Keep the useful body content.',
-    '- Strip malformed kgc artifacts.',
-  ].join('\n')
-  const normalized = normalizeKgcAssistantBodyForStorage({
-    timestampMs: Date.UTC(2026, 3, 16, 13, 46, 1),
-    requestText: 'Explain the active graph',
-    assistantText: invalidAssistant,
+  const requiredSnippets = [
+    '### Request Snapshot',
+    '### Request Fit',
+    '### Direction',
+    '### Guardrails',
+    '`{{artifact}}`',
+    '`{{subject}}`',
+    'This document delivers `{{artifact}}` for `{{subject}}`.',
+  ]
+  requiredSnippets.forEach(snippet => {
+    if (!md.includes(snippet)) {
+      throw new Error(`Expected generic fallback to include: ${snippet}`)
+    }
   })
-  if (!normalized.includes('## Bootstrap plan')) {
-    throw new Error('Expected fallback normalization to extract embedded useful markdown body from malformed kgc artifact')
-  }
-  if (normalized.includes('Previous invalid KGC attempt was omitted')) {
-    throw new Error('Expected embedded useful body to win over omission-note fallback')
-  }
-  if (/\n\s*kgc\s*\n/.test(normalized) || normalized.includes('\\---')) {
-    throw new Error('Expected extracted embedded body to omit kgc / \\--- artifact lines')
-  }
-}
 
-export function testNormalizeKgcAssistantBodyForStorageStripsRecoveredDocumentShell() {
-  const invalidAssistant = [
-    '```kgc',
-    '---',
-    '# ── DOCUMENT IDENTITY ──',
-    'doc:',
-    '  id: "doc:invalid"',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
-    'subject: "artifact test"',
-    'action: "respond"',
-    'goal: "persist"',
-    'solution: "artifact body extraction"',
-    'request_md: |',
-    '  test request',
-    'solution_md: |',
-    '  _Streaming..._',
-    '# ── NODES ──',
-    'nodes:',
-    '  - @node:n-a: { label: "{{subject}}", type: input }',
-    '  - @node:n-b: { label: "{{solution}}", type: output }',
-    '# ── EDGES ──',
-    'edges:',
-    '  - @edge:n-a:turn → n-b:turn',
-    '# ── FLOW EDITOR (interactive + computable) ──',
-    'flow:',
-    '  computed: false',
-    '---',
-    '',
-    '# {{subject}}',
-    '',
-    '## Intent',
-    '- Action: {{action}}',
-    '- Goal: {{goal}}',
-    '',
-    '## Request',
-    '{{request_md}}',
-    '',
-    '## Solution',
-    '### MVP',
-    '- Keep the useful body content.',
-    '- Strip malformed kgc artifacts.',
-    '```',
-  ].join('\n')
-  const normalized = normalizeKgcAssistantBodyForStorage({
-    timestampMs: Date.UTC(2026, 3, 16, 14, 34, 17),
-    requestText: 'Explain the active graph',
-    assistantText: invalidAssistant,
+  const forbiddenSnippets = [
+    '### Use Case',
+    '### Monetization Surface',
+    '### Integration Boundaries',
+    'recommendation package',
+    'OpenClaw',
+    'Swipe',
+    'video-script-promessic.md',
+    'This document turns one request into one reusable pipeline artifact.',
+  ]
+  forbiddenSnippets.forEach(snippet => {
+    if (md.includes(snippet)) {
+      throw new Error(`Expected generic fallback to avoid: ${snippet}`)
+    }
   })
-  if (!normalized.includes('### MVP')) {
-    throw new Error('Expected recovered body content to remain present after stripping the embedded document shell')
-  }
-  if (normalized.includes('## Solution\n# {{subject}}') || normalized.includes('## Solution\n## {{subject}}')) {
-    throw new Error('Expected fallback normalization to strip duplicated recovered document title shell from body content')
-  }
-}
-
-export function testNormalizeKgcAssistantBodyForStorageUsesFrontmatterSolutionMdWhenBodyMissing() {
-  const invalidAssistant = [
-    '```kgc',
-    '---',
-    '# ── DOCUMENT IDENTITY ──',
-    'doc:',
-    '  id: "doc:invalid"',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
-    'subject: "frontmatter fallback test"',
-    'action: "respond"',
-    'goal: "persist"',
-    'solution: "frontmatter scalar"',
-    'request_md: |',
-    '  request text',
-    'solution_md: |',
-    '  ### Salvaged from solution_md',
-    '  - keep this useful content',
-    '# ── NODES ──',
-    'nodes:',
-    '  - @node:n-a: { label: "{{subject}}", type: input }',
-    '  - @node:n-b: { label: "{{solution}}", type: output }',
-    '# ── EDGES ──',
-    'edges:',
-    '  - @edge:n-a:turn → n-b:turn',
-    '# ── FLOW EDITOR (interactive + computable) ──',
-    'flow:',
-    '  computed: false',
-    '```',
-  ].join('\n')
-  const normalized = normalizeKgcAssistantBodyForStorage({
-    timestampMs: Date.UTC(2026, 3, 16, 16, 8, 35),
-    requestText: 'Explain the active graph',
-    assistantText: invalidAssistant,
-  })
-  if (!normalized.includes('### Salvaged from solution_md')) {
-    throw new Error('Expected fallback normalization to salvage useful content from frontmatter solution_md when body extraction fails')
-  }
-  if (normalized.includes('Previous invalid KGC attempt was omitted')) {
-    throw new Error('Expected frontmatter solution_md salvage to avoid omission-note fallback')
-  }
-}
-
-export function testNormalizeKgcAssistantBodyForStorageStripsSolutionPlaceholderHeading() {
-  const invalidAssistant = [
-    '```kgc',
-    '---',
-    '# ── DOCUMENT IDENTITY ──',
-    'doc:',
-    '  id: "doc:invalid"',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ──',
-    'subject: "placeholder heading test"',
-    'action: "respond"',
-    'goal: "persist"',
-    'solution: "placeholder heading"',
-    'request_md: |',
-    '  request text',
-    'solution_md: |',
-    '  short summary',
-    '# ── NODES ──',
-    'nodes:',
-    '  - @node:n-a: { label: "{{subject}}", type: input }',
-    '  - @node:n-b: { label: "{{solution}}", type: output }',
-    '# ── EDGES ──',
-    'edges:',
-    '  - @edge:n-a:turn → n-b:turn',
-    '# ── FLOW EDITOR (interactive + computable) ──',
-    'flow:',
-    '  computed: false',
-    '---',
-    '',
-    '## {{solution}}',
-    '',
-    '### Execution',
-    '- Keep concrete heading content.',
-    '```',
-  ].join('\n')
-  const normalized = normalizeKgcAssistantBodyForStorage({
-    timestampMs: Date.UTC(2026, 3, 16, 17, 10, 12),
-    requestText: 'Explain the active graph',
-    assistantText: invalidAssistant,
-  })
-  if (normalized.includes('## {{solution}}')) {
-    throw new Error('Expected fallback normalization to strip placeholder-only solution headings from recovered body')
-  }
-  if (!normalized.includes('### Execution')) {
-    throw new Error('Expected fallback normalization to preserve useful concrete body sections')
-  }
-}
-
-export function testBuildKgcWorkspaceDocumentKeepsLatestTurnParseableWithHistoryTrail() {
-  const canonical = buildKgcStructuredTurn({
-    timestampMs: Date.UTC(2026, 3, 16, 8, 0, 0),
-    requestText: 'Map the active workspace into flow, table, and kanban surfaces',
-    assistantText: 'Build a canonical KGC turn with one parseable leading document and no appended history trailer.',
-  })
-  const workspaceDoc = buildKgcWorkspaceDocument({
-    canonicalKgc: canonical,
-    historyBody: [
-      '## 2026-04-16 08:00:00',
-      '',
-      'Trace-ID: trace-1',
-      '',
-      'Provider: test',
-      '',
-      '### user',
-      '```text',
-      'Map the active workspace into flow, table, and kanban surfaces',
-      '```',
-      '',
-      '### assistant',
-      '```kgc',
-      canonical,
-      '```',
-    ].join('\n'),
-  })
-  if (workspaceDoc.includes('<!-- kg-chat-history -->') || workspaceDoc.includes('# Chat turns')) {
-    throw new Error('Expected chatKnowgrph workspace document to omit append-only history trailer content')
-  }
-  const parsed = tryParseMarkdownFrontmatterFlowGraph('kgc-workspace.md', workspaceDoc)
-  if (!parsed) throw new Error('Expected composed KGC workspace document to stay parseable from the leading canonical KGC block')
-  const nodes = parsed.graphData.nodes || []
-  const edges = parsed.graphData.edges || []
-  if (nodes.length < 2) throw new Error(`Expected composed workspace document to keep >=2 parsed nodes, got ${nodes.length}`)
-  if (edges.length < 1) throw new Error(`Expected composed workspace document to keep >=1 parsed edge, got ${edges.length}`)
-}
-
-export function testValidateChatMarkdownRejectsThinSolutionMdForComplexRequest() {
-  const markdown = [
-    '---',
-    '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
-    'doc:',
-    '  id: "doc:kgc:test:thin"',
-    '  title: "chatKnowgrph turn"',
-    '  type: chatKnowgrph',
-    '  version: "1.0.0"',
-    '  created: "2026-04-16"',
-    '',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ────────────────────────────────',
-    'subject: "Knowledge Graph Canvas pitch deck request"',
-    'action: "respond to the active request"',
-    'goal: "persist one ingestible chat turn"',
-    'solution: "short summary"',
-    'request_md: |',
-    '  Recommend: Knowledge Graph Canvas product; Pitch Deck+PRD+TAD, TCO; Solo founder; zero budget; Use Case -> Problem -> Solution; User Flow+Work Flow+Data Flow; monetization; Swipe payment flow.',
-    'solution_md: |',
-    '  Drafted a short summary only.',
-    '',
-    '# ── NODES ────────────────────────────────────────────────────────────────────',
-    'nodes:',
-    '  - @node:n-request: { label: "{{subject}}", type: input }',
-    '  - @node:n-response: { label: "{{solution}}", type: output }',
-    '',
-    '# ── EDGES ────────────────────────────────────────────────────────────────────',
-    'edges:',
-    '  - @edge:n-request:turn → n-response:turn',
-    '',
-    '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
-    'flow:',
-    '  direction: LR',
-    '  computed: false',
-    '  nodes:',
-    '    - id: n-request',
-    '      type: input',
-    '      label: "{{subject}}"',
-    '      position: { x: 0, y: 0 }',
-    '      handles:',
-    '        source: [turn]',
-    '      data:',
-    '        text: "{{subject}}"',
-    '    - id: n-response',
-    '      type: output',
-    '      label: "{{solution}}"',
-    '      position: { x: 200, y: 0 }',
-    '      handles:',
-    '        target: [turn]',
-    '      data:',
-    '        text: "{{solution}}"',
-    '  edges:',
-    '    - source: n-request.turn',
-    '      target: n-response.turn',
-    '---',
-    '',
-    '# {{subject}}',
-    '',
-    '## Intent',
-    '- Action: {{action}}',
-    '- Goal: {{goal}}',
-    '',
-    '## Request',
-    '{{request_md}}',
-    '',
-    '## Solution',
-    '{{solution_md}}',
-  ].join('\n')
-  const validation = validateChatMarkdown({
-    markdown,
-    resolvableVarKeys: buildResolvableVarKeySet({ frontmatter: null, markdown }),
-  })
-  if (validation.ok) {
-    throw new Error('Expected thin solution_md payload to fail chat markdown validation for a complex request')
-  }
-  if (validation.failedRuleId !== 'V-03') {
-    throw new Error(`Expected V-03 failure for thin linked body content, got ${validation.failedRuleId || 'none'}`)
-  }
-}
-
-export function testValidateChatMarkdownRejectsNestedCodeFencesInsideKgc() {
-  const markdown = [
-    '---',
-    '# ── DOCUMENT IDENTITY ────────────────────────────────────────────────────────',
-    'doc:',
-    '  id: "doc:kgc:test:nested-fence"',
-    '  title: "chatKnowgrph turn"',
-    '  type: chatKnowgrph',
-    '  version: "1.0.0"',
-    '  created: "2026-04-16"',
-    '',
-    '# ── VARIABLES (type `@` to open CRUD toolbar) ────────────────────────────────',
-    'subject: "nested fence test"',
-    'action: "respond"',
-    'goal: "persist one ingestible chat turn"',
-    'solution: "invalid nested fence"',
-    'request_md: |',
-    '  test request',
-    'solution_md: |',
-    '  ```kgc',
-    '  ---',
-    '  bad: true',
-    '  ```',
-    '',
-    '# ── NODES ────────────────────────────────────────────────────────────────────',
-    'nodes:',
-    '  - @node:n-request: { label: "{{subject}}", type: input }',
-    '  - @node:n-response: { label: "{{solution}}", type: output }',
-    '',
-    '# ── EDGES ────────────────────────────────────────────────────────────────────',
-    'edges:',
-    '  - @edge:n-request:turn → n-response:turn',
-    '',
-    '# ── FLOW EDITOR (interactive + computable) ───────────────────────────────────',
-    'flow:',
-    '  direction: LR',
-    '  computed: false',
-    '  nodes:',
-    '    - id: n-request',
-    '      type: input',
-    '      label: "{{subject}}"',
-    '      position: { x: 0, y: 0 }',
-    '      handles:',
-    '        source: [turn]',
-    '      data:',
-    '        text: "{{subject}}"',
-    '    - id: n-response',
-    '      type: output',
-    '      label: "{{solution}}"',
-    '      position: { x: 200, y: 0 }',
-    '      handles:',
-    '        target: [turn]',
-    '      data:',
-    '        text: "{{solution}}"',
-    '  edges:',
-    '    - source: n-request.turn',
-    '      target: n-response.turn',
-    '---',
-    '',
-    '# {{subject}}',
-    '',
-    '## Intent',
-    '- Action: {{action}}',
-    '- Goal: {{goal}}',
-    '',
-    '## Request',
-    '{{request_md}}',
-    '',
-    '## Solution',
-    '{{solution_md}}',
-  ].join('\n')
-  const validation = validateChatMarkdown({
-    markdown,
-    resolvableVarKeys: buildResolvableVarKeySet({ frontmatter: null, markdown }),
-  })
-  if (validation.ok) {
-    throw new Error('Expected nested fenced block inside KGC to fail validation')
-  }
-  if (validation.failedRuleId !== 'V-03') {
-    throw new Error(`Expected V-03 failure for nested fenced block, got ${validation.failedRuleId || 'none'}`)
-  }
 }

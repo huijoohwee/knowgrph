@@ -5,6 +5,7 @@ import {
   buildKgcWorkspaceDocument,
   normalizeKgcAssistantBodyForStorage,
 } from './chatHistoryWorkspace.kgc.build'
+import { isKgcStructuredMarkdown } from './chatHistoryWorkspace.kgc.parse'
 import { normalizeKgcFrontmatterIdentityToFileName } from './chatHistoryWorkspace.kgc.normalize'
 import { ensureHistoryFilePath, resolveFilePrefix } from './chatHistoryWorkspace.paths'
 import type { ChatHistoryWorkspaceAppendArgs, ChatHistoryWorkspaceDraftArgs } from './chatHistoryWorkspace.types'
@@ -30,9 +31,10 @@ const formatReadableTimestamp = (timestampMs: number): string => {
   return `${yyyy}-${mm}-${dd} ${hh}:${min}:${sec}`
 }
 
-const looksLikeHostAbsoluteFsPath = (value: string): boolean => {
+const looksLikeMirrorableFsPath = (value: string): boolean => {
   const s = String(value || '').trim()
   if (!s) return false
+  if (s.startsWith('/')) return true
   if (/^[a-zA-Z]:\\/.test(s) || /^[a-zA-Z]:\//.test(s)) return true
   return (
     s.startsWith('/Users/') ||
@@ -47,7 +49,7 @@ const looksLikeHostAbsoluteFsPath = (value: string): boolean => {
 const mirrorWorkspaceFileToHostFs = async (args: { absolutePath: string; text: string }): Promise<void> => {
   if (typeof window === 'undefined') return
   const abs = String(args.absolutePath || '').trim()
-  if (!looksLikeHostAbsoluteFsPath(abs)) return
+  if (!looksLikeMirrorableFsPath(abs)) return
   try {
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
@@ -84,6 +86,40 @@ const stripDraftBlock = (existing: string, traceId: string): string => {
   return `${src.slice(0, startIdx)}${src.slice(endIdx + end.length)}`.replace(/\n{3,}/g, '\n\n').trimEnd() + '\n'
 }
 
+const deriveKgcTraceWorkspacePath = (workspacePath: string): string | null => {
+  const normalized = normalizeWorkspacePath(workspacePath)
+  const parts = normalized.split('/').filter(Boolean)
+  const base = String(parts[parts.length - 1] || '')
+  const m = /^(kgc_(\d{14}))\.md$/i.exec(base)
+  if (!m) return null
+  const ts = String(m[2] || '').trim()
+  parts[parts.length - 1] = `kgc-trace_${ts}.md`
+  return normalizeWorkspacePath(`/${parts.join('/')}`)
+}
+
+const writeWorkspaceFileTextEnsuringFile = async (args: {
+  fs: Awaited<ReturnType<typeof getWorkspaceFs>>
+  path: string
+  text: string
+}): Promise<void> => {
+  const normalized = normalizeWorkspacePath(args.path)
+  const existing = await args.fs.readFileText(normalized)
+  if (existing === null) {
+    const idx = normalized.lastIndexOf('/')
+    const parentPath = normalizeWorkspacePath(idx > 0 ? normalized.slice(0, idx) : '/')
+    const name = normalized.split('/').filter(Boolean).slice(-1)[0] || ''
+    if (name) {
+      try {
+        await args.fs.createFile({ parentPath, name, text: args.text })
+        return
+      } catch {
+        void 0
+      }
+    }
+  }
+  await args.fs.writeFileText(normalized, args.text)
+}
+
 export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceAppendArgs): Promise<string> => {
   const prefix = resolveFilePrefix(args)
   const path = await ensureHistoryFilePath(args.requestedPath, args.timestampMs, {
@@ -112,6 +148,7 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
     const assistantBody = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
     const kgcAssistantBody = normalizeKgcAssistantBodyForStorage({
       timestampMs: args.timestampMs,
+      workspacePath: key,
       requestText: args.userText,
       assistantText: assistantBody || 'No response content.',
     })
@@ -122,8 +159,13 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
         timestampMs: args.timestampMs,
       })
       const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
-      await fs.writeFileText(key, next)
+      await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
       void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
+      const tracePath = deriveKgcTraceWorkspacePath(key)
+      if (tracePath) {
+        await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
+        void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })
+      }
       return
     }
     const assistantSection = ['### assistant', wrapFence(args.assistantText, 'markdown'), ''].join('\n')
@@ -174,10 +216,37 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
     await fs.ensureSeed()
     const existingRaw = (await fs.readFileText(key)) || ''
     if (prefix === 'kgc') {
+      const assistantDraftText = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
+      // Streaming behavior: avoid dumping fallback template for partial chunks.
+      // Only persist canonical KGC during draft when the streamed content is already structured.
+      if (!isKgcStructuredMarkdown(assistantDraftText)) {
+        const existing = stripDraftBlock(existingRaw, traceId)
+        const draft = buildKgcDraftEntry({
+          timestampMs: args.timestampMs,
+          traceId,
+          providerSummary: args.providerSummary,
+          userText: args.userText,
+          assistantText: assistantDraftText || '_Streaming..._',
+        })
+        const joiner = existing.endsWith('\n') || !existing ? '' : '\n'
+        const next = [existing, draft].filter(Boolean).join(joiner)
+        if (next === existingRaw) return
+        await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
+        const tracePath = deriveKgcTraceWorkspacePath(key)
+        if (tracePath) {
+          await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
+          void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })
+        }
+        if (!existingRaw.trim()) {
+          void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
+        }
+        return
+      }
       const canonicalKgc = normalizeKgcAssistantBodyForStorage({
         timestampMs: args.timestampMs,
+        workspacePath: key,
         requestText: args.userText,
-        assistantText: String(args.assistantText || '').replace(/\r\n/g, '\n').trim() || '_Streaming..._',
+        assistantText: assistantDraftText,
       })
       const normalizedIdentity = normalizeKgcFrontmatterIdentityToFileName({
         markdown: canonicalKgc,
@@ -186,7 +255,12 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
       })
       const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
       if (next === existingRaw) return
-      await fs.writeFileText(key, next)
+      await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
+      const tracePath = deriveKgcTraceWorkspacePath(key)
+      if (tracePath) {
+        await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
+        void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })
+      }
       if (!existingRaw.trim()) {
         void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
       }

@@ -26,6 +26,8 @@ import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
   CHAT_OPENAI_ENDPOINT_URL,
+  getChatModelOptions,
+  getDefaultChatModelForProvider,
 } from '@/lib/chatEndpoint'
 import {
   DEFAULT_INTEGRATION_CONFIGS,
@@ -46,27 +48,68 @@ import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/l
 
 type SetGraph = StoreApi<GraphState>['setState']
 
+const isCanonicalKgcWorkspacePath = (value: unknown): boolean => {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return false
+  const normalized = raw.replace(/\\/g, '/')
+  const fileName = normalized.split('/').filter(Boolean).slice(-1)[0] || ''
+  return /^kgc_\d{14}\.md$/i.test(fileName)
+}
+
 export const createUiSlice = (set: SetGraph) => {
-  const initialChatProvider = lsJson<string>(
+  const storedChatProvider = lsJson<string>(
     LS_KEYS.chatProvider,
     CHAT_DEFAULT_PROVIDER,
     value => normalizeChatProviderId(value),
   )
+  const storedChatModel = lsJson<string | null>(
+    LS_KEYS.chatModel,
+    null,
+    value => (typeof value === 'string' ? value : null),
+  )
+  const normalizedStoredProvider = normalizeChatProviderId(storedChatProvider)
+  const normalizedStoredModel = normalizeChatModelIdForProvider(storedChatModel, normalizedStoredProvider)
+  const shouldMigrateLegacyProviderDefault =
+    normalizedStoredProvider !== CHAT_DEFAULT_PROVIDER &&
+    !normalizedStoredModel &&
+    getChatModelOptions(normalizedStoredProvider).length === 0
+  const initialChatProvider = shouldMigrateLegacyProviderDefault
+    ? CHAT_DEFAULT_PROVIDER
+    : normalizedStoredProvider
   const initialChatAuthMode = lsJson<'serverManaged' | 'byok'>(
     LS_KEYS.chatAuthMode,
     'serverManaged',
     value => (value === 'byok' ? 'byok' : 'serverManaged'),
   )
+  const storedChatEndpointUrl = lsJson<string | null>(
+    LS_KEYS.chatEndpointUrl,
+    null,
+    value => (typeof value === 'string' ? value : null),
+  )
   const initialChatEndpointUrl = lsJson<string | null>(
     LS_KEYS.chatEndpointUrl,
-    normalizeChatEndpointUrlInput(null, initialChatProvider),
-    value => normalizeChatEndpointUrlInput(value, initialChatProvider),
+    shouldMigrateLegacyProviderDefault
+      ? normalizeChatEndpointUrlInput(null, initialChatProvider)
+      : normalizeChatEndpointUrlInput(storedChatEndpointUrl, initialChatProvider),
+    value => {
+      const normalized = normalizeChatEndpointUrlInput(value, initialChatProvider)
+      if (!shouldMigrateLegacyProviderDefault) return normalized
+      const raw = typeof value === 'string' ? value.trim() : ''
+      const shouldKeepCustomEndpoint =
+        !!raw &&
+        raw !== CHAT_DEFAULT_ENDPOINT_URL &&
+        raw !== CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL &&
+        raw !== CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL &&
+        raw !== CHAT_OPENAI_ENDPOINT_URL
+      return shouldKeepCustomEndpoint
+        ? normalizeChatEndpointUrlInput(raw, initialChatProvider)
+        : normalizeChatEndpointUrlInput(null, initialChatProvider)
+    },
   )
-  const initialChatModel = lsJson<string | null>(
-    LS_KEYS.chatModel,
-    CHAT_DEFAULT_MODEL,
-    value => normalizeChatModelIdForProvider(value, initialChatProvider),
-  )
+  const initialChatModel = normalizeChatModelIdForProvider(
+    shouldMigrateLegacyProviderDefault ? null : storedChatModel,
+    initialChatProvider,
+  ) || getDefaultChatModelForProvider(initialChatProvider)
   return {
     ...createPanelLayoutUiSlice(set),
 
@@ -286,6 +329,7 @@ export const createUiSlice = (set: SetGraph) => {
       CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
       value => {
         const raw = typeof value === 'string' ? value.trim() : ''
+        if (raw === '/chats' || raw === 'chats') return CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT
         return raw || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT
       },
     ),
@@ -299,7 +343,8 @@ export const createUiSlice = (set: SetGraph) => {
       null,
       value => {
         const raw = typeof value === 'string' ? value.trim() : ''
-        return raw ? raw : null
+        if (!raw) return null
+        return isCanonicalKgcWorkspacePath(raw) ? raw : null
       },
     ),
     chatKnowgrphCloudUrl: lsJson<string | null>(
@@ -737,7 +782,11 @@ export const createUiSlice = (set: SetGraph) => {
       set({
         chatKnowgrphWorkspacePath: lsSetJson(
           LS_KEYS.chatKnowgrphWorkspacePath,
-          String(path || '').trim() || null,
+          (() => {
+            const raw = String(path || '').trim()
+            if (!raw) return null
+            return isCanonicalKgcWorkspacePath(raw) ? raw : null
+          })(),
         ),
       }),
     setChatKnowgrphCloudUrl: (url: string | null) =>

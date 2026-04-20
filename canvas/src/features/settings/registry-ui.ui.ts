@@ -7,6 +7,7 @@ import { lsBool, lsSetBool } from '@/lib/persistence'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
+  CHAT_DEFAULT_PROVIDER,
   CHAT_PROVIDER_OPTIONS,
   CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_LOCAL_MODEL_OPTIONS,
@@ -365,7 +366,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     read: () => s().chatProvider,
     write: (v) => s().setChatProvider(String(v || '').trim()),
     docKey: 'chatProvider',
-    default: () => CHAT_PROVIDER_OPTIONS[0],
+    default: () => CHAT_DEFAULT_PROVIDER,
     options: [...CHAT_PROVIDER_OPTIONS],
   },
   {

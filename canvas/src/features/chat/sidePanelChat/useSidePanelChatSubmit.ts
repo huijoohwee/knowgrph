@@ -74,8 +74,11 @@ const buildCorrectionPrompt = (args: { ruleId: string; message: string; invalidM
     `failed_rule: ${args.ruleId}`,
     `reason: ${args.message}`,
     '',
-    'Return a corrected answer that fully satisfies ALL rules and the strict output format.',
-    'Fix only what is necessary; preserve section order and schema.',
+    'Return ONLY one corrected standalone KGC markdown document.',
+    'Start immediately with the YAML frontmatter delimiter `---` and continue streaming the final document only.',
+    'Do not add preamble, explanation, wrapper prose, or extra markdown outside the KGC document.',
+    'Keep the response query-shaped and fully satisfy ALL rules plus the strict output format.',
+    'Fix only what is necessary; preserve section order, schema, and request relevance.',
     '',
     'Invalid output (for reference; do not repeat verbatim):',
     wrapFence(block, 'markdown'),
@@ -443,11 +446,27 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
         const extracted = extractKgcBlockFromAssistantText(assistantText)
         const kgc = typeof extracted.kgc === 'string' ? extracted.kgc.trim() : ''
         if (!kgc) {
+          if (attempt < MAX_VALIDATION_ATTEMPTS) {
+            correctionPrompt = buildCorrectionPrompt({
+              ruleId: 'V-03',
+              message: 'Previous answer did not include a parseable standalone KGC document. Return exactly one complete KGC markdown document.',
+              invalidMarkdown: assistantText,
+            })
+            continue
+          }
           finalStatus = 'ok'
           finalAssistantText = assistantText
           break
         }
         if (!isKgcStructuredMarkdown(kgc)) {
+          if (attempt < MAX_VALIDATION_ATTEMPTS) {
+            correctionPrompt = buildCorrectionPrompt({
+              ruleId: 'V-03',
+              message: 'Previous KGC payload was incomplete or not structurally parseable. Return one complete KGC markdown document with valid frontmatter and required sections.',
+              invalidMarkdown: kgc,
+            })
+            continue
+          }
           finalStatus = 'ok'
           finalAssistantText = assistantText
           break

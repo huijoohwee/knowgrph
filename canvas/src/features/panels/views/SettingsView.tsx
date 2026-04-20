@@ -27,6 +27,7 @@ import {
   CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
+  CHAT_DEFAULT_PROVIDER,
   CHAT_LOCAL_DEFAULT_MODEL,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_LM_STUDIO,
@@ -94,7 +95,7 @@ export default function SettingsView({
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const normalizedChatProvider = React.useMemo(
-    () => String(values.chatProvider || '').trim() || CHAT_PROVIDER_BYTEPLUS,
+    () => String(values.chatProvider || '').trim() || CHAT_DEFAULT_PROVIDER,
     [values.chatProvider],
   )
   const chatProviderLabel = React.useMemo(
@@ -143,6 +144,20 @@ export default function SettingsView({
     Object.keys(patch).forEach(key => dirtyRef.current.add(key))
     setValues(prev => ({ ...prev, ...patch }))
   }, [dirtyRef, setValues])
+  const openLocalChatApiKeyEntry = React.useCallback(() => {
+    patchChatValues({ chatAuthMode: 'byok' })
+    setExpanded('chatApiKey')
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        const target = document.querySelector<HTMLElement>(`[data-kg-anchor="${UI_ANCHORS.settingsChatApiKey}"]`)
+        if (!target) return
+        target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+        const input = target.querySelector<HTMLInputElement>('input[type="password"], input')
+        input?.focus()
+        input?.select?.()
+      })
+    }
+  }, [patchChatValues, setExpanded])
 
   React.useEffect(() => {
     const shouldApplyProvider = dirtyRef.current.has('chatProvider')
@@ -578,6 +593,21 @@ export default function SettingsView({
                       <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
                         {chatProviderHint}
                       </span>
+                    </li>
+                    <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+                      <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Local key entry</span>
+                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+                        Session-only; never localStorage
+                      </span>
+                      <button
+                        type="button"
+                        className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+                        onClick={() => {
+                          openLocalChatApiKeyEntry()
+                        }}
+                      >
+                        Open Local API Key
+                      </button>
                     </li>
                     <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
                       <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Provider profiles</span>

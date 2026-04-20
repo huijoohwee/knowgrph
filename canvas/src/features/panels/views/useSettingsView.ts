@@ -202,7 +202,10 @@ export function useSettingsView({
           ...searchHints,
         ].join(' '),
       )
-      const anchorId = s.key === 'uiIconScale' ? UI_ANCHORS.settingsUiIconScale : undefined
+      const anchorId =
+        s.key === 'uiIconScale'
+          ? UI_ANCHORS.settingsUiIconScale
+          : (s.key === 'chatApiKey' ? UI_ANCHORS.settingsChatApiKey : undefined)
       return { meta: s, details, writable: !!s.write, index, anchorId }
     })
       .filter(entry => entry.writable)

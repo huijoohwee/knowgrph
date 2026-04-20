@@ -1,4 +1,9 @@
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
+import {
+  extractTopLevelYamlKeys,
+  isFrontmatterVarKeyDeclared,
+  splitLeadingFrontmatterAndBody,
+} from './chatKgcFrontmatter'
 
 const BASE_TEMPLATE_TIER_B_KEYS = [
   'product',
@@ -26,35 +31,6 @@ const countMatches = (text: string, pattern: RegExp): number => {
   return Array.isArray(matches) ? matches.length : 0
 }
 
-const splitLeadingFrontmatterAndBody = (raw: string): { frontmatter: string; body: string } | null => {
-  const text = String(raw || '').replace(/\r\n/g, '\n')
-  const lines = text.split('\n')
-  let lead = 0
-  while (lead < lines.length && !String(lines[lead] || '').trim()) lead += 1
-  if (String(lines[lead] || '').trim() !== '---') return null
-  for (let i = lead + 1; i < lines.length; i += 1) {
-    if (String(lines[i] || '').trim() !== '---') continue
-    return {
-      frontmatter: lines.slice(lead + 1, i).join('\n'),
-      body: lines.slice(i + 1).join('\n').trim(),
-    }
-  }
-  return null
-}
-
-const extractTopLevelYamlKeys = (frontmatter: string): Set<string> => {
-  const keys = new Set<string>()
-  const lines = String(frontmatter || '').split('\n')
-  for (const line of lines) {
-    const m = /^([A-Za-z_][A-Za-z0-9_-]{0,48})\s*:\s*/.exec(line)
-    if (!m) continue
-    const key = String(m[1] || '').trim()
-    if (!key) continue
-    keys.add(key)
-  }
-  return keys
-}
-
 const extractTopLevelYamlBlockScalar = (frontmatter: string, key: string): string => {
   const lines = String(frontmatter || '').replace(/\r\n/g, '\n').split('\n')
   const keyLabel = `${String(key || '').trim()}:`
@@ -79,7 +55,10 @@ const extractTopLevelYamlBlockScalar = (frontmatter: string, key: string): strin
 }
 
 const extractVariableRefsFromBody = (markdownBody: string): string[] => {
-  return Array.from(String(markdownBody || '').matchAll(/\{\{([^}]+)\}\}/g))
+  const text = String(markdownBody || '')
+    // Ignore fenced code blocks; {{...}} inside examples should not be treated as runtime refs.
+    .replace(/```[\s\S]*?```/g, ' ')
+  return Array.from(text.matchAll(/\{\{([^}]+)\}\}/g))
     .map(match => String(match[1] || '').trim())
     .filter(Boolean)
 }
@@ -109,7 +88,6 @@ const hasMandatoryBaseTemplateBodySections = (markdownBody: string): boolean => 
 export const isKgcStructuredMarkdown = (raw: string): boolean => {
   const text = String(raw || '').replace(/\r\n/g, '\n').trim()
   if (!text.startsWith('---\n')) return false
-  if (/^```+/m.test(text)) return false
   const parsedFrontmatterBody = splitLeadingFrontmatterAndBody(text)
   if (!parsedFrontmatterBody) return false
   const frontmatter = ['---', parsedFrontmatterBody.frontmatter, '---'].join('\n')
@@ -121,7 +99,12 @@ export const isKgcStructuredMarkdown = (raw: string): boolean => {
   for (const ref of bodyRefs) {
     const key = extractVarRefKey(ref)
     if (!key) continue
-    if (!frontmatterKeys.has(key)) return false
+    if (!isFrontmatterVarKeyDeclared({
+      frontmatter: parsedFrontmatterBody.frontmatter,
+      topLevelKeys: frontmatterKeys,
+      varKey: key,
+      dottedParents: ['runtime'],
+    })) return false
   }
   if (!isBaseTemplateFrontmatter(parsedFrontmatterBody.frontmatter, frontmatterKeys)) return false
   if (!hasMandatoryBaseTemplateBodySections(markdownBody)) return false

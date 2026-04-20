@@ -65,8 +65,8 @@ If attempts are exhausted, Chat persists a parser-safe deterministic KGC fallbac
 ## Persistence Contract
 - The Workspace `kgc_*.md` file is the standalone canonical KGC document.
 - `chatKnowgrph` creates canonical files in the `kgc_yyyymmddhhmmss.md` pattern.
-- On write, canonical KGC identity metadata (`doc.id`, `doc.created`) is normalized from the `kgc_*.md` filename timestamp.
-- Structural acceptance requires frontmatter↔body linkage: every body `{{key}}` reference must be declared in top-level YAML frontmatter.
+- On write, canonical KGC identity is kept base-template compliant; only `links.self_ref` is normalized from the `kgc_*.md` filename.
+- Structural acceptance requires frontmatter↔body linkage: every body `{{key}}` reference must be declared in YAML frontmatter (base-template allows dotted `runtime.*` refs).
 - Base-template Tier B sentinel keys (`product/domain/subject/objective/artifact/owner/version/status`) are allowed as unresolved placeholders when declared in frontmatter.
 - Do not append `<!-- kg-chat-history -->` or any chat-history trailer to `kgc_*.md`.
 - Continuation: fallback recovery and streaming handoff details are documented in `docs/documents/knowgrph-chat-ai-markdown-pipeline-document.fallback-recovery.md`.

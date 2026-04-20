@@ -4090,6 +4090,7 @@ function createRepoFileHandler(): import('vite').Connect.NextHandleFunction {
 
 function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
   const MAX_BODY_BYTES = 2_000_000
+  const workspaceMirrorRoot = path.resolve(repoRoot, '..')
   const allowedRoots = [
     path.resolve(repoRoot),
     path.resolve(repoRoot, '..'),
@@ -4097,6 +4098,27 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
   const isAllowed = (candidate: string): boolean => {
     const resolved = path.resolve(candidate)
     return allowedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))
+  }
+  const toHostPath = (candidate: string): string => {
+    const raw = String(candidate || '').trim()
+    if (!raw) return ''
+    const resolved = path.resolve(raw)
+    if (isAllowed(resolved)) return resolved
+    if (raw.startsWith('/')) return path.resolve(workspaceMirrorRoot, `.${raw}`)
+    return path.resolve(workspaceMirrorRoot, raw)
+  }
+  const parseKgcPathInfo = (absPath: string): { canonicalPath: string; tracePath: string | null; stem: string | null } => {
+    const normalized = path.resolve(absPath)
+    const base = path.basename(normalized)
+    const m = /^(kgc_(\d{14}))(?:-([a-z0-9-]+))?\.md$/i.exec(base)
+    if (!m) return { canonicalPath: normalized, tracePath: null, stem: null }
+    const stem = String(m[1] || '').trim()
+    const suffix = String(m[3] || '').trim().toLowerCase()
+    const dir = path.dirname(normalized)
+    const canonicalPath = path.resolve(dir, `${stem}.md`)
+    if (!suffix) return { canonicalPath, tracePath: null, stem }
+    const tracePath = path.resolve(dir, `kgc-trace_${String(m[2] || '').trim()}.md`)
+    return { canonicalPath, tracePath, stem }
   }
   return async (req, res, next) => {
     if (req.method === 'OPTIONS') {
@@ -4143,14 +4165,17 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
     } catch {
       parsed = null
     }
-    const absPath = typeof parsed?.path === 'string' ? parsed.path.trim() : ''
+    const incomingPath = typeof parsed?.path === 'string' ? parsed.path.trim() : ''
     const text = typeof parsed?.text === 'string' ? parsed.text : ''
-    if (!absPath || absPath.includes('\u0000')) {
+    if (!incomingPath || incomingPath.includes('\u0000')) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify({ ok: false, error: 'Missing path' }))
       return
     }
+    const requestedAbsPath = toHostPath(incomingPath)
+    const kgcPathInfo = parseKgcPathInfo(requestedAbsPath)
+    const absPath = kgcPathInfo.tracePath || kgcPathInfo.canonicalPath
     if (!absPath.endsWith('.md')) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -4166,6 +4191,24 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
     try {
       await fs.mkdir(path.dirname(absPath), { recursive: true })
       await fs.writeFile(absPath, text, 'utf8')
+      if (kgcPathInfo.stem) {
+        const stem = kgcPathInfo.stem
+        const dir = path.dirname(kgcPathInfo.canonicalPath)
+        const variantPaths = [
+          path.resolve(dir, `${stem}-we.md`),
+          path.resolve(dir, `${stem}-wemd.md`),
+          path.resolve(dir, `${stem}-weme.md`),
+          path.resolve(dir, `${stem}-workspace-editor.md`),
+        ]
+        for (const variantPath of variantPaths) {
+          if (!isAllowed(variantPath)) continue
+          try {
+            await fs.unlink(variantPath)
+          } catch {
+            void 0
+          }
+        }
+      }
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify({ ok: true }))

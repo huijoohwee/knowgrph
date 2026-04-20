@@ -152,11 +152,11 @@ export const extractKgcBlockFromAssistantText = (
     const looksLikeRawKgcDocument =
       trimmed.startsWith('---') &&
       (
-        trimmed.includes('# ── DOCUMENT IDENTITY') ||
-        (trimmed.includes('\nruntime:') &&
-          trimmed.includes('\npipeline:') &&
-          trimmed.includes('\nmermaid:') &&
-          trimmed.includes('\nflow:'))
+        trimmed.includes('\n$schema:') &&
+        trimmed.includes('\nruntime:') &&
+        trimmed.includes('\npipeline:') &&
+        trimmed.includes('\nmermaid:') &&
+        trimmed.includes('\nflow:')
       )
     if (looksLikeRawKgcDocument) {
       return { answer: '', kgc: trimmed }
@@ -232,9 +232,7 @@ export const scoreFallbackCandidate = (raw: string): number => {
   if (!text) return -1_000
   if (text.includes('Previous invalid KGC attempt was omitted')) return -900
   const looksLikeStructuredArtifact =
-    text.includes('# ── DOCUMENT IDENTITY') ||
-    text.includes('# ── NODES') ||
-    text.includes('# ── FLOW EDITOR') ||
+    text.startsWith('---\n') ||
     (/@node:|@edge:/.test(text) && !/^##\s+/m.test(text))
   if (looksLikeStructuredArtifact) return -850
   const words = text.split(/\s+/).filter(Boolean).length

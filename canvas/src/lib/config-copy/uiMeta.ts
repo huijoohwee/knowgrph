@@ -10,6 +10,7 @@ export const UI_ANCHORS = {
   workflowPanel: 'workflow-panel',
   settingsPanel: 'settings-panel',
   settingsUiIconScale: 'settings:uiIconScale',
+  settingsChatApiKey: 'settings:chatApiKey',
   ragEmbedding: 'rag:Embedding',
   ragGraphRAGWorkflow: 'rag:GraphRAGWorkflow',
   aiKgLayers: 'render:aiKgLayers',

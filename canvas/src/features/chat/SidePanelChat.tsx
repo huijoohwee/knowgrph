@@ -35,6 +35,22 @@ import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFi
 import { useSidePanelChatSubmit } from '@/features/chat/sidePanelChat/useSidePanelChatSubmit'
 
 const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-request'
+const toCanonicalKgcWorkspacePath = (rawPath: string): string => {
+  const normalized = normalizeWorkspacePath(rawPath)
+  const parts = normalized.split('/').filter(Boolean)
+  const base = String(parts[parts.length - 1] || '')
+  const traceMatch = /^kgc-trace_(\d{14})\.md$/i.exec(base)
+  if (traceMatch) {
+    const ts = String(traceMatch[1] || '').trim()
+    parts[parts.length - 1] = `kgc_${ts}.md`
+    return normalizeWorkspacePath(`/${parts.join('/')}`)
+  }
+  const m = /^(kgc_\d{14})(?:-[a-z0-9-]+)?\.md$/i.exec(base)
+  if (!m) return normalized
+  const stem = String(m[1] || '').trim()
+  parts[parts.length - 1] = `${stem}.md`
+  return normalizeWorkspacePath(`/${parts.join('/')}`)
+}
 
 export default function SidePanelChat() {
   const graphData = useGraphStore(s => s.graphData)
@@ -163,7 +179,7 @@ export default function SidePanelChat() {
   }, [historyKey])
 
   const openWorkspaceMarkdownPath = React.useCallback((path: string) => {
-    const normalized = normalizeWorkspacePath(path)
+    const normalized = toCanonicalKgcWorkspacePath(path)
     setWorkspaceViewMode('editor')
     setEditorWorkspacePane('markdown')
     useMarkdownExplorerStore.getState().setActivePath(normalized)
@@ -178,7 +194,7 @@ export default function SidePanelChat() {
   }, [setEditorWorkspacePane, setWorkspaceViewMode])
 
   const followWorkspaceMarkdownPath = React.useCallback((path: string) => {
-    const normalized = normalizeWorkspacePath(path)
+    const normalized = toCanonicalKgcWorkspacePath(path)
     const nowMs = Date.now()
     const prevFollow = streamFollowRef.current
     const samePath = !!prevFollow && prevFollow.path === normalized

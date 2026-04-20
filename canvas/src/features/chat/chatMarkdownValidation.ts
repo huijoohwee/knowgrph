@@ -1,4 +1,8 @@
 import type { JSONValue } from '@/lib/graph/types'
+import {
+  extractSecondLevelYamlKeys,
+  isFrontmatterVarKeyDeclared,
+} from './chatKgcFrontmatter'
 
 export type ChatMarkdownValidationRuleId =
   | 'V-01'
@@ -100,26 +104,6 @@ const extractInlineDeclaredVarKeys = (md: string): Set<string> => {
   return keys
 }
 
-const extractKgcVariableSectionKeys = (md: string): Set<string> => {
-  const text = String(md || '').replace(/\r\n/g, '\n')
-  const startIdx = text.indexOf('# ── VARIABLES')
-  if (startIdx < 0) return new Set()
-  const tail = text.slice(startIdx)
-  const nextSection = tail.slice(1).search(/\n#\s*──\s+/)
-  const body = nextSection >= 0 ? tail.slice(0, nextSection + 1) : tail
-  const lines = body.split('\n')
-  const keys = new Set<string>()
-  for (const line of lines) {
-    const m = /^([A-Za-z_][A-Za-z0-9_-]{0,48})\s*:\s*/.exec(line)
-    if (!m) continue
-    const key = String(m[1] || '').trim()
-    if (!key) continue
-    if (key === 'doc' || key === 'nodes' || key === 'edges' || key === 'flow') continue
-    keys.add(key)
-  }
-  return keys
-}
-
 const extractLeadingFrontmatterAndBody = (md: string): { frontmatter: string; body: string } | null => {
   const text = String(md || '').replace(/\r\n/g, '\n')
   const lines = text.split('\n')
@@ -159,6 +143,7 @@ const BASE_TEMPLATE_TIER_B_KEYS = [
   'version',
   'status',
 ] as const
+const BASE_TEMPLATE_GENERIC_DOC_VAR_KEYS = new Set<string>(['variable', 'key'])
 
 const isBaseTemplateFrontmatter = (frontmatter: string, keys: Set<string>): boolean => {
   if (!keys.has('runtime') || !keys.has('pipeline') || !keys.has('mermaid') || !keys.has('flow')) return false
@@ -211,6 +196,10 @@ const extractBodySectionMarkdown = (body: string, heading: string): string => {
   const nextHeadingMatch = /^\s*##\s+/m.exec(tail)
   const section = nextHeadingMatch ? tail.slice(0, nextHeadingMatch.index) : tail
   return section.trim()
+}
+
+const stripFencedCodeBlocks = (text: string): string => {
+  return String(text || '').replace(/```[\s\S]*?```/g, ' ')
 }
 
 const countWordLikeTokens = (raw: string): number => {
@@ -301,6 +290,7 @@ const validateBaseTemplateBodyShape = (frontmatter: string, body: string): ChatM
     '## Pipeline',
     '## PRD — Product Requirements',
     '## TAD — Technical Architecture',
+    '## Node Reference',
     '## Open Questions',
     '## Customization Guide',
   ]
@@ -312,6 +302,29 @@ const validateBaseTemplateBodyShape = (frontmatter: string, body: string): ChatM
     }
   }
   const tierAKeys = ['title', 'graphId', 'doc_type', 'date', 'ai_model'] as const
+  const requiredSubsections = [
+    '### Runner Protocol',
+    '### Graph Registry',
+    '### Document Links',
+    '### Retry arc — S04 feedback to S03',
+    '### Goals',
+    '### Non-Goals',
+    '### User Stories',
+    '### Compute Inline Mapping Spec',
+    '### S02 Context Bundle Field Spec',
+    '### S04 Validation Rules',
+    '### S05 Data Schema',
+    '### Frontmatter variable map',
+    '### Extension checklist',
+    '### Syntax quick-reference',
+  ]
+  for (const section of requiredSubsections) {
+    if (body.includes(section)) continue
+    return {
+      ruleId: 'V-03',
+      message: `Base-template body is missing required subsection: ${section}.`,
+    }
+  }
   for (const key of tierAKeys) {
     const scalar = extractTopLevelYamlBlockScalar(frontmatter, key).trim()
     if (!scalar) {
@@ -346,7 +359,7 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
       message: 'Missing markdown body after frontmatter. Add non-empty body sections linked via {{key}}.',
     }
   }
-  const refs = Array.from(body.matchAll(/\{\{([^}]+)\}\}/g))
+  const refs = Array.from(stripFencedCodeBlocks(body).matchAll(/\{\{([^}]+)\}\}/g))
     .map(m => String(m[1] || '').trim())
     .filter(Boolean)
   if (refs.length === 0) {
@@ -373,7 +386,12 @@ const validateFrontmatterBodyVariableLink = (md: string): ChatMarkdownValidation
       const cut = [idxColon, idxPipe].filter(i => i >= 0).sort((a, b) => a - b)[0]
       const key = cut != null ? ref.slice(0, cut).trim() : ref
       if (!key) continue
-      if (!fmKeys.has(key)) {
+      if (!isFrontmatterVarKeyDeclared({
+        frontmatter: parsed.frontmatter,
+        topLevelKeys: fmKeys,
+        varKey: key,
+        dottedParents: ['runtime'],
+      })) {
         return {
           ruleId: 'V-03',
           message: `Body variable {{${key}}} is not declared in YAML frontmatter.`,
@@ -493,7 +511,7 @@ const validateSubstantiveKgcPayload = (md: string): ChatMarkdownValidationError 
 }
 
 const validateVariableRefsResolvable = (md: string, vars: Set<string>): ChatMarkdownValidationError | null => {
-  const text = String(md || '')
+  const text = stripFencedCodeBlocks(String(md || ''))
   const isBaseTemplate = isBaseTemplateMarkdown(md)
   const baseSentinelKeys = new Set<string>(BASE_TEMPLATE_TIER_B_KEYS)
   const rx = /\{\{([^}]+)\}\}/g
@@ -504,8 +522,12 @@ const validateVariableRefsResolvable = (md: string, vars: Set<string>): ChatMark
     const idxColon = inner.indexOf(':')
     const idxPipe = inner.indexOf('|')
     const cut = [idxColon, idxPipe].filter(i => i >= 0).sort((a, b) => a - b)[0]
-    const key = cut != null ? inner.slice(0, cut).trim() : inner
+    const key = (cut != null ? inner.slice(0, cut) : inner)
+      .replace(/\\([|:])/g, '$1')
+      .replace(/\\+$/g, '')
+      .trim()
     if (!key) continue
+    if (isBaseTemplate && BASE_TEMPLATE_GENERIC_DOC_VAR_KEYS.has(key)) continue
     if (!vars.has(key)) {
       if (isBaseTemplate && baseSentinelKeys.has(key)) continue
       return {
@@ -522,6 +544,8 @@ const validateInlineJsonArrays = (md: string): ChatMarkdownValidationError | nul
   for (const code of inlineCodes) {
     const trimmed = code.trim()
     if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) continue
+    // Only enforce strict JSON when the author intends JSON-like quoted arrays.
+    if (!trimmed.includes('"')) continue
     try {
       const parsed = JSON.parse(trimmed) as unknown
       if (!Array.isArray(parsed)) continue
@@ -601,6 +625,16 @@ export const buildResolvableVarKeySet = (args: {
   markdown: string
 }): Set<string> => {
   const keys = new Set<string>()
+  const parsed = extractLeadingFrontmatterAndBody(args.markdown)
+  if (parsed) {
+    const top = extractTopLevelFrontmatterKeys(parsed.frontmatter)
+    for (const k of top) keys.add(k)
+    if (isBaseTemplateFrontmatter(parsed.frontmatter, top) && top.has('runtime')) {
+      const second = extractSecondLevelYamlKeys(parsed.frontmatter, 'runtime')
+      keys.add('runtime.*')
+      for (const k of second) keys.add(`runtime.${k}`)
+    }
+  }
   const fm = args.frontmatter
   if (fm && typeof fm === 'object') {
     for (const k of Object.keys(fm)) {
@@ -608,7 +642,6 @@ export const buildResolvableVarKeySet = (args: {
     }
   }
   for (const k of extractInlineDeclaredVarKeys(args.markdown)) keys.add(k)
-  for (const k of extractKgcVariableSectionKeys(args.markdown)) keys.add(k)
   return keys
 }
 
