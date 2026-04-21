@@ -1,7 +1,7 @@
 import type { FeatureCollection } from 'geojson'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashText } from '@/features/parsers/hash'
-import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText } from 'gympgrph'
+import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText } from '@/lib/gympgrph/api'
 
 type CacheValue =
   | { ok: true; featureCollection: FeatureCollection }

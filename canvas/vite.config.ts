@@ -33,6 +33,7 @@ const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR =
   String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/knowgrph-workflow-preview'
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
 const CHAT_PROXY_PREFIX = '/__chat_proxy'
+const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'
 const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
@@ -987,7 +988,7 @@ const remoteFetchProxyDevPlugin = {
   name: 'knowgrph-remote-fetch-proxy-dev',
   configureServer(server: import('vite').ViteDevServer) {
     server.middlewares.use((req, res, next) => {
-      if (!req.url?.startsWith('/__fetch_remote')) {
+      if (!(req.url?.startsWith('/__fetch_remote') || req.url?.startsWith(CHAT_BINARY_DOWNLOAD_PROXY_PREFIX))) {
         next()
         return
       }
@@ -996,7 +997,7 @@ const remoteFetchProxyDevPlugin = {
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
     server.middlewares.use((req, res, next) => {
-      if (!req.url?.startsWith('/__fetch_remote')) {
+      if (!(req.url?.startsWith('/__fetch_remote') || req.url?.startsWith(CHAT_BINARY_DOWNLOAD_PROXY_PREFIX))) {
         next()
         return
       }

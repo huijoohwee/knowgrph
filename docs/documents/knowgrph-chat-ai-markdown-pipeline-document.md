@@ -69,4 +69,7 @@ If attempts are exhausted, Chat persists a parser-safe deterministic KGC fallbac
 - Structural acceptance requires frontmatter↔body linkage: every body `{{key}}` reference must be declared in YAML frontmatter (base-template allows dotted `runtime.*` refs).
 - Base-template Tier B sentinel keys (`product/domain/subject/objective/artifact/owner/version/status`) are allowed as unresolved placeholders when declared in frontmatter.
 - Do not append `<!-- kg-chat-history -->` or any chat-history trailer to `kgc_*.md`.
+- KGC trace outputs follow the canonical run chain: `kgc-trace_<ts>.md` (trace) -> `kgc_<ts>.md` (canonical run document) -> `kgc-output_<ts>.md` (run output artifact).
+- If any chain document grows large, keep the original filename as a sub-600 canonical index and move detailed sections into companion markdown files linked by explicit Continuation notes.
+- Workspace Widget exports (Image/Video) must stay in one widget-bundle SSOT so JSON and Markdown projections list both `registry` and `graph` entities from the same bundle source.
 - Continuation: fallback recovery and streaming handoff details are documented in `docs/documents/knowgrph-chat-ai-markdown-pipeline-document.fallback-recovery.md`.

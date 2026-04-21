@@ -1,5 +1,5 @@
 import { pickPoiSelection, coerceFeatureCollectionIds, isPointOnlyFeatureCollection } from 'gympgrph/testkit'
-import { ensureDatasetLayer } from 'gympgrph'
+import { ensureDatasetLayer } from '@/lib/gympgrph/api'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
 
@@ -84,6 +84,7 @@ export const testGympgrphEnsureDatasetLayerClusterCountUsesNotoSans = () => {
   const sourcesById = new Map<string, SourceStub>()
 
   const map: MapStub = {
+    loaded: () => true,
     getLayer: (id: string) => layersById.get(id) || null,
     addLayer: (layer: LayerStub) => {
       layersById.set(layer.id, layer)

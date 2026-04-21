@@ -2,7 +2,7 @@ import fs from 'node:fs'
 
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 
 const readTemplatePath = (): string => {
   const v = process.env.KG_TEST_VIDEO_SCRIPT_TEMPLATE_PATH
@@ -23,8 +23,8 @@ export function testVideoScriptTemplateFileFrontmatterFlowGraphFidelity() {
   const g = res.graphData
   const meta = (g.metadata || {}) as Record<string, unknown>
 
-  const registry = meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
-  if (!Array.isArray(registry) || registry.length < 5) throw new Error('expected quick editor registry metadata')
+  const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  if (!Array.isArray(registry) || registry.length < 5) throw new Error('expected widget registry metadata')
 
   const socketTypes = meta.socketTypes
   if (!socketTypes || typeof socketTypes !== 'object') throw new Error('expected socketTypes metadata')

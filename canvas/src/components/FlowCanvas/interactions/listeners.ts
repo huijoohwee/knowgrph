@@ -96,7 +96,7 @@ export function bindFlowNativeInteractionListeners(args: {
 
     const resolved = resolveFlowEditorOverlayProxyTarget({ target: targetEl, canvasEl })
     const overlayPinnedToNode =
-      resolved.kind === 'overlay' && String((resolved.overlayRoot as HTMLElement | null)?.dataset?.kgNodeQuickEditorPinned || '') === '1'
+      resolved.kind === 'overlay' && String((resolved.overlayRoot as HTMLElement | null)?.dataset?.kgWidgetPinned || '') === '1'
 
     const overlayDragHandle = resolved.kind === 'overlay' && overlayPinnedToNode && resolved.targetEl.closest(OVERLAY_NODE_DRAG_HANDLE_SELECTOR)
 

@@ -10,8 +10,8 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
 
   const wheelPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'wheelAndGesture.ts')
   const wheelText = readFileSync(wheelPath, 'utf8')
-  if (!wheelText.includes('[data-kg-node-quick-editor]') && !wheelText.includes('flow-editor-overlay-proxy')) {
-    throw new Error('expected FlowCanvas wheel proxy to target node quick editor overlays (direct selector or shared proxy helper)')
+  if (!wheelText.includes('[data-kg-widget]') && !wheelText.includes('flow-editor-overlay-proxy')) {
+    throw new Error('expected FlowCanvas wheel proxy to target widget overlays (direct selector or shared proxy helper)')
   }
 
   if (!wheelText.includes('skipIgnoreGuard: true')) {

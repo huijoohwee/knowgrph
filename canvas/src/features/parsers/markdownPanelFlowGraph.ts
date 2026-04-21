@@ -1,8 +1,8 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { splitMarkdownLines, parseMarkdownFrontmatter, parseMarkdownBlocks } from '@/lib/markdown'
 import { hashText } from '@/features/parsers/hash'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { FLOW_EDGE_DISPLAY_LABEL_KEY, FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 
@@ -11,7 +11,7 @@ type RegistryEntry = {
   id: string
   isEnabled: boolean
   nodeTypeId: string
-  quickEditorTypeId: string
+  widgetTypeId: string
   formId: string
   fields: unknown[]
   ports: RegistryPort[]
@@ -188,7 +188,7 @@ export function tryParseMarkdownPanelFlowGraph(
     const properties: Record<string, JSONValue> = {
       category: `column_${col + 1}` as unknown as JSONValue,
       'visual:layer': `column_${col + 1}` as unknown as JSONValue,
-      [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: formId as unknown as JSONValue,
+      [FLOW_WIDGET_FORM_ID_KEY]: formId as unknown as JSONValue,
     }
     nodes.push({
       id: nodeId,
@@ -203,7 +203,7 @@ export function tryParseMarkdownPanelFlowGraph(
       id: `qer-panel-${idBase}`,
       isEnabled: true,
       nodeTypeId: 'Panel',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId,
       fields: [],
       ports: [],
@@ -216,7 +216,7 @@ export function tryParseMarkdownPanelFlowGraph(
   const getRegistryEntry = (nodeId: string): RegistryEntry | null => {
     const node = nodes.find(n => n.id === nodeId) || null
     if (!node) return null
-    const formId = String(((node.properties || {}) as Record<string, unknown>)[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
+    const formId = String(((node.properties || {}) as Record<string, unknown>)[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
     if (!formId) return null
     const entry = registry.find(r => r.formId === formId) || null
     return entry
@@ -363,7 +363,7 @@ export function tryParseMarkdownPanelFlowGraph(
     kind: 'markdown-panel-flow',
     sourceLayerHash: hashText(`markdown-panel-flow|${String(name || '')}`),
     socketTypes: buildSocketTypesMetadata() as unknown as JSONValue,
-    ...(registry.length > 0 ? ({ [FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]: registry as unknown as JSONValue } as Record<string, JSONValue>) : {}),
+    ...(registry.length > 0 ? ({ [FLOW_WIDGET_REGISTRY_METADATA_KEY]: registry as unknown as JSONValue } as Record<string, JSONValue>) : {}),
     ...(subgraphs.length > 0 ? ({ [KG_SUBGRAPHS_KEY]: subgraphs as unknown as JSONValue } as Record<string, JSONValue>) : {}),
   }
 

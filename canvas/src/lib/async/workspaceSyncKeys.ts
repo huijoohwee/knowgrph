@@ -26,8 +26,8 @@ export const WORKSPACE_SYNC_SCOPE_GRAPH_TABLE_RUNTIME_PERSISTENCE = 'graph-table
 
 export const WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE = 'canvas:tab-sync:runtime-persistence'
 export const WORKSPACE_SYNC_SCOPE_CANVAS_PREVIEW_WRITEBACK_RUNTIME_PERSISTENCE = 'canvas:preview-writeback:runtime-persistence'
-export const WORKSPACE_SYNC_TASK_FLOW_QUICK_EDITOR_VIEW_STATE = 'flow-quick-editor:view-state'
-export const WORKSPACE_SYNC_SCOPE_FLOW_QUICK_EDITOR_RUNTIME_PERSISTENCE = 'flow-quick-editor:runtime-persistence'
+export const WORKSPACE_SYNC_TASK_FLOW_WIDGET_VIEW_STATE = 'flow-widget:view-state'
+export const WORKSPACE_SYNC_SCOPE_FLOW_WIDGET_RUNTIME_PERSISTENCE = 'flow-widget:runtime-persistence'
 export const WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE = 'renderer:edge-type:view-state'
 export const WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE = 'renderer:edge-type:runtime-persistence'
 

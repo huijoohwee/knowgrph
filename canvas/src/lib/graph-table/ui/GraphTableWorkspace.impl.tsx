@@ -67,7 +67,7 @@ const INACTIVE_GRAPH_SLICE = {
   selectionSource: 'toolbar',
   selectedNodeId: null as string | null,
   selectedEdgeId: null as string | null,
-  openQuickEditorNodeIds: [] as string[],
+  openWidgetNodeIds: [] as string[],
 } as const
 
 export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; active?: boolean }) {
@@ -86,7 +86,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
             selectionSource: s.selectionSource,
             selectedNodeId: s.selectedNodeId,
             selectedEdgeId: s.selectedEdgeId,
-            openQuickEditorNodeIds: s.openQuickEditorNodeIds || [],
+            openWidgetNodeIds: s.openWidgetNodeIds || [],
           })
         : () => INACTIVE_GRAPH_SLICE,
     [active],
@@ -101,7 +101,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     selectionSource,
     selectedNodeId,
     selectedEdgeId,
-    openQuickEditorNodeIds,
+    openWidgetNodeIds,
   } =
     useGraphStore(useShallow(selector))
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
@@ -378,10 +378,10 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   useEffect(() => {
     const id = typeof selectedNodeId === 'string' ? selectedNodeId : ''
     if (!id) return
-    if (!openQuickEditorNodeIds.includes(id)) return
+    if (!openWidgetNodeIds.includes(id)) return
     if (inspectorOpen) return
     setInspectorOpen(true)
-  }, [inspectorOpen, openQuickEditorNodeIds, selectedNodeId])
+  }, [inspectorOpen, openWidgetNodeIds, selectedNodeId])
 
   useEffect(() => {
     lsSetBool(LS_KEYS.graphTableInspectorOpen, inspectorOpen)

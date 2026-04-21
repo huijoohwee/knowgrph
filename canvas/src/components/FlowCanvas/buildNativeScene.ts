@@ -16,7 +16,7 @@ import { parseSchemaFieldPortKey, readFlowEdgePortKey, readSchemaFieldSpecs } fr
 import { buildFlowEdgeDisplayLabelFromPorts, readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildBestGroupInfoByNodeId, compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 
@@ -29,7 +29,7 @@ export function buildAndSetFlowNativeScene(args: {
   flowConfig: FlowConfig
   sceneGroups: GraphGroup[]
   rankdir: 'TB' | 'LR'
-  nodeQuickEditorRegistry?: ReadonlyArray<NodeQuickEditorRegistryEntry> | null
+  widgetRegistry?: ReadonlyArray<WidgetRegistryEntry> | null
 }): { nodeCount: number; graphKeyParts: { nodeCount: number; edgeCount: number } } {
   const g = args.graphData
   const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
@@ -116,7 +116,7 @@ export function buildAndSetFlowNativeScene(args: {
   const handlesByNode = computeFlowHandlesByNode({
     nodes: nodeList as ReadonlyArray<{ id: unknown; type?: unknown; properties?: unknown }>,
     edges: edgeList as ReadonlyArray<{ id: unknown; source: unknown; target: unknown }>,
-    nodeQuickEditorRegistry: args.nodeQuickEditorRegistry || null,
+    widgetRegistry: args.widgetRegistry || null,
   })
 
   const nodeById = new Map<string, NonNullable<FlowNativeScene['nodes']>[number]>()

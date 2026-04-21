@@ -1,18 +1,24 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, FLOW_VIDEO_GENERATION_NODE_LABEL, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config'
+import {
+  FLOW_IMAGE_GENERATION_NODE_LABEL,
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_WIDGET_REGISTRY_METADATA_KEY,
+  FLOW_VIDEO_GENERATION_NODE_LABEL,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
 import { pickFilesWithExtensions } from '@/lib/graph/filePicker'
 import { downloadBlob } from '@/lib/graph/save'
-import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonBlob } from '@/lib/graph/io/nodeQuickEditorBundle'
-import { normalizeNodeQuickEditorRegistryEntries, validateNodeQuickEditorRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
-import { tryParseQuickEditorImportGraphData } from '@/lib/graph/io/quickEditorImport'
+import { buildWidgetBundleV1, widgetBundleToJsonBlob } from '@/lib/graph/io/widgetBundle'
+import { normalizeWidgetRegistryEntries, validateWidgetRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
+import { tryParseWidgetImportGraphData } from '@/lib/graph/io/widgetImport'
 import { createUniqueId } from '@/lib/ids'
-import { buildGenerateVideoRegistryDraft, buildNodeQuickEditorDraftFromSmartFields } from '@/features/flow-editor-manager/registryTemplates'
-import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY, resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import { buildGenerateImageRegistryDraft, buildGenerateVideoRegistryDraft, buildWidgetDraftFromSmartFields } from '@/features/flow-editor-manager/registryTemplates'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 import { patchById } from 'grph-shared/array/patchArrayItem'
 import { FlowEditorMappingTabLayout } from '@/features/flow-editor-manager/FlowEditorMappingTabLayout'
@@ -30,28 +36,28 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
   const {
     uiIconScale,
     uiIconStrokeWidth,
-    nodeQuickEditorRegistry,
-    setNodeQuickEditorRegistry,
+    widgetRegistry,
+    setWidgetRegistry,
     graphData,
     selectedNodeId,
     updateNode,
     upsertUiToast,
-    upsertNodeQuickEditorRegistryEntry,
-    removeNodeQuickEditorRegistryEntry,
-    toggleNodeQuickEditorRegistryEntryEnabled,
+    upsertWidgetRegistryEntry,
+    removeWidgetRegistryEntry,
+    toggleWidgetRegistryEntryEnabled,
   } = useGraphStore(
     useShallow(s => ({
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
-      nodeQuickEditorRegistry: s.nodeQuickEditorRegistry,
-      setNodeQuickEditorRegistry: s.setNodeQuickEditorRegistry,
+      widgetRegistry: s.widgetRegistry,
+      setWidgetRegistry: s.setWidgetRegistry,
       graphData: s.graphData,
       selectedNodeId: s.selectedNodeId,
       updateNode: s.updateNode,
       upsertUiToast: s.upsertUiToast,
-      upsertNodeQuickEditorRegistryEntry: s.upsertNodeQuickEditorRegistryEntry,
-      removeNodeQuickEditorRegistryEntry: s.removeNodeQuickEditorRegistryEntry,
-      toggleNodeQuickEditorRegistryEntryEnabled: s.toggleNodeQuickEditorRegistryEntryEnabled,
+      upsertWidgetRegistryEntry: s.upsertWidgetRegistryEntry,
+      removeWidgetRegistryEntry: s.removeWidgetRegistryEntry,
+      toggleWidgetRegistryEntryEnabled: s.toggleWidgetRegistryEntryEnabled,
     })),
   )
 
@@ -60,11 +66,11 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
   const [selectionMode, setSelectionMode] = React.useState<'auto' | 'manual'>('auto')
   const [editorMode, setEditorMode] = React.useState<'none' | 'create' | 'edit'>('none')
-  const [editorDraft, setEditorDraft] = React.useState<Omit<NodeQuickEditorRegistryEntry, 'updatedAt'>>(() => ({
+  const [editorDraft, setEditorDraft] = React.useState<Omit<WidgetRegistryEntry, 'updatedAt'>>(() => ({
     id: '',
     isEnabled: true,
     nodeTypeId: '',
-    quickEditorTypeId: 'default',
+    widgetTypeId: 'default',
     formId: 'default',
     fields: [{ fieldKey: 'label', fieldType: 'text', schemaPath: 'label' }],
     ports: [],
@@ -75,7 +81,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
       id: '',
       isEnabled: true,
       nodeTypeId: '',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'default',
       fields: [{ fieldKey: 'label', fieldType: 'text', schemaPath: 'label' }],
       ports: [],
@@ -86,13 +92,13 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
   const [editorError, setEditorError] = React.useState<string | null>(null)
 
   const filtered = React.useMemo(() => {
-    const src = Array.isArray(nodeQuickEditorRegistry) ? nodeQuickEditorRegistry : []
+    const src = Array.isArray(widgetRegistry) ? widgetRegistry : []
     const enabledFiltered = enabledOnly ? src.filter(e => e.isEnabled) : src
     if (!normalizedQuery) return enabledFiltered
     return enabledFiltered.filter(e =>
-      normalizeText([e.nodeTypeId, e.quickEditorTypeId, e.formId, e.id].join(' ')).includes(normalizedQuery),
+      normalizeText([e.nodeTypeId, e.widgetTypeId, e.formId, e.id].join(' ')).includes(normalizedQuery),
     )
-  }, [enabledOnly, nodeQuickEditorRegistry, normalizedQuery])
+  }, [enabledOnly, widgetRegistry, normalizedQuery])
 
   const emptyLabel = React.useMemo(() => {
     if (!normalizedQuery && !enabledOnly) return 'No mappings yet.'
@@ -102,8 +108,8 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
   const selected = React.useMemo(() => {
     const id = String(selectedId || '').trim()
     if (!id) return null
-    return (nodeQuickEditorRegistry || []).find(e => e.id === id) || null
-  }, [nodeQuickEditorRegistry, selectedId])
+    return (widgetRegistry || []).find(e => e.id === id) || null
+  }, [widgetRegistry, selectedId])
 
   const lastAppliedSelectionKeyRef = React.useRef<string>('')
 
@@ -124,11 +130,11 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
 
     setEditorError(prev => (prev === null ? prev : null))
     if (editorMode !== 'edit') setEditorMode('edit')
-    const nextDraft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> = {
+    const nextDraft: Omit<WidgetRegistryEntry, 'updatedAt'> = {
       id: selected.id,
       isEnabled: selected.isEnabled,
       nodeTypeId: selected.nodeTypeId,
-      quickEditorTypeId: selected.quickEditorTypeId,
+      widgetTypeId: selected.widgetTypeId,
       formId: selected.formId,
       fields: Array.isArray(selected.fields) ? selected.fields : [],
       ports: Array.isArray(selected.ports) ? selected.ports : [],
@@ -147,8 +153,8 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
   }, [graphData, selectedNodeId])
 
   const resolvedFromSelection = React.useMemo(
-    () => resolveNodeQuickEditorRegistryEntry({ node: selectedNode, registry: nodeQuickEditorRegistry }),
-    [nodeQuickEditorRegistry, selectedNode],
+    () => resolveWidgetRegistryEntry({ node: selectedNode, registry: widgetRegistry }),
+    [widgetRegistry, selectedNode],
   )
 
   React.useEffect(() => {
@@ -177,17 +183,17 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     setSelectedId(null)
   }, [])
 
-  const openCreate = React.useCallback((initialDraft?: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> | null) => {
+  const openCreate = React.useCallback((initialDraft?: Omit<WidgetRegistryEntry, 'updatedAt'> | null) => {
     setEditorError(null)
     setSelectionMode('manual')
     setSelectedId(null)
     setEditorMode('create')
-    const nextDraft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> = initialDraft
+    const nextDraft: Omit<WidgetRegistryEntry, 'updatedAt'> = initialDraft
       ? {
           id: String(initialDraft.id || '').trim(),
           isEnabled: !!initialDraft.isEnabled,
           nodeTypeId: String(initialDraft.nodeTypeId || '').trim(),
-          quickEditorTypeId: String(initialDraft.quickEditorTypeId || '').trim() || 'default',
+          widgetTypeId: String(initialDraft.widgetTypeId || '').trim() || 'default',
           formId: String(initialDraft.formId || '').trim() || 'default',
           fields: Array.isArray(initialDraft.fields) ? initialDraft.fields : [],
           ports: Array.isArray(initialDraft.ports) ? initialDraft.ports : [],
@@ -197,17 +203,17 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
           id: '',
           isEnabled: true,
           nodeTypeId: '',
-          quickEditorTypeId: 'default',
+          widgetTypeId: 'default',
           formId: 'default',
           fields: [{ fieldKey: 'label', fieldType: 'text', schemaPath: 'label' }],
           ports: [],
           schemaMappings: [],
         }
     setEditorDraft(nextDraft)
-    setEditorRows(buildMappingRowsFromRegistryEntry({ ...nextDraft, updatedAt: new Date().toISOString() } as NodeQuickEditorRegistryEntry))
+    setEditorRows(buildMappingRowsFromRegistryEntry({ ...nextDraft, updatedAt: new Date().toISOString() } as WidgetRegistryEntry))
   }, [])
 
-  const openCreateFromNodeQuickEditor = React.useCallback(() => {
+  const openCreateFromWidget = React.useCallback(() => {
     const cur = graphData
     const nodeId = String(selectedNodeId || '').trim()
     if (!cur || !nodeId) {
@@ -223,9 +229,11 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     const props = (node?.properties || {}) as Record<string, unknown>
     const model = typeof props.model === 'string' ? props.model.trim() : ''
     const inferredDraft =
-      model === 'generate_video'
+      model === 'generate_image'
+        ? { ...buildGenerateImageRegistryDraft(), nodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID }
+        : model === 'generate_video'
         ? { ...buildGenerateVideoRegistryDraft(), nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID }
-        : buildNodeQuickEditorDraftFromSmartFields({ nodeTypeId })
+        : buildWidgetDraftFromSmartFields({ nodeTypeId })
     openCreate(inferredDraft)
   }, [graphData, openCreate, selectedNodeId, upsertUiToast])
 
@@ -252,10 +260,10 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     if (nextModel !== 'generate_video') updates.properties = { ...(node.properties || {}), model: 'generate_video' }
     if (Object.keys(updates).length > 0) updateNode(nodeId, updates as never)
 
-    const res = upsertNodeQuickEditorRegistryEntry({
+    const res = upsertWidgetRegistryEntry({
       isEnabled: true,
       nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'videoGeneration',
       fields: buildGenerateVideoRegistryDraft().fields,
       ports: buildGenerateVideoRegistryDraft().ports,
@@ -272,7 +280,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     }
     setSelectedId(res.id)
     upsertUiToast({ id: 'flow-editor-manager-register-gv-ok', kind: 'neutral', message: 'Registered Generate Video mapping.', ttlMs: 2500 })
-  }, [graphData, selectedNodeId, updateNode, upsertNodeQuickEditorRegistryEntry, upsertUiToast])
+  }, [graphData, selectedNodeId, updateNode, upsertWidgetRegistryEntry, upsertUiToast])
 
   const registerSelectedNodeTypeFromSelection = React.useCallback(() => {
     const cur = graphData
@@ -291,14 +299,16 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
 
     const props = (node.properties || {}) as Record<string, unknown>
     const model = typeof props.model === 'string' ? props.model.trim() : ''
-    const draft = model === 'generate_video'
-      ? buildGenerateVideoRegistryDraft()
-      : buildNodeQuickEditorDraftFromSmartFields({ nodeTypeId: baseType })
+    const draft = model === 'generate_image'
+      ? buildGenerateImageRegistryDraft()
+      : model === 'generate_video'
+        ? buildGenerateVideoRegistryDraft()
+        : buildWidgetDraftFromSmartFields({ nodeTypeId: baseType })
 
-    const res = upsertNodeQuickEditorRegistryEntry({
+    const res = upsertWidgetRegistryEntry({
       isEnabled: true,
       nodeTypeId: draft.nodeTypeId,
-      quickEditorTypeId: draft.quickEditorTypeId,
+      widgetTypeId: draft.widgetTypeId,
       formId: draft.formId,
       fields: draft.fields,
       ports: draft.ports,
@@ -318,13 +328,20 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     if (String(node.type || '').trim() !== draft.nodeTypeId) updates.type = draft.nodeTypeId
     const label = String(node.label || '').trim()
     if (!label || label === String(node.type || '').trim()) {
-      const nextLabel = draft.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? FLOW_VIDEO_GENERATION_NODE_LABEL : draft.nodeTypeId
+      const nextLabel = draft.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+        ? FLOW_IMAGE_GENERATION_NODE_LABEL
+        : draft.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+          ? FLOW_VIDEO_GENERATION_NODE_LABEL
+          : draft.nodeTypeId
       updates.label = nextLabel
     }
     const nextProps: Record<string, unknown> = {
       ...(node.properties || {}),
-      [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: draft.quickEditorTypeId,
-      [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: draft.formId,
+      [FLOW_WIDGET_TYPE_ID_KEY]: draft.widgetTypeId,
+      [FLOW_WIDGET_FORM_ID_KEY]: draft.formId,
+    }
+    if (draft.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
+      if (typeof nextProps.model !== 'string' || String(nextProps.model).trim() !== 'generate_image') nextProps.model = 'generate_image'
     }
     if (draft.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
       if (typeof nextProps.model !== 'string' || String(nextProps.model).trim() !== 'generate_video') nextProps.model = 'generate_video'
@@ -335,7 +352,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     setSelectedId(res.id)
     setSelectionMode('manual')
     upsertUiToast({ id: 'flow-editor-manager-register-selected-type-ok', kind: 'neutral', message: 'Registered mapping.', ttlMs: 2200 })
-  }, [graphData, selectedNodeId, updateNode, upsertNodeQuickEditorRegistryEntry, upsertUiToast])
+  }, [graphData, selectedNodeId, updateNode, upsertWidgetRegistryEntry, upsertUiToast])
 
   const applySelectedMappingToSelectedNode = React.useCallback(() => {
     const entry = selected
@@ -352,20 +369,20 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     const node = (cur.nodes || []).find(n => n && n.id === nodeId) || null
     if (!node) return
 
-    if (entry.isEnabled !== true) toggleNodeQuickEditorRegistryEntryEnabled(entry.id, true)
+    if (entry.isEnabled !== true) toggleWidgetRegistryEntryEnabled(entry.id, true)
 
     const updates: Record<string, unknown> = {}
     if (String(node.type || '').trim() !== entry.nodeTypeId) updates.type = entry.nodeTypeId
     const nextProps: Record<string, unknown> = {
       ...(node.properties || {}),
-      [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: entry.quickEditorTypeId,
-      [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: entry.formId,
+      [FLOW_WIDGET_TYPE_ID_KEY]: entry.widgetTypeId,
+      [FLOW_WIDGET_FORM_ID_KEY]: entry.formId,
     }
     updates.properties = nextProps
     updateNode(nodeId, updates as never)
 
     upsertUiToast({ id: 'flow-editor-manager-apply-ok', kind: 'neutral', message: 'Applied mapping to node.', ttlMs: 2200 })
-  }, [graphData, selected, selectedNodeId, toggleNodeQuickEditorRegistryEntryEnabled, updateNode, upsertUiToast])
+  }, [graphData, selected, selectedNodeId, toggleWidgetRegistryEntryEnabled, updateNode, upsertUiToast])
 
   const importRegistryFromJson = React.useCallback(async () => {
     const files = await pickFilesWithExtensions(['json'], false)
@@ -377,27 +394,27 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     } catch {
       return
     }
-    const parsed = tryParseQuickEditorImportGraphData(json)
+    const parsed = tryParseWidgetImportGraphData(json)
     const meta = parsed?.graphData?.metadata
-    const rawRegistry = isRecord(meta) ? meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] : null
+    const rawRegistry = isRecord(meta) ? meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] : null
     if (!Array.isArray(rawRegistry) || rawRegistry.length === 0) return
     const imported = rawRegistry
-      .map(item => validateNodeQuickEditorRegistryEntry(item))
-      .filter((e): e is NodeQuickEditorRegistryEntry => !!e)
+      .map(item => validateWidgetRegistryEntry(item))
+      .filter((e): e is WidgetRegistryEntry => !!e)
     if (imported.length === 0) return
-    const merged = normalizeNodeQuickEditorRegistryEntries([...(nodeQuickEditorRegistry || []), ...imported])
-    setNodeQuickEditorRegistry(merged)
-  }, [nodeQuickEditorRegistry, setNodeQuickEditorRegistry])
+    const merged = normalizeWidgetRegistryEntries([...(widgetRegistry || []), ...imported])
+    setWidgetRegistry(merged)
+  }, [widgetRegistry, setWidgetRegistry])
 
   const exportRegistryAsJson = React.useCallback(() => {
     const selectedEntry = selected
-    const entries = selectedEntry ? [selectedEntry] : (nodeQuickEditorRegistry || [])
+    const entries = selectedEntry ? [selectedEntry] : (widgetRegistry || [])
     if (!entries || entries.length === 0) return
-    const bundle = buildNodeQuickEditorBundleV1({ registryEntries: entries, graphData: null })
-    const blob = nodeQuickEditorBundleToJsonBlob(bundle)
-    const filename = selectedEntry ? `node-quick-editor-${selectedEntry.nodeTypeId}.json` : 'node-quick-editor-registry.json'
+    const bundle = buildWidgetBundleV1({ registryEntries: entries, graphData: null })
+    const blob = widgetBundleToJsonBlob(bundle)
+    const filename = selectedEntry ? `widget-${selectedEntry.nodeTypeId}.json` : 'widget-registry.json'
     downloadBlob(blob, filename)
-  }, [nodeQuickEditorRegistry, selected])
+  }, [widgetRegistry, selected])
 
 
 
@@ -441,11 +458,11 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
   const resetEditor = React.useCallback(() => {
     setEditorError(null)
     if (editorMode === 'edit' && selected) {
-      const nextDraft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'> = {
+      const nextDraft: Omit<WidgetRegistryEntry, 'updatedAt'> = {
         id: selected.id,
         isEnabled: selected.isEnabled,
         nodeTypeId: selected.nodeTypeId,
-        quickEditorTypeId: selected.quickEditorTypeId,
+        widgetTypeId: selected.widgetTypeId,
         formId: selected.formId,
         fields: Array.isArray(selected.fields) ? selected.fields : [],
         ports: Array.isArray(selected.ports) ? selected.ports : [],
@@ -460,13 +477,13 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
 
   const validateEditor = React.useCallback((): string | null => {
     const nodeTypeId = String(editorDraft.nodeTypeId || '').trim()
-    const quickEditorTypeId = String(editorDraft.quickEditorTypeId || '').trim()
+    const widgetTypeId = String(editorDraft.widgetTypeId || '').trim()
     const formId = String(editorDraft.formId || '').trim()
     if (!nodeTypeId) return 'Node Type is required.'
-    if (!quickEditorTypeId) return 'Quick Editor Type is required.'
+    if (!widgetTypeId) return 'Widget Type is required.'
     if (!formId) return 'Form ID is required.'
     return validateMappingRows(editorRows)
-  }, [editorDraft.formId, editorDraft.nodeTypeId, editorDraft.quickEditorTypeId, editorRows])
+  }, [editorDraft.formId, editorDraft.nodeTypeId, editorDraft.widgetTypeId, editorRows])
 
   const saveEditor = React.useCallback(() => {
     if (editorMode === 'none') return
@@ -476,14 +493,14 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
       return
     }
     setEditorError(null)
-    const baseEntry = { ...editorDraft, updatedAt: new Date().toISOString() } as NodeQuickEditorRegistryEntry
+    const baseEntry = { ...editorDraft, updatedAt: new Date().toISOString() } as WidgetRegistryEntry
     const nextEntry = applyMappingRowsToRegistryEntry({ entry: baseEntry, rows: editorRows })
 
-    const res = upsertNodeQuickEditorRegistryEntry({
+    const res = upsertWidgetRegistryEntry({
       ...(editorMode === 'edit' ? { id: String(editorDraft.id || '').trim() || undefined } : { id: String(editorDraft.id || '').trim() || undefined }),
       isEnabled: !!editorDraft.isEnabled,
       nodeTypeId: String(editorDraft.nodeTypeId || '').trim(),
-      quickEditorTypeId: String(editorDraft.quickEditorTypeId || '').trim(),
+      widgetTypeId: String(editorDraft.widgetTypeId || '').trim(),
       formId: String(editorDraft.formId || '').trim(),
       fields: nextEntry.fields,
       ports: nextEntry.ports,
@@ -495,28 +512,28 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     }
     setSelectedId(res.id)
     setEditorMode('edit')
-  }, [editorDraft, editorMode, editorRows, upsertNodeQuickEditorRegistryEntry, validateEditor])
+  }, [editorDraft, editorMode, editorRows, upsertWidgetRegistryEntry, validateEditor])
 
   const deleteEditor = React.useCallback(() => {
     if (editorMode !== 'edit') return
     const id = String(editorDraft.id || '').trim()
     if (!id) return
-    removeNodeQuickEditorRegistryEntry(id)
+    removeWidgetRegistryEntry(id)
     closeEditor()
-  }, [closeEditor, editorDraft.id, editorMode, removeNodeQuickEditorRegistryEntry])
+  }, [closeEditor, editorDraft.id, editorMode, removeWidgetRegistryEntry])
 
   const isDirty = React.useMemo(() => {
     if (editorMode === 'none') return false
     if (editorMode === 'create') return true
     if (!selected) return true
 
-    const currentBase = { ...editorDraft, updatedAt: selected.updatedAt } as NodeQuickEditorRegistryEntry
+    const currentBase = { ...editorDraft, updatedAt: selected.updatedAt } as WidgetRegistryEntry
     const current = applyMappingRowsToRegistryEntry({ entry: currentBase, rows: editorRows })
 
     const comparableCurrent = {
       isEnabled: !!current.isEnabled,
       nodeTypeId: String(current.nodeTypeId || '').trim(),
-      quickEditorTypeId: String(current.quickEditorTypeId || '').trim(),
+      widgetTypeId: String(current.widgetTypeId || '').trim(),
       formId: String(current.formId || '').trim(),
       fields: Array.isArray(current.fields) ? current.fields : [],
       ports: Array.isArray(current.ports) ? current.ports : [],
@@ -524,7 +541,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     const comparableSelected = {
       isEnabled: !!selected.isEnabled,
       nodeTypeId: String(selected.nodeTypeId || '').trim(),
-      quickEditorTypeId: String(selected.quickEditorTypeId || '').trim(),
+      widgetTypeId: String(selected.widgetTypeId || '').trim(),
       formId: String(selected.formId || '').trim(),
       fields: Array.isArray(selected.fields) ? selected.fields : [],
       ports: Array.isArray(selected.ports) ? selected.ports : [],
@@ -567,7 +584,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
       importRegistryFromJson={importRegistryFromJson}
       exportRegistryAsJson={exportRegistryAsJson}
       selectedExists={!!selected}
-      openCreateFromNodeQuickEditor={openCreateFromNodeQuickEditor}
+      openCreateFromWidget={openCreateFromWidget}
       registerSelectedNodeTypeFromSelection={registerSelectedNodeTypeFromSelection}
       registerGenerateVideoFromSelection={registerGenerateVideoFromSelection}
       applySelectedMappingToSelectedNode={applySelectedMappingToSelectedNode}
@@ -575,7 +592,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
       filtered={filtered}
       selectedId={selectedId}
       handleSelect={handleSelect}
-      toggleNodeQuickEditorRegistryEntryEnabled={toggleNodeQuickEditorRegistryEntryEnabled}
+      toggleWidgetRegistryEntryEnabled={toggleWidgetRegistryEntryEnabled}
       emptyLabel={emptyLabel}
       editorMode={editorMode}
       editorDraft={editorDraft}

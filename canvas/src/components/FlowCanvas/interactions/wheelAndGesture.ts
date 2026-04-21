@@ -21,7 +21,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     if (resolved.kind !== 'overlay') return false
     const overlayRoot = resolved.overlayRoot
     const el = resolved.targetEl
-    const overlayPinnedToNode = String((overlayRoot as HTMLElement | null)?.dataset?.kgNodeQuickEditorPinned || '') === '1'
+    const overlayPinnedToNode = String((overlayRoot as HTMLElement | null)?.dataset?.kgWidgetPinned || '') === '1'
     const isFlowEditor = opts?.isFlowEditor === true
 
     const dx = typeof (event as unknown as { deltaX?: unknown }).deltaX === 'number' ? (event as unknown as { deltaX: number }).deltaX : 0

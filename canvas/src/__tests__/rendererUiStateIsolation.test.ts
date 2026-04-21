@@ -17,7 +17,7 @@ export function testRendererUiStateIsolationKeepsPointerModePerRenderer() {
   }
 }
 
-export function testRendererUiStateIsolationKeepsOpenQuickEditorsPerRenderer() {
+export function testRendererUiStateIsolationKeepsOpenWidgetsPerRenderer() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setGraphData({
     type: 'Graph',
@@ -29,21 +29,21 @@ export function testRendererUiStateIsolationKeepsOpenQuickEditorsPerRenderer() {
     edges: [],
   } as never)
   useGraphStore.getState().setCanvas2dRenderer('d3')
-  useGraphStore.getState().setOpenQuickEditorNodeIds(['a'])
+  useGraphStore.getState().setOpenWidgetNodeIds(['a'])
   useGraphStore.getState().setCanvas2dRenderer('flow')
   const afterFlow = useGraphStore.getState()
-  if ((afterFlow.openQuickEditorNodeIds || []).length !== 0) {
-    throw new Error('expected flow renderer to start with no open quick editors')
+  if ((afterFlow.openWidgetNodeIds || []).length !== 0) {
+    throw new Error('expected flow renderer to start with no open widgets')
   }
-  useGraphStore.getState().setOpenQuickEditorNodeIds(['b'])
+  useGraphStore.getState().setOpenWidgetNodeIds(['b'])
   useGraphStore.getState().setCanvas2dRenderer('d3')
-  const ids = useGraphStore.getState().openQuickEditorNodeIds || []
+  const ids = useGraphStore.getState().openWidgetNodeIds || []
   if (ids.length !== 1 || ids[0] !== 'a') {
-    throw new Error(`expected d3 renderer to restore open quick editors, got ${JSON.stringify(ids)}`)
+    throw new Error(`expected d3 renderer to restore open widgets, got ${JSON.stringify(ids)}`)
   }
 }
 
-export function testRendererUiStateIsolationFlowEditorDoesNotInheritQuickEditorsFromSourceRenderer() {
+export function testRendererUiStateIsolationFlowEditorDoesNotInheritWidgetsFromSourceRenderer() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setGraphData({
     type: 'Graph',
@@ -55,12 +55,32 @@ export function testRendererUiStateIsolationFlowEditorDoesNotInheritQuickEditors
     edges: [],
   } as never)
   useGraphStore.getState().setCanvas2dRenderer('d3')
-  useGraphStore.getState().setOpenQuickEditorNodeIds(['a'])
+  useGraphStore.getState().setOpenWidgetNodeIds(['a'])
   useGraphStore.getState().setCanvas2dRenderer('flowEditor')
   const afterFlowEditor = useGraphStore.getState()
-  const seeded = afterFlowEditor.openQuickEditorNodeIds || []
+  const seeded = afterFlowEditor.openWidgetNodeIds || []
   if (seeded.length !== 0) {
-    throw new Error(`expected flowEditor quick editors to stay renderer-isolated, got ${JSON.stringify(seeded)}`)
+    throw new Error(`expected flowEditor widgets to stay renderer-isolated, got ${JSON.stringify(seeded)}`)
+  }
+}
+
+export function testRendererUiStateIsolationPreservesOpenWidgetAppendOrder() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'test-open-widget-order',
+    nodes: [
+      { id: 'n2', type: 'Node', label: 'n2', properties: {}, x: 0, y: 0, vx: 0, vy: 0 },
+      { id: 'n10', type: 'Node', label: 'n10', properties: {}, x: 1, y: 0, vx: 0, vy: 0 },
+    ],
+    edges: [],
+  } as never)
+  useGraphStore.getState().setOpenWidgetNodeIds(['n2'])
+  useGraphStore.getState().updateOpenWidgetNodeIds(prev => [...prev, 'n10'])
+  const ids = useGraphStore.getState().openWidgetNodeIds || []
+  if (ids.length !== 2 || ids[0] !== 'n2' || ids[1] !== 'n10') {
+    throw new Error(`expected open widget append order to stay stable, got ${JSON.stringify(ids)}`)
   }
 }
 

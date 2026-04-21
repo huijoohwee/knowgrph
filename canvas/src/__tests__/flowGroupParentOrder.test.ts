@@ -46,7 +46,7 @@ export const testFlowGroupsOrderParentsBeforeChildren = () => {
     flowConfig: readFlowConfig({ schema: null, rankdir: 'LR' }),
     sceneGroups: [child, parent],
     rankdir: 'LR',
-    nodeQuickEditorRegistry: null,
+    widgetRegistry: null,
   })
 
   const groups = runtime.scene?.groups || []
@@ -70,7 +70,7 @@ export const testFlowGroupsOrderParentsBeforeChildren = () => {
     flowConfig: readFlowConfig({ schema: null, rankdir: 'LR' }),
     sceneGroups: [siblingB, siblingA],
     rankdir: 'LR',
-    nodeQuickEditorRegistry: null,
+    widgetRegistry: null,
   })
   const groups2 = runtime2.scene?.groups || []
   const aIdx = groups2.findIndex(g => g.id === 'subgraph:a')

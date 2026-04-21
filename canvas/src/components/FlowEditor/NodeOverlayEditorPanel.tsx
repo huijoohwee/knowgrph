@@ -6,19 +6,19 @@ import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditor
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { getIconSizeClass, getPinToggleButtonClassName } from '@/lib/ui'
 import { cn } from '@/lib/utils'
-import { NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { ChevronDown, ChevronUp, Pin, PinOff, CheckCircle, Minimize2, Maximize2 } from 'lucide-react'
 import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/FlowEditor/beatByBeat'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
 import { parseMarkdownSigil } from '@/features/markdown/ui/markdownSigil'
 
-const normalizeQuickEditorLabelText = (raw: unknown): string => {
+const normalizeWidgetLabelText = (raw: unknown): string => {
   const source = String(raw || '').trim()
   if (!source) return ''
   const sigil = parseMarkdownSigil(source)
@@ -35,9 +35,9 @@ const readNodeData = (node: GraphNode): Record<string, unknown> => {
   return raw || {}
 }
 
-export const resolveQuickEditorNodeTitle = (args: { node: GraphNode; graphMetaKind?: string | null }): string => {
+export const resolveWidgetNodeTitle = (args: { node: GraphNode; graphMetaKind?: string | null }): string => {
   const node = args.node
-  const fallback = normalizeQuickEditorLabelText(node.label) || String(node.id || '').trim() || 'Node'
+  const fallback = normalizeWidgetLabelText(node.label) || String(node.id || '').trim() || 'Node'
   if (String(args.graphMetaKind || '').trim() !== 'frontmatter-flow') return fallback
   const data = readNodeData(node)
   const type = String(node.type || '').trim().toLowerCase()
@@ -69,8 +69,8 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   active: boolean
   node: GraphNode
   graphMetaKind?: string | null
-  registryEntry: NodeQuickEditorRegistryEntry | null
-  registryEntries: ReadonlyArray<NodeQuickEditorRegistryEntry>
+  registryEntry: WidgetRegistryEntry | null
+  registryEntries: ReadonlyArray<WidgetRegistryEntry>
   minimized: boolean
   hideFields: boolean
   pinned: boolean
@@ -92,7 +92,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   onPatchProperties: (patch: Record<string, unknown>) => void
   onSetProperties: (properties: Record<string, unknown>) => void
   onValidate: () => void
-  onRegistrySelectionChange?: (args: { entry: NodeQuickEditorRegistryEntry | null }) => void
+  onRegistrySelectionChange?: (args: { entry: WidgetRegistryEntry | null }) => void
   onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
 
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
@@ -188,16 +188,16 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   const isFrontmatterFlow = React.useMemo(() => {
     if (String(graphMetaKind || '').trim() === 'frontmatter-flow') return true
     const props = (node.properties || {}) as Record<string, unknown>
-    const formId = typeof props['flow:quickEditorFormId'] === 'string' ? String(props['flow:quickEditorFormId'] || '').trim() : ''
+    const formId = typeof props['flow:widgetFormId'] === 'string' ? String(props['flow:widgetFormId'] || '').trim() : ''
     return Boolean(formId && formId.startsWith('fm:'))
   }, [graphMetaKind, node.properties])
 
   return (
     <FloatingPanel
       as="section"
-      ariaLabel={UI_LABELS.flowNodeQuickEditor}
-      data-kg-node-quick-editor={String(node.id || '')}
-      data-kg-node-quick-editor-pinned={pinned ? '1' : '0'}
+      ariaLabel={UI_LABELS.flowWidget}
+      data-kg-widget={String(node.id || '')}
+      data-kg-widget-pinned={pinned ? '1' : '0'}
       className={cn(
         'rounded-xl border shadow-lg flex flex-col relative',
         UI_THEME_TOKENS.panel.bg,
@@ -228,7 +228,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
       }}
       style={{
         opacity: Number.isFinite(uiPanelOpacity) ? uiPanelOpacity : 1,
-        height: minimized ? undefined : NODE_QUICK_EDITOR_BASE_SIZE.height,
+        height: minimized ? undefined : WIDGET_BASE_SIZE.height,
       }}
     >
       <header
@@ -253,15 +253,15 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                 minimized ? microLabelClass : '',
               )}
             >
-              {beatByBeatTitle || resolveQuickEditorNodeTitle({ node, graphMetaKind })}
+              {beatByBeatTitle || resolveWidgetNodeTitle({ node, graphMetaKind })}
             </h3>
           </section>
 
           {active && (
-            <nav className="flex items-center gap-1" aria-label={UI_LABELS.flowNodeQuickEditor}>
+            <nav className="flex items-center gap-1" aria-label={UI_LABELS.flowWidget}>
               <IconButton
-                title={UI_LABELS.flowNodeQuickEditorValidate}
-                tooltipContent={UI_LABELS.flowNodeQuickEditorValidate}
+                title={UI_LABELS.flowWidgetValidate}
+                tooltipContent={UI_LABELS.flowWidgetValidate}
                 showTooltip
                 onClick={onValidate}
                 className="App-toolbar__btn"
@@ -271,7 +271,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
 
               <IconButton
                 title={hideFields ? UI_LABELS.showFields : UI_LABELS.hideFields}
-                tooltipContent={hideFields ? UI_COPY.flowNodeQuickEditorShowFields : UI_COPY.flowNodeQuickEditorHideFields}
+                tooltipContent={hideFields ? UI_COPY.flowWidgetShowFields : UI_COPY.flowWidgetHideFields}
                 showTooltip
                 onClick={onToggleHideFields}
                 className={cn('App-toolbar__btn', hideFields ? UI_THEME_TOKENS.icon.active : '')}
@@ -285,7 +285,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
 
               <IconButton
                 title={minimized ? UI_LABELS.restorePanel : UI_LABELS.minimizePanel}
-                tooltipContent={minimized ? UI_COPY.flowNodeQuickEditorRestore : UI_COPY.flowNodeQuickEditorMinimize}
+                tooltipContent={minimized ? UI_COPY.flowWidgetRestore : UI_COPY.flowWidgetMinimize}
                 showTooltip
                 onClick={onToggleMinimized}
                 className="App-toolbar__btn"
@@ -300,7 +300,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
               {showPinToggle && (
                 <IconButton
                   title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}
-                  tooltipContent={pinned ? UI_COPY.flowNodeQuickEditorUnpin : UI_COPY.flowNodeQuickEditorPin}
+                  tooltipContent={pinned ? UI_COPY.flowWidgetUnpin : UI_COPY.flowWidgetPin}
                   showTooltip
                   onPointerDown={onPinnedPointerDown}
                   onClick={onTogglePinned}

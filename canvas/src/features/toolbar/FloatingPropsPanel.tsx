@@ -4,13 +4,13 @@ import { UI_COPY } from '@/lib/config'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { useFloatingPropsPanelModel } from '@/features/toolbar/useFloatingPropsPanelModel'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import NodeQuickEditorPalette from '@/features/toolbar/NodeQuickEditorPalette'
+import WidgetPalette from '@/features/toolbar/WidgetPalette'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
-const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
+const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
 export function FloatingPropsPanel() {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -28,14 +28,13 @@ export function FloatingPropsPanel() {
       || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
   )
 
-  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY)
-  const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
-  const quickEditorPaletteEntries = React.useMemo(
-    () => (Array.isArray(nodeQuickEditorRegistry) ? nodeQuickEditorRegistry : []).filter(e => e && e.isEnabled),
-    [nodeQuickEditorRegistry],
+  const widgetPaletteEntries = React.useMemo(
+    () => (Array.isArray(widgetRegistry) ? widgetRegistry : []).filter(e => e && e.isEnabled),
+    [widgetRegistry],
   )
-  const quickEditorDragEnabled = canvasRenderMode === '2d' && canvas2dRenderer === 'flowEditor'
+  const widgetDragEnabled = widgetPaletteEntries.length > 0
 
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
@@ -100,8 +99,8 @@ export function FloatingPropsPanel() {
 
   return (
     <div className={`min-w-56 ${UI_THEME_TOKENS.panel.bg}`}>
-      <section className="border-b border-[color:var(--kg-border)]" aria-label="Node Quick Editors">
-        <NodeQuickEditorPalette entries={quickEditorPaletteEntries} dragEnabled={quickEditorDragEnabled} />
+      <section className="border-b border-[color:var(--kg-border)]" aria-label="Widgets">
+        <WidgetPalette entries={widgetPaletteEntries} dragEnabled={widgetDragEnabled} />
       </section>
 
       <CollapsibleSection

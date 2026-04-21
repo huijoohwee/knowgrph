@@ -221,7 +221,7 @@ Use this single file to validate end-to-end behavior across Infinite Canvas + al
 | 2D (D3) | Mermaid diagram nodes/edges + internal links navigation |
 | 2D (Flow) | Frontmatter Flow nodes/ports/typed edges |
 | 2D (Design) | Layers by `category` and overlays by `'kg:subgraphs'` |
-| 2D (Flow Editor) | Overlay-first Node Quick Editors + port handles (ComfyUI-like) |
+| 2D (Flow Editor) | Overlay-first Widgets + port handles (ComfyUI-like) |
 | 3D | Shape parity (diamond/hex + media nodes) |
 | Frontmatter On/Off | Mermaid-in-frontmatter + Flow overlay vs body-only |
 | Geospatial On/Off | `geojson` fences become map layers |
@@ -253,7 +253,7 @@ Use this single file to validate end-to-end behavior across Infinite Canvas + al
 
 ### 2D Renderer (Flow Editor)
 
-- You should see Node Quick Editors (not node glyphs) for Flow nodes.
+- You should see Widgets (not node glyphs) for Flow nodes.
 - Connect ports using the overlay handle dots.
 - Try ComfyUI-like workflow in the section below.
 
@@ -288,10 +288,10 @@ Use this single file to validate end-to-end behavior across Infinite Canvas + al
 This section is designed to look and feel like a ComfyUI workflow in **2D Renderer (Flow Editor)**.
 
 1. Open Flow Editor.
-2. You should immediately see Quick Editors for:
+2. You should immediately see Widgets for:
    - [[NODE_KEYFRAME]] (model `generate_image`)
    - [[NODE_VIDEO]] (model `generate_video`)
-3. Inspect these fields in the Quick Editor UI:
+3. Inspect these fields in the Widget UI:
    - `model`, `prompt`, `aspect_ratio`, `duration`, `resolution`, `fast`, `generate_audio`, `reference_image`
 4. Use port handles to connect:
    - `NODE_KEYFRAME.image_url_out → NODE_VIDEO.reference_image_in`

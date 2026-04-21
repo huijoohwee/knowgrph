@@ -33,7 +33,7 @@ export function testFlowGroupAabbExpandsExplicitBoundsToContainMembers() {
   }
 }
 
-export function testFlowGroupAabbExpandsToContainPinnedQuickEditorOverlayExtents() {
+export function testFlowGroupAabbExpandsToContainPinnedWidgetOverlayExtents() {
   const nodeById = new Map([
     ['A', { id: 'A', x: 100, y: 100, width: 50, height: 20 }],
   ])
@@ -68,6 +68,6 @@ export function testFlowGroupAabbExpandsToContainPinnedQuickEditorOverlayExtents
   if (!aabb) throw new Error('expected group aabb')
 
   if (aabb.minX !== 60 || aabb.minY !== 70 || aabb.maxX !== 520 || aabb.maxY !== 620) {
-    throw new Error('expected group aabb to expand to pinned quick-editor overlay extents')
+    throw new Error('expected group aabb to expand to pinned widget overlay extents')
   }
 }

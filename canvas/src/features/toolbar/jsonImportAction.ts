@@ -1,4 +1,4 @@
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY } from '@/lib/config'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY, UI_COPY } from '@/lib/config'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { normalizeImportName, promptForUrl } from './ingestUtils'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
@@ -49,10 +49,10 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
         if (!res.input || !res.input.text.trim()) return
         const rawName = String(res.input.name || '')
         const baseName = rawName.trim() || (format === 'jsonld' ? 'graph.jsonld' : 'graph.json')
-        const hasQuickEditorRegistry = (() => {
+        const hasWidgetRegistry = (() => {
           const meta = res.graphData?.metadata
           if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
-          const raw = (meta as Record<string, unknown>)[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+          const raw = (meta as Record<string, unknown>)[FLOW_WIDGET_REGISTRY_METADATA_KEY]
           return Array.isArray(raw) && raw.length > 0
         })()
 
@@ -61,7 +61,7 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
           text: String(res.input.text || ''),
           fallbackFenceLang: format === 'jsonld' ? 'jsonld' : 'json',
           sourceUrl: type === 'url' ? picked.sourceUrl ?? null : null,
-          preferFlowEditor: hasQuickEditorRegistry,
+          preferFlowEditor: hasWidgetRegistry,
           applyToGraph: false,
         })
       },

@@ -16,7 +16,7 @@ import { computeDynamicGroupResizeHandlePx, pxToWorld, readGroupResizeHandleConf
 import { computeDynamicNodePortHandlePx, computeZoomScaledPortHandlePx, shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
 import { drawInfiniteGridInWorldContext } from '@/lib/canvas/infiniteGrid'
 import { readEdgePathCurveOptions, traceEdgePathOnCanvas } from '@/lib/graph/edgeTypes'
-import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
+import { computeWidgetScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
 
 export type FlowNativeNodeShape = 'circle' | 'rect' | 'diamond' | 'hex'
 
@@ -1185,9 +1185,9 @@ export type FlowNativeDrawArgs = {
   renderGroups?: boolean
   renderNodes?: boolean
   grid?: { enabled: boolean; size: number; variant?: 'lines' | 'dots'; majorEvery?: number; dotRadiusPx?: number } | null
-  flowEditorQuickEditorOpenNodeIds?: string[]
-  flowEditorQuickEditorPinnedByNodeId?: Record<string, boolean>
-  flowEditorQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }>
+  flowEditorWidgetOpenNodeIds?: string[]
+  flowEditorWidgetPinnedByNodeId?: Record<string, boolean>
+  flowEditorWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
 }
 
 const drawGroupResizeHandleOverlay = (rt: FlowNativeRuntime, args: { groupAabbById: Map<string, FlowGroupAabb> | null; selectedGroupId: string; enabled: boolean }) => {
@@ -1324,14 +1324,14 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
   const renderNodes = args.renderNodes !== false
   const selectedGroupId = String(args.selectedGroupId || '').trim()
   const showGroupResizeHandle = args.showGroupResizeHandle === true
-  const quickEditorOverlayAabbByNodeId = (() => {
-    const openIds = Array.isArray(args.flowEditorQuickEditorOpenNodeIds) ? args.flowEditorQuickEditorOpenNodeIds : []
+  const widgetOverlayAabbByNodeId = (() => {
+    const openIds = Array.isArray(args.flowEditorWidgetOpenNodeIds) ? args.flowEditorWidgetOpenNodeIds : []
     if (openIds.length === 0) return null
-    const pinnedByNodeId = args.flowEditorQuickEditorPinnedByNodeId || {}
-    const worldPosByNodeId = args.flowEditorQuickEditorWorldPosByNodeId || {}
+    const pinnedByNodeId = args.flowEditorWidgetPinnedByNodeId || {}
+    const worldPosByNodeId = args.flowEditorWidgetWorldPosByNodeId || {}
     const zoomK = typeof rt.transform?.k === 'number' && Number.isFinite(rt.transform.k) && rt.transform.k > 0 ? rt.transform.k : 1
-    const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
-    const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+    const panelScale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
+    const panelScreen = computeWidgetScaledSize(panelScale)
     const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
     const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
     const out: Record<string, { minX: number; minY: number; maxX: number; maxY: number }> = {}
@@ -1363,7 +1363,7 @@ export const drawFlowNative = (rt: FlowNativeRuntime, args: FlowNativeDrawArgs) 
         group: g,
         paddingPx: padding,
         labelTopExtraPx: topExtra,
-        overlayAabbByNodeId: quickEditorOverlayAabbByNodeId,
+        overlayAabbByNodeId: widgetOverlayAabbByNodeId,
       })
       if (!aabb) continue
       m.set(g.id, aabb)

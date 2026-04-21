@@ -11,7 +11,7 @@ export function installGlobalInteractionRecovery(): void {
   const clearDraggingFlags = () => {
     try {
       const st = useGraphStore.getState()
-      if (st.flowNodeQuickEditorDraggingNodeId) st.setFlowNodeQuickEditorDraggingNodeId(null)
+      if (st.flowWidgetDraggingNodeId) st.setFlowWidgetDraggingNodeId(null)
     } catch {
       void 0
     }

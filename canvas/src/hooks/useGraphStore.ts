@@ -200,7 +200,7 @@ export const useGraphStore = create<GraphState>()(
       selectedEdgeIds: [],
       selectedGroupIds: [],
       collapsedGroupIds: [],
-      openQuickEditorNodeIds: [],
+      openWidgetNodeIds: [],
       designLayerState: { order: [], hiddenById: {} },
       designFramePosById: {},
       graphFieldsOpOk: null,

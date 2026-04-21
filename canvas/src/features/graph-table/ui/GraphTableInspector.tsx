@@ -14,12 +14,12 @@ import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta, type Webpage
 import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import {
-  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
-  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
-  resolveNodeQuickEditorRegistryEntry,
-} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+  FLOW_WIDGET_FORM_ID_KEY,
+  FLOW_WIDGET_TYPE_ID_KEY,
+  resolveWidgetRegistryEntry,
+} from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { normalizeGraphData } from '@/lib/graph/normalize'
-import { buildNodeQuickEditorBundleV1, nodeQuickEditorBundleToJsonText } from '@/lib/graph/io/nodeQuickEditorBundle'
+import { buildWidgetBundleV1, widgetBundleToJsonText } from '@/lib/graph/io/widgetBundle'
 import { useShallow } from 'zustand/react/shallow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
@@ -63,8 +63,8 @@ export function GraphTableInspector({
     graphData,
     sourceFiles,
     schema,
-    nodeQuickEditorRegistry,
-    openQuickEditorNodeIds,
+    widgetRegistry,
+    openWidgetNodeIds,
     selectedNodeId,
     uiIconScale,
     uiIconStrokeWidth,
@@ -75,8 +75,8 @@ export function GraphTableInspector({
       graphData: s.graphData,
       sourceFiles: s.sourceFiles,
       schema: s.schema,
-      nodeQuickEditorRegistry: s.nodeQuickEditorRegistry || [],
-      openQuickEditorNodeIds: s.openQuickEditorNodeIds || [],
+      widgetRegistry: s.widgetRegistry || [],
+      openWidgetNodeIds: s.openWidgetNodeIds || [],
       selectedNodeId: s.selectedNodeId,
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
@@ -96,43 +96,43 @@ export function GraphTableInspector({
     return (graphData?.nodes as GraphNode[]).find(n => String(n.id || '') === id) || null
   }, [graphData?.nodes, row])
   const registryEntry = useMemo(
-    () => (node ? resolveNodeQuickEditorRegistryEntry({ node, registry: nodeQuickEditorRegistry }) : null),
-    [node, nodeQuickEditorRegistry],
+    () => (node ? resolveWidgetRegistryEntry({ node, registry: widgetRegistry }) : null),
+    [node, widgetRegistry],
   )
-  const showQuickEditor = useMemo(() => {
+  const showWidget = useMemo(() => {
     if (!node) return false
     const id = String(node.id || '').trim()
     if (!id) return false
     const props = (node.properties || {}) as Record<string, unknown>
     const hasHint =
-      (typeof props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY] === 'string' && String(props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]).trim()) ||
-      (typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' && String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]).trim())
+      (typeof props[FLOW_WIDGET_TYPE_ID_KEY] === 'string' && String(props[FLOW_WIDGET_TYPE_ID_KEY]).trim()) ||
+      (typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string' && String(props[FLOW_WIDGET_FORM_ID_KEY]).trim())
     const isSelected = id === String(selectedNodeId || '')
-    const isPinned = openQuickEditorNodeIds.includes(id)
-    const isQuickEditorNode = hasHint || !!registryEntry
-    return isQuickEditorNode && (isSelected || isPinned)
-  }, [node, openQuickEditorNodeIds, registryEntry, selectedNodeId])
+    const isPinned = openWidgetNodeIds.includes(id)
+    const isWidgetNode = hasHint || !!registryEntry
+    return isWidgetNode && (isSelected || isPinned)
+  }, [node, openWidgetNodeIds, registryEntry, selectedNodeId])
 
   const connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | undefined = useMemo(() => {
-    if (!node || !showQuickEditor) return undefined
+    if (!node || !showWidget) return undefined
     const nodeId = String(node.id || '').trim()
     if (!nodeId) return undefined
     const byNodeId = computeFlowConnectedValuesBySchemaPath({
       graphData,
-      registry: Array.isArray(nodeQuickEditorRegistry) ? nodeQuickEditorRegistry : [],
+      registry: Array.isArray(widgetRegistry) ? widgetRegistry : [],
       targetNodeIds: new Set([nodeId]),
     })
     return byNodeId.get(nodeId)
-  }, [graphData, node, nodeQuickEditorRegistry, showQuickEditor])
+  }, [graphData, node, widgetRegistry, showWidget])
 
   const [codeFormat, setCodeFormat] = useState<'json' | 'markdown'>('json')
-  const quickEditorCodeText = useMemo(() => {
-    if (!node || !showQuickEditor) return ''
+  const widgetCodeText = useMemo(() => {
+    if (!node || !showWidget) return ''
     const nodeId = String(node.id || '').trim()
     if (!nodeId) return ''
 
     const safeType = String(node.type || '').trim()
-    const registryForType = (nodeQuickEditorRegistry || []).filter((e: unknown) => {
+    const registryForType = (widgetRegistry || []).filter((e: unknown) => {
       if (!e || typeof e !== 'object') return false
       const rec = e as { isEnabled?: unknown; nodeTypeId?: unknown }
       if (rec.isEnabled !== true) return false
@@ -146,15 +146,15 @@ export function GraphTableInspector({
       nodes: [node],
       edges,
     }
-    const bundleText = nodeQuickEditorBundleToJsonText(
-      buildNodeQuickEditorBundleV1({ registryEntries: registryForType, graphData: graph as never }),
+    const bundleText = widgetBundleToJsonText(
+      buildWidgetBundleV1({ registryEntries: registryForType, graphData: graph as never }),
     )
     if (codeFormat === 'markdown') return `\`\`\`json\n${bundleText}\n\`\`\``
     return bundleText
-  }, [allEdges, codeFormat, node, nodeQuickEditorRegistry, showQuickEditor])
+  }, [allEdges, codeFormat, node, widgetRegistry, showWidget])
 
-  const copyQuickEditorCode = () => {
-    const text = quickEditorCodeText
+  const copyWidgetCode = () => {
+    const text = widgetCodeText
     if (!text) return
     if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
       upsertUiToast({ id: 'qe-code-copy-unavailable', kind: 'neutral', message: 'Clipboard not available.', ttlMs: 2200 })
@@ -351,13 +351,13 @@ export function GraphTableInspector({
           <p className={cn('px-3 py-2', microLabelClass, UI_THEME_TOKENS.text.tertiary)}>{SELECTION_INSPECTOR_EMPTY_TEXT}</p>
         ) : (
           <>
-            {row?.tableId === 'nodes' && node && showQuickEditor ? (
-              <section className="px-3 py-2" aria-label="Node Quick Editor">
+            {row?.tableId === 'nodes' && node && showWidget ? (
+              <section className="px-3 py-2" aria-label="Widget">
                 <NodeOverlayEditorPanel
                   active={true}
                   node={node}
                   registryEntry={registryEntry}
-                  registryEntries={nodeQuickEditorRegistry}
+                  registryEntries={widgetRegistry}
                   minimized={panelMinimized}
                   hideFields={panelHideFields}
                   pinned={false}
@@ -382,7 +382,7 @@ export function GraphTableInspector({
                   schema={schema}
                 />
 
-                <section className={cn('mt-3 rounded border overflow-hidden', UI_THEME_TOKENS.panel.border)} aria-label="Node Quick Editor codes">
+                <section className={cn('mt-3 rounded border overflow-hidden', UI_THEME_TOKENS.panel.border)} aria-label="Widget codes">
                   <header className={cn('px-2 py-2 border-b flex items-center justify-between gap-2', UI_THEME_TOKENS.panel.border)}>
                     <p className={cn(microLabelClass, UI_THEME_TOKENS.text.secondary)}>Codes</p>
                     <section className="flex items-center gap-1" aria-label="Code format">
@@ -413,8 +413,8 @@ export function GraphTableInspector({
                       <button
                         type="button"
                         className={cn('App-toolbar__btn', microLabelClass, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
-                        onClick={copyQuickEditorCode}
-                        disabled={!quickEditorCodeText}
+                        onClick={copyWidgetCode}
+                        disabled={!widgetCodeText}
                       >
                         Copy
                       </button>
@@ -431,7 +431,7 @@ export function GraphTableInspector({
                         UI_THEME_TOKENS.input.text,
                       )}
                       multiline
-                      value={quickEditorCodeText}
+                      value={widgetCodeText}
                       readOnly
                       spellCheck={false}
                     />

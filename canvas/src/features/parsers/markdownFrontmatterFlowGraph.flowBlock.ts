@@ -5,7 +5,7 @@ import { isUnsafeFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 const FRONTMATTER_FLOW_SETTINGS_KEY = 'frontmatterFlowSettings' as const
 const FRONTMATTER_FLOW_WARNINGS_KEY = 'frontmatterFlowWarnings' as const
 
-export const FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY = 'frontmatter:quickEditorFields' as const
+export const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
 export const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -270,7 +270,7 @@ export function tryParseFlowBlockFromMarkdownBodyLines(args: {
   return parseFlowObjectFromYamlBlock(flowBlock)
 }
 
-function extractQuickEditorFieldSpecsFromFlowNode(rawNode: Record<string, unknown>): Array<{ fieldKey: string; fieldType: string; schemaPath: string }> {
+function extractWidgetFieldSpecsFromFlowNode(rawNode: Record<string, unknown>): Array<{ fieldKey: string; fieldType: string; schemaPath: string }> {
   const out: Array<{ fieldKey: string; fieldType: string; schemaPath: string }> = []
   for (const [k, v] of Object.entries(rawNode)) {
     const fieldName = asString(k)
@@ -721,8 +721,8 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       allowMixedHandles,
     })
     const baseProps = isRecord(normalizedRawNode.properties) ? ({ ...normalizedRawNode.properties } as Record<string, unknown>) : {}
-    const quickEditorFields = extractQuickEditorFieldSpecsFromFlowNode(rawNode as Record<string, unknown>)
-    if (quickEditorFields.length > 0) baseProps[FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY] = quickEditorFields
+    const widgetFields = extractWidgetFieldSpecsFromFlowNode(rawNode as Record<string, unknown>)
+    if (widgetFields.length > 0) baseProps[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY] = widgetFields
     if (handles && Object.keys(handles).length > 0) baseProps[FRONTMATTER_FLOW_HANDLES_VALUE_KEY] = handles
     const declaredProps = collectDeclaredFlowNodePropertyValues({
       rawNode: rawNode as Record<string, unknown>,

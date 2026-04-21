@@ -20,11 +20,11 @@ import {
   FLOW_SCHEMA_FIELDS_PROPERTY_KEY,
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import {
-  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
-  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
-} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+  FLOW_WIDGET_FORM_ID_KEY,
+  FLOW_WIDGET_TYPE_ID_KEY,
+} from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { formatFlowHandleKeyValue, formatFlowHandleValueList, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
 import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
@@ -38,7 +38,7 @@ import type { GraphEdge } from '@/lib/graph/types'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 
-const FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY = 'frontmatter:quickEditorFields' as const
+const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
 const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
 
 function pickString(v: unknown): string {
@@ -88,8 +88,9 @@ function parseHandleListInput(raw: string): string[] {
   return Array.from(new Set(out))
 }
 
-function isSmartMediaRegistryEntry(entry: NodeQuickEditorRegistryEntry | null | undefined): boolean {
+function isSmartMediaRegistryEntry(entry: WidgetRegistryEntry | null | undefined): boolean {
   if (!entry) return false
+  if (String(entry.formId || '').trim() === 'imageGeneration') return true
   if (String(entry.formId || '').trim() === 'videoGeneration') return true
   const fields = Array.isArray(entry.fields) ? entry.fields : []
   if (fields.length === 0) return false
@@ -145,10 +146,10 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   onValidate: () => void
   onSchemaPortHandleClick?: (args: { dir: 'in' | 'out'; portKey: string }) => void
   onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
-  onRegistrySelectionChange?: (args: { entry: NodeQuickEditorRegistryEntry | null }) => void
+  onRegistrySelectionChange?: (args: { entry: WidgetRegistryEntry | null }) => void
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
-  registryEntry?: NodeQuickEditorRegistryEntry | null
-  registryEntries?: ReadonlyArray<NodeQuickEditorRegistryEntry>
+  registryEntry?: WidgetRegistryEntry | null
+  registryEntries?: ReadonlyArray<WidgetRegistryEntry>
 }) {
   const { panelTextClass, microLabelClass, monospaceTextClass, textSizeClass, keyValueInputClass, keyLabelClass } = usePanelTypography()
   void onSetType
@@ -181,7 +182,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }, [idBase])
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
-  const nodeFormId = typeof properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' ? String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim() : ''
+  const nodeFormId = typeof properties[FLOW_WIDGET_FORM_ID_KEY] === 'string' ? String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim() : ''
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow' || (nodeFormId && nodeFormId.startsWith('fm:'))
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
 
@@ -338,7 +339,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     if (raw.startsWith('properties') || raw.startsWith('metadata') || raw.startsWith('label') || raw.startsWith('type')) return raw
     return `properties.${raw}`
   }, [])
-  const flowRegistryFormId = String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
+  const flowRegistryFormId = String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
   const flowRegistryFormIdExpected = flowRegistryFormId || `fm:${String(node.id || '').trim()}`
 
   const registryOptions = React.useMemo(
@@ -357,8 +358,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const hasRegistryOptions = registryOptions.length > 0
   const hasSmartMediaSelection = React.useMemo(() => {
     if (isSmartMediaRegistryEntry(registryEntry)) return true
-    const formId = String(properties[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
-    return formId === 'videoGeneration' || formId === 'nodeQuickEditor'
+    const formId = String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
+    return formId === 'imageGeneration' || formId === 'videoGeneration' || formId === 'widget'
   }, [properties, registryEntry])
   const showSmartMediaFields = !hideFields && (!isFrontmatterFlow || hasSmartMediaSelection)
 
@@ -376,8 +377,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     if (!registrySelectionId) return
     if (registryOptionIdSet.has(registrySelectionId)) return
     onPatchProperties({
-      [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: undefined,
-      [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: undefined,
+      [FLOW_WIDGET_TYPE_ID_KEY]: undefined,
+      [FLOW_WIDGET_FORM_ID_KEY]: undefined,
     })
     onRegistrySelectionChange?.({ entry: null })
   }, [active, onPatchProperties, onRegistrySelectionChange, registryOptionIdSet, registrySelectionId])
@@ -387,8 +388,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       if (nextId === registrySelectionId) return
       if (!nextId) {
         onPatchProperties({
-          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: undefined,
-          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: undefined,
+          [FLOW_WIDGET_TYPE_ID_KEY]: undefined,
+          [FLOW_WIDGET_FORM_ID_KEY]: undefined,
         })
         onRegistrySelectionChange?.({ entry: null })
         return
@@ -396,8 +397,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       const nextEntry = registryOptions.find(entry => entry.id === nextId)
       if (!nextEntry) return
       onPatchProperties({
-        [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: nextEntry.quickEditorTypeId,
-        [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: nextEntry.formId,
+        [FLOW_WIDGET_TYPE_ID_KEY]: nextEntry.widgetTypeId,
+        [FLOW_WIDGET_FORM_ID_KEY]: nextEntry.formId,
       })
       onRegistrySelectionChange?.({ entry: nextEntry })
     },
@@ -432,14 +433,14 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   return (
     <form
       className={cn('px-3 py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTextClass)}
-      aria-label={UI_LABELS.flowNodeQuickEditorForm}
+      aria-label={UI_LABELS.flowWidgetForm}
       onSubmit={e => e.preventDefault()}
       onScrollCapture={() => emitInteractionFrame()}
       onWheelCapture={() => emitInteractionFrame()}
     >
-      <section className="min-w-0" aria-label={UI_LABELS.flowNodeQuickEditorNodeLegend}>
+      <section className="min-w-0" aria-label={UI_LABELS.flowWidgetNodeLegend}>
         <NodeOverlayEditorKvTable
-          ariaLabel={UI_LABELS.flowNodeQuickEditorNodeLegend}
+          ariaLabel={UI_LABELS.flowWidgetNodeLegend}
           microLabelClass={microLabelClass}
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
@@ -495,9 +496,9 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       </section>
 
       {showSmartMediaFields && (
-        <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowNodeQuickEditorSmartFieldsLegend}>
+        <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidgetSmartFieldsLegend}>
           <NodeOverlayEditorKvTable
-            ariaLabel={UI_LABELS.flowNodeQuickEditorSmartFieldsLegend}
+            ariaLabel={UI_LABELS.flowWidgetSmartFieldsLegend}
             microLabelClass={microLabelClass}
             dotSizePx={dotSizePx}
             dotHitPx={dotHitPx}
@@ -506,7 +507,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {
                 rowKey: 'smart-model',
                 labelId: `${idBase}-kv-smart-model`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.model}>{UI_LABELS.flowNodeQuickEditorModel}</label>,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.model}>{UI_LABELS.flowWidgetModel}</label>,
                 typeNode: <NodeOverlayEditorTypePill text="enum" />,
                 valueNode: (
                   <select
@@ -523,7 +524,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     onChange={e => onPatchProperties({ model: (e.target.value || undefined) as FlowEditorSmartNodeProperties['model'] })}
                     disabled={!active}
                   >
-                    <option value="">{UI_COPY.flowNodeQuickEditorSelectPlaceholder}</option>
+                    <option value="">{UI_COPY.flowWidgetSelectPlaceholder}</option>
                     {FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS.map(o => (
                       <option key={o.value} value={o.value}>
                         {o.label}
@@ -535,7 +536,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {
                 rowKey: 'smart-prompt',
                 labelId: `${idBase}-kv-smart-prompt`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.prompt}>{UI_LABELS.flowNodeQuickEditorPrompt}</label>,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.prompt}>{UI_LABELS.flowWidgetPrompt}</label>,
                 typeNode: <NodeOverlayEditorTypePill text="text" />,
                 valueNode: (
                   <PlainTextInputEditor
@@ -554,7 +555,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {
                 rowKey: 'smart-aspect',
                 labelId: `${idBase}-kv-smart-aspect`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.aspect}>{UI_LABELS.flowNodeQuickEditorAspectRatio}</label>,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.aspect}>{UI_LABELS.flowWidgetAspectRatio}</label>,
                 typeNode: <NodeOverlayEditorTypePill text="enum" />,
                 valueNode: (
                   <select
@@ -575,7 +576,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     }
                     disabled={!active}
                   >
-                    <option value="">{UI_COPY.flowNodeQuickEditorSelectPlaceholder}</option>
+                    <option value="">{UI_COPY.flowWidgetSelectPlaceholder}</option>
                     {FLOW_EDITOR_ASPECT_RATIO_OPTIONS.map(o => (
                       <option key={o.value} value={o.value}>
                         {o.label}
@@ -587,7 +588,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {
                 rowKey: 'smart-duration',
                 labelId: `${idBase}-kv-smart-duration`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.duration}>{UI_LABELS.flowNodeQuickEditorDuration}</label>,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.duration}>{UI_LABELS.flowWidgetDuration}</label>,
                 typeNode: <NodeOverlayEditorTypePill text="int" />,
                 valueNode: (
                   <select
@@ -607,7 +608,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     }}
                     disabled={!active}
                   >
-                    <option value="">{UI_COPY.flowNodeQuickEditorSelectPlaceholder}</option>
+                    <option value="">{UI_COPY.flowWidgetSelectPlaceholder}</option>
                     {FLOW_EDITOR_DURATION_SECONDS_OPTIONS.map(o => (
                       <option key={o.value} value={String(o.value)}>
                         {o.label}
@@ -619,7 +620,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {
                 rowKey: 'smart-resolution',
                 labelId: `${idBase}-kv-smart-resolution`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.resolution}>{UI_LABELS.flowNodeQuickEditorResolution}</label>,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.resolution}>{UI_LABELS.flowWidgetResolution}</label>,
                 typeNode: <NodeOverlayEditorTypePill text="enum" />,
                 valueNode: (
                   <select
@@ -638,7 +639,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     }
                     disabled={!active}
                   >
-                    <option value="">{UI_COPY.flowNodeQuickEditorSelectPlaceholder}</option>
+                    <option value="">{UI_COPY.flowWidgetSelectPlaceholder}</option>
                     {FLOW_EDITOR_RESOLUTION_OPTIONS.map(o => (
                       <option key={o.value} value={o.value}>
                         {o.label}
@@ -650,7 +651,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {
                 rowKey: 'smart-generate-audio',
                 labelId: `${idBase}-kv-smart-generate-audio`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.generateAudio}>{UI_LABELS.flowNodeQuickEditorGenerateAudio}</label>,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.generateAudio}>{UI_LABELS.flowWidgetGenerateAudio}</label>,
                 typeNode: <NodeOverlayEditorTypePill text="bool" />,
                 valueNode: (
                 <section className="w-full flex items-center">
@@ -667,7 +668,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {
                 rowKey: 'smart-fast',
                 labelId: `${idBase}-kv-smart-fast`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.fast}>{UI_LABELS.flowNodeQuickEditorFast}</label>,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.fast}>{UI_LABELS.flowWidgetFast}</label>,
                 typeNode: <NodeOverlayEditorTypePill text="bool" />,
                 valueNode: (
                 <section className="w-full flex items-center">
@@ -684,7 +685,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
               {
                 rowKey: 'smart-reference-image',
                 labelId: `${idBase}-kv-smart-reference-image`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.referenceImage}>{UI_LABELS.flowNodeQuickEditorReferenceImage}</label>,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.referenceImage}>{UI_LABELS.flowWidgetReferenceImage}</label>,
                 typeNode: <NodeOverlayEditorTypePill text="text" />,
                 valueNode: (
                   <input
@@ -699,7 +700,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     )}
                     value={referenceImage}
                     onChange={e => onPatchProperties({ reference_image: e.target.value || undefined })}
-                    placeholder={UI_COPY.flowNodeQuickEditorReferenceImagePlaceholder}
+                    placeholder={UI_COPY.flowWidgetReferenceImagePlaceholder}
                     disabled={!active}
                   />
                 ),
@@ -880,7 +881,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                 })
               }
 
-              const rawDeclaredFields = (properties as Record<string, unknown>)[FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY]
+              const rawDeclaredFields = (properties as Record<string, unknown>)[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]
               const declaredFields = Array.isArray(rawDeclaredFields) ? rawDeclaredFields : []
               for (let fieldIndex = 0; fieldIndex < declaredFields.length; fieldIndex += 1) {
                 const spec = declaredFields[fieldIndex]
@@ -950,7 +951,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             {
               rowKey: 'mapping-registry',
               labelId: `${idBase}-kv-mapping-registry`,
-              keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.registrySelect}>{UI_LABELS.flowNodeQuickEditor}</label>,
+              keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.registrySelect}>{UI_LABELS.flowWidget}</label>,
               typeNode: <NodeOverlayEditorTypePill text="mapping" />,
               valueNode: (
                 <select
@@ -967,7 +968,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                   onChange={handleRegistrySelect}
                   disabled={!active || !hasRegistryOptions}
                 >
-                  <option value="">{hasRegistryOptions ? UI_COPY.flowNodeQuickEditorSelectPlaceholder : UI_LABELS.noneLabel}</option>
+                  <option value="">{hasRegistryOptions ? UI_COPY.flowWidgetSelectPlaceholder : UI_LABELS.noneLabel}</option>
                   {registryOptions.map(entry => (
                     <option key={entry.id} value={entry.id}>
                       {entry.id}
@@ -1039,8 +1040,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {!isFrontmatterFlow && (schemaFields.length > 0 || (registryEntry?.quickEditorTypeId || '').toLowerCase().includes('schema')) && (
-        <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowNodeQuickEditorSchemaLegend}>
+      {!isFrontmatterFlow && (schemaFields.length > 0 || (registryEntry?.widgetTypeId || '').toLowerCase().includes('schema')) && (
+        <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidgetSchemaLegend}>
           <NodeOverlayEditorSchemaTable
             active={active}
             schemaFields={schemaFields}

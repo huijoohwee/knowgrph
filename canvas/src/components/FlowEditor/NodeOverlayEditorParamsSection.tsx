@@ -64,14 +64,14 @@ export const NodeOverlayEditorParamsSection = React.memo(function NodeOverlayEdi
       onPatchProperties({ params: next })
       setError('')
     } catch {
-      setError(UI_COPY.flowNodeQuickEditorParamsInvalidJson)
+      setError(UI_COPY.flowWidgetParamsInvalidJson)
     }
   }
 
   return (
-    <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowNodeQuickEditorParamsLegend}>
+    <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidgetParamsLegend}>
       <NodeOverlayEditorKvTable
-        ariaLabel={UI_LABELS.flowNodeQuickEditorParamsLegend}
+        ariaLabel={UI_LABELS.flowWidgetParamsLegend}
         microLabelClass={microLabelClass}
         dotSizePx={dotSizePx}
         dotHitPx={dotHitPx}
@@ -82,7 +82,7 @@ export const NodeOverlayEditorParamsSection = React.memo(function NodeOverlayEdi
             labelId: ids.paramsJson,
             keyNode: (
               <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.paramsJsonInput}>
-                {UI_LABELS.flowNodeQuickEditorParamsJsonLabel}
+                {UI_LABELS.flowWidgetParamsJsonLabel}
               </label>
             ),
             typeNode: <NodeOverlayEditorTypePill text="json" />,
@@ -102,7 +102,7 @@ export const NodeOverlayEditorParamsSection = React.memo(function NodeOverlayEdi
                   multiline
                   value={draft}
                   onChange={setDraft}
-                  placeholder={UI_COPY.flowNodeQuickEditorParamsPlaceholder}
+                  placeholder={UI_COPY.flowWidgetParamsPlaceholder}
                   disabled={!active}
                   spellCheck={false}
                 />

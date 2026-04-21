@@ -6,7 +6,7 @@ import {
   normalizeWorkspacePath,
   workspaceDocumentKey,
 } from '@/features/workspace-fs/path'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY, UI_COPY } from '@/lib/config'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY, UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
@@ -201,11 +201,11 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
       }
 
       const meta = (graphData?.metadata || {}) as Record<string, unknown>
-      const hasQuickEditorRegistry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
-        ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as unknown[]).length > 0
+      const hasWidgetRegistry = Array.isArray(meta[FLOW_WIDGET_REGISTRY_METADATA_KEY])
+        ? (meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] as unknown[]).length > 0
         : false
 
-      if (hasQuickEditorRegistry) {
+      if (hasWidgetRegistry) {
         if (baselineLocked) {
           store.upsertUiToast({ id: 'baseline-locked', kind: 'warning', message: UI_COPY.baselineLockedToast, ttlMs: 6000 })
           return

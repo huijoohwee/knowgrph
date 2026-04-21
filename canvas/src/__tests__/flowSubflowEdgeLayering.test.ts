@@ -45,7 +45,7 @@ export const testFlowSubflowLikeEdgesDrawAboveNodes = () => {
     flowConfig: readFlowConfig({ schema: null, rankdir: 'LR' }),
     sceneGroups,
     rankdir: 'LR',
-    nodeQuickEditorRegistry: null,
+    widgetRegistry: null,
   })
 
   const edges = runtime.scene?.edges || []

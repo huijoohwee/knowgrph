@@ -1,5 +1,5 @@
 import React from 'react'
-import { useGympgrphStore } from 'gympgrph'
+import { useGympgrphStore } from '@/lib/gympgrph/api'
 
 const shallowEqual = (a: unknown, b: unknown): boolean => {
   if (Object.is(a, b)) return true

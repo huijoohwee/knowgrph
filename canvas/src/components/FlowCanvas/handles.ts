@@ -5,8 +5,8 @@ import {
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
-import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 
 export type FlowHandleDir = 'in' | 'out'
 
@@ -50,11 +50,11 @@ export function ensureFlowHandlesHaveDefaults(handles: FlowNodeHandles): FlowNod
 export function computeFlowHandlesByNode(args: {
   nodes: ReadonlyArray<{ id: unknown; type?: unknown; properties?: unknown }>
   edges: ReadonlyArray<{ id: unknown; source: unknown; target: unknown; properties?: unknown }>
-  nodeQuickEditorRegistry?: ReadonlyArray<NodeQuickEditorRegistryEntry> | null
+  widgetRegistry?: ReadonlyArray<WidgetRegistryEntry> | null
 }): Record<string, FlowNodeHandles> {
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   const edges = Array.isArray(args.edges) ? args.edges : []
-  const registry = Array.isArray(args.nodeQuickEditorRegistry) ? args.nodeQuickEditorRegistry : []
+  const registry = Array.isArray(args.widgetRegistry) ? args.widgetRegistry : []
 
   const nodeIds: string[] = []
   const nodeIdSet = new Set<string>()
@@ -78,7 +78,7 @@ export function computeFlowHandlesByNode(args: {
     const fields = readSchemaFieldSpecs({ properties: (n as { properties?: unknown }).properties as never }).map(f => f.id).filter(Boolean)
     if (fields.length) schemaFieldsByNodeId.set(id, fields)
 
-    const entry = resolveNodeQuickEditorRegistryEntry({
+    const entry = resolveWidgetRegistryEntry({
       node: { type: String(n?.type ?? ''), properties: (n as { properties?: unknown }).properties as never },
       registry,
     })

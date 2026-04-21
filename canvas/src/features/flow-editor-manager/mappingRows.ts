@@ -1,6 +1,6 @@
 import { createUniqueId } from '@/lib/ids'
 
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 export type FlowMappingRowDirection = 'default' | 'input' | 'output'
 
@@ -26,7 +26,7 @@ export interface FlowEditorMappingRow {
 
 const clean = (v: unknown): string => String(v || '').trim()
 
-export function buildMappingRowsFromRegistryEntry(entry: NodeQuickEditorRegistryEntry): FlowEditorMappingRow[] {
+export function buildMappingRowsFromRegistryEntry(entry: WidgetRegistryEntry): FlowEditorMappingRow[] {
   const used = new Set<string>()
   const out: FlowEditorMappingRow[] = []
   const fields = Array.isArray(entry.fields) ? entry.fields : []
@@ -102,9 +102,9 @@ export function validateMappingRows(rows: FlowEditorMappingRow[]): string | null
 }
 
 export function applyMappingRowsToRegistryEntry(args: {
-  entry: NodeQuickEditorRegistryEntry
+  entry: WidgetRegistryEntry
   rows: FlowEditorMappingRow[]
-}): NodeQuickEditorRegistryEntry {
+}): WidgetRegistryEntry {
   const rows = Array.isArray(args.rows) ? args.rows : []
   const prev = args.entry
   const prevFieldLabelByKey = new Map<string, string>()
@@ -114,8 +114,8 @@ export function applyMappingRowsToRegistryEntry(args: {
     if (k && label) prevFieldLabelByKey.set(k, label)
   })
 
-  const fields: NodeQuickEditorRegistryEntry['fields'] = []
-  const ports: NodeQuickEditorRegistryEntry['ports'] = []
+  const fields: WidgetRegistryEntry['fields'] = []
+  const ports: WidgetRegistryEntry['ports'] = []
 
   rows.forEach((r) => {
     const key = clean(r.key)

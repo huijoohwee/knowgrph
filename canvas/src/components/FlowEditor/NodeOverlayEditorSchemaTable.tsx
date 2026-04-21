@@ -135,9 +135,9 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
   )
 
   return (
-    <section className="-mx-3" aria-label={UI_LABELS.flowNodeQuickEditorSchemaFieldsLegend}>
-      <table className="w-full border-collapse" aria-label={UI_LABELS.flowNodeQuickEditorSchemaFieldsLegend}>
-        <caption className={cn('sr-only', microLabelClass)}>{UI_LABELS.flowNodeQuickEditorSchemaFieldsLegend}</caption>
+    <section className="-mx-3" aria-label={UI_LABELS.flowWidgetSchemaFieldsLegend}>
+      <table className="w-full border-collapse" aria-label={UI_LABELS.flowWidgetSchemaFieldsLegend}>
+        <caption className={cn('sr-only', microLabelClass)}>{UI_LABELS.flowWidgetSchemaFieldsLegend}</caption>
         <tbody>
           {rows.map((row, rowIndex) => {
             const fieldId = String(row.id || '').trim()
@@ -302,8 +302,8 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
                       UI_THEME_TOKENS.button.text,
                     )}
                     style={{ width: '32px', height: '32px' }}
-                    title={UI_LABELS.flowNodeQuickEditorSchemaRemoveField}
-                    aria-label={UI_LABELS.flowNodeQuickEditorSchemaRemoveField}
+                    title={UI_LABELS.flowWidgetSchemaRemoveField}
+                    aria-label={UI_LABELS.flowWidgetSchemaRemoveField}
                     onClick={() => removeField(rowIndex)}
                     disabled={!active}
                   >
@@ -316,7 +316,7 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
         </tbody>
       </table>
 
-      <section className="flex items-center justify-end gap-2 px-3 py-2" aria-label={UI_LABELS.flowNodeQuickEditorSchemaActionsLabel}>
+      <section className="flex items-center justify-end gap-2 px-3 py-2" aria-label={UI_LABELS.flowWidgetSchemaActionsLabel}>
         <button
           type="button"
           className={cn(
@@ -328,7 +328,7 @@ export const NodeOverlayEditorSchemaTable = React.memo(function NodeOverlayEdito
           onClick={addField}
           disabled={!active}
         >
-          {UI_LABELS.flowNodeQuickEditorSchemaAddField}
+          {UI_LABELS.flowWidgetSchemaAddField}
         </button>
       </section>
     </section>

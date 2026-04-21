@@ -5,8 +5,8 @@ import {
 } from '@/lib/graph/flowPorts'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
-import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { applyFlowDataflowReducer, applyFlowDataflowTransform } from '@/lib/flowEditor/flowDataflowTransforms'
 import { isFrontmatterFlowComputedEnabled } from '@/lib/graph/frontmatterFlowSettings'
 import { readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
@@ -56,18 +56,18 @@ function nodeIndex(nodes: ReadonlyArray<GraphNode>): Map<string, GraphNode> {
 
 function resolveRegistryEntryByNodeId(args: {
   nodes: ReadonlyArray<GraphNode>
-  registry: ReadonlyArray<NodeQuickEditorRegistryEntry>
-}): Map<string, NodeQuickEditorRegistryEntry | null> {
-  const out = new Map<string, NodeQuickEditorRegistryEntry | null>()
+  registry: ReadonlyArray<WidgetRegistryEntry>
+}): Map<string, WidgetRegistryEntry | null> {
+  const out = new Map<string, WidgetRegistryEntry | null>()
   for (const n of args.nodes) {
     const id = cleanString(n?.id)
     if (!id) continue
-    out.set(id, resolveNodeQuickEditorRegistryEntry({ node: n, registry: args.registry }) || null)
+    out.set(id, resolveWidgetRegistryEntry({ node: n, registry: args.registry }) || null)
   }
   return out
 }
 
-function buildPortSchemaPathIndex(entry: NodeQuickEditorRegistryEntry | null): {
+function buildPortSchemaPathIndex(entry: WidgetRegistryEntry | null): {
   input: Map<string, string>
   output: Map<string, string>
   schemaMappings: ReadonlyArray<{ fromPath: string; toPath: string; transformId?: string; reduceId?: string }>
@@ -201,7 +201,7 @@ function buildConnectedValuesForNode(args: {
 
 export function computeFlowConnectedValuesBySchemaPath(args: {
   graphData: GraphData | null
-  registry: ReadonlyArray<NodeQuickEditorRegistryEntry>
+  registry: ReadonlyArray<WidgetRegistryEntry>
   targetNodeIds?: ReadonlySet<string>
 }): Map<string, FlowConnectedValuesBySchemaPath> {
   const graph = args.graphData

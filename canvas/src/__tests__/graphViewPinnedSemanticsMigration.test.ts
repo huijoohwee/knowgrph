@@ -45,13 +45,13 @@ export function testGraphViewPinnedSemanticsMigrationDefersStorageWritesUntilApp
   const storage = ensureLocalStorage()
   storage.clear()
 
-  storage.setItem(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, JSON.stringify({
+  storage.setItem(LS_KEYS.flowWidgetPinnedByNodeId, JSON.stringify({
     nodeA: true,
     nodeB: true,
     nodeC: true,
     nodeD: false,
   }))
-  storage.setItem(LS_KEYS.flowNodeQuickEditorPosByNodeId, JSON.stringify({
+  storage.setItem(LS_KEYS.flowWidgetPosByNodeId, JSON.stringify({
     nodeA: { top: 10, left: 20 },
     nodeB: { top: 15, left: 25 },
     nodeC: { top: 30, left: 40 },
@@ -59,34 +59,34 @@ export function testGraphViewPinnedSemanticsMigrationDefersStorageWritesUntilApp
 
   const slice = bootGraphViewSlice()
 
-  if (slice.flowNodeQuickEditorPinnedByNodeId.nodeA !== false) {
+  if (slice.flowWidgetPinnedByNodeId.nodeA !== false) {
     throw new Error('expected slice init to expose migrated in-memory pinned semantics for nodeA')
   }
-  if (slice.flowNodeQuickEditorPinnedByNodeId.nodeB !== false) {
+  if (slice.flowWidgetPinnedByNodeId.nodeB !== false) {
     throw new Error('expected slice init to expose migrated in-memory pinned semantics for nodeB')
   }
-  if (slice.flowNodeQuickEditorPinnedByNodeId.nodeC !== false) {
+  if (slice.flowWidgetPinnedByNodeId.nodeC !== false) {
     throw new Error('expected slice init to expose migrated in-memory pinned semantics for nodeC')
   }
-  if (slice.flowNodeQuickEditorPinnedByNodeId.nodeD !== true) {
+  if (slice.flowWidgetPinnedByNodeId.nodeD !== true) {
     throw new Error('expected slice init to flip all legacy pinned semantics when inversion evidence is strong')
   }
 
-  const rawBeforeApply = JSON.parse(storage.getItem(LS_KEYS.flowNodeQuickEditorPinnedByNodeId) || '{}') as Record<string, boolean>
+  const rawBeforeApply = JSON.parse(storage.getItem(LS_KEYS.flowWidgetPinnedByNodeId) || '{}') as Record<string, boolean>
   if (rawBeforeApply.nodeA !== true || rawBeforeApply.nodeD !== false) {
     throw new Error('expected import-time slice construction to avoid persisting flipped pinned semantics')
   }
-  if (storage.getItem(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion) != null) {
+  if (storage.getItem(LS_KEYS.flowWidgetPinnedSemanticsVersion) != null) {
     throw new Error('expected version marker to remain unset before explicit migration apply')
   }
 
   applyGraphViewPinnedSemanticsMigration()
 
-  const rawAfterApply = JSON.parse(storage.getItem(LS_KEYS.flowNodeQuickEditorPinnedByNodeId) || '{}') as Record<string, boolean>
+  const rawAfterApply = JSON.parse(storage.getItem(LS_KEYS.flowWidgetPinnedByNodeId) || '{}') as Record<string, boolean>
   if (rawAfterApply.nodeA !== false || rawAfterApply.nodeD !== true) {
     throw new Error('expected explicit migration apply to persist flipped pinned semantics')
   }
-  const version = parseInt(storage.getItem(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion) || '', 10)
+  const version = parseInt(storage.getItem(LS_KEYS.flowWidgetPinnedSemanticsVersion) || '', 10)
   if (version !== 2) {
     throw new Error('expected explicit migration apply to stamp pinned semantics version 2')
   }

@@ -6,6 +6,13 @@ import { emitKgcRunOutput, resolveKgcRunOutputPreference } from '@/features/chat
 
 const buildKgcFixture = (formatLine = ''): string => [
   '---',
+  'title: "Knowledge Graph Canvas - Pitch Deck + PRD + TAD + TCO"',
+  'product: "Knowledge Graph Canvas"',
+  'subject: "Solo founder"',
+  'artifact: "Pitch Deck + PRD + TAD + TCO"',
+  'objective: "Recommend a zero-budget bootstrap plan for external users with Use Case, Problem, Solution, User Flow, Work Flow, Data Flow, B2C monetization, and Swipe payment flow"',
+  'domain: "MCP distribution, OpenClaw, marketplace, organic growth"',
+  'date: "2026-04-20"',
   'doc:',
   '  id: "doc:kgc:test"',
   '  type: chatKnowgrph',
@@ -29,9 +36,39 @@ const buildKgcFixture = (formatLine = ''): string => [
   '      target: n-out.turn',
   '---',
   '',
-  '# Output heading',
+  '# Knowledge Graph Canvas · AI Pipeline',
   '',
-  'Rendered body.',
+  '### Use Case',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### Problem',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### Solution',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### User Flow',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### Work Flow',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### Data Flow',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### Monetization Surface',
+  '',
+  'Pipeline-only placeholder.',
+  '',
+  '### Integration Boundaries',
+  '',
+  'Pipeline-only placeholder.',
   '',
 ].join('\n')
 
@@ -82,8 +119,38 @@ export async function testEmitKgcRunOutputWritesMarkdownCompanionBody() {
     }
     const fs = await getWorkspaceFs()
     const written = await fs.readFileText('/sandbox/chat-log/kgc-output_20260420231505.md')
-    if (!written || written.includes('doc:') || !written.includes('# Output heading')) {
-      throw new Error('expected markdown run output to write the body markdown without the frontmatter block')
+    if (!written) {
+      throw new Error('expected markdown run output text to be written')
+    }
+    const expectedSnippets = [
+      '# Knowledge Graph Canvas - Pitch Deck + PRD + TAD + TCO',
+      '## Use Case',
+      '## Problem',
+      '## Solution',
+      '## User Flow',
+      '## Work Flow',
+      '## Data Flow',
+      '## Monetization Surface',
+      '## Integration Boundaries',
+      'Swipe for checkout and payment confirmation',
+      'OpenClaw for listing and discovery',
+    ]
+    for (const snippet of expectedSnippets) {
+      if (!written.includes(snippet)) {
+        throw new Error(`expected markdown run output to include query-responsive snippet: ${snippet}`)
+      }
+    }
+    const forbiddenSnippets = [
+      'doc:',
+      '# Knowledge Graph Canvas · AI Pipeline',
+      'Pipeline-only placeholder.',
+      'Computing Flow Definition',
+      'Runner Protocol',
+    ]
+    for (const snippet of forbiddenSnippets) {
+      if (written.includes(snippet)) {
+        throw new Error(`expected markdown run output to avoid copying KGC scaffold content: ${snippet}`)
+      }
     }
   } finally {
     resetWorkspaceFsForTests()
@@ -114,6 +181,11 @@ export async function testEmitKgcRunOutputFallsBackToMarkdownForVideoPreference(
     }
     if (result.path !== '/sandbox/chat-log/kgc-output_20260420231505.md') {
       throw new Error(`expected video run output fallback to write markdown companion, got ${String(result.path)}`)
+    }
+    const fs = await getWorkspaceFs()
+    const written = await fs.readFileText('/sandbox/chat-log/kgc-output_20260420231505.md')
+    if (!written || !written.includes('## Solution') || written.includes('# Knowledge Graph Canvas · AI Pipeline')) {
+      throw new Error('expected video markdown fallback to stay query-responsive instead of copying the runnable KGC scaffold')
     }
   } finally {
     resetWorkspaceFsForTests()

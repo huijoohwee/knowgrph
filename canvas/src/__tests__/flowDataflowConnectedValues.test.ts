@@ -1,7 +1,7 @@
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { parseGraph } from '@/lib/graph/io/adapter'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 
 export const testFlowDataflowConnectedValuesBySchemaPath = () => {
   const graphData = {
@@ -11,9 +11,9 @@ export const testFlowDataflowConnectedValuesBySchemaPath = () => {
         id: 'a',
         type: 'Node',
         label: 'A',
-        properties: { value: 'hello', [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'out', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'out' },
+        properties: { value: 'hello', [FLOW_WIDGET_TYPE_ID_KEY]: 'out', [FLOW_WIDGET_FORM_ID_KEY]: 'out' },
       },
-      { id: 'b', type: 'Node', label: 'B', properties: { [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'in', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'in' } },
+      { id: 'b', type: 'Node', label: 'B', properties: { [FLOW_WIDGET_TYPE_ID_KEY]: 'in', [FLOW_WIDGET_FORM_ID_KEY]: 'in' } },
     ],
     edges: [
       {
@@ -34,7 +34,7 @@ export const testFlowDataflowConnectedValuesBySchemaPath = () => {
       id: 'qa',
       isEnabled: true,
       nodeTypeId: 'Node',
-      quickEditorTypeId: 'out',
+      widgetTypeId: 'out',
       formId: 'out',
       fields: [],
       ports: [{ portKey: 'out', direction: 'output' as const, schemaPath: 'properties.value' }],
@@ -45,7 +45,7 @@ export const testFlowDataflowConnectedValuesBySchemaPath = () => {
       id: 'qb',
       isEnabled: true,
       nodeTypeId: 'Node',
-      quickEditorTypeId: 'in',
+      widgetTypeId: 'in',
       formId: 'in',
       fields: [],
       ports: [{ portKey: 'in', direction: 'input' as const, schemaPath: 'properties.input' }],
@@ -78,25 +78,25 @@ export const testFlowDataflowConnectedValuesTransformsAndPropagation = () => {
         id: 'a',
         type: 'Node',
         label: 'A',
-        properties: { value: 'hello', [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'out', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'out' },
+        properties: { value: 'hello', [FLOW_WIDGET_TYPE_ID_KEY]: 'out', [FLOW_WIDGET_FORM_ID_KEY]: 'out' },
       },
       {
         id: 'b',
         type: 'Node',
         label: 'B',
-        properties: { [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'mid', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'mid' },
+        properties: { [FLOW_WIDGET_TYPE_ID_KEY]: 'mid', [FLOW_WIDGET_FORM_ID_KEY]: 'mid' },
       },
       {
         id: 'c',
         type: 'Node',
         label: 'C',
-        properties: { [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'in', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'in' },
+        properties: { [FLOW_WIDGET_TYPE_ID_KEY]: 'in', [FLOW_WIDGET_FORM_ID_KEY]: 'in' },
       },
       {
         id: 'a2',
         type: 'Node',
         label: 'A2',
-        properties: { value: 'world', [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'out', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'out' },
+        properties: { value: 'world', [FLOW_WIDGET_TYPE_ID_KEY]: 'out', [FLOW_WIDGET_FORM_ID_KEY]: 'out' },
       },
     ],
     edges: [
@@ -138,7 +138,7 @@ export const testFlowDataflowConnectedValuesTransformsAndPropagation = () => {
       id: 'qa',
       isEnabled: true,
       nodeTypeId: 'Node',
-      quickEditorTypeId: 'out',
+      widgetTypeId: 'out',
       formId: 'out',
       fields: [],
       ports: [{ portKey: 'out', direction: 'output' as const, schemaPath: 'properties.value' }],
@@ -149,7 +149,7 @@ export const testFlowDataflowConnectedValuesTransformsAndPropagation = () => {
       id: 'qb',
       isEnabled: true,
       nodeTypeId: 'Node',
-      quickEditorTypeId: 'mid',
+      widgetTypeId: 'mid',
       formId: 'mid',
       fields: [],
       ports: [
@@ -166,7 +166,7 @@ export const testFlowDataflowConnectedValuesTransformsAndPropagation = () => {
       id: 'qc',
       isEnabled: true,
       nodeTypeId: 'Node',
-      quickEditorTypeId: 'in',
+      widgetTypeId: 'in',
       formId: 'in',
       fields: [],
       ports: [{ portKey: 'x', direction: 'input' as const, schemaPath: 'properties.x' }],
@@ -202,25 +202,25 @@ export const testFlowDataflowConnectedValuesRgbTransforms = () => {
         id: 'r',
         type: 'Node',
         label: 'R',
-        properties: { value: 255, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'out', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'out' },
+        properties: { value: 255, [FLOW_WIDGET_TYPE_ID_KEY]: 'out', [FLOW_WIDGET_FORM_ID_KEY]: 'out' },
       },
       {
         id: 'g',
         type: 'Node',
         label: 'G',
-        properties: { value: 0, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'out', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'out' },
+        properties: { value: 0, [FLOW_WIDGET_TYPE_ID_KEY]: 'out', [FLOW_WIDGET_FORM_ID_KEY]: 'out' },
       },
       {
         id: 'b',
         type: 'Node',
         label: 'B',
-        properties: { value: 128, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'out', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'out' },
+        properties: { value: 128, [FLOW_WIDGET_TYPE_ID_KEY]: 'out', [FLOW_WIDGET_FORM_ID_KEY]: 'out' },
       },
       {
         id: 'color',
         type: 'Node',
         label: 'Color',
-        properties: { [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'color', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'color' },
+        properties: { [FLOW_WIDGET_TYPE_ID_KEY]: 'color', [FLOW_WIDGET_FORM_ID_KEY]: 'color' },
       },
     ],
     edges: [
@@ -253,7 +253,7 @@ export const testFlowDataflowConnectedValuesRgbTransforms = () => {
       id: 'q-out',
       isEnabled: true,
       nodeTypeId: 'Node',
-      quickEditorTypeId: 'out',
+      widgetTypeId: 'out',
       formId: 'out',
       fields: [],
       ports: [{ portKey: 'out', direction: 'output' as const, schemaPath: 'properties.value' }],
@@ -264,7 +264,7 @@ export const testFlowDataflowConnectedValuesRgbTransforms = () => {
       id: 'q-color',
       isEnabled: true,
       nodeTypeId: 'Node',
-      quickEditorTypeId: 'color',
+      widgetTypeId: 'color',
       formId: 'color',
       fields: [],
       ports: [
@@ -301,14 +301,14 @@ export const testFlowDataflowConnectedValuesRgbTransforms = () => {
 
 export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
   const bundle = {
-    kind: 'kg:flow:nodeQuickEditorBundle',
+    kind: 'kg:flow:widgetBundle',
     version: 1,
     registry: [
       {
         id: 'qer-NumberInput-default-value',
         isEnabled: true,
         nodeTypeId: 'NumberInput',
-        quickEditorTypeId: 'default',
+        widgetTypeId: 'default',
         formId: 'value',
         fields: [{ fieldKey: 'value', fieldType: 'number', label: 'Value', schemaPath: 'properties.value' }],
         ports: [{ portKey: 'value', direction: 'output', schemaPath: 'properties.value' }],
@@ -319,7 +319,7 @@ export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
         id: 'qer-ColorPreview-default-color',
         isEnabled: true,
         nodeTypeId: 'ColorPreview',
-        quickEditorTypeId: 'default',
+        widgetTypeId: 'default',
         formId: 'color',
         fields: [
           { fieldKey: 'r', fieldType: 'number', label: 'Red', schemaPath: 'properties.r' },
@@ -349,25 +349,25 @@ export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
           id: 'red',
           type: 'NumberInput',
           label: 'R',
-          properties: { value: 255, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'value' },
+          properties: { value: 255, [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'value' },
         },
         {
           id: 'green',
           type: 'NumberInput',
           label: 'G',
-          properties: { value: 0, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'value' },
+          properties: { value: 0, [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'value' },
         },
         {
           id: 'blue',
           type: 'NumberInput',
           label: 'B',
-          properties: { value: 128, [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'value' },
+          properties: { value: 128, [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'value' },
         },
         {
           id: 'preview',
           type: 'ColorPreview',
           label: 'ColorPreview',
-          properties: { [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default', [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'color' },
+          properties: { [FLOW_WIDGET_TYPE_ID_KEY]: 'default', [FLOW_WIDGET_FORM_ID_KEY]: 'color' },
         },
       ],
       edges: [
@@ -383,7 +383,7 @@ export const testComputingDataFlowsDemoBundleParsesAndComputes = () => {
   const graphData = res.data
 
   const meta = graphData.metadata as unknown as Record<string, unknown> | undefined
-  const registry = (meta?.[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as unknown[]) || []
+  const registry = (meta?.[FLOW_WIDGET_REGISTRY_METADATA_KEY] as unknown[]) || []
   if (!Array.isArray(registry) || registry.length === 0) throw new Error('expected registry metadata to be present')
 
   const byNodeId = computeFlowConnectedValuesBySchemaPath({
@@ -409,8 +409,8 @@ export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {
         label: 'Source',
         properties: {
           data: { urls: ['https://demo.local/a', 'https://demo.local/b'] },
-          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default',
-          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'src',
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'src',
         },
       },
       {
@@ -419,8 +419,8 @@ export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {
         label: 'Transform',
         properties: {
           'flow:compute': '(inputs) => ({ demos: (Array.isArray(inputs.urls) ? inputs.urls : [inputs.urls]).filter(Boolean).map((url) => ({ url, extracted: true })) })',
-          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default',
-          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'transform',
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'transform',
         },
       },
       {
@@ -428,8 +428,8 @@ export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {
         type: 'output',
         label: 'Sink',
         properties: {
-          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default',
-          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'sink',
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'sink',
         },
       },
     ],
@@ -443,7 +443,7 @@ export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {
       id: 'q-src',
       isEnabled: true,
       nodeTypeId: 'input',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'src',
       fields: [],
       ports: [{ portKey: 'urls', direction: 'output' as const, schemaPath: 'properties.data.urls' }],
@@ -454,7 +454,7 @@ export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {
       id: 'q-transform',
       isEnabled: true,
       nodeTypeId: 'default',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'transform',
       fields: [],
       ports: [
@@ -468,7 +468,7 @@ export const testFlowDataflowConnectedValuesFlowComputeFunction = () => {
       id: 'q-sink',
       isEnabled: true,
       nodeTypeId: 'output',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'sink',
       fields: [],
       ports: [{ portKey: 'demos', direction: 'input' as const, schemaPath: 'properties.data.demos' }],
@@ -507,8 +507,8 @@ export const testFlowDataflowConnectedValuesFrontmatterComputedFalseDisablesRunt
         label: 'Source',
         properties: {
           data: { urls: ['https://demo.local/a'] },
-          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default',
-          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'src',
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'src',
         },
       },
       {
@@ -517,8 +517,8 @@ export const testFlowDataflowConnectedValuesFrontmatterComputedFalseDisablesRunt
         label: 'Transform',
         properties: {
           'flow:compute': '(inputs) => ({ demos: [{ url: "should-not-run" }] })',
-          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default',
-          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'transform',
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'transform',
         },
       },
       {
@@ -526,8 +526,8 @@ export const testFlowDataflowConnectedValuesFrontmatterComputedFalseDisablesRunt
         type: 'output',
         label: 'Sink',
         properties: {
-          [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'default',
-          [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: 'sink',
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'sink',
         },
       },
     ],
@@ -541,7 +541,7 @@ export const testFlowDataflowConnectedValuesFrontmatterComputedFalseDisablesRunt
       id: 'q-src',
       isEnabled: true,
       nodeTypeId: 'input',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'src',
       fields: [],
       ports: [{ portKey: 'urls', direction: 'output' as const, schemaPath: 'properties.data.urls' }],
@@ -552,7 +552,7 @@ export const testFlowDataflowConnectedValuesFrontmatterComputedFalseDisablesRunt
       id: 'q-transform',
       isEnabled: true,
       nodeTypeId: 'default',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'transform',
       fields: [],
       ports: [
@@ -566,7 +566,7 @@ export const testFlowDataflowConnectedValuesFrontmatterComputedFalseDisablesRunt
       id: 'q-sink',
       isEnabled: true,
       nodeTypeId: 'output',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'sink',
       fields: [],
       ports: [{ portKey: 'demos', direction: 'input' as const, schemaPath: 'properties.data.demos' }],

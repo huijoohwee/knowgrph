@@ -13,7 +13,7 @@ export type FlowEditorMappingEditorDraft = {
   id: string
   isEnabled: boolean
   nodeTypeId: string
-  quickEditorTypeId: string
+  widgetTypeId: string
   formId: string
 }
 
@@ -97,12 +97,12 @@ export function FlowEditorMappingSettingsPanel(props: {
                 </section>
                 <section className="sm:col-span-1">
                   <label className={cn(panelTypography.microLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor="flow-editor-manager-editorType">
-                    Quick Editor Type
+                    Widget Type
                   </label>
                   <input
                     id="flow-editor-manager-editorType"
-                    value={draft.quickEditorTypeId}
-                    onChange={e => onChangeDraft({ quickEditorTypeId: e.target.value })}
+                    value={draft.widgetTypeId}
+                    onChange={e => onChangeDraft({ widgetTypeId: e.target.value })}
                     className={cn('mt-1 w-full rounded border px-2 py-1', UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.input.text)}
                   />
                 </section>

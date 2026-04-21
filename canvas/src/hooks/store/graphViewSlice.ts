@@ -6,16 +6,16 @@ import type { Canvas2dRendererId } from '@/lib/config.render'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
-  WORKSPACE_SYNC_SCOPE_FLOW_QUICK_EDITOR_RUNTIME_PERSISTENCE,
-  WORKSPACE_SYNC_TASK_FLOW_QUICK_EDITOR_VIEW_STATE,
+  WORKSPACE_SYNC_SCOPE_FLOW_WIDGET_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_TASK_FLOW_WIDGET_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
-import { buildFlowQuickEditorEligibleNodeIdSet } from '@/lib/graph/flowQuickEditorEligibility'
+import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 
-const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY = 'flow:quickEditorFormId' as const
-const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY = 'flow:nodeQuickEditorFormId' as const
+const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
+const FLOW_WIDGET_FORM_ID_KEY_LEGACY = 'flow:widgetFormId' as const
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -30,21 +30,33 @@ const normalizeIds = (ids: string[]): string[] => {
   return Array.from(unique).sort((a, b) => a.localeCompare(b))
 }
 
-const normalizeOpenQuickEditorNodeIds = (ids: string[], graphData: GraphState['graphData'] | null): string[] => {
-  const normalized = normalizeIds(Array.isArray(ids) ? ids : [])
+const normalizeIdsPreserveOrder = (ids: string[]): string[] => {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = String(ids[i] || '').trim()
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    out.push(id)
+  }
+  return out
+}
+
+const normalizeOpenWidgetNodeIds = (ids: string[], graphData: GraphState['graphData'] | null): string[] => {
+  const normalized = normalizeIdsPreserveOrder(Array.isArray(ids) ? ids : [])
   if (!graphData) return normalized
   const nodeIds = new Set<string>((graphData.nodes || []).map(n => String(n.id || '')).filter(Boolean))
   const validNodeIds = normalized.filter(id => nodeIds.has(id))
   if (!isFrontmatterFlowGraph(graphData)) {
     const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-    const eligible = buildFlowQuickEditorEligibleNodeIdSet(nodes as any)
+    const eligible = buildFlowWidgetEligibleNodeIdSet(nodes as any)
     if (eligible.size === 0) return validNodeIds
     return validNodeIds.filter(id => eligible.has(id))
   }
 
   const metadata = ((graphData.metadata || {}) as Record<string, unknown>)
 
-  const registryRaw = metadata[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+  const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
   const registry = Array.isArray(registryRaw) ? registryRaw : []
   const allowedFormIds = new Set<string>()
   for (let i = 0; i < registry.length; i += 1) {
@@ -65,21 +77,21 @@ const normalizeOpenQuickEditorNodeIds = (ids: string[], graphData: GraphState['g
   return validNodeIds.filter(id => {
     const props = nodeById.get(id) || {}
     const explicitFormId =
-      typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string'
-        ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
-        : typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY] === 'string'
-          ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY] || '').trim()
+      typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string'
+        ? String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
+        : typeof props[FLOW_WIDGET_FORM_ID_KEY_LEGACY] === 'string'
+          ? String(props[FLOW_WIDGET_FORM_ID_KEY_LEGACY] || '').trim()
           : ''
     const expectedFormId = explicitFormId || `fm:${id}`
     return allowedFormIds.has(expectedFormId)
   })
 }
 
-const FLOW_QUICK_EDITOR_PERSIST_DELAY_MS = 90
+const FLOW_WIDGET_PERSIST_DELAY_MS = 90
 
-type QuickEditorPinnedByGraphMap = Record<string, Record<string, boolean>>
-type QuickEditorPosByGraphMap = Record<string, Record<string, { top: number; left: number }>>
-type QuickEditorWorldByGraphMap = Record<string, Record<string, { x: number; y: number }>>
+type WidgetPinnedByGraphMap = Record<string, Record<string, boolean>>
+type WidgetPosByGraphMap = Record<string, Record<string, { top: number; left: number }>>
+type WidgetWorldByGraphMap = Record<string, Record<string, { x: number; y: number }>>
 
 type GraphViewPinnedSemanticsMigrationPlan = {
   effectivePinnedByNodeId: Record<string, boolean>
@@ -157,7 +169,7 @@ const readStorageJson = <T>(
 }
 
 const readPinnedByNodeIdFromStorage = (storage: Storage | null): Record<string, boolean> =>
-  readStorageJson(storage, LS_KEYS.flowNodeQuickEditorPinnedByNodeId, {}, raw => {
+  readStorageJson(storage, LS_KEYS.flowWidgetPinnedByNodeId, {}, raw => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
     const out: Record<string, boolean> = {}
     for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
@@ -169,12 +181,12 @@ const readPinnedByNodeIdFromStorage = (storage: Storage | null): Record<string, 
   })
 
 const readPosByNodeIdFromStorage = (storage: Storage | null): Record<string, { top: number; left: number }> =>
-  readStorageJson(storage, LS_KEYS.flowNodeQuickEditorPosByNodeId, {}, raw =>
+  readStorageJson(storage, LS_KEYS.flowWidgetPosByNodeId, {}, raw =>
     normalizePosByNodeId(raw as Record<string, { top: number; left: number }> | null | undefined),
   )
 
 const readWorldByNodeIdFromStorage = (storage: Storage | null): Record<string, { x: number; y: number }> =>
-  readStorageJson(storage, LS_KEYS.flowNodeQuickEditorWorldPosByNodeId, {}, raw =>
+  readStorageJson(storage, LS_KEYS.flowWidgetWorldPosByNodeId, {}, raw =>
     normalizeWorldByNodeId(raw as Record<string, { x: number; y: number }> | null | undefined),
   )
 
@@ -182,7 +194,7 @@ export const planGraphViewPinnedSemanticsMigration = (
   storage: Storage | null = getLocalStorage(),
 ): GraphViewPinnedSemanticsMigrationPlan => {
   const parsed = readPinnedByNodeIdFromStorage(storage)
-  const version = readStorageInt(storage, LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 0)
+  const version = readStorageInt(storage, LS_KEYS.flowWidgetPinnedSemanticsVersion, 0)
   if (version >= 2) {
     return {
       effectivePinnedByNodeId: parsed,
@@ -248,9 +260,9 @@ export const applyGraphViewPinnedSemanticsMigration = (storage: Storage | null =
   const plan = planGraphViewPinnedSemanticsMigration(storage)
   if (!plan.shouldPersistVersion || !storage) return false
   if (plan.persistedPinnedByNodeId) {
-    lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByNodeId, plan.persistedPinnedByNodeId)
+    lsSetJson(LS_KEYS.flowWidgetPinnedByNodeId, plan.persistedPinnedByNodeId)
   }
-  lsSetInt(LS_KEYS.flowNodeQuickEditorPinnedSemanticsVersion, 2)
+  lsSetInt(LS_KEYS.flowWidgetPinnedSemanticsVersion, 2)
   return true
 }
 
@@ -302,40 +314,40 @@ const isSameWorldByNodeId = (
   return true
 }
 
-let pendingFlowQuickEditorPersistence: {
-  pinnedByGraph?: QuickEditorPinnedByGraphMap
-  posByGraph?: QuickEditorPosByGraphMap
-  worldByGraph?: QuickEditorWorldByGraphMap
+let pendingFlowWidgetPersistence: {
+  pinnedByGraph?: WidgetPinnedByGraphMap
+  posByGraph?: WidgetPosByGraphMap
+  worldByGraph?: WidgetWorldByGraphMap
 } = {}
 
-const scheduleFlowQuickEditorPersistence = (patch: {
-  pinnedByGraph?: QuickEditorPinnedByGraphMap
-  posByGraph?: QuickEditorPosByGraphMap
-  worldByGraph?: QuickEditorWorldByGraphMap
+const scheduleFlowWidgetPersistence = (patch: {
+  pinnedByGraph?: WidgetPinnedByGraphMap
+  posByGraph?: WidgetPosByGraphMap
+  worldByGraph?: WidgetWorldByGraphMap
 }): void => {
-  if (patch.pinnedByGraph) pendingFlowQuickEditorPersistence.pinnedByGraph = patch.pinnedByGraph
-  if (patch.posByGraph) pendingFlowQuickEditorPersistence.posByGraph = patch.posByGraph
-  if (patch.worldByGraph) pendingFlowQuickEditorPersistence.worldByGraph = patch.worldByGraph
+  if (patch.pinnedByGraph) pendingFlowWidgetPersistence.pinnedByGraph = patch.pinnedByGraph
+  if (patch.posByGraph) pendingFlowWidgetPersistence.posByGraph = patch.posByGraph
+  if (patch.worldByGraph) pendingFlowWidgetPersistence.worldByGraph = patch.worldByGraph
 
   const signature = hashSignatureParts([
-    pendingFlowQuickEditorPersistence.pinnedByGraph ? hashRecordSignature(pendingFlowQuickEditorPersistence.pinnedByGraph, { maxEntries: 36 }) : '',
-    pendingFlowQuickEditorPersistence.posByGraph ? hashRecordSignature(pendingFlowQuickEditorPersistence.posByGraph, { maxEntries: 36 }) : '',
-    pendingFlowQuickEditorPersistence.worldByGraph ? hashRecordSignature(pendingFlowQuickEditorPersistence.worldByGraph, { maxEntries: 36 }) : '',
+    pendingFlowWidgetPersistence.pinnedByGraph ? hashRecordSignature(pendingFlowWidgetPersistence.pinnedByGraph, { maxEntries: 36 }) : '',
+    pendingFlowWidgetPersistence.posByGraph ? hashRecordSignature(pendingFlowWidgetPersistence.posByGraph, { maxEntries: 36 }) : '',
+    pendingFlowWidgetPersistence.worldByGraph ? hashRecordSignature(pendingFlowWidgetPersistence.worldByGraph, { maxEntries: 36 }) : '',
   ])
 
   scheduleWorkspaceSyncTask(
-    WORKSPACE_SYNC_TASK_FLOW_QUICK_EDITOR_VIEW_STATE,
+    WORKSPACE_SYNC_TASK_FLOW_WIDGET_VIEW_STATE,
     () => {
-      const pending = pendingFlowQuickEditorPersistence
-      pendingFlowQuickEditorPersistence = {}
-      if (pending.pinnedByGraph) lsSetJson(LS_KEYS.flowNodeQuickEditorPinnedByGraphMetaKey, pending.pinnedByGraph)
-      if (pending.posByGraph) lsSetJson(LS_KEYS.flowNodeQuickEditorPosByGraphMetaKey, pending.posByGraph)
-      if (pending.worldByGraph) lsSetJson(LS_KEYS.flowNodeQuickEditorWorldPosByGraphMetaKey, pending.worldByGraph)
+      const pending = pendingFlowWidgetPersistence
+      pendingFlowWidgetPersistence = {}
+      if (pending.pinnedByGraph) lsSetJson(LS_KEYS.flowWidgetPinnedByGraphMetaKey, pending.pinnedByGraph)
+      if (pending.posByGraph) lsSetJson(LS_KEYS.flowWidgetPosByGraphMetaKey, pending.posByGraph)
+      if (pending.worldByGraph) lsSetJson(LS_KEYS.flowWidgetWorldPosByGraphMetaKey, pending.worldByGraph)
     },
-    FLOW_QUICK_EDITOR_PERSIST_DELAY_MS,
+    FLOW_WIDGET_PERSIST_DELAY_MS,
     {
       signature,
-      scopeKey: WORKSPACE_SYNC_SCOPE_FLOW_QUICK_EDITOR_RUNTIME_PERSISTENCE,
+      scopeKey: WORKSPACE_SYNC_SCOPE_FLOW_WIDGET_RUNTIME_PERSISTENCE,
     },
   )
 }
@@ -381,37 +393,37 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
       return { collapsedGroupIds: normalized, collapsedGroupIdsByGraphMetaKey: nextBy }
     })
   },
-  openQuickEditorNodeIds: [] as string[],
-  openQuickEditorNodeIdsByRenderer: {} as Partial<Record<Canvas2dRendererId, string[]>>,
-  setOpenQuickEditorNodeIds: (ids: string[]) => {
-    const next = normalizeOpenQuickEditorNodeIds(ids, get().graphData)
-    const prev = get().openQuickEditorNodeIds || []
+  openWidgetNodeIds: [] as string[],
+  openWidgetNodeIdsByRenderer: {} as Partial<Record<Canvas2dRendererId, string[]>>,
+  setOpenWidgetNodeIds: (ids: string[]) => {
+    const next = normalizeOpenWidgetNodeIds(ids, get().graphData)
+    const prev = get().openWidgetNodeIds || []
     const renderer = get().canvas2dRenderer
-    const by = get().openQuickEditorNodeIdsByRenderer || {}
+    const by = get().openWidgetNodeIdsByRenderer || {}
     const prevForRenderer = (renderer && by[renderer]) || []
     const sameGlobal = prev.length === next.length && prev.every((v, i) => v === next[i])
     const sameForRenderer =
       prevForRenderer.length === next.length && prevForRenderer.every((v, i) => v === next[i])
     if (sameGlobal && sameForRenderer) return
     const nextBy = renderer ? { ...by, [renderer]: next } : by
-    set({ openQuickEditorNodeIds: next, openQuickEditorNodeIdsByRenderer: nextBy })
+    set({ openWidgetNodeIds: next, openWidgetNodeIdsByRenderer: nextBy })
   },
-  updateOpenQuickEditorNodeIds: (updater: (prev: string[]) => string[]) => {
-    const prev = get().openQuickEditorNodeIds || []
-    const next = normalizeOpenQuickEditorNodeIds(updater([...prev]), get().graphData)
+  updateOpenWidgetNodeIds: (updater: (prev: string[]) => string[]) => {
+    const prev = get().openWidgetNodeIds || []
+    const next = normalizeOpenWidgetNodeIds(updater([...prev]), get().graphData)
     const renderer = get().canvas2dRenderer
-    const by = get().openQuickEditorNodeIdsByRenderer || {}
+    const by = get().openWidgetNodeIdsByRenderer || {}
     const prevForRenderer = (renderer && by[renderer]) || []
     const sameGlobal = prev.length === next.length && prev.every((v, i) => v === next[i])
     const sameForRenderer =
       prevForRenderer.length === next.length && prevForRenderer.every((v, i) => v === next[i])
     if (sameGlobal && sameForRenderer) return
     const nextBy = renderer ? { ...by, [renderer]: next } : by
-    set({ openQuickEditorNodeIds: next, openQuickEditorNodeIdsByRenderer: nextBy })
+    set({ openWidgetNodeIds: next, openWidgetNodeIdsByRenderer: nextBy })
   },
-  flowNodeQuickEditorPinnedByNodeId: pinnedSemanticsMigrationPlan.effectivePinnedByNodeId,
-  flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, boolean>>>(
-    LS_KEYS.flowNodeQuickEditorPinnedByGraphMetaKey,
+  flowWidgetPinnedByNodeId: pinnedSemanticsMigrationPlan.effectivePinnedByNodeId,
+  flowWidgetPinnedByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, boolean>>>(
+    LS_KEYS.flowWidgetPinnedByGraphMetaKey,
     {},
     raw => {
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
@@ -432,12 +444,12 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
       return out
     },
   ),
-  setFlowNodeQuickEditorPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
+  setFlowWidgetPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
     const state = get()
     const nextPinnedById = normalizePinnedByNodeId(pinnedById)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
-    const by = state.flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey || {}
-    const prevPinnedById = state.flowNodeQuickEditorPinnedByNodeId || {}
+    const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
+    const prevPinnedById = state.flowWidgetPinnedByNodeId || {}
     const prevGraphPinnedById = graphKey ? (by[graphKey] || {}) : prevPinnedById
     const sameGlobal = isSamePinnedByNodeId(prevPinnedById, nextPinnedById)
     const sameForGraph = isSamePinnedByNodeId(prevGraphPinnedById, nextPinnedById)
@@ -445,16 +457,16 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
     const nextBy = graphKey ? { ...by, [graphKey]: nextPinnedById } : by
     if (graphKey) {
       set({
-        flowNodeQuickEditorPinnedByNodeId: nextPinnedById,
-        flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey: nextBy,
+        flowWidgetPinnedByNodeId: nextPinnedById,
+        flowWidgetPinnedByNodeIdByGraphMetaKey: nextBy,
       })
-      scheduleFlowQuickEditorPersistence({ pinnedByGraph: nextBy })
+      scheduleFlowWidgetPersistence({ pinnedByGraph: nextBy })
       return
     }
-    set({ flowNodeQuickEditorPinnedByNodeId: nextPinnedById })
+    set({ flowWidgetPinnedByNodeId: nextPinnedById })
   },
-  flowNodeQuickEditorPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { top: number; left: number }>>>(
-    LS_KEYS.flowNodeQuickEditorPosByGraphMetaKey,
+  flowWidgetPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { top: number; left: number }>>>(
+    LS_KEYS.flowWidgetPosByGraphMetaKey,
     {},
     raw => {
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
@@ -478,17 +490,17 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
       return out
     },
   ),
-  flowNodeQuickEditorPosByNodeId: lsJson<Record<string, { top: number; left: number }>>(
-    LS_KEYS.flowNodeQuickEditorPosByNodeId,
+  flowWidgetPosByNodeId: lsJson<Record<string, { top: number; left: number }>>(
+    LS_KEYS.flowWidgetPosByNodeId,
     {},
     v => (v && typeof v === 'object' ? (v as Record<string, { top: number; left: number }>) : {}),
   ),
-  setFlowNodeQuickEditorPosByNodeId: (pos: Record<string, { top: number; left: number }>) => {
+  setFlowWidgetPosByNodeId: (pos: Record<string, { top: number; left: number }>) => {
     const state = get()
     const nextPosByNodeId = normalizePosByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
-    const by = state.flowNodeQuickEditorPosByNodeIdByGraphMetaKey || {}
-    const prevPosByNodeId = state.flowNodeQuickEditorPosByNodeId || {}
+    const by = state.flowWidgetPosByNodeIdByGraphMetaKey || {}
+    const prevPosByNodeId = state.flowWidgetPosByNodeId || {}
     const prevGraphPosByNodeId = graphKey ? (by[graphKey] || {}) : prevPosByNodeId
     const sameGlobal = isSamePosByNodeId(prevPosByNodeId, nextPosByNodeId)
     const sameForGraph = isSamePosByNodeId(prevGraphPosByNodeId, nextPosByNodeId)
@@ -496,16 +508,16 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
     const nextBy = graphKey ? { ...by, [graphKey]: nextPosByNodeId } : by
     if (graphKey) {
       set({
-        flowNodeQuickEditorPosByNodeId: nextPosByNodeId,
-        flowNodeQuickEditorPosByNodeIdByGraphMetaKey: nextBy,
+        flowWidgetPosByNodeId: nextPosByNodeId,
+        flowWidgetPosByNodeIdByGraphMetaKey: nextBy,
       })
-      scheduleFlowQuickEditorPersistence({ posByGraph: nextBy })
+      scheduleFlowWidgetPersistence({ posByGraph: nextBy })
       return
     }
-    set({ flowNodeQuickEditorPosByNodeId: nextPosByNodeId })
+    set({ flowWidgetPosByNodeId: nextPosByNodeId })
   },
-  flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { x: number; y: number }>>>(
-    LS_KEYS.flowNodeQuickEditorWorldPosByGraphMetaKey,
+  flowWidgetWorldPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { x: number; y: number }>>>(
+    LS_KEYS.flowWidgetWorldPosByGraphMetaKey,
     {},
     raw => {
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
@@ -529,8 +541,8 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
       return out
     },
   ),
-  flowNodeQuickEditorWorldPosByNodeId: lsJson<Record<string, { x: number; y: number }>>(
-    LS_KEYS.flowNodeQuickEditorWorldPosByNodeId,
+  flowWidgetWorldPosByNodeId: lsJson<Record<string, { x: number; y: number }>>(
+    LS_KEYS.flowWidgetWorldPosByNodeId,
     {},
     raw => {
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
@@ -547,12 +559,12 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
       return out
     },
   ),
-  setFlowNodeQuickEditorWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => {
+  setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => {
     const state = get()
     const nextWorldByNodeId = normalizeWorldByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
-    const by = state.flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey || {}
-    const prevWorldByNodeId = state.flowNodeQuickEditorWorldPosByNodeId || {}
+    const by = state.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
+    const prevWorldByNodeId = state.flowWidgetWorldPosByNodeId || {}
     const prevGraphWorldByNodeId = graphKey ? (by[graphKey] || {}) : prevWorldByNodeId
     const sameGlobal = isSameWorldByNodeId(prevWorldByNodeId, nextWorldByNodeId)
     const sameForGraph = isSameWorldByNodeId(prevGraphWorldByNodeId, nextWorldByNodeId)
@@ -560,20 +572,20 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
     const nextBy = graphKey ? { ...by, [graphKey]: nextWorldByNodeId } : by
     if (graphKey) {
       set({
-        flowNodeQuickEditorWorldPosByNodeId: nextWorldByNodeId,
-        flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey: nextBy,
+        flowWidgetWorldPosByNodeId: nextWorldByNodeId,
+        flowWidgetWorldPosByNodeIdByGraphMetaKey: nextBy,
       })
-      scheduleFlowQuickEditorPersistence({ worldByGraph: nextBy })
+      scheduleFlowWidgetPersistence({ worldByGraph: nextBy })
       return
     }
-    set({ flowNodeQuickEditorWorldPosByNodeId: nextWorldByNodeId })
+    set({ flowWidgetWorldPosByNodeId: nextWorldByNodeId })
   },
-  flowNodeQuickEditorDraggingNodeId: null as string | null,
-  setFlowNodeQuickEditorDraggingNodeId: (rawId: string | null) => {
+  flowWidgetDraggingNodeId: null as string | null,
+  setFlowWidgetDraggingNodeId: (rawId: string | null) => {
     const id = rawId == null ? null : String(rawId || '').trim()
-    const prev = get().flowNodeQuickEditorDraggingNodeId ?? null
+    const prev = get().flowWidgetDraggingNodeId ?? null
     if (prev === id) return
-    set({ flowNodeQuickEditorDraggingNodeId: id })
+    set({ flowWidgetDraggingNodeId: id })
   },
   }
 }

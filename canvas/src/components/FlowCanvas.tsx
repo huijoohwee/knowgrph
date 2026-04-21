@@ -48,16 +48,16 @@ import { bindFlowCanvasNativeInteractions, type FlowCanvasDrag } from '@/compone
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
 import { placeFlowFallbackSeedPositions } from '@/components/FlowCanvas/seedFallbackPositions'
 import { useFlowComputedPositions } from '@/components/FlowCanvas/useFlowComputedPositions'
-import { fitFlowEditorPinnedQuickEditors } from '@/components/FlowCanvas/fitPinnedQuickEditors'
+import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
 import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowRequestCommit } from '@/components/FlowCanvas/useFlowRequestCommit'
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
-import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize, NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
-import { computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
+import { computeWidgetScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeWidgetMaxAnchorShiftPx } from '@/components/FlowEditor/widgetLayout'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import type { GraphSchema } from '@/lib/graph/schema'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { listMediaOverlayNodes, type MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import RichMediaPanel from '@/components/RichMediaPanel'
@@ -70,7 +70,7 @@ import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/mark
 import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { buildPanelOnlyNodeIdSetFromGraphNodes, listMarkdownPanelOverlayNodes } from '@/lib/render/markdownPanelOverlayPool'
 
-const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
+const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const EMPTY_STRING_ARRAY: string[] = []
 const EMPTY_BOOL_RECORD: Record<string, boolean> = {}
 const EMPTY_POS_RECORD: Record<string, { x: number; y: number }> = {}
@@ -400,9 +400,9 @@ export default function FlowCanvas({
     renderGroups: undefined,
     renderNodes: undefined,
     grid: null,
-    flowEditorQuickEditorOpenNodeIds: undefined,
-    flowEditorQuickEditorPinnedByNodeId: undefined,
-    flowEditorQuickEditorWorldPosByNodeId: undefined,
+    flowEditorWidgetOpenNodeIds: undefined,
+    flowEditorWidgetPinnedByNodeId: undefined,
+    flowEditorWidgetWorldPosByNodeId: undefined,
   })
   const lastPointerInCanvasRef = React.useRef<null | { sx: number; sy: number; ts: number }>(null)
   const lastWheelIntentRef = React.useRef<null | { dir: 'in' | 'out'; ts: number }>(null)
@@ -643,11 +643,11 @@ export default function FlowCanvas({
     zoomToSelectionMode,
     setZoomState,
     setZoomStateForKey,
-    nodeQuickEditorRegistry,
-    openQuickEditorNodeIds,
-    flowNodeQuickEditorPinnedByNodeId,
-    flowNodeQuickEditorWorldPosByNodeId,
-    flowNodeQuickEditorPosByNodeId,
+    widgetRegistry,
+    openWidgetNodeIds,
+    flowWidgetPinnedByNodeId,
+    flowWidgetWorldPosByNodeId,
+    flowWidgetPosByNodeId,
     markdownDocumentName,
     markdownDocumentText,
   } = useGraphStore(
@@ -680,11 +680,11 @@ export default function FlowCanvas({
           zoomToSelectionMode: false,
           setZoomState: s.setZoomState,
           setZoomStateForKey: s.setZoomStateForKey,
-          nodeQuickEditorRegistry: EMPTY_NODE_QUICK_EDITOR_REGISTRY,
-          openQuickEditorNodeIds: EMPTY_STRING_ARRAY,
-          flowNodeQuickEditorPinnedByNodeId: EMPTY_BOOL_RECORD,
-          flowNodeQuickEditorWorldPosByNodeId: EMPTY_POS_RECORD,
-          flowNodeQuickEditorPosByNodeId: EMPTY_POS_RECORD,
+          widgetRegistry: EMPTY_WIDGET_REGISTRY,
+          openWidgetNodeIds: EMPTY_STRING_ARRAY,
+          flowWidgetPinnedByNodeId: EMPTY_BOOL_RECORD,
+          flowWidgetWorldPosByNodeId: EMPTY_POS_RECORD,
+          flowWidgetPosByNodeId: EMPTY_POS_RECORD,
           markdownDocumentName: null,
           markdownDocumentText: '',
         }
@@ -716,11 +716,11 @@ export default function FlowCanvas({
         zoomToSelectionMode: s.zoomToSelectionMode === true,
         setZoomState: s.setZoomState,
         setZoomStateForKey: s.setZoomStateForKey,
-        nodeQuickEditorRegistry: s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY,
-        openQuickEditorNodeIds: s.openQuickEditorNodeIds || [],
-        flowNodeQuickEditorPinnedByNodeId: s.flowNodeQuickEditorPinnedByNodeId || {},
-        flowNodeQuickEditorWorldPosByNodeId: (s as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowNodeQuickEditorWorldPosByNodeId || {},
-        flowNodeQuickEditorPosByNodeId: s.flowNodeQuickEditorPosByNodeId || {},
+        widgetRegistry: s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY,
+        openWidgetNodeIds: s.openWidgetNodeIds || [],
+        flowWidgetPinnedByNodeId: s.flowWidgetPinnedByNodeId || {},
+        flowWidgetWorldPosByNodeId: (s as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId || {},
+        flowWidgetPosByNodeId: s.flowWidgetPosByNodeId || {},
         markdownDocumentName: (s as unknown as { markdownDocumentName?: unknown }).markdownDocumentName,
         markdownDocumentText: (s as unknown as { markdownDocumentText?: unknown }).markdownDocumentText,
       }
@@ -767,21 +767,21 @@ export default function FlowCanvas({
     drawArgsRef.current.renderGroups = renderGroups
     drawArgsRef.current.renderNodes = renderNodes
     if (canvas2dRenderer === 'flowEditor') {
-      drawArgsRef.current.flowEditorQuickEditorOpenNodeIds = openQuickEditorNodeIds || []
-      drawArgsRef.current.flowEditorQuickEditorPinnedByNodeId = flowNodeQuickEditorPinnedByNodeId || {}
-      drawArgsRef.current.flowEditorQuickEditorWorldPosByNodeId = flowNodeQuickEditorWorldPosByNodeId || {}
+      drawArgsRef.current.flowEditorWidgetOpenNodeIds = openWidgetNodeIds || []
+      drawArgsRef.current.flowEditorWidgetPinnedByNodeId = flowWidgetPinnedByNodeId || {}
+      drawArgsRef.current.flowEditorWidgetWorldPosByNodeId = flowWidgetWorldPosByNodeId || {}
     } else {
-      drawArgsRef.current.flowEditorQuickEditorOpenNodeIds = undefined
-      drawArgsRef.current.flowEditorQuickEditorPinnedByNodeId = undefined
-      drawArgsRef.current.flowEditorQuickEditorWorldPosByNodeId = undefined
+      drawArgsRef.current.flowEditorWidgetOpenNodeIds = undefined
+      drawArgsRef.current.flowEditorWidgetPinnedByNodeId = undefined
+      drawArgsRef.current.flowEditorWidgetWorldPosByNodeId = undefined
     }
   }, [
     active,
     buildDrawArgs,
     canvas2dRenderer,
-    flowNodeQuickEditorPinnedByNodeId,
-    flowNodeQuickEditorWorldPosByNodeId,
-    openQuickEditorNodeIds,
+    flowWidgetPinnedByNodeId,
+    flowWidgetWorldPosByNodeId,
+    openWidgetNodeIds,
     renderEdges,
     renderGroups,
     renderNodes,
@@ -1552,12 +1552,12 @@ export default function FlowCanvas({
 
   const flowEditorReservedW = React.useMemo(() => {
     if (canvas2dRenderer !== 'flowEditor') return 0
-    const openCount = openQuickEditorNodeIds.length
+    const openCount = openWidgetNodeIds.length
     if (openCount <= 0) return 0
-    const pinnedById = flowNodeQuickEditorPinnedByNodeId || {}
+    const pinnedById = flowWidgetPinnedByNodeId || {}
     let unpinnedCount = 0
-    for (let i = 0; i < openQuickEditorNodeIds.length; i += 1) {
-      const id = String(openQuickEditorNodeIds[i] || '').trim()
+    for (let i = 0; i < openWidgetNodeIds.length; i += 1) {
+      const id = String(openWidgetNodeIds[i] || '').trim()
       if (!id) continue
       const v = pinnedById[id]
       const pinnedInCanvas = typeof v === 'boolean' ? v : true
@@ -1589,8 +1589,8 @@ export default function FlowCanvas({
     const marginRight = 20
     const marginTop = 96
     const marginBottom = 24
-    const cellW = NODE_QUICK_EDITOR_BASE_SIZE.width + gapPx + portExtraPadPx
-    const cellH = Math.round(NODE_QUICK_EDITOR_BASE_SIZE.height * 0.76) + gapPx
+    const cellW = WIDGET_BASE_SIZE.width + gapPx + portExtraPadPx
+    const cellH = Math.round(WIDGET_BASE_SIZE.height * 0.76) + gapPx
     const rowsMax = Math.max(1, Math.floor((viewportH - marginTop - marginBottom) / Math.max(1, cellH)))
     const colsNeeded = Math.max(1, Math.ceil(unpinnedCount / rowsMax))
     const colsMax = Math.max(1, Math.min(3, Math.floor((viewportW - marginLeft - marginRight) / Math.max(1, cellW))))
@@ -1600,8 +1600,8 @@ export default function FlowCanvas({
     return Math.max(0, Math.min(Math.floor(viewportW * 0.72), Math.floor(raw)))
   }, [
     canvas2dRenderer,
-    flowNodeQuickEditorPinnedByNodeId,
-    openQuickEditorNodeIds,
+    flowWidgetPinnedByNodeId,
+    openWidgetNodeIds,
     schema?.behavior?.portHandles,
     schema?.layout?.flow,
     viewportH,
@@ -1656,14 +1656,14 @@ export default function FlowCanvas({
         : 2
     const portExtraPadScreenPx = portEnabled ? portSizePx + portOffsetPx + 8 : 0
 
-    const fit = fitFlowEditorPinnedQuickEditors({
+    const fit = fitFlowEditorPinnedWidgets({
       nodes,
       fitW,
       viewportH,
       viewportW,
-      openQuickEditorNodeIds,
-      pinnedById: flowNodeQuickEditorPinnedByNodeId || {},
-      worldPosById: flowNodeQuickEditorWorldPosByNodeId || {},
+      openWidgetNodeIds,
+      pinnedById: flowWidgetPinnedByNodeId || {},
+      worldPosById: flowWidgetWorldPosByNodeId || {},
       portExtraPadScreenPx,
       graphData: graphDataForZoomRequests,
       fitOpts: opts,
@@ -1675,12 +1675,12 @@ export default function FlowCanvas({
     canvas2dRenderer,
     documentSemanticMode,
     flowEditorReservedW,
-    flowNodeQuickEditorPinnedByNodeId,
-    flowNodeQuickEditorWorldPosByNodeId,
-    flowNodeQuickEditorPosByNodeId,
+    flowWidgetPinnedByNodeId,
+    flowWidgetWorldPosByNodeId,
+    flowWidgetPosByNodeId,
     graphDataForZoomRequests,
     nodesForFlowZoom,
-    openQuickEditorNodeIds,
+    openWidgetNodeIds,
     schema,
     viewportH,
     viewportW,
@@ -1864,14 +1864,14 @@ export default function FlowCanvas({
               ? Math.max(0, (port as { offset: number }).offset)
               : 2
           const portExtraPadScreenPx = portEnabled ? portSizePx + portOffsetPx + 8 : 0
-          return fitFlowEditorPinnedQuickEditors({
+          return fitFlowEditorPinnedWidgets({
             nodes: nodesForFit,
             fitW,
             viewportH,
             viewportW,
-            openQuickEditorNodeIds,
-            pinnedById: flowNodeQuickEditorPinnedByNodeId || {},
-            worldPosById: flowNodeQuickEditorWorldPosByNodeId || {},
+            openWidgetNodeIds,
+            pinnedById: flowWidgetPinnedByNodeId || {},
+            worldPosById: flowWidgetWorldPosByNodeId || {},
             portExtraPadScreenPx,
             graphData: graphDataForZoomRequests,
             fitOpts: opts,
@@ -1903,11 +1903,11 @@ export default function FlowCanvas({
           sumY += y
           count += 1
         }
-        const openIds = openQuickEditorNodeIds || []
-        const pinnedById = flowNodeQuickEditorPinnedByNodeId || {}
-        const worldById = flowNodeQuickEditorWorldPosByNodeId || {}
-        const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
-        const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+        const openIds = openWidgetNodeIds || []
+        const pinnedById = flowWidgetPinnedByNodeId || {}
+        const worldById = flowWidgetWorldPosByNodeId || {}
+        const panelScale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
+        const panelScreen = computeWidgetScaledSize(panelScale)
         const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
         const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
         for (let i = 0; i < openIds.length; i += 1) {
@@ -2008,7 +2008,7 @@ export default function FlowCanvas({
       flowConfig: flowConfigEffective,
       sceneGroups,
       rankdir,
-      nodeQuickEditorRegistry,
+      widgetRegistry,
     })
     __flowCanvasDebug.lastBuiltSceneNodeCount = res.nodeCount
     scheduleFlowDraw()
@@ -2025,7 +2025,7 @@ export default function FlowCanvas({
     sceneGraphData,
     sceneGroups,
     schema,
-    nodeQuickEditorRegistry,
+    widgetRegistry,
   ])
 
   React.useEffect(() => {

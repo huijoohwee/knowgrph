@@ -33,6 +33,7 @@ import { buildJsonMarkdownConfigFromPreferences } from '@/features/markdown/json
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { useWorkspaceExportBridge } from './useWorkspaceExportBridge'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import { tryBuildWidgetBundleMarkdownFromJsonText } from '@/lib/graph/io/widgetBundle'
 
 const MarkdownWorkspacePresentationSurfaceLazy = React.lazy(
   async (): Promise<{ default: typeof import('./presentation/MarkdownWorkspacePresentationSurface')['MarkdownWorkspacePresentationSurface'] }> =>
@@ -267,6 +268,8 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     if (isMarkdown) return null
     const text = String(activeText || '').trim()
     if (!text || (!text.startsWith('{') && !text.startsWith('['))) return null
+    const widgetBundleMarkdown = tryBuildWidgetBundleMarkdownFromJsonText(text)
+    if (widgetBundleMarkdown) return widgetBundleMarkdown
     const bipartite = buildBipartiteMarkdownFromJsonText(text)
     if (bipartite) return bipartite
     try {

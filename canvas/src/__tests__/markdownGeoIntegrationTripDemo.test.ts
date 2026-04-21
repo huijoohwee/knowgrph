@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { loadDatasetFeatureCollection, LS_KEYS, parseGeoJsonFromText } from 'gympgrph'
+import { loadDatasetFeatureCollection, LS_KEYS, parseGeoJsonFromText } from '@/lib/gympgrph/api'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'

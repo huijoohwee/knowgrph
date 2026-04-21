@@ -11,7 +11,7 @@ import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildSourceLayerKeys, composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
 import {
   applyLayoutAutosuggestFromMetadata,
-  applyNodeQuickEditorRegistryFromMetadata,
+  applyWidgetRegistryFromMetadata,
   hashGraphDataForPreviewSync,
   syncGraphFieldsWithGraphData,
   readGraphRagWorkflowJsonTextFromGraphData,
@@ -468,12 +468,12 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       const nextCollapsed = collapsedKey ? (byKey[collapsedKey] || []) : (s.collapsedGroupIds || [])
       const designByKey = (s.designLayerStateByGraphMetaKey || {}) as Record<string, import('@/features/design/designLayersState').DesignLayerState>
       const nextDesignLayerState = collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
-      const pinnedByKey = (s.flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
-      const posByKey = (s.flowNodeQuickEditorPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
-      const worldByKey = (s.flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
-      const nextPinned = collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowNodeQuickEditorPinnedByNodeId
-      const nextPos = collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowNodeQuickEditorPosByNodeId
-      const nextWorld = collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowNodeQuickEditorWorldPosByNodeId
+      const pinnedByKey = (s.flowWidgetPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
+      const posByKey = (s.flowWidgetPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
+      const worldByKey = (s.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
+      const nextPinned = collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
+      const nextPos = collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
+      const nextWorld = collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
       return {
         graphData: nextGraphData,
         graphDataRevision: nextRevision,
@@ -483,9 +483,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         graphValidationTimestamp: null,
         ...(collapsedKey ? { collapsedGroupIds: nextCollapsed } : {}),
         ...(collapsedKey ? { designLayerState: nextDesignLayerState } : {}),
-        ...(collapsedKey ? { flowNodeQuickEditorPinnedByNodeId: nextPinned } : {}),
-        ...(collapsedKey ? { flowNodeQuickEditorPosByNodeId: nextPos } : {}),
-        ...(collapsedKey ? { flowNodeQuickEditorWorldPosByNodeId: nextWorld } : {}),
+        ...(collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
+        ...(collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),
+        ...(collapsedKey ? { flowWidgetWorldPosByNodeId: nextWorld } : {}),
       }
     })
     const stateNow = get()
@@ -497,7 +497,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       void 0
     }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
+      applyWidgetRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch {
       void 0
     }
@@ -531,7 +531,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       }
     } catch { void 0 }
     try {
-      get().setOpenQuickEditorNodeIds(get().openQuickEditorNodeIds || [])
+      get().setOpenWidgetNodeIds(get().openWidgetNodeIds || [])
     } catch { void 0 }
     set({ lifecycleStage: 'committed' });
     set({ aiKgTraversalRan: false });
@@ -603,12 +603,12 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       const nextCollapsed = collapsedKey ? (byKey[collapsedKey] || []) : (s.collapsedGroupIds || [])
       const designByKey = (s.designLayerStateByGraphMetaKey || {}) as Record<string, import('@/features/design/designLayersState').DesignLayerState>
       const nextDesignLayerState = collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
-      const pinnedByKey = (s.flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
-      const posByKey = (s.flowNodeQuickEditorPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
-      const worldByKey = (s.flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
-      const nextPinned = collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowNodeQuickEditorPinnedByNodeId
-      const nextPos = collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowNodeQuickEditorPosByNodeId
-      const nextWorld = collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowNodeQuickEditorWorldPosByNodeId
+      const pinnedByKey = (s.flowWidgetPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
+      const posByKey = (s.flowWidgetPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
+      const worldByKey = (s.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
+      const nextPinned = collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
+      const nextPos = collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
+      const nextWorld = collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
       return {
         graphData: withGraphDataRevision(nextGraphData, nextRevision),
         graphDataRevision: nextRevision,
@@ -616,9 +616,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         graphValidationTimestamp: null,
         ...(collapsedKey ? { collapsedGroupIds: nextCollapsed } : {}),
         ...(collapsedKey ? { designLayerState: nextDesignLayerState } : {}),
-        ...(collapsedKey ? { flowNodeQuickEditorPinnedByNodeId: nextPinned } : {}),
-        ...(collapsedKey ? { flowNodeQuickEditorPosByNodeId: nextPos } : {}),
-        ...(collapsedKey ? { flowNodeQuickEditorWorldPosByNodeId: nextWorld } : {}),
+        ...(collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
+        ...(collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),
+        ...(collapsedKey ? { flowWidgetWorldPosByNodeId: nextWorld } : {}),
       }
     })
     const stateNow = get()
@@ -648,7 +648,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       void 0
     }
     try {
-      get().setOpenQuickEditorNodeIds(get().openQuickEditorNodeIds || [])
+      get().setOpenWidgetNodeIds(get().openWidgetNodeIds || [])
     } catch { void 0 }
 
     try {
@@ -665,7 +665,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyLayoutAutosuggestFromMetadata(get, committed.metadata)
     } catch { void 0 }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, committed.metadata, committed)
+      applyWidgetRegistryFromMetadata(get, committed.metadata, committed)
     } catch { void 0 }
 
     set({ lifecycleStage: 'committed' })
@@ -689,7 +689,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       selectedEdgeId: null,
       selectedNodeIds: [],
       selectedEdgeIds: [],
-      openQuickEditorNodeIds: [],
+      openWidgetNodeIds: [],
       aiKgTraversalRan: false,
       layoutPositionCacheByMode: {},
       minimapPreview: { nodesPath: '', edgesPath: '', sx: 1, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 } },
@@ -925,7 +925,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
             graphValidationTimestamp: null,
           }))
           try {
-            get().updateOpenQuickEditorNodeIds(prev => prev.filter(nodeId => nodeId !== id))
+            get().updateOpenWidgetNodeIds(prev => prev.filter(nodeId => nodeId !== id))
           } catch { void 0 }
           try {
             syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -961,7 +961,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       graphValidationTimestamp: null,
     }));
     try {
-      get().updateOpenQuickEditorNodeIds(prev => prev.filter(nodeId => nodeId !== id))
+      get().updateOpenWidgetNodeIds(prev => prev.filter(nodeId => nodeId !== id))
     } catch { void 0 }
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -1263,7 +1263,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
     } catch { void 0 }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
+      applyWidgetRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch { void 0 }
     try {
       lsSetJson(LS_KEYS.graphData, nextGraphData)
@@ -1325,7 +1325,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
     } catch { void 0 }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
+      applyWidgetRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch { void 0 }
     try {
       lsSetJson(LS_KEYS.graphData, nextGraphData)
@@ -1396,7 +1396,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyLayoutAutosuggestFromMetadata(get, nextGraphData.metadata)
     } catch { void 0 }
     try {
-      applyNodeQuickEditorRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
+      applyWidgetRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch { void 0 }
     try {
       lsSetJson(LS_KEYS.graphData, nextGraphData)

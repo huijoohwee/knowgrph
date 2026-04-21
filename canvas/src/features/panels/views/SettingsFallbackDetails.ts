@@ -664,7 +664,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   flowEditorOverlayWheelProxyEnabled: {
     area: 'Canvas Interaction (Flow Editor)',
     responsibility: 'Enable wheel zoom/pan proxy when pointer is over Flow Editor fly-out overlays',
-    notes: 'When enabled, wheel gestures over Node Quick Editor overlays are forwarded to the Flow canvas unless the overlay can scroll in that direction.',
+    notes: 'When enabled, wheel gestures over Widget overlays are forwarded to the Flow canvas unless the overlay can scroll in that direction.',
   },
   viewPinned: {
     area: 'Canvas Zoom Modes',

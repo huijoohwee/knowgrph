@@ -171,7 +171,7 @@ export const testImportRenderPipelineAcrossModesAndLayouts = async () => {
   const handlesByNode = computeFlowHandlesByNode({
     nodes: (keywordMerged.nodes || []).slice(0, 40) as unknown as Array<{ id: unknown; type?: unknown; properties?: unknown }>,
     edges: (keywordMerged.edges || []).slice(0, 80) as unknown as Array<{ id: unknown; source: unknown; target: unknown; properties?: unknown }>,
-    nodeQuickEditorRegistry: null,
+    widgetRegistry: null,
   })
   const anyHandles = Object.values(handlesByNode)[0]
   if (anyHandles) {

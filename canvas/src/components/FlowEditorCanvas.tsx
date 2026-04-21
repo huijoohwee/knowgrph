@@ -17,9 +17,11 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
+  FLOW_IMAGE_GENERATION_NODE_LABEL,
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-  FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY,
+  FLOW_WIDGET_REGISTRY_METADATA_KEY,
   LS_KEYS,
 } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -48,20 +50,25 @@ import {
 } from '@/lib/graph/flowPorts'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
-import { buildFlowQuickEditorEligibleNodeIdSet, filterGraphToFlowQuickEditorEligible } from '@/lib/graph/flowQuickEditorEligibility'
+import { buildFlowWidgetEligibleNodeIdSet, filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibility'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { canAddEdge } from '@/features/schema/validation'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
-import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
-import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
-import { hasFlowNodeQuickEditorDragType, readFlowNodeQuickEditorDragPayloadFromDataTransfer } from '@/lib/flowEditor/nodeQuickEditorDrag'
-import { buildSelectionSubgraph, exportNodeQuickEditorBundleAsJson } from '@/lib/graph/file'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import {
+  clearActiveFlowWidgetPointerDragSession,
+  hasFlowWidgetDragType,
+  readActiveFlowWidgetPointerDragSession,
+  readFlowWidgetDragPayloadFromDataTransfer,
+} from '@/lib/flowEditor/widgetDrag'
+import { buildSelectionSubgraph, exportWidgetBundleAsJson } from '@/lib/graph/file'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
-import { computeNodeQuickEditorScale, computeNodeQuickEditorScaledSize } from '@/components/FlowEditor/nodeQuickEditorZoom'
-import { computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
-import { placeQuickEditorsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
+import { computeWidgetScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeWidgetMaxAnchorShiftPx } from '@/components/FlowEditor/widgetLayout'
+import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
 import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOverlayPanels'
@@ -80,11 +87,10 @@ import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
 type ToolMode = 'select' | 'addEdge'
 
 const OVERLAY_NODE_OVERRIDE_LOCK_MS = 4000
-const QUICK_EDITOR_DROP_DEDUPE_WINDOW_MS = 250
+const WIDGET_DROP_DEDUPE_WINDOW_MS = 250
 const FORCE_SELECT_TICK_MS = 30
 const FORCE_SELECT_MAX_TICKS = 80
-const DROP_DEBUG_TOAST_TTL_MS = 3500
-const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
+const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -101,7 +107,7 @@ function snapToGridPx(value: number, stepPx: number): number {
   return Math.round(value / step) * step
 }
 
-function readQuickEditorGridLayoutSettings(schema: unknown): { gridEnabled: boolean; stepPx: number; gapPx: number } {
+function readWidgetGridLayoutSettings(schema: unknown): { gridEnabled: boolean; stepPx: number; gapPx: number } {
   const behavior =
     schema && typeof schema === 'object' && !Array.isArray(schema)
       ? ((schema as { behavior?: unknown }).behavior as Record<string, unknown> | undefined)
@@ -133,7 +139,7 @@ function deriveFlowEditorViewGraph(args: {
 }): GraphData | null {
   const base = args.graphData
   if (!base) return null
-  const filtered = args.forceFrontmatterFlow === true ? filterGraphToFlowQuickEditorEligible(base) : base
+  const filtered = args.forceFrontmatterFlow === true ? filterGraphToFlowWidgetEligible(base) : base
   if (!Array.isArray(args.collapsedGroupIds) || args.collapsedGroupIds.length === 0) return filtered
   return deriveGraphDataWithGroupCollapse({
     graphData: filtered,
@@ -141,7 +147,7 @@ function deriveFlowEditorViewGraph(args: {
   })
 }
 
-const FlowEditorNodeQuickEditorOverlay = React.memo(function FlowEditorNodeQuickEditorOverlay(args: {
+const FlowEditorWidgetOverlay = React.memo(function FlowEditorWidgetOverlay(args: {
   visible?: boolean
   active: boolean
   node: GraphNode
@@ -301,7 +307,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
   const selectedNodeIds = useGraphStore(s => (Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : []))
   const selectedEdgeId = useGraphStore(s => (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null))
-  const flowNodeQuickEditorPinnedByNodeId = useGraphStore(s => s.flowNodeQuickEditorPinnedByNodeId || {})
+  const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId || {})
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
@@ -398,20 +404,20 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     zoomViewKeyRef.current = zoomViewKey
   }, [zoomViewKey])
 
-  const nodeQuickEditorRegistry = useGraphStore(s => s.effectiveNodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY)
-  const nodeQuickEditorRegistryRef = React.useRef(nodeQuickEditorRegistry)
-  const lastQuickEditorDropRef = React.useRef<{ key: string; ts: number } | null>(null)
-  const lastDroppedQuickEditorNodeIdRef = React.useRef<string | null>(null)
-  const [lastDroppedQuickEditorToken, setLastDroppedQuickEditorToken] = React.useState<number>(0)
+  const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
+  const widgetRegistryRef = React.useRef(widgetRegistry)
+  const lastWidgetDropRef = React.useRef<{ key: string; ts: number } | null>(null)
+  const lastDroppedWidgetNodeIdRef = React.useRef<string | null>(null)
+  const [lastDroppedWidgetToken, setLastDroppedWidgetToken] = React.useState<number>(0)
 
-  const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
-  const openQuickEditorNodeIdsRef = React.useRef(openQuickEditorNodeIds)
-  const updateOpenQuickEditorNodeIds = useGraphStore(s => s.updateOpenQuickEditorNodeIds)
-  const setOpenQuickEditorNodeIds = useGraphStore(s => s.setOpenQuickEditorNodeIds)
+  const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds || [])
+  const openWidgetNodeIdsRef = React.useRef(openWidgetNodeIds)
+  const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
+  const setOpenWidgetNodeIds = useGraphStore(s => s.setOpenWidgetNodeIds)
 
   React.useEffect(() => {
-    openQuickEditorNodeIdsRef.current = openQuickEditorNodeIds
-  }, [openQuickEditorNodeIds])
+    openWidgetNodeIdsRef.current = openWidgetNodeIds
+  }, [openWidgetNodeIds])
 
   const flowRuntimeRefRef = React.useRef<React.MutableRefObject<import('@/components/FlowCanvas/nativeRuntime').FlowNativeRuntime | null> | null>(null)
   const getLiveNodeWorldPos = React.useCallback((nodeId: string) => {
@@ -490,10 +496,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!best) return null
 
     const st = useGraphStore.getState()
-    const openIds = Array.isArray(st.openQuickEditorNodeIds) ? st.openQuickEditorNodeIds : []
+    const openIds = Array.isArray(st.openWidgetNodeIds) ? st.openWidgetNodeIds : []
     const worldById =
-      (st as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
-        .flowNodeQuickEditorWorldPosByNodeId || {}
+      (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        .flowWidgetWorldPosByNodeId || {}
     const autoSeedWorldById = latestAutoSeedWorldPosByNodeIdRef.current || {}
     const t =
       getLiveZoomTransform() ||
@@ -504,8 +510,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }) ||
       { k: 1, x: 0, y: 0 }
     const zoomK = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-    const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
-    const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+    const panelScale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
+    const panelScreen = computeWidgetScaledSize(panelScale)
     const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
     const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
     const overlayAabbByNodeId: Record<string, { minX: number; minY: number; maxX: number; maxY: number }> = {}
@@ -534,21 +540,21 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     return { groupId: bestId, ...aabb }
   }, [getLiveZoomTransform])
 
-  const seededPinnedQuickEditorWorldPosKeyRef = React.useRef<string>('')
-  const autoSeededPinnedQuickEditorSnapshotRef = React.useRef<{
+  const seededPinnedWidgetWorldPosKeyRef = React.useRef<string>('')
+  const autoSeededPinnedWidgetSnapshotRef = React.useRef<{
     signature: string
     positions: Record<string, { x: number; y: number }>
   }>({ signature: '', positions: {} })
   useIsomorphicLayoutEffect(() => {
     if (!active) return
-    const openIds = openQuickEditorNodeIds
+    const openIds = openWidgetNodeIds
     if (!Array.isArray(openIds) || openIds.length === 0) return
 
     const st = useGraphStore.getState()
-    const pinnedById = st.flowNodeQuickEditorPinnedByNodeId || {}
+    const pinnedById = st.flowWidgetPinnedByNodeId || {}
     const worldById =
-      (st as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
-        .flowNodeQuickEditorWorldPosByNodeId || {}
+      (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        .flowWidgetWorldPosByNodeId || {}
 
     const pendingRaw = openIds
       .map(id => String(id || '').trim())
@@ -571,17 +577,17 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }) ||
       { k: 1, x: 0, y: 0 }
     const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
-    const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'pinnedInCanvas' })
-    const panelScreen = computeNodeQuickEditorScaledSize(panelScale)
+    const panelScale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
+    const panelScreen = computeWidgetScaledSize(panelScale)
     const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
     const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
-    const quickEditorGrid = readQuickEditorGridLayoutSettings(schema)
+    const widgetGrid = readWidgetGridLayoutSettings(schema)
 
-    const GAP_SCREEN_PX = Math.max(24, quickEditorGrid.gapPx)
+    const GAP_SCREEN_PX = Math.max(24, widgetGrid.gapPx)
     const gapWorld = GAP_SCREEN_PX / Math.max(0.001, zoomK)
     const cellW = (panelScreen.width + GAP_SCREEN_PX) / Math.max(0.001, zoomK)
     const cellH = (panelScreen.height + GAP_SCREEN_PX) / Math.max(0.001, zoomK)
-    const worldStep = quickEditorGrid.gridEnabled ? Math.max(1, quickEditorGrid.stepPx) : 1
+    const worldStep = widgetGrid.gridEnabled ? Math.max(1, widgetGrid.stepPx) : 1
     const snapWorld = (v: number) => (worldStep > 1 ? snapToGridPx(v, worldStep) : v)
 
     const center = viewportCenterToWorld({ transform: z, viewportW, viewportH })
@@ -594,7 +600,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       maxY: center.y + viewportHalfWorldH,
     }
     const placeSpreadGridInBounds = (ids: string[], bounds: { minX: number; minY: number; maxX: number; maxY: number }) =>
-      placeQuickEditorsCenteredInGroupBounds({
+      placeWidgetsCenteredInGroupBounds({
         ids,
         bounds,
         cellW,
@@ -632,7 +638,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       })
       .join('|')
 
-    const snapshot = autoSeededPinnedQuickEditorSnapshotRef.current
+    const snapshot = autoSeededPinnedWidgetSnapshotRef.current
     const isSameWorldPos = (a: { x: number; y: number } | null | undefined, b: { x: number; y: number } | null | undefined) => {
       if (!a || !b) return false
       return Math.abs(a.x - b.x) <= 0.0001 && Math.abs(a.y - b.y) <= 0.0001
@@ -702,8 +708,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const bucketIds = Array.from(idsByBucket.keys()).sort((a, b) => a.localeCompare(b))
     const pendingSet = new Set(pending)
     const seedKey = `${pending.join(',')}|${currentLayoutSignature}`
-    if (seededPinnedQuickEditorWorldPosKeyRef.current === seedKey) return
-    seededPinnedQuickEditorWorldPosKeyRef.current = seedKey
+    if (seededPinnedWidgetWorldPosKeyRef.current === seedKey) return
+    seededPinnedWidgetWorldPosKeyRef.current = seedKey
 
     const nextWorld = { ...worldById }
     let changed = false
@@ -724,14 +730,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         nextAutoSeedPositions[p.id] = { x: p.x, y: p.y }
       }
     }
-    autoSeededPinnedQuickEditorSnapshotRef.current = {
+    autoSeededPinnedWidgetSnapshotRef.current = {
       signature: currentLayoutSignature,
       positions: nextAutoSeedPositions,
     }
     latestAutoSeedWorldPosByNodeIdRef.current = nextAutoSeedPositions
     if (!changed) return
-    st.setFlowNodeQuickEditorWorldPosByNodeId(nextWorld)
-  }, [active, baseGraphDataRevision, getLiveZoomTransform, openQuickEditorNodeIds, schema, viewportH, viewportW])
+    st.setFlowWidgetWorldPosByNodeId(nextWorld)
+  }, [active, baseGraphDataRevision, getLiveZoomTransform, openWidgetNodeIds, schema, viewportH, viewportW])
 
   const emitFlowEditorInteractionFrame = React.useCallback(() => {
     if (typeof window === 'undefined') return
@@ -750,6 +756,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const [draftGraphData, setDraftGraphData] = React.useState<GraphData | null>(null)
   const draftGraphDataRef = React.useRef<GraphData | null>(null)
   const pendingSelectNodeIdRef = React.useRef<string | null>(null)
+  const pendingOpenWidgetNodeIdRef = React.useRef<string | null>(null)
   const [overlayNodeIdOverride, setOverlayNodeIdOverride] = React.useState<string | null>(null)
   const [pendingOverlayNode, setPendingOverlayNode] = React.useState<GraphNode | null>(null)
   const pendingOverlayNodeIdRef = React.useRef<string | null>(null)
@@ -886,7 +893,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const overlayEls = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
       if (overlayEls.length < 2) {
         const st = useGraphStore.getState()
-        const wantsResolve = (st.openQuickEditorNodeIds || []).length >= 2 || overlayOnlyModeEnabled
+        const wantsResolve = (st.openWidgetNodeIds || []).length >= 2 || overlayOnlyModeEnabled
         overlayCollisionWarmupAttemptsRef.current += 1
         const startedAt = overlayCollisionWarmupStartedAtMsRef.current || Date.now()
         const elapsed = Date.now() - startedAt
@@ -945,7 +952,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const next: string[] = []
         const seen = new Set<string>()
         for (let i = 0; i < overlayEls.length; i += 1) {
-          const id = String(overlayEls[i]?.dataset?.kgNodeQuickEditor || '').trim()
+          const id = String(overlayEls[i]?.dataset?.kgWidget || '').trim()
           if (!id || seen.has(id)) continue
           seen.add(id)
           next.push(id)
@@ -955,7 +962,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (overlayNodeIds.length < 2) return
 
       const st = useGraphStore.getState()
-      if (st.flowNodeQuickEditorDraggingNodeId) return
+      if (st.flowWidgetDraggingNodeId) return
       const liveZoom = getLiveZoomTransform()
       const zoomKRaw =
         (liveZoom?.k ??
@@ -978,11 +985,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }
 
       const schemaCur = schema
-      const panelScale = computeNodeQuickEditorScale(zoomK, null, { mode: 'floating' })
-      const floatingScaled = computeNodeQuickEditorScaledSize(panelScale)
+      const panelScale = computeWidgetScale(zoomK, null, { mode: 'floating' })
+      const floatingScaled = computeWidgetScaledSize(panelScale)
 
-      const pinnedById = st.flowNodeQuickEditorPinnedByNodeId || {}
-      const posById = st.flowNodeQuickEditorPosByNodeId || {}
+      const pinnedById = st.flowWidgetPinnedByNodeId || {}
+      const posById = st.flowWidgetPosByNodeId || {}
 
       const forcePinnedToCanvas = true
       const isPinnedInCanvas = (id: string): boolean => {
@@ -996,7 +1003,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const m = new Map<string, { left: number; top: number; width: number; height: number }>()
         for (let i = 0; i < overlayEls.length; i += 1) {
           const el = overlayEls[i]
-          const id = String(el.dataset.kgNodeQuickEditor || '').trim()
+          const id = String(el.dataset.kgWidget || '').trim()
           if (!id) continue
           const rect = el.getBoundingClientRect()
           const width = Number.isFinite(rect.width) ? rect.width : 0
@@ -1052,12 +1059,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const overlay = flow && typeof flow === 'object' ? (flow as { overlay?: { collisionGapPx?: unknown } }).overlay : null
         const raw = overlay ? overlay.collisionGapPx : null
         const base = typeof raw === 'number' && Number.isFinite(raw) ? raw : 12
-        const quickEditorGrid = readQuickEditorGridLayoutSettings(schemaCur)
-        const merged = quickEditorGrid.gridEnabled ? Math.max(base, quickEditorGrid.gapPx) : base
+        const widgetGrid = readWidgetGridLayoutSettings(schemaCur)
+        const merged = widgetGrid.gridEnabled ? Math.max(base, widgetGrid.gapPx) : base
         return Math.max(0, Math.min(80, Math.floor(merged)))
       })()
-      const quickEditorGrid = readQuickEditorGridLayoutSettings(schemaCur)
-      const snapStepPx = quickEditorGrid.gridEnabled ? Math.max(1, quickEditorGrid.stepPx) : 1
+      const widgetGrid = readWidgetGridLayoutSettings(schemaCur)
+      const snapStepPx = widgetGrid.gridEnabled ? Math.max(1, widgetGrid.stepPx) : 1
       const snapScreen = (v: number): number => (snapStepPx > 1 ? snapToGridPx(v, snapStepPx) : v)
 
       const unpinnedCount = overlayNodeIds.reduce((acc, id) => {
@@ -1086,7 +1093,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       let dockLeft = Math.max(marginLeft, overlayViewport.width - marginRight - dockWidth)
       let dockTop = marginTop
 
-      if (isFrontmatterFlow || quickEditorGrid.gridEnabled) {
+      if (isFrontmatterFlow || widgetGrid.gridEnabled) {
         const aspect = usableW / Math.max(1, usableH)
         let cols = Math.max(1, Math.min(colsMaxFit, Math.ceil(Math.sqrt(Math.max(1, unpinnedCount) * aspect))))
         let rows = Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / cols))
@@ -1377,7 +1384,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
               iterations: 12,
               steps: 14,
               anchorStrength: 0.08,
-              maxAnchorShiftPx: computeNodeQuickEditorMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
+              maxAnchorShiftPx: computeWidgetMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
               maxSpeedPxPerStep: 180,
             })
           : world.map(r => ({ id: r.id, left: r.left, top: r.top }))
@@ -1397,7 +1404,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
                 iterations: 10,
                 steps: 12,
                 anchorStrength: 0.08,
-                maxAnchorShiftPx: computeNodeQuickEditorMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
+                maxAnchorShiftPx: computeWidgetMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
                 maxSpeedPxPerStep: 180,
               })
             : world.map(r => ({ id: r.id, left: r.left, top: r.top }))
@@ -1430,7 +1437,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
       }
       if (!changed) return
-      st.setFlowNodeQuickEditorPosByNodeId(next)
+      st.setFlowWidgetPosByNodeId(next)
 
       const stillOverlaps =
         shouldResolveItems(world.map(it => ({ id: it.id, left: it.left, top: it.top, width: it.width, height: it.height })), gapPx)
@@ -1459,7 +1466,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   React.useEffect(() => {
     if (!active) return
     scheduleOverlayCollisionResolve()
-  }, [active, openQuickEditorNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])
+  }, [active, openWidgetNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])
 
   React.useEffect(() => {
     return () => {
@@ -1485,7 +1492,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayEdgeAnchorCacheRef = React.useRef<Map<string, { x: number; y: number }>>(new Map())
   const overlayEdgeTopPctCacheRef = React.useRef<{
     key: string
-    registry: ReadonlyArray<NodeQuickEditorRegistryEntry> | null
+    registry: ReadonlyArray<WidgetRegistryEntry> | null
     map: Map<string, Map<string, number>>
   } | null>(null)
 
@@ -1565,7 +1572,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       })()
 
       const overlayIdSet = (() => {
-        const ids = Array.isArray(openQuickEditorNodeIdsRef.current) ? openQuickEditorNodeIdsRef.current : []
+        const ids = Array.isArray(openWidgetNodeIdsRef.current) ? openWidgetNodeIdsRef.current : []
         const sel = String(pendingOverlayNodeIdRef.current || '').trim()
         const set = new Set<string>()
         for (let i = 0; i < ids.length; i += 1) {
@@ -1685,7 +1692,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const els = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
         for (let i = 0; i < els.length; i += 1) {
           const el = els[i]
-          const id = String(el?.dataset?.kgNodeQuickEditor || '').trim()
+          const id = String(el?.dataset?.kgWidget || '').trim()
           if (!id || !nodeIds.has(id)) continue
           m.set(id, el.getBoundingClientRect())
           elById.set(id, el)
@@ -1716,7 +1723,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           overlayEdgeKeyParts.push(`${e.id}:${e.source}->${e.target}:${e.sourcePortKey}|${e.targetPortKey}`)
         }
         overlayEdgeKeyParts.sort((a, b) => a.localeCompare(b))
-        const reg = Array.isArray(nodeQuickEditorRegistryRef.current) ? (nodeQuickEditorRegistryRef.current as ReadonlyArray<NodeQuickEditorRegistryEntry>) : null
+        const reg = Array.isArray(widgetRegistryRef.current) ? (widgetRegistryRef.current as ReadonlyArray<WidgetRegistryEntry>) : null
         const cacheKey = `${overlayNodeIds.join(',')}|${overlayEdgeKeyParts.join(',')}`
         const cached = overlayEdgeTopPctCacheRef.current
         if (cached && cached.key === cacheKey && cached.registry === reg) return cached.map
@@ -1724,7 +1731,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const handlesByNodeId = computeFlowHandlesByNode({
           nodes,
           edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target, properties: { [FLOW_EDGE_SOURCE_PORT_KEY]: e.sourcePortKey, [FLOW_EDGE_TARGET_PORT_KEY]: e.targetPortKey } })),
-          nodeQuickEditorRegistry: reg,
+          widgetRegistry: reg,
         })
         const map = new Map<string, Map<string, number>>()
         for (const [id, handles] of Object.entries(handlesByNodeId)) {
@@ -2056,12 +2063,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (flowEditorFrontmatterGraphAvailable) return
     if (isFrontmatterFlowGraph(draftGraphData as unknown as GraphData)) return
     const nodes = Array.isArray(draftGraphData.nodes) ? (draftGraphData.nodes as GraphNode[]) : []
-    const eligible = buildFlowQuickEditorEligibleNodeIdSet(nodes)
+    const eligible = buildFlowWidgetEligibleNodeIdSet(nodes)
     const ids = Array.from(eligible)
     if (ids.length === 0) return
     if (ids.length > 120) return
-    setOpenQuickEditorNodeIds(ids)
-  }, [active, draftGraphData, flowEditorFrontmatterGraphAvailable, overlayOnlyModeEnabled, setOpenQuickEditorNodeIds])
+    setOpenWidgetNodeIds(ids)
+  }, [active, draftGraphData, flowEditorFrontmatterGraphAvailable, overlayOnlyModeEnabled, setOpenWidgetNodeIds])
 
   React.useEffect(() => {
     if (!active) return
@@ -2069,22 +2076,22 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!draftGraphData) return
     const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
     const idSet = new Set(nodes.map(n => String(n.id || '')).filter(Boolean))
-    const eligible = buildFlowQuickEditorEligibleNodeIdSet(nodes as any)
-    updateOpenQuickEditorNodeIds(prev => prev.filter(id => {
+    const eligible = buildFlowWidgetEligibleNodeIdSet(nodes as any)
+    updateOpenWidgetNodeIds(prev => prev.filter(id => {
       const s = String(id || '')
       return idSet.has(s) && (eligible.size === 0 || eligible.has(s))
     }))
-  }, [active, draftGraphData, flowEditorViewActive, updateOpenQuickEditorNodeIds])
+  }, [active, draftGraphData, flowEditorViewActive, updateOpenWidgetNodeIds])
 
   React.useEffect(() => {
-    nodeQuickEditorRegistryRef.current = nodeQuickEditorRegistry
-  }, [nodeQuickEditorRegistry])
+    widgetRegistryRef.current = widgetRegistry
+  }, [widgetRegistry])
 
-  const shouldDedupeQuickEditorDrop = React.useCallback((key: string): boolean => {
+  const shouldDedupeWidgetDrop = React.useCallback((key: string): boolean => {
     const now = Date.now()
-    const last = lastQuickEditorDropRef.current
-    if (last && last.key === key && now - last.ts <= QUICK_EDITOR_DROP_DEDUPE_WINDOW_MS) return true
-    lastQuickEditorDropRef.current = { key, ts: now }
+    const last = lastWidgetDropRef.current
+    if (last && last.key === key && now - last.ts <= WIDGET_DROP_DEDUPE_WINDOW_MS) return true
+    lastWidgetDropRef.current = { key, ts: now }
     return false
   }, [])
 
@@ -2176,6 +2183,16 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     })
     scheduleForceSelect(pending, { minHoldMs: 250 })
   }, [draftGraphData, scheduleForceSelect])
+
+  React.useEffect(() => {
+    const pending = pendingOpenWidgetNodeIdRef.current
+    if (!pending) return
+    const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
+    const found = nodes.find(n => String(n.id || '') === pending) || null
+    if (!found) return
+    pendingOpenWidgetNodeIdRef.current = null
+    updateOpenWidgetNodeIds(prev => (prev.includes(pending) ? prev : [...prev, pending]))
+  }, [draftGraphData, updateOpenWidgetNodeIds])
 
   React.useEffect(() => {
     const override = String(overlayNodeIdOverride || '').trim()
@@ -2351,17 +2368,34 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   )
 
   const addNodeFromRegistryAtWorld = React.useCallback(
-    (args: { entry: NodeQuickEditorRegistryEntry; x: number; y: number }) => {
+    (args: { entry: WidgetRegistryEntry; x: number; y: number }) => {
       const entry = args.entry
       const x = Number.isFinite(args.x) ? args.x : 0
       const y = Number.isFinite(args.y) ? args.y : 0
-      const label = entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? FLOW_VIDEO_GENERATION_NODE_LABEL : entry.nodeTypeId
+      const label = entry.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+        ? FLOW_IMAGE_GENERATION_NODE_LABEL
+        : entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+          ? FLOW_VIDEO_GENERATION_NODE_LABEL
+          : entry.nodeTypeId
       const properties: Record<string, unknown> = {
-        [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: entry.quickEditorTypeId,
-        [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: entry.formId,
+        [FLOW_WIDGET_TYPE_ID_KEY]: entry.widgetTypeId,
+        [FLOW_WIDGET_FORM_ID_KEY]: entry.formId,
+      }
+      if (entry.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
+        properties.model = 'generate_image'
+        properties.prompt = 'Generate an image responsive to the active request.'
+        properties.aspect_ratio = 'square'
+        properties.resolution = '1080p'
+        properties.fast = false
       }
       if (entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
         properties.model = 'generate_video'
+        properties.prompt = 'Generate a video responsive to the active request.'
+        properties.aspect_ratio = 'landscape'
+        properties.duration = 4
+        properties.resolution = '720p'
+        properties.generate_audio = false
+        properties.fast = false
       }
       const base: GraphData =
         draftGraphDataRef.current
@@ -2379,8 +2413,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       pendingOverlayNodeIdRef.current = id
       overlayNodeIdOverrideWasSelectedRef.current = false
       overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
-      lastDroppedQuickEditorNodeIdRef.current = id
-      setLastDroppedQuickEditorToken(Date.now())
+      lastDroppedWidgetNodeIdRef.current = id
+      setLastDroppedWidgetToken(Date.now())
       useGraphStore.setState({
         selectionSource: 'canvas',
         selectedNodeId: id,
@@ -2392,8 +2426,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       })
       scheduleForceSelect(id, { minHoldMs: 700 })
       setPendingOverlayNode({ id, type: entry.nodeTypeId, label, x, y, properties: properties as never })
+      pendingOpenWidgetNodeIdRef.current = id
       appendDraftNode({ id, type: entry.nodeTypeId, label, x, y, properties })
-      updateOpenQuickEditorNodeIds(prev => (prev.includes(id) ? prev : [...prev, id]))
       try {
         setTimeout(() => {
           if (pendingOverlayNodeIdRef.current !== id) return
@@ -2403,27 +2437,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       } catch {
         void 0
       }
-      try {
-        setTimeout(() => {
-          const selected = String(useGraphStore.getState().selectedNodeId || '')
-          const draft = draftGraphDataRef.current
-          const nodes = Array.isArray(draft?.nodes) ? draft?.nodes : []
-          const found = nodes.find(n => String(n.id || '') === id) || null
-          const props = (found?.properties || {}) as Record<string, unknown>
-          const qeType = typeof props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY] === 'string' ? String(props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]) : ''
-          const qeForm = typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]) : ''
-          upsertUiToast({
-            id: `flow-editor-drop-debug-${id}`,
-            kind: 'neutral',
-            message: `Drop debug: nodeId=${id} nodeType=${entry.nodeTypeId} registryEntryId=${entry.id} selected=${selected} override=${id} found=${found ? '1' : '0'} qeType=${qeType} qeForm=${qeForm}`,
-            ttlMs: DROP_DEBUG_TOAST_TTL_MS,
-          })
-        }, 60)
-      } catch {
-        void 0
-      }
     },
-    [appendDraftNode, baseGraphData, scheduleForceSelect, updateOpenQuickEditorNodeIds, upsertUiToast],
+    [appendDraftNode, baseGraphData, scheduleForceSelect, updateOpenWidgetNodeIds, upsertUiToast],
   )
 
   React.useEffect(() => {
@@ -2432,7 +2447,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const onDragOverCapture = (ev: DragEvent) => {
       const dt = ev.dataTransfer
       if (!dt) return
-      if (!hasFlowNodeQuickEditorDragType(dt)) return
+      if (!hasFlowWidgetDragType(dt)) return
       const el = rootRef.current
       const rect = el ? el.getBoundingClientRect() : null
       if (!rect) return
@@ -2454,7 +2469,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const onDropCapture = (ev: DragEvent) => {
       const dt = ev.dataTransfer
       if (!dt) return
-      const payload = readFlowNodeQuickEditorDragPayloadFromDataTransfer({ getData: mime => dt.getData(mime) })
+      const payload = readFlowWidgetDragPayloadFromDataTransfer({ getData: mime => dt.getData(mime) })
       if (!payload) return
       const el = rootRef.current
       const rect = el ? el.getBoundingClientRect() : null
@@ -2465,7 +2480,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (!Number.isFinite(sx) || !Number.isFinite(sy)) return
       if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
       const dropKey = `${payload.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
-      if (shouldDedupeQuickEditorDrop(dropKey)) {
+      if (shouldDedupeWidgetDrop(dropKey)) {
         try {
           ev.preventDefault()
         } catch {
@@ -2483,7 +2498,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
         return
       }
-      const entry = (nodeQuickEditorRegistryRef.current || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
+      const entry = (widgetRegistryRef.current || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
       if (!entry) return
       const st = useGraphStore.getState()
       const liveZoom = getLiveZoomTransform()
@@ -2500,7 +2515,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       })
       addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
       upsertUiToast({
-        id: 'flow-editor-drop-node-quick-editor',
+        id: 'flow-editor-drop-widget',
         kind: 'neutral',
         message: `Created ${entry.nodeTypeId} node.`,
         ttlMs: 1500,
@@ -2528,7 +2543,63 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       document.removeEventListener('dragover', onDragOverCapture, true)
       document.removeEventListener('drop', onDropCapture, true)
     }
-  }, [active, addNodeFromRegistryAtWorld, getLiveZoomTransform, setCanvasWindowOffsetFromRect, shouldDedupeQuickEditorDrop, upsertUiToast])
+  }, [active, addNodeFromRegistryAtWorld, getLiveZoomTransform, setCanvasWindowOffsetFromRect, shouldDedupeWidgetDrop, upsertUiToast])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (typeof document === 'undefined') return
+    const MIN_POINTER_DRAG_DISTANCE_PX = 6
+    const onPointerUpCapture = (ev: PointerEvent) => {
+      const session = readActiveFlowWidgetPointerDragSession()
+      if (!session) return
+      if (session.pointerId !== ev.pointerId) return
+      try {
+        clearActiveFlowWidgetPointerDragSession(ev.pointerId)
+      } catch {
+        void 0
+      }
+      if (session.nativeDragStarted) return
+      const dx = ev.clientX - session.startClientX
+      const dy = ev.clientY - session.startClientY
+      if (Math.hypot(dx, dy) < MIN_POINTER_DRAG_DISTANCE_PX) return
+      const el = rootRef.current
+      const rect = el ? el.getBoundingClientRect() : null
+      if (!rect) return
+      const sx = ev.clientX - rect.left
+      const sy = ev.clientY - rect.top
+      if (!Number.isFinite(sx) || !Number.isFinite(sy)) return
+      if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
+      const entry = (widgetRegistryRef.current || []).find(e => e && e.isEnabled && e.id === session.registryEntryId) || null
+      if (!entry) return
+      const dropKey = `${session.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
+      if (shouldDedupeWidgetDrop(dropKey)) return
+      setCanvasWindowOffsetFromRect(rect)
+      const st = useGraphStore.getState()
+      const liveZoom = getLiveZoomTransform()
+      const pos = screenToWorld({
+        transform:
+          liveZoom ||
+          getEffectiveZoomStateForKey({
+            zoomViewKey: zoomViewKeyRef.current,
+            zoomStateByKey: st.zoomStateByKey,
+            zoomState: st.zoomState,
+          }),
+        sx,
+        sy,
+      })
+      addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
+      upsertUiToast({
+        id: 'flow-editor-drop-widget',
+        kind: 'neutral',
+        message: `Created ${entry.nodeTypeId} node.`,
+        ttlMs: 1500,
+      })
+    }
+    document.addEventListener('pointerup', onPointerUpCapture, true)
+    return () => {
+      document.removeEventListener('pointerup', onPointerUpCapture, true)
+    }
+  }, [active, addNodeFromRegistryAtWorld, getLiveZoomTransform, setCanvasWindowOffsetFromRect, shouldDedupeWidgetDrop, upsertUiToast])
 
   const removeNodeById = React.useCallback(
     (nodeId: string) => {
@@ -2550,7 +2621,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         edges: nextEdges,
       })
       setGraphDataPreservingLayout(next)
-      updateOpenQuickEditorNodeIds(prev => prev.filter(x => String(x || '') !== id))
+      updateOpenWidgetNodeIds(prev => prev.filter(x => String(x || '') !== id))
       const selected = String(useGraphStore.getState().selectedNodeId || '')
       if (selected === id) {
         setSelectionSource('canvas')
@@ -2558,7 +2629,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         selectEdge(null)
       }
     },
-    [draftGraphData, selectEdge, selectNode, setGraphDataPreservingLayout, setSelectionSource, updateOpenQuickEditorNodeIds],
+    [draftGraphData, selectEdge, selectNode, setGraphDataPreservingLayout, setSelectionSource, updateOpenWidgetNodeIds],
   )
 
   const clearNodeOutputById = React.useCallback(
@@ -2812,19 +2883,19 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         nodes: [...nodes, nextNode],
       }
       setGraphDataPreservingLayout(normalizeGraphData(next))
-      updateOpenQuickEditorNodeIds(prev => (prev.includes(nextId) ? prev : [...prev, nextId]))
+      updateOpenWidgetNodeIds(prev => (prev.includes(nextId) ? prev : [...prev, nextId]))
       setSelectionSource('canvas')
       selectEdge(null)
       selectNode(nextId)
     },
-    [draftGraphData, selectEdge, selectNode, setGraphDataPreservingLayout, setSelectionSource, updateOpenQuickEditorNodeIds],
+    [draftGraphData, selectEdge, selectNode, setGraphDataPreservingLayout, setSelectionSource, updateOpenWidgetNodeIds],
   )
 
   const showNodeEditorHelp = React.useCallback(() => {
     upsertUiToast({
       id: 'flow-editor-node-editor-help',
       kind: 'neutral',
-      message: UI_COPY.flowNodeQuickEditorHelpToast,
+      message: UI_COPY.flowWidgetHelpToast,
       ttlMs: 2800,
     })
   }, [upsertUiToast])
@@ -2844,7 +2915,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       upsertUiToast({
         id: 'flow-editor-enable-handles',
         kind: 'neutral',
-        message: UI_COPY.flowNodeQuickEditorEnableHandlesAlreadyOnToast,
+        message: UI_COPY.flowWidgetEnableHandlesAlreadyOnToast,
         ttlMs: 2200,
       })
       return
@@ -2855,7 +2926,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     upsertUiToast({
       id: 'flow-editor-enable-handles',
       kind: 'success',
-      message: UI_COPY.flowNodeQuickEditorEnableHandlesToast,
+      message: UI_COPY.flowWidgetEnableHandlesToast,
       ttlMs: 2600,
     })
   }, [documentStructureBaselineLock, schema, setSchema, upsertUiToast])
@@ -2870,7 +2941,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         upsertUiToast({
           id: 'flow-editor-convert-loop',
           kind: 'neutral',
-          message: UI_COPY.flowNodeQuickEditorConvertToLoopAlreadyLoopToast,
+          message: UI_COPY.flowWidgetConvertToLoopAlreadyLoopToast,
           ttlMs: 2200,
         })
         return
@@ -2879,7 +2950,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       upsertUiToast({
         id: 'flow-editor-convert-loop',
         kind: 'success',
-        message: UI_COPY.flowNodeQuickEditorConvertToLoopToast,
+        message: UI_COPY.flowWidgetConvertToLoopToast,
         ttlMs: 2600,
       })
     },
@@ -2993,6 +3064,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
               ? await emitKgcRunOutput({
                   canonicalPath,
                   canonicalText,
+                  generationConfig: {
+                    provider: state.chatProvider,
+                    endpointUrl: state.chatEndpointUrl,
+                    apiKey: state.chatAuthMode === 'byok' ? state.chatApiKey : '',
+                    chatModel: state.chatModel,
+                  },
                   getStore: () => ({
                     captureCanvasPngSnapshot: () => useGraphStore.getState().captureCanvasPngSnapshot(),
                     captureCanvasSvgSnapshot: () => useGraphStore.getState().captureCanvasSvgSnapshot(),
@@ -3030,16 +3107,16 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const subgraph = buildSelectionSubgraph(draft, id, null) || { ...draft, nodes: [node], edges: [] }
 
         const store = useGraphStore.getState()
-        const registry = Array.isArray(store.nodeQuickEditorRegistry) ? store.nodeQuickEditorRegistry : []
+        const registry = Array.isArray(store.widgetRegistry) ? store.widgetRegistry : []
         const nodeTypeIds = new Set((subgraph.nodes || []).map(n => String(n.type || '').trim()).filter(Boolean))
         const registryEntries = registry.filter(e => e && e.isEnabled && nodeTypeIds.has(String(e.nodeTypeId || '').trim()))
-        const fallbackResolved = resolveNodeQuickEditorRegistryEntry({ node, registry, graphMetaKind: baseGraphKind })
+        const fallbackResolved = resolveWidgetRegistryEntry({ node, registry, graphMetaKind: baseGraphKind })
         const entries = registryEntries.length > 0 ? registryEntries : fallbackResolved ? [fallbackResolved] : []
 
-        await exportNodeQuickEditorBundleAsJson({
+        await exportWidgetBundleAsJson({
           graphData: subgraph,
           registryEntries: entries,
-          suggestedName: `flow-node-${id}.quick-editor.bundle.json`,
+          suggestedName: `flow-node-${id}.widget.bundle.json`,
         })
         upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorRunExportedToast, ttlMs: 2200 })
       } catch {
@@ -3057,11 +3134,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         return
       }
       const store = useGraphStore.getState()
-      const registry = Array.isArray(store.nodeQuickEditorRegistry) ? store.nodeQuickEditorRegistry : []
-      await exportNodeQuickEditorBundleAsJson({
+      const registry = Array.isArray(store.widgetRegistry) ? store.widgetRegistry : []
+      await exportWidgetBundleAsJson({
         graphData: draft,
         registryEntries: registry,
-        suggestedName: 'flow-workflow.quick-editor.bundle.json',
+        suggestedName: 'flow-workflow.widget.bundle.json',
       })
       upsertUiToast({ id: 'flow-editor-export-bundle', kind: 'neutral', message: UI_COPY.flowEditorRunExportedToast, ttlMs: 2200 })
     } catch {
@@ -3236,7 +3313,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       : false
     const metadata = ((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>)
     const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? (renderGraphDataOverride?.nodes as GraphNode[]) : []
-    const eligibleIds = buildFlowQuickEditorEligibleNodeIdSet(nodes)
+    const eligibleIds = buildFlowWidgetEligibleNodeIdSet(nodes)
     const nodeById = (() => {
       const m = new Map<string, GraphNode>()
       for (let i = 0; i < nodes.length; i += 1) {
@@ -3270,7 +3347,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       return a.id.localeCompare(b.id)
     }
     if (isFrontmatterFlow && nodes.length > 0) {
-      const registryRaw = metadata[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+      const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
       const registry = Array.isArray(registryRaw) ? (registryRaw as Array<Record<string, unknown>>) : []
       const allowedFlowNodeIds = new Set<string>()
       for (let i = 0; i < registry.length; i += 1) {
@@ -3287,7 +3364,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           const id = String(n?.id || '').trim()
           if (!id) continue
           const props = (n?.properties || {}) as Record<string, unknown>
-          const formId = typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim() : ''
+          const formId = typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string' ? String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim() : ''
           if (formId && formId.startsWith('fm:')) allowedFlowNodeIds.add(id)
         }
       }
@@ -3313,7 +3390,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (flowEditorFrontmatterGraphAvailable) return []
     const next: string[] = []
     const seen = new Set<string>()
-    for (const id of openQuickEditorNodeIds) {
+    for (const id of openWidgetNodeIds) {
       const s = String(id || '').trim()
       if (!s || seen.has(s)) continue
       if (eligibleIds.size > 0 && !eligibleIds.has(s)) continue
@@ -3327,14 +3404,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     }
     if (next.length > 0) lastStableOverlayEditorNodeIdsRef.current = next
     return next
-  }, [flowEditorFrontmatterGraphAvailable, flowEditorViewActive, openQuickEditorNodeIds, overlayDraftNode?.id, renderGraphDataOverride, renderGraphDataOverride?.metadata, renderGraphDataOverride?.nodes])
+  }, [flowEditorFrontmatterGraphAvailable, flowEditorViewActive, openWidgetNodeIds, overlayDraftNode?.id, renderGraphDataOverride, renderGraphDataOverride?.metadata, renderGraphDataOverride?.nodes])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const w = window as Window & { localStorage?: Storage; __KG_FLOW_EDITOR_QE_TRACE__?: Array<Record<string, unknown>> }
     let enabled = false
     try {
-      enabled = Boolean(w.localStorage && w.localStorage.getItem('kg:debug:flowEditorQuickEditorTrace') === '1')
+      enabled = Boolean(w.localStorage && w.localStorage.getItem('kg:debug:flowEditorWidgetTrace') === '1')
     } catch {
       enabled = false
     }
@@ -3351,7 +3428,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       frontmatterGraph: flowEditorFrontmatterGraphAvailable ? 1 : 0,
       graphNodes,
       graphEdges,
-      openQuickEditorCount: Array.isArray(openQuickEditorNodeIds) ? openQuickEditorNodeIds.length : 0,
+      openWidgetCount: Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds.length : 0,
       overlayCount: overlayEditorNodeIds.length,
       overlayIdsHead: overlayEditorNodeIds.slice(0, 8).join(','),
     }
@@ -3365,13 +3442,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     flowEditorFrontmatterGraphAvailable,
     flowEditorViewActive,
     frontmatterOnlyPolicyActive,
-    openQuickEditorNodeIds,
+    openWidgetNodeIds,
     overlayEditorNodeIds,
     renderGraphDataOverride?.edges,
     renderGraphDataOverride?.nodes,
   ])
 
-  const seededFrontmatterAutoQuickEditorsKeyRef = React.useRef<string>('')
+  const seededFrontmatterAutoWidgetsKeyRef = React.useRef<string>('')
   React.useEffect(() => {
     if (!active) return
     if (!renderGraphDataOverride) return
@@ -3379,11 +3456,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (overlayEditorNodeIds.length === 0) return
 
     const st = useGraphStore.getState()
-    const pinnedById = st.flowNodeQuickEditorPinnedByNodeId || {}
+    const pinnedById = st.flowWidgetPinnedByNodeId || {}
     const hasAnyExplicit = overlayEditorNodeIds.some(id => Object.prototype.hasOwnProperty.call(pinnedById, id))
     const seedKey = `${baseGraphDataRevision}|${overlayEditorNodeIds.join(',')}|${hasAnyExplicit ? 1 : 0}`
-    if (seededFrontmatterAutoQuickEditorsKeyRef.current === seedKey) return
-    seededFrontmatterAutoQuickEditorsKeyRef.current = seedKey
+    if (seededFrontmatterAutoWidgetsKeyRef.current === seedKey) return
+    seededFrontmatterAutoWidgetsKeyRef.current = seedKey
     if (hasAnyExplicit) return
 
     const nextPinned = { ...pinnedById }
@@ -3396,7 +3473,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       changed = true
     }
     if (!changed) return
-    st.setFlowNodeQuickEditorPinnedByNodeId(nextPinned)
+    st.setFlowWidgetPinnedByNodeId(nextPinned)
     scheduleOverlayCollisionResolve()
   }, [active, baseGraphDataRevision, overlayEditorNodeIds, renderGraphDataOverride?.metadata, scheduleOverlayCollisionResolve])
 
@@ -3404,10 +3481,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const targetNodeIds = new Set(overlayEditorNodeIds)
     return computeFlowConnectedValuesBySchemaPath({
       graphData: renderGraphDataOverride,
-      registry: Array.isArray(nodeQuickEditorRegistry) ? nodeQuickEditorRegistry : [],
+      registry: Array.isArray(widgetRegistry) ? widgetRegistry : [],
       targetNodeIds,
     })
-  }, [nodeQuickEditorRegistry, overlayEditorNodeIds, renderGraphDataOverride])
+  }, [widgetRegistry, overlayEditorNodeIds, renderGraphDataOverride])
 
   const overlayEditorElements = React.useMemo(() => {
     if (!flowEditorViewActive) return []
@@ -3434,10 +3511,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         const node = resolveNode(id)
         if (!node) return null
         if (String(node.type || '') === 'Section') return null
-        const autoRevealKey = id === String(lastDroppedQuickEditorNodeIdRef.current || '') ? lastDroppedQuickEditorToken : 0
+        const autoRevealKey = id === String(lastDroppedWidgetNodeIdRef.current || '') ? lastDroppedWidgetToken : 0
         const connectedValuesBySchemaPath = connectedValuesByNodeId.get(id) || undefined
         return (
-          <FlowEditorNodeQuickEditorOverlay
+          <FlowEditorWidgetOverlay
             key={`qe-${id}`}
             visible={flowEditorViewActive}
             active={canEdit}
@@ -3468,13 +3545,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
               void runWorkflowNode(id)
             }}
             onDuplicate={() => {
-              const pinnedMap = flowNodeQuickEditorPinnedByNodeId || {}
+              const pinnedMap = flowWidgetPinnedByNodeId || {}
               const pinned = forcePinnedToCanvas === true || pinnedMap[id] === true
               if (pinned) {
                 upsertUiToast({
                   id: `flow-editor-node-duplicate-disabled-${id}`,
                   kind: 'warning',
-                  message: 'Pinned quick editor blocks duplicate copy.',
+                  message: 'Pinned widget blocks duplicate copy.',
                   ttlMs: 2200,
                 })
                 return
@@ -3509,12 +3586,12 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     getLiveContainmentGroupAabbForNode,
-    lastDroppedQuickEditorToken,
+    lastDroppedWidgetToken,
     overlayEditorNodeIds,
     patchNodePropertiesById,
     pendingEdgeSourceId,
     pendingOverlayNode,
-    flowNodeQuickEditorPinnedByNodeId,
+    flowWidgetPinnedByNodeId,
     removeNodeById,
     renameSchemaFieldIdByNodeId,
     runWorkflowNode,
@@ -3564,9 +3641,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }}
       onDropCapture={(ev) => {
         if (!canEdit) return
-        const payload = readFlowNodeQuickEditorDragPayloadFromDataTransfer({ getData: mime => ev.dataTransfer.getData(mime) })
+        const payload = readFlowWidgetDragPayloadFromDataTransfer({ getData: mime => ev.dataTransfer.getData(mime) })
         if (!payload) return
-        const entry = (nodeQuickEditorRegistry || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
+        const entry = (widgetRegistry || []).find(e => e && e.isEnabled && e.id === payload.registryEntryId) || null
         if (!entry) return
         const el = rootRef.current
         const rect = el ? el.getBoundingClientRect() : null
@@ -3577,7 +3654,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         if (!Number.isFinite(sx) || !Number.isFinite(sy)) return
         if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
         const dropKey = `${payload.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
-        if (shouldDedupeQuickEditorDrop(dropKey)) {
+        if (shouldDedupeWidgetDrop(dropKey)) {
           ev.preventDefault()
           ev.stopPropagation()
           return
@@ -3597,7 +3674,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         })
         addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
         upsertUiToast({
-          id: 'flow-editor-drop-node-quick-editor',
+          id: 'flow-editor-drop-widget',
           kind: 'neutral',
           message: `Created ${entry.nodeTypeId} node.`,
           ttlMs: 1500,

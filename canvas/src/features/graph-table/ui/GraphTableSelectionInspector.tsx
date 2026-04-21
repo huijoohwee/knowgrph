@@ -70,7 +70,7 @@ export default function GraphTableSelectionInspector() {
   const editorWorkspacePane = useGraphStore(s => s.editorWorkspacePane)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const openQuickEditorNodeIds = useGraphStore(s => s.openQuickEditorNodeIds || [])
+  const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds || [])
   const graphContentRevision = useGraphStore(s => s.graphContentRevision)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
@@ -98,19 +98,19 @@ export default function GraphTableSelectionInspector() {
   const selection = useMemo(() => {
     if (selectedNodeId) return { tableId: 'nodes' as const, rowId: selectedNodeId }
     if (selectedEdgeId) return { tableId: 'edges' as const, rowId: selectedEdgeId }
-    if (openQuickEditorNodeIds.length > 0) {
+    if (openWidgetNodeIds.length > 0) {
       const graphData = baseGraphData as unknown as { nodes?: unknown[] } | null
       const nodes = Array.isArray(graphData?.nodes) ? (graphData?.nodes as Array<{ id?: unknown }>) : []
       const nodeIdSet = new Set(nodes.map(n => String(n.id || '')).filter(Boolean))
-      for (let i = openQuickEditorNodeIds.length - 1; i >= 0; i -= 1) {
-        const id = String(openQuickEditorNodeIds[i] || '').trim()
+      for (let i = openWidgetNodeIds.length - 1; i >= 0; i -= 1) {
+        const id = String(openWidgetNodeIds[i] || '').trim()
         if (!id) continue
         if (!nodeIdSet.has(id)) continue
         return { tableId: 'nodes' as const, rowId: id }
       }
     }
     return null
-  }, [baseGraphData, openQuickEditorNodeIds, selectedEdgeId, selectedNodeId])
+  }, [baseGraphData, openWidgetNodeIds, selectedEdgeId, selectedNodeId])
 
   useEffect(() => {
     if (!selection) {

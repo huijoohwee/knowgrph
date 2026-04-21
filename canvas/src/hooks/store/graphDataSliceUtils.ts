@@ -8,14 +8,14 @@ import {
   type GraphDataTableColumnKey,
   type GraphDataTableColumnVisibilityByKey,
 } from '@/features/graph-data-table/graphDataTable'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { validateNodeQuickEditorRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { validateWidgetRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
-const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY = 'flow:quickEditorFormId' as const
-const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY = 'flow:nodeQuickEditorFormId' as const
+const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
+const FLOW_WIDGET_FORM_ID_KEY_LEGACY = 'flow:widgetFormId' as const
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -125,13 +125,13 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
   }
 }
 
-export function applyNodeQuickEditorRegistryFromMetadata(get: GetGraph, metadata: unknown, graphData?: GraphData | null) {
+export function applyWidgetRegistryFromMetadata(get: GetGraph, metadata: unknown, graphData?: GraphData | null) {
   const metadataRecord = isRecord(metadata) ? metadata : ({} as Record<string, unknown>)
-  const raw = metadataRecord[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+  const raw = metadataRecord[FLOW_WIDGET_REGISTRY_METADATA_KEY]
   const rawArr = Array.isArray(raw) ? raw : []
 
   const validatedRaw = rawArr
-    .map(item => validateNodeQuickEditorRegistryEntry(item))
+    .map(item => validateWidgetRegistryEntry(item))
     .filter((e): e is NonNullable<typeof e> => !!e)
   const validated = (() => {
     const graph = graphData || null
@@ -146,10 +146,10 @@ export function applyNodeQuickEditorRegistryFromMetadata(get: GetGraph, metadata
       if (!nodeId) continue
       const props = (node?.properties || {}) as Record<string, unknown>
       const explicitFormId =
-        typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string'
-          ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim()
-          : typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY] === 'string'
-            ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY_LEGACY] || '').trim()
+        typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string'
+          ? String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
+          : typeof props[FLOW_WIDGET_FORM_ID_KEY_LEGACY] === 'string'
+            ? String(props[FLOW_WIDGET_FORM_ID_KEY_LEGACY] || '').trim()
             : ''
       const expectedFormId = explicitFormId || `fm:${nodeId}`
       if (!expectedFormId) continue
@@ -173,12 +173,12 @@ export function applyNodeQuickEditorRegistryFromMetadata(get: GetGraph, metadata
     return out
   })()
 
-  const current = Array.isArray(get().documentNodeQuickEditorRegistry) ? get().documentNodeQuickEditorRegistry : []
+  const current = Array.isArray(get().documentWidgetRegistry) ? get().documentWidgetRegistry : []
   const currentSig = computeRegistrySignature(current)
   const nextSig = computeRegistrySignature(validated)
   if (currentSig === nextSig) return
 
-  const setRegistry = get().setDocumentNodeQuickEditorRegistry
+  const setRegistry = get().setDocumentWidgetRegistry
   if (typeof setRegistry !== 'function') return
   setRegistry(validated, { graphData: graphData || null })
 }

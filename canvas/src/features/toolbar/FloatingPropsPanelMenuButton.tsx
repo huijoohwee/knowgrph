@@ -9,6 +9,8 @@ export default function FloatingPropsPanelMenuButton({
   className,
   draggable,
   onDragStart,
+  onDragEnd,
+  onPointerDownCapture,
   title,
   ariaLabel,
   uiPanelKeyValueTextSizeClass,
@@ -19,25 +21,47 @@ export default function FloatingPropsPanelMenuButton({
   disabled?: boolean
   className?: string
   draggable?: boolean
-  onDragStart?: (ev: React.DragEvent<HTMLButtonElement>) => void
+  onDragStart?: (ev: React.DragEvent<HTMLDivElement>) => void
+  onDragEnd?: (ev: React.DragEvent<HTMLDivElement>) => void
+  onPointerDownCapture?: (ev: React.PointerEvent<HTMLDivElement>) => void
   title?: string
   ariaLabel?: string
   uiPanelKeyValueTextSizeClass: string
   uiPanelTextFontClass: string
 }) {
+  const interactiveClassName = `block w-full text-left px-3 py-2 ${UI_THEME_TOKENS.table.rowHover} ${disabled ? 'opacity-50 cursor-not-allowed' : draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.primary} ${className || ''}`
+  const handleKeyDown = (ev: React.KeyboardEvent<HTMLDivElement>) => {
+    if (disabled || !onClick) return
+    if (ev.key !== 'Enter' && ev.key !== ' ') return
+    ev.preventDefault()
+    onClick()
+  }
+
   return (
-    <button
-      type="button"
-      className={`block w-full text-left px-3 py-2 ${UI_THEME_TOKENS.table.rowHover} disabled:opacity-50 disabled:cursor-not-allowed ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.primary} ${className || ''}`}
-      onClick={onClick}
-      disabled={disabled}
-      draggable={draggable}
-      onDragStart={onDragStart}
+    <div
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      className={interactiveClassName}
+      onClick={() => {
+        if (disabled) return
+        onClick?.()
+      }}
+      aria-disabled={disabled ? 'true' : 'false'}
+      draggable={disabled ? false : draggable}
+      onPointerDownCapture={onPointerDownCapture}
+      onDragStart={(ev) => {
+        if (disabled || !draggable) {
+          ev.preventDefault()
+          return
+        }
+        onDragStart?.(ev)
+      }}
+      onDragEnd={onDragEnd}
+      onKeyDown={handleKeyDown}
       title={title}
       aria-label={ariaLabel}
     >
       {children}
-    </button>
+    </div>
   )
 }
-

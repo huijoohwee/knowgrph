@@ -294,8 +294,8 @@ export async function testMarkdownWorkspaceEditorOmitsDocumentSelectorInHeader()
     const contentMenu = container.querySelector('menu[aria-label="Content"]') as HTMLElement | null
     if (contentMenu) throw new Error('expected legacy content-mode toggle menu to be removed from workspace header')
 
-    const nodeQuickEditorFormatMenu = container.querySelector('menu[aria-label="Document format in Node Quick Editor"]') as HTMLElement | null
-    if (nodeQuickEditorFormatMenu) throw new Error('expected legacy node quick editor document-format menu to be removed from workspace header')
+    const widgetFormatMenu = container.querySelector('menu[aria-label="Document format in Widget"]') as HTMLElement | null
+    if (widgetFormatMenu) throw new Error('expected legacy widget document-format menu to be removed from workspace header')
   } finally {
     try {
       await act(async () => {

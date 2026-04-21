@@ -31,24 +31,24 @@ import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/inter
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
-  computeNodeQuickEditorScale,
-  computeNodeQuickEditorScaledSize,
-  NODE_QUICK_EDITOR_BASE_SIZE,
-} from '@/components/FlowEditor/nodeQuickEditorZoom'
-import { computeDefaultNodeQuickEditorFloatingPos, computeNodeQuickEditorAnchoredStackOffset } from '@/components/FlowEditor/nodeQuickEditorLayout'
+  computeWidgetScale,
+  computeWidgetScaledSize,
+  WIDGET_BASE_SIZE,
+} from '@/components/FlowEditor/widgetZoom'
+import { computeDefaultWidgetFloatingPos, computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widgetLayout'
 import { getIconSizeClass } from '@/lib/ui'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { useShallow } from 'zustand/react/shallow'
-import { resolveNodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = 140
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 170
-const EMPTY_NODE_QUICK_EDITOR_REGISTRY: NodeQuickEditorRegistryEntry[] = []
-const QUICK_EDITOR_ACTIONS_TOOLBAR_OFFSET_PX = 40
-const QUICK_EDITOR_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
+const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
+const WIDGET_ACTIONS_TOOLBAR_OFFSET_PX = 40
+const WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
 
 type NodeOverlayEditorProps = {
   visible?: boolean
@@ -129,14 +129,14 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     uiPanelOpacity,
     schema,
     documentStructureBaselineLock,
-    nodeQuickEditorRegistry,
+    widgetRegistry,
     upsertUiToast,
     selectNode,
     setSelectionSource,
     selectedNodeId,
-    setFlowNodeQuickEditorPosByNodeId,
-    setFlowNodeQuickEditorWorldPosByNodeId,
-    setFlowNodeQuickEditorPinnedByNodeId,
+    setFlowWidgetPosByNodeId,
+    setFlowWidgetWorldPosByNodeId,
+    setFlowWidgetPinnedByNodeId,
   } = useGraphStore(
     useShallow(s => ({
       uiIconScale: s.uiIconScale,
@@ -144,22 +144,22 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       uiPanelOpacity: s.uiPanelOpacity,
       schema: s.schema,
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
-      nodeQuickEditorRegistry: (s.effectiveNodeQuickEditorRegistry ?? s.nodeQuickEditorRegistry ?? EMPTY_NODE_QUICK_EDITOR_REGISTRY) as NodeQuickEditorRegistryEntry[],
+      widgetRegistry: (s.effectiveWidgetRegistry ?? s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
       upsertUiToast: s.upsertUiToast,
       selectNode: s.selectNode,
       setSelectionSource: s.setSelectionSource,
       selectedNodeId: s.selectedNodeId,
-      setFlowNodeQuickEditorPosByNodeId: s.setFlowNodeQuickEditorPosByNodeId,
-      setFlowNodeQuickEditorWorldPosByNodeId: (s as unknown as { setFlowNodeQuickEditorWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void })
-        .setFlowNodeQuickEditorWorldPosByNodeId,
-      setFlowNodeQuickEditorPinnedByNodeId: s.setFlowNodeQuickEditorPinnedByNodeId,
+      setFlowWidgetPosByNodeId: s.setFlowWidgetPosByNodeId,
+      setFlowWidgetWorldPosByNodeId: (s as unknown as { setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void })
+        .setFlowWidgetWorldPosByNodeId,
+      setFlowWidgetPinnedByNodeId: s.setFlowWidgetPinnedByNodeId,
     })),
   )
 
   const nodeId = React.useMemo(() => String(node.id || '').trim(), [node.id])
 
-  const quickEditorPos = useGraphStore(
-    useShallow(s => s.flowNodeQuickEditorPosByNodeId?.[nodeId]),
+  const widgetPos = useGraphStore(
+    useShallow(s => s.flowWidgetPosByNodeId?.[nodeId]),
   )
 
   const overlayZIndex = React.useMemo(() => {
@@ -169,14 +169,14 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     return Math.max(20, FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE - Math.min(48, idx))
   }, [nodeId, selectedNodeId, stackIndex])
 
-  const registryEntry: NodeQuickEditorRegistryEntry | null = React.useMemo(
-    () => resolveNodeQuickEditorRegistryEntry({ node, registry: nodeQuickEditorRegistry, graphMetaKind }),
-    [graphMetaKind, node, nodeQuickEditorRegistry],
+  const registryEntry: WidgetRegistryEntry | null = React.useMemo(
+    () => resolveWidgetRegistryEntry({ node, registry: widgetRegistry, graphMetaKind }),
+    [graphMetaKind, node, widgetRegistry],
   )
 
   const asideRef = React.useRef<HTMLElement | null>(null)
   const nodeRef = React.useRef<GraphNode>(node)
-  const quickEditorWorldPosRef = React.useRef<{ x: number; y: number } | null>(null)
+  const widgetWorldPosRef = React.useRef<{ x: number; y: number } | null>(null)
   const lastGoodWorldPosRef = React.useRef<{ x: number; y: number } | null>(null)
   const pinnedDragOverrideRef = React.useRef<{ left: number; top: number } | null>(null)
   const worldDragOverrideRef = React.useRef<{ x: number; y: number } | null>(null)
@@ -188,7 +188,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const schemaRef = React.useRef(schema)
   const floatingRef = React.useRef(false)
   const anchoredPosRef = React.useRef<{ top: number; left: number }>({ top: 48, left: 16 })
-  const scaledSizeRef = React.useRef<{ width: number; height: number }>({ width: NODE_QUICK_EDITOR_BASE_SIZE.width, height: NODE_QUICK_EDITOR_BASE_SIZE.height })
+  const scaledSizeRef = React.useRef<{ width: number; height: number }>({ width: WIDGET_BASE_SIZE.width, height: WIDGET_BASE_SIZE.height })
   const zoomStateRef = React.useRef<{ k: number; x: number; y: number } | null>(
     getEffectiveZoomStateForKey({
       zoomViewKey,
@@ -206,7 +206,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const readPinnedInCanvas = React.useCallback(
     (id: string): boolean => {
       if (!id) return false
-      const map = useGraphStore.getState().flowNodeQuickEditorPinnedByNodeId || {}
+      const map = useGraphStore.getState().flowWidgetPinnedByNodeId || {}
       const v = map[id]
       return typeof v === 'boolean' ? v : true
     },
@@ -224,20 +224,20 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       setPinnedInCanvasState(prev => {
         const resolved = typeof next === 'function' ? (next as (v: boolean) => boolean)(prev) : next
         if (nodeId) {
-          const map = useGraphStore.getState().flowNodeQuickEditorPinnedByNodeId || {}
-          setFlowNodeQuickEditorPinnedByNodeId({ ...map, [nodeId]: !!resolved })
+          const map = useGraphStore.getState().flowWidgetPinnedByNodeId || {}
+          setFlowWidgetPinnedByNodeId({ ...map, [nodeId]: !!resolved })
         }
         return !!resolved
       })
     },
-    [nodeId, setFlowNodeQuickEditorPinnedByNodeId],
+    [nodeId, setFlowWidgetPinnedByNodeId],
   )
 
-  const [minimized, setMinimized] = React.useState<boolean>(() => lsBool(LS_KEYS.flowNodeQuickEditorMinimized, false))
-  const [hideFields, setHideFields] = React.useState<boolean>(() => lsBool(LS_KEYS.flowNodeQuickEditorHideFields, false))
+  const [minimized, setMinimized] = React.useState<boolean>(() => lsBool(LS_KEYS.flowWidgetMinimized, false))
+  const [hideFields, setHideFields] = React.useState<boolean>(() => lsBool(LS_KEYS.flowWidgetHideFields, false))
 
   const defaultFloatingPos = React.useMemo(() => {
-    return computeDefaultNodeQuickEditorFloatingPos({ stackIndex, viewportW, viewportH })
+    return computeDefaultWidgetFloatingPos({ stackIndex, viewportW, viewportH })
   }, [stackIndex, viewportH, viewportW])
 
   const resolveFloatingPos = React.useCallback(
@@ -264,7 +264,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         const coerce = looksLikeWindowCoords ? { left: leftRaw - offset.left, top: topRaw - offset.top } : v
         const clamped = clampOverlayTopLeftFullyInViewport({
           pos: coerce,
-          size: NODE_QUICK_EDITOR_BASE_SIZE,
+          size: WIDGET_BASE_SIZE,
           viewport: { width: viewportWidth, height: viewportHeight },
           snapPx: 1,
         })
@@ -275,14 +275,14 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     [viewportH, viewportW],
   )
 
-  const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => resolveFloatingPos(quickEditorPos, defaultFloatingPos).top)
-  const [pinnedLeftPx, setPinnedLeftPx] = React.useState<number>(() => resolveFloatingPos(quickEditorPos, defaultFloatingPos).left)
+  const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => resolveFloatingPos(widgetPos, defaultFloatingPos).top)
+  const [pinnedLeftPx, setPinnedLeftPx] = React.useState<number>(() => resolveFloatingPos(widgetPos, defaultFloatingPos).left)
 
   useIsomorphicLayoutEffect(() => {
-    const pos = resolveFloatingPos(quickEditorPos, defaultFloatingPos)
+    const pos = resolveFloatingPos(widgetPos, defaultFloatingPos)
     setPinnedTopPx(prev => (prev === pos.top ? prev : pos.top))
     setPinnedLeftPx(prev => (prev === pos.left ? prev : pos.left))
-  }, [defaultFloatingPos, quickEditorPos, resolveFloatingPos])
+  }, [defaultFloatingPos, widgetPos, resolveFloatingPos])
 
   const [toolbarVisible, setToolbarVisible] = React.useState(false)
   const [toolbarDock, setToolbarDock] = React.useState<'above' | 'below'>('above')
@@ -292,7 +292,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
 
   const floating = false
 
-  const autoStackOffset = React.useMemo(() => computeNodeQuickEditorAnchoredStackOffset(stackIndex), [stackIndex])
+  const autoStackOffset = React.useMemo(() => computeWidgetAnchoredStackOffset(stackIndex), [stackIndex])
 
   React.useEffect(() => {
     if (!active) return
@@ -300,7 +300,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     setPinnedInCanvas(true)
     setMinimized(prev => {
       if (!prev) return prev
-      lsSetBool(LS_KEYS.flowNodeQuickEditorMinimized, false)
+      lsSetBool(LS_KEYS.flowWidgetMinimized, false)
       return false
     })
   }, [active, autoRevealKey, setPinnedInCanvas])
@@ -349,11 +349,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const persistFloatingPos = React.useCallback(
     (pos: { top: number; left: number }) => {
       if (!nodeId) return
-      const current = useGraphStore.getState().flowNodeQuickEditorPosByNodeId || {}
+      const current = useGraphStore.getState().flowWidgetPosByNodeId || {}
       const prev = current[nodeId]
       if (prev && prev.top === pos.top && prev.left === pos.left) return
       const next = { ...current, [nodeId]: { top: pos.top, left: pos.left } }
-      useGraphStore.getState().setFlowNodeQuickEditorPosByNodeId(next)
+      useGraphStore.getState().setFlowWidgetPosByNodeId(next)
     },
     [nodeId],
   )
@@ -362,14 +362,14 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     (pos: { x: number; y: number }) => {
       if (!nodeId) return
       const current =
-        (useGraphStore.getState() as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
-          .flowNodeQuickEditorWorldPosByNodeId || {}
+        (useGraphStore.getState() as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+          .flowWidgetWorldPosByNodeId || {}
       const prev = current[nodeId]
       if (prev && Math.abs(prev.x - pos.x) <= 0.0001 && Math.abs(prev.y - pos.y) <= 0.0001) return
       const next = { ...current, [nodeId]: { x: pos.x, y: pos.y } }
-      setFlowNodeQuickEditorWorldPosByNodeId(next)
+      setFlowWidgetWorldPosByNodeId(next)
     },
-    [nodeId, setFlowNodeQuickEditorWorldPosByNodeId],
+    [nodeId, setFlowWidgetWorldPosByNodeId],
   )
 
   const scheduleClampCommit = React.useCallback((next: { top: number; left: number }) => {
@@ -397,7 +397,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       cssInitRef.current = true
       el.style.left = '0px'
       el.style.top = '0px'
-      el.style.width = `${NODE_QUICK_EDITOR_BASE_SIZE.width}px`
+      el.style.width = `${WIDGET_BASE_SIZE.width}px`
       el.style.transformOrigin = 'top left'
       el.style.willChange = 'transform'
     }
@@ -420,8 +420,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       const [minK, maxK] = readZoomScaleExtent(s)
       return { minK: Math.min(minK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP), maxK }
     })()
-    const panelScale = computeNodeQuickEditorScale(zoomK, extent, { mode: floatingRef.current ? 'floating' : 'pinnedInCanvas' })
-    const scaled = computeNodeQuickEditorScaledSize(panelScale)
+    const panelScale = computeWidgetScale(zoomK, extent, { mode: floatingRef.current ? 'floating' : 'pinnedInCanvas' })
+    const scaled = computeWidgetScaledSize(panelScale)
     scaledSizeRef.current = scaled
 
     const n = nodeRef.current
@@ -454,7 +454,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     const floating = floatingRef.current
     const dragOverride = pinnedDragOverrideRef.current
     const worldDragOverride = worldDragOverrideRef.current
-    const storedWorld = quickEditorWorldPosRef.current
+    const storedWorld = widgetWorldPosRef.current
     const defaultWorld = screenToWorld({
       transform: z,
       sx: anchoredPosRef.current.left + autoStackOffset.left,
@@ -516,7 +516,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     })()
 
     if (shouldClampFloating && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) scheduleClampCommit(pos)
-    const nextToolbarDock = pos.top >= QUICK_EDITOR_ACTIONS_TOOLBAR_CLEARANCE_PX ? 'above' : 'below'
+    const nextToolbarDock = pos.top >= WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX ? 'above' : 'below'
     setToolbarDock(prev => (prev === nextToolbarDock ? prev : nextToolbarDock))
 
     const offset = canvasWindowOffsetRef.current
@@ -552,8 +552,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
 
   React.useEffect(() => {
     const pick = (s: unknown) =>
-      (s as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> })
-        ?.flowNodeQuickEditorWorldPosByNodeId?.[nodeId]
+      (s as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        ?.flowWidgetWorldPosByNodeId?.[nodeId]
     const coerce = (v: unknown): { x: number; y: number } | null => {
       if (!v || typeof v !== 'object') return null
       const rec = v as { x?: unknown; y?: unknown }
@@ -561,11 +561,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       const y = typeof rec.y === 'number' && Number.isFinite(rec.y) ? rec.y : null
       return x == null || y == null ? null : { x, y }
     }
-    quickEditorWorldPosRef.current = coerce(pick(useGraphStore.getState()))
+    widgetWorldPosRef.current = coerce(pick(useGraphStore.getState()))
     const unsub = useGraphStore.subscribe(
       pick,
       next => {
-        quickEditorWorldPosRef.current = coerce(next)
+        widgetWorldPosRef.current = coerce(next)
         applyOverlayPosition()
       },
     )
@@ -633,7 +633,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     if (!active) return
     if (floating) return
     if (!nodeId) return
-    if (quickEditorWorldPosRef.current) return
+    if (widgetWorldPosRef.current) return
     applyOverlayPosition()
     const z = (getLiveZoomTransform ? getLiveZoomTransform() : null) || zoomStateRef.current || { k: 1, x: 0, y: 0 }
     const world = screenToWorld({
@@ -710,12 +710,12 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     }
     if (nodeId) {
       const st = useGraphStore.getState()
-      st.setFlowNodeQuickEditorDraggingNodeId(nodeId)
+      st.setFlowWidgetDraggingNodeId(nodeId)
       if (opts?.keepDragging !== true) {
         pinToggleCollisionGuardRef.current = setTimeout(() => {
           pinToggleCollisionGuardRef.current = null
-          const cur = useGraphStore.getState().flowNodeQuickEditorDraggingNodeId
-          if (cur === nodeId) useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
+          const cur = useGraphStore.getState().flowWidgetDraggingNodeId
+          if (cur === nodeId) useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
         }, 240) as unknown as number
       }
     }
@@ -752,7 +752,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const handleToggleMinimized = React.useCallback(() => {
     setMinimized(prev => {
       const next = !prev
-      lsSetBool(LS_KEYS.flowNodeQuickEditorMinimized, next)
+      lsSetBool(LS_KEYS.flowWidgetMinimized, next)
       return next
     })
   }, [])
@@ -760,7 +760,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const handleToggleHideFields = React.useCallback(() => {
     setHideFields(prev => {
       const next = !prev
-      lsSetBool(LS_KEYS.flowNodeQuickEditorHideFields, next)
+      lsSetBool(LS_KEYS.flowWidgetHideFields, next)
       return next
     })
   }, [])
@@ -818,7 +818,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       }
 
       if (!floating) {
-        useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(nodeId)
+        useGraphStore.getState().setFlowWidgetDraggingNodeId(nodeId)
         applyOverlayPosition()
 
         const startClientX = event.clientX
@@ -841,7 +841,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         }
 
         const z0 = readZoom()
-        const storedWorld = quickEditorWorldPosRef.current
+        const storedWorld = widgetWorldPosRef.current
         const defaultWorld = screenToWorld({
           transform: z0,
           sx: anchoredPosRef.current.left + autoStackOffset.left,
@@ -894,7 +894,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             const out = worldDragOverrideRef.current || startWorld
             worldDragOverrideRef.current = null
             persistWorldPos(out)
-            useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
+            useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
             unlockGlobalUserSelect()
           },
           onCancel: () => {
@@ -902,7 +902,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             flush(pending)
             worldDragOverrideRef.current = null
             applyOverlayPosition()
-            useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
+            useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
             unlockGlobalUserSelect()
           },
         })
@@ -912,7 +912,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       const applied = lastAppliedRef.current
       const startTop = applied ? applied.top : pinnedTopPx
       const startLeft = applied ? applied.left : pinnedLeftPx
-      useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(nodeId)
+      useGraphStore.getState().setFlowWidgetDraggingNodeId(nodeId)
       let pendingTop = startTop
       let pendingLeft = startLeft
 
@@ -961,7 +961,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           setPinnedTopPx(prev => (prev === pendingTop ? prev : pendingTop))
           setPinnedLeftPx(prev => (prev === pendingLeft ? prev : pendingLeft))
           persistFloatingPos({ top: pendingTop, left: pendingLeft })
-          useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
+          useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
           unlockGlobalUserSelect()
         },
         onCancel: () => {
@@ -983,7 +983,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           setPinnedTopPx(prev => (prev === pendingTop ? prev : pendingTop))
           setPinnedLeftPx(prev => (prev === pendingLeft ? prev : pendingLeft))
           persistFloatingPos({ top: pendingTop, left: pendingLeft })
-          useGraphStore.getState().setFlowNodeQuickEditorDraggingNodeId(null)
+          useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
           unlockGlobalUserSelect()
         },
       })
@@ -1008,22 +1008,22 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   )
 
   const handleRegistrySelectionChange = React.useCallback(
-    ({ entry }: { entry: NodeQuickEditorRegistryEntry | null }) => {
+    ({ entry }: { entry: WidgetRegistryEntry | null }) => {
       if (!active) return
       if (!entry) {
         upsertUiToast({
-          id: `flow-node-quick-editor-registry-clear-${String(node.id || '')}`,
+          id: `flow-widget-registry-clear-${String(node.id || '')}`,
           kind: 'neutral',
-          message: UI_COPY.flowNodeQuickEditorRegistryClearedToast,
+          message: UI_COPY.flowWidgetRegistryClearedToast,
           ttlMs: 2200,
         })
         return
       }
-      const label = `${entry.nodeTypeId} · ${entry.quickEditorTypeId} · ${entry.formId}`
+      const label = `${entry.nodeTypeId} · ${entry.widgetTypeId} · ${entry.formId}`
       upsertUiToast({
-        id: `flow-node-quick-editor-registry-${entry.id}`,
+        id: `flow-widget-registry-${entry.id}`,
         kind: 'neutral',
-        message: UI_COPY.flowNodeQuickEditorRegistryToast(label),
+        message: UI_COPY.flowWidgetRegistryToast(label),
         ttlMs: 2500,
       })
     },
@@ -1033,9 +1033,9 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const overlayElement = (
     <aside
       ref={asideRef}
-      aria-label={UI_LABELS.flowNodeQuickEditor}
-      data-kg-node-quick-editor={String(node.id || '')}
-      data-kg-node-quick-editor-pinned={pinnedInCanvas ? '1' : '0'}
+      aria-label={UI_LABELS.flowWidget}
+      data-kg-widget={String(node.id || '')}
+      data-kg-widget-pinned={pinnedInCanvas ? '1' : '0'}
       data-kg-canvas-wheel-ignore="true"
       className="fixed"
       style={{ zIndex: overlayZIndex }}
@@ -1087,7 +1087,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       <div className="relative">
         <div
           className="absolute left-1/2 z-10 -translate-x-1/2 pointer-events-auto"
-          style={{ top: toolbarDock === 'above' ? -QUICK_EDITOR_ACTIONS_TOOLBAR_OFFSET_PX : 8 }}
+          style={{ top: toolbarDock === 'above' ? -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX : 8 }}
         >
           <NodeOverlayEditorActionsToolbar
             visible={toolbarVisible}
@@ -1135,7 +1135,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         onRenameSchemaFieldId={onRenameSchemaFieldId}
 
         registryEntry={registryEntry}
-        registryEntries={nodeQuickEditorRegistry}
+        registryEntries={widgetRegistry}
 
         connectedValuesBySchemaPath={connectedValuesBySchemaPath}
 

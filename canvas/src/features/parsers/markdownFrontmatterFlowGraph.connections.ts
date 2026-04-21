@@ -2,8 +2,8 @@ import type { GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashText } from '@/features/parsers/hash'
 import { parseMarkdownBlocks } from '@/lib/markdown'
 import {
-  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
-} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+  FLOW_WIDGET_FORM_ID_KEY,
+} from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { FLOW_EDGE_DISPLAY_LABEL_KEY, FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
@@ -107,7 +107,7 @@ export type RegistryEntry = {
   id: string
   isEnabled: boolean
   nodeTypeId: string
-  quickEditorTypeId: string
+  widgetTypeId: string
   formId: string
   fields: unknown[]
   ports: RegistryPort[]
@@ -326,7 +326,7 @@ export function ensureAugmentedPortsFromDeclaredConnections(args: {
     nodeById.set(id, n)
     nodeTypeByNodeId.set(id, String(n.type || 'Node') || 'Node')
     const props = (n.properties || {}) as Record<string, unknown>
-    const formId = typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' ? String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] || '').trim() : ''
+    const formId = typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string' ? String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim() : ''
     if (formId) formIdByNodeId.set(id, formId)
   }
 
@@ -350,7 +350,7 @@ export function ensureAugmentedPortsFromDeclaredConnections(args: {
       id: `qer-fm-${cleanIdPart(type) || 'node'}-${cleanIdPart(nodeId) || hashText(nodeId)}`,
       isEnabled: true,
       nodeTypeId: type,
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId,
       fields: [],
       ports: [],

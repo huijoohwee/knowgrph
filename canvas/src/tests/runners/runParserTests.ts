@@ -26,8 +26,8 @@ const modMermaidFrontmatterLinks = () => import('@/__tests__/mermaidFrontmatterL
 const modMermaidFrontmatterContextLayout = () => import('@/__tests__/mermaidFrontmatterContextLayout.test')
 const modGraphragTextPipeline = () => import('@/__tests__/graphragTextPipeline.test')
 const modAieBookGraphRagTextPipeline = () => import('@/__tests__/aieBookGraphRagTextPipeline.test')
-const modQuickEditorBundleImport = () => import('@/__tests__/quickEditorBundleImport.test')
-const modFlowEditorManagerAddFromQuickEditor = () => import('@/__tests__/flowEditorManagerAddFromQuickEditor.test')
+const modWidgetBundleImport = () => import('@/__tests__/widgetBundleImport.test')
+const modFlowEditorManagerAddFromWidget = () => import('@/__tests__/flowEditorManagerAddFromWidget.test')
 
 export const runParserTests = async (results: TestResult[]) => {
   await execTest(results, 'parser.registryCrud', async () => {
@@ -162,28 +162,28 @@ export const runParserTests = async (results: TestResult[]) => {
     const mod = await modGraphragTextPipeline()
     await mod.testGraphRagTextParserSelectionPrefersGraphRagOnPlainMd()
   })
-  await execTest(results, 'parser.quickEditor.bundleParseAddsRegistryMetadata', async () => {
-    const mod = await modQuickEditorBundleImport()
-    await mod.testQuickEditorBundleParseProducesGraphDataWithRegistryMetadata()
+  await execTest(results, 'parser.widget.bundleParseAddsRegistryMetadata', async () => {
+    const mod = await modWidgetBundleImport()
+    await mod.testWidgetBundleParseProducesGraphDataWithRegistryMetadata()
   })
-  await execTest(results, 'parser.quickEditor.applyRegistryFromMetadata', async () => {
-    const mod = await modQuickEditorBundleImport()
-    await mod.testQuickEditorRegistryAppliedFromGraphMetadata()
+  await execTest(results, 'parser.widget.applyRegistryFromMetadata', async () => {
+    const mod = await modWidgetBundleImport()
+    await mod.testWidgetRegistryAppliedFromGraphMetadata()
   })
-  await execTest(results, 'parser.quickEditor.aiFlowImportBuildsGraphAndRegistry', async () => {
-    const mod = await modQuickEditorBundleImport()
-    await mod.testQuickEditorAiFlowImportBuildsGraphAndRegistry()
+  await execTest(results, 'parser.widget.aiFlowImportBuildsGraphAndRegistry', async () => {
+    const mod = await modWidgetBundleImport()
+    await mod.testWidgetAiFlowImportBuildsGraphAndRegistry()
   })
-  await execTest(results, 'parser.quickEditor.comfyUiImportBuildsGraphAndRegistry', async () => {
-    const mod = await modQuickEditorBundleImport()
-    await mod.testQuickEditorComfyUiImportBuildsGraphAndRegistry()
+  await execTest(results, 'parser.widget.comfyUiImportBuildsGraphAndRegistry', async () => {
+    const mod = await modWidgetBundleImport()
+    await mod.testWidgetComfyUiImportBuildsGraphAndRegistry()
   })
-  await execTest(results, 'parser.quickEditor.managerAddFromQuickEditorBuildsDraft', async () => {
-    const mod = await modFlowEditorManagerAddFromQuickEditor()
+  await execTest(results, 'parser.widget.managerAddFromWidgetBuildsDraft', async () => {
+    const mod = await modFlowEditorManagerAddFromWidget()
     await mod.testFlowEditorManagerBuildDraftFromSmartFields()
   })
-  await execTest(results, 'parser.quickEditor.managerGenerateVideoDraftUsesSsotTypeId', async () => {
-    const mod = await modFlowEditorManagerAddFromQuickEditor()
+  await execTest(results, 'parser.widget.managerGenerateVideoDraftUsesSsotTypeId', async () => {
+    const mod = await modFlowEditorManagerAddFromWidget()
     await mod.testFlowEditorManagerBuildGenerateVideoDraftUsesSsotTypeId()
   })
 }

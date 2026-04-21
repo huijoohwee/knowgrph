@@ -1,8 +1,11 @@
 import { coerceHttpUrl } from '@/lib/url'
 
 export const CHAT_PROXY_PATH_PREFIX = '/__chat_proxy'
+export const CHAT_BINARY_DOWNLOAD_PROXY_PATH = '/__chat_asset_proxy'
 export const CHAT_COMPLETIONS_PATH = '/v1/chat/completions'
 export const CHAT_BYTEPLUS_COMPLETIONS_PATH = '/api/v3/chat/completions'
+export const CHAT_BYTEPLUS_IMAGES_GENERATIONS_PATH = '/api/v3/images/generations'
+export const CHAT_BYTEPLUS_CONTENT_GENERATIONS_TASKS_PATH = '/api/v3/contents/generations/tasks'
 export const CHAT_OPENAI_COMPLETIONS_PATH = '/v1/chat/completions'
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 export const CHAT_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
@@ -18,7 +21,14 @@ export const CHAT_PROVIDER_BYTEPLUS = 'byteplus-modelark'
 export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
 export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_LM_STUDIO] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
-export const CHAT_BYTEPLUS_MODEL_OPTIONS = [] as const
+export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-lite-250821'
+export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'seedream-5-0-lite-250817'
+export const CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT = 'dreamina-seedance-2-0-250428'
+export const CHAT_BYTEPLUS_MODEL_OPTIONS = [
+  CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+] as const
 export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-4o-mini-tts', 'gpt-realtime-mini'] as const
 export const CHAT_LOCAL_MODEL_OPTIONS = ['qwen/qwen3.5-9b@q4_k_m'] as const
 export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_OPENAI
@@ -164,6 +174,18 @@ export function getDefaultChatModelForProvider(provider: unknown): string {
   return options[0] || ''
 }
 
+export type ChatGenerationOutputKind = 'text' | 'image' | 'video'
+
+export function getDefaultGenerationModelForProvider(provider: unknown, kind: ChatGenerationOutputKind): string {
+  const normalizedProvider = normalizeChatProviderId(provider)
+  if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) {
+    if (kind === 'image') return CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
+    if (kind === 'video') return CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
+    return CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT
+  }
+  return getDefaultChatModelForProvider(normalizedProvider)
+}
+
 export function normalizeChatModelIdForProvider(value: unknown, provider: unknown): string {
   const normalizedProvider = normalizeChatProviderId(provider)
   const raw = typeof value === 'string' ? value.trim() : ''
@@ -212,6 +234,22 @@ export function resolveChatEndpointForRequest(value: unknown): string | null {
   }
 }
 
+export function resolveBytePlusContentEndpointForRequest(args: {
+  endpointUrl?: unknown
+  path: string
+}): string | null {
+  const rawPath = String(args.path || '').trim()
+  if (!rawPath.startsWith('/')) return null
+  const upstreamBase = resolveChatUpstreamBaseForProxy(args.endpointUrl, CHAT_PROVIDER_BYTEPLUS) || CHAT_BYTEPLUS_AP_SOUTHEAST_BASE
+  return resolveChatEndpointForRequest(`${upstreamBase}${rawPath}`)
+}
+
+export function resolveBinaryDownloadProxyUrl(value: unknown): string {
+  const raw = toCleanInput(value)
+  if (!raw) return ''
+  return `${CHAT_BINARY_DOWNLOAD_PROXY_PATH}?url=${encodeURIComponent(raw)}`
+}
+
 export function resolveChatUpstreamBaseForProxy(value: unknown, provider: unknown): string | null {
   const raw = toCleanInput(value)
   if (!raw || raw.startsWith('/')) {
@@ -257,7 +295,7 @@ export function buildChatProxyHeaders(args: {
 export function getChatRecommendedModelHint(provider: unknown): string {
   const normalizedProvider = normalizeChatProviderId(provider)
   if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) {
-    return 'Use a ModelArk endpoint ID or refresh the provider catalog.'
+    return `Default text: ${CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT}. Image Run uses ${CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT}; video Run uses ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT}.`
   }
   if (normalizedProvider === CHAT_PROVIDER_OPENAI) {
     return 'Use an OpenAI model id and keep API keys server-routed through the proxy.'

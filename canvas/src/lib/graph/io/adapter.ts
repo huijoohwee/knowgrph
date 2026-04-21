@@ -4,11 +4,11 @@ import { rawToGraphData } from '@/lib/graph/rawToGraph'
 import { parseJsonLd, toJsonLd } from '@/lib/graph/jsonld/index'
 import { isN8nWorkflow, parseN8nWorkflow } from '@/lib/graph/n8n'
 import { isGraphRagBundle, parseGraphRagBundle } from '@/lib/graph/graphrag'
-import { tryParseQuickEditorImportGraphData } from '@/lib/graph/io/quickEditorImport'
+import { tryParseWidgetImportGraphData } from '@/lib/graph/io/widgetImport'
 import { tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
 import { pmfVoxelToGraphData } from '@/lib/graph/io/pmfVoxel'
-import { coerceGeoJsonToFeatureCollection } from 'gympgrph'
+import { coerceGeoJsonToFeatureCollection } from '@/lib/gympgrph/api'
 
 export type ParseDiagnostics = {
   format: 'csv' | 'json' | 'jsonld'
@@ -54,9 +54,9 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
       return { data, diag: { format: 'json', warnings: [] } }
     }
 
-    const quickEditor = tryParseQuickEditorImportGraphData(json)
-    if (quickEditor) {
-      return { data: quickEditor.graphData, diag: { format: 'json', warnings: quickEditor.warnings } }
+    const widget = tryParseWidgetImportGraphData(json)
+    if (widget) {
+      return { data: widget.graphData, diag: { format: 'json', warnings: widget.warnings } }
     }
 
     if (json && Array.isArray(json.nodes) && Array.isArray(json.edges)) {

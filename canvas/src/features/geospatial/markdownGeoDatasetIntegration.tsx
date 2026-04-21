@@ -5,7 +5,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashText } from '@/features/parsers/hash'
 import type { GraphData } from '@/lib/graph/types'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
-import { addGeospatialDatasetUrl, isGeospatialModeEnabled } from 'gympgrph'
+import { addGeospatialDatasetUrl, isGeospatialModeEnabled } from '@/lib/gympgrph/api'
 import { uploadGeoJsonTextToLocalStore } from '@/features/geospatial/localGeoUpload'
 import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 

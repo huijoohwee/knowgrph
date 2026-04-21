@@ -16,7 +16,7 @@ import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-fil
 import { findNextSourceFileIndex } from '@/features/source-files/sourceFileNaming'
 import { writeLocalMarkdownFileText } from '@/features/source-files/localMarkdownFolder'
 import { getMostRecentCachedMarkdownFolderId, writeCachedMarkdownText } from '@/features/source-files/markdownFsCache'
-import { useGympgrphStore } from 'gympgrph'
+import { useGympgrphStore } from '@/lib/gympgrph/api'
 import type { MarkdownSourceFilesIngestIntegration } from '@/features/markdown/ui/MarkdownSourceFilesIngestIntegration'
 import { convertPdfFileToMarkdown, convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown, fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'

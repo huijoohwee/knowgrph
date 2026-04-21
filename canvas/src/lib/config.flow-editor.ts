@@ -1,16 +1,18 @@
 export type FlowEditorSmartNodeModel = 'generate_image' | 'generate_video'
 
-export const FLOW_NODE_QUICK_EDITOR_BUNDLE_KIND = 'kg:flow:nodeQuickEditorBundle' as const
-export const FLOW_NODE_QUICK_EDITOR_BUNDLE_VERSION = 1 as const
+export const FLOW_WIDGET_BUNDLE_KIND = 'kg:flow:widgetBundle' as const
+export const FLOW_WIDGET_BUNDLE_VERSION = 1 as const
 
-export const FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY = 'flow:nodeQuickEditorRegistry' as const
+export const FLOW_WIDGET_REGISTRY_METADATA_KEY = 'flow:widgetRegistry' as const
 
-export const FLOW_NODE_QUICK_EDITOR_DRAG_KIND = 'kg:flow:nodeQuickEditorDrag' as const
-export const FLOW_NODE_QUICK_EDITOR_DRAG_VERSION = 1 as const
-export const FLOW_NODE_QUICK_EDITOR_DRAG_MIME = 'application/x-kg-flow-node-quick-editor' as const
+export const FLOW_WIDGET_DRAG_KIND = 'kg:flow:widgetDrag' as const
+export const FLOW_WIDGET_DRAG_VERSION = 1 as const
+export const FLOW_WIDGET_DRAG_MIME = 'application/x-kg-flow-widget' as const
 
+export const FLOW_IMAGE_GENERATION_NODE_TYPE_ID = 'ImageGeneration' as const
+export const FLOW_IMAGE_GENERATION_NODE_LABEL = 'Image Widget' as const
 export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const
-export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'Generate Video' as const
+export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'Video Widget' as const
 
 export const FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
   { value: 'generate_image', label: 'Generate Image' },

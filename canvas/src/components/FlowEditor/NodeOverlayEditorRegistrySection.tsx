@@ -1,7 +1,7 @@
 import React from 'react'
 
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getObjectPath, setObjectPath } from '@/lib/data/objectPath'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
@@ -136,7 +136,7 @@ const JsonLikeValueEditor = React.memo(function JsonLikeValueEditor(props: {
 export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayEditorRegistrySection(props: {
   active: boolean
   properties: Record<string, unknown>
-  registryEntry: NodeQuickEditorRegistryEntry
+  registryEntry: WidgetRegistryEntry
   microLabelClass: string
   monospaceTextClass: string
   textSizeClass: string
@@ -243,15 +243,15 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     const connectedValueText = connected ? formatConnectedValue(connected.value) : ''
     const connectedMeta = connectedValueText
       ? (
-          <section className={cn('mt-1 flex items-center justify-between gap-2', microLabelClass)} aria-label={UI_COPY.flowNodeQuickEditorConnectedValueLabel}>
-            <p className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.tertiary)}>{UI_COPY.flowNodeQuickEditorConnectedValuePrefix}{connectedValueText}</p>
+          <section className={cn('mt-1 flex items-center justify-between gap-2', microLabelClass)} aria-label={UI_COPY.flowWidgetConnectedValueLabel}>
+            <p className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.tertiary)}>{UI_COPY.flowWidgetConnectedValuePrefix}{connectedValueText}</p>
             <button
               type="button"
               className={cn('shrink-0 rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
               onClick={() => setValue(coerceValueForFieldType({ fieldType, value: connected.value }))}
               disabled={!active}
-              aria-label={UI_COPY.flowNodeQuickEditorApplyConnectedValueLabel}
-              title={UI_COPY.flowNodeQuickEditorApplyConnectedValueLabel}
+              aria-label={UI_COPY.flowWidgetApplyConnectedValueLabel}
+              title={UI_COPY.flowWidgetApplyConnectedValueLabel}
             >
               {UI_LABELS.apply}
             </button>
@@ -455,10 +455,10 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   const hasAnyConnectedValues = !!connectedValuesBySchemaPath && Object.keys(connectedValuesBySchemaPath).length > 0
 
   return (
-    <section className="min-w-0 mt-4" aria-label="Node Quick Editor Registry">
+    <section className="min-w-0 mt-4" aria-label="Widget Registry">
 
       {hasAnyConnectedValues && registryFields.length > 0 ? (
-        <section className={cn('flex flex-wrap items-center justify-between gap-2 mb-2', microLabelClass)} aria-label={UI_COPY.flowNodeQuickEditorConnectedControlsLabel}>
+        <section className={cn('flex flex-wrap items-center justify-between gap-2 mb-2', microLabelClass)} aria-label={UI_COPY.flowWidgetConnectedControlsLabel}>
           <label className={cn('inline-flex items-center gap-2', UI_THEME_TOKENS.text.secondary)}>
             <input
               type="checkbox"
@@ -466,19 +466,19 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
               onChange={e => setAutoApplyConnected(e.target.checked)}
               disabled={!active}
             />
-            {UI_COPY.flowNodeQuickEditorAutoApplyConnectedValuesLabel}
+            {UI_COPY.flowWidgetAutoApplyConnectedValuesLabel}
           </label>
           <button
             type="button"
             className={cn('shrink-0 rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
             onClick={applyConnectedToEmptyFields}
             disabled={!active}
-            aria-label={UI_COPY.flowNodeQuickEditorApplyConnectedValuesToEmptyFieldsLabel}
-            title={UI_COPY.flowNodeQuickEditorApplyConnectedValuesToEmptyFieldsLabel}
+            aria-label={UI_COPY.flowWidgetApplyConnectedValuesToEmptyFieldsLabel}
+            title={UI_COPY.flowWidgetApplyConnectedValuesToEmptyFieldsLabel}
           >
             {UI_LABELS.apply}
             {' '}
-            {UI_COPY.flowNodeQuickEditorApplyAllSuffix}
+            {UI_COPY.flowWidgetApplyAllSuffix}
           </button>
         </section>
       ) : null}

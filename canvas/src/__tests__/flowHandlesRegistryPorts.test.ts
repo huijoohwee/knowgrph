@@ -6,7 +6,7 @@ export const testFlowHandlesIncludeRegistryPortsWithoutEdges = () => {
       id: 'q1',
       isEnabled: true,
       nodeTypeId: 'Node',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'default',
       fields: [{ fieldKey: 'title', fieldType: 'text' }],
       ports: [
@@ -20,7 +20,7 @@ export const testFlowHandlesIncludeRegistryPortsWithoutEdges = () => {
   const byNode = computeFlowHandlesByNode({
     nodes: [{ id: 'n1', type: 'Node', properties: {} }],
     edges: [],
-    nodeQuickEditorRegistry: registry,
+    widgetRegistry: registry,
   })
   const handles = byNode.n1
   if (!handles) throw new Error('expected handles for node n1')
@@ -36,7 +36,7 @@ export const testFlowHandlesPreferRegistryOrderingWhenPortsOverlapEdges = () => 
       id: 'q1',
       isEnabled: true,
       nodeTypeId: 'ColorPreview',
-      quickEditorTypeId: 'default',
+      widgetTypeId: 'default',
       formId: 'color',
       fields: [
         { fieldKey: 'r', fieldType: 'number' },
@@ -64,7 +64,7 @@ export const testFlowHandlesPreferRegistryOrderingWhenPortsOverlapEdges = () => 
       { id: 'e-g', source: 'green', target: 'preview', properties: { 'flow:targetPortKey': 'g' } },
       { id: 'e-b', source: 'blue', target: 'preview', properties: { 'flow:targetPortKey': 'b' } },
     ],
-    nodeQuickEditorRegistry: registry,
+    widgetRegistry: registry,
   })
 
   const handles = byNode.preview

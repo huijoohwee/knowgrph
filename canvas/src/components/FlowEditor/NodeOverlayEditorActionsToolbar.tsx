@@ -44,7 +44,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
   return (
     <nav
       className="Island App-toolbar App-toolbar--compact pointer-events-auto w-fit shadow-lg"
-      aria-label={UI_LABELS.flowNodeQuickEditorActions}
+      aria-label={UI_LABELS.flowWidgetActions}
       onPointerDownCapture={e => {
         try {
           e.stopPropagation()
@@ -54,8 +54,8 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
       }}
     >
       <IconButton
-        title={UI_COPY.flowNodeQuickEditorRun}
-        tooltipContent={UI_COPY.flowNodeQuickEditorRun}
+        title={UI_COPY.flowWidgetRun}
+        tooltipContent={UI_COPY.flowWidgetRun}
         showTooltip
         onClick={onRun}
         className="App-toolbar__btn"
@@ -65,7 +65,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
 
       <IconButton
         title={UI_LABELS.openInSidepane}
-        tooltipContent={UI_COPY.flowNodeQuickEditorOpenInSidepane}
+        tooltipContent={UI_COPY.flowWidgetOpenInSidepane}
         showTooltip
         onClick={() => emitSidePanelOpen({ tab: 'node', open: true })}
         className="App-toolbar__btn"
@@ -76,7 +76,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
       {!enableHandlesDisabled ? (
         <IconButton
           title={UI_LABELS.enableHandlesForAllInputs}
-          tooltipContent={UI_COPY.flowNodeQuickEditorEnableHandles}
+          tooltipContent={UI_COPY.flowWidgetEnableHandles}
           showTooltip
           onClick={onEnableHandlesForAllInputs}
           className="App-toolbar__btn"
@@ -88,7 +88,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
       {!convertToLoopDisabled ? (
         <IconButton
           title={UI_LABELS.convertToLoopNode}
-          tooltipContent={UI_COPY.flowNodeQuickEditorConvertToLoop}
+          tooltipContent={UI_COPY.flowWidgetConvertToLoop}
           showTooltip
           onClick={onConvertToLoopNode}
           className="App-toolbar__btn"
@@ -100,7 +100,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
       {!duplicateDisabled ? (
         <IconButton
           title={UI_LABELS.duplicate}
-          tooltipContent={UI_COPY.flowNodeQuickEditorDuplicate}
+          tooltipContent={UI_COPY.flowWidgetDuplicate}
           showTooltip
           onClick={onDuplicate}
           className="App-toolbar__btn"
@@ -111,7 +111,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
 
       <IconButton
         title={UI_LABELS.clearOutput}
-        tooltipContent={UI_COPY.flowNodeQuickEditorClearOutput}
+        tooltipContent={UI_COPY.flowWidgetClearOutput}
         showTooltip
         onClick={onClearOutput}
         className="App-toolbar__btn"
@@ -121,7 +121,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
 
       <IconButton
         title={UI_LABELS.help}
-        tooltipContent={UI_COPY.flowNodeQuickEditorHelp}
+        tooltipContent={UI_COPY.flowWidgetHelp}
         showTooltip
         onClick={onHelp}
         className="App-toolbar__btn"
@@ -131,7 +131,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
 
       <IconButton
         title={UI_LABELS.removeNode}
-        tooltipContent={UI_COPY.flowNodeQuickEditorRemoveNode}
+        tooltipContent={UI_COPY.flowWidgetRemoveNode}
         showTooltip
         onClick={onRemove}
         className={cn('App-toolbar__btn', 'text-red-700 dark:text-red-400')}

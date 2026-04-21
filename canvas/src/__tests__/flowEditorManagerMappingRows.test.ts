@@ -4,14 +4,14 @@ import {
   validateMappingRows,
 } from '@/features/flow-editor-manager/mappingRows'
 
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 export function testFlowEditorManagerMappingRowsRoundTripPreservesLabels() {
-  const entry: NodeQuickEditorRegistryEntry = {
+  const entry: WidgetRegistryEntry = {
     id: 'qer_test',
     isEnabled: true,
     nodeTypeId: 'VideoGeneration',
-    quickEditorTypeId: 'default',
+    widgetTypeId: 'default',
     formId: 'videoGeneration',
     fields: [
       { fieldKey: 'prompt', fieldType: 'text', label: 'Prompt', schemaPath: 'properties.prompt', required: true },

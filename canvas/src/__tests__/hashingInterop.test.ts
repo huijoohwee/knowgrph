@@ -1,5 +1,5 @@
 import { hashStringToHex, hashStringToIndex } from '@/lib/hash/stringHash'
-import { hashStringToIndex as gympgrphHashStringToIndex } from 'gympgrph'
+import { hashStringToIndex as gympgrphHashStringToIndex } from '@/lib/gympgrph/api'
 
 export function testHashStringContractIsSharedAcrossRepos() {
   const inputs = ['', 'abc', 'Hello world', '🚀 unicode', 'a'.repeat(1000)]

@@ -10,7 +10,7 @@ export const testPinnedDisablesDragAcrossPanels = () => {
 
   const floatingPanelPath = path.resolve(root, 'src', 'features', 'toolbar', 'ToolbarToolMenu.tsx')
   const mainToolbarPath = path.resolve(root, 'src', 'components', 'Toolbar.tsx')
-  const nodeQuickEditorPanelPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
+  const widgetPanelPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const headerActionsPath = path.resolve(root, 'src', 'features', 'panels', 'ui', 'HeaderActions.tsx')
   const pinTogglePath = path.resolve(root, 'src', 'lib', 'ui', 'pinToggle.ts')
 
@@ -27,9 +27,9 @@ export const testPinnedDisablesDragAcrossPanels = () => {
     throw new Error('Expected pinned main panel to disable drag')
   }
 
-  const nodeQuickEditorPanel = readUtf8(nodeQuickEditorPanelPath)
-  if (!nodeQuickEditorPanel.includes("pinned ? 'select-none' : 'cursor-move select-none'")) {
-    throw new Error('Expected pinned node quick editor to disable drag and unpinned to enable drag')
+  const widgetPanel = readUtf8(widgetPanelPath)
+  if (!widgetPanel.includes("pinned ? 'select-none' : 'cursor-move select-none'")) {
+    throw new Error('Expected pinned widget to disable drag and unpinned to enable drag')
   }
 
   const headerActions = readUtf8(headerActionsPath)

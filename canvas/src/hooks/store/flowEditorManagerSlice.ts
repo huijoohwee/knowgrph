@@ -4,38 +4,38 @@ import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsSetJson, getLocalStorage } from '@/lib/persistence'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphState } from '@/hooks/store/types'
-import { buildGenerateVideoRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
-import { FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { buildGenerateImageRegistryDraft, buildGenerateVideoRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import type {
-  NodeQuickEditorRegistryEntry,
-  NodeQuickEditorRegistryField,
-  NodeQuickEditorRegistryPort,
-  NodeQuickEditorRegistrySchemaMapping,
-} from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+  WidgetRegistryEntry,
+  WidgetRegistryField,
+  WidgetRegistryPort,
+  WidgetRegistrySchemaMapping,
+} from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
 
 const trimOrEmpty = (v: unknown): string => (typeof v === 'string' ? v.trim() : '')
 
-export function validateNodeQuickEditorRegistryEntry(raw: unknown): NodeQuickEditorRegistryEntry | null {
+export function validateWidgetRegistryEntry(raw: unknown): WidgetRegistryEntry | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   const rec = raw as Record<string, unknown>
 
   const id = trimOrEmpty(rec.id)
   const nodeTypeId = trimOrEmpty(rec.nodeTypeId)
-  const quickEditorTypeId = trimOrEmpty(rec.quickEditorTypeId)
+  const widgetTypeId = trimOrEmpty(rec.widgetTypeId)
   const formId = trimOrEmpty(rec.formId)
   const updatedAt = trimOrEmpty(rec.updatedAt)
   const isEnabled = typeof rec.isEnabled === 'boolean' ? rec.isEnabled : true
 
-  if (!id || !nodeTypeId || !quickEditorTypeId || !formId) return null
+  if (!id || !nodeTypeId || !widgetTypeId || !formId) return null
 
   const fieldsRaw = Array.isArray(rec.fields) ? rec.fields : []
   const portsRaw = Array.isArray(rec.ports) ? rec.ports : []
   const schemaMappingsRaw = Array.isArray(rec.schemaMappings) ? rec.schemaMappings : null
 
-  const fields: NodeQuickEditorRegistryField[] = []
+  const fields: WidgetRegistryField[] = []
   const fieldKeySet = new Set<string>()
   for (let i = 0; i < fieldsRaw.length; i += 1) {
     const item = fieldsRaw[i]
@@ -60,7 +60,7 @@ export function validateNodeQuickEditorRegistryEntry(raw: unknown): NodeQuickEdi
     })
   }
 
-  const ports: NodeQuickEditorRegistryPort[] = []
+  const ports: WidgetRegistryPort[] = []
   const portKeySet = new Set<string>()
   for (let i = 0; i < portsRaw.length; i += 1) {
     const item = portsRaw[i]
@@ -82,9 +82,9 @@ export function validateNodeQuickEditorRegistryEntry(raw: unknown): NodeQuickEdi
     })
   }
 
-  const schemaMappings: NodeQuickEditorRegistrySchemaMapping[] | undefined = (() => {
+  const schemaMappings: WidgetRegistrySchemaMapping[] | undefined = (() => {
     if (!schemaMappingsRaw) return undefined
-    const out: NodeQuickEditorRegistrySchemaMapping[] = []
+    const out: WidgetRegistrySchemaMapping[] = []
     for (let i = 0; i < schemaMappingsRaw.length; i += 1) {
       const item = schemaMappingsRaw[i]
       if (!item || typeof item !== 'object' || Array.isArray(item)) continue
@@ -105,7 +105,7 @@ export function validateNodeQuickEditorRegistryEntry(raw: unknown): NodeQuickEdi
     id,
     isEnabled,
     nodeTypeId,
-    quickEditorTypeId,
+    widgetTypeId,
     formId,
     fields,
     ports,
@@ -114,13 +114,13 @@ export function validateNodeQuickEditorRegistryEntry(raw: unknown): NodeQuickEdi
   }
 }
 
-export function readNodeQuickEditorRegistryFromStorage(storage: Storage | null): NodeQuickEditorRegistryEntry[] {
-  const parse = (v: unknown): NodeQuickEditorRegistryEntry[] | null => {
+export function readWidgetRegistryFromStorage(storage: Storage | null): WidgetRegistryEntry[] {
+  const parse = (v: unknown): WidgetRegistryEntry[] | null => {
     if (!Array.isArray(v)) return []
-    const out: NodeQuickEditorRegistryEntry[] = []
+    const out: WidgetRegistryEntry[] = []
     const seen = new Set<string>()
     for (let i = 0; i < v.length; i += 1) {
-      const entry = validateNodeQuickEditorRegistryEntry(v[i])
+      const entry = validateWidgetRegistryEntry(v[i])
       if (!entry) continue
       if (seen.has(entry.id)) continue
       seen.add(entry.id)
@@ -131,7 +131,7 @@ export function readNodeQuickEditorRegistryFromStorage(storage: Storage | null):
 
   if (!storage) return []
   try {
-    const raw = storage.getItem(LS_KEYS.flowEditorManagerNodeQuickEditorRegistry)
+    const raw = storage.getItem(LS_KEYS.flowEditorManagerWidgetRegistry)
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
     return parse(parsed) || []
@@ -140,24 +140,24 @@ export function readNodeQuickEditorRegistryFromStorage(storage: Storage | null):
   }
 }
 
-export function writeNodeQuickEditorRegistryToStorage(storage: Storage | null, entries: NodeQuickEditorRegistryEntry[]): void {
+export function writeWidgetRegistryToStorage(storage: Storage | null, entries: WidgetRegistryEntry[]): void {
   if (!storage) return
   try {
-    storage.setItem(LS_KEYS.flowEditorManagerNodeQuickEditorRegistry, JSON.stringify(entries))
+    storage.setItem(LS_KEYS.flowEditorManagerWidgetRegistry, JSON.stringify(entries))
   } catch {
     void 0
   }
 }
 
-export function normalizeNodeQuickEditorRegistryEntries(
-  entries: NodeQuickEditorRegistryEntry[],
-): NodeQuickEditorRegistryEntry[] {
-  const out: NodeQuickEditorRegistryEntry[] = []
+export function normalizeWidgetRegistryEntries(
+  entries: WidgetRegistryEntry[],
+): WidgetRegistryEntry[] {
+  const out: WidgetRegistryEntry[] = []
   const ids = new Set<string>()
   for (let i = 0; i < entries.length; i += 1) {
     const entry = entries[i]
     if (!entry) continue
-    const validated = validateNodeQuickEditorRegistryEntry(entry)
+    const validated = validateWidgetRegistryEntry(entry)
     if (!validated) continue
     if (ids.has(validated.id)) continue
     ids.add(validated.id)
@@ -166,50 +166,78 @@ export function normalizeNodeQuickEditorRegistryEntries(
   out.sort((a, b) => {
     const t = a.nodeTypeId.localeCompare(b.nodeTypeId)
     if (t !== 0) return t
-    const e = a.quickEditorTypeId.localeCompare(b.quickEditorTypeId)
+    const e = a.widgetTypeId.localeCompare(b.widgetTypeId)
     if (e !== 0) return e
     return a.formId.localeCompare(b.formId)
   })
   return out
 }
 
-export function ensureDefaultGenerateVideoRegistryEntry(
-  entries: NodeQuickEditorRegistryEntry[],
-  nowIso?: string,
-): { entries: NodeQuickEditorRegistryEntry[]; changed: boolean } {
-  const prev = Array.isArray(entries) ? entries : []
+function ensureDefaultRegistryEntry(args: {
+  entries: WidgetRegistryEntry[]
+  nodeTypeId: string
+  formId: string
+  draft: Omit<WidgetRegistryEntry, 'updatedAt'>
+  nowIso?: string
+}): { entries: WidgetRegistryEntry[]; changed: boolean } {
+  const prev = Array.isArray(args.entries) ? args.entries : []
   const exists = prev.some(e => {
     if (!e) return false
-    return e.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID && e.quickEditorTypeId === 'default' && e.formId === 'videoGeneration'
+    return e.nodeTypeId === args.nodeTypeId && e.widgetTypeId === 'default' && e.formId === args.formId
   })
   if (exists) return { entries: prev, changed: false }
 
   const usedIds = new Set(prev.map(e => String(e?.id || '')).filter(Boolean))
   const id = createUniqueId('qer', usedIds)
-  const updatedAt = String(nowIso || '').trim() || new Date().toISOString()
-  const draft = buildGenerateVideoRegistryDraft()
-
-  const nextEntry: NodeQuickEditorRegistryEntry = {
+  const updatedAt = String(args.nowIso || '').trim() || new Date().toISOString()
+  const nextEntry: WidgetRegistryEntry = {
     id,
     isEnabled: true,
-    nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-    quickEditorTypeId: 'default',
-    formId: 'videoGeneration',
-    fields: Array.isArray(draft.fields) ? (draft.fields as NodeQuickEditorRegistryField[]) : [],
-    ports: Array.isArray(draft.ports) ? (draft.ports as NodeQuickEditorRegistryPort[]) : [],
-    ...(Array.isArray(draft.schemaMappings) ? { schemaMappings: draft.schemaMappings as NodeQuickEditorRegistrySchemaMapping[] } : {}),
+    nodeTypeId: args.nodeTypeId,
+    widgetTypeId: 'default',
+    formId: args.formId,
+    fields: Array.isArray(args.draft.fields) ? (args.draft.fields as WidgetRegistryField[]) : [],
+    ports: Array.isArray(args.draft.ports) ? (args.draft.ports as WidgetRegistryPort[]) : [],
+    ...(Array.isArray(args.draft.schemaMappings) ? { schemaMappings: args.draft.schemaMappings as WidgetRegistrySchemaMapping[] } : {}),
     updatedAt,
   }
-
-  const validated = validateNodeQuickEditorRegistryEntry(nextEntry)
+  const validated = validateWidgetRegistryEntry(nextEntry)
   if (!validated) return { entries: prev, changed: false }
-  const next = normalizeNodeQuickEditorRegistryEntries([...prev, validated])
+  const next = normalizeWidgetRegistryEntries([...prev, validated])
   return { entries: next, changed: true }
 }
 
+export function ensureDefaultWidgetRegistryEntries(
+  entries: WidgetRegistryEntry[],
+  nowIso?: string,
+): { entries: WidgetRegistryEntry[]; changed: boolean } {
+  const seededImage = ensureDefaultRegistryEntry({
+    entries,
+    nodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+    formId: 'imageGeneration',
+    draft: buildGenerateImageRegistryDraft(),
+    nowIso,
+  })
+  const seededVideo = ensureDefaultRegistryEntry({
+    entries: seededImage.entries,
+    nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+    formId: 'videoGeneration',
+    draft: buildGenerateVideoRegistryDraft(),
+    nowIso,
+  })
+  return { entries: seededVideo.entries, changed: seededImage.changed || seededVideo.changed }
+}
+
+export function ensureDefaultGenerateVideoRegistryEntry(
+  entries: WidgetRegistryEntry[],
+  nowIso?: string,
+): { entries: WidgetRegistryEntry[]; changed: boolean } {
+  return ensureDefaultWidgetRegistryEntries(entries, nowIso)
+}
+
 export const planFlowEditorManagerDefaultRegistrySeed = (storage: Storage | null = getLocalStorage()) => {
-  const rawInitial = readNodeQuickEditorRegistryFromStorage(storage)
-  const seeded = ensureDefaultGenerateVideoRegistryEntry(rawInitial)
+  const rawInitial = readWidgetRegistryFromStorage(storage)
+  const seeded = ensureDefaultWidgetRegistryEntries(rawInitial)
   return {
     storage,
     entries: seeded.entries,
@@ -220,7 +248,7 @@ export const planFlowEditorManagerDefaultRegistrySeed = (storage: Storage | null
 export const applyFlowEditorManagerDefaultRegistrySeed = (storage: Storage | null = getLocalStorage()): boolean => {
   const plan = planFlowEditorManagerDefaultRegistrySeed(storage)
   if (!plan.changed) return false
-  writeNodeQuickEditorRegistryToStorage(plan.storage, plan.entries)
+  writeWidgetRegistryToStorage(plan.storage, plan.entries)
   return true
 }
 
@@ -228,42 +256,56 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
   const initialPlan = planFlowEditorManagerDefaultRegistrySeed(getLocalStorage())
   const initial = initialPlan.entries
 
-  const persist = (next: NodeQuickEditorRegistryEntry[]) => {
+  const isWidgetRegistryEntry = (entry: WidgetRegistryEntry | null | undefined): boolean => {
+    const nodeTypeId = String(entry?.nodeTypeId || '').trim()
+    return nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID || nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+  }
+
+  const persist = (next: WidgetRegistryEntry[]) => {
     try {
-      lsSetJson(LS_KEYS.flowEditorManagerNodeQuickEditorRegistry, next)
+      lsSetJson(LS_KEYS.flowEditorManagerWidgetRegistry, next)
     } catch {
       void 0
     }
   }
   const pickEffective = (
-    global: NodeQuickEditorRegistryEntry[],
-    doc: NodeQuickEditorRegistryEntry[],
+    global: WidgetRegistryEntry[],
+    doc: WidgetRegistryEntry[],
     graphData?: GraphState['graphData'],
   ) => {
     const g = Array.isArray(global) ? global : []
     const d = Array.isArray(doc) ? doc : []
+    const widgetGlobals = g.filter(isWidgetRegistryEntry)
     const graphMeta = (graphData?.metadata || {}) as Record<string, unknown>
     const graphKind = String(graphMeta.kind || '').trim()
-    // In frontmatter-flow, never fallback to global mappings.
-    if (graphKind === 'frontmatter-flow') return d
-    // Document-scoped registry is authoritative while present; avoid global merge churn/flicker.
-    if (d.length > 0) return d
+    if (graphKind === 'frontmatter-flow') {
+      if (d.length === 0) return widgetGlobals
+      const seen = new Set(d.map(entry => `${entry.nodeTypeId}:${entry.formId}:${entry.widgetTypeId}`))
+      const mergedWidgets = widgetGlobals.filter(entry => !seen.has(`${entry.nodeTypeId}:${entry.formId}:${entry.widgetTypeId}`))
+      return [...d, ...mergedWidgets]
+    }
+    // Document-scoped registry is authoritative while present, but widget seeds stay globally available.
+    if (d.length > 0) {
+      const seen = new Set(d.map(entry => `${entry.nodeTypeId}:${entry.formId}:${entry.widgetTypeId}`))
+      const mergedWidgets = widgetGlobals.filter(entry => !seen.has(`${entry.nodeTypeId}:${entry.formId}:${entry.widgetTypeId}`))
+      return [...d, ...mergedWidgets]
+    }
     return g
   }
-  const upsert = (entry: Omit<NodeQuickEditorRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null }) => {
+  const upsert = (entry: Omit<WidgetRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null }) => {
     const state = get()
-    const prev = state.nodeQuickEditorRegistry || []
+    const prev = state.widgetRegistry || []
 
     const requestedId = trimOrEmpty(entry.id)
     const usedIds = new Set(prev.map(e => String(e.id || '')).filter(Boolean))
     const id = requestedId || createUniqueId('qer', usedIds)
     const updatedAt = new Date().toISOString()
 
-    const nextEntry: NodeQuickEditorRegistryEntry = {
+    const nextEntry: WidgetRegistryEntry = {
       id,
       isEnabled: entry.isEnabled,
       nodeTypeId: String(entry.nodeTypeId || '').trim(),
-      quickEditorTypeId: String(entry.quickEditorTypeId || '').trim(),
+      widgetTypeId: String(entry.widgetTypeId || '').trim(),
       formId: String(entry.formId || '').trim(),
       fields: Array.isArray(entry.fields) ? entry.fields : [],
       ports: Array.isArray(entry.ports) ? entry.ports : [],
@@ -271,7 +313,7 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
       updatedAt,
     }
 
-    const validated = validateNodeQuickEditorRegistryEntry(nextEntry)
+    const validated = validateWidgetRegistryEntry(nextEntry)
     if (!validated) return { ok: false as const, message: 'Invalid registry entry.' }
 
     const conflict = prev.find(e => {
@@ -279,7 +321,7 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
       if (!e.isEnabled || !validated.isEnabled) return false
       return (
         e.nodeTypeId === validated.nodeTypeId &&
-        e.quickEditorTypeId === validated.quickEditorTypeId &&
+        e.widgetTypeId === validated.widgetTypeId &&
         e.formId === validated.formId
       )
     })
@@ -288,69 +330,69 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
     }
 
     const replaced = prev.some(e => e.id === validated.id)
-    const next = normalizeNodeQuickEditorRegistryEntries(
+    const next = normalizeWidgetRegistryEntries(
       replaced ? prev.map(e => (e.id === validated.id ? validated : e)) : [...prev, validated],
     )
     persist(next)
     set(s => {
-      const doc = Array.isArray(s.documentNodeQuickEditorRegistry) ? s.documentNodeQuickEditorRegistry : []
+      const doc = Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : []
       return {
-        nodeQuickEditorRegistry: next,
-        effectiveNodeQuickEditorRegistry: pickEffective(next, doc, s.graphData),
+        widgetRegistry: next,
+        effectiveWidgetRegistry: pickEffective(next, doc, s.graphData),
       }
     })
     return { ok: true as const, id: validated.id }
   }
 
   return {
-    nodeQuickEditorRegistry: initial,
-    documentNodeQuickEditorRegistry: [],
-    effectiveNodeQuickEditorRegistry: initial,
-    setNodeQuickEditorRegistry: (entries: NodeQuickEditorRegistryEntry[]) => {
-      const next = normalizeNodeQuickEditorRegistryEntries(Array.isArray(entries) ? entries : [])
+    widgetRegistry: initial,
+    documentWidgetRegistry: [],
+    effectiveWidgetRegistry: initial,
+    setWidgetRegistry: (entries: WidgetRegistryEntry[]) => {
+      const next = normalizeWidgetRegistryEntries(Array.isArray(entries) ? entries : [])
       persist(next)
       set(s => {
-        const doc = Array.isArray(s.documentNodeQuickEditorRegistry) ? s.documentNodeQuickEditorRegistry : []
+        const doc = Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : []
         return {
-          nodeQuickEditorRegistry: next,
-          effectiveNodeQuickEditorRegistry: pickEffective(next, doc, s.graphData),
+          widgetRegistry: next,
+          effectiveWidgetRegistry: pickEffective(next, doc, s.graphData),
         }
       })
     },
-    setDocumentNodeQuickEditorRegistry: (
-      entries: NodeQuickEditorRegistryEntry[],
+    setDocumentWidgetRegistry: (
+      entries: WidgetRegistryEntry[],
       options?: { graphData?: GraphState['graphData'] | null },
     ) => {
-      const doc = normalizeNodeQuickEditorRegistryEntries(Array.isArray(entries) ? entries : [])
-      const global = Array.isArray(get().nodeQuickEditorRegistry) ? get().nodeQuickEditorRegistry : []
+      const doc = normalizeWidgetRegistryEntries(Array.isArray(entries) ? entries : [])
+      const global = Array.isArray(get().widgetRegistry) ? get().widgetRegistry : []
       const graphData = options?.graphData !== undefined ? (options.graphData || null) : get().graphData
       set({
-        documentNodeQuickEditorRegistry: doc,
-        effectiveNodeQuickEditorRegistry: pickEffective(global, doc, graphData),
+        documentWidgetRegistry: doc,
+        effectiveWidgetRegistry: pickEffective(global, doc, graphData),
       })
     },
-    upsertNodeQuickEditorRegistryEntry: upsert,
-    removeNodeQuickEditorRegistryEntry: (id: string) => {
+    upsertWidgetRegistryEntry: upsert,
+    removeWidgetRegistryEntry: (id: string) => {
       const entryId = trimOrEmpty(id)
       if (!entryId) return
       const state = get()
-      const prev = state.nodeQuickEditorRegistry || []
+      const prev = state.widgetRegistry || []
       const next = prev.filter(e => e.id !== entryId)
       if (next.length === prev.length) return
       persist(next)
       set(s => {
-        const doc = Array.isArray(s.documentNodeQuickEditorRegistry) ? s.documentNodeQuickEditorRegistry : []
+        const doc = Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : []
         return {
-          nodeQuickEditorRegistry: next,
-          effectiveNodeQuickEditorRegistry: pickEffective(next, doc, s.graphData),
+          widgetRegistry: next,
+          effectiveWidgetRegistry: pickEffective(next, doc, s.graphData),
         }
       })
     },
-    toggleNodeQuickEditorRegistryEntryEnabled: (id: string, enabled?: boolean) => {
+    toggleWidgetRegistryEntryEnabled: (id: string, enabled?: boolean) => {
       const entryId = trimOrEmpty(id)
       if (!entryId) return
       const state = get()
-      const prev = state.nodeQuickEditorRegistry || []
+      const prev = state.widgetRegistry || []
       const current = prev.find(e => e.id === entryId) || null
       if (!current) return
       const nextEnabled = typeof enabled === 'boolean' ? enabled : !current.isEnabled
@@ -361,7 +403,7 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
         if (!e.isEnabled || !nextEnabled) return false
         return (
           e.nodeTypeId === current.nodeTypeId &&
-          e.quickEditorTypeId === current.quickEditorTypeId &&
+          e.widgetTypeId === current.widgetTypeId &&
           e.formId === current.formId
         )
       })
@@ -378,10 +420,10 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
       const next = prev.map(e => (e.id === entryId ? { ...e, isEnabled: nextEnabled, updatedAt: new Date().toISOString() } : e))
       persist(next)
       set(s => {
-        const doc = Array.isArray(s.documentNodeQuickEditorRegistry) ? s.documentNodeQuickEditorRegistry : []
+        const doc = Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : []
         return {
-          nodeQuickEditorRegistry: next,
-          effectiveNodeQuickEditorRegistry: pickEffective(next, doc, s.graphData),
+          widgetRegistry: next,
+          effectiveWidgetRegistry: pickEffective(next, doc, s.graphData),
         }
       })
     },

@@ -385,13 +385,13 @@ export default function SettingsView({
           ? {
               chatProvider: CHAT_PROVIDER_BYTEPLUS,
               chatEndpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
-              chatModel: '',
+              chatModel: getDefaultChatModelForProvider(CHAT_PROVIDER_BYTEPLUS),
             }
           : preset === 'byteplus-eu'
             ? {
                 chatProvider: CHAT_PROVIDER_BYTEPLUS,
                 chatEndpointUrl: CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
-                chatModel: '',
+                chatModel: getDefaultChatModelForProvider(CHAT_PROVIDER_BYTEPLUS),
               }
             : preset === 'openai'
           ? {

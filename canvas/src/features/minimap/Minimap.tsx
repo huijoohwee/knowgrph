@@ -30,8 +30,8 @@ import {
 } from '@/features/minimap/math'
 import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 import { DEFAULT_FLOW_NODE_WIDTH_PX, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP, readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
-import { computeNodeQuickEditorScale, NODE_QUICK_EDITOR_BASE_SIZE } from '@/components/FlowEditor/nodeQuickEditorZoom'
-import { computeDefaultNodeQuickEditorFloatingPos, computeNodeQuickEditorMaxAnchorShiftPx } from '@/components/FlowEditor/nodeQuickEditorLayout'
+import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeDefaultWidgetFloatingPos, computeWidgetMaxAnchorShiftPx } from '@/components/FlowEditor/widgetLayout'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 
@@ -81,12 +81,12 @@ function Minimap() {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const uiPanelOpacity = useGraphStore(s => s.uiPanelOpacity)
-  const { openQuickEditorNodeIds, flowNodeQuickEditorPinnedByNodeId, flowNodeQuickEditorPosByNodeId, flowNodeQuickEditorWorldPosByNodeId } = useGraphStore(
+  const { openWidgetNodeIds, flowWidgetPinnedByNodeId, flowWidgetPosByNodeId, flowWidgetWorldPosByNodeId } = useGraphStore(
     useShallow(s => ({
-      openQuickEditorNodeIds: s.openQuickEditorNodeIds,
-      flowNodeQuickEditorPinnedByNodeId: s.flowNodeQuickEditorPinnedByNodeId,
-      flowNodeQuickEditorPosByNodeId: s.flowNodeQuickEditorPosByNodeId,
-      flowNodeQuickEditorWorldPosByNodeId: (s as unknown as { flowNodeQuickEditorWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowNodeQuickEditorWorldPosByNodeId,
+      openWidgetNodeIds: s.openWidgetNodeIds,
+      flowWidgetPinnedByNodeId: s.flowWidgetPinnedByNodeId,
+      flowWidgetPosByNodeId: s.flowWidgetPosByNodeId,
+      flowWidgetWorldPosByNodeId: (s as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId,
     })),
   )
 
@@ -231,7 +231,7 @@ function Minimap() {
 
   const flowEditorOverlaySubset = React.useMemo(() => {
     const isFlowEditor = isFlowEditorCanvas2dRenderer(canvas2dRenderer)
-    const ids = Array.isArray(openQuickEditorNodeIds) ? openQuickEditorNodeIds.map(v => String(v || '').trim()).filter(Boolean) : []
+    const ids = Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds.map(v => String(v || '').trim()).filter(Boolean) : []
     if (!isFlowEditor || ids.length === 0) return null
     const zoom = zoomState || { k: 1, x: 0, y: 0 }
     const k = typeof zoom.k === 'number' && Number.isFinite(zoom.k) && zoom.k > 0 ? zoom.k : 1
@@ -243,9 +243,9 @@ function Minimap() {
       const id = String(n?.id || '').trim()
       if (id) nodeById.set(id, n)
     }
-    const pinnedById = flowNodeQuickEditorPinnedByNodeId || {}
-    const posById = flowNodeQuickEditorPosByNodeId || {}
-    const worldById = flowNodeQuickEditorWorldPosByNodeId || {}
+    const pinnedById = flowWidgetPinnedByNodeId || {}
+    const posById = flowWidgetPosByNodeId || {}
+    const worldById = flowWidgetWorldPosByNodeId || {}
     const port = schema?.behavior?.portHandles || null
     const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
     const portSizePx =
@@ -268,9 +268,9 @@ function Minimap() {
       if (!node) continue
       const pinnedInCanvas = typeof pinnedById[id] === 'boolean' ? pinnedById[id] : true
       const floating = !pinnedInCanvas
-      const panelScale = computeNodeQuickEditorScale(k, extent, { mode: 'pinnedInCanvas' })
-      const wPx = NODE_QUICK_EDITOR_BASE_SIZE.width * panelScale
-      const hPx = NODE_QUICK_EDITOR_BASE_SIZE.height * panelScale
+      const panelScale = computeWidgetScale(k, extent, { mode: 'pinnedInCanvas' })
+      const wPx = WIDGET_BASE_SIZE.width * panelScale
+      const hPx = WIDGET_BASE_SIZE.height * panelScale
       const stackCol = stackIndex % 3
       const stackRow = Math.floor(stackIndex / 3)
       const stackTopPx = stackIndex <= 0 ? 0 : stackRow * 54 + stackCol * 8
@@ -278,7 +278,7 @@ function Minimap() {
       const leftTopPx = (() => {
         if (floating) {
           const stored = posById[id]
-          const fallback = computeDefaultNodeQuickEditorFloatingPos({ stackIndex, viewportW: canvasDims.w, viewportH: canvasDims.h })
+          const fallback = computeDefaultWidgetFloatingPos({ stackIndex, viewportW: canvasDims.w, viewportH: canvasDims.h })
           const left = stored && typeof stored.left === 'number' && Number.isFinite(stored.left) ? stored.left : fallback.left
           const top = stored && typeof stored.top === 'number' && Number.isFinite(stored.top) ? stored.top : fallback.top
           return { left, top }
@@ -304,7 +304,7 @@ function Minimap() {
       const cyWorld = (leftTopPx.top + hPx / 2 - ty) / k
       overlayNodes.push({
         id: `__qe:${id}`,
-        type: 'FlowQuickEditor' as unknown as string,
+        type: 'FlowWidget' as unknown as string,
         x: cxWorld,
         y: cyWorld,
         label: '',
@@ -332,11 +332,11 @@ function Minimap() {
     canvasDims.w,
     defaultSchema,
     edges,
-    flowNodeQuickEditorPinnedByNodeId,
-    flowNodeQuickEditorPosByNodeId,
-    flowNodeQuickEditorWorldPosByNodeId,
+    flowWidgetPinnedByNodeId,
+    flowWidgetPosByNodeId,
+    flowWidgetWorldPosByNodeId,
     nodes,
-    openQuickEditorNodeIds,
+    openWidgetNodeIds,
     schema,
     zoomState,
   ])

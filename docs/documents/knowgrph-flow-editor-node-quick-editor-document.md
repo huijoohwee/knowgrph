@@ -225,6 +225,12 @@
 - Flow Editor Inspector exports a full workflow bundle (draft graph + current registry snapshot).
 - Flow Editor Inspector “Run” exports a per-node bundle (subgraph around the node + matching registry entries).
 
+### Widget Image/Video Parity
+
+- Image/Video widget exports share one bundle contract and should remain projection-parity safe: Markdown and JSON views must represent the same `registry` and `graph` content.
+- Canonical run artifacts follow the same chain contract used by chat pipeline docs: `kgc-trace_<ts>.md` -> `kgc_<ts>.md` -> `kgc-output_<ts>.md`.
+- If any widget/run reference guide exceeds the line cap, keep this file as canonical index and move detail into companion files with explicit continuation links.
+
 ---
 
 ## Workflow Editor-like Drag-and-Drop (Palette → Canvas)

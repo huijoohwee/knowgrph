@@ -5,7 +5,7 @@ import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdow
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 
@@ -74,8 +74,8 @@ export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   if (props[FLOW_EDGE_TARGET_PORT_KEY] !== 'in_1') throw new Error('expected flow:targetPortKey=in_1')
 
   const meta = (g.metadata || {}) as Record<string, unknown>
-  const registry = meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
-  if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected quick editor registry entries')
+  const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected widget registry entries')
 
   const socketTypes = meta.socketTypes
   if (!socketTypes || typeof socketTypes !== 'object') throw new Error('expected socketTypes metadata')
@@ -84,7 +84,7 @@ export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   if (typeof subgraphs !== 'undefined') throw new Error('expected no synthetic fallback subgraphs when frontmatter did not declare them')
 }
 
-export function testMarkdownFlowBlockInBodyParsesNodesEdgesAndQuickEditorFields() {
+export function testMarkdownFlowBlockInBodyParsesNodesEdgesAndWidgetFields() {
   const md = [
     '# Title',
     '',
@@ -125,22 +125,22 @@ export function testMarkdownFlowBlockInBodyParsesNodesEdgesAndQuickEditorFields(
   if (!canvas) throw new Error('expected node n-canvas')
   const canvasProps = (canvas.properties || {}) as Record<string, unknown>
   const handlesValue = canvasProps['frontmatter:handles']
-  if (!handlesValue || typeof handlesValue !== 'object') throw new Error('expected frontmatter:handles to be preserved for quick editor')
-  if (!canvasProps.data || typeof canvasProps.data !== 'object') throw new Error('expected data property for quick editor')
-  if (typeof canvasProps['flow:compute'] !== 'string') throw new Error('expected flow:compute property for quick editor')
+  if (!handlesValue || typeof handlesValue !== 'object') throw new Error('expected frontmatter:handles to be preserved for widget')
+  if (!canvasProps.data || typeof canvasProps.data !== 'object') throw new Error('expected data property for widget')
+  if (typeof canvasProps['flow:compute'] !== 'string') throw new Error('expected flow:compute property for widget')
 
   const meta = (g.metadata || {}) as Record<string, unknown>
-  const registry = meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
-  if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected quick editor registry entries')
+  const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected widget registry entries')
   const canvasEntry = registry.find(e => String((e as { formId?: unknown })?.formId || '').trim() === 'fm:n-canvas') as
     | { fields?: unknown[] }
     | undefined
   if (!canvasEntry) throw new Error('expected registry entry for fm:n-canvas')
   const fields = Array.isArray(canvasEntry.fields) ? canvasEntry.fields : []
   const fieldKeys = fields.map(f => String((f as { fieldKey?: unknown })?.fieldKey || '')).filter(Boolean)
-  if (!fieldKeys.includes('handles')) throw new Error('expected handles quick editor field from envelope')
-  if (!fieldKeys.includes('data')) throw new Error('expected data quick editor field from envelope')
-  if (!fieldKeys.includes('compute')) throw new Error('expected compute quick editor field from envelope')
+  if (!fieldKeys.includes('handles')) throw new Error('expected handles widget field from envelope')
+  if (!fieldKeys.includes('data')) throw new Error('expected data widget field from envelope')
+  if (!fieldKeys.includes('compute')) throw new Error('expected compute widget field from envelope')
 
   const e1 = g.edges.find(e => String(e.id || '') === 'e1')
   if (!e1) throw new Error('expected edge e1')
@@ -177,7 +177,7 @@ export function testMarkdownFrontmatterFlowGraphParsesInlineEnvelopeBlockScalarB
   if (String(props['flow:compute']).includes('})}')) throw new Error('expected trailing brace to be repaired out of compute')
 }
 
-export function testMarkdownFrontmatterFlowGraphParsesNoSpaceEnvelopeObjectKeysForQuickEditorVisibility() {
+export function testMarkdownFrontmatterFlowGraphParsesNoSpaceEnvelopeObjectKeysForWidgetVisibility() {
   const md = [
     '---',
     'flow:',
@@ -217,12 +217,12 @@ export function testMarkdownFrontmatterFlowGraphParsesNoSpaceEnvelopeObjectKeysF
     throw new Error(`expected parsed node ids n-canvas,n-pack, got ${Array.from(nodeIds).join(',')}`)
   }
 
-  const quickEditorForms = (g.nodes || [])
-    .map(n => String(((n.properties || {}) as Record<string, unknown>)['flow:quickEditorFormId'] || '').trim())
+  const widgetForms = (g.nodes || [])
+    .map(n => String(((n.properties || {}) as Record<string, unknown>)['flow:widgetFormId'] || '').trim())
     .filter(Boolean)
     .sort()
-  if (quickEditorForms.join(',') !== 'fm:n-canvas,fm:n-pack') {
-    throw new Error(`expected node-scoped quick-editor forms, got ${quickEditorForms.join(',')}`)
+  if (widgetForms.join(',') !== 'fm:n-canvas,fm:n-pack') {
+    throw new Error(`expected node-scoped widget forms, got ${widgetForms.join(',')}`)
   }
 
   const canvasNode = (g.nodes || []).find(n => String(n.id || '').trim() === 'n-canvas')
@@ -301,13 +301,13 @@ export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeId
   if (!overlay) throw new Error('expected NODE_OVERLAY_04')
   const overlayProps = (overlay.properties || {}) as Record<string, unknown>
   const params = overlayProps.params
-  if (!params || typeof params !== 'object') throw new Error('expected node params payload for quick editor fidelity')
+  if (!params || typeof params !== 'object') throw new Error('expected node params payload for widget fidelity')
   const portTypes = overlayProps['flow:portTypes']
   if (!portTypes || typeof portTypes !== 'object') throw new Error('expected flow:portTypes for port handle fidelity')
 
   const meta = (g.metadata || {}) as Record<string, unknown>
-  const registry = meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
-  if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected quick editor registry entries')
+  const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected widget registry entries')
   const socketTypes = meta.socketTypes
   if (!socketTypes || typeof socketTypes !== 'object') throw new Error('expected socketTypes metadata')
 }
@@ -893,8 +893,8 @@ export function testMarkdownFrontmatterFlowGraphParsesWrappedNodeFieldEnvelopeAn
   if (String(e5Props[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'correction') throw new Error('expected e5 target handle correction')
 
   const meta = (g.metadata || {}) as Record<string, unknown>
-  const registry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
-    ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
+  const registry = Array.isArray(meta[FLOW_WIDGET_REGISTRY_METADATA_KEY])
+    ? (meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
     : []
   const aiForm = registry.find(r => String(r.formId || '') === 'fm:n-ai') || null
   const validateForm = registry.find(r => String(r.formId || '') === 'fm:n-validate') || null
@@ -904,11 +904,11 @@ export function testMarkdownFrontmatterFlowGraphParsesWrappedNodeFieldEnvelopeAn
   const hasAiCorrectionIn = aiPorts.some(p => String(p.portKey || '') === 'correction' && String(p.direction || '') === 'input')
   const hasValidateCorrectionOut = validatePorts.some(p => String(p.portKey || '') === 'correction' && String(p.direction || '') === 'output')
   if (!hasAiCorrectionIn || !hasValidateCorrectionOut) {
-    throw new Error('expected wrapped-flow envelope handles to map correction ports into quick-editor registry')
+    throw new Error('expected wrapped-flow envelope handles to map correction ports into widget registry')
   }
 }
 
-export function testMarkdownFrontmatterFlowGraphParsesAllWrappedNodeIdsIntoQuickEditorForms() {
+export function testMarkdownFrontmatterFlowGraphParsesAllWrappedNodeIdsIntoWidgetForms() {
   const md = [
     '---',
     'flow:',
@@ -947,17 +947,17 @@ export function testMarkdownFrontmatterFlowGraphParsesAllWrappedNodeIdsIntoQuick
   }
 
   const meta = (g.metadata || {}) as Record<string, unknown>
-  const registry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
-    ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
+  const registry = Array.isArray(meta[FLOW_WIDGET_REGISTRY_METADATA_KEY])
+    ? (meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
     : []
   const formIds = registry.map(r => String(r.formId || '')).filter(Boolean)
   for (let i = 0; i < expectedNodeIds.length; i += 1) {
     const formId = `fm:${expectedNodeIds[i]}`
-    if (!formIds.includes(formId)) throw new Error(`expected quick-editor form for wrapped node id ${expectedNodeIds[i]}`)
+    if (!formIds.includes(formId)) throw new Error(`expected widget form for wrapped node id ${expectedNodeIds[i]}`)
   }
 }
 
-export function testMarkdownFrontmatterFlowGraphFlowBlockIgnoresMermaidAndRendersOnlyFlowNodesForQuickEditors() {
+export function testMarkdownFrontmatterFlowGraphFlowBlockIgnoresMermaidAndRendersOnlyFlowNodesForWidgets() {
   const md = [
     '---',
     'mermaid: |',
@@ -997,17 +997,17 @@ export function testMarkdownFrontmatterFlowGraphFlowBlockIgnoresMermaidAndRender
     throw new Error(`expected only flow node ids from flow block, got ${JSON.stringify(actualNodeIds)}`)
   }
   const meta = (res.graphData.metadata || {}) as Record<string, unknown>
-  const registry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
-    ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
+  const registry = Array.isArray(meta[FLOW_WIDGET_REGISTRY_METADATA_KEY])
+    ? (meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
     : []
   const formIds = registry.map(r => String(r.formId || '')).filter(Boolean).sort()
   const expectedFormIds = expectedNodeIds.map(id => `fm:${id}`).sort()
   if (JSON.stringify(formIds) !== JSON.stringify(expectedFormIds)) {
-    throw new Error(`expected only flow node quick-editor forms, got ${JSON.stringify(formIds)}`)
+    throw new Error(`expected only flow node widget forms, got ${JSON.stringify(formIds)}`)
   }
 }
 
-export async function testMarkdownLoaderFlowBlockSkipsMarkdownStructureNodesForQuickEditors() {
+export async function testMarkdownLoaderFlowBlockSkipsMarkdownStructureNodesForWidgets() {
   const md = [
     '---',
     'title: Loader Isolation',
@@ -1042,12 +1042,12 @@ export async function testMarkdownLoaderFlowBlockSkipsMarkdownStructureNodesForQ
     throw new Error(`expected only flow node ids from flow block, got ${JSON.stringify(ids)}`)
   }
   const meta = (g.metadata || {}) as Record<string, unknown>
-  const registry = Array.isArray(meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY])
-    ? (meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
+  const registry = Array.isArray(meta[FLOW_WIDGET_REGISTRY_METADATA_KEY])
+    ? (meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] as Array<Record<string, unknown>>)
     : []
   const forms = registry.map(r => String(r.formId || '').trim()).filter(Boolean).sort()
   if (JSON.stringify(forms) !== JSON.stringify(['fm:a', 'fm:b'])) {
-    throw new Error(`expected only flow quick-editor forms for loader parse, got ${JSON.stringify(forms)}`)
+    throw new Error(`expected only flow widget forms for loader parse, got ${JSON.stringify(forms)}`)
   }
 }
 
@@ -1133,7 +1133,7 @@ export function testMarkdownFrontmatterFlowGraphChatKnowgrphUsesLeadingKgcBlockO
   }
 }
 
-export function testMarkdownFrontmatterFlowGraphFlowBlockParsesDottedEdgeEndpointsForQuickEditorLinks() {
+export function testMarkdownFrontmatterFlowGraphFlowBlockParsesDottedEdgeEndpointsForWidgetLinks() {
   const md = [
     '---',
     'doc:',
@@ -1170,7 +1170,7 @@ export function testMarkdownFrontmatterFlowGraphFlowBlockParsesDottedEdgeEndpoin
   if (String(edge.label || '') !== 'responds') throw new Error('expected label from dotted flow edge declaration')
 }
 
-export function testMarkdownFrontmatterFlowGraphChatKnowgrphKeepsOutputSourceHandlesForQuickEditorEdgeAnchors() {
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphKeepsOutputSourceHandlesForWidgetEdgeAnchors() {
   const md = [
     '---',
     'doc:',
@@ -1196,16 +1196,16 @@ export function testMarkdownFrontmatterFlowGraphChatKnowgrphKeepsOutputSourceHan
 
   const res = tryParseMarkdownFrontmatterFlowGraph('kgc-output-source-handle.md', md)
   if (!res) throw new Error('expected chatKnowgrph flow parse result')
-  const registry = ((res.graphData.metadata || {}) as Record<string, unknown>)['flow:nodeQuickEditorRegistry']
-  if (!Array.isArray(registry)) throw new Error('expected quick editor registry metadata')
+  const registry = ((res.graphData.metadata || {}) as Record<string, unknown>)['flow:widgetRegistry']
+  if (!Array.isArray(registry)) throw new Error('expected widget registry metadata')
   const form = registry.find((r: unknown) => {
     const rec = (r || {}) as Record<string, unknown>
     return String(rec.formId || '') === 'fm:n-out'
   }) as Record<string, unknown> | undefined
-  if (!form) throw new Error('expected n-out quick editor form registry entry')
+  if (!form) throw new Error('expected n-out widget form registry entry')
   const ports = Array.isArray(form.ports) ? (form.ports as Array<Record<string, unknown>>) : []
   const hasDetailOutput = ports.some(p => String(p.portKey || '') === 'detail' && String(p.direction || '') === 'output')
-  if (!hasDetailOutput) throw new Error('expected chatKnowgrph output node to keep source handle detail for quick-editor edge anchors')
+  if (!hasDetailOutput) throw new Error('expected chatKnowgrph output node to keep source handle detail for widget edge anchors')
 }
 
 export function testMarkdownFrontmatterFlowGraphChatKnowgrphKeepsTurnEdgeDirectionAndHandleMapping() {
@@ -1387,7 +1387,7 @@ export function testMarkdownFrontmatterFlowGraphChatKnowgrphRemovesConflictingCo
   if (String(data.text || '') !== 'ok') throw new Error('expected non-conflicting data to remain')
 }
 
-export function testMarkdownFrontmatterFlowGraphChatKnowgrphParsesOnlyDeclaredFlowNodeIdsForQuickEditors() {
+export function testMarkdownFrontmatterFlowGraphChatKnowgrphParsesOnlyDeclaredFlowNodeIdsForWidgets() {
   const md = [
     '---',
     'doc:',
@@ -1552,8 +1552,8 @@ export function testMarkdownFrontmatterFlowGraphChatKnowgrphKgcSampleUsesOnlyDec
   if (res.graphData.edges.length !== 9) throw new Error(`expected 9 flow edges, got ${res.graphData.edges.length}`)
 
   const meta = (res.graphData.metadata || {}) as Record<string, unknown>
-  const registry = Array.isArray(meta['flow:nodeQuickEditorRegistry']) ? (meta['flow:nodeQuickEditorRegistry'] as Array<Record<string, unknown>>) : []
-  if (registry.length < 10) throw new Error(`expected quick-editor registry entries for flow nodes, got ${registry.length}`)
+  const registry = Array.isArray(meta['flow:widgetRegistry']) ? (meta['flow:widgetRegistry'] as Array<Record<string, unknown>>) : []
+  if (registry.length < 10) throw new Error(`expected widget registry entries for flow nodes, got ${registry.length}`)
 
   const forbiddenPortKeys = new Set(['compute', 'data'])
   for (let i = 0; i < registry.length; i += 1) {
@@ -1612,10 +1612,10 @@ export function testMarkdownFrontmatterFlowGraphChatKnowgrphPrunesUnreferencedHa
   const res = tryParseMarkdownFrontmatterFlowGraph('kgc-handle-prune.md', md)
   if (!res) throw new Error('expected parse result')
   const meta = (res.graphData.metadata || {}) as Record<string, unknown>
-  const registry = Array.isArray(meta['flow:nodeQuickEditorRegistry']) ? (meta['flow:nodeQuickEditorRegistry'] as Array<Record<string, unknown>>) : []
+  const registry = Array.isArray(meta['flow:widgetRegistry']) ? (meta['flow:widgetRegistry'] as Array<Record<string, unknown>>) : []
   const formA = registry.find(r => String(r.formId || '') === 'fm:n-a')
   const formB = registry.find(r => String(r.formId || '') === 'fm:n-b')
-  if (!formA || !formB) throw new Error('expected quick-editor registry forms for n-a and n-b')
+  if (!formA || !formB) throw new Error('expected widget registry forms for n-a and n-b')
   const portsA = Array.isArray(formA.ports) ? formA.ports as Array<Record<string, unknown>> : []
   const portsB = Array.isArray(formB.ports) ? formB.ports as Array<Record<string, unknown>> : []
   const hasA_turn_out = portsA.some(p => String(p.portKey || '') === 'turn' && String(p.direction || '') === 'output')
@@ -1972,7 +1972,7 @@ export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingF
     flowConfig: readFlowConfig({ schema: null, rankdir: 'LR' }),
     sceneGroups: [],
     rankdir: 'LR',
-    nodeQuickEditorRegistry: [],
+    widgetRegistry: [],
   })
   const scene = runtime.scene as unknown as { nodes?: Array<{ id?: unknown }>; edges?: Array<{ id?: unknown }> } | null
   if (!scene || !Array.isArray(scene.nodes) || scene.nodes.length < 7) throw new Error('expected Flow native scene nodes for RF sample')

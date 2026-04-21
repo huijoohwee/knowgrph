@@ -30,10 +30,10 @@ export function testFlowEditorOverlayCollisionStaysStableAcrossZoomInteractionFr
   if (collisionSection.includes('setTimeout(') || collisionSection.includes('clearTimeout(')) {
     throw new Error('expected overlay collision section to avoid timeout-based zoom mutation scheduling')
   }
-  if (!collisionSection.includes('}, [active, openQuickEditorNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])')) {
+  if (!collisionSection.includes('}, [active, openWidgetNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])')) {
     throw new Error('expected overlay collision scheduler effect deps to stay scoped to structural/viewport changes only')
   }
-  if (text.includes('attributeFilter') && text.includes('data-kg-node-quick-editor')) {
+  if (text.includes('attributeFilter') && text.includes('data-kg-widget')) {
     throw new Error('expected FlowEditorCanvas to avoid mutation observers for overlay tracking')
   }
 }

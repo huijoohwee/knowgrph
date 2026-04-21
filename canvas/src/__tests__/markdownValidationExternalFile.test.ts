@@ -1,6 +1,6 @@
 import { applyParser, builtInParsers, registerParser, resetParsers, toParserId } from '@/features/parsers'
 import { readFileSync } from 'node:fs'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeScene'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
@@ -32,14 +32,14 @@ export async function testMarkdownValidationExternalFileParsesAndLinksGraphEleme
     return
   }
 
-  const registry = meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
+  const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
   const hasRegistry = Array.isArray(registry) && registry.length > 0
   if (hasRegistry) {
     const hasAnyPorts = registry.some(e => {
       const ports = e && typeof e === 'object' && !Array.isArray(e) ? (e as { ports?: unknown }).ports : null
       return Array.isArray(ports) && ports.length > 0
     })
-    if (!hasAnyPorts) throw new Error('expected at least one quick editor registry entry with ports')
+    if (!hasAnyPorts) throw new Error('expected at least one widget registry entry with ports')
   }
 
   const subgraphs = meta[KG_SUBGRAPHS_KEY]
@@ -135,7 +135,7 @@ export async function testMarkdownValidationExternalFileParsesAndLinksGraphEleme
       flowConfig: readFlowConfig({ schema: null, rankdir: 'LR' }),
       sceneGroups: [],
       rankdir: 'LR',
-      nodeQuickEditorRegistry: registry as never,
+      widgetRegistry: registry as never,
     })
 
     const scene = runtime.scene as unknown as { nodes?: Array<{ id?: unknown; fill?: unknown; stroke?: unknown }> } | null

@@ -515,8 +515,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
     throw new Error('expected inline markdown GeoJSON preview to import the narrow gympgrph map-preview entry')
   }
   if (
-    inlineMarkdownGeoJsonText.includes("colorForDataset, useMapLibreBasemap } from 'gympgrph'") ||
-    inlineMarkdownGeoJsonText.includes("computeBoundsFromCollections, useMapLibreBasemap } from 'gympgrph'")
+    inlineMarkdownGeoJsonText.includes("colorForDataset, useMapLibreBasemap } from '@/lib/gympgrph/api'") ||
+    inlineMarkdownGeoJsonText.includes("computeBoundsFromCollections, useMapLibreBasemap } from '@/lib/gympgrph/api'")
   ) {
     throw new Error('expected inline markdown GeoJSON preview to avoid routing preview helpers through the heavy gympgrph root entry')
   }

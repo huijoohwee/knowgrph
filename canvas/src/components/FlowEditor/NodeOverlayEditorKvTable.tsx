@@ -72,7 +72,7 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
           <col style={{ width: `${safeHit}px` }} />
         </colgroup>
         <caption className={cn('sr-only', microLabelClass)}>
-          {UI_LABELS.flowNodeQuickEditorKeyLabel} / {UI_LABELS.flowNodeQuickEditorTypeLabel} / {UI_LABELS.flowNodeQuickEditorValueLabel}
+          {UI_LABELS.flowWidgetKeyLabel} / {UI_LABELS.flowWidgetTypeLabel} / {UI_LABELS.flowWidgetValueLabel}
         </caption>
 
         {showHeader ? (
@@ -80,13 +80,13 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
             <tr>
               <td />
               <td className={cn('px-2 py-2 text-left', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
-                {UI_LABELS.flowNodeQuickEditorKeyLabel}
+                {UI_LABELS.flowWidgetKeyLabel}
               </td>
               <td className={cn('px-2 py-2 text-left', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
-                {UI_LABELS.flowNodeQuickEditorTypeLabel}
+                {UI_LABELS.flowWidgetTypeLabel}
               </td>
               <td className={cn('px-2 py-2 text-left', microLabelClass, UI_THEME_TOKENS.text.secondary)}>
-                {UI_LABELS.flowNodeQuickEditorValueLabel}
+                {UI_LABELS.flowWidgetValueLabel}
               </td>
               <td />
             </tr>

@@ -3,7 +3,7 @@ import React from 'react'
 import type { GraphEdge } from '@/lib/graph/types'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
@@ -55,7 +55,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   active: boolean
   node: Pick<GraphNode, 'id' | 'type' | 'properties'>
   schema: GraphSchema | null
-  registryEntries?: ReadonlyArray<NodeQuickEditorRegistryEntry>
+  registryEntries?: ReadonlyArray<WidgetRegistryEntry>
   edges: ReadonlyArray<GraphEdge>
   minimized: boolean
   forceEnabled?: boolean
@@ -87,7 +87,7 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
     const byNode = computeFlowHandlesByNode({
       nodes: [{ id: nodeId, type: args.node?.type, properties: args.node?.properties }],
       edges,
-      nodeQuickEditorRegistry: args.registryEntries || null,
+      widgetRegistry: args.registryEntries || null,
     })
     const base = byNode[nodeId] || { in: [], out: [] }
     if (args.strictHandleSet === true) return base

@@ -1,6 +1,6 @@
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
-import { FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY, FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -93,11 +93,11 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
           const graphData = get().graphData
           const node = (graphData?.nodes || []).find(n => String(n.id || '') === nextActiveId) || null
           const props = (node?.properties || {}) as Record<string, unknown>
-          const hasQuickEditorHint =
-            (typeof props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY] === 'string' && String(props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]).trim()) ||
-            (typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' && String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]).trim())
-          if (hasQuickEditorHint) {
-            get().updateOpenQuickEditorNodeIds?.(prev => (prev.includes(nextActiveId) ? prev : [...prev, nextActiveId]))
+          const hasWidgetHint =
+            (typeof props[FLOW_WIDGET_TYPE_ID_KEY] === 'string' && String(props[FLOW_WIDGET_TYPE_ID_KEY]).trim()) ||
+            (typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string' && String(props[FLOW_WIDGET_FORM_ID_KEY]).trim())
+          if (hasWidgetHint) {
+            get().updateOpenWidgetNodeIds?.(prev => (prev.includes(nextActiveId) ? prev : [...prev, nextActiveId]))
           }
         } catch {
           void 0
@@ -127,11 +127,11 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
       const graphData = get().graphData
       const node = (graphData?.nodes || []).find(n => String(n.id || '') === id) || null
       const props = (node?.properties || {}) as Record<string, unknown>
-      const hasQuickEditorHint =
-        (typeof props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY] === 'string' && String(props[FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]).trim()) ||
-        (typeof props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] === 'string' && String(props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]).trim())
-      if (hasQuickEditorHint) {
-        get().updateOpenQuickEditorNodeIds?.(prev => (prev.includes(id) ? prev : [...prev, id]))
+      const hasWidgetHint =
+        (typeof props[FLOW_WIDGET_TYPE_ID_KEY] === 'string' && String(props[FLOW_WIDGET_TYPE_ID_KEY]).trim()) ||
+        (typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string' && String(props[FLOW_WIDGET_FORM_ID_KEY]).trim())
+      if (hasWidgetHint) {
+        get().updateOpenWidgetNodeIds?.(prev => (prev.includes(id) ? prev : [...prev, id]))
       }
     } catch {
       void 0

@@ -2,9 +2,9 @@ import React from 'react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import NodeQuickEditorRegistryTable from '@/features/flow-editor-manager/NodeQuickEditorRegistryTable'
+import WidgetRegistryTable from '@/features/flow-editor-manager/WidgetRegistryTable'
 import { FlowEditorMappingSettingsPanel } from '@/features/flow-editor-manager/FlowEditorMappingSettingsPanel'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 
 export function FlowEditorMappingTabLayout(props: {
@@ -14,24 +14,24 @@ export function FlowEditorMappingTabLayout(props: {
   importRegistryFromJson: () => void
   exportRegistryAsJson: () => void
   selectedExists: boolean
-  openCreateFromNodeQuickEditor: () => void
+  openCreateFromWidget: () => void
   registerSelectedNodeTypeFromSelection: () => void
   registerGenerateVideoFromSelection: () => void
   applySelectedMappingToSelectedNode: () => void
   openCreate: () => void
-  filtered: NodeQuickEditorRegistryEntry[]
+  filtered: WidgetRegistryEntry[]
   selectedId: string | null
   handleSelect: (id: string | null) => void
-  toggleNodeQuickEditorRegistryEntryEnabled: (id: string) => void
+  toggleWidgetRegistryEntryEnabled: (id: string) => void
   emptyLabel: string
   editorMode: 'none' | 'create' | 'edit'
-  editorDraft: Omit<NodeQuickEditorRegistryEntry, 'updatedAt'>
+  editorDraft: Omit<WidgetRegistryEntry, 'updatedAt'>
   editorRows: FlowEditorMappingRow[]
   editorError: string | null
   uiIconScale: 'compact' | 'default' | undefined
   uiIconStrokeWidth: number
   closeEditor: () => void
-  setEditorDraft: React.Dispatch<React.SetStateAction<Omit<NodeQuickEditorRegistryEntry, 'updatedAt'>>>
+  setEditorDraft: React.Dispatch<React.SetStateAction<Omit<WidgetRegistryEntry, 'updatedAt'>>>
   addEditorRow: () => void
   resetEditor: () => void
   saveEditor: () => void
@@ -60,8 +60,8 @@ export function FlowEditorMappingTabLayout(props: {
               </button>
             </li>
             <li>
-              <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={props.openCreateFromNodeQuickEditor} title={UI_COPY.flowEditorManagerAddFromQuickEditorTooltip}>
-                {UI_LABELS.addFromQuickEditor}
+              <button type="button" className={`App-toolbar__btn ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`} onClick={props.openCreateFromWidget} title={UI_COPY.flowEditorManagerAddFromWidgetTooltip}>
+                {UI_LABELS.addFromWidget}
               </button>
             </li>
             <li>
@@ -101,11 +101,11 @@ export function FlowEditorMappingTabLayout(props: {
       <section className="flex-1 min-h-0 overflow-hidden" aria-label="Mapping content">
         <section className="h-full min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_520px]" aria-label="Mapping layout">
           <section className="min-h-0 overflow-hidden" aria-label="Mapping list">
-            <NodeQuickEditorRegistryTable
+            <WidgetRegistryTable
               entries={props.filtered}
               selectedId={props.selectedId}
               onSelect={props.handleSelect}
-              onToggleEnabled={props.toggleNodeQuickEditorRegistryEntryEnabled}
+              onToggleEnabled={props.toggleWidgetRegistryEntryEnabled}
               emptyLabel={props.emptyLabel}
             />
           </section>
@@ -119,7 +119,7 @@ export function FlowEditorMappingTabLayout(props: {
                 id: props.editorDraft.id,
                 isEnabled: props.editorDraft.isEnabled,
                 nodeTypeId: props.editorDraft.nodeTypeId,
-                quickEditorTypeId: props.editorDraft.quickEditorTypeId,
+                widgetTypeId: props.editorDraft.widgetTypeId,
                 formId: props.editorDraft.formId,
               }}
               rows={props.editorRows}

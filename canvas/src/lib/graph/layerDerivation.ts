@@ -1,6 +1,6 @@
 import { GraphData } from './types';
 
-const FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY = 'flow:quickEditorFormId' as const
+const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
 const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey' as const
 const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey' as const
@@ -263,7 +263,7 @@ function isFlowNode(n: unknown): boolean {
   if (!n || typeof n !== 'object' || Array.isArray(n)) return false
   const props = (n as { properties?: unknown }).properties
   if (!isRecord(props)) return false
-  const form = props[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]
+  const form = props[FLOW_WIDGET_FORM_ID_KEY]
   if (typeof form === 'string' && form.trim()) return true
   const portTypes = props[FLOW_PORT_TYPES_KEY]
   if (isRecord(portTypes)) return true

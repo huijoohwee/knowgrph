@@ -17,23 +17,43 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   }
 }
 
-export const testMarkdownWorkspaceRuntimeQuickEditorAutoRestoreDoesNotMarkUserForcedDocument = () => {
+export const testMarkdownWorkspaceRuntimeWidgetAutoRestoreDoesNotMarkUserForcedDocument = () => {
   const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
   const text = readUtf8(runtimePath)
-  if (!text.includes('const setContentModeFromUser = React.useCallback')) {
-    throw new Error('Expected markdown workspace runtime to expose user-driven content mode setter')
-  }
   if (!text.includes('const setContentModeAuto = React.useCallback')) {
     throw new Error('Expected markdown workspace runtime to expose auto content mode setter')
   }
   if (!text.includes("setContentModeAuto('document')")) {
-    throw new Error('Expected unavailable quick editor fallback to use auto content mode setter')
+    throw new Error('Expected unavailable widget fallback to use auto content mode setter')
   }
-  if (!text.includes("setContentModeAuto('nodeQuickEditor')")) {
-    throw new Error('Expected quick editor re-availability restore to use auto content mode setter')
+  if (!text.includes("setContentModeAuto('widget')")) {
+    throw new Error('Expected widget re-availability restore to use auto content mode setter')
   }
-  if (!text.includes('setContentMode={setContentModeFromUser}')) {
-    throw new Error('Expected markdown workspace UI actions to use user-driven content mode setter')
+  if (!text.includes('const userForcedDocumentRef = React.useRef(false)')) {
+    throw new Error('Expected markdown workspace runtime to keep explicit user-forced document tracking')
+  }
+  if (!text.includes('userForcedDocumentRef.current = false')) {
+    throw new Error('Expected widget auto-restore to clear user-forced document tracking')
+  }
+  if (!text.includes("if (contentMode === 'widget' && widgetAvailable) return")) {
+    throw new Error('Expected widget mode to skip markdown file re-indexing when widget content is the active SSOT')
+  }
+}
+
+export const testMarkdownWorkspaceRuntimeWidgetBundleIncludesOpenWidgetSet = () => {
+  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const text = readUtf8(runtimePath)
+  if (!text.includes('const widgetNodeIds = React.useMemo(() => {')) {
+    throw new Error('Expected markdown workspace runtime to derive widget content from a widget node id set')
+  }
+  if (!text.includes('const widgetNodeIdSet = new Set(widgetNodeIds)')) {
+    throw new Error('Expected markdown workspace runtime to track widget bundle node ids as a set')
+  }
+  if (!text.includes('nodes: widgetNodes,')) {
+    throw new Error('Expected widget bundle graph to include all open widget nodes')
+  }
+  if (!text.includes('return widgetNodeIdSet.has(sourceId) || widgetNodeIdSet.has(targetId)')) {
+    throw new Error('Expected widget bundle edges to be collected from the open widget set')
   }
 }
 

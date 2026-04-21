@@ -35,8 +35,8 @@ export async function testMarkdownFrontmatterFlowMergeKeepsDocGraphAndFlowGraph(
   const flowNodeA = nodes.find(n => String(n.id || '') === 'A')
   if (!flowNodeA) throw new Error('expected frontmatter flow node A to be present in merged graph')
   const propsA = (flowNodeA.properties || {}) as Record<string, unknown>
-  const formId = String(propsA['flow:quickEditorFormId'] || '').trim()
-  if (!formId) throw new Error('expected flow node A to have a flow:quickEditorFormId')
+  const formId = String(propsA['flow:widgetFormId'] || '').trim()
+  if (!formId) throw new Error('expected flow node A to have a flow:widgetFormId')
 
   const hasIframeSrcdocNode = nodes.some(n => {
     const props = (n.properties || {}) as Record<string, unknown>

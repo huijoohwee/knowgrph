@@ -3,6 +3,12 @@
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-04-21
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Cross-repo docs sync for KGC run lineage + Widget (Image/Video) parity | Keep canonical trace→run→output lineage and JSON/Markdown widget projection parity documented without drift | Update canonical docs and schema guidance to enforce `kgc-trace_<ts>.md` -> `kgc_<ts>.md` (`Run`) -> `kgc-output_<ts>.md`, and require companion-file continuation links plus widget-bundle parity for Image/Video. | `knowgrph/{todo-log.md,docs/documents/{knowgrph-chat-ai-markdown-pipeline-document.md,knowgrph-flow-editor-node-quick-editor-document.md}}`, `huijoohwee.github.io/schema/AgenticRAG/README.md` | Cross-repo documentation contract | Canonical markdown sections + continuation notes | Existing docs/schema text for chat pipeline, Flow Editor widget bundle semantics, and sync rules | Updated cross-repo docs that preserve run lineage and widget parity guidance with no local/downstream aliasing | Keep canonical docs as primary index files, add continuation-link rules for oversized splits only, and define widget parity once at bundle contract level to prevent JSON/Markdown drift. | Run `python3 huijoohwee.github.io/schema/AgenticRAG/sync_map.py --mode check` and `npm -C knowgrph/canvas run doc:lint` after the next doc batch. | 2026-04-21 |
+
 ## 2026-04-19
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

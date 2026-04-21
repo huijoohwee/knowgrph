@@ -38,10 +38,10 @@ const modMarkdownDataViewInlineEditParity = () => import('@/__tests__/markdownDa
 const modMarkdownEdgelessLayout = () => import('@/__tests__/markdownEdgelessLayout.test')
 const modFlowGroupAabbIncludesMembersWhenBoundsExplicit = () => import('@/__tests__/flowGroupAabbIncludesMembersWhenBoundsExplicit.test')
 const modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression = () => import('@/__tests__/flowCanvasFrontmatterFlowPortHandlesEnabledRegression.test')
-const modFlowNodeQuickEditorPinnedContainmentClampRegression = () => import('@/__tests__/flowNodeQuickEditorPinnedContainmentClampRegression.test')
-const modFlowNodeQuickEditorFrontmatterPortHandlePadRegression = () => import('@/__tests__/flowNodeQuickEditorFrontmatterPortHandlePadRegression.test')
-const modFlowEditorFrontmatterFlowDefaultQuickEditorsInitRegression = () => import('@/__tests__/flowEditorFrontmatterFlowDefaultQuickEditorsInitRegression.test')
-const modFlowQuickEditorPortHandleDomAnchors = () => import('@/__tests__/flowQuickEditorPortHandleDomAnchors.test')
+const modFlowWidgetPinnedContainmentClampRegression = () => import('@/__tests__/flowWidgetPinnedContainmentClampRegression.test')
+const modFlowWidgetFrontmatterPortHandlePadRegression = () => import('@/__tests__/flowWidgetFrontmatterPortHandlePadRegression.test')
+const modFlowEditorFrontmatterFlowDefaultWidgetsInitRegression = () => import('@/__tests__/flowEditorFrontmatterFlowDefaultWidgetsInitRegression.test')
+const modFlowWidgetPortHandleDomAnchors = () => import('@/__tests__/flowWidgetPortHandleDomAnchors.test')
 const modGraphDataTableCellSelectOverlay = () => import('@/__tests__/graphDataTableCellSelectOverlay.test')
 const modMarkdownStickyHeadingScrollPadding = () => import('@/__tests__/markdownStickyHeadingScrollPadding.test')
 const modMarkdownScrollUtils = () => import('@/__tests__/markdownScrollUtils.test')
@@ -131,21 +131,21 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression()
     await mod.testFlowCanvasFrontmatterFlowEnablesPortHandles()
   })
-  await execTest(results, 'flow.quickEditor.pinned.clampsToContainmentGroup', async () => {
-    const mod = await modFlowNodeQuickEditorPinnedContainmentClampRegression()
-    await mod.testFlowNodeQuickEditorPinnedClampsToContainmentGroup()
+  await execTest(results, 'flow.widget.pinned.clampsToContainmentGroup', async () => {
+    const mod = await modFlowWidgetPinnedContainmentClampRegression()
+    await mod.testFlowWidgetPinnedClampsToContainmentGroup()
   })
-  await execTest(results, 'flow.quickEditor.frontmatter.padAccountsForPortHandles', async () => {
-    const mod = await modFlowNodeQuickEditorFrontmatterPortHandlePadRegression()
-    await mod.testFlowNodeQuickEditorFrontmatterPadAccountsForPortHandles()
+  await execTest(results, 'flow.widget.frontmatter.padAccountsForPortHandles', async () => {
+    const mod = await modFlowWidgetFrontmatterPortHandlePadRegression()
+    await mod.testFlowWidgetFrontmatterPadAccountsForPortHandles()
   })
-  await execTest(results, 'flow.frontmatterFlow.quickEditors.defaultInit.unpinnedAndCentered', async () => {
-    const mod = await modFlowEditorFrontmatterFlowDefaultQuickEditorsInitRegression()
+  await execTest(results, 'flow.frontmatterFlow.widgets.defaultInit.unpinnedAndCentered', async () => {
+    const mod = await modFlowEditorFrontmatterFlowDefaultWidgetsInitRegression()
     await mod.testFlowEditorFrontmatterFlowDefaultsUnpinnedAndCenteredLayout()
   })
-  await execTest(results, 'flow.quickEditor.portHandles.domAnchors', async () => {
-    const mod = await modFlowQuickEditorPortHandleDomAnchors()
-    await mod.testFlowQuickEditorPortHandleDomAnchorsPresent()
+  await execTest(results, 'flow.widget.portHandles.domAnchors', async () => {
+    const mod = await modFlowWidgetPortHandleDomAnchors()
+    await mod.testFlowWidgetPortHandleDomAnchorsPresent()
   })
   await execTest(results, 'markdown.templateVars.blockquoteAndTable', async () => {
     const mod = await modMarkdownTemplateVarsInBlockquoteAndTable()

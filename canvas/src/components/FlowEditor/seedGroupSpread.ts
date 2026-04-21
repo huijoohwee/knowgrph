@@ -1,4 +1,4 @@
-export type QuickEditorSeedBounds = { minX: number; minY: number; maxX: number; maxY: number }
+export type WidgetSeedBounds = { minX: number; minY: number; maxX: number; maxY: number }
 
 function chooseGrid(args: { count: number; targetAspect: number }): { cols: number; rows: number } {
   const count = Math.max(1, Math.floor(args.count))
@@ -61,9 +61,9 @@ function buildCenteredRowCells(args: {
   return cells
 }
 
-export function placeQuickEditorsCenteredInGroupBounds(args: {
+export function placeWidgetsCenteredInGroupBounds(args: {
   ids: string[]
-  bounds: QuickEditorSeedBounds
+  bounds: WidgetSeedBounds
   cellW: number
   cellH: number
   gapWorld: number

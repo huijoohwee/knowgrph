@@ -1,5 +1,5 @@
 import { tryParseMarkdownPanelFlowGraph } from '@/features/parsers/markdownPanelFlowGraph'
-import { FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 
 export function testMarkdownPanelFlowGraphParsesPanelsAndEdges() {
   const md = [
@@ -36,7 +36,7 @@ export function testMarkdownPanelFlowGraphParsesPanelsAndEdges() {
   if (res.graphData.nodes.length < 2) throw new Error(`expected >=2 nodes, got ${res.graphData.nodes.length}`)
   if (res.graphData.edges.length !== 2) throw new Error(`expected 2 edges, got ${res.graphData.edges.length}`)
   const meta = (res.graphData.metadata || {}) as Record<string, unknown>
-  const registry = meta[FLOW_NODE_QUICK_EDITOR_REGISTRY_METADATA_KEY]
-  if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected quick editor registry entries')
+  const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected widget registry entries')
 }
 

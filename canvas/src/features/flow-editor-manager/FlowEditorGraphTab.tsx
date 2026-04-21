@@ -28,7 +28,7 @@ const WORKFLOW_ALIAS_LABELS = [
   'pipeline',
   'mermaid',
   'flow',
-  'Nodes · Quick Editor Gallery',
+  'Nodes · Widget Gallery',
   'Edges',
   'Clusters · Samples',
   'Inspector',

@@ -2,7 +2,7 @@ import { pickGraphDataForFlowRenderer } from '@/components/FlowCanvas'
 
 export function testFlowCanvasDoesNotFilterGraphForOverlays(): void {
   const g = {
-    nodes: [{ id: 'flow1', properties: { 'flow:quickEditorFormId': 'x' } }, { id: 'img1', type: 'Image', properties: { image: 'https://example.com/a.png' } }],
+    nodes: [{ id: 'flow1', properties: { 'flow:widgetFormId': 'x' } }, { id: 'img1', type: 'Image', properties: { image: 'https://example.com/a.png' } }],
     edges: [],
   } as any
 

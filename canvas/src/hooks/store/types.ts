@@ -15,7 +15,7 @@ import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex';
 import type { MarkdownFrontmatter } from '@/lib/markdown'
 import type { ZoomCommandType, ZoomFitIntent, ZoomRequest } from '@/lib/zoom/requests'
 import type { LayoutMode2d } from '@/lib/graph/layoutMode'
-import type { NodeQuickEditorRegistryEntry } from '@/features/flow-editor-manager/nodeQuickEditorRegistryTypes'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { Canvas2dRendererId, Canvas3dModeId, CanvasWorkspaceSyncMode, InfiniteCanvasInteractionMode } from '@/lib/config'
 import type { DesignLayerNode, DesignLayerState } from '@/features/design/designLayersState'
@@ -268,15 +268,15 @@ export interface GraphState {
   selectedGroupIds: string[];
   collapsedGroupIds: string[];
   collapsedGroupIdsByGraphMetaKey: Record<string, string[]>;
-  openQuickEditorNodeIds: string[];
-  openQuickEditorNodeIdsByRenderer: Partial<Record<Canvas2dRendererId, string[]>>;
-  flowNodeQuickEditorPinnedByNodeId: Record<string, boolean>;
-  flowNodeQuickEditorPinnedByNodeIdByGraphMetaKey: Record<string, Record<string, boolean>>;
-  flowNodeQuickEditorPosByNodeId: Record<string, { top: number; left: number }>;
-  flowNodeQuickEditorPosByNodeIdByGraphMetaKey: Record<string, Record<string, { top: number; left: number }>>;
-  flowNodeQuickEditorWorldPosByNodeId: Record<string, { x: number; y: number }>;
-  flowNodeQuickEditorWorldPosByNodeIdByGraphMetaKey: Record<string, Record<string, { x: number; y: number }>>;
-  flowNodeQuickEditorDraggingNodeId: string | null;
+  openWidgetNodeIds: string[];
+  openWidgetNodeIdsByRenderer: Partial<Record<Canvas2dRendererId, string[]>>;
+  flowWidgetPinnedByNodeId: Record<string, boolean>;
+  flowWidgetPinnedByNodeIdByGraphMetaKey: Record<string, Record<string, boolean>>;
+  flowWidgetPosByNodeId: Record<string, { top: number; left: number }>;
+  flowWidgetPosByNodeIdByGraphMetaKey: Record<string, Record<string, { top: number; left: number }>>;
+  flowWidgetWorldPosByNodeId: Record<string, { x: number; y: number }>;
+  flowWidgetWorldPosByNodeIdByGraphMetaKey: Record<string, Record<string, { x: number; y: number }>>;
+  flowWidgetDraggingNodeId: string | null;
   graphFieldsOpOk: boolean | null;
   graphFieldsOpMsg: string;
   orchestratorOpOk: boolean | null;
@@ -285,7 +285,7 @@ export interface GraphState {
   renderOpMsg: string;
   selectionSource: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown';
   setSelectionSource: (src: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') => void;
-  setFlowNodeQuickEditorPinnedByNodeId: (pinnedById: Record<string, boolean>) => void;
+  setFlowWidgetPinnedByNodeId: (pinnedById: Record<string, boolean>) => void;
 
   isEditMode: boolean;
   workspaceViewMode: WorkspaceViewMode;
@@ -316,19 +316,19 @@ export interface GraphState {
   setOrchestratorOpStatus: (ok: boolean | null, msg: string) => void;
   setRenderOpStatus: (ok: boolean | null, msg: string) => void;
 
-  nodeQuickEditorRegistry: NodeQuickEditorRegistryEntry[]
-  documentNodeQuickEditorRegistry: NodeQuickEditorRegistryEntry[]
-  effectiveNodeQuickEditorRegistry: NodeQuickEditorRegistryEntry[]
-  setNodeQuickEditorRegistry: (entries: NodeQuickEditorRegistryEntry[]) => void
-  setDocumentNodeQuickEditorRegistry: (
-    entries: NodeQuickEditorRegistryEntry[],
+  widgetRegistry: WidgetRegistryEntry[]
+  documentWidgetRegistry: WidgetRegistryEntry[]
+  effectiveWidgetRegistry: WidgetRegistryEntry[]
+  setWidgetRegistry: (entries: WidgetRegistryEntry[]) => void
+  setDocumentWidgetRegistry: (
+    entries: WidgetRegistryEntry[],
     options?: { graphData?: GraphData | null },
   ) => void
-  upsertNodeQuickEditorRegistryEntry: (
-    entry: Omit<NodeQuickEditorRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null },
+  upsertWidgetRegistryEntry: (
+    entry: Omit<WidgetRegistryEntry, 'id' | 'updatedAt'> & { id?: string | null },
   ) => { ok: true; id: string } | { ok: false; message: string }
-  removeNodeQuickEditorRegistryEntry: (id: string) => void
-  toggleNodeQuickEditorRegistryEntryEnabled: (id: string, enabled?: boolean) => void
+  removeWidgetRegistryEntry: (id: string) => void
+  toggleWidgetRegistryEntryEnabled: (id: string, enabled?: boolean) => void
 
   designLayerState: DesignLayerState
   designLayerStateByGraphMetaKey: Record<string, DesignLayerState>
@@ -384,11 +384,11 @@ export interface GraphState {
   setCollapsedGroupIds: (ids: string[]) => void;
   clearCollapsedGroups: () => void;
   toggleGroupCollapsed: (id: string) => void;
-  setOpenQuickEditorNodeIds: (ids: string[]) => void;
-  updateOpenQuickEditorNodeIds: (updater: (prev: string[]) => string[]) => void;
-  setFlowNodeQuickEditorPosByNodeId: (pos: Record<string, { top: number; left: number }>) => void;
-  setFlowNodeQuickEditorWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void;
-  setFlowNodeQuickEditorDraggingNodeId: (id: string | null) => void;
+  setOpenWidgetNodeIds: (ids: string[]) => void;
+  updateOpenWidgetNodeIds: (updater: (prev: string[]) => string[]) => void;
+  setFlowWidgetPosByNodeId: (pos: Record<string, { top: number; left: number }>) => void;
+  setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void;
+  setFlowWidgetDraggingNodeId: (id: string | null) => void;
   setEditMode: (mode: boolean) => void;
   setWorkspaceViewMode: (mode: WorkspaceViewMode) => void;
   toggleWorkspaceViewMode: () => void;

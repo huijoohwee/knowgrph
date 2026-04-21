@@ -2,12 +2,12 @@ import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import { FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import {
-  FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY,
-  FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY,
-} from '@/features/flow-editor-manager/resolveNodeQuickEditorRegistry'
+  FLOW_WIDGET_FORM_ID_KEY,
+  FLOW_WIDGET_TYPE_ID_KEY,
+} from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { RegistryEntry, RegistryPort } from '@/features/parsers/markdownFrontmatterFlowGraph.connections'
 import {
-  FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY,
+  FRONTMATTER_FLOW_WIDGET_FIELDS_KEY,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import { hashText } from '@/features/parsers/hash'
 import { normalizeSigilId } from '@/features/parsers/markdownFrontmatterFlowGraph.sigil'
@@ -280,7 +280,7 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     const formId = `fm:${id}`
     const propsFromRow = isRecord(row.properties) ? (row.properties as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
     const fieldsFromRow = (() => {
-      const raw = (propsFromRow as unknown as Record<string, unknown>)[FRONTMATTER_FLOW_QUICK_EDITOR_FIELDS_KEY]
+      const raw = (propsFromRow as unknown as Record<string, unknown>)[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]
       if (!Array.isArray(raw)) return [] as Array<{ fieldKey: string; fieldType: string; schemaPath?: string }>
       const out: Array<{ fieldKey: string; fieldType: string; schemaPath?: string }> = []
       const seen = new Set<string>()
@@ -322,11 +322,11 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
         : {}),
       ...(type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
         ? ({
-            [FLOW_NODE_QUICK_EDITOR_TYPE_ID_KEY]: 'ports',
-            [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: formId,
+            [FLOW_WIDGET_TYPE_ID_KEY]: 'ports',
+            [FLOW_WIDGET_FORM_ID_KEY]: formId,
           } as unknown as Record<string, JSONValue>)
-        : row[FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY] == null
-          ? ({ [FLOW_NODE_QUICK_EDITOR_FORM_ID_KEY]: formId } as unknown as Record<string, JSONValue>)
+        : row[FLOW_WIDGET_FORM_ID_KEY] == null
+          ? ({ [FLOW_WIDGET_FORM_ID_KEY]: formId } as unknown as Record<string, JSONValue>)
           : {}),
     }
     nodes.push({
@@ -341,7 +341,7 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
       id: `qer-fm-${cleanIdPart(type) || 'node'}-${cleanIdPart(id) || hashText(id)}`,
       isEnabled: true,
       nodeTypeId: type,
-      quickEditorTypeId: type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? 'ports' : 'default',
+      widgetTypeId: type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? 'ports' : 'default',
       formId,
       fields: fieldsFromRow,
       ports,
