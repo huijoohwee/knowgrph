@@ -49,6 +49,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
         legendTextSizeClass,
         textColorClass: 'text-gray-700',
       });
+      const iconOnlyPillClass = 'inline-flex items-center justify-center';
       return [
         {
           category: 'Scope',
@@ -69,7 +70,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
           icon: (
             <FieldOriginIcon
               isCustom
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               strokeWidth={uiIconStrokeWidth}
             />
@@ -83,7 +84,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
           icon: (
             <FieldOriginIcon
               isCustom={false}
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               strokeWidth={uiIconStrokeWidth}
             />
@@ -124,7 +125,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="string"
               label="Single line text"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -139,7 +140,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="string"
               label="Long text"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -154,7 +155,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="number"
               label="Number"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -169,7 +170,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="number"
               label="Decimal"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -184,7 +185,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="boolean"
               label="Checkbox"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -199,7 +200,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="string"
               label="Multi-select"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -214,7 +215,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="string"
               label="Single-select"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -229,7 +230,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="string"
               label="Date Time"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -244,7 +245,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="string"
               label="URL"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -259,7 +260,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="number"
               label="Currency"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -274,7 +275,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             <KindPill
               kind="object"
               label="JSON"
-              className={pillClass}
+              className={iconOnlyPillClass}
               iconClassName={iconSizeClass}
               iconStrokeWidth={uiIconStrokeWidth}
             />
@@ -286,7 +287,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
         {
           category: 'Actions',
           icon: (
-            <span className={pillClass}>
+            <span className={iconOnlyPillClass}>
               <Eraser className={`${iconSizeClass} text-gray-600`} strokeWidth={uiIconStrokeWidth} />
             </span>
           ),
@@ -379,4 +380,3 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
     </div>
   );
 }
-

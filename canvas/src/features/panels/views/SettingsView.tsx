@@ -2,6 +2,7 @@ import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
+import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import {
   uiDangerButtonClassName,
   uiToolbarToggleActiveClassName,
@@ -16,23 +17,30 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useSettingsView } from './useSettingsView'
 import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
+import { KindPill, resolveFieldTypeIconKind } from '@/features/graph-fields/ui/graphFieldIcons'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { importLocalFilesFallback, importUrlFallback } from '@/features/toolbar/launchDropdownFallbacks'
+import { getIconSizeClass } from '@/lib/ui'
 import {
+  CHAT_BYTEPLUS_AP_SOUTHEAST_BASE,
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
+  CHAT_BYTEPLUS_MODEL_OPTIONS,
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
   CHAT_DEFAULT_PROVIDER,
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
   CHAT_LOCAL_DEFAULT_MODEL,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_LM_STUDIO,
   CHAT_PROVIDER_OPENAI,
   CHAT_OPENAI_MODEL_OPTIONS,
+  getChatModelOptions,
   CHAT_LOCAL_MODEL_OPTIONS,
   buildChatProxyHeaders,
   getChatDefaultEndpointUrlForProvider,
@@ -49,10 +57,12 @@ import {
 } from '@/features/integrations/config'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
+const SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS = 'top-9'
 
 export default function SettingsView({
   searchQuery,
   onRegisterActions,
+  mode = 'all',
 }: {
   searchQuery: string
   onRegisterActions?: (a: {
@@ -63,6 +73,7 @@ export default function SettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
+  mode?: 'all' | 'integrations'
 }) {
   const {
     expanded,
@@ -74,13 +85,16 @@ export default function SettingsView({
     renderInput,
     collapsedByArea,
     groupByArea,
+    allCollapsed,
+    collapseAll,
+    expandAll,
     normalizedQuery,
     toggleArea,
     uiPanelKeyValueTextSizeClass,
     values,
     setValues,
     dirtyRef,
-  } = useSettingsView({ searchQuery, onRegisterActions })
+  } = useSettingsView({ searchQuery, onRegisterActions, mode })
   const [chatModelsStatus, setChatModelsStatus] = React.useState<string | null>(null)
   const [isRefreshingChatModels, setIsRefreshingChatModels] = React.useState(false)
   const [discoveredChatModels, setDiscoveredChatModels] = React.useState<string[]>([])
@@ -94,6 +108,14 @@ export default function SettingsView({
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
+  const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
+  const headerStickyTopClass = mode === 'integrations' ? 'top-0' : '-top-[2px]'
+  const headerDividerWidthClass = mode === 'integrations' ? 'border-b-[0.5px]' : 'border-b'
+  const settingsTypeIconSizeClass = getIconSizeClass(uiIconScale)
+  const bytePlusImageDefaultLabel = `Seedream 5.0 Lite (${CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT})`
+  const bytePlusVideoDefaultLabel = `Seedance 2.0 (${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT})`
+  const openAiTextDefaultLabel = `OpenAI default text model: ${CHAT_DEFAULT_MODEL}`
   const normalizedChatProvider = React.useMemo(
     () => String(values.chatProvider || '').trim() || CHAT_DEFAULT_PROVIDER,
     [values.chatProvider],
@@ -474,15 +496,21 @@ export default function SettingsView({
     () => parseIntegrationConfigsJson(typeof values.integrationConfigsJson === 'string' ? values.integrationConfigsJson : null).aiChat,
     [values.integrationConfigsJson],
   )
+  const providerChatModelOptions = React.useMemo(
+    () => [...getChatModelOptions(values.chatProvider)],
+    [values.chatProvider],
+  )
   const chatModelSuggestions = React.useMemo(() => {
     const staticOptions = [
+      ...providerChatModelOptions,
+      ...CHAT_BYTEPLUS_MODEL_OPTIONS,
       ...CHAT_OPENAI_MODEL_OPTIONS,
       ...CHAT_LOCAL_MODEL_OPTIONS,
     ]
     const currentModel = typeof values.chatModel === 'string' ? values.chatModel.trim() : ''
     const combined = [...staticOptions, ...discoveredChatModels, currentModel].filter(Boolean)
     return Array.from(new Set(combined))
-  }, [discoveredChatModels, values.chatModel])
+  }, [discoveredChatModels, providerChatModelOptions, values.chatModel])
 
   return (
     <article className="min-h-full flex flex-col space-y-0">
@@ -511,18 +539,31 @@ export default function SettingsView({
         }}
       />
       <section className="space-y-0">
-        <header className={`sticky top-0 z-10 border-b ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
-          <KeyTypeValueRow
-            keyNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</span>}
-            typeNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Type</span>}
-            valueNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Value</span>}
-            density="compact"
-            className="h-9 py-0"
-          />
+        <header className={`sticky ${headerStickyTopClass} z-20 ${headerDividerWidthClass} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
+          <div className="relative">
+            <KeyTypeValueRow
+              keyNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Key</span>}
+              typeNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Type</span>}
+              valueNode={<span className={`font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Value</span>}
+              density="compact"
+              className="h-9 py-0"
+            />
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center">
+              <ExpandCollapseAllButton
+                allCollapsed={allCollapsed}
+                onExpandAll={expandAll}
+                onCollapseAll={collapseAll}
+                titleExpand="Expand"
+                titleCollapse="Collapse (Default)"
+              />
+            </div>
+          </div>
         </header>
-        <section className="p-2 border-b border-white/10">
-          <WorkspaceTableModeControl />
-        </section>
+        {mode !== 'integrations' && (
+          <section className="p-2 border-b border-white/10">
+            <WorkspaceTableModeControl />
+          </section>
+        )}
         {groupByArea.map(([area, entries]) => {
           const collapsed = normalizedQuery ? false : (collapsedByArea[area] ?? true)
           const responsibilities = entries.map(e => e.details.responsibility).filter(Boolean)
@@ -548,6 +589,7 @@ export default function SettingsView({
                 </Tooltip>
               )}
               collapsed={collapsed}
+              stickyOffsetClassName={SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS}
               onToggle={next => {
                 if (normalizedQuery) return
                 toggleArea(area, next)
@@ -592,6 +634,24 @@ export default function SettingsView({
                       </span>
                       <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
                         {chatProviderHint}
+                      </span>
+                    </li>
+                    <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+                      <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Multi-modal Run</span>
+                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+                        Reuses `chatProvider`, `chatAuthMode`, `chatEndpointUrl`, and `chatApiKey`
+                      </span>
+                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+                        Text uses `chatModel`: {openAiTextDefaultLabel}
+                      </span>
+                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+                        BytePlus image default: {bytePlusImageDefaultLabel}
+                      </span>
+                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+                        BytePlus video default: {bytePlusVideoDefaultLabel}
+                      </span>
+                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+                        Default Base URL: {CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}/api/v3
                       </span>
                     </li>
                     <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
@@ -763,16 +823,19 @@ export default function SettingsView({
                     </li>
                   </>
                 )}
-                {entries.map(({ meta: s, details, writable, anchorId }) => {
+                {entries.map(({ meta: s, details, writable, anchorId, typeLabel }) => {
                   const isExpanded = expanded === s.key
                   const hasOptions = Array.isArray(s.options) && s.options.length > 0
+                  const resolvedTypeLabel = String(typeLabel || s.type || '').trim() || 'string'
+                  const renderTypeAsText = Boolean(typeLabel)
+                  const settingTypeIconKind = resolveFieldTypeIconKind(resolvedTypeLabel)
                   const keyTooltip = buildSettingsKeyTooltip({
                     area: details.area,
                     key: s.key,
                     responsibility: details.responsibility,
                   })
                   const valueTooltip = buildSettingsValueTooltip({
-                    type: s.type,
+                    type: resolvedTypeLabel,
                     key: s.key,
                     defaultValue: s.default ? s.default() : null,
                     options: s.options,
@@ -797,7 +860,19 @@ export default function SettingsView({
                             </span>
                           </Tooltip>
                         )}
-                        typeNode={s.type}
+                        typeNode={(
+                          renderTypeAsText
+                            ? <span className={`inline-flex items-center justify-start sm:justify-end ${UI_THEME_TOKENS.text.secondary}`}>{resolvedTypeLabel}</span>
+                            : (
+                              <KindPill
+                                kind={settingTypeIconKind}
+                                label={resolvedTypeLabel}
+                                className="inline-flex items-center justify-center"
+                                iconClassName={settingsTypeIconSizeClass}
+                                iconStrokeWidth={uiIconStrokeWidth}
+                              />
+                            )
+                        )}
                         valueNode={(
                           <div className="flex-1">
                             {(() => {
@@ -1027,20 +1102,20 @@ export default function SettingsView({
                         onClick={() => setExpanded(isExpanded ? null : s.key)}
                       />
                       {isExpanded && (
-                        <div className={`mt-0 mb-0 text-xs ${UI_THEME_TOKENS.text.primary} border-l pl-2`}>
+                        <div className={`mt-0 mb-0 text-xs ${UI_THEME_TOKENS.text.secondary} border-l pl-2`}>
                           <table className={`w-full text-left border-collapse ${uiPanelKeyValueTextSizeClass || ''}`}>
                             <thead>
                               <tr>
-                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Modules</th>
-                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Classes/Objects</th>
-                                <th className={`font-medium p-1 border-b ${UI_THEME_TOKENS.table.cellBorder}`}>Functions/Methods</th>
+                                <th className="font-medium p-1">Modules</th>
+                                <th className="font-medium p-1">Classes/Objects</th>
+                                <th className="font-medium p-1">Functions/Methods</th>
                               </tr>
                             </thead>
                             <tbody>
                               <tr>
-                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.modules || []).join(', ') || '—'}</td>
-                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.classes || []).join(', ') || '—'}</td>
-                                <td className={`p-1 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>{(details.functions || []).join(', ') || '—'}</td>
+                                <td className={`p-1 align-top border-b ${UI_THEME_TOKENS.table.cellBorder}`}>{(details.modules || []).join(', ') || '—'}</td>
+                                <td className={`p-1 align-top border-b ${UI_THEME_TOKENS.table.cellBorder}`}>{(details.classes || []).join(', ') || '—'}</td>
+                                <td className={`p-1 align-top border-b ${UI_THEME_TOKENS.table.cellBorder}`}>{(details.functions || []).join(', ') || '—'}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -1053,25 +1128,27 @@ export default function SettingsView({
             </CollapsibleSection>
           )
         })}
-        <CollapsibleSection
-          title="Resets and data"
-          collapsed={false}
-          onToggle={() => void 0}
-          className={`mt-2 pt-2 border-t ${UI_COLOR_DANGER_RED_BORDER}`}
-        >
-          <div className={`space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
-            <div>
-              Reset all settings to defaults and clear canvas data. This action cannot be undone.
+        {mode !== 'integrations' && (
+          <CollapsibleSection
+            title="Resets and data"
+            collapsed={false}
+            onToggle={() => void 0}
+            className={`mt-2 pt-2 border-t ${UI_COLOR_DANGER_RED_BORDER}`}
+          >
+            <div className={`space-y-1 text-xs ${UI_THEME_TOKENS.text.primary}`}>
+              <div>
+                Reset all settings to defaults and clear canvas data. This action cannot be undone.
+              </div>
+              <button
+                type="button"
+                className={uiDangerButtonClassName}
+                onClick={onGlobalReset}
+              >
+                Global Reset
+              </button>
             </div>
-            <button
-              type="button"
-              className={uiDangerButtonClassName}
-              onClick={onGlobalReset}
-            >
-              Global Reset
-            </button>
-          </div>
-        </CollapsibleSection>
+          </CollapsibleSection>
+        )}
       </section>
     </article>
   )

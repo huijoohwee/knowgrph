@@ -19,10 +19,53 @@ export type RunGenerationConfig = {
   chatModel?: unknown
 }
 
+export type RunImageGenerationOptions = {
+  model?: unknown
+  aspectRatio?: unknown
+  resolution?: unknown
+  referenceImageUrl?: unknown
+}
+
+export type RunVideoGenerationOptions = {
+  model?: unknown
+  aspectRatio?: unknown
+  resolution?: unknown
+  duration?: unknown
+  generateAudio?: unknown
+  referenceImageUrl?: unknown
+}
+
+export type GeneratedBinaryAsset = {
+  blob: Blob
+  renderUrl: string
+  sourceUrl?: string
+  model: string
+}
+
 const toRequestId = (prefix: string): string => `${prefix}-${Date.now().toString(36)}`
 
 const cleanString = (value: unknown): string => {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+const cleanBool = (value: unknown): boolean | null => {
+  if (value === true) return true
+  if (value === false) return false
+  if (typeof value === 'string') {
+    const raw = value.trim().toLowerCase()
+    if (raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on') return true
+    if (raw === 'false' || raw === '0' || raw === 'no' || raw === 'off') return false
+  }
+  return null
+}
+
+const cleanInteger = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.trunc(value)
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value.trim(), 10)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return null
 }
 
 const buildProxyHeaders = (config: RunGenerationConfig, requestId: string): HeadersInit => {
@@ -39,6 +82,11 @@ const buildProxyHeaders = (config: RunGenerationConfig, requestId: string): Head
 
 const normalizeModelId = (value: string): string => {
   return cleanString(value).toLowerCase().replace(/[^a-z0-9]+/g, '')
+}
+
+const isGenericGenerationMode = (value: string): boolean => {
+  const normalized = normalizeModelId(value)
+  return normalized === 'generateimage' || normalized === 'generatevideo'
 }
 
 const chooseMatchingModel = (available: string[], preferred: string, keywords: string[]): string => {
@@ -59,11 +107,15 @@ const chooseMatchingModel = (available: string[], preferred: string, keywords: s
 const resolveGenerationModel = async (
   config: RunGenerationConfig,
   kind: 'text' | 'image' | 'video',
+  explicitModel?: unknown,
 ): Promise<string> => {
   const provider = normalizeChatProviderId(config.provider)
-  const preferred = kind === 'text'
-    ? cleanString(config.chatModel) || getDefaultGenerationModelForProvider(provider, 'text')
-    : getDefaultGenerationModelForProvider(provider, kind)
+  const explicit = cleanString(explicitModel)
+  const preferred = explicit && !isGenericGenerationMode(explicit)
+    ? explicit
+    : kind === 'text'
+      ? cleanString(config.chatModel) || getDefaultGenerationModelForProvider(provider, 'text')
+      : getDefaultGenerationModelForProvider(provider, kind)
   if (provider !== CHAT_PROVIDER_BYTEPLUS) return preferred
   const modelsEndpoint = resolveChatEndpointForModels(config.endpointUrl)
   if (!modelsEndpoint) return preferred
@@ -114,6 +166,25 @@ const base64ToBlob = (base64: string, mimeType: string): Blob | null => {
   }
 }
 
+const base64ToDataUrl = (base64: string, mimeType: string): string => {
+  const clean = cleanString(base64).replace(/^data:[^;]+;base64,/, '')
+  return clean ? `data:${mimeType};base64,${clean}` : ''
+}
+
+const mapAspectRatioToImageSize = (aspectRatio: unknown): string => {
+  const raw = cleanString(aspectRatio).toLowerCase()
+  if (raw === 'landscape') return '1536x1024'
+  if (raw === 'portrait') return '1024x1536'
+  return '1024x1024'
+}
+
+const mapAspectRatioToVideoRatio = (aspectRatio: unknown): string => {
+  const raw = cleanString(aspectRatio).toLowerCase()
+  if (raw === 'portrait') return '9:16'
+  if (raw === 'square') return '1:1'
+  return '16:9'
+}
+
 const fetchBlobFromUrl = async (url: string): Promise<Blob | null> => {
   const target = cleanString(url)
   if (!target) return null
@@ -133,16 +204,22 @@ const fetchBlobFromUrl = async (url: string): Promise<Blob | null> => {
   }
 }
 
-const extractImageBlob = async (payload: unknown): Promise<Blob | null> => {
+const extractImageAsset = async (payload: unknown): Promise<{ blob: Blob; renderUrl: string; sourceUrl?: string } | null> => {
   if (!payload || typeof payload !== 'object') return null
   const data = Array.isArray((payload as { data?: unknown }).data) ? (payload as { data: unknown[] }).data : []
   const first = data[0]
   if (!first || typeof first !== 'object') return null
   const rec = first as { b64_json?: unknown; url?: unknown }
   const b64 = typeof rec.b64_json === 'string' ? rec.b64_json : ''
-  if (b64) return base64ToBlob(b64, 'image/png')
+  if (b64) {
+    const blob = base64ToBlob(b64, 'image/png')
+    const renderUrl = base64ToDataUrl(b64, 'image/png')
+    return blob && renderUrl ? { blob, renderUrl } : null
+  }
   const url = typeof rec.url === 'string' ? rec.url : ''
-  return await fetchBlobFromUrl(url)
+  const blob = await fetchBlobFromUrl(url)
+  const renderUrl = resolveBinaryDownloadProxyUrl(url)
+  return blob && renderUrl ? { blob, renderUrl, sourceUrl: cleanString(url) } : null
 }
 
 const extractVideoUrl = (payload: unknown): string => {
@@ -180,7 +257,6 @@ export async function generateRunMarkdownWithProvider(args: {
 }): Promise<string | null> {
   const endpoint = resolveChatEndpointForRequest(args.config.endpointUrl)
   if (!endpoint) return null
-  const provider = normalizeChatProviderId(args.config.provider)
   const model = await resolveGenerationModel(args.config, 'text')
   const requestId = toRequestId('kg-run-text')
   const res = await fetch(endpoint, {
@@ -214,23 +290,28 @@ export async function generateRunMarkdownWithProvider(args: {
 export async function generateRunImageWithBytePlus(args: {
   config: RunGenerationConfig
   prompt: string
-}): Promise<Blob | null> {
+  options?: RunImageGenerationOptions
+}): Promise<GeneratedBinaryAsset | null> {
   if (normalizeChatProviderId(args.config.provider) !== CHAT_PROVIDER_BYTEPLUS) return null
   const endpoint = resolveBytePlusContentEndpointForRequest({
     endpointUrl: args.config.endpointUrl,
     path: CHAT_BYTEPLUS_IMAGES_GENERATIONS_PATH,
   })
   if (!endpoint) return null
-  const model = await resolveGenerationModel(args.config, 'image')
+  const model = await resolveGenerationModel(args.config, 'image', args.options?.model)
   const requestId = toRequestId('kg-run-image')
+  const referenceImageUrl = cleanString(args.options?.referenceImageUrl)
+  const prompt = referenceImageUrl
+    ? `${args.prompt}\nReference image anchor: ${referenceImageUrl}`
+    : args.prompt
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: buildProxyHeaders(args.config, requestId),
     body: JSON.stringify({
       model,
-      prompt: args.prompt,
+      prompt,
       response_format: 'b64_json',
-      size: '1024x1024',
+      size: mapAspectRatioToImageSize(args.options?.aspectRatio),
     }),
   })
   if (!res.ok) {
@@ -238,31 +319,45 @@ export async function generateRunImageWithBytePlus(args: {
     throw new Error(detail || `Run image generation failed (${res.status})`)
   }
   const data = (await res.json()) as unknown
-  return await extractImageBlob(data)
+  const asset = await extractImageAsset(data)
+  return asset ? { ...asset, model } : null
 }
 
 export async function generateRunVideoWithBytePlus(args: {
   config: RunGenerationConfig
   prompt: string
-}): Promise<Blob | null> {
+  options?: RunVideoGenerationOptions
+}): Promise<GeneratedBinaryAsset | null> {
   if (normalizeChatProviderId(args.config.provider) !== CHAT_PROVIDER_BYTEPLUS) return null
   const endpoint = resolveBytePlusContentEndpointForRequest({
     endpointUrl: args.config.endpointUrl,
     path: CHAT_BYTEPLUS_CONTENT_GENERATIONS_TASKS_PATH,
   })
   if (!endpoint) return null
-  const model = await resolveGenerationModel(args.config, 'video')
+  const model = await resolveGenerationModel(args.config, 'video', args.options?.model)
   const requestId = toRequestId('kg-run-video')
+  const referenceImageUrl = cleanString(args.options?.referenceImageUrl)
+  const content = [{ type: 'text', text: args.prompt }] as Array<Record<string, unknown>>
+  if (referenceImageUrl) {
+    content.push({
+      type: 'image_url',
+      image_url: {
+        url: referenceImageUrl,
+      },
+    })
+  }
+  const duration = cleanInteger(args.options?.duration)
+  const generateAudio = cleanBool(args.options?.generateAudio)
   const createRes = await fetch(endpoint, {
     method: 'POST',
     headers: buildProxyHeaders(args.config, requestId),
     body: JSON.stringify({
       model,
-      content: [{ type: 'text', text: args.prompt }],
-      resolution: '720p',
-      ratio: '16:9',
-      duration: 5,
-      generate_audio: false,
+      content,
+      resolution: cleanString(args.options?.resolution) || '720p',
+      ratio: mapAspectRatioToVideoRatio(args.options?.aspectRatio),
+      duration: duration != null && duration > 0 ? duration : 5,
+      generate_audio: generateAudio === true,
       watermark: false,
     }),
   })
@@ -292,7 +387,15 @@ export async function generateRunVideoWithBytePlus(args: {
     if (status === 'failed' || status === 'expired') return null
     const url = extractVideoUrl(payload)
     if (status === 'succeeded' && url) {
-      return await fetchBlobFromUrl(url)
+      const blob = await fetchBlobFromUrl(url)
+      const renderUrl = resolveBinaryDownloadProxyUrl(url)
+      if (!blob || !renderUrl) return null
+      return {
+        blob,
+        renderUrl,
+        sourceUrl: cleanString(url),
+        model,
+      }
     }
   }
   return null

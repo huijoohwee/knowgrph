@@ -5,6 +5,7 @@ import type { ThemeMode } from '@/lib/ui/theme'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsSetBool } from '@/lib/persistence'
 import {
+  CHAT_BYTEPLUS_MODEL_OPTIONS,
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
   CHAT_DEFAULT_PROVIDER,
@@ -405,7 +406,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setChatModel(String(v || '').trim() || CHAT_DEFAULT_MODEL),
     docKey: 'chatModel',
     default: () => CHAT_DEFAULT_MODEL,
-    options: [...CHAT_OPENAI_MODEL_OPTIONS, ...CHAT_LOCAL_MODEL_OPTIONS],
+    options: [...CHAT_OPENAI_MODEL_OPTIONS, ...CHAT_BYTEPLUS_MODEL_OPTIONS, ...CHAT_LOCAL_MODEL_OPTIONS],
   },
   {
     key: 'chatTemperature',

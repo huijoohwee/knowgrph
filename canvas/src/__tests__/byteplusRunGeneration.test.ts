@@ -103,7 +103,7 @@ export async function testGenerateRunImageWithBytePlusAcceptsBase64Payload() {
       } as Response
     }) as typeof fetch
 
-    const blob = await generateRunImageWithBytePlus({
+    const result = await generateRunImageWithBytePlus({
       config: {
         provider: CHAT_PROVIDER_BYTEPLUS,
         endpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
@@ -111,8 +111,11 @@ export async function testGenerateRunImageWithBytePlusAcceptsBase64Payload() {
       },
       prompt: 'Generate image',
     })
-    if (!blob || blob.type !== 'image/png' || blob.size === 0) {
+    if (!result || result.blob.type !== 'image/png' || result.blob.size === 0) {
       throw new Error('expected BytePlus image generation helper to decode a PNG blob from base64 payloads')
+    }
+    if (!String(result.renderUrl || '').startsWith('data:image/png;base64,')) {
+      throw new Error('expected base64-backed image responses to expose a renderable data URL')
     }
   } finally {
     globalThis.fetch = originalFetch
@@ -148,7 +151,7 @@ export async function testGenerateRunImageWithBytePlusDownloadsUrlThroughAssetPr
       throw new Error(`unexpected image asset fetch request: ${url}`)
     }) as typeof fetch
 
-    const blob = await generateRunImageWithBytePlus({
+    const result = await generateRunImageWithBytePlus({
       config: {
         provider: CHAT_PROVIDER_BYTEPLUS,
         endpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
@@ -156,8 +159,11 @@ export async function testGenerateRunImageWithBytePlusDownloadsUrlThroughAssetPr
       },
       prompt: 'Generate image from URL payload',
     })
-    if (!blob || blob.type !== 'image/png' || blob.size === 0) {
+    if (!result || result.blob.type !== 'image/png' || result.blob.size === 0) {
       throw new Error('expected BytePlus image generation helper to download URL-based image payloads through the shared asset proxy')
+    }
+    if (result.renderUrl !== '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated-image.png') {
+      throw new Error(`expected image render URL to use shared asset proxy, got ${String(result.renderUrl)}`)
     }
   } finally {
     globalThis.fetch = originalFetch
@@ -177,6 +183,21 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
         } as Response
       }
       if (url === '/__chat_proxy/api/v3/contents/generations/tasks' && String(init?.method || 'GET').toUpperCase() === 'POST') {
+        const body = JSON.parse(String(init?.body || '{}')) as {
+          content?: Array<{ type?: string; image_url?: { url?: string } }>
+          ratio?: string
+          duration?: number
+          generate_audio?: boolean
+        }
+        if (body.ratio !== '9:16' || body.duration !== 6 || body.generate_audio !== true) {
+          throw new Error(`expected video generation options to map onto the BytePlus task request: ${JSON.stringify(body)}`)
+        }
+        const imageRef = Array.isArray(body.content)
+          ? body.content.find(item => item && item.type === 'image_url')
+          : null
+        if (imageRef?.image_url?.url !== 'https://example.com/reference.png') {
+          throw new Error('expected reference image URL to be forwarded into the BytePlus video task payload')
+        }
         return {
           ok: true,
           json: async () => ({ id: 'task-123' }),
@@ -202,16 +223,25 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
       throw new Error(`unexpected fetch request: ${url}`)
     }) as typeof fetch
 
-    const blob = await generateRunVideoWithBytePlus({
+    const result = await generateRunVideoWithBytePlus({
       config: {
         provider: CHAT_PROVIDER_BYTEPLUS,
         endpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
         apiKey: 'byteplus-key',
       },
       prompt: 'Generate video',
+      options: {
+        aspectRatio: 'portrait',
+        duration: 6,
+        generateAudio: true,
+        referenceImageUrl: 'https://example.com/reference.png',
+      },
     })
-    if (!blob || blob.type !== 'video/mp4' || blob.size === 0) {
+    if (!result || result.blob.type !== 'video/mp4' || result.blob.size === 0) {
       throw new Error('expected BytePlus video generation helper to poll the task and download the final MP4 blob')
+    }
+    if (result.renderUrl !== '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.mp4') {
+      throw new Error(`expected video render URL to use shared asset proxy, got ${String(result.renderUrl)}`)
     }
   } finally {
     globalThis.fetch = originalFetch

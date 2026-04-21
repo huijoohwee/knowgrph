@@ -1,5 +1,6 @@
 import { parseGraph } from '@/lib/graph/io/adapter'
 import { applyWidgetRegistryFromMetadata } from '@/hooks/store/graphDataSliceUtils'
+import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 import {
   FLOW_WIDGET_BUNDLE_KIND,
   FLOW_WIDGET_BUNDLE_VERSION,
@@ -25,7 +26,7 @@ export function testWidgetBundleParseProducesGraphDataWithRegistryMetadata() {
     ],
     graph: {
       type: 'Graph',
-      nodes: [{ id: 'n1', label: 'Generate Video', type: 'VideoGeneration', properties: { model: 'generate_video' } }],
+      nodes: [{ id: 'n1', label: 'Generate Video', type: 'VideoGeneration', properties: { model: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } }],
       edges: [],
     },
   }
@@ -92,6 +93,9 @@ export function testWidgetAiFlowImportBuildsGraphAndRegistry() {
   const nodes = res.data.nodes || []
   if (nodes.length !== 1) throw new Error('expected one node')
   if (nodes[0].type !== FLOW_VIDEO_GENERATION_NODE_TYPE_ID) throw new Error('expected VideoGeneration node type')
+  if (String((nodes[0].properties || {}).model || '').trim() !== CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT) {
+    throw new Error('expected AI-Flow import to normalize Video Widget model to BytePlus default')
+  }
   const meta = res.data.metadata as unknown as Record<string, unknown> | undefined
   if (!meta) throw new Error('expected metadata to exist')
   const raw = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
@@ -115,6 +119,9 @@ export function testWidgetComfyUiImportBuildsGraphAndRegistry() {
   const nodes = res.data.nodes || []
   if (nodes.length !== 1) throw new Error('expected one node')
   if (nodes[0].type !== FLOW_VIDEO_GENERATION_NODE_TYPE_ID) throw new Error('expected VideoGeneration node type')
+  if (String((nodes[0].properties || {}).model || '').trim() !== CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT) {
+    throw new Error('expected ComfyUI import to seed BytePlus video model default')
+  }
   const meta = res.data.metadata as unknown as Record<string, unknown> | undefined
   if (!meta) throw new Error('expected metadata to exist')
   const raw = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]

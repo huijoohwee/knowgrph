@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import MainPanel from '@/features/panels/MainPanel'
 import IntegrationsHubView from '@/features/panels/views/IntegrationsHubView'
@@ -6,6 +6,11 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  CHAT_BYTEPLUS_AP_SOUTHEAST_BASE,
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+} from '@/lib/chatEndpoint'
 
 const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
   for (let i = 0; i < count; i += 1) {
@@ -16,7 +21,26 @@ const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undef
   }
 }
 
-export async function testIntegrationsHubShowsChatStatus() {
+const renderAndFlush = async (
+  root: ReturnType<typeof createRoot>,
+  node: React.ReactNode,
+  raf: ((cb: (ts: number) => void) => number) | undefined,
+  frameCount = 3,
+) => {
+  await act(async () => {
+    root.render(node)
+    await waitForFrames(raf, frameCount)
+  })
+}
+
+const unmountAndFlush = async (root: ReturnType<typeof createRoot> | null) => {
+  if (!root) return
+  await act(async () => {
+    root.unmount()
+  })
+}
+
+export async function testIntegrationsHubReusesSettingsEntryList() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -48,20 +72,36 @@ export async function testIntegrationsHubShowsChatStatus() {
     const container = doc.createElement('div')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(React.createElement(IntegrationsHubView))
-
-    await waitForFrames(anyWindow.requestAnimationFrame, 3)
+    await renderAndFlush(root, React.createElement(IntegrationsHubView), anyWindow.requestAnimationFrame, 3)
 
     const text = container.textContent || ''
-    const expectedTokens = ['Chat', 'Disabled', 'lmstudio-local', 'qwen/qwen3.5-9b@q4_k_m', 'Proxy endpoint']
+    const expectedTokens = [
+      'Key',
+      'Type',
+      'Value',
+      'Chat',
+      'chatProvider',
+      'chatModel',
+      'integrationConfigsJson',
+      'Official AI',
+      'AI routing',
+      'BytePlus Chat API',
+      'byteplusApi.model',
+      'byteplusApi.messages',
+      'byteplusApi.response_format.type',
+      'byteplusApi.tool_choice',
+    ]
     expectedTokens.forEach(token => {
       if (!text.includes(token)) {
-        throw new Error(`expected integrations hub to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+        throw new Error(`expected integrations hub settings surface to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
+    if (text.includes('Global Reset')) {
+      throw new Error('expected integrations hub reuse to omit global reset section')
+    }
   } finally {
     try {
-      root?.unmount()
+      await unmountAndFlush(root)
     } catch {
       void 0
     }
@@ -70,7 +110,7 @@ export async function testIntegrationsHubShowsChatStatus() {
   }
 }
 
-export async function testMainPanelRequestedChatSearchShowsIntegrationEntries() {
+export async function testMainPanelRequestedSettingsSearchExcludesIntegrationEntries() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -90,25 +130,26 @@ export async function testMainPanelRequestedChatSearchShowsIntegrationEntries() 
     const container = doc.createElement('div')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(
+    await renderAndFlush(
+      root,
       React.createElement(MainPanel, {
         requestedTab: 'settings',
         requestedSearchQuery: 'chat',
       } as never),
+      anyWindow.requestAnimationFrame,
+      10,
     )
 
-    await waitForFrames(anyWindow.requestAnimationFrame, 6)
-
     const text = container.textContent || ''
-    if (!text.includes('chatContextScope')) {
-      throw new Error(`expected chat settings search to include chatContextScope, got ${JSON.stringify(text)}`)
+    if (text.includes('chatContextScope')) {
+      throw new Error(`expected settings search to exclude chatContextScope, got ${JSON.stringify(text)}`)
     }
-    if (!text.includes('integrationConfigsJson')) {
-      throw new Error(`expected chat settings search to include integrationConfigsJson, got ${JSON.stringify(text)}`)
+    if (text.includes('integrationConfigsJson')) {
+      throw new Error(`expected settings search to exclude integrationConfigsJson, got ${JSON.stringify(text)}`)
     }
   } finally {
     try {
-      root?.unmount()
+      await unmountAndFlush(root)
     } catch {
       void 0
     }
@@ -117,7 +158,7 @@ export async function testMainPanelRequestedChatSearchShowsIntegrationEntries() 
   }
 }
 
-export async function testMainPanelRequestedChatSearchShowsAiControls() {
+export async function testMainPanelRequestedIntegrationsSearchShowsAiControls() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -148,24 +189,45 @@ export async function testMainPanelRequestedChatSearchShowsAiControls() {
     const container = doc.createElement('div')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(
+    await renderAndFlush(
+      root,
       React.createElement(MainPanel, {
-        requestedTab: 'settings',
+        requestedTab: 'integrations',
         requestedSearchQuery: 'chat',
       } as never),
+      anyWindow.requestAnimationFrame,
+      6,
     )
 
-    await waitForFrames(anyWindow.requestAnimationFrame, 6)
-
     const text = container.textContent || ''
-    ;['Context scope', 'AI routing', 'Enable AI Chat', 'Disable AI Chat', 'Format JSON', 'Refresh Models'].forEach(token => {
+    ;[
+      'Context scope',
+      'AI routing',
+      'Enable AI Chat',
+      'Disable AI Chat',
+      'Format JSON',
+      'Refresh Models',
+      'Multi-modal Run',
+      'OpenAI default text model',
+      'Seedream 5.0 Lite',
+      'Seedance 2.0',
+    ].forEach(token => {
       if (!text.includes(token)) {
         throw new Error(`expected chat settings controls to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
+    if (!text.includes(`${CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}/api/v3`)) {
+      throw new Error(`expected integrations chat controls to include default BytePlus base url ${CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}/api/v3`)
+    }
+    if (!text.includes(CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT)) {
+      throw new Error(`expected chat settings controls to include image default ${CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT}`)
+    }
+    if (!text.includes(CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT)) {
+      throw new Error(`expected chat settings controls to include video default ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT}`)
+    }
   } finally {
     try {
-      root?.unmount()
+      await unmountAndFlush(root)
     } catch {
       void 0
     }
@@ -174,7 +236,7 @@ export async function testMainPanelRequestedChatSearchShowsAiControls() {
   }
 }
 
-export async function testMainPanelRequestedChatSearchPreservesCustomModelValue() {
+export async function testMainPanelRequestedIntegrationsSearchPreservesCustomModelValue() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -195,14 +257,15 @@ export async function testMainPanelRequestedChatSearchPreservesCustomModelValue(
     const container = doc.createElement('div')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(
+    await renderAndFlush(
+      root,
       React.createElement(MainPanel, {
-        requestedTab: 'settings',
+        requestedTab: 'integrations',
         requestedSearchQuery: 'chat',
       } as never),
+      anyWindow.requestAnimationFrame,
+      6,
     )
-
-    await waitForFrames(anyWindow.requestAnimationFrame, 6)
 
     const input = container.querySelector('input[list="settings-chat-model-options"]') as HTMLInputElement | null
     if (!input) {
@@ -211,9 +274,17 @@ export async function testMainPanelRequestedChatSearchPreservesCustomModelValue(
     if (input.value !== 'custom/provider-model') {
       throw new Error(`expected custom chat model to be preserved, got ${JSON.stringify(input.value)}`)
     }
+    const datalist = container.querySelector('#settings-chat-model-options')
+    const optionValues = Array.from(datalist?.querySelectorAll('option') || []).map(option => option.getAttribute('value') || '')
+    if (!optionValues.includes(CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT)) {
+      throw new Error(`expected chat model datalist to include ${CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT}`)
+    }
+    if (!optionValues.includes(CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT)) {
+      throw new Error(`expected chat model datalist to include ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT}`)
+    }
   } finally {
     try {
-      root?.unmount()
+      await unmountAndFlush(root)
     } catch {
       void 0
     }

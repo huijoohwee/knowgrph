@@ -3,10 +3,12 @@ import React from 'react'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
   FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
   FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
   FLOW_EDITOR_RESOLUTION_OPTIONS,
-  FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS,
+  getFlowEditorSmartNodeModelOptions,
   UI_COPY,
   UI_LABELS,
   type FlowEditorSmartNodeProperties,
@@ -185,6 +187,15 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const nodeFormId = typeof properties[FLOW_WIDGET_FORM_ID_KEY] === 'string' ? String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim() : ''
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow' || (nodeFormId && nodeFormId.startsWith('fm:'))
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
+  const smartMediaMode = React.useMemo<'image' | 'video' | null>(() => {
+    if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'image'
+    if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'video'
+    const entryFormId = String(registryEntry?.formId || '').trim()
+    if (entryFormId === 'imageGeneration' || nodeFormId === 'imageGeneration') return 'image'
+    if (entryFormId === 'videoGeneration' || nodeFormId === 'videoGeneration') return 'video'
+    return null
+  }, [nodeFormId, nodeTypeId, registryEntry?.formId])
+  const smartModelOptions = React.useMemo(() => getFlowEditorSmartNodeModelOptions(smartMediaMode), [smartMediaMode])
 
   const flowEnvelopeValueBoxClass = React.useMemo(() => {
     return cn(
@@ -525,7 +536,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     disabled={!active}
                   >
                     <option value="">{UI_COPY.flowWidgetSelectPlaceholder}</option>
-                    {FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS.map(o => (
+                    {smartModelOptions.map(o => (
                       <option key={o.value} value={o.value}>
                         {o.label}
                       </option>

@@ -4841,7 +4841,41 @@ const youtubeConvertDevPlugin = {
   },
 }
 
+function readViteDevPortHint(): string {
+  const envPort = String(
+    process.env.VITE_PORT
+    || process.env.PORT
+    || process.env.npm_config_port
+    || '',
+  ).trim()
+  if (envPort) return envPort
+  const argv = Array.isArray(process.argv) ? process.argv : []
+  for (let i = 0; i < argv.length; i += 1) {
+    const current = String(argv[i] || '').trim()
+    if (!current) continue
+    if (current === '--port' && i + 1 < argv.length) {
+      const next = String(argv[i + 1] || '').trim()
+      if (next) return next
+      continue
+    }
+    if (current.startsWith('--port=')) {
+      const value = current.slice('--port='.length).trim()
+      if (value) return value
+    }
+  }
+  return '5173'
+}
+
+function resolveViteCacheDir(command: string): string {
+  const mode = command === 'build' ? 'build' : 'dev'
+  if (mode === 'build') return path.resolve(__dirname, 'node_modules/.vite/build')
+  const port = readViteDevPortHint().replace(/[^a-zA-Z0-9_-]/g, '') || '5173'
+  // Isolate optimize-deps cache per dev port to avoid chunk races across concurrent Vite servers.
+  return path.resolve(__dirname, `node_modules/.vite/dev-${port}`)
+}
+
 export default defineConfig(({ command }) => ({
+  cacheDir: resolveViteCacheDir(command),
   base: command === 'build'
     ? (() => {
         const raw = String(process.env.VITE_BASE_PATH || '/knowgrph/').trim() || '/knowgrph/'

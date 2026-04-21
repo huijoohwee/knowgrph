@@ -1,4 +1,9 @@
-export type FlowEditorSmartNodeModel = 'generate_image' | 'generate_video'
+import {
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+} from '@/lib/chatEndpoint'
+
+export type FlowEditorSmartNodeModel = string
 
 export const FLOW_WIDGET_BUNDLE_KIND = 'kg:flow:widgetBundle' as const
 export const FLOW_WIDGET_BUNDLE_VERSION = 1 as const
@@ -14,10 +19,24 @@ export const FLOW_IMAGE_GENERATION_NODE_LABEL = 'Image Widget' as const
 export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const
 export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'Video Widget' as const
 
-export const FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
-  { value: 'generate_image', label: 'Generate Image' },
-  { value: 'generate_video', label: 'Generate Video' },
+export const FLOW_EDITOR_IMAGE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
+  { value: CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT, label: 'Seedream 5.0 Lite (Default)' },
 ]
+
+export const FLOW_EDITOR_VIDEO_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
+  { value: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT, label: 'Seedance 2.0 (Default)' },
+]
+
+export const FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
+  ...FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
+  ...FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
+]
+
+export function getFlowEditorSmartNodeModelOptions(mode?: 'image' | 'video' | null): ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> {
+  if (mode === 'image') return FLOW_EDITOR_IMAGE_MODEL_OPTIONS
+  if (mode === 'video') return FLOW_EDITOR_VIDEO_MODEL_OPTIONS
+  return FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS
+}
 
 export type FlowEditorAspectRatio = 'landscape' | 'portrait' | 'square'
 

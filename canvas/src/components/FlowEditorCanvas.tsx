@@ -83,6 +83,13 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
+import {
+  buildRichMediaWidgetOutputPatch,
+  clearRichMediaOutputProperties,
+  resolveRichMediaWidgetKind,
+  runRichMediaWidgetGeneration,
+} from '@/features/chat/richMediaRun'
+import { CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT, CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -2382,14 +2389,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         [FLOW_WIDGET_FORM_ID_KEY]: entry.formId,
       }
       if (entry.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
-        properties.model = 'generate_image'
+        properties.model = CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
         properties.prompt = 'Generate an image responsive to the active request.'
         properties.aspect_ratio = 'square'
         properties.resolution = '1080p'
         properties.fast = false
       }
       if (entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
-        properties.model = 'generate_video'
+        properties.model = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
         properties.prompt = 'Generate a video responsive to the active request.'
         properties.aspect_ratio = 'landscape'
         properties.duration = 4
@@ -2636,6 +2643,22 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     (nodeId: string) => {
       const id = String(nodeId || '').trim()
       if (!id) return
+      const draft = (draftGraphDataRef.current || draftGraphData) as GraphData | null
+      const node = (draft?.nodes || []).find(n => String(n.id || '') === id) || null
+      if (!node) return
+      const kind = resolveRichMediaWidgetKind(node)
+      if (kind) {
+        updateNode(id, {
+          properties: clearRichMediaOutputProperties((node.properties || {}) as Record<string, unknown>) as never,
+        })
+        upsertUiToast({
+          id: `flow-editor-clear-output-${id}`,
+          kind: 'neutral',
+          message: `Cleared ${kind} output.`,
+          ttlMs: 2200,
+        })
+        return
+      }
       upsertUiToast({
         id: `flow-editor-clear-output-${id}`,
         kind: 'neutral',
@@ -2643,7 +2666,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         ttlMs: 2200,
       })
     },
-    [upsertUiToast],
+    [draftGraphData, updateNode, upsertUiToast],
   )
 
   const selectedDraftNode = React.useMemo(() => {
@@ -3103,10 +3126,62 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorNodeNotFoundToast(id), ttlMs: 2400 })
           return
         }
+        const store = useGraphStore.getState()
+        const richMediaKind = resolveRichMediaWidgetKind(node)
+        if (richMediaKind) {
+          const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
+            graphData: renderGraphDataOverride || draft,
+            registry: Array.isArray(store.effectiveWidgetRegistry ?? store.widgetRegistry)
+              ? ((store.effectiveWidgetRegistry ?? store.widgetRegistry) as WidgetRegistryEntry[])
+              : [],
+            targetNodeIds: new Set([id]),
+          })
+          const richMediaResult = await runRichMediaWidgetGeneration({
+            node,
+            connectedValuesBySchemaPath: connectedValuesByNodeId.get(id),
+            markdownDocumentText: typeof store.markdownDocumentText === 'string' ? store.markdownDocumentText : '',
+            workspacePath: activeWorkspacePath || null,
+            generationConfig: {
+              provider: store.chatProvider,
+              endpointUrl: store.chatEndpointUrl,
+              apiKey: store.chatAuthMode === 'byok' ? store.chatApiKey : '',
+              chatModel: store.chatModel,
+            },
+          })
+          if (!richMediaResult) {
+            upsertUiToast({
+              id: `flow-editor-run-${id}`,
+              kind: 'neutral',
+              message: UI_COPY.flowEditorRunFailedToast,
+              ttlMs: 2600,
+            })
+            return
+          }
+          updateNode(id, {
+            properties: {
+              ...clearRichMediaOutputProperties((node.properties || {}) as Record<string, unknown>),
+              ...buildRichMediaWidgetOutputPatch({
+                kind: richMediaResult.kind,
+                asset: richMediaResult.asset,
+                outputPath: richMediaResult.outputPath,
+              }),
+            } as never,
+          })
+          const generatedName = richMediaResult.outputPath
+            ? richMediaResult.outputPath.split('/').pop()
+            : richMediaResult.kind === 'video'
+              ? 'video output'
+              : 'image output'
+          upsertUiToast({
+            id: `flow-editor-run-${id}`,
+            kind: 'neutral',
+            message: `Generated ${generatedName}.`,
+            ttlMs: 2400,
+          })
+          return
+        }
 
         const subgraph = buildSelectionSubgraph(draft, id, null) || { ...draft, nodes: [node], edges: [] }
-
-        const store = useGraphStore.getState()
         const registry = Array.isArray(store.widgetRegistry) ? store.widgetRegistry : []
         const nodeTypeIds = new Set((subgraph.nodes || []).map(n => String(n.type || '').trim()).filter(Boolean))
         const registryEntries = registry.filter(e => e && e.isEnabled && nodeTypeIds.has(String(e.nodeTypeId || '').trim()))
@@ -3123,7 +3198,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         upsertUiToast({ id: `flow-editor-run-failed-${String(nodeId || '')}`, kind: 'neutral', message: UI_COPY.flowEditorRunFailedToast, ttlMs: 2600 })
       }
     },
-    [draftGraphData, markdownDocumentName, markdownDocumentSourceUrl, upsertUiToast],
+    [draftGraphData, markdownDocumentName, markdownDocumentSourceUrl, renderGraphDataOverride, updateNode, upsertUiToast],
   )
 
   const exportWorkflowBundle = React.useCallback(async () => {

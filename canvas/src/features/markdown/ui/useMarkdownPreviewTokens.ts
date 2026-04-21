@@ -73,7 +73,6 @@ export function useMarkdownPreviewLexedMarkdown(
   const canCacheInStore = text.length <= 120_000
 
   const storedTokens = useGraphStore(s => s.markdownTokens)
-  const storedTokensPath = useGraphStore(s => s.markdownTokensPath)
   const storedTokensKey = useGraphStore(s => s.markdownTokensKey)
   const storedTokensMeta = useGraphStore(s => s.markdownTokensMeta)
   const storedTokensStartLineOffset = useGraphStore(s => s.markdownTokensStartLineOffset)
@@ -112,7 +111,6 @@ export function useMarkdownPreviewLexedMarkdown(
     if (
       storedTokens &&
       storedTokensKey === currentTokensKey &&
-      storedTokensPath === activeDocumentPath &&
       storedTokensMeta != null &&
       storedTokensStartLineOffset != null
     ) {
@@ -132,8 +130,6 @@ export function useMarkdownPreviewLexedMarkdown(
     storedTokensMeta,
     storedTokensStartLineOffset,
     currentTokensKey,
-    storedTokensPath,
-    activeDocumentPath,
     text,
   ])
 
@@ -145,17 +141,15 @@ export function useMarkdownPreviewLexedMarkdown(
     if (!canCacheInStore) return
 
     const keysMatch = storedTokensKey === currentTokensKey
-    const pathMatches = storedTokensPath === activeDocumentPath
     const metaMatches = storedTokensMeta != null && storedTokensMeta === lexed.meta
     const offsetMatches =
       storedTokensStartLineOffset != null && storedTokensStartLineOffset === lexed.startLineOffset
 
-    if (keysMatch && pathMatches && metaMatches && offsetMatches) return
+    if (keysMatch && metaMatches && offsetMatches) return
 
     if (
       lexed.tokens &&
       (!keysMatch ||
-        !pathMatches ||
         storedTokensMeta !== lexed.meta ||
         storedTokensStartLineOffset !== lexed.startLineOffset)
     ) {
@@ -173,8 +167,6 @@ export function useMarkdownPreviewLexedMarkdown(
     lexed.startLineOffset,
     storedTokensKey,
     currentTokensKey,
-    storedTokensPath,
-    activeDocumentPath,
     providedTokens,
     setMarkdownTokens,
     shouldUpdateStore,

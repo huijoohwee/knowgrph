@@ -95,6 +95,21 @@ export async function testNodeMediaSpecDetectsLegacyImageUrlField() {
   if (spec.kind !== 'image') throw new Error(`expected image kind from image_url, got ${String((spec as any).kind)}`)
 }
 
+export async function testNodeMediaSpecDetectsCamelImageUrlField() {
+  const node = {
+    id: 'camel:image-url:1',
+    type: 'ImageGeneration',
+    label: 'Camel imageUrl',
+    properties: {
+      imageUrl: '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated-image.png',
+    },
+  } as unknown as Parameters<typeof getNodeMediaSpec>[0]
+  const spec = getNodeMediaSpec(node)
+  if (!spec) throw new Error('expected media spec for camelCase imageUrl field')
+  if (spec.kind !== 'image') throw new Error(`expected image kind from imageUrl, got ${String((spec as any).kind)}`)
+  if (!String(spec.url).startsWith('/__chat_asset_proxy?url=')) throw new Error('expected proxied imageUrl to be preserved')
+}
+
 export async function testNodeMediaSpecAllowsYouTubeEmbedIframeUrl() {
   const node = {
     id: 'iframe:youtube:1',

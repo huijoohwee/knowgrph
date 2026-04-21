@@ -100,11 +100,16 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     node.type,
     node.label,
     props.media_kind,
+    props.mediaKind,
     props.media_url,
+    props.mediaUrl,
     props.iframe_url,
+    props.iframeUrl,
     props.image,
+    props.imageUrl,
     props.image_url,
     props.video,
+    props.videoUrl,
     props.video_url,
     props.media,
     props.url,
@@ -123,15 +128,23 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
 
 function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const props = node.properties || {}
-  const kindRaw = typeof props.media_kind === 'string' ? props.media_kind.trim().toLowerCase() : ''
+  const kindRaw = typeof props.media_kind === 'string'
+    ? props.media_kind.trim().toLowerCase()
+    : typeof props.mediaKind === 'string'
+      ? props.mediaKind.trim().toLowerCase()
+      : ''
   const kindForced: NodeMediaKind | null =
     kindRaw === 'iframe' || kindRaw === 'video' || kindRaw === 'image' || kindRaw === 'svg' ? (kindRaw as NodeMediaKind) : null
 
   const iframeUrl = coerceMediaUrl((props as Record<string, unknown>).iframe_url)
+  const iframeUrlCamel = coerceMediaUrl((props as Record<string, unknown>).iframeUrl)
   const mediaUrl = coerceMediaUrl((props as Record<string, unknown>).media_url)
+  const mediaUrlCamel = coerceMediaUrl((props as Record<string, unknown>).mediaUrl)
   const imageUrl = coerceMediaUrl((props as Record<string, unknown>).image)
+  const imageUrlCamel = coerceMediaUrl((props as Record<string, unknown>).imageUrl)
   const imageUrlLegacy = coerceMediaUrl((props as Record<string, unknown>).image_url)
   const videoUrl = coerceMediaUrl((props as Record<string, unknown>).video)
+  const videoUrlCamel = coerceMediaUrl((props as Record<string, unknown>).videoUrl)
   const videoUrlLegacy = coerceMediaUrl((props as Record<string, unknown>).video_url)
   const generic = coerceMediaUrl((props as Record<string, unknown>).media)
   const srcUrl = coerceMediaUrl((props as Record<string, unknown>).src)
@@ -162,10 +175,14 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const inferLinkAsIframe = inferredLinkKind == null && prefersIframeFromLinkContext({ label: linkLabel, url: linkUrl || undefined })
   let url =
     iframeUrl
+    || iframeUrlCamel
     || mediaUrl
+    || mediaUrlCamel
     || imageUrl
+    || imageUrlCamel
     || imageUrlLegacy
     || videoUrl
+    || videoUrlCamel
     || videoUrlLegacy
     || generic
     || srcUrl
@@ -219,8 +236,9 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const kind: NodeMediaKind = kindForced
     ? kindForced
     : iframeUrl
+      || iframeUrlCamel
       ? 'iframe'
-      : (videoUrl || videoUrlLegacy)
+      : (videoUrl || videoUrlCamel || videoUrlLegacy)
         ? 'video'
         : domKindForced
           ? domKindForced

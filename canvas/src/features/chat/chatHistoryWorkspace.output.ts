@@ -117,6 +117,45 @@ const ensureWorkspaceTextFile = async (workspacePath: string, text: string): Pro
   await fs.writeFileText(normalized, text)
 }
 
+export const resolveWorkspaceSiblingArtifactPath = (args: {
+  workspacePath: string | null | undefined
+  fileName: string | null | undefined
+}): string | null => {
+  const basePath = normalizeWorkspacePath(String(args.workspacePath || '').trim())
+  const fileName = String(args.fileName || '').trim()
+  if (!basePath || !fileName) return null
+  const parts = basePath.split('/').filter(Boolean)
+  if (parts.length === 0) return null
+  const parent = parts.slice(0, -1).join('/')
+  return normalizeWorkspacePath(`/${parent ? `${parent}/` : ''}${fileName}`) || null
+}
+
+export const writeWorkspaceTextArtifactAtPath = async (args: {
+  absolutePath: string | null | undefined
+  text: string
+}): Promise<string | null> => {
+  const outputPath = normalizeWorkspacePath(String(args.absolutePath || '').trim())
+  if (!outputPath) return null
+  const text = String(args.text || '')
+  try {
+    await ensureWorkspaceTextFile(outputPath, text)
+  } catch {
+    void 0
+  }
+  await mirrorWorkspaceFileTextToHostFs({ absolutePath: outputPath, text })
+  return outputPath
+}
+
+export const writeWorkspaceBlobArtifactAtPath = async (args: {
+  absolutePath: string | null | undefined
+  blob: Blob
+}): Promise<string | null> => {
+  const outputPath = normalizeWorkspacePath(String(args.absolutePath || '').trim())
+  if (!outputPath) return null
+  await mirrorWorkspaceFileBlobToHostFs({ absolutePath: outputPath, blob: args.blob })
+  return outputPath
+}
+
 export const resolveKgcCompanionOutputPath = (args: {
   workspacePath: string | null | undefined
   extension: string
@@ -134,15 +173,10 @@ export const writeKgcCompanionOutputText = async (args: {
   variant?: string | null
 }): Promise<string | null> => {
   const outputPath = resolveKgcCompanionOutputPath(args)
-  if (!outputPath) return null
-  const text = String(args.text || '')
-  try {
-    await ensureWorkspaceTextFile(outputPath, text)
-  } catch {
-    void 0
-  }
-  await mirrorWorkspaceFileTextToHostFs({ absolutePath: outputPath, text })
-  return outputPath
+  return await writeWorkspaceTextArtifactAtPath({
+    absolutePath: outputPath,
+    text: args.text,
+  })
 }
 
 export const writeKgcCompanionOutputBlob = async (args: {
@@ -152,7 +186,8 @@ export const writeKgcCompanionOutputBlob = async (args: {
   variant?: string | null
 }): Promise<string | null> => {
   const outputPath = resolveKgcCompanionOutputPath(args)
-  if (!outputPath) return null
-  await mirrorWorkspaceFileBlobToHostFs({ absolutePath: outputPath, blob: args.blob })
-  return outputPath
+  return await writeWorkspaceBlobArtifactAtPath({
+    absolutePath: outputPath,
+    blob: args.blob,
+  })
 }

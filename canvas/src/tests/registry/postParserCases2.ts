@@ -116,6 +116,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["nodeMediaSpec.detectsMarkdownLinkIframeFromLabelAndLocalHtml","@/__tests__/nodeMediaSpecFromWebpageElement.test","testNodeMediaSpecDetectsMarkdownLinkIframeFromLabelAndLocalHtml"],
   ["nodeMediaSpec.skipsPlainHttpLinkWithoutMediaHint","@/__tests__/nodeMediaSpecFromWebpageElement.test","testNodeMediaSpecSkipsPlainHttpLinkWithoutMediaHint"],
   ["nodeMediaSpec.detectsLegacyImageUrlField","@/__tests__/nodeMediaSpecFromWebpageElement.test","testNodeMediaSpecDetectsLegacyImageUrlField"],
+  ["nodeMediaSpec.detectsCamelImageUrlField","@/__tests__/nodeMediaSpecFromWebpageElement.test","testNodeMediaSpecDetectsCamelImageUrlField"],
   ["nodeMediaSpec.allowsYouTubeEmbedIframeUrl","@/__tests__/nodeMediaSpecFromWebpageElement.test","testNodeMediaSpecAllowsYouTubeEmbedIframeUrl"],
   ["nodeMediaSpec.detectsMarkdownImageInParagraphText","@/__tests__/nodeMediaSpecFromWebpageElement.test","testNodeMediaSpecDetectsMarkdownImageInParagraphText"],
   ["nodeMediaSpec.detectsStandaloneMarkdownLinkWebpageAsIframe","@/__tests__/nodeMediaSpecFromWebpageElement.test","testNodeMediaSpecDetectsStandaloneMarkdownLinkWebpageAsIframe"],

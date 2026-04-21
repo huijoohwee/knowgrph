@@ -31,9 +31,9 @@ export function testFlowWidgetPaletteExposesImageAndVideoWidgetsWithReadyRunDefa
     "document.addEventListener('pointerup', onPointerUpCapture, true)",
     'const pendingOpenWidgetNodeIdRef = React.useRef<string | null>(null)',
     'pendingOpenWidgetNodeIdRef.current = id',
-    "properties.model = 'generate_image'",
+    'properties.model = CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT',
     "properties.prompt = 'Generate an image responsive to the active request.'",
-    "properties.model = 'generate_video'",
+    'properties.model = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT',
     "properties.prompt = 'Generate a video responsive to the active request.'",
   ]
   for (const snippet of canvasSnippets) {

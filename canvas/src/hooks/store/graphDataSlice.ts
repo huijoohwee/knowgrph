@@ -332,12 +332,27 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     meta?: import('@/lib/markdown').MarkdownFrontmatter | null
     startLineOffset?: number | null
   }) => {
-    set({
-      markdownTokens: args.tokens,
-      markdownTokensPath: args.path ?? null,
-      markdownTokensKey: args.key ?? null,
-      markdownTokensMeta: args.meta ?? null,
-      markdownTokensStartLineOffset: args.startLineOffset ?? null,
+    set(state => {
+      const nextPath = args.path ?? null
+      const nextKey = args.key ?? null
+      const nextMeta = args.meta ?? null
+      const nextOffset = args.startLineOffset ?? null
+      if (
+        state.markdownTokens === args.tokens &&
+        state.markdownTokensPath === nextPath &&
+        state.markdownTokensKey === nextKey &&
+        state.markdownTokensMeta === nextMeta &&
+        state.markdownTokensStartLineOffset === nextOffset
+      ) {
+        return state
+      }
+      return {
+        markdownTokens: args.tokens,
+        markdownTokensPath: nextPath,
+        markdownTokensKey: nextKey,
+        markdownTokensMeta: nextMeta,
+        markdownTokensStartLineOffset: nextOffset,
+      }
     })
   },
 

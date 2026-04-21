@@ -1,5 +1,9 @@
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import {
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+} from '@/lib/chatEndpoint'
+import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_BUNDLE_KIND,
   FLOW_WIDGET_BUNDLE_VERSION,
@@ -114,6 +118,21 @@ function buildDefaultSmartMediaRegistryEntry(args: {
   }
 }
 
+function normalizeImportedSmartMediaModel(args: {
+  model?: unknown
+  nodeTypeId?: unknown
+}): string {
+  const raw = asString(args.model).trim()
+  const nodeTypeId = String(args.nodeTypeId || '').trim()
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
+    return raw && raw !== 'generate_image' ? raw : CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
+  }
+  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
+    return raw && raw !== 'generate_video' ? raw : CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
+  }
+  return raw
+}
+
 function withRegistryMetadata(graphData: GraphData, entries: RegistryEntryLike[], warnings: string[]): { graphData: GraphData; warnings: string[] } {
   const baseMeta = isRecord(graphData.metadata) ? graphData.metadata : {}
   const nextMeta: Record<string, JSONValue> = { ...baseMeta }
@@ -166,6 +185,10 @@ function parseAiFlowProcessorList(json: unknown): { graphData: GraphData; warnin
         : model === 'generate_video'
           ? FLOW_VIDEO_GENERATION_NODE_TYPE_ID
           : cleanIdPart(model) || 'Processor'
+    const normalizedModel = normalizeImportedSmartMediaModel({
+      model,
+      nodeTypeId: inferredNodeTypeId,
+    })
     const name = asString(item.name).trim() || `${processorType}:${i + 1}`
 
     const node: GraphNode = {
@@ -173,7 +196,7 @@ function parseAiFlowProcessorList(json: unknown): { graphData: GraphData; warnin
       label: cleanIdPart(name) || name || inferredNodeTypeId,
       type: inferredNodeTypeId,
       properties: {
-        ...(model ? ({ model } as unknown as Record<string, JSONValue>) : {}),
+        ...(normalizedModel ? ({ model: normalizedModel } as unknown as Record<string, JSONValue>) : {}),
         ...(asString(item.aspect_ratio).trim() ? ({ aspect_ratio: asString(item.aspect_ratio).trim() } as unknown as Record<string, JSONValue>) : {}),
         ...(asString(item.resolution).trim() ? ({ resolution: asString(item.resolution).trim() } as unknown as Record<string, JSONValue>) : {}),
         ...(asString(item.duration).trim() ? ({ duration: asNumberOrNull(item.duration) ?? asString(item.duration).trim() } as unknown as Record<string, JSONValue>) : {}),
@@ -266,7 +289,7 @@ function parseComfyUiWorkflow(json: unknown): { graphData: GraphData; warnings: 
       label,
       type: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
       properties: {
-        model: 'generate_video',
+        model: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
         source_type: type,
       },
     })

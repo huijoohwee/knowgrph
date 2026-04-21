@@ -68,9 +68,13 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
 
   const hasExplicit =
     typeof props.media_url === 'string' ||
+    typeof props.mediaUrl === 'string' ||
     typeof props.iframe_url === 'string' ||
+    typeof props.iframeUrl === 'string' ||
     typeof props.image === 'string' ||
+    typeof props.imageUrl === 'string' ||
     typeof props.video === 'string' ||
+    typeof props.videoUrl === 'string' ||
     typeof props.media === 'string'
   if (hasExplicit) score += 100
 

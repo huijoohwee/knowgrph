@@ -1,5 +1,6 @@
 import { buildWidgetBundleV1, widgetBundleToJsonText } from '@/lib/graph/io/widgetBundle'
 import { parseGraph } from '@/lib/graph/io/adapter'
+import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 import {
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
@@ -8,7 +9,7 @@ import {
 export function testWidgetBundleRoundtripParsesWithRegistryMetadata() {
   const graph = {
     type: 'Graph',
-    nodes: [{ id: 'n1', label: 'Generate Video', type: FLOW_VIDEO_GENERATION_NODE_TYPE_ID, properties: { model: 'generate_video' } }],
+    nodes: [{ id: 'n1', label: 'Generate Video', type: FLOW_VIDEO_GENERATION_NODE_TYPE_ID, properties: { model: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } }],
     edges: [],
   }
 
@@ -36,4 +37,3 @@ export function testWidgetBundleRoundtripParsesWithRegistryMetadata() {
   if (raw.length !== 1) throw new Error('expected one registry entry')
   if ((res.data.nodes || []).length !== 1) throw new Error('expected one node')
 }
-

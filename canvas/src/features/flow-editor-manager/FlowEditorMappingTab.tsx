@@ -2,6 +2,10 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+} from '@/lib/chatEndpoint'
+import {
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
@@ -23,6 +27,24 @@ import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, val
 import { patchById } from 'grph-shared/array/patchArrayItem'
 import { FlowEditorMappingTabLayout } from '@/features/flow-editor-manager/FlowEditorMappingTabLayout'
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+
+function inferSmartMediaMode(args: {
+  nodeTypeId?: unknown
+  formId?: unknown
+}): 'image' | 'video' | null {
+  const nodeTypeId = String(args.nodeTypeId || '').trim()
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'image'
+  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'video'
+  const formId = String(args.formId || '').trim()
+  if (formId === 'imageGeneration') return 'image'
+  if (formId === 'videoGeneration') return 'video'
+  return null
+}
+
+function getDefaultSmartMediaModel(mode: 'image' | 'video'): string {
+  return mode === 'image' ? CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT : CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
+}
+
 export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }: {
   searchQuery: string
   onRegisterActions?: (actions: {
@@ -227,13 +249,16 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
       return
     }
     const props = (node?.properties || {}) as Record<string, unknown>
-    const model = typeof props.model === 'string' ? props.model.trim() : ''
+    const inferredMode = inferSmartMediaMode({
+      nodeTypeId,
+      formId: props[FLOW_WIDGET_FORM_ID_KEY],
+    })
     const inferredDraft =
-      model === 'generate_image'
+      inferredMode === 'image'
         ? { ...buildGenerateImageRegistryDraft(), nodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID }
-        : model === 'generate_video'
-        ? { ...buildGenerateVideoRegistryDraft(), nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID }
-        : buildWidgetDraftFromSmartFields({ nodeTypeId })
+        : inferredMode === 'video'
+          ? { ...buildGenerateVideoRegistryDraft(), nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID }
+          : buildWidgetDraftFromSmartFields({ nodeTypeId })
     openCreate(inferredDraft)
   }, [graphData, openCreate, selectedNodeId, upsertUiToast])
 
@@ -250,14 +275,14 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     const currentType = String(node.type || '').trim()
     const currentLabel = String(node.label || '').trim()
     const nextProps = (node.properties || {}) as Record<string, unknown>
-    const nextModel = typeof nextProps.model === 'string' ? nextProps.model.trim() : ''
-
     const nextType = FLOW_VIDEO_GENERATION_NODE_TYPE_ID
     const nextLabel = FLOW_VIDEO_GENERATION_NODE_LABEL
     const updates: Record<string, unknown> = {}
     if (currentType !== nextType) updates.type = nextType
     if (!currentLabel || currentLabel === currentType) updates.label = nextLabel
-    if (nextModel !== 'generate_video') updates.properties = { ...(node.properties || {}), model: 'generate_video' }
+    if (String(nextProps.model || '').trim() !== CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT) {
+      updates.properties = { ...(node.properties || {}), model: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT }
+    }
     if (Object.keys(updates).length > 0) updateNode(nodeId, updates as never)
 
     const res = upsertWidgetRegistryEntry({
@@ -298,10 +323,13 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     }
 
     const props = (node.properties || {}) as Record<string, unknown>
-    const model = typeof props.model === 'string' ? props.model.trim() : ''
-    const draft = model === 'generate_image'
+    const inferredMode = inferSmartMediaMode({
+      nodeTypeId: baseType,
+      formId: props[FLOW_WIDGET_FORM_ID_KEY],
+    })
+    const draft = inferredMode === 'image'
       ? buildGenerateImageRegistryDraft()
-      : model === 'generate_video'
+      : inferredMode === 'video'
         ? buildGenerateVideoRegistryDraft()
         : buildWidgetDraftFromSmartFields({ nodeTypeId: baseType })
 
@@ -340,11 +368,13 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
       [FLOW_WIDGET_TYPE_ID_KEY]: draft.widgetTypeId,
       [FLOW_WIDGET_FORM_ID_KEY]: draft.formId,
     }
-    if (draft.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
-      if (typeof nextProps.model !== 'string' || String(nextProps.model).trim() !== 'generate_image') nextProps.model = 'generate_image'
-    }
-    if (draft.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
-      if (typeof nextProps.model !== 'string' || String(nextProps.model).trim() !== 'generate_video') nextProps.model = 'generate_video'
+    const smartMediaMode = inferSmartMediaMode({
+      nodeTypeId: draft.nodeTypeId,
+      formId: draft.formId,
+    })
+    if (smartMediaMode) {
+      const expectedModel = getDefaultSmartMediaModel(smartMediaMode)
+      if (String(nextProps.model || '').trim() !== expectedModel) nextProps.model = expectedModel
     }
     updates.properties = nextProps
     updateNode(nodeId, updates as never)

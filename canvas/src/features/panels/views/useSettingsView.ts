@@ -9,13 +9,75 @@ import { FALLBACK_DETAILS } from './SettingsFallbackDetails'
 import { renderSettingInput } from '@/features/settings/ui'
 import { UI_ANCHORS } from '@/lib/config'
 import { buildChatProxyHeaders, resolveChatEndpointForHealth } from '@/lib/chatEndpoint'
+import { BYTEPLUS_CHAT_API_DOC_AREA, BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES } from './byteplusChatApiDocs'
+
+const SETTINGS_AREA_ORDER: readonly string[] = [
+  'Chat',
+  'UI Density: Panels',
+  'UI Density: Icons',
+  'Workspace',
+  'Markdown',
+  'Flow Editor',
+  'Canvas',
+  'Rendering',
+  'Performance',
+  'Graph Data Table',
+  'Import / Export',
+  'Integrations',
+  BYTEPLUS_CHAT_API_DOC_AREA,
+]
+
+const SETTINGS_AREA_CANONICAL: Readonly<Record<string, string>> = {
+  'ui density panels': 'UI Density: Panels',
+  'ui density panel': 'UI Density: Panels',
+  'ui density icons': 'UI Density: Icons',
+  'graph data table': 'Graph Data Table',
+  'import export': 'Import / Export',
+  integrations: 'Integrations',
+}
+
+function normalizeSettingsAreaLabel(areaRaw: string): string {
+  const area = String(areaRaw || '').trim()
+  if (!area) return '—'
+  const key = area.toLowerCase().replace(/[/:]+/g, ' ').replace(/\s+/g, ' ').trim()
+  return SETTINGS_AREA_CANONICAL[key] || area
+}
+
+function settingsAreaSortWeight(area: string): number {
+  const idx = SETTINGS_AREA_ORDER.indexOf(area)
+  return idx >= 0 ? idx : Number.MAX_SAFE_INTEGER
+}
+
+function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolean {
+  const area = normalizeSettingsAreaLabel(areaRaw)
+  if (area === 'Chat' || area === 'Integrations' || area === BYTEPLUS_CHAT_API_DOC_AREA) return true
+  return key.startsWith('chat') || key === 'integrationConfigsJson'
+}
+
+type SettingsEntry = {
+  meta: {
+    key: string
+    type: string
+    source: string
+    read: () => string | number | boolean | null
+    write?: (value: string | number | boolean) => void
+    docKey?: string
+    default?: () => string | number | boolean | null
+    options?: string[]
+  }
+  details: FlowDetails
+  writable: boolean
+  index: string
+  anchorId?: string
+  typeLabel?: string
+}
 
 const getSettingsSearchHints = (key: string): string[] => {
   if (key === 'chatContextScope') {
     return ['chat ai assistant context scope selection workspace hybrid']
   }
   if (key === 'chatProvider' || key === 'chatAuthMode' || key === 'chatEndpointUrl' || key === 'chatApiKey' || key === 'chatModel') {
-    return ['chat ai byteplus modelark openai official provider endpoint api key byok server-managed auth mode model']
+    return ['chat ai byteplus modelark openai official provider endpoint api key byok server-managed auth mode model multi-modal multimodal run image video generation']
   }
   if (key === 'chatHistoryStorageMode' || key === 'chatHistoryWorkspacePath' || key === 'chatHistoryCloudUrl') {
     return ['chat history workspace file path markdown cloud url github']
@@ -32,6 +94,7 @@ const getSettingsSearchHints = (key: string): string[] => {
 export function useSettingsView({
   searchQuery,
   onRegisterActions,
+  mode = 'all',
 }: {
   searchQuery: string
   onRegisterActions?: (a: {
@@ -42,6 +105,7 @@ export function useSettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
+  mode?: 'all' | 'integrations'
 }) {
   const shouldHideSetting = React.useCallback((key: string, area?: string) => {
     if (key === 'infiniteCanvasInteractionMode') return false
@@ -74,6 +138,9 @@ export function useSettingsView({
     settingsRegistry.forEach(s => {
       const r = s.read()
       if (r !== null) v[s.key] = r
+    })
+    BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES.forEach(entry => {
+      v[entry.meta.key] = entry.value
     })
     return v
   })
@@ -176,7 +243,7 @@ export function useSettingsView({
     renderSettingInput(key, type, writable, values, setValues, dirtyRef, options)
 
   const entries = React.useMemo(() => {
-    return settingsRegistry.map((s) => {
+    const concreteEntries: SettingsEntry[] = settingsRegistry.map((s) => {
       const source = flow[s.key] || (s.docKey ? flow[s.docKey] : undefined)
       const details = {
         area: source?.area || FALLBACK_DETAILS[s.key]?.area || '—',
@@ -208,9 +275,31 @@ export function useSettingsView({
           : (s.key === 'chatApiKey' ? UI_ANCHORS.settingsChatApiKey : undefined)
       return { meta: s, details, writable: !!s.write, index, anchorId }
     })
+    const virtualEntries: SettingsEntry[] = BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES.map(entry => ({
+      meta: entry.meta,
+      details: entry.details,
+      writable: false,
+      index: normalizeText(
+        [
+          entry.details.area,
+          entry.meta.key,
+          entry.typeLabel,
+          entry.value,
+          entry.details.responsibility,
+          ...(entry.searchHints || []),
+        ].join(' '),
+      ),
+      typeLabel: entry.typeLabel,
+    }))
+    return [...concreteEntries, ...virtualEntries]
       .filter(entry => entry.writable)
+      .concat(virtualEntries)
       .filter(entry => !shouldHideSetting(entry.meta.key, entry.details.area))
-  }, [flow, shouldHideSetting])
+      .filter(entry => {
+        const isIntegrationsOwned = isIntegrationsOwnedSetting(entry.meta.key, entry.details.area)
+        return mode === 'integrations' ? isIntegrationsOwned : !isIntegrationsOwned
+      })
+  }, [flow, mode, shouldHideSetting])
 
   const normalizedQuery = React.useMemo(() => normalizeText(searchQuery).trim(), [searchQuery])
   const filtered = React.useMemo(
@@ -229,11 +318,33 @@ export function useSettingsView({
   const groupByArea = React.useMemo(() => {
     const map = new Map<string, typeof filtered>()
     filtered.forEach(entry => {
-      const area = entry.details.area || '—'
+      const area = normalizeSettingsAreaLabel(entry.details.area)
+      const normalizedEntry = area === entry.details.area
+        ? entry
+        : {
+            ...entry,
+            details: {
+              ...entry.details,
+              area,
+            },
+          }
       const list = map.get(area) || []
-      map.set(area, [...list, entry])
+      list.push(normalizedEntry)
+      map.set(area, list)
     })
-    return Array.from(map.entries())
+    const grouped = Array.from(map.entries()).map(([area, entriesByArea]) => {
+      const sortedEntries = [...entriesByArea].sort((a, b) =>
+        String(a.meta.key || '').localeCompare(String(b.meta.key || ''), undefined, { sensitivity: 'base' }),
+      )
+      return [area, sortedEntries] as const
+    })
+    grouped.sort((a, b) => {
+      const aw = settingsAreaSortWeight(a[0])
+      const bw = settingsAreaSortWeight(b[0])
+      if (aw !== bw) return aw - bw
+      return a[0].localeCompare(b[0], undefined, { sensitivity: 'base' })
+    })
+    return grouped
   }, [filtered])
   const allCollapsed = React.useMemo(
     () => {

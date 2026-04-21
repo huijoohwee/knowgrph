@@ -83,7 +83,7 @@ export default function PreviewPanelView() {
     markdownText || '',
     undefined,
     markdownDocumentName || '',
-    true,
+    false,
   )
 
   const mermaidFrontmatterConfig = React.useMemo(
