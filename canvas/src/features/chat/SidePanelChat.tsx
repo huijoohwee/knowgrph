@@ -51,6 +51,24 @@ export default function SidePanelChat() {
   const chatModel = useGraphStore(s => s.chatModel)
   const chatTemperature = useGraphStore(s => s.chatTemperature)
   const chatMaxCompletionTokens = useGraphStore(s => s.chatMaxCompletionTokens)
+  const chatServiceTier = useGraphStore(s => s.chatServiceTier)
+  const chatStream = useGraphStore(s => s.chatStream)
+  const chatMessagesJson = useGraphStore(s => s.chatMessagesJson)
+  const chatReasoningEffort = useGraphStore(s => s.chatReasoningEffort)
+  const chatThinkingType = useGraphStore(s => s.chatThinkingType)
+  const chatThinkingJson = useGraphStore(s => s.chatThinkingJson)
+  const chatFrequencyPenalty = useGraphStore(s => s.chatFrequencyPenalty)
+  const chatPresencePenalty = useGraphStore(s => s.chatPresencePenalty)
+  const chatTopP = useGraphStore(s => s.chatTopP)
+  const chatLogprobs = useGraphStore(s => s.chatLogprobs)
+  const chatTopLogprobs = useGraphStore(s => s.chatTopLogprobs)
+  const chatParallelToolCalls = useGraphStore(s => s.chatParallelToolCalls)
+  const chatStopJson = useGraphStore(s => s.chatStopJson)
+  const chatStreamOptionsJson = useGraphStore(s => s.chatStreamOptionsJson)
+  const chatResponseFormatJson = useGraphStore(s => s.chatResponseFormatJson)
+  const chatLogitBiasJson = useGraphStore(s => s.chatLogitBiasJson)
+  const chatToolsJson = useGraphStore(s => s.chatToolsJson)
+  const chatToolChoiceJson = useGraphStore(s => s.chatToolChoiceJson)
   const chatGraphSummaryMaxTokens = useGraphStore(s => s.chatGraphSummaryMaxTokens)
   const chatGuidelineDigestMaxTokens = useGraphStore(s => s.chatGuidelineDigestMaxTokens)
   const chatSystemPrompt = useGraphStore(s => s.chatSystemPrompt)
@@ -413,6 +431,24 @@ export default function SidePanelChat() {
     chatModel: chatModelSelect.modelId,
     chatTemperature,
     chatMaxCompletionTokens,
+    chatServiceTier,
+    chatStream,
+    chatMessagesJson,
+    chatReasoningEffort,
+    chatThinkingType,
+    chatThinkingJson,
+    chatFrequencyPenalty,
+    chatPresencePenalty,
+    chatTopP,
+    chatLogprobs,
+    chatTopLogprobs,
+    chatParallelToolCalls,
+    chatStopJson,
+    chatStreamOptionsJson,
+    chatResponseFormatJson,
+    chatLogitBiasJson,
+    chatToolsJson,
+    chatToolChoiceJson,
     chatGraphSummaryMaxTokens,
     chatGuidelineDigestMaxTokens,
     chatSystemPrompt,

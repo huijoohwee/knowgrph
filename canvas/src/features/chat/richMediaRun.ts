@@ -19,6 +19,7 @@ import {
   resolveWorkspaceSiblingArtifactPath,
   writeWorkspaceBlobArtifactAtPath,
 } from './chatHistoryWorkspace.output'
+import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 
 export type RichMediaWidgetKind = 'image' | 'video'
 
@@ -135,6 +136,7 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
   delete next.outputModel
   delete next.outputSourceUrl
   delete next.outputSavedName
+  delete next.outputSrcDoc
   delete next.lastRunAt
   return next
 }
@@ -160,6 +162,27 @@ export const buildRichMediaWidgetOutputPatch = (args: {
     outputMimeType: cleanString(args.asset.blob.type) || undefined,
     outputModel: cleanString(args.asset.model) || undefined,
     outputSourceUrl: cleanString(args.asset.sourceUrl) || undefined,
+    lastRunAt: new Date().toISOString(),
+  }
+}
+
+export const buildTextWidgetOutputPatch = (args: {
+  output: string
+  title?: unknown
+  model?: unknown
+}): Record<string, unknown> => {
+  const output = String(args.output || '')
+  return {
+    output,
+    outputPath: undefined,
+    outputMimeType: 'text/markdown; charset=utf-8',
+    outputModel: cleanString(args.model) || undefined,
+    outputSourceUrl: undefined,
+    outputSavedName: undefined,
+    outputSrcDoc: buildTextWidgetOutputSrcDoc({
+      title: args.title,
+      text: output,
+    }),
     lastRunAt: new Date().toISOString(),
   }
 }

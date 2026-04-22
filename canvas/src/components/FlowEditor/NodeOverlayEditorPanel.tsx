@@ -17,6 +17,22 @@ import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/compo
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
 import { parseMarkdownSigil } from '@/features/markdown/ui/markdownSigil'
+import {
+  FLOW_IMAGE_GENERATION_NODE_LABEL,
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_LABEL,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_LABEL,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+  getFlowEditorSmartWidgetLabel,
+} from '@/lib/config.flow-editor'
+import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
+import {
+  FLOW_WIDGET_FORM_ID_KEY,
+  FLOW_WIDGET_TYPE_ID_KEY,
+} from '@/features/flow-editor-manager/resolveWidgetRegistry'
 
 const normalizeWidgetLabelText = (raw: unknown): string => {
   const source = String(raw || '').trim()
@@ -35,10 +51,53 @@ const readNodeData = (node: GraphNode): Record<string, unknown> => {
   return raw || {}
 }
 
-export const resolveWidgetNodeTitle = (args: { node: GraphNode; graphMetaKind?: string | null }): string => {
+function resolveSpecificWidgetTitle(args: {
+  node: GraphNode
+  registryEntry?: WidgetRegistryEntry | null
+}): string | null {
+  const properties = (args.node.properties || {}) as Record<string, unknown>
+  const registryEntry = args.registryEntry || null
+  const nodeTypeId = String(registryEntry?.nodeTypeId || args.node.type || '').trim()
+  if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+    return getTextGenerationWidgetLabel({
+      provider: properties.chatProvider,
+      widgetTypeId: registryEntry?.widgetTypeId || properties[FLOW_WIDGET_TYPE_ID_KEY],
+      formId: registryEntry?.formId || properties[FLOW_WIDGET_FORM_ID_KEY],
+    })
+  }
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
+    return getFlowEditorSmartWidgetLabel({
+      mode: 'image',
+      model: properties.model,
+    })
+  }
+  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
+    return getFlowEditorSmartWidgetLabel({
+      mode: 'video',
+      model: properties.model,
+    })
+  }
+  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+    return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+  }
+  return null
+}
+
+export const resolveWidgetNodeTitle = (args: { node: GraphNode; graphMetaKind?: string | null; registryEntry?: WidgetRegistryEntry | null }): string => {
   const node = args.node
   const fallback = normalizeWidgetLabelText(node.label) || String(node.id || '').trim() || 'Node'
-  if (String(args.graphMetaKind || '').trim() !== 'frontmatter-flow') return fallback
+  const specificTitle = resolveSpecificWidgetTitle(args)
+  const genericFallbacks = new Set([
+    '',
+    String(node.id || '').trim(),
+    FLOW_TEXT_GENERATION_NODE_LABEL,
+    FLOW_IMAGE_GENERATION_NODE_LABEL,
+    FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+    FLOW_VIDEO_GENERATION_NODE_LABEL,
+  ])
+  if (String(args.graphMetaKind || '').trim() !== 'frontmatter-flow') {
+    return specificTitle && genericFallbacks.has(fallback) ? specificTitle : fallback
+  }
   const data = readNodeData(node)
   const type = String(node.type || '').trim().toLowerCase()
   if (type === 'input') {
@@ -253,7 +312,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                 minimized ? microLabelClass : '',
               )}
             >
-              {beatByBeatTitle || resolveWidgetNodeTitle({ node, graphMetaKind })}
+              {beatByBeatTitle || resolveWidgetNodeTitle({ node, graphMetaKind, registryEntry })}
             </h3>
           </section>
 

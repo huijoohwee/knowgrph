@@ -8,6 +8,7 @@ import {
 import {
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
@@ -20,7 +21,13 @@ import { buildWidgetBundleV1, widgetBundleToJsonBlob } from '@/lib/graph/io/widg
 import { normalizeWidgetRegistryEntries, validateWidgetRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
 import { tryParseWidgetImportGraphData } from '@/lib/graph/io/widgetImport'
 import { createUniqueId } from '@/lib/ids'
-import { buildGenerateImageRegistryDraft, buildGenerateVideoRegistryDraft, buildWidgetDraftFromSmartFields } from '@/features/flow-editor-manager/registryTemplates'
+import {
+  buildGenerateImageRegistryDraft,
+  buildGenerateVideoRegistryDraft,
+  buildTextGenerationRegistryDraft,
+  buildWidgetDraftFromSmartFields,
+  inferTextGenerationProviderFamily,
+} from '@/features/flow-editor-manager/registryTemplates'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
@@ -258,6 +265,16 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
         ? { ...buildGenerateImageRegistryDraft(), nodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID }
         : inferredMode === 'video'
           ? { ...buildGenerateVideoRegistryDraft(), nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID }
+        : nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+          ? buildTextGenerationRegistryDraft({
+              providerFamily: inferTextGenerationProviderFamily({
+                provider: props.chatProvider,
+                widgetTypeId: props[FLOW_WIDGET_TYPE_ID_KEY],
+                formId: props[FLOW_WIDGET_FORM_ID_KEY],
+              }),
+              widgetTypeId: String(props[FLOW_WIDGET_TYPE_ID_KEY] || '').trim() || 'default',
+              formId: String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim() || 'textGeneration',
+            })
           : buildWidgetDraftFromSmartFields({ nodeTypeId })
     openCreate(inferredDraft)
   }, [graphData, openCreate, selectedNodeId, upsertUiToast])
@@ -331,6 +348,16 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
       ? buildGenerateImageRegistryDraft()
       : inferredMode === 'video'
         ? buildGenerateVideoRegistryDraft()
+        : baseType === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+          ? buildTextGenerationRegistryDraft({
+              providerFamily: inferTextGenerationProviderFamily({
+                provider: props.chatProvider,
+                widgetTypeId: props[FLOW_WIDGET_TYPE_ID_KEY],
+                formId: props[FLOW_WIDGET_FORM_ID_KEY],
+              }),
+              widgetTypeId: String(props[FLOW_WIDGET_TYPE_ID_KEY] || '').trim() || 'default',
+              formId: String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim() || 'textGeneration',
+            })
         : buildWidgetDraftFromSmartFields({ nodeTypeId: baseType })
 
     const res = upsertWidgetRegistryEntry({

@@ -5,11 +5,16 @@ import {
 } from '@/lib/chatEndpoint'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
+  FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
+  FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
+  FLOW_EDITOR_RESOLUTION_OPTIONS,
+  FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
   FLOW_WIDGET_BUNDLE_KIND,
   FLOW_WIDGET_BUNDLE_VERSION,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-} from '@/lib/config'
+} from '@/lib/config.flow-editor'
 
 type RegistryFieldLike = {
   fieldKey: string
@@ -17,6 +22,7 @@ type RegistryFieldLike = {
   label?: string
   schemaPath?: string
   required?: boolean
+  options?: Array<{ value: string | number; label?: string }>
 }
 
 type RegistryPortLike = {
@@ -95,13 +101,13 @@ function buildDefaultSmartMediaRegistryEntry(args: {
     widgetTypeId,
     formId,
     fields: [
-      { fieldKey: 'model', fieldType: 'select', label: 'Model', schemaPath: 'properties.model', required: true },
+      { fieldKey: 'model', fieldType: 'select', label: 'Model', schemaPath: 'properties.model', required: true, options: mode === 'image' ? FLOW_EDITOR_IMAGE_MODEL_OPTIONS : FLOW_EDITOR_VIDEO_MODEL_OPTIONS },
       { fieldKey: 'prompt', fieldType: 'textarea', label: 'Prompt', schemaPath: 'properties.prompt', required: true },
-      { fieldKey: 'aspect_ratio', fieldType: 'select', label: 'Aspect Ratio', schemaPath: 'properties.aspect_ratio', required: true },
-      { fieldKey: 'resolution', fieldType: 'select', label: 'Resolution', schemaPath: 'properties.resolution', required: true },
+      { fieldKey: 'aspect_ratio', fieldType: 'select', label: 'Aspect Ratio', schemaPath: 'properties.aspect_ratio', required: true, options: FLOW_EDITOR_ASPECT_RATIO_OPTIONS },
+      { fieldKey: 'resolution', fieldType: 'select', label: 'Resolution', schemaPath: 'properties.resolution', required: true, options: FLOW_EDITOR_RESOLUTION_OPTIONS },
       ...(mode === 'video'
         ? [
-            { fieldKey: 'duration', fieldType: 'select', label: 'Duration (seconds)', schemaPath: 'properties.duration', required: true } as RegistryFieldLike,
+            { fieldKey: 'duration', fieldType: 'select', label: 'Duration (seconds)', schemaPath: 'properties.duration', required: true, options: FLOW_EDITOR_DURATION_SECONDS_OPTIONS } as RegistryFieldLike,
             { fieldKey: 'generate_audio', fieldType: 'boolean', label: 'Generate Audio', schemaPath: 'properties.generate_audio' } as RegistryFieldLike,
             { fieldKey: 'fast', fieldType: 'boolean', label: 'Fast', schemaPath: 'properties.fast' } as RegistryFieldLike,
           ]

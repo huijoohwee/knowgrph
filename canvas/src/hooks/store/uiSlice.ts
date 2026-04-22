@@ -56,6 +56,44 @@ const isCanonicalKgcWorkspacePath = (value: unknown): boolean => {
   return /^kgc_\d{14}\.md$/i.test(fileName)
 }
 
+const clampChatPenalty = (value: unknown): number => {
+  const next = Number(value)
+  if (!Number.isFinite(next)) return 0
+  return Math.max(-2, Math.min(2, next))
+}
+
+const clampChatTopP = (value: unknown): number => {
+  const next = Number(value)
+  if (!Number.isFinite(next)) return 0.7
+  return Math.max(0, Math.min(1, next))
+}
+
+const clampChatTopLogprobs = (value: unknown): number => {
+  const next = Math.floor(Number(value))
+  if (!Number.isFinite(next)) return 0
+  return Math.max(0, Math.min(20, next))
+}
+
+const normalizeChatServiceTier = (value: unknown): 'auto' | 'default' => {
+  return String(value || '').trim().toLowerCase() === 'default' ? 'default' : 'auto'
+}
+
+const normalizeChatReasoningEffort = (value: unknown): 'minimal' | 'low' | 'medium' | 'high' => {
+  const raw = String(value || '').trim().toLowerCase()
+  if (raw === 'minimal' || raw === 'low' || raw === 'high') return raw
+  return 'medium'
+}
+
+const normalizeChatThinkingType = (value: unknown): 'enabled' | 'disabled' | 'auto' => {
+  const raw = String(value || '').trim().toLowerCase()
+  if (raw === 'disabled' || raw === 'auto') return raw
+  return 'enabled'
+}
+
+const normalizeChatJsonText = (value: unknown): string => {
+  return typeof value === 'string' ? value : ''
+}
+
 export const createUiSlice = (set: SetGraph) => {
   const storedChatProvider = lsJson<string>(
     LS_KEYS.chatProvider,
@@ -302,6 +340,36 @@ export const createUiSlice = (set: SetGraph) => {
     chatMaxCompletionTokens: clampChatCompletionTokens(
       lsInt(LS_KEYS.chatMaxCompletionTokens, CHAT_AI_MARKDOWN_MAX_TOKENS_DEFAULT),
     ),
+    chatServiceTier: lsJson<'auto' | 'default'>(
+      LS_KEYS.chatServiceTier,
+      'auto',
+      value => normalizeChatServiceTier(value),
+    ),
+    chatStream: lsBool(LS_KEYS.chatStream, true),
+    chatMessagesJson: lsJson<string>(LS_KEYS.chatMessagesJson, '', value => normalizeChatJsonText(value)),
+    chatReasoningEffort: lsJson<'minimal' | 'low' | 'medium' | 'high'>(
+      LS_KEYS.chatReasoningEffort,
+      'medium',
+      value => normalizeChatReasoningEffort(value),
+    ),
+    chatThinkingType: lsJson<'enabled' | 'disabled' | 'auto'>(
+      LS_KEYS.chatThinkingType,
+      'enabled',
+      value => normalizeChatThinkingType(value),
+    ),
+    chatThinkingJson: lsJson<string>(LS_KEYS.chatThinkingJson, '', value => normalizeChatJsonText(value)),
+    chatFrequencyPenalty: lsFloat(LS_KEYS.chatFrequencyPenalty, 0, { min: -2, max: 2 }),
+    chatPresencePenalty: lsFloat(LS_KEYS.chatPresencePenalty, 0, { min: -2, max: 2 }),
+    chatTopP: lsFloat(LS_KEYS.chatTopP, 0.7, { min: 0, max: 1 }),
+    chatLogprobs: lsBool(LS_KEYS.chatLogprobs, false),
+    chatTopLogprobs: clampChatTopLogprobs(lsInt(LS_KEYS.chatTopLogprobs, 0)),
+    chatParallelToolCalls: lsBool(LS_KEYS.chatParallelToolCalls, true),
+    chatStopJson: lsJson<string>(LS_KEYS.chatStopJson, '', value => normalizeChatJsonText(value)),
+    chatStreamOptionsJson: lsJson<string>(LS_KEYS.chatStreamOptionsJson, '', value => normalizeChatJsonText(value)),
+    chatResponseFormatJson: lsJson<string>(LS_KEYS.chatResponseFormatJson, '', value => normalizeChatJsonText(value)),
+    chatLogitBiasJson: lsJson<string>(LS_KEYS.chatLogitBiasJson, '', value => normalizeChatJsonText(value)),
+    chatToolsJson: lsJson<string>(LS_KEYS.chatToolsJson, '', value => normalizeChatJsonText(value)),
+    chatToolChoiceJson: lsJson<string>(LS_KEYS.chatToolChoiceJson, '', value => normalizeChatJsonText(value)),
     chatGraphSummaryMaxTokens: clampChatContextMaxTokens(
       lsInt(LS_KEYS.chatGraphSummaryMaxTokens, CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT),
       CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT,
@@ -714,6 +782,78 @@ export const createUiSlice = (set: SetGraph) => {
           clampChatCompletionTokens(v),
           { min: 64, max: 100_000 },
         ),
+      }),
+    setChatServiceTier: (v: 'auto' | 'default') =>
+      set({
+        chatServiceTier: lsSetJson(LS_KEYS.chatServiceTier, normalizeChatServiceTier(v)),
+      }),
+    setChatStream: (v: boolean) =>
+      set({
+        chatStream: lsSetBool(LS_KEYS.chatStream, !!v),
+      }),
+    setChatMessagesJson: (v: string | null) =>
+      set({
+        chatMessagesJson: lsSetJson(LS_KEYS.chatMessagesJson, typeof v === 'string' ? v : ''),
+      }),
+    setChatReasoningEffort: (v: 'minimal' | 'low' | 'medium' | 'high') =>
+      set({
+        chatReasoningEffort: lsSetJson(LS_KEYS.chatReasoningEffort, normalizeChatReasoningEffort(v)),
+      }),
+    setChatThinkingType: (v: 'enabled' | 'disabled' | 'auto') =>
+      set({
+        chatThinkingType: lsSetJson(LS_KEYS.chatThinkingType, normalizeChatThinkingType(v)),
+      }),
+    setChatThinkingJson: (v: string | null) =>
+      set({
+        chatThinkingJson: lsSetJson(LS_KEYS.chatThinkingJson, typeof v === 'string' ? v : ''),
+      }),
+    setChatFrequencyPenalty: (v: number) =>
+      set({
+        chatFrequencyPenalty: lsSetFloat(LS_KEYS.chatFrequencyPenalty, clampChatPenalty(v), { min: -2, max: 2 }),
+      }),
+    setChatPresencePenalty: (v: number) =>
+      set({
+        chatPresencePenalty: lsSetFloat(LS_KEYS.chatPresencePenalty, clampChatPenalty(v), { min: -2, max: 2 }),
+      }),
+    setChatTopP: (v: number) =>
+      set({
+        chatTopP: lsSetFloat(LS_KEYS.chatTopP, clampChatTopP(v), { min: 0, max: 1 }),
+      }),
+    setChatLogprobs: (v: boolean) =>
+      set({
+        chatLogprobs: lsSetBool(LS_KEYS.chatLogprobs, !!v),
+      }),
+    setChatTopLogprobs: (v: number) =>
+      set({
+        chatTopLogprobs: lsSetInt(LS_KEYS.chatTopLogprobs, clampChatTopLogprobs(v), { min: 0, max: 20 }),
+      }),
+    setChatParallelToolCalls: (v: boolean) =>
+      set({
+        chatParallelToolCalls: lsSetBool(LS_KEYS.chatParallelToolCalls, !!v),
+      }),
+    setChatStopJson: (v: string | null) =>
+      set({
+        chatStopJson: lsSetJson(LS_KEYS.chatStopJson, typeof v === 'string' ? v : ''),
+      }),
+    setChatStreamOptionsJson: (v: string | null) =>
+      set({
+        chatStreamOptionsJson: lsSetJson(LS_KEYS.chatStreamOptionsJson, typeof v === 'string' ? v : ''),
+      }),
+    setChatResponseFormatJson: (v: string | null) =>
+      set({
+        chatResponseFormatJson: lsSetJson(LS_KEYS.chatResponseFormatJson, typeof v === 'string' ? v : ''),
+      }),
+    setChatLogitBiasJson: (v: string | null) =>
+      set({
+        chatLogitBiasJson: lsSetJson(LS_KEYS.chatLogitBiasJson, typeof v === 'string' ? v : ''),
+      }),
+    setChatToolsJson: (v: string | null) =>
+      set({
+        chatToolsJson: lsSetJson(LS_KEYS.chatToolsJson, typeof v === 'string' ? v : ''),
+      }),
+    setChatToolChoiceJson: (v: string | null) =>
+      set({
+        chatToolChoiceJson: lsSetJson(LS_KEYS.chatToolChoiceJson, typeof v === 'string' ? v : ''),
       }),
     setChatGraphSummaryMaxTokens: (v: number) =>
       set({

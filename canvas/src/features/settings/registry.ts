@@ -3,11 +3,13 @@ import type { FlowDetails, SettingMeta } from './types'
 import { uiSettingsRegistry } from './registry-ui'
 import { threeSettingsRegistry } from './registry-three'
 import { presetAndEnvSettingsRegistry } from './registry-presets'
+import { paymentsSettingsRegistry } from './registry-payments'
 
 export const settingsRegistry: SettingMeta[] = [
   ...uiSettingsRegistry,
   ...threeSettingsRegistry,
   ...presetAndEnvSettingsRegistry,
+  ...paymentsSettingsRegistry,
 ]
 
 const flowDetailsObject: Record<string, FlowDetails> =

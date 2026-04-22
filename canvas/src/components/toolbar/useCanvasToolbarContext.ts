@@ -2,7 +2,12 @@ import React, { useCallback, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useToolbarState } from '@/features/toolbar/hooks/useToolbarState'
-import { useMainPanelDrag, type MainPanelOpenOptions, type MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag'
+import {
+  useMainPanelDrag,
+  type MainPanelOpenOptions,
+  type MainPanelTabKey,
+  type WorkflowManagerTabKey,
+} from '@/features/toolbar/hooks/useMainPanelDrag'
 import { MAIN_PANEL_OPEN_EVENT, MAIN_PANEL_OPEN_READY_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight'
 import { LS_KEYS, UI_COPY } from '@/lib/config'
@@ -97,6 +102,9 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     setIsMainPanelOpen,
     mainPanelRequestedTab,
     mainPanelRequestedSearchQuery,
+    mainPanelRequestedAnchorId,
+    mainPanelRequestedAnchorSeq,
+    mainPanelRequestedWorkflowManagerTab,
     mainPanelCardRef,
     mainPanelPinned,
     setMainPanelPinned,
@@ -228,11 +236,19 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const handler = (ev: Event) => {
-      const e = ev as CustomEvent<{ tab?: MainPanelTabKey; searchQuery?: string } | undefined>
+      const e = ev as CustomEvent<{
+        tab?: MainPanelTabKey
+        searchQuery?: string
+        anchorId?: string
+        workflowManagerTab?: WorkflowManagerTabKey
+      } | undefined>
       const detailTab = e.detail && e.detail.tab
       const detailSearchQuery = e.detail && typeof e.detail.searchQuery === 'string' ? e.detail.searchQuery : ''
+      const detailAnchorId = e.detail && typeof e.detail.anchorId === 'string' ? e.detail.anchorId : ''
+      const detailWorkflowManagerTab = e.detail?.workflowManagerTab === 'mapping' ? 'mapping' : 'graph'
       const tab: MainPanelTabKey =
         detailTab === 'integrations' ||
+        detailTab === 'payments' ||
         detailTab === 'graphFields' ||
         detailTab === 'workflow' ||
         detailTab === 'help' ||
@@ -241,7 +257,11 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
         detailTab === 'history'
           ? detailTab
           : 'help'
-      const options: MainPanelOpenOptions = detailSearchQuery ? { searchQuery: detailSearchQuery } : {}
+      const options: MainPanelOpenOptions = {
+        ...(detailSearchQuery ? { searchQuery: detailSearchQuery } : {}),
+        ...(detailAnchorId ? { anchorId: detailAnchorId } : {}),
+        ...(tab === 'workflowManager' ? { workflowManagerTab: detailWorkflowManagerTab } : {}),
+      }
       openMainPanel(tab, options)
     }
     ;(window as MainPanelOpenReadyWindow).__KG_MAIN_PANEL_OPEN_READY__ = true
@@ -307,6 +327,9 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     mainPanelPinned,
     mainPanelRequestedTab,
     mainPanelRequestedSearchQuery,
+    mainPanelRequestedAnchorId,
+    mainPanelRequestedAnchorSeq,
+    mainPanelRequestedWorkflowManagerTab,
     nodeShapeMode,
     openMainPanel,
     portHandlesEnabled,

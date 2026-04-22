@@ -4,7 +4,7 @@ import HeaderActions from '@/features/panels/ui/HeaderActions'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { BarChart3, HelpCircle, MonitorPlay, Settings, History as HistoryIcon, Table, Plug } from 'lucide-react'
+import { BarChart3, HelpCircle, MonitorPlay, Settings, History as HistoryIcon, Table, Plug, CreditCard } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
@@ -12,6 +12,7 @@ import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 
 type MainPanelTab =
   | 'integrations'
+  | 'payments'
   | 'workflowManager'
   | 'help'
   | 'dashboard'
@@ -22,6 +23,7 @@ type MainPanelTab =
 function isMainPanelTab(key: string): key is MainPanelTab {
   return (
     key === 'integrations' ||
+    key === 'payments' ||
     key === 'workflowManager' ||
     key === 'help' ||
     key === 'dashboard' ||
@@ -33,6 +35,7 @@ function isMainPanelTab(key: string): key is MainPanelTab {
 
 const SEARCHABLE_MAIN_PANEL_TABS = new Set<MainPanelTab>([
   'integrations',
+  'payments',
   'help',
   'settings',
   'history',
@@ -41,6 +44,7 @@ const SEARCHABLE_MAIN_PANEL_TABS = new Set<MainPanelTab>([
 
 const MAIN_PANEL_TABS: Array<{ key: MainPanelTab; label: string }> = [
   { key: 'integrations', label: UI_LABELS.integrations },
+  { key: 'payments', label: UI_LABELS.payments },
   { key: 'workflowManager', label: UI_LABELS.workflowManager },
   { key: 'dashboard', label: UI_LABELS.dashboard },
   { key: 'preview', label: UI_LABELS.previewPanel },
@@ -51,6 +55,7 @@ const MAIN_PANEL_TABS: Array<{ key: MainPanelTab; label: string }> = [
 
 const MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB: Partial<Record<MainPanelTab, string>> = {
   integrations: UI_COPY.searchSettingsPlaceholder,
+  payments: UI_COPY.searchSettingsPlaceholder,
   help: UI_COPY.searchShortcutsPlaceholder,
   settings: UI_COPY.searchSettingsPlaceholder,
   history: UI_LABELS.search,
@@ -59,6 +64,7 @@ const MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB: Partial<Record<MainPanelTab, string>
 
 const MAIN_PANEL_FOOTER_LABEL_BY_TAB: Record<MainPanelTab, string> = {
   integrations: UI_LABELS.integrations,
+  payments: UI_LABELS.payments,
   workflowManager: UI_LABELS.workflowManager,
   help: UI_LABELS.help,
   dashboard: UI_LABELS.dashboard,
@@ -70,6 +76,7 @@ const MAIN_PANEL_FOOTER_LABEL_BY_TAB: Record<MainPanelTab, string> = {
 const mainPanelTabSupportsSearch = (tab: MainPanelTab): boolean => SEARCHABLE_MAIN_PANEL_TABS.has(tab)
 
 const IntegrationsHubViewLazy = React.lazy(() => import('./views/IntegrationsHubView'))
+const PaymentsHubViewLazy = React.lazy(() => import('./views/PaymentsHubView'))
 const FlowEditorManagerViewLazy = React.lazy(() => import('@/features/panels/views/FlowEditorManagerView'))
 const PreviewPanelViewLazy = React.lazy(() => import('./views/PreviewPanelView'))
 const SettingsViewLazy = React.lazy(() => import('@/features/panels/views/SettingsView'))
@@ -81,7 +88,10 @@ export default function MainPanel({
   onClose,
   onHeaderDragStart,
   requestedTab,
+  requestedAnchorId,
+  requestedAnchorSeq,
   requestedSearchQuery,
+  requestedWorkflowManagerTab,
   collapsed,
   pinned,
   onMinimize,
@@ -91,7 +101,10 @@ export default function MainPanel({
   onClose?: () => void
   onHeaderDragStart?: (ev: React.PointerEvent<HTMLElement>) => void
   requestedTab?: MainPanelTab
+  requestedAnchorId?: string
+  requestedAnchorSeq?: number
   requestedSearchQuery?: string
+  requestedWorkflowManagerTab?: 'graph' | 'mapping'
   collapsed?: boolean
   pinned?: boolean
   onMinimize?: () => void
@@ -110,6 +123,14 @@ export default function MainPanel({
     allCollapsed?: boolean
   }>({ allCollapsed: true })
   const [integrationsActions, setIntegrationsActions] = React.useState<{
+    apply?: () => void
+    reset?: () => void
+    globalReset?: () => void
+    collapseAll?: () => void
+    expandAll?: () => void
+    allCollapsed?: boolean
+  }>({ allCollapsed: true })
+  const [paymentsActions, setPaymentsActions] = React.useState<{
     apply?: () => void
     reset?: () => void
     globalReset?: () => void
@@ -188,7 +209,7 @@ export default function MainPanel({
       setSearchOpen(nextSearch.length > 0)
     }
     setTab(requestedTab)
-  }, [requestedSearchQuery, requestedTab])
+  }, [requestedAnchorId, requestedAnchorSeq, requestedSearchQuery, requestedTab])
 
   return (
     <MainPanelFrame
@@ -203,6 +224,7 @@ export default function MainPanel({
       tabVariant="icon"
       tabIconByKey={{
         integrations: Plug,
+        payments: CreditCard,
         workflowManager: Table,
         dashboard: BarChart3,
         preview: MonitorPlay,
@@ -233,6 +255,8 @@ export default function MainPanel({
               ? settingsActions.apply
               : tab === 'integrations'
                 ? integrationsActions.apply
+                : tab === 'payments'
+                  ? paymentsActions.apply
               : tab === 'workflowManager'
                 ? workflowManagerActions.apply
                 : undefined
@@ -242,6 +266,8 @@ export default function MainPanel({
               ? settingsActions.reset
               : tab === 'integrations'
                 ? integrationsActions.reset
+                : tab === 'payments'
+                  ? paymentsActions.reset
               : tab === 'workflowManager'
                 ? workflowManagerActions.reset
                 : undefined
@@ -252,6 +278,8 @@ export default function MainPanel({
               ? !settingsActions.apply
               : tab === 'integrations'
                 ? !integrationsActions.apply
+                : tab === 'payments'
+                  ? !paymentsActions.apply
               : tab === 'workflowManager'
                 ? workflowManagerActions.applyDisabled
                 : true
@@ -261,6 +289,8 @@ export default function MainPanel({
               ? !settingsActions.reset
               : tab === 'integrations'
                 ? !integrationsActions.reset
+                : tab === 'payments'
+                  ? !paymentsActions.reset
               : tab === 'workflowManager'
                 ? workflowManagerActions.resetDisabled
                 : true
@@ -297,9 +327,40 @@ export default function MainPanel({
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-integrations-panel" aria-labelledby="main-panel-integrations-tab" hidden={tab !== 'integrations'}>
           {tab === 'integrations' && (
-            <React.Suspense fallback={null}>
-              <IntegrationsHubViewLazy searchQuery={search} onRegisterActions={setIntegrationsActions} />
-            </React.Suspense>
+            <MainPanelBody header={null}>
+              <section
+                className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
+                data-kg-anchor={UI_ANCHORS.settingsPanel}
+              >
+                <React.Suspense fallback={null}>
+                  <IntegrationsHubViewLazy
+                    searchQuery={search}
+                    requestedAnchorId={requestedAnchorId}
+                    requestedAnchorSeq={requestedAnchorSeq}
+                    onRegisterActions={setIntegrationsActions}
+                  />
+                </React.Suspense>
+              </section>
+            </MainPanelBody>
+          )}
+        </section>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-payments-panel" aria-labelledby="main-panel-payments-tab" hidden={tab !== 'payments'}>
+          {tab === 'payments' && (
+            <MainPanelBody header={null}>
+              <section
+                className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
+                data-kg-anchor={UI_ANCHORS.settingsPanel}
+              >
+                <React.Suspense fallback={null}>
+                  <PaymentsHubViewLazy
+                    searchQuery={search}
+                    requestedAnchorId={requestedAnchorId}
+                    requestedAnchorSeq={requestedAnchorSeq}
+                    onRegisterActions={setPaymentsActions}
+                  />
+                </React.Suspense>
+              </section>
+            </MainPanelBody>
           )}
         </section>
         <section
@@ -311,7 +372,11 @@ export default function MainPanel({
         >
           {tab === 'workflowManager' && (
             <React.Suspense fallback={null}>
-              <FlowEditorManagerViewLazy searchQuery={search} onRegisterActions={setWorkflowManagerActionsStable} />
+              <FlowEditorManagerViewLazy
+                searchQuery={search}
+                requestedTab={requestedWorkflowManagerTab}
+                onRegisterActions={setWorkflowManagerActionsStable}
+              />
             </React.Suspense>
           )}
         </section>
@@ -331,13 +396,18 @@ export default function MainPanel({
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-settings-panel" aria-labelledby="main-panel-settings-tab" hidden={tab !== 'settings'}>
           {tab === 'settings' && (
-            <MainPanelBody>
+            <MainPanelBody header={null}>
               <section
                 className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
                 data-kg-anchor={UI_ANCHORS.settingsPanel}
               >
                 <React.Suspense fallback={null}>
-                  <SettingsViewLazy searchQuery={search} onRegisterActions={setSettingsActions} />
+                  <SettingsViewLazy
+                    searchQuery={search}
+                    requestedAnchorId={requestedAnchorId}
+                    requestedAnchorSeq={requestedAnchorSeq}
+                    onRegisterActions={setSettingsActions}
+                  />
                 </React.Suspense>
               </section>
             </MainPanelBody>

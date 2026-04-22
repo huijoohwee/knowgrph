@@ -69,6 +69,8 @@ import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExpo
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { buildPanelOnlyNodeIdSetFromGraphNodes, listMarkdownPanelOverlayNodes } from '@/lib/render/markdownPanelOverlayPool'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const EMPTY_STRING_ARRAY: string[] = []
@@ -863,8 +865,24 @@ export default function FlowCanvas({
   }, [deferredMarkdownText, markdownDocumentName])
 
 
-  const mediaNodes = React.useMemo(() => {
+  const mediaRenderNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
+    if (nodes.length === 0) return nodes
+    const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
+      graphData: sceneGraphData,
+      registry: widgetRegistry,
+    })
+    return nodes.map(node => {
+      const nodeId = String(node?.id || '').trim()
+      return applyConnectedValuesToNodeForRender({
+        node,
+        connectedValuesBySchemaPath: nodeId ? connectedValuesByNodeId.get(nodeId) || undefined : undefined,
+      })
+    })
+  }, [sceneGraphData, widgetRegistry])
+
+  const mediaNodes = React.useMemo(() => {
+    const nodes = mediaRenderNodes
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     const suggested = listMediaOverlayNodes({ enabled: true, nodes, poolMax })
@@ -947,7 +965,7 @@ export default function FlowCanvas({
       }
     }
     return out
-  }, [sceneGraphData, threeIframeOverlayPoolMax])
+  }, [mediaRenderNodes, threeIframeOverlayPoolMax])
 
   const markdownPanelNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []

@@ -4,6 +4,10 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import {
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_LABEL,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config'
@@ -18,9 +22,17 @@ import {
   setFlowWidgetDragDataTransfer,
 } from '@/lib/flowEditor/widgetDrag'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
+import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
 
 function defaultLabelForEntry(entry: WidgetRegistryEntry): string {
   if (entry.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return FLOW_IMAGE_GENERATION_NODE_LABEL
+  if (entry.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+  if (entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+    return getTextGenerationWidgetLabel({
+      widgetTypeId: entry.widgetTypeId,
+      formId: entry.formId,
+    }) || FLOW_TEXT_GENERATION_NODE_LABEL
+  }
   if (entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return FLOW_VIDEO_GENERATION_NODE_LABEL
   return entry.nodeTypeId
 }

@@ -130,3 +130,54 @@ export async function testMainPanelRequestedSettingsSearchUsesTabMetadata() {
     restoreWindow()
   }
 }
+
+export async function testMainPanelRequestedPaymentsSearchUsesTabMetadata() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(
+      React.createElement(MainPanel, {
+        requestedTab: 'payments',
+        requestedSearchQuery: 'stripe',
+      } as never),
+    )
+
+    await waitForFrames(anyWindow.requestAnimationFrame, 4)
+
+    const searchInput = container.querySelector('input')
+    if (!(searchInput instanceof dom.window.HTMLInputElement)) {
+      throw new Error('expected payments tab to render the search input')
+    }
+    if (searchInput.placeholder !== UI_COPY.searchSettingsPlaceholder) {
+      throw new Error(`expected payments search placeholder, got ${JSON.stringify(searchInput.placeholder)}`)
+    }
+    if (searchInput.value !== 'stripe') {
+      throw new Error(`expected payments search query to be preserved, got ${JSON.stringify(searchInput.value)}`)
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}

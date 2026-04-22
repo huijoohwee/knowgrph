@@ -19,6 +19,24 @@ export type SidePanelChatSubmitArgs = {
   chatModel: string | null
   chatTemperature: unknown
   chatMaxCompletionTokens: unknown
+  chatServiceTier: unknown
+  chatStream: unknown
+  chatMessagesJson: unknown
+  chatReasoningEffort: unknown
+  chatThinkingType: unknown
+  chatThinkingJson: unknown
+  chatFrequencyPenalty: unknown
+  chatPresencePenalty: unknown
+  chatTopP: unknown
+  chatLogprobs: unknown
+  chatTopLogprobs: unknown
+  chatParallelToolCalls: unknown
+  chatStopJson: unknown
+  chatStreamOptionsJson: unknown
+  chatResponseFormatJson: unknown
+  chatLogitBiasJson: unknown
+  chatToolsJson: unknown
+  chatToolChoiceJson: unknown
   chatGraphSummaryMaxTokens: unknown
   chatGuidelineDigestMaxTokens: unknown
   chatSystemPrompt: string | null

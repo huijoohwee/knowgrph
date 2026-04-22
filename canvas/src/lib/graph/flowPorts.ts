@@ -7,6 +7,7 @@ export const FLOW_EDGE_DISPLAY_LABEL_KEY = 'flow:displayLabel' as const
 export const FLOW_SCHEMA_FIELD_PORT_PREFIX = 'field:' as const
 
 export const FLOW_SCHEMA_FIELDS_PROPERTY_KEY = 'schema:fields' as const
+export const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
 
 export function buildSchemaFieldPortKey(fieldId: string): string {
   const id = String(fieldId || '').trim()
@@ -60,6 +61,47 @@ export function readSchemaFieldSpecs(node: Pick<GraphNode, 'properties'> | null 
   }
 
   return out
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function readTypedFlowPortKeys(
+  node: Pick<GraphNode, 'properties'> | null | undefined,
+  dir: 'in' | 'out',
+): string[] {
+  const props = node?.properties
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return []
+  const rawPortTypes = (props as Record<string, JSONValue | undefined>)[FLOW_PORT_TYPES_KEY]
+  if (!isRecord(rawPortTypes)) return []
+  const bucket = rawPortTypes[dir]
+  if (!isRecord(bucket)) return []
+  return Object.keys(bucket)
+    .map(key => String(key || '').trim())
+    .filter(Boolean)
+}
+
+export function listTypedFlowPortKeys(
+  node: Pick<GraphNode, 'properties'> | null | undefined,
+  dir: 'in' | 'out',
+): string[] {
+  return readTypedFlowPortKeys(node, dir)
+}
+
+export function pickDefaultTypedFlowPortKey(
+  node: Pick<GraphNode, 'properties'> | null | undefined,
+  dir: 'in' | 'out',
+): string | null {
+  const typedPortKeys = listTypedFlowPortKeys(node, dir)
+  return typedPortKeys.length > 0 ? typedPortKeys[0]! : null
+}
+
+export function pickDefaultFlowPortKey(
+  node: Pick<GraphNode, 'properties'> | null | undefined,
+  dir: 'in' | 'out',
+): string | null {
+  return pickDefaultTypedFlowPortKey(node, dir) || pickDefaultSchemaFieldPortKey(node) || null
 }
 
 export function pickDefaultSchemaFieldPortKey(node: Pick<GraphNode, 'properties'> | null | undefined): string | null {

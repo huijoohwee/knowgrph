@@ -31,6 +31,7 @@ import {
   upsertChatHistoryWorkspaceDraft,
 } from '../chatHistoryWorkspace'
 import {
+  buildProviderChatRequestOptions,
   clampTemperature,
   extractAssistantDelta,
   loadAvailableModelIds,
@@ -232,17 +233,39 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
           args.chatStorageTarget === 'chatKnowgrph'
             ? Math.max(4000, tokenLimit)
             : tokenLimit
+        const providerOptions = buildProviderChatRequestOptions({
+          provider: args.chatProvider,
+          chatTemperature: args.chatTemperature,
+          chatServiceTier: args.chatServiceTier,
+          chatStream: args.chatStream,
+          chatMessagesJson: args.chatMessagesJson,
+          chatReasoningEffort: args.chatReasoningEffort,
+          chatThinkingType: args.chatThinkingType,
+          chatThinkingJson: args.chatThinkingJson,
+          chatFrequencyPenalty: args.chatFrequencyPenalty,
+          chatPresencePenalty: args.chatPresencePenalty,
+          chatTopP: args.chatTopP,
+          chatLogprobs: args.chatLogprobs,
+          chatTopLogprobs: args.chatTopLogprobs,
+          chatParallelToolCalls: args.chatParallelToolCalls,
+          chatStopJson: args.chatStopJson,
+          chatStreamOptionsJson: args.chatStreamOptionsJson,
+          chatResponseFormatJson: args.chatResponseFormatJson,
+          chatLogitBiasJson: args.chatLogitBiasJson,
+          chatToolsJson: args.chatToolsJson,
+          chatToolChoiceJson: args.chatToolChoiceJson,
+        })
         return await fetch(requestUrl, {
           method: 'POST',
           headers,
           body: JSON.stringify({
             model,
             messages,
-            temperature: clampTemperature(args.chatTemperature),
+            stream: true,
+            ...providerOptions,
             ...(tokenLimitKey === 'max_completion_tokens'
               ? { max_completion_tokens: effectiveTokenLimit }
               : { max_tokens: effectiveTokenLimit }),
-            stream: true,
           }),
           signal: controller.signal,
         })

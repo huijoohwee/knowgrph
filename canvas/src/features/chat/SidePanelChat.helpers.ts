@@ -1,5 +1,7 @@
 import { getChatHistoryStorageKey } from '@/lib/config'
+import type { JSONValue } from '@/lib/graph/types'
 import type { GraphData } from '@/lib/graph/types'
+import { CHAT_PROVIDER_BYTEPLUS, normalizeChatProviderId } from '@/lib/chatEndpoint'
 import type { ChatMessage } from './SidePanelChatSections'
 
 export const clampTemperature = (raw: unknown): number => {
@@ -8,6 +10,126 @@ export const clampTemperature = (raw: unknown): number => {
   if (t < 0) return 0
   if (t > 2) return 2
   return t
+}
+
+const clampBytePlusPenalty = (raw: unknown): number => {
+  const next = Number(raw)
+  if (!Number.isFinite(next)) return 0
+  if (next < -2) return -2
+  if (next > 2) return 2
+  return next
+}
+
+const clampBytePlusTopP = (raw: unknown): number => {
+  const next = Number(raw)
+  if (!Number.isFinite(next)) return 0.7
+  if (next < 0) return 0
+  if (next > 1) return 1
+  return next
+}
+
+const clampBytePlusTopLogprobs = (raw: unknown): number => {
+  const next = Math.floor(Number(raw))
+  if (!Number.isFinite(next)) return 0
+  if (next < 0) return 0
+  if (next > 20) return 20
+  return next
+}
+
+const normalizeBytePlusServiceTier = (raw: unknown): 'auto' | 'default' => {
+  return String(raw || '').trim().toLowerCase() === 'default' ? 'default' : 'auto'
+}
+
+const normalizeBytePlusReasoningEffort = (raw: unknown): 'minimal' | 'low' | 'medium' | 'high' => {
+  const next = String(raw || '').trim().toLowerCase()
+  if (next === 'minimal' || next === 'low' || next === 'high') return next
+  return 'medium'
+}
+
+const normalizeBytePlusThinkingType = (raw: unknown): 'enabled' | 'disabled' | 'auto' => {
+  const next = String(raw || '').trim().toLowerCase()
+  if (next === 'disabled' || next === 'auto') return next
+  return 'enabled'
+}
+
+const coerceBooleanFlag = (raw: unknown, fallback: boolean): boolean => {
+  if (typeof raw === 'boolean') return raw
+  const next = String(raw || '').trim().toLowerCase()
+  if (!next) return fallback
+  if (next === 'false' || next === '0' || next === 'no' || next === 'off') return false
+  if (next === 'true' || next === '1' || next === 'yes' || next === 'on') return true
+  return fallback
+}
+
+export const buildProviderChatRequestOptions = (args: {
+  provider: unknown
+  chatTemperature: unknown
+  chatServiceTier: unknown
+  chatStream: unknown
+  chatMessagesJson: unknown
+  chatReasoningEffort: unknown
+  chatThinkingType: unknown
+  chatThinkingJson: unknown
+  chatFrequencyPenalty: unknown
+  chatPresencePenalty: unknown
+  chatTopP: unknown
+  chatLogprobs: unknown
+  chatTopLogprobs: unknown
+  chatParallelToolCalls: unknown
+  chatStopJson: unknown
+  chatStreamOptionsJson: unknown
+  chatResponseFormatJson: unknown
+  chatLogitBiasJson: unknown
+  chatToolsJson: unknown
+  chatToolChoiceJson: unknown
+}): Record<string, unknown> => {
+  const base: Record<string, unknown> = {
+    temperature: clampTemperature(args.chatTemperature),
+  }
+  if (normalizeChatProviderId(args.provider) !== CHAT_PROVIDER_BYTEPLUS) {
+    return base
+  }
+  const logprobs = coerceBooleanFlag(args.chatLogprobs, false)
+  const topLogprobs = clampBytePlusTopLogprobs(args.chatTopLogprobs)
+  const thinking = parseOptionalJsonConfig(args.chatThinkingJson, 'thinking')
+  const messages = parseOptionalJsonConfig(args.chatMessagesJson, 'messages')
+  const stop = parseOptionalJsonConfig(args.chatStopJson, 'stop')
+  const streamOptions = parseOptionalJsonConfig(args.chatStreamOptionsJson, 'stream_options')
+  const responseFormat = parseOptionalJsonConfig(args.chatResponseFormatJson, 'response_format')
+  const logitBias = parseOptionalJsonConfig(args.chatLogitBiasJson, 'logit_bias')
+  const tools = parseOptionalJsonConfig(args.chatToolsJson, 'tools')
+  const toolChoice = parseOptionalJsonConfig(args.chatToolChoiceJson, 'tool_choice')
+  return {
+    ...base,
+    ...(typeof messages !== 'undefined' ? { messages } : {}),
+    service_tier: normalizeBytePlusServiceTier(args.chatServiceTier),
+    reasoning_effort: normalizeBytePlusReasoningEffort(args.chatReasoningEffort),
+    thinking: thinking ?? { type: normalizeBytePlusThinkingType(args.chatThinkingType) },
+    frequency_penalty: clampBytePlusPenalty(args.chatFrequencyPenalty),
+    presence_penalty: clampBytePlusPenalty(args.chatPresencePenalty),
+    top_p: clampBytePlusTopP(args.chatTopP),
+    logprobs,
+    ...(logprobs ? { top_logprobs: topLogprobs } : {}),
+    parallel_tool_calls: coerceBooleanFlag(args.chatParallelToolCalls, true),
+    ...(typeof stop !== 'undefined' ? { stop } : {}),
+    ...(typeof streamOptions !== 'undefined' ? { stream_options: streamOptions } : {}),
+    ...(typeof responseFormat !== 'undefined' ? { response_format: responseFormat } : {}),
+    ...(typeof logitBias !== 'undefined' ? { logit_bias: logitBias } : {}),
+    ...(typeof tools !== 'undefined' ? { tools } : {}),
+    ...(typeof toolChoice !== 'undefined' ? { tool_choice: toolChoice } : {}),
+    stream: coerceBooleanFlag(args.chatStream, true),
+  }
+}
+
+function parseOptionalJsonConfig(raw: unknown, fieldName: string): JSONValue | undefined {
+  const text = typeof raw === 'string' ? raw.trim() : ''
+  if (!text) return undefined
+  try {
+    return JSON.parse(text) as JSONValue
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || '')
+    throw new Error(`Invalid BytePlus ${fieldName} JSON: ${message || 'parse failed'}`)
+  }
 }
 
 export const toShortId = (): string => `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`

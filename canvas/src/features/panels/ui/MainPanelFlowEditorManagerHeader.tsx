@@ -8,13 +8,14 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getChatProviderLabel, getChatProviderRegionLabel } from '@/lib/chatEndpoint'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
-export type FlowEditorManagerTabKey = 'graph'
+export type FlowEditorManagerTabKey = 'graph' | 'mapping'
 
 export default function MainPanelFlowEditorManagerHeader(props: {
   activeTab: FlowEditorManagerTabKey
   workflowMode?: boolean
+  onTabChange?: (tab: FlowEditorManagerTabKey) => void
 }) {
-  const { workflowMode } = props
+  const { workflowMode, activeTab, onTabChange } = props
 
   const uiSectionHeaderRowHeightClass = useGraphStore(
     s => s.uiSectionHeaderRowHeightClass || 'min-h-[36px]',
@@ -53,7 +54,11 @@ export default function MainPanelFlowEditorManagerHeader(props: {
     )
   }, [])
 
-  const tabLabel = workflowMode ? 'Workflow' : UI_LABELS.flowEditorGraph
+  const tabLabel = workflowMode
+    ? 'Workflow'
+    : activeTab === 'mapping'
+      ? UI_LABELS.flowEditorMapping
+      : UI_LABELS.flowEditorGraph
 
   return (
     <header
@@ -99,9 +104,29 @@ export default function MainPanelFlowEditorManagerHeader(props: {
             {chatModel ? ` · ${chatModel}` : ''}
           </button>
         ) : null}
-        <section className={`inline-flex items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
-          {tabLabel}
-        </section>
+        {workflowMode ? (
+          <section className={`inline-flex items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}>
+            {tabLabel}
+          </section>
+        ) : (
+          <nav className="inline-flex items-center gap-1" aria-label={UI_LABELS.workflowManager}>
+            {(['graph', 'mapping'] as const).map(tabKey => {
+              const active = activeTab === tabKey
+              const label = tabKey === 'mapping' ? UI_LABELS.flowEditorMapping : UI_LABELS.flowEditorGraph
+              return (
+                <button
+                  key={tabKey}
+                  type="button"
+                  className={`inline-flex items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${active ? UI_THEME_TOKENS.panel.headerBg : UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary} ${uiPanelMicroLabelTextSizeClass}`}
+                  onClick={() => onTabChange?.(tabKey)}
+                  aria-pressed={active}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </nav>
+        )}
       </section>
     </header>
   )

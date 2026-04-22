@@ -10,6 +10,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
 import FlowEditorGraphTab from '@/features/flow-editor-manager/FlowEditorGraphTab'
+import FlowEditorMappingTab from '@/features/flow-editor-manager/FlowEditorMappingTab'
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -33,9 +34,11 @@ const hasWorkflowSectionsInFrontmatterMeta = (graphData: unknown): boolean => {
 
 export default function FlowEditorManagerView({
   searchQuery,
+  requestedTab,
   onRegisterActions,
 }: {
   searchQuery: string
+  requestedTab?: FlowEditorManagerTabKey
   onRegisterActions?: (actions: {
     apply?: () => void
     reset?: () => void
@@ -53,23 +56,28 @@ export default function FlowEditorManagerView({
     () => Boolean(graphData && (isFrontmatterFlowGraph(graphData) || hasWorkflowSectionsInFrontmatterMeta(graphData))),
     [graphData],
   )
-  const [tab, setTab] = React.useState<FlowEditorManagerTabKey>('graph')
+  const [tab, setTab] = React.useState<FlowEditorManagerTabKey>(requestedTab === 'mapping' ? 'mapping' : 'graph')
 
   React.useEffect(() => {
-    if (tab === 'graph') return
-    setTab('graph')
-  }, [tab])
+    if (workflowMode && tab !== 'graph') {
+      setTab('graph')
+      return
+    }
+    const nextTab: FlowEditorManagerTabKey = requestedTab === 'mapping' ? 'mapping' : 'graph'
+    if (workflowMode && nextTab !== 'graph') return
+    if (tab !== nextTab) setTab(nextTab)
+  }, [requestedTab, tab, workflowMode])
 
   React.useEffect(() => {
     if (!onRegisterActions) return
-    if (tab !== 'graph') return
+    if (tab === 'mapping' && !workflowMode) return
     onRegisterActions({
       apply: undefined,
       reset: undefined,
       applyDisabled: true,
       resetDisabled: true,
     })
-  }, [onRegisterActions, tab])
+  }, [onRegisterActions, tab, workflowMode])
 
   return (
     <MainPanelBody
@@ -77,6 +85,7 @@ export default function FlowEditorManagerView({
         <MainPanelFlowEditorManagerHeader
           activeTab={tab}
           workflowMode={workflowMode}
+          onTabChange={workflowMode ? undefined : setTab}
         />
       }
       scrollable={false}
@@ -85,9 +94,15 @@ export default function FlowEditorManagerView({
         className={`min-h-0 py-2 ${UI_THEME_TOKENS.text.primary} ${panelTypography.panelTextClass} h-full overflow-hidden`}
         aria-label={UI_LABELS.workflowManager}
       >
-        <section role="tabpanel" aria-label={UI_LABELS.flowEditorGraph} className="h-full">
-          <FlowEditorGraphTab searchQuery={searchQuery} workflowMode={workflowMode} />
-        </section>
+        {tab === 'mapping' && !workflowMode ? (
+          <section role="tabpanel" aria-label={UI_LABELS.flowEditorMapping} className="h-full">
+            <FlowEditorMappingTab searchQuery={searchQuery} onRegisterActions={onRegisterActions} />
+          </section>
+        ) : (
+          <section role="tabpanel" aria-label={UI_LABELS.flowEditorGraph} className="h-full">
+            <FlowEditorGraphTab searchQuery={searchQuery} workflowMode={workflowMode} />
+          </section>
+        )}
       </section>
     </MainPanelBody>
   )

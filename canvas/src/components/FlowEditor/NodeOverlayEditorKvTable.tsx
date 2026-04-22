@@ -13,11 +13,16 @@ export type NodeOverlayEditorKvRow = {
   labelId: string
   inPortNode?: React.ReactNode
   showInPortDot?: boolean
+  onInPortClick?: () => void
   keyNode: React.ReactNode
+  onKeyClick?: () => void
   typeNode: React.ReactNode
+  onTypeClick?: () => void
   valueNode: React.ReactNode
+  onValueClick?: () => void
   outPortNode?: React.ReactNode
   showOutPortDot?: boolean
+  onOutPortClick?: () => void
 }
 
 export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvTable(props: {
@@ -99,17 +104,51 @@ export const NodeOverlayEditorKvTable = React.memo(function NodeOverlayEditorKvT
               aria-labelledby={row.labelId}
               className={cn('border-t', UI_THEME_TOKENS.table.cellBorder, UI_THEME_TOKENS.table.rowHover)}
             >
-              <td className={cn('py-2 align-middle', UI_THEME_TOKENS.text.secondary)}>
+              <td
+                className={cn(
+                  'py-2 align-middle',
+                  UI_THEME_TOKENS.text.secondary,
+                  row.onInPortClick ? 'cursor-pointer' : '',
+                )}
+                onClick={row.onInPortClick}
+              >
                 {row.inPortNode ?? (forcePortDots && row.showInPortDot !== false ? dot('Input port') : null)}
               </td>
-              <td id={row.labelId} className={cn('px-3 py-2 align-top', UI_THEME_TOKENS.text.primary)}>
+              <td
+                id={row.labelId}
+                className={cn('px-3 py-2 align-top', UI_THEME_TOKENS.text.primary, row.onKeyClick ? 'cursor-pointer' : '')}
+                onClick={row.onKeyClick}
+              >
                 {row.keyNode}
               </td>
-              <td className={cn('px-3 py-2 align-top text-center', UI_THEME_TOKENS.text.secondary)}>{row.typeNode}</td>
-              <td className={cn('px-3 py-2 align-top overflow-hidden', UI_THEME_TOKENS.text.secondary)}>
+              <td
+                className={cn(
+                  'px-3 py-2 align-top text-center',
+                  UI_THEME_TOKENS.text.secondary,
+                  row.onTypeClick ? 'cursor-pointer' : '',
+                )}
+                onClick={row.onTypeClick}
+              >
+                {row.typeNode}
+              </td>
+              <td
+                className={cn(
+                  'px-3 py-2 align-top overflow-hidden',
+                  UI_THEME_TOKENS.text.secondary,
+                  row.onValueClick ? 'cursor-pointer' : '',
+                )}
+                onClick={row.onValueClick}
+              >
                 <section className="w-full min-w-0">{row.valueNode}</section>
               </td>
-              <td className={cn('py-2 align-middle', UI_THEME_TOKENS.text.secondary)}>
+              <td
+                className={cn(
+                  'py-2 align-middle',
+                  UI_THEME_TOKENS.text.secondary,
+                  row.onOutPortClick ? 'cursor-pointer' : '',
+                )}
+                onClick={row.onOutPortClick}
+              >
                 {row.outPortNode ?? (forcePortDots && row.showOutPortDot !== false ? dot('Output port') : null)}
               </td>
             </tr>

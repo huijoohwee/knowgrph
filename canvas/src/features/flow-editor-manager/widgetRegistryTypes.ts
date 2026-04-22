@@ -1,3 +1,8 @@
+export type WidgetRegistryFieldOption = {
+  value: string | number
+  label?: string
+}
+
 export type WidgetRegistryField = {
   fieldKey: string
   label?: string
@@ -5,6 +10,7 @@ export type WidgetRegistryField = {
   schemaPath?: string
   required?: boolean
   isHidden?: boolean
+  options?: WidgetRegistryFieldOption[]
 }
 
 export type WidgetRegistryPort = {

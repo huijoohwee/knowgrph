@@ -19,6 +19,10 @@ import {
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_LABEL,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
@@ -45,7 +49,7 @@ import {
   FLOW_SCHEMA_FIELDS_PROPERTY_KEY,
   buildSchemaFieldPortKey,
   buildFlowEdgeDisplayLabelFromPorts,
-  pickDefaultSchemaFieldPortKey,
+  pickDefaultFlowPortKey,
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
@@ -84,12 +88,20 @@ import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
 import {
+  buildTextWidgetOutputPatch,
   buildRichMediaWidgetOutputPatch,
   clearRichMediaOutputProperties,
   resolveRichMediaWidgetKind,
   runRichMediaWidgetGeneration,
 } from '@/features/chat/richMediaRun'
 import { CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT, CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
+import {
+  inferTextGenerationProviderFamily,
+  resolveEffectiveTextGenerationWidgetProperties,
+  resolveTextGenerationGlobalDefaultsForProviderFamily,
+} from '@/features/flow-editor-manager/registryTemplates'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -2253,7 +2265,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const nodeById = new Map((draftGraphData.nodes || []).map(n => [String(n.id || ''), n] as const))
       const node = nodeById.get(id) || null
       const explicit = typeof portKey === 'string' && portKey.trim() ? portKey.trim() : null
-      const defaultPortKey = explicit || pickDefaultSchemaFieldPortKey(node) || null
+      const defaultPortKey = explicit || pickDefaultFlowPortKey(node, 'out') || null
       setSelectionSource('canvas')
       selectEdge(null)
       selectNode(id)
@@ -2285,9 +2297,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const targetNode = nodeById.get(id) || null
       const explicitSource =
         typeof pendingEdgeSourcePortKey === 'string' && pendingEdgeSourcePortKey.trim() ? pendingEdgeSourcePortKey.trim() : null
-      const sourcePort = explicitSource || pickDefaultSchemaFieldPortKey(sourceNode) || null
+      const sourcePort = explicitSource || pickDefaultFlowPortKey(sourceNode, 'out') || null
       const explicitTarget = typeof portKey === 'string' && portKey.trim() ? portKey.trim() : null
-      const targetPort = explicitTarget || pickDefaultSchemaFieldPortKey(targetNode) || null
+      const targetPort = explicitTarget || pickDefaultFlowPortKey(targetNode, 'in') || null
 
       const result = finalizeEdgeAuthoring({
         mode: 'create',
@@ -2381,6 +2393,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const y = Number.isFinite(args.y) ? args.y : 0
       const label = entry.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
         ? FLOW_IMAGE_GENERATION_NODE_LABEL
+        : entry.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+          ? FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+        : entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+          ? FLOW_TEXT_GENERATION_NODE_LABEL
         : entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
           ? FLOW_VIDEO_GENERATION_NODE_LABEL
           : entry.nodeTypeId
@@ -2394,6 +2410,57 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         properties.aspect_ratio = 'square'
         properties.resolution = '1080p'
         properties.fast = false
+      }
+      if (entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+        const store = useGraphStore.getState()
+        const providerFamily = inferTextGenerationProviderFamily({
+          provider: store.chatProvider,
+          widgetTypeId: entry.widgetTypeId,
+          formId: entry.formId,
+        })
+        const nextTextProperties = resolveTextGenerationGlobalDefaultsForProviderFamily({
+          providerFamily,
+          globalProperties: {
+            chatProvider: store.chatProvider,
+            chatAuthMode: store.chatAuthMode,
+            chatEndpointUrl: store.chatEndpointUrl,
+            chatModel: store.chatModel,
+            chatTemperature: store.chatTemperature,
+            chatMaxCompletionTokens: store.chatMaxCompletionTokens,
+            chatServiceTier: store.chatServiceTier,
+            chatStream: store.chatStream,
+            chatMessagesJson: store.chatMessagesJson,
+            chatReasoningEffort: store.chatReasoningEffort,
+            chatThinkingType: store.chatThinkingType,
+            chatThinkingJson: store.chatThinkingJson,
+            chatFrequencyPenalty: store.chatFrequencyPenalty,
+            chatPresencePenalty: store.chatPresencePenalty,
+            chatTopP: store.chatTopP,
+            chatLogprobs: store.chatLogprobs,
+            chatTopLogprobs: store.chatTopLogprobs,
+            chatParallelToolCalls: store.chatParallelToolCalls,
+            chatStopJson: store.chatStopJson,
+            chatStreamOptionsJson: store.chatStreamOptionsJson,
+            chatResponseFormatJson: store.chatResponseFormatJson,
+            chatLogitBiasJson: store.chatLogitBiasJson,
+            chatToolsJson: store.chatToolsJson,
+            chatToolChoiceJson: store.chatToolChoiceJson,
+          },
+        })
+        Object.assign(properties, {
+          ...nextTextProperties,
+          prompt: 'Generate a text response for the active request.',
+          output: '',
+        })
+      }
+      if (entry.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+        Object.assign(properties, {
+          output: '',
+          imageUrl: '',
+          videoUrl: '',
+          outputSrcDoc: '',
+          media_interactive: false,
+        })
       }
       if (entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
         properties.model = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
@@ -2655,6 +2722,33 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           id: `flow-editor-clear-output-${id}`,
           kind: 'neutral',
           message: `Cleared ${kind} output.`,
+          ttlMs: 2200,
+        })
+        return
+      }
+      if (String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+        updateNode(id, {
+          properties: clearRichMediaOutputProperties((node.properties || {}) as Record<string, unknown>) as never,
+        })
+        upsertUiToast({
+          id: `flow-editor-clear-output-${id}`,
+          kind: 'neutral',
+          message: 'Cleared rich media panel output.',
+          ttlMs: 2200,
+        })
+        return
+      }
+      if (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+        updateNode(id, {
+          properties: {
+            ...((node.properties || {}) as Record<string, unknown>),
+            output: '',
+          } as never,
+        })
+        upsertUiToast({
+          id: `flow-editor-clear-output-${id}`,
+          kind: 'neutral',
+          message: 'Cleared text output.',
           ttlMs: 2200,
         })
         return
@@ -3181,6 +3275,123 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           return
         }
 
+        if (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+          const registry = Array.isArray(store.effectiveWidgetRegistry ?? store.widgetRegistry)
+            ? ((store.effectiveWidgetRegistry ?? store.widgetRegistry) as WidgetRegistryEntry[])
+            : []
+          const resolvedTextRegistryEntry = resolveWidgetRegistryEntry({
+            node,
+            registry,
+            graphMetaKind: baseGraphKind,
+          })
+          const rawProperties = (node.properties || {}) as Record<string, unknown>
+          const providerFamily = inferTextGenerationProviderFamily({
+            provider: rawProperties.chatProvider,
+            widgetTypeId: resolvedTextRegistryEntry?.widgetTypeId,
+            formId: resolvedTextRegistryEntry?.formId || rawProperties[FLOW_WIDGET_FORM_ID_KEY],
+          })
+          const properties = resolveEffectiveTextGenerationWidgetProperties({
+            providerFamily,
+            localProperties: rawProperties,
+            globalProperties: {
+              chatProvider: store.chatProvider,
+              chatAuthMode: store.chatAuthMode,
+              chatEndpointUrl: store.chatEndpointUrl,
+              chatModel: store.chatModel,
+              chatTemperature: store.chatTemperature,
+              chatMaxCompletionTokens: store.chatMaxCompletionTokens,
+              chatServiceTier: store.chatServiceTier,
+              chatStream: store.chatStream,
+              chatMessagesJson: store.chatMessagesJson,
+              chatReasoningEffort: store.chatReasoningEffort,
+              chatThinkingType: store.chatThinkingType,
+              chatThinkingJson: store.chatThinkingJson,
+              chatFrequencyPenalty: store.chatFrequencyPenalty,
+              chatPresencePenalty: store.chatPresencePenalty,
+              chatTopP: store.chatTopP,
+              chatLogprobs: store.chatLogprobs,
+              chatTopLogprobs: store.chatTopLogprobs,
+              chatParallelToolCalls: store.chatParallelToolCalls,
+              chatStopJson: store.chatStopJson,
+              chatStreamOptionsJson: store.chatStreamOptionsJson,
+              chatResponseFormatJson: store.chatResponseFormatJson,
+              chatLogitBiasJson: store.chatLogitBiasJson,
+              chatToolsJson: store.chatToolsJson,
+              chatToolChoiceJson: store.chatToolChoiceJson,
+            },
+          })
+          const prompt = typeof properties.prompt === 'string' ? properties.prompt.trim() : ''
+          if (!prompt) {
+            upsertUiToast({
+              id: `flow-editor-run-${id}`,
+              kind: 'neutral',
+              message: 'Add a prompt before running the Text Widget.',
+              ttlMs: 2400,
+            })
+            return
+          }
+          const result = await generateRunMarkdownWithProvider({
+            config: {
+              provider: properties.chatProvider || store.chatProvider,
+              endpointUrl: properties.chatEndpointUrl || store.chatEndpointUrl,
+              apiKey:
+                (properties.chatAuthMode || store.chatAuthMode) === 'byok'
+                  ? store.chatApiKey
+                  : '',
+              chatModel: properties.chatModel || store.chatModel,
+            },
+            prompt,
+            options: {
+              chatTemperature: properties.chatTemperature ?? store.chatTemperature,
+              chatMaxCompletionTokens: properties.chatMaxCompletionTokens ?? store.chatMaxCompletionTokens,
+              chatServiceTier: properties.chatServiceTier ?? store.chatServiceTier,
+              chatStream: properties.chatStream ?? store.chatStream,
+              chatMessagesJson: properties.chatMessagesJson ?? store.chatMessagesJson,
+              chatReasoningEffort: properties.chatReasoningEffort ?? store.chatReasoningEffort,
+              chatThinkingType: properties.chatThinkingType ?? store.chatThinkingType,
+              chatThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson,
+              chatFrequencyPenalty: properties.chatFrequencyPenalty ?? store.chatFrequencyPenalty,
+              chatPresencePenalty: properties.chatPresencePenalty ?? store.chatPresencePenalty,
+              chatTopP: properties.chatTopP ?? store.chatTopP,
+              chatLogprobs: properties.chatLogprobs ?? store.chatLogprobs,
+              chatTopLogprobs: properties.chatTopLogprobs ?? store.chatTopLogprobs,
+              chatParallelToolCalls: properties.chatParallelToolCalls ?? store.chatParallelToolCalls,
+              chatStopJson: properties.chatStopJson ?? store.chatStopJson,
+              chatStreamOptionsJson: properties.chatStreamOptionsJson ?? store.chatStreamOptionsJson,
+              chatResponseFormatJson: properties.chatResponseFormatJson ?? store.chatResponseFormatJson,
+              chatLogitBiasJson: properties.chatLogitBiasJson ?? store.chatLogitBiasJson,
+              chatToolsJson: properties.chatToolsJson ?? store.chatToolsJson,
+              chatToolChoiceJson: properties.chatToolChoiceJson ?? store.chatToolChoiceJson,
+            },
+          })
+          if (!result) {
+            upsertUiToast({
+              id: `flow-editor-run-${id}`,
+              kind: 'neutral',
+              message: UI_COPY.flowEditorRunFailedToast,
+              ttlMs: 2600,
+            })
+            return
+          }
+          updateNode(id, {
+            properties: {
+              ...clearRichMediaOutputProperties(rawProperties),
+              ...buildTextWidgetOutputPatch({
+                output: result,
+                title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL,
+                model: properties.chatModel || store.chatModel,
+              }),
+            } as never,
+          })
+          upsertUiToast({
+            id: `flow-editor-run-${id}`,
+            kind: 'neutral',
+            message: 'Generated text output.',
+            ttlMs: 2400,
+          })
+          return
+        }
+
         const subgraph = buildSelectionSubgraph(draft, id, null) || { ...draft, nodes: [node], edges: [] }
         const registry = Array.isArray(store.widgetRegistry) ? store.widgetRegistry : []
         const nodeTypeIds = new Set((subgraph.nodes || []).map(n => String(n.type || '').trim()).filter(Boolean))
@@ -3638,6 +3849,34 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             onHelp={showNodeEditorHelp}
             onConvertToLoopNode={() => convertNodeToLoopById(id)}
             onEnableHandlesForAllInputs={enableHandlesForAllInputs}
+            onUpdateKvEntry={() => {
+              if (typeof window === 'undefined') return
+              const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({
+                node,
+                registry: widgetRegistry,
+                graphMetaKind: graphMetaKindRef.current,
+              })
+              const widgetTypeId = typeof node.properties?.[FLOW_WIDGET_TYPE_ID_KEY] === 'string'
+                ? String(node.properties[FLOW_WIDGET_TYPE_ID_KEY] || '').trim()
+                : ''
+              const formId = typeof node.properties?.[FLOW_WIDGET_FORM_ID_KEY] === 'string'
+                ? String(node.properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
+                : ''
+              const searchQuery = [
+                String(resolvedWidgetRegistryEntry?.id || '').trim(),
+                String(node.type || '').trim(),
+                widgetTypeId,
+                formId,
+              ].filter(Boolean).join(' ')
+              const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
+              window.dispatchEvent(new CustomEventCtor(MAIN_PANEL_OPEN_EVENT, {
+                detail: {
+                  tab: 'workflowManager' as const,
+                  workflowManagerTab: 'mapping' as const,
+                  searchQuery,
+                },
+              }))
+            }}
             onPinnedInCanvasChange={(pinnedInCanvas) => {
               void pinnedInCanvas
               scheduleOverlayCollisionResolve()

@@ -10,13 +10,36 @@ import {
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
-import { parseErrorBody, loadAvailableModelIds } from './SidePanelChat.helpers'
+import { buildProviderChatRequestOptions, parseErrorBody, loadAvailableModelIds } from './SidePanelChat.helpers'
 
 export type RunGenerationConfig = {
   provider: unknown
   endpointUrl?: unknown
   apiKey?: unknown
   chatModel?: unknown
+}
+
+export type RunTextGenerationOptions = {
+  chatTemperature?: unknown
+  chatMaxCompletionTokens?: unknown
+  chatServiceTier?: unknown
+  chatStream?: unknown
+  chatMessagesJson?: unknown
+  chatReasoningEffort?: unknown
+  chatThinkingType?: unknown
+  chatThinkingJson?: unknown
+  chatFrequencyPenalty?: unknown
+  chatPresencePenalty?: unknown
+  chatTopP?: unknown
+  chatLogprobs?: unknown
+  chatTopLogprobs?: unknown
+  chatParallelToolCalls?: unknown
+  chatStopJson?: unknown
+  chatStreamOptionsJson?: unknown
+  chatResponseFormatJson?: unknown
+  chatLogitBiasJson?: unknown
+  chatToolsJson?: unknown
+  chatToolChoiceJson?: unknown
 }
 
 export type RunImageGenerationOptions = {
@@ -254,28 +277,57 @@ const extractVideoUrl = (payload: unknown): string => {
 export async function generateRunMarkdownWithProvider(args: {
   config: RunGenerationConfig
   prompt: string
+  options?: RunTextGenerationOptions
 }): Promise<string | null> {
   const endpoint = resolveChatEndpointForRequest(args.config.endpointUrl)
   if (!endpoint) return null
   const model = await resolveGenerationModel(args.config, 'text')
   const requestId = toRequestId('kg-run-text')
+  const providerOptions = buildProviderChatRequestOptions({
+    provider: args.config.provider,
+    chatTemperature: args.options?.chatTemperature ?? 0.3,
+    chatServiceTier: args.options?.chatServiceTier,
+    chatStream: args.options?.chatStream,
+    chatMessagesJson: args.options?.chatMessagesJson,
+    chatReasoningEffort: args.options?.chatReasoningEffort,
+    chatThinkingType: args.options?.chatThinkingType,
+    chatThinkingJson: args.options?.chatThinkingJson,
+    chatFrequencyPenalty: args.options?.chatFrequencyPenalty,
+    chatPresencePenalty: args.options?.chatPresencePenalty,
+    chatTopP: args.options?.chatTopP,
+    chatLogprobs: args.options?.chatLogprobs,
+    chatTopLogprobs: args.options?.chatTopLogprobs,
+    chatParallelToolCalls: args.options?.chatParallelToolCalls,
+    chatStopJson: args.options?.chatStopJson,
+    chatStreamOptionsJson: args.options?.chatStreamOptionsJson,
+    chatResponseFormatJson: args.options?.chatResponseFormatJson,
+    chatLogitBiasJson: args.options?.chatLogitBiasJson,
+    chatToolsJson: args.options?.chatToolsJson,
+    chatToolChoiceJson: args.options?.chatToolChoiceJson,
+  })
+  const providerMessages = Array.isArray((providerOptions as { messages?: unknown }).messages)
+    ? (providerOptions as { messages: unknown[] }).messages
+    : null
+  const baseMessages = [
+    {
+      role: 'system',
+      content: 'Return only the final user-facing markdown deliverable. Do not mention KGC, frontmatter, pipeline, or internal graph mechanics.',
+    },
+    {
+      role: 'user',
+      content: args.prompt,
+    },
+  ]
+  const tokenLimit = cleanInteger(args.options?.chatMaxCompletionTokens)
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: buildProxyHeaders(args.config, requestId),
     body: JSON.stringify({
       model,
+      ...providerOptions,
       stream: false,
-      temperature: 0.3,
-      messages: [
-        {
-          role: 'system',
-          content: 'Return only the final user-facing markdown deliverable. Do not mention KGC, frontmatter, pipeline, or internal graph mechanics.',
-        },
-        {
-          role: 'user',
-          content: args.prompt,
-        },
-      ],
+      messages: providerMessages || baseMessages,
+      ...(tokenLimit != null && tokenLimit > 0 ? { max_completion_tokens: tokenLimit } : {}),
     }),
   })
   if (!res.ok) {

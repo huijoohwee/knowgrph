@@ -13,13 +13,14 @@ export const renderSettingInput = (
   setValues: React.Dispatch<React.SetStateAction<Record<string, string | number | boolean>>>,
   dirtyRef: React.MutableRefObject<Set<string>>,
   options?: string[],
+  displayValueOverride?: string | number | boolean,
 ) => {
   const colorKeyDefaults: Record<string, string> = {
     'three.camera.backgroundColor': '#020617',
     'three.camera.fogColor': '#1e1b4b',
     'three.graph.starfieldColor': '#facc15',
   }
-  const v = values[key]
+  const v = typeof displayValueOverride === 'undefined' ? values[key] : displayValueOverride
   const pillBaseRaw = values.uiIconPillClass
   const pillBaseClass =
     typeof pillBaseRaw === 'string' && pillBaseRaw.trim().length > 0
@@ -51,6 +52,20 @@ export const renderSettingInput = (
           setValues(prev => ({ ...prev, [key]: e.target.checked }))
         }}
         className="w-4 h-4"
+      />
+    )
+  }
+  if (key === 'payments.stripe.secretKey' || key === 'payments.stripe.webhookSecret') {
+    const str = String(v || '')
+    return (
+      <PlainTextInputEditor
+        value={str}
+        onChange={next => {
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: next }))
+        }}
+        className={uiPanelKeyValueInputClass}
+        inputType="password"
       />
     )
   }
@@ -372,6 +387,22 @@ export const renderSettingInput = (
           setValues(prev => ({ ...prev, [key]: next }))
         }}
         className={`${minHeightClass} px-2 py-1 text-left font-mono text-xs`}
+      />
+    )
+  }
+  if (type === 'json') {
+    const str = String(v ?? '')
+    return (
+      <PlainTextInputEditor
+        multiline
+        rows={6}
+        value={str}
+        spellCheck={false}
+        onChange={next => {
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: next }))
+        }}
+        className="min-h-24 px-2 py-1 text-left font-mono text-xs"
       />
     )
   }

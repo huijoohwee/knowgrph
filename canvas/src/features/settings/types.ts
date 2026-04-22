@@ -1,6 +1,6 @@
 export type SettingSourceKind = 'store' | 'localStorage' | 'env' | 'backendEnv' | 'eslint'
 
-export type SettingType = 'string' | 'number' | 'boolean'
+export type SettingType = 'string' | 'number' | 'boolean' | 'json'
 
 export interface SettingMeta {
   key: string

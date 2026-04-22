@@ -9,23 +9,13 @@ export interface NumericTooltipOptions {
 }
 
 export function buildNumericTooltip(options: NumericTooltipOptions): string {
-  const maxWords = 15
-  const segments: string[] = []
-  segments.push(`Default: ${options.defaultValue}`)
-  if (typeof options.min !== 'undefined') {
-    segments.push(`Min: ${options.min}`)
-  }
-  if (typeof options.max !== 'undefined') {
-    segments.push(`Max: ${options.max}`)
-  }
-  if (typeof options.interval !== 'undefined') {
-    segments.push(`Interval: ${options.interval}`)
-  }
-  const base = segments.join('; ')
-  const remaining = Math.max(0, maxWords - countWords(base))
-  const impact = remaining > 0 ? truncateWords(String(options.impact || ''), remaining) : ''
-  const final = [base, impact].filter(Boolean).join('; ')
-  return truncateWords(final, maxWords)
+  return buildBoundsImpactTooltip({
+    defaultValue: options.defaultValue,
+    min: options.min,
+    max: options.max,
+    interval: options.interval,
+    impact: options.impact,
+  })
 }
 
 export interface RoleActionOutcomeTooltipOptions {
@@ -82,12 +72,18 @@ export function buildSettingsKeyTooltip(params: {
   area: string;
   key: string;
   responsibility: string;
+  role?: string;
+  actions?: string[];
+  outcome?: string;
 }): string {
-  const role = toTooltipRole(params.area);
+  const role = String(params.role || '').trim() || toTooltipRole(params.area);
+  const actions = Array.isArray(params.actions) && params.actions.length > 0
+    ? params.actions
+    : [`edit ${params.key} in MainPanel → Settings`, 'apply changes via MainPanel header']
   const tooltip = buildRoleActionOutcomeTooltip({
     role,
-    actions: [`edit ${params.key} in MainPanel \u2192 Settings`, 'apply changes via MainPanel header'],
-    outcome: params.responsibility || 'update runtime behavior',
+    actions,
+    outcome: String(params.outcome || '').trim() || params.responsibility || 'update runtime behavior',
   });
   return truncateWords(tooltip, 50);
 }
@@ -99,13 +95,17 @@ export function buildSettingsValueTooltip(params: {
   options?: string[];
   notes?: string;
   impact?: string;
+  defaultValueOverride?: string | number | boolean | null;
+  min?: string | number;
+  max?: string | number;
+  interval?: string | number;
+  expansionNote?: string;
+  contractionNote?: string;
 }): string {
-  const maxWords = 15
-  const segments: string[] = []
-  const impactRaw = String(params.impact || '').trim()
-
   const defaultLabel =
-    params.type === 'boolean'
+    typeof params.defaultValueOverride !== 'undefined'
+      ? String(params.defaultValueOverride ?? '—')
+      : params.type === 'boolean'
       ? typeof params.defaultValue === 'boolean'
         ? String(params.defaultValue)
         : 'false'
@@ -115,23 +115,32 @@ export function buildSettingsValueTooltip(params: {
           ? params.defaultValue.trim()
           : '—'
 
-  segments.push(`Default: ${defaultLabel}`)
+  const noteBounds = extractClampRangeFromNotes(params.notes || '')
+  const noteInterval = extractIntervalFromNotes(params.notes || '')
+  const resolvedMin = typeof params.min !== 'undefined' ? params.min : noteBounds.min
+  const resolvedMax = typeof params.max !== 'undefined' ? params.max : noteBounds.max
+  const resolvedInterval = typeof params.interval !== 'undefined' ? params.interval : noteInterval
 
-  if (params.type === 'number') {
-    const { min, max } = extractClampRangeFromNotes(params.notes || '')
-    const interval = extractIntervalFromNotes(params.notes || '')
-    if (typeof min !== 'undefined') segments.push(`Min: ${min}`)
-    if (typeof max !== 'undefined') segments.push(`Max: ${max}`)
-    if (typeof interval !== 'undefined') segments.push(`Interval: ${interval}`)
+  if (
+    params.type === 'number' ||
+    typeof resolvedMin !== 'undefined' ||
+    typeof resolvedMax !== 'undefined' ||
+    typeof resolvedInterval !== 'undefined' ||
+    String(params.expansionNote || '').trim().length > 0 ||
+    String(params.contractionNote || '').trim().length > 0
+  ) {
+    return buildBoundsImpactTooltip({
+      defaultValue: defaultLabel,
+      min: resolvedMin,
+      max: resolvedMax,
+      interval: resolvedInterval,
+      impact: params.impact,
+      expansionNote: params.expansionNote,
+      contractionNote: params.contractionNote,
+    })
   }
 
-  const base = segments.join('; ')
-  const baseWords = countWords(base)
-  const remaining = Math.max(0, maxWords - baseWords)
-  const impact =
-    impactRaw.length > 0 && remaining > 0 ? truncateWords(impactRaw, remaining) : ''
-  const final = [base, impact].filter(Boolean).join('; ')
-  return truncateWords(final, maxWords)
+  return [(`Default: ${defaultLabel}`), String(params.impact || '').trim()].filter(Boolean).join('; ')
 }
 
 export function buildSettingsAreaTooltip(area: string, responsibility?: string): string {
@@ -164,6 +173,55 @@ export function buildDefaultTooltip(params: {
   const impact = remaining > 0 ? truncateWords(String(params.impact || ''), remaining) : ''
   const final = [base, impact].filter(Boolean).join('; ')
   return truncateWords(final, maxWords)
+}
+
+function buildBoundsImpactTooltip(options: {
+  defaultValue: NumericTooltipValue;
+  min?: NumericTooltipValue;
+  max?: NumericTooltipValue;
+  interval?: NumericTooltipValue;
+  impact?: string;
+  expansionNote?: string;
+  contractionNote?: string;
+}): string {
+  const segments: string[] = []
+  segments.push(`Default: ${options.defaultValue}`)
+  if (typeof options.min !== 'undefined') {
+    segments.push(`Min: ${options.min}`)
+  }
+  if (typeof options.max !== 'undefined') {
+    segments.push(`Max: ${options.max}`)
+  }
+  if (typeof options.interval !== 'undefined') {
+    segments.push(`Interval: ${options.interval}`)
+  }
+  const { expansion, contraction, fallbackImpact } = splitImpactText(options.impact || '')
+  const expansionText = String(options.expansionNote || expansion).trim()
+  const contractionText = String(options.contractionNote || contraction).trim()
+  if (expansionText) segments.push(expansionText)
+  if (contractionText) segments.push(contractionText)
+  if (!expansionText && !contractionText && fallbackImpact) segments.push(fallbackImpact)
+  return segments.join('; ')
+}
+
+function splitImpactText(rawImpact: string): {
+  expansion: string
+  contraction: string
+  fallbackImpact: string
+} {
+  const normalized = String(rawImpact || '').trim().replace(/\s+/g, ' ')
+  if (!normalized) {
+    return { expansion: '', contraction: '', fallbackImpact: '' }
+  }
+  const segments = normalized.split(';').map(part => part.trim()).filter(Boolean)
+  if (segments.length >= 2) {
+    return {
+      expansion: segments[0],
+      contraction: segments[1],
+      fallbackImpact: normalized,
+    }
+  }
+  return { expansion: '', contraction: '', fallbackImpact: normalized }
 }
 
 export const ORCHESTRATOR_TRAVERSAL_TOOLTIP = buildRoleActionOutcomeTooltip({

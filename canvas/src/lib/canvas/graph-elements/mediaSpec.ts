@@ -2,11 +2,13 @@ import type { GraphNode } from '@/lib/graph/types'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { coerceMediaUrl } from '@/lib/url'
 import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
 import { isSafeIframeUrl, normalizeIframeUrl, resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
 import { coerceMarkdownParenUrl, extractMarkdownInlineRefs } from '@/features/parsers/markdownJsonLdUtils'
 import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
+import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 
 export type NodeMediaKind = 'image' | 'svg' | 'video' | 'iframe'
 
@@ -119,6 +121,8 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     props['dom:attrs:src'],
     props['dom:attrs:srcdoc'],
     props.media_interactive,
+    props.outputSrcDoc,
+    props.output,
     props.text,
     props.markdown,
   ]
@@ -205,6 +209,14 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     const s = (props as Record<string, unknown>)['dom:attrs:srcdoc']
     return typeof s === 'string' ? s.trim() : ''
   })()
+  const outputSrcDoc = (() => {
+    const s = (props as Record<string, unknown>).outputSrcDoc
+    return typeof s === 'string' ? s.trim() : ''
+  })()
+  const outputText = (() => {
+    const s = (props as Record<string, unknown>).output
+    return typeof s === 'string' ? s : ''
+  })()
   const domMediaUrl = (() => {
     if (!domTag) return ''
     if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'IFRAME' || domTag === 'SVG') return domSrc
@@ -224,6 +236,24 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
   const resolvedUrl = url || (domMediaUrl ? coerceMediaUrl(domMediaUrl) : null)
   if (!resolvedUrl) {
+    if (outputSrcDoc) {
+      return { kind: 'iframe', url: '', srcDoc: outputSrcDoc, interactive: false }
+    }
+    if (
+      outputText.trim()
+      && (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+        || String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+    ) {
+      return {
+        kind: 'iframe',
+        url: '',
+        srcDoc: buildTextWidgetOutputSrcDoc({
+          title: String(node.label || node.id || '').trim() || 'Rich Media Panel',
+          text: outputText,
+        }),
+        interactive: false,
+      }
+    }
     if (domTag === 'IFRAME' && domSrcDoc) {
       if (/<\s*script\b/i.test(domSrcDoc)) return null
       if (/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i.test(domSrcDoc)) return null

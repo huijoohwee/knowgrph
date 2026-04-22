@@ -9,6 +9,8 @@ export function testFlowWidgetPaletteExposesImageAndVideoWidgetsWithReadyRunDefa
 
   const paletteSnippets = [
     'FLOW_IMAGE_GENERATION_NODE_LABEL',
+    'FLOW_RICH_MEDIA_PANEL_NODE_LABEL',
+    'FLOW_TEXT_GENERATION_NODE_LABEL',
     'FLOW_VIDEO_GENERATION_NODE_LABEL',
     'beginFlowWidgetPointerDragSession',
     'markFlowWidgetPointerDragNativeStart',
@@ -33,6 +35,12 @@ export function testFlowWidgetPaletteExposesImageAndVideoWidgetsWithReadyRunDefa
     'pendingOpenWidgetNodeIdRef.current = id',
     'properties.model = CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT',
     "properties.prompt = 'Generate an image responsive to the active request.'",
+    'FLOW_RICH_MEDIA_PANEL_NODE_LABEL',
+    "outputSrcDoc: ''",
+    'const providerFamily = inferTextGenerationProviderFamily({',
+    'const nextTextProperties = resolveTextGenerationGlobalDefaultsForProviderFamily({',
+    "prompt: 'Generate a text response for the active request.'",
+    "output: ''",
     'properties.model = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT',
     "properties.prompt = 'Generate a video responsive to the active request.'",
   ]

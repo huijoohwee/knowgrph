@@ -9,7 +9,8 @@ import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
   buildFlowEdgeDisplayLabelFromPorts,
-  pickDefaultSchemaFieldPortKey,
+  listTypedFlowPortKeys,
+  pickDefaultFlowPortKey,
   readFlowEdgePortKey,
 } from '@/lib/graph/flowPorts'
 import { resolveFlowSocketTypesForEdge } from '@/lib/graph/flowSocketTypes'
@@ -51,9 +52,51 @@ function readEdgeById(data: GraphData, id: string): GraphEdge | null {
   return null
 }
 
-function pickPortKey(node: GraphNode | null, explicit: string | null | undefined): string | null {
+function pickPortKey(node: GraphNode | null, explicit: string | null | undefined, dir: 'in' | 'out'): string | null {
   const pk = typeof explicit === 'string' && explicit.trim() ? explicit.trim() : null
-  return pk || pickDefaultSchemaFieldPortKey(node) || null
+  return pk || pickDefaultFlowPortKey(node, dir) || null
+}
+
+function listPortCandidates(node: GraphNode | null, dir: 'in' | 'out', explicit: string | null | undefined): string[] {
+  const pk = typeof explicit === 'string' && explicit.trim() ? explicit.trim() : null
+  if (pk) return [pk]
+  const typed = listTypedFlowPortKeys(node, dir)
+  if (typed.length > 0) return typed
+  const fallback = pickDefaultFlowPortKey(node, dir)
+  return fallback ? [fallback] : [null as unknown as string].filter(Boolean)
+}
+
+function resolveEndpointPortKeys(args: {
+  graphData: GraphData
+  sourceNode: GraphNode | null
+  targetNode: GraphNode | null
+  sourceExplicit: string | null | undefined
+  targetExplicit: string | null | undefined
+}): { sourcePortKey: string | null; targetPortKey: string | null } {
+  const sourceCandidates = listPortCandidates(args.sourceNode, 'out', args.sourceExplicit)
+  const targetCandidates = listPortCandidates(args.targetNode, 'in', args.targetExplicit)
+  const sourceFallback = pickPortKey(args.sourceNode, args.sourceExplicit, 'out')
+  const targetFallback = pickPortKey(args.targetNode, args.targetExplicit, 'in')
+
+  for (let sourceIndex = 0; sourceIndex < sourceCandidates.length; sourceIndex += 1) {
+    const sourcePortKey = sourceCandidates[sourceIndex] || null
+    for (let targetIndex = 0; targetIndex < targetCandidates.length; targetIndex += 1) {
+      const targetPortKey = targetCandidates[targetIndex] || null
+      const socketRes = resolveFlowSocketTypesForEdge({
+        graphData: args.graphData,
+        sourceNode: args.sourceNode,
+        targetNode: args.targetNode,
+        sourcePortKey,
+        targetPortKey,
+      })
+      if (socketRes.ok) return { sourcePortKey, targetPortKey }
+    }
+  }
+
+  return {
+    sourcePortKey: sourceFallback,
+    targetPortKey: targetFallback,
+  }
 }
 
 function edgesMatchEndpoints(a: GraphEdge, b: { source: string; target: string; label?: string | null; sourcePortKey: string | null; targetPortKey: string | null }): boolean {
@@ -86,8 +129,13 @@ export function finalizeEdgeAuthoring(args: {
   const label = String(args.label || '').trim() || 'linksTo'
   const sourceNode = readNodeById(args.data, fromId)
   const targetNode = readNodeById(args.data, toId)
-  const sourcePortKey = pickPortKey(sourceNode, args.from.portKey)
-  const targetPortKey = pickPortKey(targetNode, args.to.portKey)
+  const { sourcePortKey, targetPortKey } = resolveEndpointPortKeys({
+    graphData: args.data,
+    sourceNode,
+    targetNode,
+    sourceExplicit: args.from.portKey,
+    targetExplicit: args.to.portKey,
+  })
 
   if (args.mode === 'create') {
     const socketRes = resolveFlowSocketTypesForEdge({

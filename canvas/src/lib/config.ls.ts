@@ -87,10 +87,11 @@ export type LsKeyOwner =
   | 'ui.chat'
   | 'ui.workspace'
   | 'ui.monaco'
-  | 'import.pdf';
+  | 'import.pdf'
+  | 'payments.stripe';
 
 
-export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
+export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   overlayOpacity: 'ui.overlayOpacity',
   panelOpacity: 'ui.panelOpacity',
   toolbarOpacity: 'ui.toolbarOpacity',
@@ -430,6 +431,12 @@ export const LS_KEY_OWNERS: Record<LsKeyId, LsKeyOwner> = {
   mainPanelCollapsed: 'ui.mainPanel',
   mainPanelTop: 'ui.mainPanel',
   mainPanelLeft: 'ui.mainPanel',
+
+  paymentsStripeMode: 'payments.stripe',
+  paymentsStripeSecretKey: 'payments.stripe',
+  paymentsStripePublishableKey: 'payments.stripe',
+  paymentsStripeWebhookSecret: 'payments.stripe',
+  paymentsStripeAccountId: 'payments.stripe',
   onboardingSpotlightEnabled: 'ui.onboardingSpotlight',
   startupOpenWorkflowPanel: 'ui.startup',
   settingsCollapsedByArea: 'settings.collapsedByArea',

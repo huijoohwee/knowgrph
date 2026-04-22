@@ -9,7 +9,23 @@ import { FALLBACK_DETAILS } from './SettingsFallbackDetails'
 import { renderSettingInput } from '@/features/settings/ui'
 import { UI_ANCHORS } from '@/lib/config'
 import { buildChatProxyHeaders, resolveChatEndpointForHealth } from '@/lib/chatEndpoint'
-import { BYTEPLUS_CHAT_API_DOC_AREA, BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES } from './byteplusChatApiDocs'
+import { normalizeTextGenerationWidgetPropertiesForProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
+import {
+  BYTEPLUS_CHAT_API_DOC_AREA,
+  BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES,
+  getBytePlusChatApiRowAnchorId,
+} from './byteplusChatApiDocs'
+import {
+  OPENAI_CHAT_API_DOC_AREA,
+  OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
+  getOpenAiChatApiRowAnchorId,
+} from './openaiChatApiDocs'
+import {
+  STRIPE_PAYMENT_API_DOC_AREA,
+  STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
+  getStripePaymentApiRowAnchorId,
+} from './stripePaymentApiDocs'
+import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
 
 const SETTINGS_AREA_ORDER: readonly string[] = [
   'Chat',
@@ -25,6 +41,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   'Import / Export',
   'Integrations',
   BYTEPLUS_CHAT_API_DOC_AREA,
+  OPENAI_CHAT_API_DOC_AREA,
 ]
 
 const SETTINGS_AREA_CANONICAL: Readonly<Record<string, string>> = {
@@ -50,8 +67,14 @@ function settingsAreaSortWeight(area: string): number {
 
 function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolean {
   const area = normalizeSettingsAreaLabel(areaRaw)
-  if (area === 'Chat' || area === 'Integrations' || area === BYTEPLUS_CHAT_API_DOC_AREA) return true
+  if (area === 'Chat' || area === 'Integrations' || area === BYTEPLUS_CHAT_API_DOC_AREA || area === OPENAI_CHAT_API_DOC_AREA) return true
   return key.startsWith('chat') || key === 'integrationConfigsJson'
+}
+
+function isPaymentsOwnedSetting(key: string, areaRaw: string): boolean {
+  const area = normalizeSettingsAreaLabel(areaRaw)
+  if (area === STRIPE_PAYMENT_API_DOC_AREA) return true
+  return key.startsWith('payments.')
 }
 
 type SettingsEntry = {
@@ -70,6 +93,19 @@ type SettingsEntry = {
   index: string
   anchorId?: string
   typeLabel?: string
+  valueKey?: string
+  valueDisplayOverride?: string | number | boolean
+  valueType?: string
+  valueOptions?: string[]
+  tooltipRole?: string
+  tooltipActions?: string[]
+  tooltipDefaultValue?: string | number | boolean | null
+  tooltipMin?: string | number
+  tooltipMax?: string | number
+  tooltipInterval?: string | number
+  tooltipExpansionNote?: string
+  tooltipContractionNote?: string
+  tooltipImpact?: string
 }
 
 const getSettingsSearchHints = (key: string): string[] => {
@@ -91,10 +127,20 @@ const getSettingsSearchHints = (key: string): string[] => {
   return []
 }
 
+const INTEGRATION_API_DOC_ENTRIES = [
+  ...BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES,
+  ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
+] as const
+
+const PAYMENTS_API_DOC_ENTRIES = [
+  ...STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
+] as const
+
 export function useSettingsView({
   searchQuery,
   onRegisterActions,
   mode = 'all',
+  paymentsProviderId,
 }: {
   searchQuery: string
   onRegisterActions?: (a: {
@@ -105,7 +151,8 @@ export function useSettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
-  mode?: 'all' | 'integrations'
+  mode?: 'all' | 'integrations' | 'payments'
+  paymentsProviderId?: string
 }) {
   const shouldHideSetting = React.useCallback((key: string, area?: string) => {
     if (key === 'infiniteCanvasInteractionMode') return false
@@ -139,7 +186,12 @@ export function useSettingsView({
       const r = s.read()
       if (r !== null) v[s.key] = r
     })
-    BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES.forEach(entry => {
+    INTEGRATION_API_DOC_ENTRIES.forEach(entry => {
+      if (entry.valueKey && typeof v[entry.valueKey] !== 'undefined') return
+      v[entry.meta.key] = entry.value
+    })
+    PAYMENTS_API_DOC_ENTRIES.forEach(entry => {
+      if (entry.valueKey && typeof v[entry.valueKey] !== 'undefined') return
       v[entry.meta.key] = entry.value
     })
     return v
@@ -163,10 +215,12 @@ export function useSettingsView({
     const dirty = Array.from(dirtyRef.current)
     dirty.forEach((key) => {
       const meta = settingsRegistry.find(s => s.key === key)
-      if (!meta || !meta.write) return
+      const virtualMeta = INTEGRATION_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
+      const writeTarget = meta || virtualMeta
+      if (!writeTarget || !writeTarget.write) return
       const desired = values[key]
-      const current = meta.read()
-      if (desired !== current) meta.write(desired)
+      const current = writeTarget.read()
+      if (desired !== current) writeTarget.write(desired)
     })
     const next: Record<string, string | number | boolean> = { ...values }
     settingsRegistry.forEach(s => {
@@ -239,8 +293,28 @@ export function useSettingsView({
     } catch { void 0 }
   }, [resetToDefaults])
 
-  const renderInput = (key: string, type: string, writable: boolean, options?: string[]) =>
-    renderSettingInput(key, type, writable, values, setValues, dirtyRef, options)
+  const normalizedBytePlusValues = React.useMemo(
+    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
+      providerFamily: 'byteplus',
+      properties: values as Record<string, unknown>,
+    }),
+    [values],
+  )
+  const normalizedOpenAiValues = React.useMemo(
+    () => normalizeTextGenerationWidgetPropertiesForProviderFamily({
+      providerFamily: 'openai',
+      properties: values as Record<string, unknown>,
+    }),
+    [values],
+  )
+
+  const renderInput = (
+    key: string,
+    type: string,
+    writable: boolean,
+    options?: string[],
+    displayValueOverride?: string | number | boolean,
+  ) => renderSettingInput(key, type, writable, values, setValues, dirtyRef, options, displayValueOverride)
 
   const entries = React.useMemo(() => {
     const concreteEntries: SettingsEntry[] = settingsRegistry.map((s) => {
@@ -275,31 +349,115 @@ export function useSettingsView({
           : (s.key === 'chatApiKey' ? UI_ANCHORS.settingsChatApiKey : undefined)
       return { meta: s, details, writable: !!s.write, index, anchorId }
     })
-    const virtualEntries: SettingsEntry[] = BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES.map(entry => ({
-      meta: entry.meta,
-      details: entry.details,
-      writable: false,
-      index: normalizeText(
-        [
-          entry.details.area,
-          entry.meta.key,
-          entry.typeLabel,
-          entry.value,
-          entry.details.responsibility,
-          ...(entry.searchHints || []),
-        ].join(' '),
-      ),
-      typeLabel: entry.typeLabel,
-    }))
-    return [...concreteEntries, ...virtualEntries]
-      .filter(entry => entry.writable)
-      .concat(virtualEntries)
+    const virtualEntries: SettingsEntry[] = INTEGRATION_API_DOC_ENTRIES.map(entry => {
+      const mappedMeta = entry.valueKey
+        ? settingsRegistry.find(s => s.key === entry.valueKey)
+        : undefined
+      const area = normalizeSettingsAreaLabel(entry.details.area)
+      const normalizedDisplayValues =
+        area === BYTEPLUS_CHAT_API_DOC_AREA
+          ? normalizedBytePlusValues
+          : area === OPENAI_CHAT_API_DOC_AREA
+            ? normalizedOpenAiValues
+            : values
+      const anchorId =
+        area === BYTEPLUS_CHAT_API_DOC_AREA
+          ? getBytePlusChatApiRowAnchorId(entry.meta.key)
+          : area === OPENAI_CHAT_API_DOC_AREA
+            ? getOpenAiChatApiRowAnchorId(entry.meta.key)
+            : undefined
+      return {
+        meta: entry.meta,
+        details: entry.details,
+        writable: Boolean(mappedMeta?.write),
+        index: normalizeText(
+          [
+            entry.details.area,
+            entry.meta.key,
+            entry.typeLabel,
+            entry.valueKey ? String(normalizedDisplayValues[entry.valueKey] ?? values[entry.valueKey] ?? '') : entry.value,
+            entry.details.responsibility,
+            ...(entry.searchHints || []),
+          ].join(' '),
+        ),
+        typeLabel: entry.typeLabel,
+        valueKey: entry.valueKey,
+        valueDisplayOverride:
+          entry.valueKey && Object.prototype.hasOwnProperty.call(normalizedDisplayValues, entry.valueKey)
+            ? (normalizedDisplayValues[entry.valueKey] as string | number | boolean | undefined)
+            : undefined,
+        valueType: mappedMeta?.type,
+        valueOptions: mappedMeta?.options,
+        tooltipRole: entry.tooltipRole,
+        tooltipActions: entry.tooltipActions,
+        tooltipDefaultValue: entry.tooltipDefaultValue,
+        tooltipMin: entry.tooltipMin,
+        tooltipMax: entry.tooltipMax,
+        tooltipInterval: entry.tooltipInterval,
+        tooltipExpansionNote: entry.tooltipExpansionNote,
+        tooltipContractionNote: entry.tooltipContractionNote,
+        tooltipImpact: entry.tooltipImpact,
+        anchorId,
+      }
+    })
+    const paymentsVirtualEntries: SettingsEntry[] = PAYMENTS_API_DOC_ENTRIES.map(entry => {
+      const mappedMeta = entry.valueKey
+        ? settingsRegistry.find(s => s.key === entry.valueKey)
+        : undefined
+      const anchorId = getStripePaymentApiRowAnchorId(entry.meta.key)
+      return {
+        meta: entry.meta,
+        details: entry.details,
+        writable: Boolean(mappedMeta?.write),
+        index: normalizeText(
+          [
+            entry.details.area,
+            entry.meta.key,
+            entry.typeLabel,
+            entry.valueKey ? String(values[entry.valueKey] ?? '') : entry.value,
+            entry.details.responsibility,
+            ...(entry.searchHints || []),
+          ].join(' '),
+        ),
+        typeLabel: entry.typeLabel,
+        valueKey: entry.valueKey,
+        valueDisplayOverride:
+          entry.valueKey && Object.prototype.hasOwnProperty.call(values, entry.valueKey)
+            ? (values[entry.valueKey] as string | number | boolean | undefined)
+            : undefined,
+        valueType: mappedMeta?.type,
+        valueOptions: mappedMeta?.options,
+        tooltipRole: entry.tooltipRole,
+        tooltipActions: entry.tooltipActions,
+        tooltipDefaultValue: entry.tooltipDefaultValue,
+        tooltipMin: entry.tooltipMin,
+        tooltipMax: entry.tooltipMax,
+        tooltipInterval: entry.tooltipInterval,
+        tooltipExpansionNote: entry.tooltipExpansionNote,
+        tooltipContractionNote: entry.tooltipContractionNote,
+        tooltipImpact: entry.tooltipImpact,
+        anchorId,
+      }
+    })
+
+    const allEntries = [...concreteEntries.filter(entry => entry.writable), ...virtualEntries, ...paymentsVirtualEntries]
+    const filteredByMode = allEntries
       .filter(entry => !shouldHideSetting(entry.meta.key, entry.details.area))
       .filter(entry => {
         const isIntegrationsOwned = isIntegrationsOwnedSetting(entry.meta.key, entry.details.area)
-        return mode === 'integrations' ? isIntegrationsOwned : !isIntegrationsOwned
+        const isPaymentsOwned = isPaymentsOwnedSetting(entry.meta.key, entry.details.area)
+        if (mode === 'integrations') return isIntegrationsOwned
+        if (mode === 'payments') {
+          if (!isPaymentsOwned) return false
+          return !entry.meta.key.startsWith('payments.')
+        }
+        return !isIntegrationsOwned && !isPaymentsOwned
       })
-  }, [flow, mode, shouldHideSetting])
+    if (mode !== 'payments') return filteredByMode
+
+    const providerArea = resolvePaymentsProviderSpec(paymentsProviderId).areaLabel
+    return filteredByMode.filter(entry => normalizeSettingsAreaLabel(entry.details.area) === providerArea)
+  }, [flow, mode, normalizedBytePlusValues, normalizedOpenAiValues, paymentsProviderId, shouldHideSetting, values])
 
   const normalizedQuery = React.useMemo(() => normalizeText(searchQuery).trim(), [searchQuery])
   const filtered = React.useMemo(
@@ -316,6 +474,52 @@ export function useSettingsView({
     persistSettingsCollapsedByArea(storage, next)
   }, [])
   const groupByArea = React.useMemo(() => {
+    const sortEntries = (entriesByArea: SettingsEntry[]) =>
+      [...entriesByArea].sort((a, b) =>
+        String(a.meta.key || '').localeCompare(String(b.meta.key || ''), undefined, { sensitivity: 'base' }),
+      )
+    if (mode === 'integrations') {
+      const sectionSpecs: ReadonlyArray<{
+        title: string
+        searchIndex: string
+        match: (entry: SettingsEntry) => boolean
+      }> = [
+        {
+          title: 'Chat',
+          searchIndex: normalizeText('Chat FloatingPanel Chat UI Official AI integrationConfigsJson'),
+          match: (entry) => {
+            const area = normalizeSettingsAreaLabel(entry.details.area)
+            return area === 'Chat' || area === 'Integrations'
+          },
+        },
+        {
+          title: BYTEPLUS_CHAT_API_DOC_AREA,
+          searchIndex: normalizeText('BytePlus Chat API ModelArk FloatingPanel Props Panel Text Widget text generation'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_CHAT_API_DOC_AREA,
+        },
+        {
+          title: OPENAI_CHAT_API_DOC_AREA,
+          searchIndex: normalizeText('OpenAI Chat API Responses FloatingPanel Props Panel OpenAI Text Widget text generation'),
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === OPENAI_CHAT_API_DOC_AREA,
+        },
+        {
+          title: 'BytePlus Video Generation API',
+          searchIndex: normalizeText('BytePlus Video Generation API ModelArk FloatingPanel Video Widget'),
+          match: () => false,
+        },
+        {
+          title: 'BytePlus Image Generation API',
+          searchIndex: normalizeText('BytePlus Image Generation API ModelArk FloatingPanel Image Widget'),
+          match: () => false,
+        },
+      ]
+      return sectionSpecs.flatMap(({ title, searchIndex, match }) => {
+        const entriesBySection = filtered.filter(match)
+        const shouldInclude = entriesBySection.length > 0 || !normalizedQuery || searchIndex.includes(normalizedQuery)
+        if (!shouldInclude) return []
+        return [[title, sortEntries(entriesBySection)] as const]
+      })
+    }
     const map = new Map<string, typeof filtered>()
     filtered.forEach(entry => {
       const area = normalizeSettingsAreaLabel(entry.details.area)
@@ -333,9 +537,7 @@ export function useSettingsView({
       map.set(area, list)
     })
     const grouped = Array.from(map.entries()).map(([area, entriesByArea]) => {
-      const sortedEntries = [...entriesByArea].sort((a, b) =>
-        String(a.meta.key || '').localeCompare(String(b.meta.key || ''), undefined, { sensitivity: 'base' }),
-      )
+      const sortedEntries = sortEntries(entriesByArea)
       return [area, sortedEntries] as const
     })
     grouped.sort((a, b) => {
@@ -345,7 +547,7 @@ export function useSettingsView({
       return a[0].localeCompare(b[0], undefined, { sensitivity: 'base' })
     })
     return grouped
-  }, [filtered])
+  }, [filtered, mode, normalizedQuery])
   const allCollapsed = React.useMemo(
     () => {
       if (groupByArea.length === 0) return true

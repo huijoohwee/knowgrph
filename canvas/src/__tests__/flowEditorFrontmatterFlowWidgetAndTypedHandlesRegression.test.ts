@@ -277,14 +277,23 @@ export function testWidgetRegistryPortsUseDirectionalHandlePathKeyValue() {
   if (!text.includes('const handlePathValue = formatFlowHandleKeyValue({ dir: isIn ? \'in\' : \'out\', portKey })')) {
     throw new Error('expected widget registry port rows to format key:value metadata via shared helper')
   }
-  if (!text.includes('keyNode: <span className={cn(\'min-w-0 truncate\', UI_THEME_TOKENS.text.primary)}>{handlePath}</span>')) {
-    throw new Error('expected widget registry port key column to keep handles.source/handles.target path')
+  if (!text.includes('const portValueId = ids.registryField(`port-${p.direction}-${portKey}`)')) {
+    throw new Error('expected widget registry port rows to derive a shared SSOT value id for label/input typography')
+  }
+  if (!text.includes('<label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={portValueId}>')) {
+    throw new Error('expected widget registry port key column to reuse shared key label typography')
   }
   if (!text.includes('typeNode: <NodeOverlayEditorTypePill text={handleType} />')) {
     throw new Error('expected widget registry port type column to render in/out direction')
   }
-  if (!text.includes('valueNode: <span className={cn(\'min-w-0 truncate\', UI_THEME_TOKENS.text.primary)}>{portKey}</span>')) {
+  if (!text.includes('<PlainTextInputEditor')) {
+    throw new Error('expected widget registry port value column to reuse shared text-input typography')
+  }
+  if (!text.includes('value={portKey}')) {
     throw new Error('expected widget registry port value column to render standalone port key')
+  }
+  if (!text.includes('disabled') || !text.includes('readOnly')) {
+    throw new Error('expected widget registry port value column to stay read-only while reusing shared value styling')
   }
 }
 

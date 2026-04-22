@@ -4,8 +4,19 @@ import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsSetJson, getLocalStorage } from '@/lib/persistence'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphState } from '@/hooks/store/types'
-import { buildGenerateImageRegistryDraft, buildGenerateVideoRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
-import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import {
+  buildGenerateImageRegistryDraft,
+  buildGenerateTextRegistryDraft,
+  buildGenerateVideoRegistryDraft,
+  buildRichMediaPanelRegistryDraft,
+  buildTextGenerationRegistryDraft,
+} from '@/features/flow-editor-manager/registryTemplates'
+import {
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
 import type {
   WidgetRegistryEntry,
   WidgetRegistryField,
@@ -50,6 +61,24 @@ export function validateWidgetRegistryEntry(raw: unknown): WidgetRegistryEntry |
     const schemaPath = trimOrEmpty(it.schemaPath) || undefined
     const required = typeof it.required === 'boolean' ? it.required : undefined
     const isHidden = typeof it.isHidden === 'boolean' ? it.isHidden : undefined
+    const options = Array.isArray(it.options)
+      ? it.options
+          .map(option => {
+            if (!option || typeof option !== 'object' || Array.isArray(option)) return null
+            const rec = option as Record<string, unknown>
+            const rawValue = rec.value
+            const value =
+              typeof rawValue === 'string' || typeof rawValue === 'number'
+                ? rawValue
+                : typeof rawValue === 'boolean'
+                  ? String(rawValue)
+                  : null
+            if (value == null || (typeof value === 'string' && !value.trim())) return null
+            const label = trimOrEmpty(rec.label) || undefined
+            return { value, ...(label ? { label } : {}) }
+          })
+          .filter((option): option is NonNullable<typeof option> => !!option)
+      : undefined
     fields.push({
       fieldKey,
       fieldType,
@@ -57,6 +86,7 @@ export function validateWidgetRegistryEntry(raw: unknown): WidgetRegistryEntry |
       ...(schemaPath ? { schemaPath } : {}),
       ...(required != null ? { required } : {}),
       ...(isHidden === true ? { isHidden: true } : {}),
+      ...(options && options.length > 0 ? { options } : {}),
     })
   }
 
@@ -181,15 +211,75 @@ function ensureDefaultRegistryEntry(args: {
   nowIso?: string
 }): { entries: WidgetRegistryEntry[]; changed: boolean } {
   const prev = Array.isArray(args.entries) ? args.entries : []
-  const exists = prev.some(e => {
+  const existingIndex = prev.findIndex(e => {
     if (!e) return false
     return e.nodeTypeId === args.nodeTypeId && e.widgetTypeId === 'default' && e.formId === args.formId
   })
-  if (exists) return { entries: prev, changed: false }
+  const updatedAt = String(args.nowIso || '').trim() || new Date().toISOString()
+  const normalizeComparableEntry = (entry: Pick<WidgetRegistryEntry, 'nodeTypeId' | 'widgetTypeId' | 'formId' | 'fields' | 'ports' | 'schemaMappings'>) =>
+    JSON.stringify({
+      nodeTypeId: entry.nodeTypeId,
+      widgetTypeId: entry.widgetTypeId,
+      formId: entry.formId,
+      fields: (Array.isArray(entry.fields) ? entry.fields : []).map(field => ({
+        fieldKey: String(field?.fieldKey || '').trim(),
+        fieldType: String(field?.fieldType || '').trim(),
+        label: trimOrEmpty(field?.label) || null,
+        schemaPath: trimOrEmpty(field?.schemaPath) || null,
+        required: typeof field?.required === 'boolean' ? field.required : null,
+        isHidden: field?.isHidden === true ? true : null,
+        options: (Array.isArray(field?.options) ? field.options : []).map(option => ({
+          value:
+            typeof option?.value === 'number'
+              ? option.value
+              : String(option?.value ?? '').trim(),
+          label: trimOrEmpty(option?.label) || null,
+        })),
+      })),
+      ports: (Array.isArray(entry.ports) ? entry.ports : []).map(port => ({
+        portKey: String(port?.portKey || '').trim(),
+        direction: port?.direction === 'output' ? 'output' : 'input',
+        schemaPath: trimOrEmpty(port?.schemaPath) || null,
+        isHidden: port?.isHidden === true ? true : null,
+      })),
+      schemaMappings: (Array.isArray(entry.schemaMappings) ? entry.schemaMappings : []).map(mapping => ({
+        fromPath: trimOrEmpty(mapping?.fromPath),
+        toPath: trimOrEmpty(mapping?.toPath),
+        transformId: trimOrEmpty(mapping?.transformId) || null,
+        reduceId: trimOrEmpty(mapping?.reduceId) || null,
+      })),
+    })
+  if (existingIndex >= 0) {
+    const existing = prev[existingIndex]
+    if (!existing) return { entries: prev, changed: false }
+    const canonicalComparable = normalizeComparableEntry({
+      nodeTypeId: args.nodeTypeId,
+      widgetTypeId: 'default',
+      formId: args.formId,
+      fields: Array.isArray(args.draft.fields) ? (args.draft.fields as WidgetRegistryField[]) : [],
+      ports: Array.isArray(args.draft.ports) ? (args.draft.ports as WidgetRegistryPort[]) : [],
+      schemaMappings: Array.isArray(args.draft.schemaMappings) ? (args.draft.schemaMappings as WidgetRegistrySchemaMapping[]) : [],
+    })
+    const existingComparable = normalizeComparableEntry(existing)
+    if (existingComparable === canonicalComparable) return { entries: prev, changed: false }
+    const nextEntry: WidgetRegistryEntry = {
+      ...existing,
+      nodeTypeId: args.nodeTypeId,
+      widgetTypeId: 'default',
+      formId: args.formId,
+      fields: Array.isArray(args.draft.fields) ? (args.draft.fields as WidgetRegistryField[]) : [],
+      ports: Array.isArray(args.draft.ports) ? (args.draft.ports as WidgetRegistryPort[]) : [],
+      ...(Array.isArray(args.draft.schemaMappings) ? { schemaMappings: args.draft.schemaMappings as WidgetRegistrySchemaMapping[] } : {}),
+      updatedAt,
+    }
+    const validated = validateWidgetRegistryEntry(nextEntry)
+    if (!validated) return { entries: prev, changed: false }
+    const next = normalizeWidgetRegistryEntries(prev.map((entry, index) => (index === existingIndex ? validated : entry)))
+    return { entries: next, changed: true }
+  }
 
   const usedIds = new Set(prev.map(e => String(e?.id || '')).filter(Boolean))
   const id = createUniqueId('qer', usedIds)
-  const updatedAt = String(args.nowIso || '').trim() || new Date().toISOString()
   const nextEntry: WidgetRegistryEntry = {
     id,
     isEnabled: true,
@@ -225,7 +315,35 @@ export function ensureDefaultWidgetRegistryEntries(
     draft: buildGenerateVideoRegistryDraft(),
     nowIso,
   })
-  return { entries: seededVideo.entries, changed: seededImage.changed || seededVideo.changed }
+  const seededText = ensureDefaultRegistryEntry({
+    entries: seededVideo.entries,
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    formId: 'textGeneration',
+    draft: buildGenerateTextRegistryDraft(),
+    nowIso,
+  })
+  const seededOpenAiText = ensureDefaultRegistryEntry({
+    entries: seededText.entries,
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    formId: 'textGeneration.openai',
+    draft: buildTextGenerationRegistryDraft({
+      providerFamily: 'openai',
+      widgetTypeId: 'default',
+      formId: 'textGeneration.openai',
+    }),
+    nowIso,
+  })
+  const seededRichMediaPanel = ensureDefaultRegistryEntry({
+    entries: seededOpenAiText.entries,
+    nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    formId: 'richMediaPanel',
+    draft: buildRichMediaPanelRegistryDraft(),
+    nowIso,
+  })
+  return {
+    entries: seededRichMediaPanel.entries,
+    changed: seededImage.changed || seededVideo.changed || seededText.changed || seededOpenAiText.changed || seededRichMediaPanel.changed,
+  }
 }
 
 export function ensureDefaultGenerateVideoRegistryEntry(
@@ -258,7 +376,12 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
 
   const isWidgetRegistryEntry = (entry: WidgetRegistryEntry | null | undefined): boolean => {
     const nodeTypeId = String(entry?.nodeTypeId || '').trim()
-    return nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID || nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+    return (
+      nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+      || nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+      || nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+      || nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+    )
   }
 
   const persist = (next: WidgetRegistryEntry[]) => {

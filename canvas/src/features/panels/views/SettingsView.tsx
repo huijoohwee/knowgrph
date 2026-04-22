@@ -3,6 +3,7 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { KeyTypeValueRow } from '@/features/panels/ui/KeyTypeValueRow'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
+import { emitPropsPanelOpen, emitSidePanelOpen } from '@/features/canvas/utils'
 import {
   uiDangerButtonClassName,
   uiToolbarToggleActiveClassName,
@@ -13,6 +14,7 @@ import {
   buildSettingsAreaTooltip,
   buildSettingsKeyTooltip,
   buildSettingsValueTooltip,
+  UI_ANCHORS,
 } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useSettingsView } from './useSettingsView'
@@ -47,6 +49,7 @@ import {
   getChatProviderLabel,
   getChatProviderRegionLabel,
   getChatRecommendedModelHint,
+  getDefaultChatModelForProvider,
   resolveChatEndpointForModels,
 } from '@/lib/chatEndpoint'
 import { loadAvailableModelIds } from '@/features/chat/SidePanelChat.helpers'
@@ -55,16 +58,64 @@ import {
   parseIntegrationConfigsJson,
   stringifyIntegrationConfigs,
 } from '@/features/integrations/config'
+import { BYTEPLUS_CHAT_API_DOC_AREA } from './byteplusChatApiDocs'
+import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
+import { FLOW_IMAGE_GENERATION_NODE_LABEL, FLOW_VIDEO_GENERATION_NODE_LABEL } from '@/lib/config.flow-editor'
+import { PAYMENTS_PROVIDERS, DEFAULT_PAYMENT_PROVIDER_ID, resolvePaymentsProviderSpec } from '@/features/payments/providers'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS = 'top-9'
+const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
+  docsUrl?: string
+  docsLabel?: string
+  panelLabel: string
+  note?: string
+  openPanel: () => void
+}>> = {
+  Chat: {
+    panelLabel: 'Open FloatingPanel Chat UI',
+    openPanel: () => emitSidePanelOpen({ tab: 'chat', open: true }),
+  },
+  [BYTEPLUS_CHAT_API_DOC_AREA]: {
+    docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1494384',
+    docsLabel: 'Open BytePlus Chat API Docs',
+    panelLabel: 'Open FloatingPanel Props Panel Text Widget',
+    note: 'Open the Widget palette to drag/create a BytePlus Text Widget.',
+    openPanel: () => emitPropsPanelOpen(),
+  },
+  [OPENAI_CHAT_API_DOC_AREA]: {
+    docsUrl: 'https://developers.openai.com/api/reference/resources/responses',
+    docsLabel: 'Open OpenAI Chat API Docs',
+    panelLabel: 'Open FloatingPanel Props Panel OpenAI Text Widget',
+    note: 'Open the Widget palette to drag/create an OpenAI Text Widget.',
+    openPanel: () => emitPropsPanelOpen(),
+  },
+  'BytePlus Video Generation API': {
+    docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/Video_Generation_API',
+    docsLabel: 'Open BytePlus Video Generation API Docs',
+    panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
+    note: 'Widget palette opens in the floating props panel.',
+    openPanel: () => emitPropsPanelOpen(),
+  },
+  'BytePlus Image Generation API': {
+    docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1666945',
+    docsLabel: 'Open BytePlus Image Generation API Docs',
+    panelLabel: `Open FloatingPanel ${FLOW_IMAGE_GENERATION_NODE_LABEL}`,
+    note: 'Widget palette opens in the floating props panel.',
+    openPanel: () => emitPropsPanelOpen(),
+  },
+}
 
 export default function SettingsView({
   searchQuery,
+  requestedAnchorId,
+  requestedAnchorSeq,
   onRegisterActions,
   mode = 'all',
 }: {
   searchQuery: string
+  requestedAnchorId?: string
+  requestedAnchorSeq?: number
   onRegisterActions?: (a: {
     apply: () => void
     reset: () => void
@@ -73,8 +124,9 @@ export default function SettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
-  mode?: 'all' | 'integrations'
+  mode?: 'all' | 'integrations' | 'payments'
 }) {
+  const [paymentsProviderId, setPaymentsProviderId] = React.useState<string>(DEFAULT_PAYMENT_PROVIDER_ID)
   const {
     expanded,
     setExpanded,
@@ -94,7 +146,7 @@ export default function SettingsView({
     values,
     setValues,
     dirtyRef,
-  } = useSettingsView({ searchQuery, onRegisterActions, mode })
+  } = useSettingsView({ searchQuery, onRegisterActions, mode, paymentsProviderId })
   const [chatModelsStatus, setChatModelsStatus] = React.useState<string | null>(null)
   const [isRefreshingChatModels, setIsRefreshingChatModels] = React.useState(false)
   const [discoveredChatModels, setDiscoveredChatModels] = React.useState<string[]>([])
@@ -135,6 +187,12 @@ export default function SettingsView({
   const chatAuthModeLabel = React.useMemo(
     () => (String(values.chatAuthMode || '').trim() === 'byok' ? 'BYOK' : 'Server-managed Key'),
     [values.chatAuthMode],
+  )
+
+  const paymentsProviders = React.useMemo(() => [...PAYMENTS_PROVIDERS], [])
+  const activePaymentsProvider = React.useMemo(
+    () => resolvePaymentsProviderSpec(paymentsProviderId),
+    [paymentsProviderId],
   )
   const applyUiPanelDensityPreset = React.useCallback(
     (preset: 'comfortable' | 'compact') => {
@@ -180,6 +238,17 @@ export default function SettingsView({
       })
     }
   }, [patchChatValues, setExpanded])
+
+  React.useEffect(() => {
+    const anchorId = String(requestedAnchorId || '').trim()
+    if (!anchorId || typeof window === 'undefined') return
+    const rafId = window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(`[data-kg-anchor="${anchorId}"]`)
+      if (!target) return
+      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+    })
+    return () => window.cancelAnimationFrame(rafId)
+  }, [requestedAnchorId, requestedAnchorSeq, groupByArea])
 
   React.useEffect(() => {
     const shouldApplyProvider = dirtyRef.current.has('chatProvider')
@@ -559,7 +628,41 @@ export default function SettingsView({
             </div>
           </div>
         </header>
-        {mode !== 'integrations' && (
+        {mode === 'payments' && (
+          <section className={`p-2 border-b border-white/10 ${UI_THEME_TOKENS.text.secondary}`}>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>Providers</span>
+              {paymentsProviders.map(provider => (
+                <button
+                  key={provider.id}
+                  type="button"
+                  data-main-panel-no-drag="true"
+                  className={
+                    provider.id === activePaymentsProvider.id
+                      ? `App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`
+                      : `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+                  }
+                  onClick={() => {
+                    setPaymentsProviderId(provider.id)
+                  }}
+                >
+                  {provider.label}
+                </button>
+              ))}
+              {activePaymentsProvider.docsUrl && (
+                <a
+                  className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+                  href={activePaymentsProvider.docsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open docs
+                </a>
+              )}
+            </div>
+          </section>
+        )}
+        {mode === 'all' && (
           <section className="p-2 border-b border-white/10">
             <WorkspaceTableModeControl />
           </section>
@@ -569,6 +672,7 @@ export default function SettingsView({
           const responsibilities = entries.map(e => e.details.responsibility).filter(Boolean)
           const firstResponsibility = responsibilities[0]
           const tooltipContent = buildSettingsAreaTooltip(area, firstResponsibility)
+          const integrationSectionMeta = mode === 'integrations' ? INTEGRATIONS_SECTION_META[area] : undefined
           return (
             <CollapsibleSection
               key={area}
@@ -596,6 +700,35 @@ export default function SettingsView({
               }}
             >
               <ul>
+                {integrationSectionMeta && (
+                  <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+                    <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Links</span>
+                    <button
+                      type="button"
+                      className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+                      onClick={() => {
+                        integrationSectionMeta.openPanel()
+                      }}
+                    >
+                      {integrationSectionMeta.panelLabel}
+                    </button>
+                    {integrationSectionMeta.docsUrl && integrationSectionMeta.docsLabel && (
+                      <a
+                        className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+                        href={integrationSectionMeta.docsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {integrationSectionMeta.docsLabel}
+                      </a>
+                    )}
+                    {integrationSectionMeta.note && (
+                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
+                        {integrationSectionMeta.note}
+                      </span>
+                    )}
+                  </li>
+                )}
                 {area === 'UI Density: Panels' && (
                   <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
                     <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Presets</span>
@@ -823,24 +956,55 @@ export default function SettingsView({
                     </li>
                   </>
                 )}
-                {entries.map(({ meta: s, details, writable, anchorId, typeLabel }) => {
+                {entries.map(({
+                  meta: s,
+                  details,
+                  writable,
+                  anchorId,
+                  typeLabel,
+                  valueKey,
+                  valueDisplayOverride,
+                  valueType,
+                  valueOptions,
+                  tooltipRole,
+                  tooltipActions,
+                  tooltipDefaultValue,
+                  tooltipMin,
+                  tooltipMax,
+                  tooltipInterval,
+                  tooltipExpansionNote,
+                  tooltipContractionNote,
+                  tooltipImpact,
+                }) => {
                   const isExpanded = expanded === s.key
                   const hasOptions = Array.isArray(s.options) && s.options.length > 0
                   const resolvedTypeLabel = String(typeLabel || s.type || '').trim() || 'string'
                   const renderTypeAsText = Boolean(typeLabel)
+                  const resolvedValueKey = valueKey || s.key
+                  const resolvedInputType = valueType || s.type
+                  const resolvedInputOptions = valueOptions || s.options
                   const settingTypeIconKind = resolveFieldTypeIconKind(resolvedTypeLabel)
                   const keyTooltip = buildSettingsKeyTooltip({
                     area: details.area,
                     key: s.key,
                     responsibility: details.responsibility,
+                    role: tooltipRole,
+                    actions: tooltipActions,
+                    outcome: tooltipImpact || details.responsibility,
                   })
                   const valueTooltip = buildSettingsValueTooltip({
                     type: resolvedTypeLabel,
                     key: s.key,
-                    defaultValue: s.default ? s.default() : null,
-                    options: s.options,
+                    defaultValue: s.default ? s.default() : valueDisplayOverride ?? values[resolvedValueKey] ?? null,
+                    options: resolvedInputOptions,
                     notes: details.notes,
-                    impact: details.notes || details.responsibility,
+                    impact: tooltipImpact || details.notes || details.responsibility,
+                    defaultValueOverride: tooltipDefaultValue,
+                    min: tooltipMin,
+                    max: tooltipMax,
+                    interval: tooltipInterval,
+                    expansionNote: tooltipExpansionNote,
+                    contractionNote: tooltipContractionNote,
                   })
                   const pillButtonClassName = `inline-flex items-center justify-center h-6 rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary} px-2 text-xs whitespace-nowrap`
                   const statusPillClassName = `inline-flex items-center h-6 max-w-[14rem] rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} px-2 text-xs`
@@ -892,7 +1056,7 @@ export default function SettingsView({
                                       className={valueWrapperClass}
                                       onClick={e => e.stopPropagation()}
                                     >
-                                      {renderInput(s.key, s.type, writable, s.options)}
+                                      {renderInput(resolvedValueKey, resolvedInputType, writable, resolvedInputOptions, valueDisplayOverride)}
                                     </span>
                                   </Tooltip>
                                 )
@@ -901,7 +1065,7 @@ export default function SettingsView({
                                     className={valueWrapperClass}
                                     onClick={e => e.stopPropagation()}
                                   >
-                                    {renderInput(s.key, s.type, writable, s.options)}
+                                    {renderInput(resolvedValueKey, resolvedInputType, writable, resolvedInputOptions, valueDisplayOverride)}
                                   </span>
                                 )
                               if (s.key === 'chatSystemPrompt') {

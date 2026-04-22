@@ -1,7 +1,7 @@
 import React from 'react'
 
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry, WidgetRegistryFieldOption } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getObjectPath, setObjectPath } from '@/lib/data/objectPath'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
@@ -10,6 +10,18 @@ import { formatFlowHandleKeyValue, readFlowHandlePath, readFlowHandleTypeLabel }
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import {
+  inferTextGenerationProviderFamily,
+  resolveEffectiveTextGenerationWidgetProperties,
+} from '@/features/flow-editor-manager/registryTemplates'
+import {
+  getBytePlusChatApiRowAnchorId,
+  resolveBytePlusTextWidgetChatApiRowKey,
+} from '@/features/panels/views/byteplusChatApiDocs'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { useShallow } from 'zustand/react/shallow'
 
 function formatConnectedValue(value: unknown): string {
   if (value == null) return ''
@@ -147,6 +159,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   dotSizePx: number
   dotHitPx: number
   portHandlesEnabled: boolean
+  showFieldRows?: boolean
   showPortRows?: boolean
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   onSetProperties: (properties: Record<string, unknown>) => void
@@ -166,6 +179,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     dotSizePx,
     dotHitPx,
     portHandlesEnabled,
+    showFieldRows = true,
     showPortRows = true,
     connectedValuesBySchemaPath,
     onSetProperties,
@@ -180,6 +194,34 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   )
 
   const rows: NodeOverlayEditorKvRow[] = []
+  const globalTextDefaults = useGraphStore(
+    useShallow(s => ({
+      chatProvider: s.chatProvider,
+      chatAuthMode: s.chatAuthMode,
+      chatEndpointUrl: s.chatEndpointUrl,
+      chatModel: s.chatModel,
+      chatTemperature: s.chatTemperature,
+      chatMaxCompletionTokens: s.chatMaxCompletionTokens,
+      chatServiceTier: s.chatServiceTier,
+      chatStream: s.chatStream,
+      chatMessagesJson: s.chatMessagesJson,
+      chatReasoningEffort: s.chatReasoningEffort,
+      chatThinkingType: s.chatThinkingType,
+      chatThinkingJson: s.chatThinkingJson,
+      chatFrequencyPenalty: s.chatFrequencyPenalty,
+      chatPresencePenalty: s.chatPresencePenalty,
+      chatTopP: s.chatTopP,
+      chatLogprobs: s.chatLogprobs,
+      chatTopLogprobs: s.chatTopLogprobs,
+      chatParallelToolCalls: s.chatParallelToolCalls,
+      chatStopJson: s.chatStopJson,
+      chatStreamOptionsJson: s.chatStreamOptionsJson,
+      chatResponseFormatJson: s.chatResponseFormatJson,
+      chatLogitBiasJson: s.chatLogitBiasJson,
+      chatToolsJson: s.chatToolsJson,
+      chatToolChoiceJson: s.chatToolChoiceJson,
+    })),
+  )
 
   const [autoApplyConnected, setAutoApplyConnected] = React.useState(false)
 
@@ -209,6 +251,41 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     onSetProperties(nextRoot.properties || {})
   }, [active, connectedValuesBySchemaPath, normalizeRegistrySchemaPath, onSetProperties, properties, registryFields])
 
+  const openBytePlusIntegrationLink = React.useCallback((searchQuery: string) => {
+    const normalizedSearchQuery = String(searchQuery || '').trim()
+    if (!normalizedSearchQuery || typeof window === 'undefined') return
+    const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
+    window.dispatchEvent(new CustomEventCtor(MAIN_PANEL_OPEN_EVENT, {
+      detail: {
+        tab: 'integrations' as const,
+        searchQuery: normalizedSearchQuery,
+        anchorId: getBytePlusChatApiRowAnchorId(normalizedSearchQuery),
+      },
+    }))
+  }, [])
+
+  const canLinkToBytePlusChatApi = React.useMemo(() => {
+    if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return false
+    return inferTextGenerationProviderFamily({
+      provider: properties.chatProvider,
+      widgetTypeId: registryEntry.widgetTypeId,
+      formId: registryEntry.formId,
+    }) === 'byteplus'
+  }, [properties.chatProvider, registryEntry.formId, registryEntry.nodeTypeId, registryEntry.widgetTypeId])
+  const effectiveProperties = React.useMemo(() => {
+    if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return properties
+    const providerFamily = inferTextGenerationProviderFamily({
+      provider: properties.chatProvider,
+      widgetTypeId: registryEntry.widgetTypeId,
+      formId: registryEntry.formId,
+    })
+    return resolveEffectiveTextGenerationWidgetProperties({
+      providerFamily,
+      localProperties: properties,
+      globalProperties: globalTextDefaults,
+    })
+  }, [globalTextDefaults, properties, registryEntry.formId, registryEntry.nodeTypeId, registryEntry.widgetTypeId])
+
   React.useEffect(() => {
     if (!autoApplyConnected) return
     applyConnectedToEmptyFields()
@@ -219,9 +296,13 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     const rowKey = `${String(f.fieldKey || '')}:${idx}`
     const path = normalizeRegistrySchemaPath(f.schemaPath, f.fieldKey)
     const cur = path ? getObjectPath({ properties }, path) : undefined
+    const effectiveCur = path ? getObjectPath({ properties: effectiveProperties }, path) : undefined
     const connected = path ? connectedValuesBySchemaPath?.[path] : undefined
     const label = String(f.label || f.fieldKey)
     const fieldType = String(f.fieldType || '').trim().toLowerCase()
+    const fieldOptions = Array.isArray((f as { options?: WidgetRegistryFieldOption[] }).options)
+      ? ((f as { options?: WidgetRegistryFieldOption[] }).options || [])
+      : []
     const id = ids.registryField(String(f.fieldKey || idx))
     const labelId = `registry-field-${String(f.fieldKey || idx)}-${idx}`
 
@@ -243,7 +324,13 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     const connectedValueText = connected ? formatConnectedValue(connected.value) : ''
     const connectedMeta = connectedValueText
       ? (
-          <section className={cn('mt-1 flex items-center justify-between gap-2', microLabelClass)} aria-label={UI_COPY.flowWidgetConnectedValueLabel}>
+          <section
+            className={cn(
+              'mt-1 flex items-center justify-between gap-2',
+              microLabelClass,
+            )}
+            aria-label={UI_COPY.flowWidgetConnectedValueLabel}
+          >
             <p className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.tertiary)}>{UI_COPY.flowWidgetConnectedValuePrefix}{connectedValueText}</p>
             <button
               type="button"
@@ -261,6 +348,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
 
     if (fieldType === 'boolean' || fieldType === 'bool') {
       const checked = typeof cur === 'boolean' ? cur : false
+      const effectiveChecked = typeof effectiveCur === 'boolean' ? effectiveCur : checked
       rows.push({
         rowKey,
         labelId,
@@ -269,7 +357,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         valueNode: (
           <section className="w-full">
             <section className="flex items-center">
-              <input id={id} type="checkbox" checked={checked} onChange={e => setValue(e.target.checked)} disabled={!active} />
+              <input id={id} type="checkbox" checked={effectiveChecked} onChange={e => setValue(e.target.checked)} disabled={!active} />
             </section>
             {connectedMeta}
           </section>
@@ -278,8 +366,59 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       continue
     }
 
+    if (fieldType === 'select') {
+      const effectiveValue = typeof effectiveCur === 'number' && Number.isFinite(effectiveCur)
+        ? String(effectiveCur)
+        : String(effectiveCur ?? '').trim()
+      rows.push({
+        rowKey,
+        labelId,
+        keyNode,
+        typeNode,
+        valueNode: (
+          <section className="w-full">
+            <select
+              id={id}
+              className={cn(
+                keyValueInputClass,
+                textSizeClass,
+                'text-left',
+                UI_THEME_TOKENS.input.bg,
+                UI_THEME_TOKENS.input.border,
+                UI_THEME_TOKENS.input.text,
+              )}
+              value={effectiveValue}
+              onChange={e => {
+                const raw = String(e.target.value || '').trim()
+                if (!raw) {
+                  setValue(undefined)
+                  return
+                }
+                const matchedOption = fieldOptions.find(option => String(option?.value ?? '').trim() === raw)
+                setValue(matchedOption ? matchedOption.value : raw)
+              }}
+              disabled={!active}
+            >
+              <option value="">Select…</option>
+              {fieldOptions.map(option => {
+                const optionValue = String(option?.value ?? '').trim()
+                if (!optionValue) return null
+                return (
+                  <option key={optionValue} value={optionValue}>
+                    {String(option?.label || optionValue)}
+                  </option>
+                )
+              })}
+            </select>
+            {connectedMeta}
+          </section>
+        ),
+      })
+      continue
+    }
+
     if (fieldType === 'number' || fieldType === 'int' || fieldType === 'integer' || fieldType === 'float') {
-      const v = typeof cur === 'number' && Number.isFinite(cur) ? String(cur) : ''
+      const v = typeof effectiveCur === 'number' && Number.isFinite(effectiveCur) ? String(effectiveCur) : ''
       rows.push({
         rowKey,
         labelId,
@@ -320,7 +459,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
 
     if (fieldType === 'json' || fieldType === 'object') {
       const mode = fieldType === 'object' ? 'object' : 'json'
-      const v = normalizeJsonLikeValueText(cur)
+      const v = normalizeJsonLikeValueText(effectiveCur)
       rows.push({
         rowKey,
         labelId,
@@ -331,7 +470,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
             <JsonLikeValueEditor
               id={id}
               mode={mode}
-              value={cur}
+              value={effectiveCur}
               active={active}
               placeholder={!v && connectedValueText ? connectedValueText : undefined}
               className={cn(
@@ -350,7 +489,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       continue
     }
 
-    const v = typeof cur === 'string' ? cur : typeof cur === 'number' ? String(cur) : ''
+    const v = typeof effectiveCur === 'string' ? effectiveCur : typeof effectiveCur === 'number' ? String(effectiveCur) : ''
     rows.push({
       rowKey,
       labelId,
@@ -364,10 +503,13 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
               keyValueInputClass,
               textSizeClass,
               'text-left',
+              fieldType === 'textarea' ? 'h-24 px-2 py-1' : '',
               UI_THEME_TOKENS.input.bg,
               UI_THEME_TOKENS.input.border,
               UI_THEME_TOKENS.input.text,
             )}
+            multiline={fieldType === 'textarea'}
+            rows={fieldType === 'textarea' ? 4 : undefined}
             value={v}
             placeholder={!v && connectedValueText ? connectedValueText : undefined}
             onChange={raw => {
@@ -388,10 +530,20 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       const portKey = String(p.portKey || '').trim()
       if (!portKey) continue
       const isIn = p.direction === 'input'
+      const portValueId = ids.registryField(`port-${p.direction}-${portKey}`)
       const handlePath = readFlowHandlePath(isIn ? 'in' : 'out')
       const handleType = readFlowHandleTypeLabel(isIn ? 'in' : 'out')
       const handlePathValue = formatFlowHandleKeyValue({ dir: isIn ? 'in' : 'out', portKey })
       const aria = handlePathValue
+      const bytePlusPortLinkSearch = canLinkToBytePlusChatApi
+        ? resolveBytePlusTextWidgetChatApiRowKey({
+            schemaPath: String(p.schemaPath || '').trim(),
+            portKey,
+          })
+        : null
+      const handlePortNavigate = bytePlusPortLinkSearch
+        ? () => openBytePlusIntegrationLink(bytePlusPortLinkSearch)
+        : undefined
 
       const portButton = (
         <button
@@ -418,10 +570,14 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
             } catch {
               void 0
             }
+            if (handlePortNavigate) {
+              handlePortNavigate()
+              return
+            }
             if (!active || !portHandlesEnabled) return
             onSchemaPortHandleClick?.({ dir: isIn ? 'in' : 'out', portKey })
           }}
-          disabled={!active || !portHandlesEnabled}
+          disabled={handlePortNavigate ? false : (!active || !portHandlesEnabled)}
         >
           <span
             aria-hidden={true}
@@ -438,26 +594,53 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       out.push({
         rowKey: `port:${p.direction}:${portKey}:${idx}`,
         labelId: `registry-port-${p.direction}-${portKey}-${idx}`,
+        onInPortClick: handlePortNavigate,
+        onKeyClick: handlePortNavigate,
+        onTypeClick: handlePortNavigate,
+        onValueClick: handlePortNavigate,
+        onOutPortClick: handlePortNavigate,
         inPortNode: isIn ? portButton : null,
         outPortNode: !isIn ? portButton : null,
-        keyNode: <span className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.primary)}>{handlePath}</span>,
+        keyNode: (
+          <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={portValueId}>
+            {handlePath}
+          </label>
+        ),
         typeNode: <NodeOverlayEditorTypePill text={handleType} />,
-        valueNode: <span className={cn('min-w-0 truncate', UI_THEME_TOKENS.text.primary)}>{portKey}</span>,
+        valueNode: (
+          <PlainTextInputEditor
+            id={portValueId}
+            ariaLabel={aria}
+            value={portKey}
+            disabled
+            readOnly
+            className={cn(
+              keyValueInputClass,
+              textSizeClass,
+              'text-left',
+              monospaceTextClass,
+              UI_THEME_TOKENS.input.bg,
+              UI_THEME_TOKENS.input.border,
+              UI_THEME_TOKENS.input.text,
+            )}
+          />
+        ),
       })
     }
     return out
-  }, [active, dotHitPx, dotSizePx, onSchemaPortHandleClick, portHandlesEnabled, registryPorts])
+  }, [active, canLinkToBytePlusChatApi, dotHitPx, dotSizePx, ids, keyLabelClass, keyValueInputClass, monospaceTextClass, onSchemaPortHandleClick, openBytePlusIntegrationLink, portHandlesEnabled, registryPorts, textSizeClass])
 
   if (!registryEntry) return null
+  const visibleFieldRows = showFieldRows ? rows : []
   const visiblePortRows = showPortRows ? portRows : []
-  if (registryFields.length === 0 && visiblePortRows.length === 0) return null
+  if (visibleFieldRows.length === 0 && visiblePortRows.length === 0) return null
 
   const hasAnyConnectedValues = !!connectedValuesBySchemaPath && Object.keys(connectedValuesBySchemaPath).length > 0
 
   return (
     <section className="min-w-0 mt-4" aria-label="Widget Registry">
 
-      {hasAnyConnectedValues && registryFields.length > 0 ? (
+      {hasAnyConnectedValues && visibleFieldRows.length > 0 ? (
         <section className={cn('flex flex-wrap items-center justify-between gap-2 mb-2', microLabelClass)} aria-label={UI_COPY.flowWidgetConnectedControlsLabel}>
           <label className={cn('inline-flex items-center gap-2', UI_THEME_TOKENS.text.secondary)}>
             <input
@@ -483,17 +666,18 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         </section>
       ) : null}
 
-      {rows.length > 0 && (
+      {visibleFieldRows.length > 0 && (
         <NodeOverlayEditorKvTable
           ariaLabel="Registry fields"
           microLabelClass={microLabelClass}
-          rows={rows}
+          rows={visibleFieldRows}
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
+          forcePortDots
         />
       )}
 
-      {visiblePortRows.length > 0 && (
+      {showPortRows && (!canLinkToBytePlusChatApi || showFieldRows === false) && visiblePortRows.length > 0 && (
         <NodeOverlayEditorKvTable
           ariaLabel="Registry ports"
           microLabelClass={microLabelClass}

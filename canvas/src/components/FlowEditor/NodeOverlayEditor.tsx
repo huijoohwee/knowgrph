@@ -83,6 +83,7 @@ type NodeOverlayEditorProps = {
   onHelp: () => void
   onConvertToLoopNode: () => void
   onEnableHandlesForAllInputs: () => void
+  onUpdateKvEntry?: () => void
   onPinnedInCanvasChange?: (pinnedInCanvas: boolean) => void
   onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
 }
@@ -119,6 +120,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   onHelp,
   onConvertToLoopNode,
   onEnableHandlesForAllInputs,
+  onUpdateKvEntry,
   onPinnedInCanvasChange,
   onRenameSchemaFieldId,
 }: NodeOverlayEditorProps) {
@@ -1104,6 +1106,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             onRemove={onRemove}
             onEnableHandlesForAllInputs={onEnableHandlesForAllInputs}
             onConvertToLoopNode={onConvertToLoopNode}
+            onUpdateKvEntry={onUpdateKvEntry}
           />
         </div>
 

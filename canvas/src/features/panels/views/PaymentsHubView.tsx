@@ -1,7 +1,7 @@
 import React from 'react'
 import SettingsView from '@/features/panels/views/SettingsView'
 
-export default function IntegrationsHubView({
+export default function PaymentsHubView({
   searchQuery = '',
   requestedAnchorId,
   requestedAnchorSeq,
@@ -24,8 +24,9 @@ export default function IntegrationsHubView({
       searchQuery={searchQuery}
       requestedAnchorId={requestedAnchorId}
       requestedAnchorSeq={requestedAnchorSeq}
-      mode="integrations"
+      mode="payments"
       onRegisterActions={onRegisterActions}
     />
   )
 }
+

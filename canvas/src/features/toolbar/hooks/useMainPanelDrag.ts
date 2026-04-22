@@ -8,6 +8,7 @@ import { createRafValueScheduler } from '@/lib/react/rafValueScheduler';
 
 export type MainPanelTabKey =
   | 'integrations'
+  | 'payments'
   | 'workflowManager'
   | 'help'
   | 'dashboard'
@@ -15,14 +16,21 @@ export type MainPanelTabKey =
   | 'settings'
   | 'history';
 
+export type WorkflowManagerTabKey = 'graph' | 'mapping'
+
 export type MainPanelOpenOptions = {
   searchQuery?: string;
+  workflowManagerTab?: WorkflowManagerTabKey;
+  anchorId?: string;
 };
 
 export function useMainPanelDrag() {
   const [isMainPanelOpen, setIsMainPanelOpen] = useState(false);
   const [mainPanelRequestedTab, setMainPanelRequestedTab] = useState<MainPanelTabKey>('help');
   const [mainPanelRequestedSearchQuery, setMainPanelRequestedSearchQuery] = useState('');
+  const [mainPanelRequestedAnchorId, setMainPanelRequestedAnchorId] = useState('');
+  const [mainPanelRequestedAnchorSeq, setMainPanelRequestedAnchorSeq] = useState(0);
+  const [mainPanelRequestedWorkflowManagerTab, setMainPanelRequestedWorkflowManagerTab] = useState<WorkflowManagerTabKey>('graph');
   const mainPanelCardRef = useRef<HTMLDivElement>(null);
   const mainPanelDragStateRef = useRef<{
     startX: number;
@@ -85,7 +93,15 @@ export function useMainPanelDrag() {
       setIsMainPanelOpen(true);
       setMainPanelRequestedTab(tab);
       const requestedSearch = typeof options?.searchQuery === 'string' ? options.searchQuery : '';
+      const requestedAnchorId = typeof options?.anchorId === 'string' ? options.anchorId : '';
       setMainPanelRequestedSearchQuery(prev => (prev === requestedSearch ? prev : requestedSearch));
+      setMainPanelRequestedAnchorId(prev => (prev === requestedAnchorId ? prev : requestedAnchorId));
+      setMainPanelRequestedAnchorSeq(prev => prev + 1);
+      const requestedWorkflowManagerTab =
+        options?.workflowManagerTab === 'mapping' ? 'mapping' : 'graph'
+      setMainPanelRequestedWorkflowManagerTab(prev =>
+        prev === requestedWorkflowManagerTab ? prev : requestedWorkflowManagerTab,
+      )
       const fallbackPos = (() => {
         if (typeof window === 'undefined') return { top: 240, left: 240 };
         return {
@@ -183,6 +199,9 @@ export function useMainPanelDrag() {
     setIsMainPanelOpen,
     mainPanelRequestedTab,
     mainPanelRequestedSearchQuery,
+    mainPanelRequestedAnchorId,
+    mainPanelRequestedAnchorSeq,
+    mainPanelRequestedWorkflowManagerTab,
     setMainPanelRequestedTab,
     mainPanelCardRef,
     mainPanelPinned,

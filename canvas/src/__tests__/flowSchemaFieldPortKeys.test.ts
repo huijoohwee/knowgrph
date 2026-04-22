@@ -1,4 +1,5 @@
 import { computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
+import { pickDefaultFlowPortKey, pickDefaultTypedFlowPortKey } from '@/lib/graph/flowPorts'
 
 export const testFlowSchemaFieldPortKeysCreateStableHandlesForSchemaFields = () => {
   const nodes = [
@@ -34,3 +35,26 @@ export const testFlowSchemaFieldPortKeysCreateStableHandlesForSchemaFields = () 
   if (!t2InIds.has('in:field:id')) throw new Error('expected target port handle in:field:id')
 }
 
+export const testFlowDefaultPortKeyPrefersTypedWidgetPortsByDirection = () => {
+  const node = {
+    properties: {
+      'flow:portTypes': {
+        in: { output: 'TEXT', imageUrl: 'IMAGE_URL', videoUrl: 'VIDEO_URL' },
+        out: { text_out: 'TEXT' },
+      },
+      'schema:fields': ['fallback'],
+    },
+  }
+
+  const defaultOut = pickDefaultTypedFlowPortKey(node as never, 'out')
+  if (defaultOut !== 'text_out') throw new Error(`expected typed out port text_out, got ${String(defaultOut || '')}`)
+
+  const defaultIn = pickDefaultTypedFlowPortKey(node as never, 'in')
+  if (defaultIn !== 'output') throw new Error(`expected typed in port output, got ${String(defaultIn || '')}`)
+
+  const resolvedOut = pickDefaultFlowPortKey(node as never, 'out')
+  if (resolvedOut !== 'text_out') throw new Error(`expected default out flow port text_out, got ${String(resolvedOut || '')}`)
+
+  const resolvedIn = pickDefaultFlowPortKey(node as never, 'in')
+  if (resolvedIn !== 'output') throw new Error(`expected default in flow port output, got ${String(resolvedIn || '')}`)
+}

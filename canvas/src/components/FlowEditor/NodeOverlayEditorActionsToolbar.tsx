@@ -2,6 +2,7 @@ import React from 'react'
 
 import IconButton from '@/components/IconButton'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { cn } from '@/lib/utils'
 import { Copy, Eraser, GitMerge, HelpCircle, PanelRightOpen, Play, Share2, Trash2 } from 'lucide-react'
@@ -21,6 +22,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
   onRemove: () => void
   onEnableHandlesForAllInputs: () => void
   onConvertToLoopNode: () => void
+  onUpdateKvEntry?: () => void
 }) {
   const {
     visible,
@@ -37,6 +39,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     onRemove,
     onEnableHandlesForAllInputs,
     onConvertToLoopNode,
+    onUpdateKvEntry,
   } = args
 
   if (!visible || !active) return null
@@ -61,6 +64,24 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
         className="App-toolbar__btn"
       >
         <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+      </IconButton>
+
+      <IconButton
+        title={UI_LABELS.applyToNode}
+        tooltipContent="Update KV entry"
+        showTooltip
+        onClick={onUpdateKvEntry || (() => {
+          if (typeof window === 'undefined') return
+          window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, {
+            detail: {
+              tab: 'workflowManager' as const,
+              workflowManagerTab: 'mapping' as const,
+            },
+          }))
+        })}
+        className="App-toolbar__btn"
+      >
+        <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
       </IconButton>
 
       <IconButton

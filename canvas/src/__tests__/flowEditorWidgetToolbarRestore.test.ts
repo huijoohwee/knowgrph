@@ -12,6 +12,7 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   const copyText = readFileSync(copyPath, 'utf8')
 
   const requiredToolbarSnippets = [
+    'Update KV entry',
     'flowWidgetOpenInSidepane',
     'flowWidgetEnableHandles',
     'flowWidgetConvertToLoop',
@@ -45,6 +46,15 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   }
   if (!canvasText.includes('void runWorkflowNode(id)')) {
     throw new Error('expected FlowEditor widget Run action to reuse the existing workflow run callback')
+  }
+  if (!canvasText.includes("workflowManagerTab: 'mapping'")) {
+    throw new Error('expected widget toolbar Update KV entry action to deep-link into the mapping CRUD tab')
+  }
+  if (!canvasText.includes('const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({')) {
+    throw new Error('expected Update KV entry to resolve the exact active widget registry entry before opening the mapping tab')
+  }
+  if (!canvasText.includes('String(resolvedWidgetRegistryEntry?.id || \'\').trim()')) {
+    throw new Error('expected Update KV entry to search by exact registry entry id so multiple text widget variants open the correct CRUD rows')
   }
   if (!copyText.includes("flowWidgetRun: 'Run'")) {
     throw new Error('expected shared UI copy to expose a Run label for the widget tiny floating toolbar')

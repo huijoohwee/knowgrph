@@ -16,6 +16,10 @@ export const FLOW_WIDGET_DRAG_MIME = 'application/x-kg-flow-widget' as const
 
 export const FLOW_IMAGE_GENERATION_NODE_TYPE_ID = 'ImageGeneration' as const
 export const FLOW_IMAGE_GENERATION_NODE_LABEL = 'Image Widget' as const
+export const FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID = 'RichMediaPanel' as const
+export const FLOW_RICH_MEDIA_PANEL_NODE_LABEL = 'Rich Media Panel' as const
+export const FLOW_TEXT_GENERATION_NODE_TYPE_ID = 'TextGeneration' as const
+export const FLOW_TEXT_GENERATION_NODE_LABEL = 'Text Widget' as const
 export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const
 export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'Video Widget' as const
 
@@ -36,6 +40,26 @@ export function getFlowEditorSmartNodeModelOptions(mode?: 'image' | 'video' | nu
   if (mode === 'image') return FLOW_EDITOR_IMAGE_MODEL_OPTIONS
   if (mode === 'video') return FLOW_EDITOR_VIDEO_MODEL_OPTIONS
   return FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS
+}
+
+export function getFlowEditorSmartWidgetLabel(args: {
+  mode?: 'image' | 'video' | null
+  model?: unknown
+}): string {
+  const mode = args.mode === 'image' ? 'image' : args.mode === 'video' ? 'video' : null
+  if (mode === 'image') {
+    const value = String(args.model || '').trim() || CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
+    const option = FLOW_EDITOR_IMAGE_MODEL_OPTIONS.find(entry => entry.value === value)
+    const label = String(option?.label || value || FLOW_IMAGE_GENERATION_NODE_LABEL).replace(/\s*\(Default\)\s*$/i, '').trim()
+    return `${label || FLOW_IMAGE_GENERATION_NODE_LABEL} Image Widget`
+  }
+  if (mode === 'video') {
+    const value = String(args.model || '').trim() || CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
+    const option = FLOW_EDITOR_VIDEO_MODEL_OPTIONS.find(entry => entry.value === value)
+    const label = String(option?.label || value || FLOW_VIDEO_GENERATION_NODE_LABEL).replace(/\s*\(Default\)\s*$/i, '').trim()
+    return `${label || FLOW_VIDEO_GENERATION_NODE_LABEL} Video Widget`
+  }
+  return FLOW_TEXT_GENERATION_NODE_LABEL
 }
 
 export type FlowEditorAspectRatio = 'landscape' | 'portrait' | 'square'

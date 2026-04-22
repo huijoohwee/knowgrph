@@ -48,6 +48,7 @@ export const UI_LABELS = {
   search: 'Graph Search',
   chat: 'Chat',
   integrations: 'Integrations',
+  payments: 'Payments',
   inspector: 'Inspector',
   schema: 'Schema',
   settings: 'Settings',
