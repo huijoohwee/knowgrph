@@ -1,5 +1,6 @@
 import { addRxPlugin, createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
+import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'
 import type { SourceFile } from '@/hooks/store/types'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
@@ -11,6 +12,7 @@ let rxdbPluginsInitialized = false
 const ensureRxdbPlugins = () => {
   if (rxdbPluginsInitialized) return
   addRxPlugin(RxDBMigrationSchemaPlugin)
+  addRxPlugin(RxDBQueryBuilderPlugin)
   rxdbPluginsInitialized = true
 }
 

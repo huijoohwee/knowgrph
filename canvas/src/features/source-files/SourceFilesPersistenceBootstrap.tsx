@@ -1,5 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
 import {
   loadPersistedSourceFiles,
   loadPersistedSourceFilesWorkspace,
@@ -8,6 +9,7 @@ import {
   type SourceFilesWorkspaceState,
 } from '@/features/source-files/sourceFilesDb'
 import { applyComposedGraphFromSourceFiles, scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { hydratePendingUrlSourceFiles } from '@/features/source-files/sourceFilesIngestIntegration'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
@@ -66,6 +68,12 @@ export function SourceFilesPersistenceBootstrap() {
   const lastPersistedRef = React.useRef<unknown>(null)
   const workspaceHydratedRef = React.useRef(false)
   const lastWorkspacePersistedRef = React.useRef<unknown>(null)
+  React.useEffect(() => {
+    __canvasStartupDebug.sourceBootstrapMounted = true
+    return () => {
+      __canvasStartupDebug.sourceBootstrapMounted = false
+    }
+  }, [])
 
   React.useEffect(() => {
     let cancelled = false
@@ -88,6 +96,13 @@ export function SourceFilesPersistenceBootstrap() {
           hydratedRef.current = true
         }
 
+        try {
+          __canvasStartupDebug.sourceBootstrapHydrateRuns += 1
+          await hydratePendingUrlSourceFiles()
+          __canvasStartupDebug.sourceBootstrapLastHydrateFinishedAtMs = Date.now()
+        } catch {
+          void 0
+        }
         try {
           applyComposedGraphFromSourceFiles()
         } catch {

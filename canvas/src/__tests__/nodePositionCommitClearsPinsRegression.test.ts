@@ -68,7 +68,7 @@ export async function testComposedPositionCommitClearsFxFyPinsInViewAndSourceFil
       throw new Error('expected composed view position commit to clear transient fx/fy pins')
     }
 
-    await new Promise<void>(resolve => setTimeout(resolve, 450))
+    mid.flushComposedPositionWritesNow()
     const after = useGraphStore.getState()
     const fileAfter = after.sourceFiles.find(f => f.id === 'sf-1')
     const layerNodeAfter = fileAfter?.parsedGraphData?.nodes?.find(v => v.id === 'n1')
@@ -82,4 +82,3 @@ export async function testComposedPositionCommitClearsFxFyPinsInViewAndSourceFil
     bootstrap.restore()
   }
 }
-

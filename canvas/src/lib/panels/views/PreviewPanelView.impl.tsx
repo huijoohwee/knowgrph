@@ -38,6 +38,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 
 const MermaidDiagramLazy = React.lazy(() =>
@@ -61,6 +62,7 @@ export default function PreviewPanelView() {
   const graphData = useActiveGraphRenderData()
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
   const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry || [])
+  const baseWidgetRegistry = useGraphStore(s => s.widgetRegistry || [])
   const documentWidgetRegistry = useGraphStore(s => s.documentWidgetRegistry || [])
   const rootThemeMode = useRootThemeMode()
 
@@ -438,9 +440,11 @@ export default function PreviewPanelView() {
 
     if (graphData && Array.isArray(graphData.nodes) && graphData.nodes.length > 0) {
       const dataflowRegistry =
-        Array.isArray(documentWidgetRegistry) && documentWidgetRegistry.length > 0
-          ? documentWidgetRegistry
-          : widgetRegistry
+        buildDataflowWidgetRegistry({
+          documentWidgetRegistry,
+          effectiveWidgetRegistry: widgetRegistry,
+          widgetRegistry: baseWidgetRegistry,
+        })
       const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
         graphData,
         registry: dataflowRegistry,
@@ -492,7 +496,7 @@ export default function PreviewPanelView() {
     }
 
     return list
-  }, [documentWidgetRegistry, graphData, markdownDocumentName, mermaidFrontmatterConfig, meta, rootThemeMode, tokens, widgetRegistry])
+  }, [baseWidgetRegistry, documentWidgetRegistry, graphData, markdownDocumentName, mermaidFrontmatterConfig, meta, rootThemeMode, tokens, widgetRegistry])
 
   const hasMermaidFocus = !!mermaidFocusCode
 

@@ -31,11 +31,20 @@ const getRegistryIndex = (registry: ReadonlyArray<WidgetRegistryEntry>): Registr
   return idx
 }
 
+const entryRichnessScore = (entry: WidgetRegistryEntry): number => {
+  const ports = Array.isArray(entry.ports) ? entry.ports.length : 0
+  const schemaMappings = Array.isArray(entry.schemaMappings) ? entry.schemaMappings.length : 0
+  const fields = Array.isArray(entry.fields) ? entry.fields.length : 0
+  return ports * 100 + schemaMappings * 20 + fields * 5
+}
+
 const compareRegistryEntries = (a: WidgetRegistryEntry, b: WidgetRegistryEntry): number => {
   const t = a.widgetTypeId.localeCompare(b.widgetTypeId)
   if (t !== 0) return t
   const f = a.formId.localeCompare(b.formId)
   if (f !== 0) return f
+  const richnessDelta = entryRichnessScore(b) - entryRichnessScore(a)
+  if (richnessDelta !== 0) return richnessDelta
   return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
 }
 
@@ -61,13 +70,19 @@ export function resolveWidgetRegistryEntry(args: {
   if (isFrontmatterFlow) {
     const expectedForm = wantForm || (nodeId ? `fm:${nodeId}` : '')
     if (!expectedForm) return null
+    let bestMatch: WidgetRegistryEntry | null = null
     for (let i = 0; i < candidatesAll.length; i += 1) {
       const e = candidatesAll[i]
       if (!e) continue
       if (wantType && e.widgetTypeId !== wantType) continue
-      if (e.formId === expectedForm) return e
+      if (e.formId !== expectedForm) continue
+      if (!bestMatch) {
+        bestMatch = e
+        continue
+      }
+      if (compareRegistryEntries(e, bestMatch) < 0) bestMatch = e
     }
-    return null
+    return bestMatch
   }
 
   const restrictByType = (() => {

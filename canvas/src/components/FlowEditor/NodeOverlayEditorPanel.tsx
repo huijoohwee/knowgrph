@@ -313,12 +313,12 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             </h3>
           </section>
 
-          {active && (
-            <nav className="flex items-center gap-1" aria-label={UI_LABELS.flowWidget}>
+          <nav className="flex items-center gap-1" aria-label={UI_LABELS.flowWidget}>
               <IconButton
                 title={UI_LABELS.flowWidgetValidate}
                 tooltipContent={UI_LABELS.flowWidgetValidate}
                 showTooltip
+                disabled={!active}
                 onClick={onValidate}
                 className="App-toolbar__btn"
               >
@@ -329,6 +329,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                 title={hideFields ? UI_LABELS.showFields : UI_LABELS.hideFields}
                 tooltipContent={hideFields ? UI_COPY.flowWidgetShowFields : UI_COPY.flowWidgetHideFields}
                 showTooltip
+                disabled={!active}
                 onClick={onToggleHideFields}
                 className={cn('App-toolbar__btn', hideFields ? UI_THEME_TOKENS.icon.active : '')}
               >
@@ -343,6 +344,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                 title={minimized ? UI_LABELS.restorePanel : UI_LABELS.minimizePanel}
                 tooltipContent={minimized ? UI_COPY.flowWidgetRestore : UI_COPY.flowWidgetMinimize}
                 showTooltip
+                disabled={!active}
                 onClick={onToggleMinimized}
                 className="App-toolbar__btn"
               >
@@ -358,6 +360,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                   title={pinned ? UI_LABELS.unpinPanel : UI_LABELS.pinPanel}
                   tooltipContent={pinned ? UI_COPY.flowWidgetUnpin : UI_COPY.flowWidgetPin}
                   showTooltip
+                  disabled={!active}
                   onPointerDown={onPinnedPointerDown}
                   onClick={onTogglePinned}
                   className={getPinToggleButtonClassName(pinned)}
@@ -369,8 +372,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                   )}
                 </IconButton>
               )}
-            </nav>
-          )}
+          </nav>
         </section>
       </header>
 

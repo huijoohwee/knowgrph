@@ -11,6 +11,7 @@ import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDat
 import { defaultSchema } from '@/lib/graph/schema'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
+import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 
 export function testRichMediaPanelRendersConnectedTextWidgetOutput() {
   const node = {
@@ -318,6 +319,67 @@ export function testOpenAiTextWidgetPipelineRendersInRichMediaPanel() {
   }
 }
 
+export function testTextWidgetOutputDoesNotCompeteWithRichMediaPanelOverlay() {
+  const graphData = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [
+      {
+        id: 'w-openai-text',
+        type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+        label: 'OpenAI Text Widget',
+        properties: {
+          output: '## OpenAI output',
+          outputSrcDoc: '<html><body>OpenAI output</body></html>',
+          'flow:widgetFormId': 'textGeneration.openai',
+        },
+      },
+      {
+        id: 'p-rich-media',
+        type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        label: 'Rich Media Panel',
+        properties: {
+          'flow:widgetFormId': 'richMediaPanel',
+        },
+      },
+    ],
+    edges: [
+      {
+        id: 'e-1',
+        source: 'w-openai-text',
+        target: 'p-rich-media',
+        properties: {
+          'flow:sourcePortKey': 'text_out',
+          'flow:targetPortKey': 'output',
+        },
+      },
+    ],
+    metadata: {},
+  } as any
+  const seeded = ensureDefaultWidgetRegistryEntries([]).entries
+  const connectedByNodeId = computeFlowConnectedValuesBySchemaPath({
+    graphData,
+    registry: seeded,
+  })
+  const renderNodes = (graphData.nodes || []).map((node: any) => {
+    const nodeId = String(node.id || '')
+    return applyConnectedValuesToNodeForRender({
+      node,
+      connectedValuesBySchemaPath: connectedByNodeId.get(nodeId),
+    })
+  })
+  const overlays = listMediaOverlayNodes({
+    enabled: true,
+    nodes: renderNodes,
+    poolMax: 24,
+    connectedValuesByNodeId: connectedByNodeId,
+  })
+  if (overlays.length !== 1) throw new Error(`expected only one overlay renderer for connected text output, got ${overlays.length}`)
+  if (String(overlays[0]?.id || '') !== 'p-rich-media') {
+    throw new Error(`expected Rich Media Panel to remain the single text overlay renderer, got ${String(overlays[0]?.id || '<none>')}`)
+  }
+}
+
 export function testSeedreamImageWidgetPipelineRendersInRichMediaPanel() {
   const spec = runWidgetToRichMediaPanelPipeline({
     sourceNodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
@@ -352,9 +414,12 @@ export function testFlowCanvasUsesConnectedValuesForRichMediaPanelOverlays() {
 
   const requiredSnippets = [
     'computeFlowConnectedValuesBySchemaPath',
+    'buildDataflowWidgetRegistry',
     'applyConnectedValuesToNodeForRender',
     'const mediaRenderNodes = React.useMemo(() => {',
     'connectedValuesByNodeId',
+    'baseWidgetRegistry: s.widgetRegistry',
+    'widgetRegistry: baseWidgetRegistry',
     'const nodes = mediaRenderNodes',
   ]
   for (const snippet of requiredSnippets) {

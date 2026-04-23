@@ -1,5 +1,6 @@
 import React from 'react'
 import { cancelIdle, scheduleIdle } from '@/features/panels/utils/idle'
+import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
 
 type DeferredCanvasStartupRuntimesModule = {
   SourceFilesPersistenceBootstrap: React.ComponentType
@@ -8,6 +9,12 @@ type DeferredCanvasStartupRuntimesModule = {
 
 export function CanvasStartupRuntimes() {
   const [runtimeModule, setRuntimeModule] = React.useState<DeferredCanvasStartupRuntimesModule | null>(null)
+  React.useEffect(() => {
+    __canvasStartupDebug.runtimeMounted = true
+    return () => {
+      __canvasStartupDebug.runtimeMounted = false
+    }
+  }, [])
 
   React.useEffect(() => {
     let cancelled = false

@@ -125,6 +125,8 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     props.output,
     props.text,
     props.markdown,
+    props.richMediaActiveTab,
+    props.freezeConnectedOutput,
   ]
     .map(v => String(v ?? ''))
     .join('\n')
@@ -158,6 +160,11 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const outputText = (() => {
     const s = (props as Record<string, unknown>).output
     return typeof s === 'string' ? s : ''
+  })()
+
+  const richMediaActiveTab = (() => {
+    if (String(node.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return ''
+    return String((props as Record<string, unknown>).richMediaActiveTab || '').trim().toLowerCase()
   })()
   let markdownMedia: { kind: NodeMediaKind; url: string } | null = null
   const getMarkdownMediaOnce = () => {
@@ -222,6 +229,38 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     const s = (props as Record<string, unknown>).outputSrcDoc
     return typeof s === 'string' ? s.trim() : ''
   })()
+
+  const rawInteractive = (props as Record<string, unknown>).media_interactive
+  const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
+
+  if (String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+    const selected = richMediaActiveTab === 'video' || richMediaActiveTab === 'image' || richMediaActiveTab === 'text'
+      ? richMediaActiveTab
+      : ''
+    if (selected === 'video') {
+      const chosen = videoUrl || videoUrlCamel || videoUrlLegacy
+      if (chosen) return { kind: 'video', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
+    }
+    if (selected === 'image') {
+      const chosen = imageUrl || imageUrlCamel || imageUrlLegacy
+      if (chosen) return { kind: 'image', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : false }
+    }
+    if (selected === 'text') {
+      if (outputSrcDoc) return { kind: 'iframe', url: '', srcDoc: outputSrcDoc, interactive: false }
+      const trimmed = outputText.trim()
+      if (trimmed) {
+        return {
+          kind: 'iframe',
+          url: '',
+          srcDoc: buildTextWidgetOutputSrcDoc({
+            title: String(node.label || node.id || '').trim() || 'Rich Media Panel',
+            text: outputText,
+          }),
+          interactive: false,
+        }
+      }
+    }
+  }
   const domMediaUrl = (() => {
     if (!domTag) return ''
     if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'IFRAME' || domTag === 'SVG') return domSrc
@@ -241,17 +280,10 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
   const resolvedUrl = url || (domMediaUrl ? coerceMediaUrl(domMediaUrl) : null)
   if (!resolvedUrl) {
-    if (String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-      return { kind: 'iframe', url: '', interactive: false }
-    }
-    if (outputSrcDoc) {
+    if (outputSrcDoc && String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
       return { kind: 'iframe', url: '', srcDoc: outputSrcDoc, interactive: false }
     }
-    if (
-      outputText.trim()
-      && (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID
-        || String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
-    ) {
+    if (outputText.trim() && String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
       return {
         kind: 'iframe',
         url: '',
@@ -261,6 +293,9 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
         }),
         interactive: false,
       }
+    }
+    if (String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+      return { kind: 'iframe', url: '', interactive: false }
     }
     if (domTag === 'IFRAME' && domSrcDoc) {
       if (/<\s*script\b/i.test(domSrcDoc)) return null
@@ -286,8 +321,6 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
               ? 'iframe'
               : (getMarkdownMediaOnce()?.kind || ((inferMediaKindFromUrl(resolvedUrl) || 'image') as NodeMediaKind))
 
-  const rawInteractive = (props as Record<string, unknown>).media_interactive
-  const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
   const interactive = explicitInteractive != null ? explicitInteractive : kind === 'video' || kind === 'iframe'
 
   if (kind === 'iframe') {

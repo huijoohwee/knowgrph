@@ -39,6 +39,8 @@ export function RichMediaOverlayLayer2d(props: {
   if (!active) return null
   if (mediaOverlayNodes.length === 0) return null
 
+  const updateNode = useGraphStore(s => s.updateNode)
+
   return (
     <section aria-label="D3 rich media overlay" className="absolute inset-0 z-[80] pointer-events-none">
       {mediaOverlayNodes.map(n => {
@@ -56,6 +58,20 @@ export function RichMediaOverlayLayer2d(props: {
             kind={kind}
             interactive={allowEmbeddedMediaInteraction ? true : (renderMediaAsNodes === true && n.interactive)}
             iframeMode="srcdoc-when-needed"
+            panel={n.panel}
+            onPanelChange={next => {
+              if (!n.panel) return
+              if (!next) return
+              const nextTab = String(next.activeTab || 'auto').trim().toLowerCase()
+              const activeTab = nextTab === 'text' || nextTab === 'image' || nextTab === 'video' || nextTab === 'auto' ? nextTab : 'auto'
+              updateNode(n.id, {
+                properties: {
+                  richMediaActiveTab: activeTab,
+                  freezeConnectedOutput: Boolean(next.freezeConnectedOutput),
+                  ...(typeof next.text === 'string' ? { output: next.text } : {}),
+                },
+              })
+            }}
             forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => svgRef.current)}
             shouldStartHeaderDrag={() => {
               if (useGraphStore.getState().canvasPointerMode2d === 'pan') return false

@@ -375,7 +375,7 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     type: 'string',
     source: 'localStorage',
     read: () => s().chatAuthMode,
-    write: (v) => s().setChatAuthMode(String(v || '').trim() === 'byok' ? 'byok' : 'serverManaged'),
+    write: (v) => s().setChatAuthMode(String(v || '').trim().toLowerCase() === 'byok' ? 'byok' : 'serverManaged'),
     docKey: 'chatAuthMode',
     default: () => 'serverManaged',
     options: ['serverManaged', 'byok'],

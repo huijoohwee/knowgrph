@@ -480,3 +480,26 @@ export function createMarkdownSourceFilesIngestIntegration(): MarkdownSourceFile
     onClear: args => clearActiveSourceFile(args),
   }
 }
+
+export async function hydratePendingUrlSourceFiles(): Promise<void> {
+  const store = useGraphStore.getState()
+  const sourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+  const pending = sourceFiles.filter(file => {
+    if (!file?.enabled) return false
+    const source = file.source
+    if (!source || source.kind !== 'url') return false
+    const url = String(source.url || '').trim()
+    if (!url) return false
+    if (String(file.text || '').trim()) return false
+    if (file.parsedGraphData) return false
+    if (file.status === 'loading') return false
+    return true
+  })
+  for (let i = 0; i < pending.length; i += 1) {
+    const file = pending[i]!
+    const source = file.source
+    const url = source && source.kind === 'url' ? String(source.url || '').trim() : ''
+    if (!url) continue
+    await importUrlIntoActive({ fileId: file.id, url, format: 'markdown' })
+  }
+}

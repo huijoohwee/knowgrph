@@ -1,5 +1,7 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceBasename } from './path'
+import { readEnvString } from '@/lib/config.env'
+import { buildRepoFilePath } from '@/lib/url'
 
 const notifyWorkspaceFsDegraded = async (err: unknown) => {
   try {
@@ -233,6 +235,16 @@ export function resetWorkspaceFsForTests(): void {
 }
 
 export const LEGACY_WORKSPACE_README_PATH = '/README.md' as WorkspacePath
+export const LEGACY_WORKSPACE_TRIP_DEMO_PATH = '/trip-demo-mmd.md' as WorkspacePath
+export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
+  LEGACY_WORKSPACE_README_PATH,
+  LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+])
+export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
+  'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
+  'sandbox/test-data/knowgrph-rich-media-generation-demo.md',
+)
+export const TEST_VALIDATION_WORKSPACE_SEED_PATH = `/${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH) || 'knowgrph-rich-media-generation-demo.md'}` as WorkspacePath
 export const LEGACY_WORKSPACE_README_TEXT = [
   '# Workspace',
   '',
@@ -257,23 +269,44 @@ const DEFAULT_WORKSPACE_README_TEXT = [
   'Open `trip-demo-mmd.md` to verify the Markdown Editor/Viewer renders content.',
 ].join('\n')
 
-const loadTripDemoMmdSeedText = async (): Promise<string> => {
-  try {
-    const mod = (await import('./seed/trip-demo-mmd.md?raw')) as unknown
-    const text = (mod as { default?: unknown })?.default
-    const out = typeof text === 'string' ? text.trim() : ''
-    return out
-  } catch {
-    return ''
+const loadValidationWorkspaceSeedText = async (): Promise<string> => {
+  const repoFilePath = buildRepoFilePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
+  if (typeof fetch === 'function') {
+    try {
+      const res = await fetch(repoFilePath)
+      if (res.ok) {
+        const text = (await res.text()).trim()
+        if (text) return text
+      }
+    } catch {
+      void 0
+    }
   }
+  return [
+    '---',
+    `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-rich-media-generation-demo.md'}"`,
+    '---',
+    '',
+    `Validation seed fallback for \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`,
+  ].join('\n')
 }
 
 export async function getWorkspaceSeedFiles(): Promise<Array<{ path: WorkspacePath; text: string }>> {
-  const tripText = await loadTripDemoMmdSeedText()
+  const validationText = await loadValidationWorkspaceSeedText()
   return [
-    { path: '/README.md', text: DEFAULT_WORKSPACE_README_TEXT },
-    { path: '/trip-demo-mmd.md', text: tripText || DEFAULT_WORKSPACE_README_TEXT },
+    { path: TEST_VALIDATION_WORKSPACE_SEED_PATH, text: validationText || DEFAULT_WORKSPACE_README_TEXT },
   ]
+}
+
+export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<WorkspacePath>): boolean {
+  const normalized = paths
+    .map(path => normalizeWorkspacePath(path))
+    .filter((path): path is WorkspacePath => Boolean(path))
+  if (normalized.length === 0) return false
+  for (let i = 0; i < normalized.length; i += 1) {
+    if (!LEGACY_WORKSPACE_SEED_PATHS.has(normalized[i]!)) return false
+  }
+  return true
 }
 
 export function defaultParentPath(): WorkspacePath {

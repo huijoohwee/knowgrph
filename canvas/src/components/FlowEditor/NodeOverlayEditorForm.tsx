@@ -458,7 +458,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const ids = React.useMemo(() => {
     return {
       label: `${idBase}-label`,
-      type: `${idBase}-type`,
       model: `${idBase}-model`,
       prompt: `${idBase}-prompt`,
       aspect: `${idBase}-aspect`,
@@ -922,28 +921,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           dotHitPx={dotHitPx}
           forcePortDots
           rows={[
-            {
-              rowKey: 'node-type',
-              labelId: `${idBase}-kv-node-type`,
-              keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.type}>type</label>,
-              typeNode: renderKvTypeBox('string'),
-              valueNode: (
-                <input
-                  id={ids.type}
-                  className={cn(
-                    keyValueInputClass,
-                    textSizeClass,
-                    'text-left',
-                    UI_THEME_TOKENS.input.bg,
-                    UI_THEME_TOKENS.input.border,
-                    UI_THEME_TOKENS.input.text,
-                  )}
-                  value={String(node.type || '')}
-                  readOnly
-                  disabled
-                />
-              ),
-            },
             {
               rowKey: 'node-label',
               labelId: `${idBase}-kv-node-label`,

@@ -794,7 +794,12 @@ export const createUiSlice = (set: SetGraph) => {
           .replace(/[\r\n]/g, '')
           .trim()
           .slice(0, 512)
-        if (state.chatAuthMode === 'serverManaged' && sanitized) return {}
+        if (state.chatAuthMode === 'serverManaged' && sanitized) {
+          return {
+            chatAuthMode: lsSetJson(LS_KEYS.chatAuthMode, 'byok'),
+            chatApiKey: sanitized,
+          }
+        }
         if (state.chatApiKey === sanitized) return {}
         return { chatApiKey: sanitized }
       }),

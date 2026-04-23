@@ -1,6 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildSourceLayerKeys, composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
-import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 
 let pendingComposeRaf: number | null = null
@@ -20,7 +19,8 @@ export function scheduleApplyComposedGraphFromSourceFiles() {
 
 export function applyComposedGraphFromSourceFiles() {
   const store = useGraphStore.getState()
-  if (isFrontmatterOnlyPolicyActive({ canvasRenderMode: store.canvasRenderMode, canvas2dRenderer: store.canvas2dRenderer })) return
+  const hasEnabledSourceFiles = (store.sourceFiles || []).some(f => Boolean(f?.enabled))
+  if (!hasEnabledSourceFiles) return
   const layers = (store.sourceFiles || []).map(f => ({
     id: f.id,
     name: f.name,
@@ -42,10 +42,19 @@ export function applyComposedGraphFromSourceFiles() {
   const { graphData } = composeGraphFromSourceLayers({ layers, precomputedKeys: { contentKey, orderKey } })
 
   const composedHasContent = !!((graphData.nodes && graphData.nodes.length) || (graphData.edges && graphData.edges.length))
+  const hasPendingEnabledRemoteSource = layers.some(layer => {
+    if (!layer.enabled) return false
+    const source = layer.source
+    if (!source || source.kind !== 'url') return false
+    if (String(source.url || '').trim() === '') return false
+    if (String(layer.text || '').trim()) return false
+    return !layer.parsedGraphData
+  })
   const prevHasContent = !!(
     store.graphData &&
     ((store.graphData.nodes && store.graphData.nodes.length) || (store.graphData.edges && store.graphData.edges.length))
   )
+  if (!composedHasContent && hasPendingEnabledRemoteSource) return
   if (!composedHasContent && prevHasContent) {
     const hasPendingEnabledText = layers.some(l => l.enabled && String(l.text || '').trim() && !l.parsedGraphData)
     const hasAnyParsedEnabled = layers.some(l => l.enabled && !!l.parsedGraphData)

@@ -1,6 +1,11 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
-import { LEGACY_WORKSPACE_README_PATH, LEGACY_WORKSPACE_README_TEXT, getWorkspaceSeedFiles } from './workspaceFs'
+import {
+  LEGACY_WORKSPACE_README_PATH,
+  LEGACY_WORKSPACE_README_TEXT,
+  getWorkspaceSeedFiles,
+  shouldMigrateLegacyWorkspaceSeedPaths,
+} from './workspaceFs'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
@@ -48,6 +53,14 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
     const legacy = entriesByPath.get(legacyPath)
     if (legacy && legacy.kind === 'file' && String(legacy.text ?? '') === LEGACY_WORKSPACE_README_TEXT) {
       entriesByPath.delete(legacyPath)
+    }
+
+    const existingFilePaths = [...entriesByPath.values()]
+      .filter(e => e.kind === 'file')
+      .map(e => normalizeWorkspacePath(e.path))
+      .filter((path): path is WorkspacePath => Boolean(path))
+    if (shouldMigrateLegacyWorkspaceSeedPaths(existingFilePaths)) {
+      for (const path of existingFilePaths) entriesByPath.delete(path)
     }
 
     const hasFiles = [...entriesByPath.values()].some(e => e.kind === 'file')

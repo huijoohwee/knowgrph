@@ -31,3 +31,26 @@ export function testSourceFilesIngestDedupesPendingParsesForSameTextHash() {
     throw new Error('expected source file ingest parse path to clear pending text hashes after completion')
   }
 }
+
+export function testSourceFilesIngestHydratesPendingUrlSourcesOnBootstrap() {
+  const ingestPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
+  const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const ingestText = readFileSync(ingestPath, 'utf8')
+  const bootstrapText = readFileSync(bootstrapPath, 'utf8')
+
+  if (!ingestText.includes('export async function hydratePendingUrlSourceFiles(): Promise<void>')) {
+    throw new Error('expected source file ingest integration to expose bootstrap hydration for pending url sources')
+  }
+  if (!ingestText.includes("if (!source || source.kind !== 'url') return false")) {
+    throw new Error('expected pending url hydration to gate on canonical url sources only')
+  }
+  if (!ingestText.includes("if (String(file.text || '').trim()) return false")) {
+    throw new Error('expected pending url hydration to skip already-hydrated source file text')
+  }
+  if (!ingestText.includes("await importUrlIntoActive({ fileId: file.id, url, format: 'markdown' })")) {
+    throw new Error('expected pending url hydration to reuse upstream url import flow')
+  }
+  if (!bootstrapText.includes('await hydratePendingUrlSourceFiles()')) {
+    throw new Error('expected source files bootstrap to hydrate pending url sources before composing graph data')
+  }
+}

@@ -66,6 +66,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
 
     const srcPath = workspaceSourcePathKey(path)
     const prev = existingWorkspaceByPath.get(srcPath) || null
+    if (!prev && !sourcesByPath[path]) continue
     const id = prev?.id || `ws:${hashStringToHex(srcPath)}`
 
     const src = sourcesByPath[path]

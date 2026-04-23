@@ -1807,9 +1807,12 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const bytePlusApiKey = (headerProviderApiKey || envBytePlusApiKey).slice(0, 512)
     const providerApiKey = requiresBytePlusKey ? bytePlusApiKey : openAiApiKey
     if (requiresOpenAiKey && !openAiApiKey) {
-      res.statusCode = 500
+      res.statusCode = 401
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({ ok: false, error: 'Missing OpenAI API key for chat proxy upstream' }))
+      res.end(JSON.stringify({
+        ok: false,
+        error: 'Missing OpenAI API key for chat proxy upstream. Set Settings → Chat auth to BYOK, or export OPENAI_API_KEY and restart the dev server.',
+      }))
       return
     }
     if (requiresBytePlusKey && !providerApiKey) {
@@ -1910,6 +1913,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       upstreamRes.headers.forEach((value, key) => {
         const lower = key.toLowerCase()
         if (lower === 'content-length') return
+        if (lower === 'content-encoding') return
         if (lower === 'connection') return
         if (lower === 'transfer-encoding') return
         if (lower === 'www-authenticate') return
@@ -4154,19 +4158,30 @@ function createRepoFileHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
 
-    const rootResolved = path.resolve(repoRoot)
-    const fileAbs = path.resolve(rootResolved, repoPath)
-    if (!fileAbs.startsWith(rootResolved + path.sep) && fileAbs !== rootResolved) {
-      res.statusCode = 403
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-      res.end('Forbidden')
-      return
-    }
+    const roots = [path.resolve(repoRoot), path.resolve(repoRoot, '..')]
 
     try {
-      const stat = await fs.stat(fileAbs)
-      if (!stat.isFile()) throw new Error('Not found')
-      const content = await fs.readFile(fileAbs)
+      let fileAbs: string | null = null
+      let content: Buffer | null = null
+      for (const rootResolved of roots) {
+        const candidate = path.resolve(rootResolved, repoPath)
+        if (!candidate.startsWith(rootResolved + path.sep) && candidate !== rootResolved) continue
+        try {
+          const stat = await fs.stat(candidate)
+          if (!stat.isFile()) continue
+          fileAbs = candidate
+          content = await fs.readFile(candidate)
+          break
+        } catch {
+          continue
+        }
+      }
+      if (!fileAbs || !content) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not found')
+        return
+      }
       const ext = path.extname(fileAbs).toLowerCase()
       const types: Record<string, string> = {
         '.html': 'text/html',
@@ -4175,6 +4190,9 @@ function createRepoFileHandler(): import('vite').Connect.NextHandleFunction {
         '.js': 'text/javascript',
         '.mjs': 'text/javascript',
         '.json': 'application/json',
+        '.md': 'text/markdown',
+        '.markdown': 'text/markdown',
+        '.mdx': 'text/markdown',
         '.png': 'image/png',
         '.jpg': 'image/jpeg',
         '.jpeg': 'image/jpeg',
@@ -4198,9 +4216,9 @@ function createRepoFileHandler(): import('vite').Connect.NextHandleFunction {
       }
       res.end(content)
     } catch {
-      res.statusCode = 404
+      res.statusCode = 500
       res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-      res.end('Not found')
+      res.end('Failed to load repo file')
     }
   }
 }

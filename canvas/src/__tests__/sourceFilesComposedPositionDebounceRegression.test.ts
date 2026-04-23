@@ -45,12 +45,12 @@ export async function testComposedPositionUpdateIsDebouncedToSourceFiles() {
       throw new Error('expected source file node position update to be deferred')
     }
 
-    await new Promise<void>(resolve => setTimeout(resolve, 450))
+    mid.flushComposedPositionWritesNow()
     const after = useGraphStore.getState()
     const fileAfter = after.sourceFiles.find(f => f.id === 'sf-1')
     const layerNodeAfter = fileAfter?.parsedGraphData?.nodes?.find(n => n.id === 'n1')
     if (!layerNodeAfter || layerNodeAfter.x !== 10 || layerNodeAfter.y !== 20) {
-      throw new Error('expected source file node position to be committed after debounce')
+      throw new Error('expected source file node position to be committed after flush')
     }
     if ((fileAfter?.parsedGraphRevision || 0) !== 1) throw new Error('expected parsedGraphRevision to increment on commit')
   } finally {
@@ -58,4 +58,3 @@ export async function testComposedPositionUpdateIsDebouncedToSourceFiles() {
     bootstrap.restore()
   }
 }
-

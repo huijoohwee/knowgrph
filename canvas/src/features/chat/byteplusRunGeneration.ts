@@ -158,6 +158,32 @@ const resolveGenerationModel = async (
 
 const extractChatText = (payload: unknown): string => {
   if (!payload || typeof payload !== 'object') return ''
+  const openAiResponsesDirect = (() => {
+    const direct = (payload as { output_text?: unknown }).output_text
+    return typeof direct === 'string' ? direct.trim() : ''
+  })()
+  if (openAiResponsesDirect) return openAiResponsesDirect
+
+  const openAiResponsesOutput = (() => {
+    const output = (payload as { output?: unknown }).output
+    if (!Array.isArray(output) || !output.length) return ''
+    const parts: string[] = []
+    for (const item of output) {
+      if (!item || typeof item !== 'object') continue
+      const content = (item as { content?: unknown }).content
+      if (!Array.isArray(content)) continue
+      for (const entry of content) {
+        if (!entry || typeof entry !== 'object') continue
+        const type = String((entry as { type?: unknown }).type || '').trim().toLowerCase()
+        if (type && type !== 'output_text' && type !== 'text') continue
+        const text = (entry as { text?: unknown }).text
+        if (typeof text === 'string' && text.trim()) parts.push(text)
+      }
+    }
+    return parts.join('\n').trim()
+  })()
+  if (openAiResponsesOutput) return openAiResponsesOutput
+
   const choices = (payload as { choices?: unknown }).choices
   if (!Array.isArray(choices) || !choices.length) return ''
   const first = choices[0] as { message?: { content?: unknown } } | null
@@ -281,6 +307,12 @@ export async function generateRunMarkdownWithProvider(args: {
 }): Promise<string | null> {
   const endpoint = resolveChatEndpointForRequest(args.config.endpointUrl)
   if (!endpoint) return null
+  const isResponsesEndpoint = (() => {
+    const raw = String(endpoint || '')
+    const q = raw.indexOf('?')
+    const path = q >= 0 ? raw.slice(0, q) : raw
+    return /\/v1\/responses\/?$/i.test(path)
+  })()
   const model = await resolveGenerationModel(args.config, 'text')
   const requestId = toRequestId('kg-run-text')
   const providerOptions = buildProviderChatRequestOptions({
@@ -318,6 +350,7 @@ export async function generateRunMarkdownWithProvider(args: {
       content: args.prompt,
     },
   ]
+  const requestMessages = providerMessages || baseMessages
   const tokenLimit = cleanInteger(args.options?.chatMaxCompletionTokens)
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -326,8 +359,16 @@ export async function generateRunMarkdownWithProvider(args: {
       model,
       ...providerOptions,
       stream: false,
-      messages: providerMessages || baseMessages,
-      ...(tokenLimit != null && tokenLimit > 0 ? { max_completion_tokens: tokenLimit } : {}),
+      ...(isResponsesEndpoint
+        ? {
+            instructions: baseMessages[0]?.content,
+            input: String(args.prompt || ''),
+            ...(tokenLimit != null && tokenLimit > 0 ? { max_output_tokens: tokenLimit } : {}),
+          }
+        : {
+            messages: requestMessages,
+            ...(tokenLimit != null && tokenLimit > 0 ? { max_completion_tokens: tokenLimit } : {}),
+          }),
     }),
   })
   if (!res.ok) {

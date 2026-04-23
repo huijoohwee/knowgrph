@@ -1,12 +1,26 @@
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphData, GraphEdge } from '@/lib/graph/types'
+import {
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
 
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
+const FLOW_WIDGET_NODE_TYPE_IDS = new Set<string>([
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+])
 
 const isRecord = (v: unknown): v is Record<string, unknown> => Boolean(v) && typeof v === 'object' && !Array.isArray(v)
 
-export function isFlowWidgetEligibleNode(node: Pick<GraphNode, 'properties'> | null | undefined): boolean {
+export function isFlowWidgetEligibleNode(node: Pick<GraphNode, 'properties' | 'type'> | null | undefined): boolean {
+  const nodeTypeId = typeof node?.type === 'string' ? node.type.trim() : ''
+  if (nodeTypeId && FLOW_WIDGET_NODE_TYPE_IDS.has(nodeTypeId)) return true
   const props = node?.properties
   if (!isRecord(props)) return false
   const raw = props[FLOW_WIDGET_FORM_ID_KEY]
@@ -17,7 +31,7 @@ export function isFlowWidgetEligibleNode(node: Pick<GraphNode, 'properties'> | n
   return false
 }
 
-export function buildFlowWidgetEligibleNodeIdSet(nodes: Array<Pick<GraphNode, 'id' | 'properties'>>): Set<string> {
+export function buildFlowWidgetEligibleNodeIdSet(nodes: Array<Pick<GraphNode, 'id' | 'properties' | 'type'>>): Set<string> {
   const out = new Set<string>()
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]

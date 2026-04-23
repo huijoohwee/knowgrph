@@ -19,6 +19,16 @@ import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMedia
 
 export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video'
 
+export type RichMediaPanelOverlayState = {
+  activeTab: 'auto' | 'text' | 'image' | 'video'
+  freezeConnectedOutput: boolean
+  hasText: boolean
+  hasImage: boolean
+  hasVideo: boolean
+  text: string
+  connectedText: string
+}
+
 export type MediaOverlayNode = {
   id: string
   title: string
@@ -27,6 +37,7 @@ export type MediaOverlayNode = {
   openUrl: string
   interactive: boolean
   kind: MediaOverlayKind
+  panel?: RichMediaPanelOverlayState
 }
 
 type RankedMediaNode = {
@@ -294,10 +305,11 @@ export function listMediaOverlayNodes(args: {
 
     const connectedValuesBySchemaPath = connectedValuesByNodeId?.get(id)
     const nodeForSpec = (() => {
-      const spec0 = getNodeMediaSpec(n0)
-      if (spec0) return n0
       if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return n0
-      return applyConnectedValuesToNodeForRender({ node: n0, connectedValuesBySchemaPath })
+      const connectedNode = applyConnectedValuesToNodeForRender({ node: n0, connectedValuesBySchemaPath })
+      const connectedSpec = getNodeMediaSpec(connectedNode)
+      if (connectedSpec) return connectedNode
+      return n0
     })()
     const spec = getNodeMediaSpec(nodeForSpec)
     if (!spec) continue
@@ -309,6 +321,33 @@ export function listMediaOverlayNodes(args: {
       connectedValuesBySchemaPath,
     })
     const openUrl = chooseOpenUrl(nodeForSpec, spec.url)
+    const panel = (() => {
+      if (String(nodeForSpec.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return undefined
+      const props = (nodeForSpec.properties || {}) as Record<string, unknown>
+      const output = typeof props.output === 'string' ? props.output : ''
+      const outputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
+      const imageUrl = typeof props.imageUrl === 'string' ? props.imageUrl : ''
+      const videoUrl = typeof props.videoUrl === 'string' ? props.videoUrl : ''
+      const rawTab = String(props.richMediaActiveTab || '').trim().toLowerCase()
+      const activeTab: RichMediaPanelOverlayState['activeTab'] =
+        rawTab === 'text' || rawTab === 'image' || rawTab === 'video' || rawTab === 'auto'
+          ? (rawTab as RichMediaPanelOverlayState['activeTab'])
+          : 'auto'
+      const freezeConnectedOutput = Boolean(props.freezeConnectedOutput)
+      const connectedText = (() => {
+        const v = connectedValuesBySchemaPath?.['properties.output']?.value
+        return typeof v === 'string' ? v : ''
+      })()
+      return {
+        activeTab,
+        freezeConnectedOutput,
+        hasText: Boolean(output.trim() || outputSrcDoc.trim()),
+        hasImage: Boolean(imageUrl.trim()),
+        hasVideo: Boolean(videoUrl.trim()),
+        text: output,
+        connectedText,
+      }
+    })()
     const preferredHit = preferredSet?.has(id) === true
     const rankBase = computeMediaRank(nodeForSpec, spec)
     const rank = preferredHit ? rankBase + 1000 : rankBase
@@ -322,6 +361,7 @@ export function listMediaOverlayNodes(args: {
       openUrl,
       interactive: spec.interactive,
       kind,
+      ...(panel ? { panel } : {}),
       rank,
       idx: i,
       preferred: preferredHit,
@@ -361,5 +401,6 @@ export function listMediaOverlayNodes(args: {
     openUrl: n.openUrl,
     interactive: n.interactive,
     kind: n.kind,
+    ...(n.panel ? { panel: n.panel } : {}),
   }))
 }

@@ -1,6 +1,24 @@
 import { StateCreator } from 'zustand';
 import type { GraphState, SourceFile } from './types';
 import { reorderList } from '@/lib/reorder';
+import { hashStringToHex } from '@/lib/hash/stringHash';
+import { buildRepoFilePath } from '@/lib/url';
+import { readEnvString } from '@/lib/config.env';
+
+const TEST_VALIDATION_SOURCE_REL_PATH = readEnvString(
+  'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
+  'sandbox/test-data/knowgrph-rich-media-generation-demo.md',
+)
+const TEST_VALIDATION_SOURCE_URL = buildRepoFilePath(TEST_VALIDATION_SOURCE_REL_PATH)
+const TEST_VALIDATION_SOURCE_ID = `url:${hashStringToHex(TEST_VALIDATION_SOURCE_URL)}`
+const TEST_VALIDATION_SOURCE_FILE: SourceFile = {
+  id: TEST_VALIDATION_SOURCE_ID,
+  name: TEST_VALIDATION_SOURCE_REL_PATH.split('/').pop() || 'test-validation.md',
+  text: '',
+  enabled: true,
+  status: 'idle',
+  source: { kind: 'url', path: `url:${TEST_VALIDATION_SOURCE_URL}`, url: TEST_VALIDATION_SOURCE_URL },
+}
 
 const hasSourceFilePatchDiff = (file: SourceFile, updates: Partial<SourceFile>): boolean => {
   for (const [key, value] of Object.entries(updates) as Array<[keyof SourceFile, SourceFile[keyof SourceFile]]>) {
@@ -22,7 +40,7 @@ export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
   reorderSourceFiles: (sourceId: string, targetId: string) => void;
   clearSourceFiles: () => void;
 }> = (set) => ({
-  sourceFiles: [],
+  sourceFiles: [TEST_VALIDATION_SOURCE_FILE],
   setSourceFiles: (files) => set(() => ({ sourceFiles: Array.isArray(files) ? files : [] })),
   addSourceFile: (file) => set((state) => ({ sourceFiles: [...state.sourceFiles, file] })),
   updateSourceFile: (id, updates) => set((state) => {

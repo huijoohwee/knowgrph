@@ -42,8 +42,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     onUpdateKvEntry,
   } = args
 
-  if (!visible || !active) return null
-
+  if (!visible) return null
   return (
     <nav
       className="Island App-toolbar App-toolbar--compact pointer-events-auto w-fit shadow-lg"

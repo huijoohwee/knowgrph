@@ -188,7 +188,7 @@ export default function SettingsView({
     [values.chatProvider],
   )
   const chatAuthModeLabel = React.useMemo(
-    () => (String(values.chatAuthMode || '').trim() === 'byok' ? 'BYOK' : 'Server-managed Key'),
+    () => (String(values.chatAuthMode || '').trim().toLowerCase() === 'byok' ? 'BYOK' : 'Server-managed Key'),
     [values.chatAuthMode],
   )
 
@@ -260,7 +260,7 @@ export default function SettingsView({
     if (!shouldApplyProvider && !shouldApplyAuthMode && !shouldApplyApiKey) return
 
     const nextProvider = String(values.chatProvider || '').trim()
-    const nextAuthMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
+    const nextAuthMode = String(values.chatAuthMode || '').trim().toLowerCase() === 'byok' ? 'byok' : 'serverManaged'
     const nextApiKey = typeof values.chatApiKey === 'string' ? values.chatApiKey : ''
 
     const store = useGraphStore.getState()

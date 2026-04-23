@@ -23,8 +23,11 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   if (!panel.includes('Minimize2') || !panel.includes('Maximize2')) {
     throw new Error('Expected Minimize/Restore icon buttons in Widget toolbar')
   }
-  if (!panel.includes('{active &&')) {
-    throw new Error('Expected Widget toolbar to be shown only when active')
+  if (panel.includes('{active &&')) {
+    throw new Error('Expected Widget header icons to remain visible even when View Lock is ON')
+  }
+  if (!panel.includes('disabled={!active}')) {
+    throw new Error('Expected Widget header icons to disable actions (not hide) when View Lock is ON')
   }
 
   const form = readUtf8(formPath)

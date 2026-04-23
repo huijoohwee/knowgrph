@@ -81,3 +81,14 @@ export function testFrontmatterFlowDoesNotBuildSyntheticFallbackSubgraphMetadata
     throw new Error('expected frontmatter flow parser to avoid synthetic fallback subgraph metadata')
   }
 }
+
+export function testSourceFilesComposeDoesNotBlankPendingRemoteSeeds() {
+  const composedSourcePath = resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts')
+  const text = readFileSync(composedSourcePath, 'utf8')
+  if (!text.includes('const hasPendingEnabledRemoteSource = layers.some(layer => {')) {
+    throw new Error('expected composed source graph runtime to detect pending enabled remote sources before clearing graph data')
+  }
+  if (!text.includes("if (!composedHasContent && hasPendingEnabledRemoteSource) return")) {
+    throw new Error('expected composed source graph runtime to preserve live graph while pending remote seeds are still hydrating')
+  }
+}

@@ -1,7 +1,12 @@
 import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema } from 'rxdb/plugins/core'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
-import { LEGACY_WORKSPACE_README_PATH, LEGACY_WORKSPACE_README_TEXT, getWorkspaceSeedFiles } from './workspaceFs'
+import {
+  LEGACY_WORKSPACE_README_PATH,
+  LEGACY_WORKSPACE_README_TEXT,
+  getWorkspaceSeedFiles,
+  shouldMigrateLegacyWorkspaceSeedPaths,
+} from './workspaceFs'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
@@ -89,6 +94,15 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     const legacy = await collections.entries.findOne(legacyPath).exec()
     if (legacy && legacy.get('kind') === 'file' && String(legacy.get('text') ?? '') === LEGACY_WORKSPACE_README_TEXT) {
       await legacy.remove()
+    }
+    const fileRows = await collections.entries.find({ selector: { kind: 'file' } }).exec()
+    const existingFilePaths = fileRows
+      .map(row => normalizeWorkspacePath(String(row.get('path') || '')))
+      .filter((path): path is WorkspacePath => Boolean(path))
+    if (shouldMigrateLegacyWorkspaceSeedPaths(existingFilePaths)) {
+      for (let i = 0; i < fileRows.length; i += 1) {
+        await fileRows[i]!.remove()
+      }
     }
     const fileCount = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length)
     const seeded = lsBool(LS_KEYS.markdownWorkspaceSeeded, false)

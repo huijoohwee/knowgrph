@@ -127,3 +127,36 @@ export async function testMediaOverlayPoolDeduplicatesProxyWrappedMediaUrlsToSin
     throw new Error(`expected canonical Rich Media Panel title to retain source widget context, got ${String(out[0]?.title || '<none>')}`)
   }
 }
+
+export async function testMediaOverlayPoolAppliesConnectedTextToRichMediaPanelShellBeforeSpecSelection() {
+  const nodes: any[] = [
+    {
+      id: 'panel-1',
+      type: 'RichMediaPanel',
+      label: 'Rich Media Panel',
+      properties: {
+        'flow:widgetTypeId': 'default',
+        'flow:widgetFormId': 'richMediaPanel',
+      },
+    },
+  ]
+  const connectedValuesByNodeId = new Map<string, any>([
+    ['panel-1', {
+      'properties.output': {
+        value: 'Generated text output from OpenAI Text Widget.',
+        sources: [{ edgeId: 'edge-1', nodeId: 'w-openai-text', portKey: 'text_out' }],
+      },
+    }],
+  ])
+  const out = listMediaOverlayNodes({
+    enabled: true,
+    nodes: nodes as any,
+    poolMax: 24,
+    connectedValuesByNodeId,
+  })
+  if (out.length !== 1) throw new Error(`expected one rich media overlay panel, got ${out.length}`)
+  if (String(out[0]?.kind || '') !== 'iframe') throw new Error(`expected connected text panel to render as iframe, got ${String(out[0]?.kind || '<none>')}`)
+  if (!String(out[0]?.srcDoc || '').includes('Generated text output from OpenAI Text Widget.')) {
+    throw new Error('expected connected text output to be materialized into panel srcDoc before overlay spec selection')
+  }
+}

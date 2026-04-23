@@ -320,14 +320,20 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
 
   React.useEffect(() => {
     if (!toolbarVisible) return
-    if (!active) {
-      setToolbarVisible(false)
-      return
-    }
     const id = String(node.id || '').trim()
     if (!id) return
     if (selectedNodeId !== id) setToolbarVisible(false)
-  }, [active, node.id, selectedNodeId, toolbarVisible])
+  }, [node.id, selectedNodeId, toolbarVisible])
+
+  const wasSelectedRef = React.useRef(false)
+  React.useEffect(() => {
+    const id = String(node.id || '').trim()
+    const selected = !!id && selectedNodeId === id
+    if (selected && !wasSelectedRef.current) {
+      setToolbarVisible(true)
+    }
+    wasSelectedRef.current = selected
+  }, [node.id, selectedNodeId])
 
   React.useEffect(() => {
     viewportRef.current = { width: viewportW, height: viewportH }
@@ -1042,13 +1048,12 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       className="fixed"
       style={{ zIndex: overlayZIndex }}
       onPointerDownCapture={(ev) => {
-        if (!active) return
-        if (ev.button === 0 && pinnedInCanvas && ev.altKey !== true && isSpacePanHeld() !== true) {
+        if (active && ev.button === 0 && pinnedInCanvas && ev.altKey !== true && isSpacePanHeld() !== true) {
           const t = ev.target
           const el = t instanceof Element ? t : null
           if (el?.closest('[data-kg-flow-node-drag-handle="true"]')) return
         }
-        if (ev.button === 0 && isSpacePanHeld()) {
+        if (active && ev.button === 0 && isSpacePanHeld()) {
           const t = ev.target
           const el = t instanceof Element ? t : null
           if (!el?.closest('input,textarea,select,button,[contenteditable="true"]')) {

@@ -148,6 +148,10 @@ export function resolveEffectiveTextGenerationWidgetProperties(args: {
   for (const [key, value] of Object.entries(local)) {
     if (!hasTextGenerationOverrideValue(value)) continue
     if (key === 'chatProvider' || key === 'chatEndpointUrl' || key === 'chatModel') continue
+    if (key === 'chatAuthMode') {
+      const normalized = String(value || '').trim()
+      if (normalized !== 'byok') continue
+    }
     next[key] = value
   }
 

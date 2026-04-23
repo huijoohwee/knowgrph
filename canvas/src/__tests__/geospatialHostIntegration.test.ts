@@ -192,6 +192,17 @@ export const testSourceFilesPersistenceUsesContentHashNotLengthOnly = () => {
   }
 }
 
+export const testSourceFilesDbEnablesQueryBuilderPluginForPersistenceQueries = () => {
+  const dbPath = path.resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesDb.ts')
+  const text = readUtf8(dbPath)
+  if (!text.includes("import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'")) {
+    throw new Error('Expected source-files persistence DB to import the RxDB query-builder plugin for runtime find/sort queries')
+  }
+  if (!text.includes('addRxPlugin(RxDBQueryBuilderPlugin)')) {
+    throw new Error('Expected source-files persistence DB to register the RxDB query-builder plugin before using persistence queries')
+  }
+}
+
 export const testGeospatialPanelHostIsNotEmpty = () => {
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialPanelHost.tsx')
   const text = readUtf8(hostPath)

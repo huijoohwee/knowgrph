@@ -50,6 +50,16 @@ export type RichMediaPanelProps = {
   onClickCapture?: React.MouseEventHandler<HTMLDivElement>
   onDoubleClickCapture?: React.MouseEventHandler<HTMLDivElement>
   onContextMenuCapture?: React.MouseEventHandler<HTMLDivElement>
+  panel?: {
+    activeTab: 'auto' | 'text' | 'image' | 'video'
+    freezeConnectedOutput: boolean
+    hasText: boolean
+    hasImage: boolean
+    hasVideo: boolean
+    text: string
+    connectedText: string
+  }
+  onPanelChange?: (next: { activeTab: 'auto' | 'text' | 'image' | 'video'; freezeConnectedOutput: boolean; text?: string }) => void
 }
 
 const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(props, ref) {
@@ -99,6 +109,35 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
 
   const isEmptyPanel = kind === 'iframe' && !rawUrl && !inlineSrcDoc
 
+  const panel = props.panel || null
+  const panelActiveTab = panel ? panel.activeTab : 'auto'
+  const panelFreezeConnectedOutput = panel ? panel.freezeConnectedOutput : false
+  const panelHasMultiKinds = panel ? Boolean(panel.hasText && (panel.hasImage || panel.hasVideo)) : false
+  const panelSelectedTab: 'text' | 'image' | 'video' | null =
+    panelActiveTab === 'text' || panelActiveTab === 'image' || panelActiveTab === 'video'
+      ? panelActiveTab
+      : panelActiveTab === 'auto'
+        ? kind === 'video'
+          ? 'video'
+          : kind === 'image' || kind === 'svg'
+            ? 'image'
+            : kind === 'iframe' && !rawUrl
+              ? 'text'
+              : null
+        : null
+  const showPanelControls = Boolean(panel && panelHasMultiKinds)
+  const showTextEditor = Boolean(panel && panelSelectedTab === 'text' && panelFreezeConnectedOutput)
+  const [panelDraftText, setPanelDraftText] = React.useState<string>('')
+  React.useEffect(() => {
+    if (!panel) {
+      setPanelDraftText('')
+      return
+    }
+    if (panelSelectedTab !== 'text') return
+    const base = panelFreezeConnectedOutput ? panel.text : (panel.connectedText || panel.text)
+    setPanelDraftText(prev => (prev === base ? prev : base))
+  }, [panel, panelFreezeConnectedOutput, panelSelectedTab])
+
   const forceSnapshotIframe = React.useMemo(() => {
     if (kind !== 'iframe') return false
     return shouldForceSnapshotIframeUrl(rawUrl)
@@ -112,11 +151,13 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const isFlowEditorRenderer = useGraphStore(s => String(s.canvas2dRenderer || '') === 'flowEditor')
   const flowEditorFrontmatterDocumentMode = useGraphStore(s => {
     if (String(s.canvas2dRenderer || '') !== 'flowEditor') return false
     if (s.frontmatterModeEnabled !== true) return false
     return String(s.documentSemanticMode || '').trim().toLowerCase() === 'document'
   })
+  const panelControlsHidden = isFlowEditorRenderer !== true
   const editorMode = workspaceViewMode === 'editor'
   const allowEmbedFromStore = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
   const preferEmbed = allowEmbedFromStore && props.interactive !== false
@@ -517,6 +558,68 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         >
           <h3 className="kg-mediaTitle" style={PANEL_FRAME_HEADER_TITLE_STYLE}>{title}</h3>
           <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Panel actions">
+            {showPanelControls && !panelControlsHidden ? (
+              <li className="list-none flex items-center gap-1" aria-label="Render mode">
+                {panel?.hasText ? (
+                  <button
+                    type="button"
+                    data-kg-panel-action="1"
+                    style={PANEL_FRAME_HEADER_ACTION_STYLE}
+                    aria-label="Show text"
+                    onPointerDownCapture={onHeaderActionPointerDownCapture}
+                    onClick={() => props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: panelFreezeConnectedOutput })}
+                  >
+                    T
+                  </button>
+                ) : null}
+                {panel?.hasImage ? (
+                  <button
+                    type="button"
+                    data-kg-panel-action="1"
+                    style={PANEL_FRAME_HEADER_ACTION_STYLE}
+                    aria-label="Show image"
+                    onPointerDownCapture={onHeaderActionPointerDownCapture}
+                    onClick={() => props.onPanelChange?.({ activeTab: 'image', freezeConnectedOutput: panelFreezeConnectedOutput })}
+                  >
+                    I
+                  </button>
+                ) : null}
+                {panel?.hasVideo ? (
+                  <button
+                    type="button"
+                    data-kg-panel-action="1"
+                    style={PANEL_FRAME_HEADER_ACTION_STYLE}
+                    aria-label="Show video"
+                    onPointerDownCapture={onHeaderActionPointerDownCapture}
+                    onClick={() => props.onPanelChange?.({ activeTab: 'video', freezeConnectedOutput: panelFreezeConnectedOutput })}
+                  >
+                    V
+                  </button>
+                ) : null}
+              </li>
+            ) : null}
+            {panelSelectedTab === 'text' && !panelControlsHidden ? (
+              <li className="list-none">
+                <button
+                  type="button"
+                  data-kg-panel-action="1"
+                  style={PANEL_FRAME_HEADER_ACTION_STYLE}
+                  aria-label={panelFreezeConnectedOutput ? 'View connected output' : 'Edit output'}
+                  onPointerDownCapture={onHeaderActionPointerDownCapture}
+                  onClick={() => {
+                    if (!panel) return
+                    if (panelFreezeConnectedOutput) {
+                      props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: false })
+                      return
+                    }
+                    const base = panel.connectedText || panel.text
+                    props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: base })
+                  }}
+                >
+                  {panelFreezeConnectedOutput ? 'View' : 'Edit'}
+                </button>
+              </li>
+            ) : null}
             {safeOpenUrl ? (
               <li className="list-none">
                 <button
@@ -541,6 +644,55 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
         }}
       >
+        {showTextEditor && !panelControlsHidden ? (
+          <section
+            style={{
+              position: 'absolute',
+              inset: 10,
+              zIndex: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              pointerEvents: editorMode ? 'auto' : 'auto',
+            }}
+            onPointerDownCapture={e => {
+              try {
+                e.stopPropagation()
+              } catch {
+                void 0
+              }
+            }}
+            onWheelCapture={e => {
+              try {
+                e.stopPropagation()
+              } catch {
+                void 0
+              }
+            }}
+          >
+            <textarea
+              value={panelDraftText}
+              onChange={e => {
+                const next = String(e.target.value || '')
+                setPanelDraftText(next)
+                props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: next })
+              }}
+              style={{
+                flex: 1,
+                width: '100%',
+                resize: 'none',
+                borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.6)',
+                border: '1px solid var(--kg-border)',
+                padding: 10,
+                fontSize: 13,
+                lineHeight: 1.35,
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                background: 'rgba(255,255,255,0.94)',
+                color: 'var(--kg-foreground, rgba(0,0,0,0.86))',
+              }}
+            />
+          </section>
+        ) : null}
         {allowClickToOpenOverlay ? (
           <a
             href={safeOpenUrl}
@@ -619,7 +771,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
               onLoad={() => setReady(true)}
             />
           ) : (
-          iframeEmbed && !iframeEmbed.direct && (!preferEmbed || forceSnapshotIframe) ? (
+          iframeEmbed && !iframeEmbed.direct && (hideUntilReady || forceSnapshotIframe) && (!preferEmbed || forceSnapshotIframe) ? (
             <WebpageSnapshotPreview
               url={proxiedUrl}
               title={title}

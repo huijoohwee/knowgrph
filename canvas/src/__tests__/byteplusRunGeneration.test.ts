@@ -79,6 +79,66 @@ export async function testGenerateRunMarkdownWithProviderUsesChatProxyResponse()
   }
 }
 
+export async function testGenerateRunMarkdownWithProviderSupportsOpenAiResponsesApi() {
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url !== '/__chat_proxy/v1/responses') {
+        throw new Error(`unexpected openai responses endpoint: ${url}`)
+      }
+      const body = JSON.parse(String(init?.body || '{}')) as {
+        model?: string
+        input?: unknown
+        instructions?: unknown
+        messages?: unknown
+      }
+      if (!body.model) {
+        throw new Error('expected responses request to include model')
+      }
+      if (typeof body.instructions !== 'string' || !body.instructions.trim()) {
+        throw new Error('expected responses request to include instructions')
+      }
+      if (typeof body.input !== 'string' || !body.input.trim()) {
+        throw new Error('expected responses request to use input text payload')
+      }
+      if (typeof body.messages !== 'undefined') {
+        throw new Error('expected responses request to omit messages field')
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          output: [
+            {
+              type: 'message',
+              role: 'assistant',
+              content: [{ type: 'output_text', text: '# Final Output\n\nSpecific answer.' }],
+            },
+          ],
+        }),
+      } as Response
+    }) as typeof fetch
+
+    const text = await generateRunMarkdownWithProvider({
+      config: {
+        provider: 'openai',
+        endpointUrl: 'https://api.openai.com/v1/responses',
+        apiKey: '',
+        chatModel: 'gpt-5.4-nano',
+      },
+      prompt: 'Generate markdown',
+      options: {
+        chatMaxCompletionTokens: 120,
+      },
+    })
+    if (text !== '# Final Output\n\nSpecific answer.') {
+      throw new Error(`unexpected generated markdown from responses: ${String(text)}`)
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
 export async function testGenerateRunImageWithBytePlusAcceptsBase64Payload() {
   const originalFetch = globalThis.fetch
   try {

@@ -11,8 +11,9 @@ const RICH_MEDIA_RENDER_SCHEMA_PATHS = new Set([
   'properties.videoUrl',
 ])
 
-function clearRichMediaRenderDrivers(properties: Record<string, unknown>): Record<string, unknown> {
+function clearRichMediaRenderDrivers(properties: Record<string, unknown>, opts?: { preserveOutput?: boolean }): Record<string, unknown> {
   const next = { ...properties }
+  const preserveOutput = opts?.preserveOutput === true
   delete next.media_kind
   delete next.mediaKind
   delete next.media_url
@@ -28,10 +29,12 @@ function clearRichMediaRenderDrivers(properties: Record<string, unknown>): Recor
   delete next.media
   delete next.src
   delete next.url
-  delete next.output
-  delete next.outputSrcDoc
-  delete next.text
-  delete next.markdown
+  if (!preserveOutput) {
+    delete next.output
+    delete next.outputSrcDoc
+    delete next.text
+    delete next.markdown
+  }
   delete next['dom:tag']
   delete next['dom:attrs:src']
   delete next['dom:attrs:srcdoc']
@@ -53,6 +56,16 @@ export function applyConnectedValuesToNodeForRender(args: {
   const connectedPaths = Object.keys(connectedValuesBySchemaPath)
     .map(path => String(path || '').trim())
     .filter(Boolean)
+  const freezeConnectedOutput =
+    String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    && Boolean(((args.node.properties || {}) as Record<string, unknown>).freezeConnectedOutput)
+  const freezeConnectedOutputActive = (() => {
+    if (!freezeConnectedOutput) return false
+    const props = (args.node.properties || {}) as Record<string, unknown>
+    const output = typeof props.output === 'string' ? props.output.trim() : ''
+    const outputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc.trim() : ''
+    return Boolean(output || outputSrcDoc)
+  })()
   const richMediaPanelHasConnectedRenderValue =
     String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     && connectedPaths.some(path => RICH_MEDIA_RENDER_SCHEMA_PATHS.has(path))
@@ -60,7 +73,9 @@ export function applyConnectedValuesToNodeForRender(args: {
   if (richMediaPanelHasConnectedRenderValue) {
     next = {
       ...next,
-      properties: clearRichMediaRenderDrivers((next.properties || {}) as Record<string, unknown>),
+      properties: clearRichMediaRenderDrivers((next.properties || {}) as Record<string, unknown>, {
+        preserveOutput: freezeConnectedOutputActive,
+      }),
     } as GraphNode
     changed = true
   }
@@ -77,6 +92,7 @@ export function applyConnectedValuesToNodeForRender(args: {
           })
         : normalizedPath
     if (!renderPath) continue
+    if (freezeConnectedOutputActive && (renderPath === 'properties.output' || renderPath === 'properties.outputSrcDoc')) continue
     next = setObjectPath(next as unknown as Record<string, unknown>, renderPath, connected.value) as GraphNode
     changed = true
   }

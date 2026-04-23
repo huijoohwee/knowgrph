@@ -27,6 +27,7 @@ import {
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
   LS_KEYS,
+  UI_COPY,
 } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { screenToWorld, viewportCenterToWorld, worldToScreen } from '@/lib/zoom/viewport'
@@ -42,6 +43,7 @@ import {
   computeFlowConnectedValuesBySchemaPath,
   type FlowConnectedValuesBySchemaPath,
 } from '@/lib/flowEditor/flowDataflow'
+import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
@@ -423,7 +425,22 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     zoomViewKeyRef.current = zoomViewKey
   }, [zoomViewKey])
 
-  const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
+  const documentWidgetRegistry = useGraphStore(s =>
+    Array.isArray(s.documentWidgetRegistry) ? s.documentWidgetRegistry : EMPTY_WIDGET_REGISTRY,
+  )
+  const effectiveWidgetRegistry = useGraphStore(s =>
+    Array.isArray(s.effectiveWidgetRegistry) ? s.effectiveWidgetRegistry : EMPTY_WIDGET_REGISTRY,
+  )
+  const baseWidgetRegistry = useGraphStore(s =>
+    Array.isArray(s.widgetRegistry) ? s.widgetRegistry : EMPTY_WIDGET_REGISTRY,
+  )
+  const widgetRegistry = React.useMemo(() => {
+    return buildDataflowWidgetRegistry({
+      documentWidgetRegistry,
+      effectiveWidgetRegistry,
+      widgetRegistry: baseWidgetRegistry,
+    })
+  }, [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry])
   const widgetRegistryRef = React.useRef(widgetRegistry)
   const lastWidgetDropRef = React.useRef<{ key: string; ts: number } | null>(null)
   const lastDroppedWidgetNodeIdRef = React.useRef<string | null>(null)
@@ -774,6 +791,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const [draftGraphData, setDraftGraphData] = React.useState<GraphData | null>(null)
   const draftGraphDataRef = React.useRef<GraphData | null>(null)
+  const draftGraphDataRevision = React.useMemo(() => {
+    const draft = draftGraphData
+    if (!draft) return baseGraphDataRevision
+    const meta = draft.metadata
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return baseGraphDataRevision
+    const raw = (meta as Record<string, unknown>).graphDataRevision
+    return typeof raw === 'number' && Number.isFinite(raw) ? raw : baseGraphDataRevision
+  }, [baseGraphDataRevision, draftGraphData])
   const pendingSelectNodeIdRef = React.useRef<string | null>(null)
   const pendingOpenWidgetNodeIdRef = React.useRef<string | null>(null)
   const [overlayNodeIdOverride, setOverlayNodeIdOverride] = React.useState<string | null>(null)
@@ -3216,24 +3241,128 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorNoDraftGraphToast, ttlMs: 2400 })
           return
         }
-        const node = (draft.nodes || []).find(n => String(n.id || '') === id) || null
+        const splitComposedNodeId = (rawId: unknown): { full: string; inner: string } => {
+          const full = String(rawId || '').trim()
+          if (!full) return { full: '', inner: '' }
+          const sep = full.indexOf('::')
+          if (sep <= 0) return { full, inner: full }
+          const inner = full.slice(sep + 2).trim()
+          return { full, inner: inner || full }
+        }
+        const resolveNodeAndGraph = (): { graph: GraphData; node: GraphNode } | null => {
+          const candidates = [draft, renderGraphDataOverride as unknown as GraphData | null, baseGraphData]
+            .filter(Boolean) as GraphData[]
+          for (const graph of candidates) {
+            const node = (graph.nodes || []).find(n => String(n.id || '') === id) || null
+            if (node) return { graph, node }
+          }
+          return null
+        }
+        const resolved = resolveNodeAndGraph()
+        const node = resolved?.node || null
         if (!node) {
           upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorNodeNotFoundToast(id), ttlMs: 2400 })
           return
         }
+        const graphForRun = resolved?.graph || draft
+        const resolvedNodeId = String(node.id || id)
+        const pickWritableNodeId = (): string => {
+          const draftNodes = Array.isArray(draft.nodes) ? draft.nodes : []
+          const requested = splitComposedNodeId(id)
+          const resolvedId = splitComposedNodeId(resolvedNodeId)
+          const targetInners = new Set([requested.inner, resolvedId.inner].filter(Boolean))
+          const exactRequested = draftNodes.find(n => String(n.id || '').trim() === requested.full)
+          if (exactRequested) return String(exactRequested.id || '')
+          const exactResolved = draftNodes.find(n => String(n.id || '').trim() === resolvedId.full)
+          if (exactResolved) return String(exactResolved.id || '')
+          const innerMatches = draftNodes.filter(n => targetInners.has(splitComposedNodeId(n.id).inner))
+          if (innerMatches.length === 1) return String(innerMatches[0]?.id || '')
+          return resolvedNodeId
+        }
+        const writableNodeId = pickWritableNodeId() || resolvedNodeId
         const store = useGraphStore.getState()
+        const parseCanonicalNodeIds = (raw: unknown): string[] => {
+          const idValue = String(raw || '').trim()
+          if (!idValue) return []
+          const out = [idValue]
+          const leaf = idValue.includes('::') ? String(idValue.split('::').pop() || '').trim() : ''
+          if (leaf && leaf !== idValue) out.push(leaf)
+          return out
+        }
+        const resolveNodeByIdAcrossGraphs = (candidateId: string): GraphNode | null => {
+          const cid = String(candidateId || '').trim()
+          if (!cid) return null
+          const candidates = [
+            draftGraphData,
+            store.renderGraphDataOverride as GraphData | null,
+            store.graphData as GraphData | null,
+            graphForRun,
+          ].filter(Boolean) as GraphData[]
+          for (let i = 0; i < candidates.length; i += 1) {
+            const graph = candidates[i]
+            const hit = (graph.nodes || []).find(n => String(n.id || '').trim() === cid) || null
+            if (hit) return hit
+          }
+          return null
+        }
+        const updateRunOutputForKnownNodeIds = (buildPatch: (nodeProps: Record<string, unknown>) => Record<string, unknown>) => {
+          const candidateIds = new Set<string>()
+          for (const next of parseCanonicalNodeIds(writableNodeId)) candidateIds.add(next)
+          for (const next of parseCanonicalNodeIds(resolvedNodeId)) candidateIds.add(next)
+          for (const next of parseCanonicalNodeIds(id)) candidateIds.add(next)
+          for (const next of parseCanonicalNodeIds(node.id)) candidateIds.add(next)
+
+          setDraftGraphData(prev => {
+            if (!prev || !Array.isArray(prev.nodes) || prev.nodes.length === 0) return prev
+            let changed = false
+            const nextNodes = prev.nodes.map(existing => {
+              const existingId = String(existing?.id || '').trim()
+              if (!existingId || !candidateIds.has(existingId)) return existing
+              const nodeProps = (existing.properties || {}) as Record<string, unknown>
+              const nextProps = buildPatch(nodeProps)
+              changed = true
+              return { ...existing, properties: nextProps as never }
+            })
+            if (!changed) return prev
+            const nextDraft = { ...prev, nodes: nextNodes }
+            draftGraphDataRef.current = nextDraft
+            return nextDraft
+          })
+
+          let updated = false
+          for (const candidateId of Array.from(candidateIds.values())) {
+            const hit = resolveNodeByIdAcrossGraphs(candidateId)
+            if (!hit) continue
+            const nodeProps = (hit.properties || {}) as Record<string, unknown>
+            updateNode(candidateId, { properties: buildPatch(nodeProps) as never })
+            updated = true
+          }
+          if (!updated) {
+            const fallbackProps = (node.properties || {}) as Record<string, unknown>
+            updateNode(writableNodeId, { properties: buildPatch(fallbackProps) as never })
+          }
+        }
+        const dataflowRegistry = buildDataflowWidgetRegistry({
+          documentWidgetRegistry: Array.isArray(store.documentWidgetRegistry)
+            ? (store.documentWidgetRegistry as WidgetRegistryEntry[])
+            : [],
+          effectiveWidgetRegistry: Array.isArray(store.effectiveWidgetRegistry)
+            ? (store.effectiveWidgetRegistry as WidgetRegistryEntry[])
+            : [],
+          widgetRegistry: Array.isArray(store.widgetRegistry)
+            ? (store.widgetRegistry as WidgetRegistryEntry[])
+            : [],
+        })
         const richMediaKind = resolveRichMediaWidgetKind(node)
         if (richMediaKind) {
           const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
-            graphData: renderGraphDataOverride || draft,
-            registry: Array.isArray(store.effectiveWidgetRegistry ?? store.widgetRegistry)
-              ? ((store.effectiveWidgetRegistry ?? store.widgetRegistry) as WidgetRegistryEntry[])
-              : [],
-            targetNodeIds: new Set([id]),
+            graphData: (renderGraphDataOverride as unknown as GraphData | null) || graphForRun,
+            registry: dataflowRegistry,
+            targetNodeIds: new Set([writableNodeId]),
           })
           const richMediaResult = await runRichMediaWidgetGeneration({
             node,
-            connectedValuesBySchemaPath: connectedValuesByNodeId.get(id),
+            connectedValuesBySchemaPath: connectedValuesByNodeId.get(writableNodeId),
             markdownDocumentText: typeof store.markdownDocumentText === 'string' ? store.markdownDocumentText : '',
             workspacePath: activeWorkspacePath || null,
             generationConfig: {
@@ -3252,16 +3381,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             })
             return
           }
-          updateNode(id, {
-            properties: {
-              ...clearRichMediaOutputProperties((node.properties || {}) as Record<string, unknown>),
-              ...buildRichMediaWidgetOutputPatch({
-                kind: richMediaResult.kind,
-                asset: richMediaResult.asset,
-                outputPath: richMediaResult.outputPath,
-              }),
-            } as never,
-          })
+          updateRunOutputForKnownNodeIds((nodeProps) => ({
+            ...clearRichMediaOutputProperties(nodeProps),
+            ...buildRichMediaWidgetOutputPatch({
+              kind: richMediaResult.kind,
+              asset: richMediaResult.asset,
+              outputPath: richMediaResult.outputPath,
+            }),
+          }))
           const generatedName = richMediaResult.outputPath
             ? richMediaResult.outputPath.split('/').pop()
             : richMediaResult.kind === 'video'
@@ -3277,9 +3404,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
 
         if (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
-          const registry = Array.isArray(store.effectiveWidgetRegistry ?? store.widgetRegistry)
-            ? ((store.effectiveWidgetRegistry ?? store.widgetRegistry) as WidgetRegistryEntry[])
-            : []
+          const registry = dataflowRegistry
           const resolvedTextRegistryEntry = resolveWidgetRegistryEntry({
             node,
             registry,
@@ -3374,16 +3499,14 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             })
             return
           }
-          updateNode(id, {
-            properties: {
-              ...clearRichMediaOutputProperties(rawProperties),
-              ...buildTextWidgetOutputPatch({
-                output: result,
-                title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL,
-                model: properties.chatModel || store.chatModel,
-              }),
-            } as never,
-          })
+          updateRunOutputForKnownNodeIds((nodeProps) => ({
+            ...clearRichMediaOutputProperties(nodeProps),
+            ...buildTextWidgetOutputPatch({
+              output: result,
+              title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL,
+              model: properties.chatModel || store.chatModel,
+            }),
+          }))
           upsertUiToast({
             id: `flow-editor-run-${id}`,
             kind: 'neutral',
@@ -3393,7 +3516,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           return
         }
 
-        const subgraph = buildSelectionSubgraph(draft, id, null) || { ...draft, nodes: [node], edges: [] }
+        const subgraph = buildSelectionSubgraph(graphForRun, writableNodeId, null) || { ...graphForRun, nodes: [node], edges: [] }
         const registry = Array.isArray(store.widgetRegistry) ? store.widgetRegistry : []
         const nodeTypeIds = new Set((subgraph.nodes || []).map(n => String(n.type || '').trim()).filter(Boolean))
         const registryEntries = registry.filter(e => e && e.isEnabled && nodeTypeIds.has(String(e.nodeTypeId || '').trim()))
@@ -3403,14 +3526,23 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         await exportWidgetBundleAsJson({
           graphData: subgraph,
           registryEntries: entries,
-          suggestedName: `flow-node-${id}.widget.bundle.json`,
+          suggestedName: `flow-node-${writableNodeId}.widget.bundle.json`,
         })
         upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorRunExportedToast, ttlMs: 2200 })
-      } catch {
-        upsertUiToast({ id: `flow-editor-run-failed-${String(nodeId || '')}`, kind: 'neutral', message: UI_COPY.flowEditorRunFailedToast, ttlMs: 2600 })
+      } catch (error) {
+        const detail =
+          error && typeof error === 'object' && 'message' in error
+            ? String((error as { message?: unknown }).message || '').trim()
+            : ''
+        upsertUiToast({
+          id: `flow-editor-run-failed-${String(nodeId || '')}`,
+          kind: 'neutral',
+          message: detail || UI_COPY.flowEditorRunFailedToast,
+          ttlMs: 4200,
+        })
       }
     },
-    [draftGraphData, markdownDocumentName, markdownDocumentSourceUrl, renderGraphDataOverride, updateNode, upsertUiToast],
+    [baseGraphData, draftGraphData, markdownDocumentName, markdownDocumentSourceUrl, renderGraphDataOverride, updateNode, upsertUiToast],
   )
 
   const exportWorkflowBundle = React.useCallback(async () => {
@@ -4002,7 +4134,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         active={active}
         allowNodeDragOverride={canEdit}
         graphDataOverride={renderGraphDataOverride}
-        graphDataRevisionOverride={baseGraphDataRevision}
+        graphDataRevisionOverride={flowEditorViewActive ? draftGraphDataRevision : baseGraphDataRevision}
         exposeRuntimeRef={ref => {
           flowRuntimeRefRef.current = ref
         }}
