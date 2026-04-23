@@ -155,12 +155,21 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const linkUrl = coerceMediaUrl((props as Record<string, unknown>).url)
   const linkLabel = String((props as Record<string, unknown>).label || node.label || '').trim()
 
+  const outputText = (() => {
+    const s = (props as Record<string, unknown>).output
+    return typeof s === 'string' ? s : ''
+  })()
   let markdownMedia: { kind: NodeMediaKind; url: string } | null = null
   const getMarkdownMediaOnce = () => {
     if (markdownMedia !== null) return markdownMedia
     const t = (props as Record<string, unknown>).text
     const m = (props as Record<string, unknown>).markdown
-    const rawText = typeof t === 'string' ? t : typeof m === 'string' ? m : ''
+    const rawText =
+      typeof t === 'string'
+        ? t
+        : typeof m === 'string'
+          ? m
+          : outputText
     const extracted = extractMarkdownMediaUrl(rawText)
     if (!extracted) {
       markdownMedia = null
@@ -213,10 +222,6 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     const s = (props as Record<string, unknown>).outputSrcDoc
     return typeof s === 'string' ? s.trim() : ''
   })()
-  const outputText = (() => {
-    const s = (props as Record<string, unknown>).output
-    return typeof s === 'string' ? s : ''
-  })()
   const domMediaUrl = (() => {
     if (!domTag) return ''
     if (domTag === 'IMG' || domTag === 'VIDEO' || domTag === 'IFRAME' || domTag === 'SVG') return domSrc
@@ -236,6 +241,9 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
   const resolvedUrl = url || (domMediaUrl ? coerceMediaUrl(domMediaUrl) : null)
   if (!resolvedUrl) {
+    if (String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+      return { kind: 'iframe', url: '', interactive: false }
+    }
     if (outputSrcDoc) {
       return { kind: 'iframe', url: '', srcDoc: outputSrcDoc, interactive: false }
     }

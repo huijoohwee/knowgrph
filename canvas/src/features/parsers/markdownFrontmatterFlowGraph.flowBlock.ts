@@ -463,15 +463,14 @@ function resolveTemplateValue(
   return out
 }
 
-function normalizeFlowNodeType(rawType: string): 'input' | 'default' | 'output' | 'custom' {
-  const type = String(rawType || '').trim().toLowerCase()
-  if (type === 'input' || type === 'default' || type === 'output' || type === 'custom') return type
-  return 'default'
+function normalizeFlowNodeType(rawType: string): string {
+  const type = String(rawType || '').trim()
+  return type || 'default'
 }
 
 function sanitizeFlowNodeContract(args: {
   id: string
-  type: 'input' | 'default' | 'output' | 'custom'
+  type: string
   inputs: Array<Record<string, unknown>>
   outputs: Array<Record<string, unknown>>
   compute: string
@@ -693,8 +692,8 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
     if (!id) continue
     const rawType = asString(normalizedRawNode.type)
     const type = normalizeFlowNodeType(rawType)
-    if (rawType && rawType !== type) {
-      flowWarnings.push(`Flow node type normalized to default: ${id}`)
+    if (!rawType) {
+      flowWarnings.push(`Flow node type defaulted to default: ${id}`)
     }
     const labelRaw = asString(normalizedRawNode.label)
     const position = isRecord(normalizedRawNode.position) ? (normalizedRawNode.position as Record<string, unknown>) : null

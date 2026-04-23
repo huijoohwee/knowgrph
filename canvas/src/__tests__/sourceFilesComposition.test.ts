@@ -1,12 +1,8 @@
 import type { GraphData } from '@/lib/graph/types'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
 
 export function testSourceFilesCompositionOrderAndVisibility() {
-  const state = useGraphStore.getState()
-  state.clearSourceFiles()
-  state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
-
   const g1: GraphData = {
     type: 'Graph',
     nodes: [{ id: 'n1', label: 'A', type: 'Thing', properties: {} }],
@@ -20,30 +16,12 @@ export function testSourceFilesCompositionOrderAndVisibility() {
     metadata: {},
   }
 
-  state.addSourceFile({
-    id: 'sf-1',
-    name: 'a.md',
-    text: 'a',
-    enabled: true,
-    status: 'parsed',
-    parsedGraphData: g1,
-    parsedTextHash: 'h1',
-    source: { kind: 'local', path: 'a.md' },
-  })
-  state.addSourceFile({
-    id: 'sf-2',
-    name: 'b.md',
-    text: 'b',
-    enabled: true,
-    status: 'parsed',
-    parsedGraphData: g2,
-    parsedTextHash: 'h2',
-    source: { kind: 'local', path: 'b.md' },
-  })
-
-  applyComposedGraphFromSourceFiles()
-  const first = useGraphStore.getState().graphData
-  if (!first) throw new Error('expected composed graph data')
+  const first = composeGraphFromSourceLayers({
+    layers: [
+      { id: 'sf-1', name: 'a.md', text: 'a', enabled: true, parsedGraphData: g1, parsedTextHash: 'h1', source: { kind: 'local', path: 'a.md' } },
+      { id: 'sf-2', name: 'b.md', text: 'b', enabled: true, parsedGraphData: g2, parsedTextHash: 'h2', source: { kind: 'local', path: 'b.md' } },
+    ],
+  }).graphData
   const meta1 = (first.metadata || {}) as unknown as Record<string, unknown>
   const layers1Raw = meta1.sourceLayers
   const layerIds1 = Array.isArray(layers1Raw)
@@ -59,10 +37,12 @@ export function testSourceFilesCompositionOrderAndVisibility() {
   const orderKey1 = String(meta1.sourceLayerOrderHash || '')
   if (!contentKey1 || !orderKey1) throw new Error('expected composition keys')
 
-  state.reorderSourceFiles('sf-2', 'sf-1')
-  applyComposedGraphFromSourceFiles()
-  const second = useGraphStore.getState().graphData
-  if (!second) throw new Error('expected composed graph data after reorder')
+  const second = composeGraphFromSourceLayers({
+    layers: [
+      { id: 'sf-2', name: 'b.md', text: 'b', enabled: true, parsedGraphData: g2, parsedTextHash: 'h2', source: { kind: 'local', path: 'b.md' } },
+      { id: 'sf-1', name: 'a.md', text: 'a', enabled: true, parsedGraphData: g1, parsedTextHash: 'h1', source: { kind: 'local', path: 'a.md' } },
+    ],
+  }).graphData
   const meta2 = (second.metadata || {}) as unknown as Record<string, unknown>
   const layers2Raw = meta2.sourceLayers
   const layerIds2 = Array.isArray(layers2Raw)
@@ -79,9 +59,51 @@ export function testSourceFilesCompositionOrderAndVisibility() {
   if (contentKey2 !== contentKey1) throw new Error('content key should not change on reorder')
   if (orderKey2 === orderKey1) throw new Error('order key should change on reorder')
 
-  state.updateSourceFile('sf-2', { enabled: false })
-  applyComposedGraphFromSourceFiles()
-  const third = useGraphStore.getState().graphData
-  if (!third) throw new Error('expected composed graph data after disable')
+  const third = composeGraphFromSourceLayers({
+    layers: [
+      { id: 'sf-2', name: 'b.md', text: 'b', enabled: false, parsedGraphData: g2, parsedTextHash: 'h2', source: { kind: 'local', path: 'b.md' } },
+      { id: 'sf-1', name: 'a.md', text: 'a', enabled: true, parsedGraphData: g1, parsedTextHash: 'h1', source: { kind: 'local', path: 'a.md' } },
+    ],
+  }).graphData
   if (third.nodes.length !== 1 || third.nodes[0]?.id !== 'sf-1::n1') throw new Error('expected only enabled layer nodes')
+}
+
+export function testSourceFilesCompositionMergesWidgetRegistryMetadataFromNonBaseLayer() {
+  const g1: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'n1', label: 'A', type: 'Thing', properties: {} }],
+    edges: [],
+    metadata: {},
+  }
+  const g2: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'n2', label: 'Panel', type: 'RichMediaPanel', properties: { 'flow:widgetTypeId': 'default', 'flow:widgetFormId': 'richMediaPanel' } }],
+    edges: [],
+    metadata: {
+      [FLOW_WIDGET_REGISTRY_METADATA_KEY]: [
+        {
+          id: 'qer-RichMediaPanel-default-richMediaPanel',
+          isEnabled: true,
+          nodeTypeId: 'RichMediaPanel',
+          widgetTypeId: 'default',
+          formId: 'richMediaPanel',
+          fields: [],
+          ports: [{ portKey: 'imageUrl', direction: 'input', schemaPath: 'properties.imageUrl' }],
+          updatedAt: '2026-04-22T00:00:00.000Z',
+        },
+      ],
+    },
+  }
+
+  const composed = composeGraphFromSourceLayers({
+    layers: [
+      { id: 'sf-1', name: 'a.md', text: 'a', enabled: true, parsedGraphData: g1, parsedTextHash: 'h1', source: { kind: 'local', path: 'a.md' } },
+      { id: 'sf-2', name: 'widget-bundle.frontmatter.yaml', text: 'bundle', enabled: true, parsedGraphData: g2, parsedTextHash: 'h2', source: { kind: 'local', path: 'widget-bundle.frontmatter.yaml' } },
+    ],
+  }).graphData
+  const meta = (composed.metadata || {}) as Record<string, unknown>
+  const registry = Array.isArray(meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]) ? (meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] as unknown[]) : []
+  if (registry.length !== 1) throw new Error(`expected composed graph to preserve widget registry metadata, got ${registry.length}`)
+  const entry = (registry[0] || {}) as Record<string, unknown>
+  if (String(entry.nodeTypeId || '') !== 'RichMediaPanel') throw new Error('expected preserved widget registry entry for RichMediaPanel')
 }

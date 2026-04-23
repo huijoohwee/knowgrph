@@ -140,10 +140,13 @@ export function applyWidgetRegistryFromMetadata(get: GetGraph, metadata: unknown
 
     const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
     const expectedByFormId = new Map<string, string>()
+    const expectedNodeTypes = new Set<string>()
     for (let i = 0; i < nodes.length; i += 1) {
       const node = nodes[i]
       const nodeId = String(node?.id || '').trim()
       if (!nodeId) continue
+      const nodeType = String(node?.type || '').trim()
+      if (nodeType) expectedNodeTypes.add(nodeType)
       const props = (node?.properties || {}) as Record<string, unknown>
       const explicitFormId =
         typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string'
@@ -170,6 +173,17 @@ export function applyWidgetRegistryFromMetadata(get: GetGraph, metadata: unknown
       seenFormIds.add(formId)
       out.push(entry)
     }
+    if (out.length > 0) return out
+
+    // Fallback: preserve node-type-matching entries when form IDs were normalized away upstream.
+    const byNodeType: typeof validatedRaw = []
+    for (let i = 0; i < validatedRaw.length; i += 1) {
+      const entry = validatedRaw[i]
+      const entryNodeType = String(entry.nodeTypeId || '').trim()
+      if (!entryNodeType || !expectedNodeTypes.has(entryNodeType)) continue
+      byNodeType.push(entry)
+    }
+    if (byNodeType.length > 0) return byNodeType
     return out
   })()
 

@@ -697,10 +697,18 @@ export interface GraphState {
   uiLogEntries: UiLogEntry[];
   pushUiLog: (entry: UiLogEntryInput) => void;
   clearUiLog: () => void;
+  floatingPanelOpen: boolean;
+  setFloatingPanelOpen: (open: boolean) => void;
+  floatingPanelView: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal';
+  setFloatingPanelView: (view: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal') => void;
   chatExchangeLogs: ChatExchangeLogEntry[];
   pushChatExchangeLog: (entry: ChatExchangeLogEntryInput) => void;
   clearChatExchangeLogs: () => void;
   mediaNodeOpacity: number;
+  paymentsStripePaywallEnabled: boolean;
+  setPaymentsStripePaywallEnabled: (enabled: boolean) => void;
+  paymentsStripeCheckoutUrl: string;
+  setPaymentsStripeCheckoutUrl: (url: string) => void;
   chatProvider: string;
   chatAuthMode: 'serverManaged' | 'byok';
   setChatAuthMode: (mode: 'serverManaged' | 'byok') => void;

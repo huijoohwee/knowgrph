@@ -1,6 +1,6 @@
 ---
-title: Knowgrph · Swipe MCP Service — B2C Monetization + Checkout (Video Generation Flow Editor)
-graphId: md:knowgrph-swipe-mcp-service
+title: Knowgrph · Stripe MCP Service — B2C Monetization + Checkout (Video Generation Flow Editor)
+graphId: md:knowgrph-stripe-mcp-service
 product: "Knowgrph Canvas"
 service_type: "AI-native · MCP-based · OpenClaw-friendly · FOSS-first · token-economics-first"
 doc_type: "Recommendation (PRD + TAD aligned)"
@@ -17,11 +17,12 @@ prod_repo: "/Users/huijoohwee/Documents/GitHub/huijoohwee/knowgrph"
 cloudflare_host: "airvio.co/knowgrph"
 
 billing_provider: "Stripe"
-checkout_ux: "Swipe (MainPanel)"
+checkout_ux: "Stripe Checkout (MainPanel)"
 provider_registry: "OpenClaw"
 commerce_protocol: "Agentic Commerce Protocol (ACP) inspired catalog"
 commerce_docs: "https://developers.openai.com/commerce"
 stripe_payment_links_docs: "https://docs.stripe.com/payment-links"
+stripe_checkout_sessions_api_docs: "https://docs.stripe.com/api/checkout/sessions"
 stripe_checkout_mode: "Payment Links (preferred) → Checkout Session (optional)"
 
 primary_use_case: "Video Generation Flow Editor Service"
@@ -45,6 +46,9 @@ mcp:
   tool_quote:          {key: tool_quote,          type: string, value: "billing_quote"}
   tool_checkout_create:{key: tool_checkout_create,type: string, value: "billing_checkout_create"}
   tool_checkout_status:{key: tool_checkout_status,type: string, value: "billing_checkout_status"}
+  tool_checkout_session_get:{key: tool_checkout_session_get,type: string, value: "billing_checkout_session_get"}
+  tool_checkout_session_expire:{key: tool_checkout_session_expire,type: string, value: "billing_checkout_session_expire"}
+  tool_checkout_session_line_items:{key: tool_checkout_session_line_items,type: string, value: "billing_checkout_session_line_items_get"}
   tool_payment_link_get:{key: tool_payment_link_get,type: string, value: "billing_payment_link_get"}
   tool_payment_link_create:{key: tool_payment_link_create,type: string, value: "billing_payment_link_create"}
   tool_usage_meter:    {key: tool_usage_meter,    type: string, value: "billing_usage_meter"}
@@ -78,7 +82,7 @@ pipeline:
     edge_in: "—"
     edge_out: spec_pkg
     user_action: "Confirm B2C actions to monetize: run, export, share, publish, template, marketplace; confirm catalog + variants"
-    sys_event: "Freeze SSOT: Swipe UX rules, pricing entities, Stripe mapping, free-tier constraints, ACP-inspired catalog schema"
+    sys_event: "Freeze SSOT: Stripe checkout UX rules, pricing entities, Stripe mapping, free-tier constraints, ACP-inspired catalog schema"
     data_in: "—"
     data_out: "spec_pkg {monetized_actions, pricing_model, entitlements, free_tier_policy, catalog_schema}"
     trigger: plan-start
@@ -105,12 +109,12 @@ pipeline:
 
   - seq: S03
     node: n-mcp
-    label: "build Swipe Billing MCP Service (Stripe-backed)"
+    label: "build Stripe Billing MCP Service (Stripe-backed)"
     actor: ["system"]
     edge_in: action_pkg
     edge_out: service_pkg
     user_action: "—"
-    sys_event: "Expose MCP tools for pricing, quote, Stripe Payment Links, checkout, usage metering, entitlements; add caching and idempotency"
+    sys_event: "Expose MCP tools for pricing, quote, Stripe Payment Links, Checkout Sessions, usage metering, entitlements; add caching and idempotency"
     data_in: "action_pkg"
     data_out: "service_pkg {mcp_tools, stripe_adapter, cache_layer}"
     trigger: action_pkg non-null
@@ -121,14 +125,14 @@ pipeline:
 
   - seq: S04
     node: n-ui
-    label: "MainPanel Swipe checkout integration"
+    label: "MainPanel Stripe checkout integration"
     actor: ["founder","system"]
     edge_in: service_pkg
     edge_out: ui_pkg
-    user_action: "Swipe-to-pay appears at the moment of intent (Run/Export/Publish)"
-    sys_event: "Integrate MainPanel: quote → swipe → checkout → entitlement refresh; show price clarity and free-tier remaining"
+    user_action: "Stripe checkout appears at the moment of intent (Run/Export/Publish)"
+    sys_event: "Integrate MainPanel: quote → Payment Link (default) or Checkout Session (fallback) → entitlement refresh; show price clarity and free-tier remaining"
     data_in: "service_pkg"
-    data_out: "ui_pkg {swipe_sheet, price_badges, paywall_triggers}"
+    data_out: "ui_pkg {checkout_surface, price_badges, paywall_triggers, session_reconciliation}"
     trigger: service_pkg non-null
     on_fail: "@flag:ux-incomplete — conversion suffers"
     kanban: backlog
@@ -160,7 +164,7 @@ pipeline:
     user_action: "Verify end-to-end checkout + entitlement unlock on {{cloudflare_host}}"
     sys_event: "Deploy control plane; configure Stripe webhooks; publish OpenClaw registry entry; add docs"
     data_in: "ops_pkg"
-    data_out: "deployed Swipe billing surface"
+    data_out: "deployed Stripe billing surface"
     trigger: ops_pkg non-null
     on_fail: "@flag:deploy-failed — rollback to last known good"
     kanban: backlog
@@ -179,7 +183,7 @@ mermaid: |
     classDef bill    fill:#FAEEDA,stroke:#BA7517,color:#633806,stroke-width:1.5px
 
     User(["B2C creator"])
-    MainPanel[/"MainPanel\nSwipe sheet"/]
+    MainPanel[/"MainPanel\nStripe checkout"/]
     Stripe[/"Stripe Billing"/]
     DB[("entitlements\nusage_ledger\npricing")]
     OpenClaw[/"OpenClaw registry"/]
@@ -192,8 +196,8 @@ mermaid: |
     end
 
     subgraph P2["S03–S05 · Build"]
-      n-mcp["S03 · n-mcp\nSwipe Billing MCP Service"]
-      n-ui["S04 · n-ui\nMainPanel Swipe integration"]
+      n-mcp["S03 · n-mcp\nStripe Billing MCP Service"]
+      n-ui["S04 · n-ui\nMainPanel Stripe integration"]
       n-ops["S05 · n-ops\ntoken economics + TCO"]
       n-actions --> n-mcp --> n-ui --> n-ops
     end
@@ -222,7 +226,7 @@ mermaid: |
     click n-scope "#pipeline--from-0-to-1" "S01 · scope lock"
     click n-actions "#pipeline--from-0-to-1" "S02 · action meter"
     click n-mcp "#pipeline--from-0-to-1" "S03 · MCP service"
-    click n-ui "#pipeline--from-0-to-1" "S04 · swipe checkout"
+    click n-ui "#pipeline--from-0-to-1" "S04 · Stripe checkout"
     click n-ops "#pipeline--from-0-to-1" "S05 · economics"
     click n-deploy "#pipeline--from-0-to-1" "S06 · deploy"
 
@@ -241,7 +245,7 @@ flow:
       phase:         {key: phase,         type: string,   value: "define"}
       actor:         {key: actor,         type: array,    value: ["founder","system"]}
       handles:       {key: handles,       type: object,   value: {source: ["spec_pkg"]}}
-      data:          {key: data,          type: object,   value: {use_case: "Video Generation Flow Editor", surface: "MainPanel", checkout: "Swipe"}}
+      data:          {key: data,          type: object,   value: {use_case: "Video Generation Flow Editor", surface: "MainPanel", checkout: "Stripe"}}
       applies_rules: {key: applies_rules, type: array,    value: ["V-03","V-06","V-07"]}
       db_writes:     {key: db_writes,     type: string,   value: "pricing"}
       retry_arc:     {key: retry_arc,     type: string,   value: "—"}
@@ -275,7 +279,7 @@ flow:
       phase:         {key: phase,         type: string,   value: "build"}
       actor:         {key: actor,         type: array,    value: ["system"]}
       handles:       {key: handles,       type: object,   value: {target: ["action_pkg"], source: ["service_pkg"]}}
-      data:          {key: data,          type: object,   value: {tools: ["billing_pricing_get","billing_quote","billing_checkout_create","billing_checkout_status","billing_usage_meter","billing_entitlements_get"], provider: "Stripe"}}
+      data:          {key: data,          type: object,   value: {tools: ["billing_pricing_get","billing_quote","billing_payment_link_get","billing_payment_link_create","billing_checkout_create","billing_checkout_status","billing_usage_meter","billing_entitlements_get"], provider: "Stripe"}}
       applies_rules: {key: applies_rules, type: array,    value: ["V-01","V-03","V-05","V-07"]}
       db_writes:     {key: db_writes,     type: string,   value: "usage_ledger"}
       retry_arc:     {key: retry_arc,     type: string,   value: "source"}
@@ -288,11 +292,11 @@ flow:
 
     - id:            {key: id,            type: string,   value: "n-ui"}
       type:          {key: type,          type: string,   value: "default"}
-      label:         {key: label,         type: string,   value: "S04 · integrateSwipeCheckout()"}
+      label:         {key: label,         type: string,   value: "S04 · integrateStripeCheckout()"}
       phase:         {key: phase,         type: string,   value: "integrate"}
       actor:         {key: actor,         type: array,    value: ["founder","system"]}
       handles:       {key: handles,       type: object,   value: {target: ["service_pkg"], source: ["ui_pkg"]}}
-      data:          {key: data,          type: object,   value: {surface: "MainPanel", swipe: true, moments: ["run","export","publish"]}}
+      data:          {key: data,          type: object,   value: {surface: "MainPanel", stripe_checkout: true, moments: ["run","export","publish"], prefer_payment_links: true}}
       applies_rules: {key: applies_rules, type: array,    value: ["V-03","V-06","V-07"]}
       db_writes:     {key: db_writes,     type: string,   value: "—"}
       retry_arc:     {key: retry_arc,     type: string,   value: "target"}
@@ -322,7 +326,7 @@ flow:
 
     - id:            {key: id,            type: string,   value: "n-deploy"}
       type:          {key: type,          type: string,   value: "output"}
-      label:         {key: label,         type: string,   value: "S06 · deploySwipeSurface()"}
+      label:         {key: label,         type: string,   value: "S06 · deployStripeSurface()"}
       phase:         {key: phase,         type: string,   value: "release"}
       actor:         {key: actor,         type: array,    value: ["system"]}
       handles:       {key: handles,       type: object,   value: {target: ["ops_pkg"]}}
@@ -345,11 +349,11 @@ flow:
     - {id: e5, source: n-ops,     sourceHandle: ops_pkg,    target: n-deploy,  targetHandle: ops_pkg,    animated: true}
 ---
 
-# Knowgrph · Swipe MCP Service — B2C Monetization + Checkout (Video Generation Flow Editor)
+# Knowgrph · Stripe MCP Service — B2C Monetization + Checkout (Video Generation Flow Editor)
 
 `bg#E1F5EE:version {{version}}` · `bg#FAEEDA:status {{status}}` · owner `{{owner}}` · {{date}} · `bg#EAF3DE:{{license}}` · tier `{{tier}}`
 
-> This document recommends a **Swipe Billing MCP Service** that monetizes B2C user actions inside Knowgrph’s MainPanel for the Video Generation Flow Editor. YAML frontmatter is the machine-readable SSOT (`mermaid:`, `flow:`, `pipeline:`); the body is the human-readable projection, organized by **From 0 to 1** and the three lenses: `bg#E1F5EE:UF` user flow, `bg#E6F1FB:WF` work flow, `bg#EAF3DE:DF` data flow.
+> This document recommends a **Stripe Billing MCP Service** that monetizes B2C user actions inside Knowgrph’s MainPanel for the Video Generation Flow Editor. YAML frontmatter is the machine-readable SSOT (`mermaid:`, `flow:`, `pipeline:`); the body is the human-readable projection, organized by **From 0 to 1** and the three lenses: `bg#E1F5EE:UF` user flow, `bg#E6F1FB:WF` work flow, `bg#EAF3DE:DF` data flow.
 
 ---
 
@@ -364,7 +368,8 @@ flow:
 | Frontmatter key | Resolves in body as | Example |
 |---|---|---|
 | `runtime.maxRetry` | `{{runtime.maxRetry}}` | retry arc ≤ `{{runtime.maxRetry}}` |
-| `mcp.tool_checkout_create` | `{{mcp.tool_checkout_create}}` | create checkout via `{{mcp.tool_checkout_create}}` |
+| `mcp.tool_payment_link_get` | `{{mcp.tool_payment_link_get}}` | open hosted checkout via Payment Link |
+| `mcp.tool_checkout_create` | `{{mcp.tool_checkout_create}}` | fallback to Checkout Session |
 | `economics.free_tier_gens_daily` | `{{economics.free_tier_gens_daily}}` | cap = `{{economics.free_tier_gens_daily}}` |
 | `pipeline[*].node` | `@node:<id>` | `@node:n-ui` |
 | `flow.edges[*]` | `@edge:src:h→tgt:h` | `@edge:n-mcp:service_pkg→n-ui:service_pkg` |
@@ -377,10 +382,10 @@ Human-readable projection of `pipeline:` frontmatter. Column header sigils encod
 
 | seq | `@node:id` | pipeline step | `bg#E1F5EE:UF` user action | `bg#E6F1FB:WF` system event | `bg#EAF3DE:DF` data in | `bg#EAF3DE:DF` data out | edge | actor | trigger | on fail | kanban | confidence |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `S01` | `@node:n-scope` | `bg#E6F1FB:define surface` | Confirm monetized actions to keep B2C simple | Freeze Swipe UX rules + pricing entities + Stripe mapping | — | `spec_pkg` | — | `["founder","system"]` | plan-start | `@flag:blocking` | `bg#FAEEDA:in-flight` | high |
+| `S01` | `@node:n-scope` | `bg#E6F1FB:define surface` | Confirm monetized actions to keep B2C simple | Freeze Stripe checkout UX rules + pricing entities + Stripe mapping | — | `spec_pkg` | — | `["founder","system"]` | plan-start | `@flag:blocking` | `bg#FAEEDA:in-flight` | high |
 | `S02` | `@node:n-actions` | `bg#E6F1FB:entitlements` | — | Create action taxonomy + entitlement rules | `spec_pkg` | `action_pkg` | `@edge:n-scope:spec_pkg→n-actions:spec_pkg` | `["system"]` | `spec_pkg` non-null | `@flag:contract-drift` | `bg#FBEAF0:backlog` | high |
 | `S03` | `@node:n-mcp` | `bg#E6F1FB:MCP billing` | — | Implement MCP tools + Stripe adapter + idempotency | `action_pkg` | `service_pkg` | `@edge:n-actions:action_pkg→n-mcp:action_pkg` | `["system"]` | `action_pkg` non-null | `@flag:service-unavailable` | `bg#FBEAF0:backlog` | high |
-| `S04` | `@node:n-ui` | `bg#FAEEDA:Swipe paywall` | Swipe-to-pay at Run/Export/Publish | MainPanel shows quote, triggers checkout, refreshes entitlements | `service_pkg` | `ui_pkg` | `@edge:n-mcp:service_pkg→n-ui:service_pkg` | `["founder","system"]` | `service_pkg` non-null | `@flag:ux-incomplete` | `bg#FBEAF0:backlog` | medium |
+| `S04` | `@node:n-ui` | `bg#FAEEDA:Stripe paywall` | Stripe checkout at Run/Export/Publish | MainPanel shows quote, opens Payment Link, refreshes entitlements | `service_pkg` | `ui_pkg` | `@edge:n-mcp:service_pkg→n-ui:service_pkg` | `["founder","system"]` | `service_pkg` non-null | `@flag:ux-incomplete` | `bg#FBEAF0:backlog` | medium |
 | `S05` | `@node:n-ops` | `bg#EAF3DE:economics` | — | Quote before compute; cache; enforce free-tier; measure token costs | `ui_pkg` | `ops_pkg` | `@edge:n-ui:ui_pkg→n-ops:ui_pkg` | `["system"]` | `ui_pkg` non-null | `@flag:tco-risk` | `bg#FBEAF0:backlog` | medium |
 | `S06` | `@node:n-deploy` | `bg#EAF3DE:ship` | Verify checkout on `{{cloudflare_host}}` | Deploy + Stripe webhooks + OpenClaw registry | `ops_pkg` | deployed surface | `@edge:n-ops:ops_pkg→n-deploy:ops_pkg` | `["system"]` | `ops_pkg` non-null | `@flag:deploy-failed` | `bg#FBEAF0:backlog` | medium |
 
@@ -390,7 +395,7 @@ Human-readable projection of `pipeline:` frontmatter. Column header sigils encod
 
 ### Problem
 
-B2C creators want to generate and iterate video workflows quickly, but paywalls are often disconnected from intent, and pricing is opaque. The product needs commerce-like conversion: **monetize actions at the moment of intent** (Run/Export/Publish) with a low-friction Swipe checkout, while preserving FOSS, free-tier, and predictable token economics.
+B2C creators want to generate and iterate video workflows quickly, but paywalls are often disconnected from intent, and pricing is opaque. The product needs commerce-like conversion: **monetize actions at the moment of intent** (Run/Export/Publish) with a low-friction Stripe checkout, while preserving FOSS, free-tier, and predictable token economics.
 
 ### B2C monetization ideas (recommended set)
 
@@ -428,7 +433,7 @@ Agentic Commerce Protocol (ACP) is an open standard for sharing structured catal
 
 | id | Goal | maps to | Priority | Status |
 |---|---|---|---|---|
-| `G-01` | Monetize actions at intent moments in MainPanel via Swipe | `@node:n-ui` | `#D85A30:P0` | TBD |
+| `G-01` | Monetize actions at intent moments in MainPanel via Stripe Checkout | `@node:n-ui` | `#D85A30:P0` | TBD |
 | `G-02` | Stripe-backed MCP tools for quote + checkout + entitlements | `@node:n-mcp` | `#D85A30:P0` | TBD |
 | `G-03` | Token economics: quote first, clamp, cache, no double charge (`{{economics.no_double_charge}}`) | `@node:n-ops` | `#D85A30:P0` | TBD |
 | `G-04` | Free-tier remains usable: `{{economics.free_tier_credits_daily}}` credits/day | `@node:n-actions` | `#185FA5|bg#E6F1FB:P1` | TBD |
@@ -440,14 +445,15 @@ This does not require changing core editor code paths outside the billing surfac
 
 ---
 
-## `bg#E1F5EE:UF` User Flow (Swipe checkout)
+## `bg#E1F5EE:UF` User Flow (Stripe checkout)
 
 1. User clicks **Run** on a VideoGeneration node.
 2. UI calls `{{mcp.tool_quote}}` with run params and receives a price in `{{economics.paid_unit}}`.
-3. If free-tier available, UI shows “use free credits”; otherwise shows Swipe sheet.
-4. User swipes to confirm and UI calls `{{mcp.tool_checkout_create}}`.
-5. Stripe completes checkout; webhook updates entitlements.
-6. UI calls `{{mcp.tool_entitlements}}`, then re-enables Run.
+3. If free-tier available, UI shows “use free credits”; otherwise UI opens a Stripe-hosted checkout (prefer Payment Link).
+4. Default path: UI uses `{{mcp.tool_payment_link_get}}` and opens the hosted link (fastest ship).
+5. Fallback path: service creates a new Checkout Session for each attempt via `{{mcp.tool_checkout_create}}` and redirects to `session.url`.
+6. After payment, service reconciles using `{{mcp.tool_checkout_session_get}}` and checks `status` and `payment_status`, then updates entitlements.
+7. UI calls `{{mcp.tool_entitlements}}`, then re-enables Run.
 
 ---
 
@@ -458,7 +464,7 @@ This does not require changing core editor code paths outside the billing surfac
 | Action category | Trigger | Meter key | Outcome |
 |---|---|---|---|
 | compute | run workflow node | `video.run` | consumes credits and records usage |
-| conversion | swipe checkout | `billing.checkout` | creates Stripe session |
+| conversion | Stripe checkout | `billing.checkout` | creates paid entitlement |
 | commerce | publish template | `market.listing` | enables marketplace listing |
 | upsell | export bundle | `workflow.export` | converts share intent into payment |
 
@@ -478,8 +484,11 @@ This does not require changing core editor code paths outside the billing surfac
 | `{{mcp.tool_quote}}` | quote before compute | params | credits, USD |
 | `{{mcp.tool_payment_link_get}}` | fetch Stripe Payment Link | sku, userId | url, attribution_params |
 | `{{mcp.tool_payment_link_create}}` | create/manage link (optional) | sku, price | url, active |
-| `{{mcp.tool_checkout_create}}` | create Stripe session | quote, userId | checkoutUrl, id |
-| `{{mcp.tool_checkout_status}}` | poll completion | checkoutId | status |
+| `{{mcp.tool_checkout_create}}` | create Checkout Session (fallback) | quote, userId, mode | sessionId, url |
+| `{{mcp.tool_checkout_status}}` | poll completion (legacy alias) | sessionId | status, payment_status |
+| `{{mcp.tool_checkout_session_get}}` | retrieve session | sessionId | status, payment_status, customer, payment_intent, subscription |
+| `{{mcp.tool_checkout_session_line_items}}` | retrieve line items | sessionId | line_items[] |
+| `{{mcp.tool_checkout_session_expire}}` | expire session | sessionId | status=expired |
 | `{{mcp.tool_usage_meter}}` | record usage | action, quantity | ok |
 | `{{mcp.tool_entitlements}}` | entitlements snapshot | userId | caps, balances |
 
@@ -494,6 +503,19 @@ This does not require changing core editor code paths outside the billing surfac
 | Link tracking via URL parameters | measure conversion | enforce attribution params consistency |
 | Buy button + QR code | distribution | enable landing pages and social sharing |
 
+### Stripe Checkout Sessions API (fallback) — why and how
+
+Checkout Sessions provide a server-created payment attempt object with a hosted redirect URL (`session.url`). Recommendation: create a new session each time the customer attempts to pay, and reconcile on the server after completion.
+
+| Session field | Why it matters | How Knowgrph uses it |
+|---|---|---|
+| `client_reference_id` | link to internal user/cart | set to `userId` or `docId` |
+| `metadata` | structured reconciliation | include `sku`, `quote_hash`, `doc_id` |
+| `mode` | one-time vs subscription | `payment` for packs, `subscription` for plans |
+| `status` | open/complete/expired | guard fulfillment and retries |
+| `payment_status` | paid/unpaid/no_payment_required | unlock entitlements only when `paid` |
+| `customer` / `payment_intent` / `subscription` | canonical references after payment | store for audit, refunds, chargebacks |
+
 ---
 
 ## `bg#EAF3DE:DF` Data Flow (pricing, entitlements, usage)
@@ -504,6 +526,7 @@ This does not require changing core editor code paths outside the billing surfac
 |---|---|---|---|---|
 | pricing | admin publish | on price change | versioned | show in UI instantly |
 | payment_links | dashboard create or API create | when sku changes | versioned | stable mapping: sku → url |
+| checkout_sessions | session create (per attempt) | status transitions | expired | reconcile by `status` + `payment_status` |
 | entitlements | signup + checkout | webhook + consumption | never hard delete | clamp at service boundary |
 | usage_ledger | per action | aggregation | retained | audit + refunds |
 | catalog_items | pricing publish + template publish | on update | versioned | ACP-inspired: items + variants |
@@ -528,6 +551,24 @@ CREATE TABLE payment_links (
   url           TEXT NOT NULL,
   active        BOOLEAN DEFAULT true,
   created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE checkout_sessions (
+  id                  TEXT PRIMARY KEY,
+  user_id             TEXT,
+  doc_id              TEXT,
+  sku                 TEXT,
+  mode                TEXT,
+  status              TEXT,
+  payment_status      TEXT,
+  customer_id         TEXT,
+  payment_intent_id   TEXT,
+  subscription_id     TEXT,
+  url                 TEXT,
+  client_reference_id TEXT,
+  metadata_json       TEXT,
+  expires_at          TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE catalog_items (
@@ -574,6 +615,8 @@ CREATE TABLE usage_ledger (
 CREATE INDEX ON usage_ledger (user_id, created_at);
 CREATE INDEX ON usage_ledger (action_key, created_at);
 CREATE INDEX ON payment_links (sku, active);
+CREATE INDEX ON checkout_sessions (user_id, created_at);
+CREATE INDEX ON checkout_sessions (sku, created_at);
 CREATE INDEX ON catalog_items (kind, active);
 CREATE INDEX ON catalog_variants (parent_id);
 ```
@@ -586,7 +629,7 @@ Scoring scale: 1–5 (higher = better). For “TCO risk”, higher score means l
 
 | Option | Tech readiness (0.30) | Differentiation (0.30) | ICP clarity (0.20) | TCO risk (0.20) | Weighted total | Go/No-Go |
 |---|---:|---:|---:|---:|---:|---|
-| A · Swipe + Stripe Payment Links + MCP billing (recommended) | 5 | 4 | 4 | 5 | 4.6 | Go |
+| A · Stripe Payment Links + MCP billing (recommended) | 5 | 4 | 4 | 5 | 4.6 | Go |
 | B · Custom Stripe Checkout Sessions only (more code) | 4 | 4 | 4 | 3 | 3.9 | No-Go |
 | C · Subscription-only (no pay-per-use) | 5 | 2 | 3 | 3 | 3.3 | No-Go |
 | D · Paywall outside editor (no intent moment) | 4 | 2 | 2 | 3 | 2.9 | No-Go |
@@ -598,7 +641,7 @@ Scoring scale: 1–5 (higher = better). For “TCO risk”, higher score means l
 
 | Experiment | Hypothesis | Success metric | Timebox | Owner |
 |---|---|---|---|---|
-| E1 · Swipe sheet at Run moment | Intent-moment checkout increases conversion | ≥3% checkout conversion from paywalled Run | 4 days | `{{owner}}` |
+| E1 · Stripe checkout at Run moment | Intent-moment checkout increases conversion | ≥3% checkout conversion from paywalled Run | 4 days | `{{owner}}` |
 | E2 · Payment Links vs Checkout Session A/B | Payment Links reduce friction with no conversion loss | ≥15% higher completion rate, or same completion with faster ship | 4 days | `{{owner}}` |
 | E3 · Attribution params + URL tracking | Consistent URL parameters improve funnel measurability | attribution present on ≥95% Payment Link URLs; dashboard tracking matches | 1 week | `{{owner}}` |
 
@@ -608,6 +651,7 @@ Scoring scale: 1–5 (higher = better). For “TCO risk”, higher score means l
 
 - OpenAI Commerce / Agentic Commerce Protocol: https://developers.openai.com/commerce
 - Stripe Payment Links: https://docs.stripe.com/payment-links
+- Stripe Checkout Sessions API: https://docs.stripe.com/api/checkout/sessions
 
 ---
 

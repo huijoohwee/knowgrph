@@ -164,3 +164,40 @@ export const testFetchRemoteTextWrapperUseProxyBoolean = async () => {
     g.window = prevWindow
   }
 }
+
+export const testFetchRemoteTextAutoFallsBackToProxyOnPrivateLanOrigin = async () => {
+  const g = globalThis as unknown as GlobalWithFetch
+  const prevFetch = g.fetch
+  const prevWindow = g.window
+  const calls: string[] = []
+
+  g.window = { location: { origin: 'http://10.24.5.7:5173' } }
+  g.fetch = (async (input: unknown) => {
+    const url = typeof input === 'string' ? input : ''
+    calls.push(url)
+    if (url.startsWith('/__fetch_remote?url=')) {
+      const response: FetchStubResponse = {
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        body: null,
+        text: async () => 'proxied',
+      }
+      return response as unknown as Response
+    }
+    throw new Error('network failed')
+  }) as unknown as typeof fetch
+
+  try {
+    const res = await fetchRemoteTextDetailed('https://example.com/asset.json')
+    if ('kind' in res) throw new Error(`Expected proxy fallback success, got ${res.kind}`)
+    if (res.text !== 'proxied') throw new Error(`Expected proxied response body, got ${res.text}`)
+    if (!res.usedProxy) throw new Error('Expected result to report proxy usage after LAN-origin fallback')
+    if (calls.length !== 2) throw new Error(`Expected direct + proxy attempts, got ${calls.length}`)
+    if (calls[0] !== 'https://example.com/asset.json') throw new Error(`Expected direct request first, got ${calls[0] || '<none>'}`)
+    if (!calls[1]?.startsWith('/__fetch_remote?url=')) throw new Error('Expected proxied retry for LAN-origin auto mode')
+  } finally {
+    g.fetch = prevFetch
+    g.window = prevWindow
+  }
+}

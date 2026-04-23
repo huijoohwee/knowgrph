@@ -28,10 +28,14 @@ export type RichMediaPanelProps = {
   showHeader?: boolean
   hideUntilReady?: boolean
   headerPassthrough?: boolean
+  resizable?: boolean
   forwardWheelTo?: () => Element | null
   forwardPointerTo?: () => Element | null
   shouldForwardPointerDown?: (e: PointerEvent) => boolean
   shouldStartHeaderDrag?: (e: PointerEvent) => boolean
+  onResizeStart?: (args: { pointerId: number; clientX: number; clientY: number }) => void
+  onResize?: (args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number }) => void
+  onResizeEnd?: (args: { pointerId: number; clientX: number; clientY: number }) => void
   onOverlayPanStart?: (args: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => void
   onOverlayPan?: (args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean }) => void
   onOverlayPanEnd?: (args: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => void
@@ -93,6 +97,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     return s
   }, [kind, props.srcDoc])
 
+  const isEmptyPanel = kind === 'iframe' && !rawUrl && !inlineSrcDoc
+
   const forceSnapshotIframe = React.useMemo(() => {
     if (kind !== 'iframe') return false
     return shouldForceSnapshotIframeUrl(rawUrl)
@@ -106,11 +112,19 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const flowEditorFrontmatterDocumentMode = useGraphStore(s => {
+    if (String(s.canvas2dRenderer || '') !== 'flowEditor') return false
+    if (s.frontmatterModeEnabled !== true) return false
+    return String(s.documentSemanticMode || '').trim().toLowerCase() === 'document'
+  })
   const editorMode = workspaceViewMode === 'editor'
-  const preferEmbed = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
+  const allowEmbedFromStore = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
+  const preferEmbed = allowEmbedFromStore && props.interactive !== false
   const [videoThumb, setVideoThumb] = React.useState<string>('')
   const forwardingEnabled =
-    !preferEmbed && (typeof props.forwardWheelTo === 'function' || typeof props.forwardPointerTo === 'function')
+    !preferEmbed
+    && flowEditorFrontmatterDocumentMode !== true
+    && (typeof props.forwardWheelTo === 'function' || typeof props.forwardPointerTo === 'function')
   const [ready, setReady] = React.useState<boolean>(() => !hideUntilReady)
   React.useEffect(() => {
     setReady(!hideUntilReady)
@@ -125,6 +139,18 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       window.clearTimeout(t)
     }
   }, [hideUntilReady, ready, proxiedUrl, kind, mode])
+
+  React.useEffect(() => {
+    if (!isEmptyPanel) return
+    setReady(true)
+  }, [isEmptyPanel])
+  const installOverlayPan = props.onOverlayPanStart || props.onOverlayPan || props.onOverlayPanEnd
+  const installHeaderDrag = props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd
+  const installResize = props.resizable === true && (!!props.onResizeStart || !!props.onResize || !!props.onResizeEnd)
+  const canvasOverlayProxyEnabled =
+    !!installOverlayPan
+    || !!installHeaderDrag
+    || typeof props.forwardWheelTo === 'function'
   const fallbackToRawSrc = React.useCallback(() => {
     if (!rawUrl || rawUrl === mediaSrc) return false
     setMediaSrc(rawUrl)
@@ -187,11 +213,81 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     })
   }, [forwardingEnabled, props.forwardWheelTo])
 
-  const installHeaderDrag = props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd
+  const selectSelf = React.useCallback((native: PointerEvent | null) => {
+    if (!flowEditorFrontmatterDocumentMode) return
+    const id = String(props.overlayId || '').trim()
+    if (!id) return
+    if (native && native.button !== 0) return
+    try {
+      const st = useGraphStore.getState() as unknown as {
+        selectNode?: (id: string | null) => void
+        selectEdge?: (id: string | null) => void
+        setSelectionSource?: (src: string) => void
+      }
+      st.setSelectionSource?.('canvas')
+      st.selectEdge?.(null)
+      st.selectNode?.(id)
+    } catch {
+      void 0
+    }
+  }, [flowEditorFrontmatterDocumentMode, props.overlayId])
+
+  const onResizePointerDown = React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!installResize) return
+    if (e.button !== 0) return
+    selectSelf(e.nativeEvent)
+    try {
+      e.preventDefault()
+      e.stopPropagation()
+    } catch {
+      void 0
+    }
+    const native = e.nativeEvent
+    const pointerId = native.pointerId
+    const x0 = native.clientX
+    const y0 = native.clientY
+    try {
+      props.onResizeStart?.({ pointerId, clientX: x0, clientY: y0 })
+    } catch {
+      void 0
+    }
+    startPointerDrag({
+      ev: native,
+      cursor: 'nwse-resize',
+      onMove: ev => {
+        try {
+          props.onResize?.({
+            pointerId: ev.pointerId,
+            clientX: ev.clientX,
+            clientY: ev.clientY,
+            dx: ev.clientX - x0,
+            dy: ev.clientY - y0,
+          })
+        } catch {
+          void 0
+        }
+      },
+      onEnd: ev => {
+        try {
+          props.onResizeEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
+        } catch {
+          void 0
+        }
+      },
+      onCancel: ev => {
+        try {
+          props.onResizeEnd?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY })
+        } catch {
+          void 0
+        }
+      },
+    })
+  }, [installResize, props, selectSelf])
 
   const onHeaderPointerDown = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
     if (!installHeaderDrag) return
     const native = e.nativeEvent
+    selectSelf(native)
     if (native && typeof props.shouldStartHeaderDrag === 'function') {
       try {
         if (props.shouldStartHeaderDrag(native) !== true) return
@@ -199,19 +295,9 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         return
       }
     }
-    try {
-      const st = useGraphStore.getState() as unknown as { selectNode?: (id: string | null) => void; selectEdge?: (id: string | null) => void; setSelectionSource?: (src: string) => void }
-      st.setSelectionSource?.('canvas')
-      st.selectEdge?.(null)
-      st.selectNode?.(null)
-    } catch {
-      void 0
-    }
     const pointerId = native.pointerId
     const x0 = native.clientX
     const y0 = native.clientY
-    const thresholdSq = 7 * 7
-    let moved = false
     try {
       props.onHeaderDragStart?.({ pointerId, clientX: x0, clientY: y0 })
     } catch {
@@ -222,11 +308,14 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       ev: native,
       cursor: 'grabbing',
       onMove: ev => {
-        const dx = ev.clientX - x0
-        const dy = ev.clientY - y0
-        if (!moved && dx * dx + dy * dy > thresholdSq) moved = true
         try {
-          props.onHeaderDrag?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY, dx, dy })
+          props.onHeaderDrag?.({
+            pointerId: ev.pointerId,
+            clientX: ev.clientX,
+            clientY: ev.clientY,
+            dx: ev.clientX - x0,
+            dy: ev.clientY - y0,
+          })
         } catch {
           void 0
         }
@@ -246,7 +335,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         }
       },
     })
-  }, [installHeaderDrag, props, safeOpenUrl])
+  }, [installHeaderDrag, props, selectSelf])
   const onHeaderActionPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
     try {
       e.stopPropagation()
@@ -270,12 +359,12 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
 
   const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const native = e.nativeEvent
+    selectSelf(native)
     const isHeaderTarget = (() => {
       const t = (native as unknown as { target?: unknown }).target
       if (!(t instanceof Element)) return false
       return !!t.closest('[data-kg-media-panel-header="1"]')
     })()
-    const installOverlayPan = props.onOverlayPanStart || props.onOverlayPan || props.onOverlayPanEnd
     const allowHeaderOverlayPan = (() => {
       if (!isHeaderTarget) return true
       if (!installHeaderDrag) return true
@@ -286,7 +375,11 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         return false
       }
     })()
-    if (allowHeaderOverlayPan && installOverlayPan && native && typeof native === 'object') {
+    const allowPointerButtons = (() => {
+      const b = typeof native.buttons === 'number' ? native.buttons : 0
+      return (b & 1) === 1 || (b & 4) === 4
+    })()
+    if (allowHeaderOverlayPan && installOverlayPan && allowPointerButtons && native && typeof native === 'object') {
       const pointerId = native.pointerId
       const x0 = native.clientX
       const y0 = native.clientY
@@ -309,20 +402,17 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       } catch {
         void 0
       }
-
       startPointerDrag({
         ev: native,
         cursor: 'grabbing',
         onMove: ev => {
-          const dx = ev.clientX - x0
-          const dy = ev.clientY - y0
           try {
             props.onOverlayPan?.({
               pointerId: ev.pointerId,
               clientX: ev.clientX,
               clientY: ev.clientY,
-              dx,
-              dy,
+              dx: ev.clientX - x0,
+              dy: ev.clientY - y0,
               buttons: typeof ev.buttons === 'number' ? ev.buttons : 0,
               shiftKey: ev.shiftKey === true,
             })
@@ -366,7 +456,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         void 0
       }
     }
-  }, [props])
+  }, [installHeaderDrag, installOverlayPan, props, selectSelf])
 
   return (
     <article
@@ -377,9 +467,20 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       data-kg-kind={kind}
       data-kg-url={rawUrl}
       data-kg-open-url={openUrl}
-      data-kg-canvas-pointer-ignore="true"
+      data-kg-rich-media-overlay={canvasOverlayProxyEnabled ? '1' : undefined}
+      data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}
+      data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
+      data-kg-canvas-pointer-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
       style={{
         ...PANEL_FRAME_ROOT_STYLE,
+        position: 'relative',
+        ...(flowEditorFrontmatterDocumentMode
+          ? {
+              borderRadius: '12px',
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.10), 0 4px 6px -4px rgba(0,0,0,0.10)',
+              background: 'var(--kg-panel-bg, rgba(255,255,255,0.92))',
+            }
+          : null),
         pointerEvents: hideUntilReady && !ready ? 'none' : (headerPassthrough ? 'none' : (editorMode ? 'auto' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'))),
         opacity: hideUntilReady && !ready ? 0 : 1,
         ...(props.style || null),
@@ -394,6 +495,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       {showHeader ? (
         <header
           data-kg-media-panel-header="1"
+          data-kg-canvas-overlay-drag-handle={installHeaderDrag ? 'true' : undefined}
           className="kg-mediaHeader"
           style={{
             ...PANEL_FRAME_HEADER_STYLE,
@@ -478,7 +580,21 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             }}
           />
         ) : null}
-        {kind === 'iframe' ? (
+        {isEmptyPanel ? (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{
+              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+              background: 'transparent',
+              color: 'var(--kg-muted-foreground, rgba(0,0,0,0.5))',
+              fontSize: 12,
+              userSelect: 'none',
+              pointerEvents: 'none',
+            }}
+          >
+            Connect media to render
+          </div>
+        ) : kind === 'iframe' ? (
           inlineSrcDoc ? (
             <iframe
               src="about:blank"
@@ -612,6 +728,44 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           />
         )}
       </section>
+
+      {installResize ? (
+        <button
+          type="button"
+          aria-label="Resize"
+          data-kg-resize-handle="se"
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            width: 22,
+            height: 22,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'flex-end',
+            background: 'transparent',
+            cursor: 'nwse-resize',
+            pointerEvents: 'auto',
+            zIndex: 20,
+            paddingRight: 2,
+            paddingBottom: 2,
+          }}
+          onPointerDown={onResizePointerDown}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 999,
+              background: 'transparent',
+              border: '2px solid rgba(59, 130, 246, 1)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+              transition: 'var(--kg-transition-group-resize-dot)',
+            }}
+          />
+        </button>
+      ) : null}
     </article>
   )
 })

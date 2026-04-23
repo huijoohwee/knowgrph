@@ -4354,8 +4354,6 @@ export default function DesignCanvas({
                   }
                   designMediaOverlayElsRef.current.set(n.id, el)
                 }}
-                data-kg-canvas-wheel-ignore="true"
-                data-kg-canvas-pointer-ignore="true"
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}

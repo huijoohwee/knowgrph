@@ -153,6 +153,31 @@ export const createUiSlice = (set: SetGraph) => {
 
     isEditMode: false,
 
+    floatingPanelOpen: false,
+    setFloatingPanelOpen: (open: boolean) =>
+      set(state => {
+        const next = open === true
+        if (state.floatingPanelOpen === next) return {}
+        return { floatingPanelOpen: next } as Partial<GraphState>
+      }),
+
+    floatingPanelView: 'propsPanel' as GraphState['floatingPanelView'],
+    setFloatingPanelView: (view: GraphState['floatingPanelView']) =>
+      set(state => {
+        const next =
+          view === 'interaction'
+          || view === 'domTree'
+          || view === 'domInspect'
+          || view === 'chat'
+          || view === 'geo'
+          || view === 'renderer'
+          || view === 'graphTraversal'
+            ? view
+            : 'propsPanel'
+        if (state.floatingPanelView === next) return {}
+        return { floatingPanelView: next } as Partial<GraphState>
+      }),
+
     workspaceViewMode: lsJson<'canvas' | 'editor'>(
       LS_KEYS.workspaceViewMode,
       'canvas',
@@ -172,6 +197,28 @@ export const createUiSlice = (set: SetGraph) => {
         if (state.workspaceCanvasPaneOpen === next) return {}
         lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, next)
         return { workspaceCanvasPaneOpen: next } as Partial<GraphState>
+      }),
+
+    paymentsStripePaywallEnabled: lsBool(LS_KEYS.paymentsStripePaywallEnabled, false),
+    setPaymentsStripePaywallEnabled: (enabled: boolean) =>
+      set(state => {
+        const next = enabled === true
+        if (state.paymentsStripePaywallEnabled === next) return {}
+        lsSetBool(LS_KEYS.paymentsStripePaywallEnabled, next)
+        return { paymentsStripePaywallEnabled: next } as Partial<GraphState>
+      }),
+
+    paymentsStripeCheckoutUrl: lsJson<string>(
+      LS_KEYS.paymentsStripeCheckoutUrl,
+      '',
+      value => (typeof value === 'string' ? value : ''),
+    ),
+    setPaymentsStripeCheckoutUrl: (url: string) =>
+      set(state => {
+        const next = String(url || '').trim()
+        if (state.paymentsStripeCheckoutUrl === next) return {}
+        lsSetJson(LS_KEYS.paymentsStripeCheckoutUrl, next)
+        return { paymentsStripeCheckoutUrl: next } as Partial<GraphState>
       }),
 
     documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, true),

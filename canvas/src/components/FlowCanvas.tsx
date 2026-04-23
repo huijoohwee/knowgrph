@@ -71,6 +71,7 @@ import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdow
 import { buildPanelOnlyNodeIdSetFromGraphNodes, listMarkdownPanelOverlayNodes } from '@/lib/render/markdownPanelOverlayPool'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
+import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const EMPTY_STRING_ARRAY: string[] = []
@@ -412,6 +413,7 @@ export default function FlowCanvas({
   const userSelectLockPointerIdRef = React.useRef<number | null>(null)
 
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
+  const selectedNodeId = useGraphStore(s => (active ? s.selectedNodeId : null))
 
   const { width, height, dpr } = useContainerDims(containerRef)
   const viewportW = Math.max(1, Math.floor(width))
@@ -562,6 +564,7 @@ export default function FlowCanvas({
 
   const handleInteractionFrame = React.useCallback(() => {
     lastUserInteractionAtMsRef.current = Date.now()
+    mediaOverlayLayoutScheduleRef.current?.()
     onInteractionFrame?.()
   }, [onInteractionFrame])
 
@@ -646,6 +649,7 @@ export default function FlowCanvas({
     setZoomState,
     setZoomStateForKey,
     widgetRegistry,
+    documentWidgetRegistry,
     openWidgetNodeIds,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
@@ -683,6 +687,7 @@ export default function FlowCanvas({
           setZoomState: s.setZoomState,
           setZoomStateForKey: s.setZoomStateForKey,
           widgetRegistry: EMPTY_WIDGET_REGISTRY,
+          documentWidgetRegistry: EMPTY_WIDGET_REGISTRY,
           openWidgetNodeIds: EMPTY_STRING_ARRAY,
           flowWidgetPinnedByNodeId: EMPTY_BOOL_RECORD,
           flowWidgetWorldPosByNodeId: EMPTY_POS_RECORD,
@@ -719,6 +724,7 @@ export default function FlowCanvas({
         setZoomState: s.setZoomState,
         setZoomStateForKey: s.setZoomStateForKey,
         widgetRegistry: s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY,
+        documentWidgetRegistry: s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY,
         openWidgetNodeIds: s.openWidgetNodeIds || [],
         flowWidgetPinnedByNodeId: s.flowWidgetPinnedByNodeId || {},
         flowWidgetWorldPosByNodeId: (s as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId || {},
@@ -811,6 +817,10 @@ export default function FlowCanvas({
       graphData: renderGraphData,
     })
   }, [documentSemanticMode, frontmatterModeEnabled, renderGraphData])
+  const flowEditorFrontmatterInteractionMode =
+    canvas2dRenderer === 'flowEditor'
+    && effectiveFrontmatter === true
+    && String(documentSemanticMode || '').trim().toLowerCase() === 'document'
 
   const collapsedGroupIdsKey = React.useMemo(() => {
     return buildCollapsedGroupIdsKey(collapsedGroupIds)
@@ -865,27 +875,40 @@ export default function FlowCanvas({
   }, [deferredMarkdownText, markdownDocumentName])
 
 
+  const mediaRenderConnectedValuesByNodeId = React.useMemo(() => {
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
+    if (nodes.length === 0) return new Map()
+    const dataflowRegistry = Array.isArray(documentWidgetRegistry) && documentWidgetRegistry.length > 0
+      ? documentWidgetRegistry
+      : widgetRegistry
+    return computeFlowConnectedValuesBySchemaPath({
+      graphData: sceneGraphData,
+      registry: dataflowRegistry,
+    })
+  }, [sceneGraphData, widgetRegistry, documentWidgetRegistry])
+
   const mediaRenderNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
     if (nodes.length === 0) return nodes
-    const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
-      graphData: sceneGraphData,
-      registry: widgetRegistry,
-    })
     return nodes.map(node => {
       const nodeId = String(node?.id || '').trim()
       return applyConnectedValuesToNodeForRender({
         node,
-        connectedValuesBySchemaPath: nodeId ? connectedValuesByNodeId.get(nodeId) || undefined : undefined,
+        connectedValuesBySchemaPath: nodeId ? mediaRenderConnectedValuesByNodeId.get(nodeId) || undefined : undefined,
       })
     })
-  }, [sceneGraphData, widgetRegistry])
+  }, [mediaRenderConnectedValuesByNodeId, sceneGraphData])
 
   const mediaNodes = React.useMemo(() => {
     const nodes = mediaRenderNodes
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
-    const suggested = listMediaOverlayNodes({ enabled: true, nodes, poolMax })
+    const suggested = listMediaOverlayNodes({
+      enabled: true,
+      nodes,
+      poolMax,
+      connectedValuesByNodeId: mediaRenderConnectedValuesByNodeId,
+    })
 
     const pinnedOrder = Array.from(mediaOverlayElsRef.current.keys())
     const prevOrder = stickyOverlayOrderRef.current
@@ -965,7 +988,7 @@ export default function FlowCanvas({
       }
     }
     return out
-  }, [mediaRenderNodes, threeIframeOverlayPoolMax])
+  }, [mediaRenderConnectedValuesByNodeId, mediaRenderNodes, threeIframeOverlayPoolMax])
 
   const markdownPanelNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
@@ -1042,49 +1065,30 @@ export default function FlowCanvas({
     updateOverlayHiddenDrawArgs()
   }, [plannedOverlayNodeIdsKey, updateOverlayHiddenDrawArgs])
 
-  const mediaOverlayPanRef = React.useRef<null | { pointerId: number; startTransform: d3.ZoomTransform }>(null)
   const mediaOverlayHeaderDragRef = React.useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number; lastDx: number; lastDy: number }>(null)
+  const mediaOverlayResizeRef = React.useRef<null | { id: string; pointerId: number; startW: number; startH: number; startScale: number; headerH: number; bodyAspect: number; lastW: number; lastH: number }>(null)
+  const mediaOverlayPanelSizeOverrideRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
+  const mediaOverlayPanelSizeTargetWorldRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
+  const mediaOverlayHeaderMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
+  const mediaOverlayHeaderMoveLatestRef = React.useRef<{ id: string; pointerId: number; dx: number; dy: number } | null>(null)
+  const mediaOverlayResizeMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
+  const mediaOverlayResizeMoveLatestRef = React.useRef<{ id: string; pointerId: number; dx: number; dy: number } | null>(null)
   const requestCommitRef = React.useRef<null | (() => void)>(null)
   const mediaOverlayLayoutScheduleRef = React.useRef<null | (() => void)>(null)
-
-  const startMediaOverlayPan = React.useCallback((args: { pointerId: number }) => {
-    if (!active) return
-    const rt = runtimeRef.current
-    if (!rt) return
-    disableAutoZoomModesForUserGesture(useGraphStore.getState())
-    mediaOverlayPanRef.current = { pointerId: args.pointerId, startTransform: rt.transform || d3.zoomIdentity }
-  }, [active])
-
-  const moveMediaOverlayPan = React.useCallback((args: { pointerId: number; dx: number; dy: number }) => {
-    const drag = mediaOverlayPanRef.current
-    if (!drag || drag.pointerId !== args.pointerId) return
-    const rt = runtimeRef.current
-    if (!rt) return
-    const st = useGraphStore.getState()
-    disableAutoZoomModesForUserGesture(st)
-    const next = computeOverlayPanTransform2d({
-      startTransform: drag.startTransform,
-      dxClientPx: args.dx,
-      dyClientPx: args.dy,
-      canvasPanSpeedMultiplier: st.canvasPanSpeedMultiplier,
-      canvasInteractionSpeedMultiplier: st.canvasInteractionSpeedMultiplier,
-      applySpeedMultipliers: false,
-    })
-    setFlowNativeTransform(rt, next)
-    requestFlowNativeDraw(rt, buildDrawArgs())
-    mediaOverlayLayoutScheduleRef.current?.()
-    requestCommitRef.current?.()
-    onInteractionFrame?.()
-  }, [buildDrawArgs, onInteractionFrame])
-
-  const endMediaOverlayPan = React.useCallback((args: { pointerId: number }) => {
-    const drag = mediaOverlayPanRef.current
-    if (!drag || drag.pointerId !== args.pointerId) return
-    mediaOverlayPanRef.current = null
+  const isFlowEditorFrontmatterInteractionMode = React.useCallback(() => {
+    const st = useGraphStore.getState() as unknown as {
+      canvas2dRenderer?: unknown
+      frontmatterModeEnabled?: unknown
+      documentSemanticMode?: unknown
+    }
+    if (String(st.canvas2dRenderer || '') !== 'flowEditor') return false
+    if (st.frontmatterModeEnabled !== true) return false
+    return String(st.documentSemanticMode || '').trim().toLowerCase() === 'document'
   }, [])
 
   const beginMediaOverlayHeaderDrag = React.useCallback((id: string, pointerId: number) => {
     if (!active) return
+    if (!isFlowEditorFrontmatterInteractionMode()) return
     const rt = runtimeRef.current
     const scene = rt?.scene
     if (!rt || !scene) return
@@ -1092,9 +1096,10 @@ export default function FlowCanvas({
     if (!node) return
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
     mediaOverlayHeaderDragRef.current = { id, pointerId, startX: node.x, startY: node.y, startK: rt.transform?.k || 1, lastDx: 0, lastDy: 0 }
-  }, [active])
+  }, [active, isFlowEditorFrontmatterInteractionMode])
 
-  const moveMediaOverlayHeaderDrag = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
+  const applyMediaOverlayHeaderDragMove = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
+    if (!isFlowEditorFrontmatterInteractionMode()) return
     const drag = mediaOverlayHeaderDragRef.current
     if (!drag || drag.id !== id || drag.pointerId !== args.pointerId) return
     const rt = runtimeRef.current
@@ -1120,11 +1125,190 @@ export default function FlowCanvas({
     requestFlowNativeDraw(rt, buildDrawArgs())
     mediaOverlayLayoutScheduleRef.current?.()
     onInteractionFrame?.()
-  }, [buildDrawArgs, onInteractionFrame])
+  }, [buildDrawArgs, isFlowEditorFrontmatterInteractionMode, onInteractionFrame])
+
+  const beginMediaOverlayResize = React.useCallback((id: string, pointerId: number) => {
+    if (!active) return
+    if (!isFlowEditorFrontmatterInteractionMode()) return
+    const rt = runtimeRef.current
+    const scene = rt?.scene
+    if (!rt || !scene) return
+    disableAutoZoomModesForUserGesture(useGraphStore.getState())
+
+    const rawK = rt.transform?.k
+    const zoomK = typeof rawK === 'number' && Number.isFinite(rawK) && rawK > 0 ? rawK : 1
+    const scale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
+    const el = mediaOverlayElsRef.current.get(id) || markdownOverlayElsRef.current.get(id) || null
+    const rect = el ? el.getBoundingClientRect() : null
+    const measuredW = rect && Number.isFinite(rect.width) ? rect.width : 0
+    const measuredH = rect && Number.isFinite(rect.height) ? rect.height : 0
+
+    const headerPx = (() => {
+      if (!el) return 0
+      const headerEl = el.querySelector('[data-kg-media-panel-header="1"]') as HTMLElement | null
+      if (!headerEl) return 0
+      const r = headerEl.getBoundingClientRect()
+      return r && Number.isFinite(r.height) ? r.height : 0
+    })()
+    const headerWorldH = Math.max(0, headerPx / Math.max(0.001, scale))
+
+    const startW = Math.max(24, Math.round(measuredW / Math.max(0.001, scale)))
+    const startH = Math.max(24, Math.round(measuredH / Math.max(0.001, scale)))
+    const baseProps = (() => {
+      const st = useGraphStore.getState() as unknown as { graphData?: unknown }
+      const gd = st.graphData as { nodes?: unknown } | null | undefined
+      const nodes = Array.isArray(gd?.nodes) ? (gd!.nodes as Array<{ id?: unknown; properties?: unknown }>) : []
+      const node = nodes.find(n => String(n?.id || '') === id) || null
+      const props = node?.properties
+      if (!props || typeof props !== 'object' || Array.isArray(props)) return {}
+      return props as Record<string, unknown>
+    })()
+    const storedW = Number(baseProps['visual:width'])
+    const storedH = Number(baseProps['visual:height'])
+    const useW = Number.isFinite(storedW) && storedW > 0 ? Math.max(24, Math.round(storedW)) : startW
+    const useH = Number.isFinite(storedH) && storedH > 0 ? Math.max(24, Math.round(storedH)) : startH
+
+    const bodyH0 = Math.max(24, useH - headerWorldH)
+    const bodyAspect = Math.max(0.001, bodyH0 / Math.max(1, useW))
+    const stableH = Math.max(24 + headerWorldH, Math.round(useW * bodyAspect + headerWorldH))
+    mediaOverlayResizeRef.current = {
+      id,
+      pointerId,
+      startW: useW,
+      startH: stableH,
+      startScale: scale,
+      headerH: headerWorldH,
+      bodyAspect,
+      lastW: useW,
+      lastH: stableH,
+    }
+    mediaOverlayPanelSizeOverrideRef.current.set(id, { w: useW * scale, h: stableH * scale })
+    mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: useW, h: stableH })
+    mediaOverlayLayoutScheduleRef.current?.()
+    onInteractionFrame?.()
+  }, [active, isFlowEditorFrontmatterInteractionMode])
+
+  const applyMediaOverlayResizeMove = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
+    if (!isFlowEditorFrontmatterInteractionMode()) return
+    const drag = mediaOverlayResizeRef.current
+    if (!drag || drag.id !== id || drag.pointerId !== args.pointerId) return
+    const scale = Math.max(0.001, drag.startScale)
+    const headerH = Math.max(0, drag.headerH)
+    const bodyAspect = Math.max(0.001, drag.bodyAspect)
+    const wFromDx = drag.startW + args.dx / scale
+    const wFromDy = Math.max(1, (drag.startH + args.dy / scale) - headerH) / bodyAspect
+    const chosenW = Math.abs(args.dy) > Math.abs(args.dx) ? wFromDy : wFromDx
+    const nextW = Math.max(24, Math.round(chosenW))
+    const nextH = Math.max(24 + headerH, Math.round(nextW * bodyAspect + headerH))
+    drag.lastW = nextW
+    drag.lastH = nextH
+    mediaOverlayPanelSizeOverrideRef.current.set(id, { w: nextW * scale, h: nextH * scale })
+    mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: nextW, h: nextH })
+    mediaOverlayLayoutScheduleRef.current?.()
+    onInteractionFrame?.()
+  }, [isFlowEditorFrontmatterInteractionMode, onInteractionFrame])
+
+  const moveMediaOverlayResize = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
+    const next = { id, ...args }
+    mediaOverlayResizeMoveLatestRef.current = next
+    if (!mediaOverlayResizeMoveSchedulerRef.current) {
+      mediaOverlayResizeMoveSchedulerRef.current = createRafLatestScheduler(
+        (queued: { id: string; pointerId: number; dx: number; dy: number }) => {
+          applyMediaOverlayResizeMove(queued.id, queued)
+        },
+      )
+    }
+    mediaOverlayResizeMoveSchedulerRef.current.schedule(next)
+  }, [applyMediaOverlayResizeMove])
+
+  const endMediaOverlayResize = React.useCallback((id: string, pointerId: number) => {
+    if (!isFlowEditorFrontmatterInteractionMode()) return
+    const drag = mediaOverlayResizeRef.current
+    if (!drag || drag.id !== id || drag.pointerId !== pointerId) return
+    mediaOverlayResizeMoveSchedulerRef.current?.cancel()
+    const pending = mediaOverlayResizeMoveLatestRef.current
+    if (pending && pending.id === id && pending.pointerId === pointerId) {
+      applyMediaOverlayResizeMove(id, pending)
+    }
+    mediaOverlayResizeMoveLatestRef.current = null
+    mediaOverlayResizeRef.current = null
+    try {
+      const st = useGraphStore.getState() as unknown as { graphData?: unknown; updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void }
+      const gd = st.graphData as { nodes?: unknown } | null | undefined
+      const nodes = Array.isArray(gd?.nodes) ? (gd!.nodes as Array<{ id?: unknown; properties?: unknown }>) : []
+      const node = nodes.find(n => String(n?.id || '') === id) || null
+      const baseProps = node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
+        ? (node.properties as Record<string, unknown>)
+        : {}
+      const nextProps = { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH }
+      st.updateNode?.(id, { properties: nextProps })
+    } catch {
+      void 0
+    }
+    mediaOverlayLayoutScheduleRef.current?.()
+    requestCommitRef.current?.()
+  }, [applyMediaOverlayResizeMove, isFlowEditorFrontmatterInteractionMode])
+
+  React.useEffect(() => {
+    if (flowEditorFrontmatterInteractionMode !== true) {
+      mediaOverlayPanelSizeOverrideRef.current.clear()
+      mediaOverlayPanelSizeTargetWorldRef.current.clear()
+      return
+    }
+    const targets = mediaOverlayPanelSizeTargetWorldRef.current
+    if (targets.size === 0) return
+
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as Array<{ id?: unknown; properties?: unknown }>) : []
+    const byId = new Map<string, Record<string, unknown>>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const id = String(nodes[i]?.id || '').trim()
+      if (!id) continue
+      const props = nodes[i]?.properties
+      if (!props || typeof props !== 'object' || Array.isArray(props)) continue
+      byId.set(id, props as Record<string, unknown>)
+    }
+
+    let changed = false
+    for (const [id, t] of targets.entries()) {
+      const props = byId.get(id) || null
+      if (!props) continue
+      const w = Number(props['visual:width'])
+      const h = Number(props['visual:height'])
+      if (!Number.isFinite(w) || !Number.isFinite(h)) continue
+      if (Math.abs(w - t.w) <= 0.5 && Math.abs(h - t.h) <= 0.5) {
+        targets.delete(id)
+        mediaOverlayPanelSizeOverrideRef.current.delete(id)
+        changed = true
+      }
+    }
+    if (changed) {
+      mediaOverlayLayoutScheduleRef.current?.()
+    }
+  }, [flowEditorFrontmatterInteractionMode, sceneGraphData])
+
+  const moveMediaOverlayHeaderDrag = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
+    const next = { id, ...args }
+    mediaOverlayHeaderMoveLatestRef.current = next
+    if (!mediaOverlayHeaderMoveSchedulerRef.current) {
+      mediaOverlayHeaderMoveSchedulerRef.current = createRafLatestScheduler(
+        (queued: { id: string; pointerId: number; dx: number; dy: number }) => {
+          applyMediaOverlayHeaderDragMove(queued.id, queued)
+        },
+      )
+    }
+    mediaOverlayHeaderMoveSchedulerRef.current.schedule(next)
+  }, [applyMediaOverlayHeaderDragMove])
 
   const endMediaOverlayHeaderDrag = React.useCallback((id: string, pointerId: number) => {
+    if (!isFlowEditorFrontmatterInteractionMode()) return
     const drag = mediaOverlayHeaderDragRef.current
     if (!drag || drag.id !== id || drag.pointerId !== pointerId) return
+    mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
+    const pending = mediaOverlayHeaderMoveLatestRef.current
+    if (pending && pending.id === id && pending.pointerId === pointerId) {
+      applyMediaOverlayHeaderDragMove(id, pending)
+    }
+    mediaOverlayHeaderMoveLatestRef.current = null
     const rt = runtimeRef.current
     const scene = rt?.scene
     const node = scene?.nodeById.get(id)
@@ -1137,7 +1321,7 @@ export default function FlowCanvas({
           dyClientPx: drag.lastDy,
           zoomK: drag.startK,
           schema,
-          snapToGrid: true,
+          snapToGrid: false,
         })
         node.x = p.x
         node.y = p.y
@@ -1147,7 +1331,30 @@ export default function FlowCanvas({
     }
     mediaOverlayHeaderDragRef.current = null
     requestCommitRef.current?.()
+  }, [applyMediaOverlayHeaderDragMove, isFlowEditorFrontmatterInteractionMode, schema])
+
+  React.useEffect(() => {
+    return () => {
+      mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
+      mediaOverlayHeaderMoveLatestRef.current = null
+      mediaOverlayResizeMoveSchedulerRef.current?.cancel()
+      mediaOverlayResizeMoveLatestRef.current = null
+      mediaOverlayPanelSizeOverrideRef.current.clear()
+      mediaOverlayPanelSizeTargetWorldRef.current.clear()
+    }
   }, [])
+
+  React.useEffect(() => {
+    if (canvas2dRenderer === 'flowEditor') return
+    mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
+    mediaOverlayHeaderMoveLatestRef.current = null
+    mediaOverlayHeaderDragRef.current = null
+    mediaOverlayResizeMoveSchedulerRef.current?.cancel()
+    mediaOverlayResizeMoveLatestRef.current = null
+    mediaOverlayResizeRef.current = null
+    mediaOverlayPanelSizeOverrideRef.current.clear()
+    mediaOverlayPanelSizeTargetWorldRef.current.clear()
+  }, [canvas2dRenderer])
 
   const overlayNodeIdsKey = React.useMemo(() => overlayNodes.map(n => n.id).join('|'), [overlayNodes])
 
@@ -1167,6 +1374,32 @@ export default function FlowCanvas({
       viewportW,
       viewportH,
       readTransform: () => runtimeRef.current?.transform || d3.zoomIdentity,
+      computeSizingZoomK: (zoomK) => {
+        if (flowEditorFrontmatterInteractionMode !== true) return zoomK
+        return computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
+      },
+      getPanelSizeForId: (id) => {
+        if (flowEditorFrontmatterInteractionMode !== true) return null
+
+        const override = mediaOverlayPanelSizeOverrideRef.current.get(id)
+        if (override) return override
+
+        const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as Array<{ id?: unknown; properties?: unknown }>) : []
+        const node = nodes.find(n => String(n?.id || '') === id) || null
+        const props = node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
+          ? (node.properties as Record<string, unknown>)
+          : null
+        if (!props) return null
+        const w0 = Number(props['visual:width'])
+        const h0 = Number(props['visual:height'])
+        if (!Number.isFinite(w0) || !Number.isFinite(h0) || w0 <= 0 || h0 <= 0) return null
+
+        const rt = runtimeRef.current
+        const rawK = rt?.transform?.k
+        const zoomK = typeof rawK === 'number' && Number.isFinite(rawK) && rawK > 0 ? rawK : 1
+        const scale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
+        return { w: Math.max(24, w0) * scale, h: Math.max(24, h0) * scale }
+      },
       getElementForId: (id) => mediaOverlayElsRef.current.get(id) || markdownOverlayElsRef.current.get(id) || null,
       getNodeWorldCenterForId: (id) => {
         const rt = runtimeRef.current
@@ -1177,6 +1410,7 @@ export default function FlowCanvas({
         widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
         widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,
         widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360,
+        quantizeStepPx: flowEditorFrontmatterInteractionMode ? 1 : 16,
       },
     })
     mediaOverlayLayoutScheduleRef.current = loop.schedule
@@ -1191,6 +1425,8 @@ export default function FlowCanvas({
     active,
     overlayNodes,
     overlayNodeIdsKey,
+    sceneGraphData,
+    flowEditorFrontmatterInteractionMode,
     mediaPanelDensity,
     renderMediaAsNodes,
     threeIframeOverlayBaseWidthMaxPxCompact,
@@ -2131,9 +2367,11 @@ export default function FlowCanvas({
         <section aria-label="Flow media overlay" className="absolute inset-0 z-[80] pointer-events-none">
           {overlayNodes.map(n => {
             const isMarkdownPanel = !!markdownPanelNodeIdSet?.has(n.id)
+            const isSelected = selectedNodeId === n.id
             return (
               <RichMediaPanel
                 key={n.id}
+                overlayId={n.id}
                 ref={(el) => {
                   const refMap = isMarkdownPanel ? markdownOverlayElsRef.current : mediaOverlayElsRef.current
                   if (!el) {
@@ -2144,8 +2382,6 @@ export default function FlowCanvas({
                   refMap.set(n.id, el)
                   updateOverlayHiddenDrawArgs()
                 }}
-                data-kg-canvas-wheel-ignore="true"
-                data-kg-canvas-pointer-ignore="true"
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}
@@ -2155,15 +2391,13 @@ export default function FlowCanvas({
                 interactive={n.interactive}
                 iframeMode="srcdoc-when-needed"
                 forwardWheelTo={() => canvasRef.current}
-                onOverlayPanStart={({ pointerId, buttons }) => {
-                  if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
-                  startMediaOverlayPan({ pointerId })
-                }}
-                onOverlayPan={({ pointerId, dx, dy }) => moveMediaOverlayPan({ pointerId, dx, dy })}
-                onOverlayPanEnd={({ pointerId }) => endMediaOverlayPan({ pointerId })}
-                onHeaderDragStart={({ pointerId }) => beginMediaOverlayHeaderDrag(n.id, pointerId)}
-                onHeaderDrag={({ dx, dy, pointerId }) => moveMediaOverlayHeaderDrag(n.id, { pointerId, dx, dy })}
-                onHeaderDragEnd={({ pointerId }) => endMediaOverlayHeaderDrag(n.id, pointerId)}
+                onHeaderDragStart={flowEditorFrontmatterInteractionMode ? ({ pointerId }) => beginMediaOverlayHeaderDrag(n.id, pointerId) : undefined}
+                onHeaderDrag={flowEditorFrontmatterInteractionMode ? ({ dx, dy, pointerId }) => moveMediaOverlayHeaderDrag(n.id, { pointerId, dx, dy }) : undefined}
+                onHeaderDragEnd={flowEditorFrontmatterInteractionMode ? ({ pointerId }) => endMediaOverlayHeaderDrag(n.id, pointerId) : undefined}
+                resizable={flowEditorFrontmatterInteractionMode && isSelected}
+                onResizeStart={flowEditorFrontmatterInteractionMode ? ({ pointerId }) => beginMediaOverlayResize(n.id, pointerId) : undefined}
+                onResize={flowEditorFrontmatterInteractionMode ? ({ dx, dy, pointerId }) => moveMediaOverlayResize(n.id, { pointerId, dx, dy }) : undefined}
+                onResizeEnd={flowEditorFrontmatterInteractionMode ? ({ pointerId }) => endMediaOverlayResize(n.id, pointerId) : undefined}
                 style={{
                   transform: 'translate(-99999px, -99999px)',
                   width: 1,

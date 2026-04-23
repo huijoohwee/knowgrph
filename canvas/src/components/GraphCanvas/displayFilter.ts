@@ -1,5 +1,6 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
 const coerceEndpointId = (v: unknown): string => {
   if (typeof v === 'string') return v
@@ -32,6 +33,7 @@ const isParagraphOrListNode = (n: GraphNode): boolean => {
 
 export const isDisplayNode = (n: GraphNode): boolean => {
   if (getNodeMediaSpec(n)) return true
+  if (String(n.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return true
   if (String(n.type || '') === 'MermaidSubgraph') return false
   if (String(n.type || '') === 'KeywordSource') return false
   const props = (n.properties || {}) as Record<string, unknown>

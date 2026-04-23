@@ -65,6 +65,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["url.applyMediaProxySrc.normalizesGithubBlob","@/__tests__/mediaProxySrc.test","testApplyMediaProxyNormalizesGithubBlobUrl"],
   ["url.applyMediaProxySrc.skipsProxyWhenNotLocalhost","@/__tests__/mediaProxySrc.test","testApplyMediaProxySkipsProxyWhenNotLocalhost"],
   ["url.applyMediaProxySrc.proxiesOpenFreeMapOnLocalhost","@/__tests__/mediaProxySrc.test","testApplyMediaProxyProxiesOpenFreeMapOnLocalhost"],
+  ["url.applyMediaProxySrc.proxiesOnPrivateLanOrigin","@/__tests__/mediaProxySrc.test","testApplyMediaProxyProxiesOnPrivateLanOrigin"],
   ["ui.launchSpotlightPersistence","@/__tests__/launchSpotlight.test","testLaunchSpotlightStorageHelpers"],
   ["persistence.storagePrimitives","@/__tests__/persistencePrimitives.test","testPersistencePrimitives"],
   ["search.cacheVersionKey","@/__tests__/searchCache.test","testSearchCacheKeysRespectVersion"],

@@ -2,6 +2,20 @@ import type { GraphNode } from '@/lib/graph/types'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { coerceMarkdownParenUrl } from '@/features/parsers/markdownJsonLdUtils'
 import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
+import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import {
+  FLOW_IMAGE_GENERATION_NODE_LABEL,
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_LABEL,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_LABEL,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+  getFlowEditorSmartWidgetLabel,
+} from '@/lib/config.flow-editor'
+import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
+import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 
 export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video'
 
@@ -40,6 +54,52 @@ type Candidate = {
   preferred: boolean
 }
 
+const RICH_MEDIA_CONNECTED_RENDER_PATHS = [
+  'properties.output',
+  'properties.outputSrcDoc',
+  'properties.imageUrl',
+  'properties.videoUrl',
+] as const
+
+function decodeRemoteFetchProxyUrl(raw: string): string {
+  const trimmed = String(raw || '').trim()
+  if (!trimmed) return ''
+  const fromPrefixedPath = (() => {
+    const prefix = '/__fetch_remote?url='
+    if (!trimmed.startsWith(prefix)) return ''
+    try {
+      return decodeURIComponent(trimmed.slice(prefix.length))
+    } catch {
+      return trimmed.slice(prefix.length)
+    }
+  })()
+  if (fromPrefixedPath) return fromPrefixedPath
+  try {
+    const parsed = new URL(trimmed, 'http://localhost')
+    if (parsed.pathname !== '/__fetch_remote') return ''
+    const encoded = parsed.searchParams.get('url') || ''
+    if (!encoded) return ''
+    try {
+      return decodeURIComponent(encoded)
+    } catch {
+      return encoded
+    }
+  } catch {
+    return ''
+  }
+}
+
+function canonicalMediaDedupUrl(raw: string): string {
+  let current = String(raw || '').trim()
+  if (!current) return ''
+  for (let i = 0; i < 3; i += 1) {
+    const unwrapped = decodeRemoteFetchProxyUrl(current)
+    if (!unwrapped || unwrapped === current) break
+    current = unwrapped
+  }
+  return current
+}
+
 function extractStandaloneMarkdownLinkUrlFromText(rawText: unknown): string {
   if (typeof rawText !== 'string') return ''
   const normalized = fixBrokenMarkdownImageSyntax(rawText).text
@@ -62,6 +122,81 @@ function chooseOpenUrl(node: GraphNode, specUrl: string): string {
   return String(specUrl || '').trim()
 }
 
+function deriveOverlayNodeLabel(node: GraphNode): string {
+  const properties = (node.properties || {}) as Record<string, unknown>
+  const nodeTypeId = String(node.type || '').trim()
+  if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+    return getTextGenerationWidgetLabel({
+      provider: properties.chatProvider,
+      widgetTypeId: properties['flow:widgetTypeId'],
+      formId: properties['flow:widgetFormId'],
+    })
+  }
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
+    return getFlowEditorSmartWidgetLabel({
+      mode: 'image',
+      model: properties.model,
+    })
+  }
+  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
+    return getFlowEditorSmartWidgetLabel({
+      mode: 'video',
+      model: properties.model,
+    })
+  }
+  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+    return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+  }
+  return String(node.label || node.id || '').trim() || nodeTypeId || 'Media node'
+}
+
+function deriveRichMediaPanelSourceLabels(args: {
+  node: GraphNode
+  nodeById: ReadonlyMap<string, GraphNode>
+  connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
+}): string[] {
+  if (String(args.node.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return []
+  const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
+  if (!connectedValuesBySchemaPath) return []
+
+  const labels: string[] = []
+  const seenNodeIds = new Set<string>()
+  const seenLabels = new Set<string>()
+  const selfId = String(args.node.id || '').trim()
+
+  for (let i = 0; i < RICH_MEDIA_CONNECTED_RENDER_PATHS.length; i += 1) {
+    const path = RICH_MEDIA_CONNECTED_RENDER_PATHS[i]
+    const connected = connectedValuesBySchemaPath[path]
+    const sources = Array.isArray(connected?.sources) ? connected.sources : []
+    for (let j = 0; j < sources.length; j += 1) {
+      const sourceId = String(sources[j]?.nodeId || '').trim()
+      if (!sourceId || sourceId === selfId || seenNodeIds.has(sourceId)) continue
+      seenNodeIds.add(sourceId)
+      const sourceNode = args.nodeById.get(sourceId)
+      if (!sourceNode) continue
+      const label = deriveOverlayNodeLabel(sourceNode)
+      if (!label || seenLabels.has(label)) continue
+      seenLabels.add(label)
+      labels.push(label)
+    }
+  }
+
+  return labels
+}
+
+function buildOverlayTitle(args: {
+  node: GraphNode
+  nodeById: ReadonlyMap<string, GraphNode>
+  connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
+}): string {
+  const sourceLabels = deriveRichMediaPanelSourceLabels(args)
+  const base = deriveOverlayNodeLabel(args.node)
+  if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && sourceLabels.length > 0) {
+    return `${base} for ${sourceLabels.join(', ')}`
+  }
+  return base || 'Media node'
+}
+
 function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }): number {
   const props = (node.properties || {}) as Record<string, unknown>
   let score = 0
@@ -82,6 +217,10 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
   if (hasLegacy) score += 50
 
   const typeRaw = String(node.type || '').toLowerCase()
+  // Keep Rich Media Panel as canonical renderer when media URLs collide with source widgets.
+  if (typeRaw === 'richmediapanel' || typeRaw === 'rich media panel') {
+    score += 160
+  }
   if (typeRaw === 'image' || typeRaw === 'video' || typeRaw === 'iframe' || typeRaw === 'webpageelement' || typeRaw === 'link') {
     score += 20
   }
@@ -127,6 +266,7 @@ export function listMediaOverlayNodes(args: {
   kinds?: readonly MediaOverlayKind[]
   preferredNodeIds?: readonly string[]
   excludeNodeIdSet?: Set<string>
+  connectedValuesByNodeId?: ReadonlyMap<string, FlowConnectedValuesBySchemaPath>
 }): MediaOverlayNode[] {
   if (!args.enabled) return []
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
@@ -136,24 +276,41 @@ export function listMediaOverlayNodes(args: {
   const preferred = (args.preferredNodeIds || []).map(v => String(v || '').trim()).filter(Boolean)
   const preferredSet = preferred.length ? new Set(preferred) : null
   const exclude = args.excludeNodeIdSet || null
+  const connectedValuesByNodeId = args.connectedValuesByNodeId || null
+  const nodeById = new Map<string, GraphNode>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    const id = String(node?.id || '').trim()
+    if (!id) continue
+    nodeById.set(id, node)
+  }
 
   const candidates: Candidate[] = []
   for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    const id = String(n?.id || '').trim()
+    const n0 = nodes[i]
+    const id = String(n0?.id || '').trim()
     if (!id) continue
     if (exclude?.has(id)) continue
-    const spec = getNodeMediaSpec(n)
+
+    const connectedValuesBySchemaPath = connectedValuesByNodeId?.get(id)
+    const nodeForSpec = (() => {
+      const spec0 = getNodeMediaSpec(n0)
+      if (spec0) return n0
+      if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return n0
+      return applyConnectedValuesToNodeForRender({ node: n0, connectedValuesBySchemaPath })
+    })()
+    const spec = getNodeMediaSpec(nodeForSpec)
     if (!spec) continue
     const kind = spec.kind as MediaOverlayKind
     if (!kinds.has(kind)) continue
-    const rawLabel = String(n.label || n.id || '').trim()
-    const rawType = String(n.type || '').trim()
-    const baseLabel = rawLabel || id
-    const title = rawType ? `${baseLabel} (${rawType})` : baseLabel || 'Media node'
-    const openUrl = chooseOpenUrl(n, spec.url)
+    const title = buildOverlayTitle({
+      node: n0,
+      nodeById,
+      connectedValuesBySchemaPath,
+    })
+    const openUrl = chooseOpenUrl(nodeForSpec, spec.url)
     const preferredHit = preferredSet?.has(id) === true
-    const rankBase = computeMediaRank(n, spec)
+    const rankBase = computeMediaRank(nodeForSpec, spec)
     const rank = preferredHit ? rankBase + 1000 : rankBase
     candidates.push({
       id,
@@ -174,7 +331,7 @@ export function listMediaOverlayNodes(args: {
   const bestByKey = new Map<string, Candidate>()
   for (let i = 0; i < candidates.length; i += 1) {
     const c = candidates[i]!
-    const keyUrl = c.openUrl || c.url
+    const keyUrl = canonicalMediaDedupUrl(c.url || c.openUrl)
     const key = `${c.kind}\n${keyUrl || c.id}`
     const prev = bestByKey.get(key)
     if (!prev) {

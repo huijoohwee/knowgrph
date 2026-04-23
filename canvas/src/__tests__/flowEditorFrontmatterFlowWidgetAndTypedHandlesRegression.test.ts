@@ -23,6 +23,9 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   if (!text.includes('if (allowedFlowNodeIds.size === 0) return []')) {
     throw new Error('expected frontmatter-flow widget derivation to avoid synthetic fallback when registry ids are missing')
   }
+  if (!text.includes('for (const id of eligibleIds) allowedFlowNodeIds.add(id)')) {
+    throw new Error('expected frontmatter-flow widget derivation to fall back to eligible node ids')
+  }
   if (!text.includes("if (!allowedFlowNodeIds.has(id)) continue")) {
     throw new Error('expected frontmatter-flow widget derivation to exclude non-flow ids from overlay editors')
   }
@@ -83,7 +86,7 @@ export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartM
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
 
-  if (!text.includes("const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow' || (nodeFormId && nodeFormId.startsWith('fm:'))")) {
+  if (!text.includes("const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'")) {
     throw new Error('expected widget form to detect frontmatter-flow mode')
   }
   if (!text.includes('isSmartMediaRegistryEntry')) {
@@ -95,11 +98,11 @@ export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartM
   if (!text.includes('!hideFields && isFrontmatterFlow')) {
     throw new Error('expected dedicated frontmatter flow contract section rendering')
   }
-  if (!text.includes('handles.target')) {
-    throw new Error('expected frontmatter flow contract section to include handles.target')
+  if (!text.includes("rowKey: 'flow-handles-target'")) {
+    throw new Error('expected frontmatter flow contract section to include target handle row')
   }
-  if (!text.includes('handles.source')) {
-    throw new Error('expected frontmatter flow contract section to include handles.source')
+  if (!text.includes("rowKey: 'flow-handles-source'")) {
+    throw new Error('expected frontmatter flow contract section to include source handle row')
   }
   if (!text.includes('flow:compute')) {
     throw new Error('expected frontmatter flow contract section to bind flow:compute')

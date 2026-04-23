@@ -8,13 +8,34 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
     throw new Error('expected FlowCanvas to install a window wheel capture handler for Flow Editor overlays')
   }
 
+  const proxyPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'flow-editor-overlay-proxy.ts')
+  const proxyText = readFileSync(proxyPath, 'utf8')
+  if (!proxyText.includes('[data-kg-rich-media-overlay="1"]')) {
+    throw new Error('expected shared overlay proxy selector to include Rich Media Panel overlay roots')
+  }
+
   const wheelPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'wheelAndGesture.ts')
   const wheelText = readFileSync(wheelPath, 'utf8')
   if (!wheelText.includes('[data-kg-widget]') && !wheelText.includes('flow-editor-overlay-proxy')) {
-    throw new Error('expected FlowCanvas wheel proxy to target widget overlays (direct selector or shared proxy helper)')
+    throw new Error('expected FlowCanvas wheel proxy to target widget and Rich Media Panel overlays (direct selector or shared proxy helper)')
   }
 
   if (!wheelText.includes('skipIgnoreGuard: true')) {
     throw new Error('expected FlowCanvas wheel proxy to bypass canvas wheel ignore guard when proxied')
+  }
+  if (!wheelText.includes('ignoreWheelTarget && !proxyOverlayWheel')) {
+    throw new Error('expected FlowCanvas wheel proxy to bypass ignore-guard early return for proxied overlay roots')
+  }
+  if (!wheelText.includes('if (!isFlowEditor) return')) {
+    throw new Error('expected FlowCanvas wheel proxy to be strictly scoped to Flow Editor renderer')
+  }
+  if (!wheelText.includes('st.frontmatterModeEnabled !== true')) {
+    throw new Error('expected FlowCanvas wheel proxy to be scoped to frontmatter-enabled document mode')
+  }
+  if (!wheelText.includes("String(st.documentSemanticMode || '').trim().toLowerCase() !== 'document'")) {
+    throw new Error('expected FlowCanvas wheel proxy to require document semantic mode')
+  }
+  if (!wheelText.includes("String(st.canvas2dRenderer || '') !== 'flowEditor'")) {
+    throw new Error('expected FlowCanvas gesture proxy to be strictly scoped to Flow Editor renderer')
   }
 }

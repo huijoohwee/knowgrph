@@ -204,7 +204,8 @@ export function ToolbarToolMenu({
 }: ToolbarToolMenuProps) {
   const { pinned: floatingPanelPinned, togglePinned: toggleFloatingPanelPinned } = usePinnedLs(LS_KEYS.floatingPanelPinned, true)
   const [floatingPanelMinimized, setFloatingPanelMinimized] = React.useState(false)
-  const [floatingPanelView, setFloatingPanelView] = React.useState<FloatingPanelView>('propsPanel')
+  const floatingPanelView = useGraphStore(s => (s.floatingPanelView || 'propsPanel') as FloatingPanelView)
+  const setFloatingPanelView = useGraphStore(s => s.setFloatingPanelView)
   const [rendererHeaderActions, setRendererHeaderActions] = React.useState<FloatingHeaderActions>({
     apply: undefined,
     reset: undefined,
@@ -306,7 +307,7 @@ export function ToolbarToolMenu({
 
   const handleSelectView = React.useCallback((view: FloatingPanelView) => {
     setFloatingPanelView(view)
-  }, [])
+  }, [setFloatingPanelView])
 
   const handleFloatingPanelPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -444,7 +445,7 @@ export function ToolbarToolMenu({
     handledRequestedViewSeqRef.current = requestedFloatingPanelViewSeq
     setFloatingPanelMinimized(false)
     setFloatingPanelView(requestedFloatingPanelView)
-  }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq])
+  }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])
 
   React.useEffect(() => {
     if (floatingPanelView === 'renderer') return

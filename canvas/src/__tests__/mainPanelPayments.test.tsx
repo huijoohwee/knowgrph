@@ -64,6 +64,8 @@ export async function testMainPanelPaymentsRendersStripeProviderSurface() {
       'stripeApi.base_url',
       'stripeApi.auth.secret_key',
       'stripeApi.webhooks.signing_secret',
+      'stripeApi.checkout.session_url',
+      'Generate (secure)',
     ]
     expectedTokens.forEach(token => {
       if (!text.includes(token)) {

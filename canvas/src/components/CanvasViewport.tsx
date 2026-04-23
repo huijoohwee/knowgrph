@@ -16,6 +16,7 @@ import FlowEditorCanvas from '@/components/FlowEditorCanvas'
 import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.render'
 
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
+import { PaywallOverlay } from '@/features/payments/PaywallOverlay'
 
 type GeospatialOverlayHostProps = {
   active?: boolean
@@ -414,6 +415,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             ) : null}
             <InfiniteCanvasWorkspaceOverlay />
             <MarkdownMetricsDevOverlay layout={layout} />
+            <PaywallOverlay portalTarget={rootRef.current} />
           </>
         ) : null}
       </React.Suspense>

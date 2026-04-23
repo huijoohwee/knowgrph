@@ -84,3 +84,46 @@ export async function testMediaOverlayPoolDeduplicatesByKindAndUrl() {
   const iframeCount = out.filter(n => n.kind === 'iframe').length
   if (iframeCount !== 1) throw new Error(`expected 1 iframe panel after dedupe, got ${iframeCount}`)
 }
+
+export async function testMediaOverlayPoolDeduplicatesProxyWrappedMediaUrlsToSingleCanonicalWidgetVersion() {
+  const raw = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Example.jpg/640px-Example.jpg'
+  const nodes: any[] = [
+    {
+      id: 'seedance-widget',
+      type: 'VideoGeneration',
+      label: 'Seedance 2.0 Video Widget',
+      properties: {
+        media_url: raw,
+        imageUrl: raw,
+      },
+    },
+    {
+      id: 'rich-media-panel',
+      type: 'RichMediaPanel',
+      label: 'Rich Media Panel',
+      properties: {
+        media_url: `/__fetch_remote?url=${encodeURIComponent(raw)}`,
+        imageUrl: `/__fetch_remote?url=${encodeURIComponent(raw)}`,
+      },
+    },
+  ]
+  const connectedValuesByNodeId = new Map<string, any>([
+    ['rich-media-panel', {
+      'properties.imageUrl': {
+        value: raw,
+        sources: [{ edgeId: 'edge-1', nodeId: 'seedance-widget', portKey: 'videoUrl' }],
+      },
+    }],
+  ])
+  const out = listMediaOverlayNodes({
+    enabled: true,
+    nodes: nodes as any,
+    poolMax: 24,
+    connectedValuesByNodeId,
+  })
+  if (out.length !== 1) throw new Error(`expected one canonical media overlay after proxy unwrap dedupe, got ${out.length}`)
+  if (out[0]?.id !== 'rich-media-panel') throw new Error(`expected canonical Rich Media Panel version to win dedupe, got ${out[0]?.id || '<none>'}`)
+  if (!String(out[0]?.title || '').includes('Rich Media Panel for Seedance 2.0 Video Widget')) {
+    throw new Error(`expected canonical Rich Media Panel title to retain source widget context, got ${String(out[0]?.title || '<none>')}`)
+  }
+}

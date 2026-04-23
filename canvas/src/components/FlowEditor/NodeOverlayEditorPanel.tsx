@@ -245,11 +245,8 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   )
 
   const isFrontmatterFlow = React.useMemo(() => {
-    if (String(graphMetaKind || '').trim() === 'frontmatter-flow') return true
-    const props = (node.properties || {}) as Record<string, unknown>
-    const formId = typeof props['flow:widgetFormId'] === 'string' ? String(props['flow:widgetFormId'] || '').trim() : ''
-    return Boolean(formId && formId.startsWith('fm:'))
-  }, [graphMetaKind, node.properties])
+    return String(graphMetaKind || '').trim() === 'frontmatter-flow'
+  }, [graphMetaKind])
 
   return (
     <FloatingPanel

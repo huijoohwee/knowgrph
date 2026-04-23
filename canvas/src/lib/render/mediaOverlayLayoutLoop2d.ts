@@ -19,6 +19,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
   viewportW: number
   viewportH: number
   readTransform: () => d3.ZoomTransform | null
+  computeSizingZoomK?: (zoomK: number) => number
+  getPanelSizeForId?: (id: string) => { w: number; h: number } | null
   getElementForId: (id: string) => HTMLElement | null
   getNodeWorldCenterForId: (id: string) => { x: number; y: number } | null
   sizingConfig: MediaOverlaySizingConfig
@@ -37,7 +39,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
   const update = () => {
     const t = args.readTransform()
     if (!t) return
-    const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+    const rawK = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+    const k = typeof args.computeSizingZoomK === 'function' ? args.computeSizingZoomK(rawK) : rawK
 
     const density = args.density === 'compact' ? 'compact' : 'default'
     const sizing = computeMediaOverlaySizing({
@@ -63,6 +66,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       keepIds.add(id)
       const el = args.getElementForId(id)
       if (!el) continue
+
       const centerNow = args.getNodeWorldCenterForId(id)
       if (centerNow && Number.isFinite(centerNow.x) && Number.isFinite(centerNow.y)) {
         lastWorldCenterById.set(id, centerNow)
@@ -72,10 +76,14 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const cx = t.applyX(center.x)
       const cy = t.applyY(center.y)
       if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
-      const rect = computePanelRect({ cx, cy, w: useSizing.panelW, h: useSizing.panelH, clamp })
+
+      const overrideSize = typeof args.getPanelSizeForId === 'function' ? args.getPanelSizeForId(id) : null
+      const w = overrideSize && Number.isFinite(overrideSize.w) ? Math.max(1, overrideSize.w) : useSizing.panelW
+      const h = overrideSize && Number.isFinite(overrideSize.h) ? Math.max(1, overrideSize.h) : useSizing.panelH
+      const rect = computePanelRect({ cx, cy, w, h, clamp })
       applyMediaPanelCssVars(el, useSizing.vars)
       applyMediaEagerLoadingOnce(el)
-      applyPanelBox(el, { left: rect.left, top: rect.top, w: useSizing.panelW, h: useSizing.panelH, display: 'block' })
+      applyPanelBox(el, { left: rect.left, top: rect.top, w, h, display: 'block' })
       try {
         ;(el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
       } catch {

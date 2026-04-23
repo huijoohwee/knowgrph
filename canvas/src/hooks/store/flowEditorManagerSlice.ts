@@ -193,6 +193,80 @@ export function normalizeWidgetRegistryEntries(
     ids.add(validated.id)
     out.push(validated)
   }
+
+  const rich = out.filter(e => e.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  if (rich.length > 1) {
+    const canonicalTemplate = buildRichMediaPanelRegistryDraft()
+    const preferred = rich.find(e => e.widgetTypeId === 'default' && e.formId === 'richMediaPanel') || rich[0]!
+
+    const fieldKey = (f: WidgetRegistryField): string => {
+      const schemaPath = trimOrEmpty(f.schemaPath)
+      if (schemaPath) return schemaPath
+      return trimOrEmpty(f.fieldKey)
+    }
+    const portKey = (p: WidgetRegistryPort): string => {
+      const schemaPath = trimOrEmpty(p.schemaPath)
+      const key = trimOrEmpty(p.portKey)
+      return `${p.direction}:${schemaPath || key}`
+    }
+    const mappingKey = (m: WidgetRegistrySchemaMapping): string => {
+      return `${trimOrEmpty(m.fromPath)}->${trimOrEmpty(m.toPath)}:${trimOrEmpty(m.transformId)}:${trimOrEmpty(m.reduceId)}`
+    }
+
+    const fields: WidgetRegistryField[] = []
+    const ports: WidgetRegistryPort[] = []
+    const schemaMappings: WidgetRegistrySchemaMapping[] = []
+    const seenFields = new Set<string>()
+    const seenPorts = new Set<string>()
+    const seenMappings = new Set<string>()
+
+    const pushField = (f: WidgetRegistryField) => {
+      const k = fieldKey(f)
+      if (!k || seenFields.has(k)) return
+      seenFields.add(k)
+      fields.push(f)
+    }
+    const pushPort = (p: WidgetRegistryPort) => {
+      const k = portKey(p)
+      if (!k || seenPorts.has(k)) return
+      seenPorts.add(k)
+      ports.push(p)
+    }
+    const pushMapping = (m: WidgetRegistrySchemaMapping) => {
+      const k = mappingKey(m)
+      if (!k || seenMappings.has(k)) return
+      seenMappings.add(k)
+      schemaMappings.push(m)
+    }
+
+    for (const f of canonicalTemplate.fields || []) pushField(f)
+    for (const p of canonicalTemplate.ports || []) pushPort(p)
+    for (const m of canonicalTemplate.schemaMappings || []) pushMapping(m)
+
+    for (let i = 0; i < rich.length; i += 1) {
+      const e = rich[i]!
+      for (const f of e.fields || []) pushField(f)
+      for (const p of e.ports || []) pushPort(p)
+      for (const m of e.schemaMappings || []) pushMapping(m)
+    }
+
+    const merged: WidgetRegistryEntry = {
+      ...preferred,
+      nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'richMediaPanel',
+      fields,
+      ports,
+      schemaMappings,
+    }
+    const validatedMerged = validateWidgetRegistryEntry(merged)
+    const kept = validatedMerged || preferred
+    const next = out.filter(e => e.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+    next.push(kept)
+    out.length = 0
+    out.push(...next)
+  }
+
   out.sort((a, b) => {
     const t = a.nodeTypeId.localeCompare(b.nodeTypeId)
     if (t !== 0) return t

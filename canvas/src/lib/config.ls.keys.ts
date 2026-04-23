@@ -297,6 +297,8 @@ export const LS_KEYS = {
   paymentsStripePublishableKey: 'kg:payments:stripe:publishableKey',
   paymentsStripeWebhookSecret: 'kg:payments:stripe:webhookSecret',
   paymentsStripeAccountId: 'kg:payments:stripe:accountId',
+  paymentsStripePaywallEnabled: 'kg:payments:stripe:paywallEnabled',
+  paymentsStripeCheckoutUrl: 'kg:payments:stripe:checkoutUrl',
   onboardingSpotlightEnabled: 'kg:ui:onboardingSpotlightEnabled',
   startupOpenWorkflowPanel: 'kg:ui:startup:openWorkflowPanel',
   settingsCollapsedByArea: 'kg:settings:collapsedByArea',

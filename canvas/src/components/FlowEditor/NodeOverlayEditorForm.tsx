@@ -477,7 +477,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
   const nodeFormId = typeof properties[FLOW_WIDGET_FORM_ID_KEY] === 'string' ? String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim() : ''
-  const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow' || (nodeFormId && nodeFormId.startsWith('fm:'))
+  const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
   const smartMediaMode = React.useMemo<'image' | 'video' | null>(() => {
     if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'image'
@@ -585,6 +585,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       return ''
     }
   }, [properties.data])
+  const lastFlowDataJsonRef = React.useRef(flowDataJson)
+  const [flowDataDraft, setFlowDataDraft] = React.useState(flowDataJson)
+  React.useEffect(() => {
+    const prev = lastFlowDataJsonRef.current
+    lastFlowDataJsonRef.current = flowDataJson
+    setFlowDataDraft(cur => (cur === prev ? flowDataJson : cur))
+  }, [flowDataJson])
   const { sizePx: dotSizePx, hitSizePx: dotHitPx } = React.useMemo(() => {
     const m = readPortHandleUiMetrics(schema)
     return { sizePx: Math.max(10, m.sizePx), hitSizePx: Math.max(18, m.hitSizePx + 2) }
@@ -665,7 +672,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     const formId = String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
     return formId === 'imageGeneration' || formId === 'videoGeneration'
   }, [properties, registryEntry, smartMediaMode])
-  const showSmartMediaFields = !hideFields && hasSmartMediaSelection
+  const showSmartMediaFields = !hideFields && (!isFrontmatterFlow || hasSmartMediaSelection)
 
   const registryOptionIdsSig = React.useMemo(() => {
     return (registryOptions || []).map(e => String(e.id || '')).join('|')
@@ -1256,8 +1263,23 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                   valueNode: (
                     <PlainTextInputEditor
                       id={`${idBase}-flow-envelope-data`}
-                      value={flowDataJson}
-                      disabled
+                      value={flowDataDraft}
+                      onChange={next => {
+                        const raw = String(next ?? '')
+                        setFlowDataDraft(raw)
+                        if (!active) return
+                        if (!raw.trim()) {
+                          onPatchProperties({ data: undefined })
+                          return
+                        }
+                        try {
+                          const parsed = JSON.parse(raw)
+                          onPatchProperties({ data: parsed })
+                        } catch {
+                          void 0
+                        }
+                      }}
+                      disabled={!active}
                       multiline
                       className={flowEnvelopeValueBoxClass}
                     />

@@ -6,6 +6,7 @@ import { clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 type ToolMenuDragPosition = {
   top: number
@@ -13,7 +14,8 @@ type ToolMenuDragPosition = {
 }
 
 export function useToolMenuState() {
-  const [isToolMenuOpen, setIsToolMenuOpen] = useState(false)
+  const isToolMenuOpen = useGraphStore(s => s.floatingPanelOpen === true)
+  const setFloatingPanelOpen = useGraphStore(s => s.setFloatingPanelOpen)
 
   const toolMenuButtonRef = useRef<HTMLButtonElement | null>(null)
   const toolMenuCardRef = useRef<HTMLElement | null>(null)
@@ -151,25 +153,22 @@ export function useToolMenuState() {
   }, [clampToolMenuPos, getDefaultToolMenuPos, toolMenuDragPos])
 
   const closeToolMenu = useCallback(() => {
-    setIsToolMenuOpen(false)
+    setFloatingPanelOpen(false)
     const pinned = lsBool(LS_KEYS.floatingPanelPinned, false)
     if (!pinned) setToolMenuDragPos(null)
-  }, [])
+  }, [setFloatingPanelOpen])
 
   const toggleToolMenu = useCallback(() => {
-    setIsToolMenuOpen(prev => {
-      const next = !prev
-      if (!next) {
-        const pinned = lsBool(LS_KEYS.floatingPanelPinned, false)
-        if (!pinned) setToolMenuDragPos(null)
-      }
-      return next
-    })
-  }, [])
+    setFloatingPanelOpen(!isToolMenuOpen)
+    if (isToolMenuOpen) {
+      const pinned = lsBool(LS_KEYS.floatingPanelPinned, false)
+      if (!pinned) setToolMenuDragPos(null)
+    }
+  }, [isToolMenuOpen, setFloatingPanelOpen])
 
   return {
     isToolMenuOpen,
-    setIsToolMenuOpen,
+    setIsToolMenuOpen: setFloatingPanelOpen,
     toolMenuButtonRef,
     toolMenuCardRef,
     toolMenuCardStyle,

@@ -8,7 +8,13 @@ import {
   shouldStartSelectionDragForPreset,
 } from '@/lib/canvas/viewport-controls'
 import { cancelFlowZoomRequestAnim } from '@/components/FlowCanvas/applyZoomRequestNative'
-import { resolveFlowEditorOverlayProxyTarget, FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
+import {
+  CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR,
+  CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
+  RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
+  readCanvasOverlayPinnedState,
+  resolveFlowEditorOverlayProxyTarget,
+} from '@/lib/canvas/flow-editor-overlay-proxy'
 import { UI_SELECTORS } from '@/lib/config'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
@@ -45,8 +51,7 @@ export function bindFlowNativeInteractionListeners(args: {
         startTy: number
       } = null
 
-  const OVERLAY_NODE_DRAG_HANDLE_SELECTOR = '[data-kg-flow-node-drag-handle="true"]'
-  const spacePanProxyTargetSelector = [FLOW_EDITOR_OVERLAY_ROOT_SELECTOR, UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore]
+  const spacePanProxyTargetSelector = [CANVAS_OVERLAY_PROXY_ROOT_SELECTOR, UI_SELECTORS.canvasWheelIgnore, UI_SELECTORS.canvasPointerIgnore]
     .filter(Boolean)
     .join(', ')
 
@@ -78,6 +83,10 @@ export function bindFlowNativeInteractionListeners(args: {
 
   const onWindowPointerDownCapture = (e: PointerEvent) => {
     if (!ctx.args.active) return
+    const st = useGraphStore.getState()
+    if (String(st.canvas2dRenderer || '') !== 'flowEditor') return
+    if (st.frontmatterModeEnabled !== true) return
+    if (String(st.documentSemanticMode || '').trim().toLowerCase() !== 'document') return
     if (e.pointerType === 'touch') return
     if (proxyPanPointerId != null) return
     if (pendingProxyPan != null) return
@@ -95,15 +104,20 @@ export function bindFlowNativeInteractionListeners(args: {
     const spacePanHeld = isSpacePanHeld()
 
     const resolved = resolveFlowEditorOverlayProxyTarget({ target: targetEl, canvasEl })
-    const overlayPinnedToNode =
-      resolved.kind === 'overlay' && String((resolved.overlayRoot as HTMLElement | null)?.dataset?.kgWidgetPinned || '') === '1'
+    const overlayPinnedToNode = resolved.kind === 'overlay' && readCanvasOverlayPinnedState(resolved.overlayRoot)
 
-    const overlayDragHandle = resolved.kind === 'overlay' && overlayPinnedToNode && resolved.targetEl.closest(OVERLAY_NODE_DRAG_HANDLE_SELECTOR)
+    const overlayDragHandle = resolved.kind === 'overlay' && overlayPinnedToNode && resolved.targetEl.closest(CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR)
+
+    const overlayRootIsRichMedia =
+      resolved.kind === 'overlay'
+      && (typeof resolved.overlayRoot.matches === 'function')
+      && resolved.overlayRoot.matches(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
 
     if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true && !overlayDragHandle) return
     if (resolved.kind === 'overlay' && !overlayPinnedToNode && button === 0 && spacePanHeld !== true) return
 
     if (resolved.kind === 'overlay' && overlayPinnedToNode && button === 0 && spacePanHeld !== true && e.altKey !== true && overlayDragHandle) {
+      if (overlayRootIsRichMedia) return
       ctx.viewportWheelController.destroy()
       cancelFlowZoomRequestAnim(runtime)
       try {
@@ -400,4 +414,3 @@ export function bindFlowNativeInteractionListeners(args: {
     }
   }
 }
-

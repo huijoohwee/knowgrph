@@ -60,6 +60,14 @@ const STRIPE_DOC_ROWS: ReadonlyArray<StripeApiDocRow> = [
     searchHints: ['idempotency', 'retry', 'duplicate charge'],
   },
   {
+    key: 'stripeApi.paywall.enabled',
+    typeLabel: 'boolean',
+    value: 'false',
+    responsibility: 'Toggles the in-canvas Paywall panel for Chat UI features (centered overlay).',
+    valueKey: 'payments.stripe.paywallEnabled',
+    searchHints: ['paywall', 'chat ui', 'stripe'],
+  },
+  {
     key: 'stripeApi.auth.secret_key',
     typeLabel: 'secret string',
     value: '—',
@@ -162,6 +170,15 @@ const STRIPE_DOC_ROWS: ReadonlyArray<StripeApiDocRow> = [
     value: 'POST /v1/checkout/sessions',
     responsibility: 'Creates a Checkout Session for hosted checkout.',
     searchHints: ['checkout sessions create'],
+  },
+  {
+    key: 'stripeApi.checkout.session_url',
+    typeLabel: 'url',
+    value: '—',
+    responsibility: 'Checkout Session URL returned by Stripe (field: url). Redirect the customer to this URL to begin a hosted Checkout Session.',
+    valueKey: 'payments.stripe.checkoutUrl',
+    notes: 'Server-managed value. Use Generate (secure) so the browser only receives the returned Session url; the Stripe key stays on the dev or preview server. Present for active hosted Checkout Sessions and often uses checkout.stripe.com unless you configured a custom domain.',
+    searchHints: ['checkout session url', 'generate secure', 'checkout.stripe.com', 'ui_mode hosted', 'redirect'],
   },
   {
     key: 'stripeApi.endpoints.checkout.sessions.retrieve',

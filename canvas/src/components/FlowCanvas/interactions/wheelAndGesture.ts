@@ -5,7 +5,11 @@ import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { readWheelBehavior, shouldWheelZoom } from '@/lib/canvas/camera-options-2d'
 import { UI_SELECTORS } from '@/lib/config'
 import { cancelFlowZoomRequestAnim } from '@/components/FlowCanvas/applyZoomRequestNative'
-import { resolveFlowEditorOverlayProxyTarget } from '@/lib/canvas/flow-editor-overlay-proxy'
+import {
+  readCanvasOverlayPinnedState,
+  resolveFlowEditorOverlayProxyTarget,
+  type FlowEditorOverlayProxyTarget,
+} from '@/lib/canvas/flow-editor-overlay-proxy'
 import { createSafariGestureZoomController } from '@/lib/canvas/safari-gesture-zoom'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
@@ -16,12 +20,15 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
   const canvasEl = ctx.canvasEl
   const runtime = ctx.runtime
 
-  const shouldProxyWheelFromOverlay = (event: WheelEvent, opts?: { isFlowEditor?: boolean }): boolean => {
-    const resolved = resolveFlowEditorOverlayProxyTarget({ target: (event as unknown as { target?: unknown }).target, canvasEl })
+  const shouldProxyWheelFromOverlay = (
+    event: WheelEvent,
+    resolved: FlowEditorOverlayProxyTarget,
+    opts?: { isFlowEditor?: boolean },
+  ): boolean => {
     if (resolved.kind !== 'overlay') return false
     const overlayRoot = resolved.overlayRoot
     const el = resolved.targetEl
-    const overlayPinnedToNode = String((overlayRoot as HTMLElement | null)?.dataset?.kgWidgetPinned || '') === '1'
+    const overlayPinnedToNode = readCanvasOverlayPinnedState(overlayRoot)
     const isFlowEditor = opts?.isFlowEditor === true
 
     const dx = typeof (event as unknown as { deltaX?: unknown }).deltaX === 'number' ? (event as unknown as { deltaX: number }).deltaX : 0
@@ -136,9 +143,13 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     if (!ctx.args.active) return
     const st = useGraphStore.getState()
     const isFlowEditor = String(st.canvas2dRenderer || '') === 'flowEditor'
-    if (!isFlowEditor && st.flowEditorOverlayWheelProxyEnabled === false) return
+    if (!isFlowEditor) return
+    if (st.frontmatterModeEnabled !== true) return
+    if (String(st.documentSemanticMode || '').trim().toLowerCase() !== 'document') return
+    const resolved = resolveFlowEditorOverlayProxyTarget({ target: (e as unknown as { target?: unknown }).target, canvasEl })
+    const proxyOverlayWheel = shouldProxyWheelFromOverlay(e, resolved, { isFlowEditor })
     const ignoreWheelTarget = shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
-    if (ignoreWheelTarget) return
+    if (ignoreWheelTarget && !proxyOverlayWheel) return
     const target = e.target
     const targetEl = target instanceof Element ? target : null
     const targetInCanvas = !!targetEl && (targetEl === canvasEl || canvasEl.contains(targetEl))
@@ -155,11 +166,15 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
       }
     }
 
-    if (!shouldProxyWheelFromOverlay(e, { isFlowEditor })) return
+    if (!proxyOverlayWheel) return
     handleWheel(e, { skipIgnoreGuard: true })
   }
 
   const shouldProxyGestureToCanvas = (event: Event): boolean => {
+    const st = useGraphStore.getState()
+    if (String(st.canvas2dRenderer || '') !== 'flowEditor') return false
+    if (st.frontmatterModeEnabled !== true) return false
+    if (String(st.documentSemanticMode || '').trim().toLowerCase() !== 'document') return false
     const resolved = resolveFlowEditorOverlayProxyTarget({ target: (event as unknown as { target?: unknown }).target, canvasEl })
     if (resolved.kind === 'none') return false
     return true

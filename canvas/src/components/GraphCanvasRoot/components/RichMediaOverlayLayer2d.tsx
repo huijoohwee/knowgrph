@@ -48,8 +48,6 @@ export function RichMediaOverlayLayer2d(props: {
             key={n.id}
             ref={getOverlayRefForId(n.id)}
             overlayId={n.id}
-            data-kg-canvas-wheel-ignore="true"
-            data-kg-canvas-pointer-ignore="true"
             className="absolute left-0 top-0 pointer-events-auto"
             title={n.title}
             url={n.url}
@@ -64,7 +62,10 @@ export function RichMediaOverlayLayer2d(props: {
               if (isSpacePanHeld()) return false
               return true
             }}
-            onOverlayPanStart={({ pointerId, clientX, clientY }) => onOverlayPanStart({ pointerId, clientX, clientY })}
+            onOverlayPanStart={({ pointerId, clientX, clientY, buttons }) => {
+              if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
+              onOverlayPanStart({ pointerId, clientX, clientY })
+            }}
             onOverlayPan={({ pointerId, clientX, clientY, dx, dy }) => onOverlayPan({ pointerId, clientX, clientY, dx, dy })}
             onOverlayPanEnd={({ pointerId }) => onOverlayPanEnd({ pointerId })}
             onHeaderDragStart={({ clientX, clientY }) => onHeaderDragStart({ id: n.id, clientX, clientY })}

@@ -43,6 +43,8 @@ const CHAT_PROXY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
 const CHAT_PROXY_BYTEPLUS_HOSTS = new Set([CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST, CHAT_PROXY_BYTEPLUS_EU_WEST_HOST])
 const CHAT_LOG_MAX_BODY_BYTES = 1024 * 1024
 const CHAT_LOG_MAX_FIELD_LENGTH = 20_000
+const STRIPE_CHECKOUT_SESSION_CREATE_PATH = '/__stripe_checkout_session'
+const STRIPE_MAX_REQUEST_BYTES = 16 * 1024
 const chatLogsDir = path.resolve(repoRoot, 'logs')
 
 const normalizeHost = (value: unknown): string => String(value || '').trim().toLowerCase()
@@ -210,6 +212,120 @@ async function runMarkdownPipelineOnce(): Promise<void> {
       }
     })
   })
+}
+
+const readJsonRequestBody = async <T>(req: import('node:http').IncomingMessage, maxBytes: number): Promise<T> => {
+  const body = await new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = []
+    let total = 0
+    req.on('data', (chunk: Buffer) => {
+      total += chunk.length
+      if (total > maxBytes) {
+        reject(new Error('Payload too large'))
+        return
+      }
+      chunks.push(chunk)
+    })
+    req.on('end', () => resolve(Buffer.concat(chunks)))
+    req.on('error', err => reject(err))
+  })
+  return JSON.parse(body.toString('utf8')) as T
+}
+
+const writeJsonResponse = (res: import('node:http').ServerResponse, statusCode: number, body: unknown): void => {
+  res.statusCode = statusCode
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.setHeader('Cache-Control', 'no-store')
+  res.end(JSON.stringify(body))
+}
+
+const getStripeCheckoutServerKey = (): string => {
+  const restrictedKey = String(process.env.STRIPE_RESTRICTED_KEY || '').trim()
+  if (restrictedKey.startsWith('rk_')) return restrictedKey
+  const secretKey = String(process.env.STRIPE_SECRET_KEY || '').trim()
+  if (secretKey.startsWith('sk_')) return secretKey
+  return ''
+}
+
+async function createStripeCheckoutSessionServer(args: {
+  successUrl: string
+  cancelUrl: string
+}): Promise<{ id: string; url: string }> {
+  const apiKey = getStripeCheckoutServerKey()
+  if (!apiKey) {
+    throw new Error('Missing server-managed Stripe key. Set STRIPE_RESTRICTED_KEY (recommended) or STRIPE_SECRET_KEY on the dev/preview server.')
+  }
+
+  const body = new URLSearchParams({
+    mode: 'payment',
+    success_url: String(args.successUrl || '').trim(),
+    cancel_url: String(args.cancelUrl || '').trim(),
+    'line_items[0][price_data][currency]': 'usd',
+    'line_items[0][price_data][product_data][name]': 'Knowgrph Paywall',
+    'line_items[0][price_data][unit_amount]': '100',
+    'line_items[0][quantity]': '1',
+  })
+
+  const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  })
+
+  const json = await response.json().catch(() => null) as {
+    id?: unknown
+    url?: unknown
+    error?: { message?: unknown } | null
+  } | null
+  if (!response.ok) {
+    const message = typeof json?.error?.message === 'string' && json.error.message.trim()
+      ? json.error.message.trim()
+      : `Stripe Checkout Session create failed (HTTP ${response.status}).`
+    throw new Error(message)
+  }
+
+  const id = typeof json?.id === 'string' ? json.id.trim() : ''
+  const url = typeof json?.url === 'string' ? json.url.trim() : ''
+  if (!id || !url) throw new Error('Stripe response missing Checkout Session url.')
+  return { id, url }
+}
+
+function createStripeCheckoutDevHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    if (req.method !== 'POST') {
+      next()
+      return
+    }
+    try {
+      const payload = await readJsonRequestBody<{ successUrl?: unknown; cancelUrl?: unknown }>(req, STRIPE_MAX_REQUEST_BYTES)
+      const successUrl = String(payload?.successUrl || '').trim()
+      const cancelUrl = String(payload?.cancelUrl || '').trim()
+      if (!successUrl || !cancelUrl) {
+        writeJsonResponse(res, 400, { ok: false, error: 'Missing Checkout Session success_url or cancel_url.' })
+        return
+      }
+      const created = await createStripeCheckoutSessionServer({ successUrl, cancelUrl })
+      writeJsonResponse(res, 200, { ok: true, id: created.id, url: created.url })
+    } catch (error) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message.trim()
+        : 'Failed to create Stripe Checkout Session.'
+      writeJsonResponse(res, 500, { ok: false, error: message })
+    }
+  }
+}
+
+const stripeCheckoutDevPlugin = {
+  name: 'knowgrph-stripe-checkout-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use(STRIPE_CHECKOUT_SESSION_CREATE_PATH, createStripeCheckoutDevHandler())
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use(STRIPE_CHECKOUT_SESSION_CREATE_PATH, createStripeCheckoutDevHandler())
+  },
 }
 
 const markdownPipelineDevPlugin = {
@@ -5149,6 +5265,7 @@ export default defineConfig(({ command }) => ({
             autoTheme: true,
             autoThemeTarget: '#root',
           }),
+          stripeCheckoutDevPlugin,
           markdownPipelineDevPlugin,
           apiGraphDevPlugin,
           bipartiteFixtureDevPlugin,

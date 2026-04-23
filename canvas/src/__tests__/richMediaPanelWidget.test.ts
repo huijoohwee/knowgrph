@@ -38,6 +38,20 @@ export function testRichMediaPanelRendersConnectedTextWidgetOutput() {
   }
 }
 
+export function testRichMediaPanelEmptyPanelIsRenderableOverlayShell() {
+  const node = {
+    id: 'rich-media-panel-empty',
+    type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    label: 'Rich Media Panel',
+    properties: {},
+  } as Parameters<typeof getNodeMediaSpec>[0]
+
+  const spec = getNodeMediaSpec(node)
+  if (!spec) throw new Error('expected empty rich media panel to stay renderable as overlay shell')
+  if (spec.kind !== 'iframe') throw new Error(`expected empty rich media panel to default to iframe shell, got ${String(spec.kind)}`)
+  if (String(spec.url || '') !== '') throw new Error('expected empty rich media panel to have no url by default')
+}
+
 export function testRichMediaPanelConnectedTextOverridesStaleImageRenderState() {
   const node = {
     id: 'rich-media-panel-stale-image',
@@ -145,6 +159,42 @@ export function testRichMediaPanelMapsGenericOutputConnectionFromVideoSourcePort
   if (spec.kind !== 'video') throw new Error(`expected generic output connection from video source port to render as video, got ${String(spec.kind)}`)
   if (String(spec.url || '') !== 'https://example.com/generated-video.mp4') {
     throw new Error('expected generic output connection from video source port to map into rich media video render path')
+  }
+}
+
+export function testRichMediaPanelReusesMarkdownImageRenderingFromOutputText() {
+  const node = {
+    id: 'rich-media-panel-output-markdown-image',
+    type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    label: 'Rich Media Panel',
+    properties: {
+      output: '![Generated image](https://example.com/generated-image.png)',
+    },
+  } as Parameters<typeof getNodeMediaSpec>[0]
+
+  const spec = getNodeMediaSpec(node)
+  if (!spec) throw new Error('expected markdown image output text to render in Rich Media Panel')
+  if (spec.kind !== 'image') throw new Error(`expected markdown image output text to reuse image rendering, got ${String(spec.kind)}`)
+  if (String(spec.url || '') !== 'https://example.com/generated-image.png') {
+    throw new Error('expected markdown image output text to resolve to the image url')
+  }
+}
+
+export function testRichMediaPanelReusesMarkdownLinkIframeRenderingFromOutputText() {
+  const node = {
+    id: 'rich-media-panel-output-markdown-link',
+    type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    label: 'Rich Media Panel',
+    properties: {
+      output: '[Reference](https://example.com/embed)',
+    },
+  } as Parameters<typeof getNodeMediaSpec>[0]
+
+  const spec = getNodeMediaSpec(node)
+  if (!spec) throw new Error('expected markdown link output text to render in Rich Media Panel')
+  if (spec.kind !== 'iframe') throw new Error(`expected markdown link output text to reuse iframe rendering, got ${String(spec.kind)}`)
+  if (String(spec.url || '') !== 'https://example.com/embed') {
+    throw new Error('expected markdown link output text to resolve to the iframe url')
   }
 }
 
@@ -342,4 +392,68 @@ export function testRichMediaPanelRegistryPortsExposeWidgetConnectionHandles() {
   ;['out:output', 'out:imageUrl', 'out:videoUrl', 'out:outputSrcDoc'].forEach(id => {
     if (!outIds.has(id as never)) throw new Error(`expected rich media panel output handle ${id}`)
   })
+}
+
+export function testRichMediaPanelCanvasOverlayProxyAttrsAlignWithFlowWidget() {
+  const filePath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const text = readFileSync(filePath, 'utf8')
+  const requiredSnippets = [
+    `data-kg-rich-media-overlay={canvasOverlayProxyEnabled ? '1' : undefined}`,
+    `data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}`,
+    `data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}`,
+    `data-kg-canvas-pointer-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}`,
+    `data-kg-canvas-overlay-drag-handle={installHeaderDrag ? 'true' : undefined}`,
+  ]
+  for (const snippet of requiredSnippets) {
+    if (!text.includes(snippet)) {
+      throw new Error(`expected RichMediaPanel overlay proxy attr snippet: ${snippet}`)
+    }
+  }
+}
+
+export function testRichMediaPanelPanDragUsesFlowCanvasRafLatestScheduler() {
+  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+  const flowCanvas = readFileSync(flowCanvasPath, 'utf8')
+  const panelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const panel = readFileSync(panelPath, 'utf8')
+  const requiredSnippets = [
+    'createRafLatestScheduler',
+    'mediaOverlayPanMoveSchedulerRef',
+    'mediaOverlayHeaderMoveSchedulerRef',
+    'mediaOverlayPanMoveSchedulerRef.current.schedule(args)',
+    'mediaOverlayHeaderMoveSchedulerRef.current.schedule(next)',
+    'mediaOverlayPanMoveSchedulerRef.current?.cancel()',
+    'mediaOverlayHeaderMoveSchedulerRef.current?.cancel()',
+  ]
+  for (const snippet of requiredSnippets) {
+    if (!flowCanvas.includes(snippet)) {
+      throw new Error(`expected FlowCanvas drag/pan RAF scheduler snippet: ${snippet}`)
+    }
+  }
+  if (panel.includes('createRafLatestScheduler')) {
+    throw new Error('expected RichMediaPanel not to own drag/pan scheduler; scheduler SSOT must stay in FlowCanvas')
+  }
+}
+
+export function testFlowCanvasRichMediaOverlayDragHandlersAreFlowEditorScoped() {
+  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+  const text = readFileSync(flowCanvasPath, 'utf8')
+  const requiredSnippets = [
+    'flowEditorFrontmatterInteractionMode =',
+    "onOverlayPanStart={flowEditorFrontmatterInteractionMode ?",
+    "onOverlayPan={flowEditorFrontmatterInteractionMode ?",
+    "onOverlayPanEnd={flowEditorFrontmatterInteractionMode ?",
+    "onHeaderDragStart={flowEditorFrontmatterInteractionMode ?",
+    "onHeaderDrag={flowEditorFrontmatterInteractionMode ?",
+    "onHeaderDragEnd={flowEditorFrontmatterInteractionMode ?",
+    "&& effectiveFrontmatter === true",
+    'isFlowEditorFrontmatterInteractionMode',
+    "if (st.frontmatterModeEnabled !== true) return false",
+    "return String(st.documentSemanticMode || '').trim().toLowerCase() === 'document'",
+  ]
+  for (const snippet of requiredSnippets) {
+    if (!text.includes(snippet)) {
+      throw new Error(`expected FlowCanvas Rich Media drag/pan Flow Editor guard snippet: ${snippet}`)
+    }
+  }
 }

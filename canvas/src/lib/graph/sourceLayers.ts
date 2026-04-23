@@ -1,4 +1,5 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
 export type SourceLayerInput = {
@@ -35,6 +36,33 @@ function computeTextHash(layer: SourceLayerInput): string {
   if (existing) return existing
   const text = typeof layer.text === 'string' ? layer.text : ''
   return hashStringToHexCached(`source-layer:${String(layer.id || '').trim() || 'unknown'}`, text)
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function mergeWidgetRegistryMetadata(layers: SourceLayerInput[]): JSONValue[] | undefined {
+  const out: JSONValue[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i < layers.length; i += 1) {
+    const graph = layers[i]?.parsedGraphData
+    const metadata = isRecord(graph?.metadata) ? (graph!.metadata as Record<string, unknown>) : null
+    const raw = Array.isArray(metadata?.[FLOW_WIDGET_REGISTRY_METADATA_KEY]) ? (metadata?.[FLOW_WIDGET_REGISTRY_METADATA_KEY] as unknown[]) : []
+    for (let j = 0; j < raw.length; j += 1) {
+      const entry = raw[j]
+      if (!isRecord(entry)) continue
+      const nodeTypeId = typeof entry.nodeTypeId === 'string' ? entry.nodeTypeId.trim() : ''
+      const formId = typeof entry.formId === 'string' ? entry.formId.trim() : ''
+      const widgetTypeId = typeof entry.widgetTypeId === 'string' ? entry.widgetTypeId.trim() : ''
+      const id = typeof entry.id === 'string' ? entry.id.trim() : ''
+      const key = nodeTypeId && formId && widgetTypeId ? `${nodeTypeId}|${formId}|${widgetTypeId}` : id
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      out.push(entry as unknown as JSONValue)
+    }
+  }
+  return out.length > 0 ? out : undefined
 }
 
 export function buildSourceLayerKeys(layers: SourceLayerInput[]): { contentKey: string; orderKey: string } {
@@ -126,6 +154,8 @@ export function composeGraphFromSourceLayers(args: {
     sourceLayerHash: contentKey as unknown as JSONValue,
     sourceLayerOrderHash: orderKey as unknown as JSONValue,
   }
+  const mergedWidgetRegistry = mergeWidgetRegistryMetadata(enabledParsed)
+  if (mergedWidgetRegistry) nextMetadata[FLOW_WIDGET_REGISTRY_METADATA_KEY] = mergedWidgetRegistry
 
   return {
     graphData: {

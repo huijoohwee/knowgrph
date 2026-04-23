@@ -29,6 +29,31 @@ const buildGraphWithMediaNode = (): GraphData => ({
   edges: [],
 })
 
+const buildGraphWithConflictingSeedanceAndRichMediaPanelNodes = (): GraphData => ({
+  type: 'Graph',
+  nodes: [
+    {
+      id: 'seedance-widget',
+      type: 'VideoGeneration',
+      label: 'Seedance 2.0 Video Widget',
+      properties: {
+        media_url: 'https://example.com/flower.mp4',
+        videoUrl: 'https://example.com/flower.mp4',
+      },
+    },
+    {
+      id: 'rich-media-panel',
+      type: 'RichMediaPanel',
+      label: 'Rich Media Panel',
+      properties: {
+        media_url: '/__fetch_remote?url=https%3A%2F%2Fexample.com%2Fflower.mp4',
+        videoUrl: '/__fetch_remote?url=https%3A%2F%2Fexample.com%2Fflower.mp4',
+      },
+    },
+  ],
+  edges: [],
+})
+
 const buildMarkdown = (): string =>
   [
     '# Title',
@@ -220,6 +245,48 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
           afterTweet.markdownPreviewActiveMediaKey,
         )}`,
       )
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testPreviewPanelGraphMediaDeduplicatesSeedanceWidgetToCanonicalRichMediaPanel() {
+  const storage = new MemoryStorage()
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const state = useGraphStore.getState()
+    state.setGraphData(buildGraphWithConflictingSeedanceAndRichMediaPanelNodes())
+    state.setMarkdownDocument('doc.md', '')
+    state.setMarkdownPreviewMermaidFocus(null)
+    state.setMarkdownPreviewActiveMediaKey(null)
+
+    root.render(React.createElement(PreviewPanelView))
+    for (let i = 0; i < 8; i += 1) await waitForNextFrame(dom.window)
+
+    const graphCards = Array.from(doc.querySelectorAll('button')).filter(btn =>
+      String(btn.textContent || '').includes('Node media:'),
+    )
+    if (graphCards.length !== 1) {
+      throw new Error(`expected one canonical graph media card after dedupe, got ${graphCards.length}`)
+    }
+    const graphCardText = String(graphCards[0]?.textContent || '')
+    if (!graphCardText.includes('Rich Media Panel')) {
+      throw new Error(`expected canonical graph media card to keep Rich Media Panel version, got ${graphCardText || '<empty>'}`)
+    }
+    if (graphCardText.includes('Seedance 2.0 Video Widget') && !graphCardText.includes('Rich Media Panel for Seedance 2.0 Video Widget')) {
+      throw new Error(`expected stale Seedance widget-only card to be removed, got ${graphCardText}`)
     }
 
     root.unmount()

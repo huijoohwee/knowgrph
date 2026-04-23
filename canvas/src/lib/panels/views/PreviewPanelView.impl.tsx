@@ -32,12 +32,13 @@ import {
   parseMermaidConfigFromFrontmatter,
   useRootThemeMode,
 } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
-import type { GraphNode } from '@/lib/graph/types'
-import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
@@ -59,6 +60,8 @@ export default function PreviewPanelView() {
   )
   const graphData = useActiveGraphRenderData()
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
+  const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry || [])
+  const documentWidgetRegistry = useGraphStore(s => s.documentWidgetRegistry || [])
   const rootThemeMode = useRootThemeMode()
 
   const hasMarkdown = !!(markdownText && markdownText.trim())
@@ -154,6 +157,7 @@ export default function PreviewPanelView() {
     source: MediaSource
     startLine: number
     label: string
+    panelTitle?: string
     nodeId?: string
     code?: string
     mermaidConfig?: MermaidInitConfig | null
@@ -432,27 +436,55 @@ export default function PreviewPanelView() {
       }
     }
 
-    if (graphData && Array.isArray(graphData.nodes)) {
-      for (let i = 0; i < graphData.nodes.length; i += 1) {
-        const n = graphData.nodes[i] as GraphNode
-        const spec = getNodeMediaSpec(n)
-        if (!spec) continue
-        const nodeId = String(n.id || '')
+    if (graphData && Array.isArray(graphData.nodes) && graphData.nodes.length > 0) {
+      const dataflowRegistry =
+        Array.isArray(documentWidgetRegistry) && documentWidgetRegistry.length > 0
+          ? documentWidgetRegistry
+          : widgetRegistry
+      const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
+        graphData,
+        registry: dataflowRegistry,
+      })
+      const effectiveNodes = graphData.nodes.map(node => {
+        const nodeId = String(node?.id || '').trim()
+        return applyConnectedValuesToNodeForRender({
+          node,
+          connectedValuesBySchemaPath: nodeId ? connectedValuesByNodeId.get(nodeId) || undefined : undefined,
+        })
+      })
+      const canonicalGraphMedia = listMediaOverlayNodes({
+        enabled: true,
+        nodes: effectiveNodes,
+        poolMax: effectiveNodes.length,
+        connectedValuesByNodeId,
+      })
+      const effectiveNodeById = new Map(
+        effectiveNodes.map(node => [String(node?.id || '').trim(), node] as const).filter(([nodeId]) => !!nodeId),
+      )
+
+      for (let i = 0; i < canonicalGraphMedia.length; i += 1) {
+        const item = canonicalGraphMedia[i]
+        if (!item) continue
+        const nodeId = String(item.id || '').trim()
         if (!nodeId) continue
-        const src = spec.url
-        if (!src) continue
-        const baseLabel = String(n.label || nodeId)
-        const label = baseLabel ? `Node media: ${baseLabel}` : 'Node media'
-        const kind: MediaKind = spec.kind === 'svg' ? 'image' : spec.kind === 'video' ? 'video' : spec.kind === 'iframe' ? 'iframe' : 'image'
-        const key = `graph-node-media:${nodeId}:${kind}:${src}`
+        const src = String(item.url || '').trim()
+        if (!src && !String(item.srcDoc || '').trim()) continue
+        const node = effectiveNodeById.get(nodeId) || null
+        const baseLabel = String(node?.label || nodeId).trim()
+        const label = String(item.title || '').trim() || (baseLabel ? `Node media: ${baseLabel}` : 'Node media')
+        const kind: MediaKind =
+          item.kind === 'svg' ? 'image' : item.kind === 'video' ? 'video' : item.kind === 'iframe' ? 'iframe' : 'image'
+        const openUrl = String(item.openUrl || item.url || '').trim()
+        const key = `graph-node-media:${nodeId}:${kind}:${openUrl || src || 'srcdoc'}`
         list.push({
           key,
           kind,
           source: 'graph',
           startLine: 0,
-          label,
+          label: `Node media: ${label}`,
+          panelTitle: label,
           src,
-          openUrl: src,
+          openUrl: openUrl || undefined,
           alt: baseLabel || undefined,
           nodeId,
         })
@@ -460,7 +492,7 @@ export default function PreviewPanelView() {
     }
 
     return list
-  }, [graphData, markdownDocumentName, mermaidFrontmatterConfig, meta, rootThemeMode, tokens])
+  }, [documentWidgetRegistry, graphData, markdownDocumentName, mermaidFrontmatterConfig, meta, rootThemeMode, tokens, widgetRegistry])
 
   const hasMermaidFocus = !!mermaidFocusCode
 
@@ -557,7 +589,7 @@ export default function PreviewPanelView() {
         <div className="w-full h-full flex items-center justify-center">
           <div className={`aspect-video w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
             <RichMediaPanel
-              title={activeMedia.alt || activeMedia.label}
+              title={activeMedia.panelTitle || activeMedia.alt || activeMedia.label}
               url={activeMedia.src}
               openUrl={activeMedia.openUrl || activeMedia.src}
               kind="image"
@@ -576,7 +608,7 @@ export default function PreviewPanelView() {
         <div className="w-full h-full flex items-center justify-center">
           <div className={`aspect-video w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
             <RichMediaPanel
-              title={activeMedia.label}
+              title={activeMedia.panelTitle || activeMedia.label}
               url={activeMedia.src}
               openUrl={activeMedia.openUrl || activeMedia.src}
               kind="video"
@@ -603,7 +635,7 @@ export default function PreviewPanelView() {
           <div className={`aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
             {loaded ? (
               <RichMediaPanel
-                title={activeMedia.label}
+                title={activeMedia.panelTitle || activeMedia.label}
                 url={activeMedia.src}
                 openUrl={activeMedia.openUrl || activeMedia.src}
                 kind="iframe"

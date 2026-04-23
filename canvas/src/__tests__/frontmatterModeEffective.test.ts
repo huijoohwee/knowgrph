@@ -1,5 +1,5 @@
 import type { GraphData } from '@/lib/graph/types'
-import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { computeEffectiveFrontmatterMode, isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 
 export function testFrontmatterModeEffectiveNoopWhenNoSeeds() {
@@ -58,4 +58,17 @@ export function testFrontmatterModeEffectiveForFrontmatterFlowGraphWithoutMermai
     graphData,
   })
   if (effective !== true) throw new Error('expected frontmatter mode to be effective for frontmatter-flow graph context')
+}
+
+export function testFrontmatterFlowGraphDetectionDoesNotUseWidgetPropertyHeuristics() {
+  const graphData: GraphData = {
+    type: 'graph',
+    metadata: {},
+    nodes: [{ id: 'n1', type: 'Node', label: 'n1', properties: { 'flow:widgetFormId': 'fm:n1' } }],
+    edges: [],
+  }
+
+  if (isFrontmatterFlowGraph(graphData) !== false) {
+    throw new Error('expected frontmatter-flow detection to rely on context/metadata.kind only')
+  }
 }

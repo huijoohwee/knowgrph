@@ -7,7 +7,12 @@ import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { readPdfWorkspaceOutputDirRel } from '@/lib/pdf/pdfWorkspacePreferences'
 import { fetchPdfWorkspaceDoc, importPdfToWorkspace } from '@/lib/pdf/pdfWorkspaceClient'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
-import { buildPendingLocalImportStub, clearPendingLocalImport, setPendingLocalImport } from './pendingLocalImport'
+import {
+  buildPendingLocalImportStub,
+  clearPendingLocalImport,
+  isPendingLocalImportStubText,
+  setPendingLocalImport,
+} from './pendingLocalImport'
 import { importTextFileOrWorkspaceJsonLd } from './workspaceFileJsonLd'
 import type { WorkspaceImportResult } from './types'
 
@@ -182,6 +187,26 @@ export async function importWorkspaceLocalFiles(args: {
       continue
     }
     try {
+      const desiredPath = normalizeWorkspacePath(`${parentPath}/${nameRaw}`)
+      const lowerName = nameRaw.toLowerCase()
+      const looksLikeWorkspaceFile = lowerName.endsWith('.jsonld') || lowerName.endsWith('.json-ld')
+      if (
+        desiredPath
+        && !looksLikeWorkspaceFile
+        && !isPdfFile(file)
+        && !shouldDeferLargeLocalFileImport(file, nameRaw)
+      ) {
+        const existingText = await args.fs.readFileText(desiredPath)
+        if (typeof existingText === 'string' && isPendingLocalImportStubText(existingText)) {
+          const rawText = await file.text()
+          await args.fs.writeFileText(desiredPath, rawText)
+          clearPendingLocalImport(desiredPath)
+          createdPaths.push(desiredPath)
+          sources.push({ path: desiredPath, source: { kind: 'local', originalName: file.name } })
+          continue
+        }
+      }
+
       const createdPath = shouldDeferLargeLocalFileImport(file, nameRaw)
         ? await (async () => {
             const created = await args.fs.createFile({

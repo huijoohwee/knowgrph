@@ -2459,7 +2459,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           imageUrl: '',
           videoUrl: '',
           outputSrcDoc: '',
-          media_interactive: false,
         })
       }
       if (entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
@@ -2500,7 +2499,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       })
       scheduleForceSelect(id, { minHoldMs: 700 })
       setPendingOverlayNode({ id, type: entry.nodeTypeId, label, x, y, properties: properties as never })
-      pendingOpenWidgetNodeIdRef.current = id
+      if (entry.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+        pendingOpenWidgetNodeIdRef.current = id
+      }
       appendDraftNode({ id, type: entry.nodeTypeId, label, x, y, properties })
       try {
         setTimeout(() => {
@@ -3645,14 +3646,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         allowedFlowNodeIds.add(nodeId)
       }
       if (allowedFlowNodeIds.size === 0) {
-        for (let i = 0; i < nodes.length; i += 1) {
-          const n = nodes[i]
-          const id = String(n?.id || '').trim()
-          if (!id) continue
-          const props = (n?.properties || {}) as Record<string, unknown>
-          const formId = typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string' ? String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim() : ''
-          if (formId && formId.startsWith('fm:')) allowedFlowNodeIds.add(id)
-        }
+        for (const id of eligibleIds) allowedFlowNodeIds.add(id)
       }
       if (allowedFlowNodeIds.size === 0) return []
       const next: string[] = []
@@ -3681,11 +3675,18 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (!s || seen.has(s)) continue
       if (eligibleIds.size > 0 && !eligibleIds.has(s)) continue
       if (String(nodeById.get(s)?.type || '') === 'Section') continue
+      if (String(nodeById.get(s)?.type || '') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
       seen.add(s)
       next.push(s)
     }
     const sel = String(overlayDraftNode?.id || '').trim()
-    if (sel && !seen.has(sel) && (eligibleIds.size === 0 || eligibleIds.has(sel)) && String(nodeById.get(sel)?.type || '') !== 'Section') {
+    if (
+      sel
+      && !seen.has(sel)
+      && (eligibleIds.size === 0 || eligibleIds.has(sel))
+      && String(nodeById.get(sel)?.type || '') !== 'Section'
+      && String(nodeById.get(sel)?.type || '') !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    ) {
       next.push(sel)
     }
     if (next.length > 0) lastStableOverlayEditorNodeIdsRef.current = next

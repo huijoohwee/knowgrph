@@ -227,6 +227,215 @@ export const testWidgetRegistrySelectFieldsStayEditable = async () => {
   root.unmount()
 }
 
+export const testOpenAiTextWidgetCellsStayLocallyEditable = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+
+  const g = globalThis as unknown as { window?: unknown; document?: unknown }
+  g.window = dom.window
+  g.document = dom.window.document
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+  const patched: Array<Record<string, unknown>> = []
+
+  root.render(
+    React.createElement(NodeOverlayEditorRegistrySection, {
+      active: true,
+      properties: {
+        chatProvider: 'openai',
+        prompt: 'hello',
+        chatEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
+        chatModel: 'gpt-5.4-nano',
+        chatTopP: 0.7,
+      },
+      registryEntry: {
+        id: 'openai-text-widget',
+        nodeTypeId: 'TextGeneration',
+        widgetTypeId: 'openai',
+        formId: 'textGeneration.openai',
+        fields: [
+          { fieldKey: 'prompt', fieldType: 'text', schemaPath: 'properties.prompt', label: 'Prompt' },
+          { fieldKey: 'chatModel', fieldType: 'text', schemaPath: 'properties.chatModel', label: 'Model' },
+          { fieldKey: 'chatTopP', fieldType: 'number', schemaPath: 'properties.chatTopP', label: 'Top P' },
+        ],
+        ports: [{ portKey: 'prompt_in', direction: 'input', schemaPath: 'properties.prompt' }],
+      } as any,
+      microLabelClass: 'text-xs',
+      monospaceTextClass: 'font-mono',
+      textSizeClass: 'text-sm',
+      keyValueInputClass: 'border',
+      keyLabelClass: 'text-xs',
+      normalizeRegistrySchemaPath: (schemaPath?: string) => String(schemaPath || ''),
+      ids: { registryField: (k: string) => k },
+      dotSizePx: 10,
+      dotHitPx: 18,
+      portHandlesEnabled: true,
+      onSetProperties: next => patched.push(next),
+    }),
+  )
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const promptInput = host.querySelector<HTMLInputElement>('#prompt')
+  const modelInput = host.querySelector<HTMLInputElement>('#chatModel')
+  const topPInput = host.querySelector<HTMLInputElement>('#chatTopP')
+  if (!promptInput || !modelInput || !topPInput) {
+    throw new Error('expected OpenAI text widget inputs to render')
+  }
+
+  promptInput.value = 'updated openai prompt'
+  promptInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+  modelInput.value = 'gpt-5.4-mini'
+  modelInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+  topPInput.value = '0.4'
+  topPInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  if (patched.length === 0) {
+    throw new Error('expected OpenAI text widget field edits to patch widget properties')
+  }
+
+  root.unmount()
+}
+
+export const testSeedreamImageWidgetKvRowsStayEditable = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+
+  const g = globalThis as unknown as { window?: unknown; document?: unknown }
+  g.window = dom.window
+  g.document = dom.window.document
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+  const patched: Array<Record<string, unknown>> = []
+
+  root.render(
+    React.createElement(NodeOverlayEditorRegistrySection, {
+      active: true,
+      properties: {
+        model: FLOW_EDITOR_IMAGE_MODEL_OPTIONS[0]?.value,
+        aspect_ratio: 'landscape',
+        reference_image: 'https://example.invalid/seedream-ref.png',
+      },
+      registryEntry: {
+        id: 'seedream-image-widget',
+        nodeTypeId: 'ImageGeneration',
+        widgetTypeId: 'default',
+        formId: 'imageGeneration',
+        fields: [
+          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: FLOW_EDITOR_IMAGE_MODEL_OPTIONS },
+          { fieldKey: 'aspect_ratio', fieldType: 'select', schemaPath: 'properties.aspect_ratio', label: 'Aspect ratio', options: FLOW_EDITOR_ASPECT_RATIO_OPTIONS },
+          { fieldKey: 'reference_image', fieldType: 'text', schemaPath: 'properties.reference_image', label: 'Reference image' },
+        ],
+        ports: [{ portKey: 'imageUrl', direction: 'output', schemaPath: 'properties.imageUrl' }],
+      } as any,
+      microLabelClass: 'text-xs',
+      monospaceTextClass: 'font-mono',
+      textSizeClass: 'text-sm',
+      keyValueInputClass: 'border',
+      keyLabelClass: 'text-xs',
+      normalizeRegistrySchemaPath: (schemaPath?: string) => String(schemaPath || ''),
+      ids: { registryField: (k: string) => k },
+      dotSizePx: 10,
+      dotHitPx: 18,
+      portHandlesEnabled: true,
+      onSetProperties: next => patched.push(next),
+    }),
+  )
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const aspectSelect = host.querySelector<HTMLSelectElement>('#aspect_ratio')
+  const refInput = host.querySelector<HTMLInputElement>('#reference_image')
+  if (!aspectSelect || !refInput) throw new Error('expected Seedream image widget fields to render')
+  aspectSelect.value = 'portrait'
+  aspectSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  refInput.value = 'https://example.invalid/seedream-ref-updated.png'
+  refInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  if (!patched.some(entry => String(entry.aspect_ratio || '') === 'portrait')) {
+    throw new Error('expected Seedream image widget select field edits to patch widget properties')
+  }
+  if (!patched.some(entry => String(entry.reference_image || '').includes('seedream-ref-updated'))) {
+    throw new Error('expected Seedream image widget text field edits to patch widget properties')
+  }
+
+  root.unmount()
+}
+
+export const testSeedanceVideoWidgetKvRowsStayEditable = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+
+  const g = globalThis as unknown as { window?: unknown; document?: unknown }
+  g.window = dom.window
+  g.document = dom.window.document
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+  const patched: Array<Record<string, unknown>> = []
+
+  root.render(
+    React.createElement(NodeOverlayEditorRegistrySection, {
+      active: true,
+      properties: {
+        model: 'seedance-2-0-pro',
+        duration: 4,
+        prompt: 'Generate a short video clip',
+      },
+      registryEntry: {
+        id: 'seedance-video-widget',
+        nodeTypeId: 'VideoGeneration',
+        widgetTypeId: 'default',
+        formId: 'videoGeneration',
+        fields: [
+          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: [{ value: 'seedance-2-0-pro', label: 'Seedance 2.0 (Default)' }] },
+          { fieldKey: 'duration', fieldType: 'select', schemaPath: 'properties.duration', label: 'Duration', options: [{ value: 2, label: '2s' }, { value: 4, label: '4s' }, { value: 6, label: '6s' }] },
+          { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', label: 'Prompt' },
+        ],
+        ports: [{ portKey: 'videoUrl', direction: 'output', schemaPath: 'properties.videoUrl' }],
+      } as any,
+      microLabelClass: 'text-xs',
+      monospaceTextClass: 'font-mono',
+      textSizeClass: 'text-sm',
+      keyValueInputClass: 'border',
+      keyLabelClass: 'text-xs',
+      normalizeRegistrySchemaPath: (schemaPath?: string) => String(schemaPath || ''),
+      ids: { registryField: (k: string) => k },
+      dotSizePx: 10,
+      dotHitPx: 18,
+      portHandlesEnabled: true,
+      onSetProperties: next => patched.push(next),
+    }),
+  )
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const durationSelect = host.querySelector<HTMLSelectElement>('#duration')
+  const promptInput = host.querySelector<HTMLTextAreaElement>('#prompt')
+  if (!durationSelect || !promptInput) throw new Error('expected Seedance video widget fields to render')
+  durationSelect.value = '6'
+  durationSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  promptInput.value = 'Generate an updated short video clip'
+  promptInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  if (!patched.some(entry => Number(entry.duration) === 6)) {
+    throw new Error('expected Seedance video widget select field edits to patch widget properties')
+  }
+  if (!patched.some(entry => String(entry.prompt || '').includes('updated short video'))) {
+    throw new Error('expected Seedance video widget text field edits to patch widget properties')
+  }
+
+  root.unmount()
+}
+
 export const testTextWidgetRegistryFieldRowsKeepPlaceholderPortHandles = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
 

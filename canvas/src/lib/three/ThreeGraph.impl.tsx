@@ -1041,8 +1041,6 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
               <RichMediaPanel
                 key={n.id}
                 ref={getOverlayRefForId(n.id)}
-                data-kg-canvas-wheel-ignore="true"
-                data-kg-canvas-pointer-ignore="true"
                 className="absolute left-0 top-0 pointer-events-auto"
                 title={n.title}
                 url={n.url}

@@ -49,3 +49,19 @@ export const testApplyMediaProxyProxiesOpenFreeMapOnLocalhost = () => {
     g.window = prevWindow
   }
 }
+
+export const testApplyMediaProxyProxiesOnPrivateLanOrigin = () => {
+  const g = globalThis as unknown as Record<string, unknown>
+  const prevWindow = g.window
+  g.window = { location: { origin: 'http://192.168.1.24:5173' } }
+  try {
+    const src = 'https://example.com/assets/demo.png'
+    const out = applyMediaProxySrc(src)
+    if (!out.startsWith(`${MEDIA_PROXY_ENDPOINT}?url=`)) throw new Error('expected proxy wrapper for private LAN dev origin')
+    const encoded = out.slice(`${MEDIA_PROXY_ENDPOINT}?url=`.length)
+    const decoded = decodeURIComponent(encoded)
+    if (decoded !== src) throw new Error('expected LAN-origin proxy parameter to preserve source URL')
+  } finally {
+    g.window = prevWindow
+  }
+}

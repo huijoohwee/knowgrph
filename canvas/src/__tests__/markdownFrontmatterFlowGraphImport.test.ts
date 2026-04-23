@@ -7,6 +7,7 @@ import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeS
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
+import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 
 export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
@@ -185,16 +186,30 @@ export function testMarkdownFrontmatterFlowGraphParsesNoSpaceEnvelopeObjectKeysF
     '    - id:           {key: id,           type: string,  value: "n-canvas"}',
     '      type:         {key: type,         type: string,  value: "input"}',
     '      label:        {key: label,        type: string,  value: "S01"}',
+    '      phase:        {key: phase,        type: string,  value: "emit"}',
+    '      actor:        {key: actor,        type: array,   value: ["{{subject}}","system"]}',
     '      handles:      {key: handles,      type: object,  value: {source: [signal]}}',
     '      applies_rules:{key: applies_rules,type: array,   value: []}',
+    '      db_writes:    {key: db_writes,    type: string,  value: "flow_nodes"}',
+    '      retry_arc:    {key: retry_arc,    type: string,  value: "—"}',
+    '      confidence:   {key: confidence,   type: string,  value: "high"}',
+    '      status:       {key: status,       type: string,  value: "TBD"}',
+    '      kanban:       {key: kanban,       type: string,  value: "done"}',
     '      compute:      {key: compute,      type: function, value: |',
     '        (inputs) => ({ signal: inputs.x ?? null })',
     '      }',
     '    - id:           {key: id,           type: string,  value: "n-pack"}',
     '      type:         {key: type,         type: string,  value: "default"}',
     '      label:        {key: label,        type: string,  value: "S02"}',
+    '      phase:        {key: phase,        type: string,  value: "pack"}',
+    '      actor:        {key: actor,        type: array,   value: ["system"]}',
     '      handles:      {key: handles,      type: object,  value: {target: [signal], source: [context]}}',
     '      applies_rules:{key: applies_rules,type: array,   value: []}',
+    '      db_writes:    {key: db_writes,    type: string,  value: "flow_nodes"}',
+    '      retry_arc:    {key: retry_arc,    type: string,  value: "—"}',
+    '      confidence:   {key: confidence,   type: string,  value: "high"}',
+    '      status:       {key: status,       type: string,  value: "TBD"}',
+    '      kanban:       {key: kanban,       type: string,  value: "done"}',
     '      compute:      {key: compute,      type: function, value: |',
     '        (inputs) => ({ context: inputs.signal ?? null })',
     '      }',
@@ -310,6 +325,68 @@ export function testMarkdownFrontmatterFlowGraphMatchesVideoScriptTemplateEdgeId
   if (!Array.isArray(registry) || registry.length < 2) throw new Error('expected widget registry entries')
   const socketTypes = meta.socketTypes
   if (!socketTypes || typeof socketTypes !== 'object') throw new Error('expected socketTypes metadata')
+}
+
+export function testMarkdownFlowBlockPreservesFlowWidgetNodeTypesAndFormIds() {
+  const md = [
+    '# Title',
+    '',
+    'flow:',
+    '  direction:  {key: direction,  type: string,  value: LR}',
+    '  edgeType:   {key: edgeType,   type: string,  value: smoothstep}',
+    '  nodes:',
+    '    - id:      {key: id,      type: string,  value: "n-text"}',
+    '      type:    {key: type,    type: string,  value: "TextGeneration"}',
+    '      label:   {key: label,   type: string,  value: "OpenAI Text Widget"}',
+    '      handles: {key: handles, type: object,  value: {target: ["prompt_in"], source: ["text_out"]}}',
+    '      "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "textGeneration.openai"}',
+    '      chatProvider: {key: chatProvider, type: string, value: "openai"}',
+    '      chatModel: {key: chatModel, type: string, value: "gpt-5.4-nano"}',
+    '      prompt: {key: prompt, type: string, value: "hello"}',
+    '    - id:      {key: id,      type: string,  value: "n-panel"}',
+    '      type:    {key: type,    type: string,  value: "RichMediaPanel"}',
+    '      label:   {key: label,   type: string,  value: "Rich Media Panel"}',
+    '      handles: {key: handles, type: object,  value: {target: ["output"], source: []}}',
+    '      "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "richMediaPanel"}',
+    '  edges:',
+    '    - { id: e1, source: n-text, sourceHandle: text_out, target: n-panel, targetHandle: output, animated: true }',
+    '---',
+    '',
+    '## Body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('flow-widget-types.md', md)
+  if (!res) throw new Error('expected parse result for flow widget types')
+  const g = res.graphData
+  if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const textNode = g.nodes.find(n => String(n.id || '') === 'n-text')
+  if (!textNode) throw new Error('expected n-text node')
+  if (String(textNode.type || '') !== 'TextGeneration') throw new Error(`expected TextGeneration type, got ${String(textNode.type || '')}`)
+  const textProps = (textNode.properties || {}) as Record<string, unknown>
+  if (String(textProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'textGeneration.openai') {
+    throw new Error(`expected flow:widgetFormId=textGeneration.openai, got ${String(textProps[FLOW_WIDGET_FORM_ID_KEY] || '')}`)
+  }
+
+  const panelNode = g.nodes.find(n => String(n.id || '') === 'n-panel')
+  if (!panelNode) throw new Error('expected n-panel node')
+  if (String(panelNode.type || '') !== 'RichMediaPanel') throw new Error(`expected RichMediaPanel type, got ${String(panelNode.type || '')}`)
+  const panelProps = (panelNode.properties || {}) as Record<string, unknown>
+  if (String(panelProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'richMediaPanel') {
+    throw new Error(`expected flow:widgetFormId=richMediaPanel, got ${String(panelProps[FLOW_WIDGET_FORM_ID_KEY] || '')}`)
+  }
+
+  const e1 = g.edges.find(e => String(e.id || '') === 'e1')
+  if (!e1) throw new Error('expected edge e1')
+  const e1Props = (e1.properties || {}) as Record<string, unknown>
+  if (String(e1Props[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'text_out') throw new Error('expected e1 source port text_out')
+  if (String(e1Props[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'output') throw new Error('expected e1 target port output')
+
+  const meta = (g.metadata || {}) as Record<string, unknown>
+  const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  if (Array.isArray(registry) && registry.some(r => String((r as { formId?: unknown })?.formId || '').startsWith('fm:n-text'))) {
+    throw new Error('expected parser not to overwrite widget formId with fm:n-text')
+  }
 }
 
 export function testMarkdownFrontmatterFlowGraphHonorsUserSubgraphs() {

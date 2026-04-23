@@ -1,8 +1,10 @@
 import type { SettingMeta } from './types'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 const parseString = (raw: unknown): string | null => (typeof raw === 'string' ? raw : null)
+const s = () => useGraphStore.getState()
 
 export const paymentsSettingsRegistry: SettingMeta[] = [
   {
@@ -23,9 +25,13 @@ export const paymentsSettingsRegistry: SettingMeta[] = [
     key: 'payments.stripe.secretKey',
     type: 'string',
     source: 'localStorage',
-    read: () => lsJson(LS_KEYS.paymentsStripeSecretKey, '', parseString),
-    write: (v) => {
-      lsSetJson(LS_KEYS.paymentsStripeSecretKey, String(v || ''))
+    read: () => {
+      const legacy = lsJson(LS_KEYS.paymentsStripeSecretKey, '', parseString)
+      if (legacy) lsSetJson(LS_KEYS.paymentsStripeSecretKey, '')
+      return ''
+    },
+    write: () => {
+      lsSetJson(LS_KEYS.paymentsStripeSecretKey, '')
     },
     docKey: 'payments.stripe.secretKey',
     default: () => '',
@@ -63,5 +69,26 @@ export const paymentsSettingsRegistry: SettingMeta[] = [
     docKey: 'payments.stripe.accountId',
     default: () => '',
   },
+  {
+    key: 'payments.stripe.paywallEnabled',
+    type: 'boolean',
+    source: 'localStorage',
+    read: () => s().paymentsStripePaywallEnabled === true,
+    write: (v) => {
+      s().setPaymentsStripePaywallEnabled(Boolean(v))
+    },
+    docKey: 'payments.stripe.paywallEnabled',
+    default: () => false,
+  },
+  {
+    key: 'payments.stripe.checkoutUrl',
+    type: 'string',
+    source: 'localStorage',
+    read: () => String(s().paymentsStripeCheckoutUrl || ''),
+    write: (v) => {
+      s().setPaymentsStripeCheckoutUrl(String(v || ''))
+    },
+    docKey: 'payments.stripe.checkoutUrl',
+    default: () => '',
+  },
 ]
-

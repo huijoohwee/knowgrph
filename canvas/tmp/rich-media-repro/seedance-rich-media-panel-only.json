@@ -1,0 +1,95 @@
+{
+  "kind": "kg:flow:widgetBundle",
+  "version": 1,
+  "registry": [
+    {
+      "id": "qer-VideoGeneration-default-videoGeneration",
+      "isEnabled": true,
+      "nodeTypeId": "VideoGeneration",
+      "widgetTypeId": "default",
+      "formId": "videoGeneration",
+      "fields": [
+        { "fieldKey": "prompt", "fieldType": "textarea", "schemaPath": "properties.prompt" }
+      ],
+      "ports": [
+        { "portKey": "videoUrl", "direction": "output", "schemaPath": "properties.videoUrl" }
+      ],
+      "updatedAt": "2026-04-22T00:00:00.000Z"
+    },
+    {
+      "id": "qer-RichMediaPanel-default-richMediaPanel",
+      "isEnabled": true,
+      "nodeTypeId": "RichMediaPanel",
+      "widgetTypeId": "default",
+      "formId": "richMediaPanel",
+      "fields": [],
+      "ports": [
+        { "portKey": "output", "direction": "input", "schemaPath": "properties.output" },
+        { "portKey": "imageUrl", "direction": "input", "schemaPath": "properties.imageUrl" },
+        { "portKey": "videoUrl", "direction": "input", "schemaPath": "properties.videoUrl" }
+      ],
+      "updatedAt": "2026-04-22T00:00:00.000Z"
+    }
+  ],
+  "graph": {
+    "type": "Graph",
+    "context": "browser-rich-media-seedance-only",
+    "metadata": {},
+    "nodes": [
+      {
+        "id": "video-widget-1",
+        "type": "VideoGeneration",
+        "label": "Seedance 2.0 Video Widget",
+        "x": 80,
+        "y": 220,
+        "properties": {
+          "flow:widgetTypeId": "default",
+          "flow:widgetFormId": "videoGeneration",
+          "flow:portTypes": { "in": {}, "out": { "videoUrl": "VIDEO_URL" } },
+          "prompt": "Browser runtime Seedance video repro",
+          "videoUrl": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+        }
+      },
+      {
+        "id": "video-panel-1",
+        "type": "RichMediaPanel",
+        "label": "Rich Media Panel Video",
+        "x": 520,
+        "y": 220,
+        "properties": {
+          "flow:widgetTypeId": "default",
+          "flow:widgetFormId": "richMediaPanel",
+          "flow:portTypes": {
+            "in": {
+              "output": "TEXT",
+              "imageUrl": "IMAGE_URL",
+              "videoUrl": "VIDEO_URL",
+              "outputSrcDoc": "HTML"
+            },
+            "out": {
+              "output": "TEXT",
+              "imageUrl": "IMAGE_URL",
+              "videoUrl": "VIDEO_URL",
+              "outputSrcDoc": "HTML"
+            }
+          },
+          "visual:width": 420,
+          "visual:height": 260
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-video-panel",
+        "source": "video-widget-1",
+        "target": "video-panel-1",
+        "label": "linksTo",
+        "properties": {
+          "flow:sourcePortKey": "videoUrl",
+          "flow:targetPortKey": "videoUrl",
+          "flow:displayLabel": "videoUrl -> videoUrl"
+        }
+      }
+    ]
+  }
+}

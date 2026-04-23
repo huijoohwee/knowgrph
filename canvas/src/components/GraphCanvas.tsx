@@ -6,6 +6,7 @@ const WHEEL_LISTENER_OPTS: AddEventListenerOptions = { passive: false, capture: 
 
 export default function GraphCanvas(props: React.ComponentProps<typeof GraphCanvasRoot>) {
   React.useEffect(() => {
+    if (props.active === false) return
     const onWheel = (event: WheelEvent) => {
       const target = event.target
       if (!(target instanceof Element)) return
@@ -20,6 +21,6 @@ export default function GraphCanvas(props: React.ComponentProps<typeof GraphCanv
         void 0
       }
     }
-  }, [])
+  }, [props.active])
   return <GraphCanvasRoot {...props} />
 }

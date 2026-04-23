@@ -293,14 +293,38 @@ export function deriveFilenameFromUrl(rawUrl: string, fallback: string): string 
 export const REMOTE_FETCH_PROXY_ENDPOINT = '/__fetch_remote'
 export const MEDIA_PROXY_ENDPOINT = REMOTE_FETCH_PROXY_ENDPOINT
 
+function isLoopbackOrUnspecifiedIpv4Host(host: string): boolean {
+  return host === '127.0.0.1' || host === '0.0.0.0'
+}
+
+function isPrivateIpv4Host(host: string): boolean {
+  const parts = host.split('.')
+  if (parts.length !== 4) return false
+  const octets = parts.map(part => Number.parseInt(part, 10))
+  if (octets.some(octet => !Number.isInteger(octet) || octet < 0 || octet > 255)) return false
+  if (octets[0] === 10) return true
+  if (octets[0] === 192 && octets[1] === 168) return true
+  if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return true
+  return false
+}
+
+function isLocalDevHost(hostname: string): boolean {
+  const host = String(hostname || '').trim().toLowerCase()
+  if (!host) return false
+  if (host === 'localhost' || host.endsWith('.localhost')) return true
+  if (host === '::1' || host === '[::1]') return true
+  if (isLoopbackOrUnspecifiedIpv4Host(host)) return true
+  if (isPrivateIpv4Host(host)) return true
+  return false
+}
+
 export function shouldUseRemoteFetchProxy(): boolean {
   if (typeof window === 'undefined') return false
   const origin = window.location?.origin
   if (!origin) return false
   try {
     const host = new URL(origin).hostname.toLowerCase()
-    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') return true
-    return false
+    return isLocalDevHost(host)
   } catch {
     return false
   }

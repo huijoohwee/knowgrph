@@ -1,4 +1,5 @@
 import { getGraphDataForDisplay } from '@/components/GraphCanvas/displayFilter'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import type { GraphData } from '@/lib/graph/types'
 
 export const testGraphDataForDisplayFiltersNodesAndEdgesTogether = () => {
@@ -87,4 +88,25 @@ export const testGraphDataForDisplayFrontmatterSuppressesParagraphAndList = () =
   if (nodeIds.has('p1')) throw new Error('expected Paragraph node to be suppressed in frontmatter display')
   if (nodeIds.has('l1')) throw new Error('expected List node to be suppressed in frontmatter display')
   if ((display.edges || []).length !== 0) throw new Error('expected edges connected only to suppressed nodes to be removed')
+}
+
+export const testGraphDataForDisplayKeepsRichMediaPanelWithoutLocalMediaSpec = () => {
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'test',
+    metadata: {},
+    nodes: [
+      { id: 'widget-1', type: 'TextGeneration', label: 'OpenAI Text Widget', properties: { output: 'hello' }, metadata: {} },
+      { id: 'panel-1', type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label: 'Rich Media Panel', properties: {}, metadata: {} },
+    ],
+    edges: [
+      { id: 'edge-1', source: 'widget-1', target: 'panel-1', label: 'linksTo', properties: {}, metadata: {} },
+    ],
+  }
+
+  const display = getGraphDataForDisplay({ graphData })
+  const nodeIds = new Set((display.nodes || []).map(n => String((n as { id?: unknown }).id)))
+  if (!nodeIds.has('panel-1')) throw new Error('expected Rich Media Panel node to stay in display graph before connected values are rendered')
+  const edgeIds = new Set((display.edges || []).map(e => String((e as { id?: unknown }).id)))
+  if (!edgeIds.has('edge-1')) throw new Error('expected edge to Rich Media Panel to stay visible with the panel node')
 }

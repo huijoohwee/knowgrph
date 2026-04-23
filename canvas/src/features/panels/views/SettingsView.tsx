@@ -18,6 +18,7 @@ import {
 } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useSettingsView } from './useSettingsView'
+import { createStripeHostedCheckoutSessionUrl } from '@/features/payments/stripeCheckout'
 import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
 import { KindPill, resolveFieldTypeIconKind } from '@/features/graph-fields/ui/graphFieldIcons'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -150,6 +151,8 @@ export default function SettingsView({
   const [chatModelsStatus, setChatModelsStatus] = React.useState<string | null>(null)
   const [isRefreshingChatModels, setIsRefreshingChatModels] = React.useState(false)
   const [discoveredChatModels, setDiscoveredChatModels] = React.useState<string[]>([])
+  const [stripeCheckoutStatus, setStripeCheckoutStatus] = React.useState<string | null>(null)
+  const [isGeneratingStripeCheckout, setIsGeneratingStripeCheckout] = React.useState(false)
   const [knowgrphPathStatus, setKnowgrphPathStatus] = React.useState<string | null>(null)
   const [isUpdatingKnowgrphPath, setIsUpdatingKnowgrphPath] = React.useState(false)
   const [chatHistoryPathStatus, setChatHistoryPathStatus] = React.useState<string | null>(null)
@@ -1092,6 +1095,102 @@ export default function SettingsView({
                                     >
                                       {isCheckingHealth ? 'Checking...' : 'Check Health'}
                                     </button>
+                                  </div>
+                                )
+                              }
+                              if (s.key === 'stripeApi.auth.secret_key') {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <input
+                                        value=""
+                                        readOnly
+                                        placeholder="Server-managed only"
+                                        className={`w-full rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} px-2 py-1.5 ${uiPanelKeyValueTextSizeClass}`}
+                                        title="Server-managed only"
+                                      />
+                                      <div className={`mt-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+                                        Stripe secret keys are not stored in the browser. Use `STRIPE_RESTRICTED_KEY` on the dev or preview server.
+                                      </div>
+                                    </div>
+                                    <span
+                                      className={statusPillClassName}
+                                      title="Restricted API key recommended; secret stays server-side."
+                                    >
+                                      server-managed
+                                    </span>
+                                  </div>
+                                )
+                              }
+                              if (s.key === 'stripeApi.checkout.session_url') {
+                                const checkoutUrlValue = String(values[resolvedValueKey] ?? '').trim()
+
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <input
+                                        value={checkoutUrlValue}
+                                        readOnly
+                                        placeholder="Server-managed Checkout Session url"
+                                        className={`w-full rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} px-2 py-1.5 ${uiPanelKeyValueTextSizeClass}`}
+                                        title={checkoutUrlValue || 'Server-managed Checkout Session url'}
+                                      />
+                                      {stripeCheckoutStatus ? (
+                                        <div className={`mt-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+                                          {stripeCheckoutStatus}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={async e => {
+                                        e.stopPropagation()
+                                        if (isGeneratingStripeCheckout) return
+                                        setStripeCheckoutStatus(null)
+                                        setIsGeneratingStripeCheckout(true)
+                                        try {
+                                          const origin = typeof window !== 'undefined' ? window.location.origin : ''
+                                          const basePath = typeof window !== 'undefined' ? window.location.pathname : '/'
+                                          const successUrl = `${origin}${basePath}?stripeCheckout=success&session_id={CHECKOUT_SESSION_ID}`
+                                          const cancelUrl = `${origin}${basePath}?stripeCheckout=cancel`
+                                          const created = await createStripeHostedCheckoutSessionUrl({
+                                            successUrl,
+                                            cancelUrl,
+                                          })
+                                          dirtyRef.current.add(resolvedValueKey)
+                                          setValues(prev => ({ ...prev, [resolvedValueKey]: created.url }))
+                                          setStripeCheckoutStatus('Generated secure Checkout Session URL. Click Apply to persist.')
+                                          pushUiToast({
+                                            id: `stripe-checkout-generated-${created.id}`,
+                                            kind: 'neutral',
+                                            message: 'Generated secure Stripe Checkout Session URL. Click Apply to persist.',
+                                            ttlMs: 2600,
+                                          })
+                                        } catch (err) {
+                                          const msg = err instanceof Error ? err.message : 'Failed to generate Stripe Checkout Session.'
+                                          setStripeCheckoutStatus(msg)
+                                          pushUiToast({
+                                            id: 'stripe-checkout-generate-failed',
+                                            kind: 'error',
+                                            message: msg,
+                                            ttlMs: 3200,
+                                          })
+                                        } finally {
+                                          setIsGeneratingStripeCheckout(false)
+                                        }
+                                      }}
+                                      disabled={isGeneratingStripeCheckout}
+                                      className={pillButtonClassName}
+                                      title="Create a server-managed Checkout Session and fill the returned Session url."
+                                    >
+                                      {isGeneratingStripeCheckout ? 'Generating...' : 'Generate (secure)'}
+                                    </button>
+                                    <span
+                                      className={statusPillClassName}
+                                      title="Secret key stays server-side; browser only receives the returned Session url."
+                                    >
+                                      server-managed
+                                    </span>
                                   </div>
                                 )
                               }

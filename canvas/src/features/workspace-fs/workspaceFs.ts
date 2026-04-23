@@ -73,7 +73,35 @@ const snapshotShadowEntries = (): WorkspaceEntry[] => {
   return [...shadow.values()]
 }
 
-const withResilientFallback = (inner: WorkspaceFs): WorkspaceFs => {
+const mergeEntriesWithShadow = (entries: WorkspaceEntry[]): WorkspaceEntry[] => {
+  const merged = new Map<string, WorkspaceEntry>()
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue
+    const path = normalizeWorkspacePath(entry.path)
+    if (!path) continue
+    merged.set(path, {
+      ...entry,
+      path,
+      parentPath: entry.parentPath ? normalizeWorkspacePath(entry.parentPath) : null,
+    })
+  }
+  for (const entry of snapshotShadowEntries()) {
+    const path = normalizeWorkspacePath(entry.path)
+    if (!path || merged.has(path)) continue
+    merged.set(path, entry)
+  }
+  return [...merged.values()].sort((a, b) => a.path.localeCompare(b.path))
+}
+
+const readShadowFileText = (path: WorkspacePath): string | null => {
+  const shadow = ensureShadow()
+  const normalized = normalizeWorkspacePath(path)
+  const entry = shadow.get(normalized)
+  if (!entry || entry.kind !== 'file') return null
+  return String(entry.text ?? '')
+}
+
+export const createResilientWorkspaceFs = (inner: WorkspaceFs): WorkspaceFs => {
   const run = async <T>(op: keyof WorkspaceFs, fn: (fs: WorkspaceFs) => Promise<T>): Promise<T> => {
     try {
       return await fn(inner)
@@ -100,13 +128,13 @@ const withResilientFallback = (inner: WorkspaceFs): WorkspaceFs => {
       run('listEntries', async fs => {
         const list = await fs.listEntries()
         for (const entry of list) upsertShadowEntry(entry)
-        return list
+        return mergeEntriesWithShadow(list)
       }),
     readFileText: (path: WorkspacePath) =>
       run('readFileText', async fs => {
         const text = await fs.readFileText(path)
+        const p = normalizeWorkspacePath(path)
         if (typeof text === 'string') {
-          const p = normalizeWorkspacePath(path)
           upsertShadowEntry({
             path: p,
             parentPath: p === WORKSPACE_ROOT_PATH ? null : normalizeWorkspacePath(p.slice(0, p.lastIndexOf('/')) || WORKSPACE_ROOT_PATH),
@@ -115,8 +143,9 @@ const withResilientFallback = (inner: WorkspaceFs): WorkspaceFs => {
             text: text.length <= SHADOW_MAX_FILE_TEXT_CHARS ? text : '',
             updatedAtMs: Date.now(),
           })
+          return text
         }
-        return text
+        return readShadowFileText(p)
       }),
     writeFileText: (path: WorkspacePath, text: string) =>
       run('writeFileText', async fs => {
@@ -176,10 +205,10 @@ export async function getWorkspaceFs(): Promise<WorkspaceFs> {
     const { createWorkspaceRxdbFs } = await import('./workspaceFsRxdb.ts')
     const persistentFs = createWorkspaceRxdbFs()
     await persistentFs.ensureSeed()
-    fsSingleton = withResilientFallback(persistentFs)
+    fsSingleton = createResilientWorkspaceFs(persistentFs)
     return fsSingleton
   } catch (e: unknown) {
-    fsSingleton = withResilientFallback(memory)
+    fsSingleton = createResilientWorkspaceFs(memory)
     try {
       await fsSingleton.ensureSeed()
     } catch {

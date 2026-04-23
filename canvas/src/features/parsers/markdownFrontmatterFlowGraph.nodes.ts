@@ -1,5 +1,10 @@
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
-import { FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config'
+import {
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import {
   FLOW_WIDGET_FORM_ID_KEY,
@@ -277,8 +282,16 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     const layer = categoryLayerIndex(category)
     const ports = normalizeRegistryPorts({ inputs: row.inputs, outputs: row.outputs })
     const portTypes = normalizeFlowPortTypes({ inputs: row.inputs, outputs: row.outputs })
-    const formId = `fm:${id}`
+    const formIdFallback = `fm:${id}`
     const propsFromRow = isRecord(row.properties) ? (row.properties as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
+    const explicitFormId = typeof propsFromRow[FLOW_WIDGET_FORM_ID_KEY] === 'string'
+      ? String(propsFromRow[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
+      : ''
+    const explicitWidgetTypeId = typeof propsFromRow[FLOW_WIDGET_TYPE_ID_KEY] === 'string'
+      ? String(propsFromRow[FLOW_WIDGET_TYPE_ID_KEY] || '').trim()
+      : ''
+    const formId = explicitFormId || formIdFallback
+    const widgetTypeId = explicitWidgetTypeId || (type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? 'ports' : 'default')
     const fieldsFromRow = (() => {
       const raw = (propsFromRow as unknown as Record<string, unknown>)[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]
       if (!Array.isArray(raw)) return [] as Array<{ fieldKey: string; fieldType: string; schemaPath?: string }>
@@ -320,14 +333,12 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
             [FRONTMATTER_PRIMITIVE_KEY]: String(id).startsWith('@cluster:') ? 'cluster' : 'node',
           } as unknown as Record<string, JSONValue>)
         : {}),
-      ...(type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
-        ? ({
-            [FLOW_WIDGET_TYPE_ID_KEY]: 'ports',
-            [FLOW_WIDGET_FORM_ID_KEY]: formId,
-          } as unknown as Record<string, JSONValue>)
-        : row[FLOW_WIDGET_FORM_ID_KEY] == null
-          ? ({ [FLOW_WIDGET_FORM_ID_KEY]: formId } as unknown as Record<string, JSONValue>)
-          : {}),
+      ...(propsFromRow[FLOW_WIDGET_FORM_ID_KEY] == null
+        ? ({ [FLOW_WIDGET_FORM_ID_KEY]: formId } as unknown as Record<string, JSONValue>)
+        : {}),
+      ...(propsFromRow[FLOW_WIDGET_TYPE_ID_KEY] == null && type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+        ? ({ [FLOW_WIDGET_TYPE_ID_KEY]: widgetTypeId } as unknown as Record<string, JSONValue>)
+        : {}),
     }
     nodes.push({
       id,
@@ -337,16 +348,25 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
       ...(y != null ? { y } : {}),
       properties,
     })
-    registry.push({
-      id: `qer-fm-${cleanIdPart(type) || 'node'}-${cleanIdPart(id) || hashText(id)}`,
-      isEnabled: true,
-      nodeTypeId: type,
-      widgetTypeId: type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? 'ports' : 'default',
-      formId,
-      fields: fieldsFromRow,
-      ports,
-      updatedAt: FRONTMATTER_REGISTRY_UPDATED_AT,
-    })
+    const isWidgetSeedNodeType =
+      type === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+      || type === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+      || type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+      || type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    const shouldEmitDocRegistryEntry = !isWidgetSeedNodeType || formId.startsWith('fm:')
+
+    if (shouldEmitDocRegistryEntry) {
+      registry.push({
+        id: `qer-fm-${cleanIdPart(type) || 'node'}-${cleanIdPart(id) || hashText(id)}`,
+        isEnabled: true,
+        nodeTypeId: type,
+        widgetTypeId,
+        formId,
+        fields: fieldsFromRow,
+        ports,
+        updatedAt: FRONTMATTER_REGISTRY_UPDATED_AT,
+      })
+    }
   }
   if (nodes.length === 0) return null
   return { nodes, registry }
