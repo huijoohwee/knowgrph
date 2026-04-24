@@ -1,5 +1,9 @@
 import React from 'react'
-import { buildGrabMapsProxyRequestHeaders } from 'grph-shared/geospatial/grabMapsAuth'
+import {
+  buildGrabMapsProxyRequestHeaders,
+  readGrabMapsAuthModeFromBrowser,
+  readGrabMapsByokApiKeyFromBrowser,
+} from 'grph-shared/geospatial/grabMapsAuth'
 import { tryCreateGrabMapsLibraryMap } from 'grph-shared/geospatial/grabMapsLibrary'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
 import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
@@ -67,6 +71,39 @@ const toGrabMapsProxyUrl = (rawUrl: string): string | null => {
   }
 }
 
+const canUseDirectGrabMapsBrowserRequests = (): boolean => {
+  if (typeof window === 'undefined') return false
+  return readGrabMapsAuthModeFromBrowser() === 'byok' && !!readGrabMapsByokApiKeyFromBrowser()
+}
+
+const buildGrabMapsDirectRequestHeaders = (): Record<string, string> => {
+  const apiKey = readGrabMapsByokApiKeyFromBrowser()
+  if (!apiKey) return {}
+  return { Authorization: `Bearer ${apiKey}` }
+}
+
+const resolveGrabMapsRequestTarget = (
+  rawUrl: string,
+): { url: string | null; headers: Record<string, string>; proxied: boolean } => {
+  const normalizedUrl = normalizeGrabMapsVectorTileUrl(rawUrl)
+  if (canUseDirectGrabMapsBrowserRequests()) {
+    return {
+      url: normalizedUrl,
+      headers: buildGrabMapsDirectRequestHeaders(),
+      proxied: false,
+    }
+  }
+  const proxyUrl = toGrabMapsProxyUrl(normalizedUrl)
+  if (!proxyUrl) {
+    return { url: null, headers: {}, proxied: true }
+  }
+  return {
+    url: proxyUrl,
+    headers: buildGrabMapsProxyRequestHeaders(),
+    proxied: true,
+  }
+}
+
 const resolveGrabMapsStyleAssetUrl = (rawValue: unknown, styleUrl: string): string => {
   const trimmed = String(rawValue || '').trim()
   if (!trimmed) return ''
@@ -94,17 +131,19 @@ const decodeGrabMapsTileTemplatePlaceholders = (url: string): string => {
 }
 
 const normalizeGrabMapsVectorTileUrl = (rawUrl: string): string => {
-  const trimmed = String(rawUrl || '').trim()
+  const trimmed = decodeGrabMapsTileTemplatePlaceholders(String(rawUrl || '').trim())
   if (!trimmed) return ''
   try {
     const parsed = new URL(trimmed)
     if (parsed.hostname.toLowerCase() !== 'maps.grab.com') return trimmed
-    if (parsed.pathname.startsWith('/api/maps/tiles/v2/vector/')) return parsed.toString()
+    if (parsed.pathname.startsWith('/api/maps/tiles/v2/vector/')) {
+      return decodeGrabMapsTileTemplatePlaceholders(parsed.toString())
+    }
     if (parsed.pathname.startsWith('/maps/tiles/v2/vector/')) {
       parsed.pathname = `/api${parsed.pathname}`
-      return parsed.toString()
+      return decodeGrabMapsTileTemplatePlaceholders(parsed.toString())
     }
-    return parsed.toString()
+    return decodeGrabMapsTileTemplatePlaceholders(parsed.toString())
   } catch {
     return trimmed
   }
@@ -167,9 +206,10 @@ const hydrateGrabMapsSourceUrls = async (
   style: Record<string, unknown>,
   headers: Record<string, string>,
   styleUrl: string,
-): Promise<Record<string, unknown>> => {
-  if (!isRecord(style.sources)) return style
+): Promise<{ style: Record<string, unknown>; hadGrabMapsSourceFailure: boolean }> => {
+  if (!isRecord(style.sources)) return { style, hadGrabMapsSourceFailure: false }
   const nextSources: Record<string, unknown> = {}
+  let hadGrabMapsSourceFailure = false
   await Promise.all(Object.entries(style.sources).map(async ([sourceId, sourceValue]) => {
     if (!isRecord(sourceValue)) {
       nextSources[sourceId] = sourceValue
@@ -181,19 +221,22 @@ const hydrateGrabMapsSourceUrls = async (
       nextSources[sourceId] = normalizedSource
       return
     }
-    const proxyUrl = toGrabMapsProxyUrl(sourceUrl)
-    if (!proxyUrl) {
+    const requestTarget = resolveGrabMapsRequestTarget(sourceUrl)
+    if (!requestTarget.url) {
+      hadGrabMapsSourceFailure = true
       nextSources[sourceId] = normalizedSource
       return
     }
     try {
-      const sourceRes = await fetch(proxyUrl, { method: 'GET', headers })
+      const sourceRes = await fetch(requestTarget.url, { method: 'GET', headers: requestTarget.headers })
       if (!sourceRes.ok) {
+        hadGrabMapsSourceFailure = true
         nextSources[sourceId] = normalizedSource
         return
       }
       const sourceJson = await sourceRes.json()
       if (!isRecord(sourceJson)) {
+        hadGrabMapsSourceFailure = true
         nextSources[sourceId] = normalizedSource
         return
       }
@@ -201,10 +244,11 @@ const hydrateGrabMapsSourceUrls = async (
       nextSources[sourceId] = { ...normalizedSource, ...hydrated }
       delete (nextSources[sourceId] as Record<string, unknown>).url
     } catch {
+      hadGrabMapsSourceFailure = true
       nextSources[sourceId] = normalizedSource
     }
   }))
-  return { ...style, sources: nextSources }
+  return { style: { ...style, sources: nextSources }, hadGrabMapsSourceFailure }
 }
 
 const applyGrabMapsModernFallback = (): void => {
@@ -226,17 +270,22 @@ type GrabMapsPreflightResult = {
 
 const preflightGrabMapsStyle = async (styleUrl: string): Promise<GrabMapsPreflightResult> => {
   if (!isGrabMapsUrl(styleUrl)) return { style: styleUrl, shouldFallback: false }
-  const proxyUrl = toGrabMapsProxyUrl(styleUrl)
-  if (!proxyUrl) return { style: styleUrl, shouldFallback: false }
-  const headers = buildGrabMapsProxyRequestHeaders()
+  const requestTarget = resolveGrabMapsRequestTarget(styleUrl)
+  if (!requestTarget.url) return { style: styleUrl, shouldFallback: false }
   try {
-    const styleRes = await fetch(proxyUrl, { method: 'GET', headers })
+    const styleRes = await fetch(requestTarget.url, { method: 'GET', headers: requestTarget.headers })
     if (styleRes.ok) {
       const rawStyle = await styleRes.json()
       const normalizedStyle = normalizeGrabMapsStyleDocument(rawStyle, styleUrl)
       if (!normalizedStyle) return { style: styleUrl, shouldFallback: false }
-      const hydratedStyle = await hydrateGrabMapsSourceUrls(normalizedStyle, headers, styleUrl)
-      return { style: hydratedStyle, shouldFallback: false }
+      const hydrated = await hydrateGrabMapsSourceUrls(normalizedStyle, requestTarget.headers, styleUrl)
+      if (hydrated.hadGrabMapsSourceFailure) {
+        return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
+      }
+      return { style: hydrated.style, shouldFallback: false }
+    }
+    if (styleRes.status === 404 && requestTarget.proxied) {
+      return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
     }
     if (styleRes.status === 401 || styleRes.status === 403) {
       return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
@@ -281,6 +330,13 @@ const isGrabMapsUnauthorized = (message: string): boolean => {
   if (!text) return false
   if (!(text.includes('maps.grab.com') || text.includes('/__grabmaps_proxy'))) return false
   return text.includes('unauthorized') || /\b401\b/.test(text) || /\b403\b/.test(text)
+}
+
+const isGrabMapsProxyMissing = (message: string): boolean => {
+  const text = String(message || '').trim().toLowerCase()
+  if (!text) return false
+  if (!text.includes('/__grabmaps_proxy')) return false
+  return text.includes('not found') || /\b404\b/.test(text)
 }
 
 export function useMapLibreBasemap(args: {
@@ -378,6 +434,7 @@ export function useMapLibreBasemap(args: {
     let resizeObserver: ResizeObserver | null = null
     let probeInterval: ReturnType<typeof setInterval> | null = null
     let mountRetryTimer: ReturnType<typeof setTimeout> | null = null
+    let abortNoiseCleanup: (() => void) | null = null
     let grabMapsFallbackApplied = false
     let grabMapsBootstrapPending = false
     const notifyGrabMapsFallback = () => {
@@ -446,13 +503,39 @@ export function useMapLibreBasemap(args: {
               if (lower.includes('/__grabmaps_proxy') && lower.includes('abort')) return
               if (lower.includes('net::err_aborted')) return
               if (lower.includes('aborterror')) return
-              if (lower.includes('tiles.openfreemap.org/styles/liberty') && lower.includes('abort')) return
+              if (lower.includes('tiles.openfreemap.org/styles/liberty')) return
               console.error(...args)
             },
             warn: (...args: unknown[]) => console.warn(...args),
             info: (...args: unknown[]) => console.info(...args),
             debug: () => void 0,
           })
+        }
+
+        if (typeof window !== 'undefined' && !abortNoiseCleanup) {
+          const shouldSuppress = (raw: unknown): boolean => {
+            const msg =
+              raw && typeof raw === 'object' && 'message' in raw
+                ? String((raw as { message?: unknown }).message || '')
+                : String(raw || '')
+            const lower = msg.toLowerCase()
+            return lower.includes('net::err_aborted') && lower.includes('tiles.openfreemap.org/styles/liberty')
+          }
+          const onUnhandledRejection = (ev: PromiseRejectionEvent) => {
+            if (!shouldSuppress(ev.reason)) return
+            ev.preventDefault()
+          }
+          const onError = (ev: Event) => {
+            const e = ev as ErrorEvent
+            if (!shouldSuppress(e?.error ?? e?.message)) return
+            e.preventDefault()
+          }
+          window.addEventListener('unhandledrejection', onUnhandledRejection)
+          window.addEventListener('error', onError)
+          abortNoiseCleanup = () => {
+            window.removeEventListener('unhandledrejection', onUnhandledRejection)
+            window.removeEventListener('error', onError)
+          }
         }
 
         const style = resolveBasemapStyle(targetStyleUrl)
@@ -494,11 +577,9 @@ export function useMapLibreBasemap(args: {
             const parsed = new URL(urlText, typeof window !== 'undefined' ? window.location.href : undefined)
             const host = parsed.hostname.toLowerCase()
             if (host !== 'maps.grab.com') return { url: urlText }
-            if (typeof window === 'undefined' || !window.location?.origin) return { url: urlText }
-            const proxied = new URL(GRABMAPS_PROXY_PATH, window.location.origin)
-            proxied.searchParams.set('url', normalizeGrabMapsVectorTileUrl(parsed.toString()))
-            const headers = buildGrabMapsProxyRequestHeaders()
-            return { url: proxied.toString(), headers }
+            const requestTarget = resolveGrabMapsRequestTarget(parsed.toString())
+            if (!requestTarget.url) return { url: urlText }
+            return { url: requestTarget.url, headers: requestTarget.headers }
           } catch {
             return { url: urlText }
           }
@@ -568,6 +649,20 @@ export function useMapLibreBasemap(args: {
             }
           }
           if (!grabMapsFallbackApplied && grabMapsBootstrapPending && isGrabMapsUnauthorized(trimmed)) {
+            const styleText = String(style || '').toLowerCase()
+            if (styleText.includes('maps.grab.com')) {
+              notifyGrabMapsFallback()
+              try {
+                applyGrabMapsModernFallback()
+                map.setStyle?.(MAPLIBRE_MODERN_DEFAULT_STYLE_URL)
+                setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+                return
+              } catch {
+                void 0
+              }
+            }
+          }
+          if (!grabMapsFallbackApplied && grabMapsBootstrapPending && isGrabMapsProxyMissing(trimmed)) {
             const styleText = String(style || '').toLowerCase()
             if (styleText.includes('maps.grab.com')) {
               notifyGrabMapsFallback()
@@ -756,6 +851,14 @@ export function useMapLibreBasemap(args: {
           void 0
         }
         resizeObserver = null
+      }
+      if (abortNoiseCleanup) {
+        try {
+          abortNoiseCleanup()
+        } catch {
+          void 0
+        }
+        abortNoiseCleanup = null
       }
       try {
         map?.remove?.()

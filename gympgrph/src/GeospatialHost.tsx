@@ -540,7 +540,12 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     (args: { basemapMap: any | null; styleRevision: number; viewMode: 'map2d' | 'map3d' }) => {
       const { basemapMap, styleRevision, viewMode } = args
       if (!basemapMap) return
-      if (styleRevision <= 0) return
+      const styleReady =
+        styleRevision > 0
+        || (typeof basemapMap.isStyleLoaded === 'function' && basemapMap.isStyleLoaded() === true)
+        || (typeof basemapMap.loaded === 'function' && basemapMap.loaded() === true)
+      if (!styleReady) return
+      const styleRevisionKey = styleRevision > 0 ? styleRevision : 1
       const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
       if (featureCount <= 0) {
         clearGeoJsonSourceData(basemapMap, graphSourceIdClustered)
@@ -552,7 +557,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       const cluster = viewMode === 'map2d' && isPointOnlyFeatureCollection(graphFeatureCollection, 500) && featureCount >= 200
       const activeSourceId = cluster ? graphSourceIdClustered : graphSourceIdUnclustered
       const inactiveSourceId = cluster ? graphSourceIdUnclustered : graphSourceIdClustered
-      const applyKey = `${styleRevision}:${activeSourceId}:${graphDataKey}`
+      const applyKey = `${styleRevisionKey}:${activeSourceId}:${graphDataKey}`
       const styleKey = pointStyleConfigSignature(pointStyleConfig || MAIN_PANEL_DEFAULT_GEOSPATIAL_POINT_STYLE_CONFIG)
       if (graphDataAppliedRef.current[viewMode] === `${applyKey}:${styleKey}`) return
       clearGeoJsonSourceData(basemapMap, inactiveSourceId)
@@ -581,7 +586,10 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const basemapGraphDebug = React.useMemo(() => {
     const basemapMap = activeBasemap.map
     if (!basemapMap) return null
-    const styleReady = activeBasemap.styleRevision > 0
+    const styleReady =
+      activeBasemap.styleRevision > 0
+      || (typeof basemapMap.isStyleLoaded === 'function' && basemapMap.isStyleLoaded() === true)
+      || (typeof basemapMap.loaded === 'function' && basemapMap.loaded() === true)
     const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
     const cluster = active && !show3d && isPointOnlyFeatureCollection(graphFeatureCollection, 500) && featureCount >= 200
     const activeSourceId = cluster ? graphSourceIdClustered : graphSourceIdUnclustered

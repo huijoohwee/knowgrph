@@ -13,7 +13,7 @@ import {
   workspaceExtLower,
   workspaceStem,
 } from '@/features/workspace-fs/path'
-import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { getWorkspaceFs, getWorkspaceSeedFiles } from '@/features/workspace-fs/workspaceFs'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { computeBacklinks } from '@/features/markdown-explorer/backlinks'
@@ -283,6 +283,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const autosavePendingRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const autosaveStatusTimerRef = React.useRef<number | null>(null)
   const lastLoadedRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
+  const repairedMissingWorkspaceFilesRef = React.useRef<Set<WorkspacePath>>(new Set())
   const lastIndexedByPathRef = React.useRef<Map<WorkspacePath, string>>(new Map())
   const indexJobRef = React.useRef(0)
   const collapsedSnapshotRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
@@ -1659,7 +1660,24 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
           if (canUseCachedText) return cachedText as string
           const fs = await getFs()
           const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs, path })
-          return hydrated ? hydrated.text : await fs.readFileText(path)
+          const loaded = hydrated ? hydrated.text : await fs.readFileText(path)
+          if (loaded != null) return loaded
+
+          const normalizedPath = normalizeWorkspacePath(path)
+          if (repairedMissingWorkspaceFilesRef.current.has(normalizedPath)) return loaded
+          repairedMissingWorkspaceFilesRef.current.add(normalizedPath)
+
+          const seeds = await getWorkspaceSeedFiles()
+          const seed = seeds.find(candidate => normalizeWorkspacePath(candidate.path) === normalizedPath)
+          if (!seed) return loaded
+
+          try {
+            await fs.createFile({ parentPath: WORKSPACE_ROOT_PATH, name: workspaceBasename(normalizedPath) || 'document.md', text: seed.text })
+          } catch {
+            void 0
+          }
+
+          return await fs.readFileText(normalizedPath)
         })()
         if (cancelled) return
         if (activePathRef.current !== scheduledFor) return
