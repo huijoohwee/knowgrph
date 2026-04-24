@@ -103,7 +103,7 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
     panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
     note: 'Widget palette opens in the floating props panel.',
     highlights: [
-      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from FloatingPanel Discovery, while MainPanel Maps keeps backend/system/API/MCP config.',
+      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel Maps keeps backend/system/API/MCP config.',
       'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
     ],
     openPanel: () => emitPropsPanelOpen(),
@@ -113,6 +113,10 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
     docsLabel: 'Open BytePlus Image Generation API Docs',
     panelLabel: `Open FloatingPanel ${FLOW_IMAGE_GENERATION_NODE_LABEL}`,
     note: 'Widget palette opens in the floating props panel.',
+    highlights: [
+      'Shared image-model SSOT stays narrowed to ByteDance-Seedream-4.0, ByteDance-Seedream-4.5, and Dola-Seedream-5.0-lite.',
+      'Editable image defaults stay on the same Integrations KTV surface reused by the image widget and run pipeline.',
+    ],
     openPanel: () => emitPropsPanelOpen(),
   },
 }
@@ -138,19 +142,19 @@ const MAPS_SECTION_META: Readonly<Record<string, {
   [MAPS_GRABMAPS_MCP_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation/mcp',
     docsLabel: 'Open GrabMaps MCP Docs',
-    panelLabel: 'Open FloatingPanel Discovery',
+    panelLabel: 'Open FloatingPanel Props Panel Discovery Widget',
     note: 'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
     highlights: [
       'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
       'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
     ],
-    openPanel: () => emitSidePanelOpen({ tab: 'discovery', open: true }),
+    openPanel: () => emitPropsPanelOpen(),
   },
   [MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation/routes',
     docsLabel: 'Open GrabMaps Routes Docs',
     panelLabel: 'Open FloatingPanel Geo',
-    note: 'Keep route rendering and imported geospatial output in Geo; Discovery reuses the shared place-search defaults without owning MCP wiring.',
+    note: 'Keep route rendering and imported geospatial output in Geo; Props Panel Discovery Widget reuses the shared place-search defaults without owning MCP wiring.',
     highlights: [
       'Directions default to lng,lat coordinate order unless lat_first is enabled.',
       'Use overview=full when you need route geometry suitable for animation or media prompts.',
@@ -204,6 +208,10 @@ export default function SettingsView({
     bytePlusHealthDetails,
     isCheckingBytePlusHealth,
     checkBytePlusHealth,
+    grabMapsHealthOk,
+    grabMapsHealthDetails,
+    isCheckingGrabMapsHealth,
+    checkGrabMapsHealth,
     bytePlusVideoModelPreviewText,
     isCheckingBytePlusVideoModelPreview,
     checkBytePlusVideoModelPreview,
@@ -241,7 +249,7 @@ export default function SettingsView({
   const headerStickyTopClass = mode === 'integrations' ? 'top-0' : '-top-[2px]'
   const headerDividerWidthClass = mode === 'integrations' ? 'border-b-[0.5px]' : 'border-b'
   const settingsTypeIconSizeClass = getIconSizeClass(uiIconScale)
-  const bytePlusImageDefaultLabel = `Seedream 5.0 Lite (${CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT})`
+  const bytePlusImageDefaultLabel = CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
   const bytePlusVideoDefaultLabel = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
   const openAiTextDefaultLabel = `OpenAI default text model: ${CHAT_DEFAULT_MODEL}`
   const normalizedChatProvider = React.useMemo(
@@ -356,6 +364,43 @@ export default function SettingsView({
 
     setValues(prev => ({ ...prev, ...normalizedValues }))
   }, [dirtyRef, setValues, values.chatApiKey, values.chatAuthMode, values.chatProvider])
+
+  React.useEffect(() => {
+    const keys = [
+      'byteplusImageModel',
+      'byteplusImageSize',
+      'byteplusImageOutputFormat',
+      'byteplusImageWatermark',
+      'byteplusImageSeed',
+      'byteplusImageGuidanceScale',
+    ] as const
+    const dirtyKeys = keys.filter(key => dirtyRef.current.has(key))
+    if (dirtyKeys.length === 0) return
+
+    const patches: Record<string, string | number | boolean> = {}
+    dirtyKeys.forEach((key) => {
+      const meta = settingsRegistry.find(s => s.key === key)
+      if (!meta?.write) return
+      meta.write(values[key] as never)
+      const next = meta.read()
+      if (next !== null) {
+        patches[key] = next as never
+      }
+      dirtyRef.current.delete(key)
+    })
+    if (Object.keys(patches).length > 0) {
+      setValues(prev => ({ ...prev, ...patches }))
+    }
+  }, [
+    dirtyRef,
+    setValues,
+    values.byteplusImageGuidanceScale,
+    values.byteplusImageModel,
+    values.byteplusImageOutputFormat,
+    values.byteplusImageSeed,
+    values.byteplusImageSize,
+    values.byteplusImageWatermark,
+  ])
 
   React.useEffect(() => {
     const keys = [
@@ -1260,6 +1305,42 @@ export default function SettingsView({
                                       className={pillButtonClassName}
                                     >
                                       {isCheckingHealth || isCheckingBytePlusHealth || isCheckingBytePlusVideoModelPreview ? 'Checking...' : 'Check Health'}
+                                    </button>
+                                  </div>
+                                )
+                              }
+                              if (resolvedValueKey === 'maps.grabmaps.apiKey') {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      {inputNode}
+                                    </div>
+                                    <div className="shrink-0" title={grabMapsHealthDetails || undefined}>
+                                      <StatusBadge
+                                        label="GrabMaps API"
+                                        ok={isCheckingGrabMapsHealth ? null : (grabMapsHealthOk ?? null)}
+                                        msg={
+                                          isCheckingGrabMapsHealth
+                                            ? 'Checking...'
+                                            : grabMapsHealthOk === true
+                                              ? 'Success'
+                                              : grabMapsHealthOk === false
+                                                ? 'Failed'
+                                                : 'Idle'
+                                        }
+                                        details={grabMapsHealthDetails || undefined}
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        void checkGrabMapsHealth()
+                                      }}
+                                      disabled={isCheckingGrabMapsHealth}
+                                      className={pillButtonClassName}
+                                    >
+                                      {isCheckingGrabMapsHealth ? 'Checking...' : 'Check Health'}
                                     </button>
                                   </div>
                                 )

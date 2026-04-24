@@ -29,6 +29,8 @@ import {
   getFlowEditorSmartWidgetLabel,
 } from '@/lib/config.flow-editor'
 import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
+import { getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
+import { isGrabMapsDiscoveryWidgetEntry } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
   FLOW_WIDGET_FORM_ID_KEY,
   FLOW_WIDGET_TYPE_ID_KEY,
@@ -58,6 +60,14 @@ function resolveSpecificWidgetTitle(args: {
   const properties = (args.node.properties || {}) as Record<string, unknown>
   const registryEntry = args.registryEntry || null
   const nodeTypeId = String(registryEntry?.nodeTypeId || args.node.type || '').trim()
+  if (registryEntry && isGrabMapsDiscoveryWidgetEntry(registryEntry)) {
+    const registryLabel = getWidgetRegistryEntryLabel({
+      nodeTypeId: registryEntry.nodeTypeId,
+      widgetTypeId: registryEntry.widgetTypeId,
+      formId: registryEntry.formId,
+    })
+    if (registryLabel) return registryLabel
+  }
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
     return getTextGenerationWidgetLabel({
       provider: properties.chatProvider,

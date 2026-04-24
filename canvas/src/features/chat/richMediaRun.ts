@@ -28,13 +28,17 @@ export type RichMediaWidgetRunRequest = {
   prompt: string
   model?: string
   contentJson?: string
+  size?: string
+  outputFormat?: string
+  seed?: number
+  guidanceScale?: number
   aspectRatio?: string
   resolution?: string
   duration?: number
   generateAudio?: boolean
-  fast?: boolean
   watermark?: boolean
-  referenceImageUrl?: string
+  watermark?: boolean
+  fast?: boolean
 }
 
 export type RichMediaWidgetRunResult = {
@@ -206,6 +210,10 @@ export const buildRichMediaWidgetRunRequest = (args: {
   const workspaceContext = extractWorkspaceContext(String(args.markdownDocumentText || ''))
   const referenceImageUrl = cleanString(readNodeProperty(args.node, 'properties.reference_image'))
     || cleanString(readConnectedValue(args.connectedValuesBySchemaPath, 'properties.reference_image'))
+  const size = cleanString(readNodeProperty(args.node, 'properties.size'))
+  const outputFormat = cleanString(readNodeProperty(args.node, 'properties.output_format'))
+  const seed = cleanNumber(readNodeProperty(args.node, 'properties.seed'))
+  const guidanceScale = cleanNumber(readNodeProperty(args.node, 'properties.guidance_scale'))
   const aspectRatio = cleanString(readNodeProperty(args.node, 'properties.aspect_ratio'))
   const resolution = cleanString(readNodeProperty(args.node, 'properties.resolution'))
   const model = cleanString(readNodeProperty(args.node, 'properties.model'))
@@ -239,6 +247,10 @@ export const buildRichMediaWidgetRunRequest = (args: {
     prompt: promptSections.join('\n\n'),
     ...(model ? { model } : {}),
     ...(contentJson ? { contentJson } : {}),
+    ...(size ? { size } : {}),
+    ...(outputFormat ? { outputFormat } : {}),
+    ...(seed != null ? { seed } : {}),
+    ...(guidanceScale != null ? { guidanceScale } : {}),
     ...(aspectRatio ? { aspectRatio } : {}),
     ...(resolution ? { resolution } : {}),
     ...(duration != null ? { duration } : {}),
@@ -310,9 +322,11 @@ export const runRichMediaWidgetGeneration = async (args: {
         prompt: request.prompt,
         options: {
           model: request.model,
-          contentJson: request.contentJson,
-          aspectRatio: request.aspectRatio,
-          resolution: request.resolution,
+          size: request.size,
+          outputFormat: request.outputFormat,
+          watermark: request.watermark,
+          seed: request.seed,
+          guidanceScale: request.guidanceScale,
           referenceImageUrl: request.referenceImageUrl,
         },
       })

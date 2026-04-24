@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { Compass, FileCode, GitBranch, Hand, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { FileCode, GitBranch, Hand, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -26,7 +26,7 @@ import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import DesignDomTreePanel from '@/features/design/DesignDomTreePanel'
 import DesignDomInspectPanel from '@/features/design/DesignDomInspectPanel'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
-import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
+import { requestGeospatialTraversalRun, setGeospatialModeEnabled as enableGeospatialMode } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -36,7 +36,7 @@ import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/o
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 
 type FloatingPanelView = 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
-type FloatingManagedHeaderActionsView = 'renderer' | 'discovery'
+type FloatingManagedHeaderActionsView = 'renderer'
 type FloatingHeaderActions = {
   apply?: () => void
   reset?: () => void
@@ -83,9 +83,8 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
 })
 
 const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
-const DiscoveryHubViewLazy = React.lazy(() => import('@/features/panels/views/DiscoveryHubView'))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['chat', 'geo', 'discovery', 'interaction'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['chat', 'geo', 'interaction'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -127,8 +126,18 @@ const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(
   )
 })
 
-const GeoView = React.memo(function GeoView(props: { geospatialModeEnabled: boolean }) {
-  const { geospatialModeEnabled } = props
+const GeoView = React.memo(function GeoView(props: {
+  geospatialModeEnabled: boolean
+  isEnablingGeospatial: boolean
+  geospatialEnableError: string | null
+  onEnableGeospatial: () => void
+}) {
+  const {
+    geospatialModeEnabled,
+    isEnablingGeospatial,
+    geospatialEnableError,
+    onEnableGeospatial,
+  } = props
   const activeGraphData = useActiveGraphRenderData()
   const panelTypography = usePanelTypography()
   const gympgrphBridge = useGraphStore(
@@ -188,7 +197,24 @@ const GeoView = React.memo(function GeoView(props: { geospatialModeEnabled: bool
           </React.Suspense>
         </ErrorBoundary>
       ) : (
-        <p className={cn('p-3 text-sm', UI_THEME_TOKENS.text.secondary)}>Enable Geospatial Mode to view this panel.</p>
+        <div className="flex h-full flex-col items-start justify-center gap-3 p-3">
+          <p className={cn('text-sm', UI_THEME_TOKENS.text.secondary)}>
+            {isEnablingGeospatial
+              ? 'Enabling Geospatial Mode...'
+              : 'Enable Geospatial Mode to view this panel.'}
+          </p>
+          <button
+            type="button"
+            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+            onClick={onEnableGeospatial}
+            disabled={isEnablingGeospatial}
+          >
+            {isEnablingGeospatial ? 'Enabling Geo...' : 'Enable Geospatial Mode'}
+          </button>
+          {geospatialEnableError ? (
+            <p className={cn('text-xs', UI_THEME_TOKENS.text.secondary)}>{geospatialEnableError}</p>
+          ) : null}
+        </div>
       )}
     </section>
   )
@@ -217,13 +243,15 @@ export function ToolbarToolMenu({
   const handledRequestedViewSeqRef = React.useRef<number | undefined>(undefined)
   const setFloatingPanelZIndex = useGraphStore(s => s.setFloatingPanelZIndex)
 
-  const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
+  const [geospatialModeEnabled, setGeospatialModeEnabledState] = React.useState<boolean>(() => {
     try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
     } catch {
-      return false
+      return true
     }
   })
+  const [isEnablingGeospatial, setIsEnablingGeospatial] = React.useState(false)
+  const [geospatialEnableError, setGeospatialEnableError] = React.useState<string | null>(null)
 
   const {
     floatingPanelWidthRatio,
@@ -307,9 +335,47 @@ export function ToolbarToolMenu({
   const setOrchestratorWorkflowIndexingCollapsed = orchestratorSectionSetters.workflowIndexing
   const setOrchestratorWorkflowTracingCollapsed = orchestratorSectionSetters.workflowTracing
 
+  const ensureGeospatialEnabled = React.useCallback(async (): Promise<boolean> => {
+    if (geospatialModeEnabled) {
+      setGeospatialEnableError(null)
+      return true
+    }
+    setIsEnablingGeospatial(true)
+    setGeospatialEnableError(null)
+    try {
+      const nextEnabled = await enableGeospatialMode(true)
+      setGeospatialModeEnabledState(nextEnabled)
+      if (!nextEnabled) {
+        setGeospatialEnableError('Geospatial Mode is still disabled. Check MainPanel Maps and try again.')
+      }
+      return nextEnabled
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message?: unknown }).message || '').trim()
+          : ''
+      const fallback = message || 'Unknown error'
+      setGeospatialEnableError(`Geospatial Mode failed to load: ${fallback}`)
+      try {
+        useGraphStore.getState().pushUiToast({
+          id: 'floating-geo-enable-error',
+          kind: 'error',
+          message: `Geospatial Mode failed to load: ${fallback}`,
+        })
+      } catch {
+        void 0
+      }
+      return false
+    } finally {
+      setIsEnablingGeospatial(false)
+    }
+  }, [geospatialModeEnabled])
+
   const handleSelectView = React.useCallback((view: FloatingPanelView) => {
     setFloatingPanelView(view)
-  }, [setFloatingPanelView])
+    if (view !== 'geo') return
+    void ensureGeospatialEnabled()
+  }, [ensureGeospatialEnabled, setFloatingPanelView])
 
   const handleFloatingPanelPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -358,7 +424,7 @@ export function ToolbarToolMenu({
     !geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'design'
   const domLayoutReady = domPanelsAvailable && !!designRendererWebpageLayoutKey
   const managedHeaderActionsView: FloatingManagedHeaderActionsView | null =
-    floatingPanelView === 'renderer' || floatingPanelView === 'discovery'
+    floatingPanelView === 'renderer'
       ? floatingPanelView
       : null
   const floatingPanelBodyClassName = cn(
@@ -390,8 +456,7 @@ export function ToolbarToolMenu({
       },
       { view: 'interaction', title: 'Interaction', icon: Hand },
       { view: 'chat', title: UI_LABELS.chat, icon: MessageCircle },
-      { view: 'geo', title: UI_LABELS.geo, icon: Map, disabled: !geospatialModeEnabled },
-      { view: 'discovery', title: UI_LABELS.discovery, icon: Compass },
+      { view: 'geo', title: UI_LABELS.geo, icon: Map },
       { view: 'renderer', title: UI_LABELS.renderer, icon: MonitorPlay },
       { view: 'graphTraversal', title: UI_LABELS.graphTraversal, icon: GitBranch, spotlightView: 'graphTraversal' },
     ],
@@ -426,17 +491,10 @@ export function ToolbarToolMenu({
     return onGeospatialModeChanged(detail => {
       const enabled = typeof detail.enabled === 'boolean' ? detail.enabled : null
       if (enabled == null) return
-      setGeospatialModeEnabled(enabled)
+      setGeospatialModeEnabledState(enabled)
+      if (enabled) setGeospatialEnableError(null)
     })
   }, [])
-
-  React.useEffect(() => {
-    if (geospatialModeEnabled) {
-      if (floatingPanelView === 'propsPanel') setFloatingPanelView('geo')
-      return
-    }
-    if (floatingPanelView === 'geo') setFloatingPanelView('propsPanel')
-  }, [floatingPanelView, geospatialModeEnabled])
 
   React.useEffect(() => {
     if (!floatingPanelPinned) return
@@ -451,10 +509,13 @@ export function ToolbarToolMenu({
     handledRequestedViewSeqRef.current = requestedFloatingPanelViewSeq
     setFloatingPanelMinimized(false)
     setFloatingPanelView(requestedFloatingPanelView)
-  }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])
+    if (requestedFloatingPanelView === 'geo') {
+      void ensureGeospatialEnabled()
+    }
+  }, [ensureGeospatialEnabled, requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])
 
   React.useEffect(() => {
-    if (floatingPanelView === 'renderer' || floatingPanelView === 'discovery') return
+    if (floatingPanelView === 'renderer') return
     setManagedHeaderActions({
       apply: undefined,
       reset: undefined,
@@ -566,11 +627,15 @@ export function ToolbarToolMenu({
                 <SidePanelChatLazy />
               </React.Suspense>
             )}
-            {floatingPanelView === 'geo' && <GeoView geospatialModeEnabled={geospatialModeEnabled} />}
-            {floatingPanelView === 'discovery' && (
-              <React.Suspense fallback={null}>
-                <DiscoveryHubViewLazy onRegisterActions={registerManagedHeaderActions} />
-              </React.Suspense>
+            {floatingPanelView === 'geo' && (
+              <GeoView
+                geospatialModeEnabled={geospatialModeEnabled}
+                isEnablingGeospatial={isEnablingGeospatial}
+                geospatialEnableError={geospatialEnableError}
+                onEnableGeospatial={() => {
+                  void ensureGeospatialEnabled()
+                }}
+              />
             )}
             {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerManagedHeaderActions} />}
             {floatingPanelView === 'graphTraversal' && (

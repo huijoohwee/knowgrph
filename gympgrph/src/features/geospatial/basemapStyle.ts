@@ -1,11 +1,14 @@
 import type { GeospatialViewMode } from './types'
 
+import { GRABMAPS_DEFAULT_STYLE_URL } from 'grph-shared/geospatial/grabMapsSsot'
+import { readGrabMapsAuthModeFromBrowser, readGrabMapsByokApiKeyFromBrowser } from 'grph-shared/geospatial/grabMapsAuth'
+
 export const SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'
 export const MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL = 'https://demotiles.maplibre.org/style.json'
 export const MAPLIBRE_MODERN_DEFAULT_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 export const MAPLIBRE_GLOBE_DEFAULT_STYLE_URL = 'https://demotiles.maplibre.org/globe.json'
 export const MAPLIBRE_DEFAULT_STYLE_URL = MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL
-export const GRABMAPS_DEFAULT_STYLE_URL = 'https://maps.grab.com/api/style.json?theme=light'
+export { GRABMAPS_DEFAULT_STYLE_URL }
 
 export const normalizeGeospatialViewMode = (mode: unknown): GeospatialViewMode => {
   return mode === '3d-modern'
@@ -71,6 +74,9 @@ export const resolveEffectiveGeospatialStyleUrl = (
     return getBuiltInDefaultStyleUrl(normalizedViewMode)
   }
   if (isGrabMapsStyleUrl(normalizedStyleUrl)) {
+    if (!canAttemptGrabMapsStyle()) {
+      return getBuiltInDefaultStyleUrl(normalizedViewMode)
+    }
     return isGrabMapsPresetActive(normalizedStyleUrl, normalizedViewMode)
       ? normalizedStyleUrl
       : getBuiltInDefaultStyleUrl(normalizedViewMode)
@@ -96,4 +102,11 @@ export const normalizePersistedGeospatialStyleUrl = (raw: string | null | undefi
   // Allow explicit remote style URLs for MapLibre runtime paths.
   if (lower.startsWith('http://') || lower.startsWith('https://')) return trimmed
   return trimmed
+}
+
+export const canAttemptGrabMapsStyle = (): boolean => {
+  if (typeof window === 'undefined') return true
+  const mode = readGrabMapsAuthModeFromBrowser()
+  if (mode === 'serverManaged') return true
+  return !!readGrabMapsByokApiKeyFromBrowser()
 }

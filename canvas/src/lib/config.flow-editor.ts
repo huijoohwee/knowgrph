@@ -1,5 +1,6 @@
 import {
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
 } from '@/lib/chatEndpoint'
 
@@ -24,7 +25,26 @@ export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const
 export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'BytePlus Video Widget' as const
 
 export const FLOW_EDITOR_IMAGE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
-  { value: CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT, label: 'Seedream 5.0 Lite (Default)' },
+  ...CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS.map((value, index) => ({
+    value,
+    label: index === 0 ? `${value} (Default)` : value,
+  })),
+]
+
+export type FlowEditorImageSize = '1K' | '2K' | '3K' | '4K'
+
+export const FLOW_EDITOR_IMAGE_SIZE_OPTIONS: ReadonlyArray<{ value: FlowEditorImageSize; label: string }> = [
+  { value: '1K', label: '1K' },
+  { value: '2K', label: '2K' },
+  { value: '3K', label: '3K' },
+  { value: '4K', label: '4K' },
+]
+
+export type FlowEditorImageOutputFormat = 'jpeg' | 'png'
+
+export const FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS: ReadonlyArray<{ value: FlowEditorImageOutputFormat; label: string }> = [
+  { value: 'jpeg', label: 'jpeg' },
+  { value: 'png', label: 'png' },
 ]
 
 export const FLOW_EDITOR_VIDEO_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
@@ -92,6 +112,10 @@ export type FlowEditorSmartNodeProperties = {
   model?: FlowEditorSmartNodeModel
   prompt?: string
   content_json?: string
+  size?: FlowEditorImageSize
+  output_format?: FlowEditorImageOutputFormat
+  seed?: number
+  guidance_scale?: number
   aspect_ratio?: FlowEditorAspectRatio
   duration?: number
   resolution?: FlowEditorResolution

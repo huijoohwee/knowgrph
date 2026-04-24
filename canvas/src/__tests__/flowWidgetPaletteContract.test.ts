@@ -8,10 +8,7 @@ export function testFlowWidgetPaletteExposesImageAndVideoWidgetsWithReadyRunDefa
   const copyText = readFileSync(resolve(process.cwd(), 'src/lib/config-copy/uiMeta.ts'), 'utf8')
 
   const paletteSnippets = [
-    'FLOW_IMAGE_GENERATION_NODE_LABEL',
-    'FLOW_RICH_MEDIA_PANEL_NODE_LABEL',
-    'FLOW_TEXT_GENERATION_NODE_LABEL',
-    'FLOW_VIDEO_GENERATION_NODE_LABEL',
+    'getWidgetRegistryEntryLabel',
     'beginFlowWidgetPointerDragSession',
     'markFlowWidgetPointerDragNativeStart',
     'clearActiveFlowWidgetPointerDragSession',
@@ -39,6 +36,8 @@ export function testFlowWidgetPaletteExposesImageAndVideoWidgetsWithReadyRunDefa
     "outputSrcDoc: ''",
     'const providerFamily = inferTextGenerationProviderFamily({',
     'const nextTextProperties = resolveTextGenerationGlobalDefaultsForProviderFamily({',
+    'readGrabMapsDiscoveryWidgetProperties()',
+    'getWidgetRegistryEntryLabel({',
     "prompt: 'Generate a text response for the active request.'",
     "output: ''",
     'properties.model = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT',

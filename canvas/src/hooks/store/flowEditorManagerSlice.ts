@@ -12,6 +12,12 @@ import {
   buildTextGenerationRegistryDraft,
 } from '@/features/flow-editor-manager/registryTemplates'
 import {
+  buildGrabMapsDiscoveryRegistryDraft,
+  FLOW_GRABMAPS_DISCOVERY_FORM_ID,
+  FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
+  FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID,
+} from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
@@ -267,6 +273,104 @@ export function normalizeWidgetRegistryEntries(
     out.push(...next)
   }
 
+  const canonicalizeBuiltInForm = (args: {
+    formId: string
+    draft: Omit<WidgetRegistryEntry, 'updatedAt'>
+  }) => {
+    const formId = trimOrEmpty(args.formId)
+    if (!formId) return
+    const matches = out.filter(e => e.formId === formId)
+    if (matches.length === 0) return
+    const preferred =
+      matches.find(
+        e =>
+          e.nodeTypeId === args.draft.nodeTypeId
+          && e.widgetTypeId === args.draft.widgetTypeId
+          && e.formId === formId,
+      )
+      || matches[0]!
+    const canonical: WidgetRegistryEntry = {
+      ...preferred,
+      nodeTypeId: args.draft.nodeTypeId,
+      widgetTypeId: args.draft.widgetTypeId,
+      formId,
+      fields: Array.isArray(args.draft.fields) ? args.draft.fields : [],
+      ports: Array.isArray(args.draft.ports) ? args.draft.ports : [],
+      ...(Array.isArray(args.draft.schemaMappings) ? { schemaMappings: args.draft.schemaMappings } : {}),
+    }
+    const validatedCanonical = validateWidgetRegistryEntry(canonical)
+    const kept = validatedCanonical || preferred
+    const next = out.filter(e => e.formId !== formId)
+    next.push(kept)
+    out.length = 0
+    out.push(...next)
+  }
+
+  const discovery = out.filter(
+    e =>
+      e.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID
+      || e.formId === FLOW_GRABMAPS_DISCOVERY_FORM_ID,
+  )
+  if (discovery.length > 0) {
+    const canonicalTemplate = buildGrabMapsDiscoveryRegistryDraft()
+    const preferred =
+      discovery.find(
+        e =>
+          e.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID
+          && e.widgetTypeId === FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID
+          && e.formId === FLOW_GRABMAPS_DISCOVERY_FORM_ID,
+      )
+      || discovery[0]!
+    const canonical: WidgetRegistryEntry = {
+      ...preferred,
+      nodeTypeId: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
+      widgetTypeId: FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID,
+      formId: FLOW_GRABMAPS_DISCOVERY_FORM_ID,
+      fields: canonicalTemplate.fields,
+      ports: canonicalTemplate.ports,
+      ...(Array.isArray(canonicalTemplate.schemaMappings) ? { schemaMappings: canonicalTemplate.schemaMappings } : {}),
+    }
+    const validatedCanonical = validateWidgetRegistryEntry(canonical)
+    const kept = validatedCanonical || preferred
+    const next = out.filter(
+      e =>
+        e.nodeTypeId !== FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID
+        && e.formId !== FLOW_GRABMAPS_DISCOVERY_FORM_ID,
+    )
+    next.push(kept)
+    out.length = 0
+    out.push(...next)
+  }
+
+  canonicalizeBuiltInForm({
+    formId: 'imageGeneration',
+    draft: buildGenerateImageRegistryDraft(),
+  })
+  canonicalizeBuiltInForm({
+    formId: 'videoGeneration',
+    draft: buildGenerateVideoRegistryDraft(),
+  })
+  canonicalizeBuiltInForm({
+    formId: 'textGeneration',
+    draft: buildGenerateTextRegistryDraft(),
+  })
+  canonicalizeBuiltInForm({
+    formId: 'textGeneration.openai',
+    draft: buildTextGenerationRegistryDraft({
+      providerFamily: 'openai',
+      widgetTypeId: 'default',
+      formId: 'textGeneration.openai',
+    }),
+  })
+  canonicalizeBuiltInForm({
+    formId: 'textGeneration.zai',
+    draft: buildTextGenerationRegistryDraft({
+      providerFamily: 'zai',
+      widgetTypeId: 'default',
+      formId: 'textGeneration.zai',
+    }),
+  })
+
   out.sort((a, b) => {
     const t = a.nodeTypeId.localeCompare(b.nodeTypeId)
     if (t !== 0) return t
@@ -285,9 +389,10 @@ function ensureDefaultRegistryEntry(args: {
   nowIso?: string
 }): { entries: WidgetRegistryEntry[]; changed: boolean } {
   const prev = Array.isArray(args.entries) ? args.entries : []
+  const targetWidgetTypeId = trimOrEmpty(args.draft.widgetTypeId) || 'default'
   const existingIndex = prev.findIndex(e => {
     if (!e) return false
-    return e.nodeTypeId === args.nodeTypeId && e.widgetTypeId === 'default' && e.formId === args.formId
+    return e.nodeTypeId === args.nodeTypeId && e.widgetTypeId === targetWidgetTypeId && e.formId === args.formId
   })
   const updatedAt = String(args.nowIso || '').trim() || new Date().toISOString()
   const normalizeComparableEntry = (entry: Pick<WidgetRegistryEntry, 'nodeTypeId' | 'widgetTypeId' | 'formId' | 'fields' | 'ports' | 'schemaMappings'>) =>
@@ -328,7 +433,7 @@ function ensureDefaultRegistryEntry(args: {
     if (!existing) return { entries: prev, changed: false }
     const canonicalComparable = normalizeComparableEntry({
       nodeTypeId: args.nodeTypeId,
-      widgetTypeId: 'default',
+      widgetTypeId: targetWidgetTypeId,
       formId: args.formId,
       fields: Array.isArray(args.draft.fields) ? (args.draft.fields as WidgetRegistryField[]) : [],
       ports: Array.isArray(args.draft.ports) ? (args.draft.ports as WidgetRegistryPort[]) : [],
@@ -339,7 +444,7 @@ function ensureDefaultRegistryEntry(args: {
     const nextEntry: WidgetRegistryEntry = {
       ...existing,
       nodeTypeId: args.nodeTypeId,
-      widgetTypeId: 'default',
+      widgetTypeId: targetWidgetTypeId,
       formId: args.formId,
       fields: Array.isArray(args.draft.fields) ? (args.draft.fields as WidgetRegistryField[]) : [],
       ports: Array.isArray(args.draft.ports) ? (args.draft.ports as WidgetRegistryPort[]) : [],
@@ -358,7 +463,7 @@ function ensureDefaultRegistryEntry(args: {
     id,
     isEnabled: true,
     nodeTypeId: args.nodeTypeId,
-    widgetTypeId: 'default',
+    widgetTypeId: targetWidgetTypeId,
     formId: args.formId,
     fields: Array.isArray(args.draft.fields) ? (args.draft.fields as WidgetRegistryField[]) : [],
     ports: Array.isArray(args.draft.ports) ? (args.draft.ports as WidgetRegistryPort[]) : [],
@@ -414,9 +519,22 @@ export function ensureDefaultWidgetRegistryEntries(
     draft: buildRichMediaPanelRegistryDraft(),
     nowIso,
   })
-  return {
+  const seededGrabMapsDiscovery = ensureDefaultRegistryEntry({
     entries: seededRichMediaPanel.entries,
-    changed: seededImage.changed || seededVideo.changed || seededText.changed || seededOpenAiText.changed || seededRichMediaPanel.changed,
+    nodeTypeId: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
+    formId: FLOW_GRABMAPS_DISCOVERY_FORM_ID,
+    draft: buildGrabMapsDiscoveryRegistryDraft(),
+    nowIso,
+  })
+  return {
+    entries: seededGrabMapsDiscovery.entries,
+    changed:
+      seededImage.changed
+      || seededVideo.changed
+      || seededText.changed
+      || seededOpenAiText.changed
+      || seededRichMediaPanel.changed
+      || seededGrabMapsDiscovery.changed,
   }
 }
 
@@ -452,6 +570,7 @@ export const createFlowEditorManagerSlice = (set: SetGraph, get: GetGraph) => {
     const nodeTypeId = String(entry?.nodeTypeId || '').trim()
     return (
       nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+      || nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID
       || nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
       || nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
       || nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID

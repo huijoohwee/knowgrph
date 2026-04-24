@@ -225,6 +225,20 @@ export const shouldRetryWithModelFallback = (status: number, detail: string): bo
   return false
 }
 
+export const shouldRetryWithActivationFallback = (status: number, detail: string): boolean => {
+  if (status !== 400 && status !== 403 && status !== 404) return false
+  const lowered = String(detail || '').toLowerCase()
+  if (!lowered) return false
+  if (!lowered.includes('model')) return false
+  if (lowered.includes('has not activated')) return true
+  if (lowered.includes('activate the model service')) return true
+  if (lowered.includes('no permission')) return true
+  if (lowered.includes('no access')) return true
+  if (lowered.includes('do not have access')) return true
+  if (lowered.includes('not support current account')) return true
+  return false
+}
+
 export const loadAvailableModelIds = async (
   endpoint: string,
   headers?: HeadersInit,

@@ -12,14 +12,23 @@ import {
   FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
   FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
   FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
+  FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
+  FLOW_EDITOR_IMAGE_SIZE_OPTIONS,
   FLOW_EDITOR_RESOLUTION_OPTIONS,
   FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
+  FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_LABEL,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
+import {
+  getGrabMapsDiscoveryWidgetLabel,
+  isGrabMapsDiscoveryWidgetEntry,
+} from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
 export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'zai'
 
@@ -90,6 +99,22 @@ export function getTextGenerationWidgetLabel(args: {
   formId?: unknown
 }): string {
   return getTextGenerationProviderProfile(inferTextGenerationProviderFamily(args)).widgetLabel
+}
+
+export function getWidgetRegistryEntryLabel(args: {
+  nodeTypeId?: unknown
+  widgetTypeId?: unknown
+  formId?: unknown
+}): string {
+  const nodeTypeId = String(args.nodeTypeId || '').trim()
+  if (isGrabMapsDiscoveryWidgetEntry(args)) return getGrabMapsDiscoveryWidgetLabel()
+  if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+    return getTextGenerationWidgetLabel(args)
+  }
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return FLOW_IMAGE_GENERATION_NODE_LABEL
+  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return FLOW_VIDEO_GENERATION_NODE_LABEL
+  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+  return nodeTypeId || String(args.formId || '').trim() || String(args.widgetTypeId || '').trim() || FLOW_TEXT_GENERATION_NODE_LABEL
 }
 
 export function normalizeTextGenerationWidgetPropertiesForProviderFamily(args: {
@@ -267,6 +292,29 @@ export function buildWidgetDraftFromSmartFields(args: {
         options: mode === 'image' ? FLOW_EDITOR_IMAGE_MODEL_OPTIONS : FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
       },
       { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', required: true, label: 'Prompt' },
+      ...(mode === 'image'
+        ? [
+            {
+              fieldKey: 'size',
+              fieldType: 'select',
+              schemaPath: 'properties.size',
+              required: true,
+              label: 'Size',
+              options: FLOW_EDITOR_IMAGE_SIZE_OPTIONS,
+            },
+            {
+              fieldKey: 'output_format',
+              fieldType: 'select',
+              schemaPath: 'properties.output_format',
+              required: true,
+              label: 'Output format',
+              options: FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
+            },
+            { fieldKey: 'watermark', fieldType: 'boolean', schemaPath: 'properties.watermark', label: 'Watermark' },
+            { fieldKey: 'seed', fieldType: 'number', schemaPath: 'properties.seed', label: 'Seed' },
+            { fieldKey: 'guidance_scale', fieldType: 'number', schemaPath: 'properties.guidance_scale', label: 'Guidance scale' },
+          ]
+        : []),
       ...(mode === 'video'
         ? [
             {
@@ -277,22 +325,26 @@ export function buildWidgetDraftFromSmartFields(args: {
             },
           ]
         : []),
-      {
-        fieldKey: 'aspect_ratio',
-        fieldType: 'select',
-        schemaPath: 'properties.aspect_ratio',
-        required: true,
-        label: 'Aspect ratio',
-        options: FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
-      },
-      {
-        fieldKey: 'resolution',
-        fieldType: 'select',
-        schemaPath: 'properties.resolution',
-        required: true,
-        label: 'Resolution',
-        options: FLOW_EDITOR_RESOLUTION_OPTIONS,
-      },
+      ...(mode === 'video'
+        ? [
+            {
+              fieldKey: 'aspect_ratio',
+              fieldType: 'select',
+              schemaPath: 'properties.aspect_ratio',
+              required: true,
+              label: 'Aspect ratio',
+              options: FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
+            },
+            {
+              fieldKey: 'resolution',
+              fieldType: 'select',
+              schemaPath: 'properties.resolution',
+              required: true,
+              label: 'Resolution',
+              options: FLOW_EDITOR_RESOLUTION_OPTIONS,
+            },
+          ]
+        : []),
       ...(mode === 'video'
         ? [
             {
@@ -307,9 +359,7 @@ export function buildWidgetDraftFromSmartFields(args: {
             { fieldKey: 'fast', fieldType: 'boolean', schemaPath: 'properties.fast', label: 'Fast' },
             { fieldKey: 'watermark', fieldType: 'boolean', schemaPath: 'properties.watermark', label: 'Watermark' },
           ]
-        : [
-            { fieldKey: 'fast', fieldType: 'boolean', schemaPath: 'properties.fast', label: 'Fast' },
-          ]),
+        : []),
       {
         fieldKey: 'reference_image',
         fieldType: 'text',

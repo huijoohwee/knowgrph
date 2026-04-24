@@ -1,5 +1,7 @@
 import {
   CHAT_BYTEPLUS_CONTENT_GENERATIONS_TASKS_PATH,
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_IMAGES_GENERATIONS_PATH,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
   CHAT_PROVIDER_BYTEPLUS,
@@ -17,6 +19,7 @@ import {
   loadAvailableModelIds,
   parseErrorBody,
   parseSseEvents,
+  shouldRetryWithActivationFallback,
 } from './SidePanelChat.helpers'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsInt, lsJson } from '@/lib/persistence'
@@ -54,8 +57,11 @@ export type RunTextGenerationOptions = {
 
 export type RunImageGenerationOptions = {
   model?: unknown
-  aspectRatio?: unknown
-  resolution?: unknown
+  size?: unknown
+  outputFormat?: unknown
+  watermark?: unknown
+  seed?: unknown
+  guidanceScale?: unknown
   referenceImageUrl?: unknown
 }
 
@@ -91,6 +97,14 @@ type BytePlusVideoFailureContext = {
   matchedAvailableModel: boolean
   availableCount: number
   authMode: 'byok' | 'serverManaged'
+}
+
+type BytePlusImageFailureContext = {
+  preferredModel: string
+  resolvedModel: string
+  availableCount: number
+  authMode: 'byok' | 'serverManaged'
+  attemptedResolvedModels: string[]
 }
 
 const BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS = 24
@@ -156,6 +170,33 @@ const isGenericGenerationMode = (value: string): boolean => {
   return normalized === 'generateimage' || normalized === 'generatevideo'
 }
 
+const readBytePlusImageDefaults = (): {
+  model: string
+  size: string
+  outputFormat: string
+  watermark: boolean | null
+  seed: number | null
+  guidanceScale: number | null
+} => {
+  const model = lsJson<string>(LS_KEYS.byteplusImageModel, CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT, value => (typeof value === 'string' ? value : null))
+  const size = lsJson<string>(LS_KEYS.byteplusImageSize, '2K', value => (typeof value === 'string' ? value : null))
+  const outputFormat = lsJson<string>(LS_KEYS.byteplusImageOutputFormat, 'jpeg', value => (typeof value === 'string' ? value : null))
+  const watermark = lsBool(LS_KEYS.byteplusImageWatermark, false)
+  const seed = (() => {
+    const value = lsInt(LS_KEYS.byteplusImageSeed, 0)
+    return Number.isFinite(value) ? value : null
+  })()
+  const guidanceScale = lsJson<number>(LS_KEYS.byteplusImageGuidanceScale, 0, value => (typeof value === 'number' && Number.isFinite(value) ? value : null))
+  return {
+    model: cleanString(model),
+    size: cleanString(size),
+    outputFormat: cleanString(outputFormat).toLowerCase(),
+    watermark,
+    seed: Number.isFinite(seed) ? seed : null,
+    guidanceScale: typeof guidanceScale === 'number' && Number.isFinite(guidanceScale) ? guidanceScale : null,
+  }
+}
+
 const readBytePlusVideoDefaults = (): {
   model: string
   contentJson: string
@@ -211,6 +252,12 @@ type BytePlusVideoModelSignature = {
   fast: boolean
 }
 
+type BytePlusImageModelSignature = {
+  major: string
+  minor: string
+  lite: boolean
+}
+
 const parseBytePlusVideoModelSignature = (value: string, wantsFast?: boolean): BytePlusVideoModelSignature | null => {
   const tokens = tokenizeModelId(value)
   const seedanceIndex = tokens.findIndex(token => token === 'seedance')
@@ -223,6 +270,47 @@ const parseBytePlusVideoModelSignature = (value: string, wantsFast?: boolean): B
     pro: tokens.includes('pro'),
     fast: wantsFast === true ? true : tokens.includes('fast'),
   }
+}
+
+const parseBytePlusImageModelSignature = (value: string): BytePlusImageModelSignature | null => {
+  const tokens = tokenizeModelId(value)
+  const seedreamIndex = tokens.findIndex(token => token === 'seedream')
+  if (seedreamIndex < 0) return null
+  const numericTokens = tokens.slice(seedreamIndex + 1).filter(token => /^\d+$/.test(token))
+  if (numericTokens.length < 2) return null
+  return {
+    major: numericTokens[0] || '',
+    minor: numericTokens[1] || '',
+    lite: tokens.includes('lite'),
+  }
+}
+
+const chooseMatchingImageModel = (available: string[], preferred: string): string => {
+  const exact = available.find(id => normalizeModelId(id) === normalizeModelId(preferred))
+  if (exact) return exact
+  const preferredSignature = parseBytePlusImageModelSignature(preferred)
+  if (preferredSignature) {
+    const signatureMatch = available.find(id => {
+      const candidateSignature = parseBytePlusImageModelSignature(id)
+      if (!candidateSignature) return false
+      return (
+        candidateSignature.major === preferredSignature.major
+        && candidateSignature.minor === preferredSignature.minor
+        && candidateSignature.lite === preferredSignature.lite
+      )
+    })
+    if (signatureMatch) return signatureMatch
+  }
+  const preferredNormalized = normalizeModelId(preferred)
+  const preferredFamily = available.find(id => normalizeModelId(id).includes(preferredNormalized))
+  if (preferredFamily) return preferredFamily
+  const keywordTokens = deriveImageKeywords(preferred)
+  const tokenMatch = available.find(id => {
+    const candidateTokens = tokenizeModelId(id)
+    return keywordTokens.every(token => candidateTokens.includes(token))
+  })
+  if (tokenMatch) return tokenMatch
+  return preferred
 }
 
 const chooseMatchingVideoModel = (available: string[], preferred: string, wantsFast: boolean): string => {
@@ -268,6 +356,14 @@ const deriveVideoKeywords = (preferred: string, wantsFast: boolean): string[] =>
   return wantsFast ? ['seedance', 'fast'] : ['seedance']
 }
 
+const deriveImageKeywords = (preferred: string): string[] => {
+  const normalized = normalizeModelId(preferred)
+  if (normalized.includes('seedream40')) return ['seedream', '4', '0']
+  if (normalized.includes('seedream45')) return ['seedream', '4', '5']
+  if (normalized.includes('seedream50lite')) return ['seedream', '5', '0', 'lite']
+  return ['seedream']
+}
+
 const resolveGenerationModelPreview = async (
   config: RunGenerationConfig,
   kind: 'text' | 'image' | 'video',
@@ -276,7 +372,14 @@ const resolveGenerationModelPreview = async (
 ): Promise<ResolvedGenerationModelPreview> => {
   const provider = normalizeChatProviderId(config.provider)
   const explicit = cleanString(explicitModel)
-  const defaults = kind === 'video' && provider === CHAT_PROVIDER_BYTEPLUS ? readBytePlusVideoDefaults() : null
+  const defaults =
+    provider === CHAT_PROVIDER_BYTEPLUS
+      ? kind === 'video'
+        ? readBytePlusVideoDefaults()
+        : kind === 'image'
+          ? readBytePlusImageDefaults()
+          : null
+      : null
   const hasExplicit = Boolean(explicit && !isGenericGenerationMode(explicit))
   const hasDefaultModel = Boolean(defaults?.model && !isGenericGenerationMode(defaults.model))
   const preferred = hasExplicit
@@ -313,13 +416,15 @@ const resolveGenerationModelPreview = async (
     }
     const wantsFast = cleanBool(options?.fast) === true
     let resolved = preferred
-    const hasStrongPreference = hasExplicit || (kind === 'video' && hasDefaultModel)
+    const hasStrongPreference = hasExplicit || ((kind === 'video' || kind === 'image') && hasDefaultModel)
     if (hasStrongPreference) {
       if (kind === 'video') {
         const preferredTarget = wantsFast && !normalizeModelId(preferred).includes('fast')
           ? `${preferred}-fast`
           : preferred
         resolved = chooseMatchingVideoModel(available, preferredTarget, wantsFast)
+      } else if (kind === 'image') {
+        resolved = chooseMatchingImageModel(available, preferred)
       } else {
         const exact = available.find(id => normalizeModelId(id) === normalizeModelId(preferred))
         if (exact) {
@@ -344,10 +449,12 @@ const resolveGenerationModelPreview = async (
     const keywords = kind === 'text'
       ? ['seed', '2', 'lite']
       : kind === 'image'
-        ? ['seedream', '5', 'lite']
+        ? deriveImageKeywords(preferredTarget)
         : []
     resolved = kind === 'video'
       ? chooseMatchingVideoModel(available, preferredTarget, wantsFast)
+      : kind === 'image'
+        ? chooseMatchingImageModel(available, preferredTarget)
       : chooseMatchingModel(available, preferredTarget, keywords)
     return {
       preferredModel: preferred,
@@ -529,6 +636,35 @@ const formatBytePlusVideoFailure = (
     `BytePlus /models entries checked: ${String(context.availableCount || 0)}`,
     fix,
   ].join(' | ')
+}
+
+const formatBytePlusImageFailure = (
+  detail: string,
+  context: BytePlusImageFailureContext,
+): string => {
+  const trimmedDetail = cleanString(detail) || 'BytePlus image generation failed.'
+  const selectedModel = cleanString(context.preferredModel) || 'BytePlus image default'
+  const resolvedModel = cleanString(context.resolvedModel) || selectedModel
+  const authLabel = context.authMode === 'byok' ? 'BYOK' : 'serverManaged'
+  const attempted = Array.from(new Set(context.attemptedResolvedModels.map(cleanString).filter(Boolean)))
+  const fix = attempted.length > 1
+    ? `Fix: this ${authLabel} credential could not activate the first image candidate, so Knowgrph also tried other curated image models. Activate one of the attempted models in Ark Console or switch MainPanel Integrations -> BytePlus Image Generation API -> byteplusImageModel to a model your account has activated.`
+    : `Fix: activate ${resolvedModel} in Ark Console for this ${authLabel} credential/region, or switch MainPanel Integrations -> BytePlus Image Generation API -> byteplusImageModel to another activated curated image model.`
+  return [
+    `BytePlus image run failed: ${trimmedDetail}`,
+    `Selected image model: ${selectedModel}`,
+    `Resolved /models candidate: ${resolvedModel}`,
+    `Auth mode: ${authLabel}`,
+    `BytePlus /models entries checked: ${String(context.availableCount || 0)}`,
+    attempted.length > 1 ? `Attempted resolved models: ${attempted.join(', ')}` : '',
+    fix,
+  ].filter(Boolean).join(' | ')
+}
+
+const getCuratedImageFallbackPreferences = (preferred: string): string[] => {
+  const preferredNormalized = normalizeModelId(preferred)
+  const rest = CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS.filter(option => normalizeModelId(option) !== preferredNormalized)
+  return [preferred, ...rest]
 }
 
 const extractImageAsset = async (payload: unknown): Promise<{ blob: Blob; renderUrl: string; sourceUrl?: string } | null> => {
@@ -727,25 +863,82 @@ export async function generateRunImageWithBytePlus(args: {
     path: CHAT_BYTEPLUS_IMAGES_GENERATIONS_PATH,
   })
   if (!endpoint) return null
-  const model = await resolveGenerationModel(args.config, 'image', args.options?.model)
+  const defaults = readBytePlusImageDefaults()
+  const modelPreview = await resolveGenerationModelPreview(args.config, 'image', args.options?.model)
+  const failureContext: BytePlusImageFailureContext = {
+    preferredModel: modelPreview.preferredModel,
+    resolvedModel: modelPreview.resolvedModel,
+    availableCount: modelPreview.availableCount,
+    authMode: cleanString(args.config.apiKey) ? 'byok' : 'serverManaged',
+    attemptedResolvedModels: [modelPreview.resolvedModel],
+  }
   const requestId = toRequestId('kg-run-image')
   const referenceImageUrl = cleanString(args.options?.referenceImageUrl)
-  const prompt = referenceImageUrl
-    ? `${args.prompt}\nReference image anchor: ${referenceImageUrl}`
-    : args.prompt
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: buildProxyHeaders(args.config, requestId),
-    body: JSON.stringify({
-      model,
-      prompt,
-      response_format: 'b64_json',
-      size: mapAspectRatioToImageSize(args.options?.aspectRatio),
-    }),
+  const size = cleanString(args.options?.size) || defaults.size || '2K'
+  const outputFormat = cleanString(args.options?.outputFormat).toLowerCase() || defaults.outputFormat || 'jpeg'
+  const watermark = cleanBool(args.options?.watermark) ?? defaults.watermark
+  const seed = cleanInteger(args.options?.seed) ?? defaults.seed
+  const guidanceScale = (() => {
+    const raw = args.options?.guidanceScale
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+    if (typeof raw === 'string') {
+      const parsed = Number.parseFloat(raw.trim())
+      if (Number.isFinite(parsed)) return parsed
+    }
+    return defaults.guidanceScale
+  })()
+  const buildImageRequestBody = (model: string): string => JSON.stringify({
+    model,
+    prompt: args.prompt,
+    ...(referenceImageUrl ? { image: referenceImageUrl } : {}),
+    size,
+    output_format: outputFormat,
+    ...(watermark != null ? { watermark } : {}),
+    ...(seed != null && seed > 0 ? { seed } : {}),
+    ...(guidanceScale != null && guidanceScale > 0 ? { guidance_scale: guidanceScale } : {}),
+    response_format: 'b64_json',
   })
+  const runImageRequest = async (model: string, suffix: string): Promise<Response> => {
+    return fetch(endpoint, {
+      method: 'POST',
+      headers: buildProxyHeaders(args.config, `${requestId}${suffix}`),
+      body: buildImageRequestBody(model),
+    })
+  }
+
+  let model = modelPreview.resolvedModel
+  let res = await runImageRequest(model, '')
+  let detail = res.ok ? '' : await parseErrorBody(res)
+  if (!res.ok && shouldRetryWithActivationFallback(res.status, detail)) {
+    const preferences = getCuratedImageFallbackPreferences(modelPreview.preferredModel)
+    for (const preferred of preferences) {
+      const preview = await resolveGenerationModelPreview(args.config, 'image', preferred)
+      const retryModel = preview.resolvedModel
+      if (!preview.matchedAvailableModel || !retryModel) {
+        continue
+      }
+      if (failureContext.attemptedResolvedModels.some(id => normalizeModelId(id) === normalizeModelId(retryModel))) {
+        continue
+      }
+      failureContext.attemptedResolvedModels.push(retryModel)
+      failureContext.availableCount = Math.max(failureContext.availableCount, preview.availableCount)
+      failureContext.resolvedModel = retryModel
+      const retryRes = await runImageRequest(retryModel, `-${failureContext.attemptedResolvedModels.length}`)
+      if (retryRes.ok) {
+        res = retryRes
+        model = retryModel
+        detail = ''
+        break
+      }
+      detail = await parseErrorBody(retryRes)
+      res = retryRes
+      if (!shouldRetryWithActivationFallback(retryRes.status, detail)) {
+        break
+      }
+    }
+  }
   if (!res.ok) {
-    const detail = await parseErrorBody(res)
-    throw new Error(detail || `Run image generation failed (${res.status})`)
+    throw new Error(formatBytePlusImageFailure(detail || `Run image generation failed (${res.status})`, failureContext))
   }
   const data = (await res.json()) as unknown
   const asset = await extractImageAsset(data)

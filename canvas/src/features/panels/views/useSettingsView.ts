@@ -32,6 +32,12 @@ import {
   getStripePaymentApiRowAnchorId,
 } from './stripePaymentApiDocs'
 import {
+  BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
+  BYTEPLUS_IMAGE_GENERATION_API_REQUEST_DOC_ENTRIES,
+  BYTEPLUS_IMAGE_GENERATION_MAPPED_VALUE_KEYS,
+  getBytePlusImageGenerationApiRowAnchorId,
+} from './byteplusImageGenerationApiDocs'
+import {
   BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
   BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS,
   BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
@@ -48,6 +54,8 @@ import { GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_DIRECTIONS_REQUE
 import { GRABMAPS_MCP_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
 import { resolveBytePlusVideoModelPreview } from '@/features/chat/byteplusRunGeneration'
+import { normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
+import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 
 const SETTINGS_AREA_ORDER: readonly string[] = [
   'Chat',
@@ -68,6 +76,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   'Import / Export',
   'Integrations',
   BYTEPLUS_CHAT_API_DOC_AREA,
+  BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
   BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
   OPENAI_CHAT_API_DOC_AREA,
 ]
@@ -99,6 +108,7 @@ function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolean {
     area === 'Chat'
     || area === 'Integrations'
     || area === BYTEPLUS_CHAT_API_DOC_AREA
+    || area === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA
     || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
     || area === OPENAI_CHAT_API_DOC_AREA
   ) {
@@ -167,6 +177,9 @@ const getSettingsSearchHints = (key: string): string[] => {
   if (key === 'byteplusVideoModel') {
     return ['byteplus video generation api model byteplusVideoApi.model bytedance dreamina seedance video widget integrations default']
   }
+  if (key === 'byteplusImageModel') {
+    return ['byteplus image generation api model byteplusImageApi.model bytedance dola seedream image widget integrations default']
+  }
   if (key === 'maps.grabmaps.authMode' || key === 'maps.grabmaps.apiKey') {
     return ['grabmaps maps auth mode byok server-managed api key style directions proxy']
   }
@@ -184,6 +197,7 @@ const getSettingsSearchHints = (key: string): string[] => {
 
 const INTEGRATION_API_DOC_ENTRIES = [
   ...BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES,
+  ...BYTEPLUS_IMAGE_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
 ] as const
@@ -318,6 +332,9 @@ export function useSettingsView({
   const [bytePlusHealthOk, setBytePlusHealthOk] = React.useState<boolean | null>(null)
   const [bytePlusHealthDetails, setBytePlusHealthDetails] = React.useState<string | null>(null)
   const [isCheckingBytePlusHealth, setIsCheckingBytePlusHealth] = React.useState(false)
+  const [grabMapsHealthOk, setGrabMapsHealthOk] = React.useState<boolean | null>(null)
+  const [grabMapsHealthDetails, setGrabMapsHealthDetails] = React.useState<string | null>(null)
+  const [isCheckingGrabMapsHealth, setIsCheckingGrabMapsHealth] = React.useState(false)
   const [bytePlusVideoModelPreviewText, setBytePlusVideoModelPreviewText] = React.useState<string | null>(null)
   const [isCheckingBytePlusVideoModelPreview, setIsCheckingBytePlusVideoModelPreview] = React.useState(false)
   const bytePlusVideoPreviewRequestRef = React.useRef(0)
@@ -400,6 +417,62 @@ export function useSettingsView({
     }
   }, [values.chatAuthMode, values.chatApiKey])
 
+  const checkGrabMapsHealth = React.useCallback(async () => {
+    const styleUrlRaw = String(values['maps.grabmaps.basemap.styleUrl'] || '').trim()
+    if (!styleUrlRaw) {
+      setGrabMapsHealthOk(false)
+      setGrabMapsHealthDetails('GrabMaps style URL is not configured.')
+      return
+    }
+    let target: URL
+    try {
+      target = new URL(styleUrlRaw)
+    } catch {
+      setGrabMapsHealthOk(false)
+      setGrabMapsHealthDetails('GrabMaps style URL is invalid.')
+      return
+    }
+    if (target.hostname.toLowerCase() !== 'maps.grab.com') {
+      setGrabMapsHealthOk(false)
+      setGrabMapsHealthDetails('GrabMaps health check requires a maps.grab.com style URL.')
+      return
+    }
+    if (typeof window === 'undefined' || !window.location?.origin) {
+      setGrabMapsHealthOk(false)
+      setGrabMapsHealthDetails('Browser origin is unavailable.')
+      return
+    }
+    const authMode = normalizeGrabMapsAuthMode(values['maps.grabmaps.authMode'])
+    const apiKey = authMode === 'byok' ? sanitizeGrabMapsApiKey(values['maps.grabmaps.apiKey']) : ''
+    if (authMode === 'byok' && !apiKey) {
+      setGrabMapsHealthOk(false)
+      setGrabMapsHealthDetails('GrabMaps BYOK API key is not configured.')
+      return
+    }
+    const proxyUrl = new URL(GRABMAPS_PROXY_PATH, window.location.origin)
+    proxyUrl.searchParams.set('url', target.toString())
+    const headers: Record<string, string> = { 'x-kg-grabmaps-auth-mode': authMode }
+    if (apiKey) headers['x-kg-grabmaps-api-key'] = apiKey
+    setIsCheckingGrabMapsHealth(true)
+    setGrabMapsHealthOk(null)
+    setGrabMapsHealthDetails(null)
+    try {
+      const res = await fetch(proxyUrl.toString(), { method: 'GET', headers })
+      if (res.ok) {
+        setGrabMapsHealthOk(true)
+        setGrabMapsHealthDetails(`OK: ${target.pathname}${target.search || ''}`)
+      } else {
+        setGrabMapsHealthOk(false)
+        setGrabMapsHealthDetails(`Error: ${res.status} ${res.statusText}`)
+      }
+    } catch (err: unknown) {
+      setGrabMapsHealthOk(false)
+      setGrabMapsHealthDetails(`Error: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setIsCheckingGrabMapsHealth(false)
+    }
+  }, [values])
+
   const checkBytePlusVideoModelPreview = React.useCallback(async () => {
     const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
     const apiKey = authMode === 'byok' ? String(values.chatApiKey || '').trim() : ''
@@ -466,6 +539,23 @@ export function useSettingsView({
     }
     void checkBytePlusVideoModelPreview()
   }, [checkChatHealth, checkBytePlusHealth, mode, values.chatProvider])
+
+  const didAutoCheckGrabMapsHealthRef = React.useRef(false)
+  React.useEffect(() => {
+    if (mode !== 'maps') return
+    if (didAutoCheckGrabMapsHealthRef.current) return
+    const isTestRun = (() => {
+      try {
+        const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env
+        return env?.KG_TEST_QUIET === '1'
+      } catch {
+        return false
+      }
+    })()
+    if (isTestRun) return
+    didAutoCheckGrabMapsHealthRef.current = true
+    void checkGrabMapsHealth()
+  }, [checkGrabMapsHealth, mode])
 
   React.useEffect(() => {
     if (mode !== 'integrations') return
@@ -556,6 +646,8 @@ export function useSettingsView({
       const anchorId =
         area === BYTEPLUS_CHAT_API_DOC_AREA
           ? getBytePlusChatApiRowAnchorId(entry.meta.key)
+          : area === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA
+            ? getBytePlusImageGenerationApiRowAnchorId(entry.meta.key)
           : area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
             ? getBytePlusVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === OPENAI_CHAT_API_DOC_AREA
@@ -681,7 +773,10 @@ export function useSettingsView({
     })
 
     const hiddenConcreteIntegrationKeys = mode === 'integrations'
-      ? new Set<string>(BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS)
+      ? new Set<string>([
+          ...BYTEPLUS_IMAGE_GENERATION_MAPPED_VALUE_KEYS,
+          ...BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS,
+        ])
       : null
     const hiddenConcreteMapsKeys = new Set<string>(
       mapsDocEntries
@@ -768,9 +863,9 @@ export function useSettingsView({
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
         },
         {
-          title: 'BytePlus Image Generation API',
+          title: BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
           searchIndex: normalizeText('BytePlus Image Generation API ModelArk FloatingPanel Image Widget'),
-          match: () => false,
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
         },
       ]
       return sectionSpecs.flatMap(({ title, searchIndex, match }) => {
@@ -872,6 +967,10 @@ export function useSettingsView({
     bytePlusHealthDetails,
     isCheckingBytePlusHealth,
     checkBytePlusHealth,
+    grabMapsHealthOk,
+    grabMapsHealthDetails,
+    isCheckingGrabMapsHealth,
+    checkGrabMapsHealth,
     bytePlusVideoModelPreviewText,
     isCheckingBytePlusVideoModelPreview,
     checkBytePlusVideoModelPreview,

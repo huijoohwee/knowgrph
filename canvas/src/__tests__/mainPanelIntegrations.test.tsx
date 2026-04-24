@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import MainPanel from '@/features/panels/MainPanel'
 import IntegrationsHubView from '@/features/panels/views/IntegrationsHubView'
 import MapsHubView from '@/features/panels/views/MapsHubView'
-import DiscoveryHubView from '@/features/panels/views/DiscoveryHubView'
+import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -14,6 +14,7 @@ import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_BASE,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
 } from '@/lib/chatEndpoint'
 import { getBytePlusChatApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
@@ -310,7 +311,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAiControls() 
       'Refresh Models',
       'Multi-modal Run',
       'OpenAI default text model',
-      'Seedream 5.0 Lite',
+      'ByteDance-Seedream-4.0',
       'ByteDance-Seedance-1.0-pro-fast',
     ].forEach(token => {
       if (!text.includes(token)) {
@@ -380,11 +381,74 @@ export async function testMainPanelRequestedIntegrationsSearchPreservesCustomMod
     if (modelDatalistInputs.length < 2) {
       throw new Error(`expected BytePlus API model row to reuse chatModel editor surface, got ${modelDatalistInputs.length} model inputs`)
     }
-    if (!optionValues.includes(CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT)) {
-      throw new Error(`expected chat model datalist to include ${CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT}`)
+    ;[
+      ...CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
+      CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+    ].forEach(value => {
+      if (!optionValues.includes(value)) {
+        throw new Error(`expected chat model datalist to include ${value}`)
+      }
+    })
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
     }
-    if (!optionValues.includes(CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT)) {
-      throw new Error(`expected chat model datalist to include ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT}`)
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImageApiRows() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplusImageApi',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    ;[
+      'BytePlus Image Generation API',
+      'byteplusImageModel',
+      'byteplusImageApi.size',
+      'byteplusImageApi.output_format',
+      'byteplusImageApi.watermark',
+      'byteplusImageApi.seed',
+      'byteplusImageApi.guidance_scale',
+      'Open FloatingPanel Image Widget',
+      'ByteDance-Seedream-4.0',
+      'ByteDance-Seedream-4.5',
+      'Dola-Seedream-5.0-lite',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected BytePlus image integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    if (text.includes('seedream-5-0-lite-250817')) {
+      throw new Error('expected stale Seedream 5.0 Lite image model id to be removed from integrations image API rows')
     }
   } finally {
     try {
@@ -420,7 +484,7 @@ export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
 
     const text = container.textContent || ''
     ;[
-      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from FloatingPanel Discovery, while MainPanel Maps keeps backend/system/API/MCP config.',
+      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel Maps keeps backend/system/API/MCP config.',
       'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
     ].forEach(token => {
       if (!text.includes(token)) {
@@ -483,7 +547,7 @@ export async function testMapsHubSurfacesGrabMapsSearchDiscoveryCopy() {
   }
 }
 
-export async function testDiscoveryHubOwnsGrabMapsSearchDiscoveryCopy() {
+export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -506,19 +570,39 @@ export async function testDiscoveryHubOwnsGrabMapsSearchDiscoveryCopy() {
       mainPanelOpenDetail = ((ev as CustomEvent<{ tab?: string; searchQuery?: string }>).detail || null) as Record<string, unknown> | null
     })
     root = createRoot(container as unknown as HTMLElement)
-    await renderAndFlush(root, React.createElement(DiscoveryHubView), anyWindow.requestAnimationFrame, 4)
+    await renderAndFlush(root, React.createElement(FloatingPropsPanel), anyWindow.requestAnimationFrame, 4)
 
     const text = container.textContent || ''
     ;[
-      'User-facing place search and discovery for GrabMaps. MainPanel Maps remains backend/system/API/MCP-facing.',
+      'Discovery Widget',
+      'GrabMap Discovery Widget',
+      'Drag this widget from the shared Widget palette into the canvas, aligned with the same palette/drop SSOT used by OpenAI Text Widget.',
+      'Props Panel owns the user-facing Discovery Widget. MainPanel Maps stays backend/system/API/MCP-facing for GrabMaps.',
+      'search_places.query',
+      'search_places.country',
+      'nearby_search.radius',
+      'nearby_search.rankBy',
       'Search Places',
-      'Keyword Search Preview',
-      'Nearby Search Preview',
-      'MainPanel Maps keeps backend/system/API/MCP-facing config, including server key, command, args, env, and startup timeout.',
+      'Keyword Search Summary',
+      'Nearby Search Summary',
+      'MainPanel Maps keeps backend/system/API/MCP-facing GrabMaps config, including auth, command, args, env, and startup timeout.',
       'Open MainPanel Maps',
+      'Restore Discovery Widget Defaults',
     ].forEach(token => {
       if (!text.includes(token)) {
-        throw new Error(`expected discovery hub to own GrabMaps search-discovery guidance ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+        throw new Error(`expected props panel discovery widget to own GrabMaps search-discovery guidance ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    if (text.includes('Discovery Widget Type')) {
+      throw new Error(`expected props panel discovery widget to reuse shared widget palette identity instead of a local widget selector, got ${JSON.stringify(text)}`)
+    }
+    ;[
+      'Registry fields',
+      'Registry ports',
+      'Auto apply connected values',
+    ].forEach(token => {
+      if (text.includes(token)) {
+        throw new Error(`expected props panel discovery widget to avoid generic widget-row seepage ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
     ;[
@@ -527,21 +611,21 @@ export async function testDiscoveryHubOwnsGrabMapsSearchDiscoveryCopy() {
       'startup_timeout_ms=60000',
     ].forEach(token => {
       if (text.includes(token)) {
-        throw new Error(`expected discovery hub to avoid raw backend MCP config duplication ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+        throw new Error(`expected props panel discovery widget to avoid raw backend MCP config duplication ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
 
     const openMapsButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Open MainPanel Maps'))
-    if (!openMapsButton) throw new Error('expected discovery hub to expose Open MainPanel Maps action')
+    if (!openMapsButton) throw new Error('expected props panel discovery widget to expose Open MainPanel Maps action')
     await act(async () => {
       openMapsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
       await waitForFrames(anyWindow.requestAnimationFrame, 2)
     })
     if (String(mainPanelOpenDetail?.tab || '') !== 'maps') {
-      throw new Error(`expected discovery hub open-main-panel action to target maps, got ${JSON.stringify(mainPanelOpenDetail)}`)
+      throw new Error(`expected props panel discovery widget open-main-panel action to target maps, got ${JSON.stringify(mainPanelOpenDetail)}`)
     }
     if (String(mainPanelOpenDetail?.searchQuery || '') !== 'GrabMaps MCP Configuration') {
-      throw new Error(`expected discovery hub open-main-panel action to focus GrabMaps MCP Configuration, got ${JSON.stringify(mainPanelOpenDetail)}`)
+      throw new Error(`expected props panel discovery widget open-main-panel action to focus GrabMaps MCP Configuration, got ${JSON.stringify(mainPanelOpenDetail)}`)
     }
   } finally {
     try {
@@ -549,6 +633,109 @@ export async function testDiscoveryHubOwnsGrabMapsSearchDiscoveryCopy() {
     } catch {
       void 0
     }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDuplicateFloatingView() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+  const globalWithFetch = globalThis as typeof globalThis & { fetch?: typeof fetch }
+  const previousFetch = globalWithFetch.fetch
+  const fetchCalls: Array<{ url: string; authorization: string }> = []
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    globalWithFetch.fetch = (async (input: unknown, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : ''
+      const headers = (init?.headers || {}) as Record<string, string>
+      fetchCalls.push({
+        url,
+        authorization: String(headers.Authorization || ''),
+      })
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        body: null,
+        text: async () => JSON.stringify({
+          results: [
+            {
+              id: 'poi-1',
+              name: 'Marina Bay Sands',
+              address: '10 Bayfront Ave',
+              location: { lat: 1.2834, lng: 103.8607 },
+            },
+          ],
+        }),
+      } as unknown as Response
+    }) as typeof fetch
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+    api.setGrabMapsAuthMode('byok')
+    api.setGrabMapsApiKey('gm_test_key')
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(root, React.createElement(FloatingPropsPanel), anyWindow.requestAnimationFrame, 4)
+
+    const queryInput = container.querySelector('#grabmaps-discovery-widget-query') as HTMLInputElement | null
+    if (!queryInput) throw new Error('expected props panel discovery widget query input')
+    await act(async () => {
+      queryInput.value = 'hawker centre'
+      queryInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+      await waitForFrames(anyWindow.requestAnimationFrame, 2)
+    })
+
+    const searchButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Search Places'))
+    if (!searchButton) throw new Error('expected props panel discovery widget Search Places action')
+    await act(async () => {
+      searchButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForFrames(anyWindow.requestAnimationFrame, 4)
+    })
+
+    if (fetchCalls.length !== 1) {
+      throw new Error(`expected one GrabMaps discovery widget fetch, got ${fetchCalls.length}`)
+    }
+    if (!fetchCalls[0]?.url.startsWith('/__fetch_remote?url=')) {
+      throw new Error(`expected discovery widget fetch to use remote proxy, got ${fetchCalls[0]?.url || '<none>'}`)
+    }
+    if (!decodeURIComponent(fetchCalls[0]?.url || '').includes('keyword=hawker+centre')) {
+      throw new Error(`expected discovery widget fetch url to include the updated keyword query, got ${fetchCalls[0]?.url || '<none>'}`)
+    }
+    if (fetchCalls[0]?.authorization !== 'Bearer gm_test_key') {
+      throw new Error(`expected discovery widget fetch to reuse GrabMaps BYOK auth, got ${JSON.stringify(fetchCalls[0]?.authorization || '')}`)
+    }
+
+    const text = container.textContent || ''
+    ;[
+      'Found 1 place result.',
+      'Marina Bay Sands',
+      '10 Bayfront Ave',
+      '1.2834, 103.8607',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected props panel discovery widget results to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    globalWithFetch.fetch = previousFetch
     restoreDom()
     restoreWindow()
   }

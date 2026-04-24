@@ -10,6 +10,7 @@ import { createRequire } from 'node:module'
 import { existsSync, createReadStream } from 'node:fs'
 import fs from 'node:fs/promises'
 import { unwrapUserProvidedText } from 'grph-shared/url'
+import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 
@@ -22,6 +23,7 @@ const resolvedReactJsxDevRuntime = nodeRequire.resolve('react/jsx-dev-runtime')
 const resolvedReactDom = nodeRequire.resolve('react-dom')
 const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 const resolvedThreeSrc = nodeRequire.resolve('three/src/Three.js')
+const resolvedD3Entry = nodeRequire.resolve('d3')
 const resolvedMaplibreEntry = nodeRequire.resolve('maplibre-gl')
 const resolvedGympgrphSrc = path.resolve(__dirname, '../gympgrph/src/index.ts')
 const resolvedGympgrphMapPreviewSrc = path.resolve(__dirname, '../gympgrph/src/mapPreview.ts')
@@ -36,7 +38,7 @@ const CHAT_PROXY_PREFIX = '/__chat_proxy'
 const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'
 const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
-const GRABMAPS_PROXY_PREFIX = '/__grabmaps_proxy'
+const GRABMAPS_PROXY_PREFIX = GRABMAPS_PROXY_PATH
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
 const CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 const CHAT_PROXY_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
@@ -5351,7 +5353,7 @@ export default defineConfig(({ command }) => ({
   },
   resolve: {
     preserveSymlinks: true,
-    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid', 'maplibre-gl'],
+    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'd3'],
     alias: [
       { find: 'react/jsx-runtime', replacement: resolvedReactJsxRuntime },
       { find: 'react/jsx-dev-runtime', replacement: resolvedReactJsxDevRuntime },
@@ -5359,6 +5361,7 @@ export default defineConfig(({ command }) => ({
       { find: 'react-dom/client', replacement: resolvedReactDomClient },
       { find: /^react-dom$/, replacement: resolvedReactDom },
       { find: /^three$/, replacement: resolvedThreeSrc },
+      { find: /^d3$/, replacement: resolvedD3Entry },
       { find: /^maplibre-gl$/, replacement: resolvedMaplibreEntry },
       { find: /^gympgrph$/, replacement: resolvedGympgrphSrc },
       { find: /^gympgrph\/map-preview$/, replacement: resolvedGympgrphMapPreviewSrc },
@@ -5464,6 +5467,7 @@ export default defineConfig(({ command }) => ({
         ],
       },
       workbox: {
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         navigateFallback: 'index.html',
         globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'assets/*.{js,css,woff,woff2,ttf}'],
         globIgnores: ['assets/monaco-*.js', 'assets/mermaid-*.js'],

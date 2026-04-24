@@ -6,7 +6,7 @@
 - [ ] Defaults; enforce predictable startup state; forbid implicit persisted drift
 - [ ] Separation; keep layout concerns schema-driven; forbid UI hardcoding
 - [ ] Determinism; stabilize initial view across sessions; forbid random initial toggles
-- [ ] Neutrality; default to document structure; forbid domain-tuned initial modes
+- [ ] Maps-first startup; default to geospatial GrabMaps workspace; forbid downstream startup overrides
 - [ ] Safety; prefer reversible toggles; forbid one-way initialization side effects
 ```
 
@@ -63,7 +63,7 @@
 |-----------------|----------------------------------|---------------------------------------------------------------------------|------------------|-----------------------------------|---------------------|---------------------|----------------|
 | Defaults        | Stable startup                   | - [ ] Normalize init schema; forbid inconsistent initial toggles          | useGraphStore.ts | applyCanvasDefaultInitSchema       | GraphSchema         | GraphSchema         | force + document + portHandles (default off) |
 | Frontmatter     | Enable safe frontmatter focus     | - [ ] Default ON; forbid blank canvas: if no frontmatter Mermaid, fall back to full graph | uiSettingsSlice.ts | frontmatterModeEnabled default   | —                   | boolean             | default true + filter fallback |
-| Toolbar Modes   | Prefer document semantics at init | - [ ] Default Document Structure + Document Mode; forbid keyword/geospatial as implicit default | uiSettingsSlice.ts | documentSemanticMode + geospatialEnabled | — | boolean/enum | documentSemanticMode='document'; geospatialEnabled=false |
+| Toolbar Modes   | Prefer maps workspace at init     | - [ ] Default Geospatial Surface + GrabMaps preset; forbid panel-local startup drift | uiSettingsSlice.ts + geospatialSlice.ts | floatingPanelView + geospatialModeEnabled + geospatialViewMode | — | boolean/enum | floatingPanelView='geo'; geospatialEnabled=true; geospatialViewMode='2d-modern' |
 | Layer Mode      | Prefer document structure        | - [ ] Default document mode; forbid semantic-first default                | schema.ts        | defaultSchema.layers.mode         | —                   | 'document'          | constant |
 | Port Handles    | Disable by default               | - [ ] Default OFF; forbid implicit border anchoring at init               | schema.ts        | defaultSchema.behavior.portHandles | —                   | enabled false       | constant |
 
@@ -95,7 +95,9 @@
   - Must ensure `layout.mode` is 'force'.
   - Must ensure `frontmatterModeEnabled` is true.
   - Must ensure Frontmatter Mode never yields an empty canvas: if no frontmatter Mermaid nodes exist, render the full graph.
-  - Must default to Document Mode by treating Geospatial Mode as opt-in (`kg:ui:geospatial:overlayEnabled` defaults to false) and reading the persisted value for consistency across tabs and embedded previews.
+  - Must default to Geospatial Mode with the GrabMaps preset (`kg:ui:geospatial:overlayEnabled` defaults to true, `kg:ui:geospatial:viewMode` defaults to `2d-modern`, and missing geospatial style storage resolves to the GrabMaps style URL) while keeping shared store + localStorage keys as the only startup SSOT.
+  - Must default FloatingPanel to `geo` and open it on startup from the shared UI slice rather than panel-local effects.
+  - Must default `View Lock` OFF by initializing `documentStructureBaselineLock` to false in the shared UI slice.
   - Must ensure `graphLayersVisible` is true.
   - Must compute 2D zoom/layout view keys from a shared schema-layout fingerprint (include `schema.layout.flow`) so keyed zoom state and cached layout positions do not drift across D3/Flow/Design/Flow Editor.
   - Flow Editor camera init must be keyed per dataset when stable (e.g. `path:*`) and must fall back to a per-graph hash when dataset keys collapse to `rev:*`.
@@ -189,7 +191,7 @@ canvas/
 | Conflicting Defaults   | Single truth                     | - [ ] Align default values; forbid contradictory defaults across slices   |
 | Hidden Startup Drift   | Predictable init                 | - [ ] Normalize schema on init; forbid dependence on stale persisted state |
 | Layout Mode Leakage    | Correct init layout              | - [ ] Force layout.mode='force'; forbid implicit tree/radial activation   |
-| Domain Bias            | Neutral behavior                 | - [ ] Default to document mode; forbid domain-specific default heuristics |
+| Domain Bias            | SSOT startup                     | - [ ] Keep maps-first startup in shared defaults only; forbid panel-local startup heuristics |
 | Infinite Re-render     | Performance                      | - [ ] Avoid layout sync in render loop; forbid updating store from simulation tick |
 
 ---

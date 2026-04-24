@@ -3,9 +3,15 @@ import type { SettingMeta } from './types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { ThemeMode } from '@/lib/ui/theme'
 import { LS_KEYS } from '@/lib/config'
-import { FLOW_EDITOR_VIDEO_MODEL_OPTIONS } from '@/lib/config.flow-editor'
+import {
+  FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
+  FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
+  FLOW_EDITOR_IMAGE_SIZE_OPTIONS,
+  FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
+} from '@/lib/config.flow-editor'
 import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
 import {
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
   CHAT_BYTEPLUS_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
   CHAT_DEFAULT_ENDPOINT_URL,
@@ -399,6 +405,81 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setChatApiKey(String(v || '').trim() || null),
     docKey: 'chatApiKey',
     default: () => '',
+  },
+  {
+    key: 'byteplusImageModel',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.byteplusImageModel, CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT, value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const normalized = String(v || '').trim() || CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
+      lsSetJson(LS_KEYS.byteplusImageModel, normalized)
+    },
+    docKey: 'byteplusImageModel',
+    default: () => CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+    options: FLOW_EDITOR_IMAGE_MODEL_OPTIONS.map(option => String(option.value)),
+  },
+  {
+    key: 'byteplusImageSize',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.byteplusImageSize, '2K', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim().toUpperCase()
+      const normalized = FLOW_EDITOR_IMAGE_SIZE_OPTIONS.some(option => option.value === raw) ? raw : '2K'
+      lsSetJson(LS_KEYS.byteplusImageSize, normalized)
+    },
+    docKey: 'byteplusImageSize',
+    default: () => '2K',
+    options: FLOW_EDITOR_IMAGE_SIZE_OPTIONS.map(option => String(option.value)),
+  },
+  {
+    key: 'byteplusImageOutputFormat',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.byteplusImageOutputFormat, 'jpeg', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim().toLowerCase()
+      const normalized = FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS.some(option => option.value === raw) ? raw : 'jpeg'
+      lsSetJson(LS_KEYS.byteplusImageOutputFormat, normalized)
+    },
+    docKey: 'byteplusImageOutputFormat',
+    default: () => 'jpeg',
+    options: FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS.map(option => String(option.value)),
+  },
+  {
+    key: 'byteplusImageWatermark',
+    type: 'boolean',
+    source: 'localStorage',
+    read: () => lsBool(LS_KEYS.byteplusImageWatermark, false),
+    write: (v) => {
+      lsSetBool(LS_KEYS.byteplusImageWatermark, Boolean(v))
+    },
+    docKey: 'byteplusImageWatermark',
+    default: () => false,
+  },
+  {
+    key: 'byteplusImageSeed',
+    type: 'number',
+    source: 'localStorage',
+    read: () => lsInt(LS_KEYS.byteplusImageSeed, 0),
+    write: (v) => {
+      lsSetInt(LS_KEYS.byteplusImageSeed, Number(v), { min: 0, max: 2147483647 })
+    },
+    docKey: 'byteplusImageSeed',
+    default: () => 0,
+  },
+  {
+    key: 'byteplusImageGuidanceScale',
+    type: 'number',
+    source: 'localStorage',
+    read: () => lsJson<number>(LS_KEYS.byteplusImageGuidanceScale, 0, value => (typeof value === 'number' && Number.isFinite(value) ? value : null)),
+    write: (v) => {
+      const next = Number(v)
+      lsSetJson(LS_KEYS.byteplusImageGuidanceScale, Number.isFinite(next) ? next : 0)
+    },
+    docKey: 'byteplusImageGuidanceScale',
+    default: () => 0,
   },
   {
     key: 'byteplusVideoModel',

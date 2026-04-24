@@ -6,6 +6,7 @@ import { useFloatingPropsPanelModel } from '@/features/toolbar/useFloatingPropsP
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import WidgetPalette from '@/features/toolbar/WidgetPalette'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
+import { GrabMapsDiscoveryWidgetSection } from '@/features/toolbar/GrabMapsDiscoveryWidgetSection'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -104,6 +105,15 @@ export function FloatingPropsPanel() {
       <section className="border-b border-[color:var(--kg-border)]" aria-label="Widgets">
         <WidgetPalette entries={widgetPaletteEntries} dragEnabled={widgetDragEnabled} />
       </section>
+
+      <CollapsibleSection
+        title="Discovery Widget"
+        stickyHeader={false}
+        className="mt-0 border-t-0 pt-0"
+        headerClassName={`px-2 ${uiPanelTextFontClass}`}
+      >
+        <GrabMapsDiscoveryWidgetSection />
+      </CollapsibleSection>
 
       <CollapsibleSection
         title="Add"

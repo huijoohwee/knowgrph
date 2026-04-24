@@ -86,7 +86,6 @@ export const UI_LABELS = {
   sidebar: 'Sidebar',
   propsPanel: 'Props Panel',
   geo: 'Geo',
-  discovery: 'Discovery',
   samples: 'Samples',
   close: 'Close',
   save: 'Save',

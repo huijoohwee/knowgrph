@@ -3,6 +3,11 @@ import { resolveWidgetNodeTitle } from '@/components/FlowEditor/NodeOverlayEdito
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 import { FLOW_VIDEO_GENERATION_NODE_LABEL } from '@/lib/config.flow-editor'
+import {
+  FLOW_GRABMAPS_DISCOVERY_FORM_ID,
+  FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
+  FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID,
+} from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
 const makeNode = (args: {
   id: string
@@ -92,7 +97,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
   if (openAiText !== 'OpenAI Text Widget') throw new Error(`expected OpenAI Text Widget, got ${openAiText}`)
 
   const seedreamImage = resolveWidgetNodeTitle({
-    node: makeNode({ id: 'image-1', type: 'ImageGeneration', label: 'Image Widget', properties: { model: 'seedream-5-0-lite-250817' } }),
+    node: makeNode({ id: 'image-1', type: 'ImageGeneration', label: 'Image Widget', properties: { model: 'ByteDance-Seedream-4.0' } }),
     registryEntry: {
       id: 'imageGeneration-default',
       isEnabled: true,
@@ -104,7 +109,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
       updatedAt: '2026-04-22T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (seedreamImage !== 'Seedream 5.0 Lite Image Widget') throw new Error(`expected Seedream 5.0 Lite Image Widget, got ${seedreamImage}`)
+  if (seedreamImage !== 'ByteDance-Seedream-4.0 Image Widget') throw new Error(`expected ByteDance-Seedream-4.0 Image Widget, got ${seedreamImage}`)
 
   const bytePlusVideo = resolveWidgetNodeTitle({
     node: makeNode({ id: 'video-1', type: 'VideoGeneration', label: FLOW_VIDEO_GENERATION_NODE_LABEL, properties: { model: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } }),
@@ -121,5 +126,22 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
   })
   if (bytePlusVideo !== `${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT} BytePlus Video Widget`) {
     throw new Error(`expected ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT} BytePlus Video Widget, got ${bytePlusVideo}`)
+  }
+
+  const discoveryWidget = resolveWidgetNodeTitle({
+    node: makeNode({ id: 'discovery-1', type: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID, label: 'GrabMap Discovery Widget' }),
+    registryEntry: {
+      id: 'grabmaps-discovery',
+      isEnabled: true,
+      nodeTypeId: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
+      widgetTypeId: FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID,
+      formId: FLOW_GRABMAPS_DISCOVERY_FORM_ID,
+      fields: [],
+      ports: [],
+      updatedAt: '2026-04-24T00:00:00.000Z',
+    } satisfies WidgetRegistryEntry,
+  })
+  if (discoveryWidget !== 'GrabMap Discovery Widget') {
+    throw new Error(`expected GrabMap Discovery Widget, got ${discoveryWidget}`)
   }
 }

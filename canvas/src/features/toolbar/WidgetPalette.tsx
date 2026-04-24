@@ -22,19 +22,14 @@ import {
   setFlowWidgetDragDataTransfer,
 } from '@/lib/flowEditor/widgetDrag'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
-import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
+import { getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
 
 function defaultLabelForEntry(entry: WidgetRegistryEntry): string {
-  if (entry.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return FLOW_IMAGE_GENERATION_NODE_LABEL
-  if (entry.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
-  if (entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
-    return getTextGenerationWidgetLabel({
-      widgetTypeId: entry.widgetTypeId,
-      formId: entry.formId,
-    }) || FLOW_TEXT_GENERATION_NODE_LABEL
-  }
-  if (entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return FLOW_VIDEO_GENERATION_NODE_LABEL
-  return entry.nodeTypeId
+  return getWidgetRegistryEntryLabel({
+    nodeTypeId: entry.nodeTypeId,
+    widgetTypeId: entry.widgetTypeId,
+    formId: entry.formId,
+  })
 }
 
 export default function WidgetPalette(args: {

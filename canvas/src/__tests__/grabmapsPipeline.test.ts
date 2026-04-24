@@ -99,6 +99,45 @@ export const testGrabMapsStyleDoesNotLeakIntoOtherMapLibreModes = () => {
   }
 }
 
+export const testGrabMapsStartupDefaultsAreRootedInSharedStores = () => {
+  const uiSlicePath = path.resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSlice.ts')
+  const geospatialSlicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const toolbarContextPath = path.resolve(process.cwd(), 'src', 'components', 'toolbar', 'useCanvasToolbarContext.ts')
+  const runtimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'useCanvasGeospatialRuntime.ts')
+  const basemapStylePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'basemapStyle.ts')
+
+  const uiSliceText = readUtf8(uiSlicePath)
+  const geospatialSliceText = readUtf8(geospatialSlicePath)
+  const toolbarContextText = readUtf8(toolbarContextPath)
+  const runtimeText = readUtf8(runtimePath)
+  const basemapStyleText = readUtf8(basemapStylePath)
+
+  if (!uiSliceText.includes('floatingPanelOpen: true')) {
+    throw new Error('Expected startup floating panel open state to default ON at the shared UI slice')
+  }
+  if (!uiSliceText.includes("floatingPanelView: 'geo'")) {
+    throw new Error('Expected startup floating panel view to default to Geo at the shared UI slice')
+  }
+  if (!uiSliceText.includes('documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, false)')) {
+    throw new Error('Expected View Lock startup default to be OFF at the shared UI slice')
+  }
+  if (!geospatialSliceText.includes('readBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
+    throw new Error('Expected geospatial startup default to enable the shared overlay state')
+  }
+  if (!geospatialSliceText.includes("readString(LS_KEYS.geospatialViewMode, '2d-modern')")) {
+    throw new Error('Expected geospatial startup default to use the 2d-modern shared view mode')
+  }
+  if (!toolbarContextText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
+    throw new Error('Expected toolbar startup state to reuse the geospatial-enabled default without false-first drift')
+  }
+  if (!runtimeText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
+    throw new Error('Expected canvas geospatial runtime to reuse the enabled startup default without false-first drift')
+  }
+  if (!basemapStyleText.includes('if (!trimmed) return GRABMAPS_DEFAULT_STYLE_URL')) {
+    throw new Error('Expected missing geospatial style storage to default to the GrabMaps preset style')
+  }
+}
+
 export const testGrabMapsFallbackDoesNotTreatAuthErrorsAsUnavailable = () => {
   const basemapPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
   const text = readUtf8(basemapPath)

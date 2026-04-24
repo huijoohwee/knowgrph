@@ -318,7 +318,7 @@ export const testSeedreamImageWidgetKvRowsStayEditable = async () => {
       active: true,
       properties: {
         model: FLOW_EDITOR_IMAGE_MODEL_OPTIONS[0]?.value,
-        aspect_ratio: 'landscape',
+        size: '2K',
         reference_image: 'https://example.invalid/seedream-ref.png',
       },
       registryEntry: {
@@ -328,7 +328,7 @@ export const testSeedreamImageWidgetKvRowsStayEditable = async () => {
         formId: 'imageGeneration',
         fields: [
           { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: FLOW_EDITOR_IMAGE_MODEL_OPTIONS },
-          { fieldKey: 'aspect_ratio', fieldType: 'select', schemaPath: 'properties.aspect_ratio', label: 'Aspect ratio', options: FLOW_EDITOR_ASPECT_RATIO_OPTIONS },
+          { fieldKey: 'size', fieldType: 'select', schemaPath: 'properties.size', label: 'Size', options: [{ value: '2K', label: '2K' }, { value: '4K', label: '4K' }] },
           { fieldKey: 'reference_image', fieldType: 'text', schemaPath: 'properties.reference_image', label: 'Reference image' },
         ],
         ports: [{ portKey: 'imageUrl', direction: 'output', schemaPath: 'properties.imageUrl' }],
@@ -349,17 +349,17 @@ export const testSeedreamImageWidgetKvRowsStayEditable = async () => {
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
-  const aspectSelect = host.querySelector<HTMLSelectElement>('#aspect_ratio')
+  const sizeSelect = host.querySelector<HTMLSelectElement>('#size')
   const refInput = host.querySelector<HTMLInputElement>('#reference_image')
-  if (!aspectSelect || !refInput) throw new Error('expected Seedream image widget fields to render')
-  aspectSelect.value = 'portrait'
-  aspectSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  if (!sizeSelect || !refInput) throw new Error('expected Seedream image widget fields to render')
+  sizeSelect.value = '4K'
+  sizeSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
   refInput.value = 'https://example.invalid/seedream-ref-updated.png'
   refInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
-  if (!patched.some(entry => String(entry.aspect_ratio || '') === 'portrait')) {
+  if (!patched.some(entry => String(entry.size || '') === '4K')) {
     throw new Error('expected Seedream image widget select field edits to patch widget properties')
   }
   if (!patched.some(entry => String(entry.reference_image || '').includes('seedream-ref-updated'))) {

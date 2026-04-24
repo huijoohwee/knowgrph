@@ -72,6 +72,15 @@ const MAPS_DOC_ROWS: ReadonlyArray<MapsDocRow> = [
   },
   {
     area: MAPS_GRABMAPS_DOC_AREA,
+    key: 'grabmaps.map_rendering_adapters',
+    typeLabel: 'policy',
+    value: 'MapLibre default; GrabMaps Library fallback',
+    responsibility: 'Map rendering adapter SSOT: mount MapLibre GL JS first, then fall back to GrabMaps Library when MapLibre cannot initialize and BYOK key is configured.',
+    modules: ['grph-shared/src/geospatial/grabMapsLibrary.ts', 'grph-shared/src/geospatial/grabMapsSsot.ts', 'gympgrph/src/features/geospatial/useMapLibreBasemap.ts'],
+    searchHints: ['adapter policy', 'maplibre default', 'grabmaps library fallback'],
+  },
+  {
+    area: MAPS_GRABMAPS_DOC_AREA,
     key: 'grabmaps.attribution',
     typeLabel: 'string',
     value: '© Grab | © OpenStreetMap contributors',

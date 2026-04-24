@@ -16,6 +16,7 @@ import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { getInitialLaunchSpotlightEnabled, persistLaunchSpotlightEnabled } from '@/features/spotlight/storage'
 import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
+import { GRABMAPS_DEFAULT_DIRECTIONS_URL, GRABMAPS_DEFAULT_STYLE_URL } from 'grph-shared/geospatial/grabMapsSsot'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
@@ -154,7 +155,7 @@ export const createUiSlice = (set: SetGraph) => {
 
     isEditMode: false,
 
-    floatingPanelOpen: false,
+    floatingPanelOpen: true,
     setFloatingPanelOpen: (open: boolean) =>
       set(state => {
         const next = open === true
@@ -162,7 +163,7 @@ export const createUiSlice = (set: SetGraph) => {
         return { floatingPanelOpen: next } as Partial<GraphState>
       }),
 
-    floatingPanelView: 'propsPanel' as GraphState['floatingPanelView'],
+    floatingPanelView: 'geo' as GraphState['floatingPanelView'],
     setFloatingPanelView: (view: GraphState['floatingPanelView']) =>
       set(state => {
         const next =
@@ -171,7 +172,6 @@ export const createUiSlice = (set: SetGraph) => {
           || view === 'domInspect'
           || view === 'chat'
           || view === 'geo'
-          || view === 'discovery'
           || view === 'renderer'
           || view === 'graphTraversal'
             ? view
@@ -223,7 +223,7 @@ export const createUiSlice = (set: SetGraph) => {
         return { paymentsStripeCheckoutUrl: next } as Partial<GraphState>
       }),
 
-    documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, true),
+    documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, false),
     documentStructureBaselineSnapshot: null,
     setDocumentStructureBaselineLock: (enabled: boolean) =>
       set(state => {
@@ -520,8 +520,8 @@ export const createUiSlice = (set: SetGraph) => {
     grabMapsApiKey: readGrabMapsByokApiKeyFromBrowser(),
     grabMapsDirectionsEndpointUrl: lsJson<string>(
       LS_KEYS.grabMapsDirectionsEndpointUrl,
-      'https://maps.grab.com/api/v1/maps/eta/v1/direction',
-      v => (typeof v === 'string' && v.trim() ? v.trim() : 'https://maps.grab.com/api/v1/maps/eta/v1/direction'),
+      GRABMAPS_DEFAULT_DIRECTIONS_URL,
+      v => (typeof v === 'string' && v.trim() ? v.trim() : GRABMAPS_DEFAULT_DIRECTIONS_URL),
     ),
     grabMapsDirectionsOverview: lsJson<string>(
       LS_KEYS.grabMapsDirectionsOverview,
@@ -565,8 +565,8 @@ export const createUiSlice = (set: SetGraph) => {
     ),
     grabMapsBasemapStyleUrl: lsJson<string>(
       LS_KEYS.grabMapsBasemapStyleUrl,
-      'https://maps.grab.com/api/style.json?theme=light',
-      v => (typeof v === 'string' && v.trim() ? v.trim() : 'https://maps.grab.com/api/style.json?theme=light'),
+      GRABMAPS_DEFAULT_STYLE_URL,
+      v => (typeof v === 'string' && v.trim() ? v.trim() : GRABMAPS_DEFAULT_STYLE_URL),
     ),
 
     autoEnableGeospatialOnGeoImport: lsBool(LS_KEYS.geospatialAutoEnableOnGeoImport, true),

@@ -49,14 +49,14 @@ export const testGympgrphGeospatialKeysAreNamespacedOnly = () => {
   }
 }
 
-export const testGympgrphDefaultViewModeIs2d = () => {
+export const testGympgrphDefaultViewModeIs2dModern = () => {
   const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
   const text = readUtf8(slicePath)
   if (!text.includes('LS_KEYS.geospatialViewMode')) {
     throw new Error('Expected geospatialViewMode persistence key usage')
   }
-  if (!text.includes("'2d'")) {
-    throw new Error("Expected geospatialViewMode default to include '2d'")
+  if (!text.includes("'2d-modern'")) {
+    throw new Error("Expected geospatialViewMode default to include '2d-modern'")
   }
 }
 
@@ -318,6 +318,21 @@ export const testGeospatialModeEventContractIsShared = () => {
   }
   if (sliceText.includes('new CustomEvent(UI_EVENTS.geospatialModeChanged')) {
     throw new Error('gympgrph must not emit raw UI_EVENTS.geospatialModeChanged CustomEvent (drift risk)')
+  }
+}
+
+export const testFloatingPanelRequestedGeoViewEnsuresGeospatialEnabled = () => {
+  const toolbarToolMenuPath = path.resolve(process.cwd(), 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const text = readUtf8(toolbarToolMenuPath)
+
+  if (!text.includes('setFloatingPanelView(requestedFloatingPanelView)')) {
+    throw new Error('Expected FloatingPanel requested-view handler to set the requested view')
+  }
+  if (!text.includes("requestedFloatingPanelView === 'geo'")) {
+    throw new Error('Expected FloatingPanel requested-view handler to branch on geo view')
+  }
+  if (!text.includes('ensureGeospatialEnabled()')) {
+    throw new Error('Expected FloatingPanel requested-view handler to ensure Geospatial Mode is enabled for geo view')
   }
 }
 

@@ -2,17 +2,16 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsFloat, lsJson, lsSetFloat, lsSetJson } from '@/lib/persistence'
 import { normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
+import { GRABMAPS_DEFAULT_DIRECTIONS_URL, GRABMAPS_DEFAULT_MCP_URL, GRABMAPS_DEFAULT_STYLE_URL } from 'grph-shared/geospatial/grabMapsSsot'
 import type { SettingMeta } from './types'
 
 const s = () => useGraphStore.getState()
-const GRABMAPS_DEFAULT_STYLE_URL = 'https://maps.grab.com/api/style.json?theme=light'
-const GRABMAPS_DEFAULT_DIRECTIONS_URL = 'https://maps.grab.com/api/v1/maps/eta/v1/direction'
 const GRABMAPS_DEFAULT_MCP_SERVER_KEY = 'grab-maps-playground'
 const GRABMAPS_DEFAULT_MCP_COMMAND = 'npx'
 const GRABMAPS_DEFAULT_MCP_ARGS_JSON = JSON.stringify([
   '-y',
   'mcp-remote@latest',
-  'https://maps.grab.com/api/v1/mcp',
+  GRABMAPS_DEFAULT_MCP_URL,
   '--header',
   'Authorization:${AUTH_HEADER}',
   '--transport',

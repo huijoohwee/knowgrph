@@ -21,6 +21,7 @@ import type { MarkdownSourceFilesIngestIntegration } from '@/features/markdown/u
 import { convertPdfFileToMarkdown, convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown, fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { buildGrabMapsProxyRequestHeaders } from 'grph-shared/geospatial/grabMapsAuth'
+import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 
 const SUPPORTED_SOURCE_FILE_IMPORT_EXTENSIONS = [...SOURCE_FILES_FORMATS.import]
 
@@ -75,7 +76,7 @@ const toGrabMapsProxyUrl = (rawUrl: string): string | null => {
     const u = new URL(text)
     if (u.protocol !== 'https:') return null
     if (u.hostname.toLowerCase() !== 'maps.grab.com') return null
-    const proxied = new URL('/__grabmaps_proxy', window.location.origin)
+    const proxied = new URL(GRABMAPS_PROXY_PATH, window.location.origin)
     proxied.searchParams.set('url', u.toString())
     return proxied.toString()
   } catch {

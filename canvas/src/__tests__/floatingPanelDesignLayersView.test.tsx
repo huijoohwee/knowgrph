@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
@@ -52,13 +52,11 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
     if (labels[0] !== UI_LABELS.propsPanel) {
       throw new Error(`expected first floating panel view to be ${UI_LABELS.propsPanel}, got ${labels[0]}`)
     }
-    const geoIndex = labels.indexOf(UI_LABELS.geo)
-    const discoveryIndex = labels.indexOf(UI_LABELS.discovery)
-    if (geoIndex < 0 || discoveryIndex < 0) {
-      throw new Error(`expected floating panel views to include ${UI_LABELS.geo} and ${UI_LABELS.discovery}, got ${JSON.stringify(labels)}`)
+    if (!labels.includes(UI_LABELS.geo)) {
+      throw new Error(`expected floating panel views to include ${UI_LABELS.geo}, got ${JSON.stringify(labels)}`)
     }
-    if (discoveryIndex !== geoIndex + 1) {
-      throw new Error(`expected ${UI_LABELS.discovery} to render immediately right of ${UI_LABELS.geo}, got ${JSON.stringify(labels)}`)
+    if (labels.some(label => label.toLowerCase() === 'discovery')) {
+      throw new Error(`expected floating panel views to remove legacy Discovery tab after Props Panel Discovery Widget consolidation, got ${JSON.stringify(labels)}`)
     }
     if (labels.includes(UI_LABELS.layerMode)) {
       throw new Error(`expected floating panel views to exclude ${UI_LABELS.layerMode} after Workflow Manager consolidation`)
@@ -135,6 +133,68 @@ export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() 
     const interactionContent = dom.window.document.querySelector('[aria-label="Interaction panel content"]')
     if (!(interactionContent instanceof dom.window.HTMLElement)) {
       throw new Error('expected interaction panel content to render')
+    }
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testFloatingPanelGeoViewRemainsClickableWhenDisabledByState() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  const store = useGraphStore.getState()
+  try {
+    try {
+      dom.window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, '0')
+      ;(globalThis as unknown as { localStorage?: Storage }).localStorage?.setItem(LS_KEYS.geospatialOverlayEnabled, '0')
+    } catch {
+      void 0
+    }
+    store.setWorkspaceViewMode('canvas')
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('design')
+
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const root = createRoot(container)
+    root.render(
+      <ToolbarToolMenu
+        pipelineStatus={null}
+        exportStatus={null}
+        toolMenuCardRef={{ current: null }}
+        toolMenuCardStyle={{ top: 0, left: 0 }}
+        onHeaderPointerDown={() => void 0}
+        requestedFloatingPanelView="propsPanel"
+        requestedFloatingPanelViewSeq={3}
+        onClose={() => void 0}
+      />,
+    )
+
+    for (let i = 0; i < 10; i++) await tick()
+
+    const geoButton = Array.from(container.querySelectorAll('button')).find(button =>
+      String(button.getAttribute('aria-label') || '') === UI_LABELS.geo,
+    ) as HTMLButtonElement | undefined
+    if (!geoButton) throw new Error(`expected ${UI_LABELS.geo} button to render`)
+    if (geoButton.disabled) {
+      throw new Error(`expected ${UI_LABELS.geo} button to stay clickable when geospatial mode is off`)
+    }
+
+    await act(async () => {
+      geoButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick()
+      await tick()
+    })
+
+    const geoPanel = dom.window.document.querySelector('[aria-label="Geospatial panel"]')
+    if (!(geoPanel instanceof dom.window.HTMLElement)) {
+      throw new Error('expected clicking Geo to switch into the geospatial panel shell')
+    }
+    const text = container.textContent || ''
+    if (!text.includes('Enable Geospatial Mode to view this panel.') && !text.includes('Enabling Geospatial Mode...')) {
+      throw new Error(`expected Geo panel to remain actionable when disabled, got ${JSON.stringify(text)}`)
     }
 
     root.unmount()

@@ -735,8 +735,8 @@ export interface GraphState {
   clearUiLog: () => void;
   floatingPanelOpen: boolean;
   setFloatingPanelOpen: (open: boolean) => void;
-  floatingPanelView: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'discovery' | 'renderer' | 'graphTraversal';
-  setFloatingPanelView: (view: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'discovery' | 'renderer' | 'graphTraversal') => void;
+  floatingPanelView: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal';
+  setFloatingPanelView: (view: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal') => void;
   chatExchangeLogs: ChatExchangeLogEntry[];
   pushChatExchangeLog: (entry: ChatExchangeLogEntryInput) => void;
   clearChatExchangeLogs: () => void;

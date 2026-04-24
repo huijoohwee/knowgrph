@@ -1,5 +1,6 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusChatApiDocs'
+import { GRABMAPS_DEFAULT_DIRECTIONS_URL } from 'grph-shared/geospatial/grabMapsSsot'
 
 export const MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA = 'GrabMaps Directions Request'
 
@@ -21,7 +22,7 @@ const GRABMAPS_DIRECTIONS_DOC_ROWS: ReadonlyArray<GrabMapsDirectionsDocRow> = [
     typeLabel: 'string',
     valueKey: 'maps.grabmaps.directions.endpointUrl',
     responsibility: 'Directions endpoint URL (GrabMaps host is proxied for auth).',
-    tooltipDefaultValue: 'https://maps.grab.com/api/v1/maps/eta/v1/direction',
+    tooltipDefaultValue: GRABMAPS_DEFAULT_DIRECTIONS_URL,
     searchHints: ['direction', 'endpoint', 'eta'],
   },
   {

@@ -22,11 +22,16 @@ export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
 export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_LM_STUDIO] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
 export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-lite-250821'
-export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'seedream-5-0-lite-250817'
+export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'ByteDance-Seedream-4.0'
+export const CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS = [
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  'ByteDance-Seedream-4.5',
+  'Dola-Seedream-5.0-lite',
+] as const
 export const CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT = 'ByteDance-Seedance-1.0-pro-fast'
 export const CHAT_BYTEPLUS_MODEL_OPTIONS = [
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
-  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  ...CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
 ] as const
 export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-4o-mini-tts', 'gpt-realtime-mini'] as const

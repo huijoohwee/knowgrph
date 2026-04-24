@@ -169,6 +169,16 @@
       "import": "./dist/geospatial/grabMapsAuth.js",
       "default": "./dist/geospatial/grabMapsAuth.js"
     },
+    "./geospatial/grabMapsSsot": {
+      "types": "./dist/geospatial/grabMapsSsot.d.ts",
+      "import": "./dist/geospatial/grabMapsSsot.js",
+      "default": "./dist/geospatial/grabMapsSsot.js"
+    },
+    "./geospatial/grabMapsLibrary": {
+      "types": "./dist/geospatial/grabMapsLibrary.d.ts",
+      "import": "./dist/geospatial/grabMapsLibrary.js",
+      "default": "./dist/geospatial/grabMapsLibrary.js"
+    },
     "./zoom/presets": {
       "types": "./dist/zoom/presets.d.ts",
       "import": "./dist/zoom/presets.js",

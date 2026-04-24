@@ -19,6 +19,7 @@ import { lsBool } from '@/lib/persistence'
 import type { ToolMenuAction, ToolMenuArea } from '@/features/toolbar/toolMenu'
 import { createNewMarkdownSourceFileAndOpenViewer } from '@/features/source-files/createNewMarkdownSourceFile'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
+import { setGeospatialModeEnabled as enableGeospatialMode } from '@/features/geospatial/gympgrphBridge'
 import type { MainPanelTabKey } from '@/features/toolbar/hooks/useMainPanelDrag'
 
 const ToolbarToolMenuLazy = React.lazy(() =>
@@ -53,9 +54,9 @@ export function ToolbarMenuLauncher({
 
   const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
     try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
     } catch {
-      return false
+      return true
     }
   })
 
@@ -144,15 +145,32 @@ export function ToolbarMenuLauncher({
           ? 'chat'
           : tab === 'geo'
             ? 'geo'
-            : tab === 'discovery'
-              ? 'discovery'
             : null
       if (!requested) return
       floatingPanelRequestSeqRef.current += 1
       setFloatingPanelRequestedView({
-        view: requested === 'geo' && !geospatialModeEnabled ? 'propsPanel' : requested,
+        view: requested,
         seq: floatingPanelRequestSeqRef.current,
       })
+      if (requested === 'geo' && !geospatialModeEnabled) {
+        void enableGeospatialMode(true)
+          .then(nextEnabled => {
+            setGeospatialModeEnabled(nextEnabled)
+          })
+          .catch((err: unknown) => {
+            try {
+              const msg =
+                err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '').trim() : ''
+              useGraphStore.getState().pushUiToast({
+                id: 'toolbar-launcher-geo-enable-error',
+                kind: 'error',
+                message: `Geospatial Mode failed to load: ${msg || 'Unknown error'}`,
+              })
+            } catch {
+              void 0
+            }
+          })
+      }
       if (e.detail?.open === false) {
         closeToolMenu()
         return

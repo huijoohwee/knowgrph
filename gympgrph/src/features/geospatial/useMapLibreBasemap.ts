@@ -1,6 +1,8 @@
 import React from 'react'
 import { buildGrabMapsProxyRequestHeaders } from 'grph-shared/geospatial/grabMapsAuth'
+import { tryCreateGrabMapsLibraryMap } from 'grph-shared/geospatial/grabMapsLibrary'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
+import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 import { LS_KEYS } from '../../lib/config'
 import {
   MAPLIBRE_DEFAULT_STYLE_URL,
@@ -57,7 +59,7 @@ const toGrabMapsProxyUrl = (rawUrl: string): string | null => {
   if (typeof window === 'undefined' || !window.location?.origin) return null
   try {
     const parsed = new URL(String(rawUrl || '').trim())
-    const proxied = new URL('/__grabmaps_proxy', window.location.origin)
+    const proxied = new URL(GRABMAPS_PROXY_PATH, window.location.origin)
     proxied.searchParams.set('url', parsed.toString())
     return proxied.toString()
   } catch {
@@ -77,13 +79,6 @@ const resolveGrabMapsStyleAssetUrl = (rawValue: unknown, styleUrl: string): stri
       return new URL(trimmed).toString()
     }
     const styleBase = new URL(styleUrl)
-    const originBase = new URL('/', styleBase)
-    if (trimmed.startsWith('/')) {
-      return new URL(trimmed, originBase).toString()
-    }
-    if (!trimmed.startsWith('./') && !trimmed.startsWith('../')) {
-      return new URL(`/${trimmed.replace(/^\/+/, '')}`, originBase).toString()
-    }
     return new URL(trimmed, styleBase).toString()
   } catch {
     return trimmed
@@ -104,8 +99,11 @@ const normalizeGrabMapsVectorTileUrl = (rawUrl: string): string => {
   try {
     const parsed = new URL(trimmed)
     if (parsed.hostname.toLowerCase() !== 'maps.grab.com') return trimmed
-    if (!parsed.pathname.startsWith('/api/maps/tiles/v2/vector/')) return trimmed
-    parsed.pathname = parsed.pathname.replace(/^\/api\/maps\/tiles\/v2\/vector\//, '/maps/tiles/v2/vector/')
+    if (parsed.pathname.startsWith('/api/maps/tiles/v2/vector/')) return parsed.toString()
+    if (parsed.pathname.startsWith('/maps/tiles/v2/vector/')) {
+      parsed.pathname = `/api${parsed.pathname}`
+      return parsed.toString()
+    }
     return parsed.toString()
   } catch {
     return trimmed
@@ -168,6 +166,7 @@ const normalizeGrabMapsStyleDocument = (rawStyle: unknown, styleUrl: string): Re
 const hydrateGrabMapsSourceUrls = async (
   style: Record<string, unknown>,
   headers: Record<string, string>,
+  styleUrl: string,
 ): Promise<Record<string, unknown>> => {
   if (!isRecord(style.sources)) return style
   const nextSources: Record<string, unknown> = {}
@@ -176,7 +175,7 @@ const hydrateGrabMapsSourceUrls = async (
       nextSources[sourceId] = sourceValue
       return
     }
-    const normalizedSource = normalizeGrabMapsSourceDefinition(sourceValue, String(sourceValue.url || ''))
+    const normalizedSource = normalizeGrabMapsSourceDefinition(sourceValue, styleUrl)
     const sourceUrl = typeof normalizedSource.url === 'string' ? normalizedSource.url : ''
     if (!sourceUrl || !isGrabMapsUrl(sourceUrl)) {
       nextSources[sourceId] = normalizedSource
@@ -236,8 +235,11 @@ const preflightGrabMapsStyle = async (styleUrl: string): Promise<GrabMapsPreflig
       const rawStyle = await styleRes.json()
       const normalizedStyle = normalizeGrabMapsStyleDocument(rawStyle, styleUrl)
       if (!normalizedStyle) return { style: styleUrl, shouldFallback: false }
-      const hydratedStyle = await hydrateGrabMapsSourceUrls(normalizedStyle, headers)
+      const hydratedStyle = await hydrateGrabMapsSourceUrls(normalizedStyle, headers, styleUrl)
       return { style: hydratedStyle, shouldFallback: false }
+    }
+    if (styleRes.status === 401 || styleRes.status === 403) {
+      return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
     }
     if (styleRes.status >= 500) {
       return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
@@ -272,6 +274,13 @@ const isGrabMapsServiceUnavailable = (message: string): boolean => {
     text.includes('service unavailable') ||
     text.includes('no healthy upstream')
   )
+}
+
+const isGrabMapsUnauthorized = (message: string): boolean => {
+  const text = String(message || '').trim().toLowerCase()
+  if (!text) return false
+  if (!(text.includes('maps.grab.com') || text.includes('/__grabmaps_proxy'))) return false
+  return text.includes('unauthorized') || /\b401\b/.test(text) || /\b403\b/.test(text)
 }
 
 export function useMapLibreBasemap(args: {
@@ -387,11 +396,37 @@ export function useMapLibreBasemap(args: {
       if (!el) {
         if (cancelled) return
         // Container refs can be null during lazy/suspense transitions; retry instead of silently bailing.
+        if (mountRetryTimer) return
         mountRetryTimer = setTimeout(() => {
+          mountRetryTimer = null
           void mount()
         }, 16)
         return
       }
+
+      try {
+        const rect = el.getBoundingClientRect()
+        const w = rect && typeof rect.width === 'number' ? rect.width : 0
+        const h = rect && typeof rect.height === 'number' ? rect.height : 0
+        if (!(w > 1 && h > 1)) {
+          if (cancelled) return
+          if (mountRetryTimer) return
+          mountRetryTimer = setTimeout(() => {
+            mountRetryTimer = null
+            void mount()
+          }, 32)
+          return
+        }
+      } catch {
+        if (cancelled) return
+        if (mountRetryTimer) return
+        mountRetryTimer = setTimeout(() => {
+          mountRetryTimer = null
+          void mount()
+        }, 32)
+        return
+      }
+
       try {
         const mlRaw = await import('maplibre-gl')
         if (cancelled) return
@@ -408,6 +443,7 @@ export function useMapLibreBasemap(args: {
               const text = args.map(v => String(v)).join(' ')
               const lower = text.toLowerCase()
               if (lower.includes('/__fetch_remote') && lower.includes('abort')) return
+              if (lower.includes('/__grabmaps_proxy') && lower.includes('abort')) return
               if (lower.includes('net::err_aborted')) return
               if (lower.includes('aborterror')) return
               if (lower.includes('tiles.openfreemap.org/styles/liberty') && lower.includes('abort')) return
@@ -459,7 +495,7 @@ export function useMapLibreBasemap(args: {
             const host = parsed.hostname.toLowerCase()
             if (host !== 'maps.grab.com') return { url: urlText }
             if (typeof window === 'undefined' || !window.location?.origin) return { url: urlText }
-            const proxied = new URL('/__grabmaps_proxy', window.location.origin)
+            const proxied = new URL(GRABMAPS_PROXY_PATH, window.location.origin)
             proxied.searchParams.set('url', normalizeGrabMapsVectorTileUrl(parsed.toString()))
             const headers = buildGrabMapsProxyRequestHeaders()
             return { url: proxied.toString(), headers }
@@ -468,19 +504,39 @@ export function useMapLibreBasemap(args: {
           }
         }
 
-        map = new MapConstructor({
-          container: el,
-          style: styleForMap,
-          interactive: true,
-          attributionControl: false,
-          preserveDrawingBuffer: false,
-          transformRequest,
-          center: canvasRenderMode === '3d' ? [SINGAPORE_CENTER_LNG, SINGAPORE_CENTER_LAT] : undefined,
-          pitch: canvasRenderMode === '3d' ? INITIAL_3D_PITCH : 0,
-          bearing: canvasRenderMode === '3d' ? INITIAL_3D_BEARING : 0,
-          maxPitch: canvasRenderMode === '3d' ? 85 : 60,
-          zoom: canvasRenderMode === '3d' ? INITIAL_3D_ZOOM : 1.1,
-        })
+        try {
+          map = new MapConstructor({
+            container: el,
+            style: styleForMap,
+            interactive: true,
+            attributionControl: false,
+            preserveDrawingBuffer: false,
+            transformRequest,
+            center: [SINGAPORE_CENTER_LNG, SINGAPORE_CENTER_LAT],
+            pitch: canvasRenderMode === '3d' ? INITIAL_3D_PITCH : 0,
+            bearing: canvasRenderMode === '3d' ? INITIAL_3D_BEARING : 0,
+            maxPitch: canvasRenderMode === '3d' ? 85 : 60,
+            zoom: canvasRenderMode === '3d' ? INITIAL_3D_ZOOM : 12,
+          })
+        } catch (err) {
+          if (canvasRenderMode !== '2d') throw err
+          try {
+            el.replaceChildren()
+          } catch {
+            void 0
+          }
+          const fallbackMap = await tryCreateGrabMapsLibraryMap({
+            containerEl: el,
+            center: [SINGAPORE_CENTER_LNG, SINGAPORE_CENTER_LAT],
+            zoom: 12,
+            enableNavigation: true,
+            enableLabels: true,
+            enableBuildings: true,
+            enableAttribution: true,
+          })
+          if (!fallbackMap) throw err
+          map = fallbackMap
+        }
 
         if (debug && typeof window !== 'undefined') {
           try {
@@ -498,6 +554,20 @@ export function useMapLibreBasemap(args: {
           const trimmed = msg.trim()
           if (!trimmed) return
           if (!grabMapsFallbackApplied && grabMapsBootstrapPending && isGrabMapsServiceUnavailable(trimmed)) {
+            const styleText = String(style || '').toLowerCase()
+            if (styleText.includes('maps.grab.com')) {
+              notifyGrabMapsFallback()
+              try {
+                applyGrabMapsModernFallback()
+                map.setStyle?.(MAPLIBRE_MODERN_DEFAULT_STYLE_URL)
+                setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+                return
+              } catch {
+                void 0
+              }
+            }
+          }
+          if (!grabMapsFallbackApplied && grabMapsBootstrapPending && isGrabMapsUnauthorized(trimmed)) {
             const styleText = String(style || '').toLowerCase()
             if (styleText.includes('maps.grab.com')) {
               notifyGrabMapsFallback()
@@ -537,6 +607,19 @@ export function useMapLibreBasemap(args: {
             map.resize?.()
           }
           setState((prev: BasemapResult) => ({ ...prev, styleRevision: prev.styleRevision + 1 }))
+        })
+
+        queueMicrotask(() => {
+          if (cancelled || !map) return
+          try {
+            const loaded =
+              (typeof map.isStyleLoaded === 'function' && map.isStyleLoaded() === true)
+              || (typeof map.loaded === 'function' && map.loaded() === true)
+            if (!loaded) return
+            setState((prev: BasemapResult) => (prev.styleRevision > 0 ? prev : { ...prev, styleRevision: 1 }))
+          } catch {
+            void 0
+          }
         })
 
         const updateProbe = () => {
@@ -583,6 +666,7 @@ export function useMapLibreBasemap(args: {
           if (cancelled) return
           map.resize?.()
           align3dViewportCenter()
+          setState((prev: BasemapResult) => (prev.styleRevision > 0 ? prev : { ...prev, styleRevision: 1 }))
           if (canvasRenderMode === '3d') {
             try {
               map.jumpTo?.({

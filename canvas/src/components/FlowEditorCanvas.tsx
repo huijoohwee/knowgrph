@@ -108,9 +108,14 @@ import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
 import {
   inferTextGenerationProviderFamily,
+  getWidgetRegistryEntryLabel,
   resolveEffectiveTextGenerationWidgetProperties,
   resolveTextGenerationGlobalDefaultsForProviderFamily,
 } from '@/features/flow-editor-manager/registryTemplates'
+import {
+  FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
+  readGrabMapsDiscoveryWidgetProperties,
+} from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -2427,15 +2432,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const entry = args.entry
       const x = Number.isFinite(args.x) ? args.x : 0
       const y = Number.isFinite(args.y) ? args.y : 0
-      const label = entry.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
-        ? FLOW_IMAGE_GENERATION_NODE_LABEL
-        : entry.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
-          ? FLOW_RICH_MEDIA_PANEL_NODE_LABEL
-        : entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
-          ? FLOW_TEXT_GENERATION_NODE_LABEL
-        : entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
-          ? FLOW_VIDEO_GENERATION_NODE_LABEL
-          : entry.nodeTypeId
+      const label = getWidgetRegistryEntryLabel({
+        nodeTypeId: entry.nodeTypeId,
+        widgetTypeId: entry.widgetTypeId,
+        formId: entry.formId,
+      })
       const properties: Record<string, unknown> = {
         [FLOW_WIDGET_TYPE_ID_KEY]: entry.widgetTypeId,
         [FLOW_WIDGET_FORM_ID_KEY]: entry.formId,
@@ -2505,6 +2506,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         properties.resolution = '720p'
         properties.generate_audio = false
         properties.fast = false
+      }
+      if (entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID) {
+        Object.assign(properties, readGrabMapsDiscoveryWidgetProperties())
       }
       const base: GraphData =
         draftGraphDataRef.current
