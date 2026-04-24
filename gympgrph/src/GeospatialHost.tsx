@@ -9,6 +9,7 @@ import { clearGeoJsonSourceData, ensureDatasetLayer, isMapLibreStyleReady, setGe
 import { colorForDataset } from './colors'
 import { isPointOnlyFeatureCollection } from './selection'
 import {
+  isGrabMapsPresetActive,
   normalizePersistedGeospatialStyleUrl,
   resolveEffectiveGeospatialStyleUrl,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
@@ -462,6 +463,11 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     return resolveEffectiveGeospatialStyleUrl(geospatialViewMode, targetStyleUrl)
   }, [geospatialViewMode, targetStyleUrl])
   const fitPadding = show3d ? 0 : 24
+  const providerLabel = React.useMemo(() => {
+    if (isGrabMapsPresetActive(effectiveTargetStyleUrl, geospatialViewMode)) return 'grabmaps'
+    if (show2dSvgFallback) return 'svg'
+    return 'maplibre'
+  }, [effectiveTargetStyleUrl, geospatialViewMode, show2dSvgFallback])
   const selectedNodeIds = React.useMemo(() => getSnapshotSelectedNodeIds(props.snapshot), [props.snapshot])
   const graphProjection = React.useMemo(() => {
     const graphData = getSnapshotGraphData(props.snapshot)
@@ -540,10 +546,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     (args: { basemapMap: any | null; styleRevision: number; viewMode: 'map2d' | 'map3d' }) => {
       const { basemapMap, styleRevision, viewMode } = args
       if (!basemapMap) return
-      const styleReady =
-        styleRevision > 0
-        || (typeof basemapMap.isStyleLoaded === 'function' && basemapMap.isStyleLoaded() === true)
-        || (typeof basemapMap.loaded === 'function' && basemapMap.loaded() === true)
+      const styleReady = styleRevision > 0 || isMapLibreStyleReady(basemapMap)
       if (!styleReady) return
       const styleRevisionKey = styleRevision > 0 ? styleRevision : 1
       const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
@@ -586,10 +589,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const basemapGraphDebug = React.useMemo(() => {
     const basemapMap = activeBasemap.map
     if (!basemapMap) return null
-    const styleReady =
-      activeBasemap.styleRevision > 0
-      || (typeof basemapMap.isStyleLoaded === 'function' && basemapMap.isStyleLoaded() === true)
-      || (typeof basemapMap.loaded === 'function' && basemapMap.loaded() === true)
+    const styleReady = activeBasemap.styleRevision > 0 || isMapLibreStyleReady(basemapMap)
     const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
     const cluster = active && !show3d && isPointOnlyFeatureCollection(graphFeatureCollection, 500) && featureCount >= 200
     const activeSourceId = cluster ? graphSourceIdClustered : graphSourceIdUnclustered
@@ -779,7 +779,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       {debug ? (
         <div className="absolute top-2 right-2 z-20 pointer-events-none rounded-md border border-gray-200/60 bg-white/80 px-2 py-1 text-[11px] text-gray-700 dark:border-gray-800/60 dark:bg-black/60 dark:text-gray-200">
           <div>map: {activeBasemap.map ? 'yes' : 'no'}</div>
-          <div>mode: {geospatialViewMode}</div>
+          <div>view: {geospatialViewMode} provider: {providerLabel}</div>
           <div>
             canvas: {activeBasemap.probe.canvasW}×{activeBasemap.probe.canvasH} tilesLoaded: {activeBasemap.probe.tilesLoaded ? 'yes' : 'no'}
           </div>

@@ -9,8 +9,8 @@ import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/const
 import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 import { LS_KEYS } from '../../lib/config'
 import {
+  MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL,
   MAPLIBRE_DEFAULT_STYLE_URL,
-  MAPLIBRE_MODERN_DEFAULT_STYLE_URL,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
 } from './basemapStyle'
 
@@ -37,6 +37,9 @@ const SINGAPORE_CENTER_LAT = 1.3521
 const INITIAL_3D_ZOOM = 2.8
 const INITIAL_3D_PITCH = 0
 const INITIAL_3D_BEARING = 0
+const RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL = MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL
+const GRABMAPS_RUNTIME_NAVIGATION_GRACE_MS = 1200
+const GRABMAPS_IDLE_SERVICE_ERROR_FALLBACK_THRESHOLD = 3
 
 const resolveBasemapStyle = (rawStyleUrl: string | null | undefined) => {
   const trimmed = String(rawStyleUrl || '').trim()
@@ -251,11 +254,11 @@ const hydrateGrabMapsSourceUrls = async (
   return { style: { ...style, sources: nextSources }, hadGrabMapsSourceFailure }
 }
 
-const applyGrabMapsModernFallback = (): void => {
+const applyGrabMapsAutomaticFallback = (): void => {
   if (typeof window === 'undefined') return
   try {
-    if (window.localStorage.getItem(LS_KEYS.geospatialStyleUrl) !== MAPLIBRE_MODERN_DEFAULT_STYLE_URL) {
-      window.localStorage.setItem(LS_KEYS.geospatialStyleUrl, MAPLIBRE_MODERN_DEFAULT_STYLE_URL)
+    if (window.localStorage.getItem(LS_KEYS.geospatialStyleUrl) !== RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL) {
+      window.localStorage.setItem(LS_KEYS.geospatialStyleUrl, RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL)
     }
     window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
   } catch {
@@ -280,18 +283,18 @@ const preflightGrabMapsStyle = async (styleUrl: string): Promise<GrabMapsPreflig
       if (!normalizedStyle) return { style: styleUrl, shouldFallback: false }
       const hydrated = await hydrateGrabMapsSourceUrls(normalizedStyle, requestTarget.headers, styleUrl)
       if (hydrated.hadGrabMapsSourceFailure) {
-        return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
+        return { style: RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL, shouldFallback: true }
       }
       return { style: hydrated.style, shouldFallback: false }
     }
     if (styleRes.status === 404 && requestTarget.proxied) {
-      return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
+      return { style: RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL, shouldFallback: true }
     }
     if (styleRes.status === 401 || styleRes.status === 403) {
-      return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
+      return { style: RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL, shouldFallback: true }
     }
     if (styleRes.status >= 500) {
-      return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
+      return { style: RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL, shouldFallback: true }
     }
     return { style: styleUrl, shouldFallback: false }
   } catch {
@@ -337,6 +340,22 @@ const isGrabMapsProxyMissing = (message: string): boolean => {
   if (!text) return false
   if (!text.includes('/__grabmaps_proxy')) return false
   return text.includes('not found') || /\b404\b/.test(text)
+}
+
+const isMapActivelyNavigating = (map: any, lastNavigationAtMs: number): boolean => {
+  const now = Date.now()
+  if (now - lastNavigationAtMs <= GRABMAPS_RUNTIME_NAVIGATION_GRACE_MS) return true
+  try {
+    if (typeof map?.isMoving === 'function' && map.isMoving() === true) return true
+  } catch {
+    void 0
+  }
+  try {
+    if (typeof map?.isZooming === 'function' && map.isZooming() === true) return true
+  } catch {
+    void 0
+  }
+  return false
 }
 
 export function useMapLibreBasemap(args: {
@@ -437,6 +456,9 @@ export function useMapLibreBasemap(args: {
     let abortNoiseCleanup: (() => void) | null = null
     let grabMapsFallbackApplied = false
     let grabMapsBootstrapPending = false
+    let lastNavigationAtMs = 0
+    let consecutiveIdleGrabMapsServiceErrors = 0
+    const requestedGrabMapsStyle = isGrabMapsUrl(resolveBasemapStyle(targetStyleUrl) || '')
     const notifyGrabMapsFallback = () => {
       if (grabMapsFallbackApplied) return
       grabMapsFallbackApplied = true
@@ -549,14 +571,13 @@ export function useMapLibreBasemap(args: {
           return
         }
 
-        const requestedGrabMapsStyle = isGrabMapsUrl(style)
         const preflight = await preflightGrabMapsStyle(style)
         if (cancelled) return
         const styleForMap = preflight.style
         grabMapsBootstrapPending = requestedGrabMapsStyle && !preflight.shouldFallback
         if (preflight.shouldFallback && requestedGrabMapsStyle) {
           notifyGrabMapsFallback()
-          applyGrabMapsModernFallback()
+          applyGrabMapsAutomaticFallback()
         }
 
         if (debug) {
@@ -634,47 +655,45 @@ export function useMapLibreBasemap(args: {
           const msg = err instanceof Error ? err.message : String(err || '')
           const trimmed = msg.trim()
           if (!trimmed) return
-          if (!grabMapsFallbackApplied && grabMapsBootstrapPending && isGrabMapsServiceUnavailable(trimmed)) {
-            const styleText = String(style || '').toLowerCase()
-            if (styleText.includes('maps.grab.com')) {
-              notifyGrabMapsFallback()
-              try {
-                applyGrabMapsModernFallback()
-                map.setStyle?.(MAPLIBRE_MODERN_DEFAULT_STYLE_URL)
-                setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
-                return
-              } catch {
-                void 0
-              }
+          const canFallbackGrabMapsRuntime =
+            !grabMapsFallbackApplied
+            && requestedGrabMapsStyle
+            && typeof map?.setStyle === 'function'
+          const fallbackGrabMapsRuntime = () => {
+            if (!canFallbackGrabMapsRuntime) return false
+            notifyGrabMapsFallback()
+            try {
+              applyGrabMapsAutomaticFallback()
+              map.setStyle?.(RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL)
+              setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+              return true
+            } catch {
+              return false
             }
           }
-          if (!grabMapsFallbackApplied && grabMapsBootstrapPending && isGrabMapsUnauthorized(trimmed)) {
-            const styleText = String(style || '').toLowerCase()
-            if (styleText.includes('maps.grab.com')) {
-              notifyGrabMapsFallback()
-              try {
-                applyGrabMapsModernFallback()
-                map.setStyle?.(MAPLIBRE_MODERN_DEFAULT_STYLE_URL)
-                setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+          if (isGrabMapsServiceUnavailable(trimmed)) {
+            if (requestedGrabMapsStyle) {
+              const navigating = isMapActivelyNavigating(map, lastNavigationAtMs)
+              const hasRenderedTiles = typeof map?.areTilesLoaded === 'function' && map.areTilesLoaded() === true
+              if (navigating || hasRenderedTiles) {
+                consecutiveIdleGrabMapsServiceErrors = 0
+                setState((prev: BasemapResult) => (prev.mapError ? { ...prev, mapError: null } : prev))
                 return
-              } catch {
-                void 0
+              }
+              consecutiveIdleGrabMapsServiceErrors += 1
+              if (consecutiveIdleGrabMapsServiceErrors < GRABMAPS_IDLE_SERVICE_ERROR_FALLBACK_THRESHOLD) {
+                setState((prev: BasemapResult) => (prev.mapError === trimmed ? prev : { ...prev, mapError: trimmed }))
+                return
               }
             }
+            consecutiveIdleGrabMapsServiceErrors = 0
+            if (fallbackGrabMapsRuntime()) return
           }
-          if (!grabMapsFallbackApplied && grabMapsBootstrapPending && isGrabMapsProxyMissing(trimmed)) {
-            const styleText = String(style || '').toLowerCase()
-            if (styleText.includes('maps.grab.com')) {
-              notifyGrabMapsFallback()
-              try {
-                applyGrabMapsModernFallback()
-                map.setStyle?.(MAPLIBRE_MODERN_DEFAULT_STYLE_URL)
-                setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
-                return
-              } catch {
-                void 0
-              }
-            }
+          if (isGrabMapsUnauthorized(trimmed) && fallbackGrabMapsRuntime()) {
+            return
+          }
+          if (isGrabMapsProxyMissing(trimmed) && fallbackGrabMapsRuntime()) {
+            return
           }
           if (runtimeProjectionMode === 'globe' && isKnownUnsafeGlobeRuntimeError(trimmed)) {
             setRuntimeProjectionMode('mercator')
@@ -686,6 +705,7 @@ export function useMapLibreBasemap(args: {
 
         map.on?.('style.load', () => {
           if (cancelled) return
+          consecutiveIdleGrabMapsServiceErrors = 0
           if (requestedGrabMapsStyle) {
             grabMapsBootstrapPending = false
           }
@@ -719,7 +739,14 @@ export function useMapLibreBasemap(args: {
 
         const updateProbe = () => {
           if (cancelled || !map) return
+          if (typeof map.areTilesLoaded === 'function' && map.areTilesLoaded() === true) {
+            consecutiveIdleGrabMapsServiceErrors = 0
+          }
           setProbe(computeProbe(map))
+        }
+
+        const markNavigationActivity = () => {
+          lastNavigationAtMs = Date.now()
         }
 
         let initial3dCameraAligned = false
@@ -784,7 +811,10 @@ export function useMapLibreBasemap(args: {
             }
           }
         })
+        map.on?.('movestart', markNavigationActivity)
+        map.on?.('zoomstart', markNavigationActivity)
         map.on?.('moveend', updateProbe)
+        map.on?.('zoomend', updateProbe)
         map.on?.('idle', updateProbe)
         map.on?.('resize', updateProbe)
 
