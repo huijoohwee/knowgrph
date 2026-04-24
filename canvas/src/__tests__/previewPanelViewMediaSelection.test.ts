@@ -33,9 +33,9 @@ const buildGraphWithConflictingSeedanceAndRichMediaPanelNodes = (): GraphData =>
   type: 'Graph',
   nodes: [
     {
-      id: 'seedance-widget',
+      id: 'byteplus-video-widget',
       type: 'VideoGeneration',
-      label: 'Seedance 2.0 Video Widget',
+      label: 'ByteDance-Seedance-1.0-pro-fast BytePlus Video Widget',
       properties: {
         media_url: 'https://example.com/flower.mp4',
         videoUrl: 'https://example.com/flower.mp4',
@@ -254,7 +254,7 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
   }
 }
 
-export async function testPreviewPanelGraphMediaDeduplicatesSeedanceWidgetToCanonicalRichMediaPanel() {
+export async function testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetToCanonicalRichMediaPanel() {
   const storage = new MemoryStorage()
   const { dom, restore: restoreDom } = initJsdomHarness()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -285,8 +285,11 @@ export async function testPreviewPanelGraphMediaDeduplicatesSeedanceWidgetToCano
     if (!graphCardText.includes('Rich Media Panel')) {
       throw new Error(`expected canonical graph media card to keep Rich Media Panel version, got ${graphCardText || '<empty>'}`)
     }
-    if (graphCardText.includes('Seedance 2.0 Video Widget') && !graphCardText.includes('Rich Media Panel for Seedance 2.0 Video Widget')) {
-      throw new Error(`expected stale Seedance widget-only card to be removed, got ${graphCardText}`)
+    if (
+      graphCardText.includes('ByteDance-Seedance-1.0-pro-fast BytePlus Video Widget')
+      && !graphCardText.includes('Rich Media Panel for ByteDance-Seedance-1.0-pro-fast BytePlus Video Widget')
+    ) {
+      throw new Error(`expected stale BytePlus video widget-only card to be removed, got ${graphCardText}`)
     }
 
     root.unmount()

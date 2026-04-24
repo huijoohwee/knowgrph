@@ -2,11 +2,14 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import MainPanel from '@/features/panels/MainPanel'
 import IntegrationsHubView from '@/features/panels/views/IntegrationsHubView'
+import MapsHubView from '@/features/panels/views/MapsHubView'
+import DiscoveryHubView from '@/features/panels/views/DiscoveryHubView'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { PROPS_PANEL_OPEN_EVENT, SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_BASE,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
@@ -108,7 +111,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'openaiApi.response_format',
       'openaiApi.tool_choice',
       'BytePlus Video Generation API',
-      'Open FloatingPanel Video Widget',
+      'Open FloatingPanel BytePlus Video Widget',
       'BytePlus Image Generation API',
       'Open FloatingPanel Image Widget',
     ]
@@ -180,7 +183,7 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     await clickButton('Open FloatingPanel Chat UI')
     await clickButton('Open FloatingPanel Props Panel Text Widget')
     await clickButton('Open FloatingPanel Props Panel OpenAI Text Widget')
-    await clickButton('Open FloatingPanel Video Widget')
+    await clickButton('Open FloatingPanel BytePlus Video Widget')
     await clickButton('Open FloatingPanel Image Widget')
 
     if (sidePanelEvents.filter(value => value === 'chat').length !== 1) {
@@ -308,7 +311,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAiControls() 
       'Multi-modal Run',
       'OpenAI default text model',
       'Seedream 5.0 Lite',
-      'Seedance 2.0',
+      'ByteDance-Seedance-1.0-pro-fast',
     ].forEach(token => {
       if (!text.includes(token)) {
         throw new Error(`expected chat settings controls to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
@@ -394,6 +397,163 @@ export async function testMainPanelRequestedIntegrationsSearchPreservesCustomMod
   }
 }
 
+export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(root, React.createElement(IntegrationsHubView), anyWindow.requestAnimationFrame, 4)
+
+    const text = container.textContent || ''
+    ;[
+      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from FloatingPanel Discovery, while MainPanel Maps keeps backend/system/API/MCP config.',
+      'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected integrations hub to surface GrabMaps-aware video guidance ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMapsHubSurfacesGrabMapsSearchDiscoveryCopy() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(root, React.createElement(MapsHubView), anyWindow.requestAnimationFrame, 4)
+
+    const text = container.textContent || ''
+    ;[
+      'Style loading uses Bearer auth against https://maps.grab.com/api/style.json.',
+      'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
+      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
+      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
+      'Directions default to lng,lat coordinate order unless lat_first is enabled.',
+      'Use overview=full when you need route geometry suitable for animation or media prompts.',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected maps hub to retain backend/system/API GrabMaps guidance ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testDiscoveryHubOwnsGrabMapsSearchDiscoveryCopy() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    let mainPanelOpenDetail: Record<string, unknown> | null = null
+    dom.window.addEventListener(MAIN_PANEL_OPEN_EVENT, ev => {
+      mainPanelOpenDetail = ((ev as CustomEvent<{ tab?: string; searchQuery?: string }>).detail || null) as Record<string, unknown> | null
+    })
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(root, React.createElement(DiscoveryHubView), anyWindow.requestAnimationFrame, 4)
+
+    const text = container.textContent || ''
+    ;[
+      'User-facing place search and discovery for GrabMaps. MainPanel Maps remains backend/system/API/MCP-facing.',
+      'Search Places',
+      'Keyword Search Preview',
+      'Nearby Search Preview',
+      'MainPanel Maps keeps backend/system/API/MCP-facing config, including server key, command, args, env, and startup timeout.',
+      'Open MainPanel Maps',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected discovery hub to own GrabMaps search-discovery guidance ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    ;[
+      'mcp-remote@latest',
+      'AUTH_HEADER=Bearer mcp_{TOKEN}',
+      'startup_timeout_ms=60000',
+    ].forEach(token => {
+      if (text.includes(token)) {
+        throw new Error(`expected discovery hub to avoid raw backend MCP config duplication ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+
+    const openMapsButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Open MainPanel Maps'))
+    if (!openMapsButton) throw new Error('expected discovery hub to expose Open MainPanel Maps action')
+    await act(async () => {
+      openMapsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForFrames(anyWindow.requestAnimationFrame, 2)
+    })
+    if (String(mainPanelOpenDetail?.tab || '') !== 'maps') {
+      throw new Error(`expected discovery hub open-main-panel action to target maps, got ${JSON.stringify(mainPanelOpenDetail)}`)
+    }
+    if (String(mainPanelOpenDetail?.searchQuery || '') !== 'GrabMaps MCP Configuration') {
+      throw new Error(`expected discovery hub open-main-panel action to focus GrabMaps MCP Configuration, got ${JSON.stringify(mainPanelOpenDetail)}`)
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
 export async function testMainPanelBytePlusModelRowNormalizesAwayOpenAiValueLeak() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -439,6 +599,57 @@ export async function testMainPanelBytePlusModelRowNormalizesAwayOpenAiValueLeak
     }
     if (String(bytePlusModelInput.value) === 'gpt-5.4-nano') {
       throw new Error('expected byteplusApi.model row to avoid leaking the active OpenAI model value')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchUnifiesBytePlusVideoModelRow() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplusVideoApi.model',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    if (!text.includes('byteplusVideoModel')) {
+      throw new Error(`expected integrations video model search to surface unified byteplusVideoModel row, got ${JSON.stringify(text)}`)
+    }
+    if (text.includes('byteplusVideoApi.model')) {
+      throw new Error('expected duplicate byteplusVideoApi.model alias row to be removed from integrations results')
+    }
+    const selects = Array.from(container.querySelectorAll('select'))
+    if (selects.length !== 1) {
+      throw new Error(`expected unified video model search to render one shared select editor, got ${selects.length}`)
     }
   } finally {
     try {

@@ -17,6 +17,7 @@ import {
   UI_ANCHORS,
 } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { settingsRegistry } from '@/features/settings/registry'
 import { useSettingsView } from './useSettingsView'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { createStripeHostedCheckoutSessionUrl } from '@/features/payments/stripeCheckout'
@@ -62,6 +63,9 @@ import {
 } from '@/features/integrations/config'
 import { BYTEPLUS_CHAT_API_DOC_AREA } from './byteplusChatApiDocs'
 import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
+import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } from './mapsApiDocs'
+import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
+import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { FLOW_IMAGE_GENERATION_NODE_LABEL, FLOW_VIDEO_GENERATION_NODE_LABEL } from '@/lib/config.flow-editor'
 import { PAYMENTS_PROVIDERS, DEFAULT_PAYMENT_PROVIDER_ID, resolvePaymentsProviderSpec } from '@/features/payments/providers'
 
@@ -72,6 +76,7 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
   docsLabel?: string
   panelLabel: string
   note?: string
+  highlights?: readonly string[]
   openPanel: () => void
 }>> = {
   Chat: {
@@ -97,6 +102,10 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
     docsLabel: 'Open BytePlus Video Generation API Docs',
     panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
     note: 'Widget palette opens in the floating props panel.',
+    highlights: [
+      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from FloatingPanel Discovery, while MainPanel Maps keeps backend/system/API/MCP config.',
+      'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
+    ],
     openPanel: () => emitPropsPanelOpen(),
   },
   'BytePlus Image Generation API': {
@@ -105,6 +114,61 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
     panelLabel: `Open FloatingPanel ${FLOW_IMAGE_GENERATION_NODE_LABEL}`,
     note: 'Widget palette opens in the floating props panel.',
     openPanel: () => emitPropsPanelOpen(),
+  },
+}
+
+const MAPS_SECTION_META: Readonly<Record<string, {
+  docsUrl?: string
+  docsLabel?: string
+  panelLabel: string
+  note?: string
+  highlights?: readonly string[]
+  openPanel: () => void
+}>> = {
+  [MAPS_GRABMAPS_DOC_AREA]: {
+    docsUrl: 'https://maps.grab.com/developer/documentation',
+    docsLabel: 'Open GrabMaps Docs',
+    panelLabel: 'Open FloatingPanel Geo',
+    note: 'MainPanel Maps remains backend/system/API-facing for GrabMaps auth, style, route, and MCP configuration.',
+    highlights: [
+      'Style loading uses Bearer auth against https://maps.grab.com/api/style.json.',
+    ],
+    openPanel: () => emitSidePanelOpen({ tab: 'geo', open: true }),
+  },
+  [MAPS_GRABMAPS_MCP_DOC_AREA]: {
+    docsUrl: 'https://maps.grab.com/developer/documentation/mcp',
+    docsLabel: 'Open GrabMaps MCP Docs',
+    panelLabel: 'Open FloatingPanel Discovery',
+    note: 'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
+    highlights: [
+      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
+      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
+    ],
+    openPanel: () => emitSidePanelOpen({ tab: 'discovery', open: true }),
+  },
+  [MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA]: {
+    docsUrl: 'https://maps.grab.com/developer/documentation/routes',
+    docsLabel: 'Open GrabMaps Routes Docs',
+    panelLabel: 'Open FloatingPanel Geo',
+    note: 'Keep route rendering and imported geospatial output in Geo; Discovery reuses the shared place-search defaults without owning MCP wiring.',
+    highlights: [
+      'Directions default to lng,lat coordinate order unless lat_first is enabled.',
+      'Use overview=full when you need route geometry suitable for animation or media prompts.',
+    ],
+    openPanel: () => emitSidePanelOpen({ tab: 'geo', open: true }),
+  },
+  [MAPS_GEO_DOC_AREA]: {
+    docsUrl: 'https://datatracker.ietf.org/doc/html/rfc7946',
+    docsLabel: 'Open GeoJSON RFC 7946',
+    panelLabel: 'Open FloatingPanel Geo',
+    openPanel: () => emitSidePanelOpen({ tab: 'geo', open: true }),
+  },
+  [MAPS_MAPLIBRE_DOC_AREA]: {
+    docsUrl: 'https://maplibre.org/maplibre-gl-js/docs/',
+    docsLabel: 'Open MapLibre GL JS Docs',
+    panelLabel: 'Open FloatingPanel Geo',
+    note: 'Geo panel includes MapLibre-based view modes and SVG fallback.',
+    openPanel: () => emitSidePanelOpen({ tab: 'geo', open: true }),
   },
 }
 
@@ -126,7 +190,7 @@ export default function SettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
-  mode?: 'all' | 'integrations' | 'payments'
+  mode?: 'all' | 'integrations' | 'payments' | 'maps'
 }) {
   const [paymentsProviderId, setPaymentsProviderId] = React.useState<string>(DEFAULT_PAYMENT_PROVIDER_ID)
   const {
@@ -140,6 +204,9 @@ export default function SettingsView({
     bytePlusHealthDetails,
     isCheckingBytePlusHealth,
     checkBytePlusHealth,
+    bytePlusVideoModelPreviewText,
+    isCheckingBytePlusVideoModelPreview,
+    checkBytePlusVideoModelPreview,
     onGlobalReset,
     renderInput,
     collapsedByArea,
@@ -175,7 +242,7 @@ export default function SettingsView({
   const headerDividerWidthClass = mode === 'integrations' ? 'border-b-[0.5px]' : 'border-b'
   const settingsTypeIconSizeClass = getIconSizeClass(uiIconScale)
   const bytePlusImageDefaultLabel = `Seedream 5.0 Lite (${CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT})`
-  const bytePlusVideoDefaultLabel = `Seedance 2.0 (${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT})`
+  const bytePlusVideoDefaultLabel = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
   const openAiTextDefaultLabel = `OpenAI default text model: ${CHAT_DEFAULT_MODEL}`
   const normalizedChatProvider = React.useMemo(
     () => String(values.chatProvider || '').trim() || CHAT_DEFAULT_PROVIDER,
@@ -289,6 +356,47 @@ export default function SettingsView({
 
     setValues(prev => ({ ...prev, ...normalizedValues }))
   }, [dirtyRef, setValues, values.chatApiKey, values.chatAuthMode, values.chatProvider])
+
+  React.useEffect(() => {
+    const keys = [
+      'byteplusVideoModel',
+      'byteplusVideoContentJson',
+      'byteplusVideoResolution',
+      'byteplusVideoAspectRatio',
+      'byteplusVideoDuration',
+      'byteplusVideoGenerateAudio',
+      'byteplusVideoFast',
+      'byteplusVideoWatermark',
+    ] as const
+    const dirtyKeys = keys.filter(key => dirtyRef.current.has(key))
+    if (dirtyKeys.length === 0) return
+
+    const patches: Record<string, string | number | boolean> = {}
+    dirtyKeys.forEach((key) => {
+      const meta = settingsRegistry.find(s => s.key === key)
+      if (!meta?.write) return
+      meta.write(values[key] as never)
+      const next = meta.read()
+      if (next !== null) {
+        patches[key] = next as never
+      }
+      dirtyRef.current.delete(key)
+    })
+    if (Object.keys(patches).length > 0) {
+      setValues(prev => ({ ...prev, ...patches }))
+    }
+  }, [
+    dirtyRef,
+    setValues,
+    values.byteplusVideoAspectRatio,
+    values.byteplusVideoContentJson,
+    values.byteplusVideoDuration,
+    values.byteplusVideoFast,
+    values.byteplusVideoGenerateAudio,
+    values.byteplusVideoModel,
+    values.byteplusVideoResolution,
+    values.byteplusVideoWatermark,
+  ])
 
   const openWorkspaceFile = React.useCallback((path: string) => {
     const normalized = normalizeWorkspacePath(path)
@@ -681,7 +789,12 @@ export default function SettingsView({
           const responsibilities = entries.map(e => e.details.responsibility).filter(Boolean)
           const firstResponsibility = responsibilities[0]
           const tooltipContent = buildSettingsAreaTooltip(area, firstResponsibility)
-          const integrationSectionMeta = mode === 'integrations' ? INTEGRATIONS_SECTION_META[area] : undefined
+          const sectionMeta =
+            mode === 'integrations'
+              ? INTEGRATIONS_SECTION_META[area]
+              : mode === 'maps'
+                ? MAPS_SECTION_META[area]
+                : undefined
           return (
             <CollapsibleSection
               key={area}
@@ -709,33 +822,41 @@ export default function SettingsView({
               }}
             >
               <ul>
-                {integrationSectionMeta && (
+                {sectionMeta && (
                   <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
                     <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Links</span>
                     <button
                       type="button"
                       className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
                       onClick={() => {
-                        integrationSectionMeta.openPanel()
+                        sectionMeta.openPanel()
                       }}
                     >
-                      {integrationSectionMeta.panelLabel}
+                      {sectionMeta.panelLabel}
                     </button>
-                    {integrationSectionMeta.docsUrl && integrationSectionMeta.docsLabel && (
+                    {sectionMeta.docsUrl && sectionMeta.docsLabel && (
                       <a
                         className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-                        href={integrationSectionMeta.docsUrl}
+                        href={sectionMeta.docsUrl}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        {integrationSectionMeta.docsLabel}
+                        {sectionMeta.docsLabel}
                       </a>
                     )}
-                    {integrationSectionMeta.note && (
+                    {sectionMeta.note && (
                       <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        {integrationSectionMeta.note}
+                        {sectionMeta.note}
                       </span>
                     )}
+                    {sectionMeta.highlights?.map(highlight => (
+                      <span
+                        key={`${area}-${highlight}`}
+                        className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+                      >
+                        {highlight}
+                      </span>
+                    ))}
                   </li>
                 )}
                 {area === 'UI Density: Panels' && (
@@ -794,6 +915,14 @@ export default function SettingsView({
                       </span>
                       <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
                         Default Base URL: {CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}/api/v3
+                      </span>
+                      <span
+                        className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+                        title={bytePlusVideoModelPreviewText || undefined}
+                      >
+                        {isCheckingBytePlusVideoModelPreview
+                          ? 'Resolving BytePlus /models candidate...'
+                          : (bytePlusVideoModelPreviewText || 'Resolved /models candidate: idle')}
                       </span>
                     </li>
                     <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
@@ -1125,11 +1254,12 @@ export default function SettingsView({
                                         if (normalizedChatProvider !== CHAT_PROVIDER_BYTEPLUS) {
                                           checkBytePlusHealth()
                                         }
+                                        checkBytePlusVideoModelPreview()
                                       }}
-                                      disabled={isCheckingHealth || isCheckingBytePlusHealth}
+                                      disabled={isCheckingHealth || isCheckingBytePlusHealth || isCheckingBytePlusVideoModelPreview}
                                       className={pillButtonClassName}
                                     >
-                                      {isCheckingHealth || isCheckingBytePlusHealth ? 'Checking...' : 'Check Health'}
+                                      {isCheckingHealth || isCheckingBytePlusHealth || isCheckingBytePlusVideoModelPreview ? 'Checking...' : 'Check Health'}
                                     </button>
                                   </div>
                                 )

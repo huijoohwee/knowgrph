@@ -46,7 +46,7 @@ export function ToolbarMenuLauncher({
   const floatingPanelRequestSeqRef = useRef(0)
   const [floatingPanelRequestedView, setFloatingPanelRequestedView] = useState<
     {
-      view: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+      view: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'discovery' | 'renderer' | 'graphTraversal'
       seq: number
     } | null
   >(null)
@@ -144,6 +144,8 @@ export function ToolbarMenuLauncher({
           ? 'chat'
           : tab === 'geo'
             ? 'geo'
+            : tab === 'discovery'
+              ? 'discovery'
             : null
       if (!requested) return
       floatingPanelRequestSeqRef.current += 1

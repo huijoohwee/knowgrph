@@ -9,11 +9,8 @@ import { clearGeoJsonSourceData, ensureDatasetLayer, isMapLibreStyleReady, setGe
 import { colorForDataset } from './colors'
 import { isPointOnlyFeatureCollection } from './selection'
 import {
-  MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL,
-  MAPLIBRE_DEFAULT_STYLE_URL,
-  MAPLIBRE_GLOBE_DEFAULT_STYLE_URL,
-  MAPLIBRE_MODERN_DEFAULT_STYLE_URL,
   normalizePersistedGeospatialStyleUrl,
+  resolveEffectiveGeospatialStyleUrl,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
 } from './features/geospatial/basemapStyle'
 import {
@@ -57,10 +54,11 @@ function getSnapshotGraphData(snapshot: unknown): unknown {
   return snapshot.graphData
 }
 
-function getSnapshotHandlers(snapshot: unknown): Record<string, unknown> | null {
+function getOverlayHandlers(snapshot: unknown, handlers: unknown): Record<string, unknown> | null {
+  if (isRecord(handlers)) return handlers
   if (!isRecord(snapshot)) return null
-  const handlers = snapshot.handlers
-  return isRecord(handlers) ? handlers : null
+  const snapshotHandlers = snapshot.handlers
+  return isRecord(snapshotHandlers) ? snapshotHandlers : null
 }
 
 function getSnapshotSelectedNodeIds(snapshot: unknown): Set<string> {
@@ -296,6 +294,36 @@ function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds
   const features: FeatureCollection['features'] = []
   const signatureParts: string[] = []
   if (!isRecord(graphData)) return { featureCollection: { type: 'FeatureCollection', features }, signature: 'n:0' }
+  const meta = isRecord(graphData.metadata) ? graphData.metadata : null
+  const lineFeaturesRaw = meta ? readNestedValue(meta, ['kgGeospatialLineFeatures']) : null
+  if (isRecord(lineFeaturesRaw) && String(lineFeaturesRaw.type || '') === 'FeatureCollection') {
+    const inner = (lineFeaturesRaw as Record<string, unknown>).features
+    if (Array.isArray(inner)) {
+      for (let i = 0; i < inner.length; i += 1) {
+        const f = inner[i]
+        if (!isRecord(f)) continue
+        const g = (f as Record<string, unknown>).geometry
+        if (!isRecord(g) || String(g.type || '') !== 'LineString') continue
+        const coords = (g as Record<string, unknown>).coordinates
+        if (!Array.isArray(coords) || coords.length < 2) continue
+        const props = isRecord((f as Record<string, unknown>).properties) ? (f as Record<string, unknown>).properties as Record<string, unknown> : {}
+        const idRaw = (f as Record<string, unknown>).id
+        const id = typeof idRaw === 'string' || typeof idRaw === 'number' ? String(idRaw) : ''
+        const labelRaw = props.label
+        const label = typeof labelRaw === 'string' && labelRaw.trim() ? labelRaw.trim() : 'Route'
+        features.push({
+          type: 'Feature',
+          id: id || `kg-line:${i + 1}`,
+          geometry: { type: 'LineString', coordinates: coords as any },
+          properties: {
+            ...props,
+            label,
+            kgCategory: typeof props.kgCategory === 'string' && props.kgCategory.trim() ? props.kgCategory : 'route',
+          } as any,
+        })
+      }
+    }
+  }
   const nodesRaw = graphData.nodes
   if (!Array.isArray(nodesRaw)) return { featureCollection: { type: 'FeatureCollection', features }, signature: 'n:0' }
   for (let i = 0; i < nodesRaw.length; i += 1) {
@@ -431,45 +459,8 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const show3dModern = active && geospatialViewMode === '3d-modern'
   const show3d = show3dClassic || show3dModern
   const effectiveTargetStyleUrl = React.useMemo(() => {
-    const current = String(targetStyleUrl || '').trim()
-    if (show2dSvgFallback) return SAFE_SVG_FALLBACK_STYLE_SENTINEL
-    if (show2dMapLibreModern) {
-      if (
-        !current ||
-        current === SAFE_SVG_FALLBACK_STYLE_SENTINEL ||
-        current === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
-        current === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
-      ) {
-        return MAPLIBRE_MODERN_DEFAULT_STYLE_URL
-      }
-      return targetStyleUrl
-    }
-    if (show3dModern) {
-      if (
-        !current ||
-        current === SAFE_SVG_FALLBACK_STYLE_SENTINEL ||
-        current === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
-        current === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
-      ) {
-        return MAPLIBRE_MODERN_DEFAULT_STYLE_URL
-      }
-      return targetStyleUrl
-    }
-    if (show3d) {
-      if (
-        !current ||
-        current === SAFE_SVG_FALLBACK_STYLE_SENTINEL ||
-        current === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
-        current === MAPLIBRE_MODERN_DEFAULT_STYLE_URL
-      ) {
-        return MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
-      }
-      return targetStyleUrl
-    }
-    // Migrate stale persisted SVG sentinel values for restored MapLibre modes.
-    if (current === SAFE_SVG_FALLBACK_STYLE_SENTINEL) return MAPLIBRE_DEFAULT_STYLE_URL
-    return targetStyleUrl
-  }, [show2dMapLibreModern, show2dSvgFallback, show3d, show3dModern, targetStyleUrl])
+    return resolveEffectiveGeospatialStyleUrl(geospatialViewMode, targetStyleUrl)
+  }, [geospatialViewMode, targetStyleUrl])
   const fitPadding = show3d ? 0 : 24
   const selectedNodeIds = React.useMemo(() => getSnapshotSelectedNodeIds(props.snapshot), [props.snapshot])
   const graphProjection = React.useMemo(() => {
@@ -499,6 +490,22 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const graphDataKey = React.useMemo(() => graphProjection.signature, [graphProjection.signature])
   const mapLibreRuntimeEnabled = show2dMapLibre || show3d
 
+  const notifyGrabMapsFallback = React.useCallback(() => {
+    const overlayHandlers = getOverlayHandlers(props.snapshot, props.handlers)
+    const upsert = overlayHandlers && typeof overlayHandlers.upsertUiToast === 'function'
+      ? overlayHandlers.upsertUiToast as ((toast: { id: string; kind?: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; log?: boolean }) => void)
+      : null
+    if (!upsert) return
+    upsert({
+      id: 'kg:geo:grabmaps-fallback',
+      kind: 'warning',
+      ttlMs: 3600,
+      dismissible: true,
+      log: true,
+      message: 'GrabMaps basemap unavailable; switched to MapLibre Modern style.',
+    })
+  }, [props.handlers, props.snapshot])
+
   const basemap2d = useMapLibreBasemap({
     enabled: show2dMapLibre && mapLibreRuntimeEnabled,
     rootRef,
@@ -508,6 +515,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     projectionMode: 'mercator',
     viewportSizingMode: 'fit',
     vectorFallbackMs: 2_000,
+    onGrabMapsFallback: notifyGrabMapsFallback,
   })
   const basemap3d = useMapLibreBasemap({
     enabled: show3d && mapLibreRuntimeEnabled,
@@ -518,6 +526,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     projectionMode: 'globe',
     viewportSizingMode: 'fit',
     vectorFallbackMs: 2_000,
+    onGrabMapsFallback: notifyGrabMapsFallback,
   })
   const activeBasemap = show3d ? basemap3d : basemap2d
 
@@ -532,10 +541,6 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       const { basemapMap, styleRevision, viewMode } = args
       if (!basemapMap) return
       if (styleRevision <= 0) return
-      if (!isMapLibreStyleReady(basemapMap)) {
-        graphDataAppliedRef.current[viewMode] = ''
-        return
-      }
       const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
       if (featureCount <= 0) {
         clearGeoJsonSourceData(basemapMap, graphSourceIdClustered)
@@ -576,11 +581,13 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const basemapGraphDebug = React.useMemo(() => {
     const basemapMap = activeBasemap.map
     if (!basemapMap) return null
+    const styleReady = activeBasemap.styleRevision > 0
     const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
     const cluster = active && !show3d && isPointOnlyFeatureCollection(graphFeatureCollection, 500) && featureCount >= 200
     const activeSourceId = cluster ? graphSourceIdClustered : graphSourceIdUnclustered
     const inactiveSourceId = cluster ? graphSourceIdUnclustered : graphSourceIdClustered
     const readSourceFeatureCount = (sourceId: string): number | null => {
+      if (!styleReady) return null
       try {
         const src = basemapMap.getSource?.(sourceId) as { _data?: { features?: unknown[] } } | null
         const features = src && src._data && Array.isArray(src._data.features) ? src._data.features : null
@@ -589,14 +596,22 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
         return null
       }
     }
+    const hasLayer = (layerId: string): boolean => {
+      if (!styleReady) return false
+      try {
+        return !!basemapMap.getLayer?.(layerId)
+      } catch {
+        return false
+      }
+    }
     return {
-      styleReady: isMapLibreStyleReady(basemapMap),
+      styleReady,
       activeSourceId,
       activeSourceFeatures: readSourceFeatureCount(activeSourceId),
       inactiveSourceFeatures: readSourceFeatureCount(inactiveSourceId),
-      pointsLayer: !!basemapMap.getLayer?.(`${activeSourceId}:points`),
-      routesLayer: !!basemapMap.getLayer?.(`${activeSourceId}:routes`),
-      clusterLayer: !!basemapMap.getLayer?.(`${activeSourceId}:cluster-bubbles`),
+      pointsLayer: hasLayer(`${activeSourceId}:points`),
+      routesLayer: hasLayer(`${activeSourceId}:routes`),
+      clusterLayer: hasLayer(`${activeSourceId}:cluster-bubbles`),
     }
   }, [active, activeBasemap.map, graphFeatureCollection, graphSourceIdClustered, graphSourceIdUnclustered, show3d])
 
@@ -645,6 +660,27 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     if (!map) return
     if (!active) return
     if (!geospatialFitRequest) return
+    if (geospatialFitRequest.mode === 'currentLocation') {
+      const zoom = Number.isFinite(geospatialFitRequest.zoom) ? geospatialFitRequest.zoom : Math.max(12, Number(map.getZoom?.() || 0))
+      try {
+        map.flyTo?.({
+          center: [geospatialFitRequest.lng, geospatialFitRequest.lat],
+          zoom,
+          duration: 0,
+        })
+      } catch {
+        try {
+          map.jumpTo?.({
+            center: [geospatialFitRequest.lng, geospatialFitRequest.lat],
+            zoom,
+          })
+        } catch {
+          void 0
+        }
+      }
+      clearGeospatialFitRequest()
+      return
+    }
     if (geospatialFitRequest.mode === 'selection') {
       if (selectedBounds) {
         try {
@@ -683,8 +719,8 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
 
   React.useEffect(() => {
     if (!debug) return
-    const handlers = getSnapshotHandlers(props.snapshot)
-    const upsert = handlers && typeof handlers.upsertUiToast === 'function' ? handlers.upsertUiToast as ((toast: { id: string; kind?: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; log?: boolean }) => void) : null
+    const overlayHandlers = getOverlayHandlers(props.snapshot, props.handlers)
+    const upsert = overlayHandlers && typeof overlayHandlers.upsertUiToast === 'function' ? overlayHandlers.upsertUiToast as ((toast: { id: string; kind?: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; log?: boolean }) => void) : null
     if (!upsert) return
     const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
     const resolvedFrom = String(overlayDebugInfo?.resolvedFrom || 'none')
@@ -703,7 +739,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       log: false,
       message,
     })
-  }, [debug, graphFeatureCollection.features, overlayDebugInfo, props.snapshot])
+  }, [debug, graphFeatureCollection.features, overlayDebugInfo, props.handlers, props.snapshot])
 
   return (
     <div ref={rootRef} className="relative w-full h-full" style={{ width: '100%', height: '100%' }}>

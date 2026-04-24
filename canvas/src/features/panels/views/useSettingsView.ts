@@ -33,15 +33,31 @@ import {
 } from './stripePaymentApiDocs'
 import {
   BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
+  BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS,
   BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
   getBytePlusVideoGenerationApiRowAnchorId,
 } from './byteplusVideoGenerationApiDocs'
+import {
+  MAPS_API_DOC_ENTRIES,
+  MAPS_GRABMAPS_DOC_AREA,
+  MAPS_GEO_DOC_AREA,
+  MAPS_MAPLIBRE_DOC_AREA,
+  getMapsApiRowAnchorId,
+} from './mapsApiDocs'
+import { GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
+import { GRABMAPS_MCP_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
+import { resolveBytePlusVideoModelPreview } from '@/features/chat/byteplusRunGeneration'
 
 const SETTINGS_AREA_ORDER: readonly string[] = [
   'Chat',
   'UI Density: Panels',
   'UI Density: Icons',
+  MAPS_GRABMAPS_DOC_AREA,
+  MAPS_GRABMAPS_MCP_DOC_AREA,
+  MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA,
+  MAPS_GEO_DOC_AREA,
+  MAPS_MAPLIBRE_DOC_AREA,
   'Workspace',
   'Markdown',
   'Flow Editor',
@@ -97,6 +113,19 @@ function isPaymentsOwnedSetting(key: string, areaRaw: string): boolean {
   return key.startsWith('payments.')
 }
 
+function isMapsOwnedSetting(key: string, areaRaw: string): boolean {
+  const area = normalizeSettingsAreaLabel(areaRaw)
+  if (
+    area === MAPS_GRABMAPS_DOC_AREA
+    || area === MAPS_GRABMAPS_MCP_DOC_AREA
+    || area === MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA
+    || area === MAPS_GEO_DOC_AREA
+    || area === MAPS_MAPLIBRE_DOC_AREA
+  ) return true
+  if (key === 'autoEnableGeospatialOnGeoImport') return true
+  return key.startsWith('maps.')
+}
+
 type SettingsEntry = {
   meta: {
     key: string
@@ -135,6 +164,12 @@ const getSettingsSearchHints = (key: string): string[] => {
   if (key === 'chatProvider' || key === 'chatAuthMode' || key === 'chatEndpointUrl' || key === 'chatApiKey' || key === 'chatModel') {
     return ['chat ai byteplus modelark openai official provider endpoint api key byok server-managed auth mode model multi-modal multimodal run image video generation']
   }
+  if (key === 'byteplusVideoModel') {
+    return ['byteplus video generation api model byteplusVideoApi.model bytedance dreamina seedance video widget integrations default']
+  }
+  if (key === 'maps.grabmaps.authMode' || key === 'maps.grabmaps.apiKey') {
+    return ['grabmaps maps auth mode byok server-managed api key style directions proxy']
+  }
   if (key === 'chatHistoryStorageMode' || key === 'chatHistoryWorkspacePath' || key === 'chatHistoryCloudUrl') {
     return ['chat history workspace file path markdown cloud url github']
   }
@@ -172,7 +207,7 @@ export function useSettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
-  mode?: 'all' | 'integrations' | 'payments'
+  mode?: 'all' | 'integrations' | 'payments' | 'maps'
   paymentsProviderId?: string
 }) {
   const shouldHideSetting = React.useCallback((key: string, area?: string) => {
@@ -215,6 +250,10 @@ export function useSettingsView({
       if (entry.valueKey && typeof v[entry.valueKey] !== 'undefined') return
       v[entry.meta.key] = entry.value
     })
+    MAPS_API_DOC_ENTRIES.forEach(entry => {
+      if (entry.valueKey && typeof v[entry.valueKey] !== 'undefined') return
+      v[entry.meta.key] = entry.value
+    })
     return v
   })
   const dirtyRef = React.useRef<Set<string>>(new Set())
@@ -236,7 +275,10 @@ export function useSettingsView({
     const dirty = Array.from(dirtyRef.current)
     dirty.forEach((key) => {
       const meta = settingsRegistry.find(s => s.key === key)
-      const virtualMeta = INTEGRATION_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
+      const virtualMeta =
+        INTEGRATION_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
+        || PAYMENTS_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
+        || MAPS_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
       const writeTarget = meta || virtualMeta
       if (!writeTarget || !writeTarget.write) return
       const desired = values[key]
@@ -276,6 +318,9 @@ export function useSettingsView({
   const [bytePlusHealthOk, setBytePlusHealthOk] = React.useState<boolean | null>(null)
   const [bytePlusHealthDetails, setBytePlusHealthDetails] = React.useState<string | null>(null)
   const [isCheckingBytePlusHealth, setIsCheckingBytePlusHealth] = React.useState(false)
+  const [bytePlusVideoModelPreviewText, setBytePlusVideoModelPreviewText] = React.useState<string | null>(null)
+  const [isCheckingBytePlusVideoModelPreview, setIsCheckingBytePlusVideoModelPreview] = React.useState(false)
+  const bytePlusVideoPreviewRequestRef = React.useRef(0)
 
   const checkChatHealth = React.useCallback(async () => {
     const url = values.chatEndpointUrl
@@ -353,10 +398,56 @@ export function useSettingsView({
     } finally {
       setIsCheckingBytePlusHealth(false)
     }
-  }, [])
+  }, [values.chatAuthMode, values.chatApiKey])
+
+  const checkBytePlusVideoModelPreview = React.useCallback(async () => {
+    const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
+    const apiKey = authMode === 'byok' ? String(values.chatApiKey || '').trim() : ''
+    if (authMode === 'byok' && !apiKey) {
+      setBytePlusVideoModelPreviewText('Resolved /models candidate: enter BytePlus BYOK API key to preview the exact accessible model id.')
+      setIsCheckingBytePlusVideoModelPreview(false)
+      return
+    }
+    const requestId = bytePlusVideoPreviewRequestRef.current + 1
+    bytePlusVideoPreviewRequestRef.current = requestId
+    setIsCheckingBytePlusVideoModelPreview(true)
+    try {
+      const preview = await resolveBytePlusVideoModelPreview(
+        {
+          provider: CHAT_PROVIDER_BYTEPLUS,
+          endpointUrl: getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_BYTEPLUS),
+          apiKey: authMode === 'byok' ? apiKey : null,
+        },
+        values.byteplusVideoModel,
+        { fast: values.byteplusVideoFast },
+      )
+      if (bytePlusVideoPreviewRequestRef.current !== requestId) return
+      const selected = String(preview.preferredModel || '').trim()
+      const resolved = String(preview.resolvedModel || '').trim()
+      const selectedLabel = selected || 'BytePlus video default'
+      const resolutionDetail = preview.matchedAvailableModel
+        ? `Resolved /models candidate: ${resolved}`
+        : `Resolved /models candidate: ${resolved} (no exact accessible /models match returned; using configured selection)`
+      const selectedDetail = resolved && resolved !== selectedLabel
+        ? `Selected video model: ${selectedLabel}`
+        : `Selected video model: ${selectedLabel}`
+      const availableDetail = preview.availableCount > 0
+        ? `BytePlus /models entries checked: ${String(preview.availableCount)}`
+        : 'BytePlus /models entries checked: unavailable'
+      setBytePlusVideoModelPreviewText(`${resolutionDetail} | ${selectedDetail} | ${availableDetail}`)
+    } catch (err: unknown) {
+      if (bytePlusVideoPreviewRequestRef.current !== requestId) return
+      setBytePlusVideoModelPreviewText(`Resolved /models candidate: unavailable (${err instanceof Error ? err.message : String(err)})`)
+    } finally {
+      if (bytePlusVideoPreviewRequestRef.current === requestId) {
+        setIsCheckingBytePlusVideoModelPreview(false)
+      }
+    }
+  }, [values.byteplusVideoFast, values.byteplusVideoModel, values.chatApiKey, values.chatAuthMode])
 
   const didAutoCheckHealthRef = React.useRef(false)
   React.useEffect(() => {
+    if (mode !== 'integrations') return
     if (didAutoCheckHealthRef.current) return
     const isTestRun = (() => {
       try {
@@ -373,7 +464,18 @@ export function useSettingsView({
     if (normalizedProvider !== CHAT_PROVIDER_BYTEPLUS) {
       void checkBytePlusHealth()
     }
-  }, [checkChatHealth, checkBytePlusHealth, values.chatProvider])
+    void checkBytePlusVideoModelPreview()
+  }, [checkChatHealth, checkBytePlusHealth, mode, values.chatProvider])
+
+  React.useEffect(() => {
+    if (mode !== 'integrations') return
+    const timer = globalThis.setTimeout(() => {
+      void checkBytePlusVideoModelPreview()
+    }, 300)
+    return () => {
+      globalThis.clearTimeout(timer)
+    }
+  }, [checkBytePlusVideoModelPreview, mode])
 
   const onGlobalReset = React.useCallback(() => {
     try {
@@ -533,18 +635,83 @@ export function useSettingsView({
       }
     })
 
-    const allEntries = [...concreteEntries.filter(entry => entry.writable), ...virtualEntries, ...paymentsVirtualEntries]
+    const mapsDocEntries = [
+      ...MAPS_API_DOC_ENTRIES,
+      ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES,
+      ...GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES,
+    ]
+    const mapsVirtualEntries: SettingsEntry[] = mapsDocEntries.map(entry => {
+      const mappedMeta = entry.valueKey
+        ? settingsRegistry.find(s => s.key === entry.valueKey)
+        : undefined
+      const anchorId = getMapsApiRowAnchorId(entry.meta.key)
+      return {
+        meta: entry.meta,
+        details: entry.details,
+        writable: Boolean(mappedMeta?.write),
+        index: normalizeText(
+          [
+            entry.details.area,
+            entry.meta.key,
+            entry.typeLabel,
+            entry.valueKey ? String(values[entry.valueKey] ?? '') : entry.value,
+            entry.details.responsibility,
+            ...(entry.searchHints || []),
+          ].join(' '),
+        ),
+        typeLabel: entry.typeLabel,
+        valueKey: entry.valueKey,
+        valueDisplayOverride:
+          entry.valueKey && Object.prototype.hasOwnProperty.call(values, entry.valueKey)
+            ? (values[entry.valueKey] as string | number | boolean | undefined)
+            : undefined,
+        valueType: mappedMeta?.type,
+        valueOptions: mappedMeta?.options,
+        tooltipRole: entry.tooltipRole,
+        tooltipActions: entry.tooltipActions,
+        tooltipDefaultValue: entry.tooltipDefaultValue,
+        tooltipMin: entry.tooltipMin,
+        tooltipMax: entry.tooltipMax,
+        tooltipInterval: entry.tooltipInterval,
+        tooltipExpansionNote: entry.tooltipExpansionNote,
+        tooltipContractionNote: entry.tooltipContractionNote,
+        tooltipImpact: entry.tooltipImpact,
+        anchorId,
+      }
+    })
+
+    const hiddenConcreteIntegrationKeys = mode === 'integrations'
+      ? new Set<string>(BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS)
+      : null
+    const hiddenConcreteMapsKeys = new Set<string>(
+      mapsDocEntries
+        .map(entry => entry.valueKey)
+        .filter((valueKey): valueKey is string => typeof valueKey === 'string' && valueKey.trim().length > 0),
+    )
+    const allEntries = [
+      ...concreteEntries.filter(entry => {
+        if (!entry.writable) return false
+        if (hiddenConcreteIntegrationKeys && hiddenConcreteIntegrationKeys.has(entry.meta.key)) return false
+        if (hiddenConcreteMapsKeys.has(entry.meta.key)) return false
+        return true
+      }),
+      ...virtualEntries,
+      ...paymentsVirtualEntries,
+      ...mapsVirtualEntries,
+    ]
     const filteredByMode = allEntries
       .filter(entry => !shouldHideSetting(entry.meta.key, entry.details.area))
       .filter(entry => {
         const isIntegrationsOwned = isIntegrationsOwnedSetting(entry.meta.key, entry.details.area)
         const isPaymentsOwned = isPaymentsOwnedSetting(entry.meta.key, entry.details.area)
+        const isMapsOwned = isMapsOwnedSetting(entry.meta.key, entry.details.area)
         if (mode === 'integrations') return isIntegrationsOwned
+        if (mode === 'maps') return isMapsOwned
         if (mode === 'payments') {
           if (!isPaymentsOwned) return false
           return !entry.meta.key.startsWith('payments.')
         }
-        return !isIntegrationsOwned && !isPaymentsOwned
+        return !isIntegrationsOwned && !isPaymentsOwned && !isMapsOwned
       })
     if (mode !== 'payments') return filteredByMode
 
@@ -705,6 +872,9 @@ export function useSettingsView({
     bytePlusHealthDetails,
     isCheckingBytePlusHealth,
     checkBytePlusHealth,
+    bytePlusVideoModelPreviewText,
+    isCheckingBytePlusVideoModelPreview,
+    checkBytePlusVideoModelPreview,
     onGlobalReset,
     renderInput,
     entries,

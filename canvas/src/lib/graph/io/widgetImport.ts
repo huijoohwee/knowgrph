@@ -69,6 +69,16 @@ function asBoolOrNull(v: unknown): boolean | null {
   return null
 }
 
+function asJsonTextOrEmpty(v: unknown): string {
+  if (typeof v === 'string') return v.trim()
+  if (typeof v === 'undefined' || v === null) return ''
+  try {
+    return JSON.stringify(v, null, 2)
+  } catch {
+    return ''
+  }
+}
+
 function looksLikeGraphData(v: unknown): v is GraphData {
   if (!isRecord(v)) return false
   if (!Array.isArray(v.nodes) || !Array.isArray(v.edges)) return false
@@ -103,6 +113,11 @@ function buildDefaultSmartMediaRegistryEntry(args: {
     fields: [
       { fieldKey: 'model', fieldType: 'select', label: 'Model', schemaPath: 'properties.model', required: true, options: mode === 'image' ? FLOW_EDITOR_IMAGE_MODEL_OPTIONS : FLOW_EDITOR_VIDEO_MODEL_OPTIONS },
       { fieldKey: 'prompt', fieldType: 'textarea', label: 'Prompt', schemaPath: 'properties.prompt', required: true },
+      ...(mode === 'video'
+        ? [
+            { fieldKey: 'content_json', fieldType: 'json', label: 'Content (JSON)', schemaPath: 'properties.content_json' } as RegistryFieldLike,
+          ]
+        : []),
       { fieldKey: 'aspect_ratio', fieldType: 'select', label: 'Aspect Ratio', schemaPath: 'properties.aspect_ratio', required: true, options: FLOW_EDITOR_ASPECT_RATIO_OPTIONS },
       { fieldKey: 'resolution', fieldType: 'select', label: 'Resolution', schemaPath: 'properties.resolution', required: true, options: FLOW_EDITOR_RESOLUTION_OPTIONS },
       ...(mode === 'video'
@@ -110,6 +125,7 @@ function buildDefaultSmartMediaRegistryEntry(args: {
             { fieldKey: 'duration', fieldType: 'select', label: 'Duration (seconds)', schemaPath: 'properties.duration', required: true, options: FLOW_EDITOR_DURATION_SECONDS_OPTIONS } as RegistryFieldLike,
             { fieldKey: 'generate_audio', fieldType: 'boolean', label: 'Generate Audio', schemaPath: 'properties.generate_audio' } as RegistryFieldLike,
             { fieldKey: 'fast', fieldType: 'boolean', label: 'Fast', schemaPath: 'properties.fast' } as RegistryFieldLike,
+            { fieldKey: 'watermark', fieldType: 'boolean', label: 'Watermark', schemaPath: 'properties.watermark' } as RegistryFieldLike,
           ]
         : [
             { fieldKey: 'fast', fieldType: 'boolean', label: 'Fast', schemaPath: 'properties.fast' } as RegistryFieldLike,
@@ -203,11 +219,16 @@ function parseAiFlowProcessorList(json: unknown): { graphData: GraphData; warnin
       type: inferredNodeTypeId,
       properties: {
         ...(normalizedModel ? ({ model: normalizedModel } as unknown as Record<string, JSONValue>) : {}),
+        ...(asJsonTextOrEmpty(item.content_json) ? ({ content_json: asJsonTextOrEmpty(item.content_json) } as unknown as Record<string, JSONValue>) : {}),
+        ...(!asJsonTextOrEmpty(item.content_json) && asJsonTextOrEmpty(item.content)
+          ? ({ content_json: asJsonTextOrEmpty(item.content) } as unknown as Record<string, JSONValue>)
+          : {}),
         ...(asString(item.aspect_ratio).trim() ? ({ aspect_ratio: asString(item.aspect_ratio).trim() } as unknown as Record<string, JSONValue>) : {}),
         ...(asString(item.resolution).trim() ? ({ resolution: asString(item.resolution).trim() } as unknown as Record<string, JSONValue>) : {}),
         ...(asString(item.duration).trim() ? ({ duration: asNumberOrNull(item.duration) ?? asString(item.duration).trim() } as unknown as Record<string, JSONValue>) : {}),
         ...(asBoolOrNull(item.generate_audio) != null ? ({ generate_audio: asBoolOrNull(item.generate_audio) as boolean } as unknown as Record<string, JSONValue>) : {}),
         ...(asBoolOrNull(item.fast) != null ? ({ fast: asBoolOrNull(item.fast) as boolean } as unknown as Record<string, JSONValue>) : {}),
+        ...(asBoolOrNull(item.watermark) != null ? ({ watermark: asBoolOrNull(item.watermark) as boolean } as unknown as Record<string, JSONValue>) : {}),
       },
     }
     nodes.push(node)

@@ -247,14 +247,15 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
       const detailAnchorId = e.detail && typeof e.detail.anchorId === 'string' ? e.detail.anchorId : ''
       const detailWorkflowManagerTab = e.detail?.workflowManagerTab === 'mapping' ? 'mapping' : 'graph'
       const tab: MainPanelTabKey =
-        detailTab === 'integrations' ||
-        detailTab === 'payments' ||
-        detailTab === 'graphFields' ||
-        detailTab === 'workflow' ||
-        detailTab === 'help' ||
-        detailTab === 'preview' ||
-        detailTab === 'settings' ||
-        detailTab === 'history'
+        detailTab === 'integrations'
+        || detailTab === 'maps'
+        || detailTab === 'payments'
+        || detailTab === 'workflowManager'
+        || detailTab === 'help'
+        || detailTab === 'dashboard'
+        || detailTab === 'preview'
+        || detailTab === 'settings'
+        || detailTab === 'history'
           ? detailTab
           : 'help'
       const options: MainPanelOpenOptions = {
@@ -286,7 +287,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     if (typeof window === 'undefined') return
     if (isMainPanelOpen) return
     if (lsBool(LS_KEYS.startupOpenWorkflowPanel, false)) {
-      openMainPanel('workflow')
+      openMainPanel('workflowManager')
     }
   }, [isMainPanelOpen, openMainPanel])
 

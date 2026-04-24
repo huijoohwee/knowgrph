@@ -5,10 +5,11 @@ import { parseJsonLd, toJsonLd } from '@/lib/graph/jsonld/index'
 import { isN8nWorkflow, parseN8nWorkflow } from '@/lib/graph/n8n'
 import { isGraphRagBundle, parseGraphRagBundle } from '@/lib/graph/graphrag'
 import { tryParseWidgetImportGraphData } from '@/lib/graph/io/widgetImport'
-import { tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
+import { tryBuildGeodataGraphDataFromJson, tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
 import { pmfVoxelToGraphData } from '@/lib/graph/io/pmfVoxel'
 import { coerceGeoJsonToFeatureCollection } from '@/lib/gympgrph/api'
+import { tryBuildGrabMapsGraphDataFromJson } from '@/lib/graph/io/grabmaps'
 
 export type ParseDiagnostics = {
   format: 'csv' | 'json' | 'jsonld'
@@ -102,6 +103,16 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
           void 0
         }
       }
+    }
+
+    const grab = tryBuildGrabMapsGraphDataFromJson({ name, json })
+    if (grab) {
+      return { data: grab.graphData, diag: { format: 'json', warnings: grab.warnings } }
+    }
+
+    const nestedGeo = tryBuildGeodataGraphDataFromJson({ name, json, maxRecords: 15000 })
+    if (nestedGeo) {
+      return { data: nestedGeo.graphData, diag: { format: 'json', warnings: nestedGeo.warnings } }
     }
 
     if (!attemptedFastGeo) {

@@ -218,6 +218,42 @@ export interface GraphState {
 
   localMarkdownFolderHandle: FileSystemDirectoryHandle | null
   localMarkdownFolderName: string | null
+
+  grabMapsAuthMode: 'serverManaged' | 'byok'
+  grabMapsApiKey: string
+  grabMapsDirectionsEndpointUrl: string
+  grabMapsDirectionsOverview: string
+  grabMapsDirectionsLatFirst: boolean
+  grabMapsDirectionsAlternatives: boolean
+  grabMapsDirectionsSteps: boolean
+  grabMapsDirectionsLanguage: string
+  grabMapsDirectionsUnits: string
+  grabMapsDirectionsOriginLng: number
+  grabMapsDirectionsOriginLat: number
+  grabMapsDirectionsDestinationLng: number
+  grabMapsDirectionsDestinationLat: number
+  grabMapsDirectionsWaypointsJson: string
+  grabMapsDirectionsAnnotationsJson: string
+  grabMapsDirectionsExtraParamsJson: string
+  grabMapsBasemapStyleUrl: string
+
+  setGrabMapsAuthMode: (mode: 'serverManaged' | 'byok') => void
+  setGrabMapsApiKey: (v: string | null) => void
+  setGrabMapsDirectionsEndpointUrl: (v: string) => void
+  setGrabMapsDirectionsOverview: (v: string) => void
+  setGrabMapsDirectionsLatFirst: (v: boolean) => void
+  setGrabMapsDirectionsAlternatives: (v: boolean) => void
+  setGrabMapsDirectionsSteps: (v: boolean) => void
+  setGrabMapsDirectionsLanguage: (v: string) => void
+  setGrabMapsDirectionsUnits: (v: string) => void
+  setGrabMapsDirectionsOriginLng: (v: number) => void
+  setGrabMapsDirectionsOriginLat: (v: number) => void
+  setGrabMapsDirectionsDestinationLng: (v: number) => void
+  setGrabMapsDirectionsDestinationLat: (v: number) => void
+  setGrabMapsDirectionsWaypointsJson: (v: string) => void
+  setGrabMapsDirectionsAnnotationsJson: (v: string) => void
+  setGrabMapsDirectionsExtraParamsJson: (v: string) => void
+  setGrabMapsBasemapStyleUrl: (v: string) => void
   localMarkdownFolderAccessMode: LocalMarkdownFolderAccessMode | null
   localMarkdownFolderCacheId: string | null
   localMarkdownSelectedFolderPath: string | null
@@ -699,8 +735,8 @@ export interface GraphState {
   clearUiLog: () => void;
   floatingPanelOpen: boolean;
   setFloatingPanelOpen: (open: boolean) => void;
-  floatingPanelView: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal';
-  setFloatingPanelView: (view: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal') => void;
+  floatingPanelView: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'discovery' | 'renderer' | 'graphTraversal';
+  setFloatingPanelView: (view: 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'discovery' | 'renderer' | 'graphTraversal') => void;
   chatExchangeLogs: ChatExchangeLogEntry[];
   pushChatExchangeLog: (entry: ChatExchangeLogEntryInput) => void;
   clearChatExchangeLogs: () => void;

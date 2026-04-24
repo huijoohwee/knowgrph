@@ -3,9 +3,11 @@ import type { SettingMeta } from './types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { ThemeMode } from '@/lib/ui/theme'
 import { LS_KEYS } from '@/lib/config'
-import { lsBool, lsSetBool } from '@/lib/persistence'
+import { FLOW_EDITOR_VIDEO_MODEL_OPTIONS } from '@/lib/config.flow-editor'
+import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
 import {
   CHAT_BYTEPLUS_MODEL_OPTIONS,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
   CHAT_DEFAULT_PROVIDER,
@@ -397,6 +399,101 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     write: (v) => s().setChatApiKey(String(v || '').trim() || null),
     docKey: 'chatApiKey',
     default: () => '',
+  },
+  {
+    key: 'byteplusVideoModel',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.byteplusVideoModel, CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT, value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const normalized = String(v || '').trim() || CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
+      lsSetJson(LS_KEYS.byteplusVideoModel, normalized)
+    },
+    docKey: 'byteplusVideoModel',
+    default: () => CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+    options: FLOW_EDITOR_VIDEO_MODEL_OPTIONS.map(option => String(option.value)),
+  },
+  {
+    key: 'byteplusVideoContentJson',
+    type: 'json',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.byteplusVideoContentJson, '', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      lsSetJson(LS_KEYS.byteplusVideoContentJson, String(v || ''))
+    },
+    docKey: 'byteplusVideoContentJson',
+    default: () => '',
+  },
+  {
+    key: 'byteplusVideoResolution',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.byteplusVideoResolution, '720p', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim().toLowerCase()
+      lsSetJson(LS_KEYS.byteplusVideoResolution, raw === '1080p' ? '1080p' : '720p')
+    },
+    docKey: 'byteplusVideoResolution',
+    default: () => '720p',
+    options: ['720p', '1080p'],
+  },
+  {
+    key: 'byteplusVideoAspectRatio',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.byteplusVideoAspectRatio, 'landscape', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim().toLowerCase()
+      const normalized = raw === 'portrait' ? 'portrait' : raw === 'square' ? 'square' : 'landscape'
+      lsSetJson(LS_KEYS.byteplusVideoAspectRatio, normalized)
+    },
+    docKey: 'byteplusVideoAspectRatio',
+    default: () => 'landscape',
+    options: ['landscape', 'portrait', 'square'],
+  },
+  {
+    key: 'byteplusVideoDuration',
+    type: 'number',
+    source: 'localStorage',
+    read: () => lsInt(LS_KEYS.byteplusVideoDuration, 5),
+    write: (v) => {
+      lsSetInt(LS_KEYS.byteplusVideoDuration, Number(v), { min: 1, max: 60 })
+    },
+    docKey: 'byteplusVideoDuration',
+    default: () => 5,
+  },
+  {
+    key: 'byteplusVideoGenerateAudio',
+    type: 'boolean',
+    source: 'localStorage',
+    read: () => lsBool(LS_KEYS.byteplusVideoGenerateAudio, false),
+    write: (v) => {
+      lsSetBool(LS_KEYS.byteplusVideoGenerateAudio, Boolean(v))
+    },
+    docKey: 'byteplusVideoGenerateAudio',
+    default: () => false,
+  },
+  {
+    key: 'byteplusVideoFast',
+    type: 'boolean',
+    source: 'localStorage',
+    read: () => lsBool(LS_KEYS.byteplusVideoFast, false),
+    write: (v) => {
+      lsSetBool(LS_KEYS.byteplusVideoFast, Boolean(v))
+    },
+    docKey: 'byteplusVideoFast',
+    default: () => false,
+  },
+  {
+    key: 'byteplusVideoWatermark',
+    type: 'boolean',
+    source: 'localStorage',
+    read: () => lsBool(LS_KEYS.byteplusVideoWatermark, false),
+    write: (v) => {
+      lsSetBool(LS_KEYS.byteplusVideoWatermark, Boolean(v))
+    },
+    docKey: 'byteplusVideoWatermark',
+    default: () => false,
   },
   {
     key: 'chatModel',

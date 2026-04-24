@@ -129,7 +129,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["webpageLayoutToGraph.centersAndFilters","@/__tests__/webpageLayoutToGraph.test","testWebpageLayoutToGraphCentersAndFilters"],
   ["webpageLayoutToGraph.addsMediaProps","@/__tests__/webpageLayoutToGraph.test","testWebpageLayoutToGraphAddsMediaProps"],
   ["preview.panel.graphMediaSelection.opensMarkdownPanel","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelGraphMediaSelectionOpensMarkdownPanel"],
-  ["preview.panel.graphMediaSelection.deduplicatesSeedanceToCanonicalRichMediaPanel","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelGraphMediaDeduplicatesSeedanceWidgetToCanonicalRichMediaPanel"],
+  ["preview.panel.graphMediaSelection.deduplicatesBytePlusVideoToCanonicalRichMediaPanel","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetToCanonicalRichMediaPanel"],
   ["preview.panel.standaloneLinks.webpageAndTweetSelectable","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelStandaloneLinkWebpageAndTweetSelectable"],
   ["markdown.ingest.githubBlob.producesMediaNodes","@/__tests__/markdownGithubIngestion.test","testMarkdownGithubBlobIngestionProducesMediaNodes"],
   ["markdown.ingest.htmlImg.producesMediaNodes","@/__tests__/markdownGithubIngestion.test","testMarkdownHtmlImgIngestionProducesMediaNodes"],

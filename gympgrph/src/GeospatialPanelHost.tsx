@@ -1,15 +1,21 @@
 import React from 'react'
-import { emitGeospatialModeChanged, type GeospatialViewMode } from 'grph-shared/geospatial/events'
+import type { GeospatialViewMode } from 'grph-shared/geospatial/events'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
 import { UI_THEME_TOKENS } from 'grph-shared/ui/themeTokens'
-import { requestGeospatialFitToData, requestGeospatialFitToSelection } from './geospatialFit'
+import { requestGeospatialCurrentLocation, requestGeospatialFitToData, requestGeospatialFitToSelection } from './geospatialFit'
 import { LS_KEYS } from './lib/config'
 import { useGympgrphStore } from './store'
 import {
+  GRABMAPS_DEFAULT_STYLE_URL,
   MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL,
-  MAPLIBRE_GLOBE_DEFAULT_STYLE_URL,
   MAPLIBRE_MODERN_DEFAULT_STYLE_URL,
+  MAPLIBRE_GLOBE_DEFAULT_STYLE_URL,
+  getBuiltInDefaultStyleUrl,
+  isGrabMapsPresetActive,
+  isGrabMapsStyleUrl,
   normalizePersistedGeospatialStyleUrl,
+  normalizeGeospatialViewMode,
+  resolveStandardViewModeStyleUrl,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
 } from './features/geospatial/basemapStyle'
 import {
@@ -30,14 +36,15 @@ type GeospatialPanelHostProps = {
 
 const MAPLIBRE_DEFAULT_STYLE_URL = MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL
 const GEOSPATIAL_COMMIT_DEBOUNCE_MS = 120
-const getBuiltInDefaultStyleUrl = (mode: GeospatialViewMode): string =>
-  mode === '3d'
-    ? MAPLIBRE_GLOBE_DEFAULT_STYLE_URL
-    : mode === '2d-modern'
-      ? MAPLIBRE_MODERN_DEFAULT_STYLE_URL
-    : mode === '3d-modern'
-      ? MAPLIBRE_MODERN_DEFAULT_STYLE_URL
-      : MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL
+
+const readPreferredGrabMapsStyleUrl = (): string => {
+  return readLsString(LS_KEYS.grabMapsBasemapStyleUrl, GRABMAPS_DEFAULT_STYLE_URL)
+}
+
+const persistPreferredGrabMapsStyleUrl = (styleUrl: string): void => {
+  if (!isGrabMapsStyleUrl(styleUrl)) return
+  writeLsString(LS_KEYS.grabMapsBasemapStyleUrl, styleUrl)
+}
 
 type GeoViewModeChoiceProps = {
   active: boolean
@@ -108,6 +115,7 @@ const writeLsString = (key: string, value: string): void => {
 
 export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.ReactElement {
   const active = props.active !== false
+  const disabled = !active
   const geospatialViewMode = useGympgrphStore(s => s.geospatialViewMode)
   const geospatialAutoFitEnabled = useGympgrphStore(s => s.geospatialAutoFitEnabled)
   const geospatialDatasetTimeoutMs = useGympgrphStore(s => s.geospatialDatasetTimeoutMs)
@@ -159,44 +167,29 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
 
   const selectGeospatialViewMode = React.useCallback(
     (nextMode: GeospatialViewMode) => {
-      const next = nextMode === '3d-modern' ? '3d-modern' : nextMode === '3d' ? '3d' : nextMode === '2d-modern' ? '2d-modern' : nextMode === '2d-svg' ? '2d-svg' : '2d'
+      const next = normalizeGeospatialViewMode(nextMode)
       if (modeCommitTimerRef.current) clearTimeout(modeCommitTimerRef.current)
       modeCommitTimerRef.current = setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          try {
-            const persisted = String(window.localStorage.getItem(LS_KEYS.geospatialViewMode) || '').trim()
-            if (persisted !== next) {
-              window.localStorage.setItem(LS_KEYS.geospatialViewMode, next)
-            }
-            if (next === '2d' || next === '2d-modern' || next === '3d' || next === '3d-modern') {
-              const persistedStyle = String(window.localStorage.getItem(LS_KEYS.geospatialStyleUrl) || '').trim()
-              const shouldPromoteBuiltInDefault =
-                !persistedStyle ||
-                persistedStyle === SAFE_SVG_FALLBACK_STYLE_SENTINEL ||
-                persistedStyle === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
-                persistedStyle === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL ||
-                persistedStyle === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
-                persistedStyle.toLowerCase().startsWith('kg:style:')
-              if (shouldPromoteBuiltInDefault) {
-                const nextBuiltInStyle = getBuiltInDefaultStyleUrl(next)
-                window.localStorage.setItem(LS_KEYS.geospatialStyleUrl, nextBuiltInStyle)
-                setCommittedStyleUrl(nextBuiltInStyle)
-                setStyleUrlDraft(prev => (
-                  prev === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
-                  prev === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL ||
-                  prev === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
-                  prev === committedStyleUrlRef.current
-                    ? nextBuiltInStyle
-                    : prev
-                ))
-                window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
-              }
-            }
-          } catch {
-            void 0
+        if (typeof window !== 'undefined' && next !== '2d-svg') {
+          const nextBuiltInStyle = resolveStandardViewModeStyleUrl(
+            next,
+            readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL),
+          )
+          const currentStyle = readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL)
+          if (currentStyle !== nextBuiltInStyle) {
+            writeLsString(LS_KEYS.geospatialStyleUrl, nextBuiltInStyle)
+            setCommittedStyleUrl(nextBuiltInStyle)
+            setStyleUrlDraft(prev => (
+              prev === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
+              prev === MAPLIBRE_GLOBE_DEFAULT_STYLE_URL ||
+              prev === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
+              prev === committedStyleUrlRef.current
+                ? nextBuiltInStyle
+                : prev
+            ))
+            window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
           }
         }
-        emitGeospatialModeChanged({ enabled: true, viewMode: next })
         setGeospatialViewMode(next)
       }, GEOSPATIAL_COMMIT_DEBOUNCE_MS)
     },
@@ -211,6 +204,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
     if (styleCommitTimerRef.current) clearTimeout(styleCommitTimerRef.current)
     styleCommitTimerRef.current = setTimeout(() => {
       writeLsString(LS_KEYS.geospatialStyleUrl, next || MAPLIBRE_DEFAULT_STYLE_URL)
+      if (next) persistPreferredGrabMapsStyleUrl(next)
       setCommittedStyleUrl(next || MAPLIBRE_DEFAULT_STYLE_URL)
       setStyleUrlDraft(next || MAPLIBRE_DEFAULT_STYLE_URL)
       if (typeof window !== 'undefined') {
@@ -240,6 +234,27 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
     }, GEOSPATIAL_COMMIT_DEBOUNCE_MS)
   }, [geospatialViewMode])
 
+  const applyGrabMapsPreset = React.useCallback(() => {
+    if (!active) return
+    if (modeCommitTimerRef.current) clearTimeout(modeCommitTimerRef.current)
+    setGeospatialViewMode('2d-modern')
+    if (styleCommitTimerRef.current) clearTimeout(styleCommitTimerRef.current)
+    const next = readPreferredGrabMapsStyleUrl()
+    setStyleUrlDraft(next)
+    styleCommitTimerRef.current = setTimeout(() => {
+      writeLsString(LS_KEYS.geospatialStyleUrl, next)
+      persistPreferredGrabMapsStyleUrl(next)
+      setCommittedStyleUrl(next)
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
+        } catch {
+          void 0
+        }
+      }
+    }, GEOSPATIAL_COMMIT_DEBOUNCE_MS)
+  }, [active, setGeospatialViewMode])
+
   const applyPointStyle = React.useCallback(() => {
     if (pointStyleCommitTimerRef.current) clearTimeout(pointStyleCommitTimerRef.current)
     pointStyleCommitTimerRef.current = setTimeout(() => {
@@ -257,6 +272,8 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
 
   const [timeoutMsInput, setTimeoutMsInput] = React.useState(timeoutDraft)
   const [maxBytesMbInput, setMaxBytesMbInput] = React.useState(maxBytesMbDraft)
+  const [currentLocationState, setCurrentLocationState] = React.useState<'idle' | 'locating' | 'error' | 'done'>('idle')
+  const [currentLocationMessage, setCurrentLocationMessage] = React.useState<string>('')
 
   React.useEffect(() => {
     setTimeoutMsInput(timeoutDraft)
@@ -278,7 +295,38 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
     setGeospatialDatasetMaxBytes(mb * 1024 * 1024)
   }, [maxBytesMbInput, setGeospatialDatasetMaxBytes])
 
-  const disabled = !active
+  const useCurrentLocation = React.useCallback(() => {
+    if (!active || disabled) return
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setCurrentLocationState('error')
+      setCurrentLocationMessage('Current location is unavailable in this browser.')
+      return
+    }
+    setCurrentLocationState('locating')
+    setCurrentLocationMessage('Resolving current location...')
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const lat = Number(position.coords?.latitude)
+        const lng = Number(position.coords?.longitude)
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          setCurrentLocationState('error')
+          setCurrentLocationMessage('Current location returned invalid coordinates.')
+          return
+        }
+        requestGeospatialCurrentLocation({ lat, lng, zoom: 14 })
+        setCurrentLocationState('done')
+        setCurrentLocationMessage(`Centered on current location (${lat.toFixed(5)}, ${lng.toFixed(5)}).`)
+      },
+      error => {
+        const message = typeof error?.message === 'string' && error.message.trim()
+          ? error.message.trim()
+          : 'Unable to read current location.'
+        setCurrentLocationState('error')
+        setCurrentLocationMessage(message)
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    )
+  }, [active, disabled])
 
   return (
     <div className="h-full w-full p-3 text-sm text-gray-800 dark:text-gray-100">
@@ -299,13 +347,20 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
         <div className="flex items-center justify-between gap-2">
           <label className="text-[12px] text-gray-600 dark:text-gray-300">View</label>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-5" aria-label="Geospatial view mode">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-6" aria-label="Geospatial view mode">
           <GeoViewModeChoice
             active={geospatialViewMode === '2d-svg'}
             label="2D (SVG, fallback)"
             detail="No runtime"
             disabled={disabled}
             onClick={() => selectGeospatialViewMode('2d-svg')}
+          />
+          <GeoViewModeChoice
+            active={isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode)}
+            label="GrabMaps"
+            detail="2D modern preset"
+            disabled={disabled}
+            onClick={applyGrabMapsPreset}
           />
           <GeoViewModeChoice
             active={geospatialViewMode === '2d'}
@@ -315,7 +370,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
             onClick={() => selectGeospatialViewMode('2d')}
           />
           <GeoViewModeChoice
-            active={geospatialViewMode === '2d-modern'}
+            active={geospatialViewMode === '2d-modern' && !isGrabMapsPresetActive(committedStyleUrl, geospatialViewMode)}
             label="2D (MapLibre, Modern)"
             detail="Liberty style"
             disabled={disabled}
@@ -437,7 +492,25 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
           >
             Fit to selection
           </button>
+          <button
+            type="button"
+            className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+            disabled={disabled || currentLocationState === 'locating'}
+            onClick={useCurrentLocation}
+          >
+            {currentLocationState === 'locating' ? 'Locating...' : 'Use current location'}
+          </button>
         </div>
+        {currentLocationMessage ? (
+          <div
+            className={[
+              'text-[11px]',
+              currentLocationState === 'error' ? 'text-red-600 dark:text-red-300' : 'text-gray-500 dark:text-gray-400',
+            ].join(' ')}
+          >
+            {currentLocationMessage}
+          </div>
+        ) : null}
 
         <div className="mt-2">
           <div className="text-[12px] text-gray-600 dark:text-gray-300">Basemap style URL</div>

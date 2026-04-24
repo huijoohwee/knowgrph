@@ -100,11 +100,13 @@ function isSmartMediaRegistryEntry(entry: WidgetRegistryEntry | null | undefined
   const fields = Array.isArray(entry.fields) ? entry.fields : []
   if (fields.length === 0) return false
   const smartFieldKeySet = new Set([
+    'content_json',
     'aspect_ratio',
     'duration',
     'resolution',
     'generate_audio',
     'fast',
+    'watermark',
     'reference_image',
   ])
   for (let i = 0; i < fields.length; i += 1) {
@@ -460,11 +462,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       label: `${idBase}-label`,
       model: `${idBase}-model`,
       prompt: `${idBase}-prompt`,
+      contentJson: `${idBase}-content-json`,
       aspect: `${idBase}-aspect`,
       duration: `${idBase}-duration`,
       resolution: `${idBase}-resolution`,
       generateAudio: `${idBase}-generate-audio`,
       fast: `${idBase}-fast`,
+      watermark: `${idBase}-watermark`,
       referenceImage: `${idBase}-reference-image`,
       registrySelect: `${idBase}-registry-select`,
       registryField: (fieldKey: string) => `${idBase}-registry-field-${cleanDomIdPart(fieldKey) || 'field'}`,
@@ -635,11 +639,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   const model = pickString(properties.model)
   const prompt = pickString(properties.prompt)
+  const contentJson = pickString(properties.content_json)
   const aspectRatio = pickString(properties.aspect_ratio)
   const duration = pickNumber(properties.duration)
   const resolution = pickString(properties.resolution)
   const generateAudio = pickBool(properties.generate_audio)
   const fast = pickBool(properties.fast)
+  const watermark = pickBool(properties.watermark)
   const referenceImage = pickString(properties.reference_image)
 
   const normalizeRegistrySchemaPath = React.useCallback((schemaPath: string | undefined, fallbackKey: string) => {
@@ -1005,6 +1011,27 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                   />
                 ),
               },
+              ...(smartMediaMode === 'video'
+                ? [{
+                    rowKey: 'smart-content-json',
+                    labelId: `${idBase}-kv-smart-content-json`,
+                    keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.contentJson}>{UI_LABELS.flowWidgetContentJson}</label>,
+                    typeNode: <NodeOverlayEditorTypePill text="json" />,
+                    valueNode: (
+                      <PlainTextInputEditor
+                        id={ids.contentJson}
+                        value={contentJson}
+                        onChange={nextContentJson => onPatchProperties({ content_json: nextContentJson || undefined })}
+                        disabled={!active}
+                        multiline
+                        className={cn(
+                          'w-full h-24 px-2 py-1 rounded-md border',
+                          monospaceTextClass,
+                        )}
+                      />
+                    ),
+                  }]
+                : []),
               {
                 rowKey: 'smart-aspect',
                 labelId: `${idBase}-kv-smart-aspect`,
@@ -1130,6 +1157,23 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     type="checkbox"
                     checked={fast}
                     onChange={e => onPatchProperties({ fast: e.target.checked })}
+                    disabled={!active}
+                  />
+                </section>
+                ),
+              },
+              {
+                rowKey: 'smart-watermark',
+                labelId: `${idBase}-kv-smart-watermark`,
+                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.watermark}>{UI_LABELS.flowWidgetWatermark}</label>,
+                typeNode: <NodeOverlayEditorTypePill text="bool" />,
+                valueNode: (
+                <section className="w-full flex items-center">
+                  <input
+                    id={ids.watermark}
+                    type="checkbox"
+                    checked={watermark}
+                    onChange={e => onPatchProperties({ watermark: e.target.checked })}
                     disabled={!active}
                   />
                 </section>

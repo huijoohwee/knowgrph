@@ -164,6 +164,11 @@
       "import": "./dist/geospatial/events.js",
       "default": "./dist/geospatial/events.js"
     },
+    "./geospatial/grabMapsAuth": {
+      "types": "./dist/geospatial/grabMapsAuth.d.ts",
+      "import": "./dist/geospatial/grabMapsAuth.js",
+      "default": "./dist/geospatial/grabMapsAuth.js"
+    },
     "./zoom/presets": {
       "types": "./dist/zoom/presets.d.ts",
       "import": "./dist/zoom/presets.js",

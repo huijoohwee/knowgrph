@@ -21,14 +21,17 @@ export const FLOW_RICH_MEDIA_PANEL_NODE_LABEL = 'Rich Media Panel' as const
 export const FLOW_TEXT_GENERATION_NODE_TYPE_ID = 'TextGeneration' as const
 export const FLOW_TEXT_GENERATION_NODE_LABEL = 'Text Widget' as const
 export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const
-export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'Video Widget' as const
+export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'BytePlus Video Widget' as const
 
 export const FLOW_EDITOR_IMAGE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
   { value: CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT, label: 'Seedream 5.0 Lite (Default)' },
 ]
 
 export const FLOW_EDITOR_VIDEO_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
-  { value: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT, label: 'Seedance 2.0 (Default)' },
+  { value: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT, label: `${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT} (Default)` },
+  { value: 'ByteDance-Seedance-1.5-pro', label: 'ByteDance-Seedance-1.5-pro' },
+  { value: 'Dreamina-Seedance-2.0', label: 'Dreamina-Seedance-2.0' },
+  { value: 'Dreamina-Seedance-2.0-fast', label: 'Dreamina-Seedance-2.0-fast' },
 ]
 
 export const FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
@@ -57,7 +60,8 @@ export function getFlowEditorSmartWidgetLabel(args: {
     const value = String(args.model || '').trim() || CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
     const option = FLOW_EDITOR_VIDEO_MODEL_OPTIONS.find(entry => entry.value === value)
     const label = String(option?.label || value || FLOW_VIDEO_GENERATION_NODE_LABEL).replace(/\s*\(Default\)\s*$/i, '').trim()
-    return `${label || FLOW_VIDEO_GENERATION_NODE_LABEL} Video Widget`
+    if (!label || label === FLOW_VIDEO_GENERATION_NODE_LABEL) return FLOW_VIDEO_GENERATION_NODE_LABEL
+    return `${label} ${FLOW_VIDEO_GENERATION_NODE_LABEL}`
   }
   return FLOW_TEXT_GENERATION_NODE_LABEL
 }
@@ -87,11 +91,13 @@ export const FLOW_EDITOR_DURATION_SECONDS_OPTIONS: ReadonlyArray<{ value: number
 export type FlowEditorSmartNodeProperties = {
   model?: FlowEditorSmartNodeModel
   prompt?: string
+  content_json?: string
   aspect_ratio?: FlowEditorAspectRatio
   duration?: number
   resolution?: FlowEditorResolution
   generate_audio?: boolean
   fast?: boolean
+  watermark?: boolean
   reference_image?: string
 }
 

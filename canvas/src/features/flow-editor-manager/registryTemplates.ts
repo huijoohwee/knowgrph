@@ -267,6 +267,16 @@ export function buildWidgetDraftFromSmartFields(args: {
         options: mode === 'image' ? FLOW_EDITOR_IMAGE_MODEL_OPTIONS : FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
       },
       { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', required: true, label: 'Prompt' },
+      ...(mode === 'video'
+        ? [
+            {
+              fieldKey: 'content_json',
+              fieldType: 'json',
+              schemaPath: 'properties.content_json',
+              label: 'Content (JSON)',
+            },
+          ]
+        : []),
       {
         fieldKey: 'aspect_ratio',
         fieldType: 'select',
@@ -295,6 +305,7 @@ export function buildWidgetDraftFromSmartFields(args: {
             },
             { fieldKey: 'generate_audio', fieldType: 'boolean', schemaPath: 'properties.generate_audio', label: 'Generate audio' },
             { fieldKey: 'fast', fieldType: 'boolean', schemaPath: 'properties.fast', label: 'Fast' },
+            { fieldKey: 'watermark', fieldType: 'boolean', schemaPath: 'properties.watermark', label: 'Watermark' },
           ]
         : [
             { fieldKey: 'fast', fieldType: 'boolean', schemaPath: 'properties.fast', label: 'Fast' },

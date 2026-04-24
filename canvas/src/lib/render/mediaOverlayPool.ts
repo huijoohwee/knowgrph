@@ -151,6 +151,8 @@ function extractStandaloneMarkdownLinkUrlFromText(rawText: unknown): string {
 
 function chooseOpenUrl(node: GraphNode, specUrl: string): string {
   const props = (node.properties || {}) as Record<string, unknown>
+  const fromOutputSourceUrl = typeof props.outputSourceUrl === 'string' ? String(props.outputSourceUrl || '').trim() : ''
+  if (fromOutputSourceUrl) return fromOutputSourceUrl
   const fromUrl = typeof props.url === 'string' ? String(props.url || '').trim() : ''
   if (fromUrl) return fromUrl
 

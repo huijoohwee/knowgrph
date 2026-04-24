@@ -5,16 +5,9 @@ import { usePinnedLs } from '@/lib/ui/panelPinned';
 import { clampOverlayCenterToViewport } from '@/lib/ui/overlayClamp';
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag';
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler';
+import type { MainPanelTabKey } from '@/features/panels/mainPanelTabs';
 
-export type MainPanelTabKey =
-  | 'integrations'
-  | 'payments'
-  | 'workflowManager'
-  | 'help'
-  | 'dashboard'
-  | 'preview'
-  | 'settings'
-  | 'history';
+export type { MainPanelTabKey } from '@/features/panels/mainPanelTabs';
 
 export type WorkflowManagerTabKey = 'graph' | 'mapping'
 

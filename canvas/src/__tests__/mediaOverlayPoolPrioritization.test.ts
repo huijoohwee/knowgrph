@@ -89,9 +89,9 @@ export async function testMediaOverlayPoolDeduplicatesProxyWrappedMediaUrlsToSin
   const raw = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Example.jpg/640px-Example.jpg'
   const nodes: any[] = [
     {
-      id: 'seedance-widget',
+      id: 'byteplus-video-widget',
       type: 'VideoGeneration',
-      label: 'Seedance 2.0 Video Widget',
+      label: 'ByteDance-Seedance-1.0-pro-fast BytePlus Video Widget',
       properties: {
         media_url: raw,
         imageUrl: raw,
@@ -111,7 +111,7 @@ export async function testMediaOverlayPoolDeduplicatesProxyWrappedMediaUrlsToSin
     ['rich-media-panel', {
       'properties.imageUrl': {
         value: raw,
-        sources: [{ edgeId: 'edge-1', nodeId: 'seedance-widget', portKey: 'videoUrl' }],
+        sources: [{ edgeId: 'edge-1', nodeId: 'byteplus-video-widget', portKey: 'videoUrl' }],
       },
     }],
   ])
@@ -123,7 +123,7 @@ export async function testMediaOverlayPoolDeduplicatesProxyWrappedMediaUrlsToSin
   })
   if (out.length !== 1) throw new Error(`expected one canonical media overlay after proxy unwrap dedupe, got ${out.length}`)
   if (out[0]?.id !== 'rich-media-panel') throw new Error(`expected canonical Rich Media Panel version to win dedupe, got ${out[0]?.id || '<none>'}`)
-  if (!String(out[0]?.title || '').includes('Rich Media Panel for Seedance 2.0 Video Widget')) {
+  if (!String(out[0]?.title || '').includes('Rich Media Panel for ByteDance-Seedance-1.0-pro-fast BytePlus Video Widget')) {
     throw new Error(`expected canonical Rich Media Panel title to retain source widget context, got ${String(out[0]?.title || '<none>')}`)
   }
 }
@@ -158,5 +158,31 @@ export async function testMediaOverlayPoolAppliesConnectedTextToRichMediaPanelSh
   if (String(out[0]?.kind || '') !== 'iframe') throw new Error(`expected connected text panel to render as iframe, got ${String(out[0]?.kind || '<none>')}`)
   if (!String(out[0]?.srcDoc || '').includes('Generated text output from OpenAI Text Widget.')) {
     throw new Error('expected connected text output to be materialized into panel srcDoc before overlay spec selection')
+  }
+}
+
+export async function testMediaOverlayPoolPrefersCanonicalOutputSourceUrlForGeneratedVideoOpenTarget() {
+  const nodes: any[] = [
+    {
+      id: 'rich-media-panel-video',
+      type: 'RichMediaPanel',
+      label: 'Rich Media Panel',
+      properties: {
+        videoUrl: '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.mp4',
+        outputSourceUrl: 'https://example.com/generated.mp4',
+      },
+    },
+  ]
+  const out = listMediaOverlayNodes({
+    enabled: true,
+    nodes: nodes as any,
+    poolMax: 24,
+  })
+  if (out.length !== 1) throw new Error(`expected one video overlay, got ${out.length}`)
+  if (String(out[0]?.url || '') !== '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.mp4') {
+    throw new Error(`expected overlay playback url to stay proxied, got ${String(out[0]?.url || '<none>')}`)
+  }
+  if (String(out[0]?.openUrl || '') !== 'https://example.com/generated.mp4') {
+    throw new Error(`expected overlay openUrl to prefer canonical output source url, got ${String(out[0]?.openUrl || '<none>')}`)
   }
 }

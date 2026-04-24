@@ -394,17 +394,17 @@ export function testSeedreamImageWidgetPipelineRendersInRichMediaPanel() {
   }
 }
 
-export function testSeedanceVideoWidgetPipelineRendersInRichMediaPanel() {
+export function testBytePlusVideoWidgetPipelineRendersInRichMediaPanel() {
   const spec = runWidgetToRichMediaPanelPipeline({
     sourceNodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
     sourceFormId: 'videoGeneration',
     sourceOutputPortKey: 'videoUrl',
-    sourceOutputValue: 'https://example.com/seedance-video.mp4',
+    sourceOutputValue: 'https://example.com/byteplus-video.mp4',
   })
-  if (!spec) throw new Error('expected Seedance video widget pipeline to render in Rich Media Panel')
-  if (spec.kind !== 'video') throw new Error(`expected Seedance video widget pipeline to render as video, got ${String(spec.kind)}`)
-  if (String(spec.url || '') !== 'https://example.com/seedance-video.mp4') {
-    throw new Error('expected Seedance video widget pipeline to expose generated video in Rich Media Panel')
+  if (!spec) throw new Error('expected BytePlus video widget pipeline to render in Rich Media Panel')
+  if (spec.kind !== 'video') throw new Error(`expected BytePlus video widget pipeline to render as video, got ${String(spec.kind)}`)
+  if (String(spec.url || '') !== 'https://example.com/byteplus-video.mp4') {
+    throw new Error('expected BytePlus video widget pipeline to expose generated video in Rich Media Panel')
   }
 }
 

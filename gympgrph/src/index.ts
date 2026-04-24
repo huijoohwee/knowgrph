@@ -12,7 +12,7 @@ import { colorForDataset } from './colors'
 import { useMapLibreBasemap } from './features/geospatial/useMapLibreBasemap'
 import { GeospatialOverlayHost as GeospatialOverlayHostComponent } from './GeospatialHost'
 import { GeospatialPanelHost } from './GeospatialPanelHost'
-import { requestGeospatialFitToData, requestGeospatialFitToSelection } from './geospatialFit'
+import { requestGeospatialCurrentLocation, requestGeospatialFitToData, requestGeospatialFitToSelection } from './geospatialFit'
 import { setGeospatialModeEnabled as setGeospatialModeEnabledViaHostBridge } from './hostBridge'
 
 export { LS_KEYS }
@@ -59,4 +59,4 @@ export function requestGeospatialTraversalRun(_args?: { edgeIds?: string[] | nul
   void 0
 }
 
-export { requestGeospatialFitToData, requestGeospatialFitToSelection }
+export { requestGeospatialCurrentLocation, requestGeospatialFitToData, requestGeospatialFitToSelection }

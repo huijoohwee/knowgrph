@@ -1,6 +1,7 @@
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 
 type LngLat = { lng: number; lat: number }
+type GeodataRecordSample = { key: string; record: Record<string, unknown> }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
@@ -74,7 +75,7 @@ const deriveLabelFromRecord = (rec: Record<string, unknown>, fallback: string): 
 export function sampleGeodataRecordsFromJsonText(
   text: string,
   maxRecords: number,
-): Array<{ key: string; record: Record<string, unknown> }> | null {
+): GeodataRecordSample[] | null {
   const s = String(text || '').trim()
   if (!s) return null
   const max = Math.max(1, Math.floor(maxRecords || 1))
@@ -172,7 +173,7 @@ export function sampleGeodataRecordsFromJsonText(
     return null
   }
 
-  const out: Array<{ key: string; record: Record<string, unknown> }> = []
+  const out: GeodataRecordSample[] = []
   const first = s[0]
 
   if (first === '{') {
@@ -225,24 +226,88 @@ export function sampleGeodataRecordsFromJsonText(
   return null
 }
 
-export function tryBuildGeodataGraphDataFromJsonText(args: {
+const GEODATA_CANDIDATE_CONTAINER_KEYS = [
+  'results',
+  'items',
+  'data',
+  'places',
+  'pois',
+  'records',
+  'features',
+  'nearby',
+  'hits',
+  'entries',
+] as const
+
+function collectGeodataRecordsFromJsonValue(args: {
+  value: unknown
+  maxRecords: number
+  preferredKey?: string
+}): GeodataRecordSample[] {
+  const { value, maxRecords, preferredKey } = args
+  const out: GeodataRecordSample[] = []
+  const seen = new WeakSet<object>()
+  const preferred = new Set<string>(preferredKey ? [preferredKey, ...GEODATA_CANDIDATE_CONTAINER_KEYS] : GEODATA_CANDIDATE_CONTAINER_KEYS)
+
+  const pushRecord = (key: string, record: Record<string, unknown>) => {
+    if (out.length >= maxRecords) return
+    out.push({ key, record })
+  }
+
+  const visit = (node: unknown, path: string, depth: number) => {
+    if (out.length >= maxRecords || depth > 6) return
+    if (Array.isArray(node)) {
+      const recordItems = node.filter(isRecord)
+      if (recordItems.length > 0) {
+        for (let i = 0; i < recordItems.length && out.length < maxRecords; i += 1) {
+          pushRecord(path ? `${path}[${i}]` : String(i), recordItems[i]!)
+        }
+        return
+      }
+      for (let i = 0; i < node.length && out.length < maxRecords; i += 1) {
+        visit(node[i], path ? `${path}[${i}]` : String(i), depth + 1)
+      }
+      return
+    }
+    if (!isRecord(node)) return
+    if (seen.has(node)) return
+    seen.add(node)
+
+    const entries = Object.entries(node)
+    for (let i = 0; i < entries.length && out.length < maxRecords; i += 1) {
+      const [key, child] = entries[i]!
+      if (!preferred.has(key)) continue
+      visit(child, path ? `${path}.${key}` : key, depth + 1)
+    }
+    for (let i = 0; i < entries.length && out.length < maxRecords; i += 1) {
+      const [key, child] = entries[i]!
+      if (preferred.has(key)) continue
+      visit(child, path ? `${path}.${key}` : key, depth + 1)
+    }
+  }
+
+  visit(value, preferredKey || '', 0)
+  return out
+}
+
+function buildGeodataGraphData(args: {
   name: string
-  text: string
-  maxRecords?: number
+  sampled: GeodataRecordSample[]
+  maxRecords: number
+  sampledVia: 'json-text' | 'json-object'
 }): { graphData: GraphData; warnings: string[] } | null {
-  const maxRecords = typeof args.maxRecords === 'number' && Number.isFinite(args.maxRecords) ? Math.floor(args.maxRecords) : 5000
-  const sampled = sampleGeodataRecordsFromJsonText(args.text, maxRecords)
-  if (!sampled || sampled.length === 0) return null
+  const { name, sampled, maxRecords, sampledVia } = args
+  if (!sampled.length) return null
 
   let geoCount = 0
   for (let i = 0; i < sampled.length; i += 1) {
-    if (deriveGeoFromRecord(sampled[i].record)) geoCount += 1
+    if (deriveGeoFromRecord(sampled[i]!.record)) geoCount += 1
   }
   if (geoCount === 0) return null
 
   const nodes: GraphData['nodes'] = []
   for (let i = 0; i < sampled.length; i += 1) {
-    const { key, record } = sampled[i]
+    const { key, record } = sampled[i]!
     const geo = deriveGeoFromRecord(record)
     if (!geo) continue
     const idBase = deriveIdFromRecord(record, key || `row:${i}`)
@@ -268,11 +333,11 @@ export function tryBuildGeodataGraphDataFromJsonText(args: {
     context: 'geodata',
     metadata: {
       ingestionMetrics: {
-        kind: 'geodata-json-sampled',
+        kind: sampledVia === 'json-object' ? 'geodata-json-object-sampled' : 'geodata-json-sampled',
         sampledRecords: sampled.length,
         sampledGeoRecords: nodes.length,
       },
-      source: args.name,
+      source: name,
     },
     nodes,
     edges: [],
@@ -280,3 +345,38 @@ export function tryBuildGeodataGraphDataFromJsonText(args: {
   return { graphData, warnings }
 }
 
+export function tryBuildGeodataGraphDataFromJson(args: {
+  name: string
+  json: unknown
+  maxRecords?: number
+  preferredKey?: string
+}): { graphData: GraphData; warnings: string[] } | null {
+  const maxRecords = typeof args.maxRecords === 'number' && Number.isFinite(args.maxRecords) ? Math.floor(args.maxRecords) : 5000
+  const sampled = collectGeodataRecordsFromJsonValue({
+    value: args.json,
+    maxRecords,
+    preferredKey: args.preferredKey,
+  })
+  return buildGeodataGraphData({
+    name: args.name,
+    sampled,
+    maxRecords,
+    sampledVia: 'json-object',
+  })
+}
+
+export function tryBuildGeodataGraphDataFromJsonText(args: {
+  name: string
+  text: string
+  maxRecords?: number
+}): { graphData: GraphData; warnings: string[] } | null {
+  const maxRecords = typeof args.maxRecords === 'number' && Number.isFinite(args.maxRecords) ? Math.floor(args.maxRecords) : 5000
+  const sampled = sampleGeodataRecordsFromJsonText(args.text, maxRecords)
+  if (!sampled || sampled.length === 0) return null
+  return buildGeodataGraphData({
+    name: args.name,
+    sampled,
+    maxRecords,
+    sampledVia: 'json-text',
+  })
+}

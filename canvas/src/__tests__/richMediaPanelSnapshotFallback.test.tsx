@@ -101,6 +101,104 @@ export async function testRichMediaPanelClickToOpenUsesBodyNotHeader() {
   }
 }
 
+export async function testRichMediaPanelVideoRendersInlineWithoutBodyClickOverlay() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    root.render(
+      React.createElement(RichMediaPanel, {
+        title: 'Generated video',
+        url: '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.mp4',
+        openUrl: 'https://example.com/generated.mp4',
+        kind: 'video',
+        hideUntilReady: true,
+        interactive: false,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 20; i += 1) await tick()
+
+    const video = container.querySelector('video') as HTMLVideoElement | null
+    if (!video) throw new Error('expected video media to render inline inside RichMediaPanel')
+    if (video.getAttribute('src') !== '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.mp4') {
+      throw new Error(`expected inline video to keep proxied playback src, got ${String(video.getAttribute('src') || '')}`)
+    }
+    const bodyLink = container.querySelector('section a[href="https://example.com/generated.mp4"]')
+    if (bodyLink) throw new Error('expected inline video rendering to suppress the body click-to-open overlay')
+
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
+export async function testRichMediaPanelVideoBecomesVisibleOnLoadedMetadataWhenHideUntilReady() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    root.render(
+      React.createElement(RichMediaPanel, {
+        title: 'Generated video',
+        url: '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.mp4',
+        openUrl: 'https://example.com/generated.mp4',
+        kind: 'video',
+        hideUntilReady: true,
+        interactive: false,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 4; i += 1) await tick()
+
+    const article = container.querySelector('article') as HTMLElement | null
+    const video = container.querySelector('video') as HTMLVideoElement | null
+    if (!article || !video) throw new Error('expected inline video panel shell to render')
+    if (article.style.opacity !== '0') throw new Error(`expected video panel to stay hidden before readiness, got opacity=${article.style.opacity}`)
+
+    video.dispatchEvent(new dom.window.Event('loadedmetadata'))
+    for (let i = 0; i < 4; i += 1) await tick()
+
+    if (article.style.opacity !== '1') {
+      throw new Error(`expected loadedmetadata to reveal hideUntilReady video panel, got opacity=${article.style.opacity}`)
+    }
+
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
 export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {

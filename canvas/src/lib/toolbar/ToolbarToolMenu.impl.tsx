@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { FileCode, GitBranch, Hand, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { Compass, FileCode, GitBranch, Hand, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -36,6 +36,7 @@ import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/o
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 
 type FloatingPanelView = 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
+type FloatingManagedHeaderActionsView = 'renderer' | 'discovery'
 type FloatingHeaderActions = {
   apply?: () => void
   reset?: () => void
@@ -82,8 +83,9 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
 })
 
 const SidePanelChatLazy = React.lazy(() => import('@/features/chat/SidePanelChat'))
+const DiscoveryHubViewLazy = React.lazy(() => import('@/features/panels/views/DiscoveryHubView'))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['chat', 'geo', 'interaction'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['chat', 'geo', 'discovery', 'interaction'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -206,7 +208,7 @@ export function ToolbarToolMenu({
   const [floatingPanelMinimized, setFloatingPanelMinimized] = React.useState(false)
   const floatingPanelView = useGraphStore(s => (s.floatingPanelView || 'propsPanel') as FloatingPanelView)
   const setFloatingPanelView = useGraphStore(s => s.setFloatingPanelView)
-  const [rendererHeaderActions, setRendererHeaderActions] = React.useState<FloatingHeaderActions>({
+  const [managedHeaderActions, setManagedHeaderActions] = React.useState<FloatingHeaderActions>({
     apply: undefined,
     reset: undefined,
     applyDisabled: true,
@@ -329,8 +331,8 @@ export function ToolbarToolMenu({
   const floatingPanelRootClassName = 'fixed inset-0 pointer-events-none'
 
   const handlePinToggle = toggleFloatingPanelPinned
-  const registerRendererHeaderActions = React.useCallback((actions: FloatingHeaderActions) => {
-    setRendererHeaderActions(actions)
+  const registerManagedHeaderActions = React.useCallback((actions: FloatingHeaderActions) => {
+    setManagedHeaderActions(actions)
   }, [])
 
   const floatingPanelRootStyle = React.useMemo(() => {
@@ -355,7 +357,10 @@ export function ToolbarToolMenu({
   const domPanelsAvailable =
     !geospatialModeEnabled && workspaceViewMode === 'canvas' && canvasRenderMode === '2d' && canvas2dRenderer === 'design'
   const domLayoutReady = domPanelsAvailable && !!designRendererWebpageLayoutKey
-  const rendererActionsEnabled = floatingPanelView === 'renderer'
+  const managedHeaderActionsView: FloatingManagedHeaderActionsView | null =
+    floatingPanelView === 'renderer' || floatingPanelView === 'discovery'
+      ? floatingPanelView
+      : null
   const floatingPanelBodyClassName = cn(
     'mt-1',
     FLOATING_PANEL_FULL_HEIGHT_VIEWS.has(floatingPanelView)
@@ -386,6 +391,7 @@ export function ToolbarToolMenu({
       { view: 'interaction', title: 'Interaction', icon: Hand },
       { view: 'chat', title: UI_LABELS.chat, icon: MessageCircle },
       { view: 'geo', title: UI_LABELS.geo, icon: Map, disabled: !geospatialModeEnabled },
+      { view: 'discovery', title: UI_LABELS.discovery, icon: Compass },
       { view: 'renderer', title: UI_LABELS.renderer, icon: MonitorPlay },
       { view: 'graphTraversal', title: UI_LABELS.graphTraversal, icon: GitBranch, spotlightView: 'graphTraversal' },
     ],
@@ -396,13 +402,13 @@ export function ToolbarToolMenu({
     <>
       {floatingPanelViewButtonSpecs.map(spec => {
         if (spec.hidden) return null
-        if (spec.disabled) return null
         const Icon = spec.icon
         return (
           <IconButton
             key={spec.view}
             title={spec.title}
             onClick={() => handleSelectView(spec.view)}
+            disabled={spec.disabled}
             className={`App-toolbar__btn ${
               floatingPanelView === spec.view ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
             }`}
@@ -448,8 +454,8 @@ export function ToolbarToolMenu({
   }, [requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])
 
   React.useEffect(() => {
-    if (floatingPanelView === 'renderer') return
-    setRendererHeaderActions({
+    if (floatingPanelView === 'renderer' || floatingPanelView === 'discovery') return
+    setManagedHeaderActions({
       apply: undefined,
       reset: undefined,
       applyDisabled: true,
@@ -489,10 +495,10 @@ export function ToolbarToolMenu({
             <HeaderActions
               onPinToggle={handlePinToggle}
               pinned={floatingPanelPinned}
-              onApply={rendererActionsEnabled ? rendererHeaderActions.apply : undefined}
-              onReset={rendererActionsEnabled ? rendererHeaderActions.reset : undefined}
-              applyDisabled={rendererActionsEnabled ? rendererHeaderActions.applyDisabled : true}
-              resetDisabled={rendererActionsEnabled ? rendererHeaderActions.resetDisabled : true}
+              onApply={managedHeaderActionsView ? managedHeaderActions.apply : undefined}
+              onReset={managedHeaderActionsView ? managedHeaderActions.reset : undefined}
+              applyDisabled={managedHeaderActionsView ? managedHeaderActions.applyDisabled : true}
+              resetDisabled={managedHeaderActionsView ? managedHeaderActions.resetDisabled : true}
               onRestore={() => {
                 setFloatingPanelMinimized(false)
               }}
@@ -526,10 +532,10 @@ export function ToolbarToolMenu({
             <HeaderActions
               onPinToggle={handlePinToggle}
               pinned={floatingPanelPinned}
-              onApply={rendererActionsEnabled ? rendererHeaderActions.apply : undefined}
-              onReset={rendererActionsEnabled ? rendererHeaderActions.reset : undefined}
-              applyDisabled={rendererActionsEnabled ? rendererHeaderActions.applyDisabled : true}
-              resetDisabled={rendererActionsEnabled ? rendererHeaderActions.resetDisabled : true}
+              onApply={managedHeaderActionsView ? managedHeaderActions.apply : undefined}
+              onReset={managedHeaderActionsView ? managedHeaderActions.reset : undefined}
+              applyDisabled={managedHeaderActionsView ? managedHeaderActions.applyDisabled : true}
+              resetDisabled={managedHeaderActionsView ? managedHeaderActions.resetDisabled : true}
               onMinimize={() => {
                 setFloatingPanelMinimized(true)
               }}
@@ -561,7 +567,12 @@ export function ToolbarToolMenu({
               </React.Suspense>
             )}
             {floatingPanelView === 'geo' && <GeoView geospatialModeEnabled={geospatialModeEnabled} />}
-            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerRendererHeaderActions} />}
+            {floatingPanelView === 'discovery' && (
+              <React.Suspense fallback={null}>
+                <DiscoveryHubViewLazy onRegisterActions={registerManagedHeaderActions} />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'renderer' && <ToolbarToolMenuRendererView onRegisterActions={registerManagedHeaderActions} />}
             {floatingPanelView === 'graphTraversal' && (
               <section className="space-y-2" aria-label="Graph traversal">
                 <header className="flex flex-wrap items-start justify-between gap-2 sm:items-center" aria-label="Graph traversal actions">

@@ -9,12 +9,14 @@ import { uiImportWebpageSettingsRegistry } from './registry-ui.import-webpage'
 import { uiImportGeoSettingsRegistry } from './registry-ui.import-geo'
 import { uiBipartiteSettingsRegistry } from './registry-ui.bipartite'
 import { uiMonacoSettingsRegistry } from './registry-ui.monaco'
+import { uiGrabMapsSettingsRegistry } from './registry-ui.grabmaps'
 
 export const uiSettingsRegistry: SettingMeta[] = [
   ...uiUiSettingsRegistry,
   ...uiCanvasGridSettingsRegistry,
   ...uiMarkdownSettingsRegistry,
   ...uiImportGeoSettingsRegistry,
+  ...uiGrabMapsSettingsRegistry,
   ...uiBipartiteSettingsRegistry,
   ...uiMonacoSettingsRegistry,
   ...uiImportPdfSettingsRegistry,

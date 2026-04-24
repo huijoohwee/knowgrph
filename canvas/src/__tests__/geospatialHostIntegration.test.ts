@@ -208,6 +208,7 @@ export const testGeospatialPanelHostIsNotEmpty = () => {
   const text = readUtf8(hostPath)
   if (!text.includes('Basemap style URL')) throw new Error('Expected GeospatialPanelHost to render basemap style controls')
   if (!text.includes('Fit to data')) throw new Error('Expected GeospatialPanelHost to render fit controls')
+  if (!text.includes('Use current location')) throw new Error('Expected GeospatialPanelHost to render current-location control')
   if (!text.includes('2D (MapLibre, Classic)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D MapLibre Classic selection')
   if (!text.includes('2D (MapLibre, Modern)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D MapLibre Modern selection')
   if (!text.includes('3D (MapLibre, Classic)')) throw new Error('Expected GeospatialPanelHost to expose explicit 3D MapLibre Classic selection')
@@ -215,6 +216,24 @@ export const testGeospatialPanelHostIsNotEmpty = () => {
   if (!text.includes('2D (SVG, fallback)')) throw new Error('Expected GeospatialPanelHost to expose explicit 2D SVG fallback selection')
   if (!text.includes('Apply Point Style')) throw new Error('Expected GeospatialPanelHost to expose point style apply control')
   if (!text.includes('Reset Point Style')) throw new Error('Expected GeospatialPanelHost to expose point style reset control')
+}
+
+export const testGeospatialHostSupportsCurrentLocationViewportRequests = () => {
+  const fitPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'geospatialFit.ts')
+  const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const fitText = readUtf8(fitPath)
+  const sliceText = readUtf8(slicePath)
+  const hostText = readUtf8(hostPath)
+  if (!fitText.includes('requestGeospatialCurrentLocation')) {
+    throw new Error('Expected gympgrph fit helpers to expose current-location requests')
+  }
+  if (!sliceText.includes("mode: 'currentLocation'")) {
+    throw new Error('Expected gympgrph geospatial slice to support currentLocation fit requests')
+  }
+  if (!hostText.includes("if (geospatialFitRequest.mode === 'currentLocation')")) {
+    throw new Error('Expected GeospatialHost to handle currentLocation viewport requests')
+  }
 }
 
 export const testGympgrphDefaultInteractionModeIsAlways = () => {
@@ -269,8 +288,10 @@ export const testGeospatialModeEventContractIsShared = () => {
 
   const canvasPath = path.resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
   const canvasText = readUtf8(canvasPath)
-  if (!canvasText.includes('onGeospatialModeChanged')) {
-    throw new Error('Expected Canvas to subscribe via onGeospatialModeChanged helper')
+  const canvasRuntimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'useCanvasGeospatialRuntime.ts')
+  const canvasRuntimeText = readUtf8(canvasRuntimePath)
+  if (!(canvasText.includes('useCanvasGeospatialRuntime') && canvasRuntimeText.includes('onGeospatialModeChanged'))) {
+    throw new Error('Expected Canvas to subscribe via shared geospatial runtime or the onGeospatialModeChanged helper')
   }
   if (canvasText.includes('addEventListener(GEOSPATIAL_MODE_CHANGED_EVENT')) {
     throw new Error('Canvas must not attach raw GEOSPATIAL_MODE_CHANGED_EVENT listener (use helper)')

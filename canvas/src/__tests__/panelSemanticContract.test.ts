@@ -147,6 +147,12 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (text.includes("floatingPanelView === 'designLayers'")) {
     throw new Error('Expected FloatingPanel to avoid rendering designLayers branch after consolidation')
   }
+  if (!text.includes("view: 'discovery'")) {
+    throw new Error('Expected FloatingPanel to expose a first-class discovery view after GrabMaps search-discovery move')
+  }
+  if (!text.includes("floatingPanelView === 'discovery'")) {
+    throw new Error('Expected FloatingPanel to render a dedicated discovery branch after GrabMaps search-discovery move')
+  }
 }
 
 export const testWorkflowManagerConsolidatedEntriesReuseGraphFieldsRightPane = () => {

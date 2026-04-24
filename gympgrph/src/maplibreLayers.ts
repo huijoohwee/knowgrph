@@ -30,8 +30,24 @@ const pointRadiusByZoomExpression = (radiusMultiplier: number) => [
   6.5 * radiusMultiplier,
 ]
 
+const hasStyleAttached = (map: any): boolean => {
+  if (!map) return false
+  try {
+    if (map.style) return true
+  } catch {
+    void 0
+  }
+  try {
+    if (typeof map.getStyle === 'function' && !!map.getStyle?.()) return true
+  } catch {
+    void 0
+  }
+  return false
+}
+
 const isStyleReady = (map: any): boolean => {
   if (!map) return false
+  if (!hasStyleAttached(map)) return false
   try {
     if (typeof map.isStyleLoaded === 'function' && map.isStyleLoaded() === true) return true
   } catch {
@@ -43,7 +59,7 @@ const isStyleReady = (map: any): boolean => {
     void 0
   }
   try {
-    const hasStyleObject = typeof map.getStyle === 'function' && !!map.getStyle?.()
+    const hasStyleObject = hasStyleAttached(map)
     const tilesLoaded = typeof map.areTilesLoaded === 'function' && map.areTilesLoaded() === true
     if (hasStyleObject && tilesLoaded) return true
   } catch {

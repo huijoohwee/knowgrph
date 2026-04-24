@@ -45,6 +45,7 @@ import {
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { clampFillRatio } from 'grph-shared/zoom/presets'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
+import { writeGrabMapsByokApiKeyToBrowser, readGrabMapsByokApiKeyFromBrowser } from 'grph-shared/geospatial/grabMapsAuth'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -170,6 +171,7 @@ export const createUiSlice = (set: SetGraph) => {
           || view === 'domInspect'
           || view === 'chat'
           || view === 'geo'
+          || view === 'discovery'
           || view === 'renderer'
           || view === 'graphTraversal'
             ? view
@@ -508,6 +510,63 @@ export const createUiSlice = (set: SetGraph) => {
       LS_KEYS.integrationConfigsJson,
       stringifyIntegrationConfigs(DEFAULT_INTEGRATION_CONFIGS),
       value => stringifyIntegrationConfigs(parseIntegrationConfigsJson(typeof value === 'string' ? value : null)),
+    ),
+
+    grabMapsAuthMode: lsJson<'serverManaged' | 'byok'>(
+      LS_KEYS.grabMapsAuthMode,
+      'byok',
+      value => (value === 'serverManaged' ? 'serverManaged' : 'byok'),
+    ),
+    grabMapsApiKey: readGrabMapsByokApiKeyFromBrowser(),
+    grabMapsDirectionsEndpointUrl: lsJson<string>(
+      LS_KEYS.grabMapsDirectionsEndpointUrl,
+      'https://maps.grab.com/api/v1/maps/eta/v1/direction',
+      v => (typeof v === 'string' && v.trim() ? v.trim() : 'https://maps.grab.com/api/v1/maps/eta/v1/direction'),
+    ),
+    grabMapsDirectionsOverview: lsJson<string>(
+      LS_KEYS.grabMapsDirectionsOverview,
+      'full',
+      v => (typeof v === 'string' && v.trim() ? v.trim() : 'full'),
+    ),
+    grabMapsDirectionsLatFirst: lsBool(LS_KEYS.grabMapsDirectionsLatFirst, false),
+    grabMapsDirectionsAlternatives: lsBool(LS_KEYS.grabMapsDirectionsAlternatives, false),
+    grabMapsDirectionsSteps: lsBool(LS_KEYS.grabMapsDirectionsSteps, false),
+    grabMapsDirectionsLanguage: lsJson<string>(
+      LS_KEYS.grabMapsDirectionsLanguage,
+      'en',
+      v => (typeof v === 'string' && v.trim() ? v.trim() : 'en'),
+    ),
+    grabMapsDirectionsUnits: lsJson<string>(
+      LS_KEYS.grabMapsDirectionsUnits,
+      'metric',
+      v => {
+        const raw = typeof v === 'string' ? v.trim().toLowerCase() : ''
+        return raw === 'imperial' ? 'imperial' : 'metric'
+      },
+    ),
+    grabMapsDirectionsOriginLng: lsFloat(LS_KEYS.grabMapsDirectionsOriginLng, 103.8198, { min: -180, max: 180 }),
+    grabMapsDirectionsOriginLat: lsFloat(LS_KEYS.grabMapsDirectionsOriginLat, 1.3521, { min: -90, max: 90 }),
+    grabMapsDirectionsDestinationLng: lsFloat(LS_KEYS.grabMapsDirectionsDestinationLng, 103.851959, { min: -180, max: 180 }),
+    grabMapsDirectionsDestinationLat: lsFloat(LS_KEYS.grabMapsDirectionsDestinationLat, 1.29027, { min: -90, max: 90 }),
+    grabMapsDirectionsWaypointsJson: lsJson<string>(
+      LS_KEYS.grabMapsDirectionsWaypointsJson,
+      '[]',
+      v => (typeof v === 'string' ? v : '[]'),
+    ),
+    grabMapsDirectionsAnnotationsJson: lsJson<string>(
+      LS_KEYS.grabMapsDirectionsAnnotationsJson,
+      '[]',
+      v => (typeof v === 'string' ? v : '[]'),
+    ),
+    grabMapsDirectionsExtraParamsJson: lsJson<string>(
+      LS_KEYS.grabMapsDirectionsExtraParamsJson,
+      '{}',
+      v => (typeof v === 'string' ? v : '{}'),
+    ),
+    grabMapsBasemapStyleUrl: lsJson<string>(
+      LS_KEYS.grabMapsBasemapStyleUrl,
+      'https://maps.grab.com/api/style.json?theme=light',
+      v => (typeof v === 'string' && v.trim() ? v.trim() : 'https://maps.grab.com/api/style.json?theme=light'),
     ),
 
     autoEnableGeospatialOnGeoImport: lsBool(LS_KEYS.geospatialAutoEnableOnGeoImport, true),
@@ -1023,6 +1082,73 @@ export const createUiSlice = (set: SetGraph) => {
           stringifyIntegrationConfigs(parseIntegrationConfigsJson(v)),
         ),
       }),
+
+    setGrabMapsAuthMode: (mode: 'serverManaged' | 'byok') =>
+      set(state => {
+        const next = mode === 'serverManaged' ? 'serverManaged' : 'byok'
+        const patch: Partial<GraphState> = {}
+        let changed = false
+        if (state.grabMapsAuthMode !== next) {
+          patch.grabMapsAuthMode = lsSetJson(LS_KEYS.grabMapsAuthMode, next)
+          changed = true
+        }
+        if (next === 'serverManaged' && state.grabMapsApiKey) {
+          writeGrabMapsByokApiKeyToBrowser('')
+          patch.grabMapsApiKey = ''
+          changed = true
+        }
+        return changed ? patch : {}
+      }),
+    setGrabMapsApiKey: (v: string | null) =>
+      set(state => {
+        const sanitized = String(v || '')
+          .replace(/[\r\n]/g, '')
+          .trim()
+          .slice(0, 512)
+        if (state.grabMapsAuthMode === 'serverManaged' && sanitized) {
+          writeGrabMapsByokApiKeyToBrowser(sanitized)
+          return {
+            grabMapsAuthMode: lsSetJson(LS_KEYS.grabMapsAuthMode, 'byok'),
+            grabMapsApiKey: sanitized,
+          }
+        }
+        if (state.grabMapsApiKey === sanitized) return {}
+        writeGrabMapsByokApiKeyToBrowser(sanitized)
+        return { grabMapsApiKey: sanitized }
+      }),
+    setGrabMapsDirectionsEndpointUrl: (v: string) =>
+      set({ grabMapsDirectionsEndpointUrl: lsSetJson(LS_KEYS.grabMapsDirectionsEndpointUrl, String(v || '').trim()) }),
+    setGrabMapsDirectionsOverview: (v: string) =>
+      set({ grabMapsDirectionsOverview: lsSetJson(LS_KEYS.grabMapsDirectionsOverview, String(v || '').trim()) }),
+    setGrabMapsDirectionsLatFirst: (v: boolean) =>
+      set({ grabMapsDirectionsLatFirst: lsSetBool(LS_KEYS.grabMapsDirectionsLatFirst, v === true) }),
+    setGrabMapsDirectionsAlternatives: (v: boolean) =>
+      set({ grabMapsDirectionsAlternatives: lsSetBool(LS_KEYS.grabMapsDirectionsAlternatives, v === true) }),
+    setGrabMapsDirectionsSteps: (v: boolean) =>
+      set({ grabMapsDirectionsSteps: lsSetBool(LS_KEYS.grabMapsDirectionsSteps, v === true) }),
+    setGrabMapsDirectionsLanguage: (v: string) =>
+      set({ grabMapsDirectionsLanguage: lsSetJson(LS_KEYS.grabMapsDirectionsLanguage, String(v || '').trim()) }),
+    setGrabMapsDirectionsUnits: (v: string) => {
+      const raw = String(v || '').trim().toLowerCase()
+      const next = raw === 'imperial' ? 'imperial' : 'metric'
+      set({ grabMapsDirectionsUnits: lsSetJson(LS_KEYS.grabMapsDirectionsUnits, next) })
+    },
+    setGrabMapsDirectionsOriginLng: (v: number) =>
+      set({ grabMapsDirectionsOriginLng: lsSetFloat(LS_KEYS.grabMapsDirectionsOriginLng, Number(v), { min: -180, max: 180 }) }),
+    setGrabMapsDirectionsOriginLat: (v: number) =>
+      set({ grabMapsDirectionsOriginLat: lsSetFloat(LS_KEYS.grabMapsDirectionsOriginLat, Number(v), { min: -90, max: 90 }) }),
+    setGrabMapsDirectionsDestinationLng: (v: number) =>
+      set({ grabMapsDirectionsDestinationLng: lsSetFloat(LS_KEYS.grabMapsDirectionsDestinationLng, Number(v), { min: -180, max: 180 }) }),
+    setGrabMapsDirectionsDestinationLat: (v: number) =>
+      set({ grabMapsDirectionsDestinationLat: lsSetFloat(LS_KEYS.grabMapsDirectionsDestinationLat, Number(v), { min: -90, max: 90 }) }),
+    setGrabMapsDirectionsWaypointsJson: (v: string) =>
+      set({ grabMapsDirectionsWaypointsJson: lsSetJson(LS_KEYS.grabMapsDirectionsWaypointsJson, String(v ?? '')) }),
+    setGrabMapsDirectionsAnnotationsJson: (v: string) =>
+      set({ grabMapsDirectionsAnnotationsJson: lsSetJson(LS_KEYS.grabMapsDirectionsAnnotationsJson, String(v ?? '')) }),
+    setGrabMapsDirectionsExtraParamsJson: (v: string) =>
+      set({ grabMapsDirectionsExtraParamsJson: lsSetJson(LS_KEYS.grabMapsDirectionsExtraParamsJson, String(v ?? '')) }),
+    setGrabMapsBasemapStyleUrl: (v: string) =>
+      set({ grabMapsBasemapStyleUrl: lsSetJson(LS_KEYS.grabMapsBasemapStyleUrl, String(v || '').trim()) }),
 
     setAutoEnableGeospatialOnGeoImport: (v: boolean) =>
       set({ autoEnableGeospatialOnGeoImport: lsSetBool(LS_KEYS.geospatialAutoEnableOnGeoImport, v === true) }),

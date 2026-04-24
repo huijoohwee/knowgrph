@@ -76,11 +76,13 @@ export function testWidgetAiFlowImportBuildsGraphAndRegistry() {
       processorType: 'ai-flow',
       model: 'generate_video',
       name: 'Generate Video',
+      content_json: [{ type: 'text', text: 'Override content' }],
       aspect_ratio: 'landscape',
       duration: 4,
       resolution: '720p',
       generate_audio: true,
       fast: false,
+      watermark: true,
       config: {
         nodeName: 'videoGeneration',
         outputType: 'videoUrl',
@@ -95,6 +97,12 @@ export function testWidgetAiFlowImportBuildsGraphAndRegistry() {
   if (nodes[0].type !== FLOW_VIDEO_GENERATION_NODE_TYPE_ID) throw new Error('expected VideoGeneration node type')
   if (String((nodes[0].properties || {}).model || '').trim() !== CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT) {
     throw new Error('expected AI-Flow import to normalize Video Widget model to BytePlus default')
+  }
+  if (String((nodes[0].properties || {}).content_json || '').trim().length === 0) {
+    throw new Error('expected AI-Flow import to preserve BytePlus video content_json override')
+  }
+  if ((nodes[0].properties || {}).watermark !== true) {
+    throw new Error('expected AI-Flow import to preserve BytePlus video watermark flag')
   }
   const meta = res.data.metadata as unknown as Record<string, unknown> | undefined
   if (!meta) throw new Error('expected metadata to exist')

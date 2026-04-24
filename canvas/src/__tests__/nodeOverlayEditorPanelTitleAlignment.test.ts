@@ -1,6 +1,8 @@
 import type { GraphNode } from '@/lib/graph/types'
 import { resolveWidgetNodeTitle } from '@/components/FlowEditor/NodeOverlayEditorPanel'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
+import { FLOW_VIDEO_GENERATION_NODE_LABEL } from '@/lib/config.flow-editor'
 
 const makeNode = (args: {
   id: string
@@ -104,8 +106,8 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
   })
   if (seedreamImage !== 'Seedream 5.0 Lite Image Widget') throw new Error(`expected Seedream 5.0 Lite Image Widget, got ${seedreamImage}`)
 
-  const seedanceVideo = resolveWidgetNodeTitle({
-    node: makeNode({ id: 'video-1', type: 'VideoGeneration', label: 'Video Widget', properties: { model: 'dreamina-seedance-2-0-250428' } }),
+  const bytePlusVideo = resolveWidgetNodeTitle({
+    node: makeNode({ id: 'video-1', type: 'VideoGeneration', label: FLOW_VIDEO_GENERATION_NODE_LABEL, properties: { model: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } }),
     registryEntry: {
       id: 'videoGeneration-default',
       isEnabled: true,
@@ -117,5 +119,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
       updatedAt: '2026-04-22T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (seedanceVideo !== 'Seedance 2.0 Video Widget') throw new Error(`expected Seedance 2.0 Video Widget, got ${seedanceVideo}`)
+  if (bytePlusVideo !== `${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT} BytePlus Video Widget`) {
+    throw new Error(`expected ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT} BytePlus Video Widget, got ${bytePlusVideo}`)
+  }
 }

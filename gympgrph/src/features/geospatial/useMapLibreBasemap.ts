@@ -1,6 +1,12 @@
 import React from 'react'
-
-const MAPLIBRE_DEFAULT_STYLE_URL = 'https://demotiles.maplibre.org/style.json'
+import { buildGrabMapsProxyRequestHeaders } from 'grph-shared/geospatial/grabMapsAuth'
+import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
+import { LS_KEYS } from '../../lib/config'
+import {
+  MAPLIBRE_DEFAULT_STYLE_URL,
+  MAPLIBRE_MODERN_DEFAULT_STYLE_URL,
+  SAFE_SVG_FALLBACK_STYLE_SENTINEL,
+} from './basemapStyle'
 
 type BasemapProbe = {
   tileSourceId: string
@@ -25,7 +31,6 @@ const SINGAPORE_CENTER_LAT = 1.3521
 const INITIAL_3D_ZOOM = 2.8
 const INITIAL_3D_PITCH = 0
 const INITIAL_3D_BEARING = 0
-const SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'
 
 const resolveBasemapStyle = (rawStyleUrl: string | null | undefined) => {
   const trimmed = String(rawStyleUrl || '').trim()
@@ -34,6 +39,213 @@ const resolveBasemapStyle = (rawStyleUrl: string | null | undefined) => {
   if (trimmed === SAFE_SVG_FALLBACK_STYLE_SENTINEL) return null
   if (lower.startsWith('kg:style:')) return MAPLIBRE_DEFAULT_STYLE_URL
   return trimmed
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+}
+
+const isGrabMapsUrl = (rawUrl: string): boolean => {
+  try {
+    return new URL(String(rawUrl || '').trim()).hostname.toLowerCase() === 'maps.grab.com'
+  } catch {
+    return false
+  }
+}
+
+const toGrabMapsProxyUrl = (rawUrl: string): string | null => {
+  if (typeof window === 'undefined' || !window.location?.origin) return null
+  try {
+    const parsed = new URL(String(rawUrl || '').trim())
+    const proxied = new URL('/__grabmaps_proxy', window.location.origin)
+    proxied.searchParams.set('url', parsed.toString())
+    return proxied.toString()
+  } catch {
+    return null
+  }
+}
+
+const resolveGrabMapsStyleAssetUrl = (rawValue: unknown, styleUrl: string): string => {
+  const trimmed = String(rawValue || '').trim()
+  if (!trimmed) return ''
+  try {
+    if (trimmed.startsWith('//')) {
+      const base = new URL(styleUrl)
+      return new URL(`${base.protocol}${trimmed}`).toString()
+    }
+    if (trimmed.includes('://')) {
+      return new URL(trimmed).toString()
+    }
+    const styleBase = new URL(styleUrl)
+    const originBase = new URL('/', styleBase)
+    if (trimmed.startsWith('/')) {
+      return new URL(trimmed, originBase).toString()
+    }
+    if (!trimmed.startsWith('./') && !trimmed.startsWith('../')) {
+      return new URL(`/${trimmed.replace(/^\/+/, '')}`, originBase).toString()
+    }
+    return new URL(trimmed, styleBase).toString()
+  } catch {
+    return trimmed
+  }
+}
+
+const decodeGrabMapsTileTemplatePlaceholders = (url: string): string => {
+  return String(url || '')
+    .replace(/%257B/gi, '{')
+    .replace(/%257D/gi, '}')
+    .replace(/%7B/gi, '{')
+    .replace(/%7D/gi, '}')
+}
+
+const normalizeGrabMapsVectorTileUrl = (rawUrl: string): string => {
+  const trimmed = String(rawUrl || '').trim()
+  if (!trimmed) return ''
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.hostname.toLowerCase() !== 'maps.grab.com') return trimmed
+    if (!parsed.pathname.startsWith('/api/maps/tiles/v2/vector/')) return trimmed
+    parsed.pathname = parsed.pathname.replace(/^\/api\/maps\/tiles\/v2\/vector\//, '/maps/tiles/v2/vector/')
+    return parsed.toString()
+  } catch {
+    return trimmed
+  }
+}
+
+const resolveGrabMapsGlyphsUrl = (rawValue: unknown, styleUrl: string): string => {
+  const normalized = decodeGrabMapsTileTemplatePlaceholders(resolveGrabMapsStyleAssetUrl(rawValue, styleUrl))
+  if (!normalized) return ''
+  if (normalized.includes('{fontstack}') && normalized.includes('{range}')) {
+    return normalized
+  }
+  const base = normalized.replace(/\/+$/, '')
+  return `${base}/{fontstack}/{range}.pbf`
+}
+
+const normalizeGrabMapsSourceDefinition = (rawSource: Record<string, unknown>, styleUrl: string): Record<string, unknown> => {
+  const nextSource: Record<string, unknown> = { ...rawSource }
+  if (typeof rawSource.url === 'string') {
+    nextSource.url = normalizeGrabMapsVectorTileUrl(resolveGrabMapsStyleAssetUrl(rawSource.url, styleUrl))
+  }
+  if (typeof rawSource.data === 'string') {
+    nextSource.data = resolveGrabMapsStyleAssetUrl(rawSource.data, styleUrl)
+  }
+  if (Array.isArray(rawSource.tiles)) {
+    nextSource.tiles = rawSource.tiles.map(tile =>
+      typeof tile === 'string'
+        ? normalizeGrabMapsVectorTileUrl(
+            decodeGrabMapsTileTemplatePlaceholders(resolveGrabMapsStyleAssetUrl(tile, styleUrl)),
+          )
+        : tile,
+    )
+  }
+  return nextSource
+}
+
+const normalizeGrabMapsStyleDocument = (rawStyle: unknown, styleUrl: string): Record<string, unknown> | null => {
+  if (!isRecord(rawStyle)) return null
+  const nextStyle: Record<string, unknown> = { ...rawStyle }
+  if (typeof rawStyle.sprite === 'string') {
+    nextStyle.sprite = resolveGrabMapsStyleAssetUrl(rawStyle.sprite, styleUrl)
+  }
+  if (typeof rawStyle.glyphs === 'string') {
+    nextStyle.glyphs = resolveGrabMapsGlyphsUrl(rawStyle.glyphs, styleUrl)
+  }
+  if (isRecord(rawStyle.sources)) {
+    const nextSources: Record<string, unknown> = {}
+    for (const [sourceId, sourceValue] of Object.entries(rawStyle.sources)) {
+      if (!isRecord(sourceValue)) {
+        nextSources[sourceId] = sourceValue
+        continue
+      }
+      nextSources[sourceId] = normalizeGrabMapsSourceDefinition(sourceValue, styleUrl)
+    }
+    nextStyle.sources = nextSources
+  }
+  return nextStyle
+}
+
+const hydrateGrabMapsSourceUrls = async (
+  style: Record<string, unknown>,
+  headers: Record<string, string>,
+): Promise<Record<string, unknown>> => {
+  if (!isRecord(style.sources)) return style
+  const nextSources: Record<string, unknown> = {}
+  await Promise.all(Object.entries(style.sources).map(async ([sourceId, sourceValue]) => {
+    if (!isRecord(sourceValue)) {
+      nextSources[sourceId] = sourceValue
+      return
+    }
+    const normalizedSource = normalizeGrabMapsSourceDefinition(sourceValue, String(sourceValue.url || ''))
+    const sourceUrl = typeof normalizedSource.url === 'string' ? normalizedSource.url : ''
+    if (!sourceUrl || !isGrabMapsUrl(sourceUrl)) {
+      nextSources[sourceId] = normalizedSource
+      return
+    }
+    const proxyUrl = toGrabMapsProxyUrl(sourceUrl)
+    if (!proxyUrl) {
+      nextSources[sourceId] = normalizedSource
+      return
+    }
+    try {
+      const sourceRes = await fetch(proxyUrl, { method: 'GET', headers })
+      if (!sourceRes.ok) {
+        nextSources[sourceId] = normalizedSource
+        return
+      }
+      const sourceJson = await sourceRes.json()
+      if (!isRecord(sourceJson)) {
+        nextSources[sourceId] = normalizedSource
+        return
+      }
+      const hydrated = normalizeGrabMapsSourceDefinition(sourceJson, sourceUrl)
+      nextSources[sourceId] = { ...normalizedSource, ...hydrated }
+      delete (nextSources[sourceId] as Record<string, unknown>).url
+    } catch {
+      nextSources[sourceId] = normalizedSource
+    }
+  }))
+  return { ...style, sources: nextSources }
+}
+
+const applyGrabMapsModernFallback = (): void => {
+  if (typeof window === 'undefined') return
+  try {
+    if (window.localStorage.getItem(LS_KEYS.geospatialStyleUrl) !== MAPLIBRE_MODERN_DEFAULT_STYLE_URL) {
+      window.localStorage.setItem(LS_KEYS.geospatialStyleUrl, MAPLIBRE_MODERN_DEFAULT_STYLE_URL)
+    }
+    window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))
+  } catch {
+    void 0
+  }
+}
+
+type GrabMapsPreflightResult = {
+  style: string | Record<string, unknown>
+  shouldFallback: boolean
+}
+
+const preflightGrabMapsStyle = async (styleUrl: string): Promise<GrabMapsPreflightResult> => {
+  if (!isGrabMapsUrl(styleUrl)) return { style: styleUrl, shouldFallback: false }
+  const proxyUrl = toGrabMapsProxyUrl(styleUrl)
+  if (!proxyUrl) return { style: styleUrl, shouldFallback: false }
+  const headers = buildGrabMapsProxyRequestHeaders()
+  try {
+    const styleRes = await fetch(proxyUrl, { method: 'GET', headers })
+    if (styleRes.ok) {
+      const rawStyle = await styleRes.json()
+      const normalizedStyle = normalizeGrabMapsStyleDocument(rawStyle, styleUrl)
+      if (!normalizedStyle) return { style: styleUrl, shouldFallback: false }
+      const hydratedStyle = await hydrateGrabMapsSourceUrls(normalizedStyle, headers)
+      return { style: hydratedStyle, shouldFallback: false }
+    }
+    if (styleRes.status >= 500) {
+      return { style: MAPLIBRE_MODERN_DEFAULT_STYLE_URL, shouldFallback: true }
+    }
+    return { style: styleUrl, shouldFallback: false }
+  } catch {
+    return { style: styleUrl, shouldFallback: false }
+  }
 }
 
 const isAbortLike = (err: unknown): boolean => {
@@ -52,6 +264,16 @@ const isKnownUnsafeGlobeRuntimeError = (err: unknown): boolean => {
   )
 }
 
+const isGrabMapsServiceUnavailable = (message: string): boolean => {
+  const text = String(message || '').trim().toLowerCase()
+  if (!text) return false
+  return (
+    /\b(500|502|503|504)\b/.test(text) ||
+    text.includes('service unavailable') ||
+    text.includes('no healthy upstream')
+  )
+}
+
 export function useMapLibreBasemap(args: {
   enabled: boolean
   rootRef: React.RefObject<HTMLElement | null>
@@ -61,8 +283,9 @@ export function useMapLibreBasemap(args: {
   projectionMode: 'mercator' | 'globe'
   viewportSizingMode: 'none' | 'fit'
   vectorFallbackMs: number
+  onGrabMapsFallback?: () => void
 }): BasemapResult {
-  const { enabled, containerRef, targetStyleUrl, canvasRenderMode, projectionMode, viewportSizingMode, vectorFallbackMs } = args
+  const { enabled, containerRef, targetStyleUrl, canvasRenderMode, projectionMode, viewportSizingMode, vectorFallbackMs, onGrabMapsFallback } = args
   const [runtimeProjectionMode, setRuntimeProjectionMode] = React.useState<'mercator' | 'globe'>(projectionMode)
   const [state, setState] = React.useState<BasemapResult>({
     map: null,
@@ -146,6 +369,18 @@ export function useMapLibreBasemap(args: {
     let resizeObserver: ResizeObserver | null = null
     let probeInterval: ReturnType<typeof setInterval> | null = null
     let mountRetryTimer: ReturnType<typeof setTimeout> | null = null
+    let grabMapsFallbackApplied = false
+    let grabMapsBootstrapPending = false
+    const notifyGrabMapsFallback = () => {
+      if (grabMapsFallbackApplied) return
+      grabMapsFallbackApplied = true
+      grabMapsBootstrapPending = false
+      try {
+        onGrabMapsFallback?.()
+      } catch {
+        void 0
+      }
+    }
 
     const mount = async () => {
       const el = containerRef.current
@@ -171,9 +406,11 @@ export function useMapLibreBasemap(args: {
           mlAny.setLogger({
             error: (...args: unknown[]) => {
               const text = args.map(v => String(v)).join(' ')
-              if (text.includes('/__fetch_remote') && text.toLowerCase().includes('abort')) return
-              if (text.includes('/__fetch_remote') && text.toLowerCase().includes('err_aborted')) return
-              if (text.includes('/__fetch_remote') && text.toLowerCase().includes('aborterror')) return
+              const lower = text.toLowerCase()
+              if (lower.includes('/__fetch_remote') && lower.includes('abort')) return
+              if (lower.includes('net::err_aborted')) return
+              if (lower.includes('aborterror')) return
+              if (lower.includes('tiles.openfreemap.org/styles/liberty') && lower.includes('abort')) return
               console.error(...args)
             },
             warn: (...args: unknown[]) => console.warn(...args),
@@ -193,20 +430,51 @@ export function useMapLibreBasemap(args: {
           return
         }
 
+        const requestedGrabMapsStyle = isGrabMapsUrl(style)
+        const preflight = await preflightGrabMapsStyle(style)
+        if (cancelled) return
+        const styleForMap = preflight.style
+        grabMapsBootstrapPending = requestedGrabMapsStyle && !preflight.shouldFallback
+        if (preflight.shouldFallback && requestedGrabMapsStyle) {
+          notifyGrabMapsFallback()
+          applyGrabMapsModernFallback()
+        }
+
         if (debug) {
           try {
-            console.info('[kg-geo] maplibre init', { style })
+            console.info('[kg-geo] maplibre init', {
+              style: typeof styleForMap === 'string' ? styleForMap : style,
+              normalizedGrabMapsStyle: typeof styleForMap === 'string' ? null : styleForMap,
+            })
           } catch {
             void 0
           }
         }
         
+        const transformRequest = (rawUrl: string) => {
+          const urlText = String(rawUrl || '').trim()
+          if (!urlText) return { url: rawUrl }
+          try {
+            const parsed = new URL(urlText, typeof window !== 'undefined' ? window.location.href : undefined)
+            const host = parsed.hostname.toLowerCase()
+            if (host !== 'maps.grab.com') return { url: urlText }
+            if (typeof window === 'undefined' || !window.location?.origin) return { url: urlText }
+            const proxied = new URL('/__grabmaps_proxy', window.location.origin)
+            proxied.searchParams.set('url', normalizeGrabMapsVectorTileUrl(parsed.toString()))
+            const headers = buildGrabMapsProxyRequestHeaders()
+            return { url: proxied.toString(), headers }
+          } catch {
+            return { url: urlText }
+          }
+        }
+
         map = new MapConstructor({
           container: el,
-          style,
+          style: styleForMap,
           interactive: true,
           attributionControl: false,
           preserveDrawingBuffer: false,
+          transformRequest,
           center: canvasRenderMode === '3d' ? [SINGAPORE_CENTER_LNG, SINGAPORE_CENTER_LAT] : undefined,
           pitch: canvasRenderMode === '3d' ? INITIAL_3D_PITCH : 0,
           bearing: canvasRenderMode === '3d' ? INITIAL_3D_BEARING : 0,
@@ -229,6 +497,20 @@ export function useMapLibreBasemap(args: {
           const msg = err instanceof Error ? err.message : String(err || '')
           const trimmed = msg.trim()
           if (!trimmed) return
+          if (!grabMapsFallbackApplied && grabMapsBootstrapPending && isGrabMapsServiceUnavailable(trimmed)) {
+            const styleText = String(style || '').toLowerCase()
+            if (styleText.includes('maps.grab.com')) {
+              notifyGrabMapsFallback()
+              try {
+                applyGrabMapsModernFallback()
+                map.setStyle?.(MAPLIBRE_MODERN_DEFAULT_STYLE_URL)
+                setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+                return
+              } catch {
+                void 0
+              }
+            }
+          }
           if (runtimeProjectionMode === 'globe' && isKnownUnsafeGlobeRuntimeError(trimmed)) {
             setRuntimeProjectionMode('mercator')
             setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
@@ -239,6 +521,9 @@ export function useMapLibreBasemap(args: {
 
         map.on?.('style.load', () => {
           if (cancelled) return
+          if (requestedGrabMapsStyle) {
+            grabMapsBootstrapPending = false
+          }
           try {
             if (runtimeProjectionMode === 'globe') {
               map.setProjection?.({ type: 'globe' })
@@ -395,7 +680,7 @@ export function useMapLibreBasemap(args: {
       }
       map = null
     }
-  }, [enabled, containerRef, targetStyleUrl, canvasRenderMode, runtimeProjectionMode, viewportSizingMode, vectorFallbackMs, computeProbe, debug, setProbe])
+  }, [enabled, containerRef, targetStyleUrl, canvasRenderMode, runtimeProjectionMode, viewportSizingMode, vectorFallbackMs, computeProbe, debug, setProbe, onGrabMapsFallback])
 
   return state
 }

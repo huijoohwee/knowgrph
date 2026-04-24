@@ -8,7 +8,6 @@ import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontm
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, resolveIframeSandbox, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
-import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ExternalLink } from 'lucide-react'
 import {
@@ -187,7 +186,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const allowPanelContentPointerEvents = !editorMode || flowEditorInteractionMode === true || isFlowEditorRenderer === true
   const allowEmbedFromStore = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
   const preferEmbed = allowEmbedFromStore && props.interactive !== false
-  const [videoThumb, setVideoThumb] = React.useState<string>('')
   const forwardingEnabled =
     !preferEmbed
     && flowEditorFrontmatterDocumentMode !== true
@@ -227,31 +225,14 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     kind === 'iframe'
     && !!(iframeEmbed && !iframeEmbed.direct)
     && (!preferEmbed || forceSnapshotIframe)
-  const isSnapshotVideo = !preferEmbed && kind === 'video'
-  const isSnapshotStaticMedia = !preferEmbed && (kind === 'image' || kind === 'svg' || kind === 'video')
+  const isSnapshotVideo = false
+  const isSnapshotStaticMedia = !preferEmbed && (kind === 'image' || kind === 'svg')
   const contentInteractive =
     (preferEmbed || (props.interactive !== false && !isSnapshotIframe && !isSnapshotVideo && !isSnapshotStaticMedia))
     && (!hideUntilReady || ready)
-  const canClickToOpen = !headerPassthrough && !contentInteractive && !!safeOpenUrl
+  const canClickToOpen = !headerPassthrough && kind !== 'video' && !contentInteractive && !!safeOpenUrl
   const allowClickToOpenOverlay = canClickToOpen && !editorMode
 
-  React.useEffect(() => {
-    let cancelled = false
-    if (!isSnapshotVideo) {
-      setVideoThumb(prev => (prev ? '' : prev))
-      return
-    }
-    const u = rawUrl
-    if (!u) return
-    void getOrCreateVideoThumbnail(u).then((t) => {
-      if (cancelled) return
-      const next = String(t || '').trim()
-      setVideoThumb(prev => (prev === next ? prev : next))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [isSnapshotVideo, rawUrl])
   const setRefs = React.useCallback((el: HTMLElement | null) => {
     rootRef.current = el
     const r = ref as unknown
@@ -929,51 +910,31 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           )
           )
         ) : kind === 'video' ? (
-          preferEmbed ? (
-            <video
-              src={mediaSrc}
-              playsInline
-              muted
-              controls
-              preload="metadata"
-              onLoadedData={() => setReady(true)}
-              onError={() => {
-                if (!fallbackToRawSrc()) setReady(true)
-              }}
-              style={{
-                display: 'block',
-                width: '100%',
-                height: '100%',
-                border: 0,
-                borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-                objectFit: 'contain',
-                background: 'rgba(2, 6, 23, 0.72)',
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
-              }}
-            />
-          ) : (
-            <img
-              src={videoThumb || undefined}
-              alt={title}
-              loading="lazy"
-              onLoad={() => setReady(true)}
-              onError={() => setReady(true)}
-              style={{
-                display: 'block',
-                width: '100%',
-                height: '100%',
-                border: 0,
-                borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-                objectFit: 'contain',
-                background: 'rgba(15, 23, 42, 0.08)',
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
-              }}
-            />
-          )
+          <video
+            src={mediaSrc}
+            playsInline
+            muted
+            controls
+            preload="metadata"
+            onLoadedMetadata={() => setReady(true)}
+            onLoadedData={() => setReady(true)}
+            onCanPlay={() => setReady(true)}
+            onError={() => {
+              if (!fallbackToRawSrc()) setReady(true)
+            }}
+            style={{
+              display: 'block',
+              width: '100%',
+              height: '100%',
+              border: 0,
+              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+              objectFit: 'contain',
+              background: 'rgba(2, 6, 23, 0.72)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
+            }}
+          />
         ) : (
           <img
             src={mediaSrc}

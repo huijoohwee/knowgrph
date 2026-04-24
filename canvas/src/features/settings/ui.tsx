@@ -344,6 +344,60 @@ export const renderSettingInput = (
       </select>
     )
   }
+  if (key === 'maps.grabmaps.authMode') {
+    const raw = String(v ?? '').trim().toLowerCase()
+    const normalized = raw === 'servermanaged' ? 'serverManaged' : 'byok'
+    return (
+      <select
+        value={normalized}
+        onChange={e => {
+          const selected = e.target.value === 'serverManaged' ? 'serverManaged' : 'byok'
+          dirtyRef.current.add(key)
+          setValues(prev => {
+            const next: Record<string, string | number | boolean> = { ...prev, [key]: selected }
+            if (selected === 'serverManaged') {
+              dirtyRef.current.add('maps.grabmaps.apiKey')
+              next['maps.grabmaps.apiKey'] = ''
+            }
+            return next
+          })
+        }}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded bg-white text-right`}
+      >
+        <option value="byok">BYOK</option>
+        <option value="serverManaged">Server-managed Key</option>
+      </select>
+    )
+  }
+  if (key === 'maps.grabmaps.apiKey') {
+    const authModeRaw = String(values['maps.grabmaps.authMode'] || '').trim().toLowerCase()
+    const authMode = authModeRaw === 'servermanaged' ? 'serverManaged' : 'byok'
+    if (authMode !== 'byok') {
+      return (
+        <PlainTextInputEditor
+          value=""
+          readOnly
+          placeholder="Server-managed Key"
+          className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`}
+        />
+      )
+    }
+    const str = String(v || '')
+    return (
+      <input
+        type="password"
+        value={str}
+        autoComplete="off"
+        spellCheck={false}
+        onChange={e => {
+          const next = e.target.value
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: next }))
+        }}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`}
+      />
+    )
+  }
   if (key === 'chatApiKey') {
     const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
     if (authMode !== 'byok') {

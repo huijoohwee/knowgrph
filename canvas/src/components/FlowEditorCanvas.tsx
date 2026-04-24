@@ -3565,7 +3565,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             : ''
         upsertUiToast({
           id: `flow-editor-run-failed-${String(nodeId || '')}`,
-          kind: 'neutral',
+          kind: 'error',
           message: detail || UI_COPY.flowEditorRunFailedToast,
           ttlMs: 4200,
         })

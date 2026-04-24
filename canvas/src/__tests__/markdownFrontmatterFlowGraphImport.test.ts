@@ -1855,6 +1855,15 @@ function readMarkdownSyntaxComputingFlowRfSamplePath(): string {
   return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'markdown-syntax-computing-flow-rf-sample.md')
 }
 
+function readKnowgrphRichMediaGenerationDemoPath(): string {
+  const envPath = typeof process.env.KG_TEST_KNOWGRPH_RICH_MEDIA_GENERATION_DEMO_PATH === 'string'
+    ? process.env.KG_TEST_KNOWGRPH_RICH_MEDIA_GENERATION_DEMO_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  const cwd = process.cwd()
+  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'knowgrph-rich-media-generation-demo.md')
+}
+
 function readKgcAiPipelinePrdTadPath(): string {
   const envPath = typeof process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH === 'string'
     ? process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH.trim()
@@ -2057,4 +2066,83 @@ export function testMarkdownFrontmatterFlowGraphFidelityMarkdownSyntaxComputingF
 
   const flowWarnings = res.warnings.filter(w => w.includes('Flow node contract violation') || w.includes('Flow node compute rejected as unsafe'))
   if (flowWarnings.length > 0) throw new Error(`expected no flow contract warnings for RF sample, got: ${flowWarnings.join(' | ')}`)
+}
+
+export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphRichMediaGenerationDemo() {
+  const samplePath = readKnowgrphRichMediaGenerationDemoPath()
+  if (!samplePath || !fs.existsSync(samplePath)) return
+  const md = fs.readFileSync(samplePath, 'utf8')
+  const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)
+  if (!res) throw new Error('expected rich-media generation demo frontmatter parse result')
+  const g = res.graphData
+  if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
+  const videoNode = nodeById.get('w-byteplus-video') || null
+  const panelNode = nodeById.get('p-rich-media') || null
+  if (!videoNode) throw new Error('expected w-byteplus-video node')
+  if (!panelNode) throw new Error('expected p-rich-media node')
+
+  const videoProps = (videoNode.properties || {}) as Record<string, unknown>
+  if (String(videoProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'videoGeneration') {
+    throw new Error('expected w-byteplus-video flow:widgetFormId=videoGeneration')
+  }
+  if (String(videoProps.model || '') !== 'ByteDance-Seedance-1.0-pro-fast') {
+    throw new Error(`expected BytePlus video demo default model, got ${String(videoProps.model || '')}`)
+  }
+  if (
+    String(videoProps.prompt || '')
+    !== 'Imagination run wild, 2s; Southeast Asia (Singapore, Malaysia, Indonesia, Philippines, Cambodia, Laos, Myanmar, Vietnam, Thailand), Taiwan/Chinese Taipei; island-hopping night markets, skyline ferries, tropical rain showers'
+  ) {
+    throw new Error(`expected resolved video prompt contract, got ${String(videoProps.prompt || '')}`)
+  }
+  if (Number(videoProps.duration) !== 2) {
+    throw new Error(`expected video duration 2, got ${String(videoProps.duration || '')}`)
+  }
+  const selectedGeo = videoProps.selected_location_geojson as Record<string, unknown> | null
+  if (!selectedGeo || String(selectedGeo.type || '') !== 'FeatureCollection') {
+    throw new Error('expected selected_location_geojson FeatureCollection payload on video node')
+  }
+
+  const frontmatterMeta = ((g.metadata || {}) as Record<string, unknown>).frontmatterMeta as Record<string, unknown> | null
+  const demoInputs = (frontmatterMeta?.demo_inputs || null) as Record<string, unknown> | null
+  const location = (demoInputs?.location || null) as Record<string, unknown> | null
+  const geojson = (location?.geojson || null) as Record<string, unknown> | null
+  if (
+    String(location?.name || '')
+    !== 'Southeast Asia (Singapore, Malaysia, Indonesia, Philippines, Cambodia, Laos, Myanmar, Vietnam, Thailand), Taiwan/Chinese Taipei'
+  ) {
+    throw new Error('expected demo_inputs.location.name to match the Southeast Asia + Taiwan travel corridor')
+  }
+  if (String(geojson?.type || '') !== 'FeatureCollection') throw new Error('expected demo_inputs.location.geojson FeatureCollection payload')
+  const geoFeatures = Array.isArray(geojson?.features) ? geojson.features : []
+  if (geoFeatures.length < 5) throw new Error(`expected multi-city travel corridor geojson, got ${geoFeatures.length} features`)
+
+  const grabmaps = (frontmatterMeta?.grabmaps || null) as Record<string, unknown> | null
+  const auth = (grabmaps?.auth || null) as Record<string, unknown> | null
+  const places = (grabmaps?.places || null) as Record<string, unknown> | null
+  const keywordSearch = (places?.keyword_search || null) as Record<string, unknown> | null
+  const nearbySearch = (places?.nearby_search || null) as Record<string, unknown> | null
+  if (String(auth?.style_url || '') !== 'https://maps.grab.com/api/style.json') {
+    throw new Error(`expected GrabMaps style URL, got ${String(auth?.style_url || '')}`)
+  }
+  if (String(keywordSearch?.endpoint || '') !== 'https://maps.grab.com/api/v1/maps/poi/v1/search') {
+    throw new Error('expected GrabMaps keyword search endpoint')
+  }
+  if (String(keywordSearch?.country || '') !== 'SGP') throw new Error('expected GrabMaps keyword search country bias=SGP')
+  if (Number(keywordSearch?.limit) !== 10) throw new Error(`expected GrabMaps keyword search limit 10, got ${String(keywordSearch?.limit || '')}`)
+  if (String(nearbySearch?.endpoint || '') !== 'https://maps.grab.com/api/v1/maps/place/v2/nearby') {
+    throw new Error('expected GrabMaps nearby search endpoint')
+  }
+  if (Number(nearbySearch?.radius_km) !== 1) throw new Error(`expected GrabMaps nearby radius 1km, got ${String(nearbySearch?.radius_km || '')}`)
+  if (String(nearbySearch?.rankBy || '') !== 'distance') throw new Error('expected GrabMaps nearby rankBy=distance')
+
+  const edge = g.edges.find(e => String(e.id || '') === 'e-video') || null
+  if (!edge) throw new Error('expected e-video edge')
+  const edgeProps = (edge.properties || {}) as Record<string, unknown>
+  if (String(edge.source || '') !== 'w-byteplus-video' || String(edge.target || '') !== 'p-rich-media') {
+    throw new Error('expected e-video endpoints w-byteplus-video -> p-rich-media')
+  }
+  if (String(edgeProps[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-video source port videoUrl')
+  if (String(edgeProps[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-video target port videoUrl')
 }

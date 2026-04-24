@@ -13,6 +13,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
   FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
+  FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
 } from '@/lib/config.flow-editor'
 
 export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
@@ -368,7 +369,7 @@ export const testSeedreamImageWidgetKvRowsStayEditable = async () => {
   root.unmount()
 }
 
-export const testSeedanceVideoWidgetKvRowsStayEditable = async () => {
+export const testBytePlusVideoWidgetKvRowsStayEditable = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
 
   const g = globalThis as unknown as { window?: unknown; document?: unknown }
@@ -384,17 +385,17 @@ export const testSeedanceVideoWidgetKvRowsStayEditable = async () => {
     React.createElement(NodeOverlayEditorRegistrySection, {
       active: true,
       properties: {
-        model: 'seedance-2-0-pro',
-        duration: 4,
-        prompt: 'Generate a short video clip',
+        model: FLOW_EDITOR_VIDEO_MODEL_OPTIONS[0]?.value,
+        duration: 2,
+        prompt: 'Imagination run wild, 2s; Singapore',
       },
       registryEntry: {
-        id: 'seedance-video-widget',
+        id: 'byteplus-video-widget',
         nodeTypeId: 'VideoGeneration',
         widgetTypeId: 'default',
         formId: 'videoGeneration',
         fields: [
-          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: [{ value: 'seedance-2-0-pro', label: 'Seedance 2.0 (Default)' }] },
+          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: FLOW_EDITOR_VIDEO_MODEL_OPTIONS },
           { fieldKey: 'duration', fieldType: 'select', schemaPath: 'properties.duration', label: 'Duration', options: [{ value: 2, label: '2s' }, { value: 4, label: '4s' }, { value: 6, label: '6s' }] },
           { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', label: 'Prompt' },
         ],
@@ -418,19 +419,19 @@ export const testSeedanceVideoWidgetKvRowsStayEditable = async () => {
 
   const durationSelect = host.querySelector<HTMLSelectElement>('#duration')
   const promptInput = host.querySelector<HTMLTextAreaElement>('#prompt')
-  if (!durationSelect || !promptInput) throw new Error('expected Seedance video widget fields to render')
+  if (!durationSelect || !promptInput) throw new Error('expected BytePlus video widget fields to render')
   durationSelect.value = '6'
   durationSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-  promptInput.value = 'Generate an updated short video clip'
+  promptInput.value = 'Imagination run wild, 6s; Singapore'
   promptInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
   if (!patched.some(entry => Number(entry.duration) === 6)) {
-    throw new Error('expected Seedance video widget select field edits to patch widget properties')
+    throw new Error('expected BytePlus video widget select field edits to patch widget properties')
   }
-  if (!patched.some(entry => String(entry.prompt || '').includes('updated short video'))) {
-    throw new Error('expected Seedance video widget text field edits to patch widget properties')
+  if (!patched.some(entry => String(entry.prompt || '').includes('6s; Singapore'))) {
+    throw new Error('expected BytePlus video widget text field edits to patch widget properties')
   }
 
   root.unmount()

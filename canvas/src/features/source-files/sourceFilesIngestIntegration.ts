@@ -20,6 +20,7 @@ import { useGympgrphStore } from '@/lib/gympgrph/api'
 import type { MarkdownSourceFilesIngestIntegration } from '@/features/markdown/ui/MarkdownSourceFilesIngestIntegration'
 import { convertPdfFileToMarkdown, convertPdfUrlToMarkdown, fetchYouTubeTranscriptMarkdown, fetchWebpageMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
+import { buildGrabMapsProxyRequestHeaders } from 'grph-shared/geospatial/grabMapsAuth'
 
 const SUPPORTED_SOURCE_FILE_IMPORT_EXTENSIONS = [...SOURCE_FILES_FORMATS.import]
 
@@ -63,6 +64,22 @@ const isSameOriginRepoFileUrl = (rawUrl: string): boolean => {
     return parsed.pathname.includes('/__repo_file/')
   } catch {
     return false
+  }
+}
+
+const toGrabMapsProxyUrl = (rawUrl: string): string | null => {
+  const text = String(rawUrl || '').trim()
+  if (!text) return null
+  if (typeof window === 'undefined' || !window.location?.origin) return null
+  try {
+    const u = new URL(text)
+    if (u.protocol !== 'https:') return null
+    if (u.hostname.toLowerCase() !== 'maps.grab.com') return null
+    const proxied = new URL('/__grabmaps_proxy', window.location.origin)
+    proxied.searchParams.set('url', u.toString())
+    return proxied.toString()
+  } catch {
+    return null
   }
 }
 
@@ -484,7 +501,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
 
     if (isSameOriginRepoFileUrl(normalizedUrl)) {
       const direct = await fetchSameOriginRepoFileText(normalizedUrl)
-      if (!direct.ok) {
+      if (direct.ok === false) {
         store.updateSourceFile(id, { status: 'error', error: direct.error })
         return
       }
@@ -498,10 +515,13 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       return
     }
 
-    const shouldPreferProxy = true
-    const res = await fetchRemoteTextDetailed(normalizedUrl, {
+    const grabMapsProxyUrl = toGrabMapsProxyUrl(normalizedUrl)
+    const isGrabMapsProxyRequest = !!grabMapsProxyUrl
+    const res = await fetchRemoteTextDetailed(grabMapsProxyUrl || normalizedUrl, {
       preflightHead: true,
-      preferProxy: shouldPreferProxy,
+      preferProxy: !isGrabMapsProxyRequest,
+      useProxy: isGrabMapsProxyRequest ? 'never' : 'auto',
+      headers: isGrabMapsProxyRequest ? buildGrabMapsProxyRequestHeaders() : undefined,
       timeoutMs: geospatialDatasetTimeoutMs,
       maxBytes: geospatialDatasetMaxBytes,
     })

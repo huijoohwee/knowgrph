@@ -113,16 +113,12 @@ export function useToolbarActions(
     setSchema(next as GraphSchema)
   }, [ensureBaselineUnlocked, schema, setSchema])
 
-  const handleOpenGraphFields = useCallback(() => {
-    openMainPanel('graphFields')
-  }, [openMainPanel])
-
   const handleOpenSettings = useCallback(() => {
     openMainPanel('settings')
   }, [openMainPanel])
 
   const handleOpenHistory = useCallback(() => {
-    openMainPanel('workflow')
+    openMainPanel('history')
   }, [openMainPanel])
 
   const handleOpenHelp = useCallback(() => {
@@ -207,7 +203,6 @@ export function useToolbarActions(
     handleToggleGroupShapeMode,
     handleTogglePortHandles,
     handleToggleRadialLayout,
-    handleOpenGraphFields,
     handleOpenSettings,
     handleOpenHistory,
     handleOpenHelp,

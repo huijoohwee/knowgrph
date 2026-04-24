@@ -1,6 +1,7 @@
 import {
   CHAT_BYTEPLUS_CONTENT_GENERATIONS_TASKS_PATH,
   CHAT_BYTEPLUS_IMAGES_GENERATIONS_PATH,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
   CHAT_PROVIDER_BYTEPLUS,
   buildChatProxyHeaders,
   getDefaultGenerationModelForProvider,
@@ -17,6 +18,8 @@ import {
   parseErrorBody,
   parseSseEvents,
 } from './SidePanelChat.helpers'
+import { LS_KEYS } from '@/lib/config'
+import { lsBool, lsInt, lsJson } from '@/lib/persistence'
 
 export type RunGenerationConfig = {
   provider: unknown
@@ -58,10 +61,13 @@ export type RunImageGenerationOptions = {
 
 export type RunVideoGenerationOptions = {
   model?: unknown
+  contentJson?: unknown
   aspectRatio?: unknown
   resolution?: unknown
   duration?: unknown
   generateAudio?: unknown
+  fast?: unknown
+  watermark?: unknown
   referenceImageUrl?: unknown
 }
 
@@ -70,6 +76,29 @@ export type GeneratedBinaryAsset = {
   renderUrl: string
   sourceUrl?: string
   model: string
+}
+
+export type ResolvedGenerationModelPreview = {
+  preferredModel: string
+  resolvedModel: string
+  availableCount: number
+  matchedAvailableModel: boolean
+}
+
+type BytePlusVideoFailureContext = {
+  preferredModel: string
+  resolvedModel: string
+  matchedAvailableModel: boolean
+  availableCount: number
+  authMode: 'byok' | 'serverManaged'
+}
+
+const BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS = 24
+
+const getBytePlusVideoPollDelayMs = (attempt: number): number => {
+  if (attempt < 3) return 2500
+  if (attempt < 6) return 5000
+  return 10000
 }
 
 const toRequestId = (prefix: string): string => `${prefix}-${Date.now().toString(36)}`
@@ -114,9 +143,50 @@ const normalizeModelId = (value: string): string => {
   return cleanString(value).toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
+const tokenizeModelId = (value: string): string[] => {
+  return cleanString(value)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/g)
+    .map(token => token.trim())
+    .filter(Boolean)
+}
+
 const isGenericGenerationMode = (value: string): boolean => {
   const normalized = normalizeModelId(value)
   return normalized === 'generateimage' || normalized === 'generatevideo'
+}
+
+const readBytePlusVideoDefaults = (): {
+  model: string
+  contentJson: string
+  aspectRatio: string
+  resolution: string
+  duration: number | null
+  generateAudio: boolean | null
+  fast: boolean | null
+  watermark: boolean | null
+} => {
+  const model = lsJson<string>(LS_KEYS.byteplusVideoModel, CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT, value => (typeof value === 'string' ? value : null))
+  const contentJson = lsJson<string>(LS_KEYS.byteplusVideoContentJson, '', value => (typeof value === 'string' ? value : null))
+  const aspectRatio = lsJson<string>(LS_KEYS.byteplusVideoAspectRatio, 'landscape', value => (typeof value === 'string' ? value : null))
+  const resolution = lsJson<string>(LS_KEYS.byteplusVideoResolution, '720p', value => (typeof value === 'string' ? value : null))
+  const duration = (() => {
+    const v = lsInt(LS_KEYS.byteplusVideoDuration, 5)
+    return Number.isFinite(v) ? v : null
+  })()
+  const generateAudio = lsBool(LS_KEYS.byteplusVideoGenerateAudio, false)
+  const fast = lsBool(LS_KEYS.byteplusVideoFast, false)
+  const watermark = lsBool(LS_KEYS.byteplusVideoWatermark, false)
+  return {
+    model: cleanString(model),
+    contentJson: typeof contentJson === 'string' ? contentJson : '',
+    aspectRatio: cleanString(aspectRatio),
+    resolution: cleanString(resolution),
+    duration: Number.isFinite(duration) ? duration : null,
+    generateAudio,
+    fast,
+    watermark,
+  }
 }
 
 const chooseMatchingModel = (available: string[], preferred: string, keywords: string[]): string => {
@@ -134,33 +204,183 @@ const chooseMatchingModel = (available: string[], preferred: string, keywords: s
   return preferred
 }
 
-const resolveGenerationModel = async (
+type BytePlusVideoModelSignature = {
+  major: string
+  minor: string
+  pro: boolean
+  fast: boolean
+}
+
+const parseBytePlusVideoModelSignature = (value: string, wantsFast?: boolean): BytePlusVideoModelSignature | null => {
+  const tokens = tokenizeModelId(value)
+  const seedanceIndex = tokens.findIndex(token => token === 'seedance')
+  if (seedanceIndex < 0) return null
+  const numericTokens = tokens.slice(seedanceIndex + 1).filter(token => /^\d+$/.test(token))
+  if (numericTokens.length < 2) return null
+  return {
+    major: numericTokens[0] || '',
+    minor: numericTokens[1] || '',
+    pro: tokens.includes('pro'),
+    fast: wantsFast === true ? true : tokens.includes('fast'),
+  }
+}
+
+const chooseMatchingVideoModel = (available: string[], preferred: string, wantsFast: boolean): string => {
+  const exact = available.find(id => normalizeModelId(id) === normalizeModelId(preferred))
+  if (exact) return exact
+  const preferredSignature = parseBytePlusVideoModelSignature(preferred, wantsFast)
+  if (preferredSignature) {
+    const signatureMatch = available.find(id => {
+      const candidateSignature = parseBytePlusVideoModelSignature(id)
+      if (!candidateSignature) return false
+      return (
+        candidateSignature.major === preferredSignature.major
+        && candidateSignature.minor === preferredSignature.minor
+        && candidateSignature.pro === preferredSignature.pro
+        && candidateSignature.fast === preferredSignature.fast
+      )
+    })
+    if (signatureMatch) return signatureMatch
+  }
+  const preferredNormalized = normalizeModelId(preferred)
+  const preferredFamily = available.find(id => normalizeModelId(id).includes(preferredNormalized))
+  if (preferredFamily) return preferredFamily
+  const keywordTokens = deriveVideoKeywords(preferred, wantsFast)
+  const tokenMatch = available.find(id => {
+    const candidateTokens = tokenizeModelId(id)
+    return keywordTokens.every(token => candidateTokens.includes(token))
+  })
+  if (tokenMatch) return tokenMatch
+  return preferred
+}
+
+const deriveVideoKeywords = (preferred: string, wantsFast: boolean): string[] => {
+  const normalized = normalizeModelId(preferred)
+  if (normalized.includes('dreaminaseedance20') || normalized.includes('seedance20')) {
+    return wantsFast ? ['seedance', '2', '0', 'fast'] : ['seedance', '2', '0']
+  }
+  if (normalized.includes('bytedanceseedance15pro') || normalized.includes('seedance15pro')) {
+    return ['seedance', '1', '5', 'pro']
+  }
+  if (normalized.includes('bytedanceseedance10pro') || normalized.includes('seedance10pro')) {
+    return wantsFast ? ['seedance', '1', '0', 'pro', 'fast'] : ['seedance', '1', '0', 'pro']
+  }
+  return wantsFast ? ['seedance', 'fast'] : ['seedance']
+}
+
+const resolveGenerationModelPreview = async (
   config: RunGenerationConfig,
   kind: 'text' | 'image' | 'video',
   explicitModel?: unknown,
-): Promise<string> => {
+  options?: { fast?: unknown },
+): Promise<ResolvedGenerationModelPreview> => {
   const provider = normalizeChatProviderId(config.provider)
   const explicit = cleanString(explicitModel)
-  const preferred = explicit && !isGenericGenerationMode(explicit)
+  const defaults = kind === 'video' && provider === CHAT_PROVIDER_BYTEPLUS ? readBytePlusVideoDefaults() : null
+  const hasExplicit = Boolean(explicit && !isGenericGenerationMode(explicit))
+  const hasDefaultModel = Boolean(defaults?.model && !isGenericGenerationMode(defaults.model))
+  const preferred = hasExplicit
     ? explicit
     : kind === 'text'
       ? cleanString(config.chatModel) || getDefaultGenerationModelForProvider(provider, 'text')
-      : getDefaultGenerationModelForProvider(provider, kind)
-  if (provider !== CHAT_PROVIDER_BYTEPLUS) return preferred
+      : (hasDefaultModel ? String(defaults?.model || '').trim() : getDefaultGenerationModelForProvider(provider, kind))
+  if (provider !== CHAT_PROVIDER_BYTEPLUS) {
+    return {
+      preferredModel: preferred,
+      resolvedModel: preferred,
+      availableCount: 0,
+      matchedAvailableModel: false,
+    }
+  }
   const modelsEndpoint = resolveChatEndpointForModels(config.endpointUrl)
-  if (!modelsEndpoint) return preferred
+  if (!modelsEndpoint) {
+    return {
+      preferredModel: preferred,
+      resolvedModel: preferred,
+      availableCount: 0,
+      matchedAvailableModel: false,
+    }
+  }
   try {
     const available = await loadAvailableModelIds(modelsEndpoint, buildProxyHeaders(config, toRequestId(`kg-byteplus-models-${kind}`)))
-    if (!available.length) return preferred
+    if (!available.length) {
+      return {
+        preferredModel: preferred,
+        resolvedModel: preferred,
+        availableCount: 0,
+        matchedAvailableModel: false,
+      }
+    }
+    const wantsFast = cleanBool(options?.fast) === true
+    let resolved = preferred
+    const hasStrongPreference = hasExplicit || (kind === 'video' && hasDefaultModel)
+    if (hasStrongPreference) {
+      if (kind === 'video') {
+        const preferredTarget = wantsFast && !normalizeModelId(preferred).includes('fast')
+          ? `${preferred}-fast`
+          : preferred
+        resolved = chooseMatchingVideoModel(available, preferredTarget, wantsFast)
+      } else {
+        const exact = available.find(id => normalizeModelId(id) === normalizeModelId(preferred))
+        if (exact) {
+          resolved = exact
+        } else {
+          const preferredNormalized = normalizeModelId(preferred)
+          const preferredFamily = available.find(id => normalizeModelId(id).includes(preferredNormalized))
+          resolved = preferredFamily || preferred
+        }
+      }
+      return {
+        preferredModel: preferred,
+        resolvedModel: resolved,
+        availableCount: available.length,
+        matchedAvailableModel: available.includes(resolved),
+      }
+    }
+
+    const preferredTarget = kind === 'video' && wantsFast && !normalizeModelId(preferred).includes('fast')
+      ? `${preferred}-fast`
+      : preferred
     const keywords = kind === 'text'
       ? ['seed', '2', 'lite']
       : kind === 'image'
         ? ['seedream', '5', 'lite']
-        : ['seedance', '2']
-    return chooseMatchingModel(available, preferred, keywords)
+        : []
+    resolved = kind === 'video'
+      ? chooseMatchingVideoModel(available, preferredTarget, wantsFast)
+      : chooseMatchingModel(available, preferredTarget, keywords)
+    return {
+      preferredModel: preferred,
+      resolvedModel: resolved,
+      availableCount: available.length,
+      matchedAvailableModel: available.includes(resolved),
+    }
   } catch {
-    return preferred
+    return {
+      preferredModel: preferred,
+      resolvedModel: preferred,
+      availableCount: 0,
+      matchedAvailableModel: false,
+    }
   }
+}
+
+export const resolveBytePlusVideoModelPreview = async (
+  config: RunGenerationConfig,
+  explicitModel?: unknown,
+  options?: { fast?: unknown },
+): Promise<ResolvedGenerationModelPreview> => {
+  return resolveGenerationModelPreview(config, 'video', explicitModel, options)
+}
+
+const resolveGenerationModel = async (
+  config: RunGenerationConfig,
+  kind: 'text' | 'image' | 'video',
+  explicitModel?: unknown,
+  options?: { fast?: unknown },
+): Promise<string> => {
+  const preview = await resolveGenerationModelPreview(config, kind, explicitModel, options)
+  return preview.resolvedModel
 }
 
 const extractChatText = (payload: unknown): string => {
@@ -274,6 +494,43 @@ const fetchBlobFromUrl = async (url: string): Promise<Blob | null> => {
   }
 }
 
+const extractErrorMessage = (payload: unknown): string => {
+  if (!payload || typeof payload !== 'object') return ''
+  const direct = cleanString((payload as { message?: unknown }).message)
+  if (direct) return direct
+  const errorMessage = cleanString((payload as { error?: { message?: unknown } | string }).error && typeof (payload as { error?: unknown }).error === 'object'
+    ? ((payload as { error?: { message?: unknown } }).error?.message)
+    : (payload as { error?: string }).error)
+  if (errorMessage) return errorMessage
+  const dataMessage = cleanString((payload as { data?: { message?: unknown } }).data?.message)
+  if (dataMessage) return dataMessage
+  const statusMessage = cleanString((payload as { status_message?: unknown }).status_message)
+  if (statusMessage) return statusMessage
+  return ''
+}
+
+const formatBytePlusVideoFailure = (
+  detail: string,
+  context: BytePlusVideoFailureContext,
+): string => {
+  const trimmedDetail = cleanString(detail) || 'BytePlus video generation failed.'
+  const selectedModel = cleanString(context.preferredModel) || 'BytePlus video default'
+  const resolvedModel = cleanString(context.resolvedModel) || selectedModel
+  const authLabel = context.authMode === 'byok' ? 'BYOK' : 'serverManaged'
+  const fix =
+    context.matchedAvailableModel
+      ? `Fix: verify this ${authLabel} credential has access to ${resolvedModel} in the active BytePlus region, or switch MainPanel Integrations -> BytePlus Video Generation API -> byteplusVideoModel to another model returned by /models.`
+      : `Fix: open MainPanel Integrations -> Chat -> Multi-modal Run, confirm the resolved /models candidate, then set MainPanel Integrations -> BytePlus Video Generation API -> byteplusVideoModel to an accessible BytePlus video model for this credential/region.`
+  return [
+    `BytePlus video run failed: ${trimmedDetail}`,
+    `Selected video model: ${selectedModel}`,
+    `Resolved /models candidate: ${resolvedModel}`,
+    `Auth mode: ${authLabel}`,
+    `BytePlus /models entries checked: ${String(context.availableCount || 0)}`,
+    fix,
+  ].join(' | ')
+}
+
 const extractImageAsset = async (payload: unknown): Promise<{ blob: Blob; renderUrl: string; sourceUrl?: string } | null> => {
   if (!payload || typeof payload !== 'object') return null
   const data = Array.isArray((payload as { data?: unknown }).data) ? (payload as { data: unknown[] }).data : []
@@ -296,6 +553,13 @@ const extractVideoUrl = (payload: unknown): string => {
   if (!payload || typeof payload !== 'object') return ''
   const direct = cleanString((payload as { video_url?: unknown }).video_url)
   if (direct) return direct
+  const rootContent = (payload as { content?: unknown }).content
+  if (rootContent && typeof rootContent === 'object') {
+    const rootContentDirect = cleanString((rootContent as { video_url?: unknown }).video_url)
+    if (rootContentDirect) return rootContentDirect
+    const rootContentObjectUrl = cleanString((rootContent as { video_url?: { url?: unknown } }).video_url?.url)
+    if (rootContentObjectUrl) return rootContentObjectUrl
+  }
   const data = (payload as { data?: unknown }).data
   if (data && typeof data === 'object') {
     const nestedDirect = cleanString((data as { video_url?: unknown }).video_url)
@@ -493,16 +757,53 @@ export async function generateRunVideoWithBytePlus(args: {
   prompt: string
   options?: RunVideoGenerationOptions
 }): Promise<GeneratedBinaryAsset | null> {
-  if (normalizeChatProviderId(args.config.provider) !== CHAT_PROVIDER_BYTEPLUS) return null
+  if (normalizeChatProviderId(args.config.provider) !== CHAT_PROVIDER_BYTEPLUS) {
+    throw new Error('BytePlus video run failed: provider must resolve to BytePlus ModelArk.')
+  }
+  const defaults = readBytePlusVideoDefaults()
   const endpoint = resolveBytePlusContentEndpointForRequest({
     endpointUrl: args.config.endpointUrl,
     path: CHAT_BYTEPLUS_CONTENT_GENERATIONS_TASKS_PATH,
   })
-  if (!endpoint) return null
-  const model = await resolveGenerationModel(args.config, 'video', args.options?.model)
+  if (!endpoint) {
+    throw new Error('BytePlus video run failed: endpoint is not configured. Fix: set a valid BytePlus regional base URL in MainPanel Integrations -> Chat -> Provider profiles.')
+  }
+  const modelPreview = await resolveGenerationModelPreview(
+    args.config,
+    'video',
+    args.options?.model,
+    { fast: args.options?.fast ?? defaults.fast },
+  )
+  const model = modelPreview.resolvedModel
+  const failureContext: BytePlusVideoFailureContext = {
+    preferredModel: modelPreview.preferredModel,
+    resolvedModel: modelPreview.resolvedModel,
+    matchedAvailableModel: modelPreview.matchedAvailableModel,
+    availableCount: modelPreview.availableCount,
+    authMode: cleanString(args.config.apiKey) ? 'byok' : 'serverManaged',
+  }
   const requestId = toRequestId('kg-run-video')
   const referenceImageUrl = cleanString(args.options?.referenceImageUrl)
-  const content = [{ type: 'text', text: args.prompt }] as Array<Record<string, unknown>>
+  const contentOverride = (() => {
+    const widgetOverrideRaw = cleanString(args.options?.contentJson)
+    if (widgetOverrideRaw) {
+      try {
+        const parsed = JSON.parse(widgetOverrideRaw) as unknown
+        return Array.isArray(parsed) ? (parsed as Array<Record<string, unknown>>) : null
+      } catch {
+        return null
+      }
+    }
+    const raw = defaults.contentJson.trim()
+    if (!raw) return null
+    try {
+      const parsed = JSON.parse(raw) as unknown
+      return Array.isArray(parsed) ? (parsed as Array<Record<string, unknown>>) : null
+    } catch {
+      return null
+    }
+  })()
+  const content = contentOverride || ([{ type: 'text', text: args.prompt }] as Array<Record<string, unknown>>)
   if (referenceImageUrl) {
     content.push({
       type: 'image_url',
@@ -511,50 +812,72 @@ export async function generateRunVideoWithBytePlus(args: {
       },
     })
   }
-  const duration = cleanInteger(args.options?.duration)
-  const generateAudio = cleanBool(args.options?.generateAudio)
+  const duration = cleanInteger(args.options?.duration) ?? defaults.duration
+  const generateAudio = cleanBool(args.options?.generateAudio) ?? defaults.generateAudio
+  const watermark = cleanBool(args.options?.watermark) ?? defaults.watermark
+  const aspectRatio = cleanString(args.options?.aspectRatio) || defaults.aspectRatio
+  const resolution = cleanString(args.options?.resolution) || defaults.resolution
   const createRes = await fetch(endpoint, {
     method: 'POST',
     headers: buildProxyHeaders(args.config, requestId),
     body: JSON.stringify({
       model,
       content,
-      resolution: cleanString(args.options?.resolution) || '720p',
-      ratio: mapAspectRatioToVideoRatio(args.options?.aspectRatio),
+      resolution: resolution || '720p',
+      ratio: mapAspectRatioToVideoRatio(aspectRatio),
       duration: duration != null && duration > 0 ? duration : 5,
       generate_audio: generateAudio === true,
-      watermark: false,
+      watermark: watermark === true,
     }),
   })
   if (!createRes.ok) {
     const detail = await parseErrorBody(createRes)
-    throw new Error(detail || `Run video generation failed (${createRes.status})`)
+    throw new Error(formatBytePlusVideoFailure(detail || `Run video generation failed (${createRes.status})`, failureContext))
   }
   const created = (await createRes.json()) as { id?: unknown }
   const taskId = cleanString(created?.id)
-  if (!taskId) return null
+  if (!taskId) {
+    throw new Error(formatBytePlusVideoFailure('BytePlus task creation succeeded but no task id was returned.', failureContext))
+  }
   const statusEndpoint = resolveBytePlusContentEndpointForRequest({
     endpointUrl: args.config.endpointUrl,
     path: `${CHAT_BYTEPLUS_CONTENT_GENERATIONS_TASKS_PATH}/${taskId}`,
   })
-  if (!statusEndpoint) return null
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+  if (!statusEndpoint) {
+    throw new Error(formatBytePlusVideoFailure('BytePlus task polling endpoint is not configured.', failureContext))
+  }
+  let lastKnownStatus = 'queued'
+  let lastKnownUpdatedAt = ''
+  for (let attempt = 0; attempt < BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS; attempt += 1) {
     if (attempt > 0) {
-      await new Promise(resolve => globalThis.setTimeout(resolve, attempt < 5 ? 1500 : 2500))
+      await new Promise(resolve => globalThis.setTimeout(resolve, getBytePlusVideoPollDelayMs(attempt)))
     }
     const statusRes = await fetch(statusEndpoint, {
       method: 'GET',
       headers: buildProxyHeaders(args.config, `${requestId}-${attempt}`),
     })
-    if (!statusRes.ok) continue
+    if (!statusRes.ok) {
+      if (attempt >= BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS - 1) {
+        const detail = await parseErrorBody(statusRes)
+        throw new Error(formatBytePlusVideoFailure(detail || `BytePlus task polling failed (${statusRes.status})`, failureContext))
+      }
+      continue
+    }
     const payload = (await statusRes.json()) as { status?: unknown }
     const status = cleanString(payload?.status).toLowerCase()
-    if (status === 'failed' || status === 'expired') return null
+    if (status) lastKnownStatus = status
+    lastKnownUpdatedAt = cleanString((payload as { updated_at?: unknown }).updated_at)
+    if (status === 'failed' || status === 'expired') {
+      const detail = extractErrorMessage(payload) || `BytePlus task ${taskId} ended with status ${status}.`
+      throw new Error(formatBytePlusVideoFailure(detail, failureContext))
+    }
     const url = extractVideoUrl(payload)
     if (status === 'succeeded' && url) {
       const blob = await fetchBlobFromUrl(url)
       const renderUrl = resolveBinaryDownloadProxyUrl(url)
-      if (!blob || !renderUrl) return null
+      if (!blob || !renderUrl) {
+        throw new Error(formatBytePlusVideoFailure('BytePlus task succeeded but the generated video asset could not be downloaded through the shared asset proxy.', failureContext))
+      }
       return {
         blob,
         renderUrl,
@@ -563,5 +886,12 @@ export async function generateRunVideoWithBytePlus(args: {
       }
     }
   }
-  return null
+  const timeoutDetail = [
+    'BytePlus task did not reach a downloadable succeeded state before polling timed out.',
+    `Last task status: ${lastKnownStatus || 'unknown'}.`,
+    lastKnownUpdatedAt ? `Last updated_at: ${lastKnownUpdatedAt}.` : '',
+    `Polling window: ${String(BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS)} attempts with progressive 2.5s/5s/10s backoff.`,
+    'Fix: the task may still be generating; rerun after lowering duration/resolution or use a faster/smaller model if this region/account consistently exceeds the current polling window.',
+  ].filter(Boolean).join(' ')
+  throw new Error(formatBytePlusVideoFailure(timeoutDetail, failureContext))
 }

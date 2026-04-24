@@ -27,10 +27,13 @@ export type RichMediaWidgetRunRequest = {
   kind: RichMediaWidgetKind
   prompt: string
   model?: string
+  contentJson?: string
   aspectRatio?: string
   resolution?: string
   duration?: number
   generateAudio?: boolean
+  fast?: boolean
+  watermark?: boolean
   referenceImageUrl?: string
 }
 
@@ -198,6 +201,7 @@ export const buildRichMediaWidgetRunRequest = (args: {
   if (!kind) return null
   const promptValue = cleanString(readNodeProperty(args.node, 'properties.prompt'))
     || cleanString(readConnectedValue(args.connectedValuesBySchemaPath, 'properties.prompt'))
+  const contentJson = cleanString(readNodeProperty(args.node, 'properties.content_json'))
   const promptIsGeneric = promptValue === DEFAULT_IMAGE_PROMPT || promptValue === DEFAULT_VIDEO_PROMPT || !promptValue
   const workspaceContext = extractWorkspaceContext(String(args.markdownDocumentText || ''))
   const referenceImageUrl = cleanString(readNodeProperty(args.node, 'properties.reference_image'))
@@ -207,6 +211,8 @@ export const buildRichMediaWidgetRunRequest = (args: {
   const model = cleanString(readNodeProperty(args.node, 'properties.model'))
   const duration = cleanNumber(readNodeProperty(args.node, 'properties.duration'))
   const generateAudio = cleanBool(readNodeProperty(args.node, 'properties.generate_audio'))
+  const fast = cleanBool(readNodeProperty(args.node, 'properties.fast'))
+  const watermark = cleanBool(readNodeProperty(args.node, 'properties.watermark'))
   const connectedContextLines = Object.entries(args.connectedValuesBySchemaPath || {})
     .filter(([schemaPath, rec]) => schemaPath !== 'properties.prompt' && schemaPath !== 'properties.reference_image' && rec)
     .slice(0, 8)
@@ -232,10 +238,13 @@ export const buildRichMediaWidgetRunRequest = (args: {
     kind,
     prompt: promptSections.join('\n\n'),
     ...(model ? { model } : {}),
+    ...(contentJson ? { contentJson } : {}),
     ...(aspectRatio ? { aspectRatio } : {}),
     ...(resolution ? { resolution } : {}),
     ...(duration != null ? { duration } : {}),
     ...(generateAudio != null ? { generateAudio } : {}),
+    ...(fast != null ? { fast } : {}),
+    ...(watermark != null ? { watermark } : {}),
     ...(referenceImageUrl ? { referenceImageUrl } : {}),
   }
 }
@@ -301,6 +310,7 @@ export const runRichMediaWidgetGeneration = async (args: {
         prompt: request.prompt,
         options: {
           model: request.model,
+          contentJson: request.contentJson,
           aspectRatio: request.aspectRatio,
           resolution: request.resolution,
           referenceImageUrl: request.referenceImageUrl,
@@ -315,6 +325,8 @@ export const runRichMediaWidgetGeneration = async (args: {
           resolution: request.resolution,
           duration: request.duration,
           generateAudio: request.generateAudio,
+          fast: request.fast,
+          watermark: request.watermark,
           referenceImageUrl: request.referenceImageUrl,
         },
       })

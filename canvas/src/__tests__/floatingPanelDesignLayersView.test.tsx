@@ -52,6 +52,14 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
     if (labels[0] !== UI_LABELS.propsPanel) {
       throw new Error(`expected first floating panel view to be ${UI_LABELS.propsPanel}, got ${labels[0]}`)
     }
+    const geoIndex = labels.indexOf(UI_LABELS.geo)
+    const discoveryIndex = labels.indexOf(UI_LABELS.discovery)
+    if (geoIndex < 0 || discoveryIndex < 0) {
+      throw new Error(`expected floating panel views to include ${UI_LABELS.geo} and ${UI_LABELS.discovery}, got ${JSON.stringify(labels)}`)
+    }
+    if (discoveryIndex !== geoIndex + 1) {
+      throw new Error(`expected ${UI_LABELS.discovery} to render immediately right of ${UI_LABELS.geo}, got ${JSON.stringify(labels)}`)
+    }
     if (labels.includes(UI_LABELS.layerMode)) {
       throw new Error(`expected floating panel views to exclude ${UI_LABELS.layerMode} after Workflow Manager consolidation`)
     }

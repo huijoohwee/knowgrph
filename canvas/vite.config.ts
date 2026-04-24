@@ -36,6 +36,7 @@ const CHAT_PROXY_PREFIX = '/__chat_proxy'
 const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'
 const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
+const GRABMAPS_PROXY_PREFIX = '/__grabmaps_proxy'
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
 const CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 const CHAT_PROXY_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
@@ -92,6 +93,25 @@ const toChatLogFileName = (timestampMs: number): string => {
   const hh = String(date.getHours()).padStart(2, '0')
   const min = String(date.getMinutes()).padStart(2, '0')
   return `logs_${yyyy}${mm}${dd}${hh}${min}.md`
+}
+
+const getGrabMapsBearerToken = (kind: 'api' | 'mcp'): string => {
+  const candidates = kind === 'mcp'
+    ? [
+      process.env.KNOWGRPH_GRABMAPS_MCP_TOKEN,
+      process.env.GRABMAPS_MCP_TOKEN,
+      process.env.GRABMAPS_TOKEN,
+    ]
+    : [
+      process.env.KNOWGRPH_GRABMAPS_API_TOKEN,
+      process.env.GRABMAPS_API_TOKEN,
+      process.env.GRABMAPS_TOKEN,
+    ]
+  for (const raw of candidates) {
+    const key = String(raw || '').trim()
+    if (key) return key
+  }
+  return ''
 }
 
 const stripEntitiesBadSourcemapsPlugin = {
@@ -1118,6 +1138,28 @@ const remoteFetchProxyDevPlugin = {
         return
       }
       createRemoteFetchHandler()(req, res, next)
+    })
+  },
+}
+
+const grabMapsProxyDevPlugin = {
+  name: 'knowgrph-grabmaps-proxy-dev',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(GRABMAPS_PROXY_PREFIX)) {
+        next()
+        return
+      }
+      createGrabMapsProxyHandler()(req, res, next)
+    })
+  },
+  configurePreviewServer(server: import('vite').PreviewServer) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith(GRABMAPS_PROXY_PREFIX)) {
+        next()
+        return
+      }
+      createGrabMapsProxyHandler()(req, res, next)
     })
   },
 }
@@ -2265,6 +2307,199 @@ function createRemoteFetchHandler(): import('vite').Connect.NextHandleFunction {
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
+    }
+  }
+}
+
+function createGrabMapsProxyHandler(): import('vite').Connect.NextHandleFunction {
+  return async (req, res, next) => {
+    const methodRaw = String(req.method || '').toUpperCase()
+    if (methodRaw === 'OPTIONS') {
+      res.statusCode = 204
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', '*')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.end()
+      return
+    }
+    if (methodRaw !== 'GET' && methodRaw !== 'HEAD' && methodRaw !== 'POST') {
+      next()
+      return
+    }
+
+    const parsedReq = (() => {
+      try {
+        return new URL(req.url || '', `http://${req.headers.host}`)
+      } catch {
+        return null
+      }
+    })()
+    if (!parsedReq) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Invalid request URL' }))
+      return
+    }
+    const urlParam = parsedReq.searchParams.get('url')
+    if (!urlParam) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Missing url parameter' }))
+      return
+    }
+    const targetRaw = unwrapUserProvidedText(urlParam) || urlParam
+    let target: URL
+    try {
+      target = new URL(targetRaw)
+    } catch {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Invalid url parameter' }))
+      return
+    }
+    if (target.protocol !== 'https:') {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'GrabMaps proxy requires https' }))
+      return
+    }
+    const host = target.hostname.toLowerCase()
+    if (host !== 'maps.grab.com') {
+      res.statusCode = 403
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'GrabMaps proxy forbids non-GrabMaps hosts' }))
+      return
+    }
+
+    const isMcp = target.pathname.startsWith('/api/v1/mcp')
+    const requestedAuthModeRaw = readSingleHeader(req.headers['x-kg-grabmaps-auth-mode']).toLowerCase()
+    const requestedAuthMode: 'serverManaged' | 'byok' = requestedAuthModeRaw === 'servermanaged' ? 'serverManaged' : 'byok'
+    const byokApiKey = readSingleHeader(req.headers['x-kg-grabmaps-api-key']).replace(/[\r\n]/g, '').trim().slice(0, 512)
+    const serverToken = getGrabMapsBearerToken(isMcp ? 'mcp' : 'api')
+    const effectiveBearerToken = requestedAuthMode === 'byok' ? byokApiKey : serverToken
+
+    const maxBodyBytes = 2 * 1024 * 1024
+    const timeoutMs = 20_000
+    const ctrl = new AbortController()
+    const timeoutId = setTimeout(() => ctrl.abort(), timeoutMs)
+    let downstreamClosed = false
+    const markDownstreamClosed = () => {
+      downstreamClosed = true
+      try {
+        ctrl.abort()
+      } catch {
+        void 0
+      }
+    }
+    req.once('aborted', markDownstreamClosed)
+    req.once('close', () => {
+      if (res.writableEnded || res.destroyed) return
+      markDownstreamClosed()
+    })
+    res.once('close', () => {
+      if (res.writableEnded) return
+      markDownstreamClosed()
+    })
+
+    try {
+      const bodyBuf = await (async () => {
+        if (methodRaw !== 'POST') return null
+        const chunks: Buffer[] = []
+        let total = 0
+        await new Promise<void>((resolve, reject) => {
+          req.on('data', (chunk) => {
+            const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+            total += b.length
+            if (total > maxBodyBytes) {
+              reject(new Error('Request body too large'))
+              return
+            }
+            chunks.push(b)
+          })
+          req.on('end', () => resolve())
+          req.on('error', (e) => reject(e))
+        })
+        return Buffer.concat(chunks)
+      })()
+
+      const headers = new Headers()
+      const accept = String(req.headers.accept || '').trim()
+      const contentType = String(req.headers['content-type'] || '').trim()
+      if (accept) headers.set('Accept', accept)
+      if (contentType) headers.set('Content-Type', contentType)
+      // Auth mode SSOT:
+      // - byok: use caller-provided key from local proxy headers
+      // - serverManaged: use server env token
+      // If no key/token is present, forward without Authorization and let upstream reply.
+      if (effectiveBearerToken) headers.set('Authorization', `Bearer ${effectiveBearerToken}`)
+
+      const upstreamRes = await fetch(target.toString(), {
+        method: methodRaw,
+        headers,
+        body:
+          bodyBuf && bodyBuf.length
+            ? (bodyBuf.buffer.slice(bodyBuf.byteOffset, bodyBuf.byteOffset + bodyBuf.byteLength) as ArrayBuffer)
+            : undefined,
+        signal: ctrl.signal,
+      })
+      if (downstreamClosed || res.destroyed) return
+
+      res.statusCode = upstreamRes.status
+      const cacheControl =
+        methodRaw === 'GET' || methodRaw === 'HEAD'
+          ? (effectiveBearerToken ? 'private, no-store' : 'public, max-age=60')
+          : 'no-store'
+      res.setHeader('Cache-Control', cacheControl)
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+
+      const contentTypeOut = upstreamRes.headers.get('content-type')
+      if (contentTypeOut) res.setHeader('Content-Type', contentTypeOut)
+
+      if (methodRaw === 'HEAD') {
+        res.end()
+        return
+      }
+
+      const reader = upstreamRes.body?.getReader()
+      if (!reader) {
+        res.end(Buffer.from(await upstreamRes.arrayBuffer()))
+        return
+      }
+      while (true) {
+        const chunk = await reader.read()
+        if (chunk.done) break
+        if (downstreamClosed || res.destroyed || res.writableEnded) {
+          try {
+            await reader.cancel()
+          } catch {
+            void 0
+          }
+          return
+        }
+        if (!chunk.value || chunk.value.byteLength === 0) continue
+        res.write(Buffer.from(chunk.value))
+      }
+      res.end()
+    } catch (error) {
+      const message = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '') : ''
+      if (downstreamClosed || res.destroyed || /aborted|premature close|socket hang up|econnreset/i.test(message)) {
+        if (!res.writableEnded && !res.destroyed) {
+          try {
+            res.end()
+          } catch {
+            void 0
+          }
+        }
+        return
+      }
+      res.statusCode = ctrl.signal.aborted || /timeout|aborted/i.test(message) ? 504 : /too large/i.test(message) ? 413 : 502
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify({ ok: false, error: message || 'GrabMaps proxy failed' }))
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 }
@@ -5289,6 +5524,7 @@ export default defineConfig(({ command }) => ({
           bipartiteFixtureDevPlugin,
           codebaseFileDevPlugin,
           remoteFetchProxyDevPlugin,
+          grabMapsProxyDevPlugin,
           chatProxyDevPlugin,
           chatLogDevPlugin,
           kgFsWriteDevPlugin,

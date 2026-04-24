@@ -82,6 +82,7 @@ export type GympgrphGeospatialState = {
   setGeospatialDatasetMaxBytes: (maxBytes: number) => void
   requestGeospatialFitToData: () => void
   requestGeospatialFitToSelection: () => void
+  requestGeospatialCurrentLocation: (coords: { lat: number; lng: number; zoom?: number }) => void
   clearGeospatialFitRequest: () => void
 }
 
@@ -203,6 +204,18 @@ export const buildGympgrphGeospatialActions = (set: (updater: (prev: GympgrphGeo
     }))
   }
 
+  const requestGeospatialCurrentLocation = (coords: { lat: number; lng: number; zoom?: number }) => {
+    const lat = Number(coords?.lat)
+    const lng = Number(coords?.lng)
+    const zoomRaw = Number(coords?.zoom)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    const zoom = Number.isFinite(zoomRaw) ? Math.max(0, Math.min(22, zoomRaw)) : undefined
+    set(prev => ({
+      ...prev,
+      geospatialFitRequest: { mode: 'currentLocation', lat, lng, ...(typeof zoom === 'number' ? { zoom } : {}) },
+    }))
+  }
+
   const clearGeospatialFitRequest = () => {
     set(prev => {
       if (!prev.geospatialFitRequest) return prev
@@ -219,6 +232,7 @@ export const buildGympgrphGeospatialActions = (set: (updater: (prev: GympgrphGeo
     setGeospatialDatasetMaxBytes,
     requestGeospatialFitToData,
     requestGeospatialFitToSelection,
+    requestGeospatialCurrentLocation,
     clearGeospatialFitRequest,
   }
 }
