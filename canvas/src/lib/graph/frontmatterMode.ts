@@ -24,3 +24,24 @@ export function computeEffectiveFrontmatterMode(args: {
   if (isFrontmatterFlowGraph(args.graphData)) return true
   return hasFrontmatterMermaidSeeds(args.graphData)
 }
+
+export function isFrontmatterDocumentModeRequested(args: {
+  frontmatterModeEnabled: boolean
+  documentSemanticMode: string
+}): boolean {
+  if (args.frontmatterModeEnabled !== true) return false
+  const semantic = String(args.documentSemanticMode || '').trim().toLowerCase()
+  return semantic === 'document'
+}
+
+export function isFlowEditorFrontmatterDocumentModeRequested(args: {
+  canvas2dRenderer: string
+  frontmatterModeEnabled: boolean
+  documentSemanticMode: string
+}): boolean {
+  if (String(args.canvas2dRenderer || '').trim() !== 'flowEditor') return false
+  return isFrontmatterDocumentModeRequested({
+    frontmatterModeEnabled: args.frontmatterModeEnabled,
+    documentSemanticMode: args.documentSemanticMode,
+  })
+}

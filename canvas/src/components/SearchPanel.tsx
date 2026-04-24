@@ -12,7 +12,7 @@ interface SearchPanelProps {
 }
 
 const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, ref) => {
-  const { graphData, graphDataRevision, selectNode, selectEdge, graphId, historyIndex, uiIconScale, uiIconStrokeWidth } = useGraphStore()
+  const { graphData, graphDataRevision, selectNode, selectEdge, setSelectionSource, requestZoom, graphId, historyIndex, uiIconScale, uiIconStrokeWidth } = useGraphStore()
   const [searchQuery, setSearchQuery] = React.useState('')
   const [searchResults, setSearchResults] = React.useState<SearchResult[]>([])
   const [activeIdx, setActiveIdx] = React.useState<number>(0)
@@ -28,6 +28,15 @@ const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, r
       setActiveIdx(0)
     })
   }, [graphData, graphDataRevision, searchQuery, graphId, historyIndex])
+
+  const commitSearchSelection = React.useCallback((result: SearchResult | null | undefined) => {
+    if (!result) return
+    setSelectionSource('menu')
+    if (result.kind === 'node') selectNode(result.id)
+    else selectEdge(result.id)
+    requestZoom('selection')
+    onClose?.()
+  }, [onClose, requestZoom, selectEdge, selectNode, setSelectionSource])
 
   return (
     <div
@@ -50,11 +59,7 @@ const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, r
         onKeyDown={e => {
           const k = e.key.toLowerCase()
           if (k === 'enter') {
-            const r = searchResults[activeIdx]
-            if (!r) return
-            if (r.kind === 'node') selectNode(r.id)
-            else selectEdge(r.id)
-            onClose?.()
+            commitSearchSelection(searchResults[activeIdx])
           } else if (k === 'arrowdown') {
             e.preventDefault()
             setActiveIdx(i => Math.min(i + 1, Math.max(0, searchResults.length - 1)))
@@ -75,11 +80,7 @@ const SearchPanel = forwardRef<HTMLDivElement, SearchPanelProps>(({ onClose }, r
                 idx === activeIdx ? 'bg-blue-50' : 'hover:bg-gray-50'
               }`}
               onMouseEnter={() => setActiveIdx(idx)}
-              onClick={() => {
-                if (r.kind === 'node') selectNode(r.id)
-                else selectEdge(r.id)
-                onClose?.()
-              }}
+              onClick={() => commitSearchSelection(r)}
             >
               <div className="flex items-center gap-2">
                 <span

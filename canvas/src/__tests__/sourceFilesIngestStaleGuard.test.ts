@@ -54,3 +54,21 @@ export function testSourceFilesIngestHydratesPendingUrlSourcesOnBootstrap() {
     throw new Error('expected source files bootstrap to hydrate pending url sources before composing graph data')
   }
 }
+
+export function testSourceFilesIngestTreatsMarkdownLikeUrlsAsDirectTextImports() {
+  const ingestPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
+  const ingestText = readFileSync(ingestPath, 'utf8')
+
+  if (!ingestText.includes('|md|markdown|mdx|svg')) {
+    throw new Error('expected source file url ingest classification to keep markdown-like urls on the direct text import path')
+  }
+  if (!ingestText.includes('if (isSameOriginRepoFileUrl(normalizedUrl)) {')) {
+    throw new Error('expected source file url ingest to branch same-origin __repo_file markdown imports onto the direct local fetch path')
+  }
+  if (!ingestText.includes('const direct = await fetchSameOriginRepoFileText(normalizedUrl)')) {
+    throw new Error('expected source file url ingest to fetch same-origin __repo_file markdown urls without remote fetch proxy fallback')
+  }
+  if (!ingestText.includes('preferProxy: shouldPreferProxy')) {
+    throw new Error('expected non-local url ingest to continue using proxy-preferred remote fetch fallback')
+  }
+}

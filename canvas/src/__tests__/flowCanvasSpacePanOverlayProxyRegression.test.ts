@@ -21,14 +21,17 @@ export function testFlowCanvasSpacePanCanStartFromOverlay() {
   if (!text.includes('readCanvasOverlayPinnedState')) {
     throw new Error('expected FlowCanvas overlay space-pan proxy to reuse shared pinned-state resolution')
   }
-  if (!text.includes("String(st.canvas2dRenderer || '') !== 'flowEditor'")) {
-    throw new Error('expected FlowCanvas overlay space-pan proxy to be strictly scoped to Flow Editor renderer')
+  if (!text.includes('CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR')) {
+    throw new Error('expected FlowCanvas overlay space-pan proxy to import shared overlay resize-handle selector')
   }
-  if (!text.includes('st.frontmatterModeEnabled !== true')) {
-    throw new Error('expected FlowCanvas overlay space-pan proxy to require frontmatter-enabled mode')
+  if (!text.includes('if (overlayResizeHandle) return')) {
+    throw new Error('expected FlowCanvas overlay space-pan proxy to never hijack resize-handle pointerdown events')
   }
-  if (!text.includes("String(st.documentSemanticMode || '').trim().toLowerCase() !== 'document'")) {
-    throw new Error('expected FlowCanvas overlay space-pan proxy to require document semantic mode')
+  if (!text.includes('__flowCanvasDebug.lastOverlayProxyPointerDown')) {
+    throw new Error('expected FlowCanvas overlay proxy pointerdown path to expose live trace details in flowCanvasDebug')
+  }
+  if (!text.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
+    throw new Error('expected FlowCanvas overlay space-pan proxy to reuse shared frontmatter-document mode gate SSOT')
   }
   if (!text.includes('capture: true')) {
     throw new Error('expected FlowCanvas overlay space-pan proxy listeners to use capture')

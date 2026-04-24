@@ -153,6 +153,27 @@ export function testSelectionZoomMultiSelectionDoesNotExpandNeighbors() {
   }
 }
 
+export function testSelectionZoomResolvesCanonicalComposedNodeIdsAgainstLeafGraphNodes() {
+  const graphData = makeZoomGraph()
+  const ids = computeZoomTargetNodeIds({
+    graphData,
+    selectedNodeId: 'mermaid:demo:w-openai-text::b',
+    selectedEdgeId: null,
+  })
+  if (!ids.has('a') || !ids.has('b') || !ids.has('c') || ids.has('d') || ids.size !== 3) {
+    throw new Error('zoom target ids should resolve composed selection ids to matching leaf graph nodes before expanding neighbors')
+  }
+  const subset = computeZoomSubset({
+    graphData,
+    selectedNodeId: 'mermaid:demo:w-openai-text::b',
+    selectedEdgeId: null,
+  })
+  const subsetIds = new Set(subset.map(n => String(n.id || '').trim()))
+  if (!subsetIds.has('a') || !subsetIds.has('b') || !subsetIds.has('c') || subsetIds.has('d') || subsetIds.size !== 3) {
+    throw new Error('zoom subset should resolve composed selection ids against leaf graph nodes')
+  }
+}
+
 export function testSelectionZoomCentersGroupCentroidInViewport() {
   const graphData: GraphData = {
     type: 'Graph',

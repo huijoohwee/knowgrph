@@ -7,6 +7,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
+import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
 
 type MediaNodeRow = {
   id: string
@@ -36,6 +37,7 @@ export default function MediaNodesSection({
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
   const setMediaNodeOpacity = useGraphStore(s => s.setMediaNodeOpacity)
+  const richMediaDisplayMode = readRichMediaDisplayMode(renderMediaAsNodes)
   const copy = RENDER_PANEL_SECTION_COPY.mediaNodes
 
   const rows = React.useMemo<MediaNodeRow[]>(() => {
@@ -171,7 +173,7 @@ export default function MediaNodesSection({
                     'text-gray-600 cursor-help',
                   ].join(' ')}
                 >
-                  View
+                  {RICH_MEDIA_DISPLAY_COPY.viewLabel}
                 </span>
               </Tooltip>
               <div className="inline-flex rounded border border-gray-300 overflow-hidden bg-gray-50">
@@ -181,12 +183,12 @@ export default function MediaNodesSection({
                   className={[
                     'px-2 py-1 text-[11px]',
                     uiPanelTextFontClass,
-                    renderMediaAsNodes
+                    richMediaDisplayMode === 'panel-only'
                       ? 'bg-gray-50 text-gray-600'
                       : 'bg-blue-600 text-white',
                   ].join(' ')}
                 >
-                  Circle-only
+                  {RICH_MEDIA_DISPLAY_COPY.circleOnly}
                 </button>
                 <button
                   type="button"
@@ -194,12 +196,12 @@ export default function MediaNodesSection({
                   className={[
                     'px-2 py-1 text-[11px] border-l border-gray-300',
                     uiPanelTextFontClass,
-                    renderMediaAsNodes
+                    richMediaDisplayMode === 'panel-only'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-50 text-gray-600',
                   ].join(' ')}
                 >
-                  Panel-only
+                  {RICH_MEDIA_DISPLAY_COPY.panelOnly}
                 </button>
               </div>
             </div>
@@ -211,7 +213,7 @@ export default function MediaNodesSection({
                   'text-gray-600',
                 ].join(' ')}
               >
-                Opacity
+                {RICH_MEDIA_DISPLAY_COPY.opacityLabel}
               </span>
               <input
                 type="range"

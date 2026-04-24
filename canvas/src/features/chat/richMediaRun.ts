@@ -137,6 +137,8 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
   delete next.outputSourceUrl
   delete next.outputSavedName
   delete next.outputSrcDoc
+  delete next.outputLoading
+  delete next.outputLoadingKind
   delete next.lastRunAt
   return next
 }

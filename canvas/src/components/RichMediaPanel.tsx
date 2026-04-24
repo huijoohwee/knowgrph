@@ -1,7 +1,10 @@
 import React from 'react'
 import RichMediaIframe, { type RichMediaIframeMode } from '@/components/RichMediaIframe'
 import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
+import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { applyImageLikeProxySrc } from '@/lib/url'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, resolveIframeSandbox, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
@@ -58,7 +61,11 @@ export type RichMediaPanelProps = {
     hasVideo: boolean
     text: string
     connectedText: string
+    isLoading?: boolean
+    loadingLabel?: string
   }
+  flowEditorInteractionMode?: boolean
+  flowEditorFrontmatterDocumentMode?: boolean
   onPanelChange?: (next: { activeTab: 'auto' | 'text' | 'image' | 'video'; freezeConnectedOutput: boolean; text?: string }) => void
 }
 
@@ -107,8 +114,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     return s
   }, [kind, props.srcDoc])
 
-  const isEmptyPanel = kind === 'iframe' && !rawUrl && !inlineSrcDoc
-
   const panel = props.panel || null
   const panelActiveTab = panel ? panel.activeTab : 'auto'
   const panelFreezeConnectedOutput = panel ? panel.freezeConnectedOutput : false
@@ -137,6 +142,17 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     const base = panelFreezeConnectedOutput ? panel.text : (panel.connectedText || panel.text)
     setPanelDraftText(prev => (prev === base ? prev : base))
   }, [panel, panelFreezeConnectedOutput, panelSelectedTab])
+  const panelDisplayText = React.useMemo(() => {
+    if (!panel || panelSelectedTab !== 'text') return ''
+    if (panelFreezeConnectedOutput) return panelDraftText || panel.text || panel.connectedText || ''
+    return panel.connectedText || panel.text || ''
+  }, [panel, panelDraftText, panelFreezeConnectedOutput, panelSelectedTab])
+  const showPanelMarkdownPreview = Boolean(panel && panelSelectedTab === 'text' && !showTextEditor && panelDisplayText.trim())
+  const panelMarkdownDocumentPath = React.useMemo(() => {
+    const base = String(props.overlayId || title || 'rich-media-panel').trim() || 'rich-media-panel'
+    return `/__rich_media_panel/${encodeURIComponent(base)}.md`
+  }, [props.overlayId, title])
+  const isEmptyPanel = kind === 'iframe' && !rawUrl && !inlineSrcDoc && !showPanelMarkdownPreview
 
   const forceSnapshotIframe = React.useMemo(() => {
     if (kind !== 'iframe') return false
@@ -151,14 +167,24 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
+  const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
   const isFlowEditorRenderer = useGraphStore(s => String(s.canvas2dRenderer || '') === 'flowEditor')
-  const flowEditorFrontmatterDocumentMode = useGraphStore(s => {
-    if (String(s.canvas2dRenderer || '') !== 'flowEditor') return false
-    if (s.frontmatterModeEnabled !== true) return false
-    return String(s.documentSemanticMode || '').trim().toLowerCase() === 'document'
-  })
+  const flowEditorFrontmatterDocumentModeFromStore = useGraphStore(s => isFlowEditorFrontmatterDocumentModeRequested({
+    canvas2dRenderer: String(s.canvas2dRenderer || ''),
+    frontmatterModeEnabled: s.frontmatterModeEnabled === true,
+    documentSemanticMode: String(s.documentSemanticMode || ''),
+  }))
+  const flowEditorFrontmatterDocumentMode =
+    props.flowEditorFrontmatterDocumentMode === true || flowEditorFrontmatterDocumentModeFromStore
+  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
+  const flowEditorInteractionMode = props.flowEditorInteractionMode === true || flowEditorFrontmatterDocumentMode
   const panelControlsHidden = isFlowEditorRenderer !== true
   const editorMode = workspaceViewMode === 'editor'
+  // In Flow Editor frontmatter document mode, panel content should stay scrollable/interactive
+  // like MainPanel settings surfaces instead of being blanket-disabled by workspace editor mode.
+  const allowPanelContentPointerEvents = !editorMode || flowEditorInteractionMode === true || isFlowEditorRenderer === true
   const allowEmbedFromStore = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
   const preferEmbed = allowEmbedFromStore && props.interactive !== false
   const [videoThumb, setVideoThumb] = React.useState<string>('')
@@ -254,8 +280,19 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     })
   }, [forwardingEnabled, props.forwardWheelTo])
 
+  const overlayAlreadySelected = React.useMemo(() => {
+    const overlayId = String(props.overlayId || '').trim()
+    if (!overlayId) return false
+    if (isCanonicalNodeIdEqual(selectedNodeId, overlayId)) return true
+    if (!Array.isArray(selectedNodeIds)) return false
+    for (let i = 0; i < selectedNodeIds.length; i += 1) {
+      if (isCanonicalNodeIdEqual(selectedNodeIds[i], overlayId)) return true
+    }
+    return false
+  }, [props.overlayId, selectedNodeId, selectedNodeIds])
+
   const selectSelf = React.useCallback((native: PointerEvent | null) => {
-    if (!flowEditorFrontmatterDocumentMode) return
+    if (!flowEditorInteractionMode) return
     const id = String(props.overlayId || '').trim()
     if (!id) return
     if (native && native.button !== 0) return
@@ -271,7 +308,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     } catch {
       void 0
     }
-  }, [flowEditorFrontmatterDocumentMode, props.overlayId])
+  }, [flowEditorInteractionMode, props.overlayId])
 
   const onResizePointerDown = React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     if (!installResize) return
@@ -401,10 +438,17 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const native = e.nativeEvent
     selectSelf(native)
-    const isHeaderTarget = (() => {
+    const targetEl = (() => {
       const t = (native as unknown as { target?: unknown }).target
-      if (!(t instanceof Element)) return false
-      return !!t.closest('[data-kg-media-panel-header="1"]')
+      return t instanceof Element ? t : null
+    })()
+    const isResizeHandleTarget = !!targetEl?.closest('[data-kg-resize-handle]')
+    const isHeaderActionTarget = !!targetEl?.closest('[data-kg-panel-action="1"]')
+    const isScrollableSurfaceTarget = !!targetEl?.closest('[data-kg-media-scroll-surface="1"]')
+    const isInteractiveControlTarget = !!targetEl?.closest('textarea,input,select,button,a,[contenteditable="true"]')
+    const isHeaderTarget = (() => {
+      if (!targetEl) return false
+      return !!targetEl.closest('[data-kg-media-panel-header="1"]')
     })()
     const allowHeaderOverlayPan = (() => {
       if (!isHeaderTarget) return true
@@ -420,18 +464,23 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       const b = typeof native.buttons === 'number' ? native.buttons : 0
       return (b & 1) === 1 || (b & 4) === 4
     })()
-    if (allowHeaderOverlayPan && installOverlayPan && allowPointerButtons && native && typeof native === 'object') {
+    const blockOverlayPanForTarget =
+      isResizeHandleTarget
+      || isHeaderActionTarget
+      || isScrollableSurfaceTarget
+      || isInteractiveControlTarget
+    if (
+      overlayAlreadySelected
+      && !blockOverlayPanForTarget
+      && allowHeaderOverlayPan
+      && installOverlayPan
+      && allowPointerButtons
+      && native
+      && typeof native === 'object'
+    ) {
       const pointerId = native.pointerId
       const x0 = native.clientX
       const y0 = native.clientY
-      try {
-        const st = useGraphStore.getState() as unknown as { selectNode?: (id: string | null) => void; selectEdge?: (id: string | null) => void; setSelectionSource?: (src: string) => void }
-        st.setSelectionSource?.('canvas')
-        st.selectEdge?.(null)
-        st.selectNode?.(null)
-      } catch {
-        void 0
-      }
       try {
         props.onOverlayPanStart?.({
           pointerId,
@@ -497,7 +546,9 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         void 0
       }
     }
-  }, [installHeaderDrag, installOverlayPan, props, selectSelf])
+  }, [installHeaderDrag, installOverlayPan, overlayAlreadySelected, props, selectSelf])
+  const panelIsLoading = panel?.isLoading === true
+  const panelLoadingLabel = String(panel?.loadingLabel || '').trim() || 'Generating output...'
 
   return (
     <article
@@ -511,7 +562,9 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       data-kg-rich-media-overlay={canvasOverlayProxyEnabled ? '1' : undefined}
       data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}
       data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
-      data-kg-canvas-pointer-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
+      data-kg-flow-editor-mode={flowEditorInteractionMode ? '1' : undefined}
+      data-kg-frontmatter-document-mode={flowEditorFrontmatterDocumentMode ? '1' : undefined}
+      data-kg-resize-enabled={installResize ? '1' : undefined}
       style={{
         ...PANEL_FRAME_ROOT_STYLE,
         position: 'relative',
@@ -634,6 +687,24 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 </button>
               </li>
             ) : null}
+            {panelIsLoading ? (
+              <li
+                className="list-none"
+                aria-live="polite"
+                style={{
+                  fontSize: 11,
+                  lineHeight: 1.2,
+                  color: 'var(--kg-muted-foreground, rgba(0,0,0,0.6))',
+                  paddingInline: 6,
+                  paddingBlock: 3,
+                  borderRadius: 999,
+                  border: '1px solid var(--kg-border)',
+                  background: 'rgba(59, 130, 246, 0.08)',
+                }}
+              >
+                {panelLoadingLabel}
+              </li>
+            ) : null}
           </menu>
         </header>
       ) : null}
@@ -732,7 +803,40 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             }}
           />
         ) : null}
-        {isEmptyPanel ? (
+        {showPanelMarkdownPreview ? (
+          <div
+            data-kg-rich-media-markdown-preview="1"
+            data-kg-canvas-wheel-ignore="true"
+            style={{
+              width: '100%',
+              height: '100%',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+              background: 'transparent',
+              pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : 'auto') : 'none',
+              touchAction: 'pan-x pan-y',
+            }}
+            data-kg-media-scroll-surface="1"
+          >
+            <MarkdownPreview
+              markdownText={panelDisplayText}
+              activeDocumentPath={panelMarkdownDocumentPath}
+              markdownTokenStoreSync={false}
+              highlightedLineRange={null}
+              markdownWordWrap
+              markdownPresentationMode={false}
+              markdownTextHighlight={false}
+              uiPanelTextFontClass={uiPanelTextFontClass}
+              uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+              previewOverlayScope="container"
+              previewOverlayPortalTarget={null}
+              previewScrollable
+              showSidebar={false}
+              markdownViewerWidthMode="wide"
+            />
+          </div>
+        ) : isEmptyPanel ? (
           <div
             className="w-full h-full flex items-center justify-center"
             style={{
@@ -745,6 +849,20 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             }}
           >
             Connect media to render
+          </div>
+        ) : panelIsLoading ? (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{
+              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+              background: 'rgba(15, 23, 42, 0.06)',
+              color: 'var(--kg-muted-foreground, rgba(0,0,0,0.62))',
+              fontSize: 12,
+              userSelect: 'none',
+              pointerEvents: 'none',
+            }}
+          >
+            {panelLoadingLabel}
           </div>
         ) : kind === 'iframe' ? (
           inlineSrcDoc ? (
@@ -765,7 +883,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 background: 'transparent',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
+                pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
                 touchAction: 'auto',
               }}
               onLoad={() => setReady(true)}
@@ -786,7 +904,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 background: 'transparent',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
+                pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
               }}
             />
           ) : (
@@ -803,7 +921,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 background: 'transparent',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
+                pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
                 touchAction: 'auto',
               }}
               onLoad={() => setReady(true)}
@@ -828,11 +946,11 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 height: '100%',
                 border: 0,
                 borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-                objectFit: 'cover',
-                background: 'transparent',
+                objectFit: 'contain',
+                background: 'rgba(2, 6, 23, 0.72)',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
+                pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
               }}
             />
           ) : (
@@ -848,11 +966,11 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                 height: '100%',
                 border: 0,
                 borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-                objectFit: 'cover',
-                background: 'transparent',
+                objectFit: 'contain',
+                background: 'rgba(15, 23, 42, 0.08)',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
+                pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
               }}
             />
           )
@@ -871,11 +989,11 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
               height: '100%',
               border: 0,
               borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-              objectFit: 'cover',
-              background: 'transparent',
+              objectFit: 'contain',
+              background: 'rgba(15, 23, 42, 0.06)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
-                pointerEvents: editorMode ? 'none' : (forwardingEnabled ? 'none' : undefined),
+                pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
             }}
           />
         )}

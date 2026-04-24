@@ -9,3 +9,10 @@ export function testRichMediaPanelUsesResizeHandleSsot() {
   }
 }
 
+export function testFlowEditorOverlayProxyTreatsRichMediaResizeHandleAsProtectedHandle() {
+  const p = resolve(process.cwd(), 'src', 'lib', 'canvas', 'flow-editor-overlay-proxy.ts')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes('[data-kg-resize-handle]')) {
+    throw new Error('expected Flow Editor overlay proxy drag-handle selector to include RichMediaPanel resize handles so window-capture proxy pan cannot steal resize drags')
+  }
+}

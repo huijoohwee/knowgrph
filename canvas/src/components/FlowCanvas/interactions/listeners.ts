@@ -11,11 +11,14 @@ import { cancelFlowZoomRequestAnim } from '@/components/FlowCanvas/applyZoomRequ
 import {
   CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR,
   CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
+  CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
   readCanvasOverlayPinnedState,
   resolveFlowEditorOverlayProxyTarget,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { UI_SELECTORS } from '@/lib/config'
+import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
 
@@ -84,9 +87,11 @@ export function bindFlowNativeInteractionListeners(args: {
   const onWindowPointerDownCapture = (e: PointerEvent) => {
     if (!ctx.args.active) return
     const st = useGraphStore.getState()
-    if (String(st.canvas2dRenderer || '') !== 'flowEditor') return
-    if (st.frontmatterModeEnabled !== true) return
-    if (String(st.documentSemanticMode || '').trim().toLowerCase() !== 'document') return
+    if (!isFlowEditorFrontmatterDocumentModeRequested({
+      canvas2dRenderer: String(st.canvas2dRenderer || ''),
+      frontmatterModeEnabled: st.frontmatterModeEnabled === true,
+      documentSemanticMode: String(st.documentSemanticMode || ''),
+    })) return
     if (e.pointerType === 'touch') return
     if (proxyPanPointerId != null) return
     if (pendingProxyPan != null) return
@@ -105,6 +110,8 @@ export function bindFlowNativeInteractionListeners(args: {
 
     const resolved = resolveFlowEditorOverlayProxyTarget({ target: targetEl, canvasEl })
     const overlayPinnedToNode = resolved.kind === 'overlay' && readCanvasOverlayPinnedState(resolved.overlayRoot)
+    const overlayResizeHandle =
+      resolved.kind === 'overlay' && resolved.targetEl.closest(CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR)
 
     const overlayDragHandle = resolved.kind === 'overlay' && overlayPinnedToNode && resolved.targetEl.closest(CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR)
 
@@ -112,6 +119,23 @@ export function bindFlowNativeInteractionListeners(args: {
       resolved.kind === 'overlay'
       && (typeof resolved.overlayRoot.matches === 'function')
       && resolved.overlayRoot.matches(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
+
+    try {
+      __flowCanvasDebug.lastOverlayProxyPointerDown = [
+        `kind=${resolved.kind}`,
+        `pinned=${overlayPinnedToNode ? 1 : 0}`,
+        `dragHandle=${overlayDragHandle ? 1 : 0}`,
+        `resizeHandle=${overlayResizeHandle ? 1 : 0}`,
+        `richMedia=${overlayRootIsRichMedia ? 1 : 0}`,
+        `button=${button}`,
+        `space=${spacePanHeld ? 1 : 0}`,
+      ].join('|')
+    } catch {
+      void 0
+    }
+
+    // Resize handles are always local owner interactions. Never let window-capture proxy steal them.
+    if (overlayResizeHandle) return
 
     if (resolved.kind === 'overlay' && resolved.isInteractive && button === 0 && spacePanHeld !== true && !overlayDragHandle) return
     if (resolved.kind === 'overlay' && !overlayPinnedToNode && button === 0 && spacePanHeld !== true) return

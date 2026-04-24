@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
+import { commitRichMediaPanelChange, resolveRichMediaPanelInteractive } from '@/lib/render/richMediaSsot'
 
 export function RichMediaOverlayLayer2d(props: {
   active: boolean
@@ -56,20 +57,19 @@ export function RichMediaOverlayLayer2d(props: {
             srcDoc={n.srcDoc}
             openUrl={n.openUrl}
             kind={kind}
-            interactive={allowEmbeddedMediaInteraction ? true : (renderMediaAsNodes === true && n.interactive)}
+            interactive={resolveRichMediaPanelInteractive({
+              nodeInteractive: n.interactive,
+              renderMediaAsNodes,
+              infiniteCanvasInteractionMode,
+            })}
             iframeMode="srcdoc-when-needed"
             panel={n.panel}
             onPanelChange={next => {
               if (!n.panel) return
-              if (!next) return
-              const nextTab = String(next.activeTab || 'auto').trim().toLowerCase()
-              const activeTab = nextTab === 'text' || nextTab === 'image' || nextTab === 'video' || nextTab === 'auto' ? nextTab : 'auto'
-              updateNode(n.id, {
-                properties: {
-                  richMediaActiveTab: activeTab,
-                  freezeConnectedOutput: Boolean(next.freezeConnectedOutput),
-                  ...(typeof next.text === 'string' ? { output: next.text } : {}),
-                },
+              commitRichMediaPanelChange({
+                nodeId: n.id,
+                next,
+                updateNode,
               })
             }}
             forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => svgRef.current)}

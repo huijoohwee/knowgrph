@@ -259,8 +259,13 @@ export function resolveChatUpstreamBaseForProxy(value: unknown, provider: unknow
   if (!absolute) return getProviderDefaultUpstreamBase(provider)
   try {
     const parsed = new URL(absolute)
-    if (isLocalHost(parsed.hostname) || isTrustedOpenAiHost(parsed.hostname) || isTrustedBytePlusHost(parsed.hostname)) {
-      return parsed.origin
+    if (isLocalHost(parsed.hostname)) return parsed.origin
+    const normalizedProvider = normalizeChatProviderId(provider)
+    if (normalizedProvider === CHAT_PROVIDER_OPENAI) {
+      return isTrustedOpenAiHost(parsed.hostname) ? parsed.origin : null
+    }
+    if (normalizedProvider === CHAT_PROVIDER_BYTEPLUS) {
+      return isTrustedBytePlusHost(parsed.hostname) ? parsed.origin : null
     }
     return null
   } catch {

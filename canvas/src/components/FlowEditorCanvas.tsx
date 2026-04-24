@@ -14,6 +14,7 @@ import { useGraphStoreKeyRef } from '@/hooks/useGraphStoreKeyRef'
 import { createUniqueId } from '@/lib/ids'
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import { parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
@@ -96,7 +97,13 @@ import {
   resolveRichMediaWidgetKind,
   runRichMediaWidgetGeneration,
 } from '@/features/chat/richMediaRun'
-import { CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT, CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
+import {
+  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+  CHAT_PROVIDER_BYTEPLUS,
+  getChatDefaultEndpointUrlForProvider,
+  normalizeChatProviderId,
+} from '@/lib/chatEndpoint'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
 import {
@@ -119,6 +126,10 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
+}
+
+function resolveGraphNodeIdByCanonicalId(graph: GraphData | null | undefined, rawId: unknown): string {
+  return String(resolveGraphNodeByCanonicalId(graph, rawId)?.id || '').trim()
 }
 
 function snapToGridPx(value: number, stepPx: number): number {
@@ -2791,8 +2802,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const selectedDraftNode = React.useMemo(() => {
     if (!draftGraphData || !selectedNodeId) return null
-    const nodes = Array.isArray(draftGraphData.nodes) ? draftGraphData.nodes : []
-    return nodes.find(n => String(n.id || '') === selectedNodeId) || null
+    return resolveGraphNodeByCanonicalId(draftGraphData, selectedNodeId)
   }, [draftGraphData, selectedNodeId])
 
   const overlayDraftNode = React.useMemo(() => {
@@ -2803,8 +2813,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (pending && pending === override) return pendingOverlayNode
       return selectedDraftNode
     }
-    const nodes = Array.isArray(draftGraphData.nodes) ? draftGraphData.nodes : []
-    const found = nodes.find(n => String(n.id || '') === override) || null
+    const found = resolveGraphNodeByCanonicalId(draftGraphData, override)
     if (found) return found
     const pending = pendingOverlayNodeIdRef.current
     if (pending && pending === override) return pendingOverlayNode
@@ -3241,14 +3250,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
           upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorNoDraftGraphToast, ttlMs: 2400 })
           return
         }
-        const splitComposedNodeId = (rawId: unknown): { full: string; inner: string } => {
-          const full = String(rawId || '').trim()
-          if (!full) return { full: '', inner: '' }
-          const sep = full.indexOf('::')
-          if (sep <= 0) return { full, inner: full }
-          const inner = full.slice(sep + 2).trim()
-          return { full, inner: inner || full }
-        }
         const resolveNodeAndGraph = (): { graph: GraphData; node: GraphNode } | null => {
           const candidates = [draft, renderGraphDataOverride as unknown as GraphData | null, baseGraphData]
             .filter(Boolean) as GraphData[]
@@ -3281,19 +3282,11 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
         const writableNodeId = pickWritableNodeId() || resolvedNodeId
         const store = useGraphStore.getState()
-        const parseCanonicalNodeIds = (raw: unknown): string[] => {
-          const idValue = String(raw || '').trim()
-          if (!idValue) return []
-          const out = [idValue]
-          const leaf = idValue.includes('::') ? String(idValue.split('::').pop() || '').trim() : ''
-          if (leaf && leaf !== idValue) out.push(leaf)
-          return out
-        }
         const resolveNodeByIdAcrossGraphs = (candidateId: string): GraphNode | null => {
           const cid = String(candidateId || '').trim()
           if (!cid) return null
           const candidates = [
-            draftGraphData,
+            draftGraphDataRef.current || draftGraphData,
             store.renderGraphDataOverride as GraphData | null,
             store.graphData as GraphData | null,
             graphForRun,
@@ -3342,6 +3335,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             updateNode(writableNodeId, { properties: buildPatch(fallbackProps) as never })
           }
         }
+        const setRunLoadingStateForKnownNodeIds = (args: { loading: boolean; kind?: 'text' | 'image' | 'video' }) => {
+          updateRunOutputForKnownNodeIds((nodeProps) => ({
+            ...nodeProps,
+            outputLoading: args.loading === true ? true : undefined,
+            outputLoadingKind: args.loading === true ? (args.kind || undefined) : undefined,
+          }))
+        }
         const dataflowRegistry = buildDataflowWidgetRegistry({
           documentWidgetRegistry: Array.isArray(store.documentWidgetRegistry)
             ? (store.documentWidgetRegistry as WidgetRegistryEntry[])
@@ -3355,51 +3355,63 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         })
         const richMediaKind = resolveRichMediaWidgetKind(node)
         if (richMediaKind) {
-          const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
-            graphData: (renderGraphDataOverride as unknown as GraphData | null) || graphForRun,
-            registry: dataflowRegistry,
-            targetNodeIds: new Set([writableNodeId]),
-          })
-          const richMediaResult = await runRichMediaWidgetGeneration({
-            node,
-            connectedValuesBySchemaPath: connectedValuesByNodeId.get(writableNodeId),
-            markdownDocumentText: typeof store.markdownDocumentText === 'string' ? store.markdownDocumentText : '',
-            workspacePath: activeWorkspacePath || null,
-            generationConfig: {
-              provider: store.chatProvider,
-              endpointUrl: store.chatEndpointUrl,
-              apiKey: store.chatAuthMode === 'byok' ? store.chatApiKey : '',
-              chatModel: store.chatModel,
-            },
-          })
-          if (!richMediaResult) {
+          setRunLoadingStateForKnownNodeIds({ loading: true, kind: richMediaKind })
+          try {
+            const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
+              graphData: (renderGraphDataOverride as unknown as GraphData | null) || graphForRun,
+              registry: dataflowRegistry,
+              targetNodeIds: new Set([writableNodeId]),
+            })
+            const normalizedProvider = normalizeChatProviderId(store.chatProvider)
+            const runProvider = CHAT_PROVIDER_BYTEPLUS
+            const runAuthMode = store.chatAuthMode === 'byok' ? 'byok' : 'serverManaged'
+            const runApiKey = runAuthMode === 'byok' ? store.chatApiKey : ''
+            const runEndpointUrl = normalizedProvider === CHAT_PROVIDER_BYTEPLUS
+              ? store.chatEndpointUrl
+              : getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_BYTEPLUS)
+            const richMediaResult = await runRichMediaWidgetGeneration({
+              node,
+              connectedValuesBySchemaPath: connectedValuesByNodeId.get(writableNodeId),
+              markdownDocumentText: typeof store.markdownDocumentText === 'string' ? store.markdownDocumentText : '',
+              workspacePath: activeWorkspacePath || null,
+              generationConfig: {
+                provider: runProvider,
+                endpointUrl: runEndpointUrl,
+                apiKey: runApiKey,
+                chatModel: store.chatModel,
+              },
+            })
+            if (!richMediaResult) {
+              upsertUiToast({
+                id: `flow-editor-run-${id}`,
+                kind: 'neutral',
+                message: UI_COPY.flowEditorRunFailedToast,
+                ttlMs: 2600,
+              })
+              return
+            }
+            updateRunOutputForKnownNodeIds((nodeProps) => ({
+              ...clearRichMediaOutputProperties(nodeProps),
+              ...buildRichMediaWidgetOutputPatch({
+                kind: richMediaResult.kind,
+                asset: richMediaResult.asset,
+                outputPath: richMediaResult.outputPath,
+              }),
+            }))
+            const generatedName = richMediaResult.outputPath
+              ? richMediaResult.outputPath.split('/').pop()
+              : richMediaResult.kind === 'video'
+                ? 'video output'
+                : 'image output'
             upsertUiToast({
               id: `flow-editor-run-${id}`,
               kind: 'neutral',
-              message: UI_COPY.flowEditorRunFailedToast,
-              ttlMs: 2600,
+              message: `Generated ${generatedName}.`,
+              ttlMs: 2400,
             })
-            return
+          } finally {
+            setRunLoadingStateForKnownNodeIds({ loading: false })
           }
-          updateRunOutputForKnownNodeIds((nodeProps) => ({
-            ...clearRichMediaOutputProperties(nodeProps),
-            ...buildRichMediaWidgetOutputPatch({
-              kind: richMediaResult.kind,
-              asset: richMediaResult.asset,
-              outputPath: richMediaResult.outputPath,
-            }),
-          }))
-          const generatedName = richMediaResult.outputPath
-            ? richMediaResult.outputPath.split('/').pop()
-            : richMediaResult.kind === 'video'
-              ? 'video output'
-              : 'image output'
-          upsertUiToast({
-            id: `flow-editor-run-${id}`,
-            kind: 'neutral',
-            message: `Generated ${generatedName}.`,
-            ttlMs: 2400,
-          })
           return
         }
 
@@ -3456,63 +3468,80 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
             })
             return
           }
-          const result = await generateRunMarkdownWithProvider({
-            config: {
-              provider: properties.chatProvider || store.chatProvider,
-              endpointUrl: properties.chatEndpointUrl || store.chatEndpointUrl,
-              apiKey:
-                (properties.chatAuthMode || store.chatAuthMode) === 'byok'
-                  ? store.chatApiKey
-                  : '',
-              chatModel: properties.chatModel || store.chatModel,
-            },
-            prompt,
-            options: {
-              chatTemperature: properties.chatTemperature ?? store.chatTemperature,
-              chatMaxCompletionTokens: properties.chatMaxCompletionTokens ?? store.chatMaxCompletionTokens,
-              chatServiceTier: properties.chatServiceTier ?? store.chatServiceTier,
-              chatStream: properties.chatStream ?? store.chatStream,
-              chatMessagesJson: properties.chatMessagesJson ?? store.chatMessagesJson,
-              chatReasoningEffort: properties.chatReasoningEffort ?? store.chatReasoningEffort,
-              chatThinkingType: properties.chatThinkingType ?? store.chatThinkingType,
-              chatThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson,
-              chatFrequencyPenalty: properties.chatFrequencyPenalty ?? store.chatFrequencyPenalty,
-              chatPresencePenalty: properties.chatPresencePenalty ?? store.chatPresencePenalty,
-              chatTopP: properties.chatTopP ?? store.chatTopP,
-              chatLogprobs: properties.chatLogprobs ?? store.chatLogprobs,
-              chatTopLogprobs: properties.chatTopLogprobs ?? store.chatTopLogprobs,
-              chatParallelToolCalls: properties.chatParallelToolCalls ?? store.chatParallelToolCalls,
-              chatStopJson: properties.chatStopJson ?? store.chatStopJson,
-              chatStreamOptionsJson: properties.chatStreamOptionsJson ?? store.chatStreamOptionsJson,
-              chatResponseFormatJson: properties.chatResponseFormatJson ?? store.chatResponseFormatJson,
-              chatLogitBiasJson: properties.chatLogitBiasJson ?? store.chatLogitBiasJson,
-              chatToolsJson: properties.chatToolsJson ?? store.chatToolsJson,
-              chatToolChoiceJson: properties.chatToolChoiceJson ?? store.chatToolChoiceJson,
-            },
-          })
-          if (!result) {
+          setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
+          let lastPublishedText = ''
+          const publishTextRunOutput = (outputText: string, loading: boolean) => {
+            const nextOutput = String(outputText || '')
+            updateRunOutputForKnownNodeIds((nodeProps) => ({
+              ...clearRichMediaOutputProperties(nodeProps),
+              ...buildTextWidgetOutputPatch({
+                output: nextOutput,
+                title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL,
+                model: properties.chatModel || store.chatModel,
+              }),
+              outputLoading: loading === true ? true : undefined,
+              outputLoadingKind: loading === true ? 'text' : undefined,
+            }))
+          }
+          try {
+            const result = await generateRunMarkdownWithProvider({
+              config: {
+                provider: properties.chatProvider || store.chatProvider,
+                endpointUrl: properties.chatEndpointUrl || store.chatEndpointUrl,
+                apiKey:
+                  (properties.chatAuthMode || store.chatAuthMode) === 'byok'
+                    ? store.chatApiKey
+                    : '',
+                chatModel: properties.chatModel || store.chatModel,
+              },
+              prompt,
+              options: {
+                chatTemperature: properties.chatTemperature ?? store.chatTemperature,
+                chatMaxCompletionTokens: properties.chatMaxCompletionTokens ?? store.chatMaxCompletionTokens,
+                chatServiceTier: properties.chatServiceTier ?? store.chatServiceTier,
+                chatStream: properties.chatStream ?? store.chatStream,
+                chatMessagesJson: properties.chatMessagesJson ?? store.chatMessagesJson,
+                chatReasoningEffort: properties.chatReasoningEffort ?? store.chatReasoningEffort,
+                chatThinkingType: properties.chatThinkingType ?? store.chatThinkingType,
+                chatThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson,
+                chatFrequencyPenalty: properties.chatFrequencyPenalty ?? store.chatFrequencyPenalty,
+                chatPresencePenalty: properties.chatPresencePenalty ?? store.chatPresencePenalty,
+                chatTopP: properties.chatTopP ?? store.chatTopP,
+                chatLogprobs: properties.chatLogprobs ?? store.chatLogprobs,
+                chatTopLogprobs: properties.chatTopLogprobs ?? store.chatTopLogprobs,
+                chatParallelToolCalls: properties.chatParallelToolCalls ?? store.chatParallelToolCalls,
+                chatStopJson: properties.chatStopJson ?? store.chatStopJson,
+                chatStreamOptionsJson: properties.chatStreamOptionsJson ?? store.chatStreamOptionsJson,
+                chatResponseFormatJson: properties.chatResponseFormatJson ?? store.chatResponseFormatJson,
+                chatLogitBiasJson: properties.chatLogitBiasJson ?? store.chatLogitBiasJson,
+                chatToolsJson: properties.chatToolsJson ?? store.chatToolsJson,
+                chatToolChoiceJson: properties.chatToolChoiceJson ?? store.chatToolChoiceJson,
+                onText: (nextText) => {
+                  if (nextText === lastPublishedText) return
+                  lastPublishedText = nextText
+                  publishTextRunOutput(nextText, true)
+                },
+              },
+            })
+            if (!result) {
+              upsertUiToast({
+                id: `flow-editor-run-${id}`,
+                kind: 'neutral',
+                message: UI_COPY.flowEditorRunFailedToast,
+                ttlMs: 2600,
+              })
+              return
+            }
+            publishTextRunOutput(result, false)
             upsertUiToast({
               id: `flow-editor-run-${id}`,
               kind: 'neutral',
-              message: UI_COPY.flowEditorRunFailedToast,
-              ttlMs: 2600,
+              message: 'Generated text output.',
+              ttlMs: 2400,
             })
-            return
+          } finally {
+            setRunLoadingStateForKnownNodeIds({ loading: false })
           }
-          updateRunOutputForKnownNodeIds((nodeProps) => ({
-            ...clearRichMediaOutputProperties(nodeProps),
-            ...buildTextWidgetOutputPatch({
-              output: result,
-              title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL,
-              model: properties.chatModel || store.chatModel,
-            }),
-          }))
-          upsertUiToast({
-            id: `flow-editor-run-${id}`,
-            kind: 'neutral',
-            message: 'Generated text output.',
-            ttlMs: 2400,
-          })
           return
         }
 
@@ -3802,8 +3831,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (flowEditorFrontmatterGraphAvailable) return []
     const next: string[] = []
     const seen = new Set<string>()
-    for (const id of openWidgetNodeIds) {
-      const s = String(id || '').trim()
+    for (const rawId of openWidgetNodeIds) {
+      const resolvedId = resolveGraphNodeIdByCanonicalId(renderGraphDataOverride as GraphData | null, rawId)
+      const s = resolvedId || String(rawId || '').trim()
       if (!s || seen.has(s)) continue
       if (eligibleIds.size > 0 && !eligibleIds.has(s)) continue
       if (String(nodeById.get(s)?.type || '') === 'Section') continue

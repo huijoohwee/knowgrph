@@ -4,6 +4,7 @@ import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes
 import { shouldIgnoreCanvasWheelEvent } from '@/lib/canvas/wheel-target-guard'
 import { readWheelBehavior, shouldWheelZoom } from '@/lib/canvas/camera-options-2d'
 import { UI_SELECTORS } from '@/lib/config'
+import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { cancelFlowZoomRequestAnim } from '@/components/FlowCanvas/applyZoomRequestNative'
 import {
   readCanvasOverlayPinnedState,
@@ -143,13 +144,15 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     if (!ctx.args.active) return
     const st = useGraphStore.getState()
     const isFlowEditor = String(st.canvas2dRenderer || '') === 'flowEditor'
-    if (!isFlowEditor) return
-    if (st.frontmatterModeEnabled !== true) return
-    if (String(st.documentSemanticMode || '').trim().toLowerCase() !== 'document') return
+    if (!isFlowEditorFrontmatterDocumentModeRequested({
+      canvas2dRenderer: String(st.canvas2dRenderer || ''),
+      frontmatterModeEnabled: st.frontmatterModeEnabled === true,
+      documentSemanticMode: String(st.documentSemanticMode || ''),
+    })) return
     const resolved = resolveFlowEditorOverlayProxyTarget({ target: (e as unknown as { target?: unknown }).target, canvasEl })
     const proxyOverlayWheel = shouldProxyWheelFromOverlay(e, resolved, { isFlowEditor })
     const ignoreWheelTarget = shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
-    if (ignoreWheelTarget && !proxyOverlayWheel) return
+    if (ignoreWheelTarget) return
     const target = e.target
     const targetEl = target instanceof Element ? target : null
     const targetInCanvas = !!targetEl && (targetEl === canvasEl || canvasEl.contains(targetEl))
@@ -172,9 +175,11 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
 
   const shouldProxyGestureToCanvas = (event: Event): boolean => {
     const st = useGraphStore.getState()
-    if (String(st.canvas2dRenderer || '') !== 'flowEditor') return false
-    if (st.frontmatterModeEnabled !== true) return false
-    if (String(st.documentSemanticMode || '').trim().toLowerCase() !== 'document') return false
+    if (!isFlowEditorFrontmatterDocumentModeRequested({
+      canvas2dRenderer: String(st.canvas2dRenderer || ''),
+      frontmatterModeEnabled: st.frontmatterModeEnabled === true,
+      documentSemanticMode: String(st.documentSemanticMode || ''),
+    })) return false
     const resolved = resolveFlowEditorOverlayProxyTarget({ target: (event as unknown as { target?: unknown }).target, canvasEl })
     if (resolved.kind === 'none') return false
     return true

@@ -70,7 +70,7 @@ import { buildDeepestGroupRectByNodeId, buildGroupRectByIdFromSchemaOverrides } 
 import { clampDelta, computeDeltaClampForTopLeftNodes, type DeltaClamp, type RectBounds } from '@/lib/canvas/groupContainment'
 import { commitGroupBoundsOverrideToStore } from '@/lib/canvas/groupBoundsOverridesStore'
 import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
-import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import { listDisplayRichMediaOverlayNodes, normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
@@ -1260,8 +1260,11 @@ export default function DesignCanvas({
     const poolMaxRaw =
       typeof snapshot.threeIframeOverlayPoolMax === 'number' && Number.isFinite(snapshot.threeIframeOverlayPoolMax) ? snapshot.threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
-    const enabled = snapshot.renderMediaAsNodes === true
-    return listMediaOverlayNodes({ enabled, nodes, poolMax })
+    return listDisplayRichMediaOverlayNodes({
+      renderMediaAsNodes: snapshot.renderMediaAsNodes,
+      nodes,
+      poolMax,
+    })
   }, [localGraphData, snapshot.renderMediaAsNodes, snapshot.threeIframeOverlayPoolMax])
 
   const designMediaOverlayNodeIdSet = useMemo(() => {
@@ -1290,7 +1293,7 @@ export default function DesignCanvas({
   useEffect(() => {
     if (!active) return
     if (designMediaOverlayNodes.length === 0) return
-    const density = snapshot.mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    const density = normalizeRichMediaPanelDensity(snapshot.mediaPanelDensity)
     const widthRatioRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthRatioCompact : snapshot.threeIframeOverlayBaseWidthRatioDefault
     const widthMinRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMinPxCompact : snapshot.threeIframeOverlayBaseWidthMinPxDefault
     const widthMaxRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMaxPxCompact : snapshot.threeIframeOverlayBaseWidthMaxPxDefault

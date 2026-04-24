@@ -8,7 +8,13 @@ import { getLocalStorage } from '@/lib/persistence'
 import { FALLBACK_DETAILS } from './SettingsFallbackDetails'
 import { renderSettingInput } from '@/features/settings/ui'
 import { UI_ANCHORS } from '@/lib/config'
-import { buildChatProxyHeaders, resolveChatEndpointForHealth } from '@/lib/chatEndpoint'
+import {
+  CHAT_PROVIDER_BYTEPLUS,
+  buildChatProxyHeaders,
+  getChatDefaultEndpointUrlForProvider,
+  normalizeChatProviderId,
+  resolveChatEndpointForHealth,
+} from '@/lib/chatEndpoint'
 import { normalizeTextGenerationWidgetPropertiesForProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
 import {
   BYTEPLUS_CHAT_API_DOC_AREA,
@@ -25,6 +31,11 @@ import {
   STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
   getStripePaymentApiRowAnchorId,
 } from './stripePaymentApiDocs'
+import {
+  BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
+  BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
+  getBytePlusVideoGenerationApiRowAnchorId,
+} from './byteplusVideoGenerationApiDocs'
 import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
 
 const SETTINGS_AREA_ORDER: readonly string[] = [
@@ -41,6 +52,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   'Import / Export',
   'Integrations',
   BYTEPLUS_CHAT_API_DOC_AREA,
+  BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
   OPENAI_CHAT_API_DOC_AREA,
 ]
 
@@ -67,7 +79,15 @@ function settingsAreaSortWeight(area: string): number {
 
 function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolean {
   const area = normalizeSettingsAreaLabel(areaRaw)
-  if (area === 'Chat' || area === 'Integrations' || area === BYTEPLUS_CHAT_API_DOC_AREA || area === OPENAI_CHAT_API_DOC_AREA) return true
+  if (
+    area === 'Chat'
+    || area === 'Integrations'
+    || area === BYTEPLUS_CHAT_API_DOC_AREA
+    || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
+    || area === OPENAI_CHAT_API_DOC_AREA
+  ) {
+    return true
+  }
   return key.startsWith('chat') || key === 'integrationConfigsJson'
 }
 
@@ -129,6 +149,7 @@ const getSettingsSearchHints = (key: string): string[] => {
 
 const INTEGRATION_API_DOC_ENTRIES = [
   ...BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES,
+  ...BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
 ] as const
 
@@ -248,18 +269,25 @@ export function useSettingsView({
     dirtyRef.current.clear()
   }, [])
 
-  const [chatHealthStatus, setChatHealthStatus] = React.useState<string | null>(null)
+  const [chatHealthOk, setChatHealthOk] = React.useState<boolean | null>(null)
+  const [chatHealthDetails, setChatHealthDetails] = React.useState<string | null>(null)
   const [isCheckingHealth, setIsCheckingHealth] = React.useState(false)
+
+  const [bytePlusHealthOk, setBytePlusHealthOk] = React.useState<boolean | null>(null)
+  const [bytePlusHealthDetails, setBytePlusHealthDetails] = React.useState<string | null>(null)
+  const [isCheckingBytePlusHealth, setIsCheckingBytePlusHealth] = React.useState(false)
 
   const checkChatHealth = React.useCallback(async () => {
     const url = values.chatEndpointUrl
     const healthUrl = resolveChatEndpointForHealth(url)
     if (!healthUrl) {
-      setChatHealthStatus('Endpoint URL is not configured.')
+      setChatHealthOk(false)
+      setChatHealthDetails('Endpoint URL is not configured.')
       return
     }
     setIsCheckingHealth(true)
-    setChatHealthStatus('Checking...')
+    setChatHealthOk(null)
+    setChatHealthDetails(null)
     try {
       const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
       const res = await fetch(healthUrl, {
@@ -272,17 +300,80 @@ export function useSettingsView({
         }),
       })
       if (res.ok) {
-        const data = await res.json()
-        setChatHealthStatus(`OK: ${JSON.stringify(data)}`)
+        const data = await res.json().catch(() => null)
+        setChatHealthOk(true)
+        const detail = data ? `OK: ${JSON.stringify(data)}` : 'OK'
+        setChatHealthDetails(detail)
       } else {
-        setChatHealthStatus(`Error: ${res.status} ${res.statusText}`)
+        setChatHealthOk(false)
+        setChatHealthDetails(`Error: ${res.status} ${res.statusText}`)
       }
     } catch (err: unknown) {
-      setChatHealthStatus(`Error: ${err instanceof Error ? err.message : String(err)}`)
+      setChatHealthOk(false)
+      setChatHealthDetails(`Error: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setIsCheckingHealth(false)
     }
   }, [values.chatAuthMode, values.chatApiKey, values.chatEndpointUrl, values.chatProvider])
+
+  const checkBytePlusHealth = React.useCallback(async () => {
+    const baseUrl = getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_BYTEPLUS)
+    const healthUrl = resolveChatEndpointForHealth(baseUrl)
+    if (!healthUrl) {
+      setBytePlusHealthOk(false)
+      setBytePlusHealthDetails('BytePlus endpoint is not configured.')
+      return
+    }
+    setIsCheckingBytePlusHealth(true)
+    setBytePlusHealthOk(null)
+    setBytePlusHealthDetails(null)
+    try {
+      const authMode = String(values.chatAuthMode || '').trim() === 'byok' ? 'byok' : 'serverManaged'
+      const res = await fetch(healthUrl, {
+        method: 'GET',
+        headers: buildChatProxyHeaders({
+          provider: CHAT_PROVIDER_BYTEPLUS,
+          apiKey: authMode === 'byok' ? values.chatApiKey : null,
+          endpointUrl: baseUrl,
+          clientRequestId: `kg-byteplus-health-${Date.now().toString(36)}`,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json().catch(() => null)
+        setBytePlusHealthOk(true)
+        const detail = data ? `OK: ${JSON.stringify(data)}` : 'OK'
+        setBytePlusHealthDetails(detail)
+      } else {
+        setBytePlusHealthOk(false)
+        setBytePlusHealthDetails(`Error: ${res.status} ${res.statusText}`)
+      }
+    } catch (err: unknown) {
+      setBytePlusHealthOk(false)
+      setBytePlusHealthDetails(`Error: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setIsCheckingBytePlusHealth(false)
+    }
+  }, [])
+
+  const didAutoCheckHealthRef = React.useRef(false)
+  React.useEffect(() => {
+    if (didAutoCheckHealthRef.current) return
+    const isTestRun = (() => {
+      try {
+        const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env
+        return env?.KG_TEST_QUIET === '1'
+      } catch {
+        return false
+      }
+    })()
+    if (isTestRun) return
+    didAutoCheckHealthRef.current = true
+    void checkChatHealth()
+    const normalizedProvider = normalizeChatProviderId(values.chatProvider)
+    if (normalizedProvider !== CHAT_PROVIDER_BYTEPLUS) {
+      void checkBytePlusHealth()
+    }
+  }, [checkChatHealth, checkBytePlusHealth, values.chatProvider])
 
   const onGlobalReset = React.useCallback(() => {
     try {
@@ -363,6 +454,8 @@ export function useSettingsView({
       const anchorId =
         area === BYTEPLUS_CHAT_API_DOC_AREA
           ? getBytePlusChatApiRowAnchorId(entry.meta.key)
+          : area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
+            ? getBytePlusVideoGenerationApiRowAnchorId(entry.meta.key)
           : area === OPENAI_CHAT_API_DOC_AREA
             ? getOpenAiChatApiRowAnchorId(entry.meta.key)
             : undefined
@@ -503,9 +596,9 @@ export function useSettingsView({
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === OPENAI_CHAT_API_DOC_AREA,
         },
         {
-          title: 'BytePlus Video Generation API',
+          title: BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
           searchIndex: normalizeText('BytePlus Video Generation API ModelArk FloatingPanel Video Widget'),
-          match: () => false,
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
         },
         {
           title: 'BytePlus Image Generation API',
@@ -604,9 +697,14 @@ export function useSettingsView({
     uiPanelKeyValueInputClass,
     uiPanelMonospaceTextClass,
     uiPanelKeyValueTextSizeClass,
-    chatHealthStatus,
+    chatHealthOk,
+    chatHealthDetails,
     isCheckingHealth,
     checkChatHealth,
+    bytePlusHealthOk,
+    bytePlusHealthDetails,
+    isCheckingBytePlusHealth,
+    checkBytePlusHealth,
     onGlobalReset,
     renderInput,
     entries,

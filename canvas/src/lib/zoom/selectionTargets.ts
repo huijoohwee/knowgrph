@@ -1,4 +1,5 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { resolveGraphNodeIdsByCanonicalIds } from '@/lib/graph/canonicalNodeIds'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 
 type SelectionAnchorIds = {
@@ -55,6 +56,11 @@ const normalizeSelectionIds = (params: Pick<ZoomSelectionLogicParams, 'selectedN
   return { selectionNodeIds, selectionEdgeIds, selectionGroupIds }
 }
 
+const resolveSelectionNodeIds = (graphData: GraphData, rawIds: ReadonlyArray<string>): string[] => {
+  const resolved = resolveGraphNodeIdsByCanonicalIds(graphData, rawIds)
+  return resolved.length > 0 ? resolved : rawIds.map(id => String(id || '').trim()).filter(Boolean)
+}
+
 const adjCache = new WeakMap<GraphData, Map<string, Set<string>>>()
 
 const getAdjacencyMap = (data: GraphData): Map<string, Set<string>> => {
@@ -101,6 +107,7 @@ export const computeZoomTargetNodeIds = ({
   }
 
   const anchorCount = selectionNodeIds.length + selectionEdgeIds.length + selectionGroupIds.length
+  const resolvedSelectionNodeIds = resolveSelectionNodeIds(graphData, selectionNodeIds)
   const adj = getAdjacencyMap(graphData)
 
   if (selectionGroupIds.length > 0) {
@@ -118,9 +125,9 @@ export const computeZoomTargetNodeIds = ({
     }
   }
 
-  if (selectionNodeIds.length > 0) {
-    const expandNeighbors = anchorCount === 1 && selectionNodeIds.length === 1
-    for (const rawId of selectionNodeIds) {
+  if (resolvedSelectionNodeIds.length > 0) {
+    const expandNeighbors = anchorCount === 1 && resolvedSelectionNodeIds.length === 1
+    for (const rawId of resolvedSelectionNodeIds) {
       const id = String(rawId || '')
       if (!id) continue
       ids.add(id)
@@ -155,9 +162,17 @@ export const computeZoomTargetNodeIds = ({
 
 
 export const computeZoomSubset = (params: ZoomSelectionLogicParams): GraphNode[] => {
-  const ids = computeZoomTargetNodeIds(params)
-  if (ids.size === 0) {
-    return []
+  const resolvedSelectionNodeIds = resolveSelectionNodeIds(params.graphData, normalizeSelectionIds(params).selectionNodeIds)
+  const ids = computeZoomTargetNodeIds({
+    ...params,
+    selectedNodeId: resolvedSelectionNodeIds.length === 1 ? resolvedSelectionNodeIds[0] || null : params.selectedNodeId,
+    selectedNodeIds: resolvedSelectionNodeIds.length > 0 ? resolvedSelectionNodeIds : params.selectedNodeIds,
+  })
+  if (ids.size === 0) return []
+  const subsetIds = resolveGraphNodeIdsByCanonicalIds(params.graphData, Array.from(ids.values()))
+  if (subsetIds.length > 0) {
+    const subsetIdSet = new Set(subsetIds)
+    return params.graphData.nodes.filter(n => subsetIdSet.has(String(n.id || '').trim()))
   }
-  return params.graphData.nodes.filter(n => ids.has(String(n.id)))
+  return params.graphData.nodes.filter(n => ids.has(String(n.id || '').trim()))
 }

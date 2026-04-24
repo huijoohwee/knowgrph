@@ -23,19 +23,10 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
   if (!wheelText.includes('skipIgnoreGuard: true')) {
     throw new Error('expected FlowCanvas wheel proxy to bypass canvas wheel ignore guard when proxied')
   }
-  if (!wheelText.includes('ignoreWheelTarget && !proxyOverlayWheel')) {
-    throw new Error('expected FlowCanvas wheel proxy to bypass ignore-guard early return for proxied overlay roots')
+  if (!wheelText.includes('if (ignoreWheelTarget) return')) {
+    throw new Error('expected FlowCanvas wheel proxy to keep explicit ignore-guard early return in window capture path')
   }
-  if (!wheelText.includes('if (!isFlowEditor) return')) {
-    throw new Error('expected FlowCanvas wheel proxy to be strictly scoped to Flow Editor renderer')
-  }
-  if (!wheelText.includes('st.frontmatterModeEnabled !== true')) {
-    throw new Error('expected FlowCanvas wheel proxy to be scoped to frontmatter-enabled document mode')
-  }
-  if (!wheelText.includes("String(st.documentSemanticMode || '').trim().toLowerCase() !== 'document'")) {
-    throw new Error('expected FlowCanvas wheel proxy to require document semantic mode')
-  }
-  if (!wheelText.includes("String(st.canvas2dRenderer || '') !== 'flowEditor'")) {
-    throw new Error('expected FlowCanvas gesture proxy to be strictly scoped to Flow Editor renderer')
+  if (!wheelText.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
+    throw new Error('expected FlowCanvas wheel proxy to reuse shared frontmatter-document mode gate SSOT')
   }
 }

@@ -4,8 +4,9 @@ export const CANVAS_OVERLAY_PROXY_ROOT_SELECTOR = [
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
 ].join(', ')
+export const CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR = '[data-kg-resize-handle]'
 export const CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR =
-  '[data-kg-flow-node-drag-handle="true"],[data-kg-canvas-overlay-drag-handle="true"]'
+  `[data-kg-flow-node-drag-handle="true"],[data-kg-canvas-overlay-drag-handle="true"],${CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR}`
 
 export const FLOW_EDITOR_OVERLAY_INTERACTIVE_SELECTOR =
   'input,textarea,select,button,a,[role="textbox"],[role="button"],[contenteditable="true"]'

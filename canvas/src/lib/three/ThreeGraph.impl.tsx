@@ -13,7 +13,11 @@ import { useThemeDetector } from '@/hooks/useThemeDetector'
 import type { ThreeCameraPose } from '@/hooks/store/types'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
-import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import {
+  listDisplayRichMediaOverlayNodes,
+  normalizeRichMediaPanelDensity,
+  resolveRichMediaPanelInteractive,
+} from '@/lib/render/richMediaSsot'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout, type MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { listMarkdownPanelOverlayNodes, buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
@@ -282,7 +286,12 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     const st = useGraphStore.getState() as unknown as { selectedNodeId?: unknown; selectedNodeIds?: unknown }
     const preferredNodeIds = [st.selectedNodeId, ...(Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : [])]
-    return listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds })
+    return listDisplayRichMediaOverlayNodes({
+      renderMediaAsNodes,
+      nodes,
+      poolMax,
+      preferredNodeIds,
+    })
   }, [sceneGraph, threeIframeOverlayPoolMax])
 
   const markdownPanelAllowedKinds = useMemo(() => {
@@ -460,7 +469,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       if (!camera || !gl) return
       const w = Math.max(1, gl.domElement.clientWidth || 1)
       const h = Math.max(1, gl.domElement.clientHeight || 1)
-      const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+      const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
       const maxCountRaw = density === 'compact' ? threeIframeOverlayMaxVisibleCompact : threeIframeOverlayMaxVisibleDefault
       const maxCount = Number.isFinite(maxCountRaw) ? Math.max(0, Math.floor(maxCountRaw)) : 0
       const maxDistanceRaw = density === 'compact' ? threeIframeOverlayMaxDistanceCompact : threeIframeOverlayMaxDistanceDefault
@@ -1047,7 +1056,11 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
                 srcDoc={n.srcDoc}
                 openUrl={n.openUrl}
                 kind={n.kind}
-                interactive={allowEmbeddedMediaInteraction ? true : (renderMediaAsNodes === true && n.interactive)}
+                interactive={resolveRichMediaPanelInteractive({
+                  nodeInteractive: n.interactive,
+                  renderMediaAsNodes,
+                  infiniteCanvasInteractionMode,
+                })}
                 hideUntilReady={false}
                 iframeMode="srcdoc-when-needed"
                 forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => glCanvasRef.current)}

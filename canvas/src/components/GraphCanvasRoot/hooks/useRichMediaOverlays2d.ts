@@ -11,7 +11,7 @@ import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes
 import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import { applyPanelBox } from '@/lib/render/mediaPanelLayout'
-import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import { listDisplayRichMediaOverlayNodes, normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
@@ -97,7 +97,7 @@ export function useRichMediaOverlays2d(args: {
     }),
   )
   const iframeOverlayRefFnByIdRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
-  const stickyOverlayNodeByIdRef = useRef<Map<string, ReturnType<typeof listMediaOverlayNodes>[number]>>(new Map())
+  const stickyOverlayNodeByIdRef = useRef<Map<string, ReturnType<typeof listDisplayRichMediaOverlayNodes>[number]>>(new Map())
   const stickyOverlayOrderRef = useRef<string[]>([])
 
   const requestMediaOverlaySchedule = useCallback(() => {
@@ -113,10 +113,16 @@ export function useRichMediaOverlays2d(args: {
   const mediaOverlayNodes = useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
-    const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
+    const poolMax = poolMaxRaw > 0 ? threeIframeOverlayPoolMax : 24
     const st = useGraphStore.getState() as unknown as { selectedNodeId?: unknown; selectedNodeIds?: unknown }
     const preferredNodeIds = [st.selectedNodeId, ...(Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : [])]
-    const suggested = listMediaOverlayNodes({ enabled: true, nodes, poolMax, preferredNodeIds, excludeNodeIdSet })
+    const suggested = listDisplayRichMediaOverlayNodes({
+      renderMediaAsNodes,
+      nodes,
+      poolMax: threeIframeOverlayPoolMax,
+      preferredNodeIds,
+      excludeNodeIdSet,
+    })
 
     const stickyMap = stickyOverlayNodeByIdRef.current
     for (let i = 0; i < suggested.length; i += 1) {
@@ -335,7 +341,7 @@ export function useRichMediaOverlays2d(args: {
     mediaOverlayScheduleRef.current = null
     if (!active) return
     if (mediaOverlayNodes.length === 0) return
-    const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
     const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
     const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
     const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault

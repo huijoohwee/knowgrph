@@ -9,6 +9,7 @@ import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelM
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
@@ -42,6 +43,7 @@ export function FloatingPropsPanel() {
   const setMediaNodeOpacity = useGraphStore(s => s.setMediaNodeOpacity)
   const mediaPanelDensity = useGraphStore(s => s.mediaPanelDensity)
   const setMediaPanelDensity = useGraphStore(s => s.setMediaPanelDensity)
+  const richMediaDisplayMode = readRichMediaDisplayMode(renderMediaAsNodes)
   const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
   const schema = useGraphStore(s => s.schema) as GraphSchema
   const setSchema = useGraphStore(s => s.setSchema)
@@ -239,28 +241,28 @@ export function FloatingPropsPanel() {
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="flex flex-col gap-1">
               <span className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
-                Media view
+                {RICH_MEDIA_DISPLAY_COPY.viewLabel}
               </span>
               <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
                 <button
                   type="button"
                   onClick={() => setRenderMediaAsNodes(false)}
-                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${renderMediaAsNodes ? `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}` : `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}`}
+                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${richMediaDisplayMode === 'panel-only' ? `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}` : `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}`}
                 >
-                  Circle-only
+                  {RICH_MEDIA_DISPLAY_COPY.circleOnly}
                 </button>
                 <button
                   type="button"
                   onClick={() => setRenderMediaAsNodes(true)}
-                  className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${renderMediaAsNodes ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
+                  className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${richMediaDisplayMode === 'panel-only' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                 >
-                  Panel-only
+                  {RICH_MEDIA_DISPLAY_COPY.panelOnly}
                 </button>
               </div>
             </div>
             <div className="flex flex-col gap-1">
               <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
-                Panel layout
+                {RICH_MEDIA_DISPLAY_COPY.densityLabel}
               </span>
               <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
                 <button
@@ -268,14 +270,14 @@ export function FloatingPropsPanel() {
                   onClick={() => setMediaPanelDensity('default')}
                   className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} ${uiPanelTextFontClass} ${mediaPanelDensity === 'default' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                 >
-                  Standard
+                  {RICH_MEDIA_DISPLAY_COPY.densityDefault}
                 </button>
                 <button
                   type="button"
                   onClick={() => setMediaPanelDensity('compact')}
                   className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${mediaPanelDensity === 'compact' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
                 >
-                  Compact
+                  {RICH_MEDIA_DISPLAY_COPY.densityCompact}
                 </button>
               </div>
             </div>
@@ -284,7 +286,7 @@ export function FloatingPropsPanel() {
             <label
               className={`w-[30%] ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-normal ${UI_THEME_TOKENS.text.secondary}`}
             >
-              Opacity
+              {RICH_MEDIA_DISPLAY_COPY.opacityLabel}
             </label>
             <div className="w-[70%] flex items-center gap-2">
               <input

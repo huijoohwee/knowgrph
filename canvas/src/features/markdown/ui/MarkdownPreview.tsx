@@ -97,6 +97,7 @@ type MarkdownPreviewProps = {
   markdownForcePlainTables?: boolean
   forbidCopy?: boolean
   onInlineEditStateChange?: (active: boolean) => void
+  markdownTokenStoreSync?: boolean
 }
 
 const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(function MarkdownPreview(
@@ -155,6 +156,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     markdownForcePlainTables,
     forbidCopy,
     onInlineEditStateChange,
+    markdownTokenStoreSync = true,
   },
   ref,
 ) {
@@ -172,6 +174,7 @@ const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(f
     markdownText || '',
     providedTokens,
     activeDocumentPath,
+    markdownTokenStoreSync,
   )
 
   const frontmatterRawText = React.useMemo(() => {

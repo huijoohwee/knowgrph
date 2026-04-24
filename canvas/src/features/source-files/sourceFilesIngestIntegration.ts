@@ -53,7 +53,39 @@ const buildExportFilename = (rawName: string, ext: string) => {
   return `${stem}${ext}`
 }
 
- 
+const isSameOriginRepoFileUrl = (rawUrl: string): boolean => {
+  if (typeof window === 'undefined') return false
+  const text = String(rawUrl || '').trim()
+  if (!text) return false
+  try {
+    const parsed = new URL(text, window.location.href)
+    if (parsed.origin !== window.location.origin) return false
+    return parsed.pathname.includes('/__repo_file/')
+  } catch {
+    return false
+  }
+}
+
+const fetchSameOriginRepoFileText = async (url: string): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
+  const target = String(url || '').trim()
+  if (!target) return { ok: false, error: 'Request failed' }
+  const attempts = 2
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      const res = await fetch(target, { method: 'GET', cache: 'no-store' })
+      if (!res.ok) return { ok: false, error: `Request failed (${res.status})` }
+      const text = await res.text()
+      return { ok: true, text }
+    } catch {
+      if (i + 1 < attempts) {
+        await new Promise(resolve => setTimeout(resolve, 40))
+        continue
+      }
+      return { ok: false, error: 'Request failed' }
+    }
+  }
+  return { ok: false, error: 'Request failed' }
+}
 
 function ensureTargetSourceFileId(args: { fileId: string | null; suggestedName?: string | null }): string {
   const store = useGraphStore.getState()
@@ -427,7 +459,7 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       return
     }
 
-    const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py)(\?|#|$)/i.test(lower)
+    const looksLikeCodeOrData = /\.(json|jsonld|geojson|csv|yaml|yml|txt|js|ts|py|md|markdown|mdx|svg)(\?|#|$)/i.test(lower)
     if (!looksLikeCodeOrData) {
       const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
       const view = (() => {
@@ -450,8 +482,26 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       }
     }
 
+    if (isSameOriginRepoFileUrl(normalizedUrl)) {
+      const direct = await fetchSameOriginRepoFileText(normalizedUrl)
+      if (!direct.ok) {
+        store.updateSourceFile(id, { status: 'error', error: direct.error })
+        return
+      }
+      const nextName = deriveFilenameFromUrl(normalizedUrl, 'source.txt')
+      await applyImportedTextToSourceFile({
+        id,
+        name: nextName,
+        text: direct.text,
+        source: { kind: 'url', url: normalizedUrl },
+      })
+      return
+    }
+
+    const shouldPreferProxy = true
     const res = await fetchRemoteTextDetailed(normalizedUrl, {
       preflightHead: true,
+      preferProxy: shouldPreferProxy,
       timeoutMs: geospatialDatasetTimeoutMs,
       maxBytes: geospatialDatasetMaxBytes,
     })

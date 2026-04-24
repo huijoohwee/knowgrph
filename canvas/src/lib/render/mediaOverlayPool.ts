@@ -27,6 +27,8 @@ export type RichMediaPanelOverlayState = {
   hasVideo: boolean
   text: string
   connectedText: string
+  isLoading: boolean
+  loadingLabel: string
 }
 
 export type MediaOverlayNode = {
@@ -71,6 +73,34 @@ const RICH_MEDIA_CONNECTED_RENDER_PATHS = [
   'properties.imageUrl',
   'properties.videoUrl',
 ] as const
+
+function readLoadingStateFromNode(node: GraphNode | null | undefined): { loading: boolean; kind: 'text' | 'image' | 'video' | '' } {
+  if (!node) return { loading: false, kind: '' }
+  const props = (node.properties || {}) as Record<string, unknown>
+  const loading = Boolean(props.outputLoading)
+  if (!loading) return { loading: false, kind: '' }
+  const kindRaw = String(props.outputLoadingKind || '').trim().toLowerCase()
+  const kind = kindRaw === 'text' || kindRaw === 'image' || kindRaw === 'video' ? kindRaw : ''
+  return { loading: true, kind }
+}
+
+function loadingLabelFromKind(kind: 'text' | 'image' | 'video' | ''): string {
+  if (kind === 'text') return 'Generating text...'
+  if (kind === 'image') return 'Generating image...'
+  if (kind === 'video') return 'Generating video...'
+  return 'Generating output...'
+}
+
+function normalizeConnectedTextValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    const parts = value
+      .map(item => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean)
+    return parts.join('\n').trim()
+  }
+  return ''
+}
 
 function decodeRemoteFetchProxyUrl(raw: string): string {
   const trimmed = String(raw || '').trim()
@@ -336,16 +366,49 @@ export function listMediaOverlayNodes(args: {
       const freezeConnectedOutput = Boolean(props.freezeConnectedOutput)
       const connectedText = (() => {
         const v = connectedValuesBySchemaPath?.['properties.output']?.value
-        return typeof v === 'string' ? v : ''
+        return normalizeConnectedTextValue(v)
       })()
+      const localLoading = readLoadingStateFromNode(nodeForSpec)
+      const connectedLoading = (() => {
+        if (!connectedValuesBySchemaPath) return { loading: false as const, kind: '' as const, sourceLabels: [] as string[] }
+        const seenSourceIds = new Set<string>()
+        const sourceLabels: string[] = []
+        let kind: 'text' | 'image' | 'video' | '' = ''
+        let loading = false
+        for (let idx = 0; idx < RICH_MEDIA_CONNECTED_RENDER_PATHS.length; idx += 1) {
+          const path = RICH_MEDIA_CONNECTED_RENDER_PATHS[idx]
+          const rec = connectedValuesBySchemaPath[path]
+          const sources = Array.isArray(rec?.sources) ? rec.sources : []
+          for (let i = 0; i < sources.length; i += 1) {
+            const sourceId = String(sources[i]?.nodeId || '').trim()
+            if (!sourceId || seenSourceIds.has(sourceId)) continue
+            seenSourceIds.add(sourceId)
+            const sourceNode = nodeById.get(sourceId) || null
+            const next = readLoadingStateFromNode(sourceNode)
+            if (!next.loading) continue
+            loading = true
+            if (!kind && next.kind) kind = next.kind
+            const label = sourceNode ? deriveOverlayNodeLabel(sourceNode) : ''
+            if (label) sourceLabels.push(label)
+          }
+        }
+        return { loading, kind, sourceLabels }
+      })()
+      const isLoading = localLoading.loading || connectedLoading.loading
+      const loadingKind = localLoading.kind || connectedLoading.kind
+      const loadingLabel = connectedLoading.sourceLabels.length > 0
+        ? `${loadingLabelFromKind(loadingKind)} (${connectedLoading.sourceLabels.join(', ')})`
+        : loadingLabelFromKind(loadingKind)
       return {
         activeTab,
         freezeConnectedOutput,
-        hasText: Boolean(output.trim() || outputSrcDoc.trim()),
+        hasText: Boolean(output.trim() || outputSrcDoc.trim() || connectedText.trim()),
         hasImage: Boolean(imageUrl.trim()),
         hasVideo: Boolean(videoUrl.trim()),
         text: output,
         connectedText,
+        isLoading,
+        loadingLabel,
       }
     })()
     const preferredHit = preferredSet?.has(id) === true

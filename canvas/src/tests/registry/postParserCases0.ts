@@ -271,6 +271,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.flowCanvas.richMediaOverlay.resizePersistsVisualSize","@/__tests__/flowEditorRichMediaOverlayResizePersistsVisualSizeRegression.test","testFlowEditorRichMediaOverlayResizePersistsVisualSize"],
   ["ui.flowCanvas.richMediaOverlay.resizeMaintainsAspectRatio","@/__tests__/flowEditorRichMediaOverlayResizeMaintainsAspectRatioRegression.test","testFlowEditorRichMediaOverlayResizeMaintainsAspectRatio"],
   ["ui.flowCanvas.richMediaPanel.resizeHandleSsot","@/__tests__/flowEditorRichMediaPanelResizeHandleSsotRegression.test","testRichMediaPanelUsesResizeHandleSsot"],
+  ["ui.flowCanvas.richMediaPanel.resizeHandleProtectedFromProxyPan","@/__tests__/flowEditorRichMediaPanelResizeHandleSsotRegression.test","testFlowEditorOverlayProxyTreatsRichMediaResizeHandleAsProtectedHandle"],
   ["viewport.pinchZoom.transform.worldMidAnchored","@/__tests__/viewportTransformPinchZoom.test","testViewportPinchZoomTransformKeepsWorldMidAnchored"],
   ["viewport.pinchZoom.transform.allowsPan","@/__tests__/viewportTransformPinchZoom.test","testViewportPinchZoomTransformAllowsPanWhilePinching"],
   ["viewport.pinchZoom.transform.clampsScale","@/__tests__/viewportTransformPinchZoom.test","testViewportPinchZoomTransformClampsScaleExtent"],

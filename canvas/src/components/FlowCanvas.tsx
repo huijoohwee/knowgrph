@@ -20,7 +20,7 @@ import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGu
 import { deriveSceneGroups } from '@/lib/scene/sceneDerivation'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
-import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { computeEffectiveFrontmatterMode, isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
@@ -58,7 +58,13 @@ import { computeWidgetMaxAnchorShiftPx } from '@/components/FlowEditor/widgetLay
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { listMediaOverlayNodes, type MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
+import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
+import {
+  commitRichMediaPanelChange,
+  listDisplayRichMediaOverlayNodes,
+  normalizeRichMediaPanelDensity,
+  resolveRichMediaPanelInteractive,
+} from '@/lib/render/richMediaSsot'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
@@ -415,7 +421,7 @@ export default function FlowCanvas({
 
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const selectedNodeId = useGraphStore(s => (active ? s.selectedNodeId : null))
-
+  const selectedNodeIds = useGraphStore(s => (active ? s.selectedNodeIds : EMPTY_STRING_ARRAY))
   const { width, height, dpr } = useContainerDims(containerRef)
   const viewportW = Math.max(1, Math.floor(width))
   const viewportH = Math.max(1, Math.floor(height))
@@ -640,6 +646,7 @@ export default function FlowCanvas({
     threeIframeOverlayBaseWidthMaxPxCompact,
     canvasRenderMode,
     canvas2dRenderer,
+    infiniteCanvasInteractionMode,
     viewportControlsPreset,
     flowEditorSelectionOnDrag,
     setLayoutPositionsForMode,
@@ -679,6 +686,7 @@ export default function FlowCanvas({
           threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
           canvasRenderMode: '2d' as const,
           canvas2dRenderer: 'flow' as const,
+          infiniteCanvasInteractionMode: 'static' as const,
           viewportControlsPreset: s.viewportControlsPreset,
           flowEditorSelectionOnDrag: false,
           setLayoutPositionsForMode: s.setLayoutPositionsForMode,
@@ -717,6 +725,7 @@ export default function FlowCanvas({
         threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
         canvasRenderMode: s.canvasRenderMode,
         canvas2dRenderer: s.canvas2dRenderer,
+        infiniteCanvasInteractionMode: (s.infiniteCanvasInteractionMode || 'static') as 'static' | 'interactive',
         viewportControlsPreset: s.viewportControlsPreset,
         flowEditorSelectionOnDrag: s.flowEditorSelectionOnDrag === true,
         setLayoutPositionsForMode: s.setLayoutPositionsForMode,
@@ -821,10 +830,14 @@ export default function FlowCanvas({
       graphData: renderGraphData,
     })
   }, [documentSemanticMode, frontmatterModeEnabled, renderGraphData])
-  const flowEditorFrontmatterInteractionMode =
-    canvas2dRenderer === 'flowEditor'
-    && effectiveFrontmatter === true
-    && String(documentSemanticMode || '').trim().toLowerCase() === 'document'
+  const flowEditorFrontmatterInteractionMode = isFlowEditorFrontmatterDocumentModeRequested({
+    canvas2dRenderer: String(canvas2dRenderer || ''),
+    frontmatterModeEnabled: frontmatterModeEnabled === true,
+    documentSemanticMode: String(documentSemanticMode || ''),
+  })
+  // Overlay drag/resize interaction should be renderer-gated (Flow Editor SSOT),
+  // while frontmatter/document mode remains the stricter gate for other semantics.
+  const flowEditorOverlayInteractionMode = canvas2dRenderer === 'flowEditor'
 
   const collapsedGroupIdsKey = React.useMemo(() => {
     return buildCollapsedGroupIdsKey(collapsedGroupIds)
@@ -909,8 +922,8 @@ export default function FlowCanvas({
     const nodes = mediaRenderNodes
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
-    const suggested = listMediaOverlayNodes({
-      enabled: true,
+    const suggested = listDisplayRichMediaOverlayNodes({
+      renderMediaAsNodes,
       nodes,
       poolMax,
       connectedValuesByNodeId: mediaRenderConnectedValuesByNodeId,
@@ -1038,6 +1051,21 @@ export default function FlowCanvas({
   React.useEffect(() => {
     __flowCanvasDebug.overlayNodeIds = overlayNodes.map(n => String(n.id || '').trim()).filter(Boolean)
   }, [overlayNodes])
+  React.useEffect(() => {
+    try {
+      ;(window as unknown as { __flowCanvasDebug?: unknown }).__flowCanvasDebug = __flowCanvasDebug
+      return () => {
+        try {
+          const w = window as unknown as { __flowCanvasDebug?: unknown }
+          if (w.__flowCanvasDebug === __flowCanvasDebug) delete w.__flowCanvasDebug
+        } catch {
+          void 0
+        }
+      }
+    } catch {
+      return () => void 0
+    }
+  }, [])
 
   const plannedOverlayNodeIdsKey = React.useMemo(() => {
     const ids: string[] = []
@@ -1095,20 +1123,31 @@ export default function FlowCanvas({
   const mediaOverlayResizeMoveLatestRef = React.useRef<{ id: string; pointerId: number; dx: number; dy: number } | null>(null)
   const requestCommitRef = React.useRef<null | (() => void)>(null)
   const mediaOverlayLayoutScheduleRef = React.useRef<null | (() => void)>(null)
-  const isFlowEditorFrontmatterInteractionMode = React.useCallback(() => {
+  const isFlowEditorOverlayInteractionMode = React.useCallback(() => {
     const st = useGraphStore.getState() as unknown as {
       canvas2dRenderer?: unknown
-      frontmatterModeEnabled?: unknown
-      documentSemanticMode?: unknown
     }
     if (String(st.canvas2dRenderer || '') !== 'flowEditor') return false
-    if (st.frontmatterModeEnabled !== true) return false
-    return String(st.documentSemanticMode || '').trim().toLowerCase() === 'document'
+    return true
+  }, [])
+  const isFlowEditorFrontmatterDocumentInteractionMode = React.useCallback(() => {
+    return isFlowEditorFrontmatterDocumentModeRequested({
+      canvas2dRenderer: String(canvas2dRenderer || ''),
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      documentSemanticMode: String(documentSemanticMode || ''),
+    })
+  }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
+  const writeRichMediaResizeTrace = React.useCallback((parts: Array<string | number>) => {
+    try {
+      __flowCanvasDebug.lastRichMediaResizeTrace = parts.map(v => String(v)).join('|')
+    } catch {
+      void 0
+    }
   }, [])
 
   const beginMediaOverlayHeaderDrag = React.useCallback((id: string, pointerId: number) => {
     if (!active) return
-    if (!isFlowEditorFrontmatterInteractionMode()) return
+    if (!isFlowEditorOverlayInteractionMode()) return
     const rt = runtimeRef.current
     const scene = rt?.scene
     if (!rt || !scene) return
@@ -1116,11 +1155,11 @@ export default function FlowCanvas({
     if (!node) return
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
     mediaOverlayHeaderDragRef.current = { id, pointerId, startX: node.x, startY: node.y, startK: rt.transform?.k || 1, lastDx: 0, lastDy: 0 }
-  }, [active, isFlowEditorFrontmatterInteractionMode])
+  }, [active, isFlowEditorOverlayInteractionMode])
 
   const beginMediaOverlayPan = React.useCallback((args: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => {
     if (!active) return
-    if (!isFlowEditorFrontmatterInteractionMode()) return
+    if (!isFlowEditorOverlayInteractionMode()) return
     const rt = runtimeRef.current
     if (!rt) return
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
@@ -1130,10 +1169,10 @@ export default function FlowCanvas({
       lastDx: 0,
       lastDy: 0,
     }
-  }, [active, isFlowEditorFrontmatterInteractionMode])
+  }, [active, isFlowEditorOverlayInteractionMode])
 
   const applyMediaOverlayPanMove = React.useCallback((args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean }) => {
-    if (!isFlowEditorFrontmatterInteractionMode()) return
+    if (!isFlowEditorOverlayInteractionMode()) return
     const drag = mediaOverlayPanRef.current
     if (!drag || drag.pointerId !== args.pointerId) return
     const rt = runtimeRef.current
@@ -1152,7 +1191,7 @@ export default function FlowCanvas({
     setFlowNativeTransform(rt, next)
     requestFlowNativeDraw(rt, buildDrawArgs())
     onInteractionFrame?.()
-  }, [buildDrawArgs, isFlowEditorFrontmatterInteractionMode, onInteractionFrame])
+  }, [buildDrawArgs, isFlowEditorOverlayInteractionMode, onInteractionFrame])
 
   const moveMediaOverlayPan = React.useCallback((args: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean }) => {
     mediaOverlayPanMoveLatestRef.current = args
@@ -1165,7 +1204,7 @@ export default function FlowCanvas({
   }, [applyMediaOverlayPanMove])
 
   const endMediaOverlayPan = React.useCallback((args: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => {
-    if (!isFlowEditorFrontmatterInteractionMode()) return
+    if (!isFlowEditorOverlayInteractionMode()) return
     const drag = mediaOverlayPanRef.current
     if (!drag || drag.pointerId !== args.pointerId) return
     mediaOverlayPanMoveSchedulerRef.current?.cancel()
@@ -1176,10 +1215,10 @@ export default function FlowCanvas({
     mediaOverlayPanMoveLatestRef.current = null
     mediaOverlayPanRef.current = null
     requestCommitRef.current?.()
-  }, [applyMediaOverlayPanMove, isFlowEditorFrontmatterInteractionMode])
+  }, [applyMediaOverlayPanMove, isFlowEditorOverlayInteractionMode])
 
   const applyMediaOverlayHeaderDragMove = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
-    if (!isFlowEditorFrontmatterInteractionMode()) return
+    if (!isFlowEditorOverlayInteractionMode()) return
     const drag = mediaOverlayHeaderDragRef.current
     if (!drag || drag.id !== id || drag.pointerId !== args.pointerId) return
     const rt = runtimeRef.current
@@ -1205,14 +1244,27 @@ export default function FlowCanvas({
     requestFlowNativeDraw(rt, buildDrawArgs())
     mediaOverlayLayoutScheduleRef.current?.()
     onInteractionFrame?.()
-  }, [buildDrawArgs, isFlowEditorFrontmatterInteractionMode, onInteractionFrame])
+  }, [buildDrawArgs, isFlowEditorOverlayInteractionMode, onInteractionFrame])
 
   const beginMediaOverlayResize = React.useCallback((id: string, pointerId: number) => {
-    if (!active) return
-    if (!isFlowEditorFrontmatterInteractionMode()) return
+    if (!active) {
+      writeRichMediaResizeTrace(['phase=skip', 'reason=inactive', `id=${id}`, `pid=${pointerId}`])
+      return
+    }
+    if (!isFlowEditorOverlayInteractionMode()) {
+      writeRichMediaResizeTrace(['phase=skip', 'reason=renderer', `id=${id}`, `pid=${pointerId}`])
+      return
+    }
+    if (!isFlowEditorFrontmatterDocumentInteractionMode()) {
+      writeRichMediaResizeTrace(['phase=skip', 'reason=frontmatter-document-gate', `id=${id}`, `pid=${pointerId}`])
+      return
+    }
     const rt = runtimeRef.current
     const scene = rt?.scene
-    if (!rt || !scene) return
+    if (!rt || !scene) {
+      writeRichMediaResizeTrace(['phase=skip', 'reason=runtime-scene', `id=${id}`, `pid=${pointerId}`])
+      return
+    }
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
 
     const rawK = rt.transform?.k
@@ -1264,12 +1316,27 @@ export default function FlowCanvas({
     }
     mediaOverlayPanelSizeOverrideRef.current.set(id, { w: useW * scale, h: stableH * scale })
     mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: useW, h: stableH })
+    try {
+      __flowCanvasDebug.lastRichMediaResizeTarget = id
+    } catch {
+      void 0
+    }
+    writeRichMediaResizeTrace([
+      'phase=start',
+      `id=${id}`,
+      `pid=${pointerId}`,
+      `startW=${useW}`,
+      `startH=${stableH}`,
+      `scale=${scale.toFixed(4)}`,
+      `headerH=${headerWorldH.toFixed(2)}`,
+      `aspect=${bodyAspect.toFixed(5)}`,
+    ])
     mediaOverlayLayoutScheduleRef.current?.()
     onInteractionFrame?.()
-  }, [active, isFlowEditorFrontmatterInteractionMode])
+  }, [active, isFlowEditorFrontmatterDocumentInteractionMode, isFlowEditorOverlayInteractionMode, onInteractionFrame, writeRichMediaResizeTrace])
 
   const applyMediaOverlayResizeMove = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
-    if (!isFlowEditorFrontmatterInteractionMode()) return
+    if (!isFlowEditorOverlayInteractionMode()) return
     const drag = mediaOverlayResizeRef.current
     if (!drag || drag.id !== id || drag.pointerId !== args.pointerId) return
     const scale = Math.max(0.001, drag.startScale)
@@ -1284,9 +1351,18 @@ export default function FlowCanvas({
     drag.lastH = nextH
     mediaOverlayPanelSizeOverrideRef.current.set(id, { w: nextW * scale, h: nextH * scale })
     mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: nextW, h: nextH })
+    writeRichMediaResizeTrace([
+      'phase=move',
+      `id=${id}`,
+      `pid=${args.pointerId}`,
+      `dx=${Math.round(args.dx)}`,
+      `dy=${Math.round(args.dy)}`,
+      `nextW=${nextW}`,
+      `nextH=${nextH}`,
+    ])
     mediaOverlayLayoutScheduleRef.current?.()
     onInteractionFrame?.()
-  }, [isFlowEditorFrontmatterInteractionMode, onInteractionFrame])
+  }, [isFlowEditorOverlayInteractionMode, onInteractionFrame, writeRichMediaResizeTrace])
 
   const moveMediaOverlayResize = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
     const next = { id, ...args }
@@ -1302,7 +1378,7 @@ export default function FlowCanvas({
   }, [applyMediaOverlayResizeMove])
 
   const endMediaOverlayResize = React.useCallback((id: string, pointerId: number) => {
-    if (!isFlowEditorFrontmatterInteractionMode()) return
+    if (!isFlowEditorOverlayInteractionMode()) return
     const drag = mediaOverlayResizeRef.current
     if (!drag || drag.id !== id || drag.pointerId !== pointerId) return
     mediaOverlayResizeMoveSchedulerRef.current?.cancel()
@@ -1325,12 +1401,19 @@ export default function FlowCanvas({
     } catch {
       void 0
     }
+    writeRichMediaResizeTrace([
+      'phase=end',
+      `id=${id}`,
+      `pid=${pointerId}`,
+      `finalW=${drag.lastW}`,
+      `finalH=${drag.lastH}`,
+    ])
     mediaOverlayLayoutScheduleRef.current?.()
     requestCommitRef.current?.()
-  }, [applyMediaOverlayResizeMove, isFlowEditorFrontmatterInteractionMode])
+  }, [applyMediaOverlayResizeMove, isFlowEditorOverlayInteractionMode, writeRichMediaResizeTrace])
 
   React.useEffect(() => {
-    if (flowEditorFrontmatterInteractionMode !== true) {
+    if (flowEditorOverlayInteractionMode !== true) {
       mediaOverlayPanelSizeOverrideRef.current.clear()
       mediaOverlayPanelSizeTargetWorldRef.current.clear()
       return
@@ -1364,7 +1447,7 @@ export default function FlowCanvas({
     if (changed) {
       mediaOverlayLayoutScheduleRef.current?.()
     }
-  }, [flowEditorFrontmatterInteractionMode, sceneGraphData])
+  }, [flowEditorOverlayInteractionMode, sceneGraphData])
 
   const moveMediaOverlayHeaderDrag = React.useCallback((id: string, args: { pointerId: number; dx: number; dy: number }) => {
     const next = { id, ...args }
@@ -1380,7 +1463,7 @@ export default function FlowCanvas({
   }, [applyMediaOverlayHeaderDragMove])
 
   const endMediaOverlayHeaderDrag = React.useCallback((id: string, pointerId: number) => {
-    if (!isFlowEditorFrontmatterInteractionMode()) return
+    if (!isFlowEditorOverlayInteractionMode()) return
     const drag = mediaOverlayHeaderDragRef.current
     if (!drag || drag.id !== id || drag.pointerId !== pointerId) return
     mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
@@ -1411,7 +1494,7 @@ export default function FlowCanvas({
     }
     mediaOverlayHeaderDragRef.current = null
     requestCommitRef.current?.()
-  }, [applyMediaOverlayHeaderDragMove, isFlowEditorFrontmatterInteractionMode, schema])
+  }, [applyMediaOverlayHeaderDragMove, isFlowEditorOverlayInteractionMode, schema])
 
   React.useEffect(() => {
     return () => {
@@ -1447,7 +1530,7 @@ export default function FlowCanvas({
   React.useEffect(() => {
     if (!active) return
     if (overlayNodes.length === 0) return
-    const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
     const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
     const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
     const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
@@ -1468,7 +1551,20 @@ export default function FlowCanvas({
         if (flowEditorFrontmatterInteractionMode !== true) return null
 
         const override = mediaOverlayPanelSizeOverrideRef.current.get(id)
-        if (override) return override
+        if (override) {
+          try {
+            __flowCanvasDebug.lastRichMediaResizeTrace = [
+              'phase=layout-override',
+              `id=${id}`,
+              `w=${Math.round(override.w)}`,
+              `h=${Math.round(override.h)}`,
+            ].join('|')
+            __flowCanvasDebug.lastRichMediaResizeTarget = id
+          } catch {
+            void 0
+          }
+          return override
+        }
 
         const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as Array<{ id?: unknown; properties?: unknown }>) : []
         const node = nodes.find(n => String(n?.id || '') === id) || null
@@ -1815,7 +1911,7 @@ export default function FlowCanvas({
   }, [canvas2dRenderer, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, graphDataForZoom, nodesForFlowTransformGuard])
 
   const mediaPanelWorldSizeForFit = React.useMemo(() => {
-    const density = mediaPanelDensity === 'compact' ? 'compact' : 'default'
+    const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
     const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
     const widthRatio = Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2
     const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
@@ -2453,8 +2549,8 @@ export default function FlowCanvas({
         <section aria-label="Flow media overlay" className="absolute inset-0 z-[80] pointer-events-none">
           {overlayNodes.map(n => {
             const isMarkdownPanel = !!markdownPanelNodeIdSet?.has(n.id)
-            const isSelected = selectedNodeId === n.id
-  const updateNode = useGraphStore.getState().updateNode
+            const resizeInteractionActive = flowEditorFrontmatterInteractionMode
+            const updateNode = useGraphStore.getState().updateNode
             return (
               <RichMediaPanel
                 key={n.id}
@@ -2475,33 +2571,34 @@ export default function FlowCanvas({
                 srcDoc={n.srcDoc}
                 openUrl={n.openUrl}
                 kind={n.kind}
-                interactive={n.interactive}
+                interactive={resolveRichMediaPanelInteractive({
+                  nodeInteractive: n.interactive,
+                  renderMediaAsNodes,
+                  infiniteCanvasInteractionMode,
+                })}
                 iframeMode="srcdoc-when-needed"
       panel={n.panel}
       onPanelChange={next => {
         if (!n.panel) return
-        if (!next) return
-        const nextTab = String(next.activeTab || 'auto').trim().toLowerCase()
-        const activeTab = nextTab === 'text' || nextTab === 'image' || nextTab === 'video' || nextTab === 'auto' ? nextTab : 'auto'
-        updateNode(n.id, {
-          properties: {
-            richMediaActiveTab: activeTab,
-            freezeConnectedOutput: Boolean(next.freezeConnectedOutput),
-            ...(typeof next.text === 'string' ? { output: next.text } : {}),
-          },
+        commitRichMediaPanelChange({
+          nodeId: n.id,
+          next,
+          updateNode,
         })
       }}
                 forwardWheelTo={() => canvasRef.current}
-                onOverlayPanStart={flowEditorFrontmatterInteractionMode ? (args) => beginMediaOverlayPan(args) : undefined}
-                onOverlayPan={flowEditorFrontmatterInteractionMode ? (args) => moveMediaOverlayPan(args) : undefined}
-                onOverlayPanEnd={flowEditorFrontmatterInteractionMode ? (args) => endMediaOverlayPan(args) : undefined}
-                onHeaderDragStart={flowEditorFrontmatterInteractionMode ? ({ pointerId }) => beginMediaOverlayHeaderDrag(n.id, pointerId) : undefined}
-                onHeaderDrag={flowEditorFrontmatterInteractionMode ? ({ dx, dy, pointerId }) => moveMediaOverlayHeaderDrag(n.id, { pointerId, dx, dy }) : undefined}
-                onHeaderDragEnd={flowEditorFrontmatterInteractionMode ? ({ pointerId }) => endMediaOverlayHeaderDrag(n.id, pointerId) : undefined}
-                resizable={flowEditorFrontmatterInteractionMode && isSelected}
-                onResizeStart={flowEditorFrontmatterInteractionMode ? ({ pointerId }) => beginMediaOverlayResize(n.id, pointerId) : undefined}
-                onResize={flowEditorFrontmatterInteractionMode ? ({ dx, dy, pointerId }) => moveMediaOverlayResize(n.id, { pointerId, dx, dy }) : undefined}
-                onResizeEnd={flowEditorFrontmatterInteractionMode ? ({ pointerId }) => endMediaOverlayResize(n.id, pointerId) : undefined}
+                onOverlayPanStart={flowEditorOverlayInteractionMode ? (args) => beginMediaOverlayPan(args) : undefined}
+                onOverlayPan={flowEditorOverlayInteractionMode ? (args) => moveMediaOverlayPan(args) : undefined}
+                onOverlayPanEnd={flowEditorOverlayInteractionMode ? (args) => endMediaOverlayPan(args) : undefined}
+                onHeaderDragStart={flowEditorOverlayInteractionMode ? ({ pointerId }) => beginMediaOverlayHeaderDrag(n.id, pointerId) : undefined}
+                onHeaderDrag={flowEditorOverlayInteractionMode ? ({ dx, dy, pointerId }) => moveMediaOverlayHeaderDrag(n.id, { pointerId, dx, dy }) : undefined}
+                onHeaderDragEnd={flowEditorOverlayInteractionMode ? ({ pointerId }) => endMediaOverlayHeaderDrag(n.id, pointerId) : undefined}
+                resizable={resizeInteractionActive}
+                onResizeStart={resizeInteractionActive ? ({ pointerId }) => beginMediaOverlayResize(n.id, pointerId) : undefined}
+                onResize={resizeInteractionActive ? ({ dx, dy, pointerId }) => moveMediaOverlayResize(n.id, { pointerId, dx, dy }) : undefined}
+                onResizeEnd={resizeInteractionActive ? ({ pointerId }) => endMediaOverlayResize(n.id, pointerId) : undefined}
+                flowEditorInteractionMode={flowEditorOverlayInteractionMode}
+                flowEditorFrontmatterDocumentMode={flowEditorFrontmatterInteractionMode}
                 style={{
                   transform: 'translate(-99999px, -99999px)',
                   width: 1,

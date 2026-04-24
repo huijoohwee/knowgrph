@@ -10,7 +10,13 @@ import {
   resolveChatEndpointForModels,
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
-import { buildProviderChatRequestOptions, parseErrorBody, loadAvailableModelIds } from './SidePanelChat.helpers'
+import {
+  buildProviderChatRequestOptions,
+  extractAssistantDelta,
+  loadAvailableModelIds,
+  parseErrorBody,
+  parseSseEvents,
+} from './SidePanelChat.helpers'
 
 export type RunGenerationConfig = {
   provider: unknown
@@ -40,6 +46,7 @@ export type RunTextGenerationOptions = {
   chatLogitBiasJson?: unknown
   chatToolsJson?: unknown
   chatToolChoiceJson?: unknown
+  onText?: (text: string) => void
 }
 
 export type RunImageGenerationOptions = {
@@ -202,6 +209,20 @@ const extractChatText = (payload: unknown): string => {
   return ''
 }
 
+const extractStreamTextDelta = (payload: unknown): string => {
+  if (!payload || typeof payload !== 'object') return ''
+  const eventType = cleanString((payload as { type?: unknown }).type).toLowerCase()
+  if (eventType === 'response.output_text.delta') {
+    const delta = (payload as { delta?: unknown }).delta
+    return typeof delta === 'string' ? delta : ''
+  }
+  if (eventType === 'response.output_text.done') {
+    const text = (payload as { text?: unknown }).text
+    return typeof text === 'string' ? text : ''
+  }
+  return extractAssistantDelta(payload)
+}
+
 const base64ToBlob = (base64: string, mimeType: string): Blob | null => {
   try {
     const clean = cleanString(base64).replace(/^data:[^;]+;base64,/, '')
@@ -352,13 +373,14 @@ export async function generateRunMarkdownWithProvider(args: {
   ]
   const requestMessages = providerMessages || baseMessages
   const tokenLimit = cleanInteger(args.options?.chatMaxCompletionTokens)
+  const streamRequested = cleanBool(args.options?.chatStream) !== false
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: buildProxyHeaders(args.config, requestId),
     body: JSON.stringify({
       model,
       ...providerOptions,
-      stream: false,
+      stream: streamRequested,
       ...(isResponsesEndpoint
         ? {
             instructions: baseMessages[0]?.content,
@@ -375,8 +397,58 @@ export async function generateRunMarkdownWithProvider(args: {
     const detail = await parseErrorBody(res)
     throw new Error(detail || `Run markdown generation failed (${res.status})`)
   }
+  const contentType = String(
+    (typeof res.headers?.get === 'function' ? res.headers.get('content-type') : '')
+    || '',
+  ).toLowerCase()
+  const isEventStream = streamRequested && contentType.includes('text/event-stream')
+  if (isEventStream && res.body) {
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let fullText = ''
+    let done = false
+    while (!done) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      buffer += decoder.decode(chunk.value, { stream: true })
+      const parsed = parseSseEvents(buffer)
+      buffer = parsed.rest
+      for (const raw of parsed.events) {
+        if (raw === '[DONE]') {
+          done = true
+          break
+        }
+        try {
+          const next = extractStreamTextDelta(JSON.parse(raw) as unknown)
+          if (!next) continue
+          fullText += next
+          args.options?.onText?.(fullText)
+        } catch {
+          void 0
+        }
+      }
+    }
+    buffer += decoder.decode()
+    if (buffer.trim()) {
+      const parsed = parseSseEvents(buffer)
+      for (const raw of parsed.events) {
+        if (raw === '[DONE]') continue
+        try {
+          const next = extractStreamTextDelta(JSON.parse(raw) as unknown)
+          if (!next) continue
+          fullText += next
+          args.options?.onText?.(fullText)
+        } catch {
+          void 0
+        }
+      }
+    }
+    return fullText.trim() ? fullText : null
+  }
   const data = (await res.json()) as unknown
   const text = extractChatText(data)
+  if (text) args.options?.onText?.(text)
   return text || null
 }
 

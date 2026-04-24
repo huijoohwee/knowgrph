@@ -18,6 +18,7 @@ import {
 } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useSettingsView } from './useSettingsView'
+import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { createStripeHostedCheckoutSessionUrl } from '@/features/payments/stripeCheckout'
 import { WorkspaceTableModeControl } from '@/features/workspace-table/ui/WorkspaceTableModeControl'
 import { KindPill, resolveFieldTypeIconKind } from '@/features/graph-fields/ui/graphFieldIcons'
@@ -131,9 +132,14 @@ export default function SettingsView({
   const {
     expanded,
     setExpanded,
-    chatHealthStatus,
+    chatHealthOk,
+    chatHealthDetails,
     isCheckingHealth,
     checkChatHealth,
+    bytePlusHealthOk,
+    bytePlusHealthDetails,
+    isCheckingBytePlusHealth,
+    checkBytePlusHealth,
     onGlobalReset,
     renderInput,
     collapsedByArea,
@@ -1077,23 +1083,53 @@ export default function SettingsView({
                                     <div className="flex-1 min-w-0">
                                       {inputNode}
                                     </div>
-                                    {chatHealthStatus && (
-                                      <span className={statusPillClassName} title={chatHealthStatus}>
-                                        <span className="truncate overflow-hidden whitespace-nowrap">
-                                          {chatHealthStatus}
-                                        </span>
-                                      </span>
-                                    )}
+                                    <div className="shrink-0" title={chatHealthDetails || undefined}>
+                                      <StatusBadge
+                                        label="Chat API"
+                                        ok={isCheckingHealth ? null : (chatHealthOk ?? null)}
+                                        msg={
+                                          isCheckingHealth
+                                            ? 'Checking...'
+                                            : chatHealthOk === true
+                                              ? 'Success'
+                                              : chatHealthOk === false
+                                                ? 'Failed'
+                                                : 'Idle'
+                                        }
+                                        details={chatHealthDetails || undefined}
+                                      />
+                                    </div>
+                                    {normalizedChatProvider !== CHAT_PROVIDER_BYTEPLUS ? (
+                                      <div className="shrink-0" title={bytePlusHealthDetails || undefined}>
+                                        <StatusBadge
+                                          label="BytePlus API"
+                                          ok={isCheckingBytePlusHealth ? null : (bytePlusHealthOk ?? null)}
+                                          msg={
+                                            isCheckingBytePlusHealth
+                                              ? 'Checking...'
+                                              : bytePlusHealthOk === true
+                                                ? 'Success'
+                                                : bytePlusHealthOk === false
+                                                  ? 'Failed'
+                                                  : 'Idle'
+                                          }
+                                          details={bytePlusHealthDetails || undefined}
+                                        />
+                                      </div>
+                                    ) : null}
                                     <button
                                       type="button"
                                       onClick={e => {
                                         e.stopPropagation()
                                         checkChatHealth()
+                                        if (normalizedChatProvider !== CHAT_PROVIDER_BYTEPLUS) {
+                                          checkBytePlusHealth()
+                                        }
                                       }}
-                                      disabled={isCheckingHealth}
+                                      disabled={isCheckingHealth || isCheckingBytePlusHealth}
                                       className={pillButtonClassName}
                                     >
-                                      {isCheckingHealth ? 'Checking...' : 'Check Health'}
+                                      {isCheckingHealth || isCheckingBytePlusHealth ? 'Checking...' : 'Check Health'}
                                     </button>
                                   </div>
                                 )

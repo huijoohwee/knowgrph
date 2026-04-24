@@ -98,6 +98,7 @@ export function resolveRichMediaConnectedRenderSchemaPath(args: {
   })
   if (inferredKind === 'image') return RICH_MEDIA_IMAGE_PATH
   if (inferredKind === 'video') return RICH_MEDIA_VIDEO_PATH
+  if (inferredKind === 'text') return RICH_MEDIA_OUTPUT_PATH
   const connectedSources = Array.isArray(args.connectedValue?.sources) ? args.connectedValue!.sources : []
   for (let i = 0; i < connectedSources.length; i += 1) {
     const portKey = cleanToken(connectedSources[i]?.portKey)

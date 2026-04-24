@@ -2,6 +2,7 @@ import React from 'react'
 import { EXPORT_UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { uiPrimaryIconActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { RICH_MEDIA_DISPLAY_COPY } from '@/lib/render/richMediaSsot'
 
 interface ToolbarSettingsAreaProps {
   onExportSettingsJsonLd: () => void
@@ -31,10 +32,10 @@ export function ToolbarSettingsArea({
             onChange={e => setRenderMediaAsNodes(e.target.checked)}
             className={`w-3 h-3 rounded border-gray-300 ${uiPrimaryIconActiveClassName} focus:ring-blue-500`}
           />
-          Rich Media
+          {RICH_MEDIA_DISPLAY_COPY.toggleTitle}
         </label>
         <span className="text-[10px] text-gray-500">
-          Rich Media: shows or hides media overlays on media-capable nodes without reloading.
+          {RICH_MEDIA_DISPLAY_COPY.tooltip}
         </span>
         <button
           type="button"

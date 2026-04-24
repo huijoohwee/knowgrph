@@ -466,13 +466,15 @@ export function testRichMediaPanelCanvasOverlayProxyAttrsAlignWithFlowWidget() {
     `data-kg-rich-media-overlay={canvasOverlayProxyEnabled ? '1' : undefined}`,
     `data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}`,
     `data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}`,
-    `data-kg-canvas-pointer-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}`,
     `data-kg-canvas-overlay-drag-handle={installHeaderDrag ? 'true' : undefined}`,
   ]
   for (const snippet of requiredSnippets) {
     if (!text.includes(snippet)) {
       throw new Error(`expected RichMediaPanel overlay proxy attr snippet: ${snippet}`)
     }
+  }
+  if (text.includes(`data-kg-canvas-pointer-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}`)) {
+    throw new Error('expected RichMediaPanel root overlay proxy attrs to avoid blanket canvas pointer-ignore and keep pointer routing owned by FlowCanvas drag/resize handlers')
   }
 }
 
@@ -504,21 +506,24 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreFlowEditorScoped() 
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const text = readFileSync(flowCanvasPath, 'utf8')
   const requiredSnippets = [
-    'flowEditorFrontmatterInteractionMode =',
-    "onOverlayPanStart={flowEditorFrontmatterInteractionMode ?",
-    "onOverlayPan={flowEditorFrontmatterInteractionMode ?",
-    "onOverlayPanEnd={flowEditorFrontmatterInteractionMode ?",
-    "onHeaderDragStart={flowEditorFrontmatterInteractionMode ?",
-    "onHeaderDrag={flowEditorFrontmatterInteractionMode ?",
-    "onHeaderDragEnd={flowEditorFrontmatterInteractionMode ?",
-    "&& effectiveFrontmatter === true",
-    'isFlowEditorFrontmatterInteractionMode',
-    "if (st.frontmatterModeEnabled !== true) return false",
-    "return String(st.documentSemanticMode || '').trim().toLowerCase() === 'document'",
+    "const flowEditorOverlayInteractionMode = canvas2dRenderer === 'flowEditor'",
+    "onOverlayPanStart={flowEditorOverlayInteractionMode ?",
+    "onOverlayPan={flowEditorOverlayInteractionMode ?",
+    "onOverlayPanEnd={flowEditorOverlayInteractionMode ?",
+    "onHeaderDragStart={flowEditorOverlayInteractionMode ?",
+    "onHeaderDrag={flowEditorOverlayInteractionMode ?",
+    "onHeaderDragEnd={flowEditorOverlayInteractionMode ?",
+    "onResizeStart={flowEditorOverlayInteractionMode ?",
+    "onResize={flowEditorOverlayInteractionMode ?",
+    "onResizeEnd={flowEditorOverlayInteractionMode ?",
+    "if (String(st.canvas2dRenderer || '') !== 'flowEditor') return false",
   ]
   for (const snippet of requiredSnippets) {
     if (!text.includes(snippet)) {
       throw new Error(`expected FlowCanvas Rich Media drag/pan Flow Editor guard snippet: ${snippet}`)
     }
+  }
+  if (text.includes('isFlowEditorFrontmatterInteractionMode')) {
+    throw new Error('expected FlowCanvas Rich Media overlay drag runtime to remove stale frontmatter-only gate alias')
   }
 }

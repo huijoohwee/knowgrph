@@ -100,3 +100,54 @@ export async function testRichMediaPanelClickToOpenUsesBodyNotHeader() {
     restoreDom()
   }
 }
+
+export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    root.render(
+      React.createElement(RichMediaPanel, {
+        title: 'Rich Media Panel',
+        url: '',
+        kind: 'iframe',
+        interactive: false,
+        panel: {
+          activeTab: 'text',
+          freezeConnectedOutput: false,
+          hasText: true,
+          hasImage: false,
+          hasVideo: false,
+          text: '',
+          connectedText: '# Hello\n\n![preview](https://example.com/preview.png)\n',
+        },
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 20; i += 1) await tick()
+
+    const markdownPreview = container.querySelector('[data-kg-rich-media-markdown-preview="1"]')
+    if (!markdownPreview) throw new Error('expected RichMediaPanel text mode to mount the shared markdown preview surface')
+    const heading = Array.from(container.querySelectorAll('h1,h2,h3')).find(el => (el.textContent || '').trim() === 'Hello')
+    if (!heading) throw new Error('expected markdown heading to render through RichMediaPanel text mode')
+
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
