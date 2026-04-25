@@ -257,6 +257,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   const isFrontmatterFlow = React.useMemo(() => {
     return String(graphMetaKind || '').trim() === 'frontmatter-flow'
   }, [graphMetaKind])
+  const isRichMediaPanelWidget = String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
 
   return (
     <FloatingPanel
@@ -335,20 +336,22 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
                 <CheckCircle className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
               </IconButton>
 
-              <IconButton
-                title={hideFields ? UI_LABELS.showFields : UI_LABELS.hideFields}
-                tooltipContent={hideFields ? UI_COPY.flowWidgetShowFields : UI_COPY.flowWidgetHideFields}
-                showTooltip
-                disabled={!active}
-                onClick={onToggleHideFields}
-                className={cn('App-toolbar__btn', hideFields ? UI_THEME_TOKENS.icon.active : '')}
-              >
-                {hideFields ? (
-                  <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                ) : (
-                  <ChevronUp className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
-                )}
-              </IconButton>
+              {!isRichMediaPanelWidget ? (
+                <IconButton
+                  title={hideFields ? UI_LABELS.showFields : UI_LABELS.hideFields}
+                  tooltipContent={hideFields ? UI_COPY.flowWidgetShowFields : UI_COPY.flowWidgetHideFields}
+                  showTooltip
+                  disabled={!active}
+                  onClick={onToggleHideFields}
+                  className={cn('App-toolbar__btn', hideFields ? UI_THEME_TOKENS.icon.active : '')}
+                >
+                  {hideFields ? (
+                    <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+                  ) : (
+                    <ChevronUp className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
+                  )}
+                </IconButton>
+              ) : null}
 
               <IconButton
                 title={minimized ? UI_LABELS.restorePanel : UI_LABELS.minimizePanel}

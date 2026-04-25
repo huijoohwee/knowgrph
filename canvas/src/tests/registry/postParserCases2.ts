@@ -171,6 +171,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["mediaOverlayPool.deduplicatesByKindAndUrl","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolDeduplicatesByKindAndUrl"],
   ["mediaOverlayPool.deduplicatesProxyWrappedUrlsToCanonicalWidgetVersion","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolDeduplicatesProxyWrappedMediaUrlsToSingleCanonicalWidgetVersion"],
   ["mediaOverlayPool.appliesConnectedTextToRichMediaPanelShellBeforeSpecSelection","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolAppliesConnectedTextToRichMediaPanelShellBeforeSpecSelection"],
+  ["mediaOverlayPool.richMediaPanel.prefersFunctionalPanelOverEmptyShell","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolSuppressesEmptyRichMediaShellWhenFunctionalPanelExists"],
+  ["mediaOverlayPool.richMediaPanel.deduplicatesMultipleEmptyShells","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolDeduplicatesMultipleEmptyRichMediaShellsToSingleCanonicalShell"],
   ["mediaOverlayLayout2d.fallbackWhenPosMissing","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing"],
   ["export.htmlViewerSnapshot.inlineUrl.usesFetchRemoteOnLocalhost","@/__tests__/exportHtmlViewerSnapshotInlineUrl.test","testResolveSnapshotInlineFetchUrlUsesFetchRemoteOnLocalhost"],
   ["export.htmlCanvas.normalizeSvg.extractsInitialView","@/__tests__/normalizeInteractiveSvgForHtmlViewer.test","testNormalizeInteractiveSvgExtractsInitialViewAndStripsTransform"],

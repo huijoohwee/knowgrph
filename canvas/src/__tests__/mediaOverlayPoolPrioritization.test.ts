@@ -123,8 +123,8 @@ export async function testMediaOverlayPoolDeduplicatesProxyWrappedMediaUrlsToSin
   })
   if (out.length !== 1) throw new Error(`expected one canonical media overlay after proxy unwrap dedupe, got ${out.length}`)
   if (out[0]?.id !== 'rich-media-panel') throw new Error(`expected canonical Rich Media Panel version to win dedupe, got ${out[0]?.id || '<none>'}`)
-  if (!String(out[0]?.title || '').includes('Rich Media Panel for ByteDance-Seedance-1.0-pro-fast BytePlus Video Widget')) {
-    throw new Error(`expected canonical Rich Media Panel title to retain source widget context, got ${String(out[0]?.title || '<none>')}`)
+  if (String(out[0]?.title || '') !== 'Rich Media Panel') {
+    throw new Error(`expected canonical Rich Media Panel title to stay on the shared panel SSOT, got ${String(out[0]?.title || '<none>')}`)
   }
 }
 
@@ -184,5 +184,62 @@ export async function testMediaOverlayPoolPrefersCanonicalOutputSourceUrlForGene
   }
   if (String(out[0]?.openUrl || '') !== 'https://example.com/generated.mp4') {
     throw new Error(`expected overlay openUrl to prefer canonical output source url, got ${String(out[0]?.openUrl || '<none>')}`)
+  }
+}
+
+export async function testMediaOverlayPoolSuppressesEmptyRichMediaShellWhenFunctionalPanelExists() {
+  const nodes: any[] = [
+    {
+      id: 'panel-functional',
+      type: 'RichMediaPanel',
+      label: 'Rich Media Panel',
+      properties: {
+        output: '## Functional panel',
+      },
+    },
+    {
+      id: 'panel-empty',
+      type: 'RichMediaPanel',
+      label: 'Rich Media Panel',
+      properties: {},
+    },
+  ]
+  const out = listMediaOverlayNodes({
+    enabled: true,
+    nodes: nodes as any,
+    poolMax: 24,
+  })
+  if (out.length !== 1) throw new Error(`expected one canonical rich media panel when a functional panel exists, got ${out.length}`)
+  if (String(out[0]?.id || '') !== 'panel-functional') {
+    throw new Error(`expected functional rich media panel to win over empty shell, got ${String(out[0]?.id || '<none>')}`)
+  }
+  if (!String(out[0]?.srcDoc || '').includes('Functional panel')) {
+    throw new Error('expected canonical rich media panel to preserve markdown/text viewer capability')
+  }
+}
+
+export async function testMediaOverlayPoolDeduplicatesMultipleEmptyRichMediaShellsToSingleCanonicalShell() {
+  const nodes: any[] = [
+    {
+      id: 'panel-empty-1',
+      type: 'RichMediaPanel',
+      label: 'Rich Media Panel',
+      properties: {},
+    },
+    {
+      id: 'panel-empty-2',
+      type: 'RichMediaPanel',
+      label: 'Rich Media Panel',
+      properties: {},
+    },
+  ]
+  const out = listMediaOverlayNodes({
+    enabled: true,
+    nodes: nodes as any,
+    poolMax: 24,
+  })
+  if (out.length !== 1) throw new Error(`expected duplicate empty rich media shells to collapse to one canonical shell, got ${out.length}`)
+  if (String(out[0]?.kind || '') !== 'iframe') {
+    throw new Error(`expected canonical empty rich media shell to stay iframe-backed, got ${String(out[0]?.kind || '<none>')}`)
   }
 }

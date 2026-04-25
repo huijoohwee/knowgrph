@@ -43,6 +43,7 @@ import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resol
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = 140
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 170
@@ -221,6 +222,31 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     setPinnedInCanvasState(readPinnedInCanvas(nodeId))
   }, [nodeId, readPinnedInCanvas])
 
+  React.useEffect(() => {
+    const readPinned = (s: unknown) => {
+      const map = (s as { flowWidgetPinnedByNodeId?: Record<string, boolean> })?.flowWidgetPinnedByNodeId || {}
+      const v = nodeId ? map[nodeId] : undefined
+      return typeof v === 'boolean' ? v : readPinnedInCanvas(nodeId)
+    }
+    setPinnedInCanvasState(prev => {
+      const next = readPinned(useGraphStore.getState())
+      return prev === next ? prev : next
+    })
+    const unsub = useGraphStore.subscribe(
+      readPinned,
+      next => {
+        setPinnedInCanvasState(prev => (prev === next ? prev : next))
+      },
+    )
+    return () => {
+      try {
+        unsub()
+      } catch {
+        void 0
+      }
+    }
+  }, [nodeId, readPinnedInCanvas])
+
   const setPinnedInCanvas = React.useCallback(
     (next: boolean | ((prev: boolean) => boolean)) => {
       setPinnedInCanvasState(prev => {
@@ -289,6 +315,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const [toolbarVisible, setToolbarVisible] = React.useState(false)
   const [toolbarDock, setToolbarDock] = React.useState<'above' | 'below'>('above')
   useOutsideClose(toolbarVisible, setToolbarVisible, asideRef)
+  const isRichMediaPanelWidget = String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
 
   const labelInputRef = React.useRef<HTMLInputElement | null>(null)
 
@@ -299,13 +326,13 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   React.useEffect(() => {
     if (!active) return
     if (!autoRevealKey) return
-    setPinnedInCanvas(true)
+    if (forcePinnedToCanvas === true) setPinnedInCanvas(true)
     setMinimized(prev => {
       if (!prev) return prev
       lsSetBool(LS_KEYS.flowWidgetMinimized, false)
       return false
     })
-  }, [active, autoRevealKey, setPinnedInCanvas])
+  }, [active, autoRevealKey, forcePinnedToCanvas, setPinnedInCanvas])
 
   const enableHandlesDisabled = documentStructureBaselineLock === true || isHandlesForAllInputsEnabled(schema)
   const convertToLoopDisabled = isLoopNode(node)
@@ -1104,6 +1131,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             enableHandlesDisabled={enableHandlesDisabled}
             convertToLoopDisabled={convertToLoopDisabled}
             duplicateDisabled={pinnedInCanvas || forcePinnedToCanvas === true}
+            richMediaViewToggle={isRichMediaPanelWidget ? {
+              visible: true,
+              isKtvRows: hideFields,
+              onToggle: handleToggleHideFields,
+            } : undefined}
             onRun={onRun}
             onDuplicate={onDuplicate}
             onClearOutput={onClearOutput}

@@ -97,7 +97,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
   if (openAiText !== 'OpenAI Text Widget') throw new Error(`expected OpenAI Text Widget, got ${openAiText}`)
 
   const seedreamImage = resolveWidgetNodeTitle({
-    node: makeNode({ id: 'image-1', type: 'ImageGeneration', label: 'Image Widget', properties: { model: 'ByteDance-Seedream-4.0' } }),
+    node: makeNode({ id: 'image-1', type: 'ImageGeneration', label: 'BytePlus Image Widget', properties: { model: 'ByteDance-Seedream-4.0' } }),
     registryEntry: {
       id: 'imageGeneration-default',
       isEnabled: true,
@@ -109,7 +109,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
       updatedAt: '2026-04-22T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (seedreamImage !== 'ByteDance-Seedream-4.0 Image Widget') throw new Error(`expected ByteDance-Seedream-4.0 Image Widget, got ${seedreamImage}`)
+  if (seedreamImage !== 'ByteDance-Seedream-4.0 BytePlus Image Widget') throw new Error(`expected ByteDance-Seedream-4.0 BytePlus Image Widget, got ${seedreamImage}`)
 
   const bytePlusVideo = resolveWidgetNodeTitle({
     node: makeNode({ id: 'video-1', type: 'VideoGeneration', label: FLOW_VIDEO_GENERATION_NODE_LABEL, properties: { model: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } }),
@@ -129,7 +129,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
   }
 
   const discoveryWidget = resolveWidgetNodeTitle({
-    node: makeNode({ id: 'discovery-1', type: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID, label: 'GrabMap Chat Discovery Widget' }),
+    node: makeNode({ id: 'discovery-1', type: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID, label: 'GrabMaps Chat Discovery Widget' }),
     registryEntry: {
       id: 'grabmaps-discovery',
       isEnabled: true,
@@ -141,7 +141,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
       updatedAt: '2026-04-24T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (discoveryWidget !== 'GrabMap Chat Discovery Widget') {
-    throw new Error(`expected GrabMap Chat Discovery Widget, got ${discoveryWidget}`)
+  if (discoveryWidget !== 'GrabMaps Chat Discovery Widget') {
+    throw new Error(`expected GrabMaps Chat Discovery Widget, got ${discoveryWidget}`)
   }
 }

@@ -561,8 +561,11 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     })
   }, [props.handlers, props.snapshot])
 
-  const handlePoiClick = React.useCallback((detail: { label: string; lng: number; lat: number }) => {
+  const handlePoiClick = React.useCallback((detail: { label: string; lng: number; lat: number; address?: string; category?: string }) => {
     const overlayHandlers = getOverlayHandlers(props.snapshot, props.handlers)
+    const renderPoiInRichMediaPanel = overlayHandlers && typeof overlayHandlers.renderPoiInRichMediaPanel === 'function'
+      ? overlayHandlers.renderPoiInRichMediaPanel as ((detail: { label: string; lng: number; lat: number; address?: string; category?: string }) => boolean)
+      : null
     const upsert = overlayHandlers && typeof overlayHandlers.upsertUiToast === 'function'
       ? overlayHandlers.upsertUiToast as ((toast: { id: string; kind?: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; log?: boolean }) => void)
       : null
@@ -571,6 +574,19 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
     const label = String(detail.label || '').trim() || 'POI'
     const coordText = `${lng.toFixed(6)}, ${lat.toFixed(6)}`
+    if (renderPoiInRichMediaPanel?.(detail)) {
+      if (upsert) {
+        upsert({
+          id: 'kg:geo:poi-click',
+          kind: 'success',
+          ttlMs: 2600,
+          dismissible: true,
+          log: false,
+          message: `${label} • rendered in Rich Media Panel`,
+        })
+      }
+      return
+    }
     const clipboardText = `${label} (${coordText})`
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {

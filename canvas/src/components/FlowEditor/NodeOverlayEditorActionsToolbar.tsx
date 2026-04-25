@@ -4,8 +4,10 @@ import IconButton from '@/components/IconButton'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { getRichMediaPanelViewTitle } from '@/lib/render/richMediaSsot'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { Copy, Eraser, GitMerge, HelpCircle, PanelRightOpen, Play, Share2, Trash2 } from 'lucide-react'
+import { Copy, Eraser, GitMerge, HelpCircle, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
 
 export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEditorActionsToolbar(args: {
   visible: boolean
@@ -15,6 +17,11 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
   enableHandlesDisabled: boolean
   convertToLoopDisabled: boolean
   duplicateDisabled: boolean
+  richMediaViewToggle?: {
+    visible: boolean
+    isKtvRows: boolean
+    onToggle: () => void
+  }
   onRun: () => void
   onDuplicate: () => void
   onClearOutput: () => void
@@ -32,6 +39,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     enableHandlesDisabled,
     convertToLoopDisabled,
     duplicateDisabled,
+    richMediaViewToggle,
     onRun,
     onDuplicate,
     onClearOutput,
@@ -64,6 +72,18 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
       >
         <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
       </IconButton>
+
+      {richMediaViewToggle?.visible ? (
+        <IconButton
+          title={getRichMediaPanelViewTitle(richMediaViewToggle.isKtvRows)}
+          tooltipContent={richMediaViewToggle.isKtvRows ? UI_COPY.flowWidgetRichMediaPanelView : UI_COPY.flowWidgetRichMediaKtvRows}
+          showTooltip
+          onClick={richMediaViewToggle.onToggle}
+          className={cn('App-toolbar__btn text-[11px]', richMediaViewToggle.isKtvRows ? UI_THEME_TOKENS.icon.active : '')}
+        >
+          <SplitSquareVertical className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+        </IconButton>
+      ) : null}
 
       <IconButton
         title={UI_LABELS.applyToNode}

@@ -11,6 +11,7 @@ import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
+import { getGrabMapsDiscoveryWidgetLabel } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
@@ -107,7 +108,7 @@ export function FloatingPropsPanel() {
       </section>
 
       <CollapsibleSection
-        title="GrabMap Chat Discovery Widget"
+        title={getGrabMapsDiscoveryWidgetLabel()}
         stickyHeader={false}
         className="mt-0 border-t-0 pt-0"
         headerClassName={`px-2 ${uiPanelTextFontClass}`}

@@ -17,6 +17,7 @@ import {
   CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
 } from '@/lib/chatEndpoint'
+import { getIntegrationVirtualSettingStorageKey } from '@/features/integrations/integrationVirtualSettings'
 import { getBytePlusChatApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
 
 const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
@@ -114,7 +115,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'BytePlus Video Generation API',
       'Open FloatingPanel BytePlus Video Widget',
       'BytePlus Image Generation API',
-      'Open FloatingPanel Image Widget',
+      'Open FloatingPanel BytePlus Image Widget',
     ]
     expectedTokens.forEach(token => {
       if (!text.includes(token)) {
@@ -185,7 +186,7 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     await clickButton('Open FloatingPanel Props Panel Text Widget')
     await clickButton('Open FloatingPanel Props Panel OpenAI Text Widget')
     await clickButton('Open FloatingPanel BytePlus Video Widget')
-    await clickButton('Open FloatingPanel Image Widget')
+    await clickButton('Open FloatingPanel BytePlus Image Widget')
 
     if (sidePanelEvents.filter(value => value === 'chat').length !== 1) {
       throw new Error(`expected chat section link to open floating chat once, got ${JSON.stringify(sidePanelEvents)}`)
@@ -432,13 +433,13 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
     const text = container.textContent || ''
     ;[
       'BytePlus Image Generation API',
-      'byteplusImageModel',
       'byteplusImageApi.size',
       'byteplusImageApi.output_format',
       'byteplusImageApi.watermark',
       'byteplusImageApi.seed',
       'byteplusImageApi.guidance_scale',
-      'Open FloatingPanel Image Widget',
+      'Open FloatingPanel BytePlus Image Widget',
+      'Server-managed Key',
       'ByteDance-Seedream-4.0',
       'ByteDance-Seedream-4.5',
       'Dola-Seedream-5.0-lite',
@@ -449,6 +450,60 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
     })
     if (text.includes('seedream-5-0-lite-250817')) {
       throw new Error('expected stale Seedream 5.0 Lite image model id to be removed from integrations image API rows')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchBytePlusImageFieldUsesConfigurableValueSlot() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplusImageApi.image',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    if (!text.includes('byteplusImageApi.image')) {
+      throw new Error(`expected BytePlus image request field row in integrations search, got ${JSON.stringify(text)}`)
+    }
+    if (text.includes('Optional. Reference image URL or Base64 payload.')) {
+      throw new Error('expected BytePlus image request field value cell to stop rendering descriptive prose')
+    }
+    const editors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="text"]'))
+    if (editors.length !== 1) {
+      throw new Error(`expected BytePlus image request field row to render one configurable text input, got ${editors.length}`)
+    }
+    if (editors[0]?.value !== '') {
+      throw new Error(`expected BytePlus image request field input to default to an empty configurable slot, got ${JSON.stringify(editors[0]?.value)}`)
     }
   } finally {
     try {
@@ -575,7 +630,7 @@ export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
     const text = container.textContent || ''
     ;[
       'Discovery Widget',
-      'GrabMap Chat Discovery Widget',
+      'GrabMaps Chat Discovery Widget',
       'Chat-style query input. Discovery defaults and model remain shared with MainPanel Integrations and MainPanel Maps.',
       'Model',
       'gpt-5.4-nano',
@@ -926,9 +981,64 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusJso
     if (!text.includes('byteplusApi.response_format.type')) {
       throw new Error(`expected BytePlus response_format.type row in integrations search, got ${JSON.stringify(text)}`)
     }
-    const editors = Array.from(container.querySelectorAll('textarea'))
+    const editors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="text"]'))
     if (editors.length === 0) {
-      throw new Error('expected BytePlus response_format.type row to render a multiline shared JSON editor')
+      throw new Error('expected BytePlus response_format.type row to render a configurable text input')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchRendersWritableVirtualStringEditor() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+    const persistedEndpoint = 'GET /api/v3/contents/generations/tasks/custom'
+    dom.window.localStorage.setItem(
+      getIntegrationVirtualSettingStorageKey('byteplusVideoApi.polling_endpoint'),
+      JSON.stringify(persistedEndpoint),
+    )
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplusVideoApi.polling_endpoint',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    if (!text.includes('byteplusVideoApi.polling_endpoint')) {
+      throw new Error(`expected BytePlus polling_endpoint row in integrations search, got ${JSON.stringify(text)}`)
+    }
+    const editors = Array.from(container.querySelectorAll<HTMLInputElement>('input')).filter(
+      input => input.value === persistedEndpoint,
+    )
+    if (editors.length !== 1) {
+      throw new Error(`expected BytePlus polling_endpoint row to render one writable text editor seeded from persisted config, got ${editors.length}`)
     }
   } finally {
     try {
@@ -975,9 +1085,63 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusMes
     if (!text.includes('byteplusApi.messages.role')) {
       throw new Error(`expected BytePlus messages.role row in integrations search, got ${JSON.stringify(text)}`)
     }
-    const editors = Array.from(container.querySelectorAll('textarea'))
+    const editors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="text"]'))
     if (editors.length === 0) {
-      throw new Error('expected BytePlus messages.role row to render a multiline shared JSON editor')
+      throw new Error('expected BytePlus messages.role row to render a configurable text input')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusNestedNumericField() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplusApi.messages.content.image_url.image_pixel_limit.max_pixels',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    if (!text.includes('byteplusApi.messages.content.image_url.image_pixel_limit.max_pixels')) {
+      throw new Error(`expected BytePlus nested numeric field row in integrations search, got ${JSON.stringify(text)}`)
+    }
+    if (text.includes('Optional. Maximum allowed image pixels.')) {
+      throw new Error('expected BytePlus nested numeric field value cell to stop rendering descriptive prose')
+    }
+    const editors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="number"]'))
+    if (editors.length !== 1) {
+      throw new Error(`expected BytePlus nested numeric field row to render one numeric input, got ${editors.length}`)
+    }
+    if (editors[0]?.value !== '4014080') {
+      throw new Error(`expected BytePlus nested numeric field input to use the documented default 4014080, got ${JSON.stringify(editors[0]?.value)}`)
     }
   } finally {
     try {
@@ -1026,6 +1190,9 @@ export async function testMainPanelRequestedIntegrationsSearchShowsOpenAiApiRows
         throw new Error(`expected OpenAI integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
+    if (text.includes('Text, image, or file inputs to the model, used to generate a response.')) {
+      throw new Error('expected OpenAI input row value cell to stop rendering descriptive prose')
+    }
     const jsonEditors = Array.from(container.querySelectorAll('textarea'))
     if (jsonEditors.length === 0) {
       throw new Error('expected OpenAI input row to reuse the shared multiline JSON editor')

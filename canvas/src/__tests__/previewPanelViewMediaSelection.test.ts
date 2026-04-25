@@ -285,11 +285,8 @@ export async function testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetT
     if (!graphCardText.includes('Rich Media Panel')) {
       throw new Error(`expected canonical graph media card to keep Rich Media Panel version, got ${graphCardText || '<empty>'}`)
     }
-    if (
-      graphCardText.includes('ByteDance-Seedance-1.0-pro-fast BytePlus Video Widget')
-      && !graphCardText.includes('Rich Media Panel for ByteDance-Seedance-1.0-pro-fast BytePlus Video Widget')
-    ) {
-      throw new Error(`expected stale BytePlus video widget-only card to be removed, got ${graphCardText}`)
+    if (graphCardText.includes('Rich Media Panel for ')) {
+      throw new Error(`expected graph media card title to stay on the single Rich Media Panel SSOT, got ${graphCardText}`)
     }
 
     root.unmount()

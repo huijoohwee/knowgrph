@@ -225,10 +225,12 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
 }
 
 export function testRichMediaOverlayPoolIncludesLoadingStateFromNodeAndConnectedSources() {
-  const mediaOverlayPoolPath = resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayPool.ts')
-  const text = readFileSync(mediaOverlayPoolPath, 'utf8')
+  const helperPath = resolve(process.cwd(), 'src', 'lib', 'render', 'richMediaPanelState.ts')
+  const overlayPath = resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayPool.ts')
+  const text = readFileSync(helperPath, 'utf8')
+  const overlayText = readFileSync(overlayPath, 'utf8')
   if (!text.includes('type RichMediaPanelOverlayState = {') && !text.includes('export type RichMediaPanelOverlayState = {')) {
-    throw new Error('expected media overlay pool to define RichMediaPanel overlay state type')
+    throw new Error('expected shared rich media panel state helper to define RichMediaPanel overlay state type')
   }
   if (!text.includes('isLoading: boolean')) {
     throw new Error('expected RichMediaPanel overlay state to include shared loading boolean')
@@ -237,7 +239,10 @@ export function testRichMediaOverlayPoolIncludesLoadingStateFromNodeAndConnected
     throw new Error('expected RichMediaPanel overlay state to include shared loading label')
   }
   if (!text.includes('readLoadingStateFromNode')) {
-    throw new Error('expected media overlay pool to reuse node loading state helper for panel loading SSOT')
+    throw new Error('expected shared rich media panel state helper to reuse node loading state helper for panel loading SSOT')
+  }
+  if (!overlayText.includes('buildRichMediaPanelOverlayState({')) {
+    throw new Error('expected media overlay pool to reuse the shared Rich Media panel state builder')
   }
 }
 
@@ -263,10 +268,10 @@ export function testRichMediaPanelFreezeModeFallsBackToConnectedTextWhenLocalEmp
 }
 
 export function testRichMediaOverlayPoolTreatsConnectedOutputAsTextPresence() {
-  const mediaOverlayPoolPath = resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayPool.ts')
-  const text = readFileSync(mediaOverlayPoolPath, 'utf8')
-  if (!text.includes('return normalizeConnectedTextValue(v)')) {
-    throw new Error('expected media overlay pool to normalize connected output values into text for Rich Media panel state')
+  const helperPath = resolve(process.cwd(), 'src', 'lib', 'render', 'richMediaPanelState.ts')
+  const text = readFileSync(helperPath, 'utf8')
+  if (!text.includes("const connectedText = normalizeConnectedTextValue(connectedValuesBySchemaPath?.['properties.output']?.value)")) {
+    throw new Error('expected shared rich media panel state helper to normalize connected output values into text for Rich Media panel state')
   }
   if (!text.includes('hasText: Boolean(output.trim() || outputSrcDoc.trim() || connectedText.trim())')) {
     throw new Error('expected Rich Media panel hasText state to include connected output text presence')

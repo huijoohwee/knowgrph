@@ -16,20 +16,11 @@ import {
 } from '@/lib/config.flow-editor'
 import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
+import { buildRichMediaPanelOverlayState, type RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 
 export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video'
 
-export type RichMediaPanelOverlayState = {
-  activeTab: 'auto' | 'text' | 'image' | 'video'
-  freezeConnectedOutput: boolean
-  hasText: boolean
-  hasImage: boolean
-  hasVideo: boolean
-  text: string
-  connectedText: string
-  isLoading: boolean
-  loadingLabel: string
-}
+export type { RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 
 export type MediaOverlayNode = {
   id: string
@@ -62,44 +53,10 @@ type Candidate = {
   openUrl: string
   interactive: boolean
   kind: MediaOverlayKind
+  panel?: RichMediaPanelOverlayState
   rank: number
   idx: number
   preferred: boolean
-}
-
-const RICH_MEDIA_CONNECTED_RENDER_PATHS = [
-  'properties.output',
-  'properties.outputSrcDoc',
-  'properties.imageUrl',
-  'properties.videoUrl',
-] as const
-
-function readLoadingStateFromNode(node: GraphNode | null | undefined): { loading: boolean; kind: 'text' | 'image' | 'video' | '' } {
-  if (!node) return { loading: false, kind: '' }
-  const props = (node.properties || {}) as Record<string, unknown>
-  const loading = Boolean(props.outputLoading)
-  if (!loading) return { loading: false, kind: '' }
-  const kindRaw = String(props.outputLoadingKind || '').trim().toLowerCase()
-  const kind = kindRaw === 'text' || kindRaw === 'image' || kindRaw === 'video' ? kindRaw : ''
-  return { loading: true, kind }
-}
-
-function loadingLabelFromKind(kind: 'text' | 'image' | 'video' | ''): string {
-  if (kind === 'text') return 'Generating text...'
-  if (kind === 'image') return 'Generating image...'
-  if (kind === 'video') return 'Generating video...'
-  return 'Generating output...'
-}
-
-function normalizeConnectedTextValue(value: unknown): string {
-  if (typeof value === 'string') return value
-  if (Array.isArray(value)) {
-    const parts = value
-      .map(item => (typeof item === 'string' ? item.trim() : ''))
-      .filter(Boolean)
-    return parts.join('\n').trim()
-  }
-  return ''
 }
 
 function decodeRemoteFetchProxyUrl(raw: string): string {
@@ -193,49 +150,14 @@ function deriveOverlayNodeLabel(node: GraphNode): string {
   return String(node.label || node.id || '').trim() || nodeTypeId || 'Media node'
 }
 
-function deriveRichMediaPanelSourceLabels(args: {
-  node: GraphNode
-  nodeById: ReadonlyMap<string, GraphNode>
-  connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
-}): string[] {
-  if (String(args.node.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return []
-  const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
-  if (!connectedValuesBySchemaPath) return []
-
-  const labels: string[] = []
-  const seenNodeIds = new Set<string>()
-  const seenLabels = new Set<string>()
-  const selfId = String(args.node.id || '').trim()
-
-  for (let i = 0; i < RICH_MEDIA_CONNECTED_RENDER_PATHS.length; i += 1) {
-    const path = RICH_MEDIA_CONNECTED_RENDER_PATHS[i]
-    const connected = connectedValuesBySchemaPath[path]
-    const sources = Array.isArray(connected?.sources) ? connected.sources : []
-    for (let j = 0; j < sources.length; j += 1) {
-      const sourceId = String(sources[j]?.nodeId || '').trim()
-      if (!sourceId || sourceId === selfId || seenNodeIds.has(sourceId)) continue
-      seenNodeIds.add(sourceId)
-      const sourceNode = args.nodeById.get(sourceId)
-      if (!sourceNode) continue
-      const label = deriveOverlayNodeLabel(sourceNode)
-      if (!label || seenLabels.has(label)) continue
-      seenLabels.add(label)
-      labels.push(label)
-    }
-  }
-
-  return labels
-}
-
 function buildOverlayTitle(args: {
   node: GraphNode
   nodeById: ReadonlyMap<string, GraphNode>
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 }): string {
-  const sourceLabels = deriveRichMediaPanelSourceLabels(args)
   const base = deriveOverlayNodeLabel(args.node)
-  if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && sourceLabels.length > 0) {
-    return `${base} for ${sourceLabels.join(', ')}`
+  if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+    return base || FLOW_RICH_MEDIA_PANEL_NODE_LABEL
   }
   return base || 'Media node'
 }
@@ -279,6 +201,39 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
   else if (kind === 'video') score += 8
   else if (kind === 'iframe') score += 6
 
+  return score
+}
+
+function hasMeaningfulRichMediaPanelOverlayContent(candidate: Candidate): boolean {
+  if (!candidate.panel) return false
+  if (String(candidate.url || '').trim()) return true
+  if (String(candidate.openUrl || '').trim()) return true
+  if (String(candidate.srcDoc || '').trim()) return true
+  if (candidate.panel.hasImage || candidate.panel.hasVideo || candidate.panel.hasText) return true
+  if (candidate.panel.isLoading) return true
+  return false
+}
+
+function getRichMediaPanelTextDedupKey(candidate: Candidate): string {
+  if (!candidate.panel) return ''
+  const connected = String(candidate.panel.connectedText || '').trim()
+  if (connected) return connected
+  const local = String(candidate.panel.text || '').trim()
+  if (local) return local
+  const srcDoc = String(candidate.srcDoc || '').trim()
+  if (srcDoc) return srcDoc
+  return ''
+}
+
+function computeRichMediaPanelOverlayRankBonus(candidate: Candidate): number {
+  if (!candidate.panel) return 0
+  let score = 0
+  if (candidate.panel.hasVideo) score += 140
+  if (candidate.panel.hasImage) score += 120
+  if (candidate.panel.hasText) score += 100
+  if (candidate.panel.isLoading) score += 80
+  if (String(candidate.srcDoc || '').trim()) score += 40
+  if (String(candidate.title || '').includes(' for ')) score += 20
   return score
 }
 
@@ -353,69 +308,31 @@ export function listMediaOverlayNodes(args: {
       connectedValuesBySchemaPath,
     })
     const openUrl = chooseOpenUrl(nodeForSpec, spec.url)
-    const panel = (() => {
-      if (String(nodeForSpec.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return undefined
-      const props = (nodeForSpec.properties || {}) as Record<string, unknown>
-      const output = typeof props.output === 'string' ? props.output : ''
-      const outputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
-      const imageUrl = typeof props.imageUrl === 'string' ? props.imageUrl : ''
-      const videoUrl = typeof props.videoUrl === 'string' ? props.videoUrl : ''
-      const rawTab = String(props.richMediaActiveTab || '').trim().toLowerCase()
-      const activeTab: RichMediaPanelOverlayState['activeTab'] =
-        rawTab === 'text' || rawTab === 'image' || rawTab === 'video' || rawTab === 'auto'
-          ? (rawTab as RichMediaPanelOverlayState['activeTab'])
-          : 'auto'
-      const freezeConnectedOutput = Boolean(props.freezeConnectedOutput)
-      const connectedText = (() => {
-        const v = connectedValuesBySchemaPath?.['properties.output']?.value
-        return normalizeConnectedTextValue(v)
-      })()
-      const localLoading = readLoadingStateFromNode(nodeForSpec)
-      const connectedLoading = (() => {
-        if (!connectedValuesBySchemaPath) return { loading: false as const, kind: '' as const, sourceLabels: [] as string[] }
-        const seenSourceIds = new Set<string>()
-        const sourceLabels: string[] = []
-        let kind: 'text' | 'image' | 'video' | '' = ''
-        let loading = false
-        for (let idx = 0; idx < RICH_MEDIA_CONNECTED_RENDER_PATHS.length; idx += 1) {
-          const path = RICH_MEDIA_CONNECTED_RENDER_PATHS[idx]
-          const rec = connectedValuesBySchemaPath[path]
-          const sources = Array.isArray(rec?.sources) ? rec.sources : []
-          for (let i = 0; i < sources.length; i += 1) {
-            const sourceId = String(sources[i]?.nodeId || '').trim()
-            if (!sourceId || seenSourceIds.has(sourceId)) continue
-            seenSourceIds.add(sourceId)
-            const sourceNode = nodeById.get(sourceId) || null
-            const next = readLoadingStateFromNode(sourceNode)
-            if (!next.loading) continue
-            loading = true
-            if (!kind && next.kind) kind = next.kind
-            const label = sourceNode ? deriveOverlayNodeLabel(sourceNode) : ''
-            if (label) sourceLabels.push(label)
-          }
-        }
-        return { loading, kind, sourceLabels }
-      })()
-      const isLoading = localLoading.loading || connectedLoading.loading
-      const loadingKind = localLoading.kind || connectedLoading.kind
-      const loadingLabel = connectedLoading.sourceLabels.length > 0
-        ? `${loadingLabelFromKind(loadingKind)} (${connectedLoading.sourceLabels.join(', ')})`
-        : loadingLabelFromKind(loadingKind)
-      return {
-        activeTab,
-        freezeConnectedOutput,
-        hasText: Boolean(output.trim() || outputSrcDoc.trim() || connectedText.trim()),
-        hasImage: Boolean(imageUrl.trim()),
-        hasVideo: Boolean(videoUrl.trim()),
-        text: output,
-        connectedText,
-        isLoading,
-        loadingLabel,
-      }
-    })()
+    const panel = buildRichMediaPanelOverlayState({
+      node: n0,
+      connectedValuesBySchemaPath,
+      nodeById,
+    })
     const preferredHit = preferredSet?.has(id) === true
     const rankBase = computeMediaRank(nodeForSpec, spec)
-    const rank = preferredHit ? rankBase + 1000 : rankBase
+    const panelRankBonus = panel
+      ? computeRichMediaPanelOverlayRankBonus({
+          id,
+          title,
+          url: spec.url,
+          ...(typeof (spec as { srcDoc?: unknown }).srcDoc === 'string' && String((spec as { srcDoc?: string }).srcDoc || '').trim()
+            ? { srcDoc: String((spec as { srcDoc?: string }).srcDoc || '') }
+            : {}),
+          openUrl,
+          interactive: spec.interactive,
+          kind,
+          panel,
+          rank: 0,
+          idx: i,
+          preferred: preferredHit,
+        })
+      : 0
+    const rank = preferredHit ? rankBase + panelRankBonus + 1000 : rankBase + panelRankBonus
     candidates.push({
       id,
       title,
@@ -434,10 +351,22 @@ export function listMediaOverlayNodes(args: {
   }
 
   const bestByKey = new Map<string, Candidate>()
+  const richMediaCandidates = candidates.filter(candidate => !!candidate.panel)
+  const hasMeaningfulRichMediaPanel = richMediaCandidates.some(hasMeaningfulRichMediaPanelOverlayContent)
   for (let i = 0; i < candidates.length; i += 1) {
     const c = candidates[i]!
+    if (c.panel && hasMeaningfulRichMediaPanel && !hasMeaningfulRichMediaPanelOverlayContent(c)) {
+      continue
+    }
     const keyUrl = canonicalMediaDedupUrl(c.url || c.openUrl)
-    const key = `${c.kind}\n${keyUrl || c.id}`
+    const key = (() => {
+      if (!c.panel) return `${c.kind}\n${keyUrl || c.id}`
+      if (keyUrl) return `${c.kind}\n${keyUrl}`
+      const textKey = getRichMediaPanelTextDedupKey(c)
+      if (textKey) return `${c.kind}\nrich-media-text\n${textKey}`
+      if (hasMeaningfulRichMediaPanelOverlayContent(c)) return `${c.kind}\nrich-media-panel\n${c.id}`
+      return `${c.kind}\nrich-media-empty-shell`
+    })()
     const prev = bestByKey.get(key)
     if (!prev) {
       bestByKey.set(key, c)

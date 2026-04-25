@@ -38,7 +38,7 @@ async function main() {
   await createNodeBtn.click()
   await sleep(600)
 
-  const widgetButton = page.locator('button[title="Drag to canvas: GrabMap Chat Discovery Widget"]').first()
+  const widgetButton = page.locator('button[title="Drag to canvas: GrabMaps Chat Discovery Widget"]').first()
   await widgetButton.waitFor({ state: 'visible', timeout: 12000 })
 
   const canvasViewport = page.locator('section[aria-label="Canvas viewport"]').first()

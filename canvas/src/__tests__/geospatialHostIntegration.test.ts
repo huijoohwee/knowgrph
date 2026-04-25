@@ -100,6 +100,30 @@ export const testGeospatialWidgetPanelsDoNotBindDiscoveryWidgetsToGeoCoordinates
   }
 }
 
+export const testGeospatialWidgetPanelsOverrideStalePinnedReuseOnDrop = () => {
+  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorText = readUtf8(flowEditorPath)
+
+  if (!flowEditorText.includes('if (pinnedMap[actualId] !== false) {')) {
+    throw new Error('Expected geospatial widget panel drops to override stale pinned state for reused node ids')
+  }
+  if (!flowEditorText.includes('st.setFlowWidgetPinnedByNodeId({ ...pinnedMap, [actualId]: false })')) {
+    throw new Error('Expected geospatial widget panel drops to force new widgets back to floating mode')
+  }
+}
+
+export const testGeospatialWidgetPanelsIncludeRichMediaPanelInSharedOpenPath = () => {
+  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorText = readUtf8(flowEditorPath)
+
+  if (flowEditorText.includes('entry.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID')) {
+    throw new Error('Expected Rich Media Panel drops to reuse the shared pending widget-open path')
+  }
+  if (flowEditorText.includes("String(nodeById.get(s)?.type || '') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID")) {
+    throw new Error('Expected Rich Media Panel nodes to stay eligible for shared geospatial widget overlay visibility')
+  }
+}
+
 export const testGeospatialHostPublishesCursorLngLatForWidgetDropPlacement = () => {
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
@@ -257,6 +281,28 @@ export const testGeospatialOverlayHostProjectsSnapshotGraphDataToMapLayer = () =
   }
   if (!text.includes('ensureDatasetLayer') || !text.includes('setGeoJsonSourceData')) {
     throw new Error('Expected host to publish projected graph features into MapLibre source/layer')
+  }
+}
+
+export const testGeospatialPoiClicksRenderIntoRichMediaPanelInsteadOfMapLibrePopup = () => {
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const basemapPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const viewportText = readUtf8(viewportPath)
+  const basemapText = readUtf8(basemapPath)
+  if (!viewportText.includes('renderPoiInRichMediaPanel')) {
+    throw new Error('Expected CanvasViewport to expose a shared geospatial POI -> Rich Media Panel handoff')
+  }
+  if (!viewportText.includes('buildGrabMapsPoiRichMediaSrcDoc(detail)')) {
+    throw new Error('Expected CanvasViewport to write GrabMaps POI output into Rich Media Panel srcdoc content')
+  }
+  if (!viewportText.includes('resolveGrabMapsPoiRichMediaPanelNodeId')) {
+    throw new Error('Expected CanvasViewport to resolve the canonical Rich Media Panel node before writing POI output')
+  }
+  if (!basemapText.includes('onPoiClick?.({')) {
+    throw new Error('Expected MapLibre basemap click handling to emit structured POI details upstream')
+  }
+  if (basemapText.includes('new PopupConstructor') || basemapText.includes('.setText(label).addTo(map)')) {
+    throw new Error('Expected MapLibre basemap POI clicks to avoid mutating popup DOM and instead defer to Rich Media Panel SSOT')
   }
 }
 
@@ -554,10 +600,12 @@ export const testGympgrphMapLibreBasemapFallsBackFromOpenFreeMapLibertyAbort = (
   }
 }
 
-export const testGeospatialPoiClickWiresHostActionAndClipboardCopy = () => {
+export const testGeospatialPoiClickWiresHostActionAndRichMediaPanel = () => {
   const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const hookText = readUtf8(hookPath)
+  const viewportText = readUtf8(viewportPath)
   const hostText = readUtf8(hostPath)
 
   if (!hookText.includes('onPoiClick?: (detail: BasemapPoiClickDetail) => void')) {
@@ -566,21 +614,32 @@ export const testGeospatialPoiClickWiresHostActionAndClipboardCopy = () => {
   if (!hookText.includes('queryRenderedFeatures')) {
     throw new Error('Expected basemap hook POI picking to query rendered features on map click')
   }
-  if (!hookText.includes('onPoiClick?.({ label, lng, lat })')) {
+  if (!hookText.includes('onPoiClick?.({')) {
     throw new Error('Expected basemap hook to forward picked POI detail to host callback')
   }
-
-  if (!hostText.includes('const handlePoiClick = React.useCallback')) {
-    throw new Error('Expected GeospatialHost to define a POI click handler')
+  if (!hookText.includes('address: readPoiAddressFromFeature(picked)')) {
+    throw new Error('Expected basemap hook to include POI address detail in the upstream callback payload')
   }
-  if (!hostText.includes('navigator.clipboard.writeText')) {
-    throw new Error('Expected GeospatialHost POI handler to copy coordinates via clipboard when available')
+  if (!viewportText.includes('const renderPoiInRichMediaPanel = React.useCallback')) {
+    throw new Error('Expected CanvasViewport to define the shared POI -> Rich Media Panel handoff')
   }
-  if (!hostText.includes('onPoiClick: handlePoiClick')) {
-    throw new Error('Expected GeospatialHost to pass POI callback into basemap hook wiring')
+  if (!viewportText.includes('openWidgetNodeIdsByRenderer?.flowEditor')) {
+    throw new Error('Expected CanvasViewport to resolve POI targets against Flow Editor widget-panel ids in geospatial mode')
   }
-  if (!hostText.includes("id: 'kg:geo:poi-click'")) {
-    throw new Error('Expected GeospatialHost POI handler to emit toast feedback for host-side action visibility')
+  if (!viewportText.includes("outputSrcDoc: buildGrabMapsPoiRichMediaSrcDoc(detail)")) {
+    throw new Error('Expected CanvasViewport to write POI details into Rich Media Panel srcdoc output')
+  }
+  if (!viewportText.includes('renderPoiInRichMediaPanel')) {
+    throw new Error('Expected geospatial overlay handlers to expose Rich Media Panel POI rendering upstream')
+  }
+  if (!hostText.includes('typeof overlayHandlers.renderPoiInRichMediaPanel === \'function\'')) {
+    throw new Error('Expected GeospatialHost to reuse the shared Rich Media Panel POI render handler when available')
+  }
+  if (!hostText.includes('renderPoiInRichMediaPanel?.(detail)')) {
+    throw new Error('Expected GeospatialHost POI handler to invoke the shared Rich Media Panel renderer before clipboard fallback')
+  }
+  if (!viewportText.includes('flowEditorOpenWidgetNodeIds')) {
+    throw new Error('Expected CanvasViewport POI resolution to reuse Flow Editor widget ids explicitly')
   }
 }
 

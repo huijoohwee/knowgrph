@@ -364,7 +364,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
       }
       setStatusText('Writing Markdown output to Workspace Editor...')
       const markdown = [
-        '# GrabMap Chat Discovery',
+        '# GrabMaps Chat Discovery',
         '',
         `- Query: ${trimmedQuery}`,
         `- Model: ${modelId}`,
@@ -374,7 +374,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
       const resolvedPath = await appendChatHistoryWorkspaceFile({
         requestedPath: chatKnowgrphWorkspacePath,
         timestampMs: Date.now(),
-        providerSummary: `GrabMap Chat Discovery Widget · ${modelId}`,
+        providerSummary: `${getGrabMapsDiscoveryWidgetLabel()} · ${modelId}`,
         userText: trimmedQuery,
         assistantText: markdown,
         storageType: 'chatKnowgrph',
@@ -409,7 +409,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
   ])
 
   return (
-    <section className="px-3 py-2 space-y-3" aria-label="GrabMap Chat Discovery Widget">
+    <section className="px-3 py-2 space-y-3" aria-label={getGrabMapsDiscoveryWidgetLabel()}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

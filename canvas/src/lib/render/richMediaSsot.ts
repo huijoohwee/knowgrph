@@ -1,6 +1,16 @@
 import type { GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { listMediaOverlayNodes, type MediaOverlayNode, type RichMediaPanelOverlayState } from '@/lib/render/mediaOverlayPool'
+import {
+  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
+import { listMediaOverlayNodes, type MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
+import {
+  type RichMediaPanelOverlayState,
+  buildRichMediaPanelOverlayState,
+  resolveRichMediaPanelRenderNode,
+} from '@/lib/render/richMediaPanelState'
+export { buildRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 
 export type RichMediaDisplayMode = 'circle-only' | 'panel-only'
 export type RichMediaPanelDensity = 'default' | 'compact'
@@ -22,6 +32,9 @@ export const RICH_MEDIA_DISPLAY_COPY = {
   densityCompact: 'Compact',
   opacityLabel: 'Opacity',
 } as const
+
+export const RICH_MEDIA_PANEL_CONNECT_VIEW_LABEL = 'Rich Media Panel (Connect media to render)' as const
+export const RICH_MEDIA_PANEL_KTV_VIEW_LABEL = FLOW_RICH_MEDIA_PANEL_NODE_LABEL as const
 
 export function isRichMediaPanelDisplayEnabled(renderMediaAsNodes: unknown): boolean {
   return renderMediaAsNodes === true
@@ -89,4 +102,20 @@ export function commitRichMediaPanelChange(args: {
       ...(typeof next.text === 'string' ? { output: next.text } : {}),
     },
   })
+}
+
+export function getRichMediaPanelViewLabel(hideFields: boolean): string {
+  return hideFields ? RICH_MEDIA_PANEL_KTV_VIEW_LABEL : RICH_MEDIA_PANEL_CONNECT_VIEW_LABEL
+}
+
+export function getRichMediaPanelViewTitle(hideFields: boolean): string {
+  return hideFields ? RICH_MEDIA_PANEL_CONNECT_VIEW_LABEL : RICH_MEDIA_PANEL_KTV_VIEW_LABEL
+}
+
+export function isRichMediaPanelNode(node: GraphNode | null | undefined): boolean {
+  return String(node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+}
+
+export function getRichMediaPanelNodeLabel(): string {
+  return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
 }

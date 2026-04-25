@@ -11,3 +11,22 @@ export function testFlowEditorWidgetDefaultsPinnedInCanvas() {
     throw new Error('expected Flow widget to default pinned-in-canvas when no prior preference exists')
   }
 }
+
+export function testFlowEditorWidgetPinnedStateSubscribesToStoreUpdates() {
+  const p = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes('const unsub = useGraphStore.subscribe(')) {
+    throw new Error('expected NodeOverlayEditor pinned state to subscribe to graph store updates')
+  }
+  if (!text.includes('setPinnedInCanvasState(prev => (prev === next ? prev : next))')) {
+    throw new Error('expected NodeOverlayEditor to refresh pinned state when the graph store updates after mount')
+  }
+}
+
+export function testFlowEditorAutoRevealOnlyPinsWhenCanvasPinningIsForced() {
+  const p = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes('if (forcePinnedToCanvas === true) setPinnedInCanvas(true)')) {
+    throw new Error('expected auto-reveal pinning to stay disabled for floating geospatial widget panels')
+  }
+}

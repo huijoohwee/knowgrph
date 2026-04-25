@@ -21,6 +21,8 @@ import {
   parseSseEvents,
   shouldRetryWithActivationFallback,
 } from './SidePanelChat.helpers'
+import { readBytePlusImageWidgetDefaults } from '@/features/integrations/byteplusImageGenerationDefaults'
+import { readBytePlusVideoWidgetDefaults } from '@/features/integrations/byteplusVideoGenerationDefaults'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsInt, lsJson } from '@/lib/persistence'
 
@@ -174,26 +176,18 @@ const readBytePlusImageDefaults = (): {
   model: string
   size: string
   outputFormat: string
-  watermark: boolean | null
-  seed: number | null
-  guidanceScale: number | null
+  watermark: boolean
+  seed: number
+  guidanceScale: number
 } => {
-  const model = lsJson<string>(LS_KEYS.byteplusImageModel, CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT, value => (typeof value === 'string' ? value : null))
-  const size = lsJson<string>(LS_KEYS.byteplusImageSize, '2K', value => (typeof value === 'string' ? value : null))
-  const outputFormat = lsJson<string>(LS_KEYS.byteplusImageOutputFormat, 'jpeg', value => (typeof value === 'string' ? value : null))
-  const watermark = lsBool(LS_KEYS.byteplusImageWatermark, false)
-  const seed = (() => {
-    const value = lsInt(LS_KEYS.byteplusImageSeed, 0)
-    return Number.isFinite(value) ? value : null
-  })()
-  const guidanceScale = lsJson<number>(LS_KEYS.byteplusImageGuidanceScale, 0, value => (typeof value === 'number' && Number.isFinite(value) ? value : null))
+  const defaults = readBytePlusImageWidgetDefaults()
   return {
-    model: cleanString(model),
-    size: cleanString(size),
-    outputFormat: cleanString(outputFormat).toLowerCase(),
-    watermark,
-    seed: Number.isFinite(seed) ? seed : null,
-    guidanceScale: typeof guidanceScale === 'number' && Number.isFinite(guidanceScale) ? guidanceScale : null,
+    model: cleanString(defaults.model),
+    size: cleanString(defaults.size),
+    outputFormat: cleanString(defaults.output_format).toLowerCase(),
+    watermark: defaults.watermark,
+    seed: defaults.seed,
+    guidanceScale: defaults.guidance_scale,
   }
 }
 
@@ -202,31 +196,21 @@ const readBytePlusVideoDefaults = (): {
   contentJson: string
   aspectRatio: string
   resolution: string
-  duration: number | null
-  generateAudio: boolean | null
-  fast: boolean | null
-  watermark: boolean | null
+  duration: number
+  generateAudio: boolean
+  fast: boolean
+  watermark: boolean
 } => {
-  const model = lsJson<string>(LS_KEYS.byteplusVideoModel, CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT, value => (typeof value === 'string' ? value : null))
-  const contentJson = lsJson<string>(LS_KEYS.byteplusVideoContentJson, '', value => (typeof value === 'string' ? value : null))
-  const aspectRatio = lsJson<string>(LS_KEYS.byteplusVideoAspectRatio, 'landscape', value => (typeof value === 'string' ? value : null))
-  const resolution = lsJson<string>(LS_KEYS.byteplusVideoResolution, '720p', value => (typeof value === 'string' ? value : null))
-  const duration = (() => {
-    const v = lsInt(LS_KEYS.byteplusVideoDuration, 5)
-    return Number.isFinite(v) ? v : null
-  })()
-  const generateAudio = lsBool(LS_KEYS.byteplusVideoGenerateAudio, false)
-  const fast = lsBool(LS_KEYS.byteplusVideoFast, false)
-  const watermark = lsBool(LS_KEYS.byteplusVideoWatermark, false)
+  const defaults = readBytePlusVideoWidgetDefaults()
   return {
-    model: cleanString(model),
-    contentJson: typeof contentJson === 'string' ? contentJson : '',
-    aspectRatio: cleanString(aspectRatio),
-    resolution: cleanString(resolution),
-    duration: Number.isFinite(duration) ? duration : null,
-    generateAudio,
-    fast,
-    watermark,
+    model: cleanString(defaults.model),
+    contentJson: typeof defaults.content_json === 'string' ? defaults.content_json : '',
+    aspectRatio: cleanString(defaults.aspect_ratio),
+    resolution: cleanString(defaults.resolution),
+    duration: defaults.duration,
+    generateAudio: defaults.generate_audio,
+    fast: defaults.fast,
+    watermark: defaults.watermark,
   }
 }
 

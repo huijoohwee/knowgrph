@@ -27,7 +27,7 @@ export const FALLBACK_DETAILS: Record<string, { area?: string; responsibility?: 
   'maps.grabmaps.mcp.args': { area: 'GrabMaps MCP Configuration', responsibility: 'MCP launcher args JSON array' },
   'maps.grabmaps.mcp.env': { area: 'GrabMaps MCP Configuration', responsibility: 'MCP launcher env JSON object' },
   'maps.grabmaps.mcp.startupTimeoutMs': { area: 'GrabMaps MCP Configuration', responsibility: 'MCP startup timeout in milliseconds' },
-  'maps.grabmaps.mcp.discovery.chatModel': { area: 'GrabMaps MCP Configuration', responsibility: 'GrabMap Chat Discovery Widget model id' },
+  'maps.grabmaps.mcp.discovery.chatModel': { area: 'GrabMaps MCP Configuration', responsibility: 'GrabMaps Chat Discovery Widget model id' },
   'maps.grabmaps.mcp.searchPlaces.query': { area: 'GrabMaps MCP Configuration', responsibility: 'search_places query string' },
   'maps.grabmaps.mcp.searchPlaces.country': { area: 'GrabMaps MCP Configuration', responsibility: 'search_places ISO 3166-1 alpha-3 country bias' },
   'maps.grabmaps.mcp.searchPlaces.lat': { area: 'GrabMaps MCP Configuration', responsibility: 'search_places latitude anchor' },

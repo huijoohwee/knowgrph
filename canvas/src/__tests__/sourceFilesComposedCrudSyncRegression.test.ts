@@ -108,7 +108,7 @@ export async function testComposedAddNodePrefersActiveMarkdownDocumentSourceFile
 
     composed.addNode({
       id: 'grabmaps-discovery',
-      label: 'GrabMap Chat Discovery Widget',
+      label: 'GrabMaps Chat Discovery Widget',
       type: 'GrabMapsDiscovery',
       x: 10,
       y: 20,
@@ -174,7 +174,7 @@ export async function testComposedAddNodeSeedsActiveMarkdownDocumentWhenGraphMis
 
     composed.addNode({
       id: 'grabmaps-discovery-b',
-      label: 'GrabMap Chat Discovery Widget',
+      label: 'GrabMaps Chat Discovery Widget',
       type: 'GrabMapsDiscovery',
       x: 10,
       y: 20,
@@ -223,7 +223,7 @@ export async function testAddNodeSeedsActiveMarkdownDocumentWithoutPreexistingCo
     before.setMarkdownDocument('workspace:/b.md', '---\ntitle: B\n---\n')
     before.addNode({
       id: 'grabmaps-discovery-c',
-      label: 'GrabMap Chat Discovery Widget',
+      label: 'GrabMaps Chat Discovery Widget',
       type: 'GrabMapsDiscovery',
       x: 10,
       y: 20,
@@ -238,7 +238,7 @@ export async function testAddNodeSeedsActiveMarkdownDocumentWithoutPreexistingCo
     const composedNode = after.graphData?.nodes?.find(n => n.id === 'sf-b::grabmaps-discovery-c')
     if (!composedNode) throw new Error('expected graphData to recompose from seeded active markdown source file')
     if (!String(sourceB?.text || '').includes('flow:')) throw new Error('expected active markdown source text to receive frontmatter flow block writeback')
-    if (!String(sourceB?.text || '').includes('GrabMap Chat Discovery Widget')) throw new Error('expected active markdown source text to include newly appended widget node')
+    if (!String(sourceB?.text || '').includes('GrabMaps Chat Discovery Widget')) throw new Error('expected active markdown source text to include newly appended widget node')
     if (String(after.markdownDocumentText || '') !== String(sourceB?.text || '')) throw new Error('expected active markdown editor text to stay in sync with source file text writeback')
   } finally {
     await new Promise<void>(resolve => setTimeout(resolve, 0))

@@ -35,6 +35,8 @@ type BasemapPoiClickDetail = {
   label: string
   lng: number
   lat: number
+  address?: string
+  category?: string
 }
 
 const EMPTY_PROBE: BasemapProbe = { tileSourceId: '', tilesLoaded: false, canvasW: 0, canvasH: 0, zoom: 0, lng: 0, lat: 0 }
@@ -383,6 +385,27 @@ const readPoiLabelFromFeature = (feature: unknown): string => {
   return ''
 }
 
+const POI_ADDRESS_KEYS = ['formatted_address', 'address', 'vicinity', 'display_address'] as const
+
+const readPoiAddressFromFeature = (feature: unknown): string => {
+  if (!feature || typeof feature !== 'object') return ''
+  const props = (feature as { properties?: unknown }).properties
+  if (!props || typeof props !== 'object') return ''
+  for (const key of POI_ADDRESS_KEYS) {
+    const value = (props as Record<string, unknown>)[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+const readPoiCategoryFromFeature = (feature: unknown): string => {
+  if (!feature || typeof feature !== 'object') return ''
+  const props = (feature as { properties?: unknown }).properties
+  if (!props || typeof props !== 'object') return ''
+  const raw = (props as Record<string, unknown>).kgCategory ?? (props as Record<string, unknown>).category
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : ''
+}
+
 const readFeaturePointCoordinates = (feature: unknown): [number, number] | null => {
   if (!feature || typeof feature !== 'object') return null
   const geometry = (feature as { geometry?: unknown }).geometry
@@ -498,7 +521,6 @@ export function useMapLibreBasemap(args: {
     let lastNavigationAtMs = 0
     let consecutiveIdleGrabMapsServiceErrors = 0
     let removePoiClickBinding: (() => void) | null = null
-    let poiPopup: any | null = null
     const requestedGrabMapsStyle = isGrabMapsUrl(resolveBasemapStyle(targetStyleUrl) || '')
     const notifyGrabMapsFallback = () => {
       if (grabMapsFallbackApplied) return
@@ -715,8 +737,7 @@ export function useMapLibreBasemap(args: {
           }
         }
 
-        const PopupConstructor = mlAny?.Popup || mlAny?.default?.Popup
-        if (PopupConstructor && typeof map?.on === 'function' && typeof map?.queryRenderedFeatures === 'function') {
+        if (typeof map?.on === 'function' && typeof map?.queryRenderedFeatures === 'function') {
           const onMapClick = (ev: any) => {
             try {
               const clickPoint = ev && typeof ev === 'object' && 'point' in ev ? (ev as { point?: unknown }).point : null
@@ -724,28 +745,22 @@ export function useMapLibreBasemap(args: {
               const features = Array.isArray(candidates) ? candidates : []
               const picked = features.find((f: unknown) => readPoiLabelFromFeature(f))
               const label = readPoiLabelFromFeature(picked)
-              if (!picked || !label) {
-                if (poiPopup) {
-                  try {
-                    poiPopup.remove?.()
-                  } catch {
-                    void 0
-                  }
-                  poiPopup = null
-                }
-                return
-              }
+              if (!picked || !label) return
               const poiCoords = readFeaturePointCoordinates(picked)
               const lng = poiCoords ? poiCoords[0] : Number(ev?.lngLat?.lng)
               const lat = poiCoords ? poiCoords[1] : Number(ev?.lngLat?.lat)
               if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
               try {
-                onPoiClick?.({ label, lng, lat })
+                onPoiClick?.({
+                  label,
+                  lng,
+                  lat,
+                  address: readPoiAddressFromFeature(picked),
+                  category: readPoiCategoryFromFeature(picked),
+                })
               } catch {
                 void 0
               }
-              if (!poiPopup) poiPopup = new PopupConstructor({ closeButton: true, closeOnClick: true, maxWidth: '260px' })
-              poiPopup.setLngLat([lng, lat]).setText(label).addTo(map)
             } catch {
               void 0
             }
@@ -756,14 +771,6 @@ export function useMapLibreBasemap(args: {
               map.off?.('click', onMapClick)
             } catch {
               void 0
-            }
-            if (poiPopup) {
-              try {
-                poiPopup.remove?.()
-              } catch {
-                void 0
-              }
-              poiPopup = null
             }
           }
         }

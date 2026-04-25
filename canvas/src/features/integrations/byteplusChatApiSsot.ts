@@ -1,0 +1,35 @@
+export {
+  BYTEPLUS_CHAT_API_DOC_ROWS,
+  buildBytePlusTextGenerationFields,
+  resolveBytePlusTextWidgetChatApiRowKey,
+  type BytePlusApiDocRow,
+} from './byteplusChatApiSsot.rows'
+export { BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY } from './byteplusChatApiSsot.tooltips'
+
+export const BYTEPLUS_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, string[]>> = {
+  chatProvider: ['select provider profile', 'bind BytePlus request routing'],
+  chatAuthMode: ['select auth mode', 'choose credential flow'],
+  chatEndpointUrl: ['set regional base URL', 'route API requests'],
+  chatApiKey: ['store BYOK secret', 'authorize direct BytePlus calls'],
+  chatModel: ['select target model', 'route request execution'],
+  chatMessagesJson: ['compose message payload', 'serialize multimodal turns'],
+  chatThinkingJson: ['shape thinking payload', 'govern reasoning mode'],
+  chatThinkingType: ['set thinking mode', 'toggle deep reasoning'],
+  chatStream: ['toggle stream mode', 'choose reply delivery'],
+  chatStreamOptionsJson: ['define stream options', 'request usage metadata'],
+  chatMaxCompletionTokens: ['cap output budget', 'bound completion length'],
+  chatServiceTier: ['select service tier', 'pin throughput policy'],
+  chatStopJson: ['define stop sequences', 'terminate generation early'],
+  chatReasoningEffort: ['set reasoning effort', 'tune deliberation budget'],
+  chatResponseFormatJson: ['define response format', 'constrain reply schema'],
+  chatFrequencyPenalty: ['set repetition penalty', 'discourage duplicate tokens'],
+  chatPresencePenalty: ['set novelty penalty', 'encourage topic shifts'],
+  chatTemperature: ['set sampling temperature', 'control output variability'],
+  chatTopP: ['set nucleus threshold', 'limit token sampling'],
+  chatLogprobs: ['toggle logprobs output', 'request token probabilities'],
+  chatTopLogprobs: ['set top-logprobs count', 'bound token alternatives'],
+  chatLogitBiasJson: ['define token biases', 'shape token likelihoods'],
+  chatToolsJson: ['declare callable tools', 'publish tool schemas'],
+  chatParallelToolCalls: ['toggle parallel calls', 'coordinate tool concurrency'],
+  chatToolChoiceJson: ['set tool policy', 'select callable function'],
+}

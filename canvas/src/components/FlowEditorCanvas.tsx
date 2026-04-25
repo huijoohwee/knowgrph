@@ -112,6 +112,8 @@ import {
   resolveEffectiveTextGenerationWidgetProperties,
   resolveTextGenerationGlobalDefaultsForProviderFamily,
 } from '@/features/flow-editor-manager/registryTemplates'
+import { buildBytePlusImageWidgetSeedProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
+import { buildBytePlusVideoWidgetSeedProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
 import {
   FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
   readGrabMapsDiscoveryWidgetProperties,
@@ -2542,11 +2544,10 @@ export default function FlowEditorCanvas(
         [FLOW_WIDGET_FORM_ID_KEY]: entry.formId,
       }
       if (entry.nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
-        properties.model = CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
-        properties.prompt = 'Generate an image responsive to the active request.'
-        properties.aspect_ratio = 'square'
-        properties.resolution = '1080p'
-        properties.fast = false
+        Object.assign(properties, buildBytePlusImageWidgetSeedProperties({
+          prompt: 'Generate an image responsive to the active request.',
+        }))
+        properties.imageUrl = ''
       }
       if (entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
         const store = useGraphStore.getState()
@@ -2599,13 +2600,11 @@ export default function FlowEditorCanvas(
         })
       }
       if (entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
-        properties.model = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
-        properties.prompt = 'Generate a video responsive to the active request.'
-        properties.aspect_ratio = 'landscape'
-        properties.duration = 4
-        properties.resolution = '720p'
-        properties.generate_audio = false
-        properties.fast = false
+        Object.assign(properties, buildBytePlusVideoWidgetSeedProperties({
+          prompt: 'Generate a video responsive to the active request.',
+        }))
+        properties.reference_image = ''
+        properties.videoUrl = ''
       }
       if (entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID) {
         Object.assign(properties, readGrabMapsDiscoveryWidgetProperties())
@@ -2646,7 +2645,7 @@ export default function FlowEditorCanvas(
       if (geospatialWidgetPanelMode) {
         const st = useGraphStore.getState()
         const pinnedMap = st.flowWidgetPinnedByNodeId || {}
-        if (!Object.prototype.hasOwnProperty.call(pinnedMap, actualId)) {
+        if (pinnedMap[actualId] !== false) {
           st.setFlowWidgetPinnedByNodeId({ ...pinnedMap, [actualId]: false })
         }
       }
@@ -2667,9 +2666,7 @@ export default function FlowEditorCanvas(
       })
       scheduleForceSelect(actualId, { minHoldMs: 700 })
       setPendingOverlayNode({ id: actualId, type: entry.nodeTypeId, label, x, y, properties: properties as never })
-      if (entry.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-        pendingOpenWidgetNodeIdRef.current = actualId
-      }
+      pendingOpenWidgetNodeIdRef.current = actualId
       if (entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID && !geospatialWidgetPanelMode) {
         syncGrabMapsDiscoveryGeoFromDropCursor({ id: actualId, properties })
       }
@@ -4019,7 +4016,6 @@ export default function FlowEditorCanvas(
       if (!s || seen.has(s)) continue
       if (eligibleIds.size > 0 && !eligibleIds.has(s)) continue
       if (String(nodeById.get(s)?.type || '') === 'Section') continue
-      if (String(nodeById.get(s)?.type || '') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
       seen.add(s)
       next.push(s)
     }
@@ -4029,7 +4025,6 @@ export default function FlowEditorCanvas(
       && !seen.has(sel)
       && (eligibleIds.size === 0 || eligibleIds.has(sel))
       && String(nodeById.get(sel)?.type || '') !== 'Section'
-      && String(nodeById.get(sel)?.type || '') !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     ) {
       next.push(sel)
     }
@@ -4377,6 +4372,7 @@ export default function FlowEditorCanvas(
         renderGroups={geospatialWidgetPanelMode ? false : true}
         renderNodes={overlayOnlyActive ? false : true}
         hidePortHandleNodeIds={overlayOnlyHidePortHandleNodeIds}
+        excludeRichMediaOverlayNodeIds={overlayEditorNodeIds}
       />
 
       {overlayOnlyActive && (

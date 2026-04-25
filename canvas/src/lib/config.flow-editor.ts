@@ -16,9 +16,11 @@ export const FLOW_WIDGET_DRAG_VERSION = 1 as const
 export const FLOW_WIDGET_DRAG_MIME = 'application/x-kg-flow-widget' as const
 
 export const FLOW_IMAGE_GENERATION_NODE_TYPE_ID = 'ImageGeneration' as const
-export const FLOW_IMAGE_GENERATION_NODE_LABEL = 'Image Widget' as const
+export const FLOW_IMAGE_GENERATION_NODE_LABEL = 'BytePlus Image Widget' as const
 export const FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID = 'RichMediaPanel' as const
 export const FLOW_RICH_MEDIA_PANEL_NODE_LABEL = 'Rich Media Panel' as const
+export const FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID = 'default' as const
+export const FLOW_RICH_MEDIA_PANEL_FORM_ID = 'richMediaPanel' as const
 export const FLOW_TEXT_GENERATION_NODE_TYPE_ID = 'TextGeneration' as const
 export const FLOW_TEXT_GENERATION_NODE_LABEL = 'Text Widget' as const
 export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const
@@ -74,7 +76,8 @@ export function getFlowEditorSmartWidgetLabel(args: {
     const value = String(args.model || '').trim() || CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
     const option = FLOW_EDITOR_IMAGE_MODEL_OPTIONS.find(entry => entry.value === value)
     const label = String(option?.label || value || FLOW_IMAGE_GENERATION_NODE_LABEL).replace(/\s*\(Default\)\s*$/i, '').trim()
-    return `${label || FLOW_IMAGE_GENERATION_NODE_LABEL} Image Widget`
+    if (!label || label === FLOW_IMAGE_GENERATION_NODE_LABEL) return FLOW_IMAGE_GENERATION_NODE_LABEL
+    return `${label} ${FLOW_IMAGE_GENERATION_NODE_LABEL}`
   }
   if (mode === 'video') {
     const value = String(args.model || '').trim() || CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT

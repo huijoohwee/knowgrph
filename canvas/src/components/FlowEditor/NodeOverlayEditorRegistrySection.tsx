@@ -11,21 +11,36 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
-import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import {
   inferTextGenerationProviderFamily,
   resolveEffectiveTextGenerationWidgetProperties,
 } from '@/features/flow-editor-manager/registryTemplates'
+import { isGrabMapsDiscoveryWidgetEntry } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
   getBytePlusChatApiRowAnchorId,
   resolveBytePlusTextWidgetChatApiRowKey,
 } from '@/features/panels/views/byteplusChatApiDocs'
 import {
+  getBytePlusImageGenerationApiRowAnchorId,
+  resolveBytePlusImageWidgetApiRowKey,
+} from '@/features/panels/views/byteplusImageGenerationApiDocs'
+import {
+  getBytePlusVideoGenerationApiRowAnchorId,
+  resolveBytePlusVideoWidgetApiRowKey,
+} from '@/features/panels/views/byteplusVideoGenerationApiDocs'
+import {
   resolveOpenAiTextWidgetChatApiRowKey,
 } from '@/features/integrations/openaiResponsesSsot'
+import {
+  getMapsApiRowAnchorId,
+  resolveGrabMapsDiscoveryWidgetApiRowKey,
+} from '@/features/integrations/grabMapsSsot'
+import { resolveEffectiveBytePlusImageWidgetProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
+import { resolveEffectiveBytePlusVideoWidgetProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
 import { getOpenAiChatApiRowAnchorId } from '@/features/panels/views/openaiChatApiDocs'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
+import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
 function formatConnectedValue(value: unknown): string {
   if (value == null) return ''
@@ -165,6 +180,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   portHandlesEnabled: boolean
   showFieldRows?: boolean
   showPortRows?: boolean
+  showTableHeader?: boolean
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   onSetProperties: (properties: Record<string, unknown>) => void
   onSchemaPortHandleClick?: (args: { dir: 'in' | 'out'; portKey: string }) => void
@@ -185,6 +201,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     portHandlesEnabled,
     showFieldRows = true,
     showPortRows = true,
+    showTableHeader = false,
     connectedValuesBySchemaPath,
     onSetProperties,
     onSchemaPortHandleClick,
@@ -278,6 +295,24 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     })
   }, [openIntegrationLink])
 
+  const openBytePlusImageIntegrationLink = React.useCallback((searchQuery: string) => {
+    const normalizedSearchQuery = String(searchQuery || '').trim()
+    if (!normalizedSearchQuery) return
+    openIntegrationLink({
+      searchQuery: normalizedSearchQuery,
+      anchorId: getBytePlusImageGenerationApiRowAnchorId(normalizedSearchQuery),
+    })
+  }, [openIntegrationLink])
+
+  const openBytePlusVideoIntegrationLink = React.useCallback((searchQuery: string) => {
+    const normalizedSearchQuery = String(searchQuery || '').trim()
+    if (!normalizedSearchQuery) return
+    openIntegrationLink({
+      searchQuery: normalizedSearchQuery,
+      anchorId: getBytePlusVideoGenerationApiRowAnchorId(normalizedSearchQuery),
+    })
+  }, [openIntegrationLink])
+
   const openOpenAiIntegrationLink = React.useCallback((searchQuery: string) => {
     const normalizedSearchQuery = String(searchQuery || '').trim()
     if (!normalizedSearchQuery) return
@@ -286,6 +321,19 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       anchorId: getOpenAiChatApiRowAnchorId(normalizedSearchQuery),
     })
   }, [openIntegrationLink])
+
+  const openMapsLink = React.useCallback((searchQuery: string) => {
+    const normalizedSearchQuery = String(searchQuery || '').trim()
+    if (!normalizedSearchQuery || typeof window === 'undefined') return
+    const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
+    window.dispatchEvent(new CustomEventCtor(MAIN_PANEL_OPEN_EVENT, {
+      detail: {
+        tab: 'maps' as const,
+        searchQuery: normalizedSearchQuery,
+        anchorId: getMapsApiRowAnchorId(normalizedSearchQuery),
+      },
+    }))
+  }, [])
 
   const canLinkToBytePlusChatApi = React.useMemo(() => {
     if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return false
@@ -304,7 +352,26 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       formId: registryEntry.formId,
     }) === 'openai'
   }, [properties.chatProvider, registryEntry.formId, registryEntry.nodeTypeId, registryEntry.widgetTypeId])
+  const canLinkToBytePlusImageApi = React.useMemo(() => {
+    return String(registryEntry.nodeTypeId || '').trim() === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+  }, [registryEntry.nodeTypeId])
+  const canLinkToBytePlusVideoApi = React.useMemo(() => {
+    return String(registryEntry.nodeTypeId || '').trim() === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+  }, [registryEntry.nodeTypeId])
+  const canLinkToGrabMapsApi = React.useMemo(() => {
+    return isGrabMapsDiscoveryWidgetEntry(registryEntry || {})
+  }, [registryEntry])
   const effectiveProperties = React.useMemo(() => {
+    if (String(registryEntry.nodeTypeId || '').trim() === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
+      return resolveEffectiveBytePlusImageWidgetProperties({
+        localProperties: properties,
+      })
+    }
+    if (String(registryEntry.nodeTypeId || '').trim() === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
+      return resolveEffectiveBytePlusVideoWidgetProperties({
+        localProperties: properties,
+      })
+    }
     if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return properties
     const providerFamily = inferTextGenerationProviderFamily({
       provider: properties.chatProvider,
@@ -337,6 +404,31 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       : []
     const id = ids.registryField(String(f.fieldKey || idx))
     const labelId = `registry-field-${String(f.fieldKey || idx)}-${idx}`
+    const bytePlusFieldLinkSearch = canLinkToBytePlusImageApi
+      ? resolveBytePlusImageWidgetApiRowKey({
+          schemaPath: String(f.schemaPath || '').trim(),
+          fieldKey: String(f.fieldKey || '').trim(),
+        })
+      : null
+    const bytePlusVideoFieldLinkSearch = canLinkToBytePlusVideoApi
+      ? resolveBytePlusVideoWidgetApiRowKey({
+          schemaPath: String(f.schemaPath || '').trim(),
+          fieldKey: String(f.fieldKey || '').trim(),
+        })
+      : null
+    const grabMapsFieldLinkSearch = canLinkToGrabMapsApi
+      ? resolveGrabMapsDiscoveryWidgetApiRowKey({
+          schemaPath: String(f.schemaPath || '').trim(),
+          fieldKey: String(f.fieldKey || '').trim(),
+        })
+      : null
+    const handleFieldNavigate = bytePlusFieldLinkSearch
+      ? () => openBytePlusImageIntegrationLink(bytePlusFieldLinkSearch)
+      : bytePlusVideoFieldLinkSearch
+        ? () => openBytePlusVideoIntegrationLink(bytePlusVideoFieldLinkSearch)
+        : grabMapsFieldLinkSearch
+          ? () => openMapsLink(grabMapsFieldLinkSearch)
+          : undefined
 
     const setValue = (nextValue: unknown) => {
       if (!path) return
@@ -384,6 +476,9 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       rows.push({
         rowKey,
         labelId,
+        onKeyClick: handleFieldNavigate,
+        onTypeClick: handleFieldNavigate,
+        onValueClick: handleFieldNavigate,
         keyNode,
         typeNode,
         valueNode: (
@@ -405,6 +500,9 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       rows.push({
         rowKey,
         labelId,
+        onKeyClick: handleFieldNavigate,
+        onTypeClick: handleFieldNavigate,
+        onValueClick: handleFieldNavigate,
         keyNode,
         typeNode,
         valueNode: (
@@ -454,6 +552,9 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       rows.push({
         rowKey,
         labelId,
+        onKeyClick: handleFieldNavigate,
+        onTypeClick: handleFieldNavigate,
+        onValueClick: handleFieldNavigate,
         keyNode,
         typeNode,
         valueNode: (
@@ -495,6 +596,9 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       rows.push({
         rowKey,
         labelId,
+        onKeyClick: handleFieldNavigate,
+        onTypeClick: handleFieldNavigate,
+        onValueClick: handleFieldNavigate,
         keyNode,
         typeNode,
         valueNode: (
@@ -525,6 +629,9 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     rows.push({
       rowKey,
       labelId,
+      onKeyClick: handleFieldNavigate,
+      onTypeClick: handleFieldNavigate,
+      onValueClick: handleFieldNavigate,
       keyNode,
       typeNode,
       valueNode: (
@@ -579,10 +686,26 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
             portKey,
           })
         : null
+      const bytePlusImagePortLinkSearch = canLinkToBytePlusImageApi
+        ? resolveBytePlusImageWidgetApiRowKey({
+            schemaPath: String(p.schemaPath || '').trim(),
+            portKey,
+          })
+        : null
+      const bytePlusVideoPortLinkSearch = canLinkToBytePlusVideoApi
+        ? resolveBytePlusVideoWidgetApiRowKey({
+            schemaPath: String(p.schemaPath || '').trim(),
+            portKey,
+          })
+        : null
       const handlePortNavigate = bytePlusPortLinkSearch
         ? () => openBytePlusIntegrationLink(bytePlusPortLinkSearch)
         : openAiPortLinkSearch
           ? () => openOpenAiIntegrationLink(openAiPortLinkSearch)
+          : bytePlusImagePortLinkSearch
+            ? () => openBytePlusImageIntegrationLink(bytePlusImagePortLinkSearch)
+            : bytePlusVideoPortLinkSearch
+              ? () => openBytePlusVideoIntegrationLink(bytePlusVideoPortLinkSearch)
           : undefined
 
       const portButton = (
@@ -668,7 +791,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       })
     }
     return out
-  }, [active, canLinkToBytePlusChatApi, canLinkToOpenAiChatApi, dotHitPx, dotSizePx, ids, keyLabelClass, keyValueInputClass, monospaceTextClass, onSchemaPortHandleClick, openBytePlusIntegrationLink, openOpenAiIntegrationLink, portHandlesEnabled, registryPorts, textSizeClass])
+  }, [active, canLinkToBytePlusChatApi, canLinkToBytePlusImageApi, canLinkToBytePlusVideoApi, canLinkToOpenAiChatApi, dotHitPx, dotSizePx, ids, keyLabelClass, keyValueInputClass, monospaceTextClass, onSchemaPortHandleClick, openBytePlusImageIntegrationLink, openBytePlusIntegrationLink, openBytePlusVideoIntegrationLink, openOpenAiIntegrationLink, portHandlesEnabled, registryPorts, textSizeClass])
 
   if (!registryEntry) return null
   const visibleFieldRows = showFieldRows ? rows : []
@@ -711,6 +834,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           ariaLabel="Registry fields"
           microLabelClass={microLabelClass}
           rows={visibleFieldRows}
+          showHeader={showTableHeader}
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
           forcePortDots
@@ -722,6 +846,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           ariaLabel="Registry ports"
           microLabelClass={microLabelClass}
           rows={visiblePortRows}
+          showHeader={showTableHeader}
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
           forcePortDots

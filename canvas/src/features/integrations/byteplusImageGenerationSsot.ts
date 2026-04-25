@@ -1,0 +1,448 @@
+import type { FlowDetails, SettingMeta } from '@/features/settings/types'
+import type { WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import {
+  FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
+  FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
+  FLOW_EDITOR_IMAGE_SIZE_OPTIONS,
+} from '@/lib/config.flow-editor'
+
+export type BytePlusImageApiDocRow = {
+  key: string
+  typeLabel: string
+  value: string
+  responsibility: string
+  keyDescription: string
+  valueDescription: string
+  ssot: string
+  module: string[]
+  className: string[]
+  functionName: string[]
+  valueKey?: string
+  notes?: string
+  searchHints?: string[]
+  tooltipDefaultValue?: string | number | boolean | null
+  tooltipMin?: string | number
+  tooltipMax?: string | number
+  tooltipInterval?: string | number
+  tooltipExpansionNote?: string
+  tooltipContractionNote?: string
+  tooltipImpact?: string
+}
+
+export type BytePlusImageVirtualSettingsEntry = {
+  meta: {
+    key: string
+    type: SettingMeta['type']
+    source: 'backendEnv'
+    read: () => string
+  }
+  value: string
+  valueKey?: string
+  typeLabel: string
+  tooltipRole?: string
+  tooltipActions?: string[]
+  tooltipDefaultValue?: string | number | boolean | null
+  tooltipMin?: string | number
+  tooltipMax?: string | number
+  tooltipInterval?: string | number
+  tooltipExpansionNote?: string
+  tooltipContractionNote?: string
+  tooltipImpact?: string
+  searchHints?: string[]
+  details: FlowDetails
+}
+
+export const BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA = 'BytePlus Image Generation API'
+export const BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL = 'https://docs.byteplus.com/en/docs/ModelArk/1666945'
+const BYTEPLUS_IMAGE_TOOLTIP_ROLE = 'BytePlus Image Generation API'
+
+export function getBytePlusImageGenerationApiRowAnchorId(rowKey: string): string {
+  const normalized = String(rowKey || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return `byteplus-image-generation-api-row-${normalized || 'entry'}`
+}
+
+export const BYTEPLUS_IMAGE_GENERATION_MAPPED_VALUE_KEYS = [
+  'chatAuthMode',
+  'chatApiKey',
+  'byteplusImageModel',
+  'byteplusImageSize',
+  'byteplusImageOutputFormat',
+  'byteplusImageWatermark',
+  'byteplusImageSeed',
+  'byteplusImageGuidanceScale',
+] as const
+
+export const BYTEPLUS_IMAGE_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, string[]>> = {
+  chatAuthMode: ['select auth mode', 'choose credential flow'],
+  chatApiKey: ['store BYOK secret', 'authorize direct BytePlus image calls'],
+  byteplusImageModel: ['select image model', 'pin image default'],
+  byteplusImageSize: ['select image size', 'pin output dimensions'],
+  byteplusImageOutputFormat: ['select output format', 'pin image encoding'],
+  byteplusImageWatermark: ['toggle watermark', 'control output marking'],
+  byteplusImageSeed: ['set deterministic seed', 'stabilize reruns'],
+  byteplusImageGuidanceScale: ['set guidance strength', 'tune prompt adherence'],
+}
+
+function toBaseType(typeLabel: string): SettingMeta['type'] {
+  const normalized = String(typeLabel || '').trim().toLowerCase()
+  if (normalized.includes('boolean')) return 'boolean'
+  if (normalized.includes('integer') || normalized.includes('float') || normalized.includes('number')) return 'number'
+  if (normalized.includes('object') || normalized.includes('[]')) return 'json'
+  return 'string'
+}
+
+function buildDetailNotes(row: BytePlusImageApiDocRow): string {
+  return String(row.notes || '').trim()
+}
+
+function buildFieldOptionLabels(options: ReadonlyArray<{ value: string | number; label: string }>): WidgetRegistryField['options'] {
+  return options.map(option => ({
+    value: option.value,
+    label: option.label,
+  }))
+}
+
+export const BYTEPLUS_IMAGE_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusImageApiDocRow> = [
+  {
+    key: 'api_key',
+    typeLabel: 'string',
+    value: 'Integration setting. Required for BYOK authentication.',
+    keyDescription: 'Credential bridge -> supply the caller-managed BytePlus secret -> authorize direct BytePlus image requests when BYOK is enabled.',
+    valueDescription: 'Default: empty; BYOK keys expand direct caller-managed execution; leaving it empty narrows image runs to server-managed credentials.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request authentication`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/panels/views/byteplusImageGenerationApiDocs.ts'],
+    className: ['SettingsRegistryItem'],
+    functionName: ['setChatApiKey'],
+    valueKey: 'chatApiKey',
+    responsibility: 'Supplies the caller-managed BytePlus API key when auth mode is BYOK.',
+    searchHints: ['api key authentication bearer x-kg-chat-api-key image generation'],
+    tooltipDefaultValue: '',
+    tooltipExpansionNote: 'A valid BYOK secret expands direct BytePlus image execution.',
+    tooltipContractionNote: 'No key narrows image execution to server-managed credentials.',
+    notes: 'Never paste production keys into shared workspaces; prefer server-managed auth when possible.',
+  },
+  {
+    key: 'auth_mode',
+    typeLabel: 'string',
+    value: 'Integration setting. serverManaged | byok.',
+    keyDescription: 'Credential router -> choose server-managed or BYOK auth -> decide which trust boundary owns BytePlus image requests.',
+    valueDescription: 'Default: serverManaged; Switching to byok expands caller-owned routing; keeping serverManaged narrows auth handling to the shared backend path.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request authentication`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/panels/views/byteplusImageGenerationApiDocs.ts'],
+    className: ['SettingsRegistryItem'],
+    functionName: ['setChatAuthMode'],
+    valueKey: 'chatAuthMode',
+    responsibility: 'Selects server-managed credentials or direct BYOK authentication for BytePlus image generation.',
+    searchHints: ['auth byok serverManaged api key image generation'],
+    tooltipDefaultValue: 'serverManaged',
+    tooltipExpansionNote: 'BYOK expands per-user credential control.',
+    tooltipContractionNote: 'Server-managed narrows credential handling to the shared backend.',
+    notes: 'Image generation uses BytePlus routing regardless of the global chat provider.',
+  },
+  {
+    key: 'byteplusImageModel',
+    typeLabel: 'string',
+    value: 'Required. Image model ID.',
+    keyDescription: 'Model selector -> pick the BytePlus image engine -> decide which image capability family executes the prompt.',
+    valueDescription: 'Default: ByteDance-Seedream-4.0; Curated higher-tier models expand image capability coverage; pinning one model narrows drift across Integrations, Workflow Manager, and widget runs.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > model`,
+    module: [
+      'canvas/src/features/settings/registry-ui.ui.ts',
+      'canvas/src/features/chat/byteplusRunGeneration.ts',
+      'canvas/src/features/flow-editor-manager/registryTemplates.ts',
+    ],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus', 'buildBytePlusImageGenerationFields'],
+    valueKey: 'byteplusImageModel',
+    responsibility: 'Selects the BytePlus ModelArk image generation model used for the request.',
+    searchHints: ['model byteplus image seedream dola byteplus image widget integrations'],
+    tooltipDefaultValue: 'ByteDance-Seedream-4.0',
+    tooltipExpansionNote: 'Higher-tier curated models expand image quality and coverage.',
+    tooltipContractionNote: 'Keeping one pinned model narrows drift and activation surprises.',
+    notes: 'Request body field: `model`.',
+  },
+  {
+    key: 'docs_url',
+    typeLabel: 'string',
+    value: BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL,
+    keyDescription: 'Reference locator -> point the operator to the official ModelArk image documentation -> keep request interpretation anchored to the vendor source.',
+    valueDescription: 'Default: https://docs.byteplus.com/en/docs/ModelArk/1666945; Opening the vendor docs expands source context; staying inside knowgrph narrows attention to the curated request surface.',
+    ssot: BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL,
+    module: ['canvas/src/features/panels/views/SettingsView.tsx', 'docs/documents/knowgrph-byteplus-openark-image-generation-api-reference.md'],
+    className: ['SettingsView'],
+    functionName: ['buildMarkdown'],
+    responsibility: 'Links to the official BytePlus ModelArk Image Generation API documentation.',
+    searchHints: ['byteplus docs modelark image generation api'],
+  },
+  {
+    key: 'endpoint',
+    typeLabel: 'string',
+    value: 'POST /api/v3/images/generations',
+    keyDescription: 'Request dispatcher -> send the image-generation payload to BytePlus -> create a new image generation run from prompt text and optional reference image.',
+    valueDescription: 'Default: POST /api/v3/images/generations; Sending to the BytePlus image endpoint expands runnable image output; changing the path narrows compatibility with the shared proxy pipeline.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request endpoint`,
+    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/lib/chatEndpoint.ts'],
+    className: ['RunGenerationConfig'],
+    functionName: ['generateRunImageWithBytePlus', 'resolveBytePlusContentEndpointForRequest'],
+    responsibility: 'Creates an image generation request from prompt text plus optional image input.',
+    searchHints: ['images generations post'],
+    notes: 'Knowgrph routes this through the proxy and keeps binary decoding on the shared image pipeline.',
+  },
+  {
+    key: 'guidance_scale',
+    typeLabel: 'number',
+    value: 'Optional. Default 0 (omit API override).',
+    keyDescription: 'Prompt-adherence tuner -> strengthen or relax guidance pressure -> balance prompt obedience against freer model interpretation.',
+    valueDescription: 'Default: 0; Min: 0; Max: 20; Interval: 0.1; Higher guidance expands prompt adherence; lower guidance narrows constraint and allows looser composition.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > guidance_scale`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus'],
+    valueKey: 'byteplusImageGuidanceScale',
+    responsibility: 'Controls prompt guidance strength when the selected image model supports it.',
+    searchHints: ['guidance scale prompt strength image generation'],
+    tooltipDefaultValue: 0,
+    tooltipMin: 0,
+    tooltipMax: 20,
+    tooltipInterval: 0.1,
+    tooltipExpansionNote: 'More guidance expands prompt obedience.',
+    tooltipContractionNote: 'Less guidance narrows forced adherence and allows freer variation.',
+  },
+  {
+    key: 'image',
+    typeLabel: 'string | array',
+    value: 'Optional. Reference image URL or Base64 payload.',
+    keyDescription: 'Reference-image injector -> pass source imagery into the request -> let BytePlus perform image-conditioned generation or editing flows when supported.',
+    valueDescription: 'Default: empty; Adding a reference image expands conditioning context; omitting it narrows the request to pure text-to-image generation.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > image`,
+    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx'],
+    className: ['RunImageGenerationOptions'],
+    functionName: ['generateRunImageWithBytePlus', 'buildWidgetDraftFromSmartFields'],
+    responsibility: 'Carries the optional reference image URL or Base64 payload for image-conditioned runs.',
+    searchHints: ['reference image image generation image url base64'],
+    notes: 'Knowgrph maps widget `reference_image` into the upstream `image` field.',
+  },
+  {
+    key: 'output_format',
+    typeLabel: 'string',
+    value: 'Optional. Default jpeg.',
+    keyDescription: 'Encoding selector -> choose the final image file format -> control how BytePlus returns the generated asset.',
+    valueDescription: 'Default: jpeg; Options: jpeg | png; PNG expands lossless output fidelity; JPEG narrows payload size for faster transfers.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > output_format`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus'],
+    valueKey: 'byteplusImageOutputFormat',
+    responsibility: 'Selects the generated image format returned by BytePlus.',
+    searchHints: ['output format jpeg png image generation'],
+    tooltipDefaultValue: 'jpeg',
+    tooltipExpansionNote: 'PNG expands lossless image fidelity.',
+    tooltipContractionNote: 'JPEG narrows payload size and usually reduces transfer overhead.',
+  },
+  {
+    key: 'prompt',
+    typeLabel: 'string',
+    value: 'Required. Image generation prompt text.',
+    keyDescription: 'Image brief -> describe the visual outcome -> steer BytePlus toward the requested composition, style, and subject matter.',
+    valueDescription: 'Default: empty; Richer prompt detail expands scene control; shorter prompts narrow specification and leave more to model inference.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > prompt`,
+    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/features/flow-editor-manager/registryTemplates.ts'],
+    className: ['RunImageGenerationOptions', 'WidgetRegistryEntry'],
+    functionName: ['generateRunImageWithBytePlus', 'buildBytePlusImageGenerationFields'],
+    responsibility: 'Carries the required text prompt used for image generation.',
+    searchHints: ['prompt image generation'],
+  },
+  {
+    key: 'response_format',
+    typeLabel: 'string',
+    value: 'Knowgrph fixed value. b64_json.',
+    keyDescription: 'Transport format pin -> force the upstream response into a predictable binary-return shape -> keep the shared image asset pipeline deterministic.',
+    valueDescription: 'Default: b64_json; Base64 expands immediate in-app asset decoding; switching away would narrow compatibility with the current image render pipeline.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > response_format`,
+    module: ['canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['RunImageGenerationOptions'],
+    functionName: ['generateRunImageWithBytePlus'],
+    responsibility: 'Pins the BytePlus image response format to the Base64 payload shape used by knowgrph.',
+    searchHints: ['response format b64_json image generation'],
+    notes: 'Knowgrph currently hard-pins `response_format` to `b64_json` for the shared image asset path.',
+  },
+  {
+    key: 'seed',
+    typeLabel: 'integer',
+    value: 'Optional. Default 0 (omit deterministic seed).',
+    keyDescription: 'Determinism control -> reuse a stable random seed -> make image reruns more reproducible when you want the same composition family.',
+    valueDescription: 'Default: 0; Min: 0; Max: 2147483647; Interval: 1; Higher non-zero seeds expand reproducible reruns; zero narrows determinism by omitting the upstream override.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > seed`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus'],
+    valueKey: 'byteplusImageSeed',
+    responsibility: 'Pins deterministic generation when you need reproducible image output.',
+    searchHints: ['seed deterministic image generation'],
+    tooltipDefaultValue: 0,
+    tooltipMin: 0,
+    tooltipMax: 2147483647,
+    tooltipInterval: 1,
+    tooltipExpansionNote: 'Non-zero seeds expand reproducible reruns.',
+    tooltipContractionNote: 'Zero narrows determinism by omitting the upstream override.',
+  },
+  {
+    key: 'size',
+    typeLabel: 'string',
+    value: 'Optional. Default 2K.',
+    keyDescription: 'Dimension preset -> choose the output image size -> control the resolution budget sent to BytePlus.',
+    valueDescription: 'Default: 2K; Options: 1K | 2K | 3K | 4K; Larger sizes expand detail and token cost; smaller sizes narrow resolution and generation cost.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > size`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus'],
+    valueKey: 'byteplusImageSize',
+    responsibility: 'Controls the output image size preset sent to the Image Generation API.',
+    searchHints: ['size 1k 2k 3k 4k image generation'],
+    tooltipDefaultValue: '2K',
+    tooltipExpansionNote: 'Larger sizes expand output detail and canvas headroom.',
+    tooltipContractionNote: 'Smaller sizes narrow resolution and reduce cost.',
+  },
+  {
+    key: 'watermark',
+    typeLabel: 'boolean',
+    value: 'Optional. Default false.',
+    keyDescription: 'Marking policy -> decide whether BytePlus adds an AI watermark -> control the default compliance marker on generated output.',
+    valueDescription: 'Default: false; Enabling watermark expands explicit AI marking; disabling it narrows visible output annotations.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > watermark`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus'],
+    valueKey: 'byteplusImageWatermark',
+    responsibility: 'Controls whether a watermark is added to the generated image.',
+    searchHints: ['watermark image generation'],
+    tooltipDefaultValue: false,
+    tooltipExpansionNote: 'Enabling watermark expands explicit generated-image marking.',
+    tooltipContractionNote: 'Disabling watermark narrows visible output annotations.',
+  },
+]
+
+export const BYTEPLUS_IMAGE_GENERATION_API_DOC_ENTRIES: ReadonlyArray<BytePlusImageVirtualSettingsEntry> =
+  BYTEPLUS_IMAGE_GENERATION_DOC_ROWS.map(row => ({
+    meta: {
+      key: row.key.startsWith('byteplusImage') ? row.key : `byteplusImageApi.${row.key}`,
+      type: toBaseType(row.typeLabel),
+      source: 'backendEnv',
+      read: () => row.value,
+    },
+    value: row.value,
+    valueKey: row.valueKey,
+    typeLabel: row.typeLabel,
+    tooltipRole: row.valueKey ? BYTEPLUS_IMAGE_TOOLTIP_ROLE : undefined,
+    tooltipActions: row.valueKey ? BYTEPLUS_IMAGE_KEY_ACTIONS_BY_VALUE_KEY[row.valueKey] : undefined,
+    tooltipDefaultValue: row.tooltipDefaultValue,
+    tooltipMin: row.tooltipMin,
+    tooltipMax: row.tooltipMax,
+    tooltipInterval: row.tooltipInterval,
+    tooltipExpansionNote: row.tooltipExpansionNote,
+    tooltipContractionNote: row.tooltipContractionNote,
+    tooltipImpact: row.tooltipImpact,
+    searchHints: [
+      'byteplus image generation api request parameters',
+      row.key,
+      ...(row.searchHints || []),
+    ],
+    details: {
+      area: BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
+      responsibility: row.responsibility,
+      notes: buildDetailNotes(row),
+      modules: row.module,
+      classes: row.className,
+      functions: row.functionName,
+    } satisfies FlowDetails,
+  }))
+
+export function buildBytePlusImageGenerationFields(): WidgetRegistryField[] {
+  return [
+    {
+      fieldKey: 'model',
+      fieldType: 'select',
+      schemaPath: 'properties.model',
+      required: true,
+      label: 'Model',
+      options: buildFieldOptionLabels(FLOW_EDITOR_IMAGE_MODEL_OPTIONS),
+    },
+    {
+      fieldKey: 'prompt',
+      fieldType: 'textarea',
+      schemaPath: 'properties.prompt',
+      required: true,
+      label: 'Prompt',
+    },
+    {
+      fieldKey: 'size',
+      fieldType: 'select',
+      schemaPath: 'properties.size',
+      required: true,
+      label: 'Size',
+      options: buildFieldOptionLabels(FLOW_EDITOR_IMAGE_SIZE_OPTIONS),
+    },
+    {
+      fieldKey: 'output_format',
+      fieldType: 'select',
+      schemaPath: 'properties.output_format',
+      required: true,
+      label: 'Output format',
+      options: buildFieldOptionLabels(FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS),
+    },
+    {
+      fieldKey: 'watermark',
+      fieldType: 'boolean',
+      schemaPath: 'properties.watermark',
+      label: 'Watermark',
+    },
+    {
+      fieldKey: 'seed',
+      fieldType: 'number',
+      schemaPath: 'properties.seed',
+      label: 'Seed',
+    },
+    {
+      fieldKey: 'guidance_scale',
+      fieldType: 'number',
+      schemaPath: 'properties.guidance_scale',
+      label: 'Guidance scale',
+    },
+    {
+      fieldKey: 'reference_image',
+      fieldType: 'text',
+      schemaPath: 'properties.reference_image',
+      label: 'Reference image',
+    },
+  ]
+}
+
+export function resolveBytePlusImageWidgetApiRowKey(args: {
+  schemaPath?: string
+  fieldKey?: string
+  portKey?: string
+}): string | null {
+  const candidates = [
+    String(args.schemaPath || '').trim(),
+    String(args.fieldKey || '').trim(),
+    String(args.portKey || '').trim(),
+  ]
+    .filter(Boolean)
+    .map(value => value.replace(/^properties\./, ''))
+  for (const candidate of candidates) {
+    if (candidate === 'model') return 'byteplusImageModel'
+    if (candidate === 'size') return 'byteplusImageApi.size'
+    if (candidate === 'output_format') return 'byteplusImageApi.output_format'
+    if (candidate === 'watermark') return 'byteplusImageApi.watermark'
+    if (candidate === 'seed') return 'byteplusImageApi.seed'
+    if (candidate === 'guidance_scale') return 'byteplusImageApi.guidance_scale'
+    if (candidate === 'prompt' || candidate === 'prompt_in') return 'byteplusImageApi.prompt'
+    if (candidate === 'reference_image' || candidate === 'image') return 'byteplusImageApi.image'
+    if (candidate === 'imageUrl') return 'byteplusImageApi.response_format'
+  }
+  return null
+}

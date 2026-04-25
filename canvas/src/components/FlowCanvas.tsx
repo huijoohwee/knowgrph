@@ -61,6 +61,7 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import {
   commitRichMediaPanelChange,
+  isRichMediaPanelNode,
   listDisplayRichMediaOverlayNodes,
   normalizeRichMediaPanelDensity,
   resolveRichMediaPanelInteractive,
@@ -72,6 +73,7 @@ import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLo
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExport'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { buildPanelOnlyNodeIdSetFromGraphNodes, listMarkdownPanelOverlayNodes } from '@/lib/render/markdownPanelOverlayPool'
@@ -367,6 +369,7 @@ export default function FlowCanvas({
   hideSelectedNodePortHandles,
   hideNodeIds,
   hidePortHandleNodeIds,
+  excludeRichMediaOverlayNodeIds,
   renderEdges,
   renderGroups,
   renderNodes,
@@ -383,6 +386,7 @@ export default function FlowCanvas({
   hideSelectedNodePortHandles?: boolean
   hideNodeIds?: string[]
   hidePortHandleNodeIds?: string[]
+  excludeRichMediaOverlayNodeIds?: string[]
   renderEdges?: boolean
   renderGroups?: boolean
   renderNodes?: boolean
@@ -918,6 +922,39 @@ export default function FlowCanvas({
     })
   }, [mediaRenderConnectedValuesByNodeId, sceneGraphData])
 
+  const flowEditorRichMediaPanelOverlayExcludeNodeIdSet = React.useMemo(() => {
+    if (canvas2dRenderer !== 'flowEditor') return undefined
+    const candidateRawIds = [
+      ...(Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds : []),
+      ...(Array.isArray(excludeRichMediaOverlayNodeIds) ? excludeRichMediaOverlayNodeIds : []),
+    ]
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
+    if (nodes.length === 0) return undefined
+    const nodeById = new Map<string, GraphNode>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]!
+      const id = String(node?.id || '').trim()
+      if (!id) continue
+      nodeById.set(id, node)
+    }
+    const out = new Set<string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]!
+      const id = String(node?.id || '').trim()
+      if (!id) continue
+      if (!isRichMediaPanelNode(node)) continue
+      out.add(id)
+    }
+    for (let i = 0; i < candidateRawIds.length; i += 1) {
+      const rawId = candidateRawIds[i]
+      const id = String(resolveGraphNodeByCanonicalId(sceneGraphData, rawId)?.id || rawId || '').trim()
+      if (!id) continue
+      if (!isRichMediaPanelNode(nodeById.get(id))) continue
+      out.add(id)
+    }
+    return out.size > 0 ? out : undefined
+  }, [canvas2dRenderer, excludeRichMediaOverlayNodeIds, openWidgetNodeIds, sceneGraphData])
+
   const mediaNodes = React.useMemo(() => {
     const nodes = mediaRenderNodes
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
@@ -926,6 +963,7 @@ export default function FlowCanvas({
       renderMediaAsNodes,
       nodes,
       poolMax,
+      excludeNodeIdSet: flowEditorRichMediaPanelOverlayExcludeNodeIdSet,
       connectedValuesByNodeId: mediaRenderConnectedValuesByNodeId,
     })
 
@@ -1007,7 +1045,7 @@ export default function FlowCanvas({
       }
     }
     return out
-  }, [mediaRenderConnectedValuesByNodeId, mediaRenderNodes, threeIframeOverlayPoolMax])
+  }, [flowEditorRichMediaPanelOverlayExcludeNodeIdSet, mediaRenderConnectedValuesByNodeId, mediaRenderNodes, threeIframeOverlayPoolMax])
 
   const markdownPanelNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []

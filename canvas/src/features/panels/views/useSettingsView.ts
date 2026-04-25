@@ -54,6 +54,7 @@ import { GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_DIRECTIONS_REQUE
 import { GRABMAPS_MCP_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
 import { resolveBytePlusVideoModelPreview } from '@/features/chat/byteplusRunGeneration'
+import { buildIntegrationVirtualSettingMeta } from '@/features/integrations/integrationVirtualSettings'
 import { normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
 import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 
@@ -202,6 +203,54 @@ const INTEGRATION_API_DOC_ENTRIES = [
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
 ] as const
 
+const SETTINGS_REGISTRY_BY_KEY = new Map(settingsRegistry.map(setting => [setting.key, setting] as const))
+const INTEGRATION_JSON_OWNER_ROW_KEYS_BY_VALUE_KEY: Readonly<Record<string, ReadonlySet<string>>> = {
+  chatMessagesJson: new Set(['byteplusApi.messages', 'openaiApi.input']),
+  chatThinkingJson: new Set(['byteplusApi.thinking']),
+  chatResponseFormatJson: new Set(['byteplusApi.response_format', 'openaiApi.response_format']),
+  chatToolsJson: new Set(['byteplusApi.tools', 'openaiApi.tools']),
+  chatToolChoiceJson: new Set(['byteplusApi.tool_choice', 'openaiApi.tool_choice']),
+  chatStreamOptionsJson: new Set(['byteplusApi.stream_options']),
+}
+
+function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[number]) {
+  const mappedMeta = entry.valueKey ? SETTINGS_REGISTRY_BY_KEY.get(entry.valueKey) : undefined
+  if (mappedMeta) {
+    if (mappedMeta.type !== 'json') return mappedMeta
+    const ownerRowKeys = entry.valueKey ? INTEGRATION_JSON_OWNER_ROW_KEYS_BY_VALUE_KEY[entry.valueKey] : undefined
+    if (!ownerRowKeys || ownerRowKeys.has(entry.meta.key)) return mappedMeta
+  }
+  const normalizedEntryKey = String(entry.meta.key || '').trim().toLowerCase()
+  const isReferenceRow =
+    normalizedEntryKey.endsWith('.docs_url')
+    || normalizedEntryKey.endsWith('.endpoint')
+    || normalizedEntryKey.endsWith('.polling_endpoint')
+  return buildIntegrationVirtualSettingMeta({
+    key: entry.meta.key,
+    type: entry.meta.type,
+    fallbackValue:
+      typeof entry.tooltipDefaultValue !== 'undefined'
+        ? entry.tooltipDefaultValue
+        : entry.value,
+    defaultValue: entry.tooltipDefaultValue,
+    options: entry.meta.options,
+    kind: isReferenceRow ? 'reference' : 'request',
+  })
+}
+
+function resolveIntegrationEntryStateKey(entry: typeof INTEGRATION_API_DOC_ENTRIES[number]) {
+  const resolvedMeta = resolveIntegrationEntryMeta(entry)
+  const usesMappedDisplayValue = Boolean(
+    entry.valueKey
+    && SETTINGS_REGISTRY_BY_KEY.get(entry.valueKey)?.key === resolvedMeta.key,
+  )
+  return {
+    resolvedMeta,
+    stateKey: usesMappedDisplayValue && entry.valueKey ? entry.valueKey : resolvedMeta.key,
+    usesMappedDisplayValue,
+  }
+}
+
 const PAYMENTS_API_DOC_ENTRIES = [
   ...STRIPE_PAYMENT_API_REQUEST_DOC_ENTRIES,
 ] as const
@@ -257,8 +306,10 @@ export function useSettingsView({
       if (r !== null) v[s.key] = r
     })
     INTEGRATION_API_DOC_ENTRIES.forEach(entry => {
-      if (entry.valueKey && typeof v[entry.valueKey] !== 'undefined') return
-      v[entry.meta.key] = entry.value
+      const { resolvedMeta, stateKey } = resolveIntegrationEntryStateKey(entry)
+      if (typeof v[stateKey] !== 'undefined') return
+      const current = resolvedMeta.read()
+      if (current !== null) v[stateKey] = current
     })
     PAYMENTS_API_DOC_ENTRIES.forEach(entry => {
       if (entry.valueKey && typeof v[entry.valueKey] !== 'undefined') return
@@ -290,7 +341,13 @@ export function useSettingsView({
     dirty.forEach((key) => {
       const meta = settingsRegistry.find(s => s.key === key)
       const virtualMeta =
-        INTEGRATION_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
+        (() => {
+          const integrationEntry = INTEGRATION_API_DOC_ENTRIES.find(entry => {
+            const resolvedMeta = resolveIntegrationEntryMeta(entry)
+            return resolvedMeta.key === key
+          })
+          return integrationEntry ? resolveIntegrationEntryMeta(integrationEntry) : undefined
+        })()
         || PAYMENTS_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
         || MAPS_API_DOC_ENTRIES.find(entry => entry.meta.key === key)?.meta
       const writeTarget = meta || virtualMeta
@@ -306,6 +363,12 @@ export function useSettingsView({
         if (current !== null) next[s.key] = current
       }
     })
+    INTEGRATION_API_DOC_ENTRIES.forEach(entry => {
+      const resolvedMeta = resolveIntegrationEntryMeta(entry)
+      if (!dirtyRef.current.has(resolvedMeta.key)) return
+      const current = resolvedMeta.read()
+      if (current !== null) next[resolvedMeta.key] = current
+    })
     setValues(next)
     dirtyRef.current.clear()
   }, [values])
@@ -316,10 +379,23 @@ export function useSettingsView({
       const def = s.default()
       if (def !== null) s.write(def)
     })
+    INTEGRATION_API_DOC_ENTRIES.forEach(entry => {
+      const resolvedMeta = resolveIntegrationEntryMeta(entry)
+      if (SETTINGS_REGISTRY_BY_KEY.has(resolvedMeta.key)) return
+      if (!resolvedMeta.write || !resolvedMeta.default) return
+      const def = resolvedMeta.default()
+      if (def !== null) resolvedMeta.write(def)
+    })
     const next: Record<string, string | number | boolean> = {}
     settingsRegistry.forEach(s => {
       const r = s.read()
       if (r !== null) next[s.key] = r
+    })
+    INTEGRATION_API_DOC_ENTRIES.forEach(entry => {
+      const { resolvedMeta, stateKey } = resolveIntegrationEntryStateKey(entry)
+      if (typeof next[stateKey] !== 'undefined') return
+      const current = resolvedMeta.read()
+      if (current !== null) next[stateKey] = current
     })
     setValues(next)
     dirtyRef.current.clear()
@@ -633,9 +709,7 @@ export function useSettingsView({
       return { meta: s, details, writable: !!s.write, index, anchorId }
     })
     const virtualEntries: SettingsEntry[] = INTEGRATION_API_DOC_ENTRIES.map(entry => {
-      const mappedMeta = entry.valueKey
-        ? settingsRegistry.find(s => s.key === entry.valueKey)
-        : undefined
+      const { resolvedMeta, stateKey: displayKey, usesMappedDisplayValue } = resolveIntegrationEntryStateKey(entry)
       const area = normalizeSettingsAreaLabel(entry.details.area)
       const normalizedDisplayValues =
         area === BYTEPLUS_CHAT_API_DOC_AREA
@@ -653,28 +727,31 @@ export function useSettingsView({
           : area === OPENAI_CHAT_API_DOC_AREA
             ? getOpenAiChatApiRowAnchorId(entry.meta.key)
             : undefined
+      const displayValue =
+        usesMappedDisplayValue && entry.valueKey && Object.prototype.hasOwnProperty.call(normalizedDisplayValues, entry.valueKey)
+          ? (normalizedDisplayValues[entry.valueKey] as string | number | boolean | undefined)
+          : Object.prototype.hasOwnProperty.call(values, displayKey)
+            ? (values[displayKey] as string | number | boolean | undefined)
+            : undefined
       return {
         meta: entry.meta,
         details: entry.details,
-        writable: Boolean(mappedMeta?.write),
+        writable: Boolean(resolvedMeta.write),
         index: normalizeText(
           [
             entry.details.area,
             entry.meta.key,
             entry.typeLabel,
-            entry.valueKey ? String(normalizedDisplayValues[entry.valueKey] ?? values[entry.valueKey] ?? '') : entry.value,
+            typeof displayValue !== 'undefined' ? String(displayValue) : entry.value,
             entry.details.responsibility,
             ...(entry.searchHints || []),
           ].join(' '),
         ),
         typeLabel: entry.typeLabel,
-        valueKey: entry.valueKey,
-        valueDisplayOverride:
-          entry.valueKey && Object.prototype.hasOwnProperty.call(normalizedDisplayValues, entry.valueKey)
-            ? (normalizedDisplayValues[entry.valueKey] as string | number | boolean | undefined)
-            : undefined,
-        valueType: mappedMeta?.type,
-        valueOptions: mappedMeta?.options,
+        valueKey: displayKey,
+        valueDisplayOverride: displayValue,
+        valueType: resolvedMeta.type,
+        valueOptions: resolvedMeta.options,
         tooltipRole: entry.tooltipRole,
         tooltipActions: entry.tooltipActions,
         tooltipDefaultValue: entry.tooltipDefaultValue,
@@ -859,12 +936,12 @@ export function useSettingsView({
         },
         {
           title: BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
-          searchIndex: normalizeText('BytePlus Video Generation API ModelArk FloatingPanel Video Widget'),
+          searchIndex: normalizeText('BytePlus Video Generation API ModelArk FloatingPanel BytePlus Video Widget byteplusVideoApi.model byteplusVideoModel'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
         },
         {
           title: BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
-          searchIndex: normalizeText('BytePlus Image Generation API ModelArk FloatingPanel Image Widget'),
+          searchIndex: normalizeText('BytePlus Image Generation API ModelArk FloatingPanel BytePlus Image Widget'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
         },
       ]

@@ -19,7 +19,9 @@ import {
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
@@ -203,7 +205,9 @@ export function normalizeWidgetRegistryEntries(
   const rich = out.filter(e => e.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
   if (rich.length > 1) {
     const canonicalTemplate = buildRichMediaPanelRegistryDraft()
-    const preferred = rich.find(e => e.widgetTypeId === 'default' && e.formId === 'richMediaPanel') || rich[0]!
+    const preferred = rich.find(
+      e => e.widgetTypeId === FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID && e.formId === FLOW_RICH_MEDIA_PANEL_FORM_ID,
+    ) || rich[0]!
 
     const fieldKey = (f: WidgetRegistryField): string => {
       const schemaPath = trimOrEmpty(f.schemaPath)
@@ -259,8 +263,8 @@ export function normalizeWidgetRegistryEntries(
     const merged: WidgetRegistryEntry = {
       ...preferred,
       nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-      widgetTypeId: 'default',
-      formId: 'richMediaPanel',
+      widgetTypeId: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+      formId: FLOW_RICH_MEDIA_PANEL_FORM_ID,
       fields,
       ports,
       schemaMappings,
@@ -515,7 +519,7 @@ export function ensureDefaultWidgetRegistryEntries(
   const seededRichMediaPanel = ensureDefaultRegistryEntry({
     entries: seededOpenAiText.entries,
     nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-    formId: 'richMediaPanel',
+    formId: FLOW_RICH_MEDIA_PANEL_FORM_ID,
     draft: buildRichMediaPanelRegistryDraft(),
     nowIso,
   })

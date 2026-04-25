@@ -726,3 +726,79 @@ export const testOpenAiTextWidgetPortHandleLinksToOpenAiIntegrations = async () 
   eventWindow.removeEventListener(MAIN_PANEL_OPEN_EVENT, listener as EventListener)
   root.unmount()
 }
+
+export const testBytePlusVideoWidgetPortHandleLinksToVideoIntegrations = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+
+  const g = globalThis as unknown as { window?: unknown; document?: unknown }
+  g.window = dom.window
+  g.document = dom.window.document
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+
+  const events: Array<{ searchQuery?: string; anchorId?: string }> = []
+  const eventWindow = dom.window as Window & typeof globalThis
+  const listener = (event: Event) => {
+    const custom = event as CustomEvent<{ searchQuery?: string; anchorId?: string }>
+    events.push(custom.detail || {})
+  }
+  eventWindow.addEventListener(MAIN_PANEL_OPEN_EVENT, listener as EventListener)
+
+  root.render(
+    React.createElement(NodeOverlayEditorRegistrySection, {
+      active: true,
+      properties: {
+        model: FLOW_EDITOR_VIDEO_MODEL_OPTIONS[0]?.value,
+        prompt: 'hello',
+      },
+      registryEntry: {
+        id: 'video-widget',
+        nodeTypeId: 'VideoGeneration',
+        widgetTypeId: 'default',
+        formId: 'videoGeneration',
+        fields: [
+          { fieldKey: 'model', fieldType: 'select', schemaPath: 'properties.model', label: 'Model', options: FLOW_EDITOR_VIDEO_MODEL_OPTIONS },
+        ],
+        ports: [{ portKey: 'videoUrl', direction: 'output', schemaPath: 'properties.videoUrl' }],
+      } as any,
+      microLabelClass: 'text-xs',
+      monospaceTextClass: 'font-mono',
+      textSizeClass: 'text-sm',
+      keyValueInputClass: 'border',
+      keyLabelClass: 'text-xs',
+      normalizeRegistrySchemaPath: (schemaPath?: string) => String(schemaPath || ''),
+      ids: { registryField: (k: string) => k },
+      dotSizePx: 10,
+      dotHitPx: 18,
+      portHandlesEnabled: true,
+      onSetProperties: () => void 0,
+      showFieldRows: false,
+      showPortRows: true,
+    }),
+  )
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const outputPort = host.querySelector<HTMLButtonElement>('button[data-kg-port-key="videoUrl"]')
+  if (!outputPort) {
+    throw new Error('expected BytePlus video widget output port handle button to render')
+  }
+  outputPort.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+  const last = events[events.length - 1]
+  if (!last) {
+    throw new Error('expected BytePlus video widget port click to dispatch an integrations deep-link event')
+  }
+  if (String(last.searchQuery || '') !== 'byteplusVideoApi.polling_endpoint') {
+    throw new Error(`expected BytePlus video port click to search byteplusVideoApi.polling_endpoint, got ${JSON.stringify(last)}`)
+  }
+  if (String(last.anchorId || '') !== 'byteplus-video-generation-api-row-byteplusvideoapi-polling-endpoint') {
+    throw new Error(`expected BytePlus video port click to target the exact video row anchor, got ${JSON.stringify(last)}`)
+  }
+
+  eventWindow.removeEventListener(MAIN_PANEL_OPEN_EVENT, listener as EventListener)
+  root.unmount()
+}

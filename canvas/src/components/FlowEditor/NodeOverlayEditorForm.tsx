@@ -42,6 +42,14 @@ import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 import { setObjectPath } from '@/lib/data/objectPath'
 import { inferMediaKindFromResourceUrl } from '@/lib/graph/mediaUrlKind'
 import { inferWidgetAutoRenderKind } from '@/lib/flowEditor/widgetAutoRender'
+import RichMediaPanel from '@/components/RichMediaPanel'
+import {
+  commitRichMediaPanelChange,
+  buildRichMediaPanelOverlayState,
+  getRichMediaPanelNodeLabel,
+  getRichMediaPanelViewLabel,
+  resolveRichMediaPanelRenderNode,
+} from '@/lib/render/richMediaSsot'
 
 const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
 const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
@@ -452,6 +460,9 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   void onValidate
   const properties = (node.properties || {}) as Record<string, unknown>
   const nodeTypeId = pickString(node.type).trim()
+  const isRichMediaPanelWidget = nodeTypeId === 'RichMediaPanel'
+  const showRichMediaPanelView = isRichMediaPanelWidget && !hideFields
+  const showRichMediaPanelKtvRows = isRichMediaPanelWidget && hideFields
   const idBase = React.useMemo(() => {
     const nodeId = cleanDomIdPart(node.id) || 'node'
     return `flow-node-quick-${nodeId}`
@@ -504,6 +515,22 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       UI_THEME_TOKENS.input.text,
     )
   }, [keyValueInputClass, monospaceTextClass, textSizeClass])
+  const richMediaPanelStoredWidth = pickNumber(properties['visual:width'])
+  const richMediaPanelStoredHeight = pickNumber(properties['visual:height'])
+  const richMediaPanelBaseSize = React.useMemo(() => {
+    const width = Math.max(220, Math.round(richMediaPanelStoredWidth || 280))
+    const height = Math.max(160, Math.round(richMediaPanelStoredHeight || 180))
+    return { width, height }
+  }, [richMediaPanelStoredHeight, richMediaPanelStoredWidth])
+  const [richMediaPanelViewSize, setRichMediaPanelViewSize] = React.useState(richMediaPanelBaseSize)
+  const richMediaPanelResizeStartRef = React.useRef(richMediaPanelBaseSize)
+  React.useEffect(() => {
+    setRichMediaPanelViewSize(prev =>
+      prev.width === richMediaPanelBaseSize.width && prev.height === richMediaPanelBaseSize.height
+        ? prev
+        : richMediaPanelBaseSize,
+    )
+  }, [richMediaPanelBaseSize])
 
   const renderKvTypeBox = React.useCallback((value: string) => {
     const text = String(value || '').trim()
@@ -677,7 +704,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     const formId = String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
     return formId === 'imageGeneration' || formId === 'videoGeneration'
   }, [properties, registryEntry, smartMediaMode])
-  const showSmartMediaFields = !hideFields && (!isFrontmatterFlow || hasSmartMediaSelection)
+  const showSmartMediaFields = !isRichMediaPanelWidget && !hideFields && (!isFrontmatterFlow || hasSmartMediaSelection)
 
   const registryOptionIdsSig = React.useMemo(() => {
     return (registryOptions || []).map(e => String(e.id || '')).join('|')
@@ -747,13 +774,90 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }, [])
 
   const compactPreview = React.useMemo(() => {
-    if (!hideFields) return null
+    if (!hideFields || isRichMediaPanelWidget) return null
     return resolveWidgetCompactPreview({
       node,
       registryEntry,
       connectedValuesBySchemaPath,
     })
-  }, [connectedValuesBySchemaPath, hideFields, node, registryEntry])
+  }, [connectedValuesBySchemaPath, hideFields, isRichMediaPanelWidget, node, registryEntry])
+
+  const richMediaPanelPreview = React.useMemo(() => {
+    if (!showRichMediaPanelView) return null
+    const panel = buildRichMediaPanelOverlayState({
+      node,
+      connectedValuesBySchemaPath,
+    })
+    if (!panel) return null
+    const renderNode = resolveRichMediaPanelRenderNode({ node, connectedValuesBySchemaPath })
+    const props = (renderNode.properties || {}) as Record<string, unknown>
+    const rawImageUrl = typeof props.imageUrl === 'string' ? props.imageUrl.trim() : ''
+    const rawVideoUrl = typeof props.videoUrl === 'string' ? props.videoUrl.trim() : ''
+    const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
+    const selectedTab =
+      panel.activeTab === 'image' || panel.activeTab === 'video' || panel.activeTab === 'text'
+        ? panel.activeTab
+        : panel.hasVideo
+          ? 'video'
+          : panel.hasImage
+            ? 'image'
+            : 'text'
+    if (selectedTab === 'video' && rawVideoUrl) {
+      return {
+        kind: 'video' as const,
+        url: rawVideoUrl,
+        openUrl: rawVideoUrl,
+        title: getRichMediaPanelNodeLabel(),
+        panel,
+      }
+    }
+    if (selectedTab === 'image' && rawImageUrl) {
+      return {
+        kind: 'image' as const,
+        url: rawImageUrl,
+        openUrl: rawImageUrl,
+        title: getRichMediaPanelNodeLabel(),
+        panel,
+      }
+    }
+    return {
+      kind: 'iframe' as const,
+      url: '',
+      srcDoc: rawOutputSrcDoc || undefined,
+      openUrl: '',
+      title: getRichMediaPanelNodeLabel(),
+      panel,
+    }
+  }, [connectedValuesBySchemaPath, node, showRichMediaPanelView])
+
+  const handleRichMediaPanelChange = React.useCallback((next: {
+    activeTab: 'auto' | 'text' | 'image' | 'video'
+    freezeConnectedOutput: boolean
+    text?: string
+  }) => {
+    commitRichMediaPanelChange({
+      nodeId: String(node.id || ''),
+      next,
+      updateNode: (_id, patch) => {
+        onPatchProperties((patch && patch.properties) || {})
+      },
+    })
+  }, [node.id, onPatchProperties])
+  const handleRichMediaPanelResizeStart = React.useCallback(() => {
+    richMediaPanelResizeStartRef.current = richMediaPanelViewSize
+  }, [richMediaPanelViewSize])
+  const handleRichMediaPanelResize = React.useCallback((args: { dx: number; dy: number }) => {
+    setRichMediaPanelViewSize({
+      width: Math.max(220, Math.round(richMediaPanelResizeStartRef.current.width + args.dx)),
+      height: Math.max(160, Math.round(richMediaPanelResizeStartRef.current.height + args.dy)),
+    })
+  }, [])
+  const handleRichMediaPanelResizeEnd = React.useCallback(() => {
+    onPatchProperties({
+      'visual:width': richMediaPanelViewSize.width,
+      'visual:height': richMediaPanelViewSize.height,
+    })
+  }, [onPatchProperties, richMediaPanelViewSize.height, richMediaPanelViewSize.width])
 
   const compactPreviewEditorClass = React.useMemo(() => {
     return cn(
@@ -919,6 +1023,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       onScrollCapture={() => emitInteractionFrame()}
       onWheelCapture={() => emitInteractionFrame()}
     >
+      {!showRichMediaPanelView && (
       <section className="min-w-0" aria-label={UI_LABELS.flowWidgetNodeLegend}>
         <NodeOverlayEditorKvTable
           ariaLabel={UI_LABELS.flowWidgetNodeLegend}
@@ -953,6 +1058,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           ]}
         />
       </section>
+      )}
 
       {showSmartMediaFields && (
         <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidgetSmartFieldsLegend}>
@@ -1247,6 +1353,41 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         </section>
       )}
 
+      {showRichMediaPanelView && richMediaPanelPreview && (
+        <section className="min-w-0 mt-4" aria-label={getRichMediaPanelViewLabel(false)}>
+          <section
+            className={cn(
+              'overflow-hidden rounded-lg',
+              UI_THEME_TOKENS.input.bg,
+            )}
+            style={{
+              width: `${richMediaPanelViewSize.width}px`,
+              maxWidth: '100%',
+              height: `${richMediaPanelViewSize.height}px`,
+            }}
+          >
+            <RichMediaPanel
+              overlayId={String(node.id || '')}
+              title={String(node.label || getRichMediaPanelNodeLabel())}
+              url={String(richMediaPanelPreview.url || '')}
+              srcDoc={richMediaPanelPreview.srcDoc}
+              openUrl={richMediaPanelPreview.openUrl}
+              kind={richMediaPanelPreview.kind}
+              interactive={active}
+              showHeader={false}
+              resizable={active}
+              onResizeStart={handleRichMediaPanelResizeStart}
+              onResize={handleRichMediaPanelResize}
+              onResizeEnd={handleRichMediaPanelResizeEnd}
+              className="w-full h-full"
+              style={{ width: '100%', height: '100%' }}
+              panel={richMediaPanelPreview.panel}
+              onPanelChange={handleRichMediaPanelChange}
+            />
+          </section>
+        </section>
+      )}
+
       {hideFields && isFrontmatterFlow && frontmatterPortRows.length > 0 && (
         <section className="min-w-0 mt-4" aria-label="Flow Handles">
           <NodeOverlayEditorKvTable
@@ -1389,7 +1530,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         </section>
       )}
 
-      {!isFrontmatterFlow && (
+      {!isFrontmatterFlow && !isRichMediaPanelWidget && (
       <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowEditorMapping}>
         <NodeOverlayEditorKvTable
           ariaLabel={UI_LABELS.flowEditorMapping}
@@ -1432,7 +1573,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       </section>
       )}
 
-      {!isFrontmatterFlow && (
+      {!isFrontmatterFlow && !isRichMediaPanelWidget && (
         <NodeOverlayEditorBeatByBeatSection
           node={node}
           graphMetaKind={graphMetaKind}
@@ -1443,7 +1584,31 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {!isFrontmatterFlow && hideFields && registryEntry && (
+      {showRichMediaPanelKtvRows && registryEntry && (
+        <NodeOverlayEditorRegistrySection
+          active={active}
+          properties={properties}
+          registryEntry={registryEntry}
+          microLabelClass={microLabelClass}
+          monospaceTextClass={monospaceTextClass}
+          textSizeClass={textSizeClass}
+          keyValueInputClass={keyValueInputClass}
+          keyLabelClass={keyLabelClass}
+          normalizeRegistrySchemaPath={normalizeRegistrySchemaPath}
+          ids={{ registryField: ids.registryField }}
+          dotSizePx={dotSizePx}
+          dotHitPx={dotHitPx}
+          portHandlesEnabled={portHandlesEnabled}
+          connectedValuesBySchemaPath={connectedValuesBySchemaPath}
+          onSetProperties={onSetProperties}
+          onSchemaPortHandleClick={onSchemaPortHandleClick}
+          showFieldRows
+          showPortRows
+          showTableHeader
+        />
+      )}
+
+      {!isRichMediaPanelWidget && !isFrontmatterFlow && hideFields && registryEntry && (
         <NodeOverlayEditorRegistrySection
           active={active}
           properties={properties}
@@ -1466,7 +1631,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {!isFrontmatterFlow && !hideFields && registryEntry && !(
+      {!isRichMediaPanelWidget && !isFrontmatterFlow && !hideFields && registryEntry && !(
         isFrontmatterFlow &&
         String(registryEntry.formId || '').trim() === `fm:${String(node.id || '').trim()}` &&
         Array.isArray(registryEntry.fields) &&
@@ -1497,7 +1662,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {!isFrontmatterFlow && !hideFields && (
+      {!isRichMediaPanelWidget && !isFrontmatterFlow && !hideFields && (
         <NodeOverlayEditorParamsSection
           active={active}
           properties={properties}
@@ -1513,7 +1678,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {!isFrontmatterFlow && (schemaFields.length > 0 || (registryEntry?.widgetTypeId || '').toLowerCase().includes('schema')) && (
+      {!isRichMediaPanelWidget && !isFrontmatterFlow && (schemaFields.length > 0 || (registryEntry?.widgetTypeId || '').toLowerCase().includes('schema')) && (
         <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidgetSchemaLegend}>
           <NodeOverlayEditorSchemaTable
             active={active}

@@ -51,6 +51,27 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!flowCanvasText.includes('listDisplayRichMediaOverlayNodes') || !flowCanvasText.includes('commitRichMediaPanelChange') || !flowCanvasText.includes('resolveRichMediaPanelInteractive')) {
     throw new Error('expected FlowCanvas to reuse upstream Rich Media SSOT helpers for overlay enablement, writeback, and interactivity')
   }
+  if (!flowCanvasText.includes('const flowEditorRichMediaPanelOverlayExcludeNodeIdSet = React.useMemo(() => {')) {
+    throw new Error('expected FlowCanvas to derive a Flow Editor Rich Media overlay exclusion set before mounting overlay panels')
+  }
+  if (!flowCanvasText.includes("resolveGraphNodeByCanonicalId(sceneGraphData, rawId)?.id")) {
+    throw new Error('expected FlowCanvas to resolve canonical Rich Media widget ids before excluding duplicate overlay panels')
+  }
+  if (!flowCanvasText.includes('excludeRichMediaOverlayNodeIds?: string[]')) {
+    throw new Error('expected FlowCanvas to accept explicit Rich Media overlay exclusion ids from Flow Editor')
+  }
+  if (!flowCanvasText.includes('excludeNodeIdSet: flowEditorRichMediaPanelOverlayExcludeNodeIdSet')) {
+    throw new Error('expected FlowCanvas overlay pool to exclude Flow Editor Rich Media panel nodes from duplicate overlay panels')
+  }
+  if (!flowCanvasText.includes('...(Array.isArray(excludeRichMediaOverlayNodeIds) ? excludeRichMediaOverlayNodeIds : [])')) {
+    throw new Error('expected FlowCanvas duplicate exclusion to include Flow Editor overlay node ids')
+  }
+  if (!flowCanvasText.includes('if (!isRichMediaPanelNode(node)) continue')) {
+    throw new Error('expected FlowCanvas Flow Editor exclusion to suppress Rich Media panel nodes at the root overlay source')
+  }
+  if (!flowCanvasText.includes('excludeRichMediaOverlayNodeIds={overlayEditorNodeIds}')) {
+    throw new Error('expected FlowEditorCanvas to pass overlay editor node ids into FlowCanvas Rich Media duplicate exclusion')
+  }
   if (!d3HookText.includes('listDisplayRichMediaOverlayNodes')) {
     throw new Error('expected D3 rich media overlay hook to reuse upstream Rich Media overlay enablement SSOT')
   }

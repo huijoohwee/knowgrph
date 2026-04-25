@@ -68,6 +68,7 @@ import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsA
 import { MAPS_GRABMAPS_MCP_DOC_AREA } from './grabmapsMcpApiDocs'
 import { FLOW_IMAGE_GENERATION_NODE_LABEL, FLOW_VIDEO_GENERATION_NODE_LABEL } from '@/lib/config.flow-editor'
 import { PAYMENTS_PROVIDERS, DEFAULT_PAYMENT_PROVIDER_ID, resolvePaymentsProviderSpec } from '@/features/payments/providers'
+import { getGrabMapsDiscoveryWidgetLabel } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS = 'top-9'
@@ -103,7 +104,7 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
     panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
     note: 'Widget palette opens in the floating props panel.',
     highlights: [
-      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel Maps keeps backend/system/API/MCP config.',
+      `Travel-planning video prompts can reuse GrabMaps-selected geojson plus place-search context from ${getGrabMapsDiscoveryWidgetLabel()}, while MainPanel Maps keeps backend/system/API/MCP config.`,
       'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
     ],
     openPanel: () => emitPropsPanelOpen(),
@@ -142,7 +143,7 @@ const MAPS_SECTION_META: Readonly<Record<string, {
   [MAPS_GRABMAPS_MCP_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation/mcp',
     docsLabel: 'Open GrabMaps MCP Docs',
-    panelLabel: 'Open FloatingPanel Props Panel Discovery Widget',
+    panelLabel: `Open FloatingPanel Props Panel ${getGrabMapsDiscoveryWidgetLabel()}`,
     note: 'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
     highlights: [
       'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
@@ -154,7 +155,7 @@ const MAPS_SECTION_META: Readonly<Record<string, {
     docsUrl: 'https://maps.grab.com/developer/documentation/routes',
     docsLabel: 'Open GrabMaps Routes Docs',
     panelLabel: 'Open FloatingPanel Geo',
-    note: 'Keep route rendering and imported geospatial output in Geo; Props Panel Discovery Widget reuses the shared place-search defaults without owning MCP wiring.',
+    note: `Keep route rendering and imported geospatial output in Geo; ${getGrabMapsDiscoveryWidgetLabel()} reuses the shared place-search defaults without owning MCP wiring.`,
     highlights: [
       'Directions default to lng,lat coordinate order unless lat_first is enabled.',
       'Use overview=full when you need route geometry suitable for animation or media prompts.',

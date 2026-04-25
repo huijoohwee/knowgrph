@@ -2046,7 +2046,7 @@
   },
   "maps.grabmaps.mcp.discovery.chatModel": {
     "area": "GrabMaps MCP Configuration",
-    "responsibility": "GrabMap Chat Discovery Widget model id",
+    "responsibility": "GrabMaps Chat Discovery Widget model id",
     "notes": "",
     "modules": [
       "canvas/src/features/settings/registry-ui.grabmaps.ts"

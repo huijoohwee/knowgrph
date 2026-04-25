@@ -216,7 +216,7 @@ export const testFlowWidgetHideFieldsRendersImageOutputPreview = async () => {
       active: true,
       node: {
         id: 'image:compact',
-        label: 'Image Widget',
+        label: 'BytePlus Image Widget',
         type: FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
         properties: {
           imageUrl: 'https://example.invalid/generated-image.png',
@@ -397,6 +397,130 @@ export const testFlowWidgetHideFieldsRendersConnectedVideoPreviewFromGenericOutp
 
   const preview = host.querySelector('video[src="https://example.invalid/connected-video.mp4"]') as HTMLVideoElement | null
   if (!preview) throw new Error('expected connected video source port on generic output edge to render video preview')
+
+  root.unmount()
+}
+
+export const testRichMediaPanelDefaultViewReusesSharedViewerSsot = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const g = globalThis as unknown as { window?: unknown; document?: unknown }
+  g.window = dom.window
+  g.document = dom.window.document
+
+  const registryDraft = buildRichMediaPanelRegistryDraft()
+  const registryEntry = {
+    ...registryDraft,
+    id: 'rich-media-panel-default',
+    updatedAt: '2026-04-24T00:00:00.000Z',
+  }
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+
+  root.render(
+    React.createElement(NodeOverlayEditorForm, {
+      active: true,
+      node: {
+        id: 'rich-media:viewer-default',
+        label: 'Rich Media Panel',
+        type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        properties: {},
+      },
+      schema: defaultSchema,
+      hideFields: false,
+      labelInputRef: { current: null },
+      onSetLabel: () => void 0,
+      onSetType: () => void 0,
+      onPatchProperties: () => void 0,
+      onSetProperties: () => void 0,
+      onValidate: () => void 0,
+      registryEntry: registryEntry as any,
+      registryEntries: [registryEntry as any],
+      connectedValuesBySchemaPath: {
+        'properties.output': {
+          value: '# Hello from Rich Media Panel',
+          sources: [{ edgeId: 'edge-text', nodeId: 'text-widget', portKey: 'text_out' }],
+        },
+      },
+    }),
+  )
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const viewer = host.querySelector('[data-kg-rich-media-panel="1"]')
+  if (!viewer) throw new Error('expected Rich Media Panel default view to mount the shared RichMediaPanel viewer')
+  const resizeHandle = host.querySelector('[data-kg-resize-handle="se"]')
+  if (!resizeHandle) throw new Error('expected Rich Media Panel default view to keep the bottom-right resize handle on the same panel surface')
+  const markdownPreview = host.querySelector('[data-kg-rich-media-markdown-preview="1"]')
+  if (!markdownPreview) throw new Error('expected Rich Media Panel default view to reuse markdown/image/video viewer SSOT')
+  if (host.textContent?.includes('Widget Registry')) {
+    throw new Error('expected Rich Media Panel default view to avoid duplicate registry/KTV sections')
+  }
+  ;['Model', 'Prompt', 'Aspect ratio', 'Duration', 'Resolution', 'Generate audio', 'Fast'].forEach(text => {
+    if (host.textContent?.includes(text)) {
+      throw new Error(`expected Rich Media Panel default view to avoid stale smart-media editor field ${text}`)
+    }
+  })
+
+  root.unmount()
+}
+
+export const testRichMediaPanelKtvRowsReuseSharedWidgetKvTableSsot = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const g = globalThis as unknown as { window?: unknown; document?: unknown }
+  g.window = dom.window
+  g.document = dom.window.document
+
+  const registryDraft = buildRichMediaPanelRegistryDraft()
+  const registryEntry = {
+    ...registryDraft,
+    id: 'rich-media-panel-default',
+    updatedAt: '2026-04-24T00:00:00.000Z',
+  }
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+
+  root.render(
+    React.createElement(NodeOverlayEditorForm, {
+      active: true,
+      node: {
+        id: 'rich-media:ktv-rows',
+        label: 'Rich Media Panel',
+        type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        properties: {
+          output: 'hello',
+          imageUrl: 'https://example.invalid/panel.png',
+        },
+      },
+      schema: defaultSchema,
+      hideFields: true,
+      labelInputRef: { current: null },
+      onSetLabel: () => void 0,
+      onSetType: () => void 0,
+      onPatchProperties: () => void 0,
+      onSetProperties: () => void 0,
+      onValidate: () => void 0,
+      registryEntry: registryEntry as any,
+      registryEntries: [registryEntry as any],
+    }),
+  )
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const viewer = host.querySelector('[data-kg-rich-media-panel="1"]')
+  if (viewer) throw new Error('expected Rich Media Panel KTV mode to hide the viewer surface')
+  const resizeHandle = host.querySelector('[data-kg-resize-handle="se"]')
+  if (resizeHandle) throw new Error('expected Rich Media Panel KTV mode to hide the resize-handle viewer surface')
+  ;['Key', 'Type', 'Value', 'Output', 'Image URL', 'Video URL', 'HTML srcdoc'].forEach(text => {
+    if (!host.textContent?.includes(text)) {
+      throw new Error(`expected Rich Media Panel KTV mode to reuse shared widget table content ${text}`)
+    }
+  })
+  const portButtons = host.querySelectorAll('button[data-kg-port-handle="1"]')
+  if (portButtons.length < 4) throw new Error(`expected Rich Media Panel KTV mode to keep shared port handles, got ${portButtons.length}`)
 
   root.unmount()
 }
