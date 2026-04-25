@@ -48,6 +48,7 @@ import {
   buildRichMediaPanelOverlayState,
   getRichMediaPanelNodeLabel,
   getRichMediaPanelViewLabel,
+  type RichMediaPanelTab,
   resolveRichMediaPanelRenderNode,
 } from '@/lib/render/richMediaSsot'
 
@@ -794,13 +795,15 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     const rawImageUrl = typeof props.imageUrl === 'string' ? props.imageUrl.trim() : ''
     const rawVideoUrl = typeof props.videoUrl === 'string' ? props.videoUrl.trim() : ''
     const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
-    const selectedTab =
-      panel.activeTab === 'image' || panel.activeTab === 'video' || panel.activeTab === 'text'
+    const selectedTab: RichMediaPanelTab =
+      panel.activeTab === 'image' || panel.activeTab === 'video' || panel.activeTab === 'text' || panel.activeTab === 'poi'
         ? panel.activeTab
         : panel.hasVideo
           ? 'video'
           : panel.hasImage
             ? 'image'
+            : panel.hasPoi
+              ? 'poi'
             : 'text'
     if (selectedTab === 'video' && rawVideoUrl) {
       return {
@@ -831,7 +834,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }, [connectedValuesBySchemaPath, node, showRichMediaPanelView])
 
   const handleRichMediaPanelChange = React.useCallback((next: {
-    activeTab: 'auto' | 'text' | 'image' | 'video'
+    activeTab: RichMediaPanelTab
     freezeConnectedOutput: boolean
     text?: string
   }) => {

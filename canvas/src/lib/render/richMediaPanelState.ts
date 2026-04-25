@@ -3,12 +3,15 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
+export type RichMediaPanelTab = 'auto' | 'text' | 'image' | 'video' | 'poi'
+
 export type RichMediaPanelOverlayState = {
-  activeTab: 'auto' | 'text' | 'image' | 'video'
+  activeTab: RichMediaPanelTab
   freezeConnectedOutput: boolean
   hasText: boolean
   hasImage: boolean
   hasVideo: boolean
+  hasPoi: boolean
   text: string
   connectedText: string
   isLoading: boolean
@@ -105,9 +108,10 @@ export function buildRichMediaPanelOverlayState(args: {
   const outputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
   const imageUrl = typeof props.imageUrl === 'string' ? props.imageUrl : ''
   const videoUrl = typeof props.videoUrl === 'string' ? props.videoUrl : ''
+  const poiLabel = typeof props.richMediaPoiLabel === 'string' ? props.richMediaPoiLabel : ''
   const rawTab = String(props.richMediaActiveTab || '').trim().toLowerCase()
   const activeTab: RichMediaPanelOverlayState['activeTab'] =
-    rawTab === 'text' || rawTab === 'image' || rawTab === 'video' || rawTab === 'auto'
+    rawTab === 'text' || rawTab === 'image' || rawTab === 'video' || rawTab === 'poi' || rawTab === 'auto'
       ? (rawTab as RichMediaPanelOverlayState['activeTab'])
       : 'auto'
   const freezeConnectedOutput = Boolean(props.freezeConnectedOutput)
@@ -128,6 +132,7 @@ export function buildRichMediaPanelOverlayState(args: {
     hasText: Boolean(output.trim() || outputSrcDoc.trim() || connectedText.trim()),
     hasImage: Boolean(imageUrl.trim()),
     hasVideo: Boolean(videoUrl.trim()),
+    hasPoi: Boolean(poiLabel.trim() || (activeTab === 'poi' && outputSrcDoc.trim())),
     text: output,
     connectedText,
     isLoading,

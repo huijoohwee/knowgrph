@@ -234,7 +234,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
 
   if (String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-    const selected = richMediaActiveTab === 'video' || richMediaActiveTab === 'image' || richMediaActiveTab === 'text'
+    const selected = richMediaActiveTab === 'video' || richMediaActiveTab === 'image' || richMediaActiveTab === 'text' || richMediaActiveTab === 'poi'
       ? richMediaActiveTab
       : ''
     if (selected === 'video') {
@@ -245,7 +245,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       const chosen = imageUrl || imageUrlCamel || imageUrlLegacy
       if (chosen) return { kind: 'image', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : false }
     }
-    if (selected === 'text') {
+    if (selected === 'text' || selected === 'poi') {
       if (outputSrcDoc) return { kind: 'iframe', url: '', srcDoc: outputSrcDoc, interactive: false }
       const trimmed = outputText.trim()
       if (trimmed) {

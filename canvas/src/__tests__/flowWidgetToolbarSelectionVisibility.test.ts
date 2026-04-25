@@ -57,8 +57,32 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
   if (!overlayText.includes('richMediaViewToggle={isRichMediaPanelWidget ? {')) {
     throw new Error('expected NodeOverlayEditor to wire Rich Media Panel view toggle through the floating toolbar')
   }
+  if (!overlayText.includes('richMediaMediaSelector={isRichMediaPanelWidget ? {')) {
+    throw new Error('expected NodeOverlayEditor to wire Rich Media Panel Media Selector through the floating toolbar')
+  }
+  if (!overlayText.includes('selectedMode: richMediaSelectedMode')) {
+    throw new Error('expected NodeOverlayEditor to pass the selected Rich Media mode into the floating toolbar selector')
+  }
+  if (!overlayText.includes('onSelect: handleSelectRichMediaMode')) {
+    throw new Error('expected NodeOverlayEditor to update richMediaActiveTab through the shared toolbar selector callback')
+  }
   if (!toolbarText.includes('richMediaViewToggle?.visible')) {
     throw new Error('expected NodeOverlayEditorActionsToolbar to render a Rich Media Panel view toggle')
+  }
+  if (!toolbarText.includes('richMediaMediaSelector?.visible')) {
+    throw new Error('expected NodeOverlayEditorActionsToolbar to render a Rich Media Panel Media Selector')
+  }
+  if (!toolbarText.includes('RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL')) {
+    throw new Error('expected Rich Media floating toolbar selector to reuse the shared Media Selector label')
+  }
+  if (!toolbarText.includes('getRichMediaPanelMediaSelectorOptions')) {
+    throw new Error('expected Rich Media floating toolbar selector to reuse shared media-mode option metadata')
+  }
+  if (!toolbarText.includes('Images')) {
+    throw new Error('expected Rich Media floating toolbar selector to use the dedicated Media Selector icon button')
+  }
+  if (!toolbarText.includes("option.value === richMediaMediaSelector?.selectedMode")) {
+    throw new Error('expected Rich Media floating toolbar selector to highlight the currently selected media mode')
   }
   if (!toolbarText.includes('SplitSquareVertical')) {
     throw new Error('expected floating toolbar Rich Media toggle to use the dedicated tiny split-view button')
@@ -80,5 +104,11 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
   }
   if (!richMediaSsotText.includes('RICH_MEDIA_PANEL_KTV_VIEW_LABEL = FLOW_RICH_MEDIA_PANEL_NODE_LABEL')) {
     throw new Error('expected Rich Media SSOT to keep the canonical KTV-row panel label')
+  }
+  if (!richMediaSsotText.includes("RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL = 'Media Selector'")) {
+    throw new Error('expected Rich Media SSOT to keep a shared Media Selector label')
+  }
+  if (!richMediaSsotText.includes("{ value: 'poi', label: 'POI Viewer' }")) {
+    throw new Error('expected Rich Media SSOT to expose POI Viewer as a first-class Media Selector option')
   }
 }

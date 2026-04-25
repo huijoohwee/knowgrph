@@ -5,6 +5,11 @@ import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
+import type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
+import {
+  GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT,
+  readLatestGrabMapsPoiRichMediaPreview,
+} from '@/features/geospatial/grabMapsPoiRichMedia'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, resolveIframeSandbox, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
@@ -53,11 +58,12 @@ export type RichMediaPanelProps = {
   onDoubleClickCapture?: React.MouseEventHandler<HTMLDivElement>
   onContextMenuCapture?: React.MouseEventHandler<HTMLDivElement>
   panel?: {
-    activeTab: 'auto' | 'text' | 'image' | 'video'
+    activeTab: RichMediaPanelTab
     freezeConnectedOutput: boolean
     hasText: boolean
     hasImage: boolean
     hasVideo: boolean
+    hasPoi: boolean
     text: string
     connectedText: string
     isLoading?: boolean
@@ -65,7 +71,7 @@ export type RichMediaPanelProps = {
   }
   flowEditorInteractionMode?: boolean
   flowEditorFrontmatterDocumentMode?: boolean
-  onPanelChange?: (next: { activeTab: 'auto' | 'text' | 'image' | 'video'; freezeConnectedOutput: boolean; text?: string }) => void
+  onPanelChange?: (next: { activeTab: RichMediaPanelTab; freezeConnectedOutput: boolean; text?: string }) => void
 }
 
 const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(props, ref) {
@@ -112,19 +118,65 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     const s = typeof props.srcDoc === 'string' ? props.srcDoc.trim() : ''
     return s
   }, [kind, props.srcDoc])
+  const [grabMapsPoiPreviewSrcDoc, setGrabMapsPoiPreviewSrcDoc] = React.useState<string>(() => {
+    const payload = readLatestGrabMapsPoiRichMediaPreview()
+    if (!payload) return ''
+    const targetNodeId = String(payload.targetNodeId || '').trim()
+    const overlayId = String(props.overlayId || '').trim()
+    if (targetNodeId && overlayId && !isCanonicalNodeIdEqual(targetNodeId, overlayId)) return ''
+    return String(payload.srcDoc || '').trim()
+  })
+  const [grabMapsPoiPreviewLabel, setGrabMapsPoiPreviewLabel] = React.useState<string>(() => {
+    const payload = readLatestGrabMapsPoiRichMediaPreview()
+    if (!payload) return ''
+    const targetNodeId = String(payload.targetNodeId || '').trim()
+    const overlayId = String(props.overlayId || '').trim()
+    if (targetNodeId && overlayId && !isCanonicalNodeIdEqual(targetNodeId, overlayId)) return ''
+    return String(payload.label || '').trim()
+  })
+  React.useEffect(() => {
+    const applyPayload = (payload: unknown) => {
+      if (!payload || typeof payload !== 'object') return
+      const next = payload as { targetNodeId?: unknown; srcDoc?: unknown; label?: unknown }
+      const targetNodeId = String(next.targetNodeId || '').trim()
+      const overlayId = String(props.overlayId || '').trim()
+      if (targetNodeId && overlayId && !isCanonicalNodeIdEqual(targetNodeId, overlayId)) return
+      const srcDoc = typeof next.srcDoc === 'string' ? next.srcDoc.trim() : ''
+      const label = typeof next.label === 'string' ? next.label.trim() : ''
+      setGrabMapsPoiPreviewSrcDoc(srcDoc)
+      setGrabMapsPoiPreviewLabel(label)
+    }
+    applyPayload(readLatestGrabMapsPoiRichMediaPreview())
+    if (typeof window === 'undefined') return
+    const handle = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail : null
+      applyPayload(detail)
+    }
+    window.addEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT, handle as EventListener)
+    return () => {
+      window.removeEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT, handle as EventListener)
+    }
+  }, [props.overlayId])
+  const effectiveInlineSrcDoc = inlineSrcDoc || grabMapsPoiPreviewSrcDoc
 
   const panel = props.panel || null
   const panelActiveTab = panel ? panel.activeTab : 'auto'
   const panelFreezeConnectedOutput = panel ? panel.freezeConnectedOutput : false
-  const panelHasMultiKinds = panel ? Boolean(panel.hasText && (panel.hasImage || panel.hasVideo)) : false
-  const panelSelectedTab: 'text' | 'image' | 'video' | null =
-    panelActiveTab === 'text' || panelActiveTab === 'image' || panelActiveTab === 'video'
+  const panelHasPoi = panel ? panel.hasPoi : Boolean(grabMapsPoiPreviewSrcDoc.trim() || grabMapsPoiPreviewLabel.trim())
+  const panelAvailableTabCount = panel
+    ? [panel.hasText, panel.hasImage, panel.hasVideo, panelHasPoi].filter(Boolean).length
+    : 0
+  const panelHasMultiKinds = panelAvailableTabCount > 1
+  const panelSelectedTab: 'text' | 'image' | 'video' | 'poi' | null =
+    panelActiveTab === 'text' || panelActiveTab === 'image' || panelActiveTab === 'video' || panelActiveTab === 'poi'
       ? panelActiveTab
       : panelActiveTab === 'auto'
         ? kind === 'video'
           ? 'video'
           : kind === 'image' || kind === 'svg'
             ? 'image'
+            : kind === 'iframe' && !rawUrl && panelHasPoi && effectiveInlineSrcDoc
+              ? 'poi'
             : kind === 'iframe' && !rawUrl
               ? 'text'
               : null
@@ -151,7 +203,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     const base = String(props.overlayId || title || 'rich-media-panel').trim() || 'rich-media-panel'
     return `/__rich_media_panel/${encodeURIComponent(base)}.md`
   }, [props.overlayId, title])
-  const isEmptyPanel = kind === 'iframe' && !rawUrl && !inlineSrcDoc && !showPanelMarkdownPreview
+  const isEmptyPanel = kind === 'iframe' && !rawUrl && !effectiveInlineSrcDoc && !showPanelMarkdownPreview
 
   const forceSnapshotIframe = React.useMemo(() => {
     if (kind !== 'iframe') return false
@@ -630,6 +682,18 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
                     V
                   </button>
                 ) : null}
+                {panelHasPoi ? (
+                  <button
+                    type="button"
+                    data-kg-panel-action="1"
+                    style={PANEL_FRAME_HEADER_ACTION_STYLE}
+                    aria-label="Show POI"
+                    onPointerDownCapture={onHeaderActionPointerDownCapture}
+                    onClick={() => props.onPanelChange?.({ activeTab: 'poi', freezeConnectedOutput: panelFreezeConnectedOutput })}
+                  >
+                    P
+                  </button>
+                ) : null}
               </li>
             ) : null}
             {panelSelectedTab === 'text' && !panelControlsHidden ? (
@@ -846,10 +910,10 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             {panelLoadingLabel}
           </div>
         ) : kind === 'iframe' ? (
-          inlineSrcDoc ? (
+          effectiveInlineSrcDoc ? (
             <iframe
               src="about:blank"
-              srcDoc={inlineSrcDoc}
+              srcDoc={effectiveInlineSrcDoc}
               title={title}
               allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               sandbox={resolveIframeSandbox('proxied')}

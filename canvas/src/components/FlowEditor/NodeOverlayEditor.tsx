@@ -44,6 +44,7 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import type { RichMediaPanelTab } from '@/lib/render/richMediaSsot'
 
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = 140
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 170
@@ -799,6 +800,19 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       return next
     })
   }, [])
+  const richMediaSelectedMode = React.useMemo<RichMediaPanelTab>(() => {
+    if (!isRichMediaPanelWidget) return 'auto'
+    const raw = String((node.properties || {}).richMediaActiveTab || '').trim().toLowerCase()
+    return raw === 'text' || raw === 'image' || raw === 'video' || raw === 'poi' || raw === 'auto'
+      ? raw as RichMediaPanelTab
+      : 'auto'
+  }, [isRichMediaPanelWidget, node.properties])
+  const handleSelectRichMediaMode = React.useCallback((nextMode: RichMediaPanelTab) => {
+    if (!isRichMediaPanelWidget) return
+    onPatchProperties({
+      richMediaActiveTab: nextMode,
+    })
+  }, [isRichMediaPanelWidget, onPatchProperties])
 
   const spacePanUserSelectUnlockRef = React.useRef<null | (() => void)>(null)
 
@@ -1135,6 +1149,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
               visible: true,
               isKtvRows: hideFields,
               onToggle: handleToggleHideFields,
+            } : undefined}
+            richMediaMediaSelector={isRichMediaPanelWidget ? {
+              visible: true,
+              selectedMode: richMediaSelectedMode,
+              onSelect: handleSelectRichMediaMode,
             } : undefined}
             onRun={onRun}
             onDuplicate={onDuplicate}

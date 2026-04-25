@@ -287,13 +287,18 @@ export const testGeospatialOverlayHostProjectsSnapshotGraphDataToMapLayer = () =
 export const testGeospatialPoiClicksRenderIntoRichMediaPanelInsteadOfMapLibrePopup = () => {
   const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
   const basemapPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const richMediaPanelPath = path.resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const viewportText = readUtf8(viewportPath)
   const basemapText = readUtf8(basemapPath)
+  const richMediaPanelText = readUtf8(richMediaPanelPath)
   if (!viewportText.includes('renderPoiInRichMediaPanel')) {
     throw new Error('Expected CanvasViewport to expose a shared geospatial POI -> Rich Media Panel handoff')
   }
   if (!viewportText.includes('buildGrabMapsPoiRichMediaSrcDoc(detail)')) {
     throw new Error('Expected CanvasViewport to write GrabMaps POI output into Rich Media Panel srcdoc content')
+  }
+  if (!viewportText.includes('publishGrabMapsPoiRichMediaPreview({')) {
+    throw new Error('Expected CanvasViewport to publish GrabMaps POI preview payloads for visible Rich Media panels')
   }
   if (!viewportText.includes('resolveGrabMapsPoiRichMediaPanelNodeId')) {
     throw new Error('Expected CanvasViewport to resolve the canonical Rich Media Panel node before writing POI output')
@@ -303,6 +308,12 @@ export const testGeospatialPoiClicksRenderIntoRichMediaPanelInsteadOfMapLibrePop
   }
   if (basemapText.includes('new PopupConstructor') || basemapText.includes('.setText(label).addTo(map)')) {
     throw new Error('Expected MapLibre basemap POI clicks to avoid mutating popup DOM and instead defer to Rich Media Panel SSOT')
+  }
+  if (!richMediaPanelText.includes('GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT')) {
+    throw new Error('Expected RichMediaPanel to subscribe to the shared GrabMaps POI preview event')
+  }
+  if (!richMediaPanelText.includes('const effectiveInlineSrcDoc = inlineSrcDoc || grabMapsPoiPreviewSrcDoc')) {
+    throw new Error('Expected empty RichMediaPanel surfaces to reuse the latest GrabMaps POI preview srcdoc')
   }
 }
 
@@ -626,8 +637,17 @@ export const testGeospatialPoiClickWiresHostActionAndRichMediaPanel = () => {
   if (!viewportText.includes('openWidgetNodeIdsByRenderer?.flowEditor')) {
     throw new Error('Expected CanvasViewport to resolve POI targets against Flow Editor widget-panel ids in geospatial mode')
   }
-  if (!viewportText.includes("outputSrcDoc: buildGrabMapsPoiRichMediaSrcDoc(detail)")) {
-    throw new Error('Expected CanvasViewport to write POI details into Rich Media Panel srcdoc output')
+  if (!viewportText.includes('const srcDoc = buildGrabMapsPoiRichMediaSrcDoc(detail)')) {
+    throw new Error('Expected CanvasViewport to build a single shared POI srcdoc payload for Rich Media rendering')
+  }
+  if (!viewportText.includes("richMediaActiveTab: 'poi'")) {
+    throw new Error('Expected CanvasViewport POI handoff to auto-switch the canonical Rich Media Panel into POI Viewer mode')
+  }
+  if (!viewportText.includes('richMediaPoiLabel: String(detail.label || \'\').trim() || \'POI\'')) {
+    throw new Error('Expected CanvasViewport POI handoff to persist a canonical POI label for Rich Media Panel viewer selection')
+  }
+  if (!viewportText.includes('outputSrcDoc: srcDoc')) {
+    throw new Error('Expected CanvasViewport to write the shared POI srcdoc payload into Rich Media Panel output')
   }
   if (!viewportText.includes('renderPoiInRichMediaPanel')) {
     throw new Error('Expected geospatial overlay handlers to expose Rich Media Panel POI rendering upstream')

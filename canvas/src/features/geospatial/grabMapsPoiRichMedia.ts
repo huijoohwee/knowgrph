@@ -10,6 +10,16 @@ export type GrabMapsPoiRichMediaDetail = {
   category?: string
 }
 
+export type GrabMapsPoiRichMediaPreviewPayload = {
+  targetNodeId: string
+  srcDoc: string
+  label: string
+}
+
+export const GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT = 'kg:grabmaps:poi-rich-media-preview'
+
+let latestGrabMapsPoiRichMediaPreviewPayload: GrabMapsPoiRichMediaPreviewPayload | null = null
+
 function readGraphNodes(graphData: GraphData | null | undefined): GraphNode[] {
   return Array.isArray(graphData?.nodes) ? graphData.nodes : []
 }
@@ -103,4 +113,18 @@ export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDeta
     metaRows ? `<section>${metaRows}</section>` : '',
     '</article></main></body></html>',
   ].join('')
+}
+
+export function publishGrabMapsPoiRichMediaPreview(payload: GrabMapsPoiRichMediaPreviewPayload): void {
+  latestGrabMapsPoiRichMediaPreviewPayload = payload
+  if (typeof window === 'undefined') return
+  try {
+    window.dispatchEvent(new CustomEvent(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT, { detail: payload }))
+  } catch {
+    void 0
+  }
+}
+
+export function readLatestGrabMapsPoiRichMediaPreview(): GrabMapsPoiRichMediaPreviewPayload | null {
+  return latestGrabMapsPoiRichMediaPreviewPayload
 }

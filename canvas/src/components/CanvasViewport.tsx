@@ -11,6 +11,7 @@ import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { buildGeospatialOverlayGraphData } from '@/features/geospatial/geospatialOverlayGraphData'
 import {
   buildGrabMapsPoiRichMediaSrcDoc,
+  publishGrabMapsPoiRichMediaPreview,
   resolveGrabMapsPoiRichMediaPanelNodeId,
   type GrabMapsPoiRichMediaDetail,
 } from '@/features/geospatial/grabMapsPoiRichMedia'
@@ -245,6 +246,7 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
   )
 
   const renderPoiInRichMediaPanel = React.useCallback((detail: GrabMapsPoiRichMediaDetail): boolean => {
+    const srcDoc = buildGrabMapsPoiRichMediaSrcDoc(detail)
     const flowEditorOpenWidgetNodeIds = Array.isArray(gympgrphBridge.openWidgetNodeIdsByRenderer?.flowEditor)
       ? gympgrphBridge.openWidgetNodeIdsByRenderer.flowEditor
       : []
@@ -255,13 +257,19 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       openWidgetNodeIds: gympgrphBridge.openWidgetNodeIds,
       flowEditorOpenWidgetNodeIds,
     })
-    if (!targetNodeId) return false
+    publishGrabMapsPoiRichMediaPreview({
+      targetNodeId,
+      srcDoc,
+      label: String(detail.label || '').trim() || 'POI',
+    })
+    if (!targetNodeId) return true
     gympgrphBridge.updateNode(targetNodeId, {
       properties: {
-        richMediaActiveTab: 'text',
+        richMediaActiveTab: 'poi',
         freezeConnectedOutput: true,
+        richMediaPoiLabel: String(detail.label || '').trim() || 'POI',
         output: '',
-        outputSrcDoc: buildGrabMapsPoiRichMediaSrcDoc(detail),
+        outputSrcDoc: srcDoc,
       },
     })
     gympgrphBridge.updateOpenWidgetNodeIds(prev => (prev.includes(targetNodeId) ? prev : [...prev, targetNodeId]))

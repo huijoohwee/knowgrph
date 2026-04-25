@@ -316,6 +316,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.flowWidget.hideFields.connectedVideoFromGenericOutput","@/__tests__/flowWidgetSchemaFieldPorts.test","testFlowWidgetHideFieldsRendersConnectedVideoPreviewFromGenericOutputEdge"],
   ["ui.flowWidget.richMediaPanel.defaultView.reusesSharedViewer","@/__tests__/flowWidgetSchemaFieldPorts.test","testRichMediaPanelDefaultViewReusesSharedViewerSsot"],
   ["ui.flowWidget.richMediaPanel.ktvRows.reusesSharedKvTable","@/__tests__/flowWidgetSchemaFieldPorts.test","testRichMediaPanelKtvRowsReuseSharedWidgetKvTableSsot"],
+  ["ui.flowWidget.richMediaPanel.poiView.reusesSharedIframe","@/__tests__/flowWidgetSchemaFieldPorts.test","testRichMediaPanelPoiViewReusesSharedIframeSurface"],
   ["dnd.flowWidgetDragPayload.roundTrip","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadRoundTrip"],
   ["dnd.flowWidgetDragPayload.missingReturnsNull","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadReturnsNullWhenMissing"],
   ["dnd.flowWidgetDragPayload.applicationJsonFallback","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadReadsFromApplicationJsonFallback"],

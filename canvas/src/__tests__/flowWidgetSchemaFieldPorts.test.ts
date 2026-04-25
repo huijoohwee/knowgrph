@@ -524,3 +524,58 @@ export const testRichMediaPanelKtvRowsReuseSharedWidgetKvTableSsot = async () =>
 
   root.unmount()
 }
+
+export const testRichMediaPanelPoiViewReusesSharedIframeSurface = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const g = globalThis as unknown as { window?: unknown; document?: unknown }
+  g.window = dom.window
+  g.document = dom.window.document
+
+  const registryDraft = buildRichMediaPanelRegistryDraft()
+  const registryEntry = {
+    ...registryDraft,
+    id: 'rich-media-panel-default',
+    updatedAt: '2026-04-25T00:00:00.000Z',
+  }
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+
+  root.render(
+    React.createElement(NodeOverlayEditorForm, {
+      active: true,
+      node: {
+        id: 'rich-media:poi-view',
+        label: 'Rich Media Panel',
+        type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        properties: {
+          richMediaActiveTab: 'poi',
+          richMediaPoiLabel: 'Merlion',
+          outputSrcDoc: '<!doctype html><html><body><main>GrabMaps POI selection rendered on the Rich Media Panel surface.</main></body></html>',
+        },
+      },
+      schema: defaultSchema,
+      hideFields: false,
+      labelInputRef: { current: null },
+      onSetLabel: () => void 0,
+      onSetType: () => void 0,
+      onPatchProperties: () => void 0,
+      onSetProperties: () => void 0,
+      onValidate: () => void 0,
+      registryEntry: registryEntry as any,
+      registryEntries: [registryEntry as any],
+    }),
+  )
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const viewer = host.querySelector('[data-kg-rich-media-panel="1"]')
+  if (!viewer) throw new Error('expected Rich Media Panel POI view to reuse the shared RichMediaPanel surface')
+  const poiFrame = host.querySelector('iframe[src="about:blank"][srcdoc*="GrabMaps POI selection rendered on the Rich Media Panel surface."]')
+  if (!poiFrame) throw new Error('expected Rich Media Panel POI view to render shared iframe srcdoc output')
+  const markdownPreview = host.querySelector('[data-kg-rich-media-markdown-preview="1"]')
+  if (markdownPreview) throw new Error('expected Rich Media Panel POI view to avoid falling back to markdown viewer mode')
+
+  root.unmount()
+}
