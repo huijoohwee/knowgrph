@@ -28,6 +28,7 @@ type GeospatialViewportOverlayProps = {
   active: boolean
   geospatialModeEnabled: boolean
   graphData: GraphData
+  flowEditorWidgetPanelsActive: boolean
 }
 
 const MissingGeospatialOverlayHost = React.memo(function MissingGeospatialOverlayHost(_props: GeospatialOverlayHostProps) {
@@ -159,7 +160,7 @@ function MarkdownMetricsDevOverlay(props: { layout: 'full' | 'pane' }) {
 const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospatialOverlay(
   props: GeospatialViewportOverlayProps,
 ) {
-  const { active, geospatialModeEnabled, graphData } = props
+  const { active, geospatialModeEnabled, graphData, flowEditorWidgetPanelsActive } = props
   const gympgrphBridge = useGraphStore(
     useShallow(s => ({
       zoomState: s.zoomState,
@@ -168,6 +169,7 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
       selectedEdgeId: s.selectedEdgeId,
+      openWidgetNodeIds: s.openWidgetNodeIds || [],
       selectNode: s.selectNode,
       selectEdge: s.selectEdge,
       setSelectionSource: s.setSelectionSource,
@@ -219,13 +221,16 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       selectedNodeId: gympgrphBridge.selectedNodeId,
       selectedNodeIds: gympgrphBridge.selectedNodeIds,
       selectedEdgeId: gympgrphBridge.selectedEdgeId,
+      geospatialPanelNodeIds: flowEditorWidgetPanelsActive ? gympgrphBridge.openWidgetNodeIds : [],
     }),
     [
       geospatialGraphData,
       gympgrphBridge.canvasRenderMode,
+      gympgrphBridge.openWidgetNodeIds,
       gympgrphBridge.selectedEdgeId,
       gympgrphBridge.selectedNodeId,
       gympgrphBridge.selectedNodeIds,
+      flowEditorWidgetPanelsActive,
       gympgrphBridge.viewportControlsPreset,
       gympgrphBridge.zoomState,
     ],
@@ -382,10 +387,15 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </div>
           </div>
         )}
-
         {!geospatialModeEnabled && canvasRenderMode === '3d' && threeWarmed ? (
           <div className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active={activeSurface === '3d'} mode={effectiveCanvas3dMode} />
+          </div>
+        ) : null}
+
+        {geospatialModeEnabled && active2dSurface === 'flowEditor' ? (
+          <div className="absolute inset-0 z-[30] pointer-events-none" aria-hidden="true">
+            <FlowEditorCanvas active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />
           </div>
         ) : null}
 
@@ -394,6 +404,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             active={activeSurface === 'geo'}
             geospatialModeEnabled={geospatialModeEnabled}
             graphData={safeGraphData}
+            flowEditorWidgetPanelsActive={geospatialModeEnabled && active2dSurface === 'flowEditor'}
           />
         ) : null}
 

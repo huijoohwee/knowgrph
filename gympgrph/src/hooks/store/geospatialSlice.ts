@@ -71,6 +71,7 @@ export type GympgrphGeospatialState = {
   geospatialViewMode: GeospatialViewMode
   geospatialInteractionMode: GeospatialInteractionMode
   geospatialAutoFitEnabled: boolean
+  geospatialCursorLngLat: { lng: number; lat: number } | null
   geospatialFitRequest: GeospatialFitRequest | null
   geospatialDatasetTimeoutMs: number
   geospatialDatasetMaxBytes: number
@@ -78,6 +79,7 @@ export type GympgrphGeospatialState = {
   setGeospatialViewMode: (mode: GeospatialViewMode) => void
   setGeospatialInteractionMode: (mode: GeospatialInteractionMode) => void
   setGeospatialAutoFitEnabled: (enabled: boolean) => void
+  setGeospatialCursorLngLat: (coords: { lng: number; lat: number } | null) => void
   setGeospatialDatasetTimeoutMs: (timeoutMs: number) => void
   setGeospatialDatasetMaxBytes: (maxBytes: number) => void
   requestGeospatialFitToData: () => void
@@ -92,6 +94,7 @@ export const createDefaultGympgrphGeospatialState = (): Pick<
   | 'geospatialViewMode'
   | 'geospatialInteractionMode'
   | 'geospatialAutoFitEnabled'
+  | 'geospatialCursorLngLat'
   | 'geospatialFitRequest'
   | 'geospatialDatasetTimeoutMs'
   | 'geospatialDatasetMaxBytes'
@@ -125,6 +128,7 @@ export const createDefaultGympgrphGeospatialState = (): Pick<
     geospatialViewMode,
     geospatialInteractionMode,
     geospatialAutoFitEnabled,
+    geospatialCursorLngLat: null,
     geospatialFitRequest: null,
     geospatialDatasetTimeoutMs,
     geospatialDatasetMaxBytes,
@@ -167,6 +171,24 @@ export const buildGympgrphGeospatialActions = (set: (updater: (prev: GympgrphGeo
       if (prev.geospatialAutoFitEnabled === next) return prev
       writeBool(LS_KEYS.geospatialAutoFitEnabled, next)
       return { ...prev, geospatialAutoFitEnabled: next }
+    })
+  }
+
+  const setGeospatialCursorLngLat = (coords: { lng: number; lat: number } | null) => {
+    if (!coords) {
+      set(prev => {
+        if (!prev.geospatialCursorLngLat) return prev
+        return { ...prev, geospatialCursorLngLat: null }
+      })
+      return
+    }
+    const lng = Number(coords.lng)
+    const lat = Number(coords.lat)
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+    set(prev => {
+      const prevCoords = prev.geospatialCursorLngLat
+      if (prevCoords && prevCoords.lng === lng && prevCoords.lat === lat) return prev
+      return { ...prev, geospatialCursorLngLat: { lng, lat } }
     })
   }
 
@@ -228,6 +250,7 @@ export const buildGympgrphGeospatialActions = (set: (updater: (prev: GympgrphGeo
     setGeospatialViewMode,
     setGeospatialInteractionMode,
     setGeospatialAutoFitEnabled,
+    setGeospatialCursorLngLat,
     setGeospatialDatasetTimeoutMs,
     setGeospatialDatasetMaxBytes,
     requestGeospatialFitToData,

@@ -283,6 +283,13 @@ export const uiGrabMapsSettingsRegistry: SettingMeta[] = [
     docKey: 'maps.grabmaps.mcp.startupTimeoutMs',
   }),
   localStringSetting({
+    key: 'maps.grabmaps.mcp.discovery.chatModel',
+    storageKey: LS_KEYS.grabMapsMcpDiscoveryChatModel,
+    defaultValue: 'gpt-5.4-nano',
+    options: ['gpt-5.4-nano'],
+    docKey: 'maps.grabmaps.mcp.discovery.chatModel',
+  }),
+  localStringSetting({
     key: 'maps.grabmaps.mcp.searchPlaces.query',
     storageKey: LS_KEYS.grabMapsMcpSearchPlacesQuery,
     defaultValue: 'restaurants Marina Bay',

@@ -29,6 +29,7 @@ import {
   getGrabMapsDiscoveryWidgetLabel,
   isGrabMapsDiscoveryWidgetEntry,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+import { buildOpenAiCompatibleTextGenerationFields } from '@/features/integrations/openaiResponsesSsot'
 
 export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'zai'
 
@@ -241,31 +242,6 @@ function buildBytePlusTextGenerationFields(): WidgetRegistryEntry['fields'] {
     { fieldKey: 'chatLogitBiasJson', fieldType: 'json', schemaPath: 'properties.chatLogitBiasJson', label: 'Logit bias' },
     { fieldKey: 'chatToolsJson', fieldType: 'json', schemaPath: 'properties.chatToolsJson', label: 'Tools' },
     { fieldKey: 'chatToolChoiceJson', fieldType: 'json', schemaPath: 'properties.chatToolChoiceJson', label: 'Tool choice' },
-    { fieldKey: 'output', fieldType: 'textarea', schemaPath: 'properties.output', label: 'Output' },
-  ]
-}
-
-function buildOpenAiCompatibleTextGenerationFields(): WidgetRegistryEntry['fields'] {
-  return [
-    ...buildCommonTextGenerationFields().map(field =>
-      field.fieldKey === 'prompt'
-        ? { ...field, label: 'Prompt' }
-        : field,
-    ),
-    { fieldKey: 'chatMessagesJson', fieldType: 'json', schemaPath: 'properties.chatMessagesJson', label: 'Input' },
-    { fieldKey: 'chatResponseFormatJson', fieldType: 'json', schemaPath: 'properties.chatResponseFormatJson', label: 'Response format' },
-    { fieldKey: 'chatTemperature', fieldType: 'number', schemaPath: 'properties.chatTemperature', label: 'Temperature' },
-    { fieldKey: 'chatTopP', fieldType: 'number', schemaPath: 'properties.chatTopP', label: 'Top P' },
-    { fieldKey: 'chatMaxCompletionTokens', fieldType: 'number', schemaPath: 'properties.chatMaxCompletionTokens', label: 'Max output tokens' },
-    { fieldKey: 'chatReasoningEffort', fieldType: 'text', schemaPath: 'properties.chatReasoningEffort', label: 'Reasoning effort' },
-    { fieldKey: 'chatStream', fieldType: 'boolean', schemaPath: 'properties.chatStream', label: 'Stream' },
-    { fieldKey: 'chatFrequencyPenalty', fieldType: 'number', schemaPath: 'properties.chatFrequencyPenalty', label: 'Frequency penalty' },
-    { fieldKey: 'chatPresencePenalty', fieldType: 'number', schemaPath: 'properties.chatPresencePenalty', label: 'Presence penalty' },
-    { fieldKey: 'chatLogprobs', fieldType: 'boolean', schemaPath: 'properties.chatLogprobs', label: 'Logprobs' },
-    { fieldKey: 'chatTopLogprobs', fieldType: 'number', schemaPath: 'properties.chatTopLogprobs', label: 'Top logprobs' },
-    { fieldKey: 'chatToolsJson', fieldType: 'json', schemaPath: 'properties.chatToolsJson', label: 'Tools' },
-    { fieldKey: 'chatToolChoiceJson', fieldType: 'json', schemaPath: 'properties.chatToolChoiceJson', label: 'Tool choice' },
-    { fieldKey: 'chatParallelToolCalls', fieldType: 'boolean', schemaPath: 'properties.chatParallelToolCalls', label: 'Parallel tool calls' },
     { fieldKey: 'output', fieldType: 'textarea', schemaPath: 'properties.output', label: 'Output' },
   ]
 }

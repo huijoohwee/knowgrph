@@ -47,3 +47,19 @@ export async function testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace
   if (wsB.source?.kind !== 'url') throw new Error('expected /b.md to carry url source kind')
   if (wsB.source?.url !== 'https://example.com/b.md') throw new Error('expected /b.md to carry url')
 }
+
+export async function testWorkspaceSourceFilesSyncForceIncludesActiveWorkspaceMarkdown() {
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [],
+    workspaceEntries: [
+      { kind: 'file', path: '/active.md', parentPath: '/', name: 'active.md', text: '---\ntitle: Active\n---\n', updatedAtMs: 1 },
+    ],
+    sourcesByPath: {},
+    forceIncludePaths: ['/active.md'],
+  })
+
+  const active = next.find(f => f.source?.path === 'workspace:/active.md')
+  if (!active) throw new Error('expected active workspace markdown path to be mirrored into Source Files when force-included')
+  if (active.source?.kind !== 'local') throw new Error('expected active workspace markdown source kind to default to local')
+  if (active.enabled !== true) throw new Error('expected newly mirrored active workspace markdown source to be enabled when force-included as the active workspace doc')
+}

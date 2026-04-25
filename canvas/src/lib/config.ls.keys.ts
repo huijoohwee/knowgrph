@@ -187,6 +187,7 @@ export const LS_KEYS = {
   grabMapsMcpArgsJson: 'kg:maps:grabmaps:mcp:argsJson',
   grabMapsMcpEnvJson: 'kg:maps:grabmaps:mcp:envJson',
   grabMapsMcpStartupTimeoutMs: 'kg:maps:grabmaps:mcp:startupTimeoutMs',
+  grabMapsMcpDiscoveryChatModel: 'kg:maps:grabmaps:mcp:discovery:chatModel',
   grabMapsMcpSearchPlacesQuery: 'kg:maps:grabmaps:mcp:searchPlaces:query',
   grabMapsMcpSearchPlacesCountry: 'kg:maps:grabmaps:mcp:searchPlaces:country',
   grabMapsMcpSearchPlacesLat: 'kg:maps:grabmaps:mcp:searchPlaces:lat',

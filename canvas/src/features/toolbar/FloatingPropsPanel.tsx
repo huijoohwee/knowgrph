@@ -107,7 +107,7 @@ export function FloatingPropsPanel() {
       </section>
 
       <CollapsibleSection
-        title="Discovery Widget"
+        title="GrabMap Chat Discovery Widget"
         stickyHeader={false}
         className="mt-0 border-t-0 pt-0"
         headerClassName={`px-2 ${uiPanelTextFontClass}`}

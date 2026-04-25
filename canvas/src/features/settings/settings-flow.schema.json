@@ -2044,6 +2044,20 @@
     ],
     "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L278"
   },
+  "maps.grabmaps.mcp.discovery.chatModel": {
+    "area": "GrabMaps MCP Configuration",
+    "responsibility": "GrabMap Chat Discovery Widget model id",
+    "notes": "",
+    "modules": [
+      "canvas/src/features/settings/registry-ui.grabmaps.ts"
+    ],
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "localStorage"
+    ],
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L286"
+  },
   "maps.grabmaps.mcp.searchPlaces.query": {
     "area": "GrabMaps MCP Configuration",
     "responsibility": "search_places query string",
@@ -2056,7 +2070,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L286"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L293"
   },
   "maps.grabmaps.mcp.searchPlaces.country": {
     "area": "GrabMaps MCP Configuration",
@@ -2070,7 +2084,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L292"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L299"
   },
   "maps.grabmaps.mcp.searchPlaces.lat": {
     "area": "GrabMaps MCP Configuration",
@@ -2084,7 +2098,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L298"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L305"
   },
   "maps.grabmaps.mcp.searchPlaces.lon": {
     "area": "GrabMaps MCP Configuration",
@@ -2098,7 +2112,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L306"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L313"
   },
   "maps.grabmaps.mcp.searchPlaces.radius": {
     "area": "GrabMaps MCP Configuration",
@@ -2112,7 +2126,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L314"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L321"
   },
   "maps.grabmaps.mcp.searchPlaces.limit": {
     "area": "GrabMaps MCP Configuration",
@@ -2126,7 +2140,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L322"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L329"
   },
   "maps.grabmaps.mcp.getDirections.origin": {
     "area": "GrabMaps MCP Configuration",
@@ -2140,7 +2154,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L330"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L337"
   },
   "maps.grabmaps.mcp.getDirections.destination": {
     "area": "GrabMaps MCP Configuration",
@@ -2154,7 +2168,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L336"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L343"
   },
   "maps.grabmaps.mcp.getDirections.waypoints": {
     "area": "GrabMaps MCP Configuration",
@@ -2168,7 +2182,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L342"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L349"
   },
   "maps.grabmaps.mcp.nearbySearch.lat": {
     "area": "GrabMaps MCP Configuration",
@@ -2182,7 +2196,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L348"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L355"
   },
   "maps.grabmaps.mcp.nearbySearch.lon": {
     "area": "GrabMaps MCP Configuration",
@@ -2196,7 +2210,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L356"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L363"
   },
   "maps.grabmaps.mcp.nearbySearch.radius": {
     "area": "GrabMaps MCP Configuration",
@@ -2210,7 +2224,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L364"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L371"
   },
   "maps.grabmaps.mcp.nearbySearch.limit": {
     "area": "GrabMaps MCP Configuration",
@@ -2224,7 +2238,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L372"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L379"
   },
   "maps.grabmaps.mcp.nearbySearch.rankBy": {
     "area": "GrabMaps MCP Configuration",
@@ -2238,7 +2252,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L380"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L387"
   },
   "maps.grabmaps.mcp.nearbySearch.language": {
     "area": "GrabMaps MCP Configuration",
@@ -2252,7 +2266,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L387"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L394"
   },
   "maps.grabmaps.mcp.nearbySearch.category": {
     "area": "GrabMaps MCP Configuration",
@@ -2266,7 +2280,7 @@
     "imports": [
       "localStorage"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L393"
+    "lineRange": "canvas/src/features/settings/registry-ui.grabmaps.ts:L400"
   },
   "bipartite.dataSource": {
     "area": "—",

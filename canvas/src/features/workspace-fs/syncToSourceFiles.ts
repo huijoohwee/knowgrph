@@ -12,10 +12,12 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   existing: SourceFile[]
   workspaceEntries: WorkspaceEntry[]
   sourcesByPath: WorkspaceSourceIndex
+  forceIncludePaths?: string[]
 }): SourceFile[] {
   const existing = Array.isArray(args.existing) ? args.existing : []
   const entries = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
   const sourcesByPath = args.sourcesByPath || {}
+  const forceInclude = new Set((Array.isArray(args.forceIncludePaths) ? args.forceIncludePaths : []).map(path => String(path || '').trim()).filter(Boolean))
 
   const sourceEqual = (a: SourceFile['source'] | undefined, b: SourceFile['source'] | undefined): boolean => {
     if (!a && !b) return true
@@ -66,7 +68,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
 
     const srcPath = workspaceSourcePathKey(path)
     const prev = existingWorkspaceByPath.get(srcPath) || null
-    if (!prev && !sourcesByPath[path]) continue
+    if (!prev && !sourcesByPath[path] && !forceInclude.has(path)) continue
     const id = prev?.id || `ws:${hashStringToHex(srcPath)}`
 
     const src = sourcesByPath[path]
@@ -82,7 +84,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       id,
       name: String(e.name || ''),
       text,
-      enabled: prev?.enabled ?? false,
+      enabled: prev?.enabled ?? forceInclude.has(path),
       geoLayerEnabled: prev?.geoLayerEnabled,
       status: prev?.status ?? 'idle',
       error: prev?.error,

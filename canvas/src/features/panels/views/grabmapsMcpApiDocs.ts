@@ -58,6 +58,14 @@ const GRABMAPS_MCP_DOC_ROWS: ReadonlyArray<GrabMapsMcpDocRow> = [
     searchHints: ['startup timeout', 'startup_timeout_ms'],
   },
   {
+    key: 'discovery.chat_model',
+    typeLabel: 'string',
+    valueKey: 'maps.grabmaps.mcp.discovery.chatModel',
+    responsibility: 'Model id used by the GrabMap Chat Discovery Widget to plan natural-language searches.',
+    tooltipDefaultValue: 'gpt-5.4-nano',
+    searchHints: ['discovery', 'chat model', 'gpt-5.4-nano'],
+  },
+  {
     key: 'search_places.query',
     typeLabel: 'string',
     valueKey: 'maps.grabmaps.mcp.searchPlaces.query',

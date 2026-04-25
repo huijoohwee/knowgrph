@@ -6,7 +6,7 @@ export const CHAT_COMPLETIONS_PATH = '/v1/chat/completions'
 export const CHAT_BYTEPLUS_COMPLETIONS_PATH = '/api/v3/chat/completions'
 export const CHAT_BYTEPLUS_IMAGES_GENERATIONS_PATH = '/api/v3/images/generations'
 export const CHAT_BYTEPLUS_CONTENT_GENERATIONS_TASKS_PATH = '/api/v3/contents/generations/tasks'
-export const CHAT_OPENAI_COMPLETIONS_PATH = '/v1/chat/completions'
+export const CHAT_OPENAI_RESPONSES_PATH = '/v1/responses'
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_HOST = 'ark.ap-southeast.bytepluses.com'
 export const CHAT_BYTEPLUS_EU_WEST_HOST = 'ark.eu-west.bytepluses.com'
 export const CHAT_OPENAI_HOST = 'api.openai.com'
@@ -15,7 +15,7 @@ export const CHAT_BYTEPLUS_EU_WEST_BASE = `https://${CHAT_BYTEPLUS_EU_WEST_HOST}
 export const CHAT_OPENAI_BASE = `https://${CHAT_OPENAI_HOST}`
 export const CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL = `${CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
 export const CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL = `${CHAT_BYTEPLUS_EU_WEST_BASE}${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
-export const CHAT_OPENAI_ENDPOINT_URL = `${CHAT_OPENAI_BASE}${CHAT_OPENAI_COMPLETIONS_PATH}`
+export const CHAT_OPENAI_ENDPOINT_URL = `${CHAT_OPENAI_BASE}${CHAT_OPENAI_RESPONSES_PATH}`
 export const CHAT_PROVIDER_OPENAI = 'openai'
 export const CHAT_PROVIDER_BYTEPLUS = 'byteplus-modelark'
 export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
@@ -105,6 +105,9 @@ const toProxyPathFromLocalUrl = (url: URL): string => {
 const replaceCompletionsPath = (path: string): string => {
   const normalized = String(path || '').trim()
   if (!normalized) return '/v1/models'
+  if (/\/v1\/responses\/?$/i.test(normalized)) {
+    return '/v1/models'
+  }
   if (/\/chat\/completions\/?$/i.test(normalized)) {
     return normalized.replace(/\/chat\/completions\/?$/i, '/models')
   }
@@ -117,6 +120,9 @@ const replaceCompletionsPath = (path: string): string => {
 const toModelsPath = (path: string): string => {
   const normalized = String(path || '').trim()
   if (!normalized) return '/v1/models'
+  if (/\/v1\/responses\/?$/i.test(normalized)) {
+    return '/v1/models'
+  }
   if (/\/chat\/completions\/?$/i.test(normalized)) {
     return normalized.replace(/\/chat\/completions\/?$/i, '/models')
   }

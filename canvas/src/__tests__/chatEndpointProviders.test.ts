@@ -44,7 +44,7 @@ export function testOfficialEndpointsNormalizeToProxyPaths() {
   if (bytePlusModels !== '/__chat_proxy/api/v3/models') {
     throw new Error(`unexpected BytePlus models path: ${JSON.stringify(bytePlusModels)}`)
   }
-  if (openAiRequest !== '/__chat_proxy/v1/chat/completions') {
+  if (openAiRequest !== '/__chat_proxy/v1/responses') {
     throw new Error(`unexpected OpenAI request path: ${JSON.stringify(openAiRequest)}`)
   }
   if (bytePlusRegion !== 'AP-Southeast-1') {

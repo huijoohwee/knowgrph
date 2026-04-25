@@ -575,19 +575,12 @@ export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
     const text = container.textContent || ''
     ;[
       'Discovery Widget',
-      'GrabMap Discovery Widget',
-      'Drag this widget from the shared Widget palette into the canvas, aligned with the same palette/drop SSOT used by OpenAI Text Widget.',
-      'Props Panel owns the user-facing Discovery Widget. MainPanel Maps stays backend/system/API/MCP-facing for GrabMaps.',
-      'search_places.query',
-      'search_places.country',
-      'nearby_search.radius',
-      'nearby_search.rankBy',
-      'Search Places',
-      'Keyword Search Summary',
-      'Nearby Search Summary',
-      'MainPanel Maps keeps backend/system/API/MCP-facing GrabMaps config, including auth, command, args, env, and startup timeout.',
+      'GrabMap Chat Discovery Widget',
+      'Chat-style query input. Discovery defaults and model remain shared with MainPanel Integrations and MainPanel Maps.',
+      'Model',
+      'gpt-5.4-nano',
+      'Run Discovery',
       'Open MainPanel Maps',
-      'Restore Discovery Widget Defaults',
     ].forEach(token => {
       if (!text.includes(token)) {
         throw new Error(`expected props panel discovery widget to own GrabMaps search-discovery guidance ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)

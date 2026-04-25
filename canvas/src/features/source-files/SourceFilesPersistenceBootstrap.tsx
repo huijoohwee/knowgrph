@@ -1,6 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   loadPersistedSourceFiles,
   loadPersistedSourceFilesWorkspace,
@@ -10,6 +11,9 @@ import {
 } from '@/features/source-files/sourceFilesDb'
 import { applyComposedGraphFromSourceFiles, scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { hydratePendingUrlSourceFiles } from '@/features/source-files/sourceFilesIngestIntegration'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
@@ -62,6 +66,25 @@ const sourceFilesSignature = (value: unknown): string => {
     .join('|')
 }
 
+async function syncActiveWorkspaceEntryIntoSourceFiles(): Promise<void> {
+  const activePath = String(useMarkdownExplorerStore.getState().activePath || '').trim()
+  if (!activePath) return
+  const fs = await getWorkspaceFs()
+  const workspaceEntries = await fs.listEntries()
+  const sourcesByPath = loadWorkspaceSourceIndex()
+  const store = useGraphStore.getState()
+  const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+  const merged = mergeWorkspaceEntriesIntoSourceFiles({
+    existing,
+    workspaceEntries,
+    sourcesByPath,
+    forceIncludePaths: [activePath],
+  })
+  if (merged !== existing) {
+    store.setSourceFiles(merged)
+  }
+}
+
 export function SourceFilesPersistenceBootstrap() {
   const runtimePersistenceScopeKey = WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE
   const hydratedRef = React.useRef(false)
@@ -104,6 +127,11 @@ export function SourceFilesPersistenceBootstrap() {
           void 0
         }
         try {
+          await syncActiveWorkspaceEntryIntoSourceFiles()
+        } catch {
+          void 0
+        }
+        try {
           applyComposedGraphFromSourceFiles()
         } catch {
           void 0
@@ -135,6 +163,19 @@ export function SourceFilesPersistenceBootstrap() {
 
     return () => {
       cancelled = true
+    }
+  }, [])
+
+  React.useEffect(() => {
+    const syncNow = () => {
+      void syncActiveWorkspaceEntryIntoSourceFiles().catch(() => void 0)
+    }
+    syncNow()
+    const unsubscribe = useMarkdownExplorerStore.subscribe(s => s.activePath, () => {
+      syncNow()
+    })
+    return () => {
+      unsubscribe()
     }
   }, [])
 

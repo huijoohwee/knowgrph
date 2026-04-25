@@ -129,7 +129,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
   }
 
   const discoveryWidget = resolveWidgetNodeTitle({
-    node: makeNode({ id: 'discovery-1', type: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID, label: 'GrabMap Discovery Widget' }),
+    node: makeNode({ id: 'discovery-1', type: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID, label: 'GrabMap Chat Discovery Widget' }),
     registryEntry: {
       id: 'grabmaps-discovery',
       isEnabled: true,
@@ -141,7 +141,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
       updatedAt: '2026-04-24T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (discoveryWidget !== 'GrabMap Discovery Widget') {
-    throw new Error(`expected GrabMap Discovery Widget, got ${discoveryWidget}`)
+  if (discoveryWidget !== 'GrabMap Chat Discovery Widget') {
+    throw new Error(`expected GrabMap Chat Discovery Widget, got ${discoveryWidget}`)
   }
 }

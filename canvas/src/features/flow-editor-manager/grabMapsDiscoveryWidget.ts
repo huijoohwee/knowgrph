@@ -6,9 +6,10 @@ export const FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID = 'GrabMapsDiscovery' as const
 export const FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID = 'grabmaps' as const
 export const FLOW_GRABMAPS_DISCOVERY_FORM_ID = 'grabmaps.discovery' as const
 export const GRABMAPS_DISCOVERY_WIDGET_ID = FLOW_GRABMAPS_DISCOVERY_FORM_ID
-export const GRABMAPS_DISCOVERY_WIDGET_LABEL = 'GrabMap Discovery Widget' as const
+export const GRABMAPS_DISCOVERY_WIDGET_LABEL = 'GrabMap Chat Discovery Widget' as const
 
 export type DiscoverySettingKey =
+  | 'maps.grabmaps.mcp.discovery.chatModel'
   | 'maps.grabmaps.mcp.searchPlaces.query'
   | 'maps.grabmaps.mcp.searchPlaces.country'
   | 'maps.grabmaps.mcp.searchPlaces.lat'
@@ -23,6 +24,7 @@ export type DiscoverySettingKey =
   | 'maps.grabmaps.mcp.nearbySearch.category'
 
 export type DiscoveryPropertyKey =
+  | 'chatModel'
   | 'searchQuery'
   | 'searchCountry'
   | 'searchLat'
@@ -47,6 +49,15 @@ export const GRABMAPS_DISCOVERY_FIELD_META: ReadonlyArray<{
   placeholder?: string
   options?: ReadonlyArray<{ value: string | number; label: string }>
 }> = [
+  {
+    propertyKey: 'chatModel',
+    settingKey: 'maps.grabmaps.mcp.discovery.chatModel',
+    label: 'Discovery Chat Model',
+    fieldType: 'select',
+    options: [
+      { value: 'gpt-5.4-nano', label: 'gpt-5.4-nano' },
+    ],
+  },
   {
     propertyKey: 'searchQuery',
     settingKey: 'maps.grabmaps.mcp.searchPlaces.query',
@@ -163,7 +174,11 @@ function writeSettingValue(key: DiscoverySettingKey, value: unknown): void {
   const meta = getSettingMeta(key)
   if (!meta?.write) return
   try {
-    meta.write(value)
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      meta.write(value)
+      return
+    }
+    meta.write(String(value ?? ''))
   } catch {
     void 0
   }

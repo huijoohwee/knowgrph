@@ -116,6 +116,8 @@ import {
   FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
   readGrabMapsDiscoveryWidgetProperties,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+import { requestGeospatialCurrentLocation, setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
+import { readGeospatialCursorLngLat } from '@/lib/gympgrph/api'
 
 type ToolMode = 'select' | 'addEdge'
 
@@ -131,6 +133,23 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
+}
+
+function pickFiniteNumber(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string' && v.trim()) {
+    const parsed = Number(v)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return null
+}
+
+function readFiniteGeoLatLng(properties: Record<string, unknown>): { lat: number; lng: number } | null {
+  const geoRaw = isRecord(properties.geo) ? properties.geo : null
+  const lat = pickFiniteNumber(geoRaw?.lat)
+  const lng = pickFiniteNumber(geoRaw?.lng)
+  if (lat == null || lng == null) return null
+  return { lat, lng }
 }
 
 function resolveGraphNodeIdByCanonicalId(graph: GraphData | null | undefined, rawId: unknown): string {
@@ -260,7 +279,19 @@ const FlowEditorWidgetOverlay = React.memo(function FlowEditorWidgetOverlay(args
   )
 })
 
-export default function FlowEditorCanvas({ active = true }: { active?: boolean }) {
+export default function FlowEditorCanvas(
+  {
+    active = true,
+    widgetDropCaptureEnabled = false,
+    geospatialWidgetPanelMode = false,
+  }: {
+    active?: boolean
+    widgetDropCaptureEnabled?: boolean
+    geospatialWidgetPanelMode?: boolean
+  },
+) {
+  const editorRuntimeActive = active || geospatialWidgetPanelMode
+  const widgetDropBridgeOnly = widgetDropCaptureEnabled && !active && !geospatialWidgetPanelMode
   const rootRef = React.useRef<HTMLElement | null>(null)
   const { width, height, left: containerLeft, top: containerTop } = useContainerDims(rootRef)
   const viewportW = Math.max(1, Math.floor(width))
@@ -281,16 +312,16 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [])
 
   React.useEffect(() => {
-    if (!active) return
+    if (!editorRuntimeActive) return
     const left = Number.isFinite(containerLeft) ? containerLeft : 0
     const top = Number.isFinite(containerTop) ? containerTop : 0
     const prev = canvasWindowOffsetRef.current
     if (prev.left === left && prev.top === top) return
     setCanvasWindowOffset({ left, top })
-  }, [active, containerLeft, containerTop])
+  }, [containerLeft, containerTop, editorRuntimeActive])
 
   React.useEffect(() => {
-    if (!active) return
+    if (!editorRuntimeActive) return
     if (typeof window === 'undefined') return
     const measure = () => {
       const el = rootRef.current
@@ -312,7 +343,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       window.removeEventListener('scroll', onAny, true)
       window.removeEventListener('resize', onAny)
     }
-  }, [active])
+  }, [editorRuntimeActive])
 
   const baseGraphData = useGraphStore(s => s.graphData)
   const baseGraphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -350,6 +381,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const selectEdge = useGraphStore(s => s.selectEdge)
   const selectGroup = useGraphStore(s => s.selectGroup)
   const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
+  const addNode = useGraphStore(s => s.addNode)
   const updateNode = useGraphStore(s => s.updateNode)
   const updateEdge = useGraphStore(s => s.updateEdge)
   const addEdge = useGraphStore(s => s.addEdge)
@@ -381,8 +413,8 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     const sourceUrl = typeof markdownDocumentSourceUrl === 'string' ? markdownDocumentSourceUrl.trim() : ''
     return `${name}::${sourceUrl}`
   }, [markdownDocumentName, markdownDocumentSourceUrl])
-  const flowEditorViewActive = active
-  const canEdit = active && !documentStructureBaselineLock
+  const flowEditorViewActive = editorRuntimeActive
+  const canEdit = editorRuntimeActive && !documentStructureBaselineLock
   const collapsedGroupIdsKey = React.useMemo(() => buildCollapsedGroupIdsKey(collapsedGroupIds), [collapsedGroupIds])
   const collapsedGroupIdsForView = React.useMemo(
     () => (collapsedGroupIdsKey ? collapsedGroupIdsKey.split('|').filter(Boolean) : []),
@@ -868,13 +900,13 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [active, resolveInspectorPortalHost])
 
   React.useLayoutEffect(() => {
-    if (!active) {
+    if (!editorRuntimeActive) {
       setDraftGraphData(null)
       return
     }
     const base = flowEditorBaseGraphData as GraphData | null
     setDraftGraphData(prev => (prev === base ? prev : base))
-  }, [active, baseGraphDataRevision, flowEditorBaseGraphData])
+  }, [baseGraphDataRevision, editorRuntimeActive, flowEditorBaseGraphData])
 
   const rawRenderGraphDataOverride = React.useMemo((): GraphData | null => {
     const graphDataForRender = flowEditorViewActive ? draftGraphData : ((baseGraphData || null) as GraphData | null)
@@ -940,7 +972,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   const overlayCollisionWarmupAttemptsRef = React.useRef<number>(0)
 
   const scheduleOverlayCollisionResolve = React.useCallback(() => {
-    if (!active) return
+    if (!editorRuntimeActive) return
     if (typeof document === 'undefined') return
     if (typeof window === 'undefined') return
     if (overlayCollisionResolveRafRef.current != null) return
@@ -948,7 +980,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
     overlayCollisionResolveRafRef.current = window.requestAnimationFrame(() => {
       overlayCollisionResolveRafRef.current = null
-      if (!active) return
+      if (!editorRuntimeActive) return
 
       const overlayEls = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
       if (overlayEls.length < 2) {
@@ -1511,7 +1543,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }
     })
   }, [
-    active,
+    editorRuntimeActive,
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     overlayOnlyModeEnabled,
@@ -1524,9 +1556,9 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   ])
 
   React.useEffect(() => {
-    if (!active) return
+    if (!editorRuntimeActive) return
     scheduleOverlayCollisionResolve()
-  }, [active, openWidgetNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])
+  }, [editorRuntimeActive, openWidgetNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])
 
   React.useEffect(() => {
     return () => {
@@ -2117,7 +2149,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
 
   React.useEffect(() => {
-    if (!active) return
+    if (!editorRuntimeActive) return
     if (!overlayOnlyModeEnabled) return
     if (!draftGraphData) return
     if (flowEditorFrontmatterGraphAvailable) return
@@ -2128,10 +2160,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (ids.length === 0) return
     if (ids.length > 120) return
     setOpenWidgetNodeIds(ids)
-  }, [active, draftGraphData, flowEditorFrontmatterGraphAvailable, overlayOnlyModeEnabled, setOpenWidgetNodeIds])
+  }, [draftGraphData, editorRuntimeActive, flowEditorFrontmatterGraphAvailable, overlayOnlyModeEnabled, setOpenWidgetNodeIds])
 
   React.useEffect(() => {
-    if (!active) return
+    if (!editorRuntimeActive) return
     if (!flowEditorViewActive) return
     if (!draftGraphData) return
     const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
@@ -2141,7 +2173,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const s = String(id || '')
       return idSet.has(s) && (eligible.size === 0 || eligible.has(s))
     }))
-  }, [active, draftGraphData, flowEditorViewActive, updateOpenWidgetNodeIds])
+  }, [draftGraphData, editorRuntimeActive, flowEditorViewActive, updateOpenWidgetNodeIds])
 
   React.useEffect(() => {
     widgetRegistryRef.current = widgetRegistry
@@ -2245,14 +2277,20 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [draftGraphData, scheduleForceSelect])
 
   React.useEffect(() => {
-    const pending = pendingOpenWidgetNodeIdRef.current
+    const pending = String(pendingOpenWidgetNodeIdRef.current || '').trim()
     if (!pending) return
-    const nodes = Array.isArray(draftGraphData?.nodes) ? draftGraphData?.nodes : []
-    const found = nodes.find(n => String(n.id || '') === pending) || null
+    const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? (renderGraphDataOverride.nodes as GraphNode[]) : []
+    const resolvedPending = resolveGraphNodeIdByCanonicalId(renderGraphDataOverride as GraphData | null, pending) || pending
+    const found = nodes.find(n => {
+      const nodeId = String(n.id || '').trim()
+      return !!nodeId && (nodeId === pending || nodeId === resolvedPending)
+    }) || null
     if (!found) return
     pendingOpenWidgetNodeIdRef.current = null
-    updateOpenWidgetNodeIds(prev => (prev.includes(pending) ? prev : [...prev, pending]))
-  }, [draftGraphData, updateOpenWidgetNodeIds])
+    const openId = String(found.id || resolvedPending || pending).trim()
+    if (!openId) return
+    updateOpenWidgetNodeIds(prev => (prev.includes(openId) ? prev : [...prev, openId]))
+  }, [renderGraphDataOverride, updateOpenWidgetNodeIds])
 
   React.useEffect(() => {
     const override = String(overlayNodeIdOverride || '').trim()
@@ -2403,7 +2441,6 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       const used = new Set<string>((base.nodes || []).map(n => String(n.id || '')).filter(Boolean))
       const requested = typeof args.id === 'string' && args.id.trim() ? args.id.trim() : ''
       const id = requested && !used.has(requested) ? requested : createUniqueId('n', used)
-      pendingSelectNodeIdRef.current = id
 
       const x = Number.isFinite(args.x) ? args.x : 0
       const y = Number.isFinite(args.y) ? args.y : 0
@@ -2417,14 +2454,77 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         y,
         properties: (args.properties || {}) as never,
       }
-      const next = normalizeGraphData({
-        ...base,
-        nodes: [...(base.nodes || []), nextNode],
-      })
-      setGraphDataPreservingLayout(next)
-      return id
+      const beforeIds = new Set<string>((useGraphStore.getState().graphData?.nodes || []).map(n => String(n.id || '')).filter(Boolean))
+      addNode(nextNode)
+      const committedGraph = useGraphStore.getState().graphData as GraphData | null
+      const committedNodes = Array.isArray(committedGraph?.nodes) ? (committedGraph!.nodes as GraphNode[]) : []
+      const exactId = committedNodes.find(n => String(n.id || '') === id)?.id
+      const composedId = committedNodes.find(n => String(n.id || '').endsWith(`::${id}`))?.id
+      const insertedId = committedNodes.find(n => {
+        const nodeId = String(n.id || '')
+        if (!nodeId || beforeIds.has(nodeId)) return false
+        return String(n.type || '').trim() === type && String(n.label || '').trim() === label
+      })?.id
+      const actualId = String(exactId || composedId || insertedId || id).trim() || id
+      pendingSelectNodeIdRef.current = actualId
+      return actualId
     },
-    [baseGraphData, draftGraphData, setGraphDataPreservingLayout],
+    [addNode, baseGraphData, draftGraphData],
+  )
+
+  const syncGrabMapsDiscoveryGeoFromDropCursor = React.useCallback(
+    (args: { id: string; properties: Record<string, unknown> }) => {
+      if (!widgetDropBridgeOnly) return
+      if (typeof window === 'undefined') return
+      let cancelled = false
+      let attempts = 0
+      const trySync = () => {
+        if (cancelled) return
+        attempts += 1
+        const cursor = readGeospatialCursorLngLat()
+        const lat = cursor ? Number(cursor.lat) : Number.NaN
+        const lng = cursor ? Number(cursor.lng) : Number.NaN
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          const baseGeo = isRecord(args.properties.geo) ? args.properties.geo : {}
+          const nextProperties = {
+            ...args.properties,
+            geo: {
+              ...baseGeo,
+              lat,
+              lng,
+            },
+          }
+          updateNode(args.id, { properties: nextProperties as never })
+          setPendingOverlayNode(prev => {
+            if (!prev || String(prev.id || '') !== args.id) return prev
+            const prevProps = isRecord(prev.properties) ? prev.properties : {}
+            const prevGeo = isRecord(prevProps.geo) ? prevProps.geo : {}
+            return {
+              ...prev,
+              properties: {
+                ...prevProps,
+                geo: {
+                  ...prevGeo,
+                  lat,
+                  lng,
+                },
+              } as never,
+            }
+          })
+          void requestGeospatialCurrentLocation({ lat, lng }).catch(() => void 0)
+          return
+        }
+        if (attempts >= 4) return
+        window.setTimeout(() => {
+          window.requestAnimationFrame(trySync)
+        }, attempts === 1 ? 0 : 32)
+      }
+      window.requestAnimationFrame(trySync)
+      window.setTimeout(() => {
+        cancelled = true
+      }, 240)
+    },
+    [updateNode, widgetDropBridgeOnly],
   )
 
   const addNodeFromRegistryAtWorld = React.useCallback(
@@ -2509,6 +2609,25 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       }
       if (entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID) {
         Object.assign(properties, readGrabMapsDiscoveryWidgetProperties())
+        if (!geospatialWidgetPanelMode) {
+          const cursorLngLat = widgetDropBridgeOnly ? readGeospatialCursorLngLat() : null
+          const cursorLat = cursorLngLat ? Number(cursorLngLat.lat) : Number.NaN
+          const cursorLng = cursorLngLat ? Number(cursorLngLat.lng) : Number.NaN
+          const nearLat = pickFiniteNumber(properties.nearbyLat)
+          const nearLon = pickFiniteNumber(properties.nearbyLon)
+          const searchLat = pickFiniteNumber(properties.searchLat)
+          const searchLon = pickFiniteNumber(properties.searchLon)
+          const geoLat = Number.isFinite(cursorLat) ? cursorLat : (nearLat ?? searchLat)
+          const geoLng = Number.isFinite(cursorLng) ? cursorLng : (nearLon ?? searchLon)
+          if (geoLat != null && geoLng != null) {
+            const geoRaw = isRecord(properties.geo) ? properties.geo : {}
+            properties.geo = {
+              ...geoRaw,
+              lat: geoLat,
+              lng: geoLng,
+            }
+          }
+        }
       }
       const base: GraphData =
         draftGraphDataRef.current
@@ -2520,32 +2639,52 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }) as GraphData
       const used = new Set<string>((base.nodes || []).map(n => String(n.id || '')).filter(Boolean))
       for (const rid of reservedNodeIdsRef.current) used.add(rid)
-      const id = createUniqueId('n', used)
-      reservedNodeIdsRef.current.add(id)
-      setOverlayNodeIdOverride(id)
-      pendingOverlayNodeIdRef.current = id
+      const requestedId = createUniqueId('n', used)
+      reservedNodeIdsRef.current.add(requestedId)
+      const actualId = appendDraftNode({ id: requestedId, type: entry.nodeTypeId, label, x, y, properties })
+      reservedNodeIdsRef.current.add(actualId)
+      if (geospatialWidgetPanelMode) {
+        const st = useGraphStore.getState()
+        const pinnedMap = st.flowWidgetPinnedByNodeId || {}
+        if (!Object.prototype.hasOwnProperty.call(pinnedMap, actualId)) {
+          st.setFlowWidgetPinnedByNodeId({ ...pinnedMap, [actualId]: false })
+        }
+      }
+      setOverlayNodeIdOverride(actualId)
+      pendingOverlayNodeIdRef.current = actualId
       overlayNodeIdOverrideWasSelectedRef.current = false
       overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
-      lastDroppedWidgetNodeIdRef.current = id
+      lastDroppedWidgetNodeIdRef.current = actualId
       setLastDroppedWidgetToken(Date.now())
       useGraphStore.setState({
         selectionSource: 'canvas',
-        selectedNodeId: id,
+        selectedNodeId: actualId,
         selectedEdgeId: null,
         selectedGroupId: null,
-        selectedNodeIds: [id],
+        selectedNodeIds: [actualId],
         selectedEdgeIds: [],
         selectedGroupIds: [],
       })
-      scheduleForceSelect(id, { minHoldMs: 700 })
-      setPendingOverlayNode({ id, type: entry.nodeTypeId, label, x, y, properties: properties as never })
+      scheduleForceSelect(actualId, { minHoldMs: 700 })
+      setPendingOverlayNode({ id: actualId, type: entry.nodeTypeId, label, x, y, properties: properties as never })
       if (entry.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-        pendingOpenWidgetNodeIdRef.current = id
+        pendingOpenWidgetNodeIdRef.current = actualId
       }
-      appendDraftNode({ id, type: entry.nodeTypeId, label, x, y, properties })
+      if (entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID && !geospatialWidgetPanelMode) {
+        syncGrabMapsDiscoveryGeoFromDropCursor({ id: actualId, properties })
+      }
+      if (entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID) {
+        void setGeospatialModeEnabled(true).catch(() => void 0)
+        if (!geospatialWidgetPanelMode) {
+          const dropGeo = readFiniteGeoLatLng(properties)
+          if (dropGeo) {
+            void requestGeospatialCurrentLocation(dropGeo).catch(() => void 0)
+          }
+        }
+      }
       try {
         setTimeout(() => {
-          if (pendingOverlayNodeIdRef.current !== id) return
+          if (pendingOverlayNodeIdRef.current !== actualId) return
           pendingOverlayNodeIdRef.current = null
           setPendingOverlayNode(null)
         }, 2000)
@@ -2553,18 +2692,37 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         void 0
       }
     },
-    [appendDraftNode, baseGraphData, scheduleForceSelect, updateOpenWidgetNodeIds, upsertUiToast],
+    [appendDraftNode, baseGraphData, geospatialWidgetPanelMode, scheduleForceSelect, syncGrabMapsDiscoveryGeoFromDropCursor, updateOpenWidgetNodeIds, upsertUiToast],
   )
 
   React.useEffect(() => {
-    if (!active) return
+    if (!(active || widgetDropCaptureEnabled)) return
     if (typeof document === 'undefined') return
+    const readDropRect = (): DOMRect | null => {
+      if (widgetDropBridgeOnly) {
+        const w = typeof window !== 'undefined' ? window.innerWidth : 0
+        const h = typeof window !== 'undefined' ? window.innerHeight : 0
+        if (!(Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0)) return null
+        return {
+          left: 0,
+          top: 0,
+          right: w,
+          bottom: h,
+          width: w,
+          height: h,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect
+      }
+      const el = rootRef.current
+      return el ? el.getBoundingClientRect() : null
+    }
     const onDragOverCapture = (ev: DragEvent) => {
       const dt = ev.dataTransfer
       if (!dt) return
       if (!hasFlowWidgetDragType(dt)) return
-      const el = rootRef.current
-      const rect = el ? el.getBoundingClientRect() : null
+      const rect = readDropRect()
       if (!rect) return
       const x = ev.clientX
       const y = ev.clientY
@@ -2586,8 +2744,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (!dt) return
       const payload = readFlowWidgetDragPayloadFromDataTransfer({ getData: mime => dt.getData(mime) })
       if (!payload) return
-      const el = rootRef.current
-      const rect = el ? el.getBoundingClientRect() : null
+      const rect = readDropRect()
       if (!rect) return
       setCanvasWindowOffsetFromRect(rect)
       const sx = ev.clientX - rect.left
@@ -2658,10 +2815,19 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       document.removeEventListener('dragover', onDragOverCapture, true)
       document.removeEventListener('drop', onDropCapture, true)
     }
-  }, [active, addNodeFromRegistryAtWorld, getLiveZoomTransform, setCanvasWindowOffsetFromRect, shouldDedupeWidgetDrop, upsertUiToast])
+  }, [
+    active,
+    addNodeFromRegistryAtWorld,
+    getLiveZoomTransform,
+    setCanvasWindowOffsetFromRect,
+    shouldDedupeWidgetDrop,
+    upsertUiToast,
+    widgetDropCaptureEnabled,
+    widgetDropBridgeOnly,
+  ])
 
   React.useEffect(() => {
-    if (!active) return
+    if (!(active || widgetDropCaptureEnabled)) return
     if (typeof document === 'undefined') return
     const MIN_POINTER_DRAG_DISTANCE_PX = 6
     const onPointerUpCapture = (ev: PointerEvent) => {
@@ -2714,7 +2880,19 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     return () => {
       document.removeEventListener('pointerup', onPointerUpCapture, true)
     }
-  }, [active, addNodeFromRegistryAtWorld, getLiveZoomTransform, setCanvasWindowOffsetFromRect, shouldDedupeWidgetDrop, upsertUiToast])
+  }, [
+    active,
+    addNodeFromRegistryAtWorld,
+    getLiveZoomTransform,
+    setCanvasWindowOffsetFromRect,
+    shouldDedupeWidgetDrop,
+    upsertUiToast,
+    widgetDropCaptureEnabled,
+  ])
+
+  if (widgetDropBridgeOnly) {
+    return <section ref={rootRef} className="absolute inset-0 pointer-events-none opacity-0" aria-hidden="true" />
+  }
 
   const removeNodeById = React.useCallback(
     (nodeId: string) => {
@@ -3903,7 +4081,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
   const seededFrontmatterAutoWidgetsKeyRef = React.useRef<string>('')
   React.useEffect(() => {
-    if (!active) return
+    if (!editorRuntimeActive) return
     if (!renderGraphDataOverride) return
     if (!isFrontmatterFlowGraph(renderGraphDataOverride as unknown as GraphData)) return
     if (overlayEditorNodeIds.length === 0) return
@@ -3928,7 +4106,26 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     if (!changed) return
     st.setFlowWidgetPinnedByNodeId(nextPinned)
     scheduleOverlayCollisionResolve()
-  }, [active, baseGraphDataRevision, overlayEditorNodeIds, renderGraphDataOverride?.metadata, scheduleOverlayCollisionResolve])
+  }, [baseGraphDataRevision, editorRuntimeActive, overlayEditorNodeIds, renderGraphDataOverride?.metadata, scheduleOverlayCollisionResolve])
+
+  const seededGeospatialOverlayWidgetPinsKeyRef = React.useRef<string>('')
+  React.useEffect(() => {
+    if (!geospatialWidgetPanelMode) return
+    if (overlayEditorNodeIds.length === 0) return
+    const st = useGraphStore.getState()
+    const pinnedById = st.flowWidgetPinnedByNodeId || {}
+    const missingIds = overlayEditorNodeIds.filter(id => id && !Object.prototype.hasOwnProperty.call(pinnedById, id))
+    const seedKey = `${overlayEditorNodeIds.join(',')}|${missingIds.join(',')}`
+    if (seededGeospatialOverlayWidgetPinsKeyRef.current === seedKey) return
+    seededGeospatialOverlayWidgetPinsKeyRef.current = seedKey
+    if (missingIds.length === 0) return
+    const nextPinned = { ...pinnedById }
+    for (let i = 0; i < missingIds.length; i += 1) {
+      nextPinned[missingIds[i]!] = false
+    }
+    st.setFlowWidgetPinnedByNodeId(nextPinned)
+    scheduleOverlayCollisionResolve()
+  }, [geospatialWidgetPanelMode, overlayEditorNodeIds, scheduleOverlayCollisionResolve])
 
   const connectedValuesByNodeId = React.useMemo(() => {
     const targetNodeIds = new Set(overlayEditorNodeIds)
@@ -3951,7 +4148,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
       if (!nodeById.has(id)) nodeById.set(id, n)
     }
     const graphMetaKind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null
-    const forcePinnedToCanvas = true
+    const forcePinnedToCanvas = !geospatialWidgetPanelMode
     const resolveNode = (id: string) => {
       const found = nodeById.get(id) || null
       if (found) return found
@@ -4064,6 +4261,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
     duplicateNodeById,
     enableHandlesForAllInputs,
     finalizePendingEdge,
+    geospatialWidgetPanelMode,
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     getLiveContainmentGroupAabbForNode,
@@ -4098,7 +4296,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   }, [renderGraphDataOverride?.metadata])
   const overlayOnlySafeForCurrentView =
     frontmatterOverlayHideSafety.kind !== 'frontmatter-flow' || frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
-  const overlayOnlyActive = overlayOnlyModeEnabled && hasOverlayEditors && overlayOnlySafeForCurrentView
+  const overlayOnlyActive = overlayOnlyModeEnabled && overlayOnlySafeForCurrentView && (hasOverlayEditors || geospatialWidgetPanelMode)
   const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {
     if (!overlayOnlyActive) return undefined
     const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? renderGraphDataOverride?.nodes : []
@@ -4109,9 +4307,10 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
   return (
     <section
       ref={rootRef}
-      className="absolute inset-0 z-0"
+      className={`absolute inset-0 z-0 ${geospatialWidgetPanelMode ? 'pointer-events-none' : ''}`}
       aria-label="Flow Editor"
       onDragOverCapture={(ev) => {
+        if (geospatialWidgetPanelMode) return
         if (!canEdit) return
         ev.preventDefault()
         try {
@@ -4121,6 +4320,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }
       }}
       onDropCapture={(ev) => {
+        if (geospatialWidgetPanelMode) return
         if (!canEdit) return
         const payload = readFlowWidgetDragPayloadFromDataTransfer({ getData: mime => ev.dataTransfer.getData(mime) })
         if (!payload) return
@@ -4174,7 +4374,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
         }}
         onInteractionFrame={hasOverlayEditors ? emitFlowEditorInteractionFrame : undefined}
         renderEdges={overlayOnlyActive ? false : true}
-        renderGroups={true}
+        renderGroups={geospatialWidgetPanelMode ? false : true}
         renderNodes={overlayOnlyActive ? false : true}
         hidePortHandleNodeIds={overlayOnlyHidePortHandleNodeIds}
       />
@@ -4190,7 +4390,7 @@ export default function FlowEditorCanvas({ active = true }: { active?: boolean }
 
       {overlayEditorElements as unknown as React.ReactNode}
 
-      {noGraphLoaded && (
+      {noGraphLoaded && !geospatialWidgetPanelMode && (
         <aside className="absolute top-3 left-3 z-[220]" aria-label="Flow Editor Status">
           <section className={`rounded-lg border px-3 py-2 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.input.border}`}>
             <p className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>No graph loaded.</p>

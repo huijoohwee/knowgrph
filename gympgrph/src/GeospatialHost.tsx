@@ -79,6 +79,19 @@ function getSnapshotSelectedNodeIds(snapshot: unknown): Set<string> {
   return out
 }
 
+function getSnapshotGeospatialPanelNodeIds(snapshot: unknown): Set<string> {
+  if (!isRecord(snapshot)) return new Set<string>()
+  const raw = snapshot.geospatialPanelNodeIds
+  if (!Array.isArray(raw)) return new Set<string>()
+  const out = new Set<string>()
+  for (let i = 0; i < raw.length; i += 1) {
+    const id = typeof raw[i] === 'string' ? raw[i].trim() : ''
+    if (!id) continue
+    out.add(id)
+  }
+  return out
+}
+
 type FeatureProjection = {
   featureCollection: FeatureCollection
   signature: string
@@ -155,13 +168,31 @@ function SvgGeospatialFallback(args: {
   featureCollection: FeatureCollection
   selectedFeatureCollection: FeatureCollection
   className: string
+  insetPadding?: { top?: number; right?: number; bottom?: number; left?: number }
+  style?: React.CSSProperties
 }): React.ReactElement {
   const width = SVG_FALLBACK_VIEWBOX_WIDTH
   const height = SVG_FALLBACK_VIEWBOX_HEIGHT
   const projection = React.useMemo(() => {
     const equirect = geoEquirectangular()
+    const padTop = Math.max(12, Number(args.insetPadding?.top || 0))
+    const padRight = Math.max(12, Number(args.insetPadding?.right || 0))
+    const padBottom = Math.max(12, Number(args.insetPadding?.bottom || 0))
+    const padLeft = Math.max(12, Number(args.insetPadding?.left || 0))
+    equirect.fitExtent(
+      [
+        [padLeft, padTop],
+        [Math.max(padLeft + 24, width - padRight), Math.max(padTop + 24, height - padBottom)],
+      ],
+      { type: 'Sphere' } as never,
+    )
     const features = Array.isArray(args.featureCollection.features) ? args.featureCollection.features : []
-    if (features.length > 0) {
+    const bounds = computeBoundsFromCollections([args.featureCollection])
+    const hasRenderableSpan = !!bounds && (
+      Math.abs(bounds[2] - bounds[0]) > 1e-6
+      || Math.abs(bounds[3] - bounds[1]) > 1e-6
+    )
+    if (features.length > 0 && hasRenderableSpan) {
       try {
         equirect.fitExtent(
           [
@@ -171,25 +202,11 @@ function SvgGeospatialFallback(args: {
           args.featureCollection,
         )
       } catch {
-        equirect.fitExtent(
-          [
-            [12, 12],
-            [width - 12, height - 12],
-          ],
-          { type: 'Sphere' } as never,
-        )
+        void 0
       }
-    } else {
-      equirect.fitExtent(
-        [
-          [12, 12],
-          [width - 12, height - 12],
-        ],
-        { type: 'Sphere' } as never,
-      )
     }
     return equirect
-  }, [args.featureCollection])
+  }, [args.featureCollection, args.insetPadding?.bottom, args.insetPadding?.left, args.insetPadding?.right, args.insetPadding?.top])
 
   const areaPathBuilder = React.useMemo(() => geoPath(projection), [projection])
   const pointPathBuilder = React.useMemo(() => geoPath(projection).pointRadius(4), [projection])
@@ -202,13 +219,32 @@ function SvgGeospatialFallback(args: {
     () => geoGraticule().step([SVG_FALLBACK_STYLE.graticuleMajorStep[0], SVG_FALLBACK_STYLE.graticuleMajorStep[1]]),
     [],
   )
-  const worldTopLeft = React.useMemo(() => projection([-180, 90]) || [0, 0], [projection])
-  const worldBottomRight = React.useMemo(() => projection([180, -90]) || [width, height], [projection, width, height])
-  const svgImageX = Math.min(worldTopLeft[0], worldBottomRight[0])
-  const svgImageY = Math.min(worldTopLeft[1], worldBottomRight[1])
-  const svgImageWidth = Math.abs(worldBottomRight[0] - worldTopLeft[0])
-  const svgImageHeight = (svgImageWidth * HIGH_FIDELITY_WORLD_SVG_HEIGHT) / HIGH_FIDELITY_WORLD_SVG_WIDTH
-  const svgImageYAdjusted = svgImageY + (Math.abs(worldBottomRight[1] - worldTopLeft[1]) - svgImageHeight) / 2
+  const safeImageBounds = React.useMemo(() => {
+    const readPoint = (raw: unknown, fallback: [number, number]): [number, number] => {
+      if (!Array.isArray(raw) || raw.length < 2) return fallback
+      const x = Number(raw[0])
+      const y = Number(raw[1])
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return fallback
+      return [x, y]
+    }
+    const tl = readPoint(projection([-180, 90]), [0, 0])
+    const br = readPoint(projection([180, -90]), [width, height])
+    const x = Math.min(tl[0], br[0])
+    const y = Math.min(tl[1], br[1])
+    const w = Math.abs(br[0] - tl[0])
+    const hByWidth = (w * HIGH_FIDELITY_WORLD_SVG_HEIGHT) / HIGH_FIDELITY_WORLD_SVG_WIDTH
+    const hSpan = Math.abs(br[1] - tl[1])
+    const h = Number.isFinite(hByWidth) && hByWidth > 0 ? hByWidth : hSpan
+    const yAdjusted = y + (hSpan - h) / 2
+    const valid = Number.isFinite(x) && Number.isFinite(yAdjusted) && Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0
+    return {
+      x: valid ? x : 0,
+      y: valid ? yAdjusted : 0,
+      width: valid ? w : width,
+      height: valid ? h : height,
+      valid,
+    }
+  }, [height, projection, width])
   const spherePath = React.useMemo(() => areaPathBuilder({ type: 'Sphere' } as never) || '', [areaPathBuilder])
   const minorGraticulePath = React.useMemo(() => areaPathBuilder(minorGraticule() as never) || '', [areaPathBuilder, minorGraticule])
   const majorGraticulePath = React.useMemo(() => areaPathBuilder(majorGraticule() as never) || '', [areaPathBuilder, majorGraticule])
@@ -219,7 +255,7 @@ function SvgGeospatialFallback(args: {
   )
 
   return (
-    <div className={args.className}>
+    <div className={args.className} style={args.style}>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" aria-label="Fallback geospatial basemap">
         <defs>
           <linearGradient id="kg-geo-fallback-bg" x1="0" y1="0" x2="0" y2="1">
@@ -263,17 +299,27 @@ function SvgGeospatialFallback(args: {
         </defs>
         <rect x="0" y="0" width={width} height={height} fill="url(#kg-geo-fallback-bg)" />
         <g clipPath="url(#kg-geo-fallback-sphere-clip)" opacity="0.96">
-          <image
-            href={HIGH_FIDELITY_WORLD_SVG_URL}
-            x={svgImageX}
-            y={svgImageYAdjusted}
-            width={svgImageWidth}
-            height={svgImageHeight}
-            preserveAspectRatio="none"
-            filter="url(#kg-geo-fallback-map-filter)"
-            opacity="0.92"
-          />
-          <rect x={svgImageX} y={svgImageYAdjusted} width={svgImageWidth} height={svgImageHeight} fill="url(#kg-geo-fallback-land-wash)" />
+          {safeImageBounds.valid ? (
+            <>
+              <image
+                href={HIGH_FIDELITY_WORLD_SVG_URL}
+                x={safeImageBounds.x}
+                y={safeImageBounds.y}
+                width={safeImageBounds.width}
+                height={safeImageBounds.height}
+                preserveAspectRatio="none"
+                filter="url(#kg-geo-fallback-map-filter)"
+                opacity="0.92"
+              />
+              <rect
+                x={safeImageBounds.x}
+                y={safeImageBounds.y}
+                width={safeImageBounds.width}
+                height={safeImageBounds.height}
+                fill="url(#kg-geo-fallback-land-wash)"
+              />
+            </>
+          ) : null}
         </g>
         <path d={spherePath} fill="url(#kg-geo-fallback-ocean-sheen)" stroke="rgba(255,255,255,0.32)" strokeWidth="3.4" filter="url(#kg-geo-fallback-sphere-shadow)" />
         <path d={spherePath} fill="none" stroke="url(#kg-geo-fallback-frame-stroke)" strokeWidth="1.2" />
@@ -291,7 +337,7 @@ function SvgGeospatialFallback(args: {
   )
 }
 
-function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds: Set<string>): FeatureProjection {
+function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds: Set<string>, panelNodeIds: Set<string>): FeatureProjection {
   const features: FeatureCollection['features'] = []
   const signatureParts: string[] = []
   if (!isRecord(graphData)) return { featureCollection: { type: 'FeatureCollection', features }, signature: 'n:0' }
@@ -332,6 +378,7 @@ function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds
     if (!isRecord(node)) continue
     const nodeId = String(node.id || '').trim()
     if (!nodeId) continue
+    if (panelNodeIds.has(nodeId)) continue
     const propsRaw = isRecord(node.properties) ? node.properties : {}
     const geoRaw = readNestedValue(propsRaw, ['geo'])
     const lat = readFiniteNumber(readNestedValue(geoRaw, ['lat']))
@@ -418,6 +465,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const geospatialAutoFitEnabled = useGympgrphStore(s => s.geospatialAutoFitEnabled)
   const geospatialFitRequest = useGympgrphStore(s => s.geospatialFitRequest)
   const clearGeospatialFitRequest = useGympgrphStore(s => s.clearGeospatialFitRequest)
+  const setGeospatialCursorLngLat = useGympgrphStore(s => s.setGeospatialCursorLngLat)
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const map2dContainerRef = React.useRef<HTMLDivElement | null>(null)
   const map3dContainerRef = React.useRef<HTMLDivElement | null>(null)
@@ -469,10 +517,11 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     return 'maplibre'
   }, [effectiveTargetStyleUrl, geospatialViewMode, show2dSvgFallback])
   const selectedNodeIds = React.useMemo(() => getSnapshotSelectedNodeIds(props.snapshot), [props.snapshot])
+  const geospatialPanelNodeIds = React.useMemo(() => getSnapshotGeospatialPanelNodeIds(props.snapshot), [props.snapshot])
   const graphProjection = React.useMemo(() => {
     const graphData = getSnapshotGraphData(props.snapshot)
-    return buildFeatureCollectionFromGraphData(graphData, selectedNodeIds)
-  }, [props.snapshot, selectedNodeIds])
+    return buildFeatureCollectionFromGraphData(graphData, selectedNodeIds, geospatialPanelNodeIds)
+  }, [geospatialPanelNodeIds, props.snapshot, selectedNodeIds])
   const overlayDebugInfo = React.useMemo(() => {
     const graphData = getSnapshotGraphData(props.snapshot)
     if (!isRecord(graphData)) return null
@@ -512,6 +561,59 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     })
   }, [props.handlers, props.snapshot])
 
+  const handlePoiClick = React.useCallback((detail: { label: string; lng: number; lat: number }) => {
+    const overlayHandlers = getOverlayHandlers(props.snapshot, props.handlers)
+    const upsert = overlayHandlers && typeof overlayHandlers.upsertUiToast === 'function'
+      ? overlayHandlers.upsertUiToast as ((toast: { id: string; kind?: 'neutral' | 'success' | 'warning' | 'error'; message: string; ttlMs?: number | null; dismissible?: boolean; log?: boolean }) => void)
+      : null
+    const lng = Number(detail.lng)
+    const lat = Number(detail.lat)
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+    const label = String(detail.label || '').trim() || 'POI'
+    const coordText = `${lng.toFixed(6)}, ${lat.toFixed(6)}`
+    const clipboardText = `${label} (${coordText})`
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        void navigator.clipboard.writeText(clipboardText)
+          .then(() => {
+            if (!upsert) return
+            upsert({
+              id: 'kg:geo:poi-click',
+              kind: 'success',
+              ttlMs: 2600,
+              dismissible: true,
+              log: false,
+              message: `${label} • copied ${coordText}`,
+            })
+          })
+          .catch(() => {
+            if (!upsert) return
+            upsert({
+              id: 'kg:geo:poi-click',
+              kind: 'neutral',
+              ttlMs: 2600,
+              dismissible: true,
+              log: false,
+              message: `${label} • ${coordText}`,
+            })
+          })
+        return
+      }
+    } catch {
+      void 0
+    }
+    if (upsert) {
+      upsert({
+        id: 'kg:geo:poi-click',
+        kind: 'neutral',
+        ttlMs: 2600,
+        dismissible: true,
+        log: false,
+        message: `${label} • ${coordText}`,
+      })
+    }
+  }, [props.handlers, props.snapshot])
+
   const basemap2d = useMapLibreBasemap({
     enabled: show2dMapLibre && mapLibreRuntimeEnabled,
     rootRef,
@@ -522,6 +624,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     viewportSizingMode: 'fit',
     vectorFallbackMs: 2_000,
     onGrabMapsFallback: notifyGrabMapsFallback,
+    onPoiClick: handlePoiClick,
   })
   const basemap3d = useMapLibreBasemap({
     enabled: show3d && mapLibreRuntimeEnabled,
@@ -533,6 +636,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     viewportSizingMode: 'fit',
     vectorFallbackMs: 2_000,
     onGrabMapsFallback: notifyGrabMapsFallback,
+    onPoiClick: handlePoiClick,
   })
   const activeBasemap = show3d ? basemap3d : basemap2d
 
@@ -541,6 +645,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const graphSourceIdUnclustered = `${graphSourceIdBase}:plain`
   const graphDataAppliedRef = React.useRef<{ map2d: string; map3d: string }>({ map2d: '', map3d: '' })
   const debugToastMessageRef = React.useRef<string>('')
+  const [basemapGraphRevision, setBasemapGraphRevision] = React.useState(0)
 
   const applyFeatureCollectionToBasemap = React.useCallback(
     (args: { basemapMap: any | null; styleRevision: number; viewMode: 'map2d' | 'map3d' }) => {
@@ -554,6 +659,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
         clearGeoJsonSourceData(basemapMap, graphSourceIdClustered)
         clearGeoJsonSourceData(basemapMap, graphSourceIdUnclustered)
         graphDataAppliedRef.current[viewMode] = ''
+        setBasemapGraphRevision(prev => prev + 1)
         return
       }
       // Avoid MapLibre clustered GeoJSON buckets on globe/3D until that path is stable.
@@ -562,7 +668,25 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       const inactiveSourceId = cluster ? graphSourceIdUnclustered : graphSourceIdClustered
       const applyKey = `${styleRevisionKey}:${activeSourceId}:${graphDataKey}`
       const styleKey = pointStyleConfigSignature(pointStyleConfig || MAIN_PANEL_DEFAULT_GEOSPATIAL_POINT_STYLE_CONFIG)
-      if (graphDataAppliedRef.current[viewMode] === `${applyKey}:${styleKey}`) return
+      const activeSourceExists = (() => {
+        try {
+          return !!basemapMap.getSource?.(activeSourceId)
+        } catch {
+          return false
+        }
+      })()
+      const datasetLayersPresent = (() => {
+        try {
+          return !!(
+            basemapMap.getLayer?.(`${activeSourceId}:points`)
+            || basemapMap.getLayer?.(`${activeSourceId}:routes`)
+            || basemapMap.getLayer?.(`${activeSourceId}:cluster-bubbles`)
+          )
+        } catch {
+          return false
+        }
+      })()
+      if (graphDataAppliedRef.current[viewMode] === `${applyKey}:${styleKey}` && activeSourceExists && datasetLayersPresent) return
       clearGeoJsonSourceData(basemapMap, inactiveSourceId)
       ensureDatasetLayer(
         basemapMap,
@@ -572,6 +696,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       )
       setGeoJsonSourceData(basemapMap, activeSourceId, graphFeatureCollection)
       graphDataAppliedRef.current[viewMode] = `${applyKey}:${styleKey}`
+      setBasemapGraphRevision(prev => prev + 1)
     },
     [graphDataKey, graphFeatureCollection, graphSourceIdClustered, graphSourceIdUnclustered, pointStyleConfig],
   )
@@ -621,7 +746,69 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       routesLayer: hasLayer(`${activeSourceId}:routes`),
       clusterLayer: hasLayer(`${activeSourceId}:cluster-bubbles`),
     }
-  }, [active, activeBasemap.map, graphFeatureCollection, graphSourceIdClustered, graphSourceIdUnclustered, show3d])
+  }, [active, activeBasemap.map, basemapGraphRevision, graphFeatureCollection, graphSourceIdClustered, graphSourceIdUnclustered, show3d])
+
+  React.useEffect(() => {
+    if (!show2dMapLibre) return
+    if (!basemap2d.map) return
+    const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
+    if (featureCount <= 0) return
+    if (basemapGraphDebug?.pointsLayer || basemapGraphDebug?.routesLayer || basemapGraphDebug?.clusterLayer) return
+    applyFeatureCollectionToBasemap({ basemapMap: basemap2d.map, styleRevision: basemap2d.styleRevision, viewMode: 'map2d' })
+  }, [
+    applyFeatureCollectionToBasemap,
+    basemap2d.map,
+    basemap2d.styleRevision,
+    basemapGraphDebug?.clusterLayer,
+    basemapGraphDebug?.pointsLayer,
+    basemapGraphDebug?.routesLayer,
+    graphFeatureCollection.features,
+    show2dMapLibre,
+  ])
+
+  const shouldOverlaySvgFallbackPoints = React.useMemo(() => {
+    if (!active) return false
+    if (!show2dMapLibre) return false
+    const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
+    if (featureCount < 1) return false
+    if (!basemapGraphDebug?.styleReady) return true
+    return !basemapGraphDebug.pointsLayer && !basemapGraphDebug.routesLayer && !basemapGraphDebug.clusterLayer
+  }, [active, basemapGraphDebug, graphFeatureCollection.features, show2dMapLibre])
+
+  const [svgOverlayInsetRight, setSvgOverlayInsetRight] = React.useState(12)
+  React.useEffect(() => {
+    const measure = () => {
+      const rootRect = rootRef.current?.getBoundingClientRect?.()
+      if (!rootRect || typeof document === 'undefined') {
+        setSvgOverlayInsetRight(12)
+        return
+      }
+      const panels = Array.from(document.querySelectorAll('[aria-label="Floating panel"], [aria-label="Geospatial panel"]'))
+      let nextInsetRight = 12
+      for (const panel of panels) {
+        const rect = (panel as HTMLElement).getBoundingClientRect?.()
+        if (!rect) continue
+        const overlapWidth = Math.min(rootRect.right, rect.right) - Math.max(rootRect.left, rect.left)
+        const overlapHeight = Math.min(rootRect.bottom, rect.bottom) - Math.max(rootRect.top, rect.top)
+        if (overlapWidth <= 0 || overlapHeight <= 0) continue
+        if (rect.left < rootRect.left + rootRect.width * 0.35) continue
+        nextInsetRight = Math.max(nextInsetRight, Math.min(rootRect.width * 0.45, rootRect.right - rect.left + 16))
+      }
+      setSvgOverlayInsetRight(prev => (Math.abs(prev - nextInsetRight) > 1 ? nextInsetRight : prev))
+    }
+    measure()
+    if (typeof window === 'undefined') return
+    window.addEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+    }
+  }, [])
+
+  const svgFallbackClassName = shouldOverlaySvgFallbackPoints
+    ? 'absolute inset-0 z-[5] pointer-events-none opacity-100'
+    : show2dSvgFallback
+      ? 'absolute inset-0 pointer-events-none opacity-100'
+      : 'absolute inset-0 pointer-events-none opacity-0'
 
   const autoFitAppliedForDataKeyRef = React.useRef<string>('')
   React.useEffect(() => {
@@ -662,6 +849,97 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       void 0
     }
   }, [active, activeBasemap.map, fitPadding, graphBounds, graphFeatureCollection.features, show3d])
+
+  React.useEffect(() => {
+    const map = activeBasemap.map
+    if (!map || !active) {
+      setGeospatialCursorLngLat(null)
+      return
+    }
+    let rafId = 0
+    const publish = (lngRaw: unknown, latRaw: unknown, options?: { immediate?: boolean }) => {
+      const lng = Number(lngRaw)
+      const lat = Number(latRaw)
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+      const roundedLng = Number(lng.toFixed(6))
+      const roundedLat = Number(lat.toFixed(6))
+      if (options?.immediate === true) {
+        if (rafId) cancelAnimationFrame(rafId)
+        setGeospatialCursorLngLat({ lng: roundedLng, lat: roundedLat })
+        return
+      }
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        setGeospatialCursorLngLat({ lng: roundedLng, lat: roundedLat })
+      })
+    }
+    const onMove = (ev: unknown) => {
+      const evt = (ev || {}) as { lngLat?: { lng?: unknown; lat?: unknown } }
+      publish(evt.lngLat?.lng, evt.lngLat?.lat)
+    }
+    const onLeave = () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      setGeospatialCursorLngLat(null)
+    }
+    const publishFromClientPoint = (clientX: unknown, clientY: unknown, options?: { immediate?: boolean }) => {
+      const x = Number(clientX)
+      const y = Number(clientY)
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return
+      const container =
+        (show3d ? map3dContainerRef.current : map2dContainerRef.current)
+        || rootRef.current
+      if (!container) return
+      let rect: DOMRect | null = null
+      try {
+        rect = container.getBoundingClientRect()
+      } catch {
+        rect = null
+      }
+      if (!rect) return
+      const localX = x - rect.left
+      const localY = y - rect.top
+      if (!Number.isFinite(localX) || !Number.isFinite(localY)) return
+      if (localX < 0 || localY < 0 || localX > rect.width || localY > rect.height) return
+      try {
+        const ll = map.unproject?.([localX, localY]) as { lng?: unknown; lat?: unknown } | null
+        publish(ll?.lng, ll?.lat, options)
+      } catch {
+        void 0
+      }
+    }
+    try {
+      map.on?.('mousemove', onMove)
+      map.on?.('drag', onMove)
+      map.on?.('mouseout', onLeave)
+    } catch {
+      void 0
+    }
+    const onDocumentDragOver = (ev: DragEvent) => {
+      publishFromClientPoint(ev.clientX, ev.clientY)
+    }
+    const onDocumentDrop = (ev: DragEvent) => {
+      publishFromClientPoint(ev.clientX, ev.clientY, { immediate: true })
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('dragover', onDocumentDragOver, true)
+      document.addEventListener('drop', onDocumentDrop, true)
+    }
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      try {
+        map.off?.('mousemove', onMove)
+        map.off?.('drag', onMove)
+        map.off?.('mouseout', onLeave)
+      } catch {
+        void 0
+      }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('dragover', onDocumentDragOver, true)
+        document.removeEventListener('drop', onDocumentDrop, true)
+      }
+      setGeospatialCursorLngLat(null)
+    }
+  }, [active, activeBasemap.map, setGeospatialCursorLngLat, show3d])
 
   React.useEffect(() => {
     const map = activeBasemap.map
@@ -754,7 +1032,9 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       <SvgGeospatialFallback
         featureCollection={graphFeatureCollection}
         selectedFeatureCollection={selectedFeatureCollection}
-        className={show2dSvgFallback ? 'absolute inset-0 pointer-events-none opacity-100' : 'absolute inset-0 pointer-events-none opacity-0'}
+        className={svgFallbackClassName}
+        insetPadding={shouldOverlaySvgFallbackPoints ? { top: 12, right: Math.max(220, svgOverlayInsetRight), bottom: 12, left: 12 } : undefined}
+        style={shouldOverlaySvgFallbackPoints ? { transform: 'translateX(-220px)' } : undefined}
       />
       <div
         ref={map2dContainerRef}

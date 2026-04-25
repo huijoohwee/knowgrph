@@ -1,44 +1,42 @@
 import React from 'react'
-import { Compass, ExternalLink, Search } from 'lucide-react'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { Compass, ExternalLink, Send } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { appendChatHistoryWorkspaceFile } from '@/features/chat/chatHistoryWorkspace'
+import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
+import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
+import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
-  type DiscoveryPropertyKey,
+  CHAT_DEFAULT_ENDPOINT_URL,
+  CHAT_PROVIDER_OPENAI,
+  buildChatProxyHeaders,
+  normalizeChatEndpointUrlInput,
+  resolveChatEndpointForRequest,
+} from '@/lib/chatEndpoint'
+import {
   getGrabMapsDiscoveryWidgetLabel,
-  readGrabMapsDiscoveryDefaultSettingsValues,
   readGrabMapsDiscoverySettingsValues,
+  writeGrabMapsDiscoverySettingsValues,
+  type GrabMapsDiscoverySettingsValues,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
-import type { GrabMapsDiscoverySettingsValues } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
-import { writeGrabMapsDiscoverySettingsValues } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
-import { GrabMapsDiscoverySettingsTable } from '@/features/toolbar/grabMapsDiscoveryRows'
-import { GRABMAPS_DISCOVERY_FIELD_META } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
-type DiscoveryResultItem = {
-  id: string
-  title: string
-  subtitle: string
+type PlannerOperation = {
+  endpoint: 'keywordSearch' | 'nearbySearch' | 'reverseGeo'
+  params?: Record<string, unknown>
+  note?: string
+}
+
+type PlannerOutput = {
+  operations: PlannerOperation[]
+}
+
+type PlaceItem = {
+  name: string
+  address: string
   coordinates: string
-}
-
-const INPUT_CLASS = `h-8 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`
-const CARD_CLASS = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
-
-function readText(properties: DiscoveryWidgetProperties, key: DiscoveryPropertyKey): string {
-  const value = properties[key]
-  return typeof value === 'string' ? value.trim() : typeof value === 'number' && Number.isFinite(value) ? String(value) : ''
-}
-
-type DiscoveryWidgetProperties = Record<DiscoveryPropertyKey, unknown>
-
-function settingsValuesToProperties(values: GrabMapsDiscoverySettingsValues): DiscoveryWidgetProperties {
-  const next = {} as DiscoveryWidgetProperties
-  for (const field of GRABMAPS_DISCOVERY_FIELD_META) {
-    next[field.propertyKey] = values[field.settingKey]
-  }
-  return next
 }
 
 function openMainPanelMaps(searchQuery: string): void {
@@ -46,10 +44,7 @@ function openMainPanelMaps(searchQuery: string): void {
   try {
     const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
     window.dispatchEvent(new CustomEventCtor(MAIN_PANEL_OPEN_EVENT, {
-      detail: {
-        tab: 'maps',
-        searchQuery,
-      },
+      detail: { tab: 'maps', searchQuery },
     }))
   } catch {
     void 0
@@ -62,91 +57,175 @@ function buildGrabMapsAuthHeader(apiKey: string): string {
   return /^bearer\s+/i.test(raw) ? raw : `Bearer ${raw}`
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
 }
 
-function toArrayOfRecords(value: unknown): Record<string, unknown>[] {
-  return Array.isArray(value) ? value.filter(isRecord) : []
+function extractJsonObject(text: string): string {
+  const raw = String(text || '').trim()
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fenced?.[1]) return fenced[1].trim()
+  const first = raw.indexOf('{')
+  const last = raw.lastIndexOf('}')
+  if (first < 0 || last < first) return '{}'
+  return raw.slice(first, last + 1)
 }
 
-function pickRecordArray(value: unknown): Record<string, unknown>[] {
-  if (!isRecord(value)) return []
-  const candidates = [
-    value.results,
-    value.items,
-    value.places,
-    value.pois,
-    value.data,
-    isRecord(value.data) ? value.data.results : null,
-    isRecord(value.data) ? value.data.items : null,
-    isRecord(value.data) ? value.data.places : null,
-    isRecord(value.data) ? value.data.pois : null,
-  ]
-  for (const candidate of candidates) {
-    const next = toArrayOfRecords(candidate)
-    if (next.length > 0) return next
-  }
-  for (const nested of Object.values(value)) {
-    const next = toArrayOfRecords(nested)
-    if (next.length > 0) return next
-  }
-  return []
+function readNumber(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 
-function readCoordinate(item: Record<string, unknown>, keys: readonly string[]): number | null {
-  for (const key of keys) {
-    const direct = item[key]
-    if (typeof direct === 'number' && Number.isFinite(direct)) return direct
-    if (typeof direct === 'string' && direct.trim()) {
-      const parsed = Number(direct)
-      if (Number.isFinite(parsed)) return parsed
+function readString(value: unknown, fallback = ''): string {
+  const next = String(value ?? '').trim()
+  return next || fallback
+}
+
+function readLocation(parts: { lat: unknown; lon: unknown }): string {
+  const lat = readNumber(parts.lat, Number.NaN)
+  const lon = readNumber(parts.lon, Number.NaN)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return ''
+  return `${lat},${lon}`
+}
+
+function parsePlaces(jsonText: string): PlaceItem[] {
+  const parsed = (() => {
+    try {
+      return JSON.parse(jsonText) as unknown
+    } catch {
+      return null
     }
-  }
-  const location = isRecord(item.location) ? item.location : null
-  if (!location) return null
-  for (const key of keys) {
-    const nested = location[key]
-    if (typeof nested === 'number' && Number.isFinite(nested)) return nested
-    if (typeof nested === 'string' && nested.trim()) {
-      const parsed = Number(nested)
-      if (Number.isFinite(parsed)) return parsed
+  })()
+  const rec = asRecord(parsed)
+  if (!rec) return []
+  const candidates = [rec.places, rec.results, rec.items, asRecord(rec.data)?.places, asRecord(rec.data)?.results]
+  const places = candidates.find(value => Array.isArray(value)) as unknown[] | undefined
+  if (!Array.isArray(places)) return []
+  return places.slice(0, 8).map((item) => {
+    const row = asRecord(item) || {}
+    const loc = asRecord(row.location) || {}
+    const lat = readNumber(row.lat ?? row.latitude ?? loc.lat ?? loc.latitude, Number.NaN)
+    const lon = readNumber(row.lon ?? row.lng ?? row.longitude ?? loc.lon ?? loc.lng ?? loc.longitude, Number.NaN)
+    const coordinates = Number.isFinite(lat) && Number.isFinite(lon) ? `${lat}, ${lon}` : ''
+    return {
+      name: readString(row.name ?? row.title, 'Unnamed place'),
+      address: readString(row.formatted_address ?? row.address ?? row.vicinity, 'No address details'),
+      coordinates,
     }
-  }
-  return null
+  })
 }
 
-function normalizePlaceResult(item: Record<string, unknown>, index: number): DiscoveryResultItem {
-  const title = [
-    item.name,
-    item.title,
-    item.display_name,
-    item.poi_name,
-    item.id,
-  ].map(value => String(value || '').trim()).find(Boolean) || `Place ${index + 1}`
-  const subtitle = [
-    item.address,
-    item.formatted_address,
-    item.vicinity,
-    item.category,
-    item.primary_category,
-  ].map(value => String(value || '').trim()).find(Boolean) || 'No address details returned.'
-  const lat = readCoordinate(item, ['lat', 'latitude'])
-  const lon = readCoordinate(item, ['lon', 'lng', 'longitude'])
+async function callGrabMapsJson(args: { url: string; authorization: string }): Promise<string> {
+  const response = await fetchRemoteTextDetailed(args.url, {
+    useProxy: 'always',
+    preflightHead: false,
+    maxBytes: 350_000,
+    headers: {
+      Authorization: args.authorization,
+      Accept: 'application/json',
+    },
+  })
+  if ('kind' in response) throw new Error(`GrabMaps request failed: ${response.kind}`)
+  return response.text
+}
+
+function buildPlannerPrompt(query: string, defaults: GrabMapsDiscoverySettingsValues): string {
+  const defaultsJson = JSON.stringify({
+    keywordSearch: {
+      country: defaults['maps.grabmaps.mcp.searchPlaces.country'],
+      location: readLocation({
+        lat: defaults['maps.grabmaps.mcp.searchPlaces.lat'],
+        lon: defaults['maps.grabmaps.mcp.searchPlaces.lon'],
+      }),
+      limit: defaults['maps.grabmaps.mcp.searchPlaces.limit'],
+    },
+    nearbySearch: {
+      location: readLocation({
+        lat: defaults['maps.grabmaps.mcp.nearbySearch.lat'],
+        lon: defaults['maps.grabmaps.mcp.nearbySearch.lon'],
+      }),
+      radius: defaults['maps.grabmaps.mcp.nearbySearch.radius'],
+      limit: defaults['maps.grabmaps.mcp.nearbySearch.limit'],
+      rankBy: defaults['maps.grabmaps.mcp.nearbySearch.rankBy'],
+      language: defaults['maps.grabmaps.mcp.nearbySearch.language'],
+      category: defaults['maps.grabmaps.mcp.nearbySearch.category'],
+    },
+  }, null, 2)
+  return [
+    'Plan GrabMaps search operations for this user query.',
+    'Return ONLY compact JSON with shape: {"operations":[{"endpoint":"keywordSearch|nearbySearch|reverseGeo","params":{...},"note":"..."}]}',
+    'Allowed params:',
+    '- keywordSearch: keyword(required), country, location("lat,lon"), limit',
+    '- nearbySearch: location(required), radius(km), limit, rankBy(distance|popularity), language, category',
+    '- reverseGeo: location(required), type(dropoff|pickup)',
+    'If location is place-name text, include `anchor` and omit `location` so runtime can geocode anchor.',
+    'Use defaults when user omits optional values.',
+    '',
+    `Defaults:\n${defaultsJson}`,
+    '',
+    `User query: ${query}`,
+  ].join('\n')
+}
+
+async function planOperations(args: {
+  query: string
+  modelId: string
+  chatAuthMode: 'byok' | 'serverManaged'
+  chatApiKey: string
+  defaults: GrabMapsDiscoverySettingsValues
+}): Promise<PlannerOutput> {
+  const endpoint = resolveChatEndpointForRequest(
+    normalizeChatEndpointUrlInput(CHAT_DEFAULT_ENDPOINT_URL, CHAT_PROVIDER_OPENAI),
+  )
+  if (!endpoint) return { operations: [] }
+  const payload = {
+    model: args.modelId,
+    stream: false,
+    max_completion_tokens: 800,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a strict JSON planner for GrabMaps API requests.',
+      },
+      {
+        role: 'user',
+        content: buildPlannerPrompt(args.query, args.defaults),
+      },
+    ],
+  }
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...buildChatProxyHeaders({
+        provider: CHAT_PROVIDER_OPENAI,
+        apiKey: args.chatAuthMode === 'byok' ? args.chatApiKey : null,
+        endpointUrl: CHAT_DEFAULT_ENDPOINT_URL,
+        clientRequestId: `kg-grabmaps-discovery-${Date.now().toString(36)}`,
+      }),
+    },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) return { operations: [] }
+  const body = (await response.json()) as Record<string, unknown>
+  const choices = Array.isArray(body.choices) ? body.choices : []
+  const first = asRecord(choices[0]) || {}
+  const msg = asRecord(first.message) || {}
+  const raw = readString(msg.content, '{}')
+  const extracted = extractJsonObject(raw)
+  const parsed = (() => {
+    try {
+      return JSON.parse(extracted) as PlannerOutput
+    } catch {
+      return null
+    }
+  })()
+  if (!parsed || !Array.isArray(parsed.operations)) return { operations: [] }
   return {
-    id: String(item.id || `${title}:${index}`),
-    title,
-    subtitle,
-    coordinates: lat != null && lon != null ? `${lat}, ${lon}` : '',
-  }
-}
-
-function extractPlaceResults(text: string): DiscoveryResultItem[] {
-  try {
-    const parsed = JSON.parse(text) as unknown
-    return pickRecordArray(parsed).slice(0, 8).map(normalizePlaceResult)
-  } catch {
-    return []
+    operations: parsed.operations.filter((op): op is PlannerOperation => {
+      const endpointName = String(op?.endpoint || '').trim()
+      return endpointName === 'keywordSearch' || endpointName === 'nearbySearch' || endpointName === 'reverseGeo'
+    }),
   }
 }
 
@@ -154,172 +233,193 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMicroLabelTextSizeClass = useGraphStore(s => s.uiPanelMicroLabelTextSizeClass || 'text-[10px]')
-  const uiPanelKeyValueInputClass = useGraphStore(
-    s =>
-      s.uiPanelKeyValueInputClass
-      || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
-  )
-  const uiIconScale = useGraphStore(s => s.uiIconScale)
-  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const grabMapsAuthMode = useGraphStore(s => s.grabMapsAuthMode)
   const grabMapsApiKey = useGraphStore(s => s.grabMapsApiKey)
+  const chatAuthMode = useGraphStore(s => (s.chatAuthMode === 'byok' ? 'byok' : 'serverManaged'))
+  const chatApiKey = useGraphStore(s => s.chatApiKey)
+  const chatKnowgrphWorkspacePath = useGraphStore(s => s.chatKnowgrphWorkspacePath || null)
+  const chatLocalStorageRootPath = useGraphStore(s => s.chatLocalStorageRootPath || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT)
+  const setChatKnowgrphWorkspacePath = useGraphStore(s => s.setChatKnowgrphWorkspacePath)
+  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
+  const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const [settingsValues, setSettingsValues] = React.useState<GrabMapsDiscoverySettingsValues>(() => readGrabMapsDiscoverySettingsValues())
-  const [keywordStatus, setKeywordStatus] = React.useState<string | null>(null)
-  const [keywordResults, setKeywordResults] = React.useState<DiscoveryResultItem[]>([])
-  const [nearbyStatus, setNearbyStatus] = React.useState<string | null>(null)
-  const [nearbyResults, setNearbyResults] = React.useState<DiscoveryResultItem[]>([])
-  const [runningAction, setRunningAction] = React.useState<'keyword' | 'nearby' | null>(null)
-  const dirtyRef = React.useRef<Set<string>>(new Set())
-  const settingsTypeIconSizeClass = uiIconScale === 'compact' ? 'w-3.5 h-3.5' : 'w-4 h-4'
-  const properties = React.useMemo(
-    () => settingsValuesToProperties(settingsValues),
-    [settingsValues],
-  )
+  const [queryText, setQueryText] = React.useState<string>(() => readString(readGrabMapsDiscoverySettingsValues()['maps.grabmaps.mcp.searchPlaces.query']))
+  const [running, setRunning] = React.useState(false)
+  const [statusText, setStatusText] = React.useState<string | null>(null)
+  const modelId = readString(settingsValues['maps.grabmaps.mcp.discovery.chatModel'], 'gpt-5.4-nano')
 
-  const keywordSearchPreview = React.useMemo(() => {
-    const params = new URLSearchParams()
-    const query = readText(properties, 'searchQuery')
-    const country = readText(properties, 'searchCountry')
-    const lat = readText(properties, 'searchLat')
-    const lon = readText(properties, 'searchLon')
-    const limit = readText(properties, 'searchLimit')
-    if (query) params.set('keyword', query)
-    if (country) params.set('country', country)
-    if (lat && lon) params.set('location', `${lat},${lon}`)
-    if (limit) params.set('limit', limit)
-    return `https://maps.grab.com/api/v1/maps/poi/v1/search?${params.toString()}`
-  }, [properties])
-
-  const nearbyPreview = React.useMemo(() => {
-    const params = new URLSearchParams()
-    const lat = readText(properties, 'nearbyLat')
-    const lon = readText(properties, 'nearbyLon')
-    const radius = readText(properties, 'nearbyRadiusKm')
-    const limit = readText(properties, 'nearbyLimit')
-    const rankBy = readText(properties, 'nearbyRankBy')
-    const language = readText(properties, 'nearbyLanguage')
-    const category = readText(properties, 'nearbyCategory')
-    if (lat && lon) params.set('location', `${lat},${lon}`)
-    if (radius) params.set('radius', radius)
-    if (limit) params.set('limit', limit)
-    if (rankBy) params.set('rankBy', rankBy)
-    if (language) params.set('language', language)
-    if (category) params.set('category_hint', category)
-    return `https://maps.grab.com/api/v1/maps/place/v2/nearby?${params.toString()}`
-  }, [properties])
-
-  const keywordSearchSummary = React.useMemo(() => {
-    const query = readText(properties, 'searchQuery') || 'places'
-    const country = readText(properties, 'searchCountry')
-    const lat = readText(properties, 'searchLat')
-    const lon = readText(properties, 'searchLon')
-    const limit = readText(properties, 'searchLimit')
-    return [
-      `Keyword: ${query}`,
-      country ? `Country: ${country}` : '',
-      lat && lon ? `Bias: ${lat}, ${lon}` : '',
-      limit ? `Limit: ${limit}` : '',
-    ].filter(Boolean).join(' | ')
-  }, [properties])
-
-  const nearbySearchSummary = React.useMemo(() => {
-    const lat = readText(properties, 'nearbyLat')
-    const lon = readText(properties, 'nearbyLon')
-    const radius = readText(properties, 'nearbyRadiusKm')
-    const limit = readText(properties, 'nearbyLimit')
-    const rankBy = readText(properties, 'nearbyRankBy')
-    const language = readText(properties, 'nearbyLanguage')
-    const category = readText(properties, 'nearbyCategory')
-    return [
-      category ? `Category: ${category}` : 'Category: places',
-      lat && lon ? `Anchor: ${lat}, ${lon}` : '',
-      radius ? `Radius: ${radius} km` : '',
-      limit ? `Limit: ${limit}` : '',
-      rankBy ? `Rank: ${rankBy}` : '',
-      language ? `Language: ${language}` : '',
-    ].filter(Boolean).join(' | ')
-  }, [properties])
-
-  const commitSettingsValues = React.useCallback((updater: React.SetStateAction<GrabMapsDiscoverySettingsValues>) => {
-    setSettingsValues(prev => {
-      const next = typeof updater === 'function'
-        ? (updater as (prevState: GrabMapsDiscoverySettingsValues) => GrabMapsDiscoverySettingsValues)(prev)
-        : updater
-      writeGrabMapsDiscoverySettingsValues(next)
-      return next
-    })
-  }, [])
-
-  const restoreDefaults = React.useCallback(() => {
-    const defaults = readGrabMapsDiscoveryDefaultSettingsValues()
-    commitSettingsValues(defaults)
-    setKeywordStatus('Discovery widget defaults restored.')
-    setNearbyStatus('Discovery widget defaults restored.')
-    setKeywordResults([])
-    setNearbyResults([])
-  }, [commitSettingsValues])
-
-  const runRequest = React.useCallback(async (kind: 'keyword' | 'nearby') => {
-    const requestUrl = kind === 'keyword' ? keywordSearchPreview : nearbyPreview
-    const setStatus = kind === 'keyword' ? setKeywordStatus : setNearbyStatus
-    const setResults = kind === 'keyword' ? setKeywordResults : setNearbyResults
-    writeGrabMapsDiscoverySettingsValues(settingsValues)
-    setRunningAction(kind)
-    setStatus('Running GrabMaps discovery widget...')
-    setResults([])
-    try {
-      if (grabMapsAuthMode !== 'byok') {
-        setStatus('Direct Discovery Widget fetch needs GrabMaps BYOK auth in MainPanel Maps.')
-        return
-      }
-      const authHeader = buildGrabMapsAuthHeader(grabMapsApiKey)
-      if (!authHeader) {
-        setStatus('Enter a GrabMaps API key in MainPanel Maps before running Discovery Widget search.')
-        return
-      }
-      const response = await fetchRemoteTextDetailed(requestUrl, {
-        useProxy: 'always',
-        preflightHead: false,
-        maxBytes: 300_000,
-        headers: {
-          Accept: 'application/json',
-          Authorization: authHeader,
-        },
-      })
-      if ('kind' in response) {
-        setStatus(`GrabMaps request failed: ${response.kind}`)
-        return
-      }
-      const results = extractPlaceResults(response.text)
-      if (results.length === 0) {
-        setStatus('GrabMaps returned no place list for this query.')
-        return
-      }
-      setResults(results)
-      setStatus(`Found ${results.length} place result${results.length === 1 ? '' : 's'}.`)
-    } catch (error) {
-      const message =
-        error && typeof error === 'object' && 'message' in error
-          ? String((error as { message?: unknown }).message || '').trim()
-          : ''
-      setStatus(`GrabMaps request failed: ${message || 'Unknown error'}`)
-    } finally {
-      setRunningAction(current => (current === kind ? null : current))
+  const runDiscovery = React.useCallback(async () => {
+    const trimmedQuery = queryText.trim()
+    if (!trimmedQuery || running) return
+    const authHeader = buildGrabMapsAuthHeader(grabMapsApiKey)
+    if (grabMapsAuthMode !== 'byok' || !authHeader) {
+      setStatusText('Set GrabMaps BYOK API key in MainPanel Maps before running chat discovery.')
+      return
     }
-  }, [grabMapsApiKey, grabMapsAuthMode, keywordSearchPreview, nearbyPreview, properties, settingsValues])
+    setRunning(true)
+    setStatusText('Planning discovery query...')
+    const baseSettings = {
+      ...settingsValues,
+      'maps.grabmaps.mcp.searchPlaces.query': trimmedQuery,
+      'maps.grabmaps.mcp.discovery.chatModel': modelId,
+    } as GrabMapsDiscoverySettingsValues
+    setSettingsValues(baseSettings)
+    writeGrabMapsDiscoverySettingsValues(baseSettings)
+    try {
+      const planner = await planOperations({
+        query: trimmedQuery,
+        modelId,
+        chatAuthMode,
+        chatApiKey,
+        defaults: baseSettings,
+      })
+      const fallbackLocation = readLocation({
+        lat: baseSettings['maps.grabmaps.mcp.searchPlaces.lat'],
+        lon: baseSettings['maps.grabmaps.mcp.searchPlaces.lon'],
+      })
+      const operations = planner.operations.length > 0
+        ? planner.operations
+        : [{
+          endpoint: 'keywordSearch' as const,
+          params: {
+            keyword: trimmedQuery,
+            country: baseSettings['maps.grabmaps.mcp.searchPlaces.country'],
+            location: fallbackLocation,
+            limit: baseSettings['maps.grabmaps.mcp.searchPlaces.limit'],
+          },
+          note: 'Fallback keyword search',
+        }]
+
+      const markdownSections: string[] = []
+      for (const operation of operations.slice(0, 3)) {
+        const params = asRecord(operation.params) || {}
+        if (operation.endpoint === 'keywordSearch') {
+          const query = readString(params.keyword, trimmedQuery)
+          const country = readString(params.country, readString(baseSettings['maps.grabmaps.mcp.searchPlaces.country']))
+          const location = readString(params.location, fallbackLocation)
+          const limit = readNumber(params.limit, readNumber(baseSettings['maps.grabmaps.mcp.searchPlaces.limit'], 10))
+          const searchParams = new URLSearchParams({ keyword: query })
+          if (country) searchParams.set('country', country)
+          if (location) searchParams.set('location', location)
+          if (Number.isFinite(limit)) searchParams.set('limit', String(limit))
+          const json = await callGrabMapsJson({
+            url: `https://maps.grab.com/api/v1/maps/poi/v1/search?${searchParams.toString()}`,
+            authorization: authHeader,
+          })
+          const places = parsePlaces(json)
+          markdownSections.push([
+            `### Keyword Search: ${query}`,
+            ...places.map((place) => `- ${place.name} | ${place.address}${place.coordinates ? ` | ${place.coordinates}` : ''}`),
+          ].join('\n'))
+          continue
+        }
+        if (operation.endpoint === 'nearbySearch') {
+          const defaultNearbyLocation = readLocation({
+            lat: baseSettings['maps.grabmaps.mcp.nearbySearch.lat'],
+            lon: baseSettings['maps.grabmaps.mcp.nearbySearch.lon'],
+          })
+          const location = readString(params.location, defaultNearbyLocation)
+          if (!location) continue
+          const radius = readNumber(params.radius, readNumber(baseSettings['maps.grabmaps.mcp.nearbySearch.radius'], 1))
+          const limit = readNumber(params.limit, readNumber(baseSettings['maps.grabmaps.mcp.nearbySearch.limit'], 10))
+          const rankBy = readString(params.rankBy, readString(baseSettings['maps.grabmaps.mcp.nearbySearch.rankBy'], 'distance'))
+          const language = readString(params.language, readString(baseSettings['maps.grabmaps.mcp.nearbySearch.language']))
+          const nearbyParams = new URLSearchParams({ location })
+          nearbyParams.set('radius', String(radius))
+          nearbyParams.set('limit', String(limit))
+          if (rankBy) nearbyParams.set('rankBy', rankBy)
+          if (language) nearbyParams.set('language', language)
+          const json = await callGrabMapsJson({
+            url: `https://maps.grab.com/api/v1/maps/place/v2/nearby?${nearbyParams.toString()}`,
+            authorization: authHeader,
+          })
+          const places = parsePlaces(json)
+          markdownSections.push([
+            `### Nearby Search: ${location} (${radius} km)`,
+            ...places.map((place) => `- ${place.name} | ${place.address}${place.coordinates ? ` | ${place.coordinates}` : ''}`),
+          ].join('\n'))
+          continue
+        }
+        if (operation.endpoint === 'reverseGeo') {
+          const location = readString(params.location, fallbackLocation)
+          if (!location) continue
+          const type = readString(params.type)
+          const reverseParams = new URLSearchParams({ location })
+          if (type) reverseParams.set('type', type)
+          const json = await callGrabMapsJson({
+            url: `https://maps.grab.com/api/v1/maps/poi/v1/reverse-geo?${reverseParams.toString()}`,
+            authorization: authHeader,
+          })
+          const places = parsePlaces(json)
+          markdownSections.push([
+            `### Reverse Geo: ${location}`,
+            ...places.map((place) => `- ${place.name} | ${place.address}${place.coordinates ? ` | ${place.coordinates}` : ''}`),
+          ].join('\n'))
+        }
+      }
+
+      if (markdownSections.length === 0) {
+        setStatusText('No runnable GrabMaps operation resolved from this prompt.')
+        return
+      }
+      setStatusText('Writing Markdown output to Workspace Editor...')
+      const markdown = [
+        '# GrabMap Chat Discovery',
+        '',
+        `- Query: ${trimmedQuery}`,
+        `- Model: ${modelId}`,
+        '',
+        ...markdownSections,
+      ].join('\n')
+      const resolvedPath = await appendChatHistoryWorkspaceFile({
+        requestedPath: chatKnowgrphWorkspacePath,
+        timestampMs: Date.now(),
+        providerSummary: `GrabMap Chat Discovery Widget · ${modelId}`,
+        userText: trimmedQuery,
+        assistantText: markdown,
+        storageType: 'chatKnowgrph',
+        defaultLocalRootPath: chatLocalStorageRootPath,
+        onResolvedPath: setChatKnowgrphWorkspacePath,
+      })
+      const canonicalPath = toCanonicalKgcWorkspacePath(resolvedPath)
+      setWorkspaceViewMode('editor')
+      setEditorWorkspacePane('markdown')
+      useMarkdownExplorerStore.getState().setActivePath(canonicalPath)
+      setStatusText('Discovery result written to Workspace Editor Markdown.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error || '')
+      setStatusText(`Discovery failed: ${message || 'Unknown error'}`)
+    } finally {
+      setRunning(false)
+    }
+  }, [
+    chatApiKey,
+    chatAuthMode,
+    chatKnowgrphWorkspacePath,
+    chatLocalStorageRootPath,
+    grabMapsApiKey,
+    grabMapsAuthMode,
+    modelId,
+    queryText,
+    running,
+    setChatKnowgrphWorkspacePath,
+    setEditorWorkspacePane,
+    setWorkspaceViewMode,
+    settingsValues,
+  ])
 
   return (
-    <section className="px-3 py-2 space-y-3" aria-label="Discovery Widget">
+    <section className="px-3 py-2 space-y-3" aria-label="GrabMap Chat Discovery Widget">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Compass className="h-4 w-4" aria-hidden="true" />
             <h3 className={`font-semibold ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
-              Discovery Widget
+              {getGrabMapsDiscoveryWidgetLabel()}
             </h3>
           </div>
           <p className={`mt-2 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
-            Props Panel owns the user-facing Discovery Widget. MainPanel Maps stays backend/system/API/MCP-facing for GrabMaps.
+            Chat-style query input. Discovery defaults and model remain shared with MainPanel Integrations and MainPanel Maps.
           </p>
         </div>
         <button
@@ -332,148 +432,53 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         </button>
       </div>
 
-      <section className={`${CARD_CLASS} p-3`} aria-label="Discovery Widget Identity">
-        <div className={`font-medium ${UI_THEME_TOKENS.text.primary}`}>{getGrabMapsDiscoveryWidgetLabel()}</div>
-        <div className={`mt-1 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
-          Drag this widget from the shared Widget palette into the canvas, aligned with the same palette/drop SSOT used by OpenAI Text Widget.
-        </div>
-      </section>
-
-      <GrabMapsDiscoverySettingsTable
-        ariaLabel="GrabMaps keyword discovery settings"
-        section="keyword"
-        microLabelClass={uiPanelMicroLabelTextSizeClass}
-        textSizeClass={uiPanelKeyValueTextSizeClass}
-        keyLabelClass={`${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}
-        values={settingsValues}
-        setValues={commitSettingsValues}
-        dirtyRef={dirtyRef}
-        settingsTypeIconSizeClass={settingsTypeIconSizeClass}
-        uiIconStrokeWidth={typeof uiIconStrokeWidth === 'number' && Number.isFinite(uiIconStrokeWidth) ? uiIconStrokeWidth : 1.5}
-      />
-
-      <section className={`${CARD_CLASS} p-3`}>
-        <label className={`mb-2 flex items-center gap-2 font-medium ${UI_THEME_TOKENS.text.primary}`} htmlFor="grabmaps-discovery-widget-query">
-          <Search className="h-4 w-4" aria-hidden="true" />
-          Search Places
+      <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
+        <label className={`block ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} htmlFor="grabmaps-discovery-model">
+          Model
         </label>
-        <PlainTextInputEditor
-          id="grabmaps-discovery-widget-query"
-          value={readText(properties, 'searchQuery')}
-          onChange={next => {
-            commitSettingsValues(prev => ({
-              ...prev,
-              'maps.grabmaps.mcp.searchPlaces.query': next,
-            }))
+        <select
+          id="grabmaps-discovery-model"
+          value={modelId}
+          onChange={event => {
+            const next = String(event.target.value || '').trim() || 'gpt-5.4-nano'
+            const patched = { ...settingsValues, 'maps.grabmaps.mcp.discovery.chatModel': next } as GrabMapsDiscoverySettingsValues
+            setSettingsValues(patched)
+            writeGrabMapsDiscoverySettingsValues(patched)
           }}
-          placeholder="Marina Bay Sands, night markets, waterfront ferries"
-          className={INPUT_CLASS}
-          ariaLabel="Search Query"
-        />
-        <p className={`mt-2 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
-          Widget rows reuse the shared widget registry and port-handle key/type/value layout, while discovery defaults stay on the shared GrabMaps settings keys.
-        </p>
+          className={`h-8 w-full rounded border px-2 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
+        >
+          <option value="gpt-5.4-nano">gpt-5.4-nano</option>
+        </select>
       </section>
 
-      <GrabMapsDiscoverySettingsTable
-        ariaLabel="GrabMaps nearby discovery settings"
-        section="nearby"
-        microLabelClass={uiPanelMicroLabelTextSizeClass}
-        textSizeClass={uiPanelKeyValueTextSizeClass}
-        keyLabelClass={`${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass}`}
-        values={settingsValues}
-        setValues={commitSettingsValues}
-        dirtyRef={dirtyRef}
-        settingsTypeIconSizeClass={settingsTypeIconSizeClass}
-        uiIconStrokeWidth={typeof uiIconStrokeWidth === 'number' && Number.isFinite(uiIconStrokeWidth) ? uiIconStrokeWidth : 1.5}
-      />
-
-      <section className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <section className={`${CARD_CLASS} p-3`}>
-          <h4 className={`font-medium ${UI_THEME_TOKENS.text.primary}`}>Keyword Search Summary</h4>
-          <div className={`mt-2 rounded border p-2 text-xs ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}>
-            <div className="break-all">{keywordSearchSummary}</div>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className={`inline-flex h-8 items-center gap-1 rounded border px-2 text-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
-              onClick={() => void runRequest('keyword')}
-              disabled={runningAction != null}
-            >
-              <Search className="h-4 w-4" aria-hidden="true" />
-              {runningAction === 'keyword' ? 'Searching...' : 'Search Places'}
-            </button>
-          </div>
-          {keywordStatus ? (
-            <p className={`mt-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>{keywordStatus}</p>
-          ) : null}
-          {keywordResults.length > 0 ? (
-            <div className="mt-3 space-y-2" aria-label="Keyword discovery results">
-              {keywordResults.map(result => (
-                <article key={result.id} className={`rounded border p-2 text-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`}>
-                  <div className={UI_THEME_TOKENS.text.primary}>{result.title}</div>
-                  <div className={`mt-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>{result.subtitle}</div>
-                  {result.coordinates ? (
-                    <div className={`mt-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>{result.coordinates}</div>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          ) : null}
-        </section>
-
-        <section className={`${CARD_CLASS} p-3`}>
-          <h4 className={`font-medium ${UI_THEME_TOKENS.text.primary}`}>Nearby Search Summary</h4>
-          <div className={`mt-2 rounded border p-2 text-xs ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}>
-            <div className="break-all">{nearbySearchSummary}</div>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className={`inline-flex h-8 items-center gap-1 rounded border px-2 text-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
-              onClick={() => void runRequest('nearby')}
-              disabled={runningAction != null}
-            >
-              <Search className="h-4 w-4" aria-hidden="true" />
-              {runningAction === 'nearby' ? 'Discovering...' : 'Discover Nearby'}
-            </button>
-          </div>
-          {nearbyStatus ? (
-            <p className={`mt-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>{nearbyStatus}</p>
-          ) : null}
-          {nearbyResults.length > 0 ? (
-            <div className="mt-3 space-y-2" aria-label="Nearby discovery results">
-              {nearbyResults.map(result => (
-                <article key={result.id} className={`rounded border p-2 text-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`}>
-                  <div className={UI_THEME_TOKENS.text.primary}>{result.title}</div>
-                  <div className={`mt-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>{result.subtitle}</div>
-                  {result.coordinates ? (
-                    <div className={`mt-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>{result.coordinates}</div>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          ) : null}
-        </section>
-      </section>
-
-      <section className={`${CARD_CLASS} p-3`}>
-        <h4 className={`font-medium ${UI_THEME_TOKENS.text.primary}`}>MainPanel Maps Integration</h4>
-        <ul className={`mt-2 space-y-1 text-sm ${UI_THEME_TOKENS.text.secondary}`}>
-          <li>MainPanel Maps keeps backend/system/API/MCP-facing GrabMaps config, including auth, command, args, env, and startup timeout.</li>
-          <li>Discovery Widget writes to the same shared GrabMaps search defaults reused by MainPanel Maps.</li>
-          <li>Search runs from Props Panel without a duplicate floating Discovery surface.</li>
-        </ul>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+      <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
+        <label className={`block ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} htmlFor="grabmaps-discovery-query">
+          Query
+        </label>
+        <div className={`w-full border rounded overflow-hidden h-[88px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+          <PlainTextInputEditor
+            id="grabmaps-discovery-query"
+            value={queryText}
+            onChange={setQueryText}
+            multiline
+            className="w-full h-full border-0 rounded-none bg-transparent"
+            inputClassName={uiPanelTextFontClass}
+          />
+        </div>
+        <div className="flex items-center justify-end">
           <button
             type="button"
-            className={`inline-flex h-8 items-center gap-1 rounded border px-2 text-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}
-            onClick={restoreDefaults}
+            className={`inline-flex h-8 items-center gap-1 rounded px-2 text-sm ${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText} disabled:opacity-50`}
+            onClick={() => void runDiscovery()}
+            disabled={running || !queryText.trim()}
           >
-            Restore Discovery Widget Defaults
+            <Send className="h-4 w-4" aria-hidden="true" />
+            {running ? 'Running...' : 'Run Discovery'}
           </button>
         </div>
+        {statusText ? (
+          <p className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>{statusText}</p>
+        ) : null}
       </section>
     </section>
   )

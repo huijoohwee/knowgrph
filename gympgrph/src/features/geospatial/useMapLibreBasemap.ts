@@ -31,6 +31,12 @@ type BasemapResult = {
   styleRevision: number
 }
 
+type BasemapPoiClickDetail = {
+  label: string
+  lng: number
+  lat: number
+}
+
 const EMPTY_PROBE: BasemapProbe = { tileSourceId: '', tilesLoaded: false, canvasW: 0, canvasH: 0, zoom: 0, lng: 0, lat: 0 }
 const SINGAPORE_CENTER_LNG = 103.8198
 const SINGAPORE_CENTER_LAT = 1.3521
@@ -342,6 +348,12 @@ const isGrabMapsProxyMissing = (message: string): boolean => {
   return text.includes('not found') || /\b404\b/.test(text)
 }
 
+const isOpenFreeMapLibertyUrl = (rawUrl: unknown): boolean => {
+  const text = String(rawUrl || '').trim().toLowerCase()
+  if (!text) return false
+  return text.includes('tiles.openfreemap.org/styles/liberty')
+}
+
 const isMapActivelyNavigating = (map: any, lastNavigationAtMs: number): boolean => {
   const now = Date.now()
   if (now - lastNavigationAtMs <= GRABMAPS_RUNTIME_NAVIGATION_GRACE_MS) return true
@@ -358,6 +370,32 @@ const isMapActivelyNavigating = (map: any, lastNavigationAtMs: number): boolean 
   return false
 }
 
+const POI_NAME_KEYS = ['name', 'name_en', 'poi_name', 'label', 'title', 'display_name'] as const
+
+const readPoiLabelFromFeature = (feature: unknown): string => {
+  if (!feature || typeof feature !== 'object') return ''
+  const props = (feature as { properties?: unknown }).properties
+  if (!props || typeof props !== 'object') return ''
+  for (const key of POI_NAME_KEYS) {
+    const value = (props as Record<string, unknown>)[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+const readFeaturePointCoordinates = (feature: unknown): [number, number] | null => {
+  if (!feature || typeof feature !== 'object') return null
+  const geometry = (feature as { geometry?: unknown }).geometry
+  if (!geometry || typeof geometry !== 'object') return null
+  const type = String((geometry as { type?: unknown }).type || '')
+  const coordinates = (geometry as { coordinates?: unknown }).coordinates
+  if (type !== 'Point' || !Array.isArray(coordinates) || coordinates.length < 2) return null
+  const lng = Number(coordinates[0])
+  const lat = Number(coordinates[1])
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null
+  return [lng, lat]
+}
+
 export function useMapLibreBasemap(args: {
   enabled: boolean
   rootRef: React.RefObject<HTMLElement | null>
@@ -368,8 +406,9 @@ export function useMapLibreBasemap(args: {
   viewportSizingMode: 'none' | 'fit'
   vectorFallbackMs: number
   onGrabMapsFallback?: () => void
+  onPoiClick?: (detail: BasemapPoiClickDetail) => void
 }): BasemapResult {
-  const { enabled, containerRef, targetStyleUrl, canvasRenderMode, projectionMode, viewportSizingMode, vectorFallbackMs, onGrabMapsFallback } = args
+  const { enabled, containerRef, targetStyleUrl, canvasRenderMode, projectionMode, viewportSizingMode, vectorFallbackMs, onGrabMapsFallback, onPoiClick } = args
   const [runtimeProjectionMode, setRuntimeProjectionMode] = React.useState<'mercator' | 'globe'>(projectionMode)
   const [state, setState] = React.useState<BasemapResult>({
     map: null,
@@ -458,6 +497,8 @@ export function useMapLibreBasemap(args: {
     let grabMapsBootstrapPending = false
     let lastNavigationAtMs = 0
     let consecutiveIdleGrabMapsServiceErrors = 0
+    let removePoiClickBinding: (() => void) | null = null
+    let poiPopup: any | null = null
     const requestedGrabMapsStyle = isGrabMapsUrl(resolveBasemapStyle(targetStyleUrl) || '')
     const notifyGrabMapsFallback = () => {
       if (grabMapsFallbackApplied) return
@@ -561,6 +602,7 @@ export function useMapLibreBasemap(args: {
         }
 
         const style = resolveBasemapStyle(targetStyleUrl)
+        const requestedOpenFreeMapLiberty = isOpenFreeMapLibertyUrl(style)
 
         if (style == null) {
           setState((prev: BasemapResult) =>
@@ -621,6 +663,30 @@ export function useMapLibreBasemap(args: {
             zoom: canvasRenderMode === '3d' ? INITIAL_3D_ZOOM : 12,
           })
         } catch (err) {
+          if (requestedOpenFreeMapLiberty) {
+            try {
+              map = new MapConstructor({
+                container: el,
+                style: RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL,
+                interactive: true,
+                attributionControl: false,
+                preserveDrawingBuffer: false,
+                transformRequest,
+                center: [SINGAPORE_CENTER_LNG, SINGAPORE_CENTER_LAT],
+                pitch: canvasRenderMode === '3d' ? INITIAL_3D_PITCH : 0,
+                bearing: canvasRenderMode === '3d' ? INITIAL_3D_BEARING : 0,
+                maxPitch: canvasRenderMode === '3d' ? 85 : 60,
+                zoom: canvasRenderMode === '3d' ? INITIAL_3D_ZOOM : 12,
+              })
+            } catch {
+              void 0
+            }
+          }
+          if (map) {
+            setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+            notifyGrabMapsFallback()
+          }
+          else {
           if (canvasRenderMode !== '2d') throw err
           try {
             el.replaceChildren()
@@ -638,6 +704,7 @@ export function useMapLibreBasemap(args: {
           })
           if (!fallbackMap) throw err
           map = fallbackMap
+          }
         }
 
         if (debug && typeof window !== 'undefined') {
@@ -648,13 +715,79 @@ export function useMapLibreBasemap(args: {
           }
         }
 
+        const PopupConstructor = mlAny?.Popup || mlAny?.default?.Popup
+        if (PopupConstructor && typeof map?.on === 'function' && typeof map?.queryRenderedFeatures === 'function') {
+          const onMapClick = (ev: any) => {
+            try {
+              const clickPoint = ev && typeof ev === 'object' && 'point' in ev ? (ev as { point?: unknown }).point : null
+              const candidates = clickPoint ? map.queryRenderedFeatures(clickPoint) : []
+              const features = Array.isArray(candidates) ? candidates : []
+              const picked = features.find((f: unknown) => readPoiLabelFromFeature(f))
+              const label = readPoiLabelFromFeature(picked)
+              if (!picked || !label) {
+                if (poiPopup) {
+                  try {
+                    poiPopup.remove?.()
+                  } catch {
+                    void 0
+                  }
+                  poiPopup = null
+                }
+                return
+              }
+              const poiCoords = readFeaturePointCoordinates(picked)
+              const lng = poiCoords ? poiCoords[0] : Number(ev?.lngLat?.lng)
+              const lat = poiCoords ? poiCoords[1] : Number(ev?.lngLat?.lat)
+              if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+              try {
+                onPoiClick?.({ label, lng, lat })
+              } catch {
+                void 0
+              }
+              if (!poiPopup) poiPopup = new PopupConstructor({ closeButton: true, closeOnClick: true, maxWidth: '260px' })
+              poiPopup.setLngLat([lng, lat]).setText(label).addTo(map)
+            } catch {
+              void 0
+            }
+          }
+          map.on('click', onMapClick)
+          removePoiClickBinding = () => {
+            try {
+              map.off?.('click', onMapClick)
+            } catch {
+              void 0
+            }
+            if (poiPopup) {
+              try {
+                poiPopup.remove?.()
+              } catch {
+                void 0
+              }
+              poiPopup = null
+            }
+          }
+        }
+
         map.on?.('error', (e: any) => {
           if (cancelled) return
           const err = e && typeof e === 'object' && 'error' in e ? (e as { error?: unknown }).error : e
-          if (isAbortLike(err)) return
           const msg = err instanceof Error ? err.message : String(err || '')
           const trimmed = msg.trim()
           if (!trimmed) return
+          const openFreeMapAbort =
+            requestedOpenFreeMapLiberty
+            && isAbortLike(err)
+            && isOpenFreeMapLibertyUrl(trimmed)
+          if (openFreeMapAbort && typeof map?.setStyle === 'function') {
+            try {
+              map.setStyle?.(RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL)
+              setState((prev: BasemapResult) => ({ ...prev, mapError: null }))
+            } catch {
+              setState((prev: BasemapResult) => ({ ...prev, mapError: trimmed }))
+            }
+            return
+          }
+          if (isAbortLike(err)) return
           const canFallbackGrabMapsRuntime =
             !grabMapsFallbackApplied
             && requestedGrabMapsStyle
@@ -889,6 +1022,14 @@ export function useMapLibreBasemap(args: {
           void 0
         }
         abortNoiseCleanup = null
+      }
+      if (removePoiClickBinding) {
+        try {
+          removePoiClickBinding()
+        } catch {
+          void 0
+        }
+        removePoiClickBinding = null
       }
       try {
         map?.remove?.()

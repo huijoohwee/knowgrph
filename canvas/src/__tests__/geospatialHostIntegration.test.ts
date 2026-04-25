@@ -34,6 +34,99 @@ export const testCanvasForbidsGraphWhenGeospatialEnabled = () => {
   }
 }
 
+export const testGeospatialFlowEditorWidgetDropBridgeStaysMounted = () => {
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const viewportText = readUtf8(viewportPath)
+  const flowEditorText = readUtf8(flowEditorPath)
+
+  if (!viewportText.includes("geospatialModeEnabled && active2dSurface === 'flowEditor'")) {
+    throw new Error('Expected Geospatial mode to mount FlowEditor widget drop bridge when flowEditor renderer is selected')
+  }
+  if (!viewportText.includes('<FlowEditorCanvas active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />')) {
+    throw new Error('Expected Geospatial flowEditor bridge to mount with widgetDropCaptureEnabled and geospatial widget panel mode')
+  }
+  if (!flowEditorText.includes('widgetDropCaptureEnabled')) {
+    throw new Error('Expected FlowEditorCanvas to expose widgetDropCaptureEnabled override for drop listeners')
+  }
+  if (!flowEditorText.includes('geospatialWidgetPanelMode')) {
+    throw new Error('Expected FlowEditorCanvas to expose geospatial widget panel overlay mode')
+  }
+}
+
+export const testGeospatialWidgetPanelsDefaultToFloatingAndHideMapDots = () => {
+  const viewportPath = path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const viewportText = readUtf8(viewportPath)
+  const flowEditorText = readUtf8(flowEditorPath)
+  const hostText = readUtf8(hostPath)
+
+  if (!viewportText.includes('geospatialPanelNodeIds')) {
+    throw new Error('Expected CanvasViewport geospatial snapshot to publish panel-rendered widget node ids')
+  }
+  if (!flowEditorText.includes('st.setFlowWidgetPinnedByNodeId({ ...pinnedMap, [actualId]: false })')) {
+    throw new Error('Expected geospatial widget drops to default to unpinned floating panels')
+  }
+  if (!hostText.includes('if (panelNodeIds.has(nodeId)) continue')) {
+    throw new Error('Expected GeospatialHost to suppress point rendering for panel-rendered widget nodes')
+  }
+}
+
+export const testGeospatialWidgetPanelsResolvePendingOpenAgainstRenderedGraph = () => {
+  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorText = readUtf8(flowEditorPath)
+
+  if (!flowEditorText.includes('resolveGraphNodeIdByCanonicalId(renderGraphDataOverride as GraphData | null, pending) || pending')) {
+    throw new Error('Expected FlowEditorCanvas to resolve pending widget opens against rendered graph canonical ids')
+  }
+  if (!flowEditorText.includes('Array.isArray(renderGraphDataOverride?.nodes)')) {
+    throw new Error('Expected pending widget-open resolution to inspect rendered graph nodes, not only local draft nodes')
+  }
+}
+
+export const testGeospatialWidgetPanelsDoNotBindDiscoveryWidgetsToGeoCoordinates = () => {
+  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorText = readUtf8(flowEditorPath)
+
+  if (!flowEditorText.includes('if (!geospatialWidgetPanelMode) {')) {
+    throw new Error('Expected geospatial widget panel mode to guard coordinate-coupled discovery widget behavior')
+  }
+  if (!flowEditorText.includes('if (entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID && !geospatialWidgetPanelMode) {')) {
+    throw new Error('Expected post-drop discovery geo sync to stay disabled for geospatial widget panel mode')
+  }
+  if (!flowEditorText.includes('if (!geospatialWidgetPanelMode) {\n          const dropGeo = readFiniteGeoLatLng(properties)')) {
+    throw new Error('Expected map recentering to stay disabled for geospatial widget panel mode discovery widget drops')
+  }
+}
+
+export const testGeospatialHostPublishesCursorLngLatForWidgetDropPlacement = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
+  const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const hostText = readUtf8(hostPath)
+  const sliceText = readUtf8(slicePath)
+  const flowEditorText = readUtf8(flowEditorPath)
+  if (!hostText.includes("map.on?.('mousemove'")) {
+    throw new Error('Expected GeospatialHost to track cursor lng/lat from map mousemove events')
+  }
+  if (!hostText.includes("document.addEventListener('dragover'")) {
+    throw new Error('Expected GeospatialHost to track cursor lng/lat during HTML dragover for geospatial widget drops')
+  }
+  if (!hostText.includes('immediate: true')) {
+    throw new Error('Expected GeospatialHost to publish final drop lng/lat synchronously during drop events')
+  }
+  if (!sliceText.includes('setGeospatialCursorLngLat')) {
+    throw new Error('Expected geospatial store to expose setGeospatialCursorLngLat SSOT action')
+  }
+  if (!flowEditorText.includes('syncGrabMapsDiscoveryGeoFromDropCursor')) {
+    throw new Error('Expected FlowEditor bridge drop path to perform a short post-drop geo sync for GrabMaps discovery widgets')
+  }
+  if (!flowEditorText.includes('readGeospatialCursorLngLat()')) {
+    throw new Error('Expected FlowEditor drop path to reuse geospatial cursor lng/lat for widget placement')
+  }
+}
+
 export const testGympgrphGeospatialKeysAreNamespacedOnly = () => {
   const configPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'lib', 'config.ts')
   const text = readUtf8(configPath)
@@ -441,6 +534,53 @@ export const testGympgrphMapLibreLoggerSuppressesAbortNoise = () => {
   if (!text.includes('/__fetch_remote')) throw new Error('Expected logger to filter /__fetch_remote abort noise')
   if (!text.toLowerCase().includes('err_aborted') && !text.toLowerCase().includes('aborterror')) {
     throw new Error('Expected logger to match aborted request errors')
+  }
+}
+
+export const testGympgrphMapLibreBasemapFallsBackFromOpenFreeMapLibertyAbort = () => {
+  const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const text = readUtf8(hookPath)
+  if (!text.includes('isOpenFreeMapLibertyUrl')) {
+    throw new Error('Expected basemap hook to classify OpenFreeMap liberty style requests')
+  }
+  if (!text.includes('requestedOpenFreeMapLiberty')) {
+    throw new Error('Expected basemap hook to carry OpenFreeMap liberty style state through runtime fallback paths')
+  }
+  if (!text.includes('openFreeMapAbort')) {
+    throw new Error('Expected basemap hook to detect OpenFreeMap liberty abort-style runtime errors')
+  }
+  if (!text.includes('RESILIENT_AUTOMATIC_FALLBACK_STYLE_URL')) {
+    throw new Error('Expected basemap hook to apply resilient style fallback when OpenFreeMap liberty aborts')
+  }
+}
+
+export const testGeospatialPoiClickWiresHostActionAndClipboardCopy = () => {
+  const hookPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const hookText = readUtf8(hookPath)
+  const hostText = readUtf8(hostPath)
+
+  if (!hookText.includes('onPoiClick?: (detail: BasemapPoiClickDetail) => void')) {
+    throw new Error('Expected basemap hook contract to expose onPoiClick callback')
+  }
+  if (!hookText.includes('queryRenderedFeatures')) {
+    throw new Error('Expected basemap hook POI picking to query rendered features on map click')
+  }
+  if (!hookText.includes('onPoiClick?.({ label, lng, lat })')) {
+    throw new Error('Expected basemap hook to forward picked POI detail to host callback')
+  }
+
+  if (!hostText.includes('const handlePoiClick = React.useCallback')) {
+    throw new Error('Expected GeospatialHost to define a POI click handler')
+  }
+  if (!hostText.includes('navigator.clipboard.writeText')) {
+    throw new Error('Expected GeospatialHost POI handler to copy coordinates via clipboard when available')
+  }
+  if (!hostText.includes('onPoiClick: handlePoiClick')) {
+    throw new Error('Expected GeospatialHost to pass POI callback into basemap hook wiring')
+  }
+  if (!hostText.includes("id: 'kg:geo:poi-click'")) {
+    throw new Error('Expected GeospatialHost POI handler to emit toast feedback for host-side action visibility')
   }
 }
 

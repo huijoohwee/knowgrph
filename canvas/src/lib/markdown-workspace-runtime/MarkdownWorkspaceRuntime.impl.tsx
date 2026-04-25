@@ -446,6 +446,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setLoading(true)
     setLoadError('')
     try {
+      const currentActivePath = activePathRef.current
       const fs = await getFs()
       await fs.ensureSeed()
       const list = await fs.listEntries()
@@ -465,6 +466,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
           existing: store.sourceFiles,
           workspaceEntries: pruned,
           sourcesByPath: sources,
+          forceIncludePaths: currentActivePath ? [currentActivePath] : [],
         })
         store.setSourceFiles(merged)
       } catch {
@@ -1069,6 +1071,24 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     if (!active) return
     void refresh()
   }, [active, refresh])
+
+  React.useEffect(() => {
+    if (!activePath) return
+    try {
+      const store = useGraphStore.getState()
+      const merged = mergeWorkspaceEntriesIntoSourceFiles({
+        existing: store.sourceFiles,
+        workspaceEntries: entries,
+        sourcesByPath,
+        forceIncludePaths: [activePath],
+      })
+      if (merged !== store.sourceFiles) {
+        store.setSourceFiles(merged)
+      }
+    } catch {
+      void 0
+    }
+  }, [activePath, entries, sourcesByPath])
 
   const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
     setSelectionPath(toCanonicalKgcWorkspacePath(normalizeWorkspacePath(path)))

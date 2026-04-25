@@ -366,6 +366,21 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.sourceFiles.compose.crudSync.updateNodeWritesBackToLayer',
       modComposedCrudSync.testComposedUpdateNodeSyncsToSourceFileAndRecomposes,
     )
+    await execTest(
+      results,
+      'ui.sourceFiles.compose.crudSync.addNodePrefersActiveMarkdownSourceLayer',
+      modComposedCrudSync.testComposedAddNodePrefersActiveMarkdownDocumentSourceFile,
+    )
+    await execTest(
+      results,
+      'ui.sourceFiles.compose.crudSync.addNodeSeedsActiveMarkdownSourceLayerWhenMissingGraph',
+      modComposedCrudSync.testComposedAddNodeSeedsActiveMarkdownDocumentWhenGraphMissing,
+    )
+    await execTest(
+      results,
+      'ui.sourceFiles.compose.crudSync.addNodeSeedsActiveMarkdownSourceLayerWithoutPreexistingComposedGraph',
+      modComposedCrudSync.testAddNodeSeedsActiveMarkdownDocumentWithoutPreexistingComposedGraph,
+    )
 
     const modPins = await import('../__tests__/nodePositionCommitClearsPinsRegression.test')
     await execTest(

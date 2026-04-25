@@ -67,3 +67,11 @@ export async function requestGeospatialTraversalRun(args?: { edgeIds?: string[] 
   }
   m.requestGeospatialTraversalRun(args)
 }
+
+export async function requestGeospatialCurrentLocation(args: { lat: number; lng: number; zoom?: number }): Promise<void> {
+  const m = await importGympgrph()
+  if (typeof m.requestGeospatialCurrentLocation !== 'function') {
+    throw new Error('Geospatial current location API is unavailable')
+  }
+  m.requestGeospatialCurrentLocation(args)
+}

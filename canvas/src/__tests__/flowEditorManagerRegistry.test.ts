@@ -126,7 +126,7 @@ export function testFlowEditorManagerSeedsGenerateVideoRegistryEntry() {
   if (!imageFound) throw new Error('expected Image Widget mapping')
   if (!textFound) throw new Error('expected Text Widget mapping')
   if (!richMediaPanelFound) throw new Error('expected Rich Media Panel mapping')
-  if (!discoveryFound) throw new Error('expected GrabMap Discovery Widget mapping')
+  if (!discoveryFound) throw new Error('expected GrabMap Chat Discovery Widget mapping')
   if (!found) throw new Error('expected Generate Video mapping')
 
   const stable = ensureDefaultWidgetRegistryEntries(seeded, '2026-02-06T00:00:00.000Z')
@@ -230,14 +230,14 @@ export function testFlowEditorManagerSeedsGrabMapsDiscoveryRegistryEntry() {
   const discoveryEntry = seeded.entries.find(
     entry => entry.nodeTypeId === FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID && entry.formId === FLOW_GRABMAPS_DISCOVERY_FORM_ID,
   )
-  if (!discoveryEntry) throw new Error('expected default widget registry seed to include GrabMap Discovery Widget entry')
+  if (!discoveryEntry) throw new Error('expected default widget registry seed to include GrabMap Chat Discovery Widget entry')
   const fieldKeys = new Set((discoveryEntry.fields || []).map(field => field.fieldKey))
-  ;['searchQuery', 'searchCountry', 'nearbyRadiusKm', 'nearbyRankBy'].forEach(key => {
-    if (!fieldKeys.has(key)) throw new Error(`expected seeded GrabMap Discovery Widget entry to expose ${key}`)
+  ;['chatModel', 'searchQuery', 'searchCountry', 'nearbyRadiusKm', 'nearbyRankBy'].forEach(key => {
+    if (!fieldKeys.has(key)) throw new Error(`expected seeded GrabMap Chat Discovery Widget entry to expose ${key}`)
   })
   const label = getWidgetRegistryEntryLabel(discoveryEntry)
-  if (label !== 'GrabMap Discovery Widget') {
-    throw new Error(`expected shared widget label helper to classify GrabMap Discovery Widget, got ${String(label)}`)
+  if (label !== 'GrabMap Chat Discovery Widget') {
+    throw new Error(`expected shared widget label helper to classify GrabMap Chat Discovery Widget, got ${String(label)}`)
   }
 }
 
@@ -266,7 +266,7 @@ export function testFlowEditorManagerCanonicalizesConflictingGrabMapsDiscoveryRe
       || entry.formId === FLOW_GRABMAPS_DISCOVERY_FORM_ID,
   )
   if (discoveryEntries.length !== 1) {
-    throw new Error(`expected exactly one canonical GrabMap Discovery Widget entry after normalization, got ${discoveryEntries.length}`)
+    throw new Error(`expected exactly one canonical GrabMap Chat Discovery Widget entry after normalization, got ${discoveryEntries.length}`)
   }
   const discoveryEntry = discoveryEntries[0]!
   if (discoveryEntry.nodeTypeId !== FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID) {
@@ -276,11 +276,11 @@ export function testFlowEditorManagerCanonicalizesConflictingGrabMapsDiscoveryRe
     throw new Error(`expected conflicting discovery entry to normalize widgetTypeId to ${FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID}, got ${String(discoveryEntry.widgetTypeId)}`)
   }
   const fieldKeys = new Set((discoveryEntry.fields || []).map(field => field.fieldKey))
-  ;['searchQuery', 'searchCountry', 'nearbyRadiusKm', 'nearbyRankBy'].forEach(key => {
-    if (!fieldKeys.has(key)) throw new Error(`expected canonicalized GrabMap Discovery Widget entry to expose ${key}`)
+  ;['chatModel', 'searchQuery', 'searchCountry', 'nearbyRadiusKm', 'nearbyRankBy'].forEach(key => {
+    if (!fieldKeys.has(key)) throw new Error(`expected canonicalized GrabMap Chat Discovery Widget entry to expose ${key}`)
   })
   ;['model', 'aspect_ratio', 'duration', 'resolution', 'generate_audio'].forEach(key => {
-    if (fieldKeys.has(key)) throw new Error(`expected canonicalized GrabMap Discovery Widget entry to remove conflicting stale field ${key}`)
+    if (fieldKeys.has(key)) throw new Error(`expected canonicalized GrabMap Chat Discovery Widget entry to remove conflicting stale field ${key}`)
   })
 }
 
@@ -407,7 +407,7 @@ export function testFlowEditorManagerNormalizesBytePlusTextWidgetProviderDefault
     providerFamily: family,
     properties: {
       chatProvider: 'openai',
-      chatEndpointUrl: 'https://api.openai.com/v1/chat/completions',
+      chatEndpointUrl: 'https://api.openai.com/v1/responses',
       chatModel: 'gpt-5.4-nano',
       prompt: 'hello',
     },

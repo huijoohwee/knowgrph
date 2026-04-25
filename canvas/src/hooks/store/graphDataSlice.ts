@@ -19,12 +19,15 @@ import {
 } from './graphDataSliceUtils'
 import { containsFrontmatterMermaid, isMarkdownLikeFileName, normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { createSubgraph, readSubgraphs, removeSubgraph as removeSubgraphFromGraphData, subgraphGroupId, updateSubgraph as updateSubgraphInGraphData } from '@/lib/graph/subgraphs'
+import { extractYamlFrontmatterBlock } from '@/lib/markdown/frontmatter'
 import {
   buildDefaultVisibleColumns,
   isGraphDataTablePropertyColumnKey,
   type GraphDataTableColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 
 type SetGraph = StoreApi<GraphState>['setState']
 export type GetGraph = StoreApi<GraphState>['getState']
@@ -32,6 +35,40 @@ export type GetGraph = StoreApi<GraphState>['getState']
 type ParsedComposedId = { layerId: string; innerId: string }
 
 const COMPOSED_NODE_POSITION_KEYS = new Set(['x', 'y', 'vx', 'vy', 'fx', 'fy'])
+
+function normalizeComposedSourcePath(raw: unknown): string {
+  const text = String(raw || '').trim().replace(/\\/g, '/')
+  if (!text) return ''
+  const withoutWorkspace = text.startsWith('workspace:') ? text.slice('workspace:'.length) : text
+  return withoutWorkspace.replace(/^\/+/, '')
+}
+
+function resolvePreferredComposedLayerId(args: { get: GetGraph; explicitLayerId?: string | null }): string | null {
+  const explicit = String(args.explicitLayerId || '').trim()
+  if (explicit) return explicit
+  const state = args.get()
+  const sourceFiles = state.sourceFiles || []
+  const explorerActivePath = normalizeComposedSourcePath(useMarkdownExplorerStore.getState().activePath)
+  const activeDocPath = normalizeComposedSourcePath(state.markdownDocumentName) || explorerActivePath
+  if (activeDocPath) {
+    const activeFile = sourceFiles.find(f => {
+      if (!f?.enabled) return false
+      const sourcePath = normalizeComposedSourcePath(f.source?.path || f.name || '')
+      return sourcePath === activeDocPath
+    })
+    if (activeFile?.id) return String(activeFile.id)
+  }
+  const selectedLayerId = parseComposedId(state.selectedNodeId || '')?.layerId || ''
+  if (selectedLayerId) return selectedLayerId
+  const fallbackLayerId = sourceFiles.find(f => f.enabled && !!f.parsedGraphData)?.id || null
+  return fallbackLayerId ? String(fallbackLayerId) : null
+}
+
+function ensureSourceFileGraphData(file: GraphState['sourceFiles'][number]): GraphData {
+  const parsed = file?.parsedGraphData
+  if (parsed && Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) return parsed
+  return { type: 'Graph', nodes: [], edges: [], metadata: {} }
+}
 
 function isPositionOnlyNodeUpdate(updates: Partial<GraphNode>): boolean {
   const keys = Object.keys(updates || {})
@@ -192,6 +229,213 @@ function buildLayersFromSourceFiles(sourceFiles: GraphState['sourceFiles']) {
     parsedGraphRevision: f.parsedGraphRevision,
     parsedGraphData: f.parsedGraphData,
   }))
+}
+
+const FLOW_YAML_PLAIN_KEY_RE = /^[A-Za-z0-9_.-]+$/
+const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey'
+const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey'
+const FLOW_COMPUTE_PROPERTY_KEY = 'flow:compute'
+const FLOW_PORT_TYPES_PROPERTY_KEY = 'flow:portTypes'
+const FRONTMATTER_HANDLES_PROPERTY_KEY = 'frontmatter:handles'
+const FRONTMATTER_WIDGET_FIELDS_PROPERTY_KEY = 'frontmatter:widgetFields'
+
+function flowYamlKey(key: string): string {
+  return FLOW_YAML_PLAIN_KEY_RE.test(key) ? key : JSON.stringify(key)
+}
+
+function flowYamlInlineValue(value: unknown): string {
+  if (typeof value === 'string') return JSON.stringify(value)
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null'
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  if (value == null) return 'null'
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return 'null'
+  }
+}
+
+function appendFlowYamlFieldLines(lines: string[], indent: string, key: string, value: unknown): void {
+  if (typeof value === 'undefined') return
+  const yamlKey = flowYamlKey(key)
+  if (typeof value === 'string' && value.includes('\n')) {
+    lines.push(`${indent}${yamlKey}: |`)
+    for (const row of value.split('\n')) lines.push(`${indent}  ${row}`)
+    return
+  }
+  lines.push(`${indent}${yamlKey}: ${flowYamlInlineValue(value)}`)
+}
+
+function readFlowHandlesFromNode(node: GraphNode): Record<string, unknown> | null {
+  const props = (node.properties || {}) as Record<string, unknown>
+  const explicit = props[FRONTMATTER_HANDLES_PROPERTY_KEY]
+  if (explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
+    return explicit as Record<string, unknown>
+  }
+  const rawPortTypes = props[FLOW_PORT_TYPES_PROPERTY_KEY]
+  if (!rawPortTypes || typeof rawPortTypes !== 'object' || Array.isArray(rawPortTypes)) return null
+  const portTypes = rawPortTypes as Record<string, unknown>
+  const target = portTypes.in && typeof portTypes.in === 'object' && !Array.isArray(portTypes.in)
+    ? Object.keys(portTypes.in as Record<string, unknown>).filter(Boolean)
+    : []
+  const source = portTypes.out && typeof portTypes.out === 'object' && !Array.isArray(portTypes.out)
+    ? Object.keys(portTypes.out as Record<string, unknown>).filter(Boolean)
+    : []
+  const out: Record<string, unknown> = {}
+  if (target.length > 0) out.target = target
+  if (source.length > 0) out.source = source
+  return Object.keys(out).length > 0 ? out : null
+}
+
+function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
+  const lines: string[] = ['flow:']
+  const meta = (graphData.metadata || {}) as Record<string, unknown>
+  const settings = meta.frontmatterFlowSettings && typeof meta.frontmatterFlowSettings === 'object' && !Array.isArray(meta.frontmatterFlowSettings)
+    ? (meta.frontmatterFlowSettings as Record<string, unknown>)
+    : null
+  if (settings) {
+    appendFlowYamlFieldLines(lines, '  ', 'direction', settings.direction)
+    appendFlowYamlFieldLines(lines, '  ', 'edgeType', settings.edgeType)
+    appendFlowYamlFieldLines(lines, '  ', 'computed', settings.computed)
+    appendFlowYamlFieldLines(lines, '  ', 'snapToGrid', settings.snapToGrid)
+    appendFlowYamlFieldLines(lines, '  ', 'gridSize', settings.gridSize)
+  }
+  lines.push('  nodes:')
+  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  for (const node of nodes) {
+    lines.push(`    - id: ${flowYamlInlineValue(String(node.id || ''))}`)
+    lines.push(`      type: ${flowYamlInlineValue(String(node.type || 'Node'))}`)
+    lines.push(`      label: ${flowYamlInlineValue(String(node.label || node.id || ''))}`)
+    const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : null
+    const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : null
+    if (x != null || y != null) {
+      const position: Record<string, number> = {}
+      if (x != null) position.x = x
+      if (y != null) position.y = y
+      lines.push(`      position: ${flowYamlInlineValue(position)}`)
+    }
+    const handles = readFlowHandlesFromNode(node)
+    if (handles) lines.push(`      handles: ${flowYamlInlineValue(handles)}`)
+    const props = (node.properties || {}) as Record<string, unknown>
+    const propEntries = Object.entries(props)
+      .filter(([key, value]) => {
+        if (typeof value === 'undefined') return false
+        if (key === FRONTMATTER_HANDLES_PROPERTY_KEY) return false
+        if (key === FRONTMATTER_WIDGET_FIELDS_PROPERTY_KEY) return false
+        if (key === FLOW_COMPUTE_PROPERTY_KEY) return false
+        return true
+      })
+      .sort(([a], [b]) => a.localeCompare(b))
+    for (const [key, value] of propEntries) {
+      appendFlowYamlFieldLines(lines, '      ', key, value)
+    }
+    const compute = typeof props[FLOW_COMPUTE_PROPERTY_KEY] === 'string' ? String(props[FLOW_COMPUTE_PROPERTY_KEY] || '') : ''
+    if (compute.trim()) appendFlowYamlFieldLines(lines, '      ', 'compute', compute)
+  }
+  lines.push('  edges:')
+  const edges = Array.isArray(graphData.edges) ? graphData.edges : []
+  for (const edge of edges) {
+    const props = (edge.properties || {}) as Record<string, unknown>
+    const source = String(edge.source || '').trim()
+    const target = String(edge.target || '').trim()
+    const sourceHandle = String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
+    const targetHandle = String(props[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
+    const row: Record<string, unknown> = {
+      id: String(edge.id || ''),
+      source: sourceHandle ? `${source}.${sourceHandle}` : source,
+      target: targetHandle ? `${target}.${targetHandle}` : target,
+    }
+    const label = String(edge.label || '').trim()
+    if (label) row.label = label
+    if (typeof props.animated === 'boolean') row.animated = props.animated
+    const socketType = String(props['flow:socketType'] || '').trim()
+    if (socketType) row.type = socketType
+    lines.push(`    - ${flowYamlInlineValue(row)}`)
+  }
+  return lines
+}
+
+function upsertFrontmatterFlowMarkdownText(rawText: string, graphData: GraphData): string {
+  const text = String(rawText || '')
+  const flowLines = buildFrontmatterFlowBlockLines(graphData)
+  const block = extractYamlFrontmatterBlock(text)
+  if (!block) {
+    const prefix = ['---', ...flowLines, '---', ''].join('\n')
+    return text ? `${prefix}\n${text}` : `${prefix}\n`
+  }
+  const yamlLines = String(block.yamlText || '').split('\n')
+  let start = -1
+  let end = yamlLines.length
+  for (let i = 0; i < yamlLines.length; i += 1) {
+    const trimmed = String(yamlLines[i] || '').trim()
+    if (/^flow\s*:\s*$/.test(trimmed)) {
+      start = i
+      break
+    }
+  }
+  if (start >= 0) {
+    end = yamlLines.length
+    for (let i = start + 1; i < yamlLines.length; i += 1) {
+      const rawLine = String(yamlLines[i] || '')
+      const trimmed = rawLine.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const indent = rawLine.match(/^\s*/)?.[0]?.length || 0
+      if (indent === 0 && /^[A-Za-z0-9_.-]+\s*:/.test(trimmed)) {
+        end = i
+        break
+      }
+    }
+  }
+  const nextYamlLines = start >= 0
+    ? [...yamlLines.slice(0, start), ...flowLines, ...yamlLines.slice(end)]
+    : [...yamlLines.filter((line, index, arr) => !(arr.length === 1 && line.trim() === '')), ...flowLines]
+  const nextYaml = nextYamlLines.filter((line, index, arr) => !(arr.length > 1 && index === 0 && line === '')).join('\n')
+  const suffix = text.slice(block.rawBlock.length)
+  return `---\n${nextYaml}\n---${suffix}`
+}
+
+function sourceFileShouldWriteFrontmatterFlow(file: GraphState['sourceFiles'][number]): boolean {
+  const name = String(file?.name || '').trim()
+  const path = String(file?.source?.path || '').trim()
+  return isMarkdownLikeFileName(name) || isMarkdownLikeFileName(path)
+}
+
+function isActiveMarkdownSourceFile(state: GraphState, file: GraphState['sourceFiles'][number]): boolean {
+  const explorerActivePath = normalizeComposedSourcePath(useMarkdownExplorerStore.getState().activePath)
+  const activeDocPath = normalizeComposedSourcePath(state.markdownDocumentName) || explorerActivePath
+  if (!activeDocPath) return false
+  const sourcePath = normalizeComposedSourcePath(file?.source?.path || file?.name || '')
+  return !!sourcePath && sourcePath === activeDocPath
+}
+
+function writeWorkspaceSourceTextIfPresent(file: GraphState['sourceFiles'][number], text: string): void {
+  const workspacePath = normalizeComposedSourcePath(file?.source?.path || '')
+  if (!workspacePath) return
+  void getWorkspaceFs()
+    .then(fs => fs.writeFileText(workspacePath as any, text))
+    .catch(() => void 0)
+}
+
+function syncSourceFileTextFromParsedGraph(args: {
+  state: GraphState
+  sourceFiles: GraphState['sourceFiles']
+  fileIndex: number
+  parsedGraphData: GraphData
+}): { sourceFiles: GraphState['sourceFiles']; markdownDocumentText?: string | null } {
+  const file = args.sourceFiles[args.fileIndex]
+  if (!file || !sourceFileShouldWriteFrontmatterFlow(file)) return { sourceFiles: args.sourceFiles }
+  const nextText = upsertFrontmatterFlowMarkdownText(String(file.text || ''), args.parsedGraphData)
+  if (nextText === String(file.text || '')) return { sourceFiles: args.sourceFiles }
+  const nextSourceFiles = args.sourceFiles.slice()
+  nextSourceFiles[args.fileIndex] = {
+    ...file,
+    text: nextText,
+    parsedTextHash: '',
+  }
+  return {
+    sourceFiles: nextSourceFiles,
+    ...(isActiveMarkdownSourceFile(args.state, file) ? { markdownDocumentText: nextText } : {}),
+  }
 }
 
 export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
@@ -760,12 +1004,19 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         if (file && pg && Array.isArray(pg.nodes)) {
           const nextNodes = pg.nodes.map(n => (String(n.id || '') === parsed.innerId ? { ...n, ...updates } : n))
           const nextParsedGraphData = { ...pg, nodes: nextNodes }
-          const nextSourceFiles = sourceFiles.slice()
+          let nextSourceFiles = sourceFiles.slice()
           nextSourceFiles[idx] = {
             ...file,
             parsedGraphData: nextParsedGraphData,
             parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
           }
+          const textSync = syncSourceFileTextFromParsedGraph({
+            state: get(),
+            sourceFiles: nextSourceFiles,
+            fileIndex: idx,
+            parsedGraphData: nextParsedGraphData,
+          })
+          nextSourceFiles = textSync.sourceFiles
           const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
           const nextRevision = (get().graphDataRevision || 0) + 1
           const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
@@ -775,9 +1026,16 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
             graphDataRevision: nextRevision,
             graphContentRevision: (s.graphContentRevision || 0) + 1,
             ...(Object.prototype.hasOwnProperty.call(updates, 'metadata') ? { docLocationRevision: (s.docLocationRevision || 0) + 1 } : {}),
+            ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') ? { markdownDocumentText: textSync.markdownDocumentText ?? null } : {}),
+            ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') && file?.source?.path
+              ? { markdownDocumentName: String(file.source.path || '') || s.markdownDocumentName }
+              : {}),
             graphValidationStatus: null,
             graphValidationTimestamp: null,
           }))
+          if (Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText')) {
+            writeWorkspaceSourceTextIfPresent(nextSourceFiles[idx], textSync.markdownDocumentText ?? '')
+          }
           if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
             try {
               syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -831,46 +1089,56 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     if (!graphData) return
     const tpl = schema.templates?.node?.[node.type] || {};
     const withTpl = { ...node, properties: { ...(node.properties || {}), ...tpl } };
-    if (isComposedGraphData(graphData)) {
-      const parsedId = parseComposedId(withTpl.id)
-      const selectedParsed = parseComposedId(get().selectedNodeId || '')
-      const fallbackLayer = (get().sourceFiles || []).find(f => f.enabled && !!f.parsedGraphData)?.id || null
-      const layerId = parsedId?.layerId || selectedParsed?.layerId || (fallbackLayer ? String(fallbackLayer) : '')
-      const innerId = parsedId?.innerId || String(withTpl.id || '').trim()
-      if (layerId && innerId) {
-        const sourceFiles = get().sourceFiles || []
-        const idx = sourceFiles.findIndex(f => String(f.id || '') === layerId)
-        const file = idx >= 0 ? sourceFiles[idx] : null
-        const pg = file?.parsedGraphData || null
-        if (file && pg && Array.isArray(pg.nodes)) {
-          const layerNode: GraphNode = { ...withTpl, id: innerId }
-          const nextParsedGraphData = { ...pg, nodes: [...pg.nodes, layerNode] }
-          const nextSourceFiles = sourceFiles.slice()
-          nextSourceFiles[idx] = {
-            ...file,
-            parsedGraphData: nextParsedGraphData,
-            parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
-          }
-          const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
-          const nextRevision = (get().graphDataRevision || 0) + 1
-          const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
-          set(s => ({
-            sourceFiles: nextSourceFiles,
-            graphData: nextGraphData,
-            graphDataRevision: nextRevision,
-            graphContentRevision: (s.graphContentRevision || 0) + 1,
-            docLocationRevision: (s.docLocationRevision || 0) + 1,
-            graphValidationStatus: null,
-            graphValidationTimestamp: null,
-          }))
-          try {
-            syncGraphFieldsWithGraphData(get, nextGraphData)
-          } catch { void 0 }
-          const composedId = `${layerId}::${innerId}`
-          const extras = `label=${withTpl.label ?? node.label},type=${node.type}`;
-          get().scheduleHistory(`Add Node: ${composedId} [${extras}]`);
-          return
+    const parsedId = parseComposedId(withTpl.id)
+    const layerId = resolvePreferredComposedLayerId({ get, explicitLayerId: parsedId?.layerId }) || ''
+    const innerId = parsedId?.innerId || String(withTpl.id || '').trim()
+    if (layerId && innerId) {
+      const sourceFiles = get().sourceFiles || []
+      const idx = sourceFiles.findIndex(f => String(f.id || '') === layerId)
+      const file = idx >= 0 ? sourceFiles[idx] : null
+      if (file) {
+        const pg = ensureSourceFileGraphData(file)
+        const layerNode: GraphNode = { ...withTpl, id: innerId }
+        const nextParsedGraphData = { ...pg, nodes: [...pg.nodes, layerNode] }
+        let nextSourceFiles = sourceFiles.slice()
+        nextSourceFiles[idx] = {
+          ...file,
+          parsedGraphData: nextParsedGraphData,
+          parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
         }
+        const textSync = syncSourceFileTextFromParsedGraph({
+          state: get(),
+          sourceFiles: nextSourceFiles,
+          fileIndex: idx,
+          parsedGraphData: nextParsedGraphData,
+        })
+        nextSourceFiles = textSync.sourceFiles
+        const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
+        const nextRevision = (get().graphDataRevision || 0) + 1
+        const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
+        set(s => ({
+          sourceFiles: nextSourceFiles,
+          graphData: nextGraphData,
+          graphDataRevision: nextRevision,
+          graphContentRevision: (s.graphContentRevision || 0) + 1,
+          docLocationRevision: (s.docLocationRevision || 0) + 1,
+          ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') ? { markdownDocumentText: textSync.markdownDocumentText ?? null } : {}),
+          ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') && file?.source?.path
+            ? { markdownDocumentName: String(file.source.path || '') || s.markdownDocumentName }
+            : {}),
+          graphValidationStatus: null,
+          graphValidationTimestamp: null,
+        }))
+        if (Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText')) {
+          writeWorkspaceSourceTextIfPresent(nextSourceFiles[idx], textSync.markdownDocumentText ?? '')
+        }
+        try {
+          syncGraphFieldsWithGraphData(get, nextGraphData)
+        } catch { void 0 }
+        const composedId = `${layerId}::${innerId}`
+        const extras = `label=${withTpl.label ?? node.label},type=${node.type}`;
+        get().scheduleHistory(`Add Node: ${composedId} [${extras}]`);
+        return
       }
     }
     const nodes = [...graphData.nodes, withTpl]
@@ -996,13 +1264,11 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       const srcParsed = parseComposedId(String(edge.source || ''))
       const tgtParsed = parseComposedId(String(edge.target || ''))
       if ((srcParsed && tgtParsed && srcParsed.layerId !== tgtParsed.layerId) || (!srcParsed && !tgtParsed)) {
-        const selectedParsed = parseComposedId(get().selectedNodeId || '')
-        if (!selectedParsed) return
+        const preferredLayerId = resolvePreferredComposedLayerId({ get })
+        if (!preferredLayerId) return
       }
-      const selectedParsed = parseComposedId(get().selectedNodeId || '')
-      const fallbackLayer = (get().sourceFiles || []).find(f => f.enabled && !!f.parsedGraphData)?.id || null
       const layerId =
-        srcParsed?.layerId || tgtParsed?.layerId || selectedParsed?.layerId || (fallbackLayer ? String(fallbackLayer) : '')
+        srcParsed?.layerId || tgtParsed?.layerId || resolvePreferredComposedLayerId({ get }) || ''
       const innerSource = srcParsed?.innerId || String(edge.source || '').trim()
       const innerTarget = tgtParsed?.innerId || String(edge.target || '').trim()
       if (!layerId || !innerSource || !innerTarget) return

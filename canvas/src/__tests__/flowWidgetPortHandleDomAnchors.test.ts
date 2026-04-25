@@ -15,6 +15,7 @@ import {
   FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
   FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
 } from '@/lib/config.flow-editor'
+import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 
 export const testFlowWidgetPortHandleDomAnchorsPresent = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
@@ -641,5 +642,87 @@ export const testBytePlusTextWidgetLocalOverridesStayEditable = async () => {
     throw new Error(`expected local BytePlus model override to stay editable, got ${JSON.stringify(modelInput.value)}`)
   }
 
+  root.unmount()
+}
+
+export const testOpenAiTextWidgetPortHandleLinksToOpenAiIntegrations = async () => {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+
+  const g = globalThis as unknown as { window?: unknown; document?: unknown }
+  g.window = dom.window
+  g.document = dom.window.document
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+  const storeApi = useGraphStore.getState()
+  storeApi.setChatProvider('openai')
+  storeApi.setChatEndpointUrl(CHAT_OPENAI_ENDPOINT_URL)
+  storeApi.setChatModel('gpt-5.4-nano')
+
+  const events: Array<{ searchQuery?: string; anchorId?: string }> = []
+  const eventWindow = dom.window as Window & typeof globalThis
+  const listener = (event: Event) => {
+    const custom = event as CustomEvent<{ searchQuery?: string; anchorId?: string }>
+    events.push(custom.detail || {})
+  }
+  eventWindow.addEventListener(MAIN_PANEL_OPEN_EVENT, listener as EventListener)
+
+  root.render(
+    React.createElement(NodeOverlayEditorRegistrySection, {
+      active: true,
+      properties: {
+        chatProvider: 'openai',
+        prompt: 'hello',
+        chatEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
+        chatModel: 'gpt-5.4-nano',
+      },
+      registryEntry: {
+        id: 'text-widget-openai',
+        nodeTypeId: 'TextGeneration',
+        widgetTypeId: 'default',
+        formId: 'textGeneration.openai',
+        fields: [
+          { fieldKey: 'chatProvider', fieldType: 'text', schemaPath: 'properties.chatProvider', label: 'Provider' },
+        ],
+        ports: [{ portKey: 'prompt_in', direction: 'input', schemaPath: 'properties.prompt' }],
+      } as any,
+      microLabelClass: 'text-xs',
+      monospaceTextClass: 'font-mono',
+      textSizeClass: 'text-sm',
+      keyValueInputClass: 'border',
+      keyLabelClass: 'text-xs',
+      normalizeRegistrySchemaPath: (schemaPath?: string) => String(schemaPath || ''),
+      ids: { registryField: (k: string) => k },
+      dotSizePx: 10,
+      dotHitPx: 18,
+      portHandlesEnabled: true,
+      onSetProperties: () => void 0,
+      showFieldRows: false,
+      showPortRows: true,
+    }),
+  )
+
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const promptPort = host.querySelector<HTMLButtonElement>('button[data-kg-port-key="prompt_in"]')
+  if (!promptPort) {
+    throw new Error('expected OpenAI text widget prompt port handle button to render')
+  }
+  promptPort.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+  const last = events[events.length - 1]
+  if (!last) {
+    throw new Error('expected OpenAI text widget port click to dispatch an integrations deep-link event')
+  }
+  if (String(last.searchQuery || '') !== 'openaiApi.input') {
+    throw new Error(`expected OpenAI port click to search openaiApi.input, got ${JSON.stringify(last)}`)
+  }
+  if (String(last.anchorId || '') !== 'openai-chat-api-row-openaiapi-input') {
+    throw new Error(`expected OpenAI port click to target the exact OpenAI row anchor, got ${JSON.stringify(last)}`)
+  }
+
+  eventWindow.removeEventListener(MAIN_PANEL_OPEN_EVENT, listener as EventListener)
   root.unmount()
 }

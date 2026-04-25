@@ -20,6 +20,10 @@ import {
   getBytePlusChatApiRowAnchorId,
   resolveBytePlusTextWidgetChatApiRowKey,
 } from '@/features/panels/views/byteplusChatApiDocs'
+import {
+  resolveOpenAiTextWidgetChatApiRowKey,
+} from '@/features/integrations/openaiResponsesSsot'
+import { getOpenAiChatApiRowAnchorId } from '@/features/panels/views/openaiChatApiDocs'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -251,18 +255,37 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     onSetProperties(nextRoot.properties || {})
   }, [active, connectedValuesBySchemaPath, normalizeRegistrySchemaPath, onSetProperties, properties, registryFields])
 
-  const openBytePlusIntegrationLink = React.useCallback((searchQuery: string) => {
-    const normalizedSearchQuery = String(searchQuery || '').trim()
-    if (!normalizedSearchQuery || typeof window === 'undefined') return
+  const openIntegrationLink = React.useCallback((args: { searchQuery: string; anchorId: string }) => {
+    const normalizedSearchQuery = String(args.searchQuery || '').trim()
+    const normalizedAnchorId = String(args.anchorId || '').trim()
+    if (!normalizedSearchQuery || !normalizedAnchorId || typeof window === 'undefined') return
     const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
     window.dispatchEvent(new CustomEventCtor(MAIN_PANEL_OPEN_EVENT, {
       detail: {
         tab: 'integrations' as const,
         searchQuery: normalizedSearchQuery,
-        anchorId: getBytePlusChatApiRowAnchorId(normalizedSearchQuery),
+        anchorId: normalizedAnchorId,
       },
     }))
   }, [])
+
+  const openBytePlusIntegrationLink = React.useCallback((searchQuery: string) => {
+    const normalizedSearchQuery = String(searchQuery || '').trim()
+    if (!normalizedSearchQuery) return
+    openIntegrationLink({
+      searchQuery: normalizedSearchQuery,
+      anchorId: getBytePlusChatApiRowAnchorId(normalizedSearchQuery),
+    })
+  }, [openIntegrationLink])
+
+  const openOpenAiIntegrationLink = React.useCallback((searchQuery: string) => {
+    const normalizedSearchQuery = String(searchQuery || '').trim()
+    if (!normalizedSearchQuery) return
+    openIntegrationLink({
+      searchQuery: normalizedSearchQuery,
+      anchorId: getOpenAiChatApiRowAnchorId(normalizedSearchQuery),
+    })
+  }, [openIntegrationLink])
 
   const canLinkToBytePlusChatApi = React.useMemo(() => {
     if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return false
@@ -271,6 +294,15 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       widgetTypeId: registryEntry.widgetTypeId,
       formId: registryEntry.formId,
     }) === 'byteplus'
+  }, [properties.chatProvider, registryEntry.formId, registryEntry.nodeTypeId, registryEntry.widgetTypeId])
+
+  const canLinkToOpenAiChatApi = React.useMemo(() => {
+    if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return false
+    return inferTextGenerationProviderFamily({
+      provider: properties.chatProvider,
+      widgetTypeId: registryEntry.widgetTypeId,
+      formId: registryEntry.formId,
+    }) === 'openai'
   }, [properties.chatProvider, registryEntry.formId, registryEntry.nodeTypeId, registryEntry.widgetTypeId])
   const effectiveProperties = React.useMemo(() => {
     if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return properties
@@ -541,9 +573,17 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
             portKey,
           })
         : null
+      const openAiPortLinkSearch = canLinkToOpenAiChatApi
+        ? resolveOpenAiTextWidgetChatApiRowKey({
+            schemaPath: String(p.schemaPath || '').trim(),
+            portKey,
+          })
+        : null
       const handlePortNavigate = bytePlusPortLinkSearch
         ? () => openBytePlusIntegrationLink(bytePlusPortLinkSearch)
-        : undefined
+        : openAiPortLinkSearch
+          ? () => openOpenAiIntegrationLink(openAiPortLinkSearch)
+          : undefined
 
       const portButton = (
         <button
@@ -628,7 +668,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       })
     }
     return out
-  }, [active, canLinkToBytePlusChatApi, dotHitPx, dotSizePx, ids, keyLabelClass, keyValueInputClass, monospaceTextClass, onSchemaPortHandleClick, openBytePlusIntegrationLink, portHandlesEnabled, registryPorts, textSizeClass])
+  }, [active, canLinkToBytePlusChatApi, canLinkToOpenAiChatApi, dotHitPx, dotSizePx, ids, keyLabelClass, keyValueInputClass, monospaceTextClass, onSchemaPortHandleClick, openBytePlusIntegrationLink, openOpenAiIntegrationLink, portHandlesEnabled, registryPorts, textSizeClass])
 
   if (!registryEntry) return null
   const visibleFieldRows = showFieldRows ? rows : []
@@ -677,7 +717,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
         />
       )}
 
-      {showPortRows && (!canLinkToBytePlusChatApi || showFieldRows === false) && visiblePortRows.length > 0 && (
+      {showPortRows && (!(canLinkToBytePlusChatApi || canLinkToOpenAiChatApi) || showFieldRows === false) && visiblePortRows.length > 0 && (
         <NodeOverlayEditorKvTable
           ariaLabel="Registry ports"
           microLabelClass={microLabelClass}
