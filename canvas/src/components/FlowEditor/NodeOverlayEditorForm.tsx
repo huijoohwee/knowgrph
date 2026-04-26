@@ -44,6 +44,7 @@ import {
   type RichMediaPanelTab,
   resolveRichMediaPanelRenderNode,
 } from '@/lib/render/richMediaSsot'
+import { inferTextGenerationProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
 
 const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
 const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
@@ -242,6 +243,16 @@ function resolveWidgetCompactPreview(args: {
   registryEntry?: WidgetRegistryEntry | null
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 }): WidgetCompactPreviewSpec | null {
+  const nodeTypeId = String(args.node.type || '').trim()
+  if (nodeTypeId === 'TextGeneration') {
+    const props = (args.node.properties || {}) as Record<string, unknown>
+    const providerFamily = inferTextGenerationProviderFamily({
+      provider: props.chatProvider,
+      widgetTypeId: args.registryEntry?.widgetTypeId || props[FLOW_WIDGET_TYPE_ID_KEY],
+      formId: args.registryEntry?.formId || props[FLOW_WIDGET_FORM_ID_KEY],
+    })
+    if (providerFamily === 'byteplus') return null
+  }
   const fieldSpecs = readWidgetPreviewFieldSpecs(args)
   const fieldSpecByKey = new Map<string, WidgetPreviewFieldSpec>()
   const fieldSpecBySchemaPath = new Map<string, WidgetPreviewFieldSpec>()

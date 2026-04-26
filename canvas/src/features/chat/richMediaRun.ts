@@ -36,11 +36,14 @@ export type RichMediaWidgetRunRequest = {
   seed?: number
   guidanceScale?: number
   aspectRatio?: string | number
+  ratio?: string
   resolution?: string
   duration?: number
   generateAudio?: boolean
+  draft?: boolean
+  cameraFixed?: boolean
+  imageUrlUrl?: string
   watermark?: boolean
-  fast?: boolean
   referenceImageUrl?: string
 }
 
@@ -142,6 +145,7 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
   delete next.mediaKind
   delete next.media_kind
   delete next.outputPath
+  delete next.output
   delete next.outputMimeType
   delete next.outputModel
   delete next.outputSourceUrl
@@ -223,11 +227,14 @@ export const buildRichMediaWidgetRunRequest = (args: {
   const rawAspectRatio = readNodeProperty(args.node, 'properties.aspect_ratio')
   const aspectRatioNumber = cleanNumber(rawAspectRatio)
   const aspectRatio = typeof rawAspectRatio === 'string' ? cleanString(rawAspectRatio) : ''
+  const ratio = cleanString(readNodeProperty(args.node, 'properties.ratio'))
   const resolution = cleanString(readNodeProperty(args.node, 'properties.resolution'))
   const model = cleanString(readNodeProperty(args.node, 'properties.model'))
   const duration = cleanNumber(readNodeProperty(args.node, 'properties.duration'))
   const generateAudio = cleanBool(readNodeProperty(args.node, 'properties.generate_audio'))
-  const fast = cleanBool(readNodeProperty(args.node, 'properties.fast'))
+  const draft = cleanBool(readNodeProperty(args.node, 'properties.draft'))
+  const cameraFixed = cleanBool(readNodeProperty(args.node, 'properties.camera_fixed'))
+  const imageUrlUrl = cleanString(readNodeProperty(args.node, 'properties.image_url_url'))
   const watermark = cleanBool(readNodeProperty(args.node, 'properties.watermark'))
   const connectedContextLines = Object.entries(args.connectedValuesBySchemaPath || {})
     .filter(([schemaPath, rec]) => schemaPath !== 'properties.prompt' && schemaPath !== 'properties.reference_image' && rec)
@@ -262,12 +269,15 @@ export const buildRichMediaWidgetRunRequest = (args: {
     ...(stream != null ? { stream } : {}),
     ...(seed != null ? { seed } : {}),
     ...(guidanceScale != null ? { guidanceScale } : {}),
-    ...(aspectRatioNumber != null ? { aspectRatio: aspectRatioNumber } : {}),
-    ...(aspectRatio && aspectRatioNumber == null ? { aspectRatio } : {}),
+    ...(kind === 'image' && aspectRatioNumber != null ? { aspectRatio: aspectRatioNumber } : {}),
+    ...(kind === 'image' && aspectRatio && aspectRatioNumber == null ? { aspectRatio } : {}),
+    ...(kind === 'video' && ratio ? { ratio } : {}),
     ...(resolution ? { resolution } : {}),
     ...(duration != null ? { duration } : {}),
     ...(generateAudio != null ? { generateAudio } : {}),
-    ...(fast != null ? { fast } : {}),
+    ...(draft != null ? { draft } : {}),
+    ...(cameraFixed != null ? { cameraFixed } : {}),
+    ...(kind === 'video' && imageUrlUrl ? { imageUrlUrl } : {}),
     ...(watermark != null ? { watermark } : {}),
     ...(referenceImageUrl ? { referenceImageUrl } : {}),
   }
@@ -351,12 +361,13 @@ export const runRichMediaWidgetGeneration = async (args: {
         prompt: request.prompt,
         options: {
           model: request.model,
-          aspectRatio: request.aspectRatio,
+          ratio: request.ratio,
           resolution: request.resolution,
           duration: request.duration,
           generateAudio: request.generateAudio,
-          fast: request.fast,
-          watermark: request.watermark,
+          draft: request.draft,
+          cameraFixed: request.cameraFixed,
+          imageUrlUrl: request.imageUrlUrl,
           referenceImageUrl: request.referenceImageUrl,
         },
       })

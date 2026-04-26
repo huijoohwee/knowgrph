@@ -1,5 +1,7 @@
 import type { WidgetRegistryField, WidgetRegistryFieldOption } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
+import { CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS } from '@/lib/chatEndpoint'
+
 export type BytePlusApiDocRow = {
   key: string
   typeLabel: string
@@ -25,11 +27,10 @@ type WidgetRowBinding = {
   field?: WidgetRegistryField
 }
 
-const BYTEPLUS_TEXT_WIDGET_MODEL_OPTIONS: WidgetRegistryFieldOption[] = [
-  { label: 'seed-2-0-lite-260228 (Default)', value: 'seed-2-0-lite-260228' },
-  { label: 'seed-2-0-mini-260215', value: 'seed-2-0-mini-260215' },
-  { label: 'seed-2-0-pro-260328', value: 'seed-2-0-pro-260328' },
-]
+const BYTEPLUS_TEXT_WIDGET_MODEL_OPTIONS: WidgetRegistryFieldOption[] = CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS.map((value, index) => ({
+  label: index === 0 ? `${value} (Default)` : value,
+  value,
+}))
 
 const BYTEPLUS_TEXT_WIDGET_REASONING_EFFORT_OPTIONS: WidgetRegistryFieldOption[] = [
   { label: 'minimal (Default)', value: 'minimal' },
@@ -182,7 +183,6 @@ export function buildBytePlusTextGenerationFields(): WidgetRegistryField[] {
     .map(binding => binding.field)
     .filter((field): field is WidgetRegistryField => !!field)
     .map(field => ({ ...field }))
-    .concat([{ fieldKey: 'output', fieldType: 'textarea', schemaPath: 'properties.output', label: 'Output' }])
 }
 
 export const BYTEPLUS_CHAT_API_DOC_ROWS: ReadonlyArray<BytePlusApiDocRow> = [
@@ -190,7 +190,7 @@ export const BYTEPLUS_CHAT_API_DOC_ROWS: ReadonlyArray<BytePlusApiDocRow> = [
   row({ key: 'auth_mode', typeLabel: 'string', value: 'Integration setting. serverManaged | byok.', valueKey: 'chatAuthMode', responsibility: 'Orchestrator -> choose server-managed or BYOK credential flow -> keep auth policy aligned across Integrations and widget runs.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatAuthMode auth byok serverManaged api key'] }),
   row({ key: 'endpoint_url', typeLabel: 'string', value: 'Integration setting. Base URL by region: ap-southeast-1 or eu-west-1.', valueKey: 'chatEndpointUrl', responsibility: 'Transport -> route BytePlus requests to the correct regional ModelArk base URL -> keep defaults, normalization, and widget execution on one endpoint SSOT.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatEndpointUrl base url region ap-southeast-1 eu-west-1'] }),
   row({ key: 'api_key', typeLabel: 'string', value: 'Integration setting. Required for BYOK authentication.', valueKey: 'chatApiKey', responsibility: 'Credential manager -> hold caller-supplied BytePlus secret for BYOK runs -> authorize direct ModelArk requests without leaking into persistent storage.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatApiKey api key authentication bearer'] }),
-  row({ key: 'model', typeLabel: 'enum', value: 'Required. seed-2-0-lite-260228 | seed-2-0-mini-260215 | seed-2-0-pro-260328.', valueKey: 'chatModel', responsibility: 'Model resolver -> choose the target BytePlus text or multimodal model -> keep global defaults, workflow registry drafts, and widget overrides on the same execution model.', searchHints: ['request body required model endpoint id', 'seed-2-0-lite-260228', 'seed-2-0-mini-260215', 'seed-2-0-pro-260328'] }),
+  row({ key: 'model', typeLabel: 'enum', value: 'Required. seed-2-0-mini-260215 | seed-2-0-lite-260228 | seed-2-0-pro-260328 | seed-1-8-251228.', valueKey: 'chatModel', responsibility: 'Model resolver -> choose the target BytePlus text or multimodal model -> keep global defaults, workflow registry drafts, and widget overrides on the same execution model.', searchHints: ['request body required model endpoint id', 'seed-2-0-mini-260215', 'seed-2-0-lite-260228', 'seed-2-0-pro-260328', 'seed-1-8-251228'] }),
   row({ key: 'messages', typeLabel: 'object[]', value: 'Required. Chat history and prompt messages.', valueKey: 'chatMessagesJson', responsibility: 'Prompt builder -> assemble system, user, assistant, and tool turns -> bind widget prompt/dataflow output into the BytePlus request body.', searchHints: ['messages system user assistant tool multimodal'] }),
   row({ key: 'messages.role', typeLabel: 'string', value: 'Required. system | user | assistant | tool.', valueKey: 'chatMessagesJson', responsibility: 'Message orchestrator -> assign the sender role for each message object -> keep dialogue state and tool handoffs interpretable.' }),
   row({ key: 'messages.content', typeLabel: 'string | object[]', value: 'Required for system and user messages; plaintext or multimodal content list.', valueKey: 'chatMessagesJson', responsibility: 'Payload composer -> choose plaintext or multimodal content blocks -> keep message encoding aligned with model capability.' }),

@@ -561,39 +561,45 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     key: 'byteplusVideoResolution',
     type: 'string',
     source: 'localStorage',
-    read: () => lsJson<string>(LS_KEYS.byteplusVideoResolution, '720p', value => (typeof value === 'string' ? value : null)),
+    read: () => lsJson<string>(LS_KEYS.byteplusVideoResolution, '480p', value => (typeof value === 'string' ? value : null)),
     write: (v) => {
       const raw = String(v || '').trim().toLowerCase()
-      lsSetJson(LS_KEYS.byteplusVideoResolution, raw === '1080p' ? '1080p' : '720p')
+      const normalized = raw === '1080p' ? '1080p' : raw === '720p' ? '720p' : '480p'
+      lsSetJson(LS_KEYS.byteplusVideoResolution, normalized)
     },
     docKey: 'byteplusVideoResolution',
-    default: () => '720p',
-    options: ['720p', '1080p'],
+    default: () => '480p',
+    options: ['480p', '720p', '1080p'],
   },
   {
-    key: 'byteplusVideoAspectRatio',
+    key: 'byteplusVideoRatio',
     type: 'string',
     source: 'localStorage',
-    read: () => lsJson<string>(LS_KEYS.byteplusVideoAspectRatio, 'landscape', value => (typeof value === 'string' ? value : null)),
+    read: () => lsJson<string>(LS_KEYS.byteplusVideoRatio, '16:9', value => (typeof value === 'string' ? value : null)),
     write: (v) => {
-      const raw = String(v || '').trim().toLowerCase()
-      const normalized = raw === 'portrait' ? 'portrait' : raw === 'square' ? 'square' : 'landscape'
-      lsSetJson(LS_KEYS.byteplusVideoAspectRatio, normalized)
+      const raw = String(v || '').trim().replace(/\s+/g, '').toLowerCase()
+      const normalized = raw === '4:3' ? '4:3'
+        : raw === '1:1' ? '1:1'
+          : raw === '3:4' ? '3:4'
+            : raw === '9:16' ? '9:16'
+              : raw === '21:9' ? '21:9'
+                : '16:9'
+      lsSetJson(LS_KEYS.byteplusVideoRatio, normalized)
     },
-    docKey: 'byteplusVideoAspectRatio',
-    default: () => 'landscape',
-    options: ['landscape', 'portrait', 'square'],
+    docKey: 'byteplusVideoRatio',
+    default: () => '16:9',
+    options: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9'],
   },
   {
     key: 'byteplusVideoDuration',
     type: 'number',
     source: 'localStorage',
-    read: () => lsInt(LS_KEYS.byteplusVideoDuration, 5),
+    read: () => lsInt(LS_KEYS.byteplusVideoDuration, 2),
     write: (v) => {
-      lsSetInt(LS_KEYS.byteplusVideoDuration, Number(v), { min: 1, max: 60 })
+      lsSetInt(LS_KEYS.byteplusVideoDuration, Number(v), { min: 2, max: 15 })
     },
     docKey: 'byteplusVideoDuration',
-    default: () => 5,
+    default: () => 2,
   },
   {
     key: 'byteplusVideoGenerateAudio',
@@ -607,26 +613,39 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     default: () => false,
   },
   {
-    key: 'byteplusVideoFast',
+    key: 'byteplusVideoDraft',
     type: 'boolean',
     source: 'localStorage',
-    read: () => lsBool(LS_KEYS.byteplusVideoFast, false),
+    read: () => lsBool(LS_KEYS.byteplusVideoDraft, true),
     write: (v) => {
-      lsSetBool(LS_KEYS.byteplusVideoFast, Boolean(v))
+      lsSetBool(LS_KEYS.byteplusVideoDraft, Boolean(v))
     },
-    docKey: 'byteplusVideoFast',
+    docKey: 'byteplusVideoDraft',
+    default: () => true,
+  },
+  {
+    key: 'byteplusVideoCameraFixed',
+    type: 'boolean',
+    source: 'localStorage',
+    read: () => lsBool(LS_KEYS.byteplusVideoCameraFixed, false),
+    write: (v) => {
+      lsSetBool(LS_KEYS.byteplusVideoCameraFixed, Boolean(v))
+    },
+    docKey: 'byteplusVideoCameraFixed',
     default: () => false,
   },
   {
-    key: 'byteplusVideoWatermark',
-    type: 'boolean',
+    key: 'byteplusVideoImageUrlUrl',
+    type: 'string',
     source: 'localStorage',
-    read: () => lsBool(LS_KEYS.byteplusVideoWatermark, false),
+    read: () => lsJson<string>(LS_KEYS.byteplusVideoImageUrlUrl, 'base64', value => (typeof value === 'string' ? value : null)),
     write: (v) => {
-      lsSetBool(LS_KEYS.byteplusVideoWatermark, Boolean(v))
+      const raw = String(v || '').trim().toLowerCase()
+      lsSetJson(LS_KEYS.byteplusVideoImageUrlUrl, raw === 'url' ? 'url' : 'base64')
     },
-    docKey: 'byteplusVideoWatermark',
-    default: () => false,
+    docKey: 'byteplusVideoImageUrlUrl',
+    default: () => 'base64',
+    options: ['base64', 'url'],
   },
   {
     key: 'chatModel',

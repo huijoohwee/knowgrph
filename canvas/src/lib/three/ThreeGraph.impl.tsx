@@ -18,9 +18,7 @@ import {
   normalizeRichMediaPanelDensity,
   resolveRichMediaPanelInteractive,
 } from '@/lib/render/richMediaSsot'
-import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
-import { deriveMarkdownDesignLayout, type MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
-import { listMarkdownPanelOverlayNodes, buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
+import { buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
 import {
   computeOverlayDragStartScreenSpace3d,
   computeOverlayDraggedWorldPos3d,
@@ -294,50 +292,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     })
   }, [sceneGraph, threeIframeOverlayPoolMax])
 
-  const markdownPanelAllowedKinds = useMemo(() => {
-    return ['table', 'code', 'blockquote', 'callout', 'html'] as const
-  }, [multiDimTableModeEnabled])
-
-  const deferredMarkdownText = React.useDeferredValue(String(markdownDocumentText || ''))
-
-  const markdownDesignLayout: MarkdownDesignLayout | null = useMemo(() => {
-    const text = String(deferredMarkdownText || '')
-    const name = String(markdownDocumentName || '')
-    if (!text.trim()) return null
-    const { tokens } = lexMarkdown(text)
-    const markdownTokensKey = buildMarkdownTokensKey(text)
-    return deriveMarkdownDesignLayout({ activeDocumentPath: name || 'document', markdownTokensKey, tokens })
-  }, [deferredMarkdownText, markdownDocumentName])
-
-  const markdownPanelNodesPool = useMemo(() => {
-    const graph = sceneGraph as GraphData | null
-    const nodes = graph && Array.isArray(graph.nodes) ? (graph.nodes as GraphNode[]) : []
-    const exclude = new Set<string>(mediaNodesPool.map(n => n.id))
-    return listMarkdownPanelOverlayNodes({ nodes, layout: markdownDesignLayout, excludeNodeIdSet: exclude, allowedKinds: markdownPanelAllowedKinds })
-  }, [markdownPanelAllowedKinds, mediaNodesPool, markdownDesignLayout, sceneGraph])
-
-  const overlayNodesPool = useMemo(() => {
-    if (markdownPanelNodesPool.length === 0) return mediaNodesPool
-    if (mediaNodesPool.length === 0) return markdownPanelNodesPool
-    const seen = new Set<string>()
-    const out = [] as typeof mediaNodesPool
-    for (let i = 0; i < mediaNodesPool.length; i += 1) {
-      const n = mediaNodesPool[i]!
-      if (!seen.has(n.id)) {
-        seen.add(n.id)
-        out.push(n)
-      }
-    }
-    for (let i = 0; i < markdownPanelNodesPool.length; i += 1) {
-      const n = markdownPanelNodesPool[i]!
-      if (!seen.has(n.id)) {
-        seen.add(n.id)
-        out.push(n)
-      }
-    }
-    return out
-  }, [markdownPanelNodesPool, mediaNodesPool])
-
+  const overlayNodesPool = mediaNodesPool
   const mediaNodesKey = useMemo(() => overlayNodesPool.map(n => n.id).join('|'), [overlayNodesPool])
   const requestIframeOverlaySchedule = useCallback(() => {
     const schedule = iframeOverlayScheduleRef.current

@@ -5,6 +5,7 @@ export const RENDERER_PANEL_OPEN_EVENT = 'kg:rendererPanelOpen' as const
 export const RENDERER_FLOATING_PANEL_OPEN_EVENT = 'kg:floatingPanelOpen:renderer' as const
 export const SIDE_PANEL_OPEN_EVENT = 'kg:sidePanelOpen' as const
 export const CHAT_INPUT_APPEND_EVENT = 'kg:chatInputAppend' as const
+export const WORKFLOW_RUN_ALL_EVENT = 'kg:workflowRunAll' as const
 
 export type PropsPanelOpenEventDetail = {
   clientX?: number
@@ -19,6 +20,10 @@ export type SidePanelOpenEventDetail = {
 export type ChatInputAppendEventDetail = {
   text?: string
   mode?: 'append' | 'replace'
+}
+
+export type WorkflowRunAllEventDetail = {
+  source?: 'propsPanel' | 'inspector' | 'unknown'
 }
 
 export function emitPropsPanelOpen(detail?: PropsPanelOpenEventDetail): void {
@@ -43,6 +48,15 @@ export function emitChatInputAppend(detail?: ChatInputAppendEventDetail): void {
   if (typeof window === 'undefined') return
   try {
     window.dispatchEvent(new CustomEvent<ChatInputAppendEventDetail>(CHAT_INPUT_APPEND_EVENT, { detail }))
+  } catch {
+    void 0
+  }
+}
+
+export function emitWorkflowRunAll(detail?: WorkflowRunAllEventDetail): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.dispatchEvent(new CustomEvent<WorkflowRunAllEventDetail>(WORKFLOW_RUN_ALL_EVENT, { detail }))
   } catch {
     void 0
   }

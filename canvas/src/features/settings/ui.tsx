@@ -370,6 +370,22 @@ export const renderSettingInput = (
     )
   }
 
+  if (key === 'chatModel') {
+    const str = String(v ?? '')
+    return (
+      <PlainTextInputEditor
+        value={str}
+        list="settings-chat-model-options"
+        spellCheck={false}
+        onChange={next => {
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: next }))
+        }}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-left`}
+      />
+    )
+  }
+
   if (type === 'string' && Array.isArray(options) && options.length > 0) {
     const raw = String(v ?? '').trim()
     const normalized = raw && options.includes(raw) ? raw : (options[0] || '')
@@ -479,21 +495,6 @@ export const renderSettingInput = (
           setValues(prev => ({ ...prev, [key]: next }))
         }}
         className="min-h-24 px-2 py-1 text-left font-mono text-xs"
-      />
-    )
-  }
-  if (key === 'chatModel') {
-    const str = String(v ?? '')
-    return (
-      <PlainTextInputEditor
-        value={str}
-        list="settings-chat-model-options"
-        spellCheck={false}
-        onChange={next => {
-          dirtyRef.current.add(key)
-          setValues(prev => ({ ...prev, [key]: next }))
-        }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-left`}
       />
     )
   }

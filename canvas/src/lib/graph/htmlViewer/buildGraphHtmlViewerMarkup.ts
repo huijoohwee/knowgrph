@@ -338,7 +338,7 @@ const filterStandaloneOverlayHtml = (args: {
       if ((keep?.score ?? 0) <= -100) el.remove()
     }
     const mdBestByKey = new Map<string, { el: Element; score: number }>()
-    const mdEls = root.querySelectorAll('[data-kg-markdown-design-block],[data-md-id],[data-node-id][data-kg-panel-box]')
+    const mdEls = root.querySelectorAll('[data-kg-markdown-design-block],[data-md-id],[data-node-id][data-kg-md-panel]')
     for (let i = 0; i < mdEls.length; i += 1) {
       const el = mdEls[i] as Element
       const idRaw = String(el.getAttribute('data-kg-markdown-design-block') || el.getAttribute('data-md-id') || '').trim()

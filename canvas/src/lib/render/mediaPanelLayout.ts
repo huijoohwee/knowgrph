@@ -120,16 +120,8 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
   const w = Number.isFinite(args.w) ? args.w : 1
   const h = Number.isFinite(args.h) ? args.h : 1
   const display = args.display === 'none' ? 'none' : 'block'
-  const mode = (() => {
-    try {
-      const d = (el as unknown as { dataset?: Record<string, string> }).dataset
-      return d && d.kgPanelBox === 'leftTop' ? 'leftTop' : 'transform'
-    } catch {
-      return 'transform'
-    }
-  })()
   const z = args.zIndex != null ? String(args.zIndex) : ''
-  const posSig = `${mode}|${left}|${top}`
+  const posSig = `transform|${left}|${top}`
   const sizeSig = `${display}|${z}|${w}|${h}`
 
   const prevPosSig = BOX_POS_CACHE.get(el) || ''
@@ -148,13 +140,7 @@ export function applyPanelBox(el: HTMLElement, args: { left: number; top: number
   }
 
   if (display !== 'none' && prevPosSig !== posSig) {
-    if (mode === 'leftTop') {
-      el.style.left = `${left}px`
-      el.style.top = `${top}px`
-      el.style.transform = 'translate3d(0px, 0px, 0px)'
-    } else {
-      el.style.transform = `translate3d(${left}px, ${top}px, 0px)`
-    }
+    el.style.transform = `translate3d(${left}px, ${top}px, 0px)`
     BOX_POS_CACHE.set(el, posSig)
   }
 }

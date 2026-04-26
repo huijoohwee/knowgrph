@@ -365,7 +365,7 @@ export async function testGenerateRunImageWithBytePlusAcceptsBase64Payload() {
         body.model !== 'seedream-4-0-250828'
         || body.response_format !== 'b64_json'
         || body.size !== '4K'
-        || body.output_format !== 'png'
+        || ('output_format' in (body as Record<string, unknown>))
         || body.watermark !== true
         || body.seed !== 123
         || body.guidance_scale !== 6.5
@@ -466,8 +466,8 @@ export async function testGenerateRunImageWithBytePlusRetriesActivatedCuratedFal
           json: async () => ({
             data: [
               { id: 'seedream-4-0-250828' },
-              { id: 'seedream-4-5-250923' },
-              { id: 'dola-seedream-5-0-lite-250821' },
+              { id: 'seedream-4-5-251128' },
+              { id: 'seedream-5-0-260128' },
             ],
           }),
         } as Response
@@ -487,7 +487,7 @@ export async function testGenerateRunImageWithBytePlusRetriesActivatedCuratedFal
           headers: { 'content-type': 'application/json' },
         })
       }
-      if (body.model === 'seedream-4-5-250923') {
+      if (body.model === 'seedream-4-5-251128') {
         return new Response(JSON.stringify({ data: [{ b64_json: 'iVBORw0KGgo=' }] }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
@@ -503,17 +503,15 @@ export async function testGenerateRunImageWithBytePlusRetriesActivatedCuratedFal
         apiKey: 'byteplus-key',
       },
       prompt: 'Generate image',
-      options: {
-        model: CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
-      },
+      options: {},
     })
     if (!result) {
       throw new Error('expected image generation to succeed after trying an activated curated fallback model')
     }
-    if (result.model !== 'seedream-4-5-250923') {
+    if (result.model !== 'seedream-4-5-251128') {
       throw new Error(`expected image generation to return the activated fallback model id, got ${String(result.model)}`)
     }
-    if (attemptedModels.join(' -> ') !== 'seedream-4-0-250828 -> seedream-4-5-250923') {
+    if (attemptedModels.join(' -> ') !== 'seedream-4-0-250828 -> seedream-4-5-251128') {
       throw new Error(`expected activation fallback attempts to retry the next curated model, got ${attemptedModels.join(' -> ')}`)
     }
   } finally {
@@ -565,9 +563,7 @@ export async function testGenerateRunImageWithBytePlusSkipsUnmatchedDisplayAlias
           apiKey: 'byteplus-key',
         },
         prompt: 'Generate image',
-        options: {
-          model: CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
-        },
+        options: {},
       })
     } catch (error) {
       errorText = error instanceof Error ? error.message : String(error || '')
@@ -605,9 +601,9 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
           ratio?: string
           duration?: number
           generate_audio?: boolean
-          watermark?: boolean
+          draft?: boolean
         }
-        if (body.ratio !== '9:16' || body.duration !== 6 || body.generate_audio !== true || body.watermark !== true) {
+        if (body.ratio !== '9:16' || body.duration !== 6 || body.generate_audio !== true || body.draft !== true) {
           throw new Error(`expected video generation options to map onto the BytePlus task request: ${JSON.stringify(body)}`)
         }
         const imageRef = Array.isArray(body.content)
@@ -650,10 +646,9 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
       prompt: 'Generate video',
       options: {
         contentJson: JSON.stringify([{ type: 'text', text: 'Widget-local content override' }]),
-        aspectRatio: 'portrait',
+        ratio: '9:16',
         duration: 6,
         generateAudio: true,
-        watermark: true,
         referenceImageUrl: 'https://example.com/reference.png',
       },
     })

@@ -7,7 +7,6 @@ export async function testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing() 
     const root = dom.window.document.getElementById('root')
     if (!root) throw new Error('expected root container')
     const el = dom.window.document.createElement('div')
-    el.dataset.kgPanelBox = 'leftTop'
     root.appendChild(el)
 
     const loop = startMediaOverlayLayoutLoop2d({

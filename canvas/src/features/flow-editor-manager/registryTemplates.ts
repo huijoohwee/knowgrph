@@ -32,7 +32,6 @@ import {
   isGrabMapsDiscoveryWidgetEntry,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import { buildBytePlusTextGenerationFields } from '@/features/integrations/byteplusChatApiSsot'
-import { buildBytePlusImageGenerationFields } from '@/features/integrations/byteplusImageGenerationSsot'
 import { buildBytePlusVideoGenerationFields } from '@/features/integrations/byteplusVideoGenerationSsot'
 import { buildOpenAiCompatibleTextGenerationFields } from '@/features/integrations/openaiResponsesSsot'
 
@@ -224,6 +223,99 @@ function buildCommonTextGenerationPorts(): WidgetRegistryEntry['ports'] {
   ]
 }
 
+function buildBytePlusImageGenerationFieldsForRegistrySeed(): WidgetRegistryEntry['fields'] {
+  return [
+    {
+      fieldKey: 'model',
+      fieldType: 'select',
+      schemaPath: 'properties.model',
+      required: true,
+      label: 'Model',
+      options: FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
+    },
+    {
+      fieldKey: 'prompt',
+      fieldType: 'textarea',
+      schemaPath: 'properties.prompt',
+      required: true,
+      label: 'Prompt',
+    },
+    {
+      fieldKey: 'size',
+      fieldType: 'select',
+      schemaPath: 'properties.size',
+      required: true,
+      label: 'Size',
+      options: FLOW_EDITOR_IMAGE_SIZE_OPTIONS,
+    },
+    {
+      fieldKey: 'output_format',
+      fieldType: 'select',
+      schemaPath: 'properties.output_format',
+      required: true,
+      label: 'Output format',
+      options: FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
+    },
+    {
+      fieldKey: 'response_format',
+      fieldType: 'select',
+      schemaPath: 'properties.response_format',
+      required: true,
+      label: 'Response format',
+      options: [
+        { value: 'b64_json', label: 'b64_json (Default)' },
+        { value: 'url', label: 'url' },
+      ],
+    },
+    {
+      fieldKey: 'optimize_prompt_options',
+      fieldType: 'select',
+      schemaPath: 'properties.optimize_prompt_options',
+      label: 'Optimize prompt',
+      options: [
+        { value: 'fast', label: 'fast (Default)' },
+        { value: 'standard', label: 'standard' },
+      ],
+    },
+    {
+      fieldKey: 'aspect_ratio',
+      fieldType: 'number',
+      schemaPath: 'properties.aspect_ratio',
+      label: 'Aspect ratio',
+    },
+    {
+      fieldKey: 'stream',
+      fieldType: 'boolean',
+      schemaPath: 'properties.stream',
+      label: 'Stream',
+    },
+    {
+      fieldKey: 'watermark',
+      fieldType: 'boolean',
+      schemaPath: 'properties.watermark',
+      label: 'Watermark',
+    },
+    {
+      fieldKey: 'seed',
+      fieldType: 'number',
+      schemaPath: 'properties.seed',
+      label: 'Seed',
+    },
+    {
+      fieldKey: 'guidance_scale',
+      fieldType: 'number',
+      schemaPath: 'properties.guidance_scale',
+      label: 'Guidance scale',
+    },
+    {
+      fieldKey: 'reference_image',
+      fieldType: 'text',
+      schemaPath: 'properties.reference_image',
+      label: 'Reference image',
+    },
+  ]
+}
+
 export function buildWidgetDraftFromSmartFields(args: {
   nodeTypeId: string
   mode?: 'image' | 'video'
@@ -238,7 +330,7 @@ export function buildWidgetDraftFromSmartFields(args: {
     formId: mode === 'image' ? 'imageGeneration' : mode === 'video' ? 'videoGeneration' : 'widget',
     fields: [
       ...(mode === 'image'
-        ? buildBytePlusImageGenerationFields()
+        ? buildBytePlusImageGenerationFieldsForRegistrySeed()
         : mode === 'video'
           ? buildBytePlusVideoGenerationFields()
           : [

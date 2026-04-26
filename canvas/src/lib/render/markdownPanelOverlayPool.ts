@@ -1,7 +1,5 @@
 import type { GraphNode } from '@/lib/graph/types'
-import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import type { MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
-import { buildMarkdownPanelSrcDoc } from '@/lib/render/markdownPanelSrcDoc'
 import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
@@ -24,68 +22,6 @@ function isPanelOnlyParagraphNode(n: GraphNode): boolean {
   if (text && /<\s*iframe\b/i.test(text) && text.toLowerCase().startsWith('<iframe') && looksLikeSingleTagBlock(text, 'iframe')) return true
   if (hasNodeMedia(n)) return true
   return false
-}
-
-export function listMarkdownPanelOverlayNodes(args: {
-  nodes: GraphNode[]
-  layout: MarkdownDesignLayout | null
-  excludeNodeIdSet?: Set<string>
-  allowedKinds?: readonly string[]
-}): MediaOverlayNode[] {
-  const nodes = Array.isArray(args.nodes) ? args.nodes : []
-  const layout = args.layout
-  if (!layout || !Array.isArray(layout.blocks) || layout.blocks.length === 0) return []
-  const exclude = args.excludeNodeIdSet || null
-  const allowedKindsSet = (() => {
-    const raw = Array.isArray(args.allowedKinds) ? args.allowedKinds : null
-    if (!raw || raw.length === 0) return null
-    return new Set(raw.map(v => String(v || '').trim()).filter(Boolean))
-  })()
-
-  const tableByStart = new Map<number, string>()
-  const codeByStart = new Map<number, string>()
-  const paraByStart = new Map<number, string>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]!
-    const id = String(n?.id || '').trim()
-    if (!id) continue
-    const start = readLineStart(n)
-    if (start == null) continue
-    const typeLower = String(n.type || '').trim().toLowerCase()
-    if (typeLower === 'table' && !tableByStart.has(start)) tableByStart.set(start, id)
-    else if (typeLower === 'codeblock' && !codeByStart.has(start)) codeByStart.set(start, id)
-    else if (typeLower === 'paragraph' && !paraByStart.has(start)) paraByStart.set(start, id)
-  }
-
-  const out: MediaOverlayNode[] = []
-  for (let i = 0; i < layout.blocks.length; i += 1) {
-    const b = layout.blocks[i]!
-    const start = Math.max(1, Math.floor(Number(b.startLine) || 1))
-    const type = String(b.type || '').trim()
-    if (allowedKindsSet && !allowedKindsSet.has(type)) continue
-
-    const nodeId = (() => {
-      if (type === 'table') return tableByStart.get(start) || null
-      if (type === 'code') return codeByStart.get(start) || null
-      if (type === 'blockquote' || type === 'callout') return paraByStart.get(start) || null
-      if (type === 'html') return paraByStart.get(start) || null
-      return null
-    })()
-    if (!nodeId) continue
-    if (exclude?.has(nodeId)) continue
-
-    const srcDoc = buildMarkdownPanelSrcDoc(b)
-    out.push({
-      id: nodeId,
-      title: String(b.title || 'Panel').trim() || 'Panel',
-      url: 'about:blank',
-      srcDoc,
-      openUrl: 'about:blank',
-      interactive: false,
-      kind: 'iframe',
-    })
-  }
-  return out
 }
 
 export function computeMarkdownAnchorNodeIdByBlockId(args: {

@@ -2079,15 +2079,15 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphRichMediaGenerat
 
   const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
   const videoNode = nodeById.get('w-byteplus-video') || null
-  const panelNode = nodeById.get('p-rich-media') || null
+  const panelNode = nodeById.get('p-byteplus-video') || null
   if (!videoNode) throw new Error('expected w-byteplus-video node')
-  if (!panelNode) throw new Error('expected p-rich-media node')
+  if (!panelNode) throw new Error('expected p-byteplus-video node')
 
   const videoProps = (videoNode.properties || {}) as Record<string, unknown>
   if (String(videoProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'videoGeneration') {
     throw new Error('expected w-byteplus-video flow:widgetFormId=videoGeneration')
   }
-  if (String(videoProps.model || '') !== 'ByteDance-Seedance-1.0-pro-fast') {
+  if (String(videoProps.model || '') !== 'seedance-1-0-pro-fast-251015') {
     throw new Error(`expected BytePlus video demo default model, got ${String(videoProps.model || '')}`)
   }
   if (
@@ -2137,12 +2137,12 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphRichMediaGenerat
   if (Number(nearbySearch?.radius_km) !== 1) throw new Error(`expected GrabMaps nearby radius 1km, got ${String(nearbySearch?.radius_km || '')}`)
   if (String(nearbySearch?.rankBy || '') !== 'distance') throw new Error('expected GrabMaps nearby rankBy=distance')
 
-  const edge = g.edges.find(e => String(e.id || '') === 'e-video') || null
-  if (!edge) throw new Error('expected e-video edge')
+  const edge = g.edges.find(e => String(e.id || '') === 'e-byteplus-video') || null
+  if (!edge) throw new Error('expected e-byteplus-video edge')
   const edgeProps = (edge.properties || {}) as Record<string, unknown>
-  if (String(edge.source || '') !== 'w-byteplus-video' || String(edge.target || '') !== 'p-rich-media') {
-    throw new Error('expected e-video endpoints w-byteplus-video -> p-rich-media')
+  if (String(edge.source || '') !== 'w-byteplus-video' || String(edge.target || '') !== 'p-byteplus-video') {
+    throw new Error('expected e-byteplus-video endpoints w-byteplus-video -> p-byteplus-video')
   }
-  if (String(edgeProps[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-video source port videoUrl')
-  if (String(edgeProps[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-video target port videoUrl')
+  if (String(edgeProps[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-byteplus-video source port videoUrl')
+  if (String(edgeProps[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-byteplus-video target port videoUrl')
 }

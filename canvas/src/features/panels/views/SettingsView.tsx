@@ -49,6 +49,7 @@ import {
   CHAT_LOCAL_MODEL_OPTIONS,
   buildChatProxyHeaders,
   getChatDefaultEndpointUrlForProvider,
+  getBytePlusVideoModelLabel,
   getChatProviderLabel,
   getChatProviderRegionLabel,
   getChatRecommendedModelHint,
@@ -104,7 +105,7 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
     panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
     note: 'Widget palette opens in the floating props panel.',
     highlights: [
-      `Travel-planning video prompts can reuse GrabMaps-selected geojson plus place-search context from ${getGrabMapsDiscoveryWidgetLabel()}, while MainPanel Maps keeps backend/system/API/MCP config.`,
+      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel Maps keeps backend/system/API/MCP config.',
       'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
     ],
     openPanel: () => emitPropsPanelOpen(),
@@ -251,7 +252,8 @@ export default function SettingsView({
   const headerDividerWidthClass = mode === 'integrations' ? 'border-b-[0.5px]' : 'border-b'
   const settingsTypeIconSizeClass = getIconSizeClass(uiIconScale)
   const bytePlusImageDefaultLabel = CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
-  const bytePlusVideoDefaultLabel = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
+  const bytePlusVideoDefaultId = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
+  const bytePlusVideoDefaultLabel = getBytePlusVideoModelLabel(bytePlusVideoDefaultId) || bytePlusVideoDefaultId
   const openAiTextDefaultLabel = `OpenAI default text model: ${CHAT_DEFAULT_MODEL}`
   const normalizedChatProvider = React.useMemo(
     () => String(values.chatProvider || '').trim() || CHAT_DEFAULT_PROVIDER,
@@ -408,11 +410,12 @@ export default function SettingsView({
       'byteplusVideoModel',
       'byteplusVideoContentJson',
       'byteplusVideoResolution',
-      'byteplusVideoAspectRatio',
+      'byteplusVideoRatio',
       'byteplusVideoDuration',
       'byteplusVideoGenerateAudio',
-      'byteplusVideoFast',
-      'byteplusVideoWatermark',
+      'byteplusVideoDraft',
+      'byteplusVideoCameraFixed',
+      'byteplusVideoImageUrlUrl',
     ] as const
     const dirtyKeys = keys.filter(key => dirtyRef.current.has(key))
     if (dirtyKeys.length === 0) return
@@ -434,14 +437,15 @@ export default function SettingsView({
   }, [
     dirtyRef,
     setValues,
-    values.byteplusVideoAspectRatio,
+    values.byteplusVideoCameraFixed,
     values.byteplusVideoContentJson,
+    values.byteplusVideoDraft,
     values.byteplusVideoDuration,
-    values.byteplusVideoFast,
     values.byteplusVideoGenerateAudio,
+    values.byteplusVideoImageUrlUrl,
     values.byteplusVideoModel,
+    values.byteplusVideoRatio,
     values.byteplusVideoResolution,
-    values.byteplusVideoWatermark,
   ])
 
   const openWorkspaceFile = React.useCallback((path: string) => {
@@ -957,7 +961,7 @@ export default function SettingsView({
                         BytePlus image default: {bytePlusImageDefaultLabel}
                       </span>
                       <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        BytePlus video default: {bytePlusVideoDefaultLabel}
+                        BytePlus video default: {bytePlusVideoDefaultLabel} ({bytePlusVideoDefaultId})
                       </span>
                       <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
                         Default Base URL: {CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}/api/v3

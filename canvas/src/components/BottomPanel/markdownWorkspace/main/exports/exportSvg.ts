@@ -18,6 +18,7 @@ export async function exportCanvasSvg(args: {
     canvasRenderMode?: unknown
     canvasRenderModeIsAuto?: unknown
     canvasRenderModeLastFree?: unknown
+    renderMediaAsNodes?: unknown
     threeEdgeRenderer?: unknown
     captureCanvasSvgSnapshot: () => Promise<string | null>
     captureCanvasPngSnapshot: () => Promise<Blob | null>
@@ -77,6 +78,7 @@ export async function exportCanvasSvg(args: {
     const workspaceEditorEnabled = store.workspaceViewMode === 'editor'
     const wants3dExport =
       store.canvasRenderMode === '3d' || (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
+    const preferDomCapture = store.renderMediaAsNodes !== true && !wants3dExport
 
     if (wants3dExport) {
       const graphData = store.graphData as any
@@ -124,7 +126,7 @@ export async function exportCanvasSvg(args: {
       }
     }
 
-    if (!geospatialEnabled) {
+    if (!geospatialEnabled && !preferDomCapture) {
       const svg = await store.captureCanvasSvgSnapshot()
       const trimmedSvg = normalizeSvgMarkup(svg || '', fallbackSize).trim()
       if (trimmedSvg) {
@@ -133,7 +135,10 @@ export async function exportCanvasSvg(args: {
       }
     }
 
-    const png = (geospatialEnabled ? null : await store.captureCanvasPngSnapshot()) || (await captureVisibleCanvasPngBlobFromDom())
+    const png =
+      (preferDomCapture ? await captureVisibleCanvasPngBlobFromDom() : null)
+      || (geospatialEnabled ? null : await store.captureCanvasPngSnapshot())
+      || (await captureVisibleCanvasPngBlobFromDom())
 
     if (png) {
       const wrapped = await wrapPngBlobAsSvgMarkup(png, { includeXmlDeclaration: true, width: fallbackSize.w, height: fallbackSize.h })

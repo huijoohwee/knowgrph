@@ -51,6 +51,8 @@ const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 170
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const WIDGET_ACTIONS_TOOLBAR_OFFSET_PX = 40
 const WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
+const WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX = 8
+const WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX = 220
 
 type NodeOverlayEditorProps = {
   visible?: boolean
@@ -315,6 +317,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
 
   const [toolbarVisible, setToolbarVisible] = React.useState(false)
   const [toolbarDock, setToolbarDock] = React.useState<'above' | 'below'>('above')
+  const [toolbarSideClamp, setToolbarSideClamp] = React.useState(false)
   useOutsideClose(toolbarVisible, setToolbarVisible, asideRef)
   const isRichMediaPanelWidget = String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
 
@@ -554,6 +557,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     if (shouldClampFloating && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) scheduleClampCommit(pos)
     const nextToolbarDock = pos.top >= WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX ? 'above' : 'below'
     setToolbarDock(prev => (prev === nextToolbarDock ? prev : nextToolbarDock))
+    const nextToolbarSideClamp = pos.left + scaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > viewportWidth
+    setToolbarSideClamp(prev => (prev === nextToolbarSideClamp ? prev : nextToolbarSideClamp))
 
     const offset = canvasWindowOffsetRef.current
     const offsetLeft = Number.isFinite(offset.left) ? offset.left : 0
@@ -1134,8 +1139,16 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     >
       <div className="relative">
         <div
-          className="absolute left-1/2 z-10 -translate-x-1/2 pointer-events-auto"
-          style={{ top: toolbarDock === 'above' ? -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX : 8 }}
+          className={isRichMediaPanelWidget ? 'absolute z-10 pointer-events-auto' : 'absolute left-1/2 z-10 -translate-x-1/2 pointer-events-auto'}
+          style={isRichMediaPanelWidget
+            ? {
+                top: '50%',
+                left: toolbarSideClamp ? undefined : '100%',
+                right: toolbarSideClamp ? `${WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX}px` : undefined,
+                marginLeft: toolbarSideClamp ? undefined : `${WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX}px`,
+                transform: 'translateY(-50%)',
+              }
+            : { top: toolbarDock === 'above' ? -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX : 8 }}
         >
           <NodeOverlayEditorActionsToolbar
             visible={toolbarVisible}

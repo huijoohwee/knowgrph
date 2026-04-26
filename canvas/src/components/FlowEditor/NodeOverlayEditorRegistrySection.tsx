@@ -28,6 +28,10 @@ import {
 } from '@/features/integrations/byteplusImageGenerationSsot'
 import { resolveEffectiveBytePlusImageWidgetProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { resolveEffectiveBytePlusVideoWidgetProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
+import {
+  getBytePlusVideoApiDocRowByRowKey,
+  resolveBytePlusVideoWidgetApiRowKey,
+} from '@/features/integrations/byteplusVideoGenerationSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
@@ -275,6 +279,9 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   const canLinkToBytePlusImageApi = React.useMemo(() => {
     return String(registryEntry.nodeTypeId || '').trim() === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
   }, [registryEntry.nodeTypeId])
+  const canLinkToBytePlusVideoApi = React.useMemo(() => {
+    return String(registryEntry.nodeTypeId || '').trim() === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+  }, [registryEntry.nodeTypeId])
   const effectiveProperties = React.useMemo(() => {
     if (String(registryEntry.nodeTypeId || '').trim() === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
       return resolveEffectiveBytePlusImageWidgetProperties({
@@ -336,6 +343,13 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           fieldKey: String(f.fieldKey || '').trim(),
         })
       : null
+    const bytePlusVideoFieldLinkSearch = canLinkToBytePlusVideoApi
+      ? resolveBytePlusVideoWidgetApiRowKey({
+          schemaPath: String(f.schemaPath || '').trim(),
+          fieldKey: String(f.fieldKey || '').trim(),
+          portKey: String((f as { portKey?: string }).portKey || '').trim(),
+        })
+      : null
 
     const setValue = (nextValue: unknown) => {
       if (!path) return
@@ -351,6 +365,10 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       }
       if (bytePlusImageFieldLinkSearch) {
         const row = getBytePlusImageApiDocRowByRowKey(bytePlusImageFieldLinkSearch)
+        return row ? String(row.key || '').trim() : ''
+      }
+      if (bytePlusVideoFieldLinkSearch) {
+        const row = getBytePlusVideoApiDocRowByRowKey(bytePlusVideoFieldLinkSearch)
         return row ? String(row.key || '').trim() : ''
       }
       if (openAiFieldLinkSearch) {

@@ -1,9 +1,6 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import {
-  FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
-  FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
-  FLOW_EDITOR_RESOLUTION_OPTIONS,
   FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
 } from '@/lib/config.flow-editor'
 import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
@@ -73,11 +70,12 @@ export const BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS = [
   'byteplusVideoModel',
   'byteplusVideoContentJson',
   'byteplusVideoResolution',
-  'byteplusVideoAspectRatio',
+  'byteplusVideoRatio',
   'byteplusVideoDuration',
   'byteplusVideoGenerateAudio',
-  'byteplusVideoFast',
-  'byteplusVideoWatermark',
+  'byteplusVideoDraft',
+  'byteplusVideoCameraFixed',
+  'byteplusVideoImageUrlUrl',
 ] as const
 
 export const BYTEPLUS_VIDEO_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, string[]>> = {
@@ -86,12 +84,28 @@ export const BYTEPLUS_VIDEO_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, st
   byteplusVideoModel: ['select video model', 'pin video default'],
   byteplusVideoContentJson: ['edit content override', 'pin multimodal request payload'],
   byteplusVideoResolution: ['select resolution', 'pin output clarity'],
-  byteplusVideoAspectRatio: ['select aspect ratio', 'pin frame geometry'],
+  byteplusVideoRatio: ['select ratio', 'pin frame geometry'],
   byteplusVideoDuration: ['set duration', 'bound run length'],
   byteplusVideoGenerateAudio: ['toggle audio generation', 'control synchronized sound'],
-  byteplusVideoFast: ['prefer fast variant', 'bias fast model resolution'],
-  byteplusVideoWatermark: ['toggle watermark', 'control output marking'],
+  byteplusVideoDraft: ['toggle draft mode', 'stage task generation'],
+  byteplusVideoCameraFixed: ['toggle camera fixed', 'stabilize camera path'],
+  byteplusVideoImageUrlUrl: ['select image input kind', 'choose base64 vs url'],
 }
+
+const BYTEPLUS_VIDEO_RESOLUTION_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: '480p', label: '480p (Default)' },
+  { value: '720p', label: '720p' },
+  { value: '1080p', label: '1080p' },
+]
+
+const BYTEPLUS_VIDEO_RATIO_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: '16:9', label: '16:9 (Default)' },
+  { value: '4:3', label: '4:3' },
+  { value: '1:1', label: '1:1' },
+  { value: '3:4', label: '3:4' },
+  { value: '9:16', label: '9:16' },
+  { value: '21:9', label: '21:9' },
+]
 
 function toBaseType(typeLabel: string): SettingMeta['type'] {
   const normalized = String(typeLabel || '').trim().toLowerCase()
@@ -150,8 +164,8 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     notes: 'Video generation uses BytePlus routing regardless of the global chat provider.',
   },
   {
-    key: 'byteplusVideoContentJson',
-    typeLabel: 'json',
+    key: 'content',
+    typeLabel: 'object[]',
     value: 'Optional. Integration-level content override array.',
     keyDescription: 'Multimodal override payload -> provide an explicit upstream content array -> replace the widget-built prompt/reference-image content when you need exact text/image/video/audio items.',
     valueDescription: 'Default: empty; Supplying JSON expands exact multimodal control; leaving it empty narrows the request to the shared prompt + optional reference image builder.',
@@ -168,24 +182,7 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     notes: 'When present, this overrides the prompt + reference-image derived content array.',
   },
   {
-    key: 'byteplusVideoFast',
-    typeLabel: 'boolean',
-    value: 'Optional. Default false.',
-    keyDescription: 'Model resolver hint -> prefer the faster variant of the selected Seedance family when available -> bias task dispatch toward lower-latency models without changing the widget surface.',
-    valueDescription: 'Default: false; Enabling fast expands model-resolution fallback toward fast variants; disabling it narrows dispatch to the pinned non-fast family.',
-    ssot: 'App SSOT :: byteplus video model resolver',
-    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/features/panels/views/useSettingsView.ts'],
-    className: ['SettingsRegistryItem', 'RunVideoGenerationOptions'],
-    functionName: ['readBytePlusVideoWidgetDefaults', 'resolveGenerationModelPreview', 'resolveBytePlusVideoPreviewModelLabel'],
-    valueKey: 'byteplusVideoFast',
-    responsibility: 'Hints the model resolver to prefer fast Seedance video variants when the family supports them.',
-    searchHints: ['fast seedance quick variant video generation'],
-    tooltipDefaultValue: false,
-    tooltipExpansionNote: 'Fast mode expands selection toward lower-latency variants.',
-    tooltipContractionNote: 'Disabling fast narrows dispatch to the pinned non-fast family.',
-  },
-  {
-    key: 'byteplusVideoModel',
+    key: 'model',
     typeLabel: 'string',
     value: 'Required. Video model ID.',
     keyDescription: 'Model selector -> pick the BytePlus video engine -> decide which Seedance capability family executes the generation task.',
@@ -203,28 +200,28 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     notes: 'Request body field: `model`.',
   },
   {
-    key: 'byteplusVideoAspectRatio',
+    key: 'ratio',
     typeLabel: 'string',
-    value: 'Optional. Default landscape -> upstream `ratio` mapping.',
-    keyDescription: 'Frame-shape selector -> pick the layout geometry -> map widget-friendly aspect names into the BytePlus `ratio` field sent to the task API.',
-    valueDescription: 'Default: landscape; Options: landscape | portrait | square; Wider frames expand cinematic horizontal space; portrait and square narrow canvas shape to vertical or symmetric framing.',
+    value: 'Optional. Default 16:9. 16:9 | 4:3 | 1:1 | 3:4 | 9:16 | 21:9.',
+    keyDescription: 'Frame-shape selector -> pick the layout geometry -> pass the ratio string through to the BytePlus `ratio` field sent to the task API.',
+    valueDescription: 'Default: 16:9; Wider frames expand cinematic horizontal space; portrait ratios narrow canvas shape to vertical framing.',
     ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > ratio`,
     module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
     className: ['SettingsRegistryItem', 'RunVideoGenerationOptions'],
-    functionName: ['readBytePlusVideoWidgetDefaults', 'mapAspectRatioToVideoRatio'],
-    valueKey: 'byteplusVideoAspectRatio',
-    responsibility: 'Controls the widget aspect-ratio preset that knowgrph maps into the upstream BytePlus `ratio` string.',
-    searchHints: ['ratio aspect 16:9 9:16 1:1 landscape portrait square'],
-    tooltipDefaultValue: 'landscape',
-    tooltipExpansionNote: 'Landscape expands horizontal composition space.',
-    tooltipContractionNote: 'Portrait and square narrow canvas geometry around vertical or centered framing.',
+    functionName: ['readBytePlusVideoWidgetDefaults', 'generateRunVideoWithBytePlus'],
+    valueKey: 'byteplusVideoRatio',
+    responsibility: 'Controls the upstream BytePlus `ratio` string used for video generation.',
+    searchHints: ['ratio 16:9 9:16 1:1 4:3 3:4 21:9 video generation'],
+    tooltipDefaultValue: '16:9',
+    tooltipExpansionNote: 'Wider ratios expand horizontal composition space.',
+    tooltipContractionNote: 'Portrait ratios narrow canvas geometry around vertical framing.',
   },
   {
-    key: 'byteplusVideoDuration',
+    key: 'duration',
     typeLabel: 'integer',
-    value: 'Optional. Default 5 seconds.',
+    value: 'Optional. Default 2 seconds.',
     keyDescription: 'Run-length cap -> bound the target video length -> control generation time, task cost, and output pacing from the widget surface.',
-    valueDescription: 'Default: 5; Min: 1; Max: 60; Interval: 1; Longer durations expand narrative runtime and cost; shorter durations narrow output length and reduce generation time.',
+    valueDescription: 'Default: 2; Min: 2; Max: 15; Interval: 1; Longer durations expand narrative runtime and cost; shorter durations narrow output length and reduce generation time.',
     ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > duration`,
     module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
     className: ['SettingsRegistryItem', 'RunVideoGenerationOptions'],
@@ -232,15 +229,15 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     valueKey: 'byteplusVideoDuration',
     responsibility: 'Controls the output duration in seconds for the generated video task.',
     searchHints: ['duration seconds video generation'],
-    tooltipDefaultValue: 5,
-    tooltipMin: 1,
-    tooltipMax: 60,
+    tooltipDefaultValue: 2,
+    tooltipMin: 2,
+    tooltipMax: 15,
     tooltipInterval: 1,
     tooltipExpansionNote: 'Longer durations expand narrative runtime.',
     tooltipContractionNote: 'Shorter durations narrow output length and reduce generation time.',
   },
   {
-    key: 'byteplusVideoGenerateAudio',
+    key: 'generate_audio',
     typeLabel: 'boolean',
     value: 'Optional. Default false.',
     keyDescription: 'Audio-output toggle -> request synchronized sound when the chosen model supports it -> decide whether BytePlus should generate audio alongside video frames.',
@@ -257,52 +254,72 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     tooltipContractionNote: 'Disabling audio narrows the task to silent video output.',
   },
   {
-    key: 'byteplusVideoResolution',
+    key: 'resolution',
     typeLabel: 'string',
-    value: 'Optional. Default 720p.',
+    value: 'Optional. Default 480p.',
     keyDescription: 'Clarity preset -> choose the output video resolution -> control the render detail budget sent to BytePlus.',
-    valueDescription: 'Default: 720p; Options: 720p | 1080p; Higher resolution expands detail and cost; lower resolution narrows output size and usually lowers latency.',
+    valueDescription: 'Default: 480p; Options: 480p | 720p | 1080p; Higher resolution expands detail and cost; lower resolution narrows output size and usually lowers latency.',
     ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > resolution`,
     module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
     className: ['SettingsRegistryItem', 'RunVideoGenerationOptions'],
     functionName: ['readBytePlusVideoWidgetDefaults', 'generateRunVideoWithBytePlus'],
     valueKey: 'byteplusVideoResolution',
     responsibility: 'Controls the output video resolution preset.',
-    searchHints: ['resolution 720p 1080p video generation'],
-    tooltipDefaultValue: '720p',
+    searchHints: ['resolution 480p 720p 1080p video generation'],
+    tooltipDefaultValue: '480p',
     tooltipExpansionNote: 'Higher resolution expands detail and playback clarity.',
     tooltipContractionNote: 'Lower resolution narrows output size and usually lowers latency.',
   },
   {
-    key: 'byteplusVideoWatermark',
+    key: 'draft',
     typeLabel: 'boolean',
-    value: 'Optional. Default false.',
-    keyDescription: 'Marking policy -> decide whether BytePlus adds a watermark -> control the default visible compliance marker on generated videos.',
-    valueDescription: 'Default: false; Enabling watermark expands explicit AI marking; disabling it narrows visible output annotations.',
-    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > watermark`,
+    value: 'Optional. Default true.',
+    keyDescription: 'Draft toggle -> choose draft-mode generation -> decide whether to request draft output for faster iteration or preview flows.',
+    valueDescription: 'Default: true; Draft expands faster iteration and rough previews; in knowgrph this flag is only sent for image-conditioned video runs (i2v).',
+    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > draft`,
     module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
     className: ['SettingsRegistryItem', 'RunVideoGenerationOptions'],
     functionName: ['readBytePlusVideoWidgetDefaults', 'generateRunVideoWithBytePlus'],
-    valueKey: 'byteplusVideoWatermark',
-    responsibility: 'Controls whether a watermark is added to the generated video.',
-    searchHints: ['watermark video generation'],
-    tooltipDefaultValue: false,
-    tooltipExpansionNote: 'Enabling watermark expands explicit generated-video marking.',
-    tooltipContractionNote: 'Disabling watermark narrows visible output annotations.',
+    valueKey: 'byteplusVideoDraft',
+    responsibility: 'Controls the upstream `draft` flag for the video generation task.',
+    searchHints: ['draft video generation preview'],
+    tooltipDefaultValue: true,
+    tooltipExpansionNote: 'Draft expands faster iteration and preview behavior; knowgrph sends this only for image-conditioned video runs (i2v).',
+    tooltipContractionNote: 'Disabling draft narrows the run to final-quality behavior.',
   },
   {
-    key: 'content',
-    typeLabel: 'object[]',
-    value: 'Required. Content items assembled from prompt text plus optional reference image, or overridden by content_json.',
-    keyDescription: 'Multimodal request payload -> assemble text and reference assets into the upstream content array -> tell BytePlus which prompt/reference inputs should drive the generation task.',
-    valueDescription: 'Default: prompt-only text item; Adding reference assets or content_json expands multimodal conditioning; leaving it prompt-only narrows the request to text-to-video generation.',
-    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > content`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/features/flow-editor-manager/registryTemplates.ts'],
-    className: ['RunVideoGenerationOptions', 'WidgetRegistryEntry'],
-    functionName: ['generateRunVideoWithBytePlus', 'buildBytePlusVideoGenerationFields'],
-    responsibility: 'Carries the prompt text and optional reference assets sent to the BytePlus task API.',
-    searchHints: ['content text image_url video_url audio_url reference multimodal'],
-    notes: 'The raw API supports text, reference images, reference videos, reference audio, and draft-task reuse; knowgrph exposes prompt plus reference image directly and lets content_json override the rest.',
+    key: 'camera_fixed',
+    typeLabel: 'boolean',
+    value: 'Optional. Default false.',
+    keyDescription: 'Camera stabilization toggle -> request fixed camera motion -> reduce camera drift for more stable compositions when supported.',
+    valueDescription: 'Default: false; Enabling camera_fixed expands stable camera motion; in knowgrph this flag is only sent for image-conditioned video runs (i2v).',
+    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > camera_fixed`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunVideoGenerationOptions'],
+    functionName: ['readBytePlusVideoWidgetDefaults', 'generateRunVideoWithBytePlus'],
+    valueKey: 'byteplusVideoCameraFixed',
+    responsibility: 'Controls the upstream `camera_fixed` flag for the video generation task.',
+    searchHints: ['camera_fixed stable camera video generation'],
+    tooltipDefaultValue: false,
+    tooltipExpansionNote: 'Enabling camera_fixed expands stabilized camera behavior; knowgrph sends this only for image-conditioned video runs (i2v).',
+    tooltipContractionNote: 'Disabling camera_fixed narrows constraints and allows more camera motion.',
+  },
+  {
+    key: 'content.image_url.url',
+    typeLabel: 'enum',
+    value: 'Optional. Default base64. base64 | url.',
+    keyDescription: 'Reference-image kind selector -> choose whether the reference image is provided as base64 or as a URL -> keep image_url encoding explicit across Integrations and widget overrides.',
+    valueDescription: 'Default: base64; base64 expands offline/local asset embedding; url expands remote asset linking via the download proxy pipeline.',
+    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > content.image_url.url`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx'],
+    className: ['SettingsRegistryItem', 'RunVideoGenerationOptions'],
+    functionName: ['readBytePlusVideoWidgetDefaults', 'generateRunVideoWithBytePlus'],
+    valueKey: 'byteplusVideoImageUrlUrl',
+    responsibility: 'Selects the expected kind of the reference image_url.url payload.',
+    searchHints: ['content image_url url base64 reference image video generation'],
+    tooltipDefaultValue: 'base64',
+    tooltipExpansionNote: 'URL mode expands remote-asset linking via proxies.',
+    tooltipContractionNote: 'Base64 mode narrows the payload to inline embedded assets.',
   },
   {
     key: 'docs_url',
@@ -332,19 +349,6 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     notes: 'Knowgrph routes this through the proxy and sets the upstream origin internally.',
   },
   {
-    key: 'generate_audio',
-    typeLabel: 'boolean',
-    value: 'Optional. Upstream task field controlled by byteplusVideoGenerateAudio.',
-    keyDescription: 'Synchronized-audio request flag -> forward the audio-generation preference into the task payload -> tell BytePlus whether to emit sound with the generated video.',
-    valueDescription: 'Default: false; Enabling audio expands synchronized sound generation on supported models; disabling it narrows output to silent video.',
-    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > generate_audio`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts'],
-    className: ['RunVideoGenerationOptions'],
-    functionName: ['generateRunVideoWithBytePlus'],
-    responsibility: 'Forwards the audio-generation toggle into the upstream request body.',
-    searchHints: ['generate_audio task request field'],
-  },
-  {
     key: 'polling_endpoint',
     typeLabel: 'string',
     value: 'GET /api/v3/contents/generations/tasks/{id}',
@@ -371,65 +375,24 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     searchHints: ['prompt video generation text content'],
     notes: 'Knowgrph uses this field when content_json is empty.',
   },
-  {
-    key: 'ratio',
-    typeLabel: 'string',
-    value: 'Optional. Upstream task field mapped from byteplusVideoAspectRatio.',
-    keyDescription: 'Ratio mapper -> translate widget-friendly aspect presets into the BytePlus `ratio` string -> keep the widget UI simple while preserving the upstream contract.',
-    valueDescription: 'Default: 16:9 from landscape mapping; Portrait and square expand alternate framing; leaving the default narrows output to the standard horizontal layout.',
-    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > ratio`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts'],
-    className: ['RunVideoGenerationOptions'],
-    functionName: ['mapAspectRatioToVideoRatio', 'generateRunVideoWithBytePlus'],
-    responsibility: 'Supplies the upstream BytePlus ratio string derived from the widget aspect-ratio preset.',
-    searchHints: ['ratio 16:9 9:16 1:1 adaptive mapping'],
-  },
-  {
-    key: 'reference_image',
-    typeLabel: 'string',
-    value: 'Optional. Public image URL used to append an image_url reference item.',
-    keyDescription: 'Visual conditioner -> pass a first-frame or reference image into the content builder -> let BytePlus condition the video task on a source image when content_json is not overriding the payload.',
-    valueDescription: 'Default: empty; Adding a reference image expands image-conditioned video generation; omitting it narrows the request to text-only generation.',
-    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > content.image_url`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts', 'canvas/src/components/FlowEditor/NodeOverlayEditorForm.tsx'],
-    className: ['RunVideoGenerationOptions'],
-    functionName: ['generateRunVideoWithBytePlus', 'buildWidgetDraftFromSmartFields'],
-    responsibility: 'Carries the optional reference image URL used by the default content builder.',
-    searchHints: ['reference image first frame image_url video generation'],
-    notes: 'Knowgrph appends this as an `image_url` item when content_json is empty.',
-  },
-  {
-    key: 'resolution',
-    typeLabel: 'string',
-    value: 'Optional. Upstream task field controlled by byteplusVideoResolution.',
-    keyDescription: 'Render-detail selector -> forward the widget resolution preset into the task payload -> control the output clarity requested from BytePlus.',
-    valueDescription: 'Default: 720p; Options: 720p | 1080p; Higher resolution expands detail and cost; lower resolution narrows output size and usually lowers latency.',
-    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > resolution`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts'],
-    className: ['RunVideoGenerationOptions'],
-    functionName: ['generateRunVideoWithBytePlus'],
-    responsibility: 'Supplies the upstream BytePlus resolution string derived from the widget preset.',
-    searchHints: ['resolution task request field'],
-  },
-  {
-    key: 'watermark',
-    typeLabel: 'boolean',
-    value: 'Optional. Upstream task field controlled by byteplusVideoWatermark.',
-    keyDescription: 'Output-marking flag -> forward the watermark preference into the task payload -> tell BytePlus whether to add a watermark to the video.',
-    valueDescription: 'Default: false; Enabling watermark expands explicit AI marking; disabling it narrows visible output annotations.',
-    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Request body > watermark`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts'],
-    className: ['RunVideoGenerationOptions'],
-    functionName: ['generateRunVideoWithBytePlus'],
-    responsibility: 'Supplies the upstream watermark flag derived from the widget preset.',
-    searchHints: ['watermark task request field'],
-  },
 ]
+
+const BYTEPLUS_VIDEO_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, BytePlusVideoApiDocRow>> = Object.fromEntries(
+  BYTEPLUS_VIDEO_GENERATION_DOC_ROWS.map(row => [`byteplusVideoApi.${row.key}`, row] as const),
+)
+
+export function getBytePlusVideoApiDocRowByRowKey(rowKey: string): BytePlusVideoApiDocRow | null {
+  const normalized = String(rowKey || '').trim()
+  return BYTEPLUS_VIDEO_DOC_ROW_BY_ROW_KEY[normalized] || null
+}
 
 export const BYTEPLUS_VIDEO_GENERATION_API_DOC_ENTRIES: ReadonlyArray<BytePlusVideoVirtualSettingsEntry> =
   BYTEPLUS_VIDEO_GENERATION_DOC_ROWS.map(row => ({
     meta: {
-      key: row.key.startsWith('byteplusVideo') ? row.key : `byteplusVideoApi.${row.key}`,
+      key:
+        row.valueKey === 'byteplusVideoModel'
+          ? 'byteplusVideoModel'
+          : (row.key.startsWith('byteplusVideo') ? row.key : `byteplusVideoApi.${row.key}`),
       type: toBaseType(row.typeLabel),
       source: 'backendEnv',
       read: () => row.value,
@@ -485,12 +448,12 @@ export function buildBytePlusVideoGenerationFields(): WidgetRegistryField[] {
       label: 'Content (JSON)',
     },
     {
-      fieldKey: 'aspect_ratio',
+      fieldKey: 'ratio',
       fieldType: 'select',
-      schemaPath: 'properties.aspect_ratio',
+      schemaPath: 'properties.ratio',
       required: true,
-      label: 'Aspect ratio',
-      options: buildFieldOptionLabels(FLOW_EDITOR_ASPECT_RATIO_OPTIONS),
+      label: 'Ratio',
+      options: buildFieldOptionLabels(BYTEPLUS_VIDEO_RATIO_OPTIONS),
     },
     {
       fieldKey: 'resolution',
@@ -498,15 +461,14 @@ export function buildBytePlusVideoGenerationFields(): WidgetRegistryField[] {
       schemaPath: 'properties.resolution',
       required: true,
       label: 'Resolution',
-      options: buildFieldOptionLabels(FLOW_EDITOR_RESOLUTION_OPTIONS),
+      options: buildFieldOptionLabels(BYTEPLUS_VIDEO_RESOLUTION_OPTIONS),
     },
     {
       fieldKey: 'duration',
-      fieldType: 'select',
+      fieldType: 'number',
       schemaPath: 'properties.duration',
       required: true,
       label: 'Duration',
-      options: buildFieldOptionLabels(FLOW_EDITOR_DURATION_SECONDS_OPTIONS),
     },
     {
       fieldKey: 'generate_audio',
@@ -515,16 +477,27 @@ export function buildBytePlusVideoGenerationFields(): WidgetRegistryField[] {
       label: 'Generate audio',
     },
     {
-      fieldKey: 'fast',
+      fieldKey: 'draft',
       fieldType: 'boolean',
-      schemaPath: 'properties.fast',
-      label: 'Fast',
+      schemaPath: 'properties.draft',
+      label: 'Draft',
     },
     {
-      fieldKey: 'watermark',
+      fieldKey: 'camera_fixed',
       fieldType: 'boolean',
-      schemaPath: 'properties.watermark',
-      label: 'Watermark',
+      schemaPath: 'properties.camera_fixed',
+      label: 'Camera fixed',
+    },
+    {
+      fieldKey: 'image_url_url',
+      fieldType: 'select',
+      schemaPath: 'properties.image_url_url',
+      required: true,
+      label: 'content.image_url.url',
+      options: [
+        { value: 'base64', label: 'base64 (Default)' },
+        { value: 'url', label: 'url' },
+      ],
     },
   ]
 }
@@ -542,16 +515,17 @@ export function resolveBytePlusVideoWidgetApiRowKey(args: {
     .filter(Boolean)
     .map(value => value.replace(/^properties\./, ''))
   for (const candidate of candidates) {
-    if (candidate === 'model') return 'byteplusVideoModel'
-    if (candidate === 'content_json') return 'byteplusVideoContentJson'
-    if (candidate === 'aspect_ratio') return 'byteplusVideoAspectRatio'
-    if (candidate === 'resolution') return 'byteplusVideoResolution'
-    if (candidate === 'duration') return 'byteplusVideoDuration'
-    if (candidate === 'generate_audio') return 'byteplusVideoGenerateAudio'
-    if (candidate === 'fast') return 'byteplusVideoFast'
-    if (candidate === 'watermark') return 'byteplusVideoWatermark'
+    if (candidate === 'model') return 'byteplusVideoApi.model'
+    if (candidate === 'content_json') return 'byteplusVideoApi.content'
+    if (candidate === 'ratio') return 'byteplusVideoApi.ratio'
+    if (candidate === 'resolution') return 'byteplusVideoApi.resolution'
+    if (candidate === 'duration') return 'byteplusVideoApi.duration'
+    if (candidate === 'generate_audio') return 'byteplusVideoApi.generate_audio'
+    if (candidate === 'draft') return 'byteplusVideoApi.draft'
+    if (candidate === 'camera_fixed') return 'byteplusVideoApi.camera_fixed'
+    if (candidate === 'image_url_url') return 'byteplusVideoApi.content.image_url.url'
     if (candidate === 'prompt' || candidate === 'prompt_in') return 'byteplusVideoApi.prompt'
-    if (candidate === 'reference_image') return 'byteplusVideoApi.reference_image'
+    if (candidate === 'reference_image') return 'byteplusVideoApi.content.image_url.url'
     if (candidate === 'videoUrl') return 'byteplusVideoApi.polling_endpoint'
   }
   return null

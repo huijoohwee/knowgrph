@@ -9,12 +9,17 @@ export async function exportCanvasPng(args: {
   pushUiToast: (toast: UiToastInput) => void
   getStore: () => {
     captureCanvasPngSnapshot: () => Promise<Blob | null>
+    renderMediaAsNodes?: unknown
   }
 }): Promise<void> {
   try {
     const suggested = `${args.exportBaseName}.png`
     const store = args.getStore()
-    const rawPng = (await store.captureCanvasPngSnapshot()) || (await captureVisibleCanvasPngBlobFromDom())
+    const preferDomCapture = store.renderMediaAsNodes !== true
+    const rawPng =
+      (preferDomCapture ? await captureVisibleCanvasPngBlobFromDom() : null)
+      || (await store.captureCanvasPngSnapshot())
+      || (await captureVisibleCanvasPngBlobFromDom())
     if (!rawPng) {
       args.pushUiToast({ id: 'export-png-missing-canvas', kind: 'warning', message: 'No canvas PNG snapshot available.' })
       return

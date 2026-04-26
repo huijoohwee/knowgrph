@@ -73,10 +73,11 @@ import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLo
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExport'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
-import { buildPanelOnlyNodeIdSetFromGraphNodes, listMarkdownPanelOverlayNodes } from '@/lib/render/markdownPanelOverlayPool'
+import { buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
@@ -757,7 +758,6 @@ export default function FlowCanvas({
   const stickyOverlayNodeByIdRef = React.useRef<Map<string, MediaOverlayNode>>(new Map())
   const stickyOverlayOrderRef = React.useRef<string[]>([])
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
-  const markdownOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const panelOnlyNodeIdSetRef = React.useRef<Set<string> | null>(null)
   const plannedOverlayNodeIdSetRef = React.useRef<Set<string>>(new Set())
 
@@ -866,6 +866,18 @@ export default function FlowCanvas({
     return sceneDisplayGraphDerivation?.displayGraphData || filteredGraphDataForRenderer
   }, [filteredGraphDataForRenderer, sceneDisplayGraphDerivation])
 
+  const selectedOverlayNodeIds = React.useMemo(() => {
+    const nodeIdSet = new Set<string>((selectedNodeIds || []).map(v => String(v)))
+    if (selectedNodeId) nodeIdSet.add(String(selectedNodeId))
+    const ids = Array.from(nodeIdSet)
+      .map(rawId => {
+        const resolved = resolveGraphNodeByCanonicalId(sceneGraphData, rawId)
+        return String(resolved?.id || rawId || '').trim()
+      })
+      .filter(Boolean)
+    return ids
+  }, [sceneGraphData, selectedNodeId, selectedNodeIds])
+
   const panelOnlyNodeIdSet = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
     if (nodes.length === 0) return null
@@ -884,17 +896,6 @@ export default function FlowCanvas({
     plannedOverlayNodeIdSetRef.current = next
     updateOverlayHiddenDrawArgs()
   }, [panelOnlyNodeIdSet, updateOverlayHiddenDrawArgs])
-
-  const deferredMarkdownText = React.useDeferredValue(String(markdownDocumentText || ''))
-  const markdownDesignLayout = React.useMemo(() => {
-    const text = String(deferredMarkdownText || '')
-    if (!text.trim()) return null
-    const name = String(markdownDocumentName || '').trim() || 'markdown'
-    const markdownTokensKey = buildMarkdownTokensKey(text)
-    const lexed = lexMarkdown(text)
-    return deriveMarkdownDesignLayout({ activeDocumentPath: name, markdownTokensKey, tokens: lexed.tokens as never })
-  }, [deferredMarkdownText, markdownDocumentName])
-
 
   const mediaRenderConnectedValuesByNodeId = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
@@ -1047,37 +1048,7 @@ export default function FlowCanvas({
     return out
   }, [flowEditorRichMediaPanelOverlayExcludeNodeIdSet, mediaRenderConnectedValuesByNodeId, mediaRenderNodes, threeIframeOverlayPoolMax])
 
-  const markdownPanelNodes = React.useMemo(() => {
-    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as unknown as GraphNode[]) : []
-    if (!markdownDesignLayout) return []
-    const exclude = new Set<string>(mediaNodes.map(n => n.id))
-    return listMarkdownPanelOverlayNodes({ nodes, layout: markdownDesignLayout, excludeNodeIdSet: exclude, allowedKinds: markdownPanelAllowedKinds })
-  }, [markdownDesignLayout, markdownPanelAllowedKinds, mediaNodes, sceneGraphData])
-
-  const overlayNodes = React.useMemo(() => {
-    if (markdownPanelNodes.length === 0) return mediaNodes
-    if (mediaNodes.length === 0) return markdownPanelNodes
-    const seen = new Set<string>()
-    const out: MediaOverlayNode[] = []
-    for (let i = 0; i < mediaNodes.length; i += 1) {
-      const n = mediaNodes[i]!
-      if (seen.has(n.id)) continue
-      seen.add(n.id)
-      out.push(n)
-    }
-    for (let i = 0; i < markdownPanelNodes.length; i += 1) {
-      const n = markdownPanelNodes[i]!
-      if (seen.has(n.id)) continue
-      seen.add(n.id)
-      out.push(n)
-    }
-    return out
-  }, [markdownPanelNodes, mediaNodes])
-
-  const markdownPanelNodeIdSet = React.useMemo(() => {
-    if (markdownPanelNodes.length === 0) return null
-    return new Set(markdownPanelNodes.map(n => n.id))
-  }, [markdownPanelNodes])
+  const overlayNodes = mediaNodes
   React.useEffect(() => {
     __flowCanvasDebug.sceneNodeIds = Array.isArray(sceneGraphData?.nodes)
       ? sceneGraphData!.nodes.map(node => String((node as GraphNode | null | undefined)?.id || '').trim()).filter(Boolean)
@@ -1111,17 +1082,13 @@ export default function FlowCanvas({
       const id = String(mediaNodes[i]?.id || '').trim()
       if (id) ids.push(id)
     }
-    for (let i = 0; i < markdownPanelNodes.length; i += 1) {
-      const id = String(markdownPanelNodes[i]?.id || '').trim()
-      if (id) ids.push(id)
-    }
     if (panelOnlyNodeIdSetRef.current) {
       for (const id of panelOnlyNodeIdSetRef.current) ids.push(id)
     }
     const sorted = ids.length <= 1 ? ids : Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
     plannedOverlayNodeIdSetRef.current = new Set(sorted)
     return sorted.join('|')
-  }, [markdownPanelNodes, mediaNodes])
+  }, [mediaNodes])
 
   const mediaNodeIdsKey = React.useMemo(() => mediaNodes.map(n => n.id).join('|'), [mediaNodes])
   React.useEffect(() => {
@@ -1132,16 +1099,6 @@ export default function FlowCanvas({
     }
     mediaOverlayElsRef.current = next
   }, [mediaNodeIdsKey, mediaNodes])
-
-  const markdownPanelNodeIdsKey = React.useMemo(() => markdownPanelNodes.map(n => n.id).join('|'), [markdownPanelNodes])
-  React.useEffect(() => {
-    const next = new Map<string, HTMLElement>()
-    for (const n of markdownPanelNodes) {
-      const existing = markdownOverlayElsRef.current.get(n.id)
-      if (existing) next.set(n.id, existing)
-    }
-    markdownOverlayElsRef.current = next
-  }, [markdownPanelNodeIdsKey, markdownPanelNodes])
 
   React.useEffect(() => {
     if (!plannedOverlayNodeIdsKey) return
@@ -1308,7 +1265,7 @@ export default function FlowCanvas({
     const rawK = rt.transform?.k
     const zoomK = typeof rawK === 'number' && Number.isFinite(rawK) && rawK > 0 ? rawK : 1
     const scale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
-    const el = mediaOverlayElsRef.current.get(id) || markdownOverlayElsRef.current.get(id) || null
+    const el = mediaOverlayElsRef.current.get(id) || null
     const rect = el ? el.getBoundingClientRect() : null
     const measuredW = rect && Number.isFinite(rect.width) ? rect.width : 0
     const measuredH = rect && Number.isFinite(rect.height) ? rect.height : 0
@@ -1620,7 +1577,7 @@ export default function FlowCanvas({
         const scale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
         return { w: Math.max(24, w0) * scale, h: Math.max(24, h0) * scale }
       },
-      getElementForId: (id) => mediaOverlayElsRef.current.get(id) || markdownOverlayElsRef.current.get(id) || null,
+      getElementForId: (id) => mediaOverlayElsRef.current.get(id) || null,
       getNodeWorldCenterForId: (id) => {
         const rt = runtimeRef.current
         const node = rt?.scene?.nodeById.get(id) as unknown as { x?: unknown; y?: unknown; width?: unknown; height?: unknown } | undefined
@@ -2586,21 +2543,20 @@ export default function FlowCanvas({
       {active && overlayNodes.length > 0 ? (
         <section aria-label="Flow media overlay" className="absolute inset-0 z-[80] pointer-events-none">
           {overlayNodes.map(n => {
-            const isMarkdownPanel = !!markdownPanelNodeIdSet?.has(n.id)
-            const resizeInteractionActive = flowEditorFrontmatterInteractionMode
+            const isSelected = selectedOverlayNodeIds.some(id => isCanonicalNodeIdEqual(id, n.id))
+            const resizeInteractionActive = flowEditorOverlayInteractionMode && isSelected
             const updateNode = useGraphStore.getState().updateNode
             return (
               <RichMediaPanel
                 key={n.id}
                 overlayId={n.id}
                 ref={(el) => {
-                  const refMap = isMarkdownPanel ? markdownOverlayElsRef.current : mediaOverlayElsRef.current
                   if (!el) {
-                    refMap.delete(n.id)
+                    mediaOverlayElsRef.current.delete(n.id)
                     updateOverlayHiddenDrawArgs()
                     return
                   }
-                  refMap.set(n.id, el)
+                  mediaOverlayElsRef.current.set(n.id, el)
                   updateOverlayHiddenDrawArgs()
                 }}
                 className="absolute left-0 top-0 pointer-events-auto"
@@ -2631,7 +2587,7 @@ export default function FlowCanvas({
                 onHeaderDragStart={flowEditorOverlayInteractionMode ? ({ pointerId }) => beginMediaOverlayHeaderDrag(n.id, pointerId) : undefined}
                 onHeaderDrag={flowEditorOverlayInteractionMode ? ({ dx, dy, pointerId }) => moveMediaOverlayHeaderDrag(n.id, { pointerId, dx, dy }) : undefined}
                 onHeaderDragEnd={flowEditorOverlayInteractionMode ? ({ pointerId }) => endMediaOverlayHeaderDrag(n.id, pointerId) : undefined}
-                resizable={resizeInteractionActive}
+                resizable={flowEditorOverlayInteractionMode && isSelected}
                 onResizeStart={resizeInteractionActive ? ({ pointerId }) => beginMediaOverlayResize(n.id, pointerId) : undefined}
                 onResize={resizeInteractionActive ? ({ dx, dy, pointerId }) => moveMediaOverlayResize(n.id, { pointerId, dx, dy }) : undefined}
                 onResizeEnd={resizeInteractionActive ? ({ pointerId }) => endMediaOverlayResize(n.id, pointerId) : undefined}

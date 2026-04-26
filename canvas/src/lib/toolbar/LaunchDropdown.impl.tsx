@@ -7,6 +7,7 @@ import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/li
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
+import { WORKSPACE_EXPORT_MENU_ITEMS } from '@/lib/toolbar/exportMenuSsot'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
@@ -534,123 +535,22 @@ export function LaunchDropdown({
               </button>
               {exportMenuOpen ? (
                 <menu className={exportMenuClass} aria-label="Export" onPointerEnter={openExportMenu} onPointerLeave={scheduleCloseExportMenu}>
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      className={menuItemClass}
-                      onPointerDown={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        runExportAction('Duplicate in workspace', exportActions?.duplicateInWorkspace)
-                      }}
-                    >
-                      <span className="truncate">Duplicate in workspace</span>
-                    </button>
-                  </li>
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      className={menuItemClass}
-                      onPointerDown={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        runExportAction('Workspace file', exportActions?.workspaceFileJsonLd)
-                      }}
-                    >
-                      <span className="truncate">Workspace file (.jsonld)</span>
-                    </button>
-                  </li>
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      className={menuItemClass}
-                      onPointerDown={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        runExportAction('Markdown', exportActions?.markdown)
-                      }}
-                    >
-                      <span className="truncate">Markdown (.md)</span>
-                    </button>
-                  </li>
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      className={menuItemClass}
-                      onPointerDown={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        runExportAction('PNG', exportActions?.png)
-                      }}
-                    >
-                      <span className="truncate">PNG (.png)</span>
-                    </button>
-                  </li>
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      className={menuItemClass}
-                      onPointerDown={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        runExportAction('HTML Viewer', exportActions?.htmlViewer)
-                      }}
-                    >
-                      <span className="truncate">HTML (.html) — Viewer</span>
-                    </button>
-                  </li>
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      className={menuItemClass}
-                      onPointerDown={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        runExportAction('HTML Canvas', exportActions?.htmlCanvas)
-                      }}
-                    >
-                      <span className="truncate">HTML (.html) — Canvas</span>
-                    </button>
-                  </li>
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      className={menuItemClass}
-                      onPointerDown={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        runExportAction('JSON', exportActions?.json)
-                      }}
-                    >
-                      <span className="truncate">JSON (.json)</span>
-                    </button>
-                  </li>
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      className={menuItemClass}
-                      onPointerDown={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        runExportAction('SVG', exportActions?.svg)
-                      }}
-                    >
-                      <span className="truncate">SVG (.svg)</span>
-                    </button>
-                  </li>
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      className={menuItemClass}
-                      onPointerDown={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        runExportAction('PDF', exportActions?.pdf)
-                      }}
-                    >
-                      <span className="truncate">PDF (Print…)</span>
-                    </button>
-                  </li>
+                  {WORKSPACE_EXPORT_MENU_ITEMS.map(item => (
+                    <li key={item.id} className="list-none">
+                      <button
+                        type="button"
+                        className={menuItemClass}
+                        onPointerDown={e => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          const action = (exportActions as unknown as Record<string, (() => void) | undefined>)?.[item.id]
+                          runExportAction(item.toastLabel, action)
+                        }}
+                      >
+                        <span className="truncate">{item.menuLabel}</span>
+                      </button>
+                    </li>
+                  ))}
                 </menu>
               ) : null}
             </section>

@@ -21,23 +21,30 @@ export const CHAT_PROVIDER_BYTEPLUS = 'byteplus-modelark'
 export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
 export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_LM_STUDIO] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
-export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-lite-260228'
+export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-mini-260215'
 export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'seedream-4-0-250828'
 export const CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS = [
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
   'seedream-4-5-251128',
   'seedream-5-0-260128',
 ] as const
-export const CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT = 'ByteDance-Seedance-1.0-pro-fast'
+export const CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT = 'seedance-1-0-pro-fast-251015'
+export const CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS = [
+  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+  'seedance-1-5-pro-251215',
+  'dreamina-seedance-2-0-fast-260128',
+  'dreamina-seedance-2-0-260128',
+] as const
 export const CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS = [
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
-  'seed-2-0-mini-260215',
+  'seed-2-0-lite-260228',
   'seed-2-0-pro-260328',
+  'seed-1-8-251228',
 ] as const
 export const CHAT_BYTEPLUS_MODEL_OPTIONS = [
   ...CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS,
   ...CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
-  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+  ...CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS,
 ] as const
 export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4', 'gpt-5.5'] as const
 export const CHAT_LOCAL_MODEL_OPTIONS = ['qwen/qwen3.5-9b@q4_k_m'] as const
@@ -204,6 +211,42 @@ export function getDefaultGenerationModelForProvider(provider: unknown, kind: Ch
     return CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT
   }
   return getDefaultChatModelForProvider(normalizedProvider)
+}
+
+const toTitleToken = (token: string): string => {
+  const t = String(token || '').trim()
+  if (!t) return ''
+  return t[0]!.toUpperCase() + t.slice(1)
+}
+
+export function getBytePlusVideoModelLabel(modelId: unknown): string {
+  const raw = typeof modelId === 'string' ? modelId.trim() : ''
+  if (!raw) return ''
+  const parts = raw.split('-').map(v => v.trim()).filter(Boolean)
+  if (parts.length === 0) return raw
+  const last = parts[parts.length - 1] || ''
+  const core = /^\d{6}$/.test(last) ? parts.slice(0, -1) : parts
+  if (core.length === 0) return raw
+
+  const first = core[0] || ''
+  const rest = core.slice(1)
+
+  const out: string[] = [toTitleToken(first)]
+
+  if (rest.length >= 3 && rest[0]?.toLowerCase() === 'seedance' && /^\d+$/.test(rest[1] || '') && /^\d+$/.test(rest[2] || '')) {
+    out.push('Seedance')
+    out.push(`${rest[1]}.${rest[2]}`)
+    out.push(...rest.slice(3))
+  } else if (rest.length >= 2 && /^\d+$/.test(rest[0] || '') && /^\d+$/.test(rest[1] || '')) {
+    out.push(`${rest[0]}.${rest[1]}`)
+    out.push(...rest.slice(2))
+  } else {
+    out.push(...rest)
+  }
+
+  const label = out.filter(Boolean).join('-')
+  const hasSeedance = core.some(v => String(v || '').toLowerCase() === 'seedance') || String(first || '').toLowerCase() === 'seedance'
+  return hasSeedance ? `ByteDance-${label}` : label
 }
 
 export function normalizeChatModelIdForProvider(value: unknown, provider: unknown): string {

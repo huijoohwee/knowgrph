@@ -51,9 +51,6 @@ export function testFlowEditorCanvasRunTargetsWritableNodeIdForComposedGraphs() 
   if (!text.includes('updateRunOutputForKnownNodeIds')) {
     throw new Error('expected FlowEditorCanvas run path to write outputs via canonical id updater')
   }
-  if (!text.includes("idValue.includes('::')")) {
-    throw new Error('expected FlowEditorCanvas run path to normalize layer::node ids to leaf ids before writeback')
-  }
   if (!text.includes('setDraftGraphData(prev => {')) {
     throw new Error('expected FlowEditorCanvas run path to update live draft graph output before renderer recompute')
   }

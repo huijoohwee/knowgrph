@@ -38,6 +38,15 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   if (!overlayText.includes('absolute left-1/2 z-10 -translate-x-1/2 pointer-events-auto')) {
     throw new Error('expected widget tiny floating toolbar anchor to keep explicit stacking and pointer-event visibility')
   }
+  if (!overlayText.includes('const [toolbarSideClamp, setToolbarSideClamp] = React.useState(false)')) {
+    throw new Error('expected Rich Media widget toolbar to track side clamping state')
+  }
+  if (!overlayText.includes('const nextToolbarSideClamp = pos.left + scaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > viewportWidth')) {
+    throw new Error('expected Rich Media widget toolbar to clamp inside the widget when right-side placement would clip')
+  }
+  if (!overlayText.includes("className={isRichMediaPanelWidget ? 'absolute z-10 pointer-events-auto' : 'absolute left-1/2 z-10 -translate-x-1/2 pointer-events-auto'}")) {
+    throw new Error('expected Rich Media widget toolbar anchor to branch into side-docked placement while preserving default center toolbar behavior for other widgets')
+  }
   if (!overlayText.includes('visible={toolbarVisible}')) {
     throw new Error('expected widget tiny floating toolbar visibility to be driven by local click-open state without duplicate selected-node gating')
   }

@@ -2,6 +2,7 @@ import {
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
   CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
+  CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS,
 } from '@/lib/chatEndpoint'
 
 export type FlowEditorSmartNodeModel = string
@@ -50,10 +51,10 @@ export const FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS: ReadonlyArray<{ value: Flo
 ]
 
 export const FLOW_EDITOR_VIDEO_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
-  { value: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT, label: `${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT} (Default)` },
-  { value: 'ByteDance-Seedance-1.5-pro', label: 'ByteDance-Seedance-1.5-pro' },
-  { value: 'Dreamina-Seedance-2.0', label: 'Dreamina-Seedance-2.0' },
-  { value: 'Dreamina-Seedance-2.0-fast', label: 'Dreamina-Seedance-2.0-fast' },
+  ...CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS.map((value, index) => ({
+    value,
+    label: index === 0 ? `${value} (Default)` : value,
+  })),
 ]
 
 export const FLOW_EDITOR_SMART_NODE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
@@ -76,11 +77,7 @@ export function getFlowEditorSmartWidgetLabel(args: {
     return FLOW_IMAGE_GENERATION_NODE_LABEL
   }
   if (mode === 'video') {
-    const value = String(args.model || '').trim() || CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
-    const option = FLOW_EDITOR_VIDEO_MODEL_OPTIONS.find(entry => entry.value === value)
-    const label = String(option?.label || value || FLOW_VIDEO_GENERATION_NODE_LABEL).replace(/\s*\(Default\)\s*$/i, '').trim()
-    if (!label || label === FLOW_VIDEO_GENERATION_NODE_LABEL) return FLOW_VIDEO_GENERATION_NODE_LABEL
-    return `${label} ${FLOW_VIDEO_GENERATION_NODE_LABEL}`
+    return FLOW_VIDEO_GENERATION_NODE_LABEL
   }
   return FLOW_TEXT_GENERATION_NODE_LABEL
 }

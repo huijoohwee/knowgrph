@@ -221,6 +221,10 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       read: () => 'openai',
     }
   }
+  if (String(entry.meta.key || '').trim() === 'byteplusApi.model') {
+    const mapped = SETTINGS_REGISTRY_BY_KEY.get('chatModel')
+    if (mapped) return mapped
+  }
   const mappedMeta = entry.valueKey ? SETTINGS_REGISTRY_BY_KEY.get(entry.valueKey) : undefined
   if (mappedMeta) {
     if (String(entry.meta.key || '').trim() === 'openaiApi.model') {
@@ -581,7 +585,6 @@ export function useSettingsView({
           apiKey: authMode === 'byok' ? apiKey : null,
         },
         values.byteplusVideoModel,
-        { fast: values.byteplusVideoFast },
       )
       if (bytePlusVideoPreviewRequestRef.current !== requestId) return
       const selected = String(preview.preferredModel || '').trim()
@@ -605,7 +608,7 @@ export function useSettingsView({
         setIsCheckingBytePlusVideoModelPreview(false)
       }
     }
-  }, [values.byteplusVideoFast, values.byteplusVideoModel, values.chatApiKey, values.chatAuthMode])
+  }, [values.byteplusVideoModel, values.chatApiKey, values.chatAuthMode])
 
   const didAutoCheckHealthRef = React.useRef(false)
   React.useEffect(() => {

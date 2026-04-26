@@ -75,12 +75,13 @@ export type RunImageGenerationOptions = {
 export type RunVideoGenerationOptions = {
   model?: unknown
   contentJson?: unknown
-  aspectRatio?: unknown
+  ratio?: unknown
   resolution?: unknown
   duration?: unknown
   generateAudio?: unknown
-  fast?: unknown
-  watermark?: unknown
+  draft?: unknown
+  cameraFixed?: unknown
+  imageUrlUrl?: unknown
   referenceImageUrl?: unknown
 }
 
@@ -209,23 +210,25 @@ const readBytePlusImageDefaults = (): {
 const readBytePlusVideoDefaults = (): {
   model: string
   contentJson: string
-  aspectRatio: string
+  ratio: string
   resolution: string
   duration: number
   generateAudio: boolean
-  fast: boolean
-  watermark: boolean
+  draft: boolean
+  cameraFixed: boolean
+  imageUrlUrl: string
 } => {
   const defaults = readBytePlusVideoWidgetDefaults()
   return {
     model: cleanString(defaults.model),
     contentJson: typeof defaults.content_json === 'string' ? defaults.content_json : '',
-    aspectRatio: cleanString(defaults.aspect_ratio),
+    ratio: cleanString(defaults.ratio),
     resolution: cleanString(defaults.resolution),
     duration: defaults.duration,
     generateAudio: defaults.generate_audio,
-    fast: defaults.fast,
-    watermark: defaults.watermark,
+    draft: defaults.draft,
+    cameraFixed: defaults.camera_fixed,
+    imageUrlUrl: cleanString(defaults.image_url_url),
   }
 }
 
@@ -248,7 +251,6 @@ type BytePlusVideoModelSignature = {
   major: string
   minor: string
   pro: boolean
-  fast: boolean
 }
 
 type BytePlusImageModelSignature = {
@@ -257,7 +259,7 @@ type BytePlusImageModelSignature = {
   lite: boolean
 }
 
-const parseBytePlusVideoModelSignature = (value: string, wantsFast?: boolean): BytePlusVideoModelSignature | null => {
+const parseBytePlusVideoModelSignature = (value: string): BytePlusVideoModelSignature | null => {
   const tokens = tokenizeModelId(value)
   const seedanceIndex = tokens.findIndex(token => token === 'seedance')
   if (seedanceIndex < 0) return null
@@ -267,7 +269,6 @@ const parseBytePlusVideoModelSignature = (value: string, wantsFast?: boolean): B
     major: numericTokens[0] || '',
     minor: numericTokens[1] || '',
     pro: tokens.includes('pro'),
-    fast: wantsFast === true ? true : tokens.includes('fast'),
   }
 }
 
@@ -312,10 +313,10 @@ const chooseMatchingImageModel = (available: string[], preferred: string): strin
   return preferred
 }
 
-const chooseMatchingVideoModel = (available: string[], preferred: string, wantsFast: boolean): string => {
+const chooseMatchingVideoModel = (available: string[], preferred: string): string => {
   const exact = available.find(id => normalizeModelId(id) === normalizeModelId(preferred))
   if (exact) return exact
-  const preferredSignature = parseBytePlusVideoModelSignature(preferred, wantsFast)
+  const preferredSignature = parseBytePlusVideoModelSignature(preferred)
   if (preferredSignature) {
     const signatureMatch = available.find(id => {
       const candidateSignature = parseBytePlusVideoModelSignature(id)
@@ -324,7 +325,6 @@ const chooseMatchingVideoModel = (available: string[], preferred: string, wantsF
         candidateSignature.major === preferredSignature.major
         && candidateSignature.minor === preferredSignature.minor
         && candidateSignature.pro === preferredSignature.pro
-        && candidateSignature.fast === preferredSignature.fast
       )
     })
     if (signatureMatch) return signatureMatch
@@ -332,7 +332,7 @@ const chooseMatchingVideoModel = (available: string[], preferred: string, wantsF
   const preferredNormalized = normalizeModelId(preferred)
   const preferredFamily = available.find(id => normalizeModelId(id).includes(preferredNormalized))
   if (preferredFamily) return preferredFamily
-  const keywordTokens = deriveVideoKeywords(preferred, wantsFast)
+  const keywordTokens = deriveVideoKeywords(preferred)
   const tokenMatch = available.find(id => {
     const candidateTokens = tokenizeModelId(id)
     return keywordTokens.every(token => candidateTokens.includes(token))
@@ -341,18 +341,18 @@ const chooseMatchingVideoModel = (available: string[], preferred: string, wantsF
   return preferred
 }
 
-const deriveVideoKeywords = (preferred: string, wantsFast: boolean): string[] => {
+const deriveVideoKeywords = (preferred: string): string[] => {
   const normalized = normalizeModelId(preferred)
   if (normalized.includes('dreaminaseedance20') || normalized.includes('seedance20')) {
-    return wantsFast ? ['seedance', '2', '0', 'fast'] : ['seedance', '2', '0']
+    return normalized.includes('fast') ? ['seedance', '2', '0', 'fast'] : ['seedance', '2', '0']
   }
   if (normalized.includes('bytedanceseedance15pro') || normalized.includes('seedance15pro')) {
     return ['seedance', '1', '5', 'pro']
   }
   if (normalized.includes('bytedanceseedance10pro') || normalized.includes('seedance10pro')) {
-    return wantsFast ? ['seedance', '1', '0', 'pro', 'fast'] : ['seedance', '1', '0', 'pro']
+    return normalized.includes('fast') ? ['seedance', '1', '0', 'pro', 'fast'] : ['seedance', '1', '0', 'pro']
   }
-  return wantsFast ? ['seedance', 'fast'] : ['seedance']
+  return normalized.includes('fast') ? ['seedance', 'fast'] : ['seedance']
 }
 
 const deriveImageKeywords = (preferred: string): string[] => {
@@ -367,7 +367,6 @@ const resolveGenerationModelPreview = async (
   config: RunGenerationConfig,
   kind: 'text' | 'image' | 'video',
   explicitModel?: unknown,
-  options?: { fast?: unknown },
 ): Promise<ResolvedGenerationModelPreview> => {
   const provider = normalizeChatProviderId(config.provider)
   const explicit = cleanString(explicitModel)
@@ -413,15 +412,11 @@ const resolveGenerationModelPreview = async (
         matchedAvailableModel: false,
       }
     }
-    const wantsFast = cleanBool(options?.fast) === true
     let resolved = preferred
     const hasStrongPreference = hasExplicit || ((kind === 'video' || kind === 'image') && hasDefaultModel)
     if (hasStrongPreference) {
       if (kind === 'video') {
-        const preferredTarget = wantsFast && !normalizeModelId(preferred).includes('fast')
-          ? `${preferred}-fast`
-          : preferred
-        resolved = chooseMatchingVideoModel(available, preferredTarget, wantsFast)
+        resolved = chooseMatchingVideoModel(available, preferred)
       } else if (kind === 'image') {
         resolved = hasExplicit ? preferred : chooseMatchingImageModel(available, preferred)
       } else {
@@ -442,19 +437,16 @@ const resolveGenerationModelPreview = async (
       }
     }
 
-    const preferredTarget = kind === 'video' && wantsFast && !normalizeModelId(preferred).includes('fast')
-      ? `${preferred}-fast`
-      : preferred
     const keywords = kind === 'text'
       ? ['seed', '2', 'lite']
       : kind === 'image'
-        ? deriveImageKeywords(preferredTarget)
+        ? deriveImageKeywords(preferred)
         : []
     resolved = kind === 'video'
-      ? chooseMatchingVideoModel(available, preferredTarget, wantsFast)
+      ? chooseMatchingVideoModel(available, preferred)
       : kind === 'image'
-        ? chooseMatchingImageModel(available, preferredTarget)
-      : chooseMatchingModel(available, preferredTarget, keywords)
+        ? chooseMatchingImageModel(available, preferred)
+      : chooseMatchingModel(available, preferred, keywords)
     return {
       preferredModel: preferred,
       resolvedModel: resolved,
@@ -474,18 +466,16 @@ const resolveGenerationModelPreview = async (
 export const resolveBytePlusVideoModelPreview = async (
   config: RunGenerationConfig,
   explicitModel?: unknown,
-  options?: { fast?: unknown },
 ): Promise<ResolvedGenerationModelPreview> => {
-  return resolveGenerationModelPreview(config, 'video', explicitModel, options)
+  return resolveGenerationModelPreview(config, 'video', explicitModel)
 }
 
 const resolveGenerationModel = async (
   config: RunGenerationConfig,
   kind: 'text' | 'image' | 'video',
   explicitModel?: unknown,
-  options?: { fast?: unknown },
 ): Promise<string> => {
-  const preview = await resolveGenerationModelPreview(config, kind, explicitModel, options)
+  const preview = await resolveGenerationModelPreview(config, kind, explicitModel)
   return preview.resolvedModel
 }
 
@@ -1007,7 +997,6 @@ export async function generateRunVideoWithBytePlus(args: {
     args.config,
     'video',
     args.options?.model,
-    { fast: args.options?.fast ?? defaults.fast },
   )
   const model = modelPreview.resolvedModel
   const failureContext: BytePlusVideoFailureContext = {
@@ -1019,6 +1008,11 @@ export async function generateRunVideoWithBytePlus(args: {
   }
   const requestId = toRequestId('kg-run-video')
   const referenceImageUrl = cleanString(args.options?.referenceImageUrl)
+  const imageUrlUrlModeRaw = cleanString(args.options?.imageUrlUrl) || defaults.imageUrlUrl
+  const imageUrlUrlMode = imageUrlUrlModeRaw.trim().toLowerCase() === 'url' ? 'url' : 'base64'
+  if (referenceImageUrl && imageUrlUrlMode === 'url' && !/^https?:\/\//i.test(referenceImageUrl)) {
+    throw new Error('BytePlus video run failed: reference image mode is url but referenceImageUrl is not an http(s) URL.')
+  }
   const contentOverride = (() => {
     const widgetOverrideRaw = cleanString(args.options?.contentJson)
     if (widgetOverrideRaw) {
@@ -1039,6 +1033,16 @@ export async function generateRunVideoWithBytePlus(args: {
     }
   })()
   const content = contentOverride || ([{ type: 'text', text: args.prompt }] as Array<Record<string, unknown>>)
+  const contentHasImageUrl = (() => {
+    try {
+      return content.some(item => {
+        const kind = typeof item?.type === 'string' ? item.type.trim().toLowerCase() : ''
+        return kind === 'image_url' || kind === 'image'
+      })
+    } catch {
+      return false
+    }
+  })()
   if (referenceImageUrl) {
     content.push({
       type: 'image_url',
@@ -1047,23 +1051,33 @@ export async function generateRunVideoWithBytePlus(args: {
       },
     })
   }
-  const duration = cleanInteger(args.options?.duration) ?? defaults.duration
+  const isImageConditionedRun = Boolean(referenceImageUrl) || contentHasImageUrl
+  const durationCandidate = cleanInteger(args.options?.duration)
+  const duration = durationCandidate != null ? Math.max(2, Math.min(15, durationCandidate)) : defaults.duration
   const generateAudio = cleanBool(args.options?.generateAudio) ?? defaults.generateAudio
-  const watermark = cleanBool(args.options?.watermark) ?? defaults.watermark
-  const aspectRatio = cleanString(args.options?.aspectRatio) || defaults.aspectRatio
+  const draft = cleanBool(args.options?.draft) ?? defaults.draft
+  const cameraFixed = cleanBool(args.options?.cameraFixed) ?? defaults.cameraFixed
+  const ratio = cleanString(args.options?.ratio) || defaults.ratio
   const resolution = cleanString(args.options?.resolution) || defaults.resolution
+
+  const requestBody: Record<string, unknown> = {
+    model,
+    content,
+    resolution: resolution || '480p',
+    ratio: ratio || '16:9',
+    duration,
+    generate_audio: generateAudio === true,
+  }
+  if (isImageConditionedRun && draft === true) {
+    requestBody.draft = true
+  }
+  if (isImageConditionedRun && cameraFixed === true) {
+    requestBody.camera_fixed = true
+  }
   const createRes = await fetch(endpoint, {
     method: 'POST',
     headers: buildProxyHeaders(args.config, requestId),
-    body: JSON.stringify({
-      model,
-      content,
-      resolution: resolution || '720p',
-      ratio: mapAspectRatioToVideoRatio(aspectRatio),
-      duration: duration != null && duration > 0 ? duration : 5,
-      generate_audio: generateAudio === true,
-      watermark: watermark === true,
-    }),
+    body: JSON.stringify(requestBody),
   })
   if (!createRes.ok) {
     const detail = await parseErrorBody(createRes)

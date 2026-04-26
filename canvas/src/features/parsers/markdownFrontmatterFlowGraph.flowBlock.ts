@@ -587,6 +587,11 @@ function coerceFlowNodePorts(raw: unknown): Array<Record<string, unknown>> {
 function unwrapFlowNodeFieldValue(raw: unknown): unknown {
   if (!isRecord(raw)) return raw
   if (!Object.prototype.hasOwnProperty.call(raw, 'value')) return raw
+  const keys = Object.keys(raw)
+  for (let i = 0; i < keys.length; i += 1) {
+    const k = keys[i]!
+    if (k !== 'key' && k !== 'type' && k !== 'value') return raw
+  }
   return (raw as Record<string, unknown>).value
 }
 

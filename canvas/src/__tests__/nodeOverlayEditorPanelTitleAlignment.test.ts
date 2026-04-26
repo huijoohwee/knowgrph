@@ -124,9 +124,7 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
       updatedAt: '2026-04-22T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (bytePlusVideo !== `${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT} BytePlus Video Widget`) {
-    throw new Error(`expected ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT} BytePlus Video Widget, got ${bytePlusVideo}`)
-  }
+  if (bytePlusVideo !== 'BytePlus Video Widget') throw new Error(`expected BytePlus Video Widget, got ${bytePlusVideo}`)
 
   const discoveryWidget = resolveWidgetNodeTitle({
     node: makeNode({ id: 'discovery-1', type: FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID, label: 'GrabMaps Chat Discovery Widget' }),

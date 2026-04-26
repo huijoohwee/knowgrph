@@ -11,6 +11,12 @@ const RICH_MEDIA_RENDER_SCHEMA_PATHS = new Set([
   'properties.videoUrl',
 ])
 
+function hasRenderableConnectedValue(value: unknown): boolean {
+  if (typeof value === 'undefined' || value === null) return false
+  if (typeof value === 'string') return value.trim().length > 0
+  return true
+}
+
 function clearRichMediaRenderDrivers(properties: Record<string, unknown>, opts?: { preserveOutput?: boolean }): Record<string, unknown> {
   const next = { ...properties }
   const preserveOutput = opts?.preserveOutput === true
@@ -68,7 +74,11 @@ export function applyConnectedValuesToNodeForRender(args: {
   })()
   const richMediaPanelHasConnectedRenderValue =
     String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
-    && connectedPaths.some(path => RICH_MEDIA_RENDER_SCHEMA_PATHS.has(path))
+    && connectedPaths.some(path => {
+      if (!RICH_MEDIA_RENDER_SCHEMA_PATHS.has(path)) return false
+      const rec = connectedValuesBySchemaPath[path]
+      return rec ? hasRenderableConnectedValue(rec.value) : false
+    })
 
   if (richMediaPanelHasConnectedRenderValue) {
     next = {
