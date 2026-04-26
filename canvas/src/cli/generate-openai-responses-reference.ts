@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 import {
   OPENAI_RESPONSES_API_DOC_ROWS,
   OPENAI_VALUE_TOOLTIP_BY_ROW_KEY,
@@ -9,30 +10,24 @@ import {
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../..')
+
 const OUTPUT_PATH = path.join(
   REPO_ROOT,
   'docs',
   'documents',
-  'knowgrph-openai-responses-api-reference.md',
+  'api-reference',
+  'api-reference-codebase-index_202604261230',
+  'knowgrph-openai-responses-api-reference-codebase-index.md',
 )
-const OPENAI_RESPONSES_DOC_URL = 'https://developers.openai.com/api/reference/resources/responses/index.md'
 
-const OPENAI_EXTERNAL_PARAM_PATH_BY_KEY: Readonly<Record<string, string>> = {
-  model: 'post /responses :: Body Parameters > model',
-  input: 'post /responses :: Body Parameters > input',
-  response_format: 'post /responses :: Body Parameters > text',
-  temperature: 'post /responses :: Body Parameters > temperature',
-  top_p: 'post /responses :: Body Parameters > top_p',
-  max_output_tokens: 'post /responses :: Body Parameters > max_output_tokens',
-  reasoning_effort: 'post /responses :: Body Parameters > reasoning',
-  stream: 'post /responses :: Body Parameters > stream',
-  frequency_penalty: 'post /responses :: Body Parameters > frequency_penalty',
-  presence_penalty: 'post /responses :: Body Parameters > presence_penalty',
-  logprobs: 'post /responses :: Body Parameters > logprobs',
-  top_logprobs: 'post /responses :: Body Parameters > top_logprobs',
-  tools: 'post /responses :: Body Parameters > tools',
-  tool_choice: 'post /responses :: Body Parameters > tool_choice',
-  parallel_tool_calls: 'post /responses :: Body Parameters > parallel_tool_calls',
+const CONFIG_KEYS = new Set(['provider', 'auth_mode', 'endpoint_url', 'api_key'])
+const REQUIRED_KEYS = new Set(['provider', 'auth_mode', 'endpoint_url', 'model'])
+
+function escapeMarkdownCell(value: string): string {
+  return String(value || '')
+    .replace(/\r?\n/g, ' ')
+    .replace(/\|/g, '\\|')
+    .trim()
 }
 
 function normalizeScalar(value: string | number | boolean | null | undefined): string {
@@ -43,19 +38,8 @@ function normalizeScalar(value: string | number | boolean | null | undefined): s
   return text === '—' ? '-' : text
 }
 
-function escapeMarkdownCell(value: string): string {
-  return String(value || '')
-    .replace(/\r?\n/g, ' ')
-    .replace(/\|/g, '\\|')
-    .trim()
-}
-
 function trimTrailingSentencePunctuation(value: string): string {
   return String(value || '').trim().replace(/[.;\s]+$/g, '')
-}
-
-function formatList(values: string[] | undefined): string {
-  return (values || []).map(value => `\`${value}\``).join('; ')
 }
 
 function buildValueDescription(row: OpenAiApiDocRow): string {
@@ -81,24 +65,50 @@ function buildValueDescription(row: OpenAiApiDocRow): string {
   return parts.join('; ')
 }
 
-function buildSsotCell(row: OpenAiApiDocRow): string {
-  const rowKey = `openaiApi.${row.key}`
-  const refs = [
-    `\`canvas/src/features/integrations/openaiResponsesSsot.ts :: OPENAI_RESPONSES_API_DOC_ROWS['${rowKey}']\``,
-  ]
-  const externalPath = OPENAI_EXTERNAL_PARAM_PATH_BY_KEY[row.key]
-  if (externalPath) refs.push(`\`${OPENAI_RESPONSES_DOC_URL} :: ${externalPath}\``)
-  return refs.join('; ')
+function resolvePattern(typeLabel: string): string {
+  const normalized = String(typeLabel || '').trim().toLowerCase()
+  if (!normalized) return '—'
+  if (normalized.includes('state-machine')) return 'state-machine'
+  if (normalized.includes('webhook')) return 'webhook'
+  if (normalized.includes('array<union>')) return 'array<union>'
+  if (normalized.includes('[]')) return 'array<union>'
+  if (normalized.includes('|')) return 'union'
+  return 'scalar'
+}
+
+function formatList(values: string[] | undefined): string {
+  return (values || []).map(value => String(value || '').trim()).filter(Boolean).join('; ')
 }
 
 function buildRow(row: OpenAiApiDocRow): string {
+  const isConfig = CONFIG_KEYS.has(row.key)
+  const endpoint = isConfig ? 'ALL' : 'POST /responses'
+  const kind = isConfig ? 'config' : 'param'
+  const required = REQUIRED_KEYS.has(row.key) ? 'yes' : (isConfig ? 'no' : 'no')
+  const direction = 'in'
+  const actor = isConfig ? 'Operator' : 'Caller'
+  const seqNote = isConfig ? '—' : 'POST /responses'
+  const location = isConfig ? '—' : 'body'
+  const scope = '—'
+  const pattern = resolvePattern(row.typeLabel)
+  const keyDescription = row.responsibility
+  const valueDescription = buildValueDescription(row)
+
   const cells = [
+    endpoint,
+    kind,
     row.key,
     row.typeLabel,
     row.value,
-    row.responsibility,
-    buildValueDescription(row),
-    buildSsotCell(row),
+    required,
+    direction,
+    actor,
+    seqNote,
+    location,
+    scope,
+    pattern,
+    keyDescription,
+    valueDescription,
     formatList(row.modules),
     formatList(row.classes),
     formatList(row.functions),
@@ -108,24 +118,10 @@ function buildRow(row: OpenAiApiDocRow): string {
 
 function buildMarkdown(): string {
   const lines = [
-    '# knowgrph - OpenAI Responses API Reference (SSOT + Codebase Map)',
+    '## Table',
     '',
-    'Generated by `npm run docs:openai-reference`.',
-    '',
-    'SSOT:',
-    '- `canvas/src/features/integrations/openaiResponsesSsot.ts`',
-    `- \`${OPENAI_RESPONSES_DOC_URL}\``,
-    '',
-    'Scope:',
-    '- This static reference is intentionally limited to the OpenAI request-surface rows that knowgrph exposes in `MainPanel Integrations`, `Workflow Manager`, and the `OpenAI Text Widget`.',
-    '- `provider`, `auth_mode`, `endpoint_url`, and `api_key` are knowgrph integration transport settings aligned to OpenAI Responses execution, not raw OpenAI body fields.',
-    '',
-    'Table columns:',
-    '- `key | type | value | key-description | value-description`: curated OpenAI request-surface SSOT',
-    '- `module | class | function`: where the row is anchored in the knowgrph codebase',
-    '',
-    '| key | type | value | key-description | value-description | ssot | module | class | function |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| endpoint | kind | key | type | value | required | direction | actor | seq-note | location | scope | pattern | key-description | value-description | module | class | function |',
+    '|----------|------|-----|------|-------|----------|-----------|-------|----------|----------|-------|---------|-----------------|-------------------|--------|-------|----------|',
     ...OPENAI_RESPONSES_API_DOC_ROWS.map(buildRow),
     '',
   ]
@@ -139,3 +135,4 @@ function main(): void {
 }
 
 main()
+

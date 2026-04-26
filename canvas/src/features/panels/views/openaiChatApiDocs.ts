@@ -1,4 +1,5 @@
 import type { VirtualSettingsEntry } from './byteplusChatApiDocs'
+import type { SettingMeta } from '@/features/settings/types'
 import {
   OPENAI_KEY_ACTIONS_BY_VALUE_KEY,
   OPENAI_RESPONSES_API_DOC_ROWS,

@@ -194,6 +194,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["openai.run.markdownSupportsResponsesApi","@/__tests__/byteplusRunGeneration.test","testGenerateRunMarkdownWithProviderSupportsOpenAiResponsesApi"],
   ["byteplus.run.imageDecodesBase64Payload","@/__tests__/byteplusRunGeneration.test","testGenerateRunImageWithBytePlusAcceptsBase64Payload"],
   ["byteplus.run.imageUrlDownloadsThroughAssetProxy","@/__tests__/byteplusRunGeneration.test","testGenerateRunImageWithBytePlusDownloadsUrlThroughAssetProxy"],
+  ["byteplus.run.imageExplicitModelDisablesFallback","@/__tests__/byteplusRunGeneration.test","testGenerateRunImageWithBytePlusDoesNotFallbackWhenModelExplicit"],
   ["byteplus.run.videoPollsTaskAndDownloadsBlob","@/__tests__/byteplusRunGeneration.test","testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob"],
   ["byteplus.run.videoCompletesAfterExtendedPollingWindow","@/__tests__/byteplusRunGeneration.test","testGenerateRunVideoWithBytePlusCompletesAfterExtendedPollingWindow"],
   ["byteplus.run.videoPrefersWidgetContentJsonOverride","@/__tests__/byteplusRunGeneration.test","testGenerateRunVideoWithBytePlusPrefersWidgetContentJsonOverride"],

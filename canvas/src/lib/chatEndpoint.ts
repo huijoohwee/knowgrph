@@ -21,20 +21,25 @@ export const CHAT_PROVIDER_BYTEPLUS = 'byteplus-modelark'
 export const CHAT_PROVIDER_LM_STUDIO = 'lmstudio-local'
 export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_BYTEPLUS, CHAT_PROVIDER_LM_STUDIO] as const
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
-export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-lite-250821'
-export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'ByteDance-Seedream-4.0'
+export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-lite-260228'
+export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'seedream-4-0-250828'
 export const CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS = [
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
-  'ByteDance-Seedream-4.5',
-  'Dola-Seedream-5.0-lite',
+  'seedream-4-5-251128',
+  'seedream-5-0-260128',
 ] as const
 export const CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT = 'ByteDance-Seedance-1.0-pro-fast'
-export const CHAT_BYTEPLUS_MODEL_OPTIONS = [
+export const CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS = [
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+  'seed-2-0-mini-260215',
+  'seed-2-0-pro-260328',
+] as const
+export const CHAT_BYTEPLUS_MODEL_OPTIONS = [
+  ...CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS,
   ...CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
 ] as const
-export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-4o-mini-tts', 'gpt-realtime-mini'] as const
+export const CHAT_OPENAI_MODEL_OPTIONS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4', 'gpt-5.5'] as const
 export const CHAT_LOCAL_MODEL_OPTIONS = ['qwen/qwen3.5-9b@q4_k_m'] as const
 export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_OPENAI
 export const CHAT_DEFAULT_MODEL = CHAT_OPENAI_MODEL_OPTIONS[0]
@@ -43,8 +48,12 @@ export const CHAT_LOCAL_DEFAULT_MODEL = CHAT_LOCAL_MODEL_OPTIONS[0]
 export const CHAT_LEGACY_DEFAULT_MODEL = 'lmstudio-community/Qwen3.5-9B-Q4_K_M.gguf'
 const CHAT_MODEL_ALIASES: Record<string, string> = {
   'gpt-5.4 nano': 'gpt-5.4-nano',
-  'gpt-4o mini tts': 'gpt-4o-mini-tts',
-  'gpt-realtime-mini': 'gpt-realtime-mini',
+  'gpt-5.4 mini': 'gpt-5.4-mini',
+  'gpt-5.4': 'gpt-5.4',
+  'gpt-5.5': 'gpt-5.5',
+  'seedream-4.0': 'seedream-4-0-250828',
+  'seedream-4.5': 'seedream-4-5-251128',
+  'seedream-5.0': 'seedream-5-0-260128',
 }
 const CHAT_PROVIDER_LABELS: Record<ChatProviderId, string> = {
   [CHAT_PROVIDER_BYTEPLUS]: 'BytePlus ModelArk',
@@ -243,6 +252,17 @@ export function resolveChatEndpointForRequest(value: unknown): string | null {
   } catch {
     return null
   }
+}
+
+export function isResponsesEndpointUrl(value: unknown): boolean {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return false
+  const withoutQuery = (() => {
+    const q = raw.indexOf('?')
+    return q >= 0 ? raw.slice(0, q) : raw
+  })()
+  const stripped = stripProxyPrefix(withoutQuery)
+  return /\/v1\/responses\/?$/i.test(stripped)
 }
 
 export function resolveBytePlusContentEndpointForRequest(args: {

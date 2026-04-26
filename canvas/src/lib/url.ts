@@ -86,6 +86,12 @@ export function buildWebpageAssetPathProxyUrl(absUrl: string): string {
 export function applyImageLikeProxySrc(src: string): string {
   const raw = String(src || '').trim()
   if (!raw) return ''
+  if (/^(data:|blob:)/i.test(raw)) return raw
+  if (raw.startsWith('/__binary_download_proxy')) return raw
+  if (raw.startsWith('/__repo_file/')) return raw
+  if (raw.startsWith('/__webpage_asset_path/')) return raw
+  if (raw.startsWith('/__webpage_asset_proxy?url=')) return raw
+  if (raw.startsWith('/__media_proxy?url=')) return raw
   const normalized = raw.startsWith('//') ? `https:${raw}` : raw
   if (isWeChatHotlinkProtectedAssetUrl(normalized)) {
     if (typeof window === 'undefined') return normalized

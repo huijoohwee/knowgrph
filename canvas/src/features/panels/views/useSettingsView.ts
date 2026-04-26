@@ -9,6 +9,7 @@ import { FALLBACK_DETAILS } from './SettingsFallbackDetails'
 import { renderSettingInput } from '@/features/settings/ui'
 import { UI_ANCHORS } from '@/lib/config'
 import {
+  CHAT_OPENAI_MODEL_OPTIONS,
   CHAT_PROVIDER_BYTEPLUS,
   buildChatProxyHeaders,
   getChatDefaultEndpointUrlForProvider,
@@ -207,15 +208,27 @@ const SETTINGS_REGISTRY_BY_KEY = new Map(settingsRegistry.map(setting => [settin
 const INTEGRATION_JSON_OWNER_ROW_KEYS_BY_VALUE_KEY: Readonly<Record<string, ReadonlySet<string>>> = {
   chatMessagesJson: new Set(['byteplusApi.messages', 'openaiApi.input']),
   chatThinkingJson: new Set(['byteplusApi.thinking']),
-  chatResponseFormatJson: new Set(['byteplusApi.response_format', 'openaiApi.response_format']),
+  chatResponseFormatJson: new Set(['byteplusApi.response_format', 'openaiApi.text']),
   chatToolsJson: new Set(['byteplusApi.tools', 'openaiApi.tools']),
   chatToolChoiceJson: new Set(['byteplusApi.tool_choice', 'openaiApi.tool_choice']),
   chatStreamOptionsJson: new Set(['byteplusApi.stream_options']),
 }
 
 function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[number]) {
+  if (String(entry.meta.key || '').trim() === 'openaiApi.provider') {
+    return {
+      ...entry.meta,
+      read: () => 'openai',
+    }
+  }
   const mappedMeta = entry.valueKey ? SETTINGS_REGISTRY_BY_KEY.get(entry.valueKey) : undefined
   if (mappedMeta) {
+    if (String(entry.meta.key || '').trim() === 'openaiApi.model') {
+      return {
+        ...mappedMeta,
+        options: [...CHAT_OPENAI_MODEL_OPTIONS],
+      }
+    }
     if (mappedMeta.type !== 'json') return mappedMeta
     const ownerRowKeys = entry.valueKey ? INTEGRATION_JSON_OWNER_ROW_KEYS_BY_VALUE_KEY[entry.valueKey] : undefined
     if (!ownerRowKeys || ownerRowKeys.has(entry.meta.key)) return mappedMeta
@@ -233,7 +246,7 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
         ? entry.tooltipDefaultValue
         : entry.value,
     defaultValue: entry.tooltipDefaultValue,
-    options: entry.meta.options,
+    options: 'options' in entry.meta ? entry.meta.options : undefined,
     kind: isReferenceRow ? 'reference' : 'request',
   })
 }

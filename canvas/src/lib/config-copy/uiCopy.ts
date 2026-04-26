@@ -65,7 +65,6 @@ export const UI_COPY = {
   flowWidgetRegistryToast: (label: string) => `Widget mapping set to ${label}.`,
   flowWidgetRegistryClearedToast: 'Widget mapping cleared.',
   flowWidgetSelectPlaceholder: 'Search or select…',
-  flowWidgetReferenceImagePlaceholder: 'Enter URL to desired file',
   flowWidgetParamsPlaceholder: 'Edit node params as JSON',
   flowWidgetParamsInvalidJson: 'Invalid JSON.',
   flowWidgetConnectedValueLabel: 'Connected value',

@@ -448,6 +448,58 @@ export const uiUiSettingsRegistry: SettingMeta[] = [
     options: FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS.map(option => String(option.value)),
   },
   {
+    key: 'byteplusImageResponseFormat',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.byteplusImageResponseFormat, 'b64_json', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim().toLowerCase()
+      const normalized = raw === 'url' ? 'url' : 'b64_json'
+      lsSetJson(LS_KEYS.byteplusImageResponseFormat, normalized)
+    },
+    docKey: 'byteplusImageResponseFormat',
+    default: () => 'b64_json',
+    options: ['b64_json', 'url'],
+  },
+  {
+    key: 'byteplusImageOptimizePromptOptions',
+    type: 'string',
+    source: 'localStorage',
+    read: () => lsJson<string>(LS_KEYS.byteplusImageOptimizePromptOptions, 'fast', value => (typeof value === 'string' ? value : null)),
+    write: (v) => {
+      const raw = String(v || '').trim().toLowerCase()
+      const normalized = raw === 'standard' ? 'standard' : 'fast'
+      lsSetJson(LS_KEYS.byteplusImageOptimizePromptOptions, normalized)
+    },
+    docKey: 'byteplusImageOptimizePromptOptions',
+    default: () => 'fast',
+    options: ['fast', 'standard'],
+  },
+  {
+    key: 'byteplusImageAspectRatio',
+    type: 'number',
+    source: 'localStorage',
+    read: () => lsJson<number>(LS_KEYS.byteplusImageAspectRatio, 0.0625, value => (typeof value === 'number' && Number.isFinite(value) ? value : null)),
+    write: (v) => {
+      const next = Number(v)
+      const clamped = Number.isFinite(next) ? Math.max(0.0625, Math.min(16, next)) : 0.0625
+      lsSetJson(LS_KEYS.byteplusImageAspectRatio, clamped)
+    },
+    docKey: 'byteplusImageAspectRatio',
+    default: () => 0.0625,
+  },
+  {
+    key: 'byteplusImageStream',
+    type: 'boolean',
+    source: 'localStorage',
+    read: () => lsBool(LS_KEYS.byteplusImageStream, true),
+    write: (v) => {
+      lsSetBool(LS_KEYS.byteplusImageStream, Boolean(v))
+    },
+    docKey: 'byteplusImageStream',
+    default: () => true,
+  },
+  {
     key: 'byteplusImageWatermark',
     type: 'boolean',
     source: 'localStorage',

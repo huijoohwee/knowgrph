@@ -235,6 +235,8 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
             : tokenLimit
         const providerOptions = buildProviderChatRequestOptions({
           provider: args.chatProvider,
+          endpointUrl: args.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL,
+          chatModel: args.chatModel,
           chatTemperature: args.chatTemperature,
           chatServiceTier: args.chatServiceTier,
           chatStream: args.chatStream,

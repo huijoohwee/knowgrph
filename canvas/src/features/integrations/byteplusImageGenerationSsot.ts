@@ -71,6 +71,10 @@ export const BYTEPLUS_IMAGE_GENERATION_MAPPED_VALUE_KEYS = [
   'byteplusImageModel',
   'byteplusImageSize',
   'byteplusImageOutputFormat',
+  'byteplusImageResponseFormat',
+  'byteplusImageOptimizePromptOptions',
+  'byteplusImageAspectRatio',
+  'byteplusImageStream',
   'byteplusImageWatermark',
   'byteplusImageSeed',
   'byteplusImageGuidanceScale',
@@ -82,6 +86,10 @@ export const BYTEPLUS_IMAGE_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, st
   byteplusImageModel: ['select image model', 'pin image default'],
   byteplusImageSize: ['select image size', 'pin output dimensions'],
   byteplusImageOutputFormat: ['select output format', 'pin image encoding'],
+  byteplusImageResponseFormat: ['select response format', 'choose asset delivery'],
+  byteplusImageOptimizePromptOptions: ['select prompt optimization', 'tune speed vs quality'],
+  byteplusImageAspectRatio: ['set aspect ratio', 'shape output composition'],
+  byteplusImageStream: ['toggle stream mode', 'choose progressive delivery'],
   byteplusImageWatermark: ['toggle watermark', 'control output marking'],
   byteplusImageSeed: ['set deterministic seed', 'stabilize reruns'],
   byteplusImageGuidanceScale: ['set guidance strength', 'tune prompt adherence'],
@@ -144,11 +152,11 @@ export const BYTEPLUS_IMAGE_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusImageApiD
     notes: 'Image generation uses BytePlus routing regardless of the global chat provider.',
   },
   {
-    key: 'byteplusImageModel',
-    typeLabel: 'string',
-    value: 'Required. Image model ID.',
+    key: 'model',
+    typeLabel: 'enum',
+    value: 'Required. seedream-4-0-250828 | seedream-4-5-251128 | seedream-5-0-260128.',
     keyDescription: 'Model selector -> pick the BytePlus image engine -> decide which image capability family executes the prompt.',
-    valueDescription: 'Default: ByteDance-Seedream-4.0; Curated higher-tier models expand image capability coverage; pinning one model narrows drift across Integrations, Workflow Manager, and widget runs.',
+    valueDescription: 'Default: seedream-4-0-250828; Curated higher-tier models expand image capability coverage; pinning one model narrows drift across Integrations, Workflow Manager, and widget runs.',
     ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > model`,
     module: [
       'canvas/src/features/settings/registry-ui.ui.ts',
@@ -160,7 +168,7 @@ export const BYTEPLUS_IMAGE_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusImageApiD
     valueKey: 'byteplusImageModel',
     responsibility: 'Selects the BytePlus ModelArk image generation model used for the request.',
     searchHints: ['model byteplus image seedream dola byteplus image widget integrations'],
-    tooltipDefaultValue: 'ByteDance-Seedream-4.0',
+    tooltipDefaultValue: 'seedream-4-0-250828',
     tooltipExpansionNote: 'Higher-tier curated models expand image quality and coverage.',
     tooltipContractionNote: 'Keeping one pinned model narrows drift and activation surprises.',
     notes: 'Request body field: `model`.',
@@ -229,9 +237,9 @@ export const BYTEPLUS_IMAGE_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusImageApiD
   {
     key: 'output_format',
     typeLabel: 'string',
-    value: 'Optional. Default jpeg.',
+    value: 'Optional. Seedream 4.0/4.5: fixed jpeg. Seedream 5.0: png | jpeg.',
     keyDescription: 'Encoding selector -> choose the final image file format -> control how BytePlus returns the generated asset.',
-    valueDescription: 'Default: jpeg; Options: jpeg | png; PNG expands lossless output fidelity; JPEG narrows payload size for faster transfers.',
+    valueDescription: 'Default: jpeg; Seedream 4.0/4.5 narrows output to JPEG only; Seedream 5.0 expands optional PNG output.',
     ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > output_format`,
     module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
     className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
@@ -257,18 +265,69 @@ export const BYTEPLUS_IMAGE_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusImageApiD
     searchHints: ['prompt image generation'],
   },
   {
+    key: 'optimize_prompt_options',
+    typeLabel: 'enum',
+    value: 'Optional. Default fast. fast | standard.',
+    keyDescription: 'Prompt optimizer -> choose prompt rewriting speed vs depth -> control how aggressively BytePlus optimizes prompt text before generation.',
+    valueDescription: 'Default: fast; fast expands lower latency; standard expands stronger prompt optimization at higher latency.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > optimize_prompt_options`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus'],
+    valueKey: 'byteplusImageOptimizePromptOptions',
+    responsibility: 'Selects BytePlus prompt optimization mode when supported by the model.',
+    tooltipDefaultValue: 'fast',
+    tooltipExpansionNote: 'Standard expands prompt optimization depth.',
+    tooltipContractionNote: 'Fast narrows optimization cost and latency.',
+  },
+  {
+    key: 'aspect_ratio',
+    typeLabel: 'number',
+    value: 'Optional. Default 1/16. Range [1/16, 16].',
+    keyDescription: 'Composition scaler -> set width/height ratio -> control the output aspect framing budget.',
+    valueDescription: 'Default: 1/16; Min: 0.0625; Max: 16; Higher values expand width vs height; lower values expands height vs width.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > aspect_ratio`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus'],
+    valueKey: 'byteplusImageAspectRatio',
+    responsibility: 'Controls aspect ratio override when supported by the model.',
+    tooltipDefaultValue: 0.0625,
+    tooltipMin: 0.0625,
+    tooltipMax: 16,
+    tooltipInterval: 0.0001,
+    tooltipExpansionNote: 'Higher ratios expand horizontal composition.',
+    tooltipContractionNote: 'Lower ratios expand vertical composition.',
+  },
+  {
     key: 'response_format',
     typeLabel: 'string',
-    value: 'Knowgrph fixed value. b64_json.',
+    value: 'Optional. Default b64_json. b64_json | url.',
     keyDescription: 'Transport format pin -> force the upstream response into a predictable binary-return shape -> keep the shared image asset pipeline deterministic.',
-    valueDescription: 'Default: b64_json; Base64 expands immediate in-app asset decoding; switching away would narrow compatibility with the current image render pipeline.',
+    valueDescription: 'Default: b64_json; b64_json expands in-app asset decoding; url expands remote asset delivery; switching formats changes how assets are fetched and rendered.',
     ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > response_format`,
-    module: ['canvas/src/features/chat/byteplusRunGeneration.ts'],
-    className: ['RunImageGenerationOptions'],
-    functionName: ['generateRunImageWithBytePlus'],
-    responsibility: 'Pins the BytePlus image response format to the Base64 payload shape used by knowgrph.',
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus'],
+    valueKey: 'byteplusImageResponseFormat',
+    responsibility: 'Selects the BytePlus image response format used by knowgrph.',
     searchHints: ['response format b64_json image generation'],
-    notes: 'Knowgrph currently hard-pins `response_format` to `b64_json` for the shared image asset path.',
+    tooltipDefaultValue: 'b64_json',
+    notes: 'When set to `url`, the pipeline fetches the asset through the download proxy before rendering.',
+  },
+  {
+    key: 'stream',
+    typeLabel: 'boolean | null',
+    value: 'Optional. Default true.',
+    keyDescription: 'Delivery controller -> choose progressive delivery vs one-shot response -> align widget UX with upstream streaming behavior.',
+    valueDescription: 'Default: true; Streaming expands progressive delivery; disabling stream narrows delivery to a single payload.',
+    ssot: `${BYTEPLUS_IMAGE_GENERATION_API_DOCS_URL} :: Request > stream`,
+    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
+    className: ['SettingsRegistryItem', 'RunImageGenerationOptions'],
+    functionName: ['readBytePlusImageWidgetDefaults', 'generateRunImageWithBytePlus'],
+    valueKey: 'byteplusImageStream',
+    responsibility: 'Toggles streaming delivery when supported by the image generation endpoint.',
+    tooltipDefaultValue: true,
   },
   {
     key: 'seed',
@@ -326,10 +385,26 @@ export const BYTEPLUS_IMAGE_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusImageApiD
   },
 ]
 
+const BYTEPLUS_IMAGE_DOC_ROW_MAP: ReadonlyMap<string, BytePlusImageApiDocRow> = new Map(
+  BYTEPLUS_IMAGE_GENERATION_DOC_ROWS.map(row => [
+    `byteplusImageApi.${String(row.key || '').trim()}`,
+    row,
+  ] as const),
+)
+
+export function getBytePlusImageApiDocRowByRowKey(rowKey: string): BytePlusImageApiDocRow | null {
+  const normalized = String(rowKey || '').trim()
+  if (!normalized) return null
+  const direct = BYTEPLUS_IMAGE_DOC_ROW_MAP.get(normalized)
+  if (direct) return direct
+  const withPrefix = normalized.startsWith('byteplusImageApi.') ? normalized : `byteplusImageApi.${normalized}`
+  return BYTEPLUS_IMAGE_DOC_ROW_MAP.get(withPrefix) || null
+}
+
 export const BYTEPLUS_IMAGE_GENERATION_API_DOC_ENTRIES: ReadonlyArray<BytePlusImageVirtualSettingsEntry> =
   BYTEPLUS_IMAGE_GENERATION_DOC_ROWS.map(row => ({
     meta: {
-      key: row.key.startsWith('byteplusImage') ? row.key : `byteplusImageApi.${row.key}`,
+      key: `byteplusImageApi.${row.key}`,
       type: toBaseType(row.typeLabel),
       source: 'backendEnv',
       read: () => row.value,
@@ -395,6 +470,39 @@ export function buildBytePlusImageGenerationFields(): WidgetRegistryField[] {
       options: buildFieldOptionLabels(FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS),
     },
     {
+      fieldKey: 'response_format',
+      fieldType: 'select',
+      schemaPath: 'properties.response_format',
+      required: true,
+      label: 'Response format',
+      options: [
+        { value: 'b64_json', label: 'b64_json (Default)' },
+        { value: 'url', label: 'url' },
+      ],
+    },
+    {
+      fieldKey: 'optimize_prompt_options',
+      fieldType: 'select',
+      schemaPath: 'properties.optimize_prompt_options',
+      label: 'Optimize prompt',
+      options: [
+        { value: 'fast', label: 'fast (Default)' },
+        { value: 'standard', label: 'standard' },
+      ],
+    },
+    {
+      fieldKey: 'aspect_ratio',
+      fieldType: 'number',
+      schemaPath: 'properties.aspect_ratio',
+      label: 'Aspect ratio',
+    },
+    {
+      fieldKey: 'stream',
+      fieldType: 'boolean',
+      schemaPath: 'properties.stream',
+      label: 'Stream',
+    },
+    {
       fieldKey: 'watermark',
       fieldType: 'boolean',
       schemaPath: 'properties.watermark',
@@ -434,12 +542,16 @@ export function resolveBytePlusImageWidgetApiRowKey(args: {
     .filter(Boolean)
     .map(value => value.replace(/^properties\./, ''))
   for (const candidate of candidates) {
-    if (candidate === 'model') return 'byteplusImageModel'
+    if (candidate === 'model') return 'byteplusImageApi.model'
     if (candidate === 'size') return 'byteplusImageApi.size'
     if (candidate === 'output_format') return 'byteplusImageApi.output_format'
     if (candidate === 'watermark') return 'byteplusImageApi.watermark'
     if (candidate === 'seed') return 'byteplusImageApi.seed'
     if (candidate === 'guidance_scale') return 'byteplusImageApi.guidance_scale'
+    if (candidate === 'response_format') return 'byteplusImageApi.response_format'
+    if (candidate === 'optimize_prompt_options') return 'byteplusImageApi.optimize_prompt_options'
+    if (candidate === 'aspect_ratio') return 'byteplusImageApi.aspect_ratio'
+    if (candidate === 'stream') return 'byteplusImageApi.stream'
     if (candidate === 'prompt' || candidate === 'prompt_in') return 'byteplusImageApi.prompt'
     if (candidate === 'reference_image' || candidate === 'image') return 'byteplusImageApi.image'
     if (candidate === 'imageUrl') return 'byteplusImageApi.response_format'

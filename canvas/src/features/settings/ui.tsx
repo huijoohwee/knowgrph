@@ -369,6 +369,28 @@ export const renderSettingInput = (
       </select>
     )
   }
+
+  if (type === 'string' && Array.isArray(options) && options.length > 0) {
+    const raw = String(v ?? '').trim()
+    const normalized = raw && options.includes(raw) ? raw : (options[0] || '')
+    return (
+      <select
+        value={normalized}
+        onChange={e => {
+          const selected = String(e.target.value || '').trim()
+          dirtyRef.current.add(key)
+          setValues(prev => ({ ...prev, [key]: selected }))
+        }}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded bg-white text-right`}
+      >
+        {options.map(option => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    )
+  }
   if (key === 'maps.grabmaps.apiKey') {
     const authModeRaw = String(values['maps.grabmaps.authMode'] || '').trim().toLowerCase()
     const authMode = authModeRaw === 'servermanaged' ? 'serverManaged' : 'byok'

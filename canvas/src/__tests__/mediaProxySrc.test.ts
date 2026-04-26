@@ -1,4 +1,5 @@
 import { applyMediaProxySrc, MEDIA_PROXY_ENDPOINT } from '@/lib/url'
+import { applyImageLikeProxySrc } from '@/lib/url'
 
 export const testApplyMediaProxyNormalizesGithubBlobUrl = () => {
   const g = globalThis as unknown as Record<string, unknown>
@@ -64,4 +65,10 @@ export const testApplyMediaProxyProxiesOnPrivateLanOrigin = () => {
   } finally {
     g.window = prevWindow
   }
+}
+
+export const testApplyImageLikeProxySkipsBinaryDownloadProxy = () => {
+  const src = '/__binary_download_proxy?url=https%3A%2F%2Fexample.com%2Fdemo.png'
+  const out = applyImageLikeProxySrc(src)
+  if (out !== src) throw new Error('expected binary download proxy path to be preserved')
 }

@@ -1,4 +1,4 @@
-import type { WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryField, WidgetRegistryFieldOption } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 export type BytePlusApiDocRow = {
   key: string
@@ -24,6 +24,24 @@ type WidgetRowBinding = {
   rowKey: string
   field?: WidgetRegistryField
 }
+
+const BYTEPLUS_TEXT_WIDGET_MODEL_OPTIONS: WidgetRegistryFieldOption[] = [
+  { label: 'seed-2-0-lite-260228 (Default)', value: 'seed-2-0-lite-260228' },
+  { label: 'seed-2-0-mini-260215', value: 'seed-2-0-mini-260215' },
+  { label: 'seed-2-0-pro-260328', value: 'seed-2-0-pro-260328' },
+]
+
+const BYTEPLUS_TEXT_WIDGET_REASONING_EFFORT_OPTIONS: WidgetRegistryFieldOption[] = [
+  { label: 'minimal (Default)', value: 'minimal' },
+  { label: 'low', value: 'low' },
+  { label: 'medium', value: 'medium' },
+  { label: 'high', value: 'high' },
+]
+
+const BYTEPLUS_TEXT_WIDGET_THINKING_TYPE_OPTIONS: WidgetRegistryFieldOption[] = [
+  { label: 'disabled (Default)', value: 'disabled' },
+  { label: 'enabled', value: 'enabled' },
+]
 
 type CodebaseLocation = {
   modules: string[]
@@ -62,21 +80,21 @@ const BYTEPLUS_TEXT_WIDGET_ROW_KEY_BY_PROPERTY_KEY: Readonly<Record<string, stri
 }
 
 const BYTEPLUS_TEXT_WIDGET_FIELD_BINDINGS: ReadonlyArray<WidgetRowBinding> = [
-  { rowKey: 'byteplusApi.provider', field: { fieldKey: 'chatProvider', fieldType: 'text', schemaPath: 'properties.chatProvider', required: true, label: 'Provider' } },
+  { rowKey: 'byteplusApi.provider', field: { fieldKey: 'chatProvider', fieldType: 'readonly', schemaPath: 'properties.chatProvider', required: true, label: 'Provider' } },
   { rowKey: 'byteplusApi.auth_mode', field: { fieldKey: 'chatAuthMode', fieldType: 'text', schemaPath: 'properties.chatAuthMode', required: true, label: 'Auth mode' } },
   { rowKey: 'byteplusApi.endpoint_url', field: { fieldKey: 'chatEndpointUrl', fieldType: 'text', schemaPath: 'properties.chatEndpointUrl', required: true, label: 'Endpoint URL' } },
-  { rowKey: 'byteplusApi.model', field: { fieldKey: 'chatModel', fieldType: 'text', schemaPath: 'properties.chatModel', required: true, label: 'Model' } },
+  { rowKey: 'byteplusApi.model', field: { fieldKey: 'chatModel', fieldType: 'select', schemaPath: 'properties.chatModel', required: true, label: 'Model', options: BYTEPLUS_TEXT_WIDGET_MODEL_OPTIONS } },
   { rowKey: 'byteplusApi.messages.content.text', field: { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', required: true, label: 'Prompt' } },
   { rowKey: 'byteplusApi.messages', field: { fieldKey: 'chatMessagesJson', fieldType: 'json', schemaPath: 'properties.chatMessagesJson', label: 'Messages' } },
   { rowKey: 'byteplusApi.response_format', field: { fieldKey: 'chatResponseFormatJson', fieldType: 'json', schemaPath: 'properties.chatResponseFormatJson', label: 'Response format' } },
-  { rowKey: 'byteplusApi.thinking.type', field: { fieldKey: 'chatThinkingType', fieldType: 'text', schemaPath: 'properties.chatThinkingType', label: 'Thinking type' } },
+  { rowKey: 'byteplusApi.thinking.type', field: { fieldKey: 'chatThinkingType', fieldType: 'select', schemaPath: 'properties.chatThinkingType', label: 'Thinking type', options: BYTEPLUS_TEXT_WIDGET_THINKING_TYPE_OPTIONS } },
   { rowKey: 'byteplusApi.thinking', field: { fieldKey: 'chatThinkingJson', fieldType: 'json', schemaPath: 'properties.chatThinkingJson', label: 'Thinking' } },
   { rowKey: 'byteplusApi.temperature', field: { fieldKey: 'chatTemperature', fieldType: 'number', schemaPath: 'properties.chatTemperature', label: 'Temperature' } },
   { rowKey: 'byteplusApi.top_p', field: { fieldKey: 'chatTopP', fieldType: 'number', schemaPath: 'properties.chatTopP', label: 'Top P' } },
   { rowKey: 'byteplusApi.max_completion_tokens', field: { fieldKey: 'chatMaxCompletionTokens', fieldType: 'number', schemaPath: 'properties.chatMaxCompletionTokens', label: 'Max completion tokens' } },
   { rowKey: 'byteplusApi.service_tier', field: { fieldKey: 'chatServiceTier', fieldType: 'text', schemaPath: 'properties.chatServiceTier', label: 'Service tier' } },
   { rowKey: 'byteplusApi.stream', field: { fieldKey: 'chatStream', fieldType: 'boolean', schemaPath: 'properties.chatStream', label: 'Stream' } },
-  { rowKey: 'byteplusApi.reasoning_effort', field: { fieldKey: 'chatReasoningEffort', fieldType: 'text', schemaPath: 'properties.chatReasoningEffort', label: 'Reasoning effort' } },
+  { rowKey: 'byteplusApi.reasoning_effort', field: { fieldKey: 'chatReasoningEffort', fieldType: 'select', schemaPath: 'properties.chatReasoningEffort', label: 'Reasoning effort', options: BYTEPLUS_TEXT_WIDGET_REASONING_EFFORT_OPTIONS } },
   { rowKey: 'byteplusApi.frequency_penalty', field: { fieldKey: 'chatFrequencyPenalty', fieldType: 'number', schemaPath: 'properties.chatFrequencyPenalty', label: 'Frequency penalty' } },
   { rowKey: 'byteplusApi.presence_penalty', field: { fieldKey: 'chatPresencePenalty', fieldType: 'number', schemaPath: 'properties.chatPresencePenalty', label: 'Presence penalty' } },
   { rowKey: 'byteplusApi.logprobs', field: { fieldKey: 'chatLogprobs', fieldType: 'boolean', schemaPath: 'properties.chatLogprobs', label: 'Logprobs' } },
@@ -168,11 +186,11 @@ export function buildBytePlusTextGenerationFields(): WidgetRegistryField[] {
 }
 
 export const BYTEPLUS_CHAT_API_DOC_ROWS: ReadonlyArray<BytePlusApiDocRow> = [
-  row({ key: 'provider', typeLabel: 'string', value: 'Integration setting. Default byteplus.', valueKey: 'chatProvider', responsibility: 'Orchestrator -> pin BytePlus provider routing -> keep Integrations, Workflow Manager, and BytePlus Text Widget on the same provider family.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatProvider provider profile modelark byteplus'] }),
+  row({ key: 'provider', typeLabel: 'string', value: 'Integration setting. Default byteplus-modelark.', valueKey: 'chatProvider', responsibility: 'Orchestrator -> pin BytePlus provider routing -> keep Integrations, Workflow Manager, and BytePlus Text Widget on the same provider family.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatProvider provider profile modelark byteplus'] }),
   row({ key: 'auth_mode', typeLabel: 'string', value: 'Integration setting. serverManaged | byok.', valueKey: 'chatAuthMode', responsibility: 'Orchestrator -> choose server-managed or BYOK credential flow -> keep auth policy aligned across Integrations and widget runs.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatAuthMode auth byok serverManaged api key'] }),
   row({ key: 'endpoint_url', typeLabel: 'string', value: 'Integration setting. Base URL by region: ap-southeast-1 or eu-west-1.', valueKey: 'chatEndpointUrl', responsibility: 'Transport -> route BytePlus requests to the correct regional ModelArk base URL -> keep defaults, normalization, and widget execution on one endpoint SSOT.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatEndpointUrl base url region ap-southeast-1 eu-west-1'] }),
   row({ key: 'api_key', typeLabel: 'string', value: 'Integration setting. Required for BYOK authentication.', valueKey: 'chatApiKey', responsibility: 'Credential manager -> hold caller-supplied BytePlus secret for BYOK runs -> authorize direct ModelArk requests without leaking into persistent storage.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatApiKey api key authentication bearer'] }),
-  row({ key: 'model', typeLabel: 'string', value: 'Required. Model ID or endpoint ID.', valueKey: 'chatModel', responsibility: 'Model resolver -> choose the target BytePlus text or multimodal model -> keep global defaults, workflow registry drafts, and widget overrides on the same execution model.', searchHints: ['request body required model endpoint id'] }),
+  row({ key: 'model', typeLabel: 'enum', value: 'Required. seed-2-0-lite-260228 | seed-2-0-mini-260215 | seed-2-0-pro-260328.', valueKey: 'chatModel', responsibility: 'Model resolver -> choose the target BytePlus text or multimodal model -> keep global defaults, workflow registry drafts, and widget overrides on the same execution model.', searchHints: ['request body required model endpoint id', 'seed-2-0-lite-260228', 'seed-2-0-mini-260215', 'seed-2-0-pro-260328'] }),
   row({ key: 'messages', typeLabel: 'object[]', value: 'Required. Chat history and prompt messages.', valueKey: 'chatMessagesJson', responsibility: 'Prompt builder -> assemble system, user, assistant, and tool turns -> bind widget prompt/dataflow output into the BytePlus request body.', searchHints: ['messages system user assistant tool multimodal'] }),
   row({ key: 'messages.role', typeLabel: 'string', value: 'Required. system | user | assistant | tool.', valueKey: 'chatMessagesJson', responsibility: 'Message orchestrator -> assign the sender role for each message object -> keep dialogue state and tool handoffs interpretable.' }),
   row({ key: 'messages.content', typeLabel: 'string | object[]', value: 'Required for system and user messages; plaintext or multimodal content list.', valueKey: 'chatMessagesJson', responsibility: 'Payload composer -> choose plaintext or multimodal content blocks -> keep message encoding aligned with model capability.' }),
@@ -196,16 +214,16 @@ export const BYTEPLUS_CHAT_API_DOC_ROWS: ReadonlyArray<BytePlusApiDocRow> = [
   row({ key: 'messages.tool_calls.id', typeLabel: 'string', value: 'Required.', valueKey: 'chatMessagesJson', responsibility: 'Tool trace manager -> identify an assistant tool call -> correlate future tool outputs with the originating request.' }),
   row({ key: 'messages.tool_calls.type', typeLabel: 'string', value: 'Required. function.', valueKey: 'chatMessagesJson', responsibility: 'Tool trace manager -> define the tool call kind -> keep replay logic interpretable.' }),
   row({ key: 'messages.tool_call_id', typeLabel: 'string', value: 'Required for tool role messages.', valueKey: 'chatMessagesJson', responsibility: 'Tool trace manager -> associate tool output with the originating tool call -> preserve round-trip integrity.' }),
-  row({ key: 'thinking', typeLabel: 'object', value: 'Optional. Default: {"type":"enabled"}.', valueKey: 'chatThinkingJson', responsibility: 'Reasoning controller -> configure deep-thinking mode -> keep widget settings and runtime reasoning policy aligned.' }),
-  row({ key: 'thinking.type', typeLabel: 'string', value: 'Required inside thinking. enabled | disabled | auto.', valueKey: 'chatThinkingType', responsibility: 'Reasoning controller -> define deep-thinking behavior -> trade off deliberation depth, speed, and cost.' }),
-  row({ key: 'stream', typeLabel: 'boolean | null', value: 'Optional. Default false.', valueKey: 'chatStream', responsibility: 'Delivery controller -> choose SSE streaming vs one-shot response -> keep widget run UX and request payload behavior aligned.' }),
+  row({ key: 'thinking', typeLabel: 'object', value: 'Optional. Default: {"type":"disabled"}.', valueKey: 'chatThinkingJson', responsibility: 'Reasoning controller -> configure deep-thinking mode -> keep widget settings and runtime reasoning policy aligned.' }),
+  row({ key: 'thinking.type', typeLabel: 'enum', value: 'Required inside thinking. disabled | enabled.', valueKey: 'chatThinkingType', responsibility: 'Reasoning controller -> define deep-thinking behavior -> trade off deliberation depth, speed, and cost.' }),
+  row({ key: 'stream', typeLabel: 'boolean | null', value: 'Optional. Default true.', valueKey: 'chatStream', responsibility: 'Delivery controller -> choose SSE streaming vs one-shot response -> keep widget run UX and request payload behavior aligned.' }),
   row({ key: 'stream_options', typeLabel: 'object | null', value: 'Optional. Default null.', valueKey: 'chatStreamOptionsJson', responsibility: 'Delivery controller -> configure streaming-specific behavior -> surface extra metadata only when streaming is enabled.' }),
   row({ key: 'stream_options.include_usage', typeLabel: 'boolean | null', value: 'Optional. Default false.', valueKey: 'chatStreamOptionsJson', responsibility: 'Delivery controller -> include usage accounting before stream completion -> improve runtime observability for streaming requests.' }),
   row({ key: 'max_tokens', typeLabel: 'integer | null', value: 'Optional. Default 4096.', valueKey: 'chatMaxCompletionTokens', responsibility: 'Budget controller -> cap visible response tokens, excluding reasoning traces -> keep runs bounded and inspectable.' }),
   row({ key: 'max_completion_tokens', typeLabel: 'integer | null', value: 'Optional. Range: 0 to 65536.', valueKey: 'chatMaxCompletionTokens', responsibility: 'Budget controller -> cap total output tokens, including reasoning content -> bound long-running deep-reasoning responses.' }),
   row({ key: 'service_tier', typeLabel: 'string | null', value: 'Optional. Default auto.', valueKey: 'chatServiceTier', responsibility: 'Throughput controller -> choose automatic or explicit TPM guarantee behavior -> keep latency and quota policy aligned.' }),
   row({ key: 'stop', typeLabel: 'string | string[] | null', value: 'Optional. Up to four stop strings.', valueKey: 'chatStopJson', responsibility: 'Termination controller -> stop generation when configured strings appear -> bound irrelevant continuation.' }),
-  row({ key: 'reasoning_effort', typeLabel: 'string | null', value: 'Optional. Default medium. minimal | low | medium | high.', valueKey: 'chatReasoningEffort', responsibility: 'Reasoning controller -> choose how much deliberation supported models spend -> trade off cost, latency, and depth.' }),
+  row({ key: 'reasoning_effort', typeLabel: 'enum', value: 'Optional. Default minimal. minimal | low | medium | high.', valueKey: 'chatReasoningEffort', responsibility: 'Reasoning controller -> choose how much deliberation supported models spend -> trade off cost, latency, and depth.' }),
   row({ key: 'response_format', typeLabel: 'object', value: 'Optional. Default: {"type":"text"}.', valueKey: 'chatResponseFormatJson', responsibility: 'Output contract -> constrain text, JSON object, or JSON schema output -> keep Integrations docs, widget editor JSON, and run dispatch on one schema surface.' }),
   row({ key: 'response_format.type', typeLabel: 'string', value: 'Required inside response_format. text | json_object | json_schema.', valueKey: 'chatResponseFormatJson', responsibility: 'Output contract -> select the response serialization mode -> keep downstream consumers aligned with expected structure.' }),
   row({ key: 'response_format.json_schema', typeLabel: 'object', value: 'Required when type=json_schema.', valueKey: 'chatResponseFormatJson', responsibility: 'Output contract -> define structured JSON-schema output -> keep model responses machine-readable.' }),
@@ -232,3 +250,14 @@ export const BYTEPLUS_CHAT_API_DOC_ROWS: ReadonlyArray<BytePlusApiDocRow> = [
   row({ key: 'tool_choice.function', typeLabel: 'object', value: 'Required when tool_choice is an object.', valueKey: 'chatToolChoiceJson', responsibility: 'Tool planner -> select a specific function tool -> force model routing toward one callable target.' }),
   row({ key: 'tool_choice.function.name', typeLabel: 'string', value: 'Required.', valueKey: 'chatToolChoiceJson', responsibility: 'Tool planner -> name the explicitly selected function tool -> keep forced tool execution deterministic.' }),
 ]
+
+const BYTEPLUS_DOC_ROW_MAP: ReadonlyMap<string, BytePlusApiDocRow> = new Map(
+  BYTEPLUS_CHAT_API_DOC_ROWS.map(row => [String(row.key || '').trim(), row] as const),
+)
+
+export function getBytePlusApiDocRowByRowKey(rowKey: string): BytePlusApiDocRow | null {
+  const normalized = String(rowKey || '').trim()
+  if (!normalized) return null
+  const key = normalized.startsWith('byteplusApi.') ? normalized.slice('byteplusApi.'.length) : normalized
+  return BYTEPLUS_DOC_ROW_MAP.get(key) || null
+}

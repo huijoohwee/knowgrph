@@ -45,8 +45,8 @@ export const FLOW_EDITOR_IMAGE_SIZE_OPTIONS: ReadonlyArray<{ value: FlowEditorIm
 export type FlowEditorImageOutputFormat = 'jpeg' | 'png'
 
 export const FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS: ReadonlyArray<{ value: FlowEditorImageOutputFormat; label: string }> = [
-  { value: 'jpeg', label: 'jpeg' },
-  { value: 'png', label: 'png' },
+  { value: 'jpeg', label: 'JPEG' },
+  { value: 'png', label: 'PNG' },
 ]
 
 export const FLOW_EDITOR_VIDEO_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [
@@ -73,11 +73,7 @@ export function getFlowEditorSmartWidgetLabel(args: {
 }): string {
   const mode = args.mode === 'image' ? 'image' : args.mode === 'video' ? 'video' : null
   if (mode === 'image') {
-    const value = String(args.model || '').trim() || CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
-    const option = FLOW_EDITOR_IMAGE_MODEL_OPTIONS.find(entry => entry.value === value)
-    const label = String(option?.label || value || FLOW_IMAGE_GENERATION_NODE_LABEL).replace(/\s*\(Default\)\s*$/i, '').trim()
-    if (!label || label === FLOW_IMAGE_GENERATION_NODE_LABEL) return FLOW_IMAGE_GENERATION_NODE_LABEL
-    return `${label} ${FLOW_IMAGE_GENERATION_NODE_LABEL}`
+    return FLOW_IMAGE_GENERATION_NODE_LABEL
   }
   if (mode === 'video') {
     const value = String(args.model || '').trim() || CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT

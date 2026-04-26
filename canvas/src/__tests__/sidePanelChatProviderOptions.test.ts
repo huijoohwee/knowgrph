@@ -67,6 +67,8 @@ export function testBytePlusProviderOptionsIncludeSharedRequestParams() {
 export function testNonBytePlusProviderOptionsStayMinimal() {
   const options = buildProviderChatRequestOptions({
     provider: CHAT_PROVIDER_OPENAI,
+    endpointUrl: '/v1/chat/completions',
+    chatModel: 'gpt-5.4-nano',
     chatTemperature: 0.5,
     chatServiceTier: 'default',
     chatStream: false,
@@ -87,9 +89,66 @@ export function testNonBytePlusProviderOptionsStayMinimal() {
     chatToolsJson: '[{"type":"function","function":{"name":"lookup"}}]',
     chatToolChoiceJson: '{"type":"function","function":{"name":"lookup"}}',
   })
-  const serialized = JSON.stringify(options)
-  if (serialized !== JSON.stringify({ temperature: 0.5 })) {
-    throw new Error(`expected non-BytePlus options to stay minimal, got ${serialized}`)
+  const expected = {
+    service_tier: 'default',
+    frequency_penalty: 1,
+    presence_penalty: 1,
+    logprobs: true,
+    top_logprobs: 5,
+    parallel_tool_calls: false,
+    stop: ['DONE'],
+    stream_options: { include_usage: true },
+    response_format: { type: 'json_object' },
+    logit_bias: { '42': 5 },
+    tools: [{ type: 'function', function: { name: 'lookup' } }],
+    tool_choice: { type: 'function', function: { name: 'lookup' } },
+  }
+  const serialized = stableStringify(options)
+  const serializedExpected = stableStringify(expected)
+  if (serialized !== serializedExpected) {
+    throw new Error(`expected OpenAI provider options ${serializedExpected}, got ${serialized}`)
+  }
+}
+
+export function testOpenAiProviderOptionsUseResponsesSurface() {
+  const options = buildProviderChatRequestOptions({
+    provider: CHAT_PROVIDER_OPENAI,
+    endpointUrl: '/v1/responses',
+    chatModel: 'gpt-5.4-nano',
+    chatTemperature: 0.5,
+    chatServiceTier: 'auto',
+    chatStream: true,
+    chatMessagesJson: '',
+    chatReasoningEffort: 'high',
+    chatThinkingType: 'auto',
+    chatThinkingJson: '',
+    chatFrequencyPenalty: 0,
+    chatPresencePenalty: 0,
+    chatTopP: 1,
+    chatLogprobs: true,
+    chatTopLogprobs: 5,
+    chatParallelToolCalls: true,
+    chatStopJson: '',
+    chatStreamOptionsJson: '',
+    chatResponseFormatJson: '{"format":{"type":"text"}}',
+    chatLogitBiasJson: '',
+    chatToolsJson: '',
+    chatToolChoiceJson: '',
+  })
+  const expected = {
+    service_tier: 'auto',
+    frequency_penalty: 0,
+    presence_penalty: 0,
+    parallel_tool_calls: true,
+    include: ['message.output_text.logprobs'],
+    top_logprobs: 5,
+    text: { format: { type: 'text' } },
+    reasoning: { effort: 'high' },
+  }
+  const serialized = stableStringify(options)
+  const serializedExpected = stableStringify(expected)
+  if (serialized !== serializedExpected) {
+    throw new Error(`expected OpenAI responses options ${serializedExpected}, got ${serialized}`)
   }
 }
 

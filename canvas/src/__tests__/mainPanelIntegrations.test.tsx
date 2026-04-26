@@ -110,7 +110,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'openaiApi.endpoint_url',
       'openaiApi.model',
       'openaiApi.input',
-      'openaiApi.response_format',
+      'openaiApi.text',
       'openaiApi.tool_choice',
       'BytePlus Video Generation API',
       'Open FloatingPanel BytePlus Video Widget',
@@ -312,7 +312,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAiControls() 
       'Refresh Models',
       'Multi-modal Run',
       'OpenAI default text model',
-      'ByteDance-Seedream-4.0',
+      'seedream-4-0-250828',
       'ByteDance-Seedance-1.0-pro-fast',
     ].forEach(token => {
       if (!text.includes(token)) {
@@ -435,14 +435,18 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
       'BytePlus Image Generation API',
       'byteplusImageApi.size',
       'byteplusImageApi.output_format',
+      'byteplusImageApi.response_format',
+      'byteplusImageApi.optimize_prompt_options',
+      'byteplusImageApi.aspect_ratio',
+      'byteplusImageApi.stream',
       'byteplusImageApi.watermark',
       'byteplusImageApi.seed',
       'byteplusImageApi.guidance_scale',
       'Open FloatingPanel BytePlus Image Widget',
       'Server-managed Key',
-      'ByteDance-Seedream-4.0',
-      'ByteDance-Seedream-4.5',
-      'Dola-Seedream-5.0-lite',
+      'seedream-4-0-250828',
+      'seedream-4-5-251128',
+      'seedream-5-0-260128',
     ].forEach(token => {
       if (!text.includes(token)) {
         throw new Error(`expected BytePlus image integrations search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)

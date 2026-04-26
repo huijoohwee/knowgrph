@@ -1,6 +1,7 @@
 export {
   BYTEPLUS_CHAT_API_DOC_ROWS,
   buildBytePlusTextGenerationFields,
+  getBytePlusApiDocRowByRowKey,
   resolveBytePlusTextWidgetChatApiRowKey,
   type BytePlusApiDocRow,
 } from './byteplusChatApiSsot.rows'

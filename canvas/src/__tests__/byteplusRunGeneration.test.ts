@@ -23,7 +23,7 @@ export function testBytePlusDefaultCatalogExposesSeedTextImageVideoModels() {
     throw new Error('expected BytePlus chat provider default model to resolve to the Seed text model')
   }
   if (getDefaultGenerationModelForProvider(CHAT_PROVIDER_BYTEPLUS, 'image') !== CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT) {
-    throw new Error('expected BytePlus image generation default model to resolve to ByteDance-Seedream-4.0')
+    throw new Error('expected BytePlus image generation default model to resolve to seedream-4-0-250828')
   }
   if (getDefaultGenerationModelForProvider(CHAT_PROVIDER_BYTEPLUS, 'video') !== CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT) {
     throw new Error('expected BytePlus video generation default model to resolve to ByteDance-Seedance-1.0-pro-fast')
@@ -263,6 +263,74 @@ export async function testGenerateRunMarkdownWithProviderStreamsOpenAiResponsesT
     }
     if (chunks.join(' | ') !== '# Final | # Final Output\n\nSpecific answer.') {
       throw new Error(`unexpected streamed responses snapshots: ${chunks.join(' | ')}`)
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
+export async function testGenerateRunImageWithBytePlusDoesNotFallbackWhenModelExplicit() {
+  const originalFetch = globalThis.fetch
+  try {
+    const calls: Array<{ url: string; body: string }> = []
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/models')) {
+        return new Response(JSON.stringify({ data: [{ id: 'seedream-5-0-260128' }] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      calls.push({ url, body: String(init?.body || '') })
+      return new Response(JSON.stringify({
+        message: 'Your account has not activated the model seedream-4-0-250828.',
+      }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+
+    let threw = false
+    try {
+      await generateRunImageWithBytePlus({
+        config: {
+          provider: CHAT_PROVIDER_BYTEPLUS,
+          endpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
+          apiKey: 'byteplus-key',
+          chatModel: '',
+        },
+        prompt: 'Generate image',
+        options: {
+          model: 'seedream-4-0-250828',
+          responseFormat: 'url',
+        },
+      })
+    } catch (e) {
+      threw = true
+      const msg = e instanceof Error ? e.message : String(e)
+      if (!msg.includes('Selected image model: seedream-4-0-250828')) {
+        throw new Error(`expected error to preserve selected model, got ${msg}`)
+      }
+      if (msg.includes('Attempted resolved models:')) {
+        throw new Error(`expected no fallback attempts for explicit model, got ${msg}`)
+      }
+    }
+    if (!threw) throw new Error('expected image run to throw')
+    if (calls.length !== 1) {
+      throw new Error(`expected exactly one image request, got ${calls.length}`)
+    }
+    const parsed = JSON.parse(calls[0]?.body || '{}') as { model?: unknown; response_format?: unknown }
+    if (parsed.model !== 'seedream-4-0-250828') {
+      throw new Error(`expected request to use explicit model, got ${String(parsed.model)}`)
+    }
+    if (parsed.response_format !== 'url') {
+      throw new Error(`expected request to pass response_format=url, got ${String(parsed.response_format)}`)
+    }
+    if ('output_format' in (parsed as Record<string, unknown>)) {
+      throw new Error('expected output_format to be omitted for seedream-4-0-250828')
+    }
+    if ('optimize_prompt_options' in (parsed as Record<string, unknown>)) {
+      throw new Error('expected default optimize_prompt_options to be omitted from request')
     }
   } finally {
     globalThis.fetch = originalFetch

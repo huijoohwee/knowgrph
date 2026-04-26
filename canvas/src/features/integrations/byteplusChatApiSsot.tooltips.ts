@@ -28,7 +28,7 @@ export const BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
     contractionNote: 'No key narrows execution to server-managed auth only.',
   },
   model: {
-    defaultValue: 'ep-*-* or doubao-*',
+    defaultValue: 'seed-2-0-lite-260228',
     expansionNote: 'Switching to larger or more specialized models expands capability coverage.',
     contractionNote: 'Keeping one pinned model narrows drift across Integrations, Workflow Manager, and widget runs.',
   },
@@ -157,17 +157,17 @@ export const BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
     contractionNote: 'No link narrows tool-output association.',
   },
   thinking: {
-    defaultValue: '{"type":"enabled"}',
+    defaultValue: '{"type":"disabled"}',
     expansionNote: 'Enabled thinking expands reasoning depth.',
     contractionNote: 'Disabled thinking narrows deliberation overhead.',
   },
   'thinking.type': {
-    defaultValue: 'enabled',
-    expansionNote: 'Enabled or auto expands reasoning coverage.',
-    contractionNote: 'Disabled narrows chain-of-thought generation.',
+    defaultValue: 'disabled',
+    expansionNote: 'Enabled thinking expands reasoning coverage.',
+    contractionNote: 'Disabled thinking narrows chain-of-thought generation.',
   },
   stream: {
-    defaultValue: false,
+    defaultValue: true,
     expansionNote: 'Streaming expands progressive delivery.',
     contractionNote: 'One-shot responses narrows delivery to a single payload.',
   },
@@ -207,7 +207,7 @@ export const BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
     contractionNote: 'Fewer stop strings narrows termination checks.',
   },
   reasoning_effort: {
-    defaultValue: 'medium',
+    defaultValue: 'minimal',
     expansionNote: 'Higher effort expands deliberation depth.',
     contractionNote: 'Lower effort narrows reasoning cost and latency.',
   },

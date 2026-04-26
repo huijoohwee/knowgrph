@@ -7,6 +7,7 @@ import {
   CHAT_PROVIDER_BYTEPLUS,
   buildChatProxyHeaders,
   getDefaultGenerationModelForProvider,
+  isResponsesEndpointUrl,
   normalizeChatProviderId,
   resolveBinaryDownloadProxyUrl,
   resolveBytePlusContentEndpointForRequest,
@@ -61,6 +62,10 @@ export type RunImageGenerationOptions = {
   model?: unknown
   size?: unknown
   outputFormat?: unknown
+  responseFormat?: unknown
+  optimizePromptOptions?: unknown
+  aspectRatio?: unknown
+  stream?: unknown
   watermark?: unknown
   seed?: unknown
   guidanceScale?: unknown
@@ -176,6 +181,10 @@ const readBytePlusImageDefaults = (): {
   model: string
   size: string
   outputFormat: string
+  responseFormat: string
+  optimizePromptOptions: string
+  aspectRatio: number
+  stream: boolean
   watermark: boolean
   seed: number
   guidanceScale: number
@@ -185,6 +194,12 @@ const readBytePlusImageDefaults = (): {
     model: cleanString(defaults.model),
     size: cleanString(defaults.size),
     outputFormat: cleanString(defaults.output_format).toLowerCase(),
+    responseFormat: cleanString(defaults.response_format).toLowerCase(),
+    optimizePromptOptions: cleanString(defaults.optimize_prompt_options).toLowerCase(),
+    aspectRatio: typeof defaults.aspect_ratio === 'number' && Number.isFinite(defaults.aspect_ratio)
+      ? Math.max(0.0625, Math.min(16, defaults.aspect_ratio))
+      : 0.0625,
+    stream: defaults.stream === true,
     watermark: defaults.watermark,
     seed: defaults.seed,
     guidanceScale: defaults.guidance_scale,
@@ -408,7 +423,7 @@ const resolveGenerationModelPreview = async (
           : preferred
         resolved = chooseMatchingVideoModel(available, preferredTarget, wantsFast)
       } else if (kind === 'image') {
-        resolved = chooseMatchingImageModel(available, preferred)
+        resolved = hasExplicit ? preferred : chooseMatchingImageModel(available, preferred)
       } else {
         const exact = available.find(id => normalizeModelId(id) === normalizeModelId(preferred))
         if (exact) {
@@ -712,16 +727,13 @@ export async function generateRunMarkdownWithProvider(args: {
 }): Promise<string | null> {
   const endpoint = resolveChatEndpointForRequest(args.config.endpointUrl)
   if (!endpoint) return null
-  const isResponsesEndpoint = (() => {
-    const raw = String(endpoint || '')
-    const q = raw.indexOf('?')
-    const path = q >= 0 ? raw.slice(0, q) : raw
-    return /\/v1\/responses\/?$/i.test(path)
-  })()
+  const isResponsesEndpoint = isResponsesEndpointUrl(endpoint)
   const model = await resolveGenerationModel(args.config, 'text')
   const requestId = toRequestId('kg-run-text')
   const providerOptions = buildProviderChatRequestOptions({
     provider: args.config.provider,
+    endpointUrl: args.config.endpointUrl,
+    chatModel: model,
     chatTemperature: args.options?.chatTemperature ?? 0.3,
     chatServiceTier: args.options?.chatServiceTier,
     chatStream: args.options?.chatStream,
@@ -758,6 +770,20 @@ export async function generateRunMarkdownWithProvider(args: {
   const requestMessages = providerMessages || baseMessages
   const tokenLimit = cleanInteger(args.options?.chatMaxCompletionTokens)
   const streamRequested = cleanBool(args.options?.chatStream) !== false
+
+  const resolvedResponsesInput = (() => {
+    const raw = args.options?.chatMessagesJson
+    if (typeof raw !== 'string') return String(args.prompt || '')
+    const text = raw.trim()
+    if (!text) return String(args.prompt || '')
+    try {
+      return JSON.parse(text) as unknown
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error || '')
+      throw new Error(`Invalid OpenAI input JSON: ${message || 'parse failed'}`)
+    }
+  })()
+
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: buildProxyHeaders(args.config, requestId),
@@ -768,7 +794,7 @@ export async function generateRunMarkdownWithProvider(args: {
       ...(isResponsesEndpoint
         ? {
             instructions: baseMessages[0]?.content,
-            input: String(args.prompt || ''),
+            input: resolvedResponsesInput,
             ...(tokenLimit != null && tokenLimit > 0 ? { max_output_tokens: tokenLimit } : {}),
           }
         : {
@@ -842,6 +868,7 @@ export async function generateRunImageWithBytePlus(args: {
   options?: RunImageGenerationOptions
 }): Promise<GeneratedBinaryAsset | null> {
   if (normalizeChatProviderId(args.config.provider) !== CHAT_PROVIDER_BYTEPLUS) return null
+  const hasExplicitModel = Boolean(cleanString(args.options?.model) && !isGenericGenerationMode(cleanString(args.options?.model)))
   const endpoint = resolveBytePlusContentEndpointForRequest({
     endpointUrl: args.config.endpointUrl,
     path: CHAT_BYTEPLUS_IMAGES_GENERATIONS_PATH,
@@ -860,6 +887,32 @@ export async function generateRunImageWithBytePlus(args: {
   const referenceImageUrl = cleanString(args.options?.referenceImageUrl)
   const size = cleanString(args.options?.size) || defaults.size || '2K'
   const outputFormat = cleanString(args.options?.outputFormat).toLowerCase() || defaults.outputFormat || 'jpeg'
+  const responseFormat = (() => {
+    const raw = cleanString(args.options?.responseFormat).toLowerCase() || defaults.responseFormat || 'b64_json'
+    return raw === 'url' ? 'url' : 'b64_json'
+  })()
+  const optimizePromptOptions = (() => {
+    const raw = cleanString(args.options?.optimizePromptOptions).toLowerCase() || defaults.optimizePromptOptions || 'fast'
+    return raw === 'standard' ? 'standard' : 'fast'
+  })()
+  const aspectRatio = (() => {
+    const raw = args.options?.aspectRatio
+    if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0.0625, Math.min(16, raw))
+    if (typeof raw === 'string') {
+      const text = raw.trim()
+      if (text.includes('/')) {
+        const [a, b] = text.split('/').map(part => Number.parseFloat(part.trim()))
+        if (Number.isFinite(a) && Number.isFinite(b) && b !== 0) {
+          const ratio = a / b
+          if (Number.isFinite(ratio)) return Math.max(0.0625, Math.min(16, ratio))
+        }
+      }
+      const parsed = Number.parseFloat(text)
+      if (Number.isFinite(parsed)) return Math.max(0.0625, Math.min(16, parsed))
+    }
+    return defaults.aspectRatio
+  })()
+  const stream = cleanBool(args.options?.stream) ?? defaults.stream
   const watermark = cleanBool(args.options?.watermark) ?? defaults.watermark
   const seed = cleanInteger(args.options?.seed) ?? defaults.seed
   const guidanceScale = (() => {
@@ -872,15 +925,20 @@ export async function generateRunImageWithBytePlus(args: {
     return defaults.guidanceScale
   })()
   const buildImageRequestBody = (model: string): string => JSON.stringify({
+    ...(Number.parseInt(parseBytePlusImageModelSignature(model)?.major || '0', 10) >= 5
+      ? { output_format: outputFormat === 'png' ? 'png' : 'jpeg' }
+      : {}),
     model,
     prompt: args.prompt,
     ...(referenceImageUrl ? { image: referenceImageUrl } : {}),
     size,
-    output_format: outputFormat,
+    ...(optimizePromptOptions === 'standard' ? { optimize_prompt_options: optimizePromptOptions } : {}),
+    ...(typeof aspectRatio === 'number' && Number.isFinite(aspectRatio) && Math.abs(aspectRatio - 0.0625) > 1e-10 ? { aspect_ratio: aspectRatio } : {}),
+    ...(stream === false ? { stream } : {}),
     ...(watermark != null ? { watermark } : {}),
     ...(seed != null && seed > 0 ? { seed } : {}),
     ...(guidanceScale != null && guidanceScale > 0 ? { guidance_scale: guidanceScale } : {}),
-    response_format: 'b64_json',
+    response_format: responseFormat,
   })
   const runImageRequest = async (model: string, suffix: string): Promise<Response> => {
     return fetch(endpoint, {
@@ -893,7 +951,7 @@ export async function generateRunImageWithBytePlus(args: {
   let model = modelPreview.resolvedModel
   let res = await runImageRequest(model, '')
   let detail = res.ok ? '' : await parseErrorBody(res)
-  if (!res.ok && shouldRetryWithActivationFallback(res.status, detail)) {
+  if (!hasExplicitModel && !res.ok && shouldRetryWithActivationFallback(res.status, detail)) {
     const preferences = getCuratedImageFallbackPreferences(modelPreview.preferredModel)
     for (const preferred of preferences) {
       const preview = await resolveGenerationModelPreview(args.config, 'image', preferred)

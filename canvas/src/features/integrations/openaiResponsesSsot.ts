@@ -1,4 +1,4 @@
-import type { WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryField, WidgetRegistryFieldOption } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 export type OpenAiApiDocRow = {
   key: string
@@ -25,6 +25,20 @@ type WidgetRowBinding = {
   field?: WidgetRegistryField
 }
 
+const OPENAI_TEXT_WIDGET_MODEL_OPTIONS: WidgetRegistryFieldOption[] = [
+  { label: 'gpt-5.4-nano (Default)', value: 'gpt-5.4-nano' },
+  { label: 'gpt-5.4-mini', value: 'gpt-5.4-mini' },
+  { label: 'gpt-5.4', value: 'gpt-5.4' },
+  { label: 'gpt-5.5', value: 'gpt-5.5' },
+]
+
+const OPENAI_REASONING_EFFORT_OPTIONS: WidgetRegistryFieldOption[] = [
+  { label: 'minimal', value: 'minimal' },
+  { label: 'low', value: 'low' },
+  { label: 'medium (Default)', value: 'medium' },
+  { label: 'high', value: 'high' },
+]
+
 const OPENAI_TEXT_WIDGET_ROW_KEY_BY_PROPERTY_KEY: Readonly<Record<string, string>> = {
   chatProvider: 'openaiApi.provider',
   chatAuthMode: 'openaiApi.auth_mode',
@@ -33,11 +47,11 @@ const OPENAI_TEXT_WIDGET_ROW_KEY_BY_PROPERTY_KEY: Readonly<Record<string, string
   chatModel: 'openaiApi.model',
   prompt: 'openaiApi.input',
   chatMessagesJson: 'openaiApi.input',
-  chatResponseFormatJson: 'openaiApi.response_format',
+  chatResponseFormatJson: 'openaiApi.text',
   chatTemperature: 'openaiApi.temperature',
   chatTopP: 'openaiApi.top_p',
   chatMaxCompletionTokens: 'openaiApi.max_output_tokens',
-  chatReasoningEffort: 'openaiApi.reasoning_effort',
+  chatReasoningEffort: 'openaiApi.reasoning.effort',
   chatStream: 'openaiApi.stream',
   chatFrequencyPenalty: 'openaiApi.frequency_penalty',
   chatPresencePenalty: 'openaiApi.presence_penalty',
@@ -85,7 +99,7 @@ export function resolveOpenAiTextWidgetChatApiRowKey(args: {
 const OPENAI_TEXT_WIDGET_FIELD_BINDINGS: ReadonlyArray<WidgetRowBinding> = [
   {
     rowKey: 'openaiApi.provider',
-    field: { fieldKey: 'chatProvider', fieldType: 'text', schemaPath: 'properties.chatProvider', required: true, label: 'Provider' },
+    field: { fieldKey: 'chatProvider', fieldType: 'readonly', schemaPath: 'properties.chatProvider', required: true, label: 'Provider' },
   },
   {
     rowKey: 'openaiApi.auth_mode',
@@ -97,7 +111,14 @@ const OPENAI_TEXT_WIDGET_FIELD_BINDINGS: ReadonlyArray<WidgetRowBinding> = [
   },
   {
     rowKey: 'openaiApi.model',
-    field: { fieldKey: 'chatModel', fieldType: 'text', schemaPath: 'properties.chatModel', required: true, label: 'Model' },
+    field: {
+      fieldKey: 'chatModel',
+      fieldType: 'select',
+      schemaPath: 'properties.chatModel',
+      required: true,
+      label: 'Model',
+      options: OPENAI_TEXT_WIDGET_MODEL_OPTIONS,
+    },
   },
   {
     rowKey: 'openaiApi.input',
@@ -108,7 +129,7 @@ const OPENAI_TEXT_WIDGET_FIELD_BINDINGS: ReadonlyArray<WidgetRowBinding> = [
     field: { fieldKey: 'chatMessagesJson', fieldType: 'json', schemaPath: 'properties.chatMessagesJson', label: 'Input' },
   },
   {
-    rowKey: 'openaiApi.response_format',
+    rowKey: 'openaiApi.text',
     field: { fieldKey: 'chatResponseFormatJson', fieldType: 'json', schemaPath: 'properties.chatResponseFormatJson', label: 'Response format' },
   },
   {
@@ -124,8 +145,14 @@ const OPENAI_TEXT_WIDGET_FIELD_BINDINGS: ReadonlyArray<WidgetRowBinding> = [
     field: { fieldKey: 'chatMaxCompletionTokens', fieldType: 'number', schemaPath: 'properties.chatMaxCompletionTokens', label: 'Max output tokens' },
   },
   {
-    rowKey: 'openaiApi.reasoning_effort',
-    field: { fieldKey: 'chatReasoningEffort', fieldType: 'text', schemaPath: 'properties.chatReasoningEffort', label: 'Reasoning effort' },
+    rowKey: 'openaiApi.reasoning.effort',
+    field: {
+      fieldKey: 'chatReasoningEffort',
+      fieldType: 'select',
+      schemaPath: 'properties.chatReasoningEffort',
+      label: 'Reasoning effort',
+      options: OPENAI_REASONING_EFFORT_OPTIONS,
+    },
   },
   {
     rowKey: 'openaiApi.stream',
@@ -161,12 +188,27 @@ const OPENAI_TEXT_WIDGET_FIELD_BINDINGS: ReadonlyArray<WidgetRowBinding> = [
   },
 ]
 
-export function buildOpenAiCompatibleTextGenerationFields(): WidgetRegistryField[] {
-  return OPENAI_TEXT_WIDGET_FIELD_BINDINGS
+export function buildOpenAiCompatibleTextGenerationFields(args?: {
+  providerFamily?: 'openai' | 'zai'
+}): WidgetRegistryField[] {
+  const providerFamily = args?.providerFamily === 'zai' ? 'zai' : 'openai'
+  const fields = OPENAI_TEXT_WIDGET_FIELD_BINDINGS
     .map(binding => binding.field)
     .filter((field): field is WidgetRegistryField => !!field)
     .map(field => ({ ...field }))
-    .concat([{ fieldKey: 'output', fieldType: 'textarea', schemaPath: 'properties.output', label: 'Output' }])
+
+  const normalizedFields = providerFamily === 'zai'
+    ? fields.map(field => {
+        if (field.fieldKey !== 'chatModel') return field
+        const { options, ...rest } = field
+        return {
+          ...rest,
+          fieldType: 'text',
+        }
+      })
+    : fields
+
+  return normalizedFields.concat([{ fieldKey: 'output', fieldType: 'textarea', schemaPath: 'properties.output', label: 'Output' }])
 }
 
 const OPENAI_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, OpenAiApiDocRow>> = {
@@ -220,8 +262,8 @@ const OPENAI_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, OpenAiApiDocRow>> = {
   },
   'openaiApi.model': {
     key: 'model',
-    typeLabel: 'string',
-    value: 'Required. Model ID.',
+    typeLabel: 'enum',
+    value: 'Required. gpt-5.4-nano | gpt-5.4-mini | gpt-5.4 | gpt-5.5.',
     valueKey: 'chatModel',
     responsibility: 'Model resolver -> choose the target Responses model -> keep global defaults, workflow registry drafts, and widget overrides on the same execution model.',
     searchHints: ['model required responses api'],
@@ -270,8 +312,8 @@ const OPENAI_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, OpenAiApiDocRow>> = {
     classes: ['GraphState', 'RunTextGenerationOptions'],
     functions: ['setChatMaxCompletionTokens', 'clampChatCompletionTokens', 'generateRunMarkdownWithProvider'],
   },
-  'openaiApi.reasoning_effort': {
-    key: 'reasoning_effort',
+  'openaiApi.reasoning.effort': {
+    key: 'reasoning.effort',
     typeLabel: 'string | null',
     value: 'Optional. minimal | low | medium | high.',
     valueKey: 'chatReasoningEffort',
@@ -280,12 +322,12 @@ const OPENAI_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, OpenAiApiDocRow>> = {
     classes: ['GraphState', 'RunTextGenerationOptions'],
     functions: ['setChatReasoningEffort', 'normalizeChatReasoningEffort', 'buildProviderChatRequestOptions'],
   },
-  'openaiApi.response_format': {
-    key: 'response_format',
+  'openaiApi.text': {
+    key: 'text',
     typeLabel: 'object | null',
-    value: 'Optional. Text or structured-output configuration.',
+    value: 'Optional. Text output configuration.',
     valueKey: 'chatResponseFormatJson',
-    responsibility: 'Output contract -> constrain free-text vs structured responses -> keep Integrations docs, widget editor JSON, and run dispatch on one schema surface.',
+    responsibility: 'Output contract -> constrain text rendering and structured output -> keep Integrations docs, widget editor JSON, and run dispatch on one schema surface.',
     modules: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/flow-editor-manager/registryTemplates.ts', 'canvas/src/features/chat/byteplusRunGeneration.ts'],
     classes: ['WidgetRegistryEntry', 'RunTextGenerationOptions'],
     functions: ['setChatResponseFormatJson', 'buildOpenAiCompatibleTextGenerationFields', 'buildProviderChatRequestOptions'],
@@ -370,6 +412,11 @@ const OPENAI_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, OpenAiApiDocRow>> = {
     classes: ['WidgetRegistryEntry', 'RunTextGenerationOptions'],
     functions: ['setChatParallelToolCalls', 'buildOpenAiCompatibleTextGenerationFields', 'buildProviderChatRequestOptions'],
   },
+}
+
+export function getOpenAiApiDocRowByRowKey(rowKey: string): OpenAiApiDocRow | null {
+  const normalized = String(rowKey || '').trim()
+  return OPENAI_DOC_ROW_BY_ROW_KEY[normalized] || null
 }
 
 const OPENAI_DOC_ROW_ORDER = OPENAI_TEXT_WIDGET_FIELD_BINDINGS
@@ -464,13 +511,13 @@ export const OPENAI_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
     expansionNote: 'Higher caps expand answer length and reasoning budget.',
     contractionNote: 'Lower caps narrow output budget.',
   },
-  reasoning_effort: {
+  'reasoning.effort': {
     defaultValue: 'medium',
     expansionNote: 'Higher effort expands deliberation depth.',
     contractionNote: 'Lower effort narrows reasoning cost and latency.',
   },
-  response_format: {
-    defaultValue: '{"type":"text"}',
+  text: {
+    defaultValue: '—',
     expansionNote: 'Structured modes expand machine-readable guarantees.',
     contractionNote: 'Text mode narrows output constraints.',
   },

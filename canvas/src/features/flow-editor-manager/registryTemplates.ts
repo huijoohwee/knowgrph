@@ -315,7 +315,7 @@ export function buildTextGenerationRegistryDraft(args?: {
     formId: String(args?.formId || '').trim() || (providerFamily === 'byteplus' ? 'textGeneration' : `textGeneration.${providerFamily}`),
     fields: providerFamily === 'byteplus'
       ? buildBytePlusTextGenerationFields()
-      : buildOpenAiCompatibleTextGenerationFields(),
+      : buildOpenAiCompatibleTextGenerationFields({ providerFamily: providerFamily === 'zai' ? 'zai' : 'openai' }),
     ports: buildCommonTextGenerationPorts(),
     schemaMappings: [],
   }

@@ -9,6 +9,7 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   const root = process.cwd()
   const panelPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const formPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const registryPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorRegistrySection.tsx')
 
   const panel = readUtf8(panelPath)
   if (panel.includes('<p')) {
@@ -42,5 +43,17 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   }
   if (!form.includes("px-3 py-0")) {
     throw new Error('Expected Widget form to have zero top/bottom padding')
+  }
+
+  if (form.includes("rowKey: 'smart-")) {
+    throw new Error('Expected Smart media KTV rows to be removed from Widget form')
+  }
+  if (form.includes('flowWidgetSmartFieldsLegend')) {
+    throw new Error('Expected Smart media legend label to be removed from Widget form')
+  }
+
+  const registry = readUtf8(registryPath)
+  if (registry.includes('MAIN_PANEL_OPEN_EVENT')) {
+    throw new Error('Expected Widget props panel to forbid opening MainPanel Integrations')
   }
 }

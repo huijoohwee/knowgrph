@@ -3,15 +3,8 @@ import React from 'react'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
-  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
-  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-  FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
-  FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
-  FLOW_EDITOR_RESOLUTION_OPTIONS,
-  getFlowEditorSmartNodeModelOptions,
   UI_COPY,
   UI_LABELS,
-  type FlowEditorSmartNodeProperties,
 } from '@/lib/config'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -100,30 +93,6 @@ function parseHandleListInput(raw: string): string[] {
     .map(v => String(v || '').trim())
     .filter(Boolean)
   return Array.from(new Set(out))
-}
-
-function isSmartMediaRegistryEntry(entry: WidgetRegistryEntry | null | undefined): boolean {
-  if (!entry) return false
-  if (String(entry.formId || '').trim() === 'imageGeneration') return true
-  if (String(entry.formId || '').trim() === 'videoGeneration') return true
-  const fields = Array.isArray(entry.fields) ? entry.fields : []
-  if (fields.length === 0) return false
-  const smartFieldKeySet = new Set([
-    'content_json',
-    'aspect_ratio',
-    'duration',
-    'resolution',
-    'generate_audio',
-    'fast',
-    'watermark',
-    'reference_image',
-  ])
-  for (let i = 0; i < fields.length; i += 1) {
-    const field = fields[i] as Record<string, unknown>
-    const key = String(field?.fieldKey || '').trim()
-    if (smartFieldKeySet.has(key)) return true
-  }
-  return false
 }
 
 type WidgetCompactPreviewKind = 'text' | 'image' | 'video'
@@ -472,16 +441,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const ids = React.useMemo(() => {
     return {
       label: `${idBase}-label`,
-      model: `${idBase}-model`,
-      prompt: `${idBase}-prompt`,
-      contentJson: `${idBase}-content-json`,
-      aspect: `${idBase}-aspect`,
-      duration: `${idBase}-duration`,
-      resolution: `${idBase}-resolution`,
-      generateAudio: `${idBase}-generate-audio`,
-      fast: `${idBase}-fast`,
-      watermark: `${idBase}-watermark`,
-      referenceImage: `${idBase}-reference-image`,
       registrySelect: `${idBase}-registry-select`,
       registryField: (fieldKey: string) => `${idBase}-registry-field-${cleanDomIdPart(fieldKey) || 'field'}`,
       paramsJson: `${idBase}-params-json`,
@@ -494,15 +453,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const nodeFormId = typeof properties[FLOW_WIDGET_FORM_ID_KEY] === 'string' ? String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim() : ''
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
-  const smartMediaMode = React.useMemo<'image' | 'video' | null>(() => {
-    if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'image'
-    if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'video'
-    const entryFormId = String(registryEntry?.formId || '').trim()
-    if (entryFormId === 'imageGeneration' || nodeFormId === 'imageGeneration') return 'image'
-    if (entryFormId === 'videoGeneration' || nodeFormId === 'videoGeneration') return 'video'
-    return null
-  }, [nodeFormId, nodeTypeId, registryEntry?.formId])
-  const smartModelOptions = React.useMemo(() => getFlowEditorSmartNodeModelOptions(smartMediaMode), [smartMediaMode])
 
   const flowEnvelopeValueBoxClass = React.useMemo(() => {
     return cn(
@@ -665,17 +615,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     )
   }, [dotHitPx, dotSizePx])
 
-  const model = pickString(properties.model)
-  const prompt = pickString(properties.prompt)
-  const contentJson = pickString(properties.content_json)
-  const aspectRatio = pickString(properties.aspect_ratio)
-  const duration = pickNumber(properties.duration)
-  const resolution = pickString(properties.resolution)
-  const generateAudio = pickBool(properties.generate_audio)
-  const fast = pickBool(properties.fast)
-  const watermark = pickBool(properties.watermark)
-  const referenceImage = pickString(properties.reference_image)
-
   const normalizeRegistrySchemaPath = React.useCallback((schemaPath: string | undefined, fallbackKey: string) => {
     const raw = String(schemaPath || fallbackKey || '').trim()
     if (!raw) return ''
@@ -699,13 +638,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   )
   const registrySelectionId = registryEntry?.id || ''
   const hasRegistryOptions = registryOptions.length > 0
-  const hasSmartMediaSelection = React.useMemo(() => {
-    if (smartMediaMode) return true
-    if (isSmartMediaRegistryEntry(registryEntry)) return true
-    const formId = String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
-    return formId === 'imageGeneration' || formId === 'videoGeneration'
-  }, [properties, registryEntry, smartMediaMode])
-  const showSmartMediaFields = !isRichMediaPanelWidget && !hideFields && (!isFrontmatterFlow || hasSmartMediaSelection)
 
   const registryOptionIdsSig = React.useMemo(() => {
     return (registryOptions || []).map(e => String(e.id || '')).join('|')
@@ -1061,259 +993,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           ]}
         />
       </section>
-      )}
-
-      {showSmartMediaFields && (
-        <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidgetSmartFieldsLegend}>
-          <NodeOverlayEditorKvTable
-            ariaLabel={UI_LABELS.flowWidgetSmartFieldsLegend}
-            microLabelClass={microLabelClass}
-            dotSizePx={dotSizePx}
-            dotHitPx={dotHitPx}
-            forcePortDots
-            rows={[
-              {
-                rowKey: 'smart-model',
-                labelId: `${idBase}-kv-smart-model`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.model}>{UI_LABELS.flowWidgetModel}</label>,
-                typeNode: <NodeOverlayEditorTypePill text="enum" />,
-                valueNode: (
-                  <select
-                    id={ids.model}
-                    className={cn(
-                      keyValueInputClass,
-                      textSizeClass,
-                      'text-left',
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                    value={model}
-                    onChange={e => onPatchProperties({ model: (e.target.value || undefined) as FlowEditorSmartNodeProperties['model'] })}
-                    disabled={!active}
-                  >
-                    <option value="">{UI_COPY.flowWidgetSelectPlaceholder}</option>
-                    {smartModelOptions.map(o => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ),
-              },
-              {
-                rowKey: 'smart-prompt',
-                labelId: `${idBase}-kv-smart-prompt`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.prompt}>{UI_LABELS.flowWidgetPrompt}</label>,
-                typeNode: <NodeOverlayEditorTypePill text="text" />,
-                valueNode: (
-                  <PlainTextInputEditor
-                    id={ids.prompt}
-                    value={prompt}
-                    onChange={nextPrompt => onPatchProperties({ prompt: nextPrompt })}
-                    disabled={!active}
-                    multiline
-                    className={cn(
-                      'w-full h-32 px-2 py-1 rounded-md border',
-                      monospaceTextClass,
-                    )}
-                  />
-                ),
-              },
-              ...(smartMediaMode === 'video'
-                ? [{
-                    rowKey: 'smart-content-json',
-                    labelId: `${idBase}-kv-smart-content-json`,
-                    keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.contentJson}>{UI_LABELS.flowWidgetContentJson}</label>,
-                    typeNode: <NodeOverlayEditorTypePill text="json" />,
-                    valueNode: (
-                      <PlainTextInputEditor
-                        id={ids.contentJson}
-                        value={contentJson}
-                        onChange={nextContentJson => onPatchProperties({ content_json: nextContentJson || undefined })}
-                        disabled={!active}
-                        multiline
-                        className={cn(
-                          'w-full h-24 px-2 py-1 rounded-md border',
-                          monospaceTextClass,
-                        )}
-                      />
-                    ),
-                  }]
-                : []),
-              {
-                rowKey: 'smart-aspect',
-                labelId: `${idBase}-kv-smart-aspect`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.aspect}>{UI_LABELS.flowWidgetAspectRatio}</label>,
-                typeNode: <NodeOverlayEditorTypePill text="enum" />,
-                valueNode: (
-                  <select
-                    id={ids.aspect}
-                    className={cn(
-                      keyValueInputClass,
-                      textSizeClass,
-                      'text-left',
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                    value={aspectRatio}
-                    onChange={e =>
-                      onPatchProperties({
-                        aspect_ratio: (e.target.value || undefined) as FlowEditorSmartNodeProperties['aspect_ratio'],
-                      })
-                    }
-                    disabled={!active}
-                  >
-                    <option value="">{UI_COPY.flowWidgetSelectPlaceholder}</option>
-                    {FLOW_EDITOR_ASPECT_RATIO_OPTIONS.map(o => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ),
-              },
-              {
-                rowKey: 'smart-duration',
-                labelId: `${idBase}-kv-smart-duration`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.duration}>{UI_LABELS.flowWidgetDuration}</label>,
-                typeNode: <NodeOverlayEditorTypePill text="int" />,
-                valueNode: (
-                  <select
-                    id={ids.duration}
-                    className={cn(
-                      keyValueInputClass,
-                      textSizeClass,
-                      'text-left',
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                    value={duration === null ? '' : String(duration)}
-                    onChange={e => {
-                      const next = Number.parseInt(e.target.value, 10)
-                      onPatchProperties({ duration: Number.isFinite(next) ? next : undefined })
-                    }}
-                    disabled={!active}
-                  >
-                    <option value="">{UI_COPY.flowWidgetSelectPlaceholder}</option>
-                    {FLOW_EDITOR_DURATION_SECONDS_OPTIONS.map(o => (
-                      <option key={o.value} value={String(o.value)}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ),
-              },
-              {
-                rowKey: 'smart-resolution',
-                labelId: `${idBase}-kv-smart-resolution`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.resolution}>{UI_LABELS.flowWidgetResolution}</label>,
-                typeNode: <NodeOverlayEditorTypePill text="enum" />,
-                valueNode: (
-                  <select
-                    id={ids.resolution}
-                    className={cn(
-                      keyValueInputClass,
-                      textSizeClass,
-                      'text-left',
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                    value={resolution}
-                    onChange={e =>
-                      onPatchProperties({ resolution: (e.target.value || undefined) as FlowEditorSmartNodeProperties['resolution'] })
-                    }
-                    disabled={!active}
-                  >
-                    <option value="">{UI_COPY.flowWidgetSelectPlaceholder}</option>
-                    {FLOW_EDITOR_RESOLUTION_OPTIONS.map(o => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ),
-              },
-              {
-                rowKey: 'smart-generate-audio',
-                labelId: `${idBase}-kv-smart-generate-audio`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.generateAudio}>{UI_LABELS.flowWidgetGenerateAudio}</label>,
-                typeNode: <NodeOverlayEditorTypePill text="bool" />,
-                valueNode: (
-                <section className="w-full flex items-center">
-                  <input
-                    id={ids.generateAudio}
-                    type="checkbox"
-                    checked={generateAudio}
-                    onChange={e => onPatchProperties({ generate_audio: e.target.checked })}
-                    disabled={!active}
-                  />
-                </section>
-                ),
-              },
-              {
-                rowKey: 'smart-fast',
-                labelId: `${idBase}-kv-smart-fast`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.fast}>{UI_LABELS.flowWidgetFast}</label>,
-                typeNode: <NodeOverlayEditorTypePill text="bool" />,
-                valueNode: (
-                <section className="w-full flex items-center">
-                  <input
-                    id={ids.fast}
-                    type="checkbox"
-                    checked={fast}
-                    onChange={e => onPatchProperties({ fast: e.target.checked })}
-                    disabled={!active}
-                  />
-                </section>
-                ),
-              },
-              {
-                rowKey: 'smart-watermark',
-                labelId: `${idBase}-kv-smart-watermark`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.watermark}>{UI_LABELS.flowWidgetWatermark}</label>,
-                typeNode: <NodeOverlayEditorTypePill text="bool" />,
-                valueNode: (
-                <section className="w-full flex items-center">
-                  <input
-                    id={ids.watermark}
-                    type="checkbox"
-                    checked={watermark}
-                    onChange={e => onPatchProperties({ watermark: e.target.checked })}
-                    disabled={!active}
-                  />
-                </section>
-                ),
-              },
-              {
-                rowKey: 'smart-reference-image',
-                labelId: `${idBase}-kv-smart-reference-image`,
-                keyNode: <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={ids.referenceImage}>{UI_LABELS.flowWidgetReferenceImage}</label>,
-                typeNode: <NodeOverlayEditorTypePill text="text" />,
-                valueNode: (
-                  <input
-                    id={ids.referenceImage}
-                    className={cn(
-                      keyValueInputClass,
-                      textSizeClass,
-                      'text-left',
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                    value={referenceImage}
-                    onChange={e => onPatchProperties({ reference_image: e.target.value || undefined })}
-                    placeholder={UI_COPY.flowWidgetReferenceImagePlaceholder}
-                    disabled={!active}
-                  />
-                ),
-              },
-            ]}
-          />
-        </section>
       )}
 
       {compactPreview && (

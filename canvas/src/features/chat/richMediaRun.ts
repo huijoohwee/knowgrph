@@ -30,15 +30,18 @@ export type RichMediaWidgetRunRequest = {
   contentJson?: string
   size?: string
   outputFormat?: string
+  responseFormat?: string
+  optimizePromptOptions?: string
+  stream?: boolean
   seed?: number
   guidanceScale?: number
-  aspectRatio?: string
+  aspectRatio?: string | number
   resolution?: string
   duration?: number
   generateAudio?: boolean
   watermark?: boolean
-  watermark?: boolean
   fast?: boolean
+  referenceImageUrl?: string
 }
 
 export type RichMediaWidgetRunResult = {
@@ -212,9 +215,14 @@ export const buildRichMediaWidgetRunRequest = (args: {
     || cleanString(readConnectedValue(args.connectedValuesBySchemaPath, 'properties.reference_image'))
   const size = cleanString(readNodeProperty(args.node, 'properties.size'))
   const outputFormat = cleanString(readNodeProperty(args.node, 'properties.output_format'))
+  const responseFormat = cleanString(readNodeProperty(args.node, 'properties.response_format'))
+  const optimizePromptOptions = cleanString(readNodeProperty(args.node, 'properties.optimize_prompt_options'))
+  const stream = cleanBool(readNodeProperty(args.node, 'properties.stream'))
   const seed = cleanNumber(readNodeProperty(args.node, 'properties.seed'))
   const guidanceScale = cleanNumber(readNodeProperty(args.node, 'properties.guidance_scale'))
-  const aspectRatio = cleanString(readNodeProperty(args.node, 'properties.aspect_ratio'))
+  const rawAspectRatio = readNodeProperty(args.node, 'properties.aspect_ratio')
+  const aspectRatioNumber = cleanNumber(rawAspectRatio)
+  const aspectRatio = typeof rawAspectRatio === 'string' ? cleanString(rawAspectRatio) : ''
   const resolution = cleanString(readNodeProperty(args.node, 'properties.resolution'))
   const model = cleanString(readNodeProperty(args.node, 'properties.model'))
   const duration = cleanNumber(readNodeProperty(args.node, 'properties.duration'))
@@ -249,9 +257,13 @@ export const buildRichMediaWidgetRunRequest = (args: {
     ...(contentJson ? { contentJson } : {}),
     ...(size ? { size } : {}),
     ...(outputFormat ? { outputFormat } : {}),
+    ...(responseFormat ? { responseFormat } : {}),
+    ...(optimizePromptOptions ? { optimizePromptOptions } : {}),
+    ...(stream != null ? { stream } : {}),
     ...(seed != null ? { seed } : {}),
     ...(guidanceScale != null ? { guidanceScale } : {}),
-    ...(aspectRatio ? { aspectRatio } : {}),
+    ...(aspectRatioNumber != null ? { aspectRatio: aspectRatioNumber } : {}),
+    ...(aspectRatio && aspectRatioNumber == null ? { aspectRatio } : {}),
     ...(resolution ? { resolution } : {}),
     ...(duration != null ? { duration } : {}),
     ...(generateAudio != null ? { generateAudio } : {}),
@@ -324,6 +336,10 @@ export const runRichMediaWidgetGeneration = async (args: {
           model: request.model,
           size: request.size,
           outputFormat: request.outputFormat,
+          responseFormat: request.responseFormat,
+          optimizePromptOptions: request.optimizePromptOptions,
+          aspectRatio: request.aspectRatio,
+          stream: request.stream,
           watermark: request.watermark,
           seed: request.seed,
           guidanceScale: request.guidanceScale,

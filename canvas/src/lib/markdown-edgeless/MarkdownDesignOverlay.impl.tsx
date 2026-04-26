@@ -1,25 +1,14 @@
 import React from 'react'
 import * as d3 from 'd3'
-import { Expand } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import RichMediaIframe from '@/components/RichMediaIframe'
 import { lexMarkdown, buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
-import { extractHtmlAttr, looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
-import { sanitizeIframeSrcdoc } from '@/lib/render/sanitizeIframeSrcdoc'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
-import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { patchById } from 'grph-shared/array/patchArrayItem'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
-import {
-  PANEL_FRAME_BODY_STYLE,
-  PANEL_FRAME_HEADER_ACTION_STYLE,
-  PANEL_FRAME_HEADER_STYLE,
-  PANEL_FRAME_HEADER_TITLE_STYLE,
-  PANEL_FRAME_ROOT_STYLE,
-} from '@/lib/ui/panelFrame'
+import RichMediaPanel from '@/components/RichMediaPanel'
 import {
   deriveMarkdownDesignLayout,
   patchMarkdownDesignLayoutPositions,
@@ -170,101 +159,61 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     return true
   }, [])
 
-  const startHeaderDrag = React.useCallback(
-    (args0: { blockId: string; clientX: number; clientY: number; native: PointerEvent }) => {
-      const anchor = anchorByBlockIdRef.current
-      const anchorId = String(anchor?.[args0.blockId] || args0.blockId)
-      if (!anchorId) return
-      try {
-        const st = useGraphStore.getState() as unknown as { selectNode?: (id: string | null) => void; selectEdge?: (id: string | null) => void; setSelectionSource?: (src: string) => void }
-        st.setSelectionSource?.('canvas')
-        st.selectEdge?.(null)
-        st.selectNode?.(null)
-      } catch {
-        void 0
-      }
-      try {
-        props.onHeaderDragStart?.({ id: anchorId, clientX: args0.clientX, clientY: args0.clientY })
-      } catch {
-        void 0
-      }
-      const x0 = args0.clientX
-      const y0 = args0.clientY
-      startPointerDrag({
-        ev: args0.native,
-        cursor: 'grabbing',
-        onMove: ev => {
-          try {
-            props.onHeaderDrag?.({ dx: ev.clientX - x0, dy: ev.clientY - y0 })
-          } catch {
-            void 0
-          }
-        },
-        onEnd: () => {
-          try {
-            props.onHeaderDragEnd?.()
-          } catch {
-            void 0
-          }
-        },
-        onCancel: () => {
-          try {
-            props.onHeaderDragEnd?.()
-          } catch {
-            void 0
-          }
-        },
-      })
-    },
-    [props.onHeaderDrag, props.onHeaderDragEnd, props.onHeaderDragStart],
-  )
-
-  const startOverlayPan = React.useCallback(
-    (native: PointerEvent) => {
-      if (!props.onOverlayPanStart && !props.onOverlayPan && !props.onOverlayPanEnd) return
-      const x0 = native.clientX
-      const y0 = native.clientY
-      try {
-        const st = useGraphStore.getState() as unknown as { selectNode?: (id: string | null) => void; selectEdge?: (id: string | null) => void; setSelectionSource?: (src: string) => void }
-        st.setSelectionSource?.('canvas')
-        st.selectEdge?.(null)
-        st.selectNode?.(null)
-      } catch {
-        void 0
-      }
-      try {
-        props.onOverlayPanStart?.({ pointerId: native.pointerId, clientX: x0, clientY: y0 })
-      } catch {
-        void 0
-      }
-      startPointerDrag({
-        ev: native,
-        cursor: 'grabbing',
-        onMove: ev => {
-          try {
-            props.onOverlayPan?.({ pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY, dx: ev.clientX - x0, dy: ev.clientY - y0 })
-          } catch {
-            void 0
-          }
-        },
-        onEnd: ev => {
-          try {
-            props.onOverlayPanEnd?.({ pointerId: ev.pointerId })
-          } catch {
-            void 0
-          }
-        },
-        onCancel: ev => {
-          try {
-            props.onOverlayPanEnd?.({ pointerId: ev.pointerId })
-          } catch {
-            void 0
-          }
-        },
-      })
-    },
-    [props.onOverlayPan, props.onOverlayPanEnd, props.onOverlayPanStart],
-  )
+  const markdownSnippetByBlockId = React.useMemo(() => {
+    const out = new Map<string, string>()
+    const blocks0 = Array.isArray(blocksRef.current) ? blocksRef.current : []
+    for (const b of blocks0) {
+      const kind = b.preview?.kind
+      const snippet = (() => {
+        if (kind === 'table' && b.preview.table) {
+          const cols = b.preview.table.columns || []
+          const rows = b.preview.table.rows || []
+          const head = `| ${cols.map(c => String(c || '').replace(/\|/g, '\\|')).join(' | ')} |`
+          const sep = `| ${cols.map(() => '---').join(' | ')} |`
+          const body = rows.slice(0, 6).map(r => `| ${(r || []).map(c => String(c || '').replace(/\|/g, '\\|')).join(' | ')} |`)
+          return [head, sep, ...body].join('\n')
+        }
+        if (kind === 'code' && b.preview.code) {
+          const lang = String(b.preview.code.lang || '').trim()
+          const lines = Array.isArray(b.preview.code.lines) ? b.preview.code.lines : []
+          return ['```' + lang, ...lines, '```'].join('\n')
+        }
+        if (kind === 'blockquote' && b.preview.blockquote) {
+          const lines = Array.isArray(b.preview.blockquote.lines) ? b.preview.blockquote.lines : []
+          return lines.map(l => `> ${String(l || '')}`).join('\n')
+        }
+        if (kind === 'callout' && b.preview.callout) {
+          const t = String(b.preview.callout.title || '').trim()
+          const calloutType = String(b.preview.callout.calloutType || '').trim() || 'note'
+          const header = `> [!${calloutType.toUpperCase()}]${t ? ` ${t}` : ''}`
+          return header
+        }
+        if (kind === 'list' && Array.isArray(b.preview.listItems)) {
+          const ordered = b.preview.ordered === true
+          return b.preview.listItems
+            .slice(0, 10)
+            .map((it, idx) => {
+              const base = ordered ? `${idx + 1}.` : '-'
+              const text = String(it.text || '').trim()
+              if (it.task === true) {
+                const mark = it.checked === true ? '[x]' : '[ ]'
+                return `${base} ${mark} ${text}`.trim()
+              }
+              return `${base} ${text}`.trim()
+            })
+            .join('\n')
+        }
+        if (kind === 'hr') return '---'
+        if (kind === 'html' && b.preview.html) {
+          const raw = String(b.preview.html.raw || '').trim()
+          return ['```html', raw, '```'].join('\n')
+        }
+        return String(b.summary || '').trim() || String(b.title || '').trim()
+      })()
+      out.set(b.id, snippet)
+    }
+    return out
+  }, [blocks])
 
   const overlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
 
@@ -320,6 +269,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
   const dragging = drag != null
 
   const blockDragLatestRef = React.useRef<null | { blockId: string; index: number; x: number; y: number }>(null)
+  const blockDragStartRef = React.useRef<null | { blockId: string; index: number; x: number; y: number }>(null)
   const blockDragSchedulerRef = React.useRef(
     createRafValueScheduler((latest: { blockId: string; index: number; x: number; y: number }) => {
       setBlocks(prev =>
@@ -342,6 +292,8 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       } catch {
         void 0
       }
+      blockDragLatestRef.current = null
+      blockDragStartRef.current = null
       setDrag(null)
     }
     const onVisibility = () => {
@@ -478,225 +430,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     }
   }, [enabled, layout, svgRef, props.requestOverlayScheduleRef])
 
-  const startBlockDrag = React.useCallback((args0: { blockId: string; native: PointerEvent; clientX: number; clientY: number }) => {
-    if (!allowDrag) return
-    const svgEl = svgRef.current
-    if (!svgEl) return
-    const blockId = String(args0.blockId || '').trim()
-    if (!blockId) return
-    const b0 = blocksRef.current.find(b => String(b?.id || '') === blockId) || null
-    if (!b0) return
-    lockGlobalUserSelect()
-    setDrag({ pointerId: args0.native.pointerId, blockId })
-    const startClientX = args0.clientX
-    const startClientY = args0.clientY
-    const startX = b0.x
-    const startY = b0.y
-    const startIdx = blocksRef.current.findIndex(b => String(b?.id || '') === blockId)
-
-    const scheduler = blockDragSchedulerRef.current
-    startPointerDrag({
-      ev: args0.native,
-      cursor: 'grabbing',
-      onMove: ev => {
-        const svgNow = svgRef.current
-        if (!svgNow) return
-        const t = d3.zoomTransform(svgNow)
-        const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-        const dx = (ev.clientX - startClientX) / k
-        const dy = (ev.clientY - startClientY) / k
-        const latest = { blockId, index: startIdx, x: startX + dx, y: startY + dy }
-        blockDragLatestRef.current = latest
-        scheduler.schedule(latest)
-      },
-      onEnd: () => {
-        try {
-          scheduler.flush()
-        } catch {
-          void 0
-        }
-        try {
-          const moved = blocksRef.current.find(b => String(b?.id || '') === blockId) || null
-          if (moved && layoutForRender && !props.layoutOverride) {
-            patchMarkdownDesignLayoutPositions({ layoutKey: layoutForRender.key, updates: [{ id: moved.id, x: moved.x, y: moved.y }] })
-          }
-        } finally {
-          blockDragLatestRef.current = null
-          unlockGlobalUserSelect()
-          setDrag(null)
-        }
-      },
-      onCancel: () => {
-        try {
-          scheduler.cancel()
-        } catch {
-          void 0
-        }
-        try {
-          void 0
-        } finally {
-          blockDragLatestRef.current = null
-          unlockGlobalUserSelect()
-          setDrag(null)
-        }
-      },
-    })
-  }, [allowDrag, layoutForRender, props.layoutOverride, svgRef])
-
   if (!enabled || !layoutForRender || visibleBlocks.length === 0) return null
-
-  const onHeaderActionPointerDownCapture = (e: React.PointerEvent<HTMLElement>) => {
-    try {
-      e.stopPropagation()
-    } catch {
-      void 0
-    }
-  }
-
-  const renderBlockBody = (b: MarkdownDesignBlock) => {
-    const p = b.preview
-    if (p.kind === 'heading') {
-      const depth = typeof p.headingDepth === 'number' ? p.headingDepth : 1
-      const sizeClass = depth <= 1 ? 'text-base' : depth === 2 ? 'text-sm' : 'text-xs'
-      return <p className={[sizeClass, 'font-semibold', UI_THEME_TOKENS.text.primary].join(' ')}>{b.title}</p>
-    }
-    if (p.kind === 'list') {
-      const items = Array.isArray(p.listItems) ? p.listItems.filter(it => String(it.text || '').trim()) : []
-      const ListTag = p.ordered ? 'ol' : 'ul'
-      return (
-        <ListTag className="m-0 pl-4 space-y-1" aria-label="List preview">
-          {items.slice(0, 6).map((it, idx) => (
-            <li key={idx} className={UI_THEME_TOKENS.text.primary}>
-              {it.task ? (
-                <span className={['mr-1', UI_THEME_TOKENS.text.secondary].join(' ')}>{it.checked ? '☑' : '☐'}</span>
-              ) : null}
-              {it.text}
-            </li>
-          ))}
-          {items.length === 0 ? <li className={UI_THEME_TOKENS.text.tertiary}>—</li> : null}
-        </ListTag>
-      )
-    }
-    if (p.kind === 'table') {
-      const t = p.table
-      if (!t) return null
-      const cols = t.columns || []
-      const rows = t.rows || []
-      return (
-        <table className="w-full text-[11px] border-collapse" aria-label="Table preview">
-          <caption className={['mb-1 text-[10px] text-left', UI_THEME_TOKENS.text.secondary].join(' ')}>
-            {t.rowCount ? `${t.rowCount} row${t.rowCount === 1 ? '' : 's'}` : 'Table'}
-          </caption>
-          {cols.length ? (
-            <thead>
-              <tr>
-                {cols.map(c => (
-                  <th
-                    key={c}
-                    className={['text-left font-semibold px-2 py-1 border-b', UI_THEME_TOKENS.panel.divider, UI_THEME_TOKENS.text.primary].join(' ')}
-                  >
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          ) : null}
-          <tbody>
-            {rows.slice(0, 4).map((r, i) => (
-              <tr key={i}>
-                {r.slice(0, cols.length || 6).map((cell, j) => (
-                  <td key={j} className={['px-2 py-1 border-b align-top', UI_THEME_TOKENS.panel.divider, UI_THEME_TOKENS.text.secondary].join(' ')}>
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )
-    }
-    if (p.kind === 'code') {
-      const c = p.code
-      const lang = c?.lang || ''
-      const code = (c?.lines || []).join('\n')
-      return (
-        <pre
-          className={['m-0 text-[11px] overflow-hidden rounded border p-2', UI_THEME_TOKENS.code.bg, UI_THEME_TOKENS.code.border].join(' ')}
-          aria-label="Code preview"
-        >
-          <code className={UI_THEME_TOKENS.code.text}>
-            {lang ? `// ${lang}\n${code}` : code}
-          </code>
-        </pre>
-      )
-    }
-    if (p.kind === 'callout') {
-      const c = p.callout
-      const label = String(c?.calloutType || 'callout').toUpperCase()
-      const title = String(c?.title || b.title)
-      return (
-        <section aria-label="Callout preview">
-          <div className="flex items-center gap-2">
-            <span className={['text-[10px] px-1.5 py-0.5 rounded', UI_THEME_TOKENS.badge.chip, UI_THEME_TOKENS.text.secondary].join(' ')}>{label}</span>
-            <span className={['text-xs font-semibold truncate', UI_THEME_TOKENS.text.primary].join(' ')}>{title}</span>
-          </div>
-          {b.summary ? <p className={['mt-2 text-xs', UI_THEME_TOKENS.text.secondary].join(' ')}>{b.summary}</p> : null}
-        </section>
-      )
-    }
-    if (p.kind === 'blockquote') {
-      const lines = p.blockquote?.lines || []
-      return (
-        <blockquote
-          className={['m-0 border-l-2 pl-3 py-1', UI_THEME_TOKENS.panel.divider].join(' ')}
-          aria-label="Blockquote preview"
-        >
-          {lines.length ? (
-            lines.slice(0, 4).map((line, idx) => (
-              <p key={idx} className={['m-0 text-xs italic', UI_THEME_TOKENS.text.primary].join(' ')}>
-                {line}
-              </p>
-            ))
-          ) : (
-            <p className={['m-0 text-xs italic', UI_THEME_TOKENS.text.tertiary].join(' ')}>—</p>
-          )}
-        </blockquote>
-      )
-    }
-    if (p.kind === 'html') {
-      const raw = String(p.html?.raw || '').trim()
-      const hasIframe = /<\s*iframe\b/i.test(raw)
-      if (!hasIframe) return <p className={UI_THEME_TOKENS.text.tertiary}>—</p>
-      const safe = looksLikeSingleTagBlock(raw, 'iframe') ? raw : raw
-      const title = extractHtmlAttr(safe, 'title') || b.title || 'Iframe'
-      const src = extractHtmlAttr(safe, 'src')
-      const srcdocRaw = extractHtmlAttr(safe, 'srcdoc')
-      const srcDoc = srcdocRaw ? sanitizeIframeSrcdoc(srcdocRaw) : ''
-      if (!src && srcDoc) {
-        return (
-          <iframe
-            title={title}
-            srcDoc={srcDoc}
-            sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-            loading="lazy"
-            style={{ width: '100%', height: '100%', border: '0', borderRadius: 8, pointerEvents: 'none', touchAction: 'none' }}
-          />
-        )
-      }
-      const url = String(src || '').trim()
-      if (!url) return <p className={UI_THEME_TOKENS.text.tertiary}>—</p>
-      return (
-        <RichMediaIframe
-          url={url}
-          title={title}
-          className="w-full h-full rounded"
-          style={{ pointerEvents: allowEmbeddedContentInteraction ? 'auto' : 'none', touchAction: allowEmbeddedContentInteraction ? 'auto' : 'none' }}
-        />
-      )
-    }
-    if (b.summary) return <p className={UI_THEME_TOKENS.text.primary}>{b.summary}</p>
-    return <p className={UI_THEME_TOKENS.text.tertiary}>—</p>
-  }
 
   const maskBorderRadiusPx = (() => {
     const svgEl = svgRef.current
@@ -723,9 +457,10 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
       ) : null}
 
       {visibleBlocks.map(b => {
-        const hideFooter = b.preview.kind === 'html' && /<\s*iframe\b/i.test(String(b.preview.html?.raw || ''))
+        const snippet = markdownSnippetByBlockId.get(b.id) || ''
+        const anchorId = String(anchorByBlockIdRef.current?.[b.id] || b.id)
         return (
-          <article
+          <div
             key={b.id}
             ref={getOverlayRefForId(b.id)}
             className={
@@ -741,139 +476,112 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
             data-kg-canvas-wheel-ignore="true"
             data-kg-canvas-pointer-ignore="true"
             data-kg-markdown-design-block={b.id}
-            data-kg-anchor-node-id={String(anchorByBlockIdRef.current?.[b.id] || '') || undefined}
+            data-kg-anchor-node-id={anchorId || undefined}
             data-kg-world-x={b.x}
             data-kg-world-y={b.y}
             data-kg-world-w={b.w}
             data-kg-world-h={b.h}
             aria-label={`Block ${b.title}`}
             style={{
-              ...PANEL_FRAME_ROOT_STYLE,
               touchAction: allowEmbeddedContentInteraction ? 'auto' : 'none',
               transform: 'translate(-99999px, -99999px)',
               width: 1,
               height: 1,
-            }}
-            onPointerDownCapture={e => {
-              if (allowEmbeddedContentInteraction) return
-              const native = e.nativeEvent
-              const t = (native as unknown as { target?: unknown }).target
-              const isHeaderTarget = t instanceof Element && !!t.closest('[data-kg-media-panel-header="1"]')
-              const allowHeaderOverlayPan = (() => {
-                if (!isHeaderTarget) return true
-                if (!props.onHeaderDragStart && !props.onHeaderDrag && !props.onHeaderDragEnd) return true
-                return shouldStartHeaderDrag(native) !== true
-              })()
-              if (allowHeaderOverlayPan) {
-                try {
-                  e.preventDefault()
-                } catch {
-                  void 0
-                }
-                try {
-                  e.stopPropagation()
-                } catch {
-                  void 0
-                }
-                startOverlayPan(native)
-              }
             }}
             onWheelCapture={props.stopEvent}
             onClickCapture={props.stopEvent}
             onDoubleClickCapture={props.stopEvent}
             onContextMenuCapture={props.stopEvent}
           >
-            <header
-              data-kg-media-panel-header="1"
-              className={['border-b', UI_THEME_TOKENS.panel.divider].join(' ')}
-              style={{
-                ...PANEL_FRAME_HEADER_STYLE,
-                cursor: 'grab',
-                pointerEvents: 'auto',
-              }}
-              onPointerDownCapture={e => {
-                const target = e.target
-                if (target instanceof Element && target.closest('[data-kg-panel-action="1"]')) return
-                try {
-                  e.preventDefault()
-                } catch {
-                  void 0
-                }
-              }}
-              onPointerDown={e => {
-                if (e.button !== 0) return
-                const native = e.nativeEvent
+            <RichMediaPanel
+              overlayId={anchorId}
+              title={b.title}
+              url=""
+              kind="iframe"
+              interactive={allowEmbeddedContentInteraction}
+              showHeader={true}
+              resizable={false}
+              forwardWheelTo={() => svgRef.current}
+              forwardPointerTo={() => svgRef.current}
+              shouldForwardPointerDown={() => allowEmbeddedContentInteraction !== true}
+              shouldStartHeaderDrag={native => shouldStartHeaderDrag(native)}
+              onHeaderDragStart={args0 => {
+                if (allowEmbeddedContentInteraction) return
+                if (!anchorId) return
                 if (props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd) {
-                  if (!shouldStartHeaderDrag(native)) return
-                  try {
-                    e.stopPropagation()
-                  } catch {
-                    void 0
-                  }
-                  startHeaderDrag({ blockId: b.id, clientX: e.clientX, clientY: e.clientY, native })
+                  props.onHeaderDragStart?.({ id: anchorId, clientX: args0.clientX, clientY: args0.clientY })
                   return
                 }
-                try {
-                  e.preventDefault()
-                } catch {
-                  void 0
-                }
-                try {
-                  e.stopPropagation()
-                } catch {
-                  void 0
-                }
-                startBlockDrag({ blockId: b.id, native, clientX: e.clientX, clientY: e.clientY })
+                if (!allowDrag) return
+                const b0 = blocksRef.current.find(x => String(x?.id || '') === b.id) || null
+                if (!b0) return
+                lockGlobalUserSelect()
+                setDrag({ pointerId: args0.pointerId, blockId: b.id })
+                const index = blocksRef.current.findIndex(x => String(x?.id || '') === b.id)
+                const start = { blockId: b.id, index, x: b0.x, y: b0.y }
+                blockDragStartRef.current = start
+                blockDragLatestRef.current = start
               }}
-              onDoubleClick={() => {
+              onHeaderDrag={args0 => {
+                if (allowEmbeddedContentInteraction) return
+                if (props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd) {
+                  props.onHeaderDrag?.({ dx: args0.dx, dy: args0.dy })
+                  return
+                }
+                if (!allowDrag) return
+                const start = blockDragStartRef.current
+                if (!start || start.blockId !== b.id) return
+                const svgNow = svgRef.current
+                if (!svgNow) return
+                const t = d3.zoomTransform(svgNow)
+                const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+                const next = { ...start, x: start.x + args0.dx / k, y: start.y + args0.dy / k }
+                blockDragLatestRef.current = next
+                blockDragSchedulerRef.current.schedule(next)
+              }}
+              onHeaderDragEnd={() => {
+                if (allowEmbeddedContentInteraction) return
+                if (props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd) {
+                  props.onHeaderDragEnd?.()
+                  return
+                }
+                if (!allowDrag) return
+                try {
+                  blockDragSchedulerRef.current.flush()
+                } catch {
+                  void 0
+                }
+                try {
+                  const moved = blocksRef.current.find(x => String(x?.id || '') === b.id) || null
+                  if (moved && layoutForRender && !props.layoutOverride) {
+                    patchMarkdownDesignLayoutPositions({ layoutKey: layoutForRender.key, updates: [{ id: moved.id, x: moved.x, y: moved.y }] })
+                  }
+                } finally {
+                  blockDragLatestRef.current = null
+                  blockDragStartRef.current = null
+                  unlockGlobalUserSelect()
+                  setDrag(null)
+                }
+              }}
+              onOverlayPanStart={props.onOverlayPanStart}
+              onOverlayPan={props.onOverlayPan}
+              onOverlayPanEnd={props.onOverlayPanEnd}
+              onDoubleClickCapture={() => {
                 onPreviewClick?.(b.startLine)
               }}
-            >
-              <h3 style={PANEL_FRAME_HEADER_TITLE_STYLE}>{b.title}</h3>
-              {onPreviewClick ? (
-                <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Block actions">
-                  <li className="list-none">
-                    <button
-                      type="button"
-                      data-kg-panel-action="1"
-                      aria-label="Reveal block in editor"
-                      style={PANEL_FRAME_HEADER_ACTION_STYLE}
-                      onPointerDownCapture={onHeaderActionPointerDownCapture}
-                      onClick={e => {
-                        try {
-                          e.preventDefault()
-                        } catch {
-                          void 0
-                        }
-                        try {
-                          e.stopPropagation()
-                        } catch {
-                          void 0
-                        }
-                        onPreviewClick(b.startLine)
-                      }}
-                    >
-                      <Expand size={14} aria-hidden="true" />
-                    </button>
-                  </li>
-                </menu>
-              ) : null}
-            </header>
-            <section
-              className="text-xs overflow-hidden"
-              aria-label="Block content"
-              style={{
-                ...PANEL_FRAME_BODY_STYLE,
+              panel={{
+                activeTab: 'text',
+                freezeConnectedOutput: false,
+                hasText: true,
+                hasImage: false,
+                hasVideo: false,
+                hasPoi: false,
+                text: snippet,
+                connectedText: '',
               }}
-            >
-              {renderBlockBody(b)}
-              {hideFooter ? null : (
-                <footer className={['mt-2 text-[10px]', UI_THEME_TOKENS.text.secondary].join(' ')} aria-label="Block metadata">
-                  {`Lines ${b.startLine}-${b.endLine}`}
-                </footer>
-              )}
-            </section>
-          </article>
+              style={{ width: '100%', height: '100%', boxShadow: 'none' }}
+            />
+          </div>
         )
       })}
     </section>
