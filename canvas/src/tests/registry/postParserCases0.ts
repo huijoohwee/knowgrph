@@ -74,6 +74,11 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
     "@/__tests__/frontmatterModeEffective.test",
     "testFrontmatterFlowGraphDetectionDoesNotUseWidgetPropertyHeuristics",
   ],
+  [
+    "frontmatter.mode.flowGraphDetection.nullGraphDataSafe",
+    "@/__tests__/frontmatterModeEffective.test",
+    "testFrontmatterFlowGraphDetectionReturnsFalseForNullGraphData",
+  ],
   ["markdown.frontmatterFlowGraph.chatKnowgrph.removesConflictingComputeAndWiringData","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphChatKnowgrphRemovesConflictingComputeAndWiringData"],
   ["markdown.frontmatterFlowGraph.chatKnowgrph.onlyDeclaredFlowNodeIds.parseAsWidgets","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphChatKnowgrphParsesOnlyDeclaredFlowNodeIdsForWidgets"],
   ["markdown.frontmatterFlowGraph.chatKnowgrph.kgcSample.typedTurnDetailPortsOnly","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFrontmatterFlowGraphChatKnowgrphKgcSampleUsesOnlyDeclaredTurnDetailPorts"],

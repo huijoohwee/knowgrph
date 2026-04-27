@@ -1,7 +1,8 @@
 import type { GraphData } from '@/lib/graph/types'
 import { hasFrontmatterMermaidSeeds } from '@/lib/graph/layerDerivation'
 
-export function isFrontmatterFlowGraph(graphData: GraphData): boolean {
+export function isFrontmatterFlowGraph(graphData: GraphData | null | undefined): boolean {
+  if (!graphData || typeof graphData !== 'object') return false
   const context = String(graphData.context || '').trim().toLowerCase()
   if (context === 'frontmatter-flow') return true
   const metadata = graphData.metadata && typeof graphData.metadata === 'object'

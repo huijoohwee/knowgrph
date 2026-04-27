@@ -72,3 +72,9 @@ export function testFrontmatterFlowGraphDetectionDoesNotUseWidgetPropertyHeurist
     throw new Error('expected frontmatter-flow detection to rely on context/metadata.kind only')
   }
 }
+
+export function testFrontmatterFlowGraphDetectionReturnsFalseForNullGraphData() {
+  if (isFrontmatterFlowGraph(null as unknown as GraphData) !== false) {
+    throw new Error('expected frontmatter-flow detection to return false for null graphData during early document restore')
+  }
+}
