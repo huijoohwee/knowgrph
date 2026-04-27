@@ -63,6 +63,7 @@ export function installPwaRuntime(): void {
   if (typeof window === 'undefined') return
   const swState = { offlineReady: false, updateReady: false }
   let installedHint = readPwaDisplayMode() !== 'browser'
+  let attemptedAutoUpdate = false
   applyPwaDisplayModeState(installedHint, swState)
 
   const displayModeMediaQueries =
@@ -100,7 +101,7 @@ export function installPwaRuntime(): void {
   }
   window.addEventListener('appinstalled', handleAppInstalled)
 
-  registerSW({
+  const updateServiceWorker = registerSW({
     immediate: true,
     onOfflineReady() {
       swState.offlineReady = true
@@ -116,6 +117,11 @@ export function installPwaRuntime(): void {
     onNeedRefresh() {
       swState.updateReady = true
       refreshDisplayModeState()
+      if (!attemptedAutoUpdate) {
+        attemptedAutoUpdate = true
+        void updateServiceWorker(true)
+        return
+      }
       pushPwaToast({
         id: 'pwa:update-ready',
         kind: 'neutral',

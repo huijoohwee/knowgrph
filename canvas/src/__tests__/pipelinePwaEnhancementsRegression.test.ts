@@ -81,6 +81,12 @@ export function testPwaRuntimeTracksStandaloneInstallAndUpdateState() {
   if (!runtimeText.includes('onNeedRefresh()')) {
     throw new Error('Expected PWA runtime to surface update-ready state')
   }
+  if (!runtimeText.includes('const updateServiceWorker = registerSW({')) {
+    throw new Error('Expected PWA runtime to retain the service-worker update handle for stale shell recovery')
+  }
+  if (!runtimeText.includes('void updateServiceWorker(true)')) {
+    throw new Error('Expected PWA runtime to auto-activate a newly available shell so stale clients do not stay on outdated startup logic')
+  }
   if (!runtimeText.includes("console.warn('[knowgrph] Offline shell registration failed.', error)")) {
     throw new Error('Expected PWA runtime to log offline-shell registration failures without forcing a user warning toast')
   }
