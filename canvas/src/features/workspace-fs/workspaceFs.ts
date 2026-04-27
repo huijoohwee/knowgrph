@@ -240,6 +240,8 @@ export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
 ])
+export const WORKSPACE_README_SEED_REL_PATH = 'README.md'
+export const WORKSPACE_README_SEED_PATH = '/README.md' as WorkspacePath
 export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   'sandbox/test-data/knowgrph-rich-media-generation-demo.md',
@@ -262,19 +264,22 @@ export const LEGACY_WORKSPACE_README_TEXT = [
 ].join('\n')
 
 const DEFAULT_WORKSPACE_README_TEXT = [
-  '# Workspace',
+  '---',
+  'title: "Knowgrph"',
+  'kgCanvasRenderMode: "2d"',
+  'kgCanvas2dRenderer: "d3"',
+  'kgDocumentSemanticMode: "document"',
+  'kgFrontmatterModeEnabled: true',
+  'kgDocumentStructureBaselineLock: false',
+  '---',
   '',
-  '- Select a file in SOURCE FILES to load it into the editor.',
-  '- Headings show up in TOC.',
-  '- Use [[README]] as a wikilink example.',
+  '# Write it. See it. Ship it.',
   '',
-  '## Demo',
-  '',
-  'Open `trip-demo-mmd.md` to verify the Markdown Editor/Viewer renders content.',
+  'Workspace seed fallback for `README.md`.',
 ].join('\n')
 
-const loadValidationWorkspaceSeedText = async (): Promise<string> => {
-  const repoFilePath = buildRepoFilePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
+const loadWorkspaceSeedText = async (relPath: string, fallbackText: string): Promise<string> => {
+  const repoFilePath = buildRepoFilePath(relPath)
   if (typeof fetch === 'function') {
     try {
       const res = await fetch(repoFilePath)
@@ -286,13 +291,28 @@ const loadValidationWorkspaceSeedText = async (): Promise<string> => {
       void 0
     }
   }
-  return [
-    '---',
-    `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-rich-media-generation-demo.md'}"`,
-    '---',
-    '',
-    `Validation seed fallback for \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`,
-  ].join('\n')
+  return fallbackText
+}
+
+const loadReadmeWorkspaceSeedText = async (): Promise<string> =>
+  loadWorkspaceSeedText(WORKSPACE_README_SEED_REL_PATH, DEFAULT_WORKSPACE_README_TEXT)
+
+const loadValidationWorkspaceSeedText = async (): Promise<string> => {
+  return loadWorkspaceSeedText(
+    TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+    [
+      '---',
+      `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-rich-media-generation-demo.md'}"`,
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "flowEditor"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: true',
+      'kgDocumentStructureBaselineLock: false',
+      '---',
+      '',
+      `Validation seed fallback for \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`,
+    ].join('\n'),
+  )
 }
 
 export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string, updatedAtMs = Date.now()): WorkspaceEntry[] {
@@ -323,8 +343,12 @@ export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string
 }
 
 export async function getWorkspaceSeedFiles(): Promise<Array<{ path: WorkspacePath; text: string }>> {
-  const validationText = await loadValidationWorkspaceSeedText()
+  const [readmeText, validationText] = await Promise.all([
+    loadReadmeWorkspaceSeedText(),
+    loadValidationWorkspaceSeedText(),
+  ])
   return [
+    { path: WORKSPACE_README_SEED_PATH, text: readmeText || DEFAULT_WORKSPACE_README_TEXT },
     { path: TEST_VALIDATION_WORKSPACE_SEED_PATH, text: validationText || DEFAULT_WORKSPACE_README_TEXT },
   ]
 }
@@ -334,8 +358,27 @@ export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<Works
     .map(path => normalizeWorkspacePath(path))
     .filter((path): path is WorkspacePath => Boolean(path))
   if (normalized.length === 0) return false
+  const defaultOnlyPaths = new Set<WorkspacePath>([
+    LEGACY_WORKSPACE_README_PATH,
+    LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+    TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  ])
+  const nextSeedPaths = new Set<WorkspacePath>([
+    WORKSPACE_README_SEED_PATH,
+    TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  ])
+  let alreadyOnNextSeedSet = normalized.length === nextSeedPaths.size
+  if (alreadyOnNextSeedSet) {
+    for (const path of normalized) {
+      if (!nextSeedPaths.has(path)) {
+        alreadyOnNextSeedSet = false
+        break
+      }
+    }
+  }
+  if (alreadyOnNextSeedSet) return false
   for (let i = 0; i < normalized.length; i += 1) {
-    if (!LEGACY_WORKSPACE_SEED_PATHS.has(normalized[i]!)) return false
+    if (!defaultOnlyPaths.has(normalized[i]!)) return false
   }
   return true
 }

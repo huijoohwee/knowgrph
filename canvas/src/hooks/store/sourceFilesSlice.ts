@@ -4,7 +4,10 @@ import { reorderList } from '@/lib/reorder';
 import { hashStringToHex } from '@/lib/hash/stringHash';
 import { readEnvString } from '@/lib/config.env';
 import { normalizeWorkspacePath, workspaceBasename } from '@/features/workspace-fs/path';
+import { WORKSPACE_README_SEED_PATH } from '@/features/workspace-fs/workspaceFs';
 
+const WORKSPACE_README_SOURCE_PATH = `workspace:${WORKSPACE_README_SEED_PATH}`
+const WORKSPACE_README_SOURCE_ID = `ws:${hashStringToHex(WORKSPACE_README_SOURCE_PATH)}`
 const TEST_VALIDATION_SOURCE_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   'sandbox/test-data/knowgrph-rich-media-generation-demo.md',
@@ -16,9 +19,17 @@ const TEST_VALIDATION_SOURCE_FILE: SourceFile = {
   id: TEST_VALIDATION_SOURCE_ID,
   name: workspaceBasename(TEST_VALIDATION_WORKSPACE_PATH) || 'test-validation.md',
   text: '',
-  enabled: true,
+  enabled: false,
   status: 'idle',
   source: { kind: 'local', path: TEST_VALIDATION_SOURCE_PATH },
+}
+const WORKSPACE_README_SOURCE_FILE: SourceFile = {
+  id: WORKSPACE_README_SOURCE_ID,
+  name: workspaceBasename(WORKSPACE_README_SEED_PATH) || 'README.md',
+  text: '',
+  enabled: true,
+  status: 'idle',
+  source: { kind: 'local', path: WORKSPACE_README_SOURCE_PATH },
 }
 
 const hasSourceFilePatchDiff = (file: SourceFile, updates: Partial<SourceFile>): boolean => {
@@ -41,7 +52,7 @@ export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
   reorderSourceFiles: (sourceId: string, targetId: string) => void;
   clearSourceFiles: () => void;
 }> = (set) => ({
-  sourceFiles: [TEST_VALIDATION_SOURCE_FILE],
+  sourceFiles: [WORKSPACE_README_SOURCE_FILE, TEST_VALIDATION_SOURCE_FILE],
   setSourceFiles: (files) => set(() => ({ sourceFiles: Array.isArray(files) ? files : [] })),
   addSourceFile: (file) => set((state) => ({ sourceFiles: [...state.sourceFiles, file] })),
   updateSourceFile: (id, updates) => set((state) => {

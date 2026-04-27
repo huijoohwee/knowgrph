@@ -7,9 +7,18 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const knowgrphRoot = path.resolve(__dirname, '..')
+const githubRoot = path.resolve(knowgrphRoot, '..')
 const distDir = path.resolve(knowgrphRoot, 'canvas', 'dist')
-const targetDir = path.resolve(knowgrphRoot, '..', 'huijoohwee', 'content', 'knowgrph')
-const publicRouteDir = path.resolve(knowgrphRoot, '..', 'huijoohwee', 'knowgrph')
+const targetDir = path.resolve(githubRoot, 'huijoohwee', 'content', 'knowgrph')
+const publicRouteDir = path.resolve(githubRoot, 'huijoohwee', 'knowgrph')
+const repoFileTargetDir = path.resolve(githubRoot, 'huijoohwee', '__repo_file')
+const repoFileSeeds = [
+  { source: path.resolve(knowgrphRoot, 'README.md'), target: path.resolve(repoFileTargetDir, 'README.md') },
+  {
+    source: path.resolve(githubRoot, 'sandbox', 'test-data', 'knowgrph-rich-media-generation-demo.md'),
+    target: path.resolve(repoFileTargetDir, 'sandbox', 'test-data', 'knowgrph-rich-media-generation-demo.md'),
+  },
+]
 const blockedRelativeRoots = new Set([
   'cesium',
   'demo',
@@ -158,4 +167,12 @@ await fs.mkdir(publicRouteDir, { recursive: true })
 const publicIndex = path.resolve(publicRouteDir, 'index.html')
 const copiedPublicIndex = await copyIfChanged(path.resolve(targetDir, 'index.html'), publicIndex)
 
-console.log(`[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, publicIndexUpdated=${copiedPublicIndex ? 'yes' : 'no'})`)
+let copiedRepoSeedCount = 0
+for (const entry of repoFileSeeds) {
+  const copied = await copyIfChanged(entry.source, entry.target)
+  if (copied) copiedRepoSeedCount += 1
+}
+
+console.log(
+  `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, publicIndexUpdated=${copiedPublicIndex ? 'yes' : 'no'}, repoFileSeedsUpdated=${copiedRepoSeedCount})`,
+)

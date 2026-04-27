@@ -1,8 +1,53 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildSourceLayerKeys, composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
+import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 
 let pendingComposeRaf: number | null = null
+
+function normalizeComposedSourcePath(rawPath: unknown): string {
+  const text = String(rawPath || '').trim().replace(/\\/g, '/')
+  if (!text) return ''
+  const withoutWorkspacePrefix = text.startsWith('workspace:') ? text.slice('workspace:'.length) : text
+  const normalized = normalizeWorkspacePath(withoutWorkspacePrefix)
+  return normalized === '/' ? '' : normalized
+}
+
+function resolvePreferredComposedSourceRawText(): string {
+  const store = useGraphStore.getState()
+  const activePath =
+    normalizeComposedSourcePath(store.markdownDocumentName) ||
+    normalizeComposedSourcePath(useMarkdownExplorerStore.getState().activePath)
+  const sourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+  if (activePath) {
+    const activeSourceFile = sourceFiles.find(file => {
+      if (!file?.enabled) return false
+      return normalizeComposedSourcePath(file.source?.path || file.name || '') === activePath
+    })
+    if (activeSourceFile && String(activeSourceFile.text || '').trim()) {
+      return String(activeSourceFile.text || '')
+    }
+  }
+  const firstEnabledSeed = sourceFiles.find(file => file?.enabled && String(file.text || '').trim())
+  return firstEnabledSeed ? String(firstEnabledSeed.text || '') : ''
+}
+
+function applyComposedSourceImportModes(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
+  try {
+    applyFrontmatterFlowImportModes(graphData)
+  } catch {
+    void 0
+  }
+  const rawText = resolvePreferredComposedSourceRawText()
+  if (!rawText) return
+  try {
+    applyCanvasFrontmatterPreset({ graphData, rawText })
+  } catch {
+    void 0
+  }
+}
 
 export function scheduleApplyComposedGraphFromSourceFiles() {
   if (pendingComposeRaf != null) return
@@ -63,9 +108,9 @@ export function applyComposedGraphFromSourceFiles() {
 
   if (prevContentKey === contentKey && prevOrderKey !== orderKey) {
     store.setGraphDataPreservingLayout(graphData)
-    applyFrontmatterFlowImportModes(graphData)
+    applyComposedSourceImportModes(graphData)
     return
   }
   store.setGraphData(graphData)
-  applyFrontmatterFlowImportModes(graphData)
+  applyComposedSourceImportModes(graphData)
 }

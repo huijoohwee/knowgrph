@@ -1,6 +1,7 @@
 import type { GraphData } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export async function testComposedUpdateNodeSyncsToSourceFileAndRecomposes() {
@@ -125,6 +126,101 @@ export async function testComposedAddNodePrefersActiveMarkdownDocumentSourceFile
     const composedNode = after.graphData?.nodes?.find(n => n.id === 'sf-b::grabmaps-discovery')
     if (!composedNode) throw new Error('expected recomposed graph to expose the new node under the active markdown source layer id')
   } finally {
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
+  }
+}
+
+export async function testComposedSourceFilesPreferEnabledReadmeFrontmatterPresetOnFreshBoot() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
+  const previousActivePath = useMarkdownExplorerStore.getState().activePath
+  try {
+    const state = useGraphStore.getState()
+    state.resetAll()
+    state.clearSourceFiles()
+    useMarkdownExplorerStore.getState().setActivePath(null)
+    state.setDocumentStructureBaselineLock(true)
+    state.setCanvasRenderMode('3d')
+    state.setCanvas2dRenderer('flowEditor')
+    state.setDocumentSemanticMode('keyword')
+    state.setFrontmatterModeEnabled(false)
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
+
+    state.addSourceFile({
+      id: 'sf-readme',
+      name: 'README.md',
+      text: [
+        '---',
+        'title: "Knowgrph"',
+        'kgCanvasRenderMode: "2d"',
+        'kgCanvas2dRenderer: "d3"',
+        'kgDocumentSemanticMode: "document"',
+        'kgFrontmatterModeEnabled: true',
+        'kgDocumentStructureBaselineLock: false',
+        '---',
+        '',
+        '# Knowgrph',
+      ].join('\n'),
+      enabled: true,
+      status: 'parsed',
+      parsedGraphData: {
+        type: 'Graph',
+        nodes: [{ id: 'readme-node', label: 'README', type: 'Thing', properties: {} }],
+        edges: [],
+        metadata: {},
+      },
+      parsedTextHash: 'readme-hash',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: 'workspace:/README.md' },
+    })
+    state.addSourceFile({
+      id: 'sf-demo',
+      name: 'knowgrph-rich-media-generation-demo.md',
+      text: [
+        '---',
+        'title: "Demo"',
+        'kgCanvasRenderMode: "2d"',
+        'kgCanvas2dRenderer: "flowEditor"',
+        'kgDocumentSemanticMode: "document"',
+        'kgFrontmatterModeEnabled: true',
+        'kgDocumentStructureBaselineLock: false',
+        '---',
+        '',
+        '# Demo',
+      ].join('\n'),
+      enabled: false,
+      status: 'parsed',
+      parsedGraphData: {
+        type: 'Graph',
+        nodes: [{ id: 'demo-node', label: 'Demo', type: 'Thing', properties: {} }],
+        edges: [],
+        metadata: {},
+      },
+      parsedTextHash: 'demo-hash',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: 'workspace:/sandbox/test-data/knowgrph-rich-media-generation-demo.md' },
+    })
+
+    applyComposedGraphFromSourceFiles()
+
+    const after = useGraphStore.getState()
+    if (after.canvasRenderMode !== '2d') {
+      throw new Error(`expected README frontmatter preset to force 2d render mode on fresh composed boot, got ${String(after.canvasRenderMode)}`)
+    }
+    if (after.canvas2dRenderer !== 'd3') {
+      throw new Error(`expected enabled README seed frontmatter to win over default flowEditor renderer, got ${String(after.canvas2dRenderer)}`)
+    }
+    if (after.documentSemanticMode !== 'document') {
+      throw new Error(`expected README frontmatter preset to force document semantic mode, got ${String(after.documentSemanticMode)}`)
+    }
+    if (after.frontmatterModeEnabled !== true) {
+      throw new Error('expected README frontmatter preset to enable frontmatter mode during composed startup')
+    }
+    if (after.documentStructureBaselineLock !== false) {
+      throw new Error('expected README frontmatter preset to force View Lock OFF during fresh composed startup')
+    }
+  } finally {
+    useMarkdownExplorerStore.getState().setActivePath(previousActivePath)
     await new Promise<void>(resolve => setTimeout(resolve, 0))
     bootstrap.restore()
   }

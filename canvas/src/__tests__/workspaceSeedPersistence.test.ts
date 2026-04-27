@@ -4,6 +4,7 @@ import {
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
 
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
@@ -33,7 +34,7 @@ export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFil
   }
 }
 
-export async function testWorkspaceEnsureSeedMigratesLegacyDefaultsToValidationDemo() {
+export async function testWorkspaceEnsureSeedMigratesLegacyDefaultsToReadmeAndValidationDemo() {
   const { restore } = initJsdomHarness()
   try {
     const fs = createMemoryWorkspaceFs({
@@ -47,14 +48,21 @@ export async function testWorkspaceEnsureSeedMigratesLegacyDefaultsToValidationD
 
     const entries = await fs.listEntries()
     const filePaths = new Set(entries.filter(e => e.kind === 'file').map(e => String(e.path || '')))
-    if (filePaths.has(LEGACY_WORKSPACE_README_PATH)) {
-      throw new Error('expected legacy README workspace seed to be removed during validation demo migration')
-    }
     if (filePaths.has(LEGACY_WORKSPACE_TRIP_DEMO_PATH)) {
       throw new Error('expected legacy trip demo workspace seed to be removed during validation demo migration')
     }
+    if (!filePaths.has(WORKSPACE_README_SEED_PATH)) {
+      throw new Error('expected README workspace seed to be present after legacy seed migration')
+    }
     if (!filePaths.has(TEST_VALIDATION_WORKSPACE_SEED_PATH)) {
-      throw new Error('expected validation demo workspace seed to replace legacy default workspace files')
+      throw new Error('expected validation demo workspace seed to remain present after legacy seed migration')
+    }
+    if (filePaths.size !== 2) {
+      throw new Error(`expected exactly two default workspace seed files after migration, got ${String(filePaths.size)}`)
+    }
+    const readmeEntry = entries.find(e => e.path === WORKSPACE_README_SEED_PATH && e.kind === 'file')
+    if (!readmeEntry || typeof readmeEntry.text !== 'string' || !readmeEntry.text.includes('kgCanvas2dRenderer: "d3"')) {
+      throw new Error('expected migrated README workspace seed to replace the legacy placeholder content with the real D3 preload seed')
     }
   } finally {
     restore()
