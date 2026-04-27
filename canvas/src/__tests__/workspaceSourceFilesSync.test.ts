@@ -1,6 +1,11 @@
 import type { SourceFile } from '@/hooks/store/types'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import {
+  TEST_VALIDATION_SOURCE_PATH,
+  WORKSPACE_README_SOURCE_PATH,
+  reconcileDefaultWorkspaceSeedSourceFiles,
+} from '@/features/source-files/workspaceSeedSourceFiles'
 
 export async function testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace() {
   const existing: SourceFile[] = [
@@ -62,4 +67,52 @@ export async function testWorkspaceSourceFilesSyncForceIncludesActiveWorkspaceMa
   if (!active) throw new Error('expected active workspace markdown path to be mirrored into Source Files when force-included')
   if (active.source?.kind !== 'local') throw new Error('expected active workspace markdown source kind to default to local')
   if (active.enabled !== true) throw new Error('expected newly mirrored active workspace markdown source to be enabled when force-included as the active workspace doc')
+}
+
+export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFiles() {
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [],
+    workspaceEntries: [
+      { kind: 'file', path: '/README.md', parentPath: '/', name: 'README.md', text: '# Readme', updatedAtMs: 1 },
+      {
+        kind: 'file',
+        path: '/sandbox/test-data/knowgrph-rich-media-generation-demo.md',
+        parentPath: '/sandbox/test-data',
+        name: 'knowgrph-rich-media-generation-demo.md',
+        text: '# Demo',
+        updatedAtMs: 1,
+      },
+    ],
+    sourcesByPath: {},
+  })
+
+  const readme = next.find(f => f.source?.path === WORKSPACE_README_SOURCE_PATH)
+  const demo = next.find(f => f.source?.path === TEST_VALIDATION_SOURCE_PATH)
+  if (!readme) throw new Error('expected canonical README seed to always be mirrored into Source Files')
+  if (!demo) throw new Error('expected canonical validation demo seed to always be mirrored into Source Files')
+  if (readme.enabled !== true) throw new Error('expected canonical README seed to stay enabled by default')
+  if (demo.enabled !== false) throw new Error('expected canonical validation demo seed to stay disabled by default until explicitly activated')
+}
+
+export async function testWorkspaceSeedSourceFilesReconcilePersistedDefaultFamilyToCanonicalOrder() {
+  const next = reconcileDefaultWorkspaceSeedSourceFiles([
+    {
+      id: 'legacy-demo',
+      name: 'trip-demo-mmd.md',
+      text: '# legacy',
+      enabled: true,
+      status: 'parsed',
+      source: { kind: 'local', path: 'workspace:/trip-demo-mmd.md' },
+    },
+  ])
+
+  if (next.length !== 2) throw new Error(`expected canonical default source-file family to contain exactly two entries, got ${next.length}`)
+  if (next[0]?.source?.path !== WORKSPACE_README_SOURCE_PATH) {
+    throw new Error('expected reconciled default source-file family to restore README first')
+  }
+  if (next[1]?.source?.path !== TEST_VALIDATION_SOURCE_PATH) {
+    throw new Error('expected reconciled default source-file family to restore validation demo second')
+  }
+  if (next[0]?.enabled !== true) throw new Error('expected reconciled README seed source file to stay enabled')
+  if (next[1]?.enabled !== false) throw new Error('expected reconciled validation demo seed source file to stay disabled')
 }

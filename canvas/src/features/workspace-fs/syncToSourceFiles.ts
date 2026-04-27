@@ -2,6 +2,10 @@ import type { SourceFile } from '@/hooks/store/types'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import {
+  defaultEnabledForWorkspaceSourcePath,
+  isCanonicalWorkspaceSeedSourcePath,
+} from '@/features/source-files/workspaceSeedSourceFiles'
 
 export function workspaceSourcePathKey(path: string): string {
   const p = String(path || '').trim()
@@ -68,7 +72,8 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
 
     const srcPath = workspaceSourcePathKey(path)
     const prev = existingWorkspaceByPath.get(srcPath) || null
-    if (!prev && !sourcesByPath[path] && !forceInclude.has(path)) continue
+    const isCanonicalSeed = isCanonicalWorkspaceSeedSourcePath(srcPath)
+    if (!prev && !sourcesByPath[path] && !forceInclude.has(path) && !isCanonicalSeed) continue
     const id = prev?.id || `ws:${hashStringToHex(srcPath)}`
 
     const src = sourcesByPath[path]
@@ -84,7 +89,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       id,
       name: String(e.name || ''),
       text,
-      enabled: prev?.enabled ?? forceInclude.has(path),
+      enabled: prev?.enabled ?? defaultEnabledForWorkspaceSourcePath(srcPath, forceInclude.has(path)),
       geoLayerEnabled: prev?.geoLayerEnabled,
       status: prev?.status ?? 'idle',
       error: prev?.error,

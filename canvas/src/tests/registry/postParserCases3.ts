@@ -101,6 +101,8 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.import.githubRepo","@/__tests__/workspaceImportGithubRepo.test","testWorkspaceImportGitHubRepoImportsFiles"],
   ["workspace.import.githubRepo.sitemap","@/__tests__/workspaceImportGithubRepo.test","testWorkspaceImportGitHubRepoSitemapHasTemplatesAndStats"],
   ["workspace.sourceFiles.sync.mergesAndPreserves","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace"],
+  ["workspace.sourceFiles.sync.alwaysIncludesCanonicalSeedFiles","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFiles"],
+  ["workspace.sourceFiles.sync.reconcilesPersistedDefaultFamilyToCanonicalOrder","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSeedSourceFilesReconcilePersistedDefaultFamilyToCanonicalOrder"],
   ["workspace.import.semanticMode.forcesDocumentForGraphFiles","@/__tests__/editorWorkspaceImportSemanticMode.test","testEditorWorkspaceImportForcesDocumentModeForGraphFiles"],
   ["markdown.selectionTarget.emptyDocumentPath","@/__tests__/markdownSelectionTargetEmptyDocPath.test","testMarkdownSelectionTargetEmptyDocPathFallsBackToAnyDocument"],
   ["graph.data.hashIncludesRevision","@/__tests__/graphDataHashRevision.test","testGraphDataMetadataHashIncludesRevision"],

@@ -4,6 +4,7 @@ import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder'
 import type { SourceFile } from '@/hooks/store/types'
 import { getCanvasRxStorage } from '@/lib/storage/rxdbStorage'
 import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery'
+import { reconcileDefaultWorkspaceSeedSourceFiles } from '@/features/source-files/workspaceSeedSourceFiles'
 
 export const SOURCE_FILES_DB_NAME = 'kg:source-files'
 export const SOURCE_FILES_DB_VERSION = 2
@@ -194,7 +195,7 @@ const normalizeWorkspaceState = (v: unknown): SourceFilesWorkspaceState => {
 export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
   const { collections } = await getDb()
   const rows = await collections.sourceFiles.find().sort({ orderIndex: 'asc' }).exec()
-  return rows
+  const loaded = rows
     .map(r => {
       try {
         const next = normalizeSourceFileForPersistence(r.get('payload') as SourceFile)
@@ -205,6 +206,7 @@ export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
       }
     })
     .filter(Boolean) as SourceFile[]
+  return reconcileDefaultWorkspaceSeedSourceFiles(loaded)
 }
 
 export const persistSourceFiles = async (files: SourceFile[]): Promise<void> => {
