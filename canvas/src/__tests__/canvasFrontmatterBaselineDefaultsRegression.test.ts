@@ -92,3 +92,28 @@ export function testSourceFilesComposeDoesNotBlankPendingRemoteSeeds() {
     throw new Error('expected composed source graph runtime to preserve live graph while pending remote seeds are still hydrating')
   }
 }
+
+export function testCanvasWorkspaceFrontmatterPresetKeysAreDocumentedInSourceAndFixture() {
+  const frontmatterPath = resolve(process.cwd(), 'src', 'lib', 'markdown', 'frontmatter.ts')
+  const readmePath = resolve(process.cwd(), '..', 'README.md')
+  const demoPath = resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'knowgrph-rich-media-generation-demo.md')
+  const frontmatterText = readFileSync(frontmatterPath, 'utf8')
+  const readmeText = readFileSync(readmePath, 'utf8')
+  const demoText = readFileSync(demoPath, 'utf8')
+
+  if (!frontmatterText.includes('kgCanvas2dRenderer')) {
+    throw new Error('expected markdown frontmatter helpers to expose kgCanvas2dRenderer preset support')
+  }
+  if (!frontmatterText.includes('kgDocumentStructureBaselineLock')) {
+    throw new Error('expected markdown frontmatter helpers to expose kgDocumentStructureBaselineLock preset support')
+  }
+  if (!readmeText.includes('kgCanvas2dRenderer: "d3"')) {
+    throw new Error('expected README.md to declare d3 preload in frontmatter')
+  }
+  if (!readmeText.includes('kgDocumentStructureBaselineLock: false')) {
+    throw new Error('expected README.md to declare View Lock OFF in frontmatter')
+  }
+  if (!demoText.includes('kgCanvas2dRenderer: "flowEditor"')) {
+    throw new Error('expected rich-media demo fixture to declare flowEditor preload in frontmatter')
+  }
+}

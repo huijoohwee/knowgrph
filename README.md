@@ -1,3 +1,12 @@
+---
+title: "Knowgrph"
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: "d3"
+kgDocumentSemanticMode: "document"
+kgFrontmatterModeEnabled: true
+kgDocumentStructureBaselineLock: false
+---
+
 # Write it. See it. Ship it.
 
 **A node-based canvas where markdown becomes images, and images become video — orchestrated by AI at every step.**

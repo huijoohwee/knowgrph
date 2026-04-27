@@ -12,6 +12,7 @@ import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config.render'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
+import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { WorkspaceFs, WorkspacePath } from './types'
 import { normalizeWorkspacePath, workspaceDocumentKey } from './path'
@@ -30,10 +31,12 @@ type ApplyWorkspaceImportToCanvasResult = {
   parsedCount: number
 }
 
-export function applyInteractiveImportModes(args?: { graphData?: GraphData | null; frontmatterOnlyDoc?: boolean }): void {
+export function applyInteractiveImportModes(args?: { graphData?: GraphData | null; frontmatterOnlyDoc?: boolean; rawText?: string | null }): void {
   const store = useGraphStore.getState()
   const graphData = args?.graphData || null
   const frontmatterOnlyDoc = args?.frontmatterOnlyDoc === true
+  const rawText = String(args?.rawText || '')
+  const presetApplied = applyCanvasFrontmatterPreset({ rawText })
 
   if (graphData) {
     try {
@@ -41,37 +44,33 @@ export function applyInteractiveImportModes(args?: { graphData?: GraphData | nul
     } catch {
       void 0
     }
-  } else if (frontmatterOnlyDoc) {
-    try {
-      store.setCanvasRenderMode('2d')
-      store.setCanvas2dRenderer(DEFAULT_CANVAS_2D_RENDERER)
-    } catch {
-      void 0
-    }
-    try {
-      if (store.documentSemanticMode !== 'document') store.setDocumentSemanticMode('document')
-    } catch {
-      void 0
-    }
-    try {
-      if (store.frontmatterModeEnabled !== true) store.setFrontmatterModeEnabled(true)
-    } catch {
-      void 0
-    }
+  } else if (presetApplied) {
     try {
       if (store.multiDimTableModeEnabled !== false) store.setMultiDimTableModeEnabled(false)
     } catch {
       void 0
     }
-  } else {
+  } else if (frontmatterOnlyDoc) {
     try {
-      store.setCanvasRenderMode('2d')
-      store.setCanvas2dRenderer(DEFAULT_CANVAS_2D_RENDERER)
+      applyCanvasFrontmatterPreset({
+        rawText,
+        defaultCanvasRenderMode: '2d',
+        defaultCanvas2dRenderer: DEFAULT_CANVAS_2D_RENDERER,
+        defaultDocumentSemanticMode: 'document',
+        defaultFrontmatterModeEnabled: true,
+        disableMultiDimTableMode: true,
+      })
     } catch {
       void 0
     }
+  } else {
     try {
-      if (store.frontmatterModeEnabled !== true) store.setFrontmatterModeEnabled(true)
+      applyCanvasFrontmatterPreset({
+        rawText,
+        defaultCanvasRenderMode: '2d',
+        defaultCanvas2dRenderer: DEFAULT_CANVAS_2D_RENDERER,
+        defaultFrontmatterModeEnabled: true,
+      })
     } catch {
       void 0
     }
@@ -156,6 +155,7 @@ export async function applyWorkspaceImportToCanvas(args: {
   let parsedCount = 0
   let preferredInteractiveImportGraphData: GraphData | null = null
   let sawFrontmatterOnlyDoc = false
+  let preferredInteractiveImportRawText: string | null = null
 
   for (const path of createdPaths) {
     if (remainingFiles <= 0 || remainingChars <= 0) break
@@ -193,9 +193,11 @@ export async function applyWorkspaceImportToCanvas(args: {
     const inlineText = text.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? text : ''
     if (!preferredInteractiveImportGraphData && graphData && isFrontmatterFlowGraph(graphData)) {
       preferredInteractiveImportGraphData = graphData
+      preferredInteractiveImportRawText = text
     }
     if (!sawFrontmatterOnlyDoc && isFrontmatterOnlyDoc(text)) {
       sawFrontmatterOnlyDoc = true
+      if (!preferredInteractiveImportRawText) preferredInteractiveImportRawText = text
     }
 
     const base = ensureNext()[idx]
@@ -246,6 +248,7 @@ export async function applyWorkspaceImportToCanvas(args: {
     applyInteractiveImportModes({
       graphData: preferredInteractiveImportGraphData,
       frontmatterOnlyDoc: sawFrontmatterOnlyDoc,
+      rawText: preferredInteractiveImportRawText,
     })
     return { sourceFilesUpdated: true, enabledCount, parsedCount }
   }

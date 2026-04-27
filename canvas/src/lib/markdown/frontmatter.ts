@@ -1,7 +1,17 @@
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '../markdown'
+
 export type YamlFrontmatterBlock = {
   rawBlock: string
   yamlText: string
   bodyText: string
+}
+
+export type CanvasWorkspaceFrontmatterPreset = {
+  canvasRenderMode?: '2d' | '3d'
+  canvas2dRenderer?: 'd3' | 'flowEditor' | 'design'
+  documentSemanticMode?: 'document' | 'keyword'
+  frontmatterModeEnabled?: boolean
+  documentStructureBaselineLock?: boolean
 }
 
 export function extractYamlFrontmatterBlock(rawText: string): YamlFrontmatterBlock | null {
@@ -30,6 +40,73 @@ export function readYamlFrontmatterValue(fmBlock: string, key: string): string {
   if (!v) return ''
   if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v.slice(1, -1)
   return v
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | null | undefined): CanvasWorkspaceFrontmatterPreset | null {
+  if (!meta) return null
+
+  const canvasRenderMode =
+    meta.kgCanvasRenderMode === '3d' ? '3d' : meta.kgCanvasRenderMode === '2d' ? '2d' : undefined
+  const canvas2dRenderer =
+    meta.kgCanvas2dRenderer === 'd3' || meta.kgCanvas2dRenderer === 'flowEditor' || meta.kgCanvas2dRenderer === 'design'
+      ? meta.kgCanvas2dRenderer
+      : undefined
+  const documentSemanticMode =
+    meta.kgDocumentSemanticMode === 'keyword' || meta.kgDocumentSemanticMode === 'document'
+      ? meta.kgDocumentSemanticMode
+      : undefined
+  const frontmatterModeEnabled = typeof meta.kgFrontmatterModeEnabled === 'boolean' ? meta.kgFrontmatterModeEnabled : undefined
+  const documentStructureBaselineLock =
+    typeof meta.kgDocumentStructureBaselineLock === 'boolean' ? meta.kgDocumentStructureBaselineLock : undefined
+
+  if (
+    canvasRenderMode === undefined &&
+    canvas2dRenderer === undefined &&
+    documentSemanticMode === undefined &&
+    frontmatterModeEnabled === undefined &&
+    documentStructureBaselineLock === undefined
+  ) {
+    return null
+  }
+
+  return {
+    canvasRenderMode,
+    canvas2dRenderer,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    documentStructureBaselineLock,
+  }
+}
+
+export function readCanvasWorkspaceFrontmatterPresetFromMeta(
+  meta: Record<string, unknown> | null | undefined,
+): CanvasWorkspaceFrontmatterPreset | null {
+  return coerceCanvasWorkspaceFrontmatterPreset(meta)
+}
+
+export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWorkspaceFrontmatterPreset | null {
+  const block = extractYamlFrontmatterBlock(rawText)
+  if (!block) return null
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(rawText))
+  if (isRecord(parsed.meta)) return coerceCanvasWorkspaceFrontmatterPreset(parsed.meta)
+  const canvasRenderModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvasRenderMode')
+  const canvas2dRendererRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvas2dRenderer')
+  const documentSemanticModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgDocumentSemanticMode')
+  const frontmatterModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgFrontmatterModeEnabled')
+  const documentStructureBaselineLockRaw = readYamlFrontmatterValue(block.rawBlock, 'kgDocumentStructureBaselineLock')
+  return coerceCanvasWorkspaceFrontmatterPreset({
+    kgCanvasRenderMode: canvasRenderModeRaw || undefined,
+    kgCanvas2dRenderer: canvas2dRendererRaw || undefined,
+    kgDocumentSemanticMode: documentSemanticModeRaw || undefined,
+    kgFrontmatterModeEnabled:
+      frontmatterModeEnabledRaw === 'true' ? true : frontmatterModeEnabledRaw === 'false' ? false : undefined,
+    kgDocumentStructureBaselineLock:
+      documentStructureBaselineLockRaw === 'true' ? true : documentStructureBaselineLockRaw === 'false' ? false : undefined,
+  })
 }
 
 export type WebpageViewMode = 'markdown' | 'json' | 'html'

@@ -5,6 +5,7 @@ import { applyFlowEditorManagerDefaultRegistrySeed } from '@/hooks/store/flowEdi
 import { applyGraphViewPinnedSemanticsMigration } from '@/hooks/store/graphViewSlice'
 import { ensureSessionTabId } from '@/hooks/store/uiSettingsSlice'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
+import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { buildDocumentKey, buildDocumentRef, readPerDocumentUiState, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
@@ -214,11 +215,15 @@ export function GraphStoreRuntime() {
           if (shouldPreferFrontmatterFlowLanding) {
             applyFrontmatterFlowImportModes(graphData)
           } else {
-            if (saved.documentSemanticMode) api.setDocumentSemanticMode(saved.documentSemanticMode)
-            if (typeof saved.frontmatterModeEnabled === 'boolean') api.setFrontmatterModeEnabled(saved.frontmatterModeEnabled)
-            if (saved.canvasRenderMode) api.setCanvasRenderMode(saved.canvasRenderMode)
-            if (saved.canvas3dMode) api.setCanvas3dMode(saved.canvas3dMode)
-            if (saved.canvas2dRenderer) api.setCanvas2dRenderer(saved.canvas2dRenderer)
+            const rawText = String(api.markdownDocumentText || '')
+            const presetApplied = applyCanvasFrontmatterPreset({ graphData, rawText })
+            if (!presetApplied) {
+              if (saved.documentSemanticMode) api.setDocumentSemanticMode(saved.documentSemanticMode)
+              if (typeof saved.frontmatterModeEnabled === 'boolean') api.setFrontmatterModeEnabled(saved.frontmatterModeEnabled)
+              if (saved.canvasRenderMode) api.setCanvasRenderMode(saved.canvasRenderMode)
+              if (saved.canvas3dMode) api.setCanvas3dMode(saved.canvas3dMode)
+              if (saved.canvas2dRenderer) api.setCanvas2dRenderer(saved.canvas2dRenderer)
+            }
           }
 
           const pinned = saved.viewPinned === true

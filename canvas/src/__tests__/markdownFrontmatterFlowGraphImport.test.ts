@@ -2180,6 +2180,18 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphRichMediaGenerat
   if (String(location?.label || '') !== 'Flaming Mountain desert (sunset battlefield)') {
     throw new Error('expected demo_inputs.location.label to match the sunset battlefield scene')
   }
+  if (String(frontmatterMeta?.kgCanvasRenderMode || '') !== '2d') {
+    throw new Error('expected rich-media generation demo to preserve kgCanvasRenderMode=2d in frontmatter metadata')
+  }
+  if (String(frontmatterMeta?.kgCanvas2dRenderer || '') !== 'flowEditor') {
+    throw new Error('expected rich-media generation demo to preserve kgCanvas2dRenderer=flowEditor in frontmatter metadata')
+  }
+  if (frontmatterMeta?.kgFrontmatterModeEnabled !== true) {
+    throw new Error('expected rich-media generation demo to preserve kgFrontmatterModeEnabled=true in frontmatter metadata')
+  }
+  if (frontmatterMeta?.kgDocumentStructureBaselineLock !== false) {
+    throw new Error('expected rich-media generation demo to preserve kgDocumentStructureBaselineLock=false in frontmatter metadata')
+  }
 
   const panelProps = (panelNode.properties || {}) as Record<string, unknown>
   if (String(panelProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'richMediaPanel') {

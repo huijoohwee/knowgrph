@@ -1,0 +1,87 @@
+import { useGraphStore } from '@/hooks/useGraphStore'
+import type { DocumentSemanticMode } from '@/hooks/store/types'
+import type { GraphData } from '@/lib/graph/types'
+import type { Canvas2dRendererId } from '@/lib/config'
+import {
+  parseCanvasWorkspaceFrontmatterPreset,
+  readCanvasWorkspaceFrontmatterPresetFromMeta,
+  type CanvasWorkspaceFrontmatterPreset,
+} from '@/lib/markdown/frontmatter'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+export function resolveCanvasFrontmatterPreset(args: {
+  graphData?: GraphData | null
+  rawText?: string | null
+}): CanvasWorkspaceFrontmatterPreset | null {
+  const rawText = String(args.rawText || '')
+  const fromText = rawText ? parseCanvasWorkspaceFrontmatterPreset(rawText) : null
+  if (fromText) return fromText
+
+  const metadata = isRecord(args.graphData?.metadata) ? (args.graphData?.metadata as Record<string, unknown>) : null
+  const frontmatterMeta = metadata && isRecord(metadata.frontmatterMeta) ? (metadata.frontmatterMeta as Record<string, unknown>) : null
+  return readCanvasWorkspaceFrontmatterPresetFromMeta(frontmatterMeta)
+}
+
+export function applyCanvasFrontmatterPreset(args: {
+  graphData?: GraphData | null
+  rawText?: string | null
+  defaultCanvasRenderMode?: '2d' | '3d'
+  defaultCanvas2dRenderer?: Canvas2dRendererId
+  defaultDocumentSemanticMode?: DocumentSemanticMode
+  defaultFrontmatterModeEnabled?: boolean
+  defaultDocumentStructureBaselineLock?: boolean
+  disableMultiDimTableMode?: boolean
+}): boolean {
+  const preset = resolveCanvasFrontmatterPreset(args)
+  const store = useGraphStore.getState()
+  let changed = false
+  const documentStructureBaselineLock =
+    preset?.documentStructureBaselineLock ?? args.defaultDocumentStructureBaselineLock
+
+  if (documentStructureBaselineLock === false && store.documentStructureBaselineLock !== false) {
+    store.setDocumentStructureBaselineLock(false)
+    changed = true
+  }
+
+  const canvasRenderMode = preset?.canvasRenderMode ?? args.defaultCanvasRenderMode
+  if (canvasRenderMode && store.canvasRenderMode !== canvasRenderMode) {
+    store.setCanvasRenderMode(canvasRenderMode)
+    changed = true
+  }
+
+  const canvas2dRenderer = preset?.canvas2dRenderer ?? args.defaultCanvas2dRenderer
+  if (canvas2dRenderer && store.canvas2dRenderer !== canvas2dRenderer) {
+    store.setCanvas2dRenderer(canvas2dRenderer)
+    changed = true
+  }
+
+  const documentSemanticMode = preset?.documentSemanticMode ?? args.defaultDocumentSemanticMode
+  if (documentSemanticMode && store.documentSemanticMode !== documentSemanticMode) {
+    store.setDocumentSemanticMode(documentSemanticMode)
+    changed = true
+  }
+
+  const frontmatterModeEnabled = preset?.frontmatterModeEnabled ?? args.defaultFrontmatterModeEnabled
+  if (typeof frontmatterModeEnabled === 'boolean' && store.frontmatterModeEnabled !== frontmatterModeEnabled) {
+    store.setFrontmatterModeEnabled(frontmatterModeEnabled)
+    changed = true
+  }
+
+  if (
+    documentStructureBaselineLock === true &&
+    store.documentStructureBaselineLock !== documentStructureBaselineLock
+  ) {
+    store.setDocumentStructureBaselineLock(documentStructureBaselineLock)
+    changed = true
+  }
+
+  if (args.disableMultiDimTableMode === true && store.multiDimTableModeEnabled !== false) {
+    store.setMultiDimTableModeEnabled(false)
+    changed = true
+  }
+
+  return changed
+}
