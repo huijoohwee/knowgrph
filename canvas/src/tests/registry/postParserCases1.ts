@@ -332,6 +332,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["workspaceFs.seed.reconcilesPartialCanonicalSeedFamily","@/__tests__/workspaceSeedPersistence.test","testWorkspaceEnsureSeedReconcilesPartialCanonicalSeedFamily"],
   ["workspaceFs.startup.prefersReadmeForDefaultSeedFamily","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPrefersReadmeForDefaultSeedFamily"],
   ["workspaceFs.startup.preservesCustomWorkspaceSelection","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPreservesCustomWorkspaceSelection"],
+  ["workspaceFs.explorer.prefersReadmeFirstForCanonicalDefaultFamily","@/__tests__/workspaceSeedPersistence.test","testWorkspaceExplorerSortPrefersReadmeFirstForCanonicalDefaultFamily"],
+  ["workspaceFs.explorer.keepsFoldersFirstForCustomWorkspaceEntries","@/__tests__/workspaceSeedPersistence.test","testWorkspaceExplorerSortKeepsFoldersFirstForCustomWorkspaceEntries"],
   ["workspaceFs.events.batch.coalescesNotifications","@/__tests__/workspaceFsEventsBatch.test","testWorkspaceFsChangedBatchCoalescesNotifications"],
   ["workspaceFs.memory.initialEntries","@/__tests__/workspaceFsMemoryInitialEntries.test","testWorkspaceFsMemoryInitialEntries"],
   ["workspaceFs.resilientShadow.keepsCreatedFileReadableAfterSilentReadMiss","@/__tests__/workspaceFsResilientShadow.test","testWorkspaceFsResilientShadowKeepsCreatedFileReadableAfterSilentReadMiss"],

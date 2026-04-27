@@ -2,6 +2,7 @@ import React from 'react'
 import { ChevronDown, ChevronRight, FileText, Folder, Link as LinkIcon } from 'lucide-react'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
+import { sortWorkspaceEntriesForExplorer } from '@/features/workspace-fs/workspaceFs'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
@@ -27,10 +28,8 @@ const buildTree = (entries: WorkspaceEntry[]): Node => {
     ({ path: WORKSPACE_ROOT_PATH, parentPath: null, kind: 'folder', name: '', updatedAtMs: 0 } satisfies WorkspaceEntry)
 
   const walk = (entry: WorkspaceEntry): Node => {
-    const kids = byParent.get(entry.path) || []
-    const folders = kids.filter(k => k.kind === 'folder').sort((a, b) => a.name.localeCompare(b.name))
-    const files = kids.filter(k => k.kind === 'file').sort((a, b) => a.name.localeCompare(b.name))
-    return { entry, children: [...folders, ...files].map(walk) }
+    const kids = sortWorkspaceEntriesForExplorer(byParent.get(entry.path) || [])
+    return { entry, children: kids.map(walk) }
   }
   return walk(root)
 }

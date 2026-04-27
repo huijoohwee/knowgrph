@@ -1,4 +1,4 @@
-import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
+import type { WorkspaceEntry, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
 import { buildRepoFilePath } from '@/lib/url'
@@ -257,6 +257,9 @@ const DEFAULT_WORKSPACE_SEED_FAMILY_PATHS = new Set<WorkspacePath>([
   WORKSPACE_README_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
 ])
+const DEFAULT_VALIDATION_DEMO_ANCESTOR_PATHS = new Set<WorkspacePath>(
+  ancestorPathsForWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_PATH),
+)
 export const LEGACY_WORKSPACE_README_TEXT = [
   '# Workspace',
   '',
@@ -434,6 +437,32 @@ export function resolveWorkspaceStartupActivePath(args: {
     return workspaceFilePaths[0] || null
   }
   return activePathExists ? activePath : null
+}
+
+export function sortWorkspaceEntriesForExplorer(entries: ReadonlyArray<WorkspaceEntry>): WorkspaceEntry[] {
+  const list = Array.isArray(entries) ? [...entries] : []
+  const workspaceFilePaths = list
+    .filter((entry): entry is WorkspaceEntry & { kind: 'file' } => entry?.kind === 'file')
+    .map(entry => normalizeWorkspacePath(entry.path))
+    .filter((path): path is WorkspacePath => Boolean(path))
+  const isDefaultSeedOnly = isDefaultWorkspaceSeedFamilyOnly(workspaceFilePaths)
+  const rank = (entry: WorkspaceEntry): number => {
+    const path = normalizeWorkspacePath(entry.path)
+    if (!isDefaultSeedOnly) return entry.kind === 'folder' ? 0 : 1
+    if (path === WORKSPACE_README_SEED_PATH) return 0
+    if (entry.kind === 'folder' && DEFAULT_VALIDATION_DEMO_ANCESTOR_PATHS.has(path)) return 1
+    if (path === TEST_VALIDATION_WORKSPACE_SEED_PATH) return 2
+    return entry.kind === 'folder' ? 3 : 4
+  }
+  list.sort((a, b) => {
+    const rankDiff = rank(a) - rank(b)
+    if (rankDiff !== 0) return rankDiff
+    if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1
+    const nameDiff = String(a.name || '').localeCompare(String(b.name || ''))
+    if (nameDiff !== 0) return nameDiff
+    return String(a.path || '').localeCompare(String(b.path || ''))
+  })
+  return list
 }
 
 export function defaultParentPath(): WorkspacePath {

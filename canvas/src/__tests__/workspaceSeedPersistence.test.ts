@@ -6,6 +6,7 @@ import {
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_PATH,
   resolveWorkspaceStartupActivePath,
+  sortWorkspaceEntriesForExplorer,
 } from '@/features/workspace-fs/workspaceFs'
 
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
@@ -119,5 +120,51 @@ export function testWorkspaceStartupActivePathPreservesCustomWorkspaceSelection(
   })
   if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
     throw new Error(`expected custom workspace startup to preserve the requested active path, got ${String(next)}`)
+  }
+}
+
+export function testWorkspaceExplorerSortPrefersReadmeFirstForCanonicalDefaultFamily() {
+  const next = sortWorkspaceEntriesForExplorer([
+    {
+      kind: 'folder',
+      path: '/sandbox',
+      parentPath: '/',
+      name: 'sandbox',
+      updatedAtMs: 1,
+    },
+    {
+      kind: 'file',
+      path: WORKSPACE_README_SEED_PATH,
+      parentPath: '/',
+      name: 'README.md',
+      text: '# README',
+      updatedAtMs: 1,
+    },
+  ])
+  if (next[0]?.path !== WORKSPACE_README_SEED_PATH) {
+    throw new Error(`expected canonical explorer order to show README first, got ${String(next[0]?.path || '')}`)
+  }
+}
+
+export function testWorkspaceExplorerSortKeepsFoldersFirstForCustomWorkspaceEntries() {
+  const next = sortWorkspaceEntriesForExplorer([
+    {
+      kind: 'folder',
+      path: '/sandbox',
+      parentPath: '/',
+      name: 'sandbox',
+      updatedAtMs: 1,
+    },
+    {
+      kind: 'file',
+      path: '/notes.md',
+      parentPath: '/',
+      name: 'notes.md',
+      text: '# Notes',
+      updatedAtMs: 1,
+    },
+  ])
+  if (next[0]?.path !== '/sandbox') {
+    throw new Error(`expected non-default explorer order to keep folders first, got ${String(next[0]?.path || '')}`)
   }
 }
