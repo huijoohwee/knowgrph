@@ -175,6 +175,24 @@ export function testFlowEditorOverlayEdgeSchedulerStabilizesAcrossScrollPanZoom(
   }
 }
 
+export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+
+  if (!text.includes('const overlayEditorNodeIdsRef = React.useRef<string[]>([])')) {
+    throw new Error('expected FlowEditor overlay edge renderer to keep a ref of canonical overlay editor node ids')
+  }
+  if (!text.includes('overlayEditorNodeIdsRef.current = overlayEditorNodeIds')) {
+    throw new Error('expected FlowEditor overlay edge renderer to sync the canonical overlay editor node id ref')
+  }
+  if (!text.includes('Array.isArray(overlayEditorNodeIdsRef.current) && overlayEditorNodeIdsRef.current.length > 0')) {
+    throw new Error('expected overlay edge renderer to prefer canonical overlay editor ids over open widget ids')
+  }
+  if (!text.includes('? overlayEditorNodeIdsRef.current')) {
+    throw new Error('expected overlay edge renderer to draw from canonical overlay editor ids when overlay-only mode is active')
+  }
+}
+
 export function testFrontmatterFlowOverlayEditorsIncludeCanonicalBuiltInWidgets() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')

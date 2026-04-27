@@ -158,6 +158,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const setGraphRagWorkflowJsonText = useGraphStore(s => s.setGraphRagWorkflowJsonText)
   const setGraphData = useGraphStore(s => s.setGraphData)
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
+  const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)
 
   const graphNodes = useGraphStore(s => ((s.graphData as GraphData | null)?.nodes as GraphNode[] | undefined) || EMPTY_GRAPH_NODES)
   const graphEdges = useGraphStore(s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES)
@@ -177,6 +178,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const requestedRevealLine = useMarkdownExplorerStore(s => s.requestedRevealLine)
   const requestRevealLine = useMarkdownExplorerStore(s => s.requestRevealLine)
   const lastAutoApplySigRef = React.useRef<string | null>(null)
+  const lastRealtimeApplySigRef = React.useRef<string | null>(null)
 
   const [entries, setEntries] = React.useState<WorkspaceEntry[]>([])
   const [sourcesByPath, setSourcesByPath] = React.useState(() => loadWorkspaceSourceIndex())
@@ -1318,7 +1320,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     const nextText = typeof markdownDocumentText === 'string' ? markdownDocumentText : ''
     if (!docKey || !markdownName || !nextText) return
     if (!matchesMarkdownDocumentPath(docKey, markdownName)) return
-    if (contentMode === 'widget') return
     const active = String(activeTextRef.current || '')
     if (active === nextText) return
     const last = lastLoadedRef.current
@@ -1337,7 +1338,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [
     activeDocumentKey,
     activePath,
-    contentMode,
     markdownDocumentName,
     markdownDocumentText,
     patchWorkspaceEntryInlineText,
@@ -2540,6 +2540,31 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     lastAutoApplySigRef.current = sig
     void handleApply()
   }, [activeDocumentKey, activeText, graphContentRevision, handleApply, workspaceCanvasPaneOpen])
+
+  React.useEffect(() => {
+    if (!workspaceCanvasPaneOpen) return
+    if (canvasWorkspaceSyncMode !== 'realtime') return
+    if (contentMode === 'widget') return
+    const name = String(activeDocumentKey || '').trim()
+    if (!name) return
+    const text = String(activeText || '')
+    if (!text.trim()) return
+    const graphText = markdownDocumentName === name ? String(markdownDocumentText || '') : ''
+    if (graphText === text) return
+    const sig = `${name}:${text.length}:${text}`
+    if (lastRealtimeApplySigRef.current === sig) return
+    lastRealtimeApplySigRef.current = sig
+    void handleApply()
+  }, [
+    activeDocumentKey,
+    activeText,
+    canvasWorkspaceSyncMode,
+    contentMode,
+    handleApply,
+    markdownDocumentName,
+    markdownDocumentText,
+    workspaceCanvasPaneOpen,
+  ])
 
   const handleFormatAction = React.useCallback(
     (action: MarkdownFormatAction) => {

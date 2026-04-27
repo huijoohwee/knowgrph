@@ -6,7 +6,7 @@
 - [ ] Defaults; enforce predictable startup state; forbid implicit persisted drift
 - [ ] Separation; keep layout concerns schema-driven; forbid UI hardcoding
 - [ ] Determinism; stabilize initial view across sessions; forbid random initial toggles
-- [ ] Maps-first startup; default to geospatial GrabMaps workspace; forbid downstream startup overrides
+- [ ] Document-first startup; default to Flow Editor + Frontmatter Mode; forbid downstream startup overrides
 - [ ] Safety; prefer reversible toggles; forbid one-way initialization side effects
 ```
 
@@ -63,7 +63,7 @@
 |-----------------|----------------------------------|---------------------------------------------------------------------------|------------------|-----------------------------------|---------------------|---------------------|----------------|
 | Defaults        | Stable startup                   | - [ ] Normalize init schema; forbid inconsistent initial toggles          | useGraphStore.ts | applyCanvasDefaultInitSchema       | GraphSchema         | GraphSchema         | force + document + portHandles (default off) |
 | Frontmatter     | Enable safe frontmatter focus     | - [ ] Default ON; forbid blank canvas: if no frontmatter Mermaid, fall back to full graph | uiSettingsSlice.ts | frontmatterModeEnabled default   | —                   | boolean             | default true + filter fallback |
-| Toolbar Modes   | Prefer maps workspace at init     | - [ ] Default Geospatial Surface + GrabMaps preset; forbid panel-local startup drift | uiSettingsSlice.ts + geospatialSlice.ts | floatingPanelView + geospatialModeEnabled + geospatialViewMode | — | boolean/enum | floatingPanelView='geo'; geospatialEnabled=true; geospatialViewMode='2d-modern' |
+| Toolbar Modes   | Prefer document workspace at init | - [ ] Default 2D Flow Editor + Frontmatter Mode + unlocked view; forbid panel-local startup drift | config.render.ts + uiSettingsSlice.ts + uiSlice.ts + geospatialSlice.ts | canvas2dRenderer + frontmatterModeEnabled + documentStructureBaselineLock + geospatialModeEnabled | — | boolean/enum | canvas2dRenderer='flowEditor'; frontmatterModeEnabled=true; documentStructureBaselineLock=false; geospatialEnabled=false |
 | Layer Mode      | Prefer document structure        | - [ ] Default document mode; forbid semantic-first default                | schema.ts        | defaultSchema.layers.mode         | —                   | 'document'          | constant |
 | Port Handles    | Disable by default               | - [ ] Default OFF; forbid implicit border anchoring at init               | schema.ts        | defaultSchema.behavior.portHandles | —                   | enabled false       | constant |
 
@@ -95,8 +95,10 @@
   - Must ensure `layout.mode` is 'force'.
   - Must ensure `frontmatterModeEnabled` is true.
   - Must ensure Frontmatter Mode never yields an empty canvas: if no frontmatter Mermaid nodes exist, render the full graph.
-  - Must default to Geospatial Mode with the GrabMaps preset (`kg:ui:geospatial:overlayEnabled` defaults to true, `kg:ui:geospatial:viewMode` defaults to `2d-modern`, and missing geospatial style storage resolves to the GrabMaps style URL) while keeping shared store + localStorage keys as the only startup SSOT.
-  - Must default FloatingPanel to `geo` and open it on startup from the shared UI slice rather than panel-local effects.
+  - Must default to 2D Flow Editor while keeping `canvasRenderMode='2d'` and `DEFAULT_CANVAS_2D_RENDERER='flowEditor'` as the startup SSOT.
+  - Must default to Document Mode with Frontmatter Mode enabled (`documentSemanticMode='document'` and `frontmatterModeEnabled=true`) while keeping fallback-to-full-graph behavior unchanged when frontmatter flow data is absent.
+  - Must keep geospatial startup opt-in (`kg:ui:geospatial:overlayEnabled` defaults to false and `kg:ui:geospatial:viewMode` falls back to `2d`) so non-map sessions do not drift into geospatial-first boot.
+  - Must keep FloatingPanel closed by default and restore its shared baseline view as `propsPanel` rather than forcing Geo on startup.
   - Must default `View Lock` OFF by initializing `documentStructureBaselineLock` to false in the shared UI slice.
   - Must ensure `graphLayersVisible` is true.
   - Must compute 2D zoom/layout view keys from a shared schema-layout fingerprint (include `schema.layout.flow`) so keyed zoom state and cached layout positions do not drift across D3/Flow/Design/Flow Editor.
@@ -191,7 +193,7 @@ canvas/
 | Conflicting Defaults   | Single truth                     | - [ ] Align default values; forbid contradictory defaults across slices   |
 | Hidden Startup Drift   | Predictable init                 | - [ ] Normalize schema on init; forbid dependence on stale persisted state |
 | Layout Mode Leakage    | Correct init layout              | - [ ] Force layout.mode='force'; forbid implicit tree/radial activation   |
-| Domain Bias            | SSOT startup                     | - [ ] Keep maps-first startup in shared defaults only; forbid panel-local startup heuristics |
+| Domain Bias            | SSOT startup                     | - [ ] Keep document-first startup in shared defaults only; forbid panel-local startup heuristics |
 | Infinite Re-render     | Performance                      | - [ ] Avoid layout sync in render loop; forbid updating store from simulation tick |
 
 ---

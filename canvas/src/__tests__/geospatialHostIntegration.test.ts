@@ -166,14 +166,14 @@ export const testGympgrphGeospatialKeysAreNamespacedOnly = () => {
   }
 }
 
-export const testGympgrphDefaultViewModeIs2dModern = () => {
+export const testGympgrphDefaultViewModeIs2d = () => {
   const slicePath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'hooks', 'store', 'geospatialSlice.ts')
   const text = readUtf8(slicePath)
   if (!text.includes('LS_KEYS.geospatialViewMode')) {
     throw new Error('Expected geospatialViewMode persistence key usage')
   }
-  if (!text.includes("'2d-modern'")) {
-    throw new Error("Expected geospatialViewMode default to include '2d-modern'")
+  if (!text.includes("'2d'")) {
+    throw new Error("Expected geospatialViewMode default to include '2d'")
   }
 }
 

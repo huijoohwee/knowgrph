@@ -100,6 +100,11 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
     "testWorkspaceImportModesPreferFrontmatterOnlyDocLandingContract",
   ],
   [
+    "workspace.perDocumentUi.frontmatterFlow.prefersLandingContract",
+    "@/__tests__/frontmatterFlowImportModeSeepageRegression.test",
+    "testPerDocumentUiRestorePrefersFrontmatterFlowLandingContract",
+  ],
+  [
     "workspace.import.localFiles.overwritesPendingStub",
     "@/__tests__/workspaceLocalImportStubOverwrite.test",
     "testWorkspaceLocalImportOverwritesPendingStubInsteadOfRenaming",

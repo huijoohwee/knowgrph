@@ -4,6 +4,7 @@ import { applyCanvasSliceStorageMigrations } from '@/hooks/store/canvasSlice'
 import { applyFlowEditorManagerDefaultRegistrySeed } from '@/hooks/store/flowEditorManagerSlice'
 import { applyGraphViewPinnedSemanticsMigration } from '@/hooks/store/graphViewSlice'
 import { ensureSessionTabId } from '@/hooks/store/uiSettingsSlice'
+import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { buildDocumentKey, buildDocumentRef, readPerDocumentUiState, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
@@ -11,6 +12,7 @@ import {
   WORKSPACE_SYNC_TASK_PER_DOCUMENT_UI,
 } from '@/lib/async/workspaceSyncKeys'
 import { hashSignatureParts, hashStringArraySignature } from '@/lib/hash/signature'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
 type DebugTraceWindow = Window & {
   localStorage?: Storage
@@ -207,11 +209,17 @@ export function GraphStoreRuntime() {
         const api = useGraphStore.getState()
         restoring = true
         try {
-          if (saved.documentSemanticMode) api.setDocumentSemanticMode(saved.documentSemanticMode)
-          if (typeof saved.frontmatterModeEnabled === 'boolean') api.setFrontmatterModeEnabled(saved.frontmatterModeEnabled)
-          if (saved.canvasRenderMode) api.setCanvasRenderMode(saved.canvasRenderMode)
-          if (saved.canvas3dMode) api.setCanvas3dMode(saved.canvas3dMode)
-          if (saved.canvas2dRenderer) api.setCanvas2dRenderer(saved.canvas2dRenderer)
+          const graphData = api.graphData
+          const shouldPreferFrontmatterFlowLanding = isFrontmatterFlowGraph(graphData)
+          if (shouldPreferFrontmatterFlowLanding) {
+            applyFrontmatterFlowImportModes(graphData)
+          } else {
+            if (saved.documentSemanticMode) api.setDocumentSemanticMode(saved.documentSemanticMode)
+            if (typeof saved.frontmatterModeEnabled === 'boolean') api.setFrontmatterModeEnabled(saved.frontmatterModeEnabled)
+            if (saved.canvasRenderMode) api.setCanvasRenderMode(saved.canvasRenderMode)
+            if (saved.canvas3dMode) api.setCanvas3dMode(saved.canvas3dMode)
+            if (saved.canvas2dRenderer) api.setCanvas2dRenderer(saved.canvas2dRenderer)
+          }
 
           const pinned = saved.viewPinned === true
           api.setViewPinned(pinned)

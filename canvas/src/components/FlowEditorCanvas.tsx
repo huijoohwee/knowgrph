@@ -510,6 +510,7 @@ export default function FlowEditorCanvas(
 
   const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds || [])
   const openWidgetNodeIdsRef = React.useRef(openWidgetNodeIds)
+  const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
   const setOpenWidgetNodeIds = useGraphStore(s => s.setOpenWidgetNodeIds)
 
@@ -1678,7 +1679,9 @@ export default function FlowEditorCanvas(
       })()
 
       const overlayIdSet = (() => {
-        const ids = Array.isArray(openWidgetNodeIdsRef.current) ? openWidgetNodeIdsRef.current : []
+        const ids = Array.isArray(overlayEditorNodeIdsRef.current) && overlayEditorNodeIdsRef.current.length > 0
+          ? overlayEditorNodeIdsRef.current
+          : (Array.isArray(openWidgetNodeIdsRef.current) ? openWidgetNodeIdsRef.current : [])
         const sel = String(pendingOverlayNodeIdRef.current || '').trim()
         const set = new Set<string>()
         for (let i = 0; i < ids.length; i += 1) {
@@ -4195,6 +4198,9 @@ export default function FlowEditorCanvas(
     if (next.length > 0) lastStableOverlayEditorNodeIdsRef.current = next
     return next
   }, [flowEditorFrontmatterGraphAvailable, flowEditorViewActive, openWidgetNodeIds, overlayDraftNode?.id, renderGraphDataOverride, renderGraphDataOverride?.metadata, renderGraphDataOverride?.nodes])
+  React.useEffect(() => {
+    overlayEditorNodeIdsRef.current = overlayEditorNodeIds
+  }, [overlayEditorNodeIds])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return

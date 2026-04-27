@@ -77,16 +77,45 @@ export const testMarkdownWorkspaceRuntimeFlowEditorDirectApplyUsesIncomingGraphI
 export const testMarkdownWorkspaceRuntimeGraphWritebackRefreshesActiveEditorTextSafely = () => {
   const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
   const text = readUtf8(runtimePath)
-  if (!text.includes('if (!matchesMarkdownDocumentPath(docKey, markdownName)) return')) {
+  const effectStart = text.indexOf("  React.useEffect(() => {\n    const docKey = String(activeDocumentKey || '').trim()")
+  const effectEnd = text.indexOf('  React.useEffect(() => {\n    const path = activePath', effectStart)
+  const effectSection = effectStart >= 0 && effectEnd > effectStart ? text.slice(effectStart, effectEnd) : ''
+  if (!effectSection.includes('if (!matchesMarkdownDocumentPath(docKey, markdownName)) return')) {
     throw new Error('Expected markdown workspace runtime graph writeback sync to reuse shared markdown document path matching')
   }
-  if (!text.includes('const hasUnsavedUserEdit = !!(')) {
+  if (effectSection.includes("if (contentMode === 'widget') return")) {
+    throw new Error('Expected markdown workspace runtime graph writeback sync to refresh hidden markdown editor state even while widget mode is active')
+  }
+  if (!effectSection.includes('const hasUnsavedUserEdit = !!(')) {
     throw new Error('Expected markdown workspace runtime graph writeback sync to guard against unsaved user edits')
   }
-  if (!text.includes('patchWorkspaceEntryInlineText(activePath, nextText)')) {
+  if (!effectSection.includes('patchWorkspaceEntryInlineText(activePath, nextText)')) {
     throw new Error('Expected markdown workspace runtime graph writeback sync to refresh workspace entry inline text')
   }
-  if (!text.includes('setActiveTextProgrammatic(nextText)')) {
+  if (!effectSection.includes('setActiveTextProgrammatic(nextText)')) {
     throw new Error('Expected markdown workspace runtime graph writeback sync to refresh active editor text programmatically')
+  }
+}
+
+export const testMarkdownWorkspaceRealtimeSyncAppliesEditorChangesBackToGraph = () => {
+  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const text = readUtf8(runtimePath)
+  if (!text.includes("const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)")) {
+    throw new Error('Expected Markdown Workspace runtime to read shared canvas workspace sync mode state')
+  }
+  if (!text.includes("if (canvasWorkspaceSyncMode !== 'realtime') return")) {
+    throw new Error('Expected Markdown Workspace runtime to explicitly gate auto-apply by realtime sync mode')
+  }
+  if (!text.includes("if (contentMode === 'widget') return")) {
+    throw new Error('Expected realtime editor->graph sync to avoid feeding widget bundle text back into frontmatter graph apply')
+  }
+  if (!text.includes("const graphText = markdownDocumentName === name ? String(markdownDocumentText || '') : ''")) {
+    throw new Error('Expected realtime editor->graph sync to compare against current graph-backed markdown document text')
+  }
+  if (!text.includes('lastRealtimeApplySigRef')) {
+    throw new Error('Expected realtime editor->graph sync to dedupe repeated apply cycles')
+  }
+  if (!text.includes('void handleApply()')) {
+    throw new Error('Expected realtime editor->graph sync to reuse shared markdown apply path')
   }
 }

@@ -1820,7 +1820,7 @@ function readPitchdeckTemplatePath(): string {
     : ''
   if (envPath) return envPath
   const cwd = process.cwd()
-  const fallback = path.resolve(cwd, '..', '..', 'huijoohwee.github.io', 'docs', 'pitchdeck-prd-tad-template-lite.md')
+  const fallback = path.resolve(cwd, '..', '..', 'huijoohwee.github.io', 'template', 'pitchdeck-prd-tad-template-lite.md')
   return fallback
 }
 

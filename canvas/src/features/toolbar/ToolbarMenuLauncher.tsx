@@ -54,9 +54,9 @@ export function ToolbarMenuLauncher({
 
   const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
     try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
     } catch {
-      return true
+      return false
     }
   })
 

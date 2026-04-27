@@ -245,9 +245,9 @@ export function ToolbarToolMenu({
 
   const [geospatialModeEnabled, setGeospatialModeEnabledState] = React.useState<boolean>(() => {
     try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
     } catch {
-      return true
+      return false
     }
   })
   const [isEnablingGeospatial, setIsEnablingGeospatial] = React.useState(false)

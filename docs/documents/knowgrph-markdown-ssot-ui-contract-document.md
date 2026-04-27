@@ -49,6 +49,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - Keep frontmatter graphs, Mermaid diagrams, body anchors, and Rich Media overlays in a **single semantic graph** (no export-only or renderer-only derivations).
   - Forbid absolute in-repo filesystem paths in Markdown content; use repo-relative or logical identifiers instead, and rely on runtime helpers to resolve them.
   - Preserve wikilinks and `{{}}` templates as plain Markdown syntax; Canvas/Graph parsers may interpret them structurally but must not require non-standard Markdown or mode-specific link syntax.
+  - Reusable pitchdeck frontmatter templates must keep YAML frontmatter as machine SSOT and Markdown body as human projection; see `docs/documents/knowgrph-pitchdeck-frontmatter-template-contract.md`.
 
 ### Active Graph Render View (SSOT)
 

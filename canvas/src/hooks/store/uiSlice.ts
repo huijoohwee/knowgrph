@@ -155,7 +155,7 @@ export const createUiSlice = (set: SetGraph) => {
 
     isEditMode: false,
 
-    floatingPanelOpen: true,
+    floatingPanelOpen: false,
     setFloatingPanelOpen: (open: boolean) =>
       set(state => {
         const next = open === true
@@ -163,7 +163,7 @@ export const createUiSlice = (set: SetGraph) => {
         return { floatingPanelOpen: next } as Partial<GraphState>
       }),
 
-    floatingPanelView: 'geo' as GraphState['floatingPanelView'],
+    floatingPanelView: 'propsPanel' as GraphState['floatingPanelView'],
     setFloatingPanelView: (view: GraphState['floatingPanelView']) =>
       set(state => {
         const next =

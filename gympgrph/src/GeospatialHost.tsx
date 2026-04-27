@@ -446,16 +446,16 @@ const readStyleUrl = (): string | null => {
 }
 
 const readPersistedViewMode = (): GeospatialViewMode => {
-    if (typeof window === 'undefined') return '2d-modern'
+    if (typeof window === 'undefined') return '2d'
   try {
     const raw = String(window.localStorage.getItem(LS_KEYS.geospatialViewMode) || '').trim()
     if (raw === '2d-modern') return '2d-modern'
     if (raw === '3d-modern') return '3d-modern'
     if (raw === '3d') return '3d'
     if (raw === '2d-svg') return '2d-svg'
-      return '2d-modern'
+      return '2d'
   } catch {
-      return '2d-modern'
+      return '2d'
   }
 }
 
