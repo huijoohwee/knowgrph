@@ -2,12 +2,15 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import {
   buildGrabMapsDiscoveryFields,
   GRABMAPS_DISCOVERY_FIELD_META,
+  GRABMAPS_DISCOVERY_SETTING_SPECS,
   GRABMAPS_DISCOVERY_WIDGET_LABEL,
   type DiscoveryPropertyKey,
   type DiscoverySettingKey,
 } from '@/features/integrations/grabMapsSsot'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsFloat, lsJson, lsSetFloat, lsSetJson } from '@/lib/persistence'
+
+export { GRABMAPS_DISCOVERY_FIELD_META, GRABMAPS_DISCOVERY_SETTING_SPECS } from '@/features/integrations/grabMapsSsot'
 
 export const FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID = 'GrabMapsDiscovery' as const
 export const FLOW_GRABMAPS_DISCOVERY_WIDGET_TYPE_ID = 'grabmaps' as const
@@ -26,89 +29,31 @@ type DiscoverySettingSpec = {
   options?: readonly string[]
 }
 
-const DISCOVERY_SETTING_SPECS: Readonly<Record<DiscoverySettingKey, DiscoverySettingSpec>> = {
-  'maps.grabmaps.mcp.discovery.chatModel': {
-    storageKey: LS_KEYS.grabMapsMcpDiscoveryChatModel,
-    valueType: 'string',
-    defaultValue: 'gpt-5.4-nano',
-    options: ['gpt-5.4-nano'],
-  },
-  'maps.grabmaps.mcp.searchPlaces.query': {
-    storageKey: LS_KEYS.grabMapsMcpSearchPlacesQuery,
-    valueType: 'string',
-    defaultValue: 'restaurants Marina Bay',
-  },
-  'maps.grabmaps.mcp.searchPlaces.country': {
-    storageKey: LS_KEYS.grabMapsMcpSearchPlacesCountry,
-    valueType: 'string',
-    defaultValue: 'SGP',
-  },
-  'maps.grabmaps.mcp.searchPlaces.lat': {
-    storageKey: LS_KEYS.grabMapsMcpSearchPlacesLat,
-    valueType: 'number',
-    defaultValue: 1.3521,
-    min: -90,
-    max: 90,
-  },
-  'maps.grabmaps.mcp.searchPlaces.lon': {
-    storageKey: LS_KEYS.grabMapsMcpSearchPlacesLon,
-    valueType: 'number',
-    defaultValue: 103.8198,
-    min: -180,
-    max: 180,
-  },
-  'maps.grabmaps.mcp.searchPlaces.limit': {
-    storageKey: LS_KEYS.grabMapsMcpSearchPlacesLimit,
-    valueType: 'number',
-    defaultValue: 10,
-    min: 1,
-    max: 50,
-  },
-  'maps.grabmaps.mcp.nearbySearch.lat': {
-    storageKey: LS_KEYS.grabMapsMcpNearbySearchLat,
-    valueType: 'number',
-    defaultValue: 1.3521,
-    min: -90,
-    max: 90,
-  },
-  'maps.grabmaps.mcp.nearbySearch.lon': {
-    storageKey: LS_KEYS.grabMapsMcpNearbySearchLon,
-    valueType: 'number',
-    defaultValue: 103.8198,
-    min: -180,
-    max: 180,
-  },
-  'maps.grabmaps.mcp.nearbySearch.radius': {
-    storageKey: LS_KEYS.grabMapsMcpNearbySearchRadius,
-    valueType: 'number',
-    defaultValue: 1,
-    min: 0,
-    max: 50,
-  },
-  'maps.grabmaps.mcp.nearbySearch.limit': {
-    storageKey: LS_KEYS.grabMapsMcpNearbySearchLimit,
-    valueType: 'number',
-    defaultValue: 10,
-    min: 1,
-    max: 50,
-  },
-  'maps.grabmaps.mcp.nearbySearch.rankBy': {
-    storageKey: LS_KEYS.grabMapsMcpNearbySearchRankBy,
-    valueType: 'string',
-    defaultValue: 'distance',
-    options: ['distance', 'popularity'],
-  },
-  'maps.grabmaps.mcp.nearbySearch.language': {
-    storageKey: LS_KEYS.grabMapsMcpNearbySearchLanguage,
-    valueType: 'string',
-    defaultValue: 'en',
-  },
-  'maps.grabmaps.mcp.nearbySearch.category': {
-    storageKey: LS_KEYS.grabMapsMcpNearbySearchCategory,
-    valueType: 'string',
-    defaultValue: 'restaurant',
-  },
+const DISCOVERY_SETTING_STORAGE_KEYS: Readonly<Record<DiscoverySettingKey, string>> = {
+  'maps.grabmaps.mcp.discovery.chatModel': LS_KEYS.grabMapsMcpDiscoveryChatModel,
+  'maps.grabmaps.mcp.searchPlaces.query': LS_KEYS.grabMapsMcpSearchPlacesQuery,
+  'maps.grabmaps.mcp.searchPlaces.country': LS_KEYS.grabMapsMcpSearchPlacesCountry,
+  'maps.grabmaps.mcp.searchPlaces.lat': LS_KEYS.grabMapsMcpSearchPlacesLat,
+  'maps.grabmaps.mcp.searchPlaces.lon': LS_KEYS.grabMapsMcpSearchPlacesLon,
+  'maps.grabmaps.mcp.searchPlaces.limit': LS_KEYS.grabMapsMcpSearchPlacesLimit,
+  'maps.grabmaps.mcp.nearbySearch.lat': LS_KEYS.grabMapsMcpNearbySearchLat,
+  'maps.grabmaps.mcp.nearbySearch.lon': LS_KEYS.grabMapsMcpNearbySearchLon,
+  'maps.grabmaps.mcp.nearbySearch.radius': LS_KEYS.grabMapsMcpNearbySearchRadius,
+  'maps.grabmaps.mcp.nearbySearch.limit': LS_KEYS.grabMapsMcpNearbySearchLimit,
+  'maps.grabmaps.mcp.nearbySearch.rankBy': LS_KEYS.grabMapsMcpNearbySearchRankBy,
+  'maps.grabmaps.mcp.nearbySearch.language': LS_KEYS.grabMapsMcpNearbySearchLanguage,
+  'maps.grabmaps.mcp.nearbySearch.category': LS_KEYS.grabMapsMcpNearbySearchCategory,
 }
+
+const DISCOVERY_SETTING_SPECS: Readonly<Record<DiscoverySettingKey, DiscoverySettingSpec>> = (
+  Object.keys(GRABMAPS_DISCOVERY_SETTING_SPECS) as DiscoverySettingKey[]
+).reduce((acc, key) => {
+  acc[key] = {
+    storageKey: DISCOVERY_SETTING_STORAGE_KEYS[key],
+    ...GRABMAPS_DISCOVERY_SETTING_SPECS[key],
+  }
+  return acc
+}, {} as Record<DiscoverySettingKey, DiscoverySettingSpec>)
 
 function readSettingValue(key: DiscoverySettingKey): unknown {
   const spec = DISCOVERY_SETTING_SPECS[key]
@@ -228,4 +173,38 @@ export function writeGrabMapsDiscoveryWidgetProperties(properties: DiscoveryWidg
   for (const field of GRABMAPS_DISCOVERY_FIELD_META) {
     writeSettingValue(field.settingKey, properties[field.propertyKey])
   }
+}
+
+function normalizeLocalOverrideValue(
+  value: unknown,
+  spec: DiscoverySettingSpec,
+): string | number | boolean | undefined {
+  if (spec.valueType === 'string') {
+    const normalized = String(value ?? '').trim()
+    if (!normalized) return undefined
+    if (spec.options && spec.options.length > 0 && !spec.options.includes(normalized)) return undefined
+    return normalized
+  }
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) return undefined
+  const withMin = typeof spec.min === 'number' ? Math.max(spec.min, parsed) : parsed
+  const withBounds = typeof spec.max === 'number' ? Math.min(spec.max, withMin) : withMin
+  return withBounds
+}
+
+export function resolveEffectiveGrabMapsDiscoverySettingsValues(args: {
+  globalSettings: GrabMapsDiscoverySettingsValues
+  localProperties?: Record<string, unknown> | null | undefined
+}): GrabMapsDiscoverySettingsValues {
+  const merged: GrabMapsDiscoverySettingsValues = { ...(args.globalSettings || {}) }
+  const local = args.localProperties || {}
+  for (const field of GRABMAPS_DISCOVERY_FIELD_META) {
+    if (!Object.prototype.hasOwnProperty.call(local, field.propertyKey)) continue
+    const spec = DISCOVERY_SETTING_SPECS[field.settingKey]
+    if (!spec) continue
+    const normalized = normalizeLocalOverrideValue(local[field.propertyKey], spec)
+    if (typeof normalized === 'undefined') continue
+    merged[field.settingKey] = normalized
+  }
+  return merged
 }

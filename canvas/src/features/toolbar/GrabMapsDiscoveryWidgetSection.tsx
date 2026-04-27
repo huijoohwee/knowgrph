@@ -17,11 +17,16 @@ import {
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
 import {
+  GRABMAPS_DISCOVERY_FIELD_META,
+  GRABMAPS_DISCOVERY_SETTING_SPECS,
   getGrabMapsDiscoveryWidgetLabel,
   readGrabMapsDiscoverySettingsValues,
+  resolveEffectiveGrabMapsDiscoverySettingsValues,
   writeGrabMapsDiscoverySettingsValues,
   type GrabMapsDiscoverySettingsValues,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+import type { GraphNode } from '@/lib/graph/types'
+import { FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
 type PlannerOperation = {
   endpoint: 'keywordSearch' | 'nearbySearch' | 'reverseGeo'
@@ -86,6 +91,30 @@ function readLocation(parts: { lat: unknown; lon: unknown }): string {
   const lon = readNumber(parts.lon, Number.NaN)
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return ''
   return `${lat},${lon}`
+}
+
+function resolveSelectedDiscoveryWidgetNode(args: {
+  selectedNodeIds: ReadonlyArray<string>
+  graphData: { nodes?: unknown } | null | undefined
+}): GraphNode | null {
+  const selectedIds = args.selectedNodeIds || []
+  if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null
+  const selectedIdSet = new Set(selectedIds.map(id => String(id || '').trim()).filter(Boolean))
+  const nodes = Array.isArray(args.graphData?.nodes) ? (args.graphData?.nodes as GraphNode[]) : []
+  for (const node of nodes) {
+    const nodeId = String(node?.id || '').trim()
+    if (!nodeId || !selectedIdSet.has(nodeId)) continue
+    if (String(node?.type || '').trim() !== FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID) continue
+    return node
+  }
+  return null
+}
+
+function getDiscoverySettingTypeLabel(settingKey: string): string {
+  const spec = GRABMAPS_DISCOVERY_SETTING_SPECS[settingKey as keyof typeof GRABMAPS_DISCOVERY_SETTING_SPECS]
+  if (!spec) return 'string'
+  if (spec.options && spec.options.length > 0) return 'enum'
+  return spec.valueType === 'number' ? 'number' : 'string'
 }
 
 function parsePlaces(jsonText: string): PlaceItem[] {
@@ -242,10 +271,20 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
   const setChatKnowgrphWorkspacePath = useGraphStore(s => s.setChatKnowgrphWorkspacePath)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
+  const graphData = useGraphStore(s => s.graphData || null)
   const [settingsValues, setSettingsValues] = React.useState<GrabMapsDiscoverySettingsValues>(() => readGrabMapsDiscoverySettingsValues())
   const [queryText, setQueryText] = React.useState<string>(() => readString(readGrabMapsDiscoverySettingsValues()['maps.grabmaps.mcp.searchPlaces.query']))
   const [running, setRunning] = React.useState(false)
   const [statusText, setStatusText] = React.useState<string | null>(null)
+  const selectedDiscoveryNode = React.useMemo(
+    () => resolveSelectedDiscoveryWidgetNode({ selectedNodeIds, graphData }),
+    [graphData, selectedNodeIds],
+  )
+  const selectedDiscoveryOverrides = React.useMemo(
+    () => (selectedDiscoveryNode?.properties || null) as Record<string, unknown> | null,
+    [selectedDiscoveryNode],
+  )
   const modelId = readString(settingsValues['maps.grabmaps.mcp.discovery.chatModel'], 'gpt-5.4-nano')
 
   const runDiscovery = React.useCallback(async () => {
@@ -263,29 +302,35 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
       'maps.grabmaps.mcp.searchPlaces.query': trimmedQuery,
       'maps.grabmaps.mcp.discovery.chatModel': modelId,
     } as GrabMapsDiscoverySettingsValues
+    const mergedSettings = resolveEffectiveGrabMapsDiscoverySettingsValues({
+      globalSettings: baseSettings,
+      localProperties: selectedDiscoveryOverrides,
+    })
+    const effectiveQuery = readString(mergedSettings['maps.grabmaps.mcp.searchPlaces.query'], trimmedQuery)
+    const effectiveModelId = readString(mergedSettings['maps.grabmaps.mcp.discovery.chatModel'], modelId)
     setSettingsValues(baseSettings)
     writeGrabMapsDiscoverySettingsValues(baseSettings)
     try {
       const planner = await planOperations({
-        query: trimmedQuery,
-        modelId,
+        query: effectiveQuery,
+        modelId: effectiveModelId,
         chatAuthMode,
         chatApiKey,
-        defaults: baseSettings,
+        defaults: mergedSettings,
       })
       const fallbackLocation = readLocation({
-        lat: baseSettings['maps.grabmaps.mcp.searchPlaces.lat'],
-        lon: baseSettings['maps.grabmaps.mcp.searchPlaces.lon'],
+        lat: mergedSettings['maps.grabmaps.mcp.searchPlaces.lat'],
+        lon: mergedSettings['maps.grabmaps.mcp.searchPlaces.lon'],
       })
       const operations = planner.operations.length > 0
         ? planner.operations
         : [{
           endpoint: 'keywordSearch' as const,
           params: {
-            keyword: trimmedQuery,
-            country: baseSettings['maps.grabmaps.mcp.searchPlaces.country'],
+            keyword: effectiveQuery,
+            country: mergedSettings['maps.grabmaps.mcp.searchPlaces.country'],
             location: fallbackLocation,
-            limit: baseSettings['maps.grabmaps.mcp.searchPlaces.limit'],
+            limit: mergedSettings['maps.grabmaps.mcp.searchPlaces.limit'],
           },
           note: 'Fallback keyword search',
         }]
@@ -295,9 +340,9 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         const params = asRecord(operation.params) || {}
         if (operation.endpoint === 'keywordSearch') {
           const query = readString(params.keyword, trimmedQuery)
-          const country = readString(params.country, readString(baseSettings['maps.grabmaps.mcp.searchPlaces.country']))
+          const country = readString(params.country, readString(mergedSettings['maps.grabmaps.mcp.searchPlaces.country']))
           const location = readString(params.location, fallbackLocation)
-          const limit = readNumber(params.limit, readNumber(baseSettings['maps.grabmaps.mcp.searchPlaces.limit'], 10))
+          const limit = readNumber(params.limit, readNumber(mergedSettings['maps.grabmaps.mcp.searchPlaces.limit'], 10))
           const searchParams = new URLSearchParams({ keyword: query })
           if (country) searchParams.set('country', country)
           if (location) searchParams.set('location', location)
@@ -315,15 +360,15 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         }
         if (operation.endpoint === 'nearbySearch') {
           const defaultNearbyLocation = readLocation({
-            lat: baseSettings['maps.grabmaps.mcp.nearbySearch.lat'],
-            lon: baseSettings['maps.grabmaps.mcp.nearbySearch.lon'],
+            lat: mergedSettings['maps.grabmaps.mcp.nearbySearch.lat'],
+            lon: mergedSettings['maps.grabmaps.mcp.nearbySearch.lon'],
           })
           const location = readString(params.location, defaultNearbyLocation)
           if (!location) continue
-          const radius = readNumber(params.radius, readNumber(baseSettings['maps.grabmaps.mcp.nearbySearch.radius'], 1))
-          const limit = readNumber(params.limit, readNumber(baseSettings['maps.grabmaps.mcp.nearbySearch.limit'], 10))
-          const rankBy = readString(params.rankBy, readString(baseSettings['maps.grabmaps.mcp.nearbySearch.rankBy'], 'distance'))
-          const language = readString(params.language, readString(baseSettings['maps.grabmaps.mcp.nearbySearch.language']))
+          const radius = readNumber(params.radius, readNumber(mergedSettings['maps.grabmaps.mcp.nearbySearch.radius'], 1))
+          const limit = readNumber(params.limit, readNumber(mergedSettings['maps.grabmaps.mcp.nearbySearch.limit'], 10))
+          const rankBy = readString(params.rankBy, readString(mergedSettings['maps.grabmaps.mcp.nearbySearch.rankBy'], 'distance'))
+          const language = readString(params.language, readString(mergedSettings['maps.grabmaps.mcp.nearbySearch.language']))
           const nearbyParams = new URLSearchParams({ location })
           nearbyParams.set('radius', String(radius))
           nearbyParams.set('limit', String(limit))
@@ -366,16 +411,17 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
       const markdown = [
         '# GrabMaps Chat Discovery',
         '',
-        `- Query: ${trimmedQuery}`,
-        `- Model: ${modelId}`,
+        `- Query: ${effectiveQuery}`,
+        `- Model: ${effectiveModelId}`,
+        ...(selectedDiscoveryNode ? ['- Value source: selected widget local values override global defaults'] : []),
         '',
         ...markdownSections,
       ].join('\n')
       const resolvedPath = await appendChatHistoryWorkspaceFile({
         requestedPath: chatKnowgrphWorkspacePath,
         timestampMs: Date.now(),
-        providerSummary: `${getGrabMapsDiscoveryWidgetLabel()} · ${modelId}`,
-        userText: trimmedQuery,
+        providerSummary: `${getGrabMapsDiscoveryWidgetLabel()} · ${effectiveModelId}`,
+        userText: effectiveQuery,
         assistantText: markdown,
         storageType: 'chatKnowgrph',
         defaultLocalRootPath: chatLocalStorageRootPath,
@@ -406,6 +452,8 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
     setEditorWorkspacePane,
     setWorkspaceViewMode,
     settingsValues,
+    selectedDiscoveryNode,
+    selectedDiscoveryOverrides,
   ])
 
   return (
@@ -433,31 +481,85 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
       </div>
 
       <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
-        <label className={`block ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} htmlFor="grabmaps-discovery-model">
-          Model
-        </label>
-        <select
-          id="grabmaps-discovery-model"
-          value={modelId}
-          onChange={event => {
-            const next = String(event.target.value || '').trim() || 'gpt-5.4-nano'
-            const patched = { ...settingsValues, 'maps.grabmaps.mcp.discovery.chatModel': next } as GrabMapsDiscoverySettingsValues
-            setSettingsValues(patched)
-            writeGrabMapsDiscoverySettingsValues(patched)
-          }}
-          className={`h-8 w-full rounded border px-2 text-sm ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
-        >
-          <option value="gpt-5.4-nano">gpt-5.4-nano</option>
-        </select>
+        <div className={`grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
+          <span>Key</span>
+          <span>Type</span>
+          <span>Value</span>
+        </div>
+        <div className="space-y-2">
+          {GRABMAPS_DISCOVERY_FIELD_META.map(field => {
+            const settingKey = field.settingKey
+            const spec = GRABMAPS_DISCOVERY_SETTING_SPECS[settingKey]
+            const currentValue = settingsValues[settingKey]
+            const typeLabel = getDiscoverySettingTypeLabel(settingKey)
+            const valueText = typeof currentValue === 'undefined' ? String(spec?.defaultValue ?? '') : String(currentValue)
+            return (
+              <div key={field.propertyKey} className="grid grid-cols-[1.6fr_0.8fr_1.6fr] gap-2 items-center">
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary} truncate`} title={settingKey}>
+                  {settingKey}
+                </span>
+                <span className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{typeLabel}</span>
+                {field.fieldType === 'select' && spec?.options?.length ? (
+                  <select
+                    value={valueText}
+                    onChange={event => {
+                      const next = String(event.target.value || '').trim()
+                      const patched = { ...settingsValues, [settingKey]: next } as GrabMapsDiscoverySettingsValues
+                      setSettingsValues(patched)
+                      writeGrabMapsDiscoverySettingsValues(patched)
+                    }}
+                    className={`h-7 w-full rounded border px-2 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
+                  >
+                    {spec.options.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                ) : field.fieldType === 'number' ? (
+                  <input
+                    type="number"
+                    value={valueText}
+                    onChange={event => {
+                      const raw = String(event.target.value || '').trim()
+                      const parsed = Number(raw)
+                      const next = Number.isFinite(parsed) ? parsed : spec?.defaultValue
+                      const patched = { ...settingsValues, [settingKey]: next } as GrabMapsDiscoverySettingsValues
+                      setSettingsValues(patched)
+                      writeGrabMapsDiscoverySettingsValues(patched)
+                    }}
+                    className={`h-7 w-full rounded border px-2 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
+                  />
+                ) : (
+                  <input
+                    value={valueText}
+                    onChange={event => {
+                      const next = String(event.target.value || '')
+                      const patched = { ...settingsValues, [settingKey]: next } as GrabMapsDiscoverySettingsValues
+                      setSettingsValues(patched)
+                      writeGrabMapsDiscoverySettingsValues(patched)
+                      if (settingKey === 'maps.grabmaps.mcp.searchPlaces.query') setQueryText(next)
+                    }}
+                    placeholder={field.placeholder}
+                    className={`h-7 w-full rounded border px-2 ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary}`}
+                  />
+                )}
+              </div>
+            )
+          })}
+        </div>
+        {selectedDiscoveryNode ? (
+          <p className={`${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
+            Selected widget local values override global discovery defaults at run time.
+          </p>
+        ) : null}
       </section>
 
       <section className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
-        <label className={`block ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} htmlFor="grabmaps-discovery-query">
+        <label className={`block ${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} htmlFor="grabmaps-discovery-widget-query">
           Query
         </label>
         <div className={`w-full border rounded overflow-hidden h-[88px] ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
           <PlainTextInputEditor
-            id="grabmaps-discovery-query"
+            id="grabmaps-discovery-widget-query"
             value={queryText}
             onChange={setQueryText}
             multiline
@@ -473,7 +575,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
             disabled={running || !queryText.trim()}
           >
             <Send className="h-4 w-4" aria-hidden="true" />
-            {running ? 'Running...' : 'Run Discovery'}
+            {running ? 'Running...' : 'Search Places'}
           </button>
         </div>
         {statusText ? (

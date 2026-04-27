@@ -32,9 +32,14 @@ import {
   getBytePlusVideoApiDocRowByRowKey,
   resolveBytePlusVideoWidgetApiRowKey,
 } from '@/features/integrations/byteplusVideoGenerationSsot'
+import {
+  getMapsApiDocRowByRowKey,
+  resolveGrabMapsDiscoveryWidgetApiRowKey,
+} from '@/features/integrations/grabMapsSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { isGrabMapsDiscoveryWidgetEntry } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
 function formatConnectedValue(value: unknown): string {
   if (value == null) return ''
@@ -282,6 +287,9 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   const canLinkToBytePlusVideoApi = React.useMemo(() => {
     return String(registryEntry.nodeTypeId || '').trim() === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
   }, [registryEntry.nodeTypeId])
+  const canLinkToGrabMapsApi = React.useMemo(() => {
+    return isGrabMapsDiscoveryWidgetEntry(registryEntry)
+  }, [registryEntry])
   const effectiveProperties = React.useMemo(() => {
     if (String(registryEntry.nodeTypeId || '').trim() === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
       return resolveEffectiveBytePlusImageWidgetProperties({
@@ -350,6 +358,13 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
           portKey: String((f as { portKey?: string }).portKey || '').trim(),
         })
       : null
+    const grabMapsFieldLinkSearch = canLinkToGrabMapsApi
+      ? resolveGrabMapsDiscoveryWidgetApiRowKey({
+          schemaPath: String(f.schemaPath || '').trim(),
+          fieldKey: String(f.fieldKey || '').trim(),
+          portKey: String((f as { portKey?: string }).portKey || '').trim(),
+        })
+      : null
 
     const setValue = (nextValue: unknown) => {
       if (!path) return
@@ -373,6 +388,10 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       }
       if (openAiFieldLinkSearch) {
         const row = getOpenAiApiDocRowByRowKey(openAiFieldLinkSearch)
+        return row ? String(row.key || '').trim() : ''
+      }
+      if (grabMapsFieldLinkSearch) {
+        const row = getMapsApiDocRowByRowKey(grabMapsFieldLinkSearch)
         return row ? String(row.key || '').trim() : ''
       }
       return ''

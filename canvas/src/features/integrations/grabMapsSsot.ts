@@ -53,6 +53,14 @@ export type GrabMapsDiscoveryFieldMeta = {
   options?: ReadonlyArray<WidgetRegistryFieldOption>
 }
 
+export type GrabMapsDiscoverySettingSpec = {
+  valueType: 'string' | 'number'
+  defaultValue: string | number
+  min?: number
+  max?: number
+  options?: readonly string[]
+}
+
 const GRABMAPS_TOOLTIP_ROLE = 'GrabMaps'
 
 const GRABMAPS_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, string[]>> = {
@@ -199,6 +207,77 @@ export const GRABMAPS_DISCOVERY_FIELD_META: ReadonlyArray<GrabMapsDiscoveryField
   },
 ] as const
 
+export const GRABMAPS_DISCOVERY_SETTING_SPECS: Readonly<Record<DiscoverySettingKey, GrabMapsDiscoverySettingSpec>> = {
+  'maps.grabmaps.mcp.discovery.chatModel': {
+    valueType: 'string',
+    defaultValue: 'gpt-5.4-nano',
+    options: ['gpt-5.4-nano'],
+  },
+  'maps.grabmaps.mcp.searchPlaces.query': {
+    valueType: 'string',
+    defaultValue: 'restaurants Marina Bay',
+  },
+  'maps.grabmaps.mcp.searchPlaces.country': {
+    valueType: 'string',
+    defaultValue: 'SGP',
+  },
+  'maps.grabmaps.mcp.searchPlaces.lat': {
+    valueType: 'number',
+    defaultValue: 1.3521,
+    min: -90,
+    max: 90,
+  },
+  'maps.grabmaps.mcp.searchPlaces.lon': {
+    valueType: 'number',
+    defaultValue: 103.8198,
+    min: -180,
+    max: 180,
+  },
+  'maps.grabmaps.mcp.searchPlaces.limit': {
+    valueType: 'number',
+    defaultValue: 10,
+    min: 1,
+    max: 50,
+  },
+  'maps.grabmaps.mcp.nearbySearch.lat': {
+    valueType: 'number',
+    defaultValue: 1.3521,
+    min: -90,
+    max: 90,
+  },
+  'maps.grabmaps.mcp.nearbySearch.lon': {
+    valueType: 'number',
+    defaultValue: 103.8198,
+    min: -180,
+    max: 180,
+  },
+  'maps.grabmaps.mcp.nearbySearch.radius': {
+    valueType: 'number',
+    defaultValue: 1,
+    min: 0,
+    max: 50,
+  },
+  'maps.grabmaps.mcp.nearbySearch.limit': {
+    valueType: 'number',
+    defaultValue: 10,
+    min: 1,
+    max: 50,
+  },
+  'maps.grabmaps.mcp.nearbySearch.rankBy': {
+    valueType: 'string',
+    defaultValue: 'distance',
+    options: ['distance', 'popularity'],
+  },
+  'maps.grabmaps.mcp.nearbySearch.language': {
+    valueType: 'string',
+    defaultValue: 'en',
+  },
+  'maps.grabmaps.mcp.nearbySearch.category': {
+    valueType: 'string',
+    defaultValue: 'restaurant',
+  },
+}
+
 export function buildGrabMapsDiscoveryFields(): WidgetRegistryField[] {
   return GRABMAPS_DISCOVERY_FIELD_META.map(field => ({
     fieldKey: field.propertyKey,
@@ -225,6 +304,15 @@ export function resolveGrabMapsDiscoveryWidgetApiRowKey(args: {
   }
   return null
 }
+
+const MAPS_API_DOC_ROW_BY_KEY = new Map<string, GrabMapsApiDocRow>(
+  GRABMAPS_DOC_ROWS.map(row => [String(row.key || '').trim(), row] as const),
+)
+
+export function getMapsApiDocRowByRowKey(rowKey: string): GrabMapsApiDocRow | null {
+  return MAPS_API_DOC_ROW_BY_KEY.get(String(rowKey || '').trim()) || null
+}
+
 export const MAPS_API_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntry> = GRABMAPS_DOC_ROWS.map(row => ({
   meta: {
     key: `maps.${row.key}`,
