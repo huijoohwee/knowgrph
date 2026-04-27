@@ -68,3 +68,28 @@ export async function testWorkspaceEnsureSeedMigratesLegacyDefaultsToReadmeAndVa
     restore()
   }
 }
+
+export async function testWorkspaceEnsureSeedReconcilesPartialCanonicalSeedFamily() {
+  const { restore } = initJsdomHarness()
+  try {
+    const fs = createMemoryWorkspaceFs({
+      initialEntries: [
+        { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+        { path: WORKSPACE_README_SEED_PATH, parentPath: '/', kind: 'file', name: 'README.md', text: '', updatedAtMs: 1 },
+      ],
+    })
+    await fs.ensureSeed()
+
+    const entries = await fs.listEntries()
+    const readmeEntry = entries.find(e => e.path === WORKSPACE_README_SEED_PATH && e.kind === 'file')
+    const validationEntry = entries.find(e => e.path === TEST_VALIDATION_WORKSPACE_SEED_PATH && e.kind === 'file')
+    if (!readmeEntry || typeof readmeEntry.text !== 'string' || !readmeEntry.text.includes('kgCanvas2dRenderer: "d3"')) {
+      throw new Error('expected partial canonical seed family to repair empty README with the D3 preload seed')
+    }
+    if (!validationEntry || typeof validationEntry.text !== 'string' || !validationEntry.text.includes('kgCanvas2dRenderer: "flowEditor"')) {
+      throw new Error('expected partial canonical seed family to restore the validation demo seed')
+    }
+  } finally {
+    restore()
+  }
+}

@@ -119,3 +119,11 @@ export const testMarkdownWorkspaceRealtimeSyncAppliesEditorChangesBackToGraph = 
     throw new Error('Expected realtime editor->graph sync to reuse shared markdown apply path')
   }
 }
+
+export const testMarkdownWorkspaceSkipsMissingActiveEntryLoadsUntilPathRecovery = () => {
+  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const text = readUtf8(runtimePath)
+  if (!text.includes('if (!activeEntry) return')) {
+    throw new Error('Expected markdown workspace runtime to skip file loads until the active path resolves to a real workspace entry')
+  }
+}

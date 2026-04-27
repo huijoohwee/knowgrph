@@ -383,6 +383,31 @@ export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<Works
   return true
 }
 
+export function shouldReconcileDefaultWorkspaceSeedFamily(paths: ReadonlyArray<WorkspacePath>): boolean {
+  const normalized = paths
+    .map(path => normalizeWorkspacePath(path))
+    .filter((path): path is WorkspacePath => Boolean(path))
+  if (normalized.length === 0) return false
+  const defaultSeedFamilyPaths = new Set<WorkspacePath>([
+    LEGACY_WORKSPACE_README_PATH,
+    LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+    WORKSPACE_README_SEED_PATH,
+    TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  ])
+  for (let i = 0; i < normalized.length; i += 1) {
+    if (!defaultSeedFamilyPaths.has(normalized[i]!)) return false
+  }
+  const nextSeedPaths = new Set<WorkspacePath>([
+    WORKSPACE_README_SEED_PATH,
+    TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  ])
+  if (normalized.length !== nextSeedPaths.size) return true
+  for (let i = 0; i < normalized.length; i += 1) {
+    if (!nextSeedPaths.has(normalized[i]!)) return true
+  }
+  return false
+}
+
 export function defaultParentPath(): WorkspacePath {
   return WORKSPACE_ROOT_PATH
 }

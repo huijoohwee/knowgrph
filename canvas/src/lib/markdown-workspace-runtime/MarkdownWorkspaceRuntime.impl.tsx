@@ -1662,6 +1662,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     if (contentMode === 'widget' && widgetAvailable) return
     const path = activePath
     if (!path) return
+    if (!activeEntry) return
     if (activeEntryKind === 'folder') return
 
     const scheduledFor = path
@@ -2063,6 +2064,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [
     active,
     activeDocumentKey,
+    activeEntry,
     activeEntryKind,
     activeEntryText,
     activePath,
