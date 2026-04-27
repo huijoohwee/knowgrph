@@ -7,6 +7,7 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import type { WorkspaceBacklink, WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import {
   WORKSPACE_ROOT_PATH,
+  ancestorPathsForWorkspacePath,
   normalizeWorkspacePath,
   workspaceBasename,
   workspaceDocumentKey,
@@ -14,6 +15,7 @@ import {
   workspaceStem,
 } from '@/features/workspace-fs/path'
 import { getWorkspaceFs, getWorkspaceSeedFiles } from '@/features/workspace-fs/workspaceFs'
+import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { computeBacklinks } from '@/features/markdown-explorer/backlinks'
@@ -1725,7 +1727,10 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
           if (!seed) return loaded
 
           try {
-            await fs.createFile({ parentPath: WORKSPACE_ROOT_PATH, name: workspaceBasename(normalizedPath) || 'document.md', text: seed.text })
+            const parentFolders = ancestorPathsForWorkspacePath(normalizedPath)
+            const parentPath = parentFolders[parentFolders.length - 1] || WORKSPACE_ROOT_PATH
+            await ensureWorkspaceFolderTreeIfMissing({ folderPath: parentPath, fs })
+            await fs.createFile({ parentPath, name: workspaceBasename(normalizedPath) || 'document.md', text: seed.text })
           } catch {
             void 0
           }

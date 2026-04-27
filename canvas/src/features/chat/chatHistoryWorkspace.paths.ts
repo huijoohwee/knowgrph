@@ -1,4 +1,5 @@
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
+import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from './chatStorageConfig'
@@ -28,35 +29,6 @@ const formatCompactTimestamp = (timestampMs: number): string => {
   const min = pad2(d.getMinutes())
   const sec = pad2(d.getSeconds())
   return `${yyyy}${mm}${dd}${hh}${min}${sec}`
-}
-
-const ensureFolderTreeIfMissing = async (folderPath: WorkspacePath): Promise<void> => {
-  const normalized = normalizeWorkspacePath(folderPath)
-  const segments = normalized.split('/').filter(Boolean)
-  if (segments.length === 0) return
-  const fs = await getWorkspaceFs()
-  await fs.ensureSeed()
-  const list = await fs.listEntries()
-  const folders = new Set(
-    list
-      .filter(e => e.kind === 'folder')
-      .map(e => normalizeWorkspacePath(e.path)),
-  )
-  let parent: WorkspacePath = '/'
-  for (const seg of segments) {
-    const name = String(seg || '').trim()
-    if (!name) continue
-    const next = normalizeWorkspacePath(`${parent === '/' ? '' : parent}/${name}`)
-    if (!folders.has(next)) {
-      try {
-        await fs.createFolder({ parentPath: parent, name })
-        folders.add(next)
-      } catch {
-        void 0
-      }
-    }
-    parent = next
-  }
 }
 
 const formatFilename = (prefix: 'chh' | 'kgc', timestampMs: number): string => {

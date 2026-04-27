@@ -12,6 +12,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["pipeline.loader.perf.finalizesFallbackAndEarlyReturns","@/__tests__/pipelinePwaEnhancementsRegression.test","testLoaderPerfFinalizesFallbackAndEarlyReturns"],
   ["pwa.shell.precachesHashedAssetsAndCachesLocalJson","@/__tests__/pipelinePwaEnhancementsRegression.test","testPwaShellPrecachesHashedAssetsAndCachesLocalJson"],
   ["pwa.runtime.tracksStandaloneInstallAndUpdateState","@/__tests__/pipelinePwaEnhancementsRegression.test","testPwaRuntimeTracksStandaloneInstallAndUpdateState"],
+  ["workspace.fs.folderTreeRepair.createsNestedSeedFolders","@/__tests__/workspaceFolderTreeRepair.test","testEnsureWorkspaceFolderTreeIfMissingCreatesNestedSeedFolders"],
   ["ui.toolbar.touchScroll.staysSourceDriven","@/__tests__/canvasTouchErgonomicsRegression.test","testToolbarTouchErgonomicsStaySourceDriven"],
   ["ui.canvas.touchTargets.viewportGestureGuard","@/__tests__/canvasTouchErgonomicsRegression.test","testCanvasTouchTargetsStayLargeAndViewportSuppressesBrowserGestures"],
   ["ui.canvas.gesture.touchPanSlop.blocksTinyDrift","@/__tests__/canvasGestureTouchSlopRegression.test","testTouchPanSlopBlocksTinyViewportDrift"],

@@ -81,6 +81,12 @@ export function testPwaRuntimeTracksStandaloneInstallAndUpdateState() {
   if (!runtimeText.includes('onNeedRefresh()')) {
     throw new Error('Expected PWA runtime to surface update-ready state')
   }
+  if (!runtimeText.includes("console.warn('[knowgrph] Offline shell registration failed.', error)")) {
+    throw new Error('Expected PWA runtime to log offline-shell registration failures without forcing a user warning toast')
+  }
+  if (runtimeText.includes("message: 'Offline shell registration failed.'")) {
+    throw new Error('Expected PWA runtime to avoid user-facing offline-shell registration failure toasts')
+  }
   if (!mainText.includes("import { installPwaRuntime } from '@/lib/pwa/runtime'")) {
     throw new Error('Expected main.tsx to source PWA boot from the shared runtime helper')
   }

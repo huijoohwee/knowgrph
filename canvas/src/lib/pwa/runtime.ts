@@ -124,17 +124,15 @@ export function installPwaRuntime(): void {
         dismissible: true,
       })
     },
-    onRegisterError() {
+    onRegisterError(error) {
       swState.offlineReady = false
       swState.updateReady = false
       refreshDisplayModeState()
-      pushPwaToast({
-        id: 'pwa:register-error',
-        kind: 'warning',
-        message: 'Offline shell registration failed.',
-        ttlMs: 12000,
-        dismissible: true,
-      })
+      try {
+        console.warn('[knowgrph] Offline shell registration failed.', error)
+      } catch {
+        void 0
+      }
     },
   })
 }
