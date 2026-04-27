@@ -251,6 +251,12 @@ export const TEST_VALIDATION_WORKSPACE_SEED_PATH =
   normalizedValidationSeedPath === WORKSPACE_ROOT_PATH
     ? ('/sandbox/test-data/knowgrph-rich-media-generation-demo.md' as WorkspacePath)
     : normalizedValidationSeedPath
+const DEFAULT_WORKSPACE_SEED_FAMILY_PATHS = new Set<WorkspacePath>([
+  LEGACY_WORKSPACE_README_PATH,
+  LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+  WORKSPACE_README_SEED_PATH,
+  TEST_VALIDATION_WORKSPACE_SEED_PATH,
+])
 export const LEGACY_WORKSPACE_README_TEXT = [
   '# Workspace',
   '',
@@ -388,14 +394,8 @@ export function shouldReconcileDefaultWorkspaceSeedFamily(paths: ReadonlyArray<W
     .map(path => normalizeWorkspacePath(path))
     .filter((path): path is WorkspacePath => Boolean(path))
   if (normalized.length === 0) return false
-  const defaultSeedFamilyPaths = new Set<WorkspacePath>([
-    LEGACY_WORKSPACE_README_PATH,
-    LEGACY_WORKSPACE_TRIP_DEMO_PATH,
-    WORKSPACE_README_SEED_PATH,
-    TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  ])
   for (let i = 0; i < normalized.length; i += 1) {
-    if (!defaultSeedFamilyPaths.has(normalized[i]!)) return false
+    if (!DEFAULT_WORKSPACE_SEED_FAMILY_PATHS.has(normalized[i]!)) return false
   }
   const nextSeedPaths = new Set<WorkspacePath>([
     WORKSPACE_README_SEED_PATH,
@@ -406,6 +406,34 @@ export function shouldReconcileDefaultWorkspaceSeedFamily(paths: ReadonlyArray<W
     if (!nextSeedPaths.has(normalized[i]!)) return true
   }
   return false
+}
+
+export function isDefaultWorkspaceSeedFamilyOnly(paths: ReadonlyArray<WorkspacePath>): boolean {
+  const normalized = paths
+    .map(path => normalizeWorkspacePath(path))
+    .filter((path): path is WorkspacePath => Boolean(path))
+  if (normalized.length === 0) return false
+  for (let i = 0; i < normalized.length; i += 1) {
+    if (!DEFAULT_WORKSPACE_SEED_FAMILY_PATHS.has(normalized[i]!)) return false
+  }
+  return true
+}
+
+export function resolveWorkspaceStartupActivePath(args: {
+  workspaceFilePaths: ReadonlyArray<WorkspacePath>
+  activePath?: WorkspacePath | null
+}): WorkspacePath | null {
+  const workspaceFilePaths = args.workspaceFilePaths
+    .map(path => normalizeWorkspacePath(path))
+    .filter((path): path is WorkspacePath => Boolean(path))
+  const workspaceFilePathSet = new Set(workspaceFilePaths)
+  const activePath = args.activePath ? normalizeWorkspacePath(args.activePath) : null
+  const activePathExists = !!(activePath && workspaceFilePathSet.has(activePath))
+  if (isDefaultWorkspaceSeedFamilyOnly(workspaceFilePaths)) {
+    if (workspaceFilePathSet.has(WORKSPACE_README_SEED_PATH)) return WORKSPACE_README_SEED_PATH
+    return workspaceFilePaths[0] || null
+  }
+  return activePathExists ? activePath : null
 }
 
 export function defaultParentPath(): WorkspacePath {

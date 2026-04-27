@@ -14,7 +14,7 @@ import {
   workspaceExtLower,
   workspaceStem,
 } from '@/features/workspace-fs/path'
-import { getWorkspaceFs, getWorkspaceSeedFiles } from '@/features/workspace-fs/workspaceFs'
+import { getWorkspaceFs, getWorkspaceSeedFiles, resolveWorkspaceStartupActivePath } from '@/features/workspace-fs/workspaceFs'
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -1618,6 +1618,17 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   React.useEffect(() => {
     if (!entries.length) return
     if (loading) return
+
+    if (!lastSetActivePath) {
+      const startupPath = resolveWorkspaceStartupActivePath({
+        workspaceFilePaths: entries.filter((entry): entry is WorkspaceEntry & { kind: 'file' } => entry.kind === 'file').map(entry => entry.path),
+        activePath,
+      })
+      if (startupPath && startupPath !== activePath) {
+        setActivePathSafe(startupPath)
+        return
+      }
+    }
 
     if (activePath && entries.some(e => e.path === activePath)) return
 

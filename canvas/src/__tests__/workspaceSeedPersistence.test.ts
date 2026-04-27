@@ -5,6 +5,7 @@ import {
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_PATH,
+  resolveWorkspaceStartupActivePath,
 } from '@/features/workspace-fs/workspaceFs'
 
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
@@ -91,5 +92,32 @@ export async function testWorkspaceEnsureSeedReconcilesPartialCanonicalSeedFamil
     }
   } finally {
     restore()
+  }
+}
+
+export function testWorkspaceStartupActivePathPrefersReadmeForDefaultSeedFamily() {
+  const next = resolveWorkspaceStartupActivePath({
+    workspaceFilePaths: [
+      WORKSPACE_README_SEED_PATH,
+      TEST_VALIDATION_WORKSPACE_SEED_PATH,
+    ],
+    activePath: TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  })
+  if (next !== WORKSPACE_README_SEED_PATH) {
+    throw new Error(`expected default seed startup to prefer README, got ${String(next)}`)
+  }
+}
+
+export function testWorkspaceStartupActivePathPreservesCustomWorkspaceSelection() {
+  const next = resolveWorkspaceStartupActivePath({
+    workspaceFilePaths: [
+      WORKSPACE_README_SEED_PATH,
+      TEST_VALIDATION_WORKSPACE_SEED_PATH,
+      '/notes/custom.md',
+    ],
+    activePath: TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  })
+  if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected custom workspace startup to preserve the requested active path, got ${String(next)}`)
   }
 }
