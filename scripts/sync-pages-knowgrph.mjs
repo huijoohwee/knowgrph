@@ -12,6 +12,7 @@ const distDir = path.resolve(knowgrphRoot, 'canvas', 'dist')
 const targetDir = path.resolve(githubRoot, 'huijoohwee', 'content', 'knowgrph')
 const publicRouteDir = path.resolve(githubRoot, 'huijoohwee', 'knowgrph')
 const repoFileTargetDir = path.resolve(githubRoot, 'huijoohwee', '__repo_file')
+const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const repoFileSeeds = [
   { source: path.resolve(knowgrphRoot, 'README.md'), target: path.resolve(repoFileTargetDir, 'README.md') },
   {
@@ -31,6 +32,8 @@ const blockedRelativeFiles = new Set([
 const preservedRelativeRoots = new Set([
   'imports',
 ])
+const GENERATED_REDIRECTS_START = '# BEGIN knowgrph generated top-level file routes'
+const GENERATED_REDIRECTS_END = '# END knowgrph generated top-level file routes'
 
 const existsDir = async (dir) => {
   try {
@@ -138,6 +141,35 @@ const removeEmptyDirs = async (rootDir) => {
   await walk(rootDir)
 }
 
+const updateKnowgrphRedirects = async (rootFiles) => {
+  const existing = await fs.readFile(redirectsPath, 'utf8')
+  const generatedLines = [
+    GENERATED_REDIRECTS_START,
+    ...rootFiles.map(rel => `/knowgrph/${rel} /content/knowgrph/${rel} 200`),
+    GENERATED_REDIRECTS_END,
+  ]
+  const nextBlock = generatedLines.join('\n')
+  const managedBlockRegex = new RegExp(
+    `${GENERATED_REDIRECTS_START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${GENERATED_REDIRECTS_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+  )
+  let next = existing.replace(
+    /^\/knowgrph\/\*\.js .*?\n^\/knowgrph\/\*\.mjs .*?\n^\/knowgrph\/\*\.css .*?\n^\/knowgrph\/\*\.svg .*?\n^\/knowgrph\/\*\.ico .*?\n^\/knowgrph\/\*\.json .*?\n^\/knowgrph\/\*\.wasm .*?\n^\/knowgrph\/\*\.txt .*?\n^\/knowgrph\/\*\.webmanifest .*?\n^\/knowgrph\/\*\.map .*?\n/gm,
+    '',
+  )
+  if (managedBlockRegex.test(next)) {
+    next = next.replace(managedBlockRegex, nextBlock)
+  } else {
+    const anchor = '/knowgrph/imports/* /content/knowgrph/imports/:splat 200'
+    if (!next.includes(anchor)) {
+      throw new Error(`Missing expected knowgrph redirects anchor in ${redirectsPath}`)
+    }
+    next = next.replace(anchor, `${anchor}\n${nextBlock}`)
+  }
+  if (next !== existing) {
+    await fs.writeFile(redirectsPath, next, 'utf8')
+  }
+}
+
 if (!(await existsDir(distDir))) {
   throw new Error(`Missing build output directory: ${distDir}`)
 }
@@ -166,6 +198,10 @@ if (await existsDir(targetDir)) {
 await fs.mkdir(publicRouteDir, { recursive: true })
 const publicIndex = path.resolve(publicRouteDir, 'index.html')
 const copiedPublicIndex = await copyIfChanged(path.resolve(targetDir, 'index.html'), publicIndex)
+const rootFiles = sourceFiles
+  .filter(rel => !rel.includes('/') && rel !== 'index.html' && !rel.startsWith('_'))
+  .sort((a, b) => a.localeCompare(b))
+await updateKnowgrphRedirects(rootFiles)
 
 let copiedRepoSeedCount = 0
 for (const entry of repoFileSeeds) {
