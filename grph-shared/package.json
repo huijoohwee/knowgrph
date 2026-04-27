@@ -179,6 +179,16 @@
       "import": "./dist/geospatial/grabMapsLibrary.js",
       "default": "./dist/geospatial/grabMapsLibrary.js"
     },
+    "./geospatial/grabMapsProxy": {
+      "types": "./dist/geospatial/grabMapsProxy.d.ts",
+      "import": "./dist/geospatial/grabMapsProxy.js",
+      "default": "./dist/geospatial/grabMapsProxy.js"
+    },
+    "./geospatial/sgpAdministrativeAreas": {
+      "types": "./dist/geospatial/sgpAdministrativeAreas.d.ts",
+      "import": "./dist/geospatial/sgpAdministrativeAreas.js",
+      "default": "./dist/geospatial/sgpAdministrativeAreas.js"
+    },
     "./zoom/presets": {
       "types": "./dist/zoom/presets.d.ts",
       "import": "./dist/zoom/presets.js",

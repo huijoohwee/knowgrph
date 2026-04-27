@@ -1,5 +1,5 @@
 import React from 'react'
-import { Binary, Calendar, Code, SquareCheck, Type } from 'lucide-react'
+import { Binary, Calendar, Code, MapPin, SquareCheck, Type } from 'lucide-react'
 
 import type { GraphColumnKind } from '@/features/graph-table-db/graphTableDb'
 import { TypeMenu } from '@/components/ui/TypeMenu'
@@ -9,6 +9,7 @@ const GRAPH_TABLE_COLUMN_KIND_OPTIONS = [
   { key: 'number', label: 'Number', icon: Binary },
   { key: 'boolean', label: 'Checkbox', icon: SquareCheck },
   { key: 'date', label: 'Date', icon: Calendar },
+  { key: 'geodata', label: 'Geodata', icon: MapPin },
   { key: 'json', label: 'JSON', icon: Code },
 ] as const satisfies readonly { key: GraphColumnKind; label: string; icon: React.ComponentType<{ className?: string }> }[]
 

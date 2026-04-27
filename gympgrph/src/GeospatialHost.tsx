@@ -392,6 +392,8 @@ function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds
       const rawCandidates: unknown[] = [
         readNestedValue(propsRaw, ['cat']),
         readNestedValue(propsRaw, ['category']),
+        readNestedValue(propsRaw, ['kgCategory']),
+        readNestedValue(propsRaw, ['business_type']),
         readNestedValue(propsRaw, ['kind']),
         readNestedValue(propsRaw, ['type']),
         nodeType,
@@ -629,6 +631,35 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
       })
     }
   }, [props.handlers, props.snapshot])
+  const hoveredGraphNodeIdRef = React.useRef<string>('')
+  const clickedGraphNodeCycleRef = React.useRef<{
+    pointKey: string
+    nodeIds: string[]
+    nextIndex: number
+  } | null>(null)
+  const renderGraphNodeHoverInRichMediaPanel = React.useCallback((feature: unknown) => {
+    const overlayHandlers = getOverlayHandlers(props.snapshot, props.handlers)
+    const renderPoiInRichMediaPanel = overlayHandlers && typeof overlayHandlers.renderPoiInRichMediaPanel === 'function'
+      ? overlayHandlers.renderPoiInRichMediaPanel as ((detail: { label: string; lng: number; lat: number; address?: string; category?: string }) => boolean)
+      : null
+    if (!renderPoiInRichMediaPanel) return
+    const record = isRecord(feature) ? (feature as Record<string, unknown>) : null
+    const geometry = record && isRecord(record.geometry) ? (record.geometry as Record<string, unknown>) : null
+    const coordinates = geometry && Array.isArray(geometry.coordinates) ? geometry.coordinates : null
+    const lng = coordinates ? Number(coordinates[0]) : NaN
+    const lat = coordinates ? Number(coordinates[1]) : NaN
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+    const propsRaw = record && isRecord(record.properties) ? (record.properties as Record<string, unknown>) : {}
+    const idRaw = record?.id ?? propsRaw.id
+    const nodeId = String(idRaw || '').trim()
+    if (!nodeId) return
+    if (hoveredGraphNodeIdRef.current === nodeId) return
+    hoveredGraphNodeIdRef.current = nodeId
+    const label = String(propsRaw.label || nodeId).trim() || nodeId
+    const address = String(propsRaw.address || propsRaw.street || '').trim()
+    const category = String(propsRaw.kgCategory || propsRaw.category || propsRaw.type || '').trim()
+    renderPoiInRichMediaPanel({ label, lng, lat, ...(address ? { address } : {}), ...(category ? { category } : {}) })
+  }, [props.handlers, props.snapshot])
 
   const basemap2d = useMapLibreBasemap({
     enabled: show2dMapLibre && mapLibreRuntimeEnabled,
@@ -727,6 +758,117 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     applyFeatureCollectionToBasemap({ basemapMap: basemap3d.map, styleRevision: basemap3d.styleRevision, viewMode: 'map3d' })
   }, [applyFeatureCollectionToBasemap, basemap3d.map, basemap3d.styleRevision, show3d])
 
+  React.useEffect(() => {
+    const map = activeBasemap.map
+    if (!map || !active) return
+    if (typeof map.on !== 'function' || typeof map.off !== 'function' || typeof map.queryRenderedFeatures !== 'function') return
+    const overlayHandlers = getOverlayHandlers(props.snapshot, props.handlers)
+    const canRender = overlayHandlers && typeof overlayHandlers.renderPoiInRichMediaPanel === 'function'
+    if (!canRender) return
+    const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
+    const cluster = !show3d && isPointOnlyFeatureCollection(graphFeatureCollection, 500) && featureCount >= 200
+    const sourceId = cluster ? graphSourceIdClustered : graphSourceIdUnclustered
+    const pointsLayerId = `${sourceId}:points`
+    const hasLayer = (() => {
+      try {
+        return !!map.getLayer?.(pointsLayerId)
+      } catch {
+        return false
+      }
+    })()
+    if (!hasLayer) return
+    const readFeatureNodeId = (feature: unknown): string => {
+      const record = isRecord(feature) ? (feature as Record<string, unknown>) : null
+      if (!record) return ''
+      const propsRaw = isRecord(record.properties) ? (record.properties as Record<string, unknown>) : {}
+      const idRaw = record.id ?? propsRaw.id
+      return String(idRaw || '').trim()
+    }
+    const getClickPointKey = (point: unknown): string => {
+      const p = isRecord(point) ? (point as Record<string, unknown>) : null
+      if (!p) return ''
+      const x = Number(p.x)
+      const y = Number(p.y)
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return ''
+      return `${Math.round(x)}:${Math.round(y)}`
+    }
+    const pickFeatureForClick = (features: unknown[], point: unknown): unknown | null => {
+      const pointKey = getClickPointKey(point)
+      const nodeFeatures = features
+        .map(f => ({ feature: f, nodeId: readFeatureNodeId(f) }))
+        .filter(entry => !!entry.nodeId)
+      if (nodeFeatures.length < 1) {
+        clickedGraphNodeCycleRef.current = null
+        return null
+      }
+      const nodeIds = nodeFeatures.map(entry => entry.nodeId)
+      const prev = clickedGraphNodeCycleRef.current
+      const sameCycle = !!prev
+        && prev.pointKey === pointKey
+        && prev.nodeIds.length === nodeIds.length
+        && prev.nodeIds.every((id, idx) => id === nodeIds[idx])
+      const index = sameCycle && prev ? prev.nextIndex % nodeFeatures.length : 0
+      clickedGraphNodeCycleRef.current = {
+        pointKey,
+        nodeIds,
+        nextIndex: (index + 1) % nodeFeatures.length,
+      }
+      return nodeFeatures[index]?.feature ?? null
+    }
+    const onMove = (ev: any) => {
+      try {
+        const point = ev && typeof ev === 'object' ? (ev as { point?: unknown }).point : null
+        const features = point ? map.queryRenderedFeatures(point, { layers: [pointsLayerId] }) : []
+        const first = Array.isArray(features) ? features[0] : null
+        if (!first) {
+          hoveredGraphNodeIdRef.current = ''
+          return
+        }
+        renderGraphNodeHoverInRichMediaPanel(first)
+      } catch {
+        void 0
+      }
+    }
+    const onClick = (ev: any) => {
+      try {
+        const point = ev && typeof ev === 'object' ? (ev as { point?: unknown }).point : null
+        const features = point ? map.queryRenderedFeatures(point, { layers: [pointsLayerId] }) : []
+        const first = Array.isArray(features) ? pickFeatureForClick(features, point) : null
+        if (!first) return
+        renderGraphNodeHoverInRichMediaPanel(first)
+      } catch {
+        void 0
+      }
+    }
+    const onLeave = () => {
+      hoveredGraphNodeIdRef.current = ''
+      clickedGraphNodeCycleRef.current = null
+    }
+    map.on('mousemove', onMove)
+    map.on('click', onClick)
+    map.on('mouseout', onLeave)
+    return () => {
+      hoveredGraphNodeIdRef.current = ''
+      try {
+        map.off('mousemove', onMove)
+        map.off('click', onClick)
+        map.off('mouseout', onLeave)
+      } catch {
+        void 0
+      }
+    }
+  }, [
+    active,
+    activeBasemap.map,
+    graphFeatureCollection,
+    graphSourceIdClustered,
+    graphSourceIdUnclustered,
+    props.handlers,
+    props.snapshot,
+    renderGraphNodeHoverInRichMediaPanel,
+    show3d,
+  ])
+
   const basemapGraphDebug = React.useMemo(() => {
     const basemapMap = activeBasemap.map
     if (!basemapMap) return null
@@ -787,9 +929,13 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     if (!show2dMapLibre) return false
     const featureCount = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features.length : 0
     if (featureCount < 1) return false
+    // Only overlay SVG points when MapLibre itself is unavailable/failed.
+    // Avoid masking a healthy basemap during transient layer sync windows.
+    const hasHardMapUnavailable = !activeBasemap.map || !!String(activeBasemap.mapError || '').trim()
+    if (!hasHardMapUnavailable) return false
     if (!basemapGraphDebug?.styleReady) return true
     return !basemapGraphDebug.pointsLayer && !basemapGraphDebug.routesLayer && !basemapGraphDebug.clusterLayer
-  }, [active, basemapGraphDebug, graphFeatureCollection.features, show2dMapLibre])
+  }, [active, activeBasemap.map, activeBasemap.mapError, basemapGraphDebug, graphFeatureCollection.features, show2dMapLibre])
 
   const [svgOverlayInsetRight, setSvgOverlayInsetRight] = React.useState(12)
   React.useEffect(() => {

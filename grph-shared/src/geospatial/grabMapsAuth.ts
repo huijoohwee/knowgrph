@@ -71,9 +71,19 @@ export const writeGrabMapsByokApiKeyToBrowser = (value: unknown): string => {
 }
 
 export const buildGrabMapsProxyRequestHeaders = (): Record<string, string> => {
-  const authMode = readGrabMapsAuthModeFromBrowser()
-  const byokApiKey = authMode === 'byok' ? readGrabMapsByokApiKeyFromBrowser() : ''
+  return buildGrabMapsProxyRequestHeadersFromAuth({
+    authMode: readGrabMapsAuthModeFromBrowser(),
+    apiKey: readGrabMapsByokApiKeyFromBrowser(),
+  })
+}
+
+export const buildGrabMapsProxyRequestHeadersFromAuth = (args: {
+  authMode: unknown
+  apiKey?: unknown
+}): Record<string, string> => {
+  const authMode = normalizeGrabMapsAuthMode(args.authMode)
+  const apiKey = authMode === 'byok' ? sanitizeGrabMapsApiKey(args.apiKey) : ''
   const headers: Record<string, string> = { 'x-kg-grabmaps-auth-mode': authMode }
-  if (byokApiKey) headers['x-kg-grabmaps-api-key'] = byokApiKey
+  if (apiKey) headers['x-kg-grabmaps-api-key'] = apiKey
   return headers
 }

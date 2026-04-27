@@ -45,6 +45,8 @@ import {
   type GraphTableSortDirection,
 } from '@/features/graph-table/ui/graphTableViewState'
 import { applyCellUpdateToGraphStore } from '@/features/graph-table/lib/applyCellUpdateToGraphStore'
+import { maybeAutoEnableGeospatialModeForGraphData } from '@/features/geospatial/autoEnable'
+import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
@@ -112,6 +114,12 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     if (mode === 'multiDimTable') return 'multiDimTable'
     return lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode)
   })
+  const [graphTableGeospatialViewEnabled, setGraphTableGeospatialViewEnabled] = useState<boolean>(() =>
+    lsBool(LS_KEYS.graphTableGeospatialViewEnabled, false),
+  )
+  const [tableToGraphRenderingEnabled, setTableToGraphRenderingEnabled] = useState<boolean>(() =>
+    lsBool(LS_KEYS.graphTableTableToGraphEnabled, true),
+  )
   const [columns, setColumns] = useState<GraphColumnDoc[]>([])
   const [rows, setRows] = useState<GraphTableGridRow[]>([])
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([])
@@ -387,6 +395,14 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     lsSetBool(LS_KEYS.graphTableInspectorOpen, inspectorOpen)
   }, [inspectorOpen])
 
+  useEffect(() => {
+    lsSetBool(LS_KEYS.graphTableGeospatialViewEnabled, graphTableGeospatialViewEnabled)
+  }, [graphTableGeospatialViewEnabled])
+
+  useEffect(() => {
+    lsSetBool(LS_KEYS.graphTableTableToGraphEnabled, tableToGraphRenderingEnabled)
+  }, [tableToGraphRenderingEnabled])
+
   const workspaceEditorMode = useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,
     () => workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode,
@@ -394,9 +410,18 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   )
 
   useEffect(() => {
+    if (graphTableGeospatialViewEnabled) {
+      setViewMode(prev => (prev === 'geospatial' ? prev : 'geospatial'))
+      return
+    }
     const next = workspaceEditorMode === 'kanban' ? 'kanban' : workspaceEditorMode === 'multiDimTable' ? 'multiDimTable' : 'table'
     setViewMode(prev => (prev === next ? prev : next))
-  }, [workspaceEditorMode])
+  }, [graphTableGeospatialViewEnabled, workspaceEditorMode])
+
+  useEffect(() => {
+    if (!graphTableGeospatialViewEnabled) return
+    void setGeospatialModeEnabled(true).catch(() => void 0)
+  }, [graphTableGeospatialViewEnabled])
 
   const persistGraphTableViewStatePendingRef = useRef<{
     columnVisibilityById: GraphTableColumnVisibilityById
@@ -455,6 +480,15 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   const handleViewModeChanged = useCallback(
     (next: GraphTableViewMode) => {
       setViewMode(next)
+      if (next === 'geospatial') {
+        setGraphTableGeospatialViewEnabled(true)
+        void setGeospatialModeEnabled(true).catch(() => void 0)
+        workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
+        return
+      }
+      if (graphTableGeospatialViewEnabled) {
+        setGraphTableGeospatialViewEnabled(false)
+      }
       if (next === 'kanban') {
         workspaceTablePreferencesStore.setWorkspaceEditorMode('kanban')
         return
@@ -465,7 +499,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       }
       workspaceTablePreferencesStore.setWorkspaceEditorMode('table')
     },
-    [],
+    [graphTableGeospatialViewEnabled],
   )
 
   useEffect(() => {
@@ -530,17 +564,28 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         const st = useGraphStore.getState()
         const prev = infiniteCanvasInteractionMode === 'interactive' ? st.graphDataRevision : st.graphContentRevision
         noteGraphWrite(prev + 1)
-        applyCellUpdateToGraphStore(activeTableId, rowId, columnId, next)
+        if (!tableToGraphRenderingEnabled) return
+        const columnKind = columns.find(c => c.columnId === columnId)?.kind
+        applyCellUpdateToGraphStore(activeTableId, rowId, columnId, next, columnKind)
       })()
     },
-    [activeTableId, infiniteCanvasInteractionMode, noteGraphWrite, rows],
+    [activeTableId, columns, infiniteCanvasInteractionMode, noteGraphWrite, rows, tableToGraphRenderingEnabled],
   )
 
   const handleColumnKindChanged = useCallback(
     (columnId: string, nextKind: GraphColumnDoc['kind']) => {
-      void updateGraphTableColumnKind(activeTableId, columnId, nextKind)
+      void (async () => {
+        await updateGraphTableColumnKind(activeTableId, columnId, nextKind)
+        if (!tableToGraphRenderingEnabled) return
+        if (activeTableId !== 'nodes' || nextKind !== 'geodata') return
+        for (const row of rows) {
+          const raw = (row as unknown as Record<string, unknown>)[columnId]
+          applyCellUpdateToGraphStore(activeTableId, row.id, columnId, raw, 'geodata', { skipGeospatialAutoEnable: true })
+        }
+        void maybeAutoEnableGeospatialModeForGraphData({ graphData: useGraphStore.getState().graphData, openSidePanel: false })
+      })()
     },
-    [activeTableId],
+    [activeTableId, rows, tableToGraphRenderingEnabled],
   )
 
   const handleAddRow = useCallback(() => {
@@ -700,6 +745,10 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       setActiveTableId={setActiveTableId}
       viewMode={viewMode}
       setViewMode={handleViewModeChanged}
+        geospatialViewEnabled={graphTableGeospatialViewEnabled}
+        setGeospatialViewEnabled={setGraphTableGeospatialViewEnabled}
+        tableToGraphRenderingEnabled={tableToGraphRenderingEnabled}
+        setTableToGraphRenderingEnabled={setTableToGraphRenderingEnabled}
       rowCountLabel={rowCountLabel}
       orderedColumns={orderedColumns.map(c => ({ columnId: c.columnId, name: c.name }))}
       inspectorOpen={inspectorOpen}

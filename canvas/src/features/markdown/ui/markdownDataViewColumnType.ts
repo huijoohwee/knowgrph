@@ -8,6 +8,7 @@ export type MarkdownDataViewColumnType =
   | 'progress'
   | 'select'
   | 'link'
+  | 'geodata'
   | 'text'
   | 'created-time'
   | 'attachment'
@@ -27,6 +28,7 @@ export const MARKDOWN_DATA_VIEW_COLUMN_TYPE_OPTIONS: readonly MarkdownDataViewCo
   { key: 'progress', label: 'Progress' },
   { key: 'select', label: 'Select' },
   { key: 'link', label: 'Link' },
+  { key: 'geodata', label: 'Geodata' },
   { key: 'text', label: 'Text' },
   { key: 'created-time', label: 'Created Time' },
   { key: 'attachment', label: 'Attachment' },
@@ -62,5 +64,5 @@ export function columnTypeToBaseKind(type: MarkdownDataViewColumnType): Markdown
 }
 
 export function isColumnTypeEditable(type: MarkdownDataViewColumnType): boolean {
-  return type === 'checkbox' || type === 'date' || type === 'multi-select' || type === 'number' || type === 'progress' || type === 'select' || type === 'link' || type === 'text'
+  return type === 'checkbox' || type === 'date' || type === 'multi-select' || type === 'number' || type === 'progress' || type === 'select' || type === 'link' || type === 'geodata' || type === 'text'
 }

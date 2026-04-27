@@ -1,4 +1,5 @@
 import { binarySearchFloor, clamp, getVisibleColumnsRange, getVisibleRange } from './fastGridMath'
+import { parseGeodataValueToLatLng } from '@/features/geospatial/geodataValue'
 
 type Rgb = { r: number; g: number; b: number }
 
@@ -174,6 +175,10 @@ function formatDateCellText(value: unknown): string {
 
 export function getCellTextByKind(value: unknown, kind?: GridColumnMeta['dataKind']): string {
   if (kind === 'date') return formatDateCellText(value)
+  if (kind === 'geodata') {
+    const geo = parseGeodataValueToLatLng(value)
+    if (geo) return `${geo.lat}, ${geo.lng}`
+  }
   return getCellText(value)
 }
 

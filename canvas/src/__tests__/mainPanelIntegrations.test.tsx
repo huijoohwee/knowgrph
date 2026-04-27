@@ -624,10 +624,6 @@ export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
     const doc = dom.window.document
     const container = doc.createElement('div')
     doc.body.appendChild(container)
-    let mainPanelOpenDetail: Record<string, unknown> | null = null
-    dom.window.addEventListener(MAIN_PANEL_OPEN_EVENT, ev => {
-      mainPanelOpenDetail = ((ev as CustomEvent<{ tab?: string; searchQuery?: string }>).detail || null) as Record<string, unknown> | null
-    })
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(FloatingPropsPanel), anyWindow.requestAnimationFrame, 4)
 
@@ -635,50 +631,22 @@ export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
     ;[
       'Discovery Widget',
       'GrabMaps Chat Discovery Widget',
-      'Chat-style query input. Discovery defaults and model remain shared with MainPanel Integrations and MainPanel Maps.',
-      'Model',
-      'gpt-5.4-nano',
-      'Run Discovery',
-      'Open MainPanel Maps',
+      'grabmaps/grabmaps.discovery',
     ].forEach(token => {
       if (!text.includes(token)) {
-        throw new Error(`expected props panel discovery widget to own GrabMaps search-discovery guidance ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
-      }
-    })
-    if (text.includes('Discovery Widget Type')) {
-      throw new Error(`expected props panel discovery widget to reuse shared widget palette identity instead of a local widget selector, got ${JSON.stringify(text)}`)
-    }
-    ;[
-      'Registry fields',
-      'Registry ports',
-      'Auto apply connected values',
-    ].forEach(token => {
-      if (text.includes(token)) {
-        throw new Error(`expected props panel discovery widget to avoid generic widget-row seepage ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+        throw new Error(`expected props panel widget palette to include canonical GrabMaps discovery widget token ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
     ;[
-      'mcp-remote@latest',
-      'AUTH_HEADER=Bearer mcp_{TOKEN}',
-      'startup_timeout_ms=60000',
+      'Search Places (Run Discovery)',
+      'Open MainPanel Maps',
+      'maps.grabmaps.mcp.discovery.chatModel',
+      'maps.grabmaps.mcp.searchPlaces.query',
     ].forEach(token => {
       if (text.includes(token)) {
-        throw new Error(`expected props panel discovery widget to avoid raw backend MCP config duplication ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+        throw new Error(`expected floating props panel to remove duplicate inline GrabMaps discovery section token ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
-
-    const openMapsButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Open MainPanel Maps'))
-    if (!openMapsButton) throw new Error('expected props panel discovery widget to expose Open MainPanel Maps action')
-    await act(async () => {
-      openMapsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-      await waitForFrames(anyWindow.requestAnimationFrame, 2)
-    })
-    if (String(mainPanelOpenDetail?.tab || '') !== 'maps') {
-      throw new Error(`expected props panel discovery widget open-main-panel action to target maps, got ${JSON.stringify(mainPanelOpenDetail)}`)
-    }
-    if (String(mainPanelOpenDetail?.searchQuery || '') !== 'GrabMaps MCP Configuration') {
-      throw new Error(`expected props panel discovery widget open-main-panel action to focus GrabMaps MCP Configuration, got ${JSON.stringify(mainPanelOpenDetail)}`)
-    }
   } finally {
     try {
       await unmountAndFlush(root)
@@ -713,46 +681,13 @@ export async function testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDupli
         url,
         authorization: String(headers.Authorization || ''),
       })
-      if (url.startsWith('/__chat_proxy/')) {
-        return {
-          ok: true,
-          status: 200,
-          headers: { get: () => 'application/json' },
-          body: null,
-          json: async () => ({
-            choices: [
-              {
-                message: {
-                  content: JSON.stringify({
-                    operations: [
-                      {
-                        endpoint: 'keywordSearch',
-                        params: { keyword: 'hawker centre' },
-                      },
-                    ],
-                  }),
-                },
-              },
-            ],
-          }),
-          text: async () => '',
-        } as unknown as Response
-      }
       return {
         ok: true,
         status: 200,
         headers: { get: () => 'application/json' },
         body: null,
-        text: async () => JSON.stringify({
-          results: [
-            {
-              id: 'poi-1',
-              name: 'Marina Bay Sands',
-              address: '10 Bayfront Ave',
-              location: { lat: 1.2834, lng: 103.8607 },
-            },
-          ],
-        }),
+        json: async () => ({}),
+        text: async () => '',
       } as unknown as Response
     }) as typeof fetch
 
@@ -767,44 +702,16 @@ export async function testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDupli
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(FloatingPropsPanel), anyWindow.requestAnimationFrame, 4)
 
-    const queryInput = container.querySelector('#grabmaps-discovery-widget-query') as HTMLInputElement | null
-    if (!queryInput) throw new Error('expected props panel discovery widget query input')
-    await act(async () => {
-      queryInput.value = 'hawker centre'
-      queryInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-      await waitForFrames(anyWindow.requestAnimationFrame, 2)
-    })
-
-    const searchButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Search Places'))
-    if (!searchButton) throw new Error('expected props panel discovery widget Search Places action')
-    await act(async () => {
-      searchButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-      await waitForFrames(anyWindow.requestAnimationFrame, 4)
-    })
-
-    const grabMapsCalls = fetchCalls.filter(call => String(call.url || '').startsWith('/__fetch_remote?url='))
-    if (grabMapsCalls.length < 1) {
-      throw new Error(`expected at least one GrabMaps discovery widget fetch via remote proxy, got ${JSON.stringify(fetchCalls)}`)
-    }
-    const keywordCall = grabMapsCalls.find(call => decodeURIComponent(String(call.url || '')).includes('keyword=hawker+centre'))
-    if (!keywordCall) {
-      throw new Error(`expected discovery widget fetch url to include the updated keyword query, got ${JSON.stringify(grabMapsCalls.map(call => call.url))}`)
-    }
-    if (keywordCall.authorization !== 'Bearer gm_test_key') {
-      throw new Error(`expected discovery widget fetch to reuse GrabMaps BYOK auth, got ${JSON.stringify(keywordCall.authorization || '')}`)
-    }
-
     const text = container.textContent || ''
-    ;[
-      'Found 1 place result.',
-      'Marina Bay Sands',
-      '10 Bayfront Ave',
-      '1.2834, 103.8607',
-    ].forEach(token => {
-      if (!text.includes(token)) {
-        throw new Error(`expected props panel discovery widget results to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
-      }
-    })
+    if (text.includes('Search Places (Run Discovery)')) {
+      throw new Error(`expected duplicate inline discovery run section to be removed from props panel, got ${JSON.stringify(text)}`)
+    }
+    if (container.querySelector('#grabmaps-discovery-widget-query')) {
+      throw new Error('expected duplicate inline discovery query input to be removed from props panel')
+    }
+    if (fetchCalls.length !== 0) {
+      throw new Error(`expected props panel render without inline discovery section to avoid network fetch calls, got ${JSON.stringify(fetchCalls)}`)
+    }
   } finally {
     try {
       await unmountAndFlush(root)

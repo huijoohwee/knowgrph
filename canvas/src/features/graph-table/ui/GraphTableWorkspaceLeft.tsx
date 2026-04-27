@@ -26,6 +26,10 @@ export function GraphTableWorkspaceLeft(props: {
   setActiveTableId: (next: GraphTableId) => void
   viewMode: GraphTableViewMode
   setViewMode: (next: GraphTableViewMode) => void
+  geospatialViewEnabled: boolean
+  setGeospatialViewEnabled: (next: boolean) => void
+  tableToGraphRenderingEnabled: boolean
+  setTableToGraphRenderingEnabled: (next: boolean) => void
   rowCountLabel: string
   orderedColumns: Array<{ columnId: string; name: string }>
   inspectorOpen: boolean
@@ -98,6 +102,10 @@ export function GraphTableWorkspaceLeft(props: {
         setActiveTableId={props.setActiveTableId}
         viewMode={props.viewMode}
         setViewMode={props.setViewMode}
+        geospatialViewEnabled={props.geospatialViewEnabled}
+        setGeospatialViewEnabled={props.setGeospatialViewEnabled}
+        tableToGraphRenderingEnabled={props.tableToGraphRenderingEnabled}
+        setTableToGraphRenderingEnabled={props.setTableToGraphRenderingEnabled}
         rowCountLabel={props.rowCountLabel}
         orderedColumns={props.orderedColumns}
         inspectorOpen={props.inspectorOpen}

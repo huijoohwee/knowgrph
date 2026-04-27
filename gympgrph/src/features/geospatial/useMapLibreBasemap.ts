@@ -4,9 +4,9 @@ import {
   readGrabMapsAuthModeFromBrowser,
   readGrabMapsByokApiKeyFromBrowser,
 } from 'grph-shared/geospatial/grabMapsAuth'
+import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
 import { tryCreateGrabMapsLibraryMap } from 'grph-shared/geospatial/grabMapsLibrary'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
-import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 import { LS_KEYS } from '../../lib/config'
 import {
   MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL,
@@ -67,18 +67,6 @@ const isGrabMapsUrl = (rawUrl: string): boolean => {
     return new URL(String(rawUrl || '').trim()).hostname.toLowerCase() === 'maps.grab.com'
   } catch {
     return false
-  }
-}
-
-const toGrabMapsProxyUrl = (rawUrl: string): string | null => {
-  if (typeof window === 'undefined' || !window.location?.origin) return null
-  try {
-    const parsed = new URL(String(rawUrl || '').trim())
-    const proxied = new URL(GRABMAPS_PROXY_PATH, window.location.origin)
-    proxied.searchParams.set('url', parsed.toString())
-    return proxied.toString()
-  } catch {
-    return null
   }
 }
 

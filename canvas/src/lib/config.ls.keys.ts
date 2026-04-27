@@ -1,4 +1,5 @@
 import { GEOSPATIAL_LS_KEYS } from 'grph-shared/geospatial/constants'
+import { GRABMAPS_AUTH_MODE_LS_KEY } from 'grph-shared/geospatial/grabMapsAuth'
 
 export const LS_KEYS = {
   overlayOpacity: 'kg:ui:overlayOpacity',
@@ -167,7 +168,7 @@ export const LS_KEYS = {
   geospatialAutoEnableOnGeoImport: 'kg:ui:geospatial:autoEnableOnGeoImport',
 
   grabMapsDirectionsEndpointUrl: 'kg:maps:grabmaps:directions:endpointUrl',
-  grabMapsAuthMode: 'kg:maps:grabmaps:authMode',
+  grabMapsAuthMode: GRABMAPS_AUTH_MODE_LS_KEY,
   grabMapsDirectionsOverview: 'kg:maps:grabmaps:directions:overview',
   grabMapsDirectionsLatFirst: 'kg:maps:grabmaps:directions:latFirst',
   grabMapsDirectionsAlternatives: 'kg:maps:grabmaps:directions:alternatives',
@@ -425,6 +426,8 @@ export const LS_KEYS = {
   graphTableInspectorOpen: 'kg:ui:graphTable:inspector:open',
   graphTableInspectorWidthPx: 'kg:ui:graphTable:inspector:widthPx',
   graphTableViewMode: 'kg:ui:graphTable:viewMode',
+  graphTableGeospatialViewEnabled: 'kg:ui:graphTable:geospatialViewEnabled',
+  graphTableTableToGraphEnabled: 'kg:ui:graphTable:tableToGraphEnabled',
   graphTableColumnVisibilityById: 'kg:ui:graphTable:columns:visibilityById',
   graphTableFilters: 'kg:ui:graphTable:filters',
   graphTableFilterMatch: 'kg:ui:graphTable:filterMatch',

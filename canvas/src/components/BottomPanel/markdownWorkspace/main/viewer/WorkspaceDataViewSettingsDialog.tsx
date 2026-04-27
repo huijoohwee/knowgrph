@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowUpDown, Copy, Filter, LayoutGrid, SlidersHorizontal, Table as TableIcon, Trash2 } from 'lucide-react'
+import { ArrowUpDown, Copy, Filter, Globe2, LayoutGrid, SlidersHorizontal, Table as TableIcon, Trash2 } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownDataViewModel'
@@ -29,6 +29,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
   setViewConfig: (next: WorkspaceDataViewConfig) => void
   onChangeLayout: (layout: WorkspaceDataViewLayout) => void
   onChangeLayoutMode?: (mode: WorkspaceDataViewLayoutMode) => void
+  onSelectGeospatialView?: () => void
   onDuplicateColumn?: (columnId: string) => void
   onDeleteColumn?: (columnId: string) => void
   onRenameColumn?: (columnId: string, nextName: string) => void
@@ -63,7 +64,7 @@ export function WorkspaceDataViewSettingsDialog(props: {
   }, [props.columns])
   const setGraphEnabled = (next: boolean) => {
     if ((props.viewConfig.graphEnabled === true) === next) return
-    const nextView: WorkspaceDataViewConfig = { ...props.viewConfig, graphEnabled: next }
+    const nextView: WorkspaceDataViewConfig = { ...props.viewConfig, graphEnabled: next, geospatialViewEnabled: next ? props.viewConfig.geospatialViewEnabled : false }
     const hasAnyRole = props.viewConfig.graphRolesByColumnId && Object.keys(props.viewConfig.graphRolesByColumnId).length > 0
     if (next && !hasAnyRole) {
       nextView.graphRolesByColumnId = buildSuggestedRoles(props.columns)
@@ -187,6 +188,14 @@ export function WorkspaceDataViewSettingsDialog(props: {
                       }}
                     />
                   ))}
+                  <LayoutChoice
+                    active={props.viewConfig.geospatialViewEnabled === true}
+                    label={MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel}
+                    icon={<Globe2 className="w-6 h-6" aria-hidden="true" />}
+                    onClick={() => {
+                      props.onSelectGeospatialView?.()
+                    }}
+                  />
                 </div>
               </div>
 

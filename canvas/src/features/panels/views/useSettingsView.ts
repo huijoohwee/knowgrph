@@ -56,8 +56,8 @@ import { GRABMAPS_MCP_REQUEST_DOC_ENTRIES, MAPS_GRABMAPS_MCP_DOC_AREA } from './
 import { resolvePaymentsProviderSpec } from '@/features/payments/providers'
 import { resolveBytePlusVideoModelPreview } from '@/features/chat/byteplusRunGeneration'
 import { buildIntegrationVirtualSettingMeta } from '@/features/integrations/integrationVirtualSettings'
-import { normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
-import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
+import { buildGrabMapsProxyRequestHeadersFromAuth, normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
+import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
 
 const SETTINGS_AREA_ORDER: readonly string[] = [
   'Chat',
@@ -542,15 +542,18 @@ export function useSettingsView({
       setGrabMapsHealthDetails('GrabMaps BYOK API key is not configured.')
       return
     }
-    const proxyUrl = new URL(GRABMAPS_PROXY_PATH, window.location.origin)
-    proxyUrl.searchParams.set('url', target.toString())
-    const headers: Record<string, string> = { 'x-kg-grabmaps-auth-mode': authMode }
-    if (apiKey) headers['x-kg-grabmaps-api-key'] = apiKey
+    const proxyUrl = toGrabMapsProxyUrl(target.toString())
+    if (!proxyUrl) {
+      setGrabMapsHealthOk(false)
+      setGrabMapsHealthDetails('GrabMaps proxy URL could not be constructed.')
+      return
+    }
+    const headers = buildGrabMapsProxyRequestHeadersFromAuth({ authMode, apiKey })
     setIsCheckingGrabMapsHealth(true)
     setGrabMapsHealthOk(null)
     setGrabMapsHealthDetails(null)
     try {
-      const res = await fetch(proxyUrl.toString(), { method: 'GET', headers })
+      const res = await fetch(proxyUrl, { method: 'GET', headers })
       if (res.ok) {
         setGrabMapsHealthOk(true)
         setGrabMapsHealthDetails(`OK: ${target.pathname}${target.search || ''}`)

@@ -72,14 +72,14 @@ export async function testMarkdownDataViewHeaderPropertyTypeMenuCallsOnChangeCol
     if (!typeMenu) throw new Error('Expected Column type submenu to render')
 
     const buttons = Array.from(typeMenu.querySelectorAll('button')) as HTMLButtonElement[]
-    const selectBtn = buttons.find(b => String(b.textContent || '').trim() === 'Select') || null
-    if (!selectBtn) throw new Error('Expected Select option button')
-    selectBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    const geodataBtn = buttons.find(b => String(b.textContent || '').trim() === 'Geodata') || null
+    if (!geodataBtn) throw new Error('Expected Geodata option button')
+    geodataBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
     await tick()
 
     const last = calls[calls.length - 1]
     if (!last) throw new Error('Expected onChangeColumnType to be called')
-    if (last.columnId !== 'col_0' || last.nextType !== 'select') {
+    if (last.columnId !== 'col_0' || last.nextType !== 'geodata') {
       throw new Error(`Unexpected change: ${JSON.stringify(last)}`)
     }
   } finally {

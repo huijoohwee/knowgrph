@@ -45,6 +45,7 @@ import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/
 import { WORKSPACE_SYNC_SCOPE_MARKDOWN_WORKSPACE_DATAVIEW_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkdownPreviewTokens'
+import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 
 const MarkdownWorkspaceHtmlViewerPaneLazy = React.lazy(
   async (): Promise<{ default: typeof import('./MarkdownWorkspaceHtmlViewerPane')['MarkdownWorkspaceHtmlViewerPane'] }> =>
@@ -52,7 +53,7 @@ const MarkdownWorkspaceHtmlViewerPaneLazy = React.lazy(
 )
 
 export type MarkdownWorkspaceDerivedViewerKind = 'markdown' | 'html' | 'json'
-export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'table' | 'multiDimTable' | 'kanban'
+export type MarkdownWorkspaceDerivedViewerMode = 'read' | 'table' | 'multiDimTable' | 'kanban' | 'geospatial'
 
 function tryBuildApiGraphMarkdownTablesFromJson(text: string, preferredMode?: JsonToMarkdownMode): string | null {
   return tryBuildJsonMarkdownTablesFromText(text, preferredMode)
@@ -251,7 +252,12 @@ export function MarkdownWorkspaceDerivedViewer(props: {
       return
     }
     const fallback = defaultWorkspaceDataViewConfig({
-      title: props.viewerMode === 'kanban' ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel : MARKDOWN_DATA_VIEW_COPY.tableViewLabel,
+      title:
+        props.viewerMode === 'kanban'
+          ? MARKDOWN_DATA_VIEW_COPY.kanbanViewLabel
+          : props.viewerMode === 'geospatial'
+            ? MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel
+            : MARKDOWN_DATA_VIEW_COPY.tableViewLabel,
       layout: props.viewerMode === 'kanban' ? 'kanban' : 'table',
       groupByColumnId: selected.view.groupByColumnId || null,
     })
@@ -556,6 +562,15 @@ export function MarkdownWorkspaceDerivedViewer(props: {
         state={headerState}
         onChangeState={setHeaderState}
         onChangeViewerMode={(mode) => props.onChangeViewerMode?.(mode)}
+        onSelectGeospatialView={() => {
+          setViewConfig(prev => {
+            if (!prev) return prev
+            if (prev.layout === 'table' && prev.graphEnabled === true && prev.geospatialViewEnabled === true) return prev
+            return { ...prev, layout: 'table', graphEnabled: true, geospatialViewEnabled: true }
+          })
+          props.onChangeViewerMode?.('geospatial')
+          void setGeospatialModeEnabled(true).catch(() => void 0)
+        }}
         supportsMultiDimLayout={true}
         onNewRecord={canMutate ? () => onNewRecord() : undefined}
         onAddColumn={canMutate ? onAddColumn : undefined}

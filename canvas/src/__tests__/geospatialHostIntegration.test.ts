@@ -210,6 +210,17 @@ export const testGeospatialOverlayHostProvidesSvgFallbackBasemapAndDisablesDefau
   }
 }
 
+export const testGeospatialOverlayHostDoesNotOverlaySvgFallbackOnHealthyMapLibreBasemap = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes('const hasHardMapUnavailable = !activeBasemap.map || !!String(activeBasemap.mapError || \'\').trim()')) {
+    throw new Error('Expected GeospatialOverlayHost SVG overlay gating to require a hard MapLibre unavailable/error condition')
+  }
+  if (!text.includes('if (!hasHardMapUnavailable) return false')) {
+    throw new Error('Expected GeospatialOverlayHost to avoid SVG overlay on healthy MapLibre basemaps')
+  }
+}
+
 export const testGeospatialOverlayHostSvgFallbackRendersHighFidelitySvgBasemap = () => {
   const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
   const text = readUtf8(hostPath)
@@ -759,6 +770,23 @@ export const testGeospatialHostRendersInMapLegendFromPointStyleConfig = () => {
   const missing = required.filter(snippet => !text.includes(snippet))
   if (missing.length) {
     throw new Error(`Expected GeospatialHost to render in-map legend from point-style config: ${missing.join(', ')}`)
+  }
+}
+
+export const testGeospatialHostGraphNodeClickCyclesOverlappingFeaturesAndReusesHoverRenderer = () => {
+  const hostPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialHost.tsx')
+  const text = readUtf8(hostPath)
+  if (!text.includes('clickedGraphNodeCycleRef')) {
+    throw new Error('Expected GeospatialHost to track click-cycle state for overlapping geodata point hits')
+  }
+  if (!text.includes('const pickFeatureForClick = (features: unknown[], point: unknown): unknown | null => {')) {
+    throw new Error('Expected GeospatialHost click path to resolve a deterministic feature pick for overlapping point hits')
+  }
+  if (!text.includes('const first = Array.isArray(features) ? pickFeatureForClick(features, point) : null')) {
+    throw new Error('Expected GeospatialHost click picking to use click-cycle feature resolution instead of first-hit only')
+  }
+  if (!text.includes('renderGraphNodeHoverInRichMediaPanel(first)')) {
+    throw new Error('Expected GeospatialHost hover/click to reuse the same Rich Media Panel render handler')
   }
 }
 

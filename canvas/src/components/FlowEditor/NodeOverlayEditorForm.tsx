@@ -41,15 +41,6 @@ import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 import { setObjectPath } from '@/lib/data/objectPath'
 import { inferMediaKindFromResourceUrl } from '@/lib/graph/mediaUrlKind'
 import { inferWidgetAutoRenderKind } from '@/lib/flowEditor/widgetAutoRender'
-import RichMediaPanel from '@/components/RichMediaPanel'
-import {
-  commitRichMediaPanelChange,
-  buildRichMediaPanelOverlayState,
-  getRichMediaPanelNodeLabel,
-  getRichMediaPanelViewLabel,
-  type RichMediaPanelTab,
-  resolveRichMediaPanelRenderNode,
-} from '@/lib/render/richMediaSsot'
 import {
   getWidgetRegistryEntryLabel,
   inferTextGenerationProviderFamily,
@@ -60,14 +51,6 @@ const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
-}
-
-function pickBool(v: unknown): boolean {
-  return typeof v === 'boolean' ? v : false
-}
-
-function pickNumber(v: unknown): number | null {
-  return typeof v === 'number' && Number.isFinite(v) ? v : null
 }
 
 function cleanDomIdPart(v: unknown): string {
@@ -91,18 +74,6 @@ function readObjectPathValue(root: Record<string, unknown>, schemaPathRaw: strin
     cur = (cur as Record<string, unknown>)[parts[i]]
   }
   return cur
-}
-
-function parseHandleListInput(raw: string): string[] {
-  const s = String(raw || '').trim()
-  if (!s) return []
-  const body = s.startsWith('[') && s.endsWith(']') ? s.slice(1, -1) : s
-  const out = body
-    .split(',')
-    .map(part => part.trim().replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1'))
-    .map(v => String(v || '').trim())
-    .filter(Boolean)
-  return Array.from(new Set(out))
 }
 
 type WidgetCompactPreviewKind = 'text' | 'image' | 'video'
@@ -456,7 +427,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     || nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
     || nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
     || nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
-  const showRichMediaPanelView = isRichMediaPanelWidget && !hideFields
   const idBase = React.useMemo(() => {
     const nodeId = cleanDomIdPart(node.id) || 'node'
     return `flow-node-quick-${nodeId}`
@@ -474,7 +444,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }, [idBase])
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
-  const nodeFormId = typeof properties[FLOW_WIDGET_FORM_ID_KEY] === 'string' ? String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim() : ''
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
   const showRichMediaPanelKtvRows = isRichMediaPanelWidget && hideFields && !isFrontmatterFlow
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
@@ -491,23 +460,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       UI_THEME_TOKENS.input.text,
     )
   }, [keyValueInputClass, monospaceTextClass, textSizeClass])
-  const richMediaPanelStoredWidth = pickNumber(properties['visual:width'])
-  const richMediaPanelStoredHeight = pickNumber(properties['visual:height'])
-  const richMediaPanelBaseSize = React.useMemo(() => {
-    const width = Math.max(220, Math.round(richMediaPanelStoredWidth || 280))
-    const height = Math.max(160, Math.round(richMediaPanelStoredHeight || 180))
-    return { width, height }
-  }, [richMediaPanelStoredHeight, richMediaPanelStoredWidth])
-  const [richMediaPanelViewSize, setRichMediaPanelViewSize] = React.useState(richMediaPanelBaseSize)
-  const richMediaPanelResizeStartRef = React.useRef(richMediaPanelBaseSize)
-  React.useEffect(() => {
-    setRichMediaPanelViewSize(prev =>
-      prev.width === richMediaPanelBaseSize.width && prev.height === richMediaPanelBaseSize.height
-        ? prev
-        : richMediaPanelBaseSize,
-    )
-  }, [richMediaPanelBaseSize])
-
   const renderKvTypeBox = React.useCallback((value: string) => {
     const text = String(value || '').trim()
     if (!text) return null
@@ -754,85 +706,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     })
   }, [connectedValuesBySchemaPath, hideFields, isRichMediaPanelWidget, node, registryEntry])
 
-  const richMediaPanelPreview = React.useMemo(() => {
-    if (!showRichMediaPanelView) return null
-    const panel = buildRichMediaPanelOverlayState({
-      node,
-      connectedValuesBySchemaPath,
-    })
-    if (!panel) return null
-    const renderNode = resolveRichMediaPanelRenderNode({ node, connectedValuesBySchemaPath })
-    const props = (renderNode.properties || {}) as Record<string, unknown>
-    const rawImageUrl = typeof props.imageUrl === 'string' ? props.imageUrl.trim() : ''
-    const rawVideoUrl = typeof props.videoUrl === 'string' ? props.videoUrl.trim() : ''
-    const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
-    const selectedTab: RichMediaPanelTab =
-      panel.activeTab === 'image' || panel.activeTab === 'video' || panel.activeTab === 'text' || panel.activeTab === 'poi'
-        ? panel.activeTab
-        : panel.hasVideo
-          ? 'video'
-          : panel.hasImage
-            ? 'image'
-            : panel.hasPoi
-              ? 'poi'
-            : 'text'
-    if (selectedTab === 'video' && rawVideoUrl) {
-      return {
-        kind: 'video' as const,
-        url: rawVideoUrl,
-        openUrl: rawVideoUrl,
-        title: getRichMediaPanelNodeLabel(),
-        panel,
-      }
-    }
-    if (selectedTab === 'image' && rawImageUrl) {
-      return {
-        kind: 'image' as const,
-        url: rawImageUrl,
-        openUrl: rawImageUrl,
-        title: getRichMediaPanelNodeLabel(),
-        panel,
-      }
-    }
-    return {
-      kind: 'iframe' as const,
-      url: '',
-      srcDoc: rawOutputSrcDoc || undefined,
-      openUrl: '',
-      title: getRichMediaPanelNodeLabel(),
-      panel,
-    }
-  }, [connectedValuesBySchemaPath, node, showRichMediaPanelView])
-
-  const handleRichMediaPanelChange = React.useCallback((next: {
-    activeTab: RichMediaPanelTab
-    freezeConnectedOutput: boolean
-    text?: string
-  }) => {
-    commitRichMediaPanelChange({
-      nodeId: String(node.id || ''),
-      next,
-      updateNode: (_id, patch) => {
-        onPatchProperties((patch && patch.properties) || {})
-      },
-    })
-  }, [node.id, onPatchProperties])
-  const handleRichMediaPanelResizeStart = React.useCallback(() => {
-    richMediaPanelResizeStartRef.current = richMediaPanelViewSize
-  }, [richMediaPanelViewSize])
-  const handleRichMediaPanelResize = React.useCallback((args: { dx: number; dy: number }) => {
-    setRichMediaPanelViewSize({
-      width: Math.max(220, Math.round(richMediaPanelResizeStartRef.current.width + args.dx)),
-      height: Math.max(160, Math.round(richMediaPanelResizeStartRef.current.height + args.dy)),
-    })
-  }, [])
-  const handleRichMediaPanelResizeEnd = React.useCallback(() => {
-    onPatchProperties({
-      'visual:width': richMediaPanelViewSize.width,
-      'visual:height': richMediaPanelViewSize.height,
-    })
-  }, [onPatchProperties, richMediaPanelViewSize.height, richMediaPanelViewSize.width])
-
   const compactPreviewEditorClass = React.useMemo(() => {
     return cn(
       'w-full h-40 rounded-md border px-2 py-2',
@@ -991,13 +864,16 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   return (
     <form
-      className={cn('px-3 py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden', panelTextClass)}
+      className={cn(
+        'py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden',
+        'px-3',
+        panelTextClass,
+      )}
       aria-label={UI_LABELS.flowWidgetForm}
       onSubmit={e => e.preventDefault()}
       onScrollCapture={() => emitInteractionFrame()}
       onWheelCapture={() => emitInteractionFrame()}
     >
-      {!showRichMediaPanelView && (
       <section className="min-w-0" aria-label={UI_LABELS.flowWidgetNodeLegend}>
         <NodeOverlayEditorKvTable
           ariaLabel={UI_LABELS.flowWidgetNodeLegend}
@@ -1032,7 +908,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           ]}
         />
       </section>
-      )}
 
       {compactPreview && (
         <section className="min-w-0 mt-4" aria-label="Widget output preview">
@@ -1070,41 +945,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                 className="block w-full h-48 object-contain"
               />
             )}
-          </section>
-        </section>
-      )}
-
-      {showRichMediaPanelView && richMediaPanelPreview && (
-        <section className="min-w-0 mt-4" aria-label={getRichMediaPanelViewLabel(false)}>
-          <section
-            className={cn(
-              'overflow-hidden rounded-lg',
-              UI_THEME_TOKENS.input.bg,
-            )}
-            style={{
-              width: `${richMediaPanelViewSize.width}px`,
-              maxWidth: '100%',
-              height: `${richMediaPanelViewSize.height}px`,
-            }}
-          >
-            <RichMediaPanel
-              overlayId={String(node.id || '')}
-              title={String(node.label || getRichMediaPanelNodeLabel())}
-              url={String(richMediaPanelPreview.url || '')}
-              srcDoc={richMediaPanelPreview.srcDoc}
-              openUrl={richMediaPanelPreview.openUrl}
-              kind={richMediaPanelPreview.kind}
-              interactive={active}
-              showHeader={false}
-              resizable={active}
-              onResizeStart={handleRichMediaPanelResizeStart}
-              onResize={handleRichMediaPanelResize}
-              onResizeEnd={handleRichMediaPanelResizeEnd}
-              className="w-full h-full"
-              style={{ width: '100%', height: '100%' }}
-              panel={richMediaPanelPreview.panel}
-              onPanelChange={handleRichMediaPanelChange}
-            />
           </section>
         </section>
       )}

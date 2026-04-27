@@ -51,6 +51,7 @@ export type WorkspaceDataViewViewV2 = {
   filterGroups: WorkspaceDataViewFilterGroup[]
   sortRules: WorkspaceDataViewSortRule[]
   graphEnabled?: boolean
+  geospatialViewEnabled?: boolean
   graphRolesByColumnId?: Record<string, WorkspaceDataViewGraphColumnRole> | null
 }
 
@@ -331,6 +332,7 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
     const sortRules = sortRulesRaw.map(coerceSortRule).filter((x): x is WorkspaceDataViewSortRule => !!x)
 
     const graphEnabled = typeof raw.graphEnabled === 'boolean' ? raw.graphEnabled : undefined
+    const geospatialViewEnabled = typeof raw.geospatialViewEnabled === 'boolean' ? raw.geospatialViewEnabled : undefined
     const graphRolesByColumnId = (() => {
       if (!isRecord(raw.graphRolesByColumnId)) return null
       const m = coerceGraphRolesByColumnId(raw.graphRolesByColumnId)
@@ -349,6 +351,7 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
       filterGroups: normalizedGroups,
       sortRules,
       graphEnabled,
+      geospatialViewEnabled,
       graphRolesByColumnId,
     }
   }
@@ -382,6 +385,7 @@ export function coerceWorkspaceDataViewConfig(raw: unknown): WorkspaceDataViewCo
         : DEFAULT_VIEW.filterGroups,
       sortRules: [],
       graphEnabled: typeof raw.graphEnabled === 'boolean' ? raw.graphEnabled : undefined,
+      geospatialViewEnabled: typeof raw.geospatialViewEnabled === 'boolean' ? raw.geospatialViewEnabled : undefined,
       graphRolesByColumnId: isRecord(raw.graphRolesByColumnId)
         ? (() => {
             const m = coerceGraphRolesByColumnId(raw.graphRolesByColumnId)

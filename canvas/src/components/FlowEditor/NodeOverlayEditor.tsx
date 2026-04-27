@@ -54,6 +54,12 @@ const WIDGET_ACTIONS_TOOLBAR_OFFSET_PX = 40
 const WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
 const WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX = 8
 const WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX = 220
+const RICH_MEDIA_ASPECT_HORIZONTAL = '16:9' as const
+const RICH_MEDIA_ASPECT_VERTICAL = '9:16' as const
+const RICH_MEDIA_ASPECT_MIN_WIDTH = 220
+const RICH_MEDIA_ASPECT_MIN_HEIGHT = 160
+const RICH_MEDIA_ASPECT_DEFAULT_WIDTH = 280
+const RICH_MEDIA_ASPECT_DEFAULT_HEIGHT = 180
 
 type NodeOverlayEditorProps = {
   visible?: boolean
@@ -235,9 +241,12 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   )
 
   const [pinnedInCanvas, setPinnedInCanvasState] = React.useState<boolean>(() => readPinnedInCanvas(nodeId))
+  const pinnedInCanvasRef = React.useRef<boolean>(readPinnedInCanvas(nodeId))
 
   React.useEffect(() => {
-    setPinnedInCanvasState(readPinnedInCanvas(nodeId))
+    const next = readPinnedInCanvas(nodeId)
+    pinnedInCanvasRef.current = next
+    setPinnedInCanvasState(next)
   }, [nodeId, readPinnedInCanvas])
 
   React.useEffect(() => {
@@ -248,11 +257,13 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     }
     setPinnedInCanvasState(prev => {
       const next = readPinned(useGraphStore.getState())
+      pinnedInCanvasRef.current = next
       return prev === next ? prev : next
     })
     const unsub = useGraphStore.subscribe(
       readPinned,
       next => {
+        pinnedInCanvasRef.current = next
         setPinnedInCanvasState(prev => (prev === next ? prev : next))
       },
     )
@@ -267,14 +278,14 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
 
   const setPinnedInCanvas = React.useCallback(
     (next: boolean | ((prev: boolean) => boolean)) => {
-      setPinnedInCanvasState(prev => {
-        const resolved = typeof next === 'function' ? (next as (v: boolean) => boolean)(prev) : next
-        if (nodeId) {
-          const map = useGraphStore.getState().flowWidgetPinnedByNodeId || {}
-          setFlowWidgetPinnedByNodeId({ ...map, [nodeId]: !!resolved })
-        }
-        return !!resolved
-      })
+      const prev = pinnedInCanvasRef.current
+      const resolved = !!(typeof next === 'function' ? (next as (v: boolean) => boolean)(prev) : next)
+      pinnedInCanvasRef.current = resolved
+      setPinnedInCanvasState(prevState => (prevState === resolved ? prevState : resolved))
+      if (!nodeId) return
+      const map = useGraphStore.getState().flowWidgetPinnedByNodeId || {}
+      if (map[nodeId] === resolved) return
+      setFlowWidgetPinnedByNodeId({ ...map, [nodeId]: resolved })
     },
     [nodeId, setFlowWidgetPinnedByNodeId],
   )
@@ -833,6 +844,46 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       richMediaActiveTab: nextMode,
     })
   }, [isRichMediaPanelWidget, onPatchProperties])
+  const richMediaAspectSelection = React.useMemo<'16:9' | '9:16' | null>(() => {
+    if (!isRichMediaPanelWidget) return null
+    const props = (node.properties || {}) as Record<string, unknown>
+    const width = Number(props['visual:width'])
+    const height = Number(props['visual:height'])
+    if (!(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return null
+    const ratio = width / height
+    const horizontal = 16 / 9
+    const vertical = 9 / 16
+    return Math.abs(ratio - horizontal) <= Math.abs(ratio - vertical)
+      ? RICH_MEDIA_ASPECT_HORIZONTAL
+      : RICH_MEDIA_ASPECT_VERTICAL
+  }, [isRichMediaPanelWidget, node.properties])
+  const handleToggleRichMediaAspect = React.useCallback(() => {
+    if (!isRichMediaPanelWidget) return
+    const props = (node.properties || {}) as Record<string, unknown>
+    const width0 = Number(props['visual:width'])
+    const height0 = Number(props['visual:height'])
+    const widthBase = Number.isFinite(width0) && width0 > 0 ? width0 : RICH_MEDIA_ASPECT_DEFAULT_WIDTH
+    const heightBase = Number.isFinite(height0) && height0 > 0 ? height0 : RICH_MEDIA_ASPECT_DEFAULT_HEIGHT
+    const area = Math.max(RICH_MEDIA_ASPECT_MIN_WIDTH * RICH_MEDIA_ASPECT_MIN_HEIGHT, widthBase * heightBase)
+    const next = richMediaAspectSelection === RICH_MEDIA_ASPECT_VERTICAL
+      ? RICH_MEDIA_ASPECT_HORIZONTAL
+      : RICH_MEDIA_ASPECT_VERTICAL
+    const target = next === RICH_MEDIA_ASPECT_HORIZONTAL ? (16 / 9) : (9 / 16)
+    let nextHeight = Math.sqrt(area / target)
+    let nextWidth = target * nextHeight
+    if (nextWidth < RICH_MEDIA_ASPECT_MIN_WIDTH) {
+      nextWidth = RICH_MEDIA_ASPECT_MIN_WIDTH
+      nextHeight = nextWidth / target
+    }
+    if (nextHeight < RICH_MEDIA_ASPECT_MIN_HEIGHT) {
+      nextHeight = RICH_MEDIA_ASPECT_MIN_HEIGHT
+      nextWidth = nextHeight * target
+    }
+    onPatchProperties({
+      'visual:width': Math.round(nextWidth),
+      'visual:height': Math.round(nextHeight),
+    })
+  }, [isRichMediaPanelWidget, node.properties, onPatchProperties, richMediaAspectSelection])
 
   const spacePanUserSelectUnlockRef = React.useRef<null | (() => void)>(null)
 
@@ -1182,6 +1233,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
               visible: true,
               selectedMode: richMediaSelectedMode,
               onSelect: handleSelectRichMediaMode,
+            } : undefined}
+            richMediaAspectToggle={isRichMediaPanelWidget ? {
+              visible: true,
+              selected: richMediaAspectSelection,
+              onToggle: handleToggleRichMediaAspect,
             } : undefined}
             onRun={onRun}
             onDuplicate={onDuplicate}

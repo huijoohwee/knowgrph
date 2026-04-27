@@ -16,8 +16,10 @@ import { GraphTableToolbar } from '@/features/graph-table/ui/GraphTableToolbar'
 import type { GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
 import { WorkspaceModeSelect } from '@/components/BottomPanel/markdownWorkspace/WorkspaceModeSelect'
 import { UI_COPY } from '@/lib/config'
+import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 
 const GRAPH_TABLE_VIEW_MODE_OPTIONS: Array<{ value: GraphTableViewMode; label: string }> = [
+  { value: 'geospatial', label: MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel },
   { value: 'kanban', label: UI_COPY.markdownDataViewKanbanViewLabel },
   { value: 'multiDimTable', label: UI_COPY.markdownDataViewTitleDefault },
   { value: 'table', label: UI_COPY.markdownDataViewTableViewLabel },
@@ -29,6 +31,10 @@ export function GraphTableWorkspaceHeader(props: {
   setActiveTableId: (next: GraphTableId) => void
   viewMode: GraphTableViewMode
   setViewMode: (next: GraphTableViewMode) => void
+  geospatialViewEnabled: boolean
+  setGeospatialViewEnabled: (next: boolean) => void
+  tableToGraphRenderingEnabled: boolean
+  setTableToGraphRenderingEnabled: (next: boolean) => void
   rowCountLabel: string
   orderedColumns: Array<{ columnId: string; name: string }>
   inspectorOpen: boolean
@@ -87,6 +93,24 @@ export function GraphTableWorkspaceHeader(props: {
               isActive={props.viewMode !== 'table'}
               onChange={props.setViewMode}
             />
+            <label className="inline-flex items-center gap-1.5 text-[10px]">
+              <input
+                type="checkbox"
+                className="rounded"
+                checked={props.geospatialViewEnabled}
+                onChange={e => props.setGeospatialViewEnabled(e.target.checked)}
+              />
+              <span>{MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel}</span>
+            </label>
+            <label className="inline-flex items-center gap-1.5 text-[10px]">
+              <input
+                type="checkbox"
+                className="rounded"
+                checked={props.tableToGraphRenderingEnabled}
+                onChange={e => props.setTableToGraphRenderingEnabled(e.target.checked)}
+              />
+              <span>Enable table-to-graph rendering</span>
+            </label>
           </nav>
 
           <output className={`${props.panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.tertiary}`}>{props.rowCountLabel}</output>

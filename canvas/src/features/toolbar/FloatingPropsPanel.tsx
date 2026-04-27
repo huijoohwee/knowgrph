@@ -8,12 +8,10 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import WidgetPalette from '@/features/toolbar/WidgetPalette'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
-import { GrabMapsDiscoveryWidgetSection } from '@/features/toolbar/GrabMapsDiscoveryWidgetSection'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
-import { getGrabMapsDiscoveryWidgetLabel } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import { emitWorkflowRunAll } from '@/features/canvas/utils'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 
@@ -139,15 +137,6 @@ export function FloatingPropsPanel() {
         </div>
         <WidgetPalette entries={widgetPaletteEntries} dragEnabled={widgetDragEnabled} />
       </section>
-
-      <CollapsibleSection
-        title={getGrabMapsDiscoveryWidgetLabel()}
-        stickyHeader={false}
-        className="mt-0 border-t-0 pt-0"
-        headerClassName={`px-2 ${uiPanelTextFontClass}`}
-      >
-        <GrabMapsDiscoveryWidgetSection />
-      </CollapsibleSection>
 
       <CollapsibleSection
         title="Add"

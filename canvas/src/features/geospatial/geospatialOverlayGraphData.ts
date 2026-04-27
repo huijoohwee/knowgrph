@@ -4,6 +4,7 @@ import { extractEmbeddedGeoJsonGraphDataRequests } from '@/lib/markdown/embedded
 import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
 import { hashText } from '@/features/parsers/hash'
+import { extractGrabMapsPoiFeatureCollectionsFromMarkdown } from '@/features/geospatial/grabMapsMarkdownPoi'
 
 const hasGeoCoordinates = (graphData: GraphData | null | undefined): boolean => {
   const nodes = Array.isArray(graphData?.nodes) ? (graphData!.nodes as GraphNode[]) : []
@@ -177,11 +178,42 @@ export function buildGeospatialOverlayGraphData(args: {
     limit: 8,
   })
   if (reqs.length === 0) {
-    return attachOverlayDebugInfo(graphData, {
+    const extracted = extractGrabMapsPoiFeatureCollectionsFromMarkdown({
+      markdownText,
+      sourceDocumentPath,
+      limitTables: 3,
+      limitRowsPerTable: 400,
+    })
+    if (extracted.featureCollections.length === 0) {
+      return attachOverlayDebugInfo(graphData, {
+        resolvedFrom,
+        sourceDocumentPath,
+        embeddedGeoBlockCount: 0,
+        supplementedNodeCount: 0,
+        sourceFilesCount: Array.isArray(args.sourceFiles) ? args.sourceFiles.length : 0,
+      })
+    }
+
+    let mergedGraph = graphData
+    let addedNodes = 0
+    for (let i = 0; i < extracted.featureCollections.length; i += 1) {
+      const fc = extracted.featureCollections[i]!
+      const built = buildGraphDataFromFeatureCollection({
+        featureCollection: fc,
+        sourcePath: `${sourceDocumentPath}#markdown-table-geodata-${i + 1}`,
+        sourceHash: hashText(JSON.stringify(fc)),
+      })
+      if (!built) continue
+      const beforeCount = Array.isArray(mergedGraph.nodes) ? mergedGraph.nodes.length : 0
+      mergedGraph = mergeGraphDataUnique(mergedGraph, built)
+      const afterCount = Array.isArray(mergedGraph.nodes) ? mergedGraph.nodes.length : 0
+      addedNodes += Math.max(0, afterCount - beforeCount)
+    }
+    return attachOverlayDebugInfo(mergedGraph, {
       resolvedFrom,
       sourceDocumentPath,
       embeddedGeoBlockCount: 0,
-      supplementedNodeCount: 0,
+      supplementedNodeCount: addedNodes,
       sourceFilesCount: Array.isArray(args.sourceFiles) ? args.sourceFiles.length : 0,
     })
   }

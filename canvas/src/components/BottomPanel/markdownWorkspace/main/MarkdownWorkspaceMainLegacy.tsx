@@ -187,6 +187,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       const v = String(raw || '').trim().toLowerCase()
       if (v === 'multidimtable') return 'multiDimTable'
       if (v === 'kanban') return 'kanban'
+      if (v === 'geospatial') return 'geospatial'
       if (v === 'table') return 'table'
       if (v === 'read') return 'read'
       return null
@@ -235,6 +236,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   React.useEffect(() => {
     setViewerMode(prev => {
       if (prev === 'read') return prev
+      if (prev === 'geospatial') return prev
       return prev === workspaceEditorMode ? prev : workspaceEditorMode
     })
   }, [workspaceEditorMode])
@@ -243,6 +245,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     (next: MarkdownWorkspaceDerivedViewerMode) => {
       setViewerMode(prev => (prev === next ? prev : next))
       if (next === 'read') return
+      if (next === 'geospatial') {
+        if (workspaceEditorMode !== 'multiDimTable') {
+          workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
+        }
+        return
+      }
       if (next !== workspaceEditorMode) {
         workspaceTablePreferencesStore.setWorkspaceEditorMode(next)
       }

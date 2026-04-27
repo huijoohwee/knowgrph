@@ -30,6 +30,7 @@ import {
   type WorkspaceDataViewFilterOp,
   writeWorkspaceDataViewConfig,
 } from '@/components/BottomPanel/markdownWorkspace/main/viewer/workspaceDataViewConfig'
+import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 
 type MarkdownDataViewBlockProps = {
   token: TokenWithLines
@@ -267,11 +268,26 @@ export const MarkdownDataViewBlock = React.memo(function MarkdownDataViewBlock(p
         onChangeViewerMode={(mode) => {
           setViewConfig(prev => {
             if (!prev) return prev
-            const nextGraphEnabled = mode === 'multiDimTable'
+            const nextGraphEnabled = mode === 'multiDimTable' || mode === 'geospatial'
             const nextLayout = mode === 'kanban' ? 'kanban' : 'table'
-            if (prev.layout === nextLayout && !!prev.graphEnabled === nextGraphEnabled) return prev
-            return { ...prev, layout: nextLayout, graphEnabled: nextGraphEnabled }
+            const nextGeospatialEnabled = mode === 'geospatial'
+            if (
+              prev.layout === nextLayout
+              && !!prev.graphEnabled === nextGraphEnabled
+              && !!prev.geospatialViewEnabled === nextGeospatialEnabled
+            ) {
+              return prev
+            }
+            return { ...prev, layout: nextLayout, graphEnabled: nextGraphEnabled, geospatialViewEnabled: nextGeospatialEnabled }
           })
+        }}
+        onSelectGeospatialView={() => {
+          setViewConfig(prev => {
+            if (!prev) return prev
+            if (prev.layout === 'table' && prev.graphEnabled === true && prev.geospatialViewEnabled === true) return prev
+            return { ...prev, layout: 'table', graphEnabled: true, geospatialViewEnabled: true }
+          })
+          void setGeospatialModeEnabled(true).catch(() => void 0)
         }}
         supportsMultiDimLayout={true}
         onNewRecord={canMutate ? () => handleNewRecord() : undefined}

@@ -127,14 +127,14 @@ export async function testGraphTableFastGridHeaderPropertyTypeMenuCallsOnSelect(
     if (!typeMenu) throw new Error('Expected property type submenu to render')
 
     const buttons = Array.from(typeMenu.querySelectorAll('button')) as HTMLButtonElement[]
-    const dateBtn = buttons.find(b => String(b.textContent || '').trim() === 'Date') || null
-    if (!dateBtn) throw new Error('Expected Date option button')
-    dateBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    const geodataBtn = buttons.find(b => String(b.textContent || '').trim() === 'Geodata') || null
+    if (!geodataBtn) throw new Error('Expected Geodata option button')
+    geodataBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
     await tick()
 
     const last = calls[calls.length - 1]
     if (!last) throw new Error('Expected onColumnKindChanged to be called')
-    if (last.columnId !== 'label' || last.nextKind !== 'date') {
+    if (last.columnId !== 'label' || last.nextKind !== 'geodata') {
       throw new Error(`Unexpected call: ${JSON.stringify(last)}`)
     }
   } finally {

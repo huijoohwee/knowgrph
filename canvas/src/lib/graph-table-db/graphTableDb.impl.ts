@@ -9,7 +9,7 @@ import { clearRxdbLocalstorageForDatabaseName } from '@/lib/storage/rxdbRecovery
 
 export type GraphTableId = 'nodes' | 'edges'
 
-export type GraphColumnKind = 'text' | 'number' | 'boolean' | 'date' | 'json'
+export type GraphColumnKind = 'text' | 'number' | 'boolean' | 'date' | 'json' | 'geodata'
 
 export type GraphTableDoc = {
   id: GraphTableId

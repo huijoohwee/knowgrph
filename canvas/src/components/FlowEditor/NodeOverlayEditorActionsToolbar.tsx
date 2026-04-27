@@ -33,6 +33,11 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     selectedMode: RichMediaPanelTab
     onSelect: (next: RichMediaPanelTab) => void
   }
+  richMediaAspectToggle?: {
+    visible: boolean
+    selected: '16:9' | '9:16' | null
+    onToggle: () => void
+  }
   onRun: () => void
   onDuplicate: () => void
   onClearOutput: () => void
@@ -52,6 +57,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     duplicateDisabled,
     richMediaViewToggle,
     richMediaMediaSelector,
+    richMediaAspectToggle,
     onRun,
     onDuplicate,
     onClearOutput,
@@ -112,6 +118,24 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
             data-kg-rich-media-media-selector="1"
           >
             <Images className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
+
+        {richMediaAspectToggle?.visible ? (
+          <IconButton
+            title={`Rich Media aspect toggle (${richMediaAspectToggle.selected || '16:9'})`}
+            tooltipContent={`Rich Media aspect toggle (${richMediaAspectToggle.selected || '16:9'})`}
+            showTooltip
+            onClick={richMediaAspectToggle.onToggle}
+            className={cn(
+              'App-toolbar__btn px-1.5 min-w-[36px]',
+              richMediaAspectToggle.selected ? UI_THEME_TOKENS.icon.active : '',
+            )}
+            data-kg-rich-media-aspect-toggle="1"
+          >
+            <span className="text-[10px] font-semibold leading-none" aria-hidden={true}>
+              {richMediaAspectToggle.selected || '16:9'}
+            </span>
           </IconButton>
         ) : null}
 

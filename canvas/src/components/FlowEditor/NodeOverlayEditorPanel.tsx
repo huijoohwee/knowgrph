@@ -1,6 +1,7 @@
 import React from 'react'
 
 import IconButton from '@/components/IconButton'
+import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { FloatingPanel } from '@/components/ui/FloatingPanel'
 import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
@@ -35,6 +36,29 @@ import {
   FLOW_WIDGET_FORM_ID_KEY,
   FLOW_WIDGET_TYPE_ID_KEY,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import {
+  buildRichMediaPanelOverlayState,
+  getRichMediaPanelNodeLabel,
+  type RichMediaPanelTab,
+  resolveRichMediaPanelRenderNode,
+} from '@/lib/render/richMediaSsot'
+
+const RICH_MEDIA_PANEL_MIN_WIDTH = 220
+const RICH_MEDIA_PANEL_MIN_HEIGHT = 160
+
+type RichMediaPreview =
+  | {
+      kind: 'image'
+      url: string
+    }
+  | {
+      kind: 'video'
+      url: string
+    }
+  | {
+      kind: 'iframe'
+      srcDoc?: string
+    }
 
 const normalizeWidgetLabelText = (raw: unknown): string => {
   const source = String(raw || '').trim()
@@ -258,10 +282,101 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     return String(graphMetaKind || '').trim() === 'frontmatter-flow'
   }, [graphMetaKind])
   const isRichMediaPanelWidget = String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+  const showRichMediaPanelBody = isRichMediaPanelWidget && !hideFields && !minimized
+  const richMediaPanelStoredWidth = typeof node.properties?.['visual:width'] === 'number' && Number.isFinite(node.properties['visual:width'])
+    ? Math.max(RICH_MEDIA_PANEL_MIN_WIDTH, Math.round(node.properties['visual:width'] as number))
+    : 280
+  const richMediaPanelStoredHeight = typeof node.properties?.['visual:height'] === 'number' && Number.isFinite(node.properties['visual:height'])
+    ? Math.max(RICH_MEDIA_PANEL_MIN_HEIGHT, Math.round(node.properties['visual:height'] as number))
+    : 180
+  const richMediaPanelBaseSize = React.useMemo(
+    () => ({ width: richMediaPanelStoredWidth, height: richMediaPanelStoredHeight }),
+    [richMediaPanelStoredHeight, richMediaPanelStoredWidth],
+  )
+  const [richMediaPanelViewSize, setRichMediaPanelViewSize] = React.useState(richMediaPanelBaseSize)
+  const richMediaPanelResizeStartRef = React.useRef(richMediaPanelBaseSize)
+
+  React.useEffect(() => {
+    if (!showRichMediaPanelBody) return
+    setRichMediaPanelViewSize(prev => (
+      prev.width === richMediaPanelBaseSize.width && prev.height === richMediaPanelBaseSize.height
+        ? prev
+        : richMediaPanelBaseSize
+    ))
+  }, [richMediaPanelBaseSize, showRichMediaPanelBody])
+
+  const richMediaPreview = React.useMemo<RichMediaPreview | null>(() => {
+    if (!showRichMediaPanelBody) return null
+    const panel = buildRichMediaPanelOverlayState({
+      node,
+      connectedValuesBySchemaPath,
+    })
+    if (!panel) return null
+    const renderNode = resolveRichMediaPanelRenderNode({ node, connectedValuesBySchemaPath })
+    const props = (renderNode.properties || {}) as Record<string, unknown>
+    const rawImageUrl = typeof props.imageUrl === 'string' ? props.imageUrl.trim() : ''
+    const rawVideoUrl = typeof props.videoUrl === 'string' ? props.videoUrl.trim() : ''
+    const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
+    const selectedTab: RichMediaPanelTab =
+      panel.activeTab === 'image' || panel.activeTab === 'video' || panel.activeTab === 'text' || panel.activeTab === 'poi'
+        ? panel.activeTab
+        : panel.hasVideo
+          ? 'video'
+          : panel.hasImage
+            ? 'image'
+            : panel.hasPoi
+              ? 'poi'
+              : 'text'
+    if (selectedTab === 'video' && rawVideoUrl) return { kind: 'video', url: rawVideoUrl }
+    if (selectedTab === 'image' && rawImageUrl) return { kind: 'image', url: rawImageUrl }
+    return { kind: 'iframe', srcDoc: rawOutputSrcDoc || undefined }
+  }, [connectedValuesBySchemaPath, node, showRichMediaPanelBody])
+
+  const handleRichMediaResizeStart = React.useCallback(() => {
+    richMediaPanelResizeStartRef.current = richMediaPanelViewSize
+  }, [richMediaPanelViewSize])
+
+  const handleRichMediaResize = React.useCallback((args: { dx: number; dy: number }) => {
+    setRichMediaPanelViewSize({
+      width: Math.max(RICH_MEDIA_PANEL_MIN_WIDTH, Math.round(richMediaPanelResizeStartRef.current.width + args.dx)),
+      height: Math.max(RICH_MEDIA_PANEL_MIN_HEIGHT, Math.round(richMediaPanelResizeStartRef.current.height + args.dy)),
+    })
+  }, [])
+
+  const handleRichMediaResizeEnd = React.useCallback(() => {
+    onPatchProperties({
+      'visual:width': richMediaPanelViewSize.width,
+      'visual:height': richMediaPanelViewSize.height,
+    })
+  }, [onPatchProperties, richMediaPanelViewSize.height, richMediaPanelViewSize.width])
+
+  const handleRichMediaResizePointerDown = React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!active || e.button !== 0) return
+    const native = e.nativeEvent
+    handleRichMediaResizeStart()
+    try {
+      e.preventDefault()
+      e.stopPropagation()
+    } catch {
+      void 0
+    }
+    startPointerDrag({
+      ev: native,
+      cursor: 'nwse-resize',
+      onMove: ev => {
+        handleRichMediaResize({
+          dx: ev.clientX - native.clientX,
+          dy: ev.clientY - native.clientY,
+        })
+      },
+      onEnd: handleRichMediaResizeEnd,
+      onCancel: handleRichMediaResizeEnd,
+    })
+  }, [active, handleRichMediaResize, handleRichMediaResizeEnd, handleRichMediaResizeStart])
 
   return (
     <FloatingPanel
-      as="section"
+      as={showRichMediaPanelBody ? 'div' : 'section'}
       ariaLabel={UI_LABELS.flowWidget}
       data-kg-widget={String(node.id || '')}
       data-kg-widget-pinned={pinned ? '1' : '0'}
@@ -295,7 +410,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
       }}
       style={{
         opacity: Number.isFinite(uiPanelOpacity) ? uiPanelOpacity : 1,
-        height: minimized ? undefined : WIDGET_BASE_SIZE.height,
+        height: minimized ? undefined : (showRichMediaPanelBody ? undefined : WIDGET_BASE_SIZE.height),
       }}
     >
       <header
@@ -389,7 +504,77 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         </section>
       </header>
 
-      {!minimized && (
+      {showRichMediaPanelBody ? (
+        <div
+          data-kg-widget-body="1"
+          className="relative min-h-0 overflow-hidden"
+          style={{
+            width: `${richMediaPanelViewSize.width}px`,
+            maxWidth: '100%',
+            height: `${richMediaPanelViewSize.height}px`,
+          }}
+        >
+          {richMediaPreview?.kind === 'image' && richMediaPreview.url ? (
+            <img
+              src={richMediaPreview.url}
+              alt={String(node.label || getRichMediaPanelNodeLabel())}
+              loading="lazy"
+              className="block w-full h-full object-contain"
+            />
+          ) : richMediaPreview?.kind === 'video' && richMediaPreview.url ? (
+            <video
+              src={richMediaPreview.url}
+              controls
+              playsInline
+              preload="metadata"
+              className="block w-full h-full object-contain"
+            />
+          ) : richMediaPreview?.kind === 'iframe' && richMediaPreview.srcDoc ? (
+            <iframe
+              src="about:blank"
+              srcDoc={richMediaPreview.srcDoc}
+              title={String(node.label || getRichMediaPanelNodeLabel())}
+              loading="lazy"
+              className="block w-full h-full border-0"
+            />
+          ) : null}
+          <button
+            type="button"
+            aria-label="Resize"
+            data-kg-resize-handle="se"
+            onPointerDown={handleRichMediaResizePointerDown}
+            style={{
+              position: 'absolute',
+              right: 0,
+              bottom: 0,
+              width: 22,
+              height: 22,
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'flex-end',
+              background: 'transparent',
+              cursor: 'nwse-resize',
+              pointerEvents: 'auto',
+              zIndex: 20,
+              paddingRight: 2,
+              paddingBottom: 2,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 999,
+                background: 'transparent',
+                border: '2px solid rgba(59, 130, 246, 1)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                transition: 'var(--kg-transition-group-resize-dot)',
+              }}
+            />
+          </button>
+        </div>
+      ) : !minimized && (
         <NodeOverlayEditorForm
           active={active}
           node={node}

@@ -184,6 +184,7 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       requestZoom: s.requestZoom,
       requestThreeCamera: s.requestThreeCamera,
       updateNode: s.updateNode,
+      addNode: s.addNode,
       pushUiToast: s.pushUiToast,
       upsertUiToast: s.upsertUiToast,
       dismissUiToast: s.dismissUiToast,
@@ -257,13 +258,14 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       openWidgetNodeIds: gympgrphBridge.openWidgetNodeIds,
       flowEditorOpenWidgetNodeIds,
     })
+    if (!targetNodeId) return false
     publishGrabMapsPoiRichMediaPreview({
       targetNodeId,
       srcDoc,
       label: String(detail.label || '').trim() || 'POI',
     })
-    if (!targetNodeId) return true
-    gympgrphBridge.updateNode(targetNodeId, {
+    const panelNodeId = targetNodeId
+    gympgrphBridge.updateNode(panelNodeId, {
       properties: {
         richMediaActiveTab: 'poi',
         freezeConnectedOutput: true,
@@ -272,12 +274,14 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
         outputSrcDoc: srcDoc,
       },
     })
-    gympgrphBridge.updateOpenWidgetNodeIds(prev => (prev.includes(targetNodeId) ? prev : [...prev, targetNodeId]))
+    gympgrphBridge.updateOpenWidgetNodeIds(prev => (prev.includes(panelNodeId) ? prev : [...prev, panelNodeId]))
+    gympgrphBridge.selectNode(panelNodeId)
     return true
   }, [
     graphData,
     gympgrphBridge.openWidgetNodeIds,
     gympgrphBridge.openWidgetNodeIdsByRenderer,
+    gympgrphBridge.selectNode,
     gympgrphBridge.selectedNodeId,
     gympgrphBridge.selectedNodeIds,
     gympgrphBridge.updateNode,
