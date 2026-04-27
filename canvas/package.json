@@ -15,6 +15,7 @@
     "doc:generate-byteplus-video-codebase-index": "tsx src/cli/generate-byteplus-modelark-video-codebase-index.ts",
     "doc:generate-grabmaps-reference": "tsx src/cli/generate-grabmaps-reference.ts",
     "doc:generate-openai-reference": "tsx src/cli/generate-openai-responses-reference.ts",
+    "doc:generate-flow-run-all-reference": "tsx src/cli/generate-flow-run-all-reference.ts",
     "doc:generate-workspace-export-reference": "tsx src/cli/generate-workspace-export-reference.ts",
     "predev": "npm run fix:entities-sourcemaps && npm run build:grph-shared && npm run build:settings",
     "dev": "vite --configLoader runner",

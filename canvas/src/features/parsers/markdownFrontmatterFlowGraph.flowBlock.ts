@@ -1,6 +1,13 @@
 import { load as parseYaml } from 'js-yaml'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { isUnsafeFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
+import {
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
 
 const FRONTMATTER_FLOW_SETTINGS_KEY = 'frontmatterFlowSettings' as const
 const FRONTMATTER_FLOW_WARNINGS_KEY = 'frontmatterFlowWarnings' as const
@@ -270,9 +277,35 @@ export function tryParseFlowBlockFromMarkdownBodyLines(args: {
   return parseFlowObjectFromYamlBlock(flowBlock)
 }
 
-function extractWidgetFieldSpecsFromFlowNode(rawNode: Record<string, unknown>): Array<{ fieldKey: string; fieldType: string; schemaPath: string }> {
+function extractWidgetFieldSpecsFromFlowNode(args: {
+  rawNode: Record<string, unknown>
+  normalizedRawNode: Record<string, unknown>
+}): Array<{ fieldKey: string; fieldType: string; schemaPath: string }> {
+  const nodeType = asString(args.normalizedRawNode.type)
+  const mapFromCanonicalFields = (fields: Array<{ fieldKey: string; fieldType: string; schemaPath?: string }>) => {
+    const out: Array<{ fieldKey: string; fieldType: string; schemaPath: string }> = []
+    const seen = new Set<string>()
+    for (let i = 0; i < fields.length; i += 1) {
+      const field = fields[i]
+      if (!field) continue
+      const fieldKey = asString(field.fieldKey)
+      const fieldType = asString(field.fieldType)
+      const schemaPath = asString(field.schemaPath) || `properties.${fieldKey}`
+      if (!fieldKey || !fieldType || !schemaPath) continue
+      const dedupeKey = `${fieldKey}|${schemaPath}`
+      if (seen.has(dedupeKey)) continue
+      seen.add(dedupeKey)
+      out.push({ fieldKey, fieldType, schemaPath })
+    }
+    return out
+  }
+  const canonicalDraft = buildCanonicalWidgetRegistryDraft({ nodeTypeId: nodeType })
+  if (canonicalDraft) {
+    return mapFromCanonicalFields(canonicalDraft.fields)
+  }
+
   const out: Array<{ fieldKey: string; fieldType: string; schemaPath: string }> = []
-  for (const [k, v] of Object.entries(rawNode)) {
+  for (const [k, v] of Object.entries(args.rawNode)) {
     const fieldName = asString(k)
     if (!fieldName) continue
     if (!isRecord(v)) continue
@@ -725,7 +758,10 @@ export function normalizeMetaWithFlowBlock(meta: Record<string, unknown>): Recor
       allowMixedHandles,
     })
     const baseProps = isRecord(normalizedRawNode.properties) ? ({ ...normalizedRawNode.properties } as Record<string, unknown>) : {}
-    const widgetFields = extractWidgetFieldSpecsFromFlowNode(rawNode as Record<string, unknown>)
+    const widgetFields = extractWidgetFieldSpecsFromFlowNode({
+      rawNode: rawNode as Record<string, unknown>,
+      normalizedRawNode,
+    })
     if (widgetFields.length > 0) baseProps[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY] = widgetFields
     if (handles && Object.keys(handles).length > 0) baseProps[FRONTMATTER_FLOW_HANDLES_VALUE_KEY] = handles
     const declaredProps = collectDeclaredFlowNodePropertyValues({

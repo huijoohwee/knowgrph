@@ -1,5 +1,6 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { SourceFile } from '@/hooks/store/types'
+import type { GraphData } from '@/lib/graph/types'
 import {
   WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS,
   WORKSPACE_IMPORT_AUTO_APPLY_ENABLED,
@@ -9,6 +10,9 @@ import {
 } from '@/lib/config'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config.render'
+import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
+import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { WorkspaceFs, WorkspacePath } from './types'
 import { normalizeWorkspacePath, workspaceDocumentKey } from './path'
 import { loadWorkspaceSourceIndex } from './sourceIndex'
@@ -26,19 +30,53 @@ type ApplyWorkspaceImportToCanvasResult = {
   parsedCount: number
 }
 
-function applyInteractiveImportDefaults(): void {
+export function applyInteractiveImportModes(args?: { graphData?: GraphData | null; frontmatterOnlyDoc?: boolean }): void {
   const store = useGraphStore.getState()
-  try {
-    store.setCanvasRenderMode('2d')
-    store.setCanvas2dRenderer(DEFAULT_CANVAS_2D_RENDERER)
-  } catch {
-    void 0
+  const graphData = args?.graphData || null
+  const frontmatterOnlyDoc = args?.frontmatterOnlyDoc === true
+
+  if (graphData) {
+    try {
+      applyFrontmatterFlowImportModes(graphData)
+    } catch {
+      void 0
+    }
+  } else if (frontmatterOnlyDoc) {
+    try {
+      store.setCanvasRenderMode('2d')
+      store.setCanvas2dRenderer(DEFAULT_CANVAS_2D_RENDERER)
+    } catch {
+      void 0
+    }
+    try {
+      if (store.documentSemanticMode !== 'document') store.setDocumentSemanticMode('document')
+    } catch {
+      void 0
+    }
+    try {
+      if (store.frontmatterModeEnabled !== true) store.setFrontmatterModeEnabled(true)
+    } catch {
+      void 0
+    }
+    try {
+      if (store.multiDimTableModeEnabled !== false) store.setMultiDimTableModeEnabled(false)
+    } catch {
+      void 0
+    }
+  } else {
+    try {
+      store.setCanvasRenderMode('2d')
+      store.setCanvas2dRenderer(DEFAULT_CANVAS_2D_RENDERER)
+    } catch {
+      void 0
+    }
+    try {
+      if (store.frontmatterModeEnabled !== true) store.setFrontmatterModeEnabled(true)
+    } catch {
+      void 0
+    }
   }
-  try {
-    if (store.frontmatterModeEnabled !== true) store.setFrontmatterModeEnabled(true)
-  } catch {
-    void 0
-  }
+
   try {
     const schema = store.schema
     const layout = schema?.layout
@@ -116,6 +154,8 @@ export async function applyWorkspaceImportToCanvas(args: {
   let remainingFiles = WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILES
   let remainingChars = WORKSPACE_IMPORT_AUTO_PARSE_MAX_TOTAL_CHARS
   let parsedCount = 0
+  let preferredInteractiveImportGraphData: GraphData | null = null
+  let sawFrontmatterOnlyDoc = false
 
   for (const path of createdPaths) {
     if (remainingFiles <= 0 || remainingChars <= 0) break
@@ -151,6 +191,12 @@ export async function applyWorkspaceImportToCanvas(args: {
     const graphData = res?.graphData || null
     const parserId = typeof res?.parserId === 'string' ? res.parserId : undefined
     const inlineText = text.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? text : ''
+    if (!preferredInteractiveImportGraphData && graphData && isFrontmatterFlowGraph(graphData)) {
+      preferredInteractiveImportGraphData = graphData
+    }
+    if (!sawFrontmatterOnlyDoc && isFrontmatterOnlyDoc(text)) {
+      sawFrontmatterOnlyDoc = true
+    }
 
     const base = ensureNext()[idx]
     const hasGraphContent = !!(
@@ -197,7 +243,10 @@ export async function applyWorkspaceImportToCanvas(args: {
   if (next) {
     store.setSourceFiles(next)
     scheduleApplyComposedGraphFromSourceFiles()
-    applyInteractiveImportDefaults()
+    applyInteractiveImportModes({
+      graphData: preferredInteractiveImportGraphData,
+      frontmatterOnlyDoc: sawFrontmatterOnlyDoc,
+    })
     return { sourceFilesUpdated: true, enabledCount, parsedCount }
   }
   if (merged !== existing) {

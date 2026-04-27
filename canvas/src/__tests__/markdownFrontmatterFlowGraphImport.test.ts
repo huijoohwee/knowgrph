@@ -7,8 +7,10 @@ import { buildAndSetFlowNativeScene } from '@/components/FlowCanvas/buildNativeS
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
-import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 
 export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   const md = [
@@ -386,6 +388,54 @@ export function testMarkdownFlowBlockPreservesFlowWidgetNodeTypesAndFormIds() {
   const registry = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
   if (Array.isArray(registry) && registry.some(r => String((r as { formId?: unknown })?.formId || '').startsWith('fm:n-text'))) {
     throw new Error('expected parser not to overwrite widget formId with fm:n-text')
+  }
+}
+
+export function testMarkdownFlowBlockNormalizesLegacyVideoWidgetTypeToCanonicalDefault() {
+  const md = [
+    '# Title',
+    '',
+    'flow:',
+    '  nodes:',
+    '    - id:      {key: id,      type: string,  value: "n-video"}',
+    '      type:    {key: type,    type: string,  value: "VideoGeneration"}',
+    '      label:   {key: label,   type: string,  value: "BytePlus Video Widget"}',
+    '      handles: {key: handles, type: object,  value: {target: ["reference_image"], source: ["videoUrl"]}}',
+    '      "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "videoGeneration"}',
+    '      "flow:widgetTypeId": {key: flow:widgetTypeId, type: string, value: "ports"}',
+    '      model: {key: model, type: string, value: "seedance-1-0-pro-fast-251015"}',
+    '      prompt: {key: prompt, type: string, value: "animate this"}',
+    '  edges: []',
+    '---',
+    '',
+    '## Body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('flow-video-widget-type-normalization.md', md)
+  if (!res) throw new Error('expected parse result for video widget type normalization')
+  const g = res.graphData
+  if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const videoNode = g.nodes.find(n => String(n.id || '') === 'n-video')
+  if (!videoNode) throw new Error('expected n-video node')
+  const videoProps = (videoNode.properties || {}) as Record<string, unknown>
+  if (String(videoProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'videoGeneration') {
+    throw new Error(`expected flow:widgetFormId=videoGeneration, got ${String(videoProps[FLOW_WIDGET_FORM_ID_KEY] || '')}`)
+  }
+  if (String(videoProps[FLOW_WIDGET_TYPE_ID_KEY] || '') !== 'default') {
+    throw new Error(`expected flow:widgetTypeId=default after normalization, got ${String(videoProps[FLOW_WIDGET_TYPE_ID_KEY] || '')}`)
+  }
+
+  const canonicalVideoDraft = buildCanonicalWidgetRegistryDraft({ nodeTypeId: 'VideoGeneration' })
+  if (!canonicalVideoDraft) throw new Error('expected canonical video registry draft')
+  const resolved = resolveWidgetRegistryEntry({
+    node: videoNode,
+    registry: [{ ...canonicalVideoDraft, id: 'video-default', updatedAt: '2026-04-27T00:00:00.000Z' }],
+    graphMetaKind: 'frontmatter-flow',
+  })
+  if (!resolved) throw new Error('expected canonical video registry entry to resolve for normalized frontmatter node')
+  if (String(resolved.widgetTypeId || '') !== 'default') {
+    throw new Error(`expected resolved canonical video widgetTypeId=default, got ${String(resolved.widgetTypeId || '')}`)
   }
 }
 
@@ -2076,73 +2126,102 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphRichMediaGenerat
   if (!res) throw new Error('expected rich-media generation demo frontmatter parse result')
   const g = res.graphData
   if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+  if (g.nodes.length !== 20) throw new Error(`expected 20 flow nodes, got ${g.nodes.length}`)
+  if (g.edges.length !== 32) throw new Error(`expected 32 flow edges, got ${g.edges.length}`)
 
   const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
-  const videoNode = nodeById.get('w-byteplus-video') || null
-  const panelNode = nodeById.get('p-byteplus-video') || null
-  if (!videoNode) throw new Error('expected w-byteplus-video node')
-  if (!panelNode) throw new Error('expected p-byteplus-video node')
+  const videoNode = nodeById.get('w-video-scene') || null
+  const panelNode = nodeById.get('p-video-scene') || null
+  if (!videoNode) throw new Error('expected w-video-scene node')
+  if (!panelNode) throw new Error('expected p-video-scene node')
 
   const videoProps = (videoNode.properties || {}) as Record<string, unknown>
   if (String(videoProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'videoGeneration') {
-    throw new Error('expected w-byteplus-video flow:widgetFormId=videoGeneration')
+    throw new Error('expected w-video-scene flow:widgetFormId=videoGeneration')
   }
   if (String(videoProps.model || '') !== 'seedance-1-0-pro-fast-251015') {
     throw new Error(`expected BytePlus video demo default model, got ${String(videoProps.model || '')}`)
   }
   if (
     String(videoProps.prompt || '')
-    !== 'Imagination run wild, 2s; Southeast Asia (Singapore, Malaysia, Indonesia, Philippines, Cambodia, Laos, Myanmar, Vietnam, Thailand), Taiwan/Chinese Taipei; island-hopping night markets, skyline ferries, tropical rain showers'
+    !== 'epic cinematic, myth-tech fusion, 12s; Flaming Mountain desert; celestial troops vs mech-beasts at sunset. Script: Epic cinematic battlefield video set on a vast ancient desert. The film opens with an extreme wide establishing shot — massive ranks of celestial troops, ornate heavenly armor, cloud-tipped spears, silk banners snapping in dust-laden winds. At the front: a towering Robomonkey, chrome-gold body etched with seal script, glowing red eyes cutting through the haze, electric staff crackling at its back — and beside it a barrel-chested Robopig, iron-plated snout gleaming, mechanical rake raised and humming. Low-angle sunset light casts a heavy amber glow as the camera slowly pushes in, hydraulic joints hissing, steam rising in the cold air. Cut to medium: Robomonkey stares ahead, golden headband catching the last light. Low-angle: Robopig\'s iron hoof strikes the cracked earth — sand and embers erupt, ground trembling. Pull back to a high aerial wide: the full celestial army stretches across the Flaming Mountain desert — vast, overwhelming, awe-inspiring.\n'
   ) {
     throw new Error(`expected resolved video prompt contract, got ${String(videoProps.prompt || '')}`)
   }
-  if (Number(videoProps.duration) !== 2) {
-    throw new Error(`expected video duration 2, got ${String(videoProps.duration || '')}`)
+  if (Number(videoProps.duration) !== 12) {
+    throw new Error(`expected video duration 12, got ${String(videoProps.duration || '')}`)
   }
-  const selectedGeo = videoProps.selected_location_geojson as Record<string, unknown> | null
-  if (!selectedGeo || String(selectedGeo.type || '') !== 'FeatureCollection') {
-    throw new Error('expected selected_location_geojson FeatureCollection payload on video node')
+  if (String(videoProps.ratio || '') !== '16:9') throw new Error('expected video ratio 16:9')
+  if (String(videoProps.resolution || '') !== '480p') throw new Error('expected video resolution 480p')
+  if (videoProps.generate_audio !== false) throw new Error('expected generate_audio=false')
+  if (videoProps.draft !== true) throw new Error('expected draft=true')
+  if (videoProps.camera_fixed !== false) throw new Error('expected camera_fixed=false')
+  if (String(videoProps.image_url_url || '') !== 'base64') throw new Error('expected image_url_url=base64')
+  const videoHandles = (videoProps['frontmatter:handles'] || null) as Record<string, unknown> | null
+  const videoTargetHandles = Array.isArray(videoHandles?.target) ? videoHandles.target : []
+  const videoSourceHandles = Array.isArray(videoHandles?.source) ? videoHandles.source : []
+  if (videoTargetHandles.length !== 1 || String(videoTargetHandles[0] || '') !== 'reference_image') {
+    throw new Error('expected w-video-scene target handle reference_image')
+  }
+  if (videoSourceHandles.length !== 1 || String(videoSourceHandles[0] || '') !== 'videoUrl') {
+    throw new Error('expected w-video-scene source handle videoUrl')
   }
 
   const frontmatterMeta = ((g.metadata || {}) as Record<string, unknown>).frontmatterMeta as Record<string, unknown> | null
   const demoInputs = (frontmatterMeta?.demo_inputs || null) as Record<string, unknown> | null
   const location = (demoInputs?.location || null) as Record<string, unknown> | null
-  const geojson = (location?.geojson || null) as Record<string, unknown> | null
-  if (
-    String(location?.name || '')
-    !== 'Southeast Asia (Singapore, Malaysia, Indonesia, Philippines, Cambodia, Laos, Myanmar, Vietnam, Thailand), Taiwan/Chinese Taipei'
-  ) {
-    throw new Error('expected demo_inputs.location.name to match the Southeast Asia + Taiwan travel corridor')
+  if (String(demoInputs?.vibe || '') !== 'epic cinematic, myth-tech fusion') {
+    throw new Error('expected demo_inputs.vibe to match current rich-media generation demo')
   }
-  if (String(geojson?.type || '') !== 'FeatureCollection') throw new Error('expected demo_inputs.location.geojson FeatureCollection payload')
-  const geoFeatures = Array.isArray(geojson?.features) ? geojson.features : []
-  if (geoFeatures.length < 5) throw new Error(`expected multi-city travel corridor geojson, got ${geoFeatures.length} features`)
+  if (Number(demoInputs?.duration_seconds) !== 12) throw new Error('expected demo_inputs.duration_seconds=12')
+  if (String(location?.name || '') !== 'Flaming Mountain desert') {
+    throw new Error('expected demo_inputs.location.name=Flaming Mountain desert')
+  }
+  if (String(location?.label || '') !== 'Flaming Mountain desert (sunset battlefield)') {
+    throw new Error('expected demo_inputs.location.label to match the sunset battlefield scene')
+  }
 
-  const grabmaps = (frontmatterMeta?.grabmaps || null) as Record<string, unknown> | null
-  const auth = (grabmaps?.auth || null) as Record<string, unknown> | null
-  const places = (grabmaps?.places || null) as Record<string, unknown> | null
-  const keywordSearch = (places?.keyword_search || null) as Record<string, unknown> | null
-  const nearbySearch = (places?.nearby_search || null) as Record<string, unknown> | null
-  if (String(auth?.style_url || '') !== 'https://maps.grab.com/api/style.json') {
-    throw new Error(`expected GrabMaps style URL, got ${String(auth?.style_url || '')}`)
+  const panelProps = (panelNode.properties || {}) as Record<string, unknown>
+  if (String(panelProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'richMediaPanel') {
+    throw new Error('expected p-video-scene flow:widgetFormId=richMediaPanel')
   }
-  if (String(keywordSearch?.endpoint || '') !== 'https://maps.grab.com/api/v1/maps/poi/v1/search') {
-    throw new Error('expected GrabMaps keyword search endpoint')
+  const panelHandles = (panelProps['frontmatter:handles'] || null) as Record<string, unknown> | null
+  const panelTargetHandles = Array.isArray(panelHandles?.target) ? panelHandles.target : []
+  const panelSourceHandles = Array.isArray(panelHandles?.source) ? panelHandles.source : []
+  if (panelTargetHandles.length !== 2 || String(panelTargetHandles[0] || '') !== 'videoUrl' || String(panelTargetHandles[1] || '') !== 'outputSrcDoc') {
+    throw new Error('expected p-video-scene target handles [videoUrl, outputSrcDoc]')
   }
-  if (String(keywordSearch?.country || '') !== 'SGP') throw new Error('expected GrabMaps keyword search country bias=SGP')
-  if (Number(keywordSearch?.limit) !== 10) throw new Error(`expected GrabMaps keyword search limit 10, got ${String(keywordSearch?.limit || '')}`)
-  if (String(nearbySearch?.endpoint || '') !== 'https://maps.grab.com/api/v1/maps/place/v2/nearby') {
-    throw new Error('expected GrabMaps nearby search endpoint')
+  if (panelSourceHandles.length !== 2 || String(panelSourceHandles[0] || '') !== 'videoUrl' || String(panelSourceHandles[1] || '') !== 'outputSrcDoc') {
+    throw new Error('expected p-video-scene source handles [videoUrl, outputSrcDoc]')
   }
-  if (Number(nearbySearch?.radius_km) !== 1) throw new Error(`expected GrabMaps nearby radius 1km, got ${String(nearbySearch?.radius_km || '')}`)
-  if (String(nearbySearch?.rankBy || '') !== 'distance') throw new Error('expected GrabMaps nearby rankBy=distance')
 
-  const edge = g.edges.find(e => String(e.id || '') === 'e-byteplus-video') || null
-  if (!edge) throw new Error('expected e-byteplus-video edge')
+  const edge = g.edges.find(e => String(e.id || '') === 'e-video') || null
+  if (!edge) throw new Error('expected e-video edge')
   const edgeProps = (edge.properties || {}) as Record<string, unknown>
-  if (String(edge.source || '') !== 'w-byteplus-video' || String(edge.target || '') !== 'p-byteplus-video') {
-    throw new Error('expected e-byteplus-video endpoints w-byteplus-video -> p-byteplus-video')
+  if (String(edge.source || '') !== 'w-video-scene' || String(edge.target || '') !== 'p-video-scene') {
+    throw new Error('expected e-video endpoints w-video-scene -> p-video-scene')
   }
-  if (String(edgeProps[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-byteplus-video source port videoUrl')
-  if (String(edgeProps[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-byteplus-video target port videoUrl')
+  if (String(edgeProps[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-video source port videoUrl')
+  if (String(edgeProps[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'videoUrl') throw new Error('expected e-video target port videoUrl')
+
+  const sceneToVideoRefEdge = g.edges.find(e => String(e.id || '') === 'e-scene01-to-video-ref') || null
+  if (!sceneToVideoRefEdge) throw new Error('expected e-scene01-to-video-ref edge')
+  const sceneToVideoRefProps = (sceneToVideoRefEdge.properties || {}) as Record<string, unknown>
+  if (String(sceneToVideoRefEdge.source || '') !== 'w-img-scene-01' || String(sceneToVideoRefEdge.target || '') !== 'w-video-scene') {
+    throw new Error('expected e-scene01-to-video-ref endpoints w-img-scene-01 -> w-video-scene')
+  }
+  if (String(sceneToVideoRefProps[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'imageUrl') {
+    throw new Error('expected e-scene01-to-video-ref source port imageUrl')
+  }
+  if (String(sceneToVideoRefProps[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'reference_image') {
+    throw new Error('expected e-scene01-to-video-ref target port reference_image')
+  }
+
+  const display = deriveSceneDisplayGraph({ graphData: g })
+  if (!display) throw new Error('expected display graph derivation for rich-media generation demo')
+  if (display.displayNodes.length !== 20) throw new Error(`expected 20 display nodes, got ${display.displayNodes.length}`)
+  if (display.displayEdges.length !== 32) throw new Error(`expected 32 display edges, got ${display.displayEdges.length}`)
+  const displayEdgeIds = new Set(display.displayEdges.map(e => String(e.id || '').trim()).filter(Boolean))
+  if (!displayEdgeIds.has('e-video')) throw new Error('expected display graph to keep e-video visible')
+  if (!displayEdgeIds.has('e-scene01-to-video-ref')) throw new Error('expected display graph to keep e-scene01-to-video-ref visible')
 }

@@ -20,6 +20,12 @@ import {
   FLOW_WIDGET_FORM_ID_KEY,
   FLOW_WIDGET_TYPE_ID_KEY,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import {
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { formatFlowHandleKeyValue, formatFlowHandleValueList, readFlowHandlePath, readFlowHandleTypeLabel } from '@/lib/graph/flowHandlePresentation'
 import { NodeOverlayEditorSchemaTable } from '@/components/FlowEditor/NodeOverlayEditorSchemaTable'
@@ -44,7 +50,10 @@ import {
   type RichMediaPanelTab,
   resolveRichMediaPanelRenderNode,
 } from '@/lib/render/richMediaSsot'
-import { inferTextGenerationProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
+import {
+  getWidgetRegistryEntryLabel,
+  inferTextGenerationProviderFamily,
+} from '@/features/flow-editor-manager/registryTemplates'
 
 const FRONTMATTER_FLOW_WIDGET_FIELDS_KEY = 'frontmatter:widgetFields' as const
 const FRONTMATTER_FLOW_HANDLES_VALUE_KEY = 'frontmatter:handles' as const
@@ -442,8 +451,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const properties = (node.properties || {}) as Record<string, unknown>
   const nodeTypeId = pickString(node.type).trim()
   const isRichMediaPanelWidget = nodeTypeId === 'RichMediaPanel'
+  const isFrontmatterWidgetRegistryNode =
+    nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+    || nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+    || nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+    || nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
   const showRichMediaPanelView = isRichMediaPanelWidget && !hideFields
-  const showRichMediaPanelKtvRows = isRichMediaPanelWidget && hideFields
   const idBase = React.useMemo(() => {
     const nodeId = cleanDomIdPart(node.id) || 'node'
     return `flow-node-quick-${nodeId}`
@@ -463,6 +476,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
   const nodeFormId = typeof properties[FLOW_WIDGET_FORM_ID_KEY] === 'string' ? String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim() : ''
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
+  const showRichMediaPanelKtvRows = isRichMediaPanelWidget && hideFields && !isFrontmatterFlow
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
 
   const flowEnvelopeValueBoxClass = React.useMemo(() => {
@@ -634,6 +648,20 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }, [])
   const flowRegistryFormId = String(properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
   const flowRegistryFormIdExpected = flowRegistryFormId || `fm:${String(node.id || '').trim()}`
+  const showFrontmatterWidgetRegistrySection = Boolean(
+    isFrontmatterFlow
+    && isFrontmatterWidgetRegistryNode
+    && registryEntry,
+  )
+  const hideFrontmatterFlowContractRows = showFrontmatterWidgetRegistrySection
+  const frontmatterWidgetIdentityLabel = React.useMemo(() => {
+    if (!showFrontmatterWidgetRegistrySection || !registryEntry) return ''
+    return getWidgetRegistryEntryLabel({
+      nodeTypeId: nodeTypeId || registryEntry.nodeTypeId,
+      widgetTypeId: registryEntry.widgetTypeId,
+      formId: registryEntry.formId,
+    })
+  }, [nodeTypeId, registryEntry, showFrontmatterWidgetRegistrySection])
 
   const registryOptions = React.useMemo(
     () => {
@@ -1081,7 +1109,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         </section>
       )}
 
-      {hideFields && isFrontmatterFlow && frontmatterPortRows.length > 0 && (
+      {hideFields && isFrontmatterFlow && !hideFrontmatterFlowContractRows && frontmatterPortRows.length > 0 && (
         <section className="min-w-0 mt-4" aria-label="Flow Handles">
           <NodeOverlayEditorKvTable
             ariaLabel="Flow Handles"
@@ -1094,7 +1122,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         </section>
       )}
 
-      {!hideFields && isFrontmatterFlow && (
+      {!hideFields && isFrontmatterFlow && !hideFrontmatterFlowContractRows && (
         <section className="min-w-0 mt-4" aria-label="Flow Envelope">
           <NodeOverlayEditorKvTable
             ariaLabel="Flow Envelope"
@@ -1167,54 +1195,56 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
               const rawDeclaredFields = (properties as Record<string, unknown>)[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]
               const declaredFields = Array.isArray(rawDeclaredFields) ? rawDeclaredFields : []
-              for (let fieldIndex = 0; fieldIndex < declaredFields.length; fieldIndex += 1) {
-                const spec = declaredFields[fieldIndex]
-                if (!spec || typeof spec !== 'object') continue
-                const rec = spec as Record<string, unknown>
-                const fieldKey = String(rec.fieldKey || '').trim()
-                const fieldType = String(rec.fieldType || '').trim() || 'unknown'
-                const schemaPath = String(rec.schemaPath || fieldKey).trim()
-                if (!fieldKey || !schemaPath) continue
-                if (
-                  schemaPath === FRONTMATTER_FLOW_HANDLES_VALUE_KEY ||
-                  schemaPath === 'flow:compute' ||
-                  schemaPath === 'data' ||
-                  fieldKey === 'handles' ||
-                  fieldKey === 'compute' ||
-                  fieldKey === 'data'
-                ) {
-                  continue
+              if (!showFrontmatterWidgetRegistrySection) {
+                for (let fieldIndex = 0; fieldIndex < declaredFields.length; fieldIndex += 1) {
+                  const spec = declaredFields[fieldIndex]
+                  if (!spec || typeof spec !== 'object') continue
+                  const rec = spec as Record<string, unknown>
+                  const fieldKey = String(rec.fieldKey || '').trim()
+                  const fieldType = String(rec.fieldType || '').trim() || 'unknown'
+                  const schemaPath = String(rec.schemaPath || fieldKey).trim()
+                  if (!fieldKey || !schemaPath) continue
+                  if (
+                    schemaPath === FRONTMATTER_FLOW_HANDLES_VALUE_KEY ||
+                    schemaPath === 'flow:compute' ||
+                    schemaPath === 'data' ||
+                    fieldKey === 'handles' ||
+                    fieldKey === 'compute' ||
+                    fieldKey === 'data'
+                  ) {
+                    continue
+                  }
+                  const rawValue = readObjectPathValue(properties as Record<string, unknown>, schemaPath)
+                  if (typeof rawValue === 'undefined') continue
+                  const valueText = typeof rawValue === 'string'
+                    ? rawValue
+                    : (() => {
+                        try {
+                          return JSON.stringify(rawValue, null, 2) || ''
+                        } catch {
+                          return String(rawValue)
+                        }
+                      })()
+                  rows.push({
+                    rowKey: `flow-envelope-field-${fieldKey}-${fieldIndex}`,
+                    labelId: `${idBase}-kv-flow-envelope-field-${fieldIndex}`,
+                    keyNode: (
+                      <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-envelope-field-${fieldIndex}`}>
+                        {fieldKey}
+                      </label>
+                    ),
+                    typeNode: renderKvTypeBox(fieldType),
+                    valueNode: (
+                      <PlainTextInputEditor
+                        id={`${idBase}-flow-envelope-field-${fieldIndex}`}
+                        value={valueText}
+                        disabled
+                        multiline
+                        className={flowEnvelopeValueBoxClass}
+                      />
+                    ),
+                  })
                 }
-                const rawValue = readObjectPathValue(properties as Record<string, unknown>, schemaPath)
-                if (typeof rawValue === 'undefined') continue
-                const valueText = typeof rawValue === 'string'
-                  ? rawValue
-                  : (() => {
-                      try {
-                        return JSON.stringify(rawValue, null, 2) || ''
-                      } catch {
-                        return String(rawValue)
-                      }
-                    })()
-                rows.push({
-                  rowKey: `flow-envelope-field-${fieldKey}-${fieldIndex}`,
-                  labelId: `${idBase}-kv-flow-envelope-field-${fieldIndex}`,
-                  keyNode: (
-                    <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-flow-envelope-field-${fieldIndex}`}>
-                      {fieldKey}
-                    </label>
-                  ),
-                  typeNode: renderKvTypeBox(fieldType),
-                  valueNode: (
-                    <PlainTextInputEditor
-                      id={`${idBase}-flow-envelope-field-${fieldIndex}`}
-                      value={valueText}
-                      disabled
-                      multiline
-                      className={flowEnvelopeValueBoxClass}
-                    />
-                  ),
-                })
               }
 
               return rows
@@ -1298,6 +1328,69 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           showFieldRows
           showPortRows
           showTableHeader
+        />
+      )}
+
+      {showFrontmatterWidgetRegistrySection && registryEntry && (
+        <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidget}>
+          <NodeOverlayEditorKvTable
+            ariaLabel={UI_LABELS.flowWidget}
+            microLabelClass={microLabelClass}
+            dotSizePx={dotSizePx}
+            dotHitPx={dotHitPx}
+            forcePortDots
+            rows={[
+              {
+                rowKey: 'frontmatter-widget-identity',
+                labelId: `${idBase}-kv-frontmatter-widget-identity`,
+                keyNode: (
+                  <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={`${idBase}-frontmatter-widget-identity`}>
+                    {UI_LABELS.flowWidget}
+                  </label>
+                ),
+                typeNode: <NodeOverlayEditorTypePill text="mapping" />,
+                valueNode: (
+                  <PlainTextInputEditor
+                    id={`${idBase}-frontmatter-widget-identity`}
+                    value={frontmatterWidgetIdentityLabel}
+                    disabled
+                    readOnly
+                    className={cn(
+                      keyValueInputClass,
+                      textSizeClass,
+                      'text-left',
+                      UI_THEME_TOKENS.input.bg,
+                      UI_THEME_TOKENS.input.border,
+                      UI_THEME_TOKENS.input.text,
+                    )}
+                  />
+                ),
+              },
+            ]}
+          />
+        </section>
+      )}
+
+      {showFrontmatterWidgetRegistrySection && registryEntry && (
+        <NodeOverlayEditorRegistrySection
+          active={active}
+          properties={properties}
+          registryEntry={registryEntry}
+          microLabelClass={microLabelClass}
+          monospaceTextClass={monospaceTextClass}
+          textSizeClass={textSizeClass}
+          keyValueInputClass={keyValueInputClass}
+          keyLabelClass={keyLabelClass}
+          normalizeRegistrySchemaPath={normalizeRegistrySchemaPath}
+          ids={{ registryField: ids.registryField }}
+          dotSizePx={dotSizePx}
+          dotHitPx={dotHitPx}
+          portHandlesEnabled={portHandlesEnabled}
+          connectedValuesBySchemaPath={connectedValuesBySchemaPath}
+          onSetProperties={onSetProperties}
+          onSchemaPortHandleClick={onSchemaPortHandleClick}
+          showFieldRows
+          showPortRows
         />
       )}
 

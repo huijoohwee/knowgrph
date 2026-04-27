@@ -1,6 +1,7 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import {
+  expandWorkspaceSeedFileEntries,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_README_TEXT,
   getWorkspaceSeedFiles,
@@ -74,15 +75,10 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
     if (userClearedAll) return
     const seeds = await getWorkspaceSeedFiles()
     for (const seed of seeds) {
-      const path = normalizeWorkspacePath(seed.path)
-      entriesByPath.set(path, {
-        path,
-        parentPath: WORKSPACE_ROOT_PATH,
-        kind: 'file',
-        name: path.split('/').pop() || '',
-        text: seed.text,
-        updatedAtMs: Date.now(),
-      })
+      const entries = expandWorkspaceSeedFileEntries(normalizeWorkspacePath(seed.path), seed.text, Date.now())
+      for (const entry of entries) {
+        entriesByPath.set(entry.path, entry)
+      }
     }
     lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
     if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)

@@ -1,4 +1,4 @@
-import type { GraphData } from '@/lib/graph/types'
+import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { splitMarkdownLines, parseMarkdownFrontmatter } from '@/lib/markdown'
 import { hashText } from '@/features/parsers/hash'
 import {
@@ -72,6 +72,123 @@ function isChatKnowgrphFrontmatterText(args: {
 
 function cleanIdPart(v: unknown): string {
   return String(typeof v === 'string' ? v : '').trim().replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+function readFrontmatterFlowDirection(metaRecord: Record<string, unknown>): 'LR' | 'RL' | 'TB' | 'BT' {
+  const settings = isRecord(metaRecord.frontmatterFlowSettings)
+    ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>)
+    : null
+  const raw = settings ? asString(settings.direction).toUpperCase() : ''
+  return raw === 'RL' || raw === 'TB' || raw === 'BT' ? raw : 'LR'
+}
+
+function shouldSeedBalancedNodeLayout(nodes: ReadonlyArray<GraphNode>): boolean {
+  if (!Array.isArray(nodes) || nodes.length === 0) return false
+  const seen = new Set<string>()
+  let missing = false
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    const props = isRecord(node?.properties) ? (node.properties as Record<string, unknown>) : null
+    if (props?.['frontmatter:autoSeededPos'] === true) return true
+    const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : null
+    const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : null
+    if (x == null || y == null) {
+      missing = true
+      continue
+    }
+    const key = `${Math.round(x)}:${Math.round(y)}`
+    if (seen.has(key)) return true
+    seen.add(key)
+  }
+  return missing
+}
+
+function assignBalancedViewportSpread(args: {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  direction: 'LR' | 'RL' | 'TB' | 'BT'
+}): GraphNode[] {
+  const nodes = Array.isArray(args.nodes) ? args.nodes : []
+  if (nodes.length === 0) return nodes
+  const nodeIds = new Set<string>()
+  const indegree = new Map<string, number>()
+  const outgoing = new Map<string, string[]>()
+  const rank = new Map<string, number>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const id = asString(nodes[i]?.id)
+    if (!id) continue
+    nodeIds.add(id)
+    indegree.set(id, 0)
+    outgoing.set(id, [])
+    rank.set(id, 0)
+  }
+  for (let i = 0; i < args.edges.length; i += 1) {
+    const edge = args.edges[i]
+    const source = asString(edge?.source)
+    const target = asString(edge?.target)
+    if (!source || !target || source === target || !nodeIds.has(source) || !nodeIds.has(target)) continue
+    outgoing.get(source)?.push(target)
+    indegree.set(target, (indegree.get(target) || 0) + 1)
+  }
+  const queue = Array.from(nodeIds).filter(id => (indegree.get(id) || 0) === 0).sort((a, b) => a.localeCompare(b))
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    const neighbors = outgoing.get(id) || []
+    for (let i = 0; i < neighbors.length; i += 1) {
+      const target = neighbors[i]!
+      rank.set(target, Math.max(rank.get(target) || 0, (rank.get(id) || 0) + 1))
+      const nextIn = (indegree.get(target) || 0) - 1
+      indegree.set(target, nextIn)
+      if (nextIn === 0) {
+        queue.push(target)
+        queue.sort((a, b) => a.localeCompare(b))
+      }
+    }
+  }
+
+  const buckets = new Map<number, GraphNode[]>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]!
+    const bucket = rank.get(asString(node.id)) || 0
+    const list = buckets.get(bucket) || []
+    list.push(node)
+    buckets.set(bucket, list)
+  }
+  const bucketIds = Array.from(buckets.keys()).sort((a, b) => a - b)
+  const STEP_X = 380
+  const STEP_Y = 240
+  const out: GraphNode[] = []
+  for (let bi = 0; bi < bucketIds.length; bi += 1) {
+    const bucket = bucketIds[bi]!
+    const group = (buckets.get(bucket) || []).slice().sort((a, b) => {
+      const typeCompare = asString(a.type).localeCompare(asString(b.type))
+      if (typeCompare !== 0) return typeCompare
+      return asString(a.id).localeCompare(asString(b.id))
+    })
+    const centerOffset = (group.length - 1) / 2
+    for (let gi = 0; gi < group.length; gi += 1) {
+      const node = group[gi]!
+      const props = isRecord(node.properties)
+        ? ({ ...(node.properties as Record<string, JSONValue>) } as Record<string, JSONValue>)
+        : ({} as Record<string, JSONValue>)
+      const primary = bucket * STEP_X
+      const secondary = Math.round((gi - centerOffset) * STEP_Y)
+      let x = primary
+      let y = secondary
+      if (args.direction === 'RL') x = -primary
+      if (args.direction === 'TB' || args.direction === 'BT') {
+        x = secondary
+        y = primary
+      }
+      if (args.direction === 'BT') y = -primary
+      if (typeof props['visual:xIndex'] === 'undefined') props['visual:xIndex'] = Math.floor(x / 320) as unknown as JSONValue
+      if (typeof props['visual:yIndex'] === 'undefined') props['visual:yIndex'] = Math.floor(y / 220) as unknown as JSONValue
+      if (typeof props['visual:zIndex'] === 'undefined') props['visual:zIndex'] = bucket as unknown as JSONValue
+      if (props['frontmatter:autoSeededPos'] === true) delete props['frontmatter:autoSeededPos']
+      out.push({ ...node, x, y, properties: props })
+    }
+  }
+  return out
 }
 
 function readFlowWarnings(metaRecord: Record<string, unknown>): string[] {
@@ -263,6 +380,13 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     ensureAugmentedPortsFromDeclaredConnections({ nodes: normalized.nodes, registry: normalized.registry, declared: connParsed.declared })
 
     const edges = connParsed.edges
+    const layoutedNodes = shouldSeedBalancedNodeLayout(normalized.nodes)
+      ? assignBalancedViewportSpread({
+          nodes: normalized.nodes,
+          edges,
+          direction: readFrontmatterFlowDirection(metaRecord),
+        })
+      : normalized.nodes
     const frontmatterMeta = buildSourceFrontmatterMeta(metaRecord)
     const stableId = readFrontmatterStableId(frontmatterMeta, name)
     const sourceLayerHash = hashText(`frontmatter-flow|${stableId}`)
@@ -284,7 +408,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
       graphData: {
         type: 'Graph',
         context: 'frontmatter-flow',
-        nodes: normalized.nodes,
+        nodes: layoutedNodes,
         edges,
         metadata,
       },
@@ -430,6 +554,13 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     baseEdges,
     sigilEdges,
   })
+  const layoutedNodes = shouldSeedBalancedNodeLayout(normalized.nodes)
+    ? assignBalancedViewportSpread({
+        nodes: normalized.nodes,
+        edges,
+        direction: readFrontmatterFlowDirection(metaRecord),
+      })
+    : normalized.nodes
   const subgraphsBase = normalizeSubgraphsFromFrontmatter({ meta: metaRecord, rawNodes }) || []
   const mergedSubgraphs = mergeSubgraphs({
     baseSubgraphs: subgraphsBase,
@@ -464,7 +595,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const graphData: GraphData = {
     type: 'Graph',
     context: 'frontmatter-flow',
-    nodes: normalized.nodes,
+    nodes: layoutedNodes,
     edges,
     metadata,
   }

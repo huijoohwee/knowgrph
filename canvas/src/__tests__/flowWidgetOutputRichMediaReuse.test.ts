@@ -104,6 +104,42 @@ export function testFlowEditorCanvasDataflowRegistryPrefersNonEmptyDocumentThenE
   }
 }
 
+export function testNodeOverlayEditorUsesMergedDataflowRegistry() {
+  const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const text = readFileSync(nodeOverlayEditorPath, 'utf8')
+
+  if (!text.includes('buildDataflowWidgetRegistry')) {
+    throw new Error('expected NodeOverlayEditor to resolve widget forms from shared merged dataflow registry')
+  }
+  if (!text.includes('documentWidgetRegistry: (s.documentWidgetRegistry')) {
+    throw new Error('expected NodeOverlayEditor to include document widget registry in merged form resolution')
+  }
+  if (!text.includes('effectiveWidgetRegistry: (s.effectiveWidgetRegistry')) {
+    throw new Error('expected NodeOverlayEditor to include effective widget registry in merged form resolution')
+  }
+  if (!text.includes('widgetRegistry: baseWidgetRegistry')) {
+    throw new Error('expected NodeOverlayEditor to include base widget registry in merged form resolution')
+  }
+}
+
+export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
+  const floatingPropsPanelPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'FloatingPropsPanel.tsx')
+  const text = readFileSync(floatingPropsPanelPath, 'utf8')
+
+  if (!text.includes('buildDataflowWidgetRegistry')) {
+    throw new Error('expected FloatingPropsPanel widget palette to reuse shared merged dataflow registry')
+  }
+  if (!text.includes('documentWidgetRegistry')) {
+    throw new Error('expected FloatingPropsPanel to include document widget registry in merged palette resolution')
+  }
+  if (!text.includes('effectiveWidgetRegistry')) {
+    throw new Error('expected FloatingPropsPanel to include effective widget registry in merged palette resolution')
+  }
+  if (!text.includes('baseWidgetRegistry')) {
+    throw new Error('expected FloatingPropsPanel to include base widget registry in merged palette resolution')
+  }
+}
+
 export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() {
   const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const markdownPreviewPath = resolve(process.cwd(), 'src', 'features', 'markdown', 'ui', 'MarkdownPreview.tsx')

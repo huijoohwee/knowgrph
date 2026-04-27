@@ -2,22 +2,23 @@ import { StateCreator } from 'zustand';
 import type { GraphState, SourceFile } from './types';
 import { reorderList } from '@/lib/reorder';
 import { hashStringToHex } from '@/lib/hash/stringHash';
-import { buildRepoFilePath } from '@/lib/url';
 import { readEnvString } from '@/lib/config.env';
+import { normalizeWorkspacePath, workspaceBasename } from '@/features/workspace-fs/path';
 
 const TEST_VALIDATION_SOURCE_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   'sandbox/test-data/knowgrph-rich-media-generation-demo.md',
 )
-const TEST_VALIDATION_SOURCE_URL = buildRepoFilePath(TEST_VALIDATION_SOURCE_REL_PATH)
-const TEST_VALIDATION_SOURCE_ID = `url:${hashStringToHex(TEST_VALIDATION_SOURCE_URL)}`
+const TEST_VALIDATION_WORKSPACE_PATH = normalizeWorkspacePath(TEST_VALIDATION_SOURCE_REL_PATH)
+const TEST_VALIDATION_SOURCE_PATH = `workspace:${TEST_VALIDATION_WORKSPACE_PATH}`
+const TEST_VALIDATION_SOURCE_ID = `ws:${hashStringToHex(TEST_VALIDATION_SOURCE_PATH)}`
 const TEST_VALIDATION_SOURCE_FILE: SourceFile = {
   id: TEST_VALIDATION_SOURCE_ID,
-  name: TEST_VALIDATION_SOURCE_REL_PATH.split('/').pop() || 'test-validation.md',
+  name: workspaceBasename(TEST_VALIDATION_WORKSPACE_PATH) || 'test-validation.md',
   text: '',
   enabled: true,
   status: 'idle',
-  source: { kind: 'url', path: `url:${TEST_VALIDATION_SOURCE_URL}`, url: TEST_VALIDATION_SOURCE_URL },
+  source: { kind: 'local', path: TEST_VALIDATION_SOURCE_PATH },
 }
 
 const hasSourceFilePatchDiff = (file: SourceFile, updates: Partial<SourceFile>): boolean => {

@@ -5,15 +5,128 @@ import { createRoot } from 'react-dom/client'
 import { defaultSchema } from '@/lib/graph/schema'
 import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
 import {
+  buildCanonicalWidgetRegistryDraft,
   buildTextGenerationRegistryDraft,
   buildWidgetDraftFromSmartFields,
+  getWidgetRegistryEntryLabel,
 } from '@/features/flow-editor-manager/registryTemplates'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import { buildRichMediaPanelRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
+
+async function renderFrontmatterBuiltInWidget(args: {
+  nodeId: string
+  nodeTypeId: string
+  properties: Record<string, unknown>
+  providerFamily?: 'byteplus' | 'openai' | 'zai'
+}) {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
+  const g = globalThis as unknown as { window?: unknown; document?: unknown }
+  g.window = dom.window
+  g.document = dom.window.document
+
+  const registryDraft = buildCanonicalWidgetRegistryDraft({
+    nodeTypeId: args.nodeTypeId,
+    providerFamily: args.providerFamily,
+  })
+  if (!registryDraft) throw new Error(`expected canonical registry draft for ${args.nodeTypeId}`)
+  const registryEntry = {
+    ...registryDraft,
+    id: `${args.nodeId}-registry`,
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  }
+
+  const host = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(host)
+  const root = createRoot(host)
+  root.render(
+    React.createElement(NodeOverlayEditorForm, {
+      active: true,
+      node: {
+        id: args.nodeId,
+        label: `${registryEntry.nodeTypeId} - Frontmatter`,
+        type: args.nodeTypeId,
+        properties: {
+          'flow:widgetFormId': registryEntry.formId,
+          ...args.properties,
+        },
+      },
+      graphMetaKind: 'frontmatter-flow',
+      schema: defaultSchema,
+      hideFields: false,
+      labelInputRef: { current: null },
+      onSetLabel: () => void 0,
+      onSetType: () => void 0,
+      onPatchProperties: () => void 0,
+      onSetProperties: () => void 0,
+      onValidate: () => void 0,
+      registryEntry: registryEntry as any,
+      registryEntries: [registryEntry as any],
+    }),
+  )
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  return { dom, host, root, registryEntry }
+}
+
+function assertFrontmatterBuiltInWidgetIdentityPattern(args: {
+  host: HTMLElement
+  registryEntry: {
+    nodeTypeId: string
+    widgetTypeId?: string
+    formId?: string
+    fields: Array<{ label?: string | null }>
+    ports: Array<{ direction: string }>
+  }
+  expectedIdentityLabel?: string
+}) {
+  const widgetIdentityInput = args.host.querySelector('input[id$="frontmatter-widget-identity"]') as HTMLInputElement | null
+  if (!widgetIdentityInput) throw new Error('expected frontmatter built-in widget to expose canonical Widget identity row')
+  const expectedIdentityLabel = args.expectedIdentityLabel || getWidgetRegistryEntryLabel({
+    nodeTypeId: args.registryEntry.nodeTypeId,
+    widgetTypeId: args.registryEntry.widgetTypeId,
+    formId: args.registryEntry.formId,
+  })
+  if (widgetIdentityInput.value !== expectedIdentityLabel) {
+    throw new Error(`expected canonical Widget identity ${JSON.stringify(expectedIdentityLabel)}, got ${JSON.stringify(widgetIdentityInput.value)}`)
+  }
+  if (args.host.querySelector('section[aria-label="Flow Envelope"]')) {
+    throw new Error('expected built-in frontmatter widget to avoid duplicate flow-envelope rows')
+  }
+  if (args.host.querySelector('section[aria-label="Flow Handles"]')) {
+    throw new Error('expected built-in frontmatter widget to avoid duplicate flow-handle rows')
+  }
+  if (args.host.querySelector('section[aria-label="Widget Registry"] thead')) {
+    throw new Error('expected built-in frontmatter widget registry to reuse props-panel table rows without Key/Type/Value header row')
+  }
+  ;['Key', 'Type', 'Value'].forEach(token => {
+    const headerCell = args.host.querySelector(`section[aria-label="Widget Registry"] thead td`)
+    if (headerCell && args.host.textContent?.includes(token)) {
+      throw new Error(`expected frontmatter built-in widget registry to omit ${JSON.stringify(token)} header token`)
+    }
+  })
+  const renderedLabels = Array.from(
+    args.host.querySelectorAll('section[aria-label="Widget"] label, section[aria-label="Widget Registry"] label'),
+  ).map(label => label.textContent?.trim() || '').filter(Boolean)
+  const expectedOrderedLabels = [
+    'Widget',
+    ...args.registryEntry.fields.map(field => String(field.label || '').trim()).filter(Boolean),
+    ...args.registryEntry.ports.map(port => port.direction === 'input' ? 'handles.target' : 'handles.source'),
+  ]
+  if (renderedLabels.length !== expectedOrderedLabels.length) {
+    throw new Error(`expected ${expectedOrderedLabels.length} Widget/Registry labels, got ${renderedLabels.length}: ${JSON.stringify(renderedLabels)}`)
+  }
+  expectedOrderedLabels.forEach((label, idx) => {
+    const rendered = renderedLabels[idx]
+    if (rendered !== label && !rendered.startsWith(label)) {
+      throw new Error(`expected ordered label ${idx} to start with ${JSON.stringify(label)}, got ${JSON.stringify(rendered)}`)
+    }
+  })
+}
 
 export const testFlowWidgetSchemaFieldPortsRenderRowHandles = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
@@ -128,6 +241,116 @@ export const testTextGenerationWidgetDoesNotRenderLegacySmartMediaRows = async (
     if (!host.textContent?.includes(label)) {
       throw new Error(`expected BytePlus TextGeneration widget to keep registry row ${label}`)
     }
+  })
+
+  root.unmount()
+}
+
+export const testFrontmatterImageWidgetReusesCanonicalRegistryRowsAndSingleHandleSurface = async () => {
+  const { host, root, registryEntry } = await renderFrontmatterBuiltInWidget({
+    nodeId: 'w-img-frontmatter',
+    nodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+    properties: {
+      model: 'seedream-4-0-250828',
+      prompt: 'frontmatter image prompt',
+      size: '2K',
+      output_format: 'jpeg',
+      response_format: 'b64_json',
+      optimize_prompt_options: 'fast',
+      aspect_ratio: 1,
+      stream: true,
+      watermark: false,
+      seed: 0,
+      guidance_scale: 0,
+      reference_image: '',
+    },
+  })
+
+  assertFrontmatterBuiltInWidgetIdentityPattern({
+    host,
+    registryEntry,
+    expectedIdentityLabel: 'BytePlus Image Widget',
+  })
+
+  const text = host.textContent || ''
+  const targetCount = (text.match(/handles\.target/g) || []).length
+  const sourceCount = (text.match(/handles\.source/g) || []).length
+  if (targetCount !== 1 || sourceCount !== 1) {
+    throw new Error(`expected single canonical handle rows, got handles.target=${targetCount} handles.source=${sourceCount}`)
+  }
+
+  root.unmount()
+}
+
+export const testFrontmatterTextWidgetUsesCanonicalWidgetIdentityPattern = async () => {
+  const { host, root, registryEntry } = await renderFrontmatterBuiltInWidget({
+    nodeId: 'w-text-frontmatter',
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    providerFamily: 'byteplus',
+    properties: {
+      chatProvider: 'byteplus',
+      chatAuthMode: 'apikey',
+      chatEndpointUrl: 'https://ark.ap-southeast.bytepluses.com/api/v3',
+      chatModel: 'doubao-1.5-pro-32k',
+      prompt: 'frontmatter text prompt',
+      response_format: 'text',
+      top_p: 0.9,
+    },
+  })
+
+  assertFrontmatterBuiltInWidgetIdentityPattern({
+    host,
+    registryEntry,
+    expectedIdentityLabel: 'BytePlus Text Widget',
+  })
+
+  root.unmount()
+}
+
+export const testFrontmatterVideoWidgetUsesCanonicalWidgetIdentityPattern = async () => {
+  const { host, root, registryEntry } = await renderFrontmatterBuiltInWidget({
+    nodeId: 'w-video-frontmatter',
+    nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+    properties: {
+      model: 'seedance-1-0-pro-fast-251015',
+      prompt: 'frontmatter video prompt',
+      content_json: '{"style":"cinematic"}',
+      aspect_ratio: '16:9',
+      resolution: '1080p',
+      duration: 4,
+      generate_audio: true,
+      fast: false,
+      watermark: false,
+      reference_image: '',
+    },
+  })
+
+  assertFrontmatterBuiltInWidgetIdentityPattern({
+    host,
+    registryEntry,
+    expectedIdentityLabel: 'BytePlus Video Widget',
+  })
+
+  root.unmount()
+}
+
+export const testFrontmatterRichMediaPanelUsesCanonicalWidgetIdentityPattern = async () => {
+  const { host, root, registryEntry } = await renderFrontmatterBuiltInWidget({
+    nodeId: 'w-rich-frontmatter',
+    nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    properties: {
+      output: 'frontmatter rich media output',
+      imageUrl: 'https://example.invalid/frontmatter-image.png',
+      videoUrl: 'https://example.invalid/frontmatter-video.mp4',
+      outputSrcDoc: '<p>frontmatter rich media</p>',
+      media_interactive: true,
+    },
+  })
+
+  assertFrontmatterBuiltInWidgetIdentityPattern({
+    host,
+    registryEntry,
+    expectedIdentityLabel: 'Rich Media Panel',
   })
 
   root.unmount()

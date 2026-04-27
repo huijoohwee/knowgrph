@@ -5,18 +5,12 @@ import {
 } from '@/lib/chatEndpoint'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
-  FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
-  FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
-  FLOW_EDITOR_IMAGE_SIZE_OPTIONS,
-  FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
-  FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
-  FLOW_EDITOR_RESOLUTION_OPTIONS,
-  FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
   FLOW_WIDGET_BUNDLE_KIND,
   FLOW_WIDGET_BUNDLE_VERSION,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
 
 type RegistryFieldLike = {
   fieldKey: string
@@ -105,6 +99,14 @@ function buildDefaultSmartMediaRegistryEntry(args: {
   const widgetTypeId = String(args.widgetTypeId || 'default').trim() || 'default'
   const formId = String(args.formId || (mode === 'image' ? 'imageGeneration' : 'videoGeneration')).trim() || (mode === 'image' ? 'imageGeneration' : 'videoGeneration')
   const updatedAt = new Date().toISOString()
+  const canonicalDraft = buildCanonicalWidgetRegistryDraft({ nodeTypeId, widgetTypeId, formId })
+  if (canonicalDraft) {
+    return {
+      ...canonicalDraft,
+      id: buildRegistryEntryId([nodeTypeId, widgetTypeId, formId]),
+      updatedAt,
+    }
+  }
 
   return {
     id: buildRegistryEntryId([nodeTypeId, widgetTypeId, formId]),
@@ -112,39 +114,7 @@ function buildDefaultSmartMediaRegistryEntry(args: {
     nodeTypeId,
     widgetTypeId,
     formId,
-    fields: [
-      { fieldKey: 'model', fieldType: 'select', label: 'Model', schemaPath: 'properties.model', required: true, options: mode === 'image' ? FLOW_EDITOR_IMAGE_MODEL_OPTIONS : FLOW_EDITOR_VIDEO_MODEL_OPTIONS },
-      { fieldKey: 'prompt', fieldType: 'textarea', label: 'Prompt', schemaPath: 'properties.prompt', required: true },
-      ...(mode === 'image'
-        ? [
-            { fieldKey: 'size', fieldType: 'select', label: 'Size', schemaPath: 'properties.size', required: true, options: FLOW_EDITOR_IMAGE_SIZE_OPTIONS } as RegistryFieldLike,
-            { fieldKey: 'output_format', fieldType: 'select', label: 'Output Format', schemaPath: 'properties.output_format', required: true, options: FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS } as RegistryFieldLike,
-            { fieldKey: 'watermark', fieldType: 'boolean', label: 'Watermark', schemaPath: 'properties.watermark' } as RegistryFieldLike,
-            { fieldKey: 'seed', fieldType: 'number', label: 'Seed', schemaPath: 'properties.seed' } as RegistryFieldLike,
-            { fieldKey: 'guidance_scale', fieldType: 'number', label: 'Guidance Scale', schemaPath: 'properties.guidance_scale' } as RegistryFieldLike,
-          ]
-        : []),
-      ...(mode === 'video'
-        ? [
-            { fieldKey: 'content_json', fieldType: 'json', label: 'Content (JSON)', schemaPath: 'properties.content_json' } as RegistryFieldLike,
-          ]
-        : []),
-      ...(mode === 'video'
-        ? [
-            { fieldKey: 'aspect_ratio', fieldType: 'select', label: 'Aspect Ratio', schemaPath: 'properties.aspect_ratio', required: true, options: FLOW_EDITOR_ASPECT_RATIO_OPTIONS } as RegistryFieldLike,
-            { fieldKey: 'resolution', fieldType: 'select', label: 'Resolution', schemaPath: 'properties.resolution', required: true, options: FLOW_EDITOR_RESOLUTION_OPTIONS } as RegistryFieldLike,
-          ]
-        : []),
-      ...(mode === 'video'
-        ? [
-            { fieldKey: 'duration', fieldType: 'select', label: 'Duration (seconds)', schemaPath: 'properties.duration', required: true, options: FLOW_EDITOR_DURATION_SECONDS_OPTIONS } as RegistryFieldLike,
-            { fieldKey: 'generate_audio', fieldType: 'boolean', label: 'Generate Audio', schemaPath: 'properties.generate_audio' } as RegistryFieldLike,
-            { fieldKey: 'fast', fieldType: 'boolean', label: 'Fast', schemaPath: 'properties.fast' } as RegistryFieldLike,
-            { fieldKey: 'watermark', fieldType: 'boolean', label: 'Watermark', schemaPath: 'properties.watermark' } as RegistryFieldLike,
-          ]
-        : []),
-      { fieldKey: 'reference_image', fieldType: 'text', label: 'Reference Image', schemaPath: 'properties.reference_image' },
-    ],
+    fields: [],
     ports: [
       { portKey: 'reference_image', direction: 'input', schemaPath: 'properties.reference_image' },
       { portKey: mode === 'image' ? 'imageUrl' : 'videoUrl', direction: 'output', schemaPath: mode === 'image' ? 'properties.imageUrl' : 'properties.videoUrl' },

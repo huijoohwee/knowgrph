@@ -49,9 +49,46 @@ This root document exists as the auto-generated settings registry table surface 
 | `chatAuthMode` | string | localStorage | `kg:chat:authMode` | `ui.chat` |
 | `chatEndpointUrl` | string | localStorage | `kg:chat:endpointUrl` | `ui.chat` |
 | `chatApiKey` | string | store |  |  |
+| `byteplusImageModel` | string | localStorage | `kg:integrations:byteplusImage:model` |  |
+| `byteplusImageSize` | string | localStorage | `kg:integrations:byteplusImage:size` |  |
+| `byteplusImageOutputFormat` | string | localStorage | `kg:integrations:byteplusImage:outputFormat` |  |
+| `byteplusImageResponseFormat` | string | localStorage | `kg:integrations:byteplusImage:responseFormat` |  |
+| `byteplusImageOptimizePromptOptions` | string | localStorage | `kg:integrations:byteplusImage:optimizePromptOptions` |  |
+| `byteplusImageAspectRatio` | number | localStorage | `kg:integrations:byteplusImage:aspectRatio` |  |
+| `byteplusImageStream` | boolean | localStorage | `kg:integrations:byteplusImage:stream` |  |
+| `byteplusImageWatermark` | boolean | localStorage | `kg:integrations:byteplusImage:watermark` |  |
+| `byteplusImageSeed` | number | localStorage | `kg:integrations:byteplusImage:seed` |  |
+| `byteplusImageGuidanceScale` | number | localStorage | `kg:integrations:byteplusImage:guidanceScale` |  |
+| `byteplusVideoModel` | string | localStorage | `kg:integrations:byteplusVideo:model` |  |
+| `byteplusVideoContentJson` | json | localStorage | `kg:integrations:byteplusVideo:contentJson` |  |
+| `byteplusVideoResolution` | string | localStorage | `kg:integrations:byteplusVideo:resolution` |  |
+| `byteplusVideoRatio` | string | localStorage | `kg:integrations:byteplusVideo:ratio` |  |
+| `byteplusVideoDuration` | number | localStorage | `kg:integrations:byteplusVideo:duration` |  |
+| `byteplusVideoGenerateAudio` | boolean | localStorage | `kg:integrations:byteplusVideo:generateAudio` |  |
+| `byteplusVideoDraft` | boolean | localStorage | `kg:integrations:byteplusVideo:draft` |  |
+| `byteplusVideoCameraFixed` | boolean | localStorage | `kg:integrations:byteplusVideo:cameraFixed` |  |
+| `byteplusVideoImageUrlUrl` | string | localStorage | `kg:integrations:byteplusVideo:contentImageUrlUrlMode` |  |
 | `chatModel` | string | localStorage | `kg:chat:model` | `ui.chat` |
 | `chatTemperature` | number | localStorage | `kg:chat:temperature` | `ui.chat` |
 | `chatMaxCompletionTokens` | number | localStorage | `kg:chat:maxCompletionTokens` | `ui.chat` |
+| `chatServiceTier` | string | localStorage | `kg:chat:serviceTier` |  |
+| `chatStream` | boolean | localStorage | `kg:chat:stream` |  |
+| `chatMessagesJson` | json | localStorage | `kg:chat:messagesJson` |  |
+| `chatReasoningEffort` | string | localStorage | `kg:chat:reasoningEffort` |  |
+| `chatThinkingType` | string | localStorage | `kg:chat:thinkingType` |  |
+| `chatThinkingJson` | json | localStorage | `kg:chat:thinkingJson` |  |
+| `chatFrequencyPenalty` | number | localStorage | `kg:chat:frequencyPenalty` |  |
+| `chatPresencePenalty` | number | localStorage | `kg:chat:presencePenalty` |  |
+| `chatTopP` | number | localStorage | `kg:chat:topP` |  |
+| `chatLogprobs` | boolean | localStorage | `kg:chat:logprobs` |  |
+| `chatTopLogprobs` | number | localStorage | `kg:chat:topLogprobs` |  |
+| `chatParallelToolCalls` | boolean | localStorage | `kg:chat:parallelToolCalls` |  |
+| `chatStopJson` | json | localStorage | `kg:chat:stopJson` |  |
+| `chatStreamOptionsJson` | json | localStorage | `kg:chat:streamOptionsJson` |  |
+| `chatResponseFormatJson` | json | localStorage | `kg:chat:responseFormatJson` |  |
+| `chatLogitBiasJson` | json | localStorage | `kg:chat:logitBiasJson` |  |
+| `chatToolsJson` | json | localStorage | `kg:chat:toolsJson` |  |
+| `chatToolChoiceJson` | json | localStorage | `kg:chat:toolChoiceJson` |  |
 | `chatGraphSummaryMaxTokens` | number | localStorage | `kg:chat:context:graphSummaryMaxTokens` | `ui.chat` |
 | `chatGuidelineDigestMaxTokens` | number | localStorage | `kg:chat:context:guidelineDigestMaxTokens` | `ui.chat` |
 | `chatSystemPrompt` | string | localStorage | `kg:chat:systemPrompt` | `ui.chat` |
@@ -80,6 +117,45 @@ This root document exists as the auto-generated settings registry table surface 
 | `markdownWordWrap` | boolean | localStorage | `kg:ui:markdown:wordWrap` | `ui.bottomPanel` |
 | `markdownTextHighlight` | boolean | localStorage | `kg:ui:markdown:textHighlight` | `ui.bottomPanel` |
 | `autoEnableGeospatialOnGeoImport` | boolean | store |  |  |
+| `maps.grabmaps.authMode` | string | store |  |  |
+| `maps.grabmaps.apiKey` | string | store |  |  |
+| `maps.grabmaps.directions.endpointUrl` | string | store |  |  |
+| `maps.grabmaps.directions.originLng` | number | store |  |  |
+| `maps.grabmaps.directions.originLat` | number | store |  |  |
+| `maps.grabmaps.directions.destinationLng` | number | store |  |  |
+| `maps.grabmaps.directions.destinationLat` | number | store |  |  |
+| `maps.grabmaps.directions.overview` | string | store |  |  |
+| `maps.grabmaps.directions.latFirst` | boolean | store |  |  |
+| `maps.grabmaps.directions.alternatives` | boolean | store |  |  |
+| `maps.grabmaps.directions.steps` | boolean | store |  |  |
+| `maps.grabmaps.directions.language` | string | store |  |  |
+| `maps.grabmaps.directions.units` | string | store |  |  |
+| `maps.grabmaps.directions.waypoints` | json | store |  |  |
+| `maps.grabmaps.directions.annotations` | json | store |  |  |
+| `maps.grabmaps.directions.extraParams` | json | store |  |  |
+| `maps.grabmaps.basemap.styleUrl` | string | store |  |  |
+| `maps.grabmaps.mcp.serverKey` | string | localStorage |  |  |
+| `maps.grabmaps.mcp.command` | string | localStorage |  |  |
+| `maps.grabmaps.mcp.args` | json | localStorage |  |  |
+| `maps.grabmaps.mcp.env` | json | localStorage |  |  |
+| `maps.grabmaps.mcp.startupTimeoutMs` | number | localStorage |  |  |
+| `maps.grabmaps.mcp.discovery.chatModel` | string | localStorage |  |  |
+| `maps.grabmaps.mcp.searchPlaces.query` | string | localStorage |  |  |
+| `maps.grabmaps.mcp.searchPlaces.country` | string | localStorage |  |  |
+| `maps.grabmaps.mcp.searchPlaces.lat` | number | localStorage |  |  |
+| `maps.grabmaps.mcp.searchPlaces.lon` | number | localStorage |  |  |
+| `maps.grabmaps.mcp.searchPlaces.radius` | number | localStorage |  |  |
+| `maps.grabmaps.mcp.searchPlaces.limit` | number | localStorage |  |  |
+| `maps.grabmaps.mcp.getDirections.origin` | string | localStorage |  |  |
+| `maps.grabmaps.mcp.getDirections.destination` | string | localStorage |  |  |
+| `maps.grabmaps.mcp.getDirections.waypoints` | json | localStorage |  |  |
+| `maps.grabmaps.mcp.nearbySearch.lat` | number | localStorage |  |  |
+| `maps.grabmaps.mcp.nearbySearch.lon` | number | localStorage |  |  |
+| `maps.grabmaps.mcp.nearbySearch.radius` | number | localStorage |  |  |
+| `maps.grabmaps.mcp.nearbySearch.limit` | number | localStorage |  |  |
+| `maps.grabmaps.mcp.nearbySearch.rankBy` | string | localStorage |  |  |
+| `maps.grabmaps.mcp.nearbySearch.language` | string | localStorage |  |  |
+| `maps.grabmaps.mcp.nearbySearch.category` | string | localStorage |  |  |
 | `bipartite.dataSource` | string | store |  |  |
 | `bipartite.pollIntervalSec` | number | store |  |  |
 | `bipartite.metric.nodeSize` | string | store |  |  |
@@ -431,5 +507,12 @@ This root document exists as the auto-generated settings registry table surface 
 | `KG_INPUT_PATH` | string | backendEnv |  |  |
 | `KG_OUTPUT_DIR` | string | backendEnv |  |  |
 | `max-lines` | number | eslint |  |  |
+| `payments.stripe.mode` | string | localStorage |  |  |
+| `payments.stripe.secretKey` | string | localStorage |  |  |
+| `payments.stripe.publishableKey` | string | localStorage |  |  |
+| `payments.stripe.webhookSecret` | string | localStorage |  |  |
+| `payments.stripe.accountId` | string | localStorage |  |  |
+| `payments.stripe.paywallEnabled` | boolean | localStorage |  |  |
+| `payments.stripe.checkoutUrl` | string | localStorage |  |  |
 
 <!-- SETTINGS_REGISTRY_TABLE_END -->

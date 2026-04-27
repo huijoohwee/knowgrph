@@ -38,6 +38,7 @@ import {
 import { computeDefaultWidgetFloatingPos, computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widgetLayout'
 import { getIconSizeClass } from '@/lib/ui'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
+import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { useShallow } from 'zustand/react/shallow'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -135,7 +136,9 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     uiPanelOpacity,
     schema,
     documentStructureBaselineLock,
-    widgetRegistry,
+    documentWidgetRegistry,
+    effectiveWidgetRegistry,
+    baseWidgetRegistry,
     upsertUiToast,
     selectNode,
     setSelectionSource,
@@ -150,7 +153,9 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       uiPanelOpacity: s.uiPanelOpacity,
       schema: s.schema,
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
-      widgetRegistry: (s.effectiveWidgetRegistry ?? s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
+      documentWidgetRegistry: (s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
+      effectiveWidgetRegistry: (s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
+      baseWidgetRegistry: (s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
       upsertUiToast: s.upsertUiToast,
       selectNode: s.selectNode,
       setSelectionSource: s.setSelectionSource,
@@ -160,6 +165,16 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         .setFlowWidgetWorldPosByNodeId,
       setFlowWidgetPinnedByNodeId: s.setFlowWidgetPinnedByNodeId,
     })),
+  )
+
+  const widgetRegistry = React.useMemo(
+    () =>
+      buildDataflowWidgetRegistry({
+        documentWidgetRegistry,
+        effectiveWidgetRegistry,
+        widgetRegistry: baseWidgetRegistry,
+      }),
+    [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry],
   )
 
   const nodeId = React.useMemo(() => String(node.id || '').trim(), [node.id])
@@ -1094,15 +1109,14 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       className="fixed"
       style={{ zIndex: overlayZIndex }}
       onPointerDownCapture={(ev) => {
+        const t = ev.target
+        const el = t instanceof Element ? t : null
+        const isInteractiveControl = !!el?.closest('input,textarea,select,button,[contenteditable="true"]')
         if (active && ev.button === 0 && pinnedInCanvas && ev.altKey !== true && isSpacePanHeld() !== true) {
-          const t = ev.target
-          const el = t instanceof Element ? t : null
           if (el?.closest('[data-kg-flow-node-drag-handle="true"]')) return
         }
         if (active && ev.button === 0 && isSpacePanHeld()) {
-          const t = ev.target
-          const el = t instanceof Element ? t : null
-          if (!el?.closest('input,textarea,select,button,[contenteditable="true"]')) {
+          if (!isInteractiveControl) {
             if (!spacePanUserSelectUnlockRef.current) {
               lockGlobalUserSelect()
               const unlock = () => {
@@ -1130,6 +1144,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             }
           }
         }
+        if (active && ev.button === 0 && isInteractiveControl) return
         const id = String(node.id || '').trim()
         if (!id) return
         setSelectionSource('editor')

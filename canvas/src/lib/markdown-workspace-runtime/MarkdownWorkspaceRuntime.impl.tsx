@@ -371,8 +371,9 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     if (!widgetAvailable) return
     if (contentMode === 'widget') return
     if (userForcedDocumentRef.current) return
+    if (isMarkdownPath(String(activePath || ''))) return
     setContentModeAuto('widget')
-  }, [contentMode, widgetAvailable, setContentModeAuto])
+  }, [activePath, contentMode, widgetAvailable, setContentModeAuto])
 
   const widgetBundleJsonText = React.useMemo(() => {
     if (widgetNodeIds.length === 0) return ''
@@ -1310,6 +1311,38 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setActiveMarkdownDocument,
     paused: viewerInlineEditActive,
   })
+
+  React.useEffect(() => {
+    const docKey = String(activeDocumentKey || '').trim()
+    const markdownName = String(markdownDocumentName || '').trim()
+    const nextText = typeof markdownDocumentText === 'string' ? markdownDocumentText : ''
+    if (!docKey || !markdownName || !nextText) return
+    if (!matchesMarkdownDocumentPath(docKey, markdownName)) return
+    if (contentMode === 'widget') return
+    const active = String(activeTextRef.current || '')
+    if (active === nextText) return
+    const last = lastLoadedRef.current
+    const hasUnsavedUserEdit = !!(
+      userEditedActiveTextRef.current &&
+      last &&
+      last.path === activePath &&
+      last.text !== active
+    )
+    if (hasUnsavedUserEdit) return
+    if (activePath) {
+      lastLoadedRef.current = { path: activePath, text: nextText }
+      patchWorkspaceEntryInlineText(activePath, nextText)
+    }
+    setActiveTextProgrammatic(nextText)
+  }, [
+    activeDocumentKey,
+    activePath,
+    contentMode,
+    markdownDocumentName,
+    markdownDocumentText,
+    patchWorkspaceEntryInlineText,
+    setActiveTextProgrammatic,
+  ])
 
   React.useEffect(() => {
     const path = activePath

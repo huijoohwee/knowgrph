@@ -245,3 +245,143 @@ export async function testAddNodeSeedsActiveMarkdownDocumentWithoutPreexistingCo
     bootstrap.restore()
   }
 }
+
+export async function testComposedUpdateNodePreservesTypedFrontmatterEnvelopeWriteback() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const state = useGraphStore.getState()
+    state.clearSourceFiles()
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
+
+    const typedGraph: GraphData = {
+      type: 'Graph',
+      nodes: [
+        {
+          id: 'w-text',
+          label: 'Text Widget',
+          type: 'TextGeneration',
+          properties: {
+            prompt: 'old prompt',
+            stream: true,
+            'frontmatter:handles': { target: ['prompt_in'], source: ['text_out'] },
+            'frontmatter:widgetFields': [
+              { fieldKey: 'prompt', fieldType: 'string', schemaPath: 'prompt' },
+              { fieldKey: 'stream', fieldType: 'boolean', schemaPath: 'stream' },
+            ],
+          } as never,
+        },
+      ],
+      edges: [],
+      metadata: {
+        frontmatterFlowSettings: {
+          direction: 'LR',
+          edgeType: 'bezier',
+          computed: true,
+          snapToGrid: true,
+        },
+      },
+    }
+
+    state.addSourceFile({
+      id: 'sf-typed',
+      name: 'typed.md',
+      text: '---\ntitle: Typed\n---\n',
+      enabled: true,
+      status: 'parsed',
+      parsedGraphData: typedGraph,
+      parsedTextHash: 'typed-h1',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: 'workspace:/typed.md' },
+    })
+
+    applyComposedGraphFromSourceFiles()
+    const before = useGraphStore.getState()
+    before.setMarkdownDocument('workspace:/typed.md', '---\ntitle: Typed\n---\n')
+    before.updateNode('sf-typed::w-text', {
+      properties: {
+        ...(((typedGraph.nodes[0] || {}).properties || {}) as Record<string, unknown>),
+        prompt: 'new prompt',
+      } as never,
+    })
+
+    const after = useGraphStore.getState()
+    const file = after.sourceFiles.find(f => f.id === 'sf-typed')
+    const text = String(file?.text || '')
+    if (!text.includes('prompt: {key: prompt, type: string, value: "new prompt"}')) {
+      throw new Error('expected typed frontmatter prompt envelope writeback to preserve key/type/value')
+    }
+    if (!text.includes('stream: {key: stream, type: boolean, value: true}')) {
+      throw new Error('expected typed frontmatter boolean envelope writeback to preserve field type')
+    }
+    if (!text.includes('id: {key: id, type: string, value: "w-text"}')) {
+      throw new Error('expected typed frontmatter node id envelope writeback')
+    }
+    if (String(after.markdownDocumentText || '') !== text) {
+      throw new Error('expected active markdown editor text to stay aligned with typed frontmatter writeback')
+    }
+  } finally {
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
+  }
+}
+
+export async function testComposedAddEdgeSyncsToSourceFileAndActiveMarkdownText() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const state = useGraphStore.getState()
+    state.clearSourceFiles()
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
+
+    const graph: GraphData = {
+      type: 'Graph',
+      nodes: [
+        { id: 'a', label: 'A', type: 'Thing', properties: { 'frontmatter:handles': { source: ['out'] } } as never },
+        { id: 'b', label: 'B', type: 'Thing', properties: { 'frontmatter:handles': { target: ['in'] } } as never },
+      ],
+      edges: [],
+      metadata: {},
+    }
+
+    state.addSourceFile({
+      id: 'sf-edge',
+      name: 'edge.md',
+      text: '---\ntitle: Edge\n---\n',
+      enabled: true,
+      status: 'parsed',
+      parsedGraphData: graph,
+      parsedTextHash: 'edge-h1',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: 'workspace:/edge.md' },
+    })
+
+    applyComposedGraphFromSourceFiles()
+    const before = useGraphStore.getState()
+    before.setMarkdownDocument('workspace:/edge.md', '---\ntitle: Edge\n---\n')
+    before.addEdge({
+      id: 'e1',
+      source: 'sf-edge::a',
+      target: 'sf-edge::b',
+      label: 'out -> in',
+      properties: {
+        'flow:sourcePortKey': 'out',
+        'flow:targetPortKey': 'in',
+        animated: true,
+      } as never,
+    } as never)
+
+    const after = useGraphStore.getState()
+    const file = after.sourceFiles.find(f => f.id === 'sf-edge')
+    const edge = file?.parsedGraphData?.edges?.find(e => String(e.id || '') === 'e1') || null
+    if (!edge) throw new Error('expected composed addEdge to persist into source file parsed graph data')
+    const text = String(file?.text || '')
+    if (!text.includes('"source":"a","sourceHandle":"out","target":"b","targetHandle":"in"')) {
+      throw new Error('expected edge frontmatter writeback to persist explicit sourceHandle/targetHandle')
+    }
+    if (String(after.markdownDocumentText || '') !== text) {
+      throw new Error('expected active markdown editor text to stay aligned with edge writeback')
+    }
+  } finally {
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
+  }
+}

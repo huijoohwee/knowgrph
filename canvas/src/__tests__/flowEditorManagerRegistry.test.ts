@@ -346,10 +346,10 @@ export function testFlowEditorManagerCanonicalizesConflictingBuiltInWidgetForms(
     throw new Error(`expected imageGeneration to normalize to ${FLOW_IMAGE_GENERATION_NODE_TYPE_ID}, got ${String(imageEntry.nodeTypeId)}`)
   }
   const imageFieldKeys = new Set((imageEntry.fields || []).map(field => field.fieldKey))
-  ;['model', 'size', 'output_format'].forEach(key => {
+  ;['model', 'size', 'output_format', 'aspect_ratio', 'reference_image'].forEach(key => {
     if (!imageFieldKeys.has(key)) throw new Error(`expected canonical imageGeneration entry to expose ${key}`)
   })
-  ;['aspect_ratio', 'duration', 'generate_audio'].forEach(key => {
+  ;['duration', 'generate_audio'].forEach(key => {
     if (imageFieldKeys.has(key)) throw new Error(`expected canonical imageGeneration entry to remove stale key ${key}`)
   })
 
@@ -359,10 +359,10 @@ export function testFlowEditorManagerCanonicalizesConflictingBuiltInWidgetForms(
     throw new Error(`expected videoGeneration to normalize to ${FLOW_VIDEO_GENERATION_NODE_TYPE_ID}, got ${String(videoEntry.nodeTypeId)}`)
   }
   const videoFieldKeys = new Set((videoEntry.fields || []).map(field => field.fieldKey))
-  ;['model', 'aspect_ratio', 'resolution', 'duration', 'generate_audio'].forEach(key => {
+  ;['model', 'ratio', 'resolution', 'duration', 'generate_audio'].forEach(key => {
     if (!videoFieldKeys.has(key)) throw new Error(`expected canonical videoGeneration entry to expose ${key}`)
   })
-  ;['size', 'output_format'].forEach(key => {
+  ;['size', 'output_format', 'aspect_ratio'].forEach(key => {
     if (videoFieldKeys.has(key)) throw new Error(`expected canonical videoGeneration entry to remove stale key ${key}`)
   })
 

@@ -2,6 +2,7 @@ import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import {
+  expandWorkspaceSeedFileEntries,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_README_TEXT,
   getWorkspaceSeedFiles,
@@ -116,15 +117,17 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     const now = Date.now()
     const seeds = await getWorkspaceSeedFiles()
     for (const seed of seeds) {
-      const path = normalizeWorkspacePath(seed.path)
-      await collections.entries.incrementalUpsert({
-        path,
-        parentPath: WORKSPACE_ROOT_PATH,
-        kind: 'file',
-        name: path.split('/').pop() || '',
-        text: seed.text,
-        updatedAtMs: now,
-      })
+      const entries = expandWorkspaceSeedFileEntries(normalizeWorkspacePath(seed.path), seed.text, now)
+      for (const entry of entries) {
+        await collections.entries.incrementalUpsert({
+          path: entry.path,
+          parentPath: entry.parentPath || '',
+          kind: entry.kind,
+          name: entry.name,
+          text: entry.kind === 'file' ? String(entry.text ?? '') : '',
+          updatedAtMs: entry.updatedAtMs,
+        })
+      }
     }
     lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
     if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)

@@ -73,3 +73,20 @@ export const testMarkdownWorkspaceRuntimeFlowEditorDirectApplyUsesIncomingGraphI
     throw new Error('Expected cached parsed graph apply path to use incoming graph data for direct/composed decision')
   }
 }
+
+export const testMarkdownWorkspaceRuntimeGraphWritebackRefreshesActiveEditorTextSafely = () => {
+  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const text = readUtf8(runtimePath)
+  if (!text.includes('if (!matchesMarkdownDocumentPath(docKey, markdownName)) return')) {
+    throw new Error('Expected markdown workspace runtime graph writeback sync to reuse shared markdown document path matching')
+  }
+  if (!text.includes('const hasUnsavedUserEdit = !!(')) {
+    throw new Error('Expected markdown workspace runtime graph writeback sync to guard against unsaved user edits')
+  }
+  if (!text.includes('patchWorkspaceEntryInlineText(activePath, nextText)')) {
+    throw new Error('Expected markdown workspace runtime graph writeback sync to refresh workspace entry inline text')
+  }
+  if (!text.includes('setActiveTextProgrammatic(nextText)')) {
+    throw new Error('Expected markdown workspace runtime graph writeback sync to refresh active editor text programmatically')
+  }
+}

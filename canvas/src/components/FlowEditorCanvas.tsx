@@ -45,6 +45,8 @@ import {
   computeFlowConnectedValuesBySchemaPath,
   type FlowConnectedValuesBySchemaPath,
 } from '@/lib/flowEditor/flowDataflow'
+import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
+import { FLOW_RUN_ALL_PHASES, buildFlowRunAllNodeSequence } from '@/lib/flowEditor/runAllSequenceSsot'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
@@ -87,6 +89,7 @@ import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
+import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
@@ -153,6 +156,14 @@ function readFiniteGeoLatLng(properties: Record<string, unknown>): { lat: number
   const lng = pickFiniteNumber(geoRaw?.lng)
   if (lat == null || lng == null) return null
   return { lat, lng }
+}
+
+function isCanonicalFrontmatterBuiltInWidgetNode(node: Pick<GraphNode, 'id' | 'type'> | null | undefined): boolean {
+  const nodeType = String(node?.type || '').trim()
+  return nodeType === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+    || nodeType === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+    || nodeType === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+    || nodeType === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
 }
 
 function resolveGraphNodeIdByCanonicalId(graph: GraphData | null | undefined, rawId: unknown): string {
@@ -1860,7 +1871,11 @@ export default function FlowEditorCanvas(
           )
         }
         const edgeParts = edges
-          .map(e => `${e.id}:${e.source}->${e.target}:${e.sourcePortKey}|${e.targetPortKey}:${e.stroke}:${e.strokeWidth}`)
+          .map(e => {
+            const stroke = getEdgeBaseStroke(e as GraphEdge, schema)
+            const strokeWidth = getEdgeStrokeWidth(e as GraphEdge, schema)
+            return `${e.id}:${e.source}->${e.target}:${e.sourcePortKey}|${e.targetPortKey}:${stroke}:${strokeWidth}`
+          })
           .sort((a, b) => a.localeCompare(b))
         const pending = pendingEdgePreviewRef.current
         const cursor = pendingEdgeCursorRef.current
@@ -2042,17 +2057,19 @@ export default function FlowEditorCanvas(
         keep.add(edgeId)
         const existing = overlayEdgePathByIdRef.current.get(edgeId) || null
         const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        const stroke = getEdgeBaseStroke(e as GraphEdge, schema)
+        const strokeWidth = String(getEdgeStrokeWidth(e as GraphEdge, schema))
         if (!existing) {
           pathEl.setAttribute('fill', 'none')
-          pathEl.setAttribute('stroke', e.stroke)
-          pathEl.setAttribute('stroke-width', e.strokeWidth)
+          pathEl.setAttribute('stroke', stroke)
+          pathEl.setAttribute('stroke-width', strokeWidth)
           pathEl.setAttribute('stroke-linejoin', 'round')
           pathEl.setAttribute('stroke-linecap', 'round')
           svg.appendChild(pathEl)
           overlayEdgePathByIdRef.current.set(edgeId, pathEl)
         }
-        if (pathEl.getAttribute('stroke') !== e.stroke) pathEl.setAttribute('stroke', e.stroke)
-        if (pathEl.getAttribute('stroke-width') !== e.strokeWidth) pathEl.setAttribute('stroke-width', e.strokeWidth)
+        if (pathEl.getAttribute('stroke') !== stroke) pathEl.setAttribute('stroke', stroke)
+        if (pathEl.getAttribute('stroke-width') !== strokeWidth) pathEl.setAttribute('stroke-width', strokeWidth)
         if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)
       }
       for (const [id, el] of overlayEdgePathByIdRef.current.entries()) {
@@ -3858,22 +3875,19 @@ export default function FlowEditorCanvas(
         return
       }
       const eligible = buildFlowWidgetEligibleNodeIdSet(nodes)
-      const ids: string[] = []
-      const seen = new Set<string>()
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        const id = String(n?.id || '').trim()
-        if (!id || seen.has(id)) continue
-        if (!eligible.has(id)) continue
-        if (String(n?.type || '') === 'Section') continue
-        seen.add(id)
-        ids.push(id)
-      }
+      const ordered = buildFlowRunAllNodeSequence({
+        graphData: draft,
+        eligibleNodeIds: eligible,
+      })
+      const ids = ordered.orderedNodeIds
       if (ids.length === 0) {
         upsertUiToast({ id: 'flow-editor-run-all-empty', kind: 'neutral', message: 'No runnable workflow nodes found.', ttlMs: 2400 })
         return
       }
-      upsertUiToast({ id: 'flow-editor-run-all', kind: 'neutral', message: `Running ${ids.length} nodes…`, ttlMs: 2200 })
+      const phaseSummary = FLOW_RUN_ALL_PHASES
+        .map(phase => `${phase.label}: ${ordered.phaseCounts[phase.id] || 0}`)
+        .join(' · ')
+      upsertUiToast({ id: 'flow-editor-run-all', kind: 'neutral', message: `Running ${ids.length} nodes in sequence. ${phaseSummary}`, ttlMs: 2600 })
       for (let i = 0; i < ids.length; i += 1) {
         await runWorkflowNode(ids[i])
         if (typeof requestAnimationFrame === 'function') {
@@ -4128,6 +4142,12 @@ export default function FlowEditorCanvas(
         const nodeId = formId.slice('fm:'.length).trim()
         if (!nodeId) continue
         allowedFlowNodeIds.add(nodeId)
+      }
+      for (let i = 0; i < nodes.length; i += 1) {
+        const n = nodes[i]
+        const id = String(n?.id || '').trim()
+        if (!id || !isCanonicalFrontmatterBuiltInWidgetNode(n)) continue
+        allowedFlowNodeIds.add(id)
       }
       if (allowedFlowNodeIds.size === 0) {
         for (const id of eligibleIds) allowedFlowNodeIds.add(id)
@@ -4431,8 +4451,23 @@ export default function FlowEditorCanvas(
   const hasOverlayEditors = overlayEditorElements.length > 0
   const frontmatterOverlayHideSafety = React.useMemo(() => {
     const kind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
-    return { kind, visibleNodeIds: [] as string[], hasFullOverlayCoverageForVisibleNodes: true }
-  }, [renderGraphDataOverride?.metadata])
+    if (kind !== 'frontmatter-flow') {
+      return { kind, visibleNodeIds: [] as string[], hasFullOverlayCoverageForVisibleNodes: true }
+    }
+    const display = deriveSceneDisplayGraph({ graphData: renderGraphDataOverride })
+    const visibleNodeIds = Array.isArray(display?.displayNodes)
+      ? display!.displayNodes
+        .map(n => String(n?.id || '').trim())
+        .filter(Boolean)
+      : []
+    const eligibleIds = buildFlowWidgetEligibleNodeIdSet(
+      Array.isArray(renderGraphDataOverride?.nodes) ? (renderGraphDataOverride.nodes as GraphNode[]) : [],
+    )
+    const overlayIdSet = new Set(overlayEditorNodeIds)
+    const visibleFlowNodeIds = visibleNodeIds.filter(id => eligibleIds.size === 0 || eligibleIds.has(id))
+    const hasFullOverlayCoverageForVisibleNodes = visibleFlowNodeIds.every(id => overlayIdSet.has(id))
+    return { kind, visibleNodeIds: visibleFlowNodeIds, hasFullOverlayCoverageForVisibleNodes }
+  }, [overlayEditorNodeIds, renderGraphDataOverride])
   const overlayOnlySafeForCurrentView =
     frontmatterOverlayHideSafety.kind !== 'frontmatter-flow' || frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes
   const overlayOnlyActive = overlayOnlyModeEnabled && overlayOnlySafeForCurrentView && (hasOverlayEditors || geospatialWidgetPanelMode)

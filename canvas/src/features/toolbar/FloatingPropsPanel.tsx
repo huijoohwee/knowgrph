@@ -15,6 +15,7 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
 import { getGrabMapsDiscoveryWidgetLabel } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import { emitWorkflowRunAll } from '@/features/canvas/utils'
+import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
@@ -35,7 +36,18 @@ export function FloatingPropsPanel() {
       || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
   )
 
-  const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
+  const documentWidgetRegistry = useGraphStore(s => s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
+  const effectiveWidgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
+  const baseWidgetRegistry = useGraphStore(s => s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY)
+  const widgetRegistry = React.useMemo(
+    () =>
+      buildDataflowWidgetRegistry({
+        documentWidgetRegistry,
+        effectiveWidgetRegistry,
+        widgetRegistry: baseWidgetRegistry,
+      }),
+    [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry],
+  )
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const widgetPaletteEntries = React.useMemo(
     () => (Array.isArray(widgetRegistry) ? widgetRegistry : []).filter(e => e && e.isEnabled),

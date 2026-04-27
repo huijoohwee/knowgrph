@@ -77,8 +77,14 @@ export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCo
   if (!text.includes('overlayOnlySafeForCurrentView')) {
     throw new Error('expected FlowEditor overlay mode to gate node hiding by current-view overlay safety')
   }
-  if (!text.includes('overlayOnlyModeEnabled && hasOverlayEditors && overlayOnlySafeForCurrentView')) {
+  if (!text.includes('overlayOnlyModeEnabled && overlayOnlySafeForCurrentView && (hasOverlayEditors || geospatialWidgetPanelMode)')) {
     throw new Error('expected FlowEditor overlay-only mode activation to require strict coverage safety guard')
+  }
+  if (!text.includes('deriveSceneDisplayGraph({ graphData: renderGraphDataOverride })')) {
+    throw new Error('expected frontmatter overlay safety to derive visible flow coverage from the shared scene display graph')
+  }
+  if (!text.includes('const visibleFlowNodeIds = visibleNodeIds.filter')) {
+    throw new Error('expected frontmatter overlay safety to limit coverage checks to visible flow-widget nodes')
   }
 }
 
@@ -118,6 +124,18 @@ export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartM
   }
 }
 
+export function testFrontmatterWidgetOverlayPointerCaptureSkipsInteractiveControls() {
+  const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const text = readFileSync(nodeOverlayEditorPath, 'utf8')
+
+  if (!text.includes("const isInteractiveControl = !!el?.closest('input,textarea,select,button,[contenteditable=\"true\"]')")) {
+    throw new Error('expected widget overlay pointer capture to classify native interactive controls once at the root')
+  }
+  if (!text.includes('if (active && ev.button === 0 && isInteractiveControl) return')) {
+    throw new Error('expected widget overlay pointer capture to avoid selection churn while interacting with native form controls')
+  }
+}
+
 export function testFlowEditorOverlayEdgeSchedulerStabilizesAcrossScrollPanZoom() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
@@ -151,6 +169,24 @@ export function testFlowEditorOverlayEdgeSchedulerStabilizesAcrossScrollPanZoom(
   }
   if (!text.includes('const onInteractionFrame = () => {')) {
     throw new Error('expected overlay edge scheduler interaction-frame callback to run explicit invalidation before redraw')
+  }
+  if (!text.includes('getEdgeBaseStroke') || !text.includes('getEdgeStrokeWidth')) {
+    throw new Error('expected overlay edge renderer to reuse shared graph edge stroke and width resolvers')
+  }
+}
+
+export function testFrontmatterFlowOverlayEditorsIncludeCanonicalBuiltInWidgets() {
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+
+  if (!text.includes('function isCanonicalFrontmatterBuiltInWidgetNode')) {
+    throw new Error('expected FlowEditorCanvas to centralize canonical built-in frontmatter widget detection')
+  }
+  if (!text.includes('isCanonicalFrontmatterBuiltInWidgetNode(n)')) {
+    throw new Error('expected frontmatter overlay derivation to recognize canonical built-in widget nodes')
+  }
+  if (!text.includes('allowedFlowNodeIds.add(id)')) {
+    throw new Error('expected frontmatter overlay derivation to keep canonical built-in widget ids in the overlay set')
   }
 }
 
@@ -320,17 +356,17 @@ export function testFrontmatterFlowContractPrefersRegistryHandlesWhenPortTypesAr
 export function testFrontmatterFlowContractMakesSourceEditableAndTargetReadOnly() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
-  if (!text.includes("value={formatFlowHandlePathValue(flowHandleKeys.target)}")) {
-    throw new Error('expected handles.target flow contract row to exist')
+  if (!text.includes('const hideFrontmatterFlowContractRows = showFrontmatterWidgetRegistrySection')) {
+    throw new Error('expected built-in frontmatter widgets to collapse duplicate flow-contract rows into the shared registry surface')
   }
-  if (!text.includes("value={formatFlowHandlePathValue(flowHandleKeys.source)}")) {
-    throw new Error('expected handles.source flow contract row to exist')
+  if (!text.includes('const frontmatterWidgetIdentityLabel = React.useMemo(() => {')) {
+    throw new Error('expected built-in frontmatter widgets to derive a canonical Widget identity row from shared registry label helpers')
   }
-  if (!text.includes('onChange={e => {') || !text.includes("onPatchProperties({ 'flow:portTypes': { in: inRec, out: nextOut } })")) {
-    throw new Error('expected handles.source flow contract row to be editable and persist updates through flow:portTypes out map')
+  if (!text.includes('ariaLabel={UI_LABELS.flowWidget}')) {
+    throw new Error('expected built-in frontmatter widgets to render the canonical Widget identity row')
   }
-  if (!text.includes('showPortRows={!isFrontmatterFlow}')) {
-    throw new Error('expected frontmatter-flow mode to hide duplicate registry port rows')
+  if (!text.includes('showPortRows')) {
+    throw new Error('expected frontmatter widget registry section to keep canonical port rows visible')
   }
 }
 

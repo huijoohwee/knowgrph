@@ -239,6 +239,12 @@ const FLOW_PORT_TYPES_PROPERTY_KEY = 'flow:portTypes'
 const FRONTMATTER_HANDLES_PROPERTY_KEY = 'frontmatter:handles'
 const FRONTMATTER_WIDGET_FIELDS_PROPERTY_KEY = 'frontmatter:widgetFields'
 
+type FrontmatterWidgetFieldSpec = {
+  fieldKey: string
+  fieldType: string
+  schemaPath?: string
+}
+
 function flowYamlKey(key: string): string {
   return FLOW_YAML_PLAIN_KEY_RE.test(key) ? key : JSON.stringify(key)
 }
@@ -255,6 +261,10 @@ function flowYamlInlineValue(value: unknown): string {
   }
 }
 
+function flowYamlInlineStringValue(value: string): string {
+  return FLOW_YAML_PLAIN_KEY_RE.test(value) ? value : JSON.stringify(value)
+}
+
 function appendFlowYamlFieldLines(lines: string[], indent: string, key: string, value: unknown): void {
   if (typeof value === 'undefined') return
   const yamlKey = flowYamlKey(key)
@@ -264,6 +274,79 @@ function appendFlowYamlFieldLines(lines: string[], indent: string, key: string, 
     return
   }
   lines.push(`${indent}${yamlKey}: ${flowYamlInlineValue(value)}`)
+}
+
+function inferFrontmatterFlowFieldType(value: unknown): string {
+  if (typeof value === 'string') return 'string'
+  if (typeof value === 'number') return 'number'
+  if (typeof value === 'boolean') return 'boolean'
+  if (Array.isArray(value)) return 'array'
+  if (value && typeof value === 'object') return 'object'
+  return 'string'
+}
+
+function readFrontmatterWidgetFieldSpecs(node: GraphNode): FrontmatterWidgetFieldSpec[] {
+  const props = (node.properties || {}) as Record<string, unknown>
+  const raw = props[FRONTMATTER_WIDGET_FIELDS_PROPERTY_KEY]
+  if (!Array.isArray(raw)) return []
+  const out: FrontmatterWidgetFieldSpec[] = []
+  for (let i = 0; i < raw.length; i += 1) {
+    const spec = raw[i]
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec)) continue
+    const rec = spec as Record<string, unknown>
+    const fieldKey = String(rec.fieldKey || '').trim()
+    const fieldType = String(rec.fieldType || '').trim()
+    const schemaPath = String(rec.schemaPath || '').trim()
+    if (!fieldKey || !fieldType) continue
+    out.push({
+      fieldKey,
+      fieldType,
+      ...(schemaPath ? { schemaPath } : {}),
+    })
+  }
+  return out
+}
+
+function readFrontmatterFlowFieldType(node: GraphNode, fieldName: string, value: unknown): string {
+  const normalizedFieldName = String(fieldName || '').trim()
+  if (!normalizedFieldName) return inferFrontmatterFlowFieldType(value)
+  if (normalizedFieldName === 'id' || normalizedFieldName === 'type' || normalizedFieldName === 'label') return 'string'
+  if (normalizedFieldName === 'position') return 'object'
+  if (normalizedFieldName === 'handles') return 'object'
+  if (normalizedFieldName === 'compute') return 'string'
+  const specs = readFrontmatterWidgetFieldSpecs(node)
+  for (let i = 0; i < specs.length; i += 1) {
+    const spec = specs[i]
+    if (!spec) continue
+    const schemaPath = String(spec.schemaPath || '').trim()
+    if (schemaPath === normalizedFieldName || schemaPath === `properties.${normalizedFieldName}` || spec.fieldKey === normalizedFieldName) {
+      return spec.fieldType
+    }
+  }
+  return inferFrontmatterFlowFieldType(value)
+}
+
+function appendFlowYamlEnvelopeFieldLines(
+  lines: string[],
+  indent: string,
+  key: string,
+  value: unknown,
+  fieldType?: string,
+): void {
+  if (typeof value === 'undefined') return
+  const yamlKey = flowYamlKey(key)
+  const normalizedType = String(fieldType || '').trim() || inferFrontmatterFlowFieldType(value)
+  if (typeof value === 'string' && value.includes('\n')) {
+    lines.push(`${indent}${yamlKey}:`)
+    lines.push(`${indent}  key: ${flowYamlInlineStringValue(String(key || '').trim() || key)}`)
+    lines.push(`${indent}  type: ${flowYamlInlineStringValue(normalizedType)}`)
+    lines.push(`${indent}  value: |`)
+    for (const row of value.split('\n')) lines.push(`${indent}    ${row}`)
+    return
+  }
+  lines.push(
+    `${indent}${yamlKey}: {key: ${flowYamlInlineStringValue(String(key || '').trim() || key)}, type: ${flowYamlInlineStringValue(normalizedType)}, value: ${flowYamlInlineValue(value)}}`,
+  )
 }
 
 function readFlowHandlesFromNode(node: GraphNode): Record<string, unknown> | null {
@@ -294,28 +377,28 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
     ? (meta.frontmatterFlowSettings as Record<string, unknown>)
     : null
   if (settings) {
-    appendFlowYamlFieldLines(lines, '  ', 'direction', settings.direction)
-    appendFlowYamlFieldLines(lines, '  ', 'edgeType', settings.edgeType)
-    appendFlowYamlFieldLines(lines, '  ', 'computed', settings.computed)
-    appendFlowYamlFieldLines(lines, '  ', 'snapToGrid', settings.snapToGrid)
-    appendFlowYamlFieldLines(lines, '  ', 'gridSize', settings.gridSize)
+    appendFlowYamlEnvelopeFieldLines(lines, '  ', 'direction', settings.direction, 'string')
+    appendFlowYamlEnvelopeFieldLines(lines, '  ', 'edgeType', settings.edgeType, 'string')
+    appendFlowYamlEnvelopeFieldLines(lines, '  ', 'computed', settings.computed, 'boolean')
+    appendFlowYamlEnvelopeFieldLines(lines, '  ', 'snapToGrid', settings.snapToGrid, 'boolean')
+    appendFlowYamlEnvelopeFieldLines(lines, '  ', 'gridSize', settings.gridSize, 'number')
   }
   lines.push('  nodes:')
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
   for (const node of nodes) {
-    lines.push(`    - id: ${flowYamlInlineValue(String(node.id || ''))}`)
-    lines.push(`      type: ${flowYamlInlineValue(String(node.type || 'Node'))}`)
-    lines.push(`      label: ${flowYamlInlineValue(String(node.label || node.id || ''))}`)
+    appendFlowYamlEnvelopeFieldLines(lines, '    - ', 'id', String(node.id || ''), 'string')
+    appendFlowYamlEnvelopeFieldLines(lines, '      ', 'type', String(node.type || 'Node'), 'string')
+    appendFlowYamlEnvelopeFieldLines(lines, '      ', 'label', String(node.label || node.id || ''), 'string')
     const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : null
     const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : null
     if (x != null || y != null) {
       const position: Record<string, number> = {}
       if (x != null) position.x = x
       if (y != null) position.y = y
-      lines.push(`      position: ${flowYamlInlineValue(position)}`)
+      appendFlowYamlEnvelopeFieldLines(lines, '      ', 'position', position, 'object')
     }
     const handles = readFlowHandlesFromNode(node)
-    if (handles) lines.push(`      handles: ${flowYamlInlineValue(handles)}`)
+    if (handles) appendFlowYamlEnvelopeFieldLines(lines, '      ', 'handles', handles, 'object')
     const props = (node.properties || {}) as Record<string, unknown>
     const propEntries = Object.entries(props)
       .filter(([key, value]) => {
@@ -327,10 +410,10 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
       })
       .sort(([a], [b]) => a.localeCompare(b))
     for (const [key, value] of propEntries) {
-      appendFlowYamlFieldLines(lines, '      ', key, value)
+      appendFlowYamlEnvelopeFieldLines(lines, '      ', key, value, readFrontmatterFlowFieldType(node, key, value))
     }
     const compute = typeof props[FLOW_COMPUTE_PROPERTY_KEY] === 'string' ? String(props[FLOW_COMPUTE_PROPERTY_KEY] || '') : ''
-    if (compute.trim()) appendFlowYamlFieldLines(lines, '      ', 'compute', compute)
+    if (compute.trim()) appendFlowYamlEnvelopeFieldLines(lines, '      ', 'compute', compute, 'string')
   }
   lines.push('  edges:')
   const edges = Array.isArray(graphData.edges) ? graphData.edges : []
@@ -342,8 +425,10 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
     const targetHandle = String(props[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
     const row: Record<string, unknown> = {
       id: String(edge.id || ''),
-      source: sourceHandle ? `${source}.${sourceHandle}` : source,
-      target: targetHandle ? `${target}.${targetHandle}` : target,
+      source,
+      ...(sourceHandle ? { sourceHandle } : {}),
+      target,
+      ...(targetHandle ? { targetHandle } : {}),
     }
     const label = String(edge.label || '').trim()
     if (label) row.label = label
@@ -1177,12 +1262,19 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
             nextNodes.length === pg.nodes.length && nextEdges.length === pg.edges.length
               ? pg
               : { ...pg, nodes: nextNodes, edges: nextEdges }
-          const nextSourceFiles = sourceFiles.slice()
+          let nextSourceFiles = sourceFiles.slice()
           nextSourceFiles[idx] = {
             ...file,
             parsedGraphData: nextParsedGraphData,
             parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
           }
+          const textSync = syncSourceFileTextFromParsedGraph({
+            state: get(),
+            sourceFiles: nextSourceFiles,
+            fileIndex: idx,
+            parsedGraphData: nextParsedGraphData,
+          })
+          nextSourceFiles = textSync.sourceFiles
           const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
           const nextRevision = (get().graphDataRevision || 0) + 1
           const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
@@ -1204,9 +1296,16 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
             selectedEdgeId: nextSelectedEdgeId,
             selectedNodeIds: nextSelectedNodeIds,
             selectedEdgeIds: nextSelectedEdgeIds,
+            ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') ? { markdownDocumentText: textSync.markdownDocumentText ?? null } : {}),
+            ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') && file?.source?.path
+              ? { markdownDocumentName: String(file.source.path || '') || s.markdownDocumentName }
+              : {}),
             graphValidationStatus: null,
             graphValidationTimestamp: null,
           }))
+          if (Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText')) {
+            writeWorkspaceSourceTextIfPresent(nextSourceFiles[idx], textSync.markdownDocumentText ?? '')
+          }
           try {
             get().updateOpenWidgetNodeIds(prev => prev.filter(nodeId => nodeId !== id))
           } catch { void 0 }
@@ -1295,12 +1394,19 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         target: innerTarget,
       }
       const nextParsedGraphData = { ...pg, edges: [...pg.edges, layerEdge] }
-      const nextSourceFiles = sourceFiles.slice()
+      let nextSourceFiles = sourceFiles.slice()
       nextSourceFiles[idx] = {
         ...file,
         parsedGraphData: nextParsedGraphData,
         parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
       }
+      const textSync = syncSourceFileTextFromParsedGraph({
+        state: get(),
+        sourceFiles: nextSourceFiles,
+        fileIndex: idx,
+        parsedGraphData: nextParsedGraphData,
+      })
+      nextSourceFiles = textSync.sourceFiles
       const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
       const nextRevision = (get().graphDataRevision || 0) + 1
       const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
@@ -1310,9 +1416,16 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         graphDataRevision: nextRevision,
         graphContentRevision: (s.graphContentRevision || 0) + 1,
         docLocationRevision: (s.docLocationRevision || 0) + 1,
+        ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') ? { markdownDocumentText: textSync.markdownDocumentText ?? null } : {}),
+        ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') && file?.source?.path
+          ? { markdownDocumentName: String(file.source.path || '') || s.markdownDocumentName }
+          : {}),
         graphValidationStatus: null,
         graphValidationTimestamp: null,
       }))
+      if (Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText')) {
+        writeWorkspaceSourceTextIfPresent(nextSourceFiles[idx], textSync.markdownDocumentText ?? '')
+      }
       try {
         syncGraphFieldsWithGraphData(get, nextGraphData)
       } catch { void 0 }
@@ -1369,12 +1482,19 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
           }
           const nextEdges = pg.edges.map(e => (String(e.id || '') === parsed.innerId ? { ...e, ...normalizedUpdates } : e))
           const nextParsedGraphData = { ...pg, edges: nextEdges }
-          const nextSourceFiles = sourceFiles.slice()
+          let nextSourceFiles = sourceFiles.slice()
           nextSourceFiles[idx] = {
             ...file,
             parsedGraphData: nextParsedGraphData,
             parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
           }
+          const textSync = syncSourceFileTextFromParsedGraph({
+            state: get(),
+            sourceFiles: nextSourceFiles,
+            fileIndex: idx,
+            parsedGraphData: nextParsedGraphData,
+          })
+          nextSourceFiles = textSync.sourceFiles
           const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
           const nextRevision = (get().graphDataRevision || 0) + 1
           const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
@@ -1384,9 +1504,16 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
             graphDataRevision: nextRevision,
             graphContentRevision: (s.graphContentRevision || 0) + 1,
             ...(Object.prototype.hasOwnProperty.call(updates, 'metadata') ? { docLocationRevision: (s.docLocationRevision || 0) + 1 } : {}),
+            ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') ? { markdownDocumentText: textSync.markdownDocumentText ?? null } : {}),
+            ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') && file?.source?.path
+              ? { markdownDocumentName: String(file.source.path || '') || s.markdownDocumentName }
+              : {}),
             graphValidationStatus: null,
             graphValidationTimestamp: null,
           }))
+          if (Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText')) {
+            writeWorkspaceSourceTextIfPresent(nextSourceFiles[idx], textSync.markdownDocumentText ?? '')
+          }
           if (Object.prototype.hasOwnProperty.call(updates, 'properties')) {
             try {
               syncGraphFieldsWithGraphData(get, nextGraphData)
@@ -1448,12 +1575,19 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         if (file && pg && Array.isArray(pg.edges)) {
           const nextEdges = pg.edges.filter(e => String(e.id || '') !== parsed.innerId)
           const nextParsedGraphData = nextEdges.length === pg.edges.length ? pg : { ...pg, edges: nextEdges }
-          const nextSourceFiles = sourceFiles.slice()
+          let nextSourceFiles = sourceFiles.slice()
           nextSourceFiles[idx] = {
             ...file,
             parsedGraphData: nextParsedGraphData,
             parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
           }
+          const textSync = syncSourceFileTextFromParsedGraph({
+            state: get(),
+            sourceFiles: nextSourceFiles,
+            fileIndex: idx,
+            parsedGraphData: nextParsedGraphData,
+          })
+          nextSourceFiles = textSync.sourceFiles
           const { graphData: recomposed } = composeGraphFromSourceLayers({ layers: buildLayersFromSourceFiles(nextSourceFiles) })
           const nextRevision = (get().graphDataRevision || 0) + 1
           const nextGraphData = withGraphDataRevision(recomposed, nextRevision)
@@ -1469,9 +1603,16 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
             docLocationRevision: (s.docLocationRevision || 0) + 1,
             selectedEdgeId: nextSelectedEdgeId,
             selectedEdgeIds: nextSelectedEdgeIds,
+            ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') ? { markdownDocumentText: textSync.markdownDocumentText ?? null } : {}),
+            ...(Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText') && file?.source?.path
+              ? { markdownDocumentName: String(file.source.path || '') || s.markdownDocumentName }
+              : {}),
             graphValidationStatus: null,
             graphValidationTimestamp: null,
           }))
+          if (Object.prototype.hasOwnProperty.call(textSync, 'markdownDocumentText')) {
+            writeWorkspaceSourceTextIfPresent(nextSourceFiles[idx], textSync.markdownDocumentText ?? '')
+          }
           try {
             syncGraphFieldsWithGraphData(get, nextGraphData)
           } catch { void 0 }

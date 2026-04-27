@@ -1,5 +1,5 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
-import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceBasename } from './path'
+import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
 import { buildRepoFilePath } from '@/lib/url'
 
@@ -244,7 +244,11 @@ export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   'sandbox/test-data/knowgrph-rich-media-generation-demo.md',
 )
-export const TEST_VALIDATION_WORKSPACE_SEED_PATH = `/${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH) || 'knowgrph-rich-media-generation-demo.md'}` as WorkspacePath
+const normalizedValidationSeedPath = normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
+export const TEST_VALIDATION_WORKSPACE_SEED_PATH =
+  normalizedValidationSeedPath === WORKSPACE_ROOT_PATH
+    ? ('/sandbox/test-data/knowgrph-rich-media-generation-demo.md' as WorkspacePath)
+    : normalizedValidationSeedPath
 export const LEGACY_WORKSPACE_README_TEXT = [
   '# Workspace',
   '',
@@ -289,6 +293,33 @@ const loadValidationWorkspaceSeedText = async (): Promise<string> => {
     '',
     `Validation seed fallback for \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`,
   ].join('\n')
+}
+
+export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string, updatedAtMs = Date.now()): WorkspaceEntry[] {
+  const normalizedPath = normalizeWorkspacePath(path)
+  const folderPaths = ancestorPathsForWorkspacePath(normalizedPath)
+  const out: WorkspaceEntry[] = []
+  for (let i = 0; i < folderPaths.length; i += 1) {
+    const folderPath = normalizeWorkspacePath(folderPaths[i]!)
+    const parentPath =
+      i === 0 ? WORKSPACE_ROOT_PATH : normalizeWorkspacePath(folderPaths[i - 1] || WORKSPACE_ROOT_PATH)
+    out.push({
+      path: folderPath,
+      parentPath,
+      kind: 'folder',
+      name: workspaceBasename(folderPath),
+      updatedAtMs,
+    })
+  }
+  out.push({
+    path: normalizedPath,
+    parentPath: folderPaths.length > 0 ? normalizeWorkspacePath(folderPaths[folderPaths.length - 1]!) : WORKSPACE_ROOT_PATH,
+    kind: 'file',
+    name: workspaceBasename(normalizedPath),
+    text: String(text ?? ''),
+    updatedAtMs,
+  })
+  return out
 }
 
 export async function getWorkspaceSeedFiles(): Promise<Array<{ path: WorkspacePath; text: string }>> {

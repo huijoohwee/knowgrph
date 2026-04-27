@@ -11,9 +11,6 @@ import {
 import {
   FLOW_EDITOR_ASPECT_RATIO_OPTIONS,
   FLOW_EDITOR_DURATION_SECONDS_OPTIONS,
-  FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
-  FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
-  FLOW_EDITOR_IMAGE_SIZE_OPTIONS,
   FLOW_EDITOR_RESOLUTION_OPTIONS,
   FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
   FLOW_IMAGE_GENERATION_NODE_LABEL,
@@ -32,6 +29,7 @@ import {
   isGrabMapsDiscoveryWidgetEntry,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import { buildBytePlusTextGenerationFields } from '@/features/integrations/byteplusChatApiSsot'
+import { buildBytePlusImageGenerationFields } from '@/features/integrations/byteplusImageGenerationSsot'
 import { buildBytePlusVideoGenerationFields } from '@/features/integrations/byteplusVideoGenerationSsot'
 import { buildOpenAiCompatibleTextGenerationFields } from '@/features/integrations/openaiResponsesSsot'
 
@@ -223,99 +221,6 @@ function buildCommonTextGenerationPorts(): WidgetRegistryEntry['ports'] {
   ]
 }
 
-function buildBytePlusImageGenerationFieldsForRegistrySeed(): WidgetRegistryEntry['fields'] {
-  return [
-    {
-      fieldKey: 'model',
-      fieldType: 'select',
-      schemaPath: 'properties.model',
-      required: true,
-      label: 'Model',
-      options: FLOW_EDITOR_IMAGE_MODEL_OPTIONS,
-    },
-    {
-      fieldKey: 'prompt',
-      fieldType: 'textarea',
-      schemaPath: 'properties.prompt',
-      required: true,
-      label: 'Prompt',
-    },
-    {
-      fieldKey: 'size',
-      fieldType: 'select',
-      schemaPath: 'properties.size',
-      required: true,
-      label: 'Size',
-      options: FLOW_EDITOR_IMAGE_SIZE_OPTIONS,
-    },
-    {
-      fieldKey: 'output_format',
-      fieldType: 'select',
-      schemaPath: 'properties.output_format',
-      required: true,
-      label: 'Output format',
-      options: FLOW_EDITOR_IMAGE_OUTPUT_FORMAT_OPTIONS,
-    },
-    {
-      fieldKey: 'response_format',
-      fieldType: 'select',
-      schemaPath: 'properties.response_format',
-      required: true,
-      label: 'Response format',
-      options: [
-        { value: 'b64_json', label: 'b64_json (Default)' },
-        { value: 'url', label: 'url' },
-      ],
-    },
-    {
-      fieldKey: 'optimize_prompt_options',
-      fieldType: 'select',
-      schemaPath: 'properties.optimize_prompt_options',
-      label: 'Optimize prompt',
-      options: [
-        { value: 'fast', label: 'fast (Default)' },
-        { value: 'standard', label: 'standard' },
-      ],
-    },
-    {
-      fieldKey: 'aspect_ratio',
-      fieldType: 'number',
-      schemaPath: 'properties.aspect_ratio',
-      label: 'Aspect ratio',
-    },
-    {
-      fieldKey: 'stream',
-      fieldType: 'boolean',
-      schemaPath: 'properties.stream',
-      label: 'Stream',
-    },
-    {
-      fieldKey: 'watermark',
-      fieldType: 'boolean',
-      schemaPath: 'properties.watermark',
-      label: 'Watermark',
-    },
-    {
-      fieldKey: 'seed',
-      fieldType: 'number',
-      schemaPath: 'properties.seed',
-      label: 'Seed',
-    },
-    {
-      fieldKey: 'guidance_scale',
-      fieldType: 'number',
-      schemaPath: 'properties.guidance_scale',
-      label: 'Guidance scale',
-    },
-    {
-      fieldKey: 'reference_image',
-      fieldType: 'text',
-      schemaPath: 'properties.reference_image',
-      label: 'Reference image',
-    },
-  ]
-}
-
 export function buildWidgetDraftFromSmartFields(args: {
   nodeTypeId: string
   mode?: 'image' | 'video'
@@ -330,7 +235,7 @@ export function buildWidgetDraftFromSmartFields(args: {
     formId: mode === 'image' ? 'imageGeneration' : mode === 'video' ? 'videoGeneration' : 'widget',
     fields: [
       ...(mode === 'image'
-        ? buildBytePlusImageGenerationFieldsForRegistrySeed()
+        ? buildBytePlusImageGenerationFields()
         : mode === 'video'
           ? buildBytePlusVideoGenerationFields()
           : [
@@ -357,11 +262,48 @@ export function buildWidgetDraftFromSmartFields(args: {
   }
 }
 
-export function buildGenerateImageRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
-  return {
-    ...buildWidgetDraftFromSmartFields({ nodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID, mode: 'image' }),
-    formId: 'imageGeneration',
+export function buildCanonicalWidgetRegistryDraft(args: {
+  nodeTypeId: string
+  providerFamily?: TextGenerationProviderFamily
+  widgetTypeId?: string
+  formId?: string
+}): Omit<WidgetRegistryEntry, 'updatedAt'> | null {
+  const nodeTypeId = String(args.nodeTypeId || '').trim()
+  const widgetTypeId = String(args.widgetTypeId || '').trim()
+  const formId = String(args.formId || '').trim()
+  if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+    return buildTextGenerationRegistryDraft({
+      providerFamily: args.providerFamily,
+      widgetTypeId: widgetTypeId || 'default',
+      formId,
+    })
   }
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
+    return {
+      ...buildWidgetDraftFromSmartFields({ nodeTypeId, mode: 'image' }),
+      widgetTypeId: widgetTypeId || 'default',
+      formId: formId || 'imageGeneration',
+    }
+  }
+  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
+    return {
+      ...buildWidgetDraftFromSmartFields({ nodeTypeId, mode: 'video' }),
+      widgetTypeId: widgetTypeId || 'default',
+      formId: formId || 'videoGeneration',
+    }
+  }
+  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+    return {
+      ...buildRichMediaPanelRegistryDraft(),
+      widgetTypeId: widgetTypeId || FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+      formId: formId || FLOW_RICH_MEDIA_PANEL_FORM_ID,
+    }
+  }
+  return null
+}
+
+export function buildGenerateImageRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
+  return buildCanonicalWidgetRegistryDraft({ nodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID })!
 }
 
 export function buildRichMediaPanelRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
@@ -414,14 +356,14 @@ export function buildTextGenerationRegistryDraft(args?: {
 }
 
 export function buildGenerateTextRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
-  return buildTextGenerationRegistryDraft({ providerFamily: 'byteplus', formId: 'textGeneration', widgetTypeId: 'default' })
+  return buildCanonicalWidgetRegistryDraft({
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    providerFamily: 'byteplus',
+  })!
 }
 
 export function buildGenerateVideoRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
-  return {
-    ...buildWidgetDraftFromSmartFields({ nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID, mode: 'video' }),
-    formId: 'videoGeneration',
-  }
+  return buildCanonicalWidgetRegistryDraft({ nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID })!
 }
 
 export function getRichMediaPanelWidgetLabel(): string {

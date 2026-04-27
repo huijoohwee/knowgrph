@@ -90,6 +90,16 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
     "testFrontmatterFlowImportModeDoesNotForceFlowEditorRenderer",
   ],
   [
+    "workspace.import.frontmatterFlow.prefersLandingContract",
+    "@/__tests__/frontmatterFlowImportModeSeepageRegression.test",
+    "testWorkspaceImportModesPreferFrontmatterFlowLandingContract",
+  ],
+  [
+    "workspace.import.frontmatterOnly.prefersLandingContract",
+    "@/__tests__/frontmatterFlowImportModeSeepageRegression.test",
+    "testWorkspaceImportModesPreferFrontmatterOnlyDocLandingContract",
+  ],
+  [
     "workspace.import.localFiles.overwritesPendingStub",
     "@/__tests__/workspaceLocalImportStubOverwrite.test",
     "testWorkspaceLocalImportOverwritesPendingStubInsteadOfRenaming",
@@ -309,6 +319,11 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.flowWidget.portHandles.gutterRendersWhenEnabled","@/__tests__/flowWidgetPortHandleGutter.test","testFlowWidgetRendersPortHandleGutterWhenEnabled"],
   ["ui.flowWidget.schemaFieldPorts.renderRowHandles","@/__tests__/flowWidgetSchemaFieldPorts.test","testFlowWidgetSchemaFieldPortsRenderRowHandles"],
   ["ui.flowWidget.textGeneration.omitsLegacySmartMediaRows","@/__tests__/flowWidgetSchemaFieldPorts.test","testTextGenerationWidgetDoesNotRenderLegacySmartMediaRows"],
+  ["parser.frontmatterVideo.normalizesLegacyWidgetTypeToCanonicalDefault","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFlowBlockNormalizesLegacyVideoWidgetTypeToCanonicalDefault"],
+  ["ui.flowWidget.frontmatterText.usesCanonicalWidgetIdentityPattern","@/__tests__/flowWidgetSchemaFieldPorts.test","testFrontmatterTextWidgetUsesCanonicalWidgetIdentityPattern"],
+  ["ui.flowWidget.frontmatterImage.reusesCanonicalRegistryRows","@/__tests__/flowWidgetSchemaFieldPorts.test","testFrontmatterImageWidgetReusesCanonicalRegistryRowsAndSingleHandleSurface"],
+  ["ui.flowWidget.frontmatterVideo.usesCanonicalWidgetIdentityPattern","@/__tests__/flowWidgetSchemaFieldPorts.test","testFrontmatterVideoWidgetUsesCanonicalWidgetIdentityPattern"],
+  ["ui.flowWidget.frontmatterRichMedia.usesCanonicalWidgetIdentityPattern","@/__tests__/flowWidgetSchemaFieldPorts.test","testFrontmatterRichMediaPanelUsesCanonicalWidgetIdentityPattern"],
   ["ui.flowWidget.hideFields.compactTextPreview","@/__tests__/flowWidgetSchemaFieldPorts.test","testFlowWidgetHideFieldsRendersTextOutputPreviewAndKeepsPortRows"],
   ["ui.flowWidget.hideFields.compactImagePreview","@/__tests__/flowWidgetSchemaFieldPorts.test","testFlowWidgetHideFieldsRendersImageOutputPreview"],
   ["ui.flowWidget.hideFields.compactVideoPreview","@/__tests__/flowWidgetSchemaFieldPorts.test","testFlowWidgetHideFieldsRendersVideoOutputPreview"],

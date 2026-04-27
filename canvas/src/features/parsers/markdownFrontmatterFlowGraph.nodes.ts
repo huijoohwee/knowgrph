@@ -1,4 +1,5 @@
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
+import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
@@ -36,6 +37,110 @@ function asFiniteNumber(v: unknown): number | null {
     if (Number.isFinite(n)) return n
   }
   return null
+}
+
+function canonicalWidgetFormIdForNodeType(nodeTypeId: string): string | null {
+  const typeId = String(nodeTypeId || '').trim()
+  if (typeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) return 'textGeneration'
+  if (typeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'imageGeneration'
+  if (typeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'videoGeneration'
+  if (typeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return 'richMediaPanel'
+  return null
+}
+
+function spreadMissingNodePositions(nodes: GraphNode[]): GraphNode[] {
+  if (!Array.isArray(nodes) || nodes.length === 0) return nodes
+  const unresolvedIndexes: number[] = []
+  let minX = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let minY = Number.POSITIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    const x = asFiniteNumber(node?.x)
+    const y = asFiniteNumber(node?.y)
+    if (x == null || y == null) {
+      unresolvedIndexes.push(i)
+      continue
+    }
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+  }
+  if (unresolvedIndexes.length === 0) return nodes
+
+  const GAP_X = 360
+  const GAP_Y = 260
+  const occupied = new Set<string>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const x = asFiniteNumber(nodes[i]?.x)
+    const y = asFiniteNumber(nodes[i]?.y)
+    if (x == null || y == null) continue
+    occupied.add(`${Math.round(x)}:${Math.round(y)}`)
+  }
+  const centerX = Number.isFinite(minX) && Number.isFinite(maxX) ? (minX + maxX) / 2 : 0
+  const centerY = Number.isFinite(minY) && Number.isFinite(maxY) ? (minY + maxY) / 2 : 0
+
+  let cursor = 0
+  for (let i = 0; i < unresolvedIndexes.length; i += 1) {
+    const nodeIndex = unresolvedIndexes[i]!
+    let placedX = 0
+    let placedY = 0
+    let found = false
+    while (!found) {
+      const ring = Math.floor(Math.sqrt(cursor))
+      const side = ring * 2 + 1
+      const max = side * side
+      const leg = Math.max(1, side - 1)
+      const offset = max - cursor
+      const legIdx = Math.floor(offset / leg)
+      const legPos = offset % leg
+      let gx = 0
+      let gy = 0
+      if (ring === 0) {
+        gx = 0
+        gy = 0
+      } else if (legIdx === 0) {
+        gx = ring - legPos
+        gy = -ring
+      } else if (legIdx === 1) {
+        gx = -ring
+        gy = -ring + legPos
+      } else if (legIdx === 2) {
+        gx = -ring + legPos
+        gy = ring
+      } else {
+        gx = ring
+        gy = ring - legPos
+      }
+      placedX = Math.round(centerX + gx * GAP_X)
+      placedY = Math.round(centerY + gy * GAP_Y)
+      cursor += 1
+      const key = `${placedX}:${placedY}`
+      if (occupied.has(key)) continue
+      occupied.add(key)
+      found = true
+    }
+    const baseProps = isRecord(nodes[nodeIndex]?.properties)
+      ? ({ ...(nodes[nodeIndex]!.properties as Record<string, JSONValue>) } as Record<string, JSONValue>)
+      : ({} as Record<string, JSONValue>)
+    if (typeof baseProps['visual:xIndex'] === 'undefined') {
+      baseProps['visual:xIndex'] = Math.floor(placedX / 320) as unknown as JSONValue
+    }
+    if (typeof baseProps['visual:yIndex'] === 'undefined') {
+      baseProps['visual:yIndex'] = Math.floor(placedY / 220) as unknown as JSONValue
+    }
+    baseProps['frontmatter:autoSeededPos'] = true as unknown as JSONValue
+    nodes[nodeIndex] = {
+      ...(nodes[nodeIndex] as GraphNode),
+      x: placedX,
+      y: placedY,
+      properties: baseProps,
+    }
+  }
+
+  return nodes
 }
 
 function cleanIdPart(v: unknown): string {
@@ -282,7 +387,10 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     const layer = categoryLayerIndex(category)
     const ports = normalizeRegistryPorts({ inputs: row.inputs, outputs: row.outputs })
     const portTypes = normalizeFlowPortTypes({ inputs: row.inputs, outputs: row.outputs })
-    const formIdFallback = `fm:${id}`
+    const canonicalWidgetDraft = buildCanonicalWidgetRegistryDraft({ nodeTypeId: type })
+    const canonicalWidgetFormId = String(canonicalWidgetDraft?.formId || canonicalWidgetFormIdForNodeType(type) || '').trim()
+    const canonicalWidgetTypeId = String(canonicalWidgetDraft?.widgetTypeId || 'default').trim() || 'default'
+    const formIdFallback = canonicalWidgetFormId || `fm:${id}`
     const propsFromRow = isRecord(row.properties) ? (row.properties as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
     const explicitFormId = typeof propsFromRow[FLOW_WIDGET_FORM_ID_KEY] === 'string'
       ? String(propsFromRow[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
@@ -290,8 +398,12 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     const explicitWidgetTypeId = typeof propsFromRow[FLOW_WIDGET_TYPE_ID_KEY] === 'string'
       ? String(propsFromRow[FLOW_WIDGET_TYPE_ID_KEY] || '').trim()
       : ''
+    const normalizedExplicitWidgetTypeId =
+      type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID && explicitWidgetTypeId === 'ports'
+        ? canonicalWidgetTypeId
+        : explicitWidgetTypeId
     const formId = explicitFormId || formIdFallback
-    const widgetTypeId = explicitWidgetTypeId || (type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID ? 'ports' : 'default')
+    const widgetTypeId = normalizedExplicitWidgetTypeId || canonicalWidgetTypeId
     const fieldsFromRow = (() => {
       const raw = (propsFromRow as unknown as Record<string, unknown>)[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]
       if (!Array.isArray(raw)) return [] as Array<{ fieldKey: string; fieldType: string; schemaPath?: string }>
@@ -336,7 +448,8 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
       ...(propsFromRow[FLOW_WIDGET_FORM_ID_KEY] == null
         ? ({ [FLOW_WIDGET_FORM_ID_KEY]: formId } as unknown as Record<string, JSONValue>)
         : {}),
-      ...(propsFromRow[FLOW_WIDGET_TYPE_ID_KEY] == null && type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+      ...(((propsFromRow[FLOW_WIDGET_TYPE_ID_KEY] == null && type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID)
+        || (explicitWidgetTypeId && explicitWidgetTypeId !== widgetTypeId))
         ? ({ [FLOW_WIDGET_TYPE_ID_KEY]: widgetTypeId } as unknown as Record<string, JSONValue>)
         : {}),
     }
@@ -369,7 +482,8 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     }
   }
   if (nodes.length === 0) return null
-  return { nodes, registry }
+  const layoutedNodes = spreadMissingNodePositions(nodes)
+  return { nodes: layoutedNodes, registry }
 }
 
 export function collectNodePositionWarnings(rawNodes: ReadonlyArray<unknown>): string[] {
