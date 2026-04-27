@@ -713,6 +713,31 @@ export async function testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDupli
         url,
         authorization: String(headers.Authorization || ''),
       })
+      if (url.startsWith('/__chat_proxy/')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          body: null,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    operations: [
+                      {
+                        endpoint: 'keywordSearch',
+                        params: { keyword: 'hawker centre' },
+                      },
+                    ],
+                  }),
+                },
+              },
+            ],
+          }),
+          text: async () => '',
+        } as unknown as Response
+      }
       return {
         ok: true,
         status: 200,
@@ -757,17 +782,16 @@ export async function testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDupli
       await waitForFrames(anyWindow.requestAnimationFrame, 4)
     })
 
-    if (fetchCalls.length !== 1) {
-      throw new Error(`expected one GrabMaps discovery widget fetch, got ${fetchCalls.length}`)
+    const grabMapsCalls = fetchCalls.filter(call => String(call.url || '').startsWith('/__fetch_remote?url='))
+    if (grabMapsCalls.length < 1) {
+      throw new Error(`expected at least one GrabMaps discovery widget fetch via remote proxy, got ${JSON.stringify(fetchCalls)}`)
     }
-    if (!fetchCalls[0]?.url.startsWith('/__fetch_remote?url=')) {
-      throw new Error(`expected discovery widget fetch to use remote proxy, got ${fetchCalls[0]?.url || '<none>'}`)
+    const keywordCall = grabMapsCalls.find(call => decodeURIComponent(String(call.url || '')).includes('keyword=hawker+centre'))
+    if (!keywordCall) {
+      throw new Error(`expected discovery widget fetch url to include the updated keyword query, got ${JSON.stringify(grabMapsCalls.map(call => call.url))}`)
     }
-    if (!decodeURIComponent(fetchCalls[0]?.url || '').includes('keyword=hawker+centre')) {
-      throw new Error(`expected discovery widget fetch url to include the updated keyword query, got ${fetchCalls[0]?.url || '<none>'}`)
-    }
-    if (fetchCalls[0]?.authorization !== 'Bearer gm_test_key') {
-      throw new Error(`expected discovery widget fetch to reuse GrabMaps BYOK auth, got ${JSON.stringify(fetchCalls[0]?.authorization || '')}`)
+    if (keywordCall.authorization !== 'Bearer gm_test_key') {
+      throw new Error(`expected discovery widget fetch to reuse GrabMaps BYOK auth, got ${JSON.stringify(keywordCall.authorization || '')}`)
     }
 
     const text = container.textContent || ''

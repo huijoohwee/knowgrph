@@ -17,14 +17,16 @@ import {
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
 import {
-  GRABMAPS_DISCOVERY_FIELD_META,
-  GRABMAPS_DISCOVERY_SETTING_SPECS,
   getGrabMapsDiscoveryWidgetLabel,
   readGrabMapsDiscoverySettingsValues,
   resolveEffectiveGrabMapsDiscoverySettingsValues,
   writeGrabMapsDiscoverySettingsValues,
   type GrabMapsDiscoverySettingsValues,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+import {
+  GRABMAPS_DISCOVERY_FIELD_META,
+  GRABMAPS_DISCOVERY_SETTING_SPECS,
+} from '@/features/integrations/grabMapsSsot'
 import type { GraphNode } from '@/lib/graph/types'
 import { FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 
@@ -336,6 +338,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         }]
 
       const markdownSections: string[] = []
+      const placePreviewLines: string[] = []
       for (const operation of operations.slice(0, 3)) {
         const params = asRecord(operation.params) || {}
         if (operation.endpoint === 'keywordSearch') {
@@ -356,6 +359,9 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
             `### Keyword Search: ${query}`,
             ...places.map((place) => `- ${place.name} | ${place.address}${place.coordinates ? ` | ${place.coordinates}` : ''}`),
           ].join('\n'))
+          placePreviewLines.push(
+            ...places.map(place => `${place.name} | ${place.address}${place.coordinates ? ` | ${place.coordinates}` : ''}`),
+          )
           continue
         }
         if (operation.endpoint === 'nearbySearch') {
@@ -383,6 +389,9 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
             `### Nearby Search: ${location} (${radius} km)`,
             ...places.map((place) => `- ${place.name} | ${place.address}${place.coordinates ? ` | ${place.coordinates}` : ''}`),
           ].join('\n'))
+          placePreviewLines.push(
+            ...places.map(place => `${place.name} | ${place.address}${place.coordinates ? ` | ${place.coordinates}` : ''}`),
+          )
           continue
         }
         if (operation.endpoint === 'reverseGeo') {
@@ -400,6 +409,9 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
             `### Reverse Geo: ${location}`,
             ...places.map((place) => `- ${place.name} | ${place.address}${place.coordinates ? ` | ${place.coordinates}` : ''}`),
           ].join('\n'))
+          placePreviewLines.push(
+            ...places.map(place => `${place.name} | ${place.address}${place.coordinates ? ` | ${place.coordinates}` : ''}`),
+          )
         }
       }
 
@@ -407,7 +419,10 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         setStatusText('No runnable GrabMaps operation resolved from this prompt.')
         return
       }
-      setStatusText('Writing Markdown output to Workspace Editor...')
+      const resultSummaryText = placePreviewLines.length > 0
+        ? `Found ${placePreviewLines.length} place result${placePreviewLines.length === 1 ? '' : 's'}. ${placePreviewLines.join(' | ')}`
+        : 'Discovery completed.'
+      setStatusText(resultSummaryText)
       const markdown = [
         '# GrabMaps Chat Discovery',
         '',
@@ -417,21 +432,26 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
         '',
         ...markdownSections,
       ].join('\n')
-      const resolvedPath = await appendChatHistoryWorkspaceFile({
-        requestedPath: chatKnowgrphWorkspacePath,
-        timestampMs: Date.now(),
-        providerSummary: `${getGrabMapsDiscoveryWidgetLabel()} · ${effectiveModelId}`,
-        userText: effectiveQuery,
-        assistantText: markdown,
-        storageType: 'chatKnowgrph',
-        defaultLocalRootPath: chatLocalStorageRootPath,
-        onResolvedPath: setChatKnowgrphWorkspacePath,
-      })
-      const canonicalPath = toCanonicalKgcWorkspacePath(resolvedPath)
-      setWorkspaceViewMode('editor')
-      setEditorWorkspacePane('markdown')
-      useMarkdownExplorerStore.getState().setActivePath(canonicalPath)
-      setStatusText('Discovery result written to Workspace Editor Markdown.')
+      try {
+        const resolvedPath = await appendChatHistoryWorkspaceFile({
+          requestedPath: chatKnowgrphWorkspacePath,
+          timestampMs: Date.now(),
+          providerSummary: `${getGrabMapsDiscoveryWidgetLabel()} · ${effectiveModelId}`,
+          userText: effectiveQuery,
+          assistantText: markdown,
+          storageType: 'chatKnowgrph',
+          defaultLocalRootPath: chatLocalStorageRootPath,
+          onResolvedPath: setChatKnowgrphWorkspacePath,
+        })
+        const canonicalPath = toCanonicalKgcWorkspacePath(resolvedPath)
+        setWorkspaceViewMode('editor')
+        setEditorWorkspacePane('markdown')
+        useMarkdownExplorerStore.getState().setActivePath(canonicalPath)
+        setStatusText(`${resultSummaryText} Discovery result written to Workspace Editor Markdown.`)
+      } catch (workspaceErr) {
+        const workspaceMessage = workspaceErr instanceof Error ? workspaceErr.message : String(workspaceErr || '')
+        setStatusText(`${resultSummaryText} Workspace write skipped: ${workspaceMessage || 'unavailable'}`)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error || '')
       setStatusText(`Discovery failed: ${message || 'Unknown error'}`)
@@ -575,7 +595,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
             disabled={running || !queryText.trim()}
           >
             <Send className="h-4 w-4" aria-hidden="true" />
-            {running ? 'Running...' : 'Search Places'}
+            {running ? 'Running...' : 'Search Places (Run Discovery)'}
           </button>
         </div>
         {statusText ? (
