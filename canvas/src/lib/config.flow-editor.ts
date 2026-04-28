@@ -34,6 +34,8 @@ export const FLOW_VIDEO_GENERATION_NODE_LABEL = 'BytePlus Video Widget' as const
 
 export const FLOW_VIDEO_SCRIPT_FORM_ID = 'videoScript' as const
 export const FLOW_VIDEO_SCRIPT_WIDGET_LABEL = 'BytePlus Video Script Widget' as const
+export const FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID = 'videoScript.openai' as const
+export const FLOW_OPENAI_VIDEO_SCRIPT_WIDGET_LABEL = 'OpenAI Video Script Widget' as const
 
 const FLOW_TEXT_GENERATION_SEED_PROMPT_DEFAULT = 'Generate a text response for the active request.'
 const FLOW_VIDEO_SCRIPT_SEED_PROMPT_DEFAULT =
@@ -41,8 +43,15 @@ const FLOW_VIDEO_SCRIPT_SEED_PROMPT_DEFAULT =
 
 export function getFlowTextGenerationSeedPrompt(formId?: unknown): string {
   const normalized = String(formId || '').trim()
-  if (normalized === FLOW_VIDEO_SCRIPT_FORM_ID) return FLOW_VIDEO_SCRIPT_SEED_PROMPT_DEFAULT
+  if (normalized === FLOW_VIDEO_SCRIPT_FORM_ID || normalized === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID) {
+    return FLOW_VIDEO_SCRIPT_SEED_PROMPT_DEFAULT
+  }
   return FLOW_TEXT_GENERATION_SEED_PROMPT_DEFAULT
+}
+
+export function isFlowVideoScriptFormId(formId?: unknown): boolean {
+  const normalized = String(formId || '').trim()
+  return normalized === FLOW_VIDEO_SCRIPT_FORM_ID || normalized === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID
 }
 
 export const FLOW_EDITOR_IMAGE_MODEL_OPTIONS: ReadonlyArray<{ value: FlowEditorSmartNodeModel; label: string }> = [

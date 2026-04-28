@@ -2,6 +2,7 @@ import { createRxDatabase, type RxCollection, type RxDatabase, type RxJsonSchema
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import {
+  CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   expandWorkspaceSeedFileEntries,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_README_TEXT,
@@ -121,6 +122,25 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
         const existing = await collections.entries.findOne(normalizedSeedPath).exec()
         if (existing && existing.get('kind') === 'file' && String(existing.get('text') ?? '').trim()) continue
         const entries = expandWorkspaceSeedFileEntries(normalizedSeedPath, seed.text, now)
+        for (const entry of entries) {
+          await collections.entries.incrementalUpsert({
+            path: entry.path,
+            parentPath: entry.parentPath || '',
+            kind: entry.kind,
+            name: entry.name,
+            text: entry.kind === 'file' ? String(entry.text ?? '') : '',
+            updatedAtMs: entry.updatedAtMs,
+          })
+        }
+      }
+    }
+    if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE) {
+      const now = Date.now()
+      const seeds = await getWorkspaceSeedFiles()
+      const validationSeed = seeds.find(seed => normalizeWorkspacePath(seed.path) === TEST_VALIDATION_WORKSPACE_SEED_PATH) || null
+      const existing = validationSeed ? await collections.entries.findOne(TEST_VALIDATION_WORKSPACE_SEED_PATH).exec() : null
+      if (validationSeed && (!existing || existing.get('kind') !== 'file' || !String(existing.get('text') ?? '').trim())) {
+        const entries = expandWorkspaceSeedFileEntries(TEST_VALIDATION_WORKSPACE_SEED_PATH, validationSeed.text, now)
         for (const entry of entries) {
           await collections.entries.incrementalUpsert({
             path: entry.path,

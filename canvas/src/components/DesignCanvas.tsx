@@ -76,7 +76,15 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
-import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import {
+  buildEdgePathD,
+  ensureEdgeAnimationStyleElement,
+  readEdgePathCurveOptions,
+  readGlobalEdgeAnimationEnabled,
+  readGlobalEdgeColor,
+  readGlobalEdgeThicknessPx,
+  readGlobalEdgeType,
+} from '@/lib/graph/edgeTypes'
 
 type FrameNode = {
   id: string
@@ -2814,6 +2822,13 @@ export default function DesignCanvas({
     }
     return out
   }, [domDepthById, localGraphData?.edges, positions, snapshot.schema, snapshot.selectedNodeId, styleById, wireframeSettings.maxEdges, wireframeSettings.showEdges])
+  const wireframeEdgeStroke = readGlobalEdgeColor(snapshot.schema)
+  const wireframeEdgeStrokeWidth = readGlobalEdgeThicknessPx(snapshot.schema)
+  const wireframeEdgesAnimated = readGlobalEdgeAnimationEnabled(snapshot.schema)
+  useEffect(() => {
+    if (!wireframeEdgesAnimated) return
+    ensureEdgeAnimationStyleElement(typeof document !== 'undefined' ? document : null)
+  }, [wireframeEdgesAnimated])
 
   const wireframePreviewById = useMemo(() => {
     type Preview =
@@ -3674,9 +3689,11 @@ export default function DesignCanvas({
                 <path
                   key={e.id}
                   d={e.d}
-                  stroke="var(--kg-border)"
-                  strokeWidth={1}
+                  stroke={wireframeEdgeStroke}
+                  strokeWidth={wireframeEdgeStrokeWidth}
                   opacity={e.opacity}
+                  strokeDasharray={wireframeEdgesAnimated ? '7 5' : undefined}
+                  style={wireframeEdgesAnimated ? { animation: 'kg-edge-dash-flow 1.25s linear infinite' } : undefined}
                   fill="none"
                 />
               ))}

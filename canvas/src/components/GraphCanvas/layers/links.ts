@@ -8,7 +8,14 @@ import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/
 import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
 import { shouldShowEdgeArrow } from '@/components/GraphCanvas/edgeDisplay'
 import { edgeDragBehavior } from '@/components/GraphCanvas/utils';
-import { buildEdgePathD, readEdgePathCurveOptions, readEffectiveEdgeTypeFor2dRenderer } from '@/lib/graph/edgeTypes'
+import {
+  buildEdgePathD,
+  ensureEdgeAnimationStyleElement,
+  readEdgePathCurveOptions,
+  readEffectiveEdgeTypeFor2dRenderer,
+  readGlobalEdgeAnimationEnabled,
+  readGlobalEdgeColor,
+} from '@/lib/graph/edgeTypes'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -137,6 +144,14 @@ function resolveEdgePathD(e: GraphEdge, schema: GraphSchema, nodeLookup?: Map<st
   })
 }
 
+const readEdgeDasharray = (d: GraphEdge): string | null => {
+  const props = (d.properties || {}) as Record<string, unknown>
+  const raw = props['visual:dash']
+  if (typeof raw === 'string' && raw.trim()) return raw.trim()
+  if (String(d.label || '') === 'spokeTo') return '3,6'
+  return null
+}
+
 export const createLinksHitLayer = (args: {
   g: GSelection;
   edgesForDisplay: GraphEdge[];
@@ -258,6 +273,8 @@ export const createLinksLayer = (args: {
   nodeById?: Map<string, GraphNode> | null
 }): d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> => {
   const { g, edgesForDisplay, schema, nodeById } = args
+  const edgeAnimationEnabled = readGlobalEdgeAnimationEnabled(schema)
+  if (edgeAnimationEnabled) ensureEdgeAnimationStyleElement(typeof document !== 'undefined' ? document : null)
   const nodeLookup = buildNodeLookup(nodeById)
 
   const eligibleEdges = (() => {
@@ -341,13 +358,12 @@ export const createLinksLayer = (args: {
     .attr('stroke-opacity', (d: GraphEdge) => readEdgeVisualOpacity(d))
     .attr('stroke-width', (d: GraphEdge) => getEdgeStrokeWidth(d, schema))
     .attr('stroke-dasharray', (d: GraphEdge) => {
-      const props = (d.properties || {}) as Record<string, unknown>
-      const raw = props['visual:dash']
-      if (typeof raw === 'string' && raw.trim()) return raw.trim()
-      if (String(d.label || '') === 'spokeTo') return '3,6'
-      return null
+      const base = readEdgeDasharray(d)
+      if (base) return base
+      return edgeAnimationEnabled ? '7,5' : null
     })
     .attr('fill', 'none')
+    .style('animation', edgeAnimationEnabled ? 'kg-edge-dash-flow 1.25s linear infinite' : null)
     .style('pointer-events', 'none')
 
   ;(link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
@@ -359,11 +375,11 @@ export const createLinksLayer = (args: {
   return link as unknown as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>
 };
 
-export const createTempLink = (g: GSelection, tempLinkSelRef: MutableRefObject<TempLinkSelection>) => {
+export const createTempLink = (g: GSelection, tempLinkSelRef: MutableRefObject<TempLinkSelection>, schema?: GraphSchema | null) => {
   const tempLink = g
     .append('line')
     .attr('data-kg-layer', 'temp-link')
-    .attr('stroke', 'var(--kg-canvas-accent)')
+    .attr('stroke', readGlobalEdgeColor(schema || null))
     .attr('stroke-opacity', 0.6)
     .attr('stroke-width', 2)
     .attr('stroke-dasharray', '4,2')

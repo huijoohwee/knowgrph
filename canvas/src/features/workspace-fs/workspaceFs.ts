@@ -242,10 +242,13 @@ export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
 ])
 export const WORKSPACE_README_SEED_REL_PATH = 'README.md'
 export const WORKSPACE_README_SEED_PATH = '/README.md' as WorkspacePath
+export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = 'sandbox/test-data/knowgrph-rich-media-generation-demo.md'
 export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
-  'sandbox/test-data/knowgrph-rich-media-generation-demo.md',
+  DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
 )
+export const CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE =
+  TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
 const normalizedValidationSeedPath = normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
 export const TEST_VALIDATION_WORKSPACE_SEED_PATH =
   normalizedValidationSeedPath === WORKSPACE_ROOT_PATH
@@ -425,6 +428,8 @@ export function isDefaultWorkspaceSeedFamilyOnly(paths: ReadonlyArray<WorkspaceP
 export function resolveWorkspaceStartupActivePath(args: {
   workspaceFilePaths: ReadonlyArray<WorkspacePath>
   activePath?: WorkspacePath | null
+  preferValidationSeedForDefaultFamily?: boolean
+  forceValidationSeedIfPresent?: boolean
 }): WorkspacePath | null {
   const workspaceFilePaths = args.workspaceFilePaths
     .map(path => normalizeWorkspacePath(path))
@@ -432,7 +437,13 @@ export function resolveWorkspaceStartupActivePath(args: {
   const workspaceFilePathSet = new Set(workspaceFilePaths)
   const activePath = args.activePath ? normalizeWorkspacePath(args.activePath) : null
   const activePathExists = !!(activePath && workspaceFilePathSet.has(activePath))
+  if (args.forceValidationSeedIfPresent === true && workspaceFilePathSet.has(TEST_VALIDATION_WORKSPACE_SEED_PATH)) {
+    return TEST_VALIDATION_WORKSPACE_SEED_PATH
+  }
   if (isDefaultWorkspaceSeedFamilyOnly(workspaceFilePaths)) {
+    if (args.preferValidationSeedForDefaultFamily === true && workspaceFilePathSet.has(TEST_VALIDATION_WORKSPACE_SEED_PATH)) {
+      return TEST_VALIDATION_WORKSPACE_SEED_PATH
+    }
     if (workspaceFilePathSet.has(WORKSPACE_README_SEED_PATH)) return WORKSPACE_README_SEED_PATH
     return workspaceFilePaths[0] || null
   }

@@ -2,6 +2,9 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { applyInteractiveImportModes } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { resolveCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
+import { LS_KEYS } from '@/lib/config'
+import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -43,7 +46,12 @@ export function testWorkspaceImportModesPreferFrontmatterFlowLandingContract() {
     graphData: {
       type: 'Graph',
       context: 'frontmatter-flow',
-      metadata: { kind: 'frontmatter-flow' },
+      metadata: {
+        kind: 'frontmatter-flow',
+        frontmatterFlowSettings: {
+          edgeType: 'smoothstep',
+        },
+      },
       nodes: [{ id: 'w1', type: 'TextGeneration', label: 'w1', properties: { 'flow:widgetFormId': 'textGeneration' } }],
       edges: [],
     } as never,
@@ -55,6 +63,9 @@ export function testWorkspaceImportModesPreferFrontmatterFlowLandingContract() {
   if (st.documentSemanticMode !== 'document') throw new Error(`expected document semantic mode, got ${String(st.documentSemanticMode)}`)
   if (st.frontmatterModeEnabled !== true) throw new Error('expected frontmatter mode enabled for frontmatter-flow import landing')
   if (st.multiDimTableModeEnabled !== false) throw new Error('expected multidim table disabled for frontmatter-flow import landing')
+  if (readGlobalEdgeType(st.schema) !== 'smoothstep') {
+    throw new Error(`expected frontmatter-flow import landing to sync schema edge type, got ${readGlobalEdgeType(st.schema)}`)
+  }
 }
 
 export function testWorkspaceImportModesPreferFrontmatterOnlyDocLandingContract() {
@@ -110,6 +121,36 @@ export function testWorkspaceImportModesHonorExplicitMarkdownFrontmatterPreset()
   if (st.documentSemanticMode !== 'document') throw new Error(`expected explicit preset to force document semantic mode, got ${String(st.documentSemanticMode)}`)
   if (st.frontmatterModeEnabled !== true) throw new Error('expected explicit preset to enable frontmatter mode')
   if (st.documentStructureBaselineLock !== false) throw new Error('expected explicit preset to force View Lock OFF')
+}
+
+export function testCanvasFrontmatterPresetDisablesGeospatialOverlayFor2dDocuments() {
+  const { restore } = initJsdomHarness()
+  try {
+    useGraphStore.getState().resetAll()
+    window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+
+    const rawText = [
+      '---',
+      'title: "Knowgrph"',
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "flowEditor"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: true',
+      'kgDocumentStructureBaselineLock: false',
+      '---',
+      '',
+      '# Knowgrph',
+    ].join('\n')
+
+    applyInteractiveImportModes({ rawText })
+
+    const next = window.localStorage.getItem(LS_KEYS.geospatialOverlayEnabled)
+    if (next !== '0' && next !== 'false') {
+      throw new Error(`expected 2d frontmatter preset to disable geospatial overlay, got ${String(next)}`)
+    }
+  } finally {
+    restore()
+  }
 }
 
 export function testPerDocumentUiRestorePrefersFrontmatterFlowLandingContract() {

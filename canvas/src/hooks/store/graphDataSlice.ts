@@ -218,6 +218,48 @@ function isComposedGraphData(graphData: GraphData | null): boolean {
   return String(meta.sourceLayerComposition || '') === 'compose'
 }
 
+function hasStableSameSourceTopology(current: GraphData | null, next: GraphData | null): boolean {
+  if (!current || !next) return false
+  const currentMeta = (current.metadata || {}) as Record<string, unknown>
+  const nextMeta = (next.metadata || {}) as Record<string, unknown>
+  const currentSource = typeof currentMeta.source === 'string' ? currentMeta.source.trim() : ''
+  const nextSource = typeof nextMeta.source === 'string' ? nextMeta.source.trim() : ''
+  if (!currentSource || !nextSource || currentSource !== nextSource) return false
+  const currentKind = String(currentMeta.kind || '').trim()
+  const nextKind = String(nextMeta.kind || '').trim()
+  if (currentKind !== nextKind) return false
+
+  const currentNodeIds = (current.nodes || []).map(n => String(n?.id || '').trim()).filter(Boolean).sort()
+  const nextNodeIds = (next.nodes || []).map(n => String(n?.id || '').trim()).filter(Boolean).sort()
+  if (currentNodeIds.length !== nextNodeIds.length) return false
+  for (let i = 0; i < currentNodeIds.length; i += 1) {
+    if (currentNodeIds[i] !== nextNodeIds[i]) return false
+  }
+
+  const currentEdgeSig = (current.edges || [])
+    .map(e => `${String(e?.id || '').trim()}|${String(e?.source || '').trim()}|${String(e?.target || '').trim()}`)
+    .filter(Boolean)
+    .sort()
+  const nextEdgeSig = (next.edges || [])
+    .map(e => `${String(e?.id || '').trim()}|${String(e?.source || '').trim()}|${String(e?.target || '').trim()}`)
+    .filter(Boolean)
+    .sort()
+  if (currentEdgeSig.length !== nextEdgeSig.length) return false
+  for (let i = 0; i < currentEdgeSig.length; i += 1) {
+    if (currentEdgeSig[i] !== nextEdgeSig[i]) return false
+  }
+  return true
+}
+
+function cloneDesignLayerState(
+  value: import('@/features/design/designLayersState').DesignLayerState | undefined,
+): import('@/features/design/designLayersState').DesignLayerState {
+  return {
+    order: Array.isArray(value?.order) ? value!.order.slice() : [],
+    hiddenById: value?.hiddenById ? { ...value.hiddenById } : {},
+  }
+}
+
 function buildLayersFromSourceFiles(sourceFiles: GraphState['sourceFiles']) {
   return (sourceFiles || []).map(f => ({
     id: f.id,
@@ -802,22 +844,69 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       void 0
     }
 
+    const currentGraph = get().graphData
+    const currentGraphKey = buildGraphMetaKeyIgnoringPending(currentGraph)
     const collapsedKey = buildGraphMetaKeyIgnoringPending(nextGraphDataBase)
+    const carryForwardSameSourceUiState =
+      !!collapsedKey &&
+      !!currentGraphKey &&
+      collapsedKey !== currentGraphKey &&
+      hasStableSameSourceTopology(currentGraph, nextGraphDataBase)
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
       const nextContentRev = (s.graphContentRevision || 0) + 1
       const nextDocRev = (s.docLocationRevision || 0) + 1
       const byKey = (s.collapsedGroupIdsByGraphMetaKey || {}) as Record<string, string[]>
-      const nextCollapsed = collapsedKey ? (byKey[collapsedKey] || []) : (s.collapsedGroupIds || [])
+      const collapsedKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(byKey, collapsedKey) : false
+      const nextCollapsed =
+        collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing
+          ? (s.collapsedGroupIds || [])
+          : collapsedKey ? (byKey[collapsedKey] || []) : (s.collapsedGroupIds || [])
       const designByKey = (s.designLayerStateByGraphMetaKey || {}) as Record<string, import('@/features/design/designLayersState').DesignLayerState>
-      const nextDesignLayerState = collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
+      const designKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designByKey, collapsedKey) : false
+      const nextDesignLayerState =
+        collapsedKey && carryForwardSameSourceUiState && designKeyMissing
+          ? cloneDesignLayerState(s.designLayerState)
+          : collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
       const pinnedByKey = (s.flowWidgetPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
       const posByKey = (s.flowWidgetPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
       const worldByKey = (s.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
-      const nextPinned = collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
-      const nextPos = collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
-      const nextWorld = collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
+      const pinnedKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(pinnedByKey, collapsedKey) : false
+      const posKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(posByKey, collapsedKey) : false
+      const worldKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(worldByKey, collapsedKey) : false
+      const nextPinned =
+        collapsedKey && carryForwardSameSourceUiState && pinnedKeyMissing
+          ? { ...(s.flowWidgetPinnedByNodeId || {}) }
+          : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
+      const nextPos =
+        collapsedKey && carryForwardSameSourceUiState && posKeyMissing
+          ? { ...(s.flowWidgetPosByNodeId || {}) }
+          : collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
+      const nextWorld =
+        collapsedKey && carryForwardSameSourceUiState && worldKeyMissing
+          ? { ...(s.flowWidgetWorldPosByNodeId || {}) }
+          : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
+      const nextCollapsedByKey =
+        collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing
+          ? { ...byKey, [collapsedKey]: nextCollapsed }
+          : byKey
+      const nextDesignByKey =
+        collapsedKey && carryForwardSameSourceUiState && designKeyMissing
+          ? { ...designByKey, [collapsedKey]: cloneDesignLayerState(nextDesignLayerState) }
+          : designByKey
+      const nextPinnedByKey =
+        collapsedKey && carryForwardSameSourceUiState && pinnedKeyMissing
+          ? { ...pinnedByKey, [collapsedKey]: nextPinned }
+          : pinnedByKey
+      const nextPosByKey =
+        collapsedKey && carryForwardSameSourceUiState && posKeyMissing
+          ? { ...posByKey, [collapsedKey]: nextPos }
+          : posByKey
+      const nextWorldByKey =
+        collapsedKey && carryForwardSameSourceUiState && worldKeyMissing
+          ? { ...worldByKey, [collapsedKey]: nextWorld }
+          : worldByKey
       return {
         graphData: nextGraphData,
         graphDataRevision: nextRevision,
@@ -826,10 +915,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         graphValidationStatus: null,
         graphValidationTimestamp: null,
         ...(collapsedKey ? { collapsedGroupIds: nextCollapsed } : {}),
+        ...(collapsedKey ? { collapsedGroupIdsByGraphMetaKey: nextCollapsedByKey } : {}),
         ...(collapsedKey ? { designLayerState: nextDesignLayerState } : {}),
+        ...(collapsedKey ? { designLayerStateByGraphMetaKey: nextDesignByKey } : {}),
         ...(collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
+        ...(collapsedKey ? { flowWidgetPinnedByNodeIdByGraphMetaKey: nextPinnedByKey } : {}),
         ...(collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),
+        ...(collapsedKey ? { flowWidgetPosByNodeIdByGraphMetaKey: nextPosByKey } : {}),
         ...(collapsedKey ? { flowWidgetWorldPosByNodeId: nextWorld } : {}),
+        ...(collapsedKey ? { flowWidgetWorldPosByNodeIdByGraphMetaKey: nextWorldByKey } : {}),
       }
     })
     const stateNow = get()
@@ -940,29 +1034,81 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       void 0
     }
 
+    const currentGraph = get().graphData
+    const currentGraphKey = buildGraphMetaKeyIgnoringPending(currentGraph)
     const collapsedKey = buildGraphMetaKeyIgnoringPending(nextGraphData)
+    const carryForwardSameSourceUiState =
+      !!collapsedKey &&
+      !!currentGraphKey &&
+      collapsedKey !== currentGraphKey &&
+      hasStableSameSourceTopology(currentGraph, nextGraphData)
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const byKey = (s.collapsedGroupIdsByGraphMetaKey || {}) as Record<string, string[]>
-      const nextCollapsed = collapsedKey ? (byKey[collapsedKey] || []) : (s.collapsedGroupIds || [])
+      const collapsedKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(byKey, collapsedKey) : false
+      const nextCollapsed =
+        collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing
+          ? (s.collapsedGroupIds || [])
+          : collapsedKey ? (byKey[collapsedKey] || []) : (s.collapsedGroupIds || [])
       const designByKey = (s.designLayerStateByGraphMetaKey || {}) as Record<string, import('@/features/design/designLayersState').DesignLayerState>
-      const nextDesignLayerState = collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
+      const designKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designByKey, collapsedKey) : false
+      const nextDesignLayerState =
+        collapsedKey && carryForwardSameSourceUiState && designKeyMissing
+          ? cloneDesignLayerState(s.designLayerState)
+          : collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
       const pinnedByKey = (s.flowWidgetPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
       const posByKey = (s.flowWidgetPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
       const worldByKey = (s.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
-      const nextPinned = collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
-      const nextPos = collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
-      const nextWorld = collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
+      const pinnedKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(pinnedByKey, collapsedKey) : false
+      const posKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(posByKey, collapsedKey) : false
+      const worldKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(worldByKey, collapsedKey) : false
+      const nextPinned =
+        collapsedKey && carryForwardSameSourceUiState && pinnedKeyMissing
+          ? { ...(s.flowWidgetPinnedByNodeId || {}) }
+          : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
+      const nextPos =
+        collapsedKey && carryForwardSameSourceUiState && posKeyMissing
+          ? { ...(s.flowWidgetPosByNodeId || {}) }
+          : collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
+      const nextWorld =
+        collapsedKey && carryForwardSameSourceUiState && worldKeyMissing
+          ? { ...(s.flowWidgetWorldPosByNodeId || {}) }
+          : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
+      const nextCollapsedByKey =
+        collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing
+          ? { ...byKey, [collapsedKey]: nextCollapsed }
+          : byKey
+      const nextDesignByKey =
+        collapsedKey && carryForwardSameSourceUiState && designKeyMissing
+          ? { ...designByKey, [collapsedKey]: cloneDesignLayerState(nextDesignLayerState) }
+          : designByKey
+      const nextPinnedByKey =
+        collapsedKey && carryForwardSameSourceUiState && pinnedKeyMissing
+          ? { ...pinnedByKey, [collapsedKey]: nextPinned }
+          : pinnedByKey
+      const nextPosByKey =
+        collapsedKey && carryForwardSameSourceUiState && posKeyMissing
+          ? { ...posByKey, [collapsedKey]: nextPos }
+          : posByKey
+      const nextWorldByKey =
+        collapsedKey && carryForwardSameSourceUiState && worldKeyMissing
+          ? { ...worldByKey, [collapsedKey]: nextWorld }
+          : worldByKey
       return {
         graphData: withGraphDataRevision(nextGraphData, nextRevision),
         graphDataRevision: nextRevision,
         graphValidationStatus: null,
         graphValidationTimestamp: null,
         ...(collapsedKey ? { collapsedGroupIds: nextCollapsed } : {}),
+        ...(collapsedKey ? { collapsedGroupIdsByGraphMetaKey: nextCollapsedByKey } : {}),
         ...(collapsedKey ? { designLayerState: nextDesignLayerState } : {}),
+        ...(collapsedKey ? { designLayerStateByGraphMetaKey: nextDesignByKey } : {}),
         ...(collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
+        ...(collapsedKey ? { flowWidgetPinnedByNodeIdByGraphMetaKey: nextPinnedByKey } : {}),
         ...(collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),
+        ...(collapsedKey ? { flowWidgetPosByNodeIdByGraphMetaKey: nextPosByKey } : {}),
         ...(collapsedKey ? { flowWidgetWorldPosByNodeId: nextWorld } : {}),
+        ...(collapsedKey ? { flowWidgetWorldPosByNodeIdByGraphMetaKey: nextWorldByKey } : {}),
       }
     })
     const stateNow = get()

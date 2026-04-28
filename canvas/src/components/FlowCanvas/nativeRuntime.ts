@@ -113,6 +113,9 @@ export type FlowNativePresentation = {
   groups: FlowNativeGroupsPresentation
   edges: {
     edgeType: 'bezier' | 'straight' | 'step' | 'smoothstep'
+    strokeColor: string
+    strokeWidthPx: number
+    animated: boolean
     routing: {
       enabled: boolean
       mode: 'bezier' | 'ortho'
@@ -290,6 +293,9 @@ export const createFlowNativeRuntime = (args: {
       },
       edges: {
         edgeType: 'bezier',
+        strokeColor: 'var(--kg-canvas-accent)',
+        strokeWidthPx: 1.5,
+        animated: true,
         routing: { enabled: true, mode: 'ortho', obstacleAvoidance: true, marginPx: 10, laneStepPx: 56, maxLanes: 10 },
         underlay: { enabled: true, groupFadeAlpha: 0.65 },
       },
@@ -708,10 +714,14 @@ const drawEdge = (
   const t = args.target
   const k = rt.transform.k || 1
   const edgeType = rt.presentation.edges.edgeType
+  const edgeColorDefault = rt.presentation.edges.strokeColor || rt.theme.edge
+  const edgeAnimated = rt.presentation.edges.animated !== false
 
   const svgPathD = typeof e.svgPathD === 'string' ? e.svgPathD.trim() : ''
   if (edgeType === 'bezier' && svgPathD) {
-    const widthPx = typeof e.widthPx === 'number' && Number.isFinite(e.widthPx) ? Math.max(1, Math.min(12, e.widthPx)) : 1
+    const widthPx = typeof e.widthPx === 'number' && Number.isFinite(e.widthPx)
+      ? Math.max(1, Math.min(12, e.widthPx))
+      : Math.max(0.5, Math.min(12, rt.presentation.edges.strokeWidthPx))
     ctx.save()
     const tx = typeof e.svgPathTx === 'number' && Number.isFinite(e.svgPathTx) ? e.svgPathTx : 0
     const ty = typeof e.svgPathTy === 'number' && Number.isFinite(e.svgPathTy) ? e.svgPathTy : 0
@@ -719,7 +729,14 @@ const drawEdge = (
     ctx.lineWidth = (args.selected ? Math.max(2, widthPx + 1) : widthPx) / Math.max(1e-6, k)
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
-    ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : (e.color || rt.theme.edge)
+    ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : (e.color || edgeColorDefault)
+    if (edgeAnimated) {
+      ctx.setLineDash([Math.max(4, widthPx * 3), Math.max(3, widthPx * 2)])
+      ctx.lineDashOffset = -(performance.now() * 0.02)
+    } else {
+      ctx.setLineDash([])
+      ctx.lineDashOffset = 0
+    }
     try {
       const p = new Path2D(svgPathD)
       ctx.stroke(p)
@@ -729,7 +746,7 @@ const drawEdge = (
 
     const arrowD = typeof e.svgArrowD === 'string' ? e.svgArrowD.trim() : ''
     if (arrowD) {
-      ctx.fillStyle = args.selected ? rt.theme.edgeSelected : (e.color || rt.theme.edge)
+      ctx.fillStyle = args.selected ? rt.theme.edgeSelected : (e.color || edgeColorDefault)
       try {
         const a = new Path2D(arrowD)
         ctx.fill(a)
@@ -788,10 +805,19 @@ const drawEdge = (
       curve: readEdgePathCurveOptions(e as unknown as GraphEdge, null),
     })
   }
-  const widthPx = typeof e.widthPx === 'number' && Number.isFinite(e.widthPx) ? Math.max(1, Math.min(12, e.widthPx)) : 1
+  const widthPx = typeof e.widthPx === 'number' && Number.isFinite(e.widthPx)
+    ? Math.max(1, Math.min(12, e.widthPx))
+    : Math.max(0.5, Math.min(12, rt.presentation.edges.strokeWidthPx))
   ctx.lineWidth = (args.selected ? Math.max(2, widthPx + 1) : widthPx) / Math.max(1e-6, k)
   ctx.lineJoin = 'round'
-  ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : (e.color || rt.theme.edge)
+  ctx.strokeStyle = args.selected ? rt.theme.edgeSelected : (e.color || edgeColorDefault)
+  if (edgeAnimated) {
+    ctx.setLineDash([Math.max(4, widthPx * 3), Math.max(3, widthPx * 2)])
+    ctx.lineDashOffset = -(performance.now() * 0.02)
+  } else {
+    ctx.setLineDash([])
+    ctx.lineDashOffset = 0
+  }
   ctx.stroke()
 }
 

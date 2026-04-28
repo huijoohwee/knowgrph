@@ -353,6 +353,8 @@ export function useRichMediaOverlays2d(args: {
       density,
       viewportW: sceneWidth,
       viewportH: sceneHeight,
+      schema: schemaRef.current,
+      collision: { enabled: true },
       readTransform: () => {
         const svgEl = svgRef.current
         if (!svgEl) return null
@@ -389,6 +391,7 @@ export function useRichMediaOverlays2d(args: {
         widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(Number(widthMinRaw))) : 210,
         widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(Number(widthMaxRaw))) : 360,
       },
+      clampToViewport: { margin: 12 },
     })
 
     mediaOverlayScheduleRef.current = loop.schedule

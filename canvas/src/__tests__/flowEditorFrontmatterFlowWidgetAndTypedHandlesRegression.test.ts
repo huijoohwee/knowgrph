@@ -634,6 +634,8 @@ export function testFlowEditorPortHandleEdgeConnectivityUsesEndpointIdResolver()
   const portHandlesText = readFileSync(portHandlesPath, 'utf8')
   const handlesPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'handles.ts')
   const handlesText = readFileSync(handlesPath, 'utf8')
+  const buildNativeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'buildNativeScene.ts')
+  const buildNativeSceneText = readFileSync(buildNativeScenePath, 'utf8')
   const flowDataflowPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
   const flowDataflowText = readFileSync(flowDataflowPath, 'utf8')
   const endpointHelperPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'edgeEndpoints.ts')
@@ -650,6 +652,12 @@ export function testFlowEditorPortHandleEdgeConnectivityUsesEndpointIdResolver()
   }
   if (!handlesText.includes('readEdgeEndpointId((e as { target?: unknown })?.target)')) {
     throw new Error('expected flow handle computation to resolve target endpoint ids via shared helper')
+  }
+  if (!buildNativeSceneText.includes('const source = readEdgeEndpointId(e?.source)')) {
+    throw new Error('expected flow native scene edge construction to resolve source endpoint ids via shared helper')
+  }
+  if (!buildNativeSceneText.includes('const target = readEdgeEndpointId(e?.target)')) {
+    throw new Error('expected flow native scene edge construction to resolve target endpoint ids via shared helper')
   }
   if (!flowDataflowText.includes('readEdgeEndpointId((e as unknown as { source?: unknown })?.source)')) {
     throw new Error('expected flow dataflow connected-value pipeline to resolve source endpoint ids via shared helper')

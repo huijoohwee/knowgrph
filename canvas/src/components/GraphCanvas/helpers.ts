@@ -10,6 +10,7 @@ import {
   getNodeBaseStroke as getNodeBaseStrokeRaw,
   getNodeLabelColor as getNodeLabelColorRaw,
 } from '@/lib/graph/visualStyles'
+import { readGlobalEdgeThicknessPx } from '@/lib/graph/edgeTypes'
 import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 export { getNodeMediaSpec, hasNodeMedia, type NodeMediaKind, type NodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 
@@ -115,7 +116,7 @@ export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number
   const baseFromSchema =
     typeof styles.width === 'number' && Number.isFinite(styles.width) && styles.width > 0
       ? styles.width
-      : 2
+      : readGlobalEdgeThicknessPx(schema)
   const rawProps = safeEdge?.properties
   const props =
     rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)

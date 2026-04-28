@@ -104,3 +104,85 @@ export const testElkLayoutReturnsNodePositions = async () => {
   if (out.a?.x !== 10 || out.a?.y !== 20) throw new Error('elk layout output mismatch for node a')
   if (out.b?.x !== 40 || out.b?.y !== 60) throw new Error('elk layout output mismatch for node b')
 }
+
+export const testElkLayoutUsesSemanticPortKeysForEdgeEndpoints = async () => {
+  const config: FlowConfig = {
+    engine: 'auto',
+    node: { widthPx: 180, heightPx: 48, paddingX: 12, paddingY: 8 },
+    handle: { sizePx: 10, lineHeightPx: 16 },
+    elk: { direction: 'RIGHT' as const, algorithm: 'layered', layoutTimeoutMs: 200, nodeNodeSpacingPx: 24, layerSpacingPx: 48, edgeNodeSpacingPx: 16 },
+  }
+
+  let capturedGraph: { edges?: Array<{ id?: string; sources?: string[]; targets?: string[] }> } | null = null
+  await buildElkLayout({
+    graphData: {
+      nodes: [
+        { id: 'src', label: 'src', type: 'entity', properties: {} },
+        { id: 'dst', label: 'dst', type: 'entity', properties: {} },
+      ],
+      edges: [
+        {
+          id: 'e-port-contract',
+          source: 'src',
+          target: 'dst',
+          label: 'imageUrl -> reference_image',
+          properties: {
+            'flow:sourcePortKey': 'imageUrl',
+            'flow:targetPortKey': 'reference_image',
+          },
+        },
+      ],
+    },
+    config,
+    layout: async (graph) => {
+      capturedGraph = graph
+      return { children: [{ id: 'src', x: 0, y: 0 }, { id: 'dst', x: 240, y: 0 }] }
+    },
+  })
+
+  const edge = capturedGraph?.edges?.[0] || null
+  if (!edge) throw new Error('expected captured elk edge')
+  if (edge.sources?.[0] !== 'src:out:imageUrl') throw new Error('expected elk source port to use semantic source port key')
+  if (edge.targets?.[0] !== 'dst:in:reference_image') throw new Error('expected elk target port to use semantic target port key')
+}
+
+export const testElkLayoutKeepsObjectFormEdgeEndpointsVisible = async () => {
+  const config: FlowConfig = {
+    engine: 'auto',
+    node: { widthPx: 180, heightPx: 48, paddingX: 12, paddingY: 8 },
+    handle: { sizePx: 10, lineHeightPx: 16 },
+    elk: { direction: 'RIGHT' as const, algorithm: 'layered', layoutTimeoutMs: 200, nodeNodeSpacingPx: 24, layerSpacingPx: 48, edgeNodeSpacingPx: 16 },
+  }
+
+  let capturedGraph: { edges?: Array<{ id?: string; sources?: string[]; targets?: string[] }> } | null = null
+  await buildElkLayout({
+    graphData: {
+      nodes: [
+        { id: 'src', label: 'src', type: 'entity', properties: {} },
+        { id: 'dst', label: 'dst', type: 'entity', properties: {} },
+      ],
+      edges: [
+        {
+          id: 'e-object-endpoints',
+          source: { id: 'src' },
+          target: { id: 'dst' },
+          label: 'object endpoints',
+          properties: {
+            'flow:sourcePortKey': 'out',
+            'flow:targetPortKey': 'in',
+          },
+        } as unknown as GraphData['edges'][number],
+      ],
+    },
+    config,
+    layout: async (graph) => {
+      capturedGraph = graph
+      return { children: [{ id: 'src', x: 0, y: 0 }, { id: 'dst', x: 200, y: 0 }] }
+    },
+  })
+
+  const edge = capturedGraph?.edges?.[0] || null
+  if (!edge) throw new Error('expected elk graph to keep object-form edge endpoints')
+  if (edge.sources?.[0] !== 'src:out:out') throw new Error('expected object-form source endpoint to resolve to src id')
+  if (edge.targets?.[0] !== 'dst:in:in') throw new Error('expected object-form target endpoint to resolve to dst id')
+}

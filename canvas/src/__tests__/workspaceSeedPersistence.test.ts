@@ -1,5 +1,8 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
+import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { materializeActiveWorkspaceEntryIntoSourceFiles } from '@/features/source-files/SourceFilesPersistenceBootstrap'
 import {
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
@@ -103,9 +106,40 @@ export function testWorkspaceStartupActivePathPrefersReadmeForDefaultSeedFamily(
       TEST_VALIDATION_WORKSPACE_SEED_PATH,
     ],
     activePath: TEST_VALIDATION_WORKSPACE_SEED_PATH,
+    preferValidationSeedForDefaultFamily: false,
   })
   if (next !== WORKSPACE_README_SEED_PATH) {
     throw new Error(`expected default seed startup to prefer README, got ${String(next)}`)
+  }
+}
+
+export function testWorkspaceStartupActivePathPrefersValidationSeedForCustomValidationTarget() {
+  const next = resolveWorkspaceStartupActivePath({
+    workspaceFilePaths: [
+      WORKSPACE_README_SEED_PATH,
+      TEST_VALIDATION_WORKSPACE_SEED_PATH,
+    ],
+    activePath: WORKSPACE_README_SEED_PATH,
+    preferValidationSeedForDefaultFamily: true,
+  })
+  if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected custom validation target startup to prefer validation seed, got ${String(next)}`)
+  }
+}
+
+export function testWorkspaceStartupActivePathForcesValidationSeedWhenCustomTargetExists() {
+  const next = resolveWorkspaceStartupActivePath({
+    workspaceFilePaths: [
+      WORKSPACE_README_SEED_PATH,
+      TEST_VALIDATION_WORKSPACE_SEED_PATH,
+      '/notes/knowgrph-pitchdeck.md',
+    ],
+    activePath: '/notes/knowgrph-pitchdeck.md' as never,
+    preferValidationSeedForDefaultFamily: true,
+    forceValidationSeedIfPresent: true,
+  })
+  if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected custom validation target startup to force validation seed when present, got ${String(next)}`)
   }
 }
 
@@ -166,5 +200,103 @@ export function testWorkspaceExplorerSortKeepsFoldersFirstForCustomWorkspaceEntr
   ])
   if (next[0]?.path !== '/sandbox') {
     throw new Error(`expected non-default explorer order to keep folders first, got ${String(next[0]?.path || '')}`)
+  }
+}
+
+export function testCanvasEnvBridgeReadsImportMetaStyleRecordFirst() {
+  const next = readEnvStringFromRecord(
+    {
+      VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH: 'huijoohwee.github.io/template/knowgrph-video-script-template.md',
+    },
+    'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
+  )
+  if (next !== 'huijoohwee.github.io/template/knowgrph-video-script-template.md') {
+    throw new Error(`expected import-meta style env record to win, got ${String(next)}`)
+  }
+}
+
+export function testCanvasEnvBridgeFallsBackToProcessEnvOutsideBrowser() {
+  const prev = process.env.VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH
+  process.env.VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH = 'huijoohwee.github.io/template/knowgrph-video-script-template.md'
+  try {
+    const next = readEnvString(
+      'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
+      'sandbox/test-data/knowgrph-rich-media-generation-demo.md',
+    )
+    if (next !== 'huijoohwee.github.io/template/knowgrph-video-script-template.md') {
+      throw new Error(`expected process env fallback to resolve custom validation target, got ${String(next)}`)
+    }
+  } finally {
+    if (typeof prev === 'string') process.env.VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH = prev
+    else delete process.env.VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH
+  }
+}
+
+export async function testWorkspaceBootstrapMaterializesActiveWorkspaceEntryIntoParsedSourceFile() {
+  const { restore } = initJsdomHarness()
+  try {
+    useGraphStore.getState().resetAll()
+    const fs = createMemoryWorkspaceFs({
+      initialEntries: [
+        { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+        {
+          path: '/huijoohwee.github.io/template/knowgrph-video-script-template.md',
+          parentPath: '/huijoohwee.github.io/template',
+          kind: 'file',
+          name: 'knowgrph-video-script-template.md',
+          text: [
+            '---',
+            'title: "Knowgrph · Video Script Template"',
+            'kgCanvasRenderMode: "2d"',
+            'kgCanvas2dRenderer: "flowEditor"',
+            'kgDocumentSemanticMode: "document"',
+            'kgFrontmatterModeEnabled: true',
+            'flow:',
+            '  nodes:',
+            '    - id: start',
+            '      label: Start',
+            '      type: Text',
+            '    - id: end',
+            '      label: End',
+            '      type: Text',
+            '  edges:',
+            '    - id: e1',
+            '      source: start',
+            '      target: end',
+            '      type: bezier',
+            '---',
+            '',
+            '# Validation',
+            '',
+            'Bootstrap parse should materialize this file.',
+          ].join('\n'),
+          updatedAtMs: 1,
+        },
+      ],
+    })
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: '/huijoohwee.github.io/template/knowgrph-video-script-template.md' as never,
+      fs,
+    })
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    const state = useGraphStore.getState()
+    const sourceFile = state.sourceFiles.find(
+      file => file.source?.path === 'workspace:/huijoohwee.github.io/template/knowgrph-video-script-template.md',
+    )
+    if (!sourceFile) {
+      throw new Error('expected bootstrap materialization to mirror the active workspace file into Source Files')
+    }
+    if (sourceFile.enabled !== true) {
+      throw new Error('expected active workspace bootstrap materialization to keep the source file enabled')
+    }
+    if (sourceFile.status !== 'parsed') {
+      throw new Error(`expected bootstrap materialization to parse the active workspace file, got ${String(sourceFile.status || '')}`)
+    }
+    if (!sourceFile.parsedGraphData || (sourceFile.parsedGraphData.nodes || []).length < 2) {
+      throw new Error('expected bootstrap materialization to populate parsedGraphData for the active workspace file')
+    }
+  } finally {
+    restore()
   }
 }

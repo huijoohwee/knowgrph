@@ -1,4 +1,5 @@
-import { resolveOverlayPanelCollisions } from '@/lib/ui/overlayPanelCollision'
+import { defaultSchema } from '@/lib/graph/schema'
+import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 
 const rectsOverlap = (a: { left: number; top: number; width: number; height: number }, b: { left: number; top: number; width: number; height: number }) => {
   const ax2 = a.left + a.width
@@ -14,12 +15,13 @@ export function testOverlayPanelCollisionKeepsLockedPanelFixed() {
   if (!rectsOverlap({ left: a.left, top: a.top, width: a.width, height: a.height }, { left: b.left, top: b.top, width: b.width, height: b.height })) {
     throw new Error('expected initial panels to overlap')
   }
-  const resolved = resolveOverlayPanelCollisions({
-    items: [a, b],
-    panelSize: { width: 120, height: 90 },
+  const resolved = relaxOverlayPanelsWithCollision({
     gapPx: 0,
-    strength: 1,
+    schema: defaultSchema,
+    items: [a, b],
+    strength: 0.9,
     iterations: 12,
+    steps: 14,
   })
   const ra = resolved.find(x => x.id === 'a')
   const rb = resolved.find(x => x.id === 'b')
@@ -38,12 +40,13 @@ export function testOverlayPanelCollisionUsesPerItemSizes() {
   if (!rectsOverlap({ left: a.left, top: a.top, width: a.width, height: a.height }, { left: b.left, top: b.top, width: b.width, height: b.height })) {
     throw new Error('expected initial panels to overlap')
   }
-  const resolved = resolveOverlayPanelCollisions({
-    items: [a, b],
-    panelSize: { width: 120, height: 90 },
+  const resolved = relaxOverlayPanelsWithCollision({
     gapPx: 0,
-    strength: 1,
+    schema: defaultSchema,
+    items: [a, b],
+    strength: 0.9,
     iterations: 12,
+    steps: 14,
   })
   const ra = resolved.find(x => x.id === 'a')
   const rb = resolved.find(x => x.id === 'b')
@@ -54,4 +57,3 @@ export function testOverlayPanelCollisionUsesPerItemSizes() {
   )
   if (afterOverlap) throw new Error('expected per-item size collision resolution to separate panels')
 }
-

@@ -159,6 +159,9 @@ export const defaultSchema: GraphSchema = {
     mode: 'block',
     edges: {
       type: 'bezier',
+      color: 'var(--kg-canvas-accent)',
+      strokeWidthPx: 1.5,
+      animated: true,
       opacity: DEFAULT_EDGE_OPACITY_2D,
       opacityUnderGroups: DEFAULT_EDGE_OPACITY_2D_UNDER_GROUPS,
     },

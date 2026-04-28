@@ -55,7 +55,6 @@ import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibil
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { coerceCanvas2dRendererForSchema } from '@/lib/canvas/renderModeConstraints'
-import { normalizeGlobalEdgeType, readGlobalEdgeType, withGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import {
   CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT,
@@ -604,15 +603,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       if (nextCanvas3dMode !== state.canvas3dMode) {
         lsSetJsonCoalesced(LS_KEYS.canvas3dMode, nextCanvas3dMode, { signature: String(nextCanvas3dMode) })
       }
-      const currentEdgeType = readGlobalEdgeType(state.schema)
-      if (prevRenderer !== 'd3') {
-        lsSetJsonCoalesced(LS_KEYS.canvasLastNonD3EdgeType, currentEdgeType, { signature: String(currentEdgeType) })
-      }
-      const persistedLastNonD3EdgeType = normalizeGlobalEdgeType(lsJson(LS_KEYS.canvasLastNonD3EdgeType, 'bezier'))
-      const restoredNonD3EdgeType = prevRenderer === 'd3' ? persistedLastNonD3EdgeType : currentEdgeType
-      const nextSchema = nextRenderer === 'd3'
-        ? withGlobalEdgeType(state.schema, 'straight')
-        : withGlobalEdgeType(state.schema, restoredNonD3EdgeType)
+      const nextSchema = state.schema
 
       const common = {
         canvasRenderMode: state.canvasRenderMode,

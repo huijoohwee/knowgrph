@@ -241,7 +241,6 @@ export const LS_KEYS = {
   renderRichMediaPanelMode: 'kg:render:richMedia:panelMode',
   canvas2dRenderer: 'kg:render:2dRenderer',
   canvas3dMode: 'kg:render:3dMode',
-  canvasLastNonD3EdgeType: 'kg:render:lastNonD3EdgeType',
   bipartiteDataSource: 'kg:render:bipartite:dataSource',
   bipartiteApiRunId: 'kg:render:bipartite:apiRunId',
   bipartitePollIntervalSec: 'kg:render:bipartite:pollIntervalSec',

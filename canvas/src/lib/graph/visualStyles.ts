@@ -1,5 +1,6 @@
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { type GraphSchema, getAgenticRagTagColor, getRendererPalette } from '@/lib/graph/schema'
+import { readGlobalEdgeColor } from '@/lib/graph/edgeTypes'
 
 const readVisualString = (props: Record<string, unknown>, key: string): string => {
   const raw = props[key]
@@ -23,6 +24,8 @@ export const getEdgeBaseStroke = (edge: GraphEdge, schema: GraphSchema): string 
   const byLabel = schema.edgeStyles?.[label]?.color
   const c = typeof byLabel === 'string' ? byLabel.trim() : ''
   if (c) return c
+  const globalEdgeColor = readGlobalEdgeColor(schema)
+  if (globalEdgeColor) return globalEdgeColor
   return getRendererPalette(schema).edges.neutral
 }
 

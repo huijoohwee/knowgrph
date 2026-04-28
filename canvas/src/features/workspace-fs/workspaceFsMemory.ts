@@ -1,6 +1,7 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import {
+  CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   expandWorkspaceSeedFileEntries,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_README_TEXT,
@@ -78,6 +79,19 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
         const existing = entriesByPath.get(normalizedSeedPath)
         if (existing?.kind === 'file' && String(existing.text ?? '').trim()) continue
         const entries = expandWorkspaceSeedFileEntries(normalizedSeedPath, seed.text, now)
+        for (const entry of entries) {
+          entriesByPath.set(entry.path, entry)
+        }
+      }
+    }
+
+    if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE) {
+      const now = Date.now()
+      const seeds = await getWorkspaceSeedFiles()
+      const validationSeed = seeds.find(seed => normalizeWorkspacePath(seed.path) === TEST_VALIDATION_WORKSPACE_SEED_PATH) || null
+      const existing = validationSeed ? entriesByPath.get(TEST_VALIDATION_WORKSPACE_SEED_PATH) : null
+      if (validationSeed && (!existing || existing.kind !== 'file' || !String(existing.text ?? '').trim())) {
+        const entries = expandWorkspaceSeedFileEntries(TEST_VALIDATION_WORKSPACE_SEED_PATH, validationSeed.text, now)
         for (const entry of entries) {
           entriesByPath.set(entry.path, entry)
         }

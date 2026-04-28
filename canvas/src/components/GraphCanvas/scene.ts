@@ -704,7 +704,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     selectEdge,
   })
 
-  createTempLink(g, tempLinkSelRef)
+  createTempLink(g, tempLinkSelRef, schema)
 
   createLabelsLayer({
     g,

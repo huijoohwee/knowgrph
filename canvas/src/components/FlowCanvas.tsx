@@ -54,7 +54,6 @@ import { useFlowRequestCommit } from '@/components/FlowCanvas/useFlowRequestComm
 import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPolicy'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
 import { computeWidgetScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
-import { computeWidgetMaxAnchorShiftPx } from '@/components/FlowEditor/widgetLayout'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'

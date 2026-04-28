@@ -149,6 +149,44 @@ export function testDocumentFocusModesBlankGraphGating() {
   }
 }
 
+export function testDocumentFrontmatterModePreservesFrontmatterFlowGraphFamily() {
+  const graphData = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    metadata: { kind: 'frontmatter-flow' },
+    nodes: [
+      { id: 'w-text-script', type: 'TextGeneration', label: 'Text', properties: { 'flow:widgetFormId': 'videoScript' } },
+      { id: 'w-video-scene', type: 'VideoGeneration', label: 'Video', properties: { 'flow:widgetFormId': 'videoGeneration' } },
+    ],
+    edges: [
+      {
+        id: 'e-scene-to-video-ref',
+        source: 'w-text-script',
+        target: 'w-video-scene',
+        label: 'text_out -> reference_image',
+        properties: {
+          'flow:sourcePortKey': 'text_out',
+          'flow:targetPortKey': 'reference_image',
+        },
+      },
+    ],
+  }
+
+  const focused = deriveGraphDataForActiveView({
+    graphData,
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: false,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+  if ((focused.nodes || []).length !== 2) throw new Error('expected frontmatter-flow active view to preserve flow nodes')
+  if ((focused.edges || []).length !== 1) throw new Error('expected frontmatter-flow active view to preserve flow edges')
+  const props = ((focused.edges || [])[0]?.properties || {}) as Record<string, unknown>
+  if (String(props['flow:sourcePortKey'] || '') !== 'text_out') throw new Error('expected frontmatter-flow active view to preserve source port key')
+  if (String(props['flow:targetPortKey'] || '') !== 'reference_image') throw new Error('expected frontmatter-flow active view to preserve target port key')
+}
+
 export function testDocumentFocusModeResolverPrecedence() {
   const storage = ensureLocalStorage()
   storage.clear()

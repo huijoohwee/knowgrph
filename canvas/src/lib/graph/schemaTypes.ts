@@ -99,6 +99,9 @@ export interface GraphSchema {
     mode?: 'force' | 'radial' | 'block' | 'mermaid';
     edges?: {
       type?: 'bezier' | 'straight' | 'step' | 'smoothstep'
+      color?: string
+      strokeWidthPx?: number
+      animated?: boolean
       opacity?: number
       opacityUnderGroups?: number
     }

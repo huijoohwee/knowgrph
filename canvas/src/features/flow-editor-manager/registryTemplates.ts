@@ -25,6 +25,8 @@ import {
   FLOW_VIDEO_TRANSCRIBER_NODE_LABEL,
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_TRANSCRIBER_WIDGET_TYPE_ID,
+  FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
+  FLOW_OPENAI_VIDEO_SCRIPT_WIDGET_LABEL,
   FLOW_VIDEO_SCRIPT_FORM_ID,
   FLOW_VIDEO_SCRIPT_WIDGET_LABEL,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
@@ -121,6 +123,7 @@ export function getWidgetRegistryEntryLabel(args: {
   if (isGrabMapsDiscoveryWidgetEntry(args)) return getGrabMapsDiscoveryWidgetLabel()
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
     if (formId === FLOW_VIDEO_SCRIPT_FORM_ID) return FLOW_VIDEO_SCRIPT_WIDGET_LABEL
+    if (formId === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID) return FLOW_OPENAI_VIDEO_SCRIPT_WIDGET_LABEL
     return getTextGenerationWidgetLabel(args)
   }
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return FLOW_IMAGE_GENERATION_NODE_LABEL
@@ -397,6 +400,14 @@ export function buildBytePlusVideoScriptRegistryDraft(): Omit<WidgetRegistryEntr
     providerFamily: 'byteplus',
     widgetTypeId: 'default',
     formId: FLOW_VIDEO_SCRIPT_FORM_ID,
+  })
+}
+
+export function buildOpenAiVideoScriptRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
+  return buildTextGenerationRegistryDraft({
+    providerFamily: 'openai',
+    widgetTypeId: 'default',
+    formId: FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
   })
 }
 

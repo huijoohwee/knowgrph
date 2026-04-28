@@ -12,9 +12,10 @@ import {
 import { applyComposedGraphFromSourceFiles, scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { hydratePendingUrlSourceFiles } from '@/features/source-files/sourceFilesIngestIntegration'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
-import type { WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
@@ -23,6 +24,11 @@ import {
   WORKSPACE_SYNC_TASK_SOURCE_FILES_WORKSPACE,
 } from '@/lib/async/workspaceSyncKeys'
 import { resolveWorkspaceStartupActivePath } from '@/features/workspace-fs/workspaceFs'
+import {
+  CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
+  DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+  TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+} from '@/features/workspace-fs/workspaceFs'
 
 const sourceFileTextHashCache = new WeakMap<object, string>()
 
@@ -68,10 +74,22 @@ const sourceFilesSignature = (value: unknown): string => {
     .join('|')
 }
 
-async function syncActiveWorkspaceEntryIntoSourceFiles(activePathOverride?: WorkspacePath | null): Promise<void> {
-  const activePath = String(activePathOverride ?? useMarkdownExplorerStore.getState().activePath ?? '').trim()
+function stripPersistedWorkspaceBackedSourceFiles(value: unknown) {
+  const items = Array.isArray(value) ? value : []
+  return items.filter(entry => {
+    const sourcePath = String((entry as { source?: { path?: unknown } } | null)?.source?.path || '')
+    return !sourcePath.startsWith('workspace:')
+  })
+}
+
+export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
+  activePathOverride?: WorkspacePath | null
+  fs?: Awaited<ReturnType<typeof getWorkspaceFs>>
+}): Promise<void> {
+  const activePath = String(args?.activePathOverride ?? useMarkdownExplorerStore.getState().activePath ?? '').trim()
   if (!activePath) return
-  const fs = await getWorkspaceFs()
+  const fs = args?.fs || (await getWorkspaceFs())
+  await fs.ensureSeed()
   const workspaceEntries = await fs.listEntries()
   const sourcesByPath = loadWorkspaceSourceIndex()
   const store = useGraphStore.getState()
@@ -85,11 +103,26 @@ async function syncActiveWorkspaceEntryIntoSourceFiles(activePathOverride?: Work
   if (merged !== existing) {
     store.setSourceFiles(merged)
   }
+  const materialized = await applyWorkspaceImportToCanvas({
+    fs,
+    createdPaths: [activePath],
+  })
+  if (materialized.parsedCount > 0 || materialized.enabledCount > 0) {
+    applyComposedGraphFromSourceFiles()
+  }
 }
 
-async function resolveInitialWorkspaceStartupPath(): Promise<WorkspacePath | null> {
+async function resolveInitialWorkspaceStartupState(): Promise<{
+  activePath: WorkspacePath | null
+  workspaceEntries: WorkspaceEntry[]
+}> {
   const explorer = useMarkdownExplorerStore.getState()
-  if (explorer.lastSetActivePath) return explorer.activePath
+  const preferCustomValidationSeed =
+    CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
+    TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
+  if (explorer.lastSetActivePath && !preferCustomValidationSeed) {
+    return { activePath: explorer.activePath, workspaceEntries: [] }
+  }
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
   const workspaceEntries = await fs.listEntries()
@@ -99,11 +132,13 @@ async function resolveInitialWorkspaceStartupPath(): Promise<WorkspacePath | nul
   const nextActivePath = resolveWorkspaceStartupActivePath({
     workspaceFilePaths,
     activePath: explorer.activePath,
+    preferValidationSeedForDefaultFamily: preferCustomValidationSeed,
+    forceValidationSeedIfPresent: preferCustomValidationSeed,
   })
   if (nextActivePath && nextActivePath !== explorer.activePath) {
     explorer.setActivePath(nextActivePath)
   }
-  return nextActivePath
+  return { activePath: nextActivePath, workspaceEntries }
 }
 
 export function SourceFilesPersistenceBootstrap() {
@@ -123,10 +158,11 @@ export function SourceFilesPersistenceBootstrap() {
     let cancelled = false
     void (async () => {
       try {
-        const [persisted, persistedWorkspace] = await Promise.all([
+        const [persistedRaw, persistedWorkspace] = await Promise.all([
           loadPersistedSourceFiles(),
           loadPersistedSourceFilesWorkspace(),
         ])
+        const persisted = stripPersistedWorkspaceBackedSourceFiles(persistedRaw)
         if (cancelled) return
         const current = useGraphStore.getState().sourceFiles
         if (Array.isArray(current) && current.length > 0) {
@@ -148,8 +184,19 @@ export function SourceFilesPersistenceBootstrap() {
           void 0
         }
         try {
-          const startupActivePath = await resolveInitialWorkspaceStartupPath()
-          await syncActiveWorkspaceEntryIntoSourceFiles(startupActivePath)
+          const startup = await resolveInitialWorkspaceStartupState()
+          const store = useGraphStore.getState()
+          const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
+          const merged = mergeWorkspaceEntriesIntoSourceFiles({
+            existing,
+            workspaceEntries: startup.workspaceEntries,
+            sourcesByPath: loadWorkspaceSourceIndex(),
+            forceIncludePaths: startup.activePath ? [startup.activePath] : [],
+          })
+          if (merged !== existing) {
+            store.setSourceFiles(merged)
+          }
+          await materializeActiveWorkspaceEntryIntoSourceFiles({ activePathOverride: startup.activePath })
         } catch {
           void 0
         }
@@ -190,14 +237,18 @@ export function SourceFilesPersistenceBootstrap() {
 
   React.useEffect(() => {
     const syncNow = () => {
-      void syncActiveWorkspaceEntryIntoSourceFiles().catch(() => void 0)
+      void materializeActiveWorkspaceEntryIntoSourceFiles().catch(() => void 0)
     }
     syncNow()
-    const unsubscribe = useMarkdownExplorerStore.subscribe(s => s.activePath, () => {
+    const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(s => s.activePath, () => {
+      syncNow()
+    })
+    const unsubscribeWorkspaceViewMode = useGraphStore.subscribe(s => s.workspaceViewMode, () => {
       syncNow()
     })
     return () => {
-      unsubscribe()
+      unsubscribeActivePath()
+      unsubscribeWorkspaceViewMode()
     }
   }, [])
 

@@ -13,9 +13,11 @@ import {
 import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
+  FLOW_VIDEO_SCRIPT_FORM_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import {
@@ -490,6 +492,8 @@ function enrichSourceFrontmatterMetaFromRawLines(args: {
 function readWidgetBundleNodeTypeId(formIdRaw: unknown): string {
   const formId = asString(formIdRaw)
   if (formId === 'textGeneration') return FLOW_TEXT_GENERATION_NODE_TYPE_ID
+  if (formId === FLOW_VIDEO_SCRIPT_FORM_ID) return FLOW_TEXT_GENERATION_NODE_TYPE_ID
+  if (formId === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID) return FLOW_TEXT_GENERATION_NODE_TYPE_ID
   if (formId === 'imageGeneration') return FLOW_IMAGE_GENERATION_NODE_TYPE_ID
   if (formId === 'videoGeneration') return FLOW_VIDEO_GENERATION_NODE_TYPE_ID
   if (formId === 'richMediaPanel') return FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID

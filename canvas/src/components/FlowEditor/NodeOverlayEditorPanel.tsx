@@ -376,7 +376,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
 
   return (
     <FloatingPanel
-      as={showRichMediaPanelBody ? 'div' : 'section'}
+      as="section"
       ariaLabel={UI_LABELS.flowWidget}
       data-kg-widget={String(node.id || '')}
       data-kg-widget-pinned={pinned ? '1' : '0'}
@@ -505,8 +505,9 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
       </header>
 
       {showRichMediaPanelBody ? (
-        <div
+        <section
           data-kg-widget-body="1"
+          data-kg-rich-media-render-surface="1"
           className="relative min-h-0 overflow-hidden"
           style={{
             width: `${richMediaPanelViewSize.width}px`,
@@ -549,20 +550,18 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
               bottom: 0,
               width: 22,
               height: 22,
-              display: 'flex',
-              alignItems: 'flex-end',
-              justifyContent: 'flex-end',
               background: 'transparent',
               cursor: 'nwse-resize',
               pointerEvents: 'auto',
               zIndex: 20,
-              paddingRight: 2,
-              paddingBottom: 2,
             }}
           >
             <span
               aria-hidden="true"
               style={{
+                position: 'absolute',
+                right: 0,
+                bottom: 0,
                 width: 10,
                 height: 10,
                 borderRadius: 999,
@@ -573,7 +572,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
               }}
             />
           </button>
-        </div>
+        </section>
       ) : !minimized && (
         <NodeOverlayEditorForm
           active={active}

@@ -85,11 +85,15 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     const inlineText = typeof e.text === 'string' ? e.text : null
     const text = inlineText != null ? inlineText : (prev?.text ?? '')
 
+    const enabled = forceInclude.has(path)
+      ? true
+      : (prev?.enabled ?? defaultEnabledForWorkspaceSourcePath(srcPath, false))
+
     const candidate: SourceFile = {
       id,
       name: String(e.name || ''),
       text,
-      enabled: prev?.enabled ?? defaultEnabledForWorkspaceSourcePath(srcPath, forceInclude.has(path)),
+      enabled,
       geoLayerEnabled: prev?.geoLayerEnabled,
       status: prev?.status ?? 'idle',
       error: prev?.error,

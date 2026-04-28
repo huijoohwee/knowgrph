@@ -721,7 +721,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     const nextRoot = setObjectPath(
       { properties },
       compactPreview.schemaPath,
-      nextText.trim() ? nextText : undefined,
+      nextText === '' ? undefined : nextText,
     ) as { properties?: Record<string, unknown> }
     onSetProperties(nextRoot.properties || {})
   }, [compactPreview, onSetProperties, properties])

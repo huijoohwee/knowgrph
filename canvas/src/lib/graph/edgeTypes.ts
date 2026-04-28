@@ -3,14 +3,24 @@ import type { GraphEdge } from '@/lib/graph/types'
 import { readRadarForceConfig } from '@/lib/graph/radarForces'
 
 export type GlobalEdgeType = 'bezier' | 'straight' | 'step' | 'smoothstep'
+export type GlobalEdgeColorOption = 'blue' | 'lightBlue'
 
 export const GLOBAL_EDGE_TYPES: GlobalEdgeType[] = ['bezier', 'straight', 'step', 'smoothstep']
+export const DEFAULT_GLOBAL_EDGE_STROKE_WIDTH_PX = 1.5
+export const DEFAULT_GLOBAL_EDGE_COLOR = 'var(--kg-canvas-accent)'
+export const LIGHT_BLUE_GLOBAL_EDGE_COLOR = 'var(--kg-canvas-edge-stroke)'
+const ALLOWED_GLOBAL_EDGE_COLORS = new Set<string>([DEFAULT_GLOBAL_EDGE_COLOR, LIGHT_BLUE_GLOBAL_EDGE_COLOR])
 
 export const GLOBAL_EDGE_TYPE_OPTIONS: ReadonlyArray<{ value: GlobalEdgeType; label: string }> = [
   { value: 'bezier', label: 'Bezier (default)' },
   { value: 'straight', label: 'Straight' },
   { value: 'step', label: 'Step' },
   { value: 'smoothstep', label: 'Smoothstep' },
+] as const
+
+export const GLOBAL_EDGE_COLOR_OPTIONS: ReadonlyArray<{ value: string; key: GlobalEdgeColorOption; label: string }> = [
+  { value: DEFAULT_GLOBAL_EDGE_COLOR, key: 'blue', label: 'Blue (default)' },
+  { value: LIGHT_BLUE_GLOBAL_EDGE_COLOR, key: 'lightBlue', label: 'Light Blue' },
 ] as const
 
 export const normalizeGlobalEdgeType = (raw: unknown): GlobalEdgeType => {
@@ -22,18 +32,64 @@ export const normalizeGlobalEdgeType = (raw: unknown): GlobalEdgeType => {
 export const readGlobalEdgeType = (schema: GraphSchema | null | undefined): GlobalEdgeType =>
   normalizeGlobalEdgeType(schema?.layout?.edges && typeof schema.layout.edges === 'object' ? (schema.layout.edges as { type?: unknown }).type : '')
 
+export const readGlobalEdgeColor = (schema: GraphSchema | null | undefined): string => {
+  const raw = schema?.layout?.edges && typeof schema.layout.edges === 'object'
+    ? (schema.layout.edges as { color?: unknown }).color
+    : null
+  const value = typeof raw === 'string' ? raw.trim() : ''
+  if (!value) return DEFAULT_GLOBAL_EDGE_COLOR
+  return ALLOWED_GLOBAL_EDGE_COLORS.has(value) ? value : DEFAULT_GLOBAL_EDGE_COLOR
+}
+
+export const withGlobalEdgeColor = (schema: GraphSchema, nextColorRaw: unknown): GraphSchema => {
+  const candidate = typeof nextColorRaw === 'string' ? nextColorRaw.trim() : ''
+  const nextColor = ALLOWED_GLOBAL_EDGE_COLORS.has(candidate) ? candidate : DEFAULT_GLOBAL_EDGE_COLOR
+  if (readGlobalEdgeColor(schema) === nextColor) return schema
+  const layout = schema.layout || {}
+  const edges = layout.edges || {}
+  return {
+    ...schema,
+    layout: {
+      ...layout,
+      edges: {
+        ...edges,
+        color: nextColor,
+      },
+    },
+  }
+}
+
+const readPortHandleStrokeWidthFallback = (schema: GraphSchema | null | undefined): number => {
+  const raw = schema?.behavior?.portHandles && typeof schema.behavior.portHandles === 'object'
+    ? (schema.behavior.portHandles as { strokeWidth?: unknown }).strokeWidth
+    : null
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
+  return DEFAULT_GLOBAL_EDGE_STROKE_WIDTH_PX
+}
+
+export const readGlobalEdgeThicknessPx = (schema: GraphSchema | null | undefined): number => {
+  const raw = schema?.layout?.edges && typeof schema.layout.edges === 'object'
+    ? (schema.layout.edges as { strokeWidthPx?: unknown }).strokeWidthPx
+    : null
+  const fallback = readPortHandleStrokeWidthFallback(schema)
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return Math.max(0.5, Math.min(12, raw))
+  return Math.max(0.5, Math.min(12, fallback))
+}
+
+export const readGlobalEdgeAnimationEnabled = (schema: GraphSchema | null | undefined): boolean => {
+  const raw = schema?.layout?.edges && typeof schema.layout.edges === 'object'
+    ? (schema.layout.edges as { animated?: unknown }).animated
+    : null
+  if (typeof raw === 'boolean') return raw
+  return true
+}
+
 export const readEffectiveEdgeTypeFor2dRenderer = (args: {
   schema: GraphSchema | null | undefined
   canvas2dRenderer?: unknown
-}): GlobalEdgeType => {
-  const renderer = String(args.canvas2dRenderer || '').trim().toLowerCase()
-  if (renderer === 'd3') return 'straight'
-  return readGlobalEdgeType(args.schema)
-}
+}): GlobalEdgeType => readGlobalEdgeType(args.schema)
 
-export function getGlobalEdgeTypeOptionsFor2dRenderer(canvas2dRenderer?: unknown): ReadonlyArray<{ value: GlobalEdgeType; label: string }> {
-  const renderer = String(canvas2dRenderer || '').trim().toLowerCase()
-  if (renderer === 'd3') return GLOBAL_EDGE_TYPE_OPTIONS.filter(option => option.value === 'straight')
+export function getGlobalEdgeTypeOptionsFor2dRenderer(_canvas2dRenderer?: unknown): ReadonlyArray<{ value: GlobalEdgeType; label: string }> {
   return GLOBAL_EDGE_TYPE_OPTIONS
 }
 
@@ -52,6 +108,52 @@ export const withGlobalEdgeType = (schema: GraphSchema, nextEdgeTypeRaw: unknown
       },
     },
   }
+}
+
+export const withGlobalEdgeThicknessPx = (schema: GraphSchema, nextStrokeWidthRaw: unknown): GraphSchema => {
+  const parsed = typeof nextStrokeWidthRaw === 'number' ? nextStrokeWidthRaw : Number(nextStrokeWidthRaw)
+  const nextStrokeWidthPx = Number.isFinite(parsed) ? Math.max(0.5, Math.min(12, parsed)) : readGlobalEdgeThicknessPx(schema)
+  if (Math.abs(readGlobalEdgeThicknessPx(schema) - nextStrokeWidthPx) <= 1e-6) return schema
+  const layout = schema.layout || {}
+  const edges = layout.edges || {}
+  return {
+    ...schema,
+    layout: {
+      ...layout,
+      edges: {
+        ...edges,
+        strokeWidthPx: nextStrokeWidthPx,
+      },
+    },
+  }
+}
+
+export const withGlobalEdgeAnimationEnabled = (schema: GraphSchema, animated: boolean): GraphSchema => {
+  const nextAnimated = animated !== false
+  if (readGlobalEdgeAnimationEnabled(schema) === nextAnimated) return schema
+  const layout = schema.layout || {}
+  const edges = layout.edges || {}
+  return {
+    ...schema,
+    layout: {
+      ...layout,
+      edges: {
+        ...edges,
+        animated: nextAnimated,
+      },
+    },
+  }
+}
+
+const EDGE_ANIMATION_STYLE_ID = 'kg-edge-animation-style'
+
+export const ensureEdgeAnimationStyleElement = (doc: Document | null | undefined): void => {
+  if (!doc) return
+  if (doc.getElementById(EDGE_ANIMATION_STYLE_ID)) return
+  const style = doc.createElement('style')
+  style.id = EDGE_ANIMATION_STYLE_ID
+  style.textContent = '@keyframes kg-edge-dash-flow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -24; } }'
+  doc.head?.appendChild(style)
 }
 
 export type EdgePathCurveOptions = {
@@ -110,6 +212,41 @@ const resolveAxis = (rankdir: 'TB' | 'LR' | null | undefined, sx: number, sy: nu
   return dx >= dy ? 'x' : 'y'
 }
 
+const computeBezierControlPoints = (args: {
+  sx: number
+  sy: number
+  tx: number
+  ty: number
+  axis: 'x' | 'y'
+  bendSign: -1 | 1
+  bendAbs: number
+  orbitMag: number
+  dist: number
+}) => {
+  const { sx, sy, tx, ty, axis, bendSign, bendAbs, orbitMag, dist } = args
+  const dx = tx - sx
+  const dy = ty - sy
+  const dirX = dx < 0 ? -1 : 1
+  const dirY = dy < 0 ? -1 : 1
+  const span = axis === 'x' ? Math.abs(dx) : Math.abs(dy)
+  // Keep the default curve shape axis-led with bounded handle reach for stable readability.
+  const handleReach = Math.max(20, Math.min(180, span * 0.5))
+  let c1x = axis === 'x' ? sx + dirX * handleReach : sx
+  let c1y = axis === 'y' ? sy + dirY * handleReach : sy
+  let c2x = axis === 'x' ? tx - dirX * handleReach : tx
+  let c2y = axis === 'y' ? ty - dirY * handleReach : ty
+  const nx = -dy / dist
+  const ny = dx / dist
+  const bendMag = dist * bendAbs * 0.7 * bendSign
+  const c1Normal = bendMag * 0.82 + orbitMag * 0.45
+  const c2Normal = bendMag * 1.06 + orbitMag
+  c1x += nx * c1Normal
+  c1y += ny * c1Normal
+  c2x += nx * c2Normal
+  c2y += ny * c2Normal
+  return { c1x, c1y, c2x, c2y }
+}
+
 export const buildEdgePathD = (args: {
   edgeType: GlobalEdgeType
   sx: number
@@ -136,13 +273,17 @@ export const buildEdgePathD = (args: {
   const orbitPolarity = bendAbs > 0 ? bendSign : curve ? curve.phase : 1
   const orbitMag = curve && curve.orbital ? dist * Math.max(0, Math.min(0.45, curve.orbitShift)) * orbitPolarity : 0
   if (type === 'bezier') {
-    const nx = -dy / dist
-    const ny = dx / dist
-    const mag = dist * bendAbs * 0.7 * bendSign
-    const c1x = sx + dx * 0.26 + nx * (mag * 0.85 + orbitMag * 0.5)
-    const c1y = sy + dy * 0.26 + ny * (mag * 0.85 + orbitMag * 0.5)
-    const c2x = tx - dx * 0.26 + nx * (mag * 1.1 + orbitMag)
-    const c2y = ty - dy * 0.26 + ny * (mag * 1.1 + orbitMag)
+    const { c1x, c1y, c2x, c2y } = computeBezierControlPoints({
+      sx,
+      sy,
+      tx,
+      ty,
+      axis,
+      bendSign,
+      bendAbs,
+      orbitMag,
+      dist,
+    })
     return `M${sx},${sy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`
   }
   if (type === 'step') {
@@ -207,13 +348,17 @@ export const traceEdgePathOnCanvas = (args: {
     return
   }
   if (type === 'bezier') {
-    const nx = -dy / dist
-    const ny = dx / dist
-    const mag = dist * bendAbs * 0.7 * bendSign
-    const c1x = sx + dx * 0.26 + nx * (mag * 0.85 + orbitMag * 0.5)
-    const c1y = sy + dy * 0.26 + ny * (mag * 0.85 + orbitMag * 0.5)
-    const c2x = tx - dx * 0.26 + nx * (mag * 1.1 + orbitMag)
-    const c2y = ty - dy * 0.26 + ny * (mag * 1.1 + orbitMag)
+    const { c1x, c1y, c2x, c2y } = computeBezierControlPoints({
+      sx,
+      sy,
+      tx,
+      ty,
+      axis,
+      bendSign,
+      bendAbs,
+      orbitMag,
+      dist,
+    })
     ctx.bezierCurveTo(c1x, c1y, c2x, c2y, tx, ty)
     return
   }

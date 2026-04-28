@@ -15,6 +15,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { parseSchemaFieldPortKey, readFlowEdgePortKey, readSchemaFieldSpecs } from '@/lib/graph/flowPorts'
 import { buildFlowEdgeDisplayLabelFromPorts, readFlowEdgeDisplayLabel } from '@/lib/graph/flowPorts'
+import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -383,8 +384,8 @@ export function buildAndSetFlowNativeScene(args: {
   for (let i = 0; i < edgeList.length; i += 1) {
     const e = edgeList[i] as { id?: unknown; source?: unknown; target?: unknown; properties?: unknown }
     const edgeId = String(e?.id || '').trim()
-    const source = String(e?.source || '').trim()
-    const target = String(e?.target || '').trim()
+    const source = readEdgeEndpointId(e?.source)
+    const target = readEdgeEndpointId(e?.target)
     if (!edgeId || !source || !target) continue
     if (!nodeById.has(source) || !nodeById.has(target)) continue
 

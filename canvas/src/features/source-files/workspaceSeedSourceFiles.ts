@@ -2,6 +2,7 @@ import type { SourceFile } from '@/hooks/store/types'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { workspaceBasename } from '@/features/workspace-fs/path'
 import {
+  CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
@@ -62,7 +63,7 @@ export const WORKSPACE_README_SOURCE_FILE: SourceFile = buildSeedSourceFile({
 export const TEST_VALIDATION_SOURCE_FILE: SourceFile = buildSeedSourceFile({
   id: TEST_VALIDATION_SOURCE_ID,
   path: TEST_VALIDATION_SOURCE_PATH,
-  enabled: false,
+  enabled: CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   name: workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-rich-media-generation-demo.md',
 })
 
@@ -72,7 +73,7 @@ function mergeCanonicalSourceFile(base: SourceFile, existing: SourceFile | null)
     ...existing,
     id: base.id,
     name: base.name,
-    enabled: base.enabled,
+    enabled: base.enabled || !!existing.enabled,
     source: base.source,
   }
 }

@@ -103,7 +103,7 @@ export function testRendererUiStateIsolationGraphDataSideEffectsDoNotOverrideFlo
   }
 }
 
-export function testRendererUiStateIsolationRestoresLastNonD3EdgeTypeAfterLeavingD3() {
+export function testRendererUiStateIsolationPreservesGlobalEdgeTypeAcrossRendererSwitches() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setSchema({
     ...useGraphStore.getState().schema,
@@ -120,11 +120,11 @@ export function testRendererUiStateIsolationRestoresLastNonD3EdgeTypeAfterLeavin
     throw new Error('expected non-D3 baseline edge type to start at bezier')
   }
   useGraphStore.getState().setCanvas2dRenderer('d3')
-  if (readGlobalEdgeType(useGraphStore.getState().schema) !== 'straight') {
-    throw new Error('expected D3 renderer switch to persist straight-only edge type applicability into schema state')
+  if (readGlobalEdgeType(useGraphStore.getState().schema) !== 'bezier') {
+    throw new Error('expected D3 renderer switch to preserve global bezier edge type in schema state')
   }
   useGraphStore.getState().setCanvas2dRenderer('flow')
   if (readGlobalEdgeType(useGraphStore.getState().schema) !== 'bezier') {
-    throw new Error('expected leaving D3 to restore the last non-D3 edge type instead of staying stale straight')
+    throw new Error('expected renderer switches to preserve the shared global edge type instead of mutating schema state')
   }
 }

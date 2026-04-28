@@ -6,9 +6,9 @@ import type { GraphState } from '@/hooks/useGraphStore'
 import { keywordGraphCache, KEYWORD_GRAPH_ALGO_VERSION } from '@/features/semantic-mode/keywordGraph'
 import { hashText } from '@/features/parsers/hash'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
-import { filterGraphToFrontmatterMermaid, hasFrontmatterMermaidSeeds } from '@/lib/graph/layerDerivation'
+import { filterGraphToFrontmatterFlow, filterGraphToFrontmatterMermaid, hasFrontmatterMermaidSeeds } from '@/lib/graph/layerDerivation'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
-import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { computeEffectiveFrontmatterMode, isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
@@ -1159,7 +1159,10 @@ export function deriveGraphDataForActiveView(args: {
         documentSemanticMode: 'document',
         graphData: args.graphData,
       })
-      return effective ? filterGraphToFrontmatterMermaid(args.graphData) : args.graphData
+      if (!effective) return args.graphData
+      return isFrontmatterFlowGraph(args.graphData)
+        ? filterGraphToFrontmatterFlow(args.graphData)
+        : filterGraphToFrontmatterMermaid(args.graphData)
     }
     return args.graphData
   })()

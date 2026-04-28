@@ -1,10 +1,6 @@
 import { StateCreator } from 'zustand';
 import type { GraphState, SourceFile } from './types';
 import { reorderList } from '@/lib/reorder';
-import {
-  TEST_VALIDATION_SOURCE_FILE,
-  WORKSPACE_README_SOURCE_FILE,
-} from '@/features/source-files/workspaceSeedSourceFiles';
 
 const hasSourceFilePatchDiff = (file: SourceFile, updates: Partial<SourceFile>): boolean => {
   for (const [key, value] of Object.entries(updates) as Array<[keyof SourceFile, SourceFile[keyof SourceFile]]>) {
@@ -26,7 +22,7 @@ export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
   reorderSourceFiles: (sourceId: string, targetId: string) => void;
   clearSourceFiles: () => void;
 }> = (set) => ({
-  sourceFiles: [WORKSPACE_README_SOURCE_FILE, TEST_VALIDATION_SOURCE_FILE],
+  sourceFiles: [],
   setSourceFiles: (files) => set(() => ({ sourceFiles: Array.isArray(files) ? files : [] })),
   addSourceFile: (file) => set((state) => ({ sourceFiles: [...state.sourceFiles, file] })),
   updateSourceFile: (id, updates) => set((state) => {

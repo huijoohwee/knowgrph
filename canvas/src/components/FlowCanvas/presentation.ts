@@ -3,7 +3,7 @@ import { readGroupLabelTopExtra } from '@/components/GraphCanvas/layout/collisio
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
-import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { readGlobalEdgeAnimationEnabled, readGlobalEdgeColor, readGlobalEdgeThicknessPx, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 export function readFlowPresentation(args: { schema: GraphSchema | null; documentSemanticMode?: 'document' | 'keyword' }) {
   const schema = args.schema
@@ -60,6 +60,9 @@ export function readFlowPresentation(args: { schema: GraphSchema | null; documen
   const underlayRaw = flowEdges.edges?.underlay || {}
   const edgesPresentation = {
     edgeType: readGlobalEdgeType(s),
+    strokeColor: readGlobalEdgeColor(s),
+    strokeWidthPx: readGlobalEdgeThicknessPx(s),
+    animated: readGlobalEdgeAnimationEnabled(s),
     routing: {
       enabled: routingRaw.enabled !== false,
       mode: routingRaw.mode === 'bezier' ? ('bezier' as const) : ('ortho' as const),

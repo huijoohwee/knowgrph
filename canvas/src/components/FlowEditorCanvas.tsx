@@ -20,6 +20,7 @@ import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
   getFlowTextGenerationSeedPrompt,
+  isFlowVideoScriptFormId,
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
@@ -80,15 +81,23 @@ import { buildSelectionSubgraph, exportWidgetBundleAsJson } from '@/lib/graph/fi
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
 import { computeWidgetScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
-import { computeWidgetMaxAnchorShiftPx } from '@/components/FlowEditor/widgetLayout'
+import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
-import { relaxOverlayPanelsWithCollision } from '@/components/FlowCanvas/relaxOverlayPanels'
+import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT, FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
-import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import {
+  buildEdgePathD,
+  ensureEdgeAnimationStyleElement,
+  readEdgePathCurveOptions,
+  readGlobalEdgeAnimationEnabled,
+  readGlobalEdgeColor,
+  readGlobalEdgeThicknessPx,
+  readGlobalEdgeType,
+} from '@/lib/graph/edgeTypes'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
@@ -1088,7 +1097,10 @@ export default function FlowEditorCanvas(
       const overlayViewport = (() => {
         return { width: viewportW, height: viewportH }
       })()
-      const key = `${overlayNodeIds.join(',')}|${zKey}|${overlayViewport.width}x${overlayViewport.height}|${overlayOnlyModeEnabled ? 1 : 0}`
+      const canvasOffset = canvasWindowOffsetRef.current
+      const offL = typeof canvasOffset.left === 'number' && Number.isFinite(canvasOffset.left) ? Math.round(canvasOffset.left * 10) / 10 : 0
+      const offT = typeof canvasOffset.top === 'number' && Number.isFinite(canvasOffset.top) ? Math.round(canvasOffset.top * 10) / 10 : 0
+      const key = `${overlayNodeIds.join(',')}|${zKey}|${overlayViewport.width}x${overlayViewport.height}|${overlayOnlyModeEnabled ? 1 : 0}|${offL},${offT}`
       if (overlayCollisionResolveKeyRef.current === key) return
       overlayCollisionResolveKeyRef.current = key
       if (overlayCollisionIterKeyRef.current !== key) {
@@ -1381,6 +1393,20 @@ export default function FlowEditorCanvas(
         const fixedCell = cells[Math.max(0, Math.min(cells.length - 1, fixedIdx))]
         if (fixedCell) used.add(fixedCell.idx)
 
+        const claimCellForPos = (left: number, top: number) => {
+          const col = Math.max(0, Math.min(cols - 1, Math.round((left - marginLeft) / cellSize.width)))
+          const row = Math.max(0, Math.min(maxRows - 1, Math.round((top - marginTop) / cellSize.height)))
+          const idx = row * cols + col
+          used.add(idx)
+        }
+
+        for (let i = 0; i < worldIn.length; i += 1) {
+          const it = worldIn[i]!
+          if (it.id === fixedId) continue
+          if (it.movable) continue
+          claimCellForPos(it.left, it.top)
+        }
+
         const pickNextCell = () => {
           for (let i = 0; i < sortedCells.length; i += 1) {
             const c = sortedCells[i]
@@ -1402,7 +1428,7 @@ export default function FlowEditorCanvas(
           const id = orderedIds[i]
           const it = byId.get(id)
           if (!it) continue
-          if (id === fixedId) {
+          if (id === fixedId || !it.movable) {
             out.push(it)
             continue
           }
@@ -1419,7 +1445,7 @@ export default function FlowEditorCanvas(
           top: it.top,
           width: it.width ?? floatingScaled.width,
           height: it.height ?? floatingScaled.height,
-          movable: it.id !== fixedId,
+          movable: it.movable && it.id !== fixedId,
         }))
       }
 
@@ -1448,6 +1474,7 @@ export default function FlowEditorCanvas(
       }
 
       let world = clampWorld(toWorld(items))
+      const anyMovable = world.some(it => it.movable)
       const nodeObstacles = (() => {
         if (!schemaCur) return []
         const graph = draftGraphDataRef.current
@@ -1483,6 +1510,9 @@ export default function FlowEditorCanvas(
       const obstacles = [...nodeObstacles, ...pinnedObstacles]
       const wantsResolve = shouldResolveItems(world, gapPx) || shouldResolveItemsAgainstObstacles(world, obstacles, gapPx)
       if (wantsResolve) {
+        if (!anyMovable) {
+          world = world.map(it => ({ ...it, movable: it.id !== fixedId }))
+        }
         if (shouldResolveItems(world, gapPx)) {
           world = clampWorld(seedGridAroundFixed(world))
         }
@@ -1496,7 +1526,7 @@ export default function FlowEditorCanvas(
               iterations: 12,
               steps: 14,
               anchorStrength: 0.08,
-              maxAnchorShiftPx: computeWidgetMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
+              maxAnchorShiftPx: computeOverlayMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
               maxSpeedPxPerStep: 180,
             })
           : world.map(r => ({ id: r.id, left: r.left, top: r.top }))
@@ -1516,7 +1546,7 @@ export default function FlowEditorCanvas(
                 iterations: 10,
                 steps: 12,
                 anchorStrength: 0.08,
-                maxAnchorShiftPx: computeWidgetMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
+                maxAnchorShiftPx: computeOverlayMaxAnchorShiftPx(overlayViewport.width, overlayViewport.height),
                 maxSpeedPxPerStep: 180,
               })
             : world.map(r => ({ id: r.id, left: r.left, top: r.top }))
@@ -1578,7 +1608,16 @@ export default function FlowEditorCanvas(
   React.useEffect(() => {
     if (!editorRuntimeActive) return
     scheduleOverlayCollisionResolve()
-  }, [editorRuntimeActive, openWidgetNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])
+  }, [
+    canvasWindowOffset.left,
+    canvasWindowOffset.top,
+    editorRuntimeActive,
+    openWidgetNodeIds,
+    overlayOnlyModeEnabled,
+    scheduleOverlayCollisionResolve,
+    viewportH,
+    viewportW,
+  ])
 
   React.useEffect(() => {
     return () => {
@@ -1834,7 +1873,9 @@ export default function FlowEditorCanvas(
         const overlayEdgeKeyParts: string[] = []
         for (let i = 0; i < edges.length; i += 1) {
           const e = edges[i]
-          overlayEdgeKeyParts.push(`${e.id}:${e.source}->${e.target}:${e.sourcePortKey}|${e.targetPortKey}`)
+          const sourceId = readEdgeEndpointId(e.source)
+          const targetId = readEdgeEndpointId(e.target)
+          overlayEdgeKeyParts.push(`${e.id}:${sourceId}->${targetId}:${e.sourcePortKey}|${e.targetPortKey}`)
         }
         overlayEdgeKeyParts.sort((a, b) => a.localeCompare(b))
         const reg = Array.isArray(widgetRegistryRef.current) ? (widgetRegistryRef.current as ReadonlyArray<WidgetRegistryEntry>) : null
@@ -1864,6 +1905,10 @@ export default function FlowEditorCanvas(
       if (baseLeft == null || baseTop == null) return
       const round2 = (value: number): number => Math.round(value * 100) / 100
       const globalEdgeType = readGlobalEdgeType(schema)
+      const globalEdgeColor = readGlobalEdgeColor(schema)
+      const edgeAnimated = readGlobalEdgeAnimationEnabled(schema)
+      const globalEdgeThickness = readGlobalEdgeThicknessPx(schema)
+      if (edgeAnimated) ensureEdgeAnimationStyleElement(typeof document !== 'undefined' ? document : null)
       const layoutSig = (() => {
         const nodeIdsSorted = Array.from(overlayRectsByNodeId.keys()).sort((a, b) => a.localeCompare(b))
         const nodeParts: string[] = []
@@ -1880,9 +1925,11 @@ export default function FlowEditorCanvas(
         }
         const edgeParts = edges
           .map(e => {
-            const stroke = getEdgeBaseStroke(e as GraphEdge, schema)
-            const strokeWidth = getEdgeStrokeWidth(e as GraphEdge, schema)
-            return `${e.id}:${e.source}->${e.target}:${e.sourcePortKey}|${e.targetPortKey}:${stroke}:${strokeWidth}`
+            const stroke = getEdgeBaseStroke(e as unknown as GraphEdge, schema)
+            const strokeWidth = getEdgeStrokeWidth(e as unknown as GraphEdge, schema)
+            const sourceId = readEdgeEndpointId(e.source)
+            const targetId = readEdgeEndpointId(e.target)
+            return `${e.id}:${sourceId}->${targetId}:${e.sourcePortKey}|${e.targetPortKey}:${stroke}:${strokeWidth}`
           })
           .sort((a, b) => a.localeCompare(b))
         const pending = pendingEdgePreviewRef.current
@@ -2005,16 +2052,22 @@ export default function FlowEditorCanvas(
               const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
               if (!existing) {
                 pathEl.setAttribute('fill', 'none')
-                pathEl.setAttribute('stroke', 'currentColor')
-                pathEl.setAttribute('stroke-width', '1.5')
+                pathEl.setAttribute('stroke', globalEdgeColor)
+                pathEl.setAttribute('stroke-width', String(globalEdgeThickness))
                 pathEl.setAttribute('stroke-linejoin', 'round')
                 pathEl.setAttribute('stroke-linecap', 'round')
-                pathEl.setAttribute('stroke-dasharray', '4 4')
+                pathEl.setAttribute('stroke-dasharray', edgeAnimated ? '7 5' : '4 4')
+                pathEl.style.animation = edgeAnimated ? 'kg-edge-dash-flow 1.25s linear infinite' : ''
                 pathEl.setAttribute('opacity', '0.75')
                 pathEl.setAttribute('pointer-events', 'none')
                 svg.appendChild(pathEl)
                 overlayPendingEdgePathRef.current = pathEl
               }
+              const pendingDash = edgeAnimated ? '7 5' : '4 4'
+              if (pathEl.getAttribute('stroke') !== globalEdgeColor) pathEl.setAttribute('stroke', globalEdgeColor)
+              if (pathEl.getAttribute('stroke-width') !== String(globalEdgeThickness)) pathEl.setAttribute('stroke-width', String(globalEdgeThickness))
+              if (pathEl.getAttribute('stroke-dasharray') !== pendingDash) pathEl.setAttribute('stroke-dasharray', pendingDash)
+              pathEl.style.animation = edgeAnimated ? 'kg-edge-dash-flow 1.25s linear infinite' : ''
               if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)
             }
           }
@@ -2024,8 +2077,8 @@ export default function FlowEditorCanvas(
       for (let i = 0; i < edges.length; i += 1) {
         const e = edges[i]
         const edgeId = String(e?.id || '').trim()
-        const source = String(e?.source || '').trim()
-        const target = String(e?.target || '').trim()
+        const source = readEdgeEndpointId(e?.source)
+        const target = readEdgeEndpointId(e?.target)
         if (!edgeId || !source || !target) continue
 
         const sRect = overlayRectsByNodeId.get(source)
@@ -2065,19 +2118,24 @@ export default function FlowEditorCanvas(
         keep.add(edgeId)
         const existing = overlayEdgePathByIdRef.current.get(edgeId) || null
         const pathEl = existing || document.createElementNS('http://www.w3.org/2000/svg', 'path')
-        const stroke = getEdgeBaseStroke(e as GraphEdge, schema)
-        const strokeWidth = String(getEdgeStrokeWidth(e as GraphEdge, schema))
+        const stroke = getEdgeBaseStroke(e as unknown as GraphEdge, schema)
+        const strokeWidth = String(getEdgeStrokeWidth(e as unknown as GraphEdge, schema))
         if (!existing) {
           pathEl.setAttribute('fill', 'none')
           pathEl.setAttribute('stroke', stroke)
           pathEl.setAttribute('stroke-width', strokeWidth)
           pathEl.setAttribute('stroke-linejoin', 'round')
           pathEl.setAttribute('stroke-linecap', 'round')
+          pathEl.setAttribute('stroke-dasharray', edgeAnimated ? '7 5' : '')
+          pathEl.style.animation = edgeAnimated ? 'kg-edge-dash-flow 1.25s linear infinite' : ''
           svg.appendChild(pathEl)
           overlayEdgePathByIdRef.current.set(edgeId, pathEl)
         }
         if (pathEl.getAttribute('stroke') !== stroke) pathEl.setAttribute('stroke', stroke)
         if (pathEl.getAttribute('stroke-width') !== strokeWidth) pathEl.setAttribute('stroke-width', strokeWidth)
+        const edgeDash = edgeAnimated ? '7 5' : ''
+        if (pathEl.getAttribute('stroke-dasharray') !== edgeDash) pathEl.setAttribute('stroke-dasharray', edgeDash)
+        pathEl.style.animation = edgeAnimated ? 'kg-edge-dash-flow 1.25s linear infinite' : ''
         if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)
       }
       for (const [id, el] of overlayEdgePathByIdRef.current.entries()) {
@@ -3836,7 +3894,8 @@ export default function FlowEditorCanvas(
             return
           }
           setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
-          if (providerFamily === 'byteplus') {
+          const mirrorTextOutputToRichMediaPanel = isFlowVideoScriptFormId(entry.formId) || providerFamily === 'byteplus'
+          if (mirrorTextOutputToRichMediaPanel) {
             updateRunOutputForKnownNodeIds(nodeProps => ({
               ...clearRichMediaOutputProperties(nodeProps),
               outputLoading: true,
@@ -3846,7 +3905,7 @@ export default function FlowEditorCanvas(
           let lastPublishedText = ''
           const publishTextRunOutput = (outputText: string, loading: boolean) => {
             const nextOutput = String(outputText || '')
-            if (providerFamily === 'byteplus') {
+            if (mirrorTextOutputToRichMediaPanel) {
               updateRunOutputForKnownNodeIds((nodeProps) => ({
                 ...clearRichMediaOutputProperties(nodeProps),
                 outputLoading: loading === true ? true : undefined,

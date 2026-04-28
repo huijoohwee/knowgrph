@@ -2,14 +2,30 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import type { Canvas2dRendererId } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config'
+import { lsSetBool } from '@/lib/persistence'
 import {
   parseCanvasWorkspaceFrontmatterPreset,
   readCanvasWorkspaceFrontmatterPresetFromMeta,
   type CanvasWorkspaceFrontmatterPreset,
 } from '@/lib/markdown/frontmatter'
+import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function disableGeospatialForDocumentPreset(): void {
+  try {
+    lsSetBool(LS_KEYS.geospatialOverlayEnabled, false)
+  } catch {
+    void 0
+  }
+  try {
+    void setGeospatialModeEnabled(false).catch(() => void 0)
+  } catch {
+    void 0
+  }
 }
 
 export function resolveCanvasFrontmatterPreset(args: {
@@ -47,6 +63,9 @@ export function applyCanvasFrontmatterPreset(args: {
   }
 
   const canvasRenderMode = preset?.canvasRenderMode ?? args.defaultCanvasRenderMode
+  if (canvasRenderMode) {
+    disableGeospatialForDocumentPreset()
+  }
   if (canvasRenderMode && store.canvasRenderMode !== canvasRenderMode) {
     store.setCanvasRenderMode(canvasRenderMode)
     changed = true

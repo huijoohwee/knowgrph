@@ -72,3 +72,60 @@ export function testSourceFilesIngestTreatsMarkdownLikeUrlsAsDirectTextImports()
     throw new Error('expected non-local url ingest to continue using proxy-preferred remote fetch fallback')
   }
 }
+
+export function testCanvasStartupRuntimesMountsSourceFilesBootstrapEagerly() {
+  const startupPath = resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasStartupRuntimes.tsx')
+  const text = readFileSync(startupPath, 'utf8')
+
+  if (!text.includes("import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'")) {
+    throw new Error('expected canvas startup runtimes to import SourceFilesPersistenceBootstrap eagerly at module scope')
+  }
+  if (!text.includes('<SourceFilesPersistenceBootstrap />')) {
+    throw new Error('expected canvas startup runtimes to mount SourceFilesPersistenceBootstrap outside the deferred idle loader path')
+  }
+  if (text.includes("import('@/features/source-files/SourceFilesPersistenceBootstrap')")) {
+    throw new Error('expected canvas startup runtimes to stop deferring SourceFilesPersistenceBootstrap behind idle startup scheduling')
+  }
+  if (!text.includes("import('@/features/ssot/SsotEventBridge')")) {
+    throw new Error('expected non-critical startup runtime lazy loading to continue for the SSOT bridge')
+  }
+}
+
+export function testSourceFilesBootstrapIgnoresPersistedWorkspaceBackedSourceFiles() {
+  const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const text = readFileSync(bootstrapPath, 'utf8')
+
+  if (!text.includes('function stripPersistedWorkspaceBackedSourceFiles')) {
+    throw new Error('expected source files bootstrap to centralize persisted workspace-backed source-file filtering')
+  }
+  if (!text.includes("return !sourcePath.startsWith('workspace:')")) {
+    throw new Error('expected source files bootstrap to reject persisted workspace-backed source files at startup')
+  }
+  if (!text.includes('const persisted = stripPersistedWorkspaceBackedSourceFiles(persistedRaw)')) {
+    throw new Error('expected source files bootstrap hydration to filter persisted source files before restoring startup state')
+  }
+}
+
+export function testSourceFilesSliceStartsEmptyAndDefersWorkspaceSeedsToBootstrap() {
+  const slicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'sourceFilesSlice.ts')
+  const text = readFileSync(slicePath, 'utf8')
+
+  if (!text.includes('sourceFiles: [],')) {
+    throw new Error('expected sourceFiles store slice to start empty so workspace-backed source files are owned by bootstrap/workspace FS SSOT')
+  }
+  if (text.includes('WORKSPACE_README_SOURCE_FILE') || text.includes('TEST_VALIDATION_SOURCE_FILE')) {
+    throw new Error('expected sourceFiles store slice to stop hard-seeding canonical workspace source files locally')
+  }
+}
+
+export function testSourceFilesBootstrapResyncsOnWorkspaceViewModeChanges() {
+  const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const text = readFileSync(bootstrapPath, 'utf8')
+
+  if (!text.includes('useGraphStore.subscribe(s => s.workspaceViewMode')) {
+    throw new Error('expected source files bootstrap to resync active workspace materialization when workspace view mode changes')
+  }
+  if (!text.includes('useMarkdownExplorerStore.subscribe(s => s.activePath')) {
+    throw new Error('expected source files bootstrap to continue resyncing on active path changes')
+  }
+}

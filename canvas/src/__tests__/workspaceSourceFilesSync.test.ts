@@ -69,6 +69,39 @@ export async function testWorkspaceSourceFilesSyncForceIncludesActiveWorkspaceMa
   if (active.enabled !== true) throw new Error('expected newly mirrored active workspace markdown source to be enabled when force-included as the active workspace doc')
 }
 
+export async function testWorkspaceSourceFilesSyncForceIncludeReenablesExistingDisabledValidationSeed() {
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [
+      {
+        id: 'ws-validation',
+        name: 'knowgrph-rich-media-generation-demo.md',
+        text: '---\ntitle: Validation\n---\n',
+        enabled: false,
+        status: 'idle',
+        source: { kind: 'local', path: TEST_VALIDATION_SOURCE_PATH },
+      },
+    ],
+    workspaceEntries: [
+      {
+        kind: 'file',
+        path: '/sandbox/test-data/knowgrph-rich-media-generation-demo.md',
+        parentPath: '/sandbox/test-data',
+        name: 'knowgrph-rich-media-generation-demo.md',
+        text: '---\ntitle: Validation\nkgCanvas2dRenderer: "flowEditor"\n---\n',
+        updatedAtMs: 1,
+      },
+    ],
+    sourcesByPath: {},
+    forceIncludePaths: ['/sandbox/test-data/knowgrph-rich-media-generation-demo.md'],
+  })
+
+  const validation = next.find(f => f.source?.path === TEST_VALIDATION_SOURCE_PATH)
+  if (!validation) throw new Error('expected canonical validation seed to remain present in Source Files')
+  if (validation.enabled !== true) {
+    throw new Error('expected force-included active validation seed to be re-enabled so it participates in composed graph rendering')
+  }
+}
+
 export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFiles() {
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [],
@@ -115,4 +148,31 @@ export async function testWorkspaceSeedSourceFilesReconcilePersistedDefaultFamil
   }
   if (next[0]?.enabled !== true) throw new Error('expected reconciled README seed source file to stay enabled')
   if (next[1]?.enabled !== false) throw new Error('expected reconciled validation demo seed source file to stay disabled')
+}
+
+export async function testWorkspaceSeedSourceFilesReconcilePreservesEnabledValidationSeed() {
+  const next = reconcileDefaultWorkspaceSeedSourceFiles([
+    {
+      id: 'readme',
+      name: 'README.md',
+      text: '# README',
+      enabled: true,
+      status: 'idle',
+      source: { kind: 'local', path: WORKSPACE_README_SOURCE_PATH },
+    },
+    {
+      id: 'validation',
+      name: 'knowgrph-rich-media-generation-demo.md',
+      text: '# Validation',
+      enabled: true,
+      status: 'parsed',
+      source: { kind: 'local', path: TEST_VALIDATION_SOURCE_PATH },
+    },
+  ])
+
+  const validation = next.find(file => file.source?.path === TEST_VALIDATION_SOURCE_PATH)
+  if (!validation) throw new Error('expected canonical validation seed source file to remain present after reconciliation')
+  if (validation.enabled !== true) {
+    throw new Error('expected canonical seed reconciliation to preserve an already-enabled validation source file')
+  }
 }

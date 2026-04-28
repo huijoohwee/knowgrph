@@ -421,6 +421,100 @@ export async function testComposedUpdateNodePreservesTypedFrontmatterEnvelopeWri
   }
 }
 
+export async function testComposedTextWidgetUpdatePreservesWidgetLayoutAndEdgeWritebackSync() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const state = useGraphStore.getState()
+    state.clearSourceFiles()
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
+
+    const graph: GraphData = {
+      type: 'Graph',
+      nodes: [
+        {
+          id: 'source',
+          label: 'Source',
+          type: 'Thing',
+          properties: { 'frontmatter:handles': { source: ['out'] } } as never,
+        },
+        {
+          id: 'w-text',
+          label: 'Text Widget',
+          type: 'TextGeneration',
+          properties: {
+            prompt: 'old prompt',
+            'frontmatter:handles': { target: ['prompt_in'], source: ['text_out'] },
+            'frontmatter:widgetFields': [
+              { fieldKey: 'prompt', fieldType: 'string', schemaPath: 'prompt' },
+            ],
+          } as never,
+        },
+      ],
+      edges: [
+        {
+          id: 'edge-1',
+          source: 'source',
+          target: 'w-text',
+          properties: {
+            'flow:sourcePortKey': 'out',
+            'flow:targetPortKey': 'prompt_in',
+          } as never,
+        } as never,
+      ],
+      metadata: {
+        source: 'workspace:/typed-layout.md',
+      },
+    }
+
+    state.addSourceFile({
+      id: 'sf-layout',
+      name: 'typed-layout.md',
+      text: '---\ntitle: Typed Layout\n---\n',
+      enabled: true,
+      status: 'parsed',
+      parsedGraphData: graph,
+      parsedTextHash: 'typed-layout-h1',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: 'workspace:/typed-layout.md' },
+    })
+
+    applyComposedGraphFromSourceFiles()
+    const before = useGraphStore.getState()
+    before.setMarkdownDocument('workspace:/typed-layout.md', '---\ntitle: Typed Layout\n---\n')
+    before.setFlowWidgetPosByNodeId({ 'sf-layout::w-text': { top: 120, left: 240 } })
+    before.setFlowWidgetWorldPosByNodeId({ 'sf-layout::w-text': { x: 12, y: 24 } })
+
+    before.updateNode('sf-layout::w-text', {
+      properties: {
+        ...((((graph.nodes[1] || {}).properties) || {}) as Record<string, unknown>),
+        prompt: 'new prompt',
+      } as never,
+    })
+
+    const after = useGraphStore.getState()
+    const file = after.sourceFiles.find(f => f.id === 'sf-layout')
+    const text = String(file?.text || '')
+    if (!text.includes('prompt: {key: prompt, type: string, value: "new prompt"}')) {
+      throw new Error('expected text widget update to write prompt changes back into the source file markdown')
+    }
+    if (String(after.markdownDocumentText || '') !== text) {
+      throw new Error('expected active markdown editor/viewer text to stay aligned with text widget writeback')
+    }
+    if ((after.graphData?.edges || []).length !== 1) {
+      throw new Error('expected composed edge count to stay stable after text widget update writeback')
+    }
+    if (after.flowWidgetPosByNodeId['sf-layout::w-text']?.top !== 120 || after.flowWidgetPosByNodeId['sf-layout::w-text']?.left !== 240) {
+      throw new Error('expected text widget overlay position to stay stable across same-source recomposition')
+    }
+    if (after.flowWidgetWorldPosByNodeId['sf-layout::w-text']?.x !== 12 || after.flowWidgetWorldPosByNodeId['sf-layout::w-text']?.y !== 24) {
+      throw new Error('expected text widget world position to stay stable across same-source recomposition')
+    }
+  } finally {
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
+  }
+}
+
 export async function testComposedAddEdgeSyncsToSourceFileAndActiveMarkdownText() {
   const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
   try {

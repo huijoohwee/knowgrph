@@ -14,7 +14,14 @@ import {
   workspaceExtLower,
   workspaceStem,
 } from '@/features/workspace-fs/path'
-import { getWorkspaceFs, getWorkspaceSeedFiles, resolveWorkspaceStartupActivePath } from '@/features/workspace-fs/workspaceFs'
+import {
+  CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
+  DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+  getWorkspaceFs,
+  getWorkspaceSeedFiles,
+  resolveWorkspaceStartupActivePath,
+  TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+} from '@/features/workspace-fs/workspaceFs'
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -1618,11 +1625,16 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   React.useEffect(() => {
     if (!entries.length) return
     if (loading) return
+    const preferCustomValidationSeed =
+      CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
+      TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
 
-    if (!lastSetActivePath) {
+    if (!lastSetActivePath || preferCustomValidationSeed) {
       const startupPath = resolveWorkspaceStartupActivePath({
         workspaceFilePaths: entries.filter((entry): entry is WorkspaceEntry & { kind: 'file' } => entry.kind === 'file').map(entry => entry.path),
         activePath,
+        preferValidationSeedForDefaultFamily: preferCustomValidationSeed,
+        forceValidationSeedIfPresent: preferCustomValidationSeed,
       })
       if (startupPath && startupPath !== activePath) {
         setActivePathSafe(startupPath)

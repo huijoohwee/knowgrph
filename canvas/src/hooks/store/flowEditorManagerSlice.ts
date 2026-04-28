@@ -9,6 +9,7 @@ import {
   buildGenerateTextRegistryDraft,
   buildGenerateVideoRegistryDraft,
   buildBytePlusVideoScriptRegistryDraft,
+  buildOpenAiVideoScriptRegistryDraft,
   buildRichMediaPanelRegistryDraft,
   buildVideoTranscriberRegistryDraft,
   buildTextGenerationRegistryDraft,
@@ -21,6 +22,7 @@ import {
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
@@ -533,8 +535,15 @@ export function ensureDefaultWidgetRegistryEntries(
     }),
     nowIso,
   })
-  const seededVideoTranscriber = ensureDefaultRegistryEntry({
+  const seededOpenAiVideoScript = ensureDefaultRegistryEntry({
     entries: seededOpenAiText.entries,
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    formId: FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
+    draft: buildOpenAiVideoScriptRegistryDraft(),
+    nowIso,
+  })
+  const seededVideoTranscriber = ensureDefaultRegistryEntry({
+    entries: seededOpenAiVideoScript.entries,
     nodeTypeId: FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
     formId: FLOW_VIDEO_TRANSCRIBER_FORM_ID,
     draft: buildVideoTranscriberRegistryDraft(),
@@ -562,6 +571,7 @@ export function ensureDefaultWidgetRegistryEntries(
       || seededText.changed
       || seededVideoScript.changed
       || seededOpenAiText.changed
+      || seededOpenAiVideoScript.changed
       || seededVideoTranscriber.changed
       || seededRichMediaPanel.changed
       || seededGrabMapsDiscovery.changed,

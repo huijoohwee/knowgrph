@@ -34,7 +34,7 @@ export const testFlowAndDesignUseBudgetedCollisionRelax = () => {
 }
 
 export const testFlowEditorOverlayUsesBudgetedPanelRelax = () => {
-  const relaxPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'relaxOverlayPanels.ts')
+  const relaxPath = path.resolve(process.cwd(), 'src', 'lib', 'ui', 'relaxOverlayPanelsWithCollision.ts')
   const relaxText = readUtf8(relaxPath)
   if (!relaxText.includes('runRelaxSteps')) throw new Error('Expected overlay panel relax to use runRelaxSteps')
   if (!relaxText.includes('maxOps')) throw new Error('Expected overlay panel relax to pass maxOps budget')

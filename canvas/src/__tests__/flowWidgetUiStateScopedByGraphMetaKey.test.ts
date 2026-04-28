@@ -47,3 +47,45 @@ export function testFlowWidgetUiStateIsScopedByGraphMetaKey() {
   if (afterARestore.flowWidgetWorldPosByNodeId.NODE_SVO?.y !== 2) throw new Error('expected world pos restored for graph A')
 }
 
+export function testFlowWidgetUiStateCarriesAcrossSameSourceRecomposeHashChanges() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', properties: {} }],
+    edges: [{ id: 'EDGE_A', source: 'NODE_TEXT', target: 'NODE_TEXT' }],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'typed-hash-a',
+    },
+  } as never)
+
+  useGraphStore.getState().setFlowWidgetPinnedByNodeId({ NODE_TEXT: true })
+  useGraphStore.getState().setFlowWidgetPosByNodeId({ NODE_TEXT: { top: 120, left: 240 } })
+  useGraphStore.getState().setFlowWidgetWorldPosByNodeId({ NODE_TEXT: { x: 12, y: 24 } })
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', properties: { prompt: 'updated' } }],
+    edges: [{ id: 'EDGE_A', source: 'NODE_TEXT', target: 'NODE_TEXT' }],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'typed-hash-b',
+    },
+  } as never)
+
+  const after = useGraphStore.getState()
+  if (after.flowWidgetPinnedByNodeId.NODE_TEXT !== true) {
+    throw new Error('expected same-source recomposition to preserve pinned widget state across sourceLayerHash changes')
+  }
+  if (after.flowWidgetPosByNodeId.NODE_TEXT?.top !== 120 || after.flowWidgetPosByNodeId.NODE_TEXT?.left !== 240) {
+    throw new Error('expected same-source recomposition to preserve widget viewport position across sourceLayerHash changes')
+  }
+  if (after.flowWidgetWorldPosByNodeId.NODE_TEXT?.x !== 12 || after.flowWidgetWorldPosByNodeId.NODE_TEXT?.y !== 24) {
+    throw new Error('expected same-source recomposition to preserve widget world position across sourceLayerHash changes')
+  }
+}

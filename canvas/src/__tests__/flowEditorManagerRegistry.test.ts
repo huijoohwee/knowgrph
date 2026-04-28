@@ -21,6 +21,7 @@ import {
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_SCRIPT_FORM_ID,
@@ -121,6 +122,9 @@ export function testFlowEditorManagerSeedsGenerateVideoRegistryEntry() {
   const videoScriptFound = seeded.find(
     e => e.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && e.widgetTypeId === 'default' && e.formId === FLOW_VIDEO_SCRIPT_FORM_ID,
   )
+  const openAiVideoScriptFound = seeded.find(
+    e => e.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && e.widgetTypeId === 'default' && e.formId === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID,
+  )
   const richMediaPanelFound = seeded.find(
     e => e.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && e.widgetTypeId === 'default' && e.formId === 'richMediaPanel',
   )
@@ -130,6 +134,7 @@ export function testFlowEditorManagerSeedsGenerateVideoRegistryEntry() {
   if (!imageFound) throw new Error('expected BytePlus Image Widget mapping')
   if (!textFound) throw new Error('expected Text Widget mapping')
   if (!videoScriptFound) throw new Error('expected BytePlus Video Script Widget mapping')
+  if (!openAiVideoScriptFound) throw new Error('expected OpenAI Video Script Widget mapping')
   if (!richMediaPanelFound) throw new Error('expected Rich Media Panel mapping')
   if (!discoveryFound) throw new Error('expected GrabMaps Chat Discovery Widget mapping')
   if (!found) throw new Error('expected Generate Video mapping')
