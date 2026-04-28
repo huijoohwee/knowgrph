@@ -1,6 +1,8 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { DOCUMENT_CONTAINMENT_EDGE_LABELS } from '@/lib/graph/documentContainmentEdgeLabels'
+import { readGraphActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 
 const coerceEndpointId = (v: unknown): string => {
   if (typeof v === 'string') return v
@@ -29,6 +31,26 @@ const isFrontmatterDisplayGraph = (graphData: GraphData): boolean => {
 const isParagraphOrListNode = (n: GraphNode): boolean => {
   const t = String(n.type || '')
   return t === 'Paragraph' || t === 'List'
+}
+
+const DOCUMENT_STRUCTURE_SCAFFOLD_NODE_TYPES = new Set<string>([
+  'Document',
+  'Section',
+  'Paragraph',
+  'List',
+  'ListItem',
+  'Anchor',
+  'InternalLink',
+])
+
+const NON_STRUCTURE_HIDDEN_EDGE_LABELS = new Set<string>([
+  ...DOCUMENT_CONTAINMENT_EDGE_LABELS,
+  'hasAnchor',
+])
+
+const isDocumentStructureScaffoldNode = (n: GraphNode | null | undefined): boolean => {
+  if (!n) return false
+  return DOCUMENT_STRUCTURE_SCAFFOLD_NODE_TYPES.has(String(n.type || '').trim())
 }
 
 export const isDisplayNode = (n: GraphNode): boolean => {
@@ -67,6 +89,8 @@ export const getDisplayEdges = (args: { edges: GraphEdge[]; displayNodeIdSet: Se
 export const getGraphDataForDisplay = (args: { graphData: GraphData; edges?: GraphEdge[] | null }): GraphData => {
   const graphData = args.graphData
   const frontmatterMode = isFrontmatterDisplayGraph(graphData)
+  const activeDocumentViewMode = readGraphActiveDocumentViewMode(graphData)
+  const hideDocumentStructureScaffold = activeDocumentViewMode != null && activeDocumentViewMode !== 'documentStructure'
 
   const allNodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
   const edgesSource = Array.isArray(args.edges)
@@ -74,27 +98,54 @@ export const getGraphDataForDisplay = (args: { graphData: GraphData; edges?: Gra
     : Array.isArray(graphData.edges)
       ? (graphData.edges as GraphEdge[])
       : []
+  const nodeById = new Map<string, GraphNode>()
+  for (let i = 0; i < allNodes.length; i += 1) {
+    const node = allNodes[i]
+    const id = String(node?.id || '').trim()
+    if (!id) continue
+    nodeById.set(id, node)
+  }
 
   const preferredNodes = allNodes.filter(n => {
     if (frontmatterMode && isParagraphOrListNode(n)) return false
+    if (hideDocumentStructureScaffold && isDocumentStructureScaffoldNode(n)) return false
     return isDisplayNode(n)
   })
   const baseNodes = preferredNodes.length > 0 ? preferredNodes : allNodes
   const baseNodeIdSet = new Set<string>(baseNodes.map(n => String(n.id)))
-  const edgesForBase = getDisplayEdges({ edges: edgesSource, displayNodeIdSet: baseNodeIdSet })
+  const filteredEdgesSource = hideDocumentStructureScaffold
+    ? edgesSource.filter(e => {
+        const label = String(e.label || '').trim()
+        if (NON_STRUCTURE_HIDDEN_EDGE_LABELS.has(label)) return false
+        const srcId = coerceEndpointId(e.source)
+        const tgtId = coerceEndpointId(e.target)
+        if (!srcId || !tgtId) return false
+        if (label === 'pointsTo') {
+          if (isDocumentStructureScaffoldNode(nodeById.get(srcId)) || isDocumentStructureScaffoldNode(nodeById.get(tgtId))) return false
+        }
+        return true
+      })
+    : edgesSource
+  const edgesForBase = getDisplayEdges({ edges: filteredEdgesSource, displayNodeIdSet: baseNodeIdSet })
 
-  if (!frontmatterMode && preferredNodes.length > 0 && edgesSource.length > 0 && edgesForBase.length === 0) {
+  if (preferredNodes.length > 0 && filteredEdgesSource.length > 0 && edgesForBase.length === 0) {
     const required = new Set<string>(baseNodeIdSet)
-    for (let i = 0; i < edgesSource.length; i += 1) {
-      const e = edgesSource[i]
+    for (let i = 0; i < filteredEdgesSource.length; i += 1) {
+      const e = filteredEdgesSource[i]
       const s = coerceEndpointId(e.source)
       const t = coerceEndpointId(e.target)
       if (s) required.add(s)
       if (t) required.add(t)
     }
-    const connectedNodes = allNodes.filter(n => required.has(String(n.id)))
+    const connectedNodes = allNodes.filter(n => {
+      const id = String(n.id)
+      if (!required.has(id)) return false
+      if (hideDocumentStructureScaffold && isDocumentStructureScaffoldNode(n)) return false
+      if (frontmatterMode && isParagraphOrListNode(n)) return false
+      return true
+    })
     const connectedNodeIdSet = new Set<string>(connectedNodes.map(n => String(n.id)))
-    const edgesForConnected = getDisplayEdges({ edges: edgesSource, displayNodeIdSet: connectedNodeIdSet })
+    const edgesForConnected = getDisplayEdges({ edges: filteredEdgesSource, displayNodeIdSet: connectedNodeIdSet })
     return { ...graphData, nodes: connectedNodes, edges: edgesForConnected }
   }
 

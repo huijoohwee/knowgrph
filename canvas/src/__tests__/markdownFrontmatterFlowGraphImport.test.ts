@@ -1134,6 +1134,96 @@ export function testMarkdownFrontmatterFlowGraphFlowBlockIgnoresMermaidAndRender
   }
 }
 
+export function testMarkdownFrontmatterFlowGraphDerivesWidgetBundleNodesAndConnectionsWithoutHardcodedFixturePath() {
+  const md = [
+    '---',
+    'title: Widget Bundle Frontmatter',
+    ':class: text-center',
+    'widget_bundle:',
+    '  widgets:',
+    '    - formId: textGeneration',
+    '      id: w-text-1',
+    '      properties:',
+    '        - { key: prompt, type: string, value: "hello" }',
+    '      handles:',
+    '        prompt_in: [id: h-prompt-in-1, port: prompt_in]',
+    '        text_out: [id: h-text-out-1, port: text_out]',
+    '    - formId: imageGeneration',
+    '      id: w-image-1',
+    '      properties:',
+    '        - { key: model, type: string, value: "seedream-4-0-250828" }',
+    '      handles:',
+    '        prompt_in: [id: h-prompt-in-2, port: prompt_in]',
+    '        imageUrl: [id: h-img-url-1, port: imageUrl]',
+    'mermaid: |',
+    '  flowchart LR',
+    '    A["Text Gen<br/>w-text-1"] -->|text_out → prompt_in| B["Image Gen<br/>w-image-1"]',
+    'graph_meta:',
+    '  direction: RIGHT',
+    '---',
+    '',
+    '# Body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('widget-bundle-frontmatter.md', md)
+  if (!res) throw new Error('expected parse result from widget_bundle + mermaid frontmatter')
+  if (String(res.graphData.context || '') !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const ids = new Set((res.graphData.nodes || []).map(n => String(n.id || '')))
+  if (!ids.has('w-text-1') || !ids.has('w-image-1')) {
+    throw new Error(`expected widget_bundle node ids, got ${Array.from(ids).join(',')}`)
+  }
+
+  const edge = (res.graphData.edges || []).find(e => String(e.source || '') === 'w-text-1' && String(e.target || '') === 'w-image-1')
+  if (!edge) throw new Error('expected mermaid wiring edge between widget_bundle nodes')
+  const edgeProps = (edge.properties || {}) as Record<string, unknown>
+  if (String(edgeProps[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'text_out') throw new Error('expected source handle text_out')
+  if (String(edgeProps[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'prompt_in') throw new Error('expected target handle prompt_in')
+
+  const textNode = (res.graphData.nodes || []).find(n => String(n.id || '') === 'w-text-1')
+  if (!textNode) throw new Error('expected w-text-1 node')
+  const textProps = (textNode.properties || {}) as Record<string, unknown>
+  if (String(textProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'textGeneration') {
+    throw new Error(`expected flow:widgetFormId=textGeneration, got ${String(textProps[FLOW_WIDGET_FORM_ID_KEY] || '')}`)
+  }
+
+  const meta = (res.graphData.metadata || {}) as Record<string, unknown>
+  const settings = (meta.frontmatterFlowSettings || {}) as Record<string, unknown>
+  if (String(settings.direction || '') !== 'LR') throw new Error('expected graph_meta.direction RIGHT to normalize as LR')
+}
+
+export function testMarkdownFrontmatterFlowGraphDerivesNodesAndConnectionsFromFrontmatterIndexMermaid() {
+  const md = [
+    '---',
+    'title: Frontmatter Index Mermaid Seed',
+    'index:',
+    '  mermaid: |',
+    '    flowchart LR',
+    '      A["Start"] -->|text_out → prompt_in| B["End"]',
+    '---',
+    '',
+    '# Body',
+  ].join('\n')
+
+  const res = tryParseMarkdownFrontmatterFlowGraph('index-mermaid-seed.md', md)
+  if (!res) throw new Error('expected parse result from index.mermaid seed')
+  if (String(res.graphData.context || '') !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const ids = new Set((res.graphData.nodes || []).map(n => String(n.id || '')))
+  if (!ids.has('A') || !ids.has('B')) {
+    throw new Error(`expected index.mermaid node ids A,B; got ${Array.from(ids).join(',')}`)
+  }
+
+  const edge = (res.graphData.edges || []).find(e => String(e.source || '') === 'A' && String(e.target || '') === 'B')
+  if (!edge) throw new Error('expected index.mermaid wiring edge A -> B')
+  const edgeProps = (edge.properties || {}) as Record<string, unknown>
+  if (String(edgeProps[FLOW_EDGE_SOURCE_PORT_KEY] || '') !== 'text_out') throw new Error('expected source handle text_out')
+  if (String(edgeProps[FLOW_EDGE_TARGET_PORT_KEY] || '') !== 'prompt_in') throw new Error('expected target handle prompt_in')
+
+  const settings = (((res.graphData.metadata || {}) as Record<string, unknown>).frontmatterFlowSettings || {}) as Record<string, unknown>
+  if (String(settings.direction || '') !== 'LR') throw new Error('expected index.mermaid flowchart LR direction to persist')
+}
+
 export async function testMarkdownLoaderFlowBlockSkipsMarkdownStructureNodesForWidgets() {
   const md = [
     '---',

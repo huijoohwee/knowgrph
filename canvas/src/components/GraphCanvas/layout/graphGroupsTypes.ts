@@ -20,6 +20,7 @@ export type GraphGroup = {
     fill?: string
     stroke?: string
     strokeWidth?: number
+    labelColor?: string
   }
   bounds?: {
     x: number

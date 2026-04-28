@@ -31,23 +31,54 @@ export class MarkdownGraphBuilder {
     this.nodes.push(node)
   }
 
-  addRel(src: string, key: string, tgt: string): void {
+  private relationEntriesEqual(a: unknown, b: unknown): boolean {
+    if (typeof a === 'string' || typeof b === 'string') return a === b
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) || Array.isArray(b)) return false
+    const aRec = a as Record<string, unknown>
+    const bRec = b as Record<string, unknown>
+    const aKeys = Object.keys(aRec)
+    const bKeys = Object.keys(bRec)
+    if (aKeys.length !== bKeys.length) return false
+    for (let i = 0; i < aKeys.length; i += 1) {
+      const key = aKeys[i]!
+      if (!Object.prototype.hasOwnProperty.call(bRec, key)) return false
+      if (aRec[key] !== bRec[key]) return false
+    }
+    return true
+  }
+
+  addRel(src: string, key: string, tgt: string, relationProps?: Record<string, unknown>): void {
     const node = this.nodeById.get(src)
     if (!node) return
+    const hasRelationProps =
+      !!relationProps &&
+      typeof relationProps === 'object' &&
+      !Array.isArray(relationProps) &&
+      Object.keys(relationProps).length > 0
+    const entry: string | Record<string, unknown> = hasRelationProps
+      ? { '@id': tgt, ...relationProps }
+      : tgt
     const cur = node[key]
     if (Array.isArray(cur)) {
-      if (!cur.includes(tgt)) {
-        cur.push(tgt)
+      const hasMatch = cur.some(existing => this.relationEntriesEqual(existing, entry))
+      if (!hasMatch) {
+        cur.push(entry)
       }
       return
     }
     if (typeof cur === 'string' && cur.trim()) {
-      if (cur !== tgt) {
-        node[key] = [cur, tgt]
+      if (this.relationEntriesEqual(cur, entry)) return
+      if (cur !== tgt || hasRelationProps) {
+        node[key] = [cur, entry]
       }
       return
     }
-    node[key] = tgt
+    if (cur && typeof cur === 'object' && !Array.isArray(cur)) {
+      if (this.relationEntriesEqual(cur, entry)) return
+      node[key] = [cur, entry]
+      return
+    }
+    node[key] = entry
   }
 
   setNext(prev: string | null, next: string): void {

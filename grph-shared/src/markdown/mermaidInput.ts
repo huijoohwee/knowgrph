@@ -47,6 +47,23 @@ export const normalizeMermaidCodeForRuntime = (code: string): string => {
     if (/^\s*%%/.test(line)) continue
 
     let next = line
+    // Preserve Mermaid textual edge labels by canonicalizing them to piped labels
+    // before generic spacing compaction mutates token boundaries.
+    next = next.replace(/--\s+([^|<>\n]+?)\s+-->/g, (_full, label: string) => {
+      const text = String(label || '').trim()
+      if (!text) return _full
+      return `-->|${text}|`
+    })
+    next = next.replace(/-\.\s+([^|<>\n]+?)\s+\.->/g, (_full, label: string) => {
+      const text = String(label || '').trim()
+      if (!text) return _full
+      return `-.->|${text}|`
+    })
+    next = next.replace(/==\s+([^|<>\n]+?)\s+==>/g, (_full, label: string) => {
+      const text = String(label || '').trim()
+      if (!text) return _full
+      return `==>|${text}|`
+    })
     next = next.replace(/(\S)\s+(-->|-\.->|==>)/g, '$1$2')
     next = next.replace(/(-->|-\.->|==>)\s+/g, '$1')
     next = next.replace(/(-->|-\.->|==>)\s*\|/g, '$1|')

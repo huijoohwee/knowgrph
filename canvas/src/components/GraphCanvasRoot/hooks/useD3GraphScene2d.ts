@@ -66,6 +66,8 @@ export function useD3GraphScene2d(args: {
   sceneGroupsDerivation: SceneGroupsDerivation | null
   edgesForSim: GraphEdge[]
   effectiveFrontmatterModeEnabled: boolean
+  multiDimTableModeEnabled: boolean
+  documentStructureBaselineLock: boolean
   documentSemanticMode: 'document' | 'keyword'
   layoutSemanticModeKey: string
   canvasRenderMode: '2d' | '3d'
@@ -136,6 +138,8 @@ export function useD3GraphScene2d(args: {
     sceneGroupsDerivation,
     edgesForSim,
     effectiveFrontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    documentStructureBaselineLock,
     documentSemanticMode,
     layoutSemanticModeKey,
     canvasRenderMode,
@@ -537,7 +541,8 @@ export function useD3GraphScene2d(args: {
           schema: schemaForScene,
           documentSemanticMode: documentSemanticMode ?? undefined,
           frontmatterModeEnabled: effectiveFrontmatterModeEnabled,
-          multiDimTableModeEnabled: layoutSemanticModeKey.endsWith(':mdtbl'),
+          multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+          documentStructureBaselineLock: documentStructureBaselineLock === true,
           canvas2dRenderer: String(canvas2dRenderer || ''),
           edgesForSim,
           width: sceneWidth,

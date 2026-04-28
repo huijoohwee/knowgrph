@@ -19,6 +19,7 @@ import { parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNode
 import {
   FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID,
   FLOW_EDITOR_SMART_NODE_REQUIRED_FIELDS,
+  getFlowTextGenerationSeedPrompt,
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
@@ -2608,7 +2609,7 @@ export default function FlowEditorCanvas(
         })
         Object.assign(properties, {
           ...nextTextProperties,
-          prompt: 'Generate a text response for the active request.',
+          prompt: getFlowTextGenerationSeedPrompt(entry.formId),
           output: '',
         })
       }

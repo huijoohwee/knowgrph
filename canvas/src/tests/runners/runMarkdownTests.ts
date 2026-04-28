@@ -227,6 +227,10 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownViewerInlineEditParagraphWysiwyg()
     await mod.testMarkdownViewerInlineEditParagraphDoesNotInsertBlockElementsIntoP()
   })
+  await execTest(results, 'markdown.viewer.inlineEdit.paragraph.wysiwyg.plainTextNoEscapeMutation', async () => {
+    const mod = await modMarkdownViewerInlineEditParagraphWysiwyg()
+    await mod.testMarkdownViewerInlineEditParagraphPlainTextCommitDoesNotEscapeMarkdownChars()
+  })
   await execTest(results, 'markdown.viewer.inlineEdit.surfaceParitySnapshot', async () => {
     const mod = await modMarkdownViewerInlineEditSurfaceParitySnapshot()
     await mod.testMarkdownViewerInlineEditSurfaceParitySnapshotAppliesReadSurfaceStyles()

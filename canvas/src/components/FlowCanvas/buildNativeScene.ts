@@ -9,6 +9,7 @@ import { coerceFlowNativeNodeShape } from '@/components/FlowCanvas/shape'
 import { setFlowNativeScene, setFlowNativeRankdir, type FlowNativeRuntime, type FlowNativeScene } from '@/components/FlowCanvas/nativeRuntime'
 import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
+import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
@@ -389,9 +390,9 @@ export function buildAndSetFlowNativeScene(args: {
 
     const sourcePortKey = readFlowEdgePortKey({ properties: e.properties as never } as never, 'source') || ''
     const targetPortKey = readFlowEdgePortKey({ properties: e.properties as never } as never, 'target') || ''
-    const explicitLabel = readFlowEdgeDisplayLabel({ properties: e.properties as never } as never) || ''
+    const sharedDisplayLabel = getEdgeLabelForDisplay(e as never)
     const computedLabel =
-      explicitLabel ||
+      sharedDisplayLabel ||
       ((sourcePortKey || targetPortKey) &&
         (buildFlowEdgeDisplayLabelFromPorts({
           sourceNode: inputNodeById.get(source) as never,
@@ -413,22 +414,34 @@ export function buildAndSetFlowNativeScene(args: {
           : ''
       return fromProps
     })()
+    const visual =
+      e.properties && typeof e.properties === 'object' && !Array.isArray(e.properties)
+        ? (e.properties as Record<string, unknown>)
+        : null
     const edgeColor = (() => {
+      if (visual) {
+        const visualStroke = readVisualColor(visual, 'visual:stroke')
+        if (visualStroke) return visualStroke
+        const visualColor = readVisualColor(visual, 'visual:color')
+        if (visualColor) return visualColor
+      }
       if (socketStyleByType.size === 0) return ''
       if (!edgeSocketType) return ''
       return socketStyleByType.get(edgeSocketType)?.color || ''
     })()
     const edgeWidthPx = (() => {
+      if (visual) {
+        const width = readVisualStrokeWidthPx(visual)
+        if (width != null && width > 0) return width
+        const rawWidth = visual['visual:width']
+        const n = typeof rawWidth === 'number' ? rawWidth : typeof rawWidth === 'string' ? Number(rawWidth) : null
+        if (typeof n === 'number' && Number.isFinite(n) && n > 0) return Math.max(1, Math.min(24, n))
+      }
       if (socketStyleByType.size === 0) return null
       if (!edgeSocketType) return null
       const w = socketStyleByType.get(edgeSocketType)?.edgeWidthPx
       return typeof w === 'number' && Number.isFinite(w) ? w : null
     })()
-
-    const visual =
-      e.properties && typeof e.properties === 'object' && !Array.isArray(e.properties)
-        ? (e.properties as Record<string, unknown>)
-        : null
     const svgPathD = visual && typeof visual['visual:pathD'] === 'string' ? String(visual['visual:pathD'] || '').trim() : ''
     const svgArrowD = visual && typeof visual['visual:arrowD'] === 'string' ? String(visual['visual:arrowD'] || '').trim() : ''
     const zIndex = (() => {
@@ -458,6 +471,7 @@ export function buildAndSetFlowNativeScene(args: {
       target,
       outHandleId: buildFlowHandleId({ dir: 'out', edgeId: sourcePortKey || edgeId }),
       inHandleId: buildFlowHandleId({ dir: 'in', edgeId: targetPortKey || edgeId }),
+      ...(sharedDisplayLabel ? { displayLabel: sharedDisplayLabel } : {}),
       ...(label ? { label } : {}),
       ...(edgeColor ? { color: edgeColor } : {}),
       ...(edgeWidthPx != null ? { widthPx: edgeWidthPx } : {}),

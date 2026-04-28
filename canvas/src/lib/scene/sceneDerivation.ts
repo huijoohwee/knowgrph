@@ -8,6 +8,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { applySchemaGroupBoundsOverrides, readSchemaGroupBoundsOverrides } from '@/lib/canvas/groupBoundsOverrides'
 import { SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES } from '@/lib/config.render'
+import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 
 export type SceneGroupsDerivation = {
   key: string
@@ -41,6 +42,8 @@ const buildKey = (args: {
   schema: GraphSchema
   documentSemanticMode: string
   frontmatterModeEnabled: boolean
+  multiDimTableModeEnabled?: boolean
+  documentStructureBaselineLock?: boolean
 }): string => {
   const g = args.graphData
   const nodesLen = Array.isArray(g.nodes) ? g.nodes.length : 0
@@ -64,6 +67,12 @@ const buildKey = (args: {
       return ''
     }
   })()
+  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+    documentSemanticMode: String(args.documentSemanticMode || 'document'),
+    documentStructureBaselineLock: args.documentStructureBaselineLock === true,
+  })
   return [
     revKey,
     layerKey,
@@ -72,6 +81,7 @@ const buildKey = (args: {
     `e:${String(edgesLen)}`,
     `sem:${String(args.documentSemanticMode || '')}`,
     `fm:${args.frontmatterModeEnabled ? 1 : 0}`,
+    `mode:${activeDocumentViewMode}`,
     `groups:${schemaGroupsKey}`,
     boundsOverridesKey ? `groupBounds:${boundsOverridesKey}` : '',
   ].filter(Boolean).join('|')
@@ -83,6 +93,8 @@ export const deriveSceneGroups = (args: {
   schema: GraphSchema
   documentSemanticMode: string
   frontmatterModeEnabled: boolean
+  multiDimTableModeEnabled?: boolean
+  documentStructureBaselineLock?: boolean
 }): SceneGroupsDerivation | null => {
   const g = args.graphData
   if (!g) return null
@@ -92,12 +104,20 @@ export const deriveSceneGroups = (args: {
     schema: args.schema,
     documentSemanticMode: args.documentSemanticMode,
     frontmatterModeEnabled: args.frontmatterModeEnabled,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled,
+    documentStructureBaselineLock: args.documentStructureBaselineLock,
   })
   const cached = cache.get(key)
   if (cached) return cached
 
+  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+    documentSemanticMode: String(args.documentSemanticMode || 'document'),
+    documentStructureBaselineLock: args.documentStructureBaselineLock === true,
+  })
   const boundsById = readSchemaGroupBoundsOverrides(args.schema)
-  const allGroupsBase = deriveGraphGroups(g, { forceDocumentStructure: args.documentSemanticMode === 'document' })
+  const allGroupsBase = deriveGraphGroups(g, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
   const allGroups = applySchemaGroupBoundsOverrides(allGroupsBase, boundsById)
   const layoutGroupsBase = selectLayoutGroups({ graphData: g, schema: args.schema, groups: allGroups })
   const layoutGroups = applySchemaGroupBoundsOverrides(layoutGroupsBase, boundsById)

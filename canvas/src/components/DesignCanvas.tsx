@@ -55,6 +55,7 @@ import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
@@ -471,9 +472,20 @@ export default function DesignCanvas({
   }, [deferredMarkdownText, snapshot.markdownDocumentName])
 
   const markdownPanelAllowedKinds = useMemo(() => {
-    if (snapshot.multiDimTableModeEnabled) return ['code', 'blockquote', 'callout', 'html'] as const
+    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+      frontmatterModeEnabled: snapshot.frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: snapshot.multiDimTableModeEnabled === true,
+      documentSemanticMode: String(snapshot.documentSemanticMode || 'document'),
+      documentStructureBaselineLock: snapshot.documentStructureBaselineLock === true,
+    })
+    if (activeDocumentViewMode === 'multiDimTable') return ['code', 'blockquote', 'callout', 'html'] as const
     return ['table', 'code', 'blockquote', 'callout', 'html'] as const
-  }, [snapshot.multiDimTableModeEnabled])
+  }, [
+    snapshot.documentSemanticMode,
+    snapshot.documentStructureBaselineLock,
+    snapshot.frontmatterModeEnabled,
+    snapshot.multiDimTableModeEnabled,
+  ])
 
   const directDocumentUrl = useMemo(() => tryExtractDesignDocumentUrl(snapshot.graphData as GraphData | null), [snapshot.graphData])
   const [webpageSource, setWebpageSource] = React.useState<WebpageSourceState>({ workspacePath: '', frontmatter: null })
@@ -1192,8 +1204,20 @@ export default function DesignCanvas({
   const designGroups = useMemo(() => {
     const g = snapshot.graphData
     if (!g) return []
-    return deriveGraphGroups(g, { forceDocumentStructure: snapshot.documentSemanticMode === 'document' })
-  }, [snapshot.documentSemanticMode, snapshot.graphData])
+    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+      frontmatterModeEnabled: snapshot.frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: snapshot.multiDimTableModeEnabled === true,
+      documentSemanticMode: String(snapshot.documentSemanticMode || 'document'),
+      documentStructureBaselineLock: snapshot.documentStructureBaselineLock === true,
+    })
+    return deriveGraphGroups(g, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
+  }, [
+    snapshot.documentSemanticMode,
+    snapshot.documentStructureBaselineLock,
+    snapshot.frontmatterModeEnabled,
+    snapshot.graphData,
+    snapshot.multiDimTableModeEnabled,
+  ])
   const allowGroupResize = readAllowGroupResize(snapshot.schema as GraphSchema | null)
   const groupHandleCfg = readGroupResizeHandleConfig(snapshot.schema as GraphSchema | null)
 

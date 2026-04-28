@@ -196,7 +196,7 @@ export function tryParseFlowBlockFromFrontmatterLines(args: {
     const rawLine = String(lines[i] || '')
     const trimmed = rawLine.trim()
     if (!trimmed || trimmed.startsWith('#')) continue
-    if (/^flow\s*:\s*$/.test(trimmed)) {
+    if (countIndent(rawLine) === 0 && /^flow\s*:\s*$/.test(trimmed)) {
       flowLine = i
       flowIndent = countIndent(rawLine)
       break

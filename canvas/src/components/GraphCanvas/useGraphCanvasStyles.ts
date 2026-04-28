@@ -2,7 +2,14 @@ import { useEffect, MutableRefObject } from 'react';
 import * as d3 from 'd3';
 import { GraphNode, GraphEdge } from '@/lib/graph/types';
 import { type GraphSchema } from '@/lib/graph/schema';
-import { getRenderNodeRadius2d, getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers';
+import {
+  getRenderNodeRadius2d,
+  getEdgeBaseStroke,
+  getEdgeLabelColor,
+  getEdgeStrokeWidth,
+  getNodeBaseStroke,
+  getNodeLabelColor,
+} from '@/components/GraphCanvas/helpers';
 import { type EdgeWithRuntime } from '@/components/GraphCanvas/utils';
 import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens';
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d';
@@ -102,9 +109,7 @@ export function applyGraphCanvasStyles2d({
     });
     nodesSelRef.current
       .attr('stroke', (d: GraphNode) => {
-        const override = schema.nodeStroke?.[d.type]?.color;
-        if (override) return override;
-        return colors.nodeStroke;
+        return getNodeBaseStroke(d, schema) || colors.nodeStroke;
       })
       .attr('stroke-width', (d: GraphNode) => {
         const override = schema.nodeStroke?.[d.type]?.width;
@@ -140,7 +145,8 @@ export function applyGraphCanvasStyles2d({
   if (labelsSelRef.current) {
     labelsSelRef.current
       .attr('font-size', lp.nodeFontSizePx)
-      .attr('fill', labelFill)
+      .attr('data-kg-label-fill', (d: GraphNode) => getNodeLabelColor(d, schema))
+      .attr('fill', (d: GraphNode) => getNodeLabelColor(d, schema))
       .attr('stroke', haloColor)
       .attr('stroke-width', haloWidth)
       .attr('stroke-linejoin', 'round')
@@ -151,7 +157,10 @@ export function applyGraphCanvasStyles2d({
   if (root) {
     const styleTextSel = (sel: d3.Selection<SVGTextElement, unknown, SVGGElement, unknown>, fontSizePx?: number) => {
       sel
-        .attr('fill', labelFill)
+        .attr('fill', function () {
+          const explicit = String((this as SVGTextElement).getAttribute('data-kg-label-fill') || '').trim()
+          return explicit || labelFill
+        })
         .attr('stroke', haloColor)
         .attr('stroke-width', Math.max(2, haloWidth * 0.85))
         .attr('stroke-linejoin', 'round')
@@ -162,10 +171,17 @@ export function applyGraphCanvasStyles2d({
     }
 
     styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="group-labels"] text'), lp.groupFontSizePx)
-    styleTextSel(root.selectAll<SVGTextElement, unknown>('[data-kg-layer="edge-labels"] text'), lp.edgeFontSizePx)
+    const edgeLabelSel = root.selectAll<SVGTextElement, GraphEdge>('[data-kg-layer="edge-labels"] text')
+    edgeLabelSel
+      .attr('data-kg-label-fill', (d: GraphEdge) => getEdgeLabelColor(d, schema))
+      .attr('fill', (d: GraphEdge) => getEdgeLabelColor(d, schema))
+    styleTextSel(edgeLabelSel as unknown as d3.Selection<SVGTextElement, unknown, SVGGElement, unknown>, lp.edgeFontSizePx)
     root
       .selectAll<SVGPathElement, unknown>('path[data-kg-group-chevron]')
-      .attr('stroke', labelFill)
+      .attr('stroke', function () {
+        const explicit = String((this as SVGPathElement).getAttribute('data-kg-label-fill') || '').trim()
+        return explicit || labelFill
+      })
   }
 }
 

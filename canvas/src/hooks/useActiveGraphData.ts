@@ -28,6 +28,7 @@ import { buildBipartiteSourceMeta } from '@/lib/bipartite/source'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { resolveActiveDocumentViewMode, withActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 
 let mermaidFrontmatterGeometryModulePromise: Promise<typeof import('@/lib/mermaid/mermaidFrontmatterGeometry')> | null = null
 
@@ -1141,23 +1142,32 @@ export function deriveGraphDataForActiveView(args: {
   documentStructureBaselineLock: boolean
   collapsedGroupIds: string[]
 }): GraphData {
+  const mode = resolveActiveDocumentViewMode({
+    frontmatterModeEnabled: args.frontmatterModeEnabled,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled,
+    documentSemanticMode: args.documentSemanticMode,
+    documentStructureBaselineLock: args.documentStructureBaselineLock,
+  })
   const base = (() => {
-    if (args.multiDimTableModeEnabled === true) {
+    if (mode === 'multiDimTable') {
       const tableGraph = deriveMarkdownTableGraphForFrontmatterMode({ graphData: args.graphData })
       return tableGraph || args.graphData
     }
-    const effective = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: args.frontmatterModeEnabled,
-      documentSemanticMode: args.documentSemanticMode,
-      graphData: args.graphData,
-    })
-    if (!args.frontmatterModeEnabled) return args.graphData
-    return effective ? filterGraphToFrontmatterMermaid(args.graphData) : args.graphData
+    if (mode === 'frontmatter') {
+      const effective = computeEffectiveFrontmatterMode({
+        frontmatterModeEnabled: true,
+        documentSemanticMode: 'document',
+        graphData: args.graphData,
+      })
+      return effective ? filterGraphToFrontmatterMermaid(args.graphData) : args.graphData
+    }
+    return args.graphData
   })()
+  const modeTaggedBase = withActiveDocumentViewMode(base, mode)
 
   const collapsedGroupIds = Array.isArray(args.collapsedGroupIds) ? args.collapsedGroupIds : []
-  if (collapsedGroupIds.length === 0) return base
-  return deriveGraphDataWithGroupCollapse({ graphData: base, collapsedGroupIds })
+  if (collapsedGroupIds.length === 0) return modeTaggedBase
+  return withActiveDocumentViewMode(deriveGraphDataWithGroupCollapse({ graphData: modeTaggedBase, collapsedGroupIds }), mode)
 }
 
 const INACTIVE_RENDER_SLICE = {
@@ -1269,7 +1279,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
       if (isFrontmatterFlowGraphData(graphData)) return graphData
       const source = hasFrontmatterMermaidSeeds(graphData) ? graphData : null
       if (!source) return null
-      return filterGraphToFrontmatterMermaid(source)
+      return withActiveDocumentViewMode(filterGraphToFrontmatterMermaid(source), 'frontmatter')
     }
     return deriveGraphDataForActiveView({
       graphData,

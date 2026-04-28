@@ -10,6 +10,7 @@ import { extractNodePosByIdFromSvgMarkup } from '@/lib/graph/svgNodePos'
 import { ensureSvgHasEdgeGeometry } from '@/lib/graph/svgEdgeGeometry'
 import { deriveMarkdownDesignLayoutFromGraphBlocks } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { computeMarkdownAnchorNodeIdByBlockId } from '@/lib/render/markdownPanelOverlayPool'
+import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import {
   decodeRepoFileUrlToRelPath,
   inlineRepoFileUrlToDataUrl,
@@ -859,11 +860,17 @@ export async function buildGraphHtmlViewerMarkup(args: {
     }
     const meta = (graph.metadata || {}) as Record<string, unknown>
     const isKeywordGraph = meta.kind === 'keyword'
+    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+      frontmatterModeEnabled: false,
+      multiDimTableModeEnabled: false,
+      documentSemanticMode: isKeywordGraph ? 'keyword' : 'document',
+      documentStructureBaselineLock: false,
+    })
     const view = meta['kg:view'] && typeof meta['kg:view'] === 'object' && !Array.isArray(meta['kg:view']) ? (meta['kg:view'] as Record<string, unknown>) : null
     const collapsedIds = view && Array.isArray(view.collapsedGroupIds) ? (view.collapsedGroupIds as unknown[]) : []
     const collapsedSet = new Set<string>(collapsedIds.map(x => String(x || '').trim()).filter(Boolean))
     const groups = filterGroupsByCollapsedAncestors({
-      groups: deriveGraphGroups(graph, { forceDocumentStructure: !isKeywordGraph }),
+      groups: deriveGraphGroups(graph, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' }),
       collapsedGroupIdSet: collapsedSet,
     })
     const out: Record<string, string[]> = {}

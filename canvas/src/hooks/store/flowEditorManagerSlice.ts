@@ -8,6 +8,7 @@ import {
   buildGenerateImageRegistryDraft,
   buildGenerateTextRegistryDraft,
   buildGenerateVideoRegistryDraft,
+  buildBytePlusVideoScriptRegistryDraft,
   buildRichMediaPanelRegistryDraft,
   buildTextGenerationRegistryDraft,
 } from '@/features/flow-editor-manager/registryTemplates'
@@ -23,6 +24,7 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_SCRIPT_FORM_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import type {
@@ -505,8 +507,15 @@ export function ensureDefaultWidgetRegistryEntries(
     draft: buildGenerateTextRegistryDraft(),
     nowIso,
   })
-  const seededOpenAiText = ensureDefaultRegistryEntry({
+  const seededVideoScript = ensureDefaultRegistryEntry({
     entries: seededText.entries,
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    formId: FLOW_VIDEO_SCRIPT_FORM_ID,
+    draft: buildBytePlusVideoScriptRegistryDraft(),
+    nowIso,
+  })
+  const seededOpenAiText = ensureDefaultRegistryEntry({
+    entries: seededVideoScript.entries,
     nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
     formId: 'textGeneration.openai',
     draft: buildTextGenerationRegistryDraft({
@@ -536,6 +545,7 @@ export function ensureDefaultWidgetRegistryEntries(
       seededImage.changed
       || seededVideo.changed
       || seededText.changed
+      || seededVideoScript.changed
       || seededOpenAiText.changed
       || seededRichMediaPanel.changed
       || seededGrabMapsDiscovery.changed,

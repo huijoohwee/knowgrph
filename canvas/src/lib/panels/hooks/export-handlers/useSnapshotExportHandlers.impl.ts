@@ -34,6 +34,7 @@ import { extractNodePosByIdFromSvgMarkup } from '@/lib/graph/svgNodePos'
 import { pickLayoutSeedPositions2dForExport } from '@/lib/graph/exportLayoutSeed2d'
 import { ensureSvgHasEdgeGeometry } from '@/lib/graph/svgEdgeGeometry'
 import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/markdownDesignSvgOverlay'
+import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
 
 type UseSnapshotExportHandlersParams = {
   captureCanvasSvgSnapshot: (mode?: '2d' | '3d') => Promise<string | null>
@@ -245,10 +246,17 @@ export function useSnapshotExportHandlers({
           return
         }
         const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
+        const multiDimTableModeEnabled = store.multiDimTableModeEnabled === true
         const frontmatterModeEnabled = computeEffectiveFrontmatterMode({
           frontmatterModeEnabled: store.frontmatterModeEnabled,
           documentSemanticMode: store.documentSemanticMode,
           graphData,
+        })
+        const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+          frontmatterModeEnabled: frontmatterModeEnabled === true,
+          multiDimTableModeEnabled,
+          documentSemanticMode,
+          documentStructureBaselineLock: store.documentStructureBaselineLock === true,
         })
         const wants3dExport =
           store.canvasRenderMode === '3d' ||
@@ -333,7 +341,7 @@ export function useSnapshotExportHandlers({
             overlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
             overlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
             overlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
-            layoutSemanticModeKey: store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode,
+            layoutSemanticModeKey,
           })
         })()
 
@@ -352,7 +360,6 @@ export function useSnapshotExportHandlers({
         })()
 
         const svgDerivedNodePosById = extractNodePosByIdFromSvgMarkup(String(svgMarkup || ''))
-        const layoutSemanticModeKey = store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
         const layoutSeedPosById = pickLayoutSeedPositions2dForExport({
           graphData,
           graphDataRevision: store.graphDataRevision,
@@ -525,10 +532,17 @@ export function useSnapshotExportHandlers({
           return
         }
         const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
+        const multiDimTableModeEnabled = store.multiDimTableModeEnabled === true
         const frontmatterModeEnabled = computeEffectiveFrontmatterMode({
           frontmatterModeEnabled: store.frontmatterModeEnabled,
           documentSemanticMode: store.documentSemanticMode,
           graphData,
+        })
+        const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+          frontmatterModeEnabled: frontmatterModeEnabled === true,
+          multiDimTableModeEnabled,
+          documentSemanticMode,
+          documentStructureBaselineLock: store.documentStructureBaselineLock === true,
         })
         const wants3dExport =
           store.canvasRenderMode === '3d' ||
@@ -609,7 +623,7 @@ export function useSnapshotExportHandlers({
             overlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
             overlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
             overlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
-            layoutSemanticModeKey: store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode,
+            layoutSemanticModeKey,
           })
         })()
 
@@ -628,7 +642,6 @@ export function useSnapshotExportHandlers({
         })()
 
         const svgDerivedNodePosById = extractNodePosByIdFromSvgMarkup(String(svgOnly || ''))
-        const layoutSemanticModeKey = store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
         const layoutSeedPosById = pickLayoutSeedPositions2dForExport({
           graphData,
           graphDataRevision: store.graphDataRevision,

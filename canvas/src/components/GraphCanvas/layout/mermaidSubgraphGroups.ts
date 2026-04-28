@@ -128,6 +128,7 @@ export const deriveMermaidSubgraphGroups = (data: GraphData): MermaidSubgraphGro
       fill: readStringProp(props, 'visual:fill') ?? undefined,
       stroke: readStringProp(props, 'visual:stroke') ?? undefined,
       strokeWidth: readNumberProp(props, 'visual:strokeWidth') ?? readNumberProp(props, 'stroke-width') ?? undefined,
+      labelColor: readStringProp(props, 'visual:labelColor') ?? readStringProp(props, 'visual:color') ?? undefined,
     }
     const xIndex = readNumberProp(props, 'visual:xIndex')
     const yIndex = readNumberProp(props, 'visual:yIndex')

@@ -5,6 +5,7 @@ import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
 import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
 import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
+import { getEdgeLabelColor } from '@/components/GraphCanvas/helpers'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>
 
@@ -58,6 +59,8 @@ export const createEdgeLabelsLayer = (args: {
     .attr('dominant-baseline', 'middle')
     .style('user-select', 'none')
     .style('pointer-events', 'all')
+    .attr('data-kg-label-fill', d => getEdgeLabelColor(d, schema))
+    .attr('fill', d => getEdgeLabelColor(d, schema))
     .text(d => truncateTextWithEllipsis(edgeLabelForDisplay(d), maxChars))
     .each(function (d) {
       this.setAttribute('data-label-full', edgeLabelForDisplay(d))

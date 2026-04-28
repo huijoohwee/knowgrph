@@ -26,6 +26,7 @@ import { useOverlayInteractions2d } from '@/components/GraphCanvasRoot/hooks/use
 import { resetGlobalUserSelectLock } from '@/lib/canvas/interaction-user-select'
 import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
@@ -220,13 +221,25 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   const layoutSemanticModeKey = useMemo(() => {
     const base = String(documentSemanticMode || 'document')
-    return multiDimTableModeEnabled ? `${base}:mdtbl` : base
-  }, [documentSemanticMode, multiDimTableModeEnabled])
+    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+      documentSemanticMode: String(documentSemanticMode || 'document'),
+      documentStructureBaselineLock: documentStructureBaselineLock === true,
+    })
+    return activeDocumentViewMode === 'multiDimTable' ? `${base}:mdtbl` : base
+  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, multiDimTableModeEnabled])
 
   const markdownPanelAllowedKinds = useMemo(() => {
-    if (multiDimTableModeEnabled) return ['code', 'blockquote', 'callout', 'html'] as const
+    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+      documentSemanticMode: String(documentSemanticMode || 'document'),
+      documentStructureBaselineLock: documentStructureBaselineLock === true,
+    })
+    if (activeDocumentViewMode === 'multiDimTable') return ['code', 'blockquote', 'callout', 'html'] as const
     return MARKDOWN_PANEL_ALLOWED_KINDS
-  }, [multiDimTableModeEnabled])
+  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, multiDimTableModeEnabled])
 
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const selectedNodeIdRef = useGraphStoreKeyRef('selectedNodeId')
@@ -338,9 +351,19 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         schema,
         documentSemanticMode: String(documentSemanticMode || ''),
         frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
+        multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+        documentStructureBaselineLock: documentStructureBaselineLock === true,
       }),
     })
-  }, [clonedGraphData, documentSemanticMode, effectiveFrontmatterModeEnabled, graphContentRevision, schema])
+  }, [
+    clonedGraphData,
+    documentSemanticMode,
+    documentStructureBaselineLock,
+    effectiveFrontmatterModeEnabled,
+    graphContentRevision,
+    multiDimTableModeEnabled,
+    schema,
+  ])
 
   const { width, height, left, top, dpr } = useContainerDims(containerRef)
   const canvasGrid = useMemo(() => readCanvasGridRenderConfigFromSchema(schema), [schema])
@@ -972,6 +995,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     sceneGroupsDerivation,
     edgesForSim,
     effectiveFrontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    documentStructureBaselineLock,
     documentSemanticMode,
     layoutSemanticModeKey,
     canvasRenderMode,
@@ -1012,6 +1037,9 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     sceneGraphData,
     schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
     documentSemanticMode,
+    frontmatterModeEnabled: effectiveFrontmatterModeEnabled === true,
+    multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+    documentStructureBaselineLock: documentStructureBaselineLock === true,
     canvas2dRenderer,
     coarsePointer: coarsePointer === true,
     sceneWidth,

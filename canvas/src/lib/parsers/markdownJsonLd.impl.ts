@@ -688,7 +688,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
         diagramScope: 'frontmatter',
         startIndex: diagramStart,
         ensureNode: (n) => builder.ensureNode(n),
-        addRel: (s, k, t) => builder.addRel(s, k, t),
+        addRel: (s, k, t, relationProps) => builder.addRel(s, k, t, relationProps),
         mkMeta,
       }
       parseMermaidFrontmatter(normalizeMermaidCodeForRuntime(diagram.code), parserCtx)
@@ -775,7 +775,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
           diagramScope: 'block',
           startIndex: diagramStart,
           ensureNode: (n) => builder.ensureNode(n),
-          addRel: (s, k, t) => builder.addRel(s, k, t),
+          addRel: (s, k, t, relationProps) => builder.addRel(s, k, t, relationProps),
           mkMeta,
         }
         parseMermaidFrontmatter(normalizeMermaidCodeForRuntime(diagram.code), parserCtx)

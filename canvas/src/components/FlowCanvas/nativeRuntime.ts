@@ -47,6 +47,7 @@ export type FlowNativeEdge = {
   inHandleId: FlowHandleId
   outHandleId: FlowHandleId
   label?: string
+  displayLabel?: string
   color?: string
   widthPx?: number
   zIndex?: number
@@ -969,7 +970,7 @@ const drawEdgeLabels = (
 
   for (let i = 0; i < edges.length; i += 1) {
     const e = edges[i]
-    const labelRaw = String(e.label || '').trim()
+    const labelRaw = String(e.displayLabel || e.label || '').trim()
     if (!labelRaw) continue
     const s = scene.nodeById.get(e.source)
     const t = scene.nodeById.get(e.target)

@@ -75,6 +75,7 @@ import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/li
 import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExport'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
@@ -470,7 +471,13 @@ export default function FlowCanvas({
         if (!graphData || !schema) return null
 
         const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
-        const layoutSemanticModeKey = store.multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
+        const activeDocumentViewMode = resolveActiveDocumentViewMode({
+          frontmatterModeEnabled: store.frontmatterModeEnabled === true,
+          multiDimTableModeEnabled: store.multiDimTableModeEnabled === true,
+          documentSemanticMode: String(store.documentSemanticMode || 'document'),
+          documentStructureBaselineLock: store.documentStructureBaselineLock === true,
+        })
+        const layoutSemanticModeKey = activeDocumentViewMode === 'multiDimTable' ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
         const frontmatterModeEnabled = computeEffectiveFrontmatterMode({
           frontmatterModeEnabled: store.frontmatterModeEnabled,
           documentSemanticMode: store.documentSemanticMode,
@@ -502,6 +509,8 @@ export default function FlowCanvas({
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
           documentSemanticMode,
           frontmatterModeEnabled,
+          multiDimTableModeEnabled: store.multiDimTableModeEnabled === true,
+          documentStructureBaselineLock: store.documentStructureBaselineLock === true,
           markdownDesignBlocks,
           collapsedGroupIds: store.collapsedGroupIds,
           layoutPositionCacheByMode: store.layoutPositionCacheByMode,
@@ -780,9 +789,15 @@ export default function FlowCanvas({
   }, [hideNodeIds, hidePortHandleNodeIds, hideSelectedNodeGlyph, hideSelectedNodePortHandles, scheduleFlowDraw])
 
   const markdownPanelAllowedKinds = React.useMemo(() => {
-    if (multiDimTableModeEnabled) return ['code', 'blockquote', 'callout', 'html'] as const
+    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+      documentSemanticMode: String(documentSemanticMode || 'document'),
+      documentStructureBaselineLock: documentStructureBaselineLock === true,
+    })
+    if (activeDocumentViewMode === 'multiDimTable') return ['code', 'blockquote', 'callout', 'html'] as const
     return ['table', 'code', 'blockquote', 'callout', 'html'] as const
-  }, [multiDimTableModeEnabled])
+  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, multiDimTableModeEnabled])
 
   React.useEffect(() => {
     drawArgsRef.current.showGroupResizeHandle = readAllowGroupResize(schema)
@@ -1745,8 +1760,18 @@ export default function FlowCanvas({
       schema,
       documentSemanticMode: String(documentSemanticMode || ''),
       frontmatterModeEnabled: !!effectiveFrontmatter,
+      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+      documentStructureBaselineLock: documentStructureBaselineLock === true,
     })
-  }, [documentSemanticMode, effectiveFrontmatter, filteredGraphDataForRenderer, graphDataRevision, schema])
+  }, [
+    documentSemanticMode,
+    documentStructureBaselineLock,
+    effectiveFrontmatter,
+    filteredGraphDataForRenderer,
+    graphDataRevision,
+    multiDimTableModeEnabled,
+    schema,
+  ])
 
   const sceneGroups = React.useMemo(() => {
     if (!flowPresentation.groups.enabled) return []
@@ -2059,7 +2084,13 @@ export default function FlowCanvas({
     }
     const mode = readLayoutMode(schema)
     const opts = readFitAllOptions({ schema, mode, intent: 'fitToView' })
-    if (documentSemanticMode === 'document') {
+    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+      documentSemanticMode: String(documentSemanticMode || 'document'),
+      documentStructureBaselineLock: documentStructureBaselineLock === true,
+    })
+    if (activeDocumentViewMode === 'documentStructure') {
       opts.detectClusters = false
       opts.includeGroupsBounds = true
       opts.deriveGroupsOptions = { forceDocumentStructure: true }
@@ -2105,11 +2136,14 @@ export default function FlowCanvas({
     active,
     canvas2dRenderer,
     documentSemanticMode,
+    documentStructureBaselineLock,
     flowEditorReservedW,
+    frontmatterModeEnabled,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
     flowWidgetPosByNodeId,
     graphDataForZoomRequests,
+    multiDimTableModeEnabled,
     nodesForFlowZoom,
     openWidgetNodeIds,
     schema,
@@ -2258,10 +2292,16 @@ export default function FlowCanvas({
     const schema = useGraphStore.getState().schema
     const mode = readLayoutMode(schema)
     const opts = readFitAllOptions({ schema, mode, intent: effectiveFitToScreenMode ? 'fitToScreen' : 'initialFit' })
+    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+      documentSemanticMode: String(documentSemanticMode || 'document'),
+      documentStructureBaselineLock: documentStructureBaselineLock === true,
+    })
 
     // In Document Structure Mode, enforce collective fit + center by disabling cluster detection
     // and ensuring groups are included in the bounds calculation.
-    if (documentSemanticMode === 'document') {
+    if (activeDocumentViewMode === 'documentStructure') {
       opts.detectClusters = false
       opts.includeGroupsBounds = true
       opts.deriveGroupsOptions = { forceDocumentStructure: true }
@@ -2410,6 +2450,9 @@ export default function FlowCanvas({
     nodesForFlowTransformGuard,
     nodesForFlowZoomCollective,
     documentSemanticMode,
+    documentStructureBaselineLock,
+    frontmatterModeEnabled,
+    multiDimTableModeEnabled,
     sceneGraphData,
     flowEditorReservedW,
   ])

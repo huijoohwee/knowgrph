@@ -3,11 +3,20 @@ import { splitMarkdownLines, parseMarkdownFrontmatter } from '@/lib/markdown'
 import { hashText } from '@/features/parsers/hash'
 import {
   FRONTMATTER_FLOW_WARNINGS_KEY,
+  FRONTMATTER_FLOW_HANDLES_VALUE_KEY,
+  FRONTMATTER_FLOW_WIDGET_FIELDS_KEY,
   normalizeMetaWithFlowBlock,
   repairFlowInlineEnvelopeBlockScalars,
   tryParseFlowBlockFromFrontmatterLines,
   tryParseFlowBlockFromMarkdownBodyLines,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
+import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import {
+  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+} from '@/lib/config.flow-editor'
 import {
   buildConnectionWarnings,
   ensureAugmentedPortsFromDeclaredConnections,
@@ -299,7 +308,7 @@ function readTopLevelFrontmatterSectionValue(args: {
   lines: string[]
   frontmatterStartLine: number
   frontmatterEndLineExclusive: number
-  key: 'runtime' | 'pipeline' | 'mermaid' | 'flow'
+  key: 'runtime' | 'pipeline' | 'mermaid' | 'flow' | 'widget_bundle' | 'graph_meta' | 'index'
 }): unknown {
   const lines = Array.isArray(args.lines) ? args.lines : []
   const start = Math.max(0, Math.floor(args.frontmatterStartLine))
@@ -339,6 +348,113 @@ function readTopLevelFrontmatterSectionValue(args: {
   }
 }
 
+function readFrontmatterIndexMermaidValue(args: {
+  meta: Record<string, unknown>
+  lines: string[]
+  frontmatterStartLine: number
+  frontmatterEndLineExclusive: number
+}): string {
+  const indexRaw = args.meta.index
+  if (isRecord(indexRaw)) {
+    const inline = asString((indexRaw as Record<string, unknown>).mermaid)
+    if (inline) return inline
+  }
+  const dotted = asString(args.meta['index.mermaid'])
+  if (dotted) return dotted
+  const fromRaw = readTopLevelFrontmatterSectionValue({
+    lines: args.lines,
+    frontmatterStartLine: args.frontmatterStartLine,
+    frontmatterEndLineExclusive: args.frontmatterEndLineExclusive,
+    key: 'index',
+  })
+  if (!isRecord(fromRaw)) return ''
+  return asString((fromRaw as Record<string, unknown>).mermaid)
+}
+
+function deriveFlowMetaFromIndexMermaid(args: {
+  meta: Record<string, unknown>
+  lines: string[]
+  frontmatterStartLine: number
+  frontmatterEndLineExclusive: number
+}): Record<string, unknown> {
+  const meta = args.meta
+  if (Array.isArray(meta.nodes) && meta.nodes.length > 0) return meta
+  if (isRecord(meta.flow) || (Array.isArray(meta.connections) && meta.connections.length > 0)) return meta
+  const mermaid = readFrontmatterIndexMermaidValue(args)
+  if (!mermaid) return meta
+  const lines = mermaid.split('\n')
+  const aliasToLabel = new Map<string, string>()
+  const aliases = new Set<string>()
+  let direction: 'LR' | 'RL' | 'TB' | 'BT' | null = null
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = String(lines[i] || '').trim()
+    if (!line || line.startsWith('%%')) continue
+    const flowDecl = /^(?:flowchart|graph)\s+(TD|LR|RL|TB|BT)\b/i.exec(line)
+    if (flowDecl) {
+      const raw = String(flowDecl[1] || '').toUpperCase()
+      direction = raw === 'RL' || raw === 'TB' || raw === 'BT' ? raw : 'LR'
+    }
+    const quotedDefs = line.matchAll(/([A-Za-z0-9_:-]+)\s*\[\s*"([^"]+)"\s*\]/g)
+    for (const def of quotedDefs) {
+      const alias = asString(def[1])
+      const label = asString(def[2])
+      if (!alias) continue
+      aliases.add(alias)
+      if (label) aliasToLabel.set(alias, label)
+    }
+    const plainDefs = line.matchAll(/([A-Za-z0-9_:-]+)\s*\[\s*([^\]]+)\s*\]/g)
+    for (const def of plainDefs) {
+      const alias = asString(def[1])
+      const label = asString(def[2])
+      if (!alias) continue
+      aliases.add(alias)
+      if (label && !aliasToLabel.has(alias)) aliasToLabel.set(alias, label)
+    }
+  }
+  const connections: Array<Record<string, unknown>> = []
+  const seen = new Set<string>()
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = String(lines[i] || '').trim()
+    if (!line || line.startsWith('%%')) continue
+    const edge = /^([A-Za-z0-9_:-]+)(?:\s*\[[^\]]*\])?\s*-->\s*(?:\|([^|]+)\|)?\s*([A-Za-z0-9_:-]+)(?:\s*\[[^\]]*\])?/.exec(line)
+    if (!edge) continue
+    const source = asString(edge[1])
+    const target = asString(edge[3])
+    if (!source || !target || source === target) continue
+    aliases.add(source)
+    aliases.add(target)
+    const label = asString(edge[2] || '')
+    const labelArrow = label.includes('→') ? '→' : label.includes('->') ? '->' : ''
+    const fromPort = labelArrow ? asString(label.split(labelArrow)[0]) || 'output' : 'output'
+    const toPort = labelArrow ? asString(label.split(labelArrow)[1]) || 'input' : 'input'
+    const uniq = `${source}|${fromPort}|${target}|${toPort}|${label}`
+    if (seen.has(uniq)) continue
+    seen.add(uniq)
+    connections.push({
+      id: `index-e${String(connections.length + 1).padStart(2, '0')}-${hashText(uniq)}`,
+      from_node: source,
+      from_port: fromPort,
+      to_node: target,
+      to_port: toPort,
+      ...(label ? { label } : {}),
+    })
+  }
+  const nodes = Array.from(aliases)
+    .sort((a, b) => a.localeCompare(b))
+    .map((id): Record<string, unknown> => ({
+      id,
+      type: 'default',
+      label: aliasToLabel.get(id) || id,
+    }))
+  if (nodes.length === 0) return meta
+  return {
+    ...meta,
+    nodes,
+    connections,
+    ...(direction ? { frontmatterFlowSettings: { direction } } : {}),
+  }
+}
+
 function enrichSourceFrontmatterMetaFromRawLines(args: {
   sourceFrontmatterMeta: Record<string, unknown> | null
   lines: string[]
@@ -346,7 +462,15 @@ function enrichSourceFrontmatterMetaFromRawLines(args: {
   frontmatterEndLineExclusive: number
 }): Record<string, unknown> | null {
   const base = isRecord(args.sourceFrontmatterMeta) ? { ...args.sourceFrontmatterMeta } : {}
-  const keys: Array<'runtime' | 'pipeline' | 'mermaid' | 'flow'> = ['runtime', 'pipeline', 'mermaid', 'flow']
+  const keys: Array<'runtime' | 'pipeline' | 'mermaid' | 'flow' | 'widget_bundle' | 'graph_meta' | 'index'> = [
+    'runtime',
+    'pipeline',
+    'mermaid',
+    'flow',
+    'widget_bundle',
+    'graph_meta',
+    'index',
+  ]
   for (let i = 0; i < keys.length; i += 1) {
     const key = keys[i]
     if (typeof base[key] !== 'undefined') continue
@@ -360,6 +484,280 @@ function enrichSourceFrontmatterMetaFromRawLines(args: {
     base[key] = value
   }
   return Object.keys(base).length > 0 ? base : null
+}
+
+function readWidgetBundleNodeTypeId(formIdRaw: unknown): string {
+  const formId = asString(formIdRaw)
+  if (formId === 'textGeneration') return FLOW_TEXT_GENERATION_NODE_TYPE_ID
+  if (formId === 'imageGeneration') return FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+  if (formId === 'videoGeneration') return FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+  if (formId === 'richMediaPanel') return FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+  return 'Node'
+}
+
+function asFlatStringArray(raw: unknown): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const add = (v: unknown) => {
+    const s = asString(v)
+    if (!s || seen.has(s)) return
+    seen.add(s)
+    out.push(s)
+  }
+  if (Array.isArray(raw)) {
+    for (let i = 0; i < raw.length; i += 1) {
+      const row = raw[i]
+      if (isRecord(row) && asString((row as Record<string, unknown>).port)) add((row as Record<string, unknown>).port)
+      else add(row)
+    }
+    return out
+  }
+  if (isRecord(raw)) {
+    const rec = raw as Record<string, unknown>
+    if (asString(rec.port)) add(rec.port)
+    return out
+  }
+  add(raw)
+  return out
+}
+
+function inferWidgetPortDirection(args: { handleKey: string; portKey: string }): 'input' | 'output' {
+  const handleKey = String(args.handleKey || '').trim().toLowerCase()
+  const portKey = String(args.portKey || '').trim().toLowerCase()
+  if (
+    handleKey.includes('out')
+    || portKey.endsWith('_out')
+    || portKey === 'imageurl'
+    || portKey === 'videourl'
+    || portKey === 'text_out'
+  ) {
+    return 'output'
+  }
+  if (
+    handleKey.includes('in')
+    || portKey.endsWith('_in')
+    || portKey === 'reference_image'
+    || portKey === 'image_url_url'
+    || portKey === 'input'
+  ) {
+    return 'input'
+  }
+  return 'input'
+}
+
+function readWidgetBundleFlowDirection(rawGraphMeta: unknown): 'LR' | 'RL' | 'TB' | 'BT' | null {
+  if (!isRecord(rawGraphMeta)) return null
+  const direction = asString((rawGraphMeta as Record<string, unknown>).direction).toUpperCase()
+  if (direction === 'RIGHT') return 'LR'
+  if (direction === 'LEFT') return 'RL'
+  if (direction === 'TOP') return 'TB'
+  if (direction === 'BOTTOM') return 'BT'
+  return null
+}
+
+function parseWidgetBundleMermaidWiring(args: {
+  mermaid: string
+  widgetIdSet: Set<string>
+}): Array<Record<string, unknown>> {
+  const mermaid = String(args.mermaid || '')
+  if (!mermaid.trim()) return []
+  const aliasToNodeId = new Map<string, string>()
+  const lines = mermaid.split('\n')
+  const readNodeIdFromLabel = (labelRaw: string): string => {
+    const label = String(labelRaw || '')
+    const m = /<br\s*\/?>\s*([A-Za-z0-9_-]+)/i.exec(label)
+    if (m && args.widgetIdSet.has(String(m[1] || '').trim())) return String(m[1] || '').trim()
+    const compact = label.replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim()
+    if (args.widgetIdSet.has(compact)) return compact
+    return ''
+  }
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = String(lines[i] || '').trim()
+    if (!line) continue
+    const quotedDefs = line.matchAll(/([A-Za-z0-9_]+)\s*\[\s*"([^"]+)"\s*\]/g)
+    for (const def of quotedDefs) {
+      const alias = asString(def[1])
+      const nodeId = readNodeIdFromLabel(def[2] || '')
+      if (alias && nodeId) aliasToNodeId.set(alias, nodeId)
+    }
+    const plainDefs = line.matchAll(/([A-Za-z0-9_]+)\s*\[\s*([^\]]+)\s*\]/g)
+    for (const def of plainDefs) {
+      const alias = asString(def[1])
+      const nodeId = readNodeIdFromLabel(def[2] || '')
+      if (alias && nodeId) aliasToNodeId.set(alias, nodeId)
+    }
+  }
+  const out: Array<Record<string, unknown>> = []
+  const seen = new Set<string>()
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = String(lines[i] || '').trim()
+    if (!line) continue
+    const edge = /^([A-Za-z0-9_]+)(?:\s*\[[^\]]*\])?\s*-->\s*(?:\|([^|]+)\|)?\s*([A-Za-z0-9_]+)(?:\s*\[[^\]]*\])?/.exec(line)
+    if (!edge) continue
+    const sourceAlias = asString(edge[1])
+    const targetAlias = asString(edge[3])
+    const source = aliasToNodeId.get(sourceAlias) || (args.widgetIdSet.has(sourceAlias) ? sourceAlias : '')
+    const target = aliasToNodeId.get(targetAlias) || (args.widgetIdSet.has(targetAlias) ? targetAlias : '')
+    if (!source || !target || source === target) continue
+    const label = asString(edge[2] || '')
+    const labelArrow = label.includes('→') ? '→' : label.includes('->') ? '->' : ''
+    const fromPort = labelArrow ? asString(label.split(labelArrow)[0]) || 'output' : 'output'
+    const toPort = labelArrow ? asString(label.split(labelArrow)[1]) || 'input' : 'input'
+    if (!fromPort || !toPort) continue
+    const uniq = `${source}|${fromPort}|${target}|${toPort}`
+    if (seen.has(uniq)) continue
+    seen.add(uniq)
+    out.push({
+      id: `wb-e${String(out.length + 1).padStart(2, '0')}-${hashText(uniq)}`,
+      from_node: source,
+      from_port: fromPort,
+      to_node: target,
+      to_port: toPort,
+      ...(label ? { label } : {}),
+    })
+  }
+  return out
+}
+
+function deriveFlowMetaFromWidgetBundle(args: {
+  meta: Record<string, unknown>
+  lines: string[]
+  frontmatterStartLine: number
+  frontmatterEndLineExclusive: number
+}): Record<string, unknown> {
+  const meta = args.meta
+  if (Array.isArray(meta.nodes) && meta.nodes.length > 0) return meta
+  if (isRecord(meta.flow) || (Array.isArray(meta.connections) && meta.connections.length > 0)) return meta
+  const widgetBundleRaw = typeof meta.widget_bundle !== 'undefined'
+    ? meta.widget_bundle
+    : readTopLevelFrontmatterSectionValue({
+        lines: args.lines,
+        frontmatterStartLine: args.frontmatterStartLine,
+        frontmatterEndLineExclusive: args.frontmatterEndLineExclusive,
+        key: 'widget_bundle',
+      })
+  if (!isRecord(widgetBundleRaw)) return meta
+  const widgetBundle = widgetBundleRaw as Record<string, unknown>
+  const widgets = Array.isArray(widgetBundle.widgets) ? widgetBundle.widgets : []
+  if (widgets.length === 0) return meta
+  const nodes: Array<Record<string, unknown>> = []
+  const widgetIdSet = new Set<string>()
+  const declaredPortsByNode = new Map<string, { input: Set<string>; output: Set<string> }>()
+  for (let i = 0; i < widgets.length; i += 1) {
+    const row = widgets[i]
+    if (!isRecord(row)) continue
+    const id = asString((row as Record<string, unknown>).id)
+    if (!id || widgetIdSet.has(id)) continue
+    widgetIdSet.add(id)
+    const formId = asString((row as Record<string, unknown>).formId)
+    const type = readWidgetBundleNodeTypeId(formId)
+    const properties: Record<string, unknown> = {
+      ...(formId ? { [FLOW_WIDGET_FORM_ID_KEY]: formId } : {}),
+    }
+    const fields: Array<{ fieldKey: string; fieldType: string; schemaPath: string }> = []
+    const rawProperties = Array.isArray((row as Record<string, unknown>).properties)
+      ? ((row as Record<string, unknown>).properties as unknown[])
+      : []
+    for (let j = 0; j < rawProperties.length; j += 1) {
+      const prop = rawProperties[j]
+      if (!isRecord(prop)) continue
+      const key = asString((prop as Record<string, unknown>).key)
+      if (!key) continue
+      const fieldType = asString((prop as Record<string, unknown>).type) || 'string'
+      properties[key] = (prop as Record<string, unknown>).value
+      fields.push({ fieldKey: key, fieldType, schemaPath: key })
+    }
+    if (fields.length > 0) properties[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY] = fields
+    const handles = isRecord((row as Record<string, unknown>).handles)
+      ? ((row as Record<string, unknown>).handles as Record<string, unknown>)
+      : null
+    const declared = { input: new Set<string>(), output: new Set<string>() }
+    if (handles) {
+      for (const [handleKey, rawHandle] of Object.entries(handles)) {
+        const ports = asFlatStringArray(rawHandle)
+        for (let p = 0; p < ports.length; p += 1) {
+          const portKey = ports[p]
+          const direction = inferWidgetPortDirection({ handleKey, portKey })
+          declared[direction].add(portKey)
+        }
+      }
+      properties[FRONTMATTER_FLOW_HANDLES_VALUE_KEY] = {
+        target: Array.from(declared.input),
+        source: Array.from(declared.output),
+      }
+    }
+    declaredPortsByNode.set(id, declared)
+    nodes.push({
+      id,
+      type,
+      label: id,
+      properties,
+    })
+  }
+  if (nodes.length === 0) return meta
+  const mermaidRaw = typeof meta.mermaid === 'string'
+    ? meta.mermaid
+    : typeof widgetBundle.mermaid === 'string'
+      ? widgetBundle.mermaid
+    : String(
+        readTopLevelFrontmatterSectionValue({
+          lines: args.lines,
+          frontmatterStartLine: args.frontmatterStartLine,
+          frontmatterEndLineExclusive: args.frontmatterEndLineExclusive,
+          key: 'mermaid',
+        }) || '',
+      )
+  const connections = parseWidgetBundleMermaidWiring({
+    mermaid: mermaidRaw,
+    widgetIdSet,
+  })
+  const usedInputByNode = new Map<string, Set<string>>()
+  const usedOutputByNode = new Map<string, Set<string>>()
+  for (let i = 0; i < connections.length; i += 1) {
+    const conn = connections[i] as Record<string, unknown>
+    const source = asString(conn.from_node)
+    const target = asString(conn.to_node)
+    const fromPort = asString(conn.from_port)
+    const toPort = asString(conn.to_port)
+    if (source && fromPort) {
+      const set = usedOutputByNode.get(source) || new Set<string>()
+      set.add(fromPort)
+      usedOutputByNode.set(source, set)
+    }
+    if (target && toPort) {
+      const set = usedInputByNode.get(target) || new Set<string>()
+      set.add(toPort)
+      usedInputByNode.set(target, set)
+    }
+  }
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i] as Record<string, unknown>
+    const nodeId = asString(node.id)
+    const declared = declaredPortsByNode.get(nodeId) || { input: new Set<string>(), output: new Set<string>() }
+    const sourceFromConnections = usedOutputByNode.get(nodeId) || new Set<string>()
+    const targetFromConnections = usedInputByNode.get(nodeId) || new Set<string>()
+    const inputs = new Set<string>([...declared.input, ...targetFromConnections])
+    const outputs = new Set<string>([...declared.output, ...sourceFromConnections])
+    node.inputs = Array.from(inputs).sort((a, b) => a.localeCompare(b)).map(port => ({ port }))
+    node.outputs = Array.from(outputs).sort((a, b) => a.localeCompare(b)).map(port => ({ port }))
+  }
+  const graphMetaRaw = typeof meta.graph_meta !== 'undefined'
+    ? meta.graph_meta
+    : typeof widgetBundle.graph_meta !== 'undefined'
+      ? widgetBundle.graph_meta
+    : readTopLevelFrontmatterSectionValue({
+        lines: args.lines,
+        frontmatterStartLine: args.frontmatterStartLine,
+        frontmatterEndLineExclusive: args.frontmatterEndLineExclusive,
+        key: 'graph_meta',
+      })
+  const direction = readWidgetBundleFlowDirection(graphMetaRaw)
+  return {
+    ...meta,
+    nodes,
+    connections,
+    ...(direction ? { frontmatterFlowSettings: { direction } } : {}),
+  }
 }
 
 export function tryParseMarkdownFrontmatterFlowGraph(
@@ -471,20 +869,32 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     frontmatterEndLineExclusive: frontmatterClose + 1,
   })
   const metaWithScalarFallback = { ...scalarFallback, ...metaWithFlowFallback }
+  const metaWithWidgetBundleFallback = deriveFlowMetaFromWidgetBundle({
+    meta: metaWithScalarFallback,
+    lines,
+    frontmatterStartLine: lead + 1,
+    frontmatterEndLineExclusive: frontmatterClose + 1,
+  })
+  const metaWithIndexMermaidFallback = deriveFlowMetaFromIndexMermaid({
+    meta: metaWithWidgetBundleFallback,
+    lines,
+    frontmatterStartLine: lead + 1,
+    frontmatterEndLineExclusive: frontmatterClose + 1,
+  })
   const chatKnowgrphDoc =
-    isChatKnowgrphDoc(metaWithScalarFallback) ||
+    isChatKnowgrphDoc(metaWithIndexMermaidFallback) ||
     isChatKnowgrphFrontmatterText({
       lines,
       frontmatterStartLine: lead + 1,
       frontmatterEndLineExclusive: frontmatterClose + 1,
     })
   const metaForNormalization = chatKnowgrphDoc
-    ? ({ ...metaWithScalarFallback, 'frontmatter:chatKnowgrphRelaxed': true } as Record<string, unknown>)
-    : metaWithScalarFallback
+    ? ({ ...metaWithIndexMermaidFallback, 'frontmatter:chatKnowgrphRelaxed': true } as Record<string, unknown>)
+    : metaWithIndexMermaidFallback
 
   const metaRecord = normalizeMetaWithFlowBlock(metaForNormalization as Record<string, unknown>)
   const sourceFrontmatterMeta = enrichSourceFrontmatterMetaFromRawLines({
-    sourceFrontmatterMeta: buildSourceFrontmatterMeta(metaWithScalarFallback),
+    sourceFrontmatterMeta: buildSourceFrontmatterMeta(metaWithIndexMermaidFallback),
     lines,
     frontmatterStartLine: lead + 1,
     frontmatterEndLineExclusive: frontmatterClose,

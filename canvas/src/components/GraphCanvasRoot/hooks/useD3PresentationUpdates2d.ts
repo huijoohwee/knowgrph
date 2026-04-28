@@ -22,6 +22,9 @@ export function useD3PresentationUpdates2d(args: {
   sceneGraphData: GraphData | null
   schemaRef: MutableRefObject<GraphSchema>
   documentSemanticMode: 'document' | 'keyword'
+  frontmatterModeEnabled: boolean
+  multiDimTableModeEnabled: boolean
+  documentStructureBaselineLock: boolean
   canvas2dRenderer: string | null
   coarsePointer: boolean
   sceneWidth: number
@@ -60,6 +63,9 @@ export function useD3PresentationUpdates2d(args: {
     sceneGraphData,
     schemaRef,
     documentSemanticMode,
+    frontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    documentStructureBaselineLock,
     canvas2dRenderer,
     coarsePointer,
     sceneWidth,
@@ -188,6 +194,9 @@ export function useD3PresentationUpdates2d(args: {
         gRef,
         schema: schemaValue,
         documentSemanticMode: documentSemanticMode ?? undefined,
+        frontmatterModeEnabled: frontmatterModeEnabled === true,
+        multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+        documentStructureBaselineLock: documentStructureBaselineLock === true,
         hoverEnabled,
         zoomOnDoubleClick,
         renderMediaAsNodes,
@@ -279,6 +288,9 @@ export function useD3PresentationUpdates2d(args: {
         schema: schemaValue,
         graphData: sceneGraphData,
         documentSemanticMode: documentSemanticMode ?? undefined,
+        frontmatterModeEnabled: frontmatterModeEnabled === true,
+        multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+        documentStructureBaselineLock: documentStructureBaselineLock === true,
         beforeRenderFrameRef,
         simulationRef,
         hoverEnabled,
@@ -295,6 +307,8 @@ export function useD3PresentationUpdates2d(args: {
     beforeRenderFrameRef,
     coarsePointer,
     documentSemanticMode,
+    documentStructureBaselineLock,
+    frontmatterModeEnabled,
     gRef,
     groupsPresentationAppliedKeyRef,
     schemaGroupsPresentationJson,
@@ -302,5 +316,6 @@ export function useD3PresentationUpdates2d(args: {
     sceneGraphData,
     setHoverInfo,
     simulationRef,
+    multiDimTableModeEnabled,
   ])
 }

@@ -13,6 +13,7 @@ import { defaultSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/grap
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
@@ -109,6 +110,7 @@ function Minimap() {
       graphData,
       documentSemanticMode,
       frontmatterModeEnabled,
+      multiDimTableModeEnabled,
       documentStructureBaselineLock,
       renderMediaAsNodes,
       mediaPanelDensity,
@@ -125,6 +127,7 @@ function Minimap() {
     frontmatterModeEnabled,
     graphData,
     mediaPanelDensity,
+    multiDimTableModeEnabled,
     renderMediaAsNodes,
     schema,
   ])
@@ -151,7 +154,12 @@ function Minimap() {
     if (baseNodes.length === 0) return baseNodes
     if (infiniteCanvasInteractionMode === 'interactive') return baseNodes
     const schemaEffective = schema || defaultSchema
-    const semanticModeKey = multiDimTableModeEnabled ? `${String(documentSemanticMode || 'document')}:mdtbl` : String(documentSemanticMode || 'document')
+    const semanticModeKey = buildDocumentSemanticModeKey({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+      documentSemanticMode: String(documentSemanticMode || 'document'),
+      documentStructureBaselineLock: documentStructureBaselineLock === true,
+    })
     const effectiveFrontmatter = computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true,
       documentSemanticMode: String(documentSemanticMode || 'document'),

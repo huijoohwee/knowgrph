@@ -110,3 +110,68 @@ export const testGraphDataForDisplayKeepsRichMediaPanelWithoutLocalMediaSpec = (
   const edgeIds = new Set((display.edges || []).map(e => String((e as { id?: unknown }).id)))
   if (!edgeIds.has('edge-1')) throw new Error('expected edge to Rich Media Panel to stay visible with the panel node')
 }
+
+export const testGraphDataForDisplaySuppressesDocumentStructureScaffoldOutsideDocumentStructureMode = () => {
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { 'kg:activeDocumentViewMode': 'keyword' },
+    nodes: [
+      { id: 'doc1', type: 'Document', label: 'Doc', properties: {}, metadata: {} },
+      { id: 'sec1', type: 'Section', label: 'Section 1', properties: { level: 1 }, metadata: {} },
+      { id: 'p1', type: 'Paragraph', label: 'Paragraph 1', properties: {}, metadata: {} },
+      { id: 'l1', type: 'List', label: 'List 1', properties: {}, metadata: {} },
+      { id: 'li1', type: 'ListItem', label: 'Item 1', properties: {}, metadata: {} },
+      { id: 'a1', type: 'Anchor', label: 'Anchor 1', properties: { anchorId: 'phase-1' }, metadata: {} },
+      { id: 'il1', type: 'InternalLink', label: 'Link 1', properties: {}, metadata: {} },
+      { id: 'm1', type: 'MermaidNode', label: 'Flow 1', properties: { mermaidScope: 'frontmatter' }, metadata: {} },
+      { id: 'entity1', type: 'Entity', label: 'Entity 1', properties: {}, metadata: {} },
+    ],
+    edges: [
+      { id: 'e-doc-anchor', source: 'doc1', target: 'a1', label: 'hasAnchor', properties: {}, metadata: {} },
+      { id: 'e-sec-block', source: 'sec1', target: 'p1', label: 'hasBlock', properties: {}, metadata: {} },
+      { id: 'e-list-item', source: 'l1', target: 'li1', label: 'hasItem', properties: {}, metadata: {} },
+      { id: 'e-link-anchor', source: 'il1', target: 'a1', label: 'pointsTo', properties: {}, metadata: {} },
+      { id: 'e-flow-entity', source: 'm1', target: 'entity1', label: 'rel', properties: {}, metadata: {} },
+    ],
+  }
+
+  const display = getGraphDataForDisplay({ graphData })
+  const nodeIds = new Set((display.nodes || []).map(n => String((n as { id?: unknown }).id)))
+  for (const id of ['doc1', 'sec1', 'p1', 'l1', 'li1', 'a1', 'il1']) {
+    if (nodeIds.has(id)) throw new Error(`expected document-structure scaffold node ${id} to be suppressed outside document structure mode`)
+  }
+  for (const id of ['m1', 'entity1']) {
+    if (!nodeIds.has(id)) throw new Error(`expected non-structure node ${id} to remain visible`)
+  }
+  const edgeIds = new Set((display.edges || []).map(e => String((e as { id?: unknown }).id)))
+  for (const id of ['e-doc-anchor', 'e-sec-block', 'e-list-item', 'e-link-anchor']) {
+    if (edgeIds.has(id)) throw new Error(`expected document-structure scaffold edge ${id} to be suppressed outside document structure mode`)
+  }
+  if (!edgeIds.has('e-flow-entity')) throw new Error('expected non-structure edge to remain visible')
+}
+
+export const testGraphDataForDisplayKeepsKeywordEdgesWithHiddenKeywordSourceEndpoint = () => {
+  const graphData: GraphData = {
+    type: 'Graph',
+    context: 'keyword-view',
+    metadata: { 'kg:activeDocumentViewMode': 'keyword' },
+    nodes: [
+      { id: 'src-1', type: 'KeywordSource', label: 'Source', properties: {}, metadata: {} },
+      { id: 'kw-1', type: 'Entity', label: 'Keyword', properties: { 'keyword:kind': 'keyword' }, metadata: {} },
+    ],
+    edges: [
+      { id: 'e-mentions', source: 'src-1', target: 'kw-1', label: 'mentions', properties: {}, metadata: {} },
+    ],
+  }
+
+  const display = getGraphDataForDisplay({ graphData })
+  const nodeIds = new Set((display.nodes || []).map(n => String((n as { id?: unknown }).id)))
+  if (!nodeIds.has('src-1') || !nodeIds.has('kw-1')) {
+    throw new Error('expected connected keyword helper endpoint and keyword entity to stay visible when preserving a valid visible edge')
+  }
+  const edgeIds = new Set((display.edges || []).map(e => String((e as { id?: unknown }).id)))
+  if (!edgeIds.has('e-mentions')) {
+    throw new Error('expected keyword mentions edge to remain visible outside document structure mode')
+  }
+}

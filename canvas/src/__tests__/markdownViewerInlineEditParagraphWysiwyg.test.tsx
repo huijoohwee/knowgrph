@@ -5,6 +5,14 @@ const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
 }
 
+const waitForCondition = async (check: () => boolean, attempts: number = 60) => {
+  for (let i = 0; i < attempts; i += 1) {
+    if (check()) return true
+    await tick()
+  }
+  return false
+}
+
 const ensureRangeRect = (dom: ReturnType<typeof initJsdomHarness>['dom']) => {
   try {
     const proto = (dom.window as unknown as { Range?: { prototype?: Record<string, unknown> } }).Range?.prototype as unknown as {
@@ -333,6 +341,70 @@ export async function testMarkdownViewerInlineEditParagraphEarlyBlurDoesNotBounc
     await tick()
     const stillEditing = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
     if (!stillEditing) throw new Error('expected early blur guard to keep editor active and prevent bounce-out')
+
+    root.unmount()
+  } finally {
+    restore()
+  }
+}
+
+export async function testMarkdownViewerInlineEditParagraphPlainTextCommitDoesNotEscapeMarkdownChars() {
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    ensureRangeRect(dom)
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const replaceCalls: Array<{ startLine: number; endLine: number; replacementLines: string[] }> = []
+    const reactDomClient = await import('react-dom/client')
+    const root = reactDomClient.createRoot(container)
+    const mod = await import('@/features/markdown/ui/MarkdownBlockContainer')
+    const MarkdownBlockContainer = mod.MarkdownBlockContainer
+
+    root.render(
+      <MarkdownBlockContainer
+        as="p"
+        className="mt-2 mb-2 text-sm"
+        highlightClass=""
+        startLine={1}
+        endLine={1}
+        inlineEditable
+        sourceLines={['Plain paragraph']}
+        onReplaceLineRange={(args) => {
+          replaceCalls.push(args)
+        }}
+        editPresentation="html"
+        editHtmlRender="inline"
+      >
+        <span>Plain paragraph</span>
+      </MarkdownBlockContainer>,
+    )
+    await tick()
+    await tick()
+
+    const host = dom.window.document.querySelector('[data-start-line="1"]') as HTMLElement | null
+    if (!host) throw new Error('expected host paragraph')
+    host.getBoundingClientRect = () => ({
+      x: 0, y: 0, top: 0, left: 0, right: 320, bottom: 42, width: 320, height: 42, toJSON: () => ({}),
+    } as unknown as DOMRect)
+
+    host.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 12, clientY: 12 }))
+    await tick()
+    const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
+    if (!editor) throw new Error('expected editor after click')
+
+    const nextText = 'hello_world [link](https://x.com) ok'
+    editor.textContent = nextText
+    editor.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, cancelable: true }))
+    editor.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true }))
+    editor.dispatchEvent(new dom.window.FocusEvent('focusout', { bubbles: true }))
+    const committed = await waitForCondition(() => replaceCalls.length > 0)
+    if (!committed) throw new Error('expected paragraph inline edit to commit replacement lines')
+
+    const commit = replaceCalls[replaceCalls.length - 1]
+    if (commit.replacementLines.length !== 1 || commit.replacementLines[0] !== nextText) {
+      throw new Error(`expected plain text inline edit to keep markdown-like characters unescaped; got=${JSON.stringify(commit.replacementLines)}`)
+    }
 
     root.unmount()
   } finally {

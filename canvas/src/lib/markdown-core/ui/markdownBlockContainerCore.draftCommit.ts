@@ -29,6 +29,16 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
   setEditing: React.Dispatch<React.SetStateAction<boolean>>
   setSessionEditLineRange: React.Dispatch<React.SetStateAction<{ startLine: number; endLine: number } | null>>
 }) => {
+  const hasSemanticRichMarkup = React.useCallback((root: HTMLElement): boolean => {
+    const nodes = Array.from(root.querySelectorAll('*'))
+    for (let i = 0; i < nodes.length; i += 1) {
+      const tag = String(nodes[i].tagName || '').toLowerCase()
+      if (tag === 'div' || tag === 'p' || tag === 'span' || tag === 'br') continue
+      return true
+    }
+    return false
+  }, [])
+
   const readEditorPlainText = React.useCallback((): string => {
     const el = args.editorRef.current
     if (!el) return ''
@@ -144,13 +154,22 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
       args.setEditing(false)
       const html = rewriteSigilSpansToInlineCodeHtml(root.innerHTML)
       void (async () => {
-        const result = await convertHtmlToMarkdownUnified({
-          html: `<div>${html}</div>`,
-          ...HTML_TO_MARKDOWN_UNIFIED_DEFAULTS,
-        })
-        if (!result.ok) return
+        const plainDraft = readEditorPlainText()
+        const preferPlainTextInlineCommit =
+          args.htmlRenderMode === 'inline'
+          && !hasSemanticRichMarkup(root)
+        const markdown = preferPlainTextInlineCommit
+          ? String(plainDraft || '').replace(/\r/g, '').replace(/\n+$/g, '')
+          : await (async () => {
+            const result = await convertHtmlToMarkdownUnified({
+              html: `<div>${html}</div>`,
+              ...HTML_TO_MARKDOWN_UNIFIED_DEFAULTS,
+            })
+            if (!result.ok) return ''
+            return String(result.markdown || '').replace(/\s+$/g, '')
+          })()
         if (args.editSessionIdRef.current !== sessionId) return
-        const markdown = String(result.markdown || '').replace(/\s+$/g, '')
+        if (!preferPlainTextInlineCommit && !markdown) return
         if (markdown === args.initialPresentTextRef.current) return
         const replacementLines = buildReplacementLinesFromDraft(markdown)
         if (areReplacementLinesNoop({ sourceLines: args.sourceLines, startLine: args.editStartLine, endLine: args.editEndLine, replacementLines })) {
@@ -177,7 +196,7 @@ export const useMarkdownBlockContainerDraftCommit = (args: {
     args.onReplaceLineRange({ startLine: args.editStartLine, endLine: args.editEndLine, replacementLines })
     args.setEditing(false)
     args.setSessionEditLineRange(null)
-  }, [args, buildReplacementLinesFromDraft, getDraft])
+  }, [args, buildReplacementLinesFromDraft, getDraft, hasSemanticRichMarkup, readEditorPlainText])
 
   const cancel = React.useCallback(() => {
     args.setEditing(false)

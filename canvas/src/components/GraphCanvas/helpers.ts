@@ -3,7 +3,13 @@ import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import { getNodeRadiusFromSchema, getNodeRenderRadius, getThreeConfig } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schemaTypes'
 import { getAdjacencyMap } from '@/components/GraphCanvas/adjacency'
-import { getEdgeBaseStroke as getEdgeBaseStrokeRaw, getNodeBaseFill as getNodeBaseFillRaw } from '@/lib/graph/visualStyles'
+import {
+  getEdgeBaseStroke as getEdgeBaseStrokeRaw,
+  getEdgeLabelColor as getEdgeLabelColorRaw,
+  getNodeBaseFill as getNodeBaseFillRaw,
+  getNodeBaseStroke as getNodeBaseStrokeRaw,
+  getNodeLabelColor as getNodeLabelColorRaw,
+} from '@/lib/graph/visualStyles'
 import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 export { getNodeMediaSpec, hasNodeMedia, type NodeMediaKind, type NodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 
@@ -120,9 +126,18 @@ export function getEdgeStrokeWidth(edge: GraphEdge, schema: GraphSchema): number
   const threeCfg = getThreeConfig(schema)
   const formula = threeCfg.edgeWidthFormula || 'schema'
   const propWidth = props['visual:width']
+  const propStrokeWidth = props['visual:strokeWidth'] ?? props['stroke-width']
+  const explicitStrokeWidth =
+    typeof propStrokeWidth === 'number'
+      ? propStrokeWidth
+      : typeof propStrokeWidth === 'string' && propStrokeWidth.trim()
+        ? Number(propStrokeWidth)
+        : null
   let width = baseFromSchema
   if (isKeyword && typeof propWidth === 'number' && Number.isFinite(propWidth) && propWidth > 0) {
     width = propWidth
+  } else if (typeof explicitStrokeWidth === 'number' && Number.isFinite(explicitStrokeWidth) && explicitStrokeWidth > 0) {
+    width = explicitStrokeWidth
   } else if (formula !== 'weight' && typeof propWidth === 'number' && Number.isFinite(propWidth) && propWidth > 0) {
     width = propWidth
   } else if (formula === 'weight') {
@@ -191,6 +206,18 @@ export function getVisualOpacity(d: GraphNode): number {
 
 export function getNodeBaseFill(d: GraphNode, schema: GraphSchema): string {
   return getNodeBaseFillRaw(d, schema)
+}
+
+export function getNodeBaseStroke(d: GraphNode, schema: GraphSchema): string {
+  return getNodeBaseStrokeRaw(d, schema)
+}
+
+export function getNodeLabelColor(d: GraphNode, schema: GraphSchema): string {
+  return getNodeLabelColorRaw(d, schema)
+}
+
+export function getEdgeLabelColor(e: GraphEdge, schema: GraphSchema): string {
+  return getEdgeLabelColorRaw(e, schema)
 }
 
 export type FlowKind = 'input' | 'compute'

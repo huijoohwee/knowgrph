@@ -31,6 +31,7 @@ import { pickLayoutPositionsSource } from '@/components/GraphCanvas/layout/posit
 import { applyCollectiveGraphLayout } from '@/components/GraphCanvas/layout/collectiveFit'
 import { detectKeywordGraph } from '@/components/GraphCanvas/layout/graphKind'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
@@ -54,6 +55,7 @@ type SetupGraphSceneArgs = {
   documentSemanticMode?: 'document' | 'keyword'
   frontmatterModeEnabled?: boolean
   multiDimTableModeEnabled?: boolean
+  documentStructureBaselineLock?: boolean
   canvas2dRenderer?: string
   edgesForSim: GraphEdge[]
   width: number
@@ -200,6 +202,12 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   const display = deriveSceneDisplayGraph({ graphData, edges: edgesForSim || [] })
   const graphDataForDisplay = display?.displayGraphData || graphData
+  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+    documentSemanticMode: String(args.documentSemanticMode || 'document'),
+    documentStructureBaselineLock: args.documentStructureBaselineLock === true,
+  })
   sceneGraphDataRef.current = graphDataForDisplay
   const displayNodes = Array.isArray(graphDataForDisplay.nodes) ? (graphDataForDisplay.nodes as GraphNode[]) : []
   const edgesForDisplayUnsorted = Array.isArray(graphDataForDisplay.edges) ? (graphDataForDisplay.edges as GraphEdge[]) : []
@@ -315,7 +323,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       ...baseOpts,
       centerMode: 'centroid' as const,
       graphData: graphDataForDisplay,
-      deriveGroupsOptions: { forceDocumentStructure: args.documentSemanticMode === 'document' },
+      deriveGroupsOptions: { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' },
     }
     const t = fitAllTransform(nodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
     const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
@@ -562,7 +570,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     svg.attr('data-kg-layout-frozen', '1')
   }
 
-  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure: args.documentSemanticMode === 'document' })
+  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
   const nodeZKeyById = buildNodeZKeyById({ nodes: displayNodes, groups: allGroupsForZOrder })
 
   const groupsLayer = createGroupsLayer({
@@ -571,6 +579,9 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     edgesForDisplay,
     schema,
     documentSemanticMode: args.documentSemanticMode,
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+    documentStructureBaselineLock: args.documentStructureBaselineLock === true,
     simulation,
     groupsOverride: allGroupsForZOrder,
     updateNode: args.updateNode,
@@ -893,6 +904,9 @@ export const updateGraphSceneNodesPresentation = (args: {
   edgeScrollEnabled?: () => boolean
   schema: GraphSchema
   documentSemanticMode?: 'document' | 'keyword'
+  frontmatterModeEnabled?: boolean
+  multiDimTableModeEnabled?: boolean
+  documentStructureBaselineLock?: boolean
   hoverEnabled: boolean
   zoomOnDoubleClick: boolean
   renderMediaAsNodes: boolean
@@ -927,7 +941,13 @@ export const updateGraphSceneNodesPresentation = (args: {
   const graphData = args.sceneGraphDataRef.current
   if (!g || !sim || !graphData) return
 
-  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure: args.documentSemanticMode === 'document' })
+  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+    documentSemanticMode: String(args.documentSemanticMode || 'document'),
+    documentStructureBaselineLock: args.documentStructureBaselineLock === true,
+  })
+  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
   const nodeZKeyById = buildNodeZKeyById({ nodes: Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : [], groups: allGroupsForZOrder })
 
   const zoom = args.zoomRef.current
@@ -1013,6 +1033,9 @@ export const updateGraphSceneGroupsPresentation = (args: {
   schema: GraphSchema
   graphData: GraphData
   documentSemanticMode?: 'document' | 'keyword'
+  frontmatterModeEnabled?: boolean
+  multiDimTableModeEnabled?: boolean
+  documentStructureBaselineLock?: boolean
   beforeRenderFrameRef: MutableRefObject<(() => void) | null>
   simulationRef: MutableRefObject<d3.Simulation<GraphNode, GraphEdge> | null>
   hoverEnabled: boolean
@@ -1031,13 +1054,22 @@ export const updateGraphSceneGroupsPresentation = (args: {
   const edgesForDisplay = display ? display.displayEdges : ([] as GraphEdge[])
 
   const sim = args.simulationRef.current
-  const allGroupsForZOrder = deriveGraphGroups(args.graphData, { forceDocumentStructure: args.documentSemanticMode === 'document' })
+  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+    documentSemanticMode: String(args.documentSemanticMode || 'document'),
+    documentStructureBaselineLock: args.documentStructureBaselineLock === true,
+  })
+  const allGroupsForZOrder = deriveGraphGroups(args.graphData, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
   const groupsLayer = createGroupsLayer({
     g,
     graphData: args.graphData,
     edgesForDisplay,
     schema: args.schema,
     documentSemanticMode: args.documentSemanticMode,
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+    documentStructureBaselineLock: args.documentStructureBaselineLock === true,
     groupsOverride: allGroupsForZOrder,
     simulation: sim,
     hoverEnabled: args.hoverEnabled,

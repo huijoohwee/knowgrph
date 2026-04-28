@@ -148,3 +148,117 @@ export function testDocumentFocusModesBlankGraphGating() {
     throw new Error('expected Table Mode to render non-blank graph when DataView graph is enabled')
   }
 }
+
+export function testDocumentFocusModeResolverPrecedence() {
+  const storage = ensureLocalStorage()
+  storage.clear()
+
+  const mdTableOnly = [
+    '# Table',
+    '',
+    '| Task | Status | Date | Category |',
+    '| --- | --- | --- | --- |',
+    '| Try | Done | 2023-08-01 | A,1 |',
+    '| Visit | Todo | 2023-08-03 | 1,Y |',
+    '',
+  ].join('\n')
+  const gTable = parseJsonLd(buildMarkdownJsonLd('table-resolver.md', mdTableOnly))
+  const baseNodeCount = Array.isArray(gTable.nodes) ? gTable.nodes.length : 0
+  if (baseNodeCount === 0) throw new Error('expected baseline markdown graph nodes for precedence test')
+
+  const docNode = (gTable.nodes || []).find(n => String((n as any)?.type || '') === 'Document') as any
+  const documentPath = String(docNode?.properties?.path || 'table-resolver.md')
+  const tableNode = (gTable.nodes || []).find(n => String((n as any)?.type || '') === 'Table') as any
+  const lineStart = Math.max(1, Math.floor(Number(tableNode?.metadata?.lineStart || 1)))
+  const lineEnd = Math.max(lineStart, Math.floor(Number(tableNode?.metadata?.lineEnd || lineStart)))
+  const tableId = `md-block:${lineStart}-${lineEnd}`
+  writeWorkspaceDataViewState({
+    activeDocumentPath: documentPath,
+    tableId,
+    value: {
+      sv: 1,
+      activeViewId: 'v0',
+      views: [
+        {
+          v: 2,
+          id: 'v0',
+          name: 'Table',
+          layout: 'table',
+          groupByColumnId: null,
+          visibleColumnIds: null,
+          columnTypesById: null,
+          filterGroups: [{ id: 'g0', rules: [] }],
+          sortRules: [],
+          graphEnabled: true,
+          graphRolesByColumnId: { col_0: 'node', col_1: 'color', col_3: 'group' },
+        },
+      ],
+    },
+  })
+
+  const frontmatterOnly = deriveGraphDataForActiveView({
+    graphData: gTable,
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: false,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+  const multiDimOnly = deriveGraphDataForActiveView({
+    graphData: gTable,
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: true,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+  const bothEnabled = deriveGraphDataForActiveView({
+    graphData: gTable,
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: true,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+
+  const frontmatterNodeCount = Array.isArray(frontmatterOnly.nodes) ? frontmatterOnly.nodes.length : 0
+  const multiDimNodeCount = Array.isArray(multiDimOnly.nodes) ? multiDimOnly.nodes.length : 0
+  const bothEnabledNodeCount = Array.isArray(bothEnabled.nodes) ? bothEnabled.nodes.length : 0
+  if (multiDimNodeCount === 0) throw new Error('expected multi-dimensional table mode to produce non-blank graph when DataView graph is enabled')
+  if (bothEnabledNodeCount !== frontmatterNodeCount) {
+    throw new Error('expected frontmatter mode to take precedence over multi-dimensional table mode when both toggles are enabled')
+  }
+  if (bothEnabledNodeCount === multiDimNodeCount) {
+    throw new Error('expected both-enabled mode resolution to avoid multi-dimensional table derivation when frontmatter mode is active')
+  }
+
+  const keywordMode = deriveGraphDataForActiveView({
+    graphData: gTable,
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: true,
+    documentSemanticMode: 'keyword',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+  if ((keywordMode.nodes || []).length !== (gTable.nodes || []).length || (keywordMode.edges || []).length !== (gTable.edges || []).length) {
+    throw new Error('expected keyword mode to bypass frontmatter and multi-dimensional table transforms without changing graph content')
+  }
+  if (String(((keywordMode.metadata || {}) as Record<string, unknown>)['kg:activeDocumentViewMode'] || '') !== 'keyword') {
+    throw new Error('expected keyword mode result to retain active document mode metadata')
+  }
+
+  const baselineLocked = deriveGraphDataForActiveView({
+    graphData: gTable,
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: true,
+    documentSemanticMode: 'document',
+    documentStructureBaselineLock: true,
+    collapsedGroupIds: [],
+  })
+  if ((baselineLocked.nodes || []).length !== (gTable.nodes || []).length || (baselineLocked.edges || []).length !== (gTable.edges || []).length) {
+    throw new Error('expected document structure baseline lock to bypass derived document mode transforms without changing graph content')
+  }
+  if (String(((baselineLocked.metadata || {}) as Record<string, unknown>)['kg:activeDocumentViewMode'] || '') !== 'documentStructure') {
+    throw new Error('expected baseline lock result to retain document structure active mode metadata')
+  }
+}

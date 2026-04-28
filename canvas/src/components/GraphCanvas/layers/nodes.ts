@@ -7,6 +7,7 @@ import { finalizePendingEdge, startEdgeFromNode } from '@/features/edge-creation
 import { emitPropsPanelOpen } from '@/features/canvas/utils';
 import {
   getNodeBaseFill,
+  getNodeBaseStroke,
   getNodeMediaSpec,
   getRenderNodeRadius2d,
   hasNodeMedia,
@@ -434,10 +435,7 @@ export const createNodesLayer = (args: {
      .attr('fill', (d: GraphNode) => (shouldHideNodeBody(d) ? 'transparent' : getNodeBaseFill(d, schema)))
     .attr('stroke', (d: GraphNode) => {
       if (shouldHideNodeBody(d)) return 'transparent'
-      const props = (d.properties || {}) as Record<string, unknown>
-      const visualStroke = typeof props['visual:stroke'] === 'string' ? String(props['visual:stroke'] || '').trim() : ''
-      if (visualStroke) return visualStroke
-      return schema.nodeStroke?.[d.type]?.color ?? UI_THEME_COLORS_CSS.nodeStroke
+      return getNodeBaseStroke(d, schema)
     })
     .attr('stroke-width', (d: GraphNode) => {
       const props = (d.properties || {}) as Record<string, unknown>

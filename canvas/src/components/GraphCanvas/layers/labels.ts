@@ -6,6 +6,7 @@ import { truncateTextWithEllipsis, truncateTextWithWordEllipsis, estimateMaxChar
 import { getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
+import { getNodeLabelColor } from '@/components/GraphCanvas/helpers'
 import { isTooltipRelatedTarget } from '@/features/panels/ui/tooltipUtils'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import { compareNodeZKey, type NodeZKey } from '@/lib/canvas/groupZOrder'
@@ -57,7 +58,8 @@ export const createLabelsLayer = (args: {
     .attr('data-node-id', (d: GraphNode) => String(d.id))
     .attr('font-size', labelFontSize)
     .attr('font-family', labelFontFamily)
-    .attr('fill', labelFill)
+    .attr('data-kg-label-fill', (d: GraphNode) => getNodeLabelColor(d, schema))
+    .attr('fill', (d: GraphNode) => getNodeLabelColor(d, schema))
     .attr('data-lod-hidden', '0')
     .attr('data-zoom-lod-hidden', '0')
     .attr('dx', (d: GraphNode) => {

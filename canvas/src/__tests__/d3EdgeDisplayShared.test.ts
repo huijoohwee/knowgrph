@@ -40,6 +40,34 @@ export function testEdgeDisplayKeywordLabelCleansUnderscores() {
   }
 }
 
+export function testEdgeDisplayPrefersFrontmatterDisplayLabelOverPointsTo() {
+  const edge = {
+    id: 'e1',
+    source: 'a',
+    target: 'b',
+    label: 'pointsTo',
+    properties: { 'frontmatter:displayLabel': 'identity-anchor' },
+  } as unknown as GraphEdge
+  const label = getEdgeLabelForDisplay(edge)
+  if (label !== 'identity-anchor') {
+    throw new Error(`expected frontmatter display label override, got: ${label}`)
+  }
+}
+
+export function testEdgeDisplayHidesMermaidPointsToWhenNoDisplayLabel() {
+  const edge = {
+    id: 'e1',
+    source: 'mermaid:g:d:a',
+    target: 'mermaid:g:d:b',
+    label: 'pointsTo',
+    properties: {},
+  } as unknown as GraphEdge
+  const label = getEdgeLabelForDisplay(edge)
+  if (label !== '') {
+    throw new Error(`expected Mermaid pointsTo edge label to be hidden, got: ${label}`)
+  }
+}
+
 export function testHeuristicClusterSeedsByGroupKey() {
   const schema = { edgeStyles: {} } as unknown as GraphSchema
   const nodes: GraphNode[] = []

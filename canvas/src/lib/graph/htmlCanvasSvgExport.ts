@@ -19,6 +19,7 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { withD3BipartiteSceneSchema } from '@/lib/canvas/d3BipartiteSchemaOverrides'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { determineLayoutPositions, buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
+import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 
 export async function renderGraphCanvasSvgForHtmlExport(args: {
   graphData: GraphData
@@ -31,6 +32,8 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   mediaPanelDensity: 'default' | 'compact'
   documentSemanticMode: 'document' | 'keyword'
   frontmatterModeEnabled: boolean
+  multiDimTableModeEnabled?: boolean
+  documentStructureBaselineLock?: boolean
   markdownDesignBlocks?: MarkdownDesignBlock[]
   panelOnlyNodeIds?: string[]
   collapsedGroupIds?: unknown
@@ -56,6 +59,8 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     mediaPanelDensity,
     documentSemanticMode,
     frontmatterModeEnabled,
+    multiDimTableModeEnabled,
+    documentStructureBaselineLock,
     markdownDesignBlocks,
     panelOnlyNodeIds,
     collapsedGroupIds,
@@ -302,12 +307,21 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   const displayNodes = (graphDataForDisplay.nodes ?? []) as any
   const displayEdges = (graphDataForDisplay.edges ?? []) as any
   const edgesForSim = normalizeEdgesForSim(displayNodes, displayEdges)
+  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+    frontmatterModeEnabled: frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+    documentSemanticMode: String(documentSemanticMode || 'document'),
+    documentStructureBaselineLock: documentStructureBaselineLock === true,
+  })
+
   const groupsDerivation = deriveSceneGroups({
     graphData: graphDataForDisplay,
     graphDataRevision: effectiveGraphDataRevision,
     schema: schemaForScene,
     documentSemanticMode,
     frontmatterModeEnabled,
+    multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+    documentStructureBaselineLock: documentStructureBaselineLock === true,
   })
 
   const initialZoomTransform = (() => {
@@ -319,7 +333,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
         centerMode: 'centroid',
         schema: schemaForScene,
         graphData: graphDataForDisplay,
-        deriveGroupsOptions: { forceDocumentStructure: documentSemanticMode === 'document' },
+        deriveGroupsOptions: { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' },
       }
       const t = fitAllTransform((graphDataForDisplay.nodes ?? []) as any, Math.max(1, widthPx), Math.max(1, Math.floor(heightPx)), opts as any)
       if (!t || !(typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0)) return { k: 1, x: 0, y: 0 }

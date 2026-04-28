@@ -8,6 +8,7 @@ import { UI_COPY } from '@/lib/config'
 import { formatNumber, getEdgeCooccurrenceForStats, getEdgeWeightForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
 import type { SelectionSnapshot, StatsEdge, StatsUiClasses, TokenCount } from '@/components/BottomPanel/stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 
 export default function EdgesStatsSection({
   ui,
@@ -76,7 +77,7 @@ export default function EdgesStatsSection({
           </div>
           <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-1', UI_THEME_TOKENS.text.secondary].join(' ')}>
             id: <span className={uiPanelMonospaceTextClass}>{String(selectedEdge.id)}</span> · label:{' '}
-            <span className={uiPanelMonospaceTextClass}>{String(selectedEdge.label ?? '')}</span>
+            <span className={uiPanelMonospaceTextClass}>{getEdgeLabelForDisplay(selectedEdge) || ''}</span>
           </div>
           <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'mt-2 grid grid-cols-2 gap-2', UI_THEME_TOKENS.text.primary].join(' ')}>
             <div className="flex flex-col">

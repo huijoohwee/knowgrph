@@ -10,10 +10,12 @@ import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
 import type { UiToastInput } from '@/hooks/store/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored, readCanvasViewportSizeFromDom } from '@/lib/graph/svgSnapshot'
 import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
+import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
 import { lexMarkdown, buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout, deriveMarkdownDesignLayoutFromGraphBlocks } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { normalizeInteractiveSvgForHtmlViewer } from './normalizeInteractiveSvg'
@@ -83,11 +85,22 @@ export async function exportHtmlCanvasFromWorkspace(args: {
 
     const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
     const multiDimTableModeEnabled = store.multiDimTableModeEnabled === true
-    const layoutSemanticModeKey = multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
     const frontmatterModeEnabled = computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: store.frontmatterModeEnabled,
       documentSemanticMode: store.documentSemanticMode,
       graphData: baseGraphData,
+    })
+    const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled,
+      documentSemanticMode,
+      documentStructureBaselineLock: store.documentStructureBaselineLock === true,
+    })
+    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled,
+      documentSemanticMode,
+      documentStructureBaselineLock: store.documentStructureBaselineLock === true,
     })
 
     const graphData = deriveGraphDataForActiveView({
@@ -151,7 +164,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
           centerMode: 'centroid',
           schema,
           graphData,
-          deriveGroupsOptions: { forceDocumentStructure: documentSemanticMode === 'document' },
+          deriveGroupsOptions: { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' },
         }
         const t = fitAllTransform((graphData.nodes ?? []) as any, fixedViewport.widthPx, fixedViewport.heightPx, opts as any)
         if (!t || !(typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0)) return null

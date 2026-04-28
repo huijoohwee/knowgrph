@@ -29,6 +29,7 @@ import { bindGroupsResizeHandle } from '@/components/GraphCanvas/layers/groupsRe
 import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
+import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 type GroupDatum = GraphGroup
 const readMouseEventDetail = (event: MouseEvent): number => {
   const detail = (event as unknown as { detail?: unknown }).detail
@@ -43,6 +44,9 @@ export const createGroupsLayer = (args: {
   edgesForDisplay: GraphEdge[]
   schema: GraphSchema
   documentSemanticMode?: 'document' | 'keyword'
+  frontmatterModeEnabled?: boolean
+  multiDimTableModeEnabled?: boolean
+  documentStructureBaselineLock?: boolean
   groupsOverride?: GraphGroup[]
   simulation: d3.Simulation<GraphNode, GraphEdge> | null
   updateNode?: (id: string, updates: Partial<GraphNode>) => void
@@ -59,9 +63,15 @@ export const createGroupsLayer = (args: {
   const enabled = cfg.enabled !== false
   if (!enabled) return { update: () => {} }
 
+  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+    documentSemanticMode: String(args.documentSemanticMode || 'document'),
+    documentStructureBaselineLock: args.documentStructureBaselineLock === true,
+  })
   const groups =
     args.groupsOverride ||
-    deriveGraphGroups(graphData, { forceDocumentStructure: args.documentSemanticMode === 'document' })
+    deriveGraphGroups(graphData, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
   if (groups.length === 0) return { update: () => {} }
 
   const allowResize = readAllowGroupResize(schema)
@@ -355,6 +365,8 @@ export const createGroupsLayer = (args: {
     .style('font-size', d => {
       return `${getGroupLabelText(d).fontSize}px`
     })
+    .attr('data-kg-label-fill', d => d.style.labelColor ?? (labelPresentation.color || UI_THEME_COLORS_CSS.labelFill))
+    .attr('fill', d => d.style.labelColor ?? (labelPresentation.color || UI_THEME_COLORS_CSS.labelFill))
     .style('transition', groupLabelTransition)
 
   const chevronSizePx = 12
@@ -367,7 +379,8 @@ export const createGroupsLayer = (args: {
     .attr('data-kg-group-chevron', '1')
     .attr('data-kg-group-id', d => d.id)
     .attr('fill', 'none')
-    .attr('stroke', labelPresentation.color || UI_THEME_COLORS_CSS.labelFill)
+    .attr('data-kg-label-fill', d => d.style.labelColor ?? (labelPresentation.color || UI_THEME_COLORS_CSS.labelFill))
+    .attr('stroke', d => d.style.labelColor ?? (labelPresentation.color || UI_THEME_COLORS_CSS.labelFill))
     .attr('stroke-width', 1.75)
     .attr('stroke-linecap', 'round')
     .attr('stroke-linejoin', 'round')

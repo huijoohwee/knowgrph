@@ -46,7 +46,7 @@ export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
     const hasIdleCallback = typeof window !== 'undefined' && 'requestIdleCallback' in window
     const idle = hasIdleCallback
       ? (cb: () => void) => (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(cb)
-      : (cb: () => void) => window.setTimeout(cb, 0)
+      : (cb: () => void) => globalThis.setTimeout(cb, 0)
     idle(() => {
       get().cancelMinimapWorker();
       const { graphData, graphId } = get()

@@ -24,10 +24,8 @@ export const testFrontmatterModeFiltersToFrontmatterMermaidOnly = () => {
     throw new Error('expected frontmatter filter to include Mermaid nodes')
   }
 
-  const allowedTypes = new Set(['MermaidDiagram', 'MermaidNode', 'MermaidSubgraph', 'Anchor', 'InternalLink', 'Paragraph'])
+  const allowedTypes = new Set(['MermaidDiagram', 'MermaidNode', 'MermaidSubgraph'])
   let sawFrontmatterMermaid = false
-  let sawAnchor = false
-  let sawInternalLink = false
   for (let i = 0; i < filtered.nodes.length; i += 1) {
     const n = filtered.nodes[i]
     if (!allowedTypes.has(String(n.type || ''))) {
@@ -45,24 +43,9 @@ export const testFrontmatterModeFiltersToFrontmatterMermaidOnly = () => {
         throw new Error(`expected mermaid node ${String(n.id)} to be within frontmatter mermaid line range`)
       }
     }
-    if (String(n.type || '') === 'Anchor') {
-      const label = String(n.label || '')
-      if (label === 'phase-1-input' || label === 'phase-2-transform' || label === 'phase-3-report' || label === 'phase-4-output') {
-        sawAnchor = true
-      }
-    }
-    if (String(n.type || '') === 'InternalLink') {
-      sawInternalLink = true
-    }
   }
 
   if (!sawFrontmatterMermaid) {
     throw new Error('expected at least one Mermaid node/subgraph/diagram in filtered graph')
-  }
-  if (!sawAnchor) {
-    throw new Error('expected frontmatter filter to include at least one phase anchor')
-  }
-  if (!sawInternalLink) {
-    throw new Error('expected frontmatter filter to include at least one internal link node')
   }
 }

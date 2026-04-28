@@ -44,15 +44,6 @@ export const testMermaidFrontmatterClickAnchorsAndBlockLinks = () => {
   const nodes = Array.isArray(filtered.nodes) ? filtered.nodes : []
   const edges = Array.isArray(filtered.edges) ? filtered.edges : []
 
-  const anchorPhase1 = findNode(nodes, n => n.type === 'Anchor' && String(n.properties?.anchorId || '') === 'phase-1-input')
-  const anchorPhase2 = findNode(nodes, n => n.type === 'Anchor' && String(n.properties?.anchorId || '') === 'phase-2-transform')
-  const anchorPhase3 = findNode(nodes, n => n.type === 'Anchor' && String(n.properties?.anchorId || '') === 'phase-3-report')
-  const anchorPhase4 = findNode(nodes, n => n.type === 'Anchor' && String(n.properties?.anchorId || '') === 'phase-4-output')
-  assert(anchorPhase1, 'expected Anchor for phase-1-input')
-  assert(anchorPhase2, 'expected Anchor for phase-2-transform')
-  assert(anchorPhase3, 'expected Anchor for phase-3-report')
-  assert(anchorPhase4, 'expected Anchor for phase-4-output')
-
   const mermaidPort = findNode(nodes, n => n.type === 'MermaidNode' && String(n.properties?.nodeName || '') === 'S1_Port')
   const mermaidDecide = findNode(nodes, n => n.type === 'MermaidNode' && String(n.properties?.nodeName || '') === 'S2_Decide')
   const mermaidRender = findNode(nodes, n => n.type === 'MermaidNode' && String(n.properties?.nodeName || '') === 'S3_Render')
@@ -62,58 +53,18 @@ export const testMermaidFrontmatterClickAnchorsAndBlockLinks = () => {
   assert(mermaidRender, 'expected MermaidNode S3_Render')
   assert(mermaidPub, 'expected MermaidNode S4_Pub')
 
-  assert(
-    hasEdge(edges, { source: mermaidPort.id, target: anchorPhase1.id, label: 'pointsTo' }),
-    'expected Mermaid click S1_Port to pointsTo #phase-1-input',
-  )
-  assert(
-    hasEdge(edges, { source: mermaidDecide.id, target: anchorPhase2.id, label: 'pointsTo' }),
-    'expected Mermaid click S2_Decide to pointsTo #phase-2-transform',
-  )
-  assert(
-    hasEdge(edges, { source: mermaidRender.id, target: anchorPhase3.id, label: 'pointsTo' }),
-    'expected Mermaid click S3_Render to pointsTo #phase-3-report',
-  )
-  assert(
-    hasEdge(edges, { source: mermaidPub.id, target: anchorPhase4.id, label: 'pointsTo' }),
-    'expected Mermaid click S4_Pub to pointsTo #phase-4-output',
-  )
-
-  const blockAnchor = findNode(nodes, n => n.type === 'Anchor' && String(n.properties?.anchorId || '') === '^mermaid-s2-decide')
-  assert(blockAnchor, 'expected injected block Anchor ^mermaid-s2-decide')
-
-  const blockLink = findNode(nodes, n => n.type === 'InternalLink' && String(n.properties?.anchorId || '') === '^mermaid-s2-decide')
-  assert(blockLink, 'expected InternalLink to #^mermaid-s2-decide')
-  assert(
-    hasEdge(edges, { source: blockLink.id, target: blockAnchor.id, label: 'pointsTo' }),
-    'expected InternalLink #^mermaid-s2-decide to pointsTo the Anchor node',
-  )
-
   const hasSubgraph = nodes.some(n => n.type === 'MermaidSubgraph')
   assert(hasSubgraph, 'expected MermaidSubgraph nodes to be included in frontmatter mermaid view')
-
-  const headings = new Set(
-    nodes
-      .filter(n => n.type === 'Section')
-      .map(n => String((n.properties as Record<string, unknown>)?.heading || '').trim())
-      .filter(Boolean),
-  )
-  assert(headings.has('Phase 1 Input (Mermaid S1)'), 'expected Section: Phase 1 Input (Mermaid S1)')
-  assert(headings.has('Phase 2 Transform (Mermaid S2)'), 'expected Section: Phase 2 Transform (Mermaid S2)')
-  assert(headings.has('Phase 3 Report (Mermaid S3)'), 'expected Section: Phase 3 Report (Mermaid S3)')
-  assert(headings.has('Phase 4 Output (Mermaid S4)'), 'expected Section: Phase 4 Output (Mermaid S4)')
-
-  const hasContinueParagraph = nodes.some(n => {
-    if (n.type !== 'Paragraph') return false
-    const text = String((n.properties as Record<string, unknown>)?.text || '')
-    return text.includes('Continue to:')
-  })
-  assert(hasContinueParagraph, 'expected navigation paragraph content to be included')
-
-  const hasAggregatorParagraph = nodes.some(n => {
-    if (n.type !== 'Paragraph') return false
-    const text = String((n.properties as Record<string, unknown>)?.text || '')
-    return text.includes('Aggregator DB represents an ingest junction')
-  })
-  assert(!hasAggregatorParagraph, 'expected plain narrative paragraph content to be excluded by criteria')
+  const disallowedTypes = new Set(['Anchor', 'InternalLink', 'Paragraph', 'Section', 'List', 'ListItem'])
+  const leaked = nodes.find(n => disallowedTypes.has(String(n.type || ''))) || null
+  assert(!leaked, `expected pure frontmatter mermaid view without leaked context node type ${String(leaked?.type || '')}`)
+  const leakedPointsTo = edges.find(e => {
+    if (String(e.label || '') !== 'pointsTo') return false
+    const source = findNode(nodes, n => String(n.id) === String(e.source || ''))
+    const target = findNode(nodes, n => String(n.id) === String(e.target || ''))
+    const sourceType = String(source?.type || '')
+    const targetType = String(target?.type || '')
+    return sourceType !== 'MermaidNode' || (targetType !== 'MermaidNode' && targetType !== 'MermaidSubgraph')
+  }) || null
+  assert(!leakedPointsTo, 'expected pure frontmatter mermaid pointsTo edges to stay within Mermaid nodes/subgraphs only')
 }

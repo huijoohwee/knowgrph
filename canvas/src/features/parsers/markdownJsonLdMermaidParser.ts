@@ -8,7 +8,7 @@ export interface MermaidParserContext {
   diagramScope?: 'frontmatter' | 'block'
   startIndex: number
   ensureNode: (node: Record<string, unknown>) => void
-  addRel: (src: string, key: string, tgt: string) => void
+  addRel: (src: string, key: string, tgt: string, relationProps?: Record<string, unknown>) => void
   mkMeta: (startLine: number, endLine: number) => Record<string, unknown>
 }
 
@@ -45,6 +45,9 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
   const docSubgraphIds = new Set<string>()
   const classDefs = new Map<string, Record<string, unknown>>()
   const nodeClasses = new Map<string, Set<string>>()
+  const directStylesByName = new Map<string, Record<string, unknown>>()
+  const linkStylesByIndex = new Map<number, Record<string, unknown>>()
+  let defaultLinkStyle: Record<string, unknown> | null = null
 
   // Track active subgraphs stack
   const subgraphStack: Array<{ name: string; id: string }> = []
@@ -83,11 +86,50 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     return mergedStyles
   }
 
+  const mergeNamedStyles = (target: Map<string, Record<string, unknown>>, name: string, styles: Record<string, unknown>) => {
+    const key = String(name || '').trim()
+    if (!key || Object.keys(styles).length === 0) return
+    const prev = target.get(key) || {}
+    target.set(key, { ...prev, ...styles })
+  }
+
+  const mergeLinkStyle = (style: Record<string, unknown>): Record<string, unknown> => {
+    if (Object.keys(style).length === 0) return {}
+    const out = { ...style }
+    const strokeWidth = out['visual:strokeWidth']
+    if (typeof strokeWidth === 'number' && Number.isFinite(strokeWidth) && strokeWidth > 0) {
+      out['visual:width'] = strokeWidth
+    }
+    return out
+  }
+
   const mapShapeToPrimitive = (shape: string | null | undefined): 'node' | 'edge' | 'cluster' => {
     const v = String(shape || '').trim().toLowerCase()
     if (v === 'circle') return 'cluster'
     if (v === 'hex') return 'edge'
     return 'node'
+  }
+
+  const readEdgeRelationProps = (token: string): Record<string, unknown> | undefined => {
+    const raw = String(token || '').trim()
+    if (!raw) return undefined
+    const props: Record<string, unknown> = {}
+    const readDisplayLabel = (edgeToken: string): string => {
+      const token = String(edgeToken || '').trim()
+      if (!token) return ''
+      const piped = /\|([^|]+)\|/.exec(token)
+      if (piped) return String(piped[1] || '').trim()
+      const compact = token.replace(/\s+/g, ' ').trim()
+      const fullArrowWithText = /^(?:--+|-\.-+|==+)\s+(.+?)\s+(?:--+|-\.-+|==+)>?$/.exec(compact)
+      if (fullArrowWithText) return String(fullArrowWithText[1] || '').trim()
+      const inlineArrowWithText = /^(?:--+|-\.-+|==+)([^><|]+?)(?:--+|-\.-+|==+)>?$/.exec(compact)
+      if (inlineArrowWithText) return String(inlineArrowWithText[1] || '').trim()
+      return ''
+    }
+    const displayLabel = readDisplayLabel(raw)
+    if (displayLabel) props['frontmatter:displayLabel'] = displayLabel
+    if (Object.keys(props).length === 0) return undefined
+    return props
   }
 
   for (let i = 0; i < lines.length; i++) {
@@ -130,6 +172,38 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
           set.add(classNames[k]!)
         }
       }
+    }
+
+    if (trimmed.startsWith('style ')) {
+      const match = /^style\s+([A-Za-z0-9_.-]+)\s+(.+)$/.exec(trimmed)
+      if (match) {
+        const targetName = String(match[1] || '').trim()
+        const styleStr = String(match[2] || '').trim()
+        const style = parseStyleString(styleStr)
+        mergeNamedStyles(directStylesByName, targetName, style)
+      }
+      continue
+    }
+
+    if (trimmed.startsWith('linkStyle ')) {
+      const match = /^linkStyle\s+([^\s]+)\s+(.+)$/.exec(trimmed)
+      if (match) {
+        const indexesToken = String(match[1] || '').trim()
+        const style = mergeLinkStyle(parseStyleString(String(match[2] || '').trim()))
+        if (indexesToken.toLowerCase() === 'default') {
+          defaultLinkStyle = { ...(defaultLinkStyle || {}), ...style }
+        } else {
+          const parts = indexesToken.split(',').map(s => s.trim()).filter(Boolean)
+          for (let i = 0; i < parts.length; i += 1) {
+            const n = Number(parts[i])
+            if (!Number.isFinite(n) || n < 0) continue
+            const index = Math.floor(n)
+            const prev = linkStylesByIndex.get(index) || {}
+            linkStylesByIndex.set(index, { ...prev, ...style })
+          }
+        }
+      }
+      continue
     }
   }
 
@@ -202,6 +276,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
             classStyles = { ...classStyles, ...extra }
         }
     }
+    const directStyles = directStylesByName.get(safeName) || {}
 
     ensureNode({
       '@id': nodeId,
@@ -209,7 +284,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
       labels: ['MermaidNode'],
       name: label || safeName,
       chunk_text: (label || safeName).slice(0, 800),
-      properties: { ...nodeProps, ...classStyles },
+      properties: { ...nodeProps, ...classStyles, ...directStyles },
       metadata: mkMeta(startIndex + lineIndex, startIndex + lineIndex),
     })
     
@@ -234,6 +309,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     const parent = subgraphStack.length > 0 ? subgraphStack[subgraphStack.length - 1] : null
     
     const classStyles = getMergedClassStyles(safeName)
+    const directStyles = directStylesByName.get(safeName) || {}
     ensureNode({
       '@id': subgraphId,
       '@type': 'MermaidSubgraph',
@@ -254,6 +330,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
         ...(parent ? { mermaidSubgraphName: parent.name } : {}),
         ...(parent ? { 'visual:parentId': parent.id } : {}),
         ...classStyles,
+        ...directStyles,
       },
       metadata: mkMeta(startIndex + lineIndex, startIndex + lineIndex),
     })
@@ -273,6 +350,7 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
   }
 
   // 2. Second pass: Parse nodes, edges, subgraphs
+  let mermaidEdgeIndex = 0
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const trimmed = line.trim()
@@ -515,7 +593,6 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     
     // Updated to support multi-directional and circle/cross edges:
     // o--o, x--x, <-->
-    // And labeled edges without pipes: -- text -->, -. text .->, == text ==>
     const arrowRegex = /\s*((?:--+|-\.-+|==+)(?:\s+[^|]+\s+)(?:--+|-\.-+|==+)>?|(?:--+|-\.-+|==+|o--+o|x--+x|<--+>)(?:>)?(?:\s*\|[^|]+\|\s*)?)\s*/
     const parts = trimmed.split(arrowRegex)
     
@@ -547,7 +624,14 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
            const tgtId = mermaidNodeIdsByName.get(nNext.name)
            
            if (srcId && tgtId) {
-             addRel(srcId, 'pointsTo', tgtId)
+             const edgeToken = String(parts[k] || '')
+             const relationProps = {
+               ...(defaultLinkStyle || {}),
+               ...(linkStylesByIndex.get(mermaidEdgeIndex) || {}),
+               ...(readEdgeRelationProps(edgeToken) || {}),
+             }
+             addRel(srcId, 'pointsTo', tgtId, Object.keys(relationProps).length > 0 ? relationProps : undefined)
+             mermaidEdgeIndex += 1
            }
            
            currentSrcName = nNext.name

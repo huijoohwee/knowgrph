@@ -8,6 +8,7 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
 import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
+import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
 import { readViewportControlsPresetFromLocalStorage } from '@/lib/graph/htmlViewer/exportViewportControls'
 import { captureLiveOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
 import { rewriteSvgMarkupForStandaloneHtmlExport } from '@/lib/graph/htmlViewer/rewriteSvgMarkupForStandaloneHtmlExport'
@@ -151,6 +152,12 @@ export async function exportHtmlViewerFallback(args: { pushUiToast: (toast: UiTo
       documentSemanticMode: store.documentSemanticMode,
       graphData: baseGraphData,
     })
+    const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled,
+      documentSemanticMode,
+      documentStructureBaselineLock: store.documentStructureBaselineLock === true,
+    })
 
     const graphData = deriveGraphDataForActiveView({
       graphData: baseGraphData,
@@ -172,7 +179,6 @@ export async function exportHtmlViewerFallback(args: { pushUiToast: (toast: UiTo
     const normalizedSvg = normalizeCapturedSvgForHtmlEmbed(captured)
 
     const svgDerivedNodePosById = extractNodePosByIdFromSvgMarkup(normalizedSvg)
-    const layoutSemanticModeKey = multiDimTableModeEnabled ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
     const layoutSeedPosById = pickLayoutSeedPositions2dForExport({
       graphData,
       graphDataRevision: store.graphDataRevision,

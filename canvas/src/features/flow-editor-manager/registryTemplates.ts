@@ -21,6 +21,8 @@ import {
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_LABEL,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_SCRIPT_FORM_ID,
+  FLOW_VIDEO_SCRIPT_WIDGET_LABEL,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
@@ -89,6 +91,7 @@ export function inferTextGenerationProviderFamily(args: {
   const formId = String(args.formId || '').trim().toLowerCase()
   if (widgetTypeId.includes('z.ai') || widgetTypeId.includes('zai') || formId.includes('z.ai') || formId.includes('zai')) return 'zai'
   if (widgetTypeId.includes('openai') || formId.includes('openai')) return 'openai'
+  if (formId === FLOW_VIDEO_SCRIPT_FORM_ID.toLowerCase()) return 'byteplus'
   if (widgetTypeId.includes('byteplus') || formId.includes('byteplus') || formId === 'textgeneration') return 'byteplus'
   if (provider.includes('z.ai') || provider.includes('zai')) return 'zai'
   if (provider.includes('openai')) return 'openai'
@@ -110,8 +113,10 @@ export function getWidgetRegistryEntryLabel(args: {
   formId?: unknown
 }): string {
   const nodeTypeId = String(args.nodeTypeId || '').trim()
+  const formId = String(args.formId || '').trim()
   if (isGrabMapsDiscoveryWidgetEntry(args)) return getGrabMapsDiscoveryWidgetLabel()
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+    if (formId === FLOW_VIDEO_SCRIPT_FORM_ID) return FLOW_VIDEO_SCRIPT_WIDGET_LABEL
     return getTextGenerationWidgetLabel(args)
   }
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return FLOW_IMAGE_GENERATION_NODE_LABEL
@@ -353,6 +358,14 @@ export function buildTextGenerationRegistryDraft(args?: {
     ports: buildCommonTextGenerationPorts(),
     schemaMappings: [],
   }
+}
+
+export function buildBytePlusVideoScriptRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
+  return buildTextGenerationRegistryDraft({
+    providerFamily: 'byteplus',
+    widgetTypeId: 'default',
+    formId: FLOW_VIDEO_SCRIPT_FORM_ID,
+  })
 }
 
 export function buildGenerateTextRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
