@@ -15,7 +15,7 @@ export function useCanvasGeospatialRuntime(): boolean {
 
   const [geospatialModeEnabled, setGeospatialModeEnabled] = React.useState<boolean>(() => {
     try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
     } catch {
       return false
     }
@@ -26,7 +26,7 @@ export function useCanvasGeospatialRuntime(): boolean {
     const handler = (ev: StorageEvent) => {
       if (!ev || ev.key !== LS_KEYS.geospatialOverlayEnabled) return
       try {
-        setGeospatialModeEnabled(lsBool(LS_KEYS.geospatialOverlayEnabled, false))
+        setGeospatialModeEnabled(lsBool(LS_KEYS.geospatialOverlayEnabled, true))
       } catch {
         setGeospatialModeEnabled(false)
       }

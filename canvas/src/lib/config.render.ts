@@ -61,7 +61,7 @@ export const INFINITE_CANVAS_INTERACTION_MODES = ['static', 'interactive'] as co
 
 export type InfiniteCanvasInteractionMode = (typeof INFINITE_CANVAS_INTERACTION_MODES)[number]
 
-export const DEFAULT_INFINITE_CANVAS_INTERACTION_MODE: InfiniteCanvasInteractionMode = 'static'
+export const DEFAULT_INFINITE_CANVAS_INTERACTION_MODE: InfiniteCanvasInteractionMode = 'interactive'
 
 export const CANVAS_WORKSPACE_SYNC_MODES = ['manual', 'realtime'] as const
 

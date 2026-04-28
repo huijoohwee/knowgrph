@@ -127,32 +127,32 @@ export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView
   if (!uiSettingsSliceText.includes("documentSemanticMode: 'document'")) {
     throw new Error('Expected startup document mode to default to document semantics at the shared UI settings slice')
   }
-  if (!uiSliceText.includes('floatingPanelOpen: false')) {
-    throw new Error('Expected startup floating panel open state to stay OFF at the shared UI slice')
+  if (!uiSliceText.includes('floatingPanelOpen: true')) {
+    throw new Error('Expected startup floating panel open state to default ON at the shared UI slice')
   }
-  if (!uiSliceText.includes("floatingPanelView: 'propsPanel'")) {
-    throw new Error('Expected startup floating panel view to default to propsPanel at the shared UI slice')
+  if (!uiSliceText.includes("floatingPanelView: 'geo'")) {
+    throw new Error("Expected startup floating panel view to default to 'geo' at the shared UI slice")
   }
   if (!uiSliceText.includes('documentStructureBaselineLock: lsBool(LS_KEYS.documentStructureBaselineLock, false)')) {
     throw new Error('Expected View Lock startup default to be OFF at the shared UI slice')
   }
-  if (!geospatialSliceText.includes('readBool(LS_KEYS.geospatialOverlayEnabled, false)')) {
-    throw new Error('Expected geospatial startup default to keep the shared overlay state OFF')
+  if (!geospatialSliceText.includes('readBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
+    throw new Error('Expected geospatial startup default to keep the shared overlay state ON')
   }
-  if (!geospatialSliceText.includes("readString(LS_KEYS.geospatialViewMode, '2d')")) {
-    throw new Error("Expected geospatial startup fallback view mode to stay on shared '2d'")
+  if (!geospatialSliceText.includes("readString(LS_KEYS.geospatialViewMode, '2d-modern')")) {
+    throw new Error("Expected geospatial startup fallback view mode to prefer shared '2d-modern'")
   }
-  if (!toolbarContextText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, false)')) {
-    throw new Error('Expected toolbar startup state to reuse the shared geospatial-disabled default without false-first drift')
+  if (!toolbarContextText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
+    throw new Error('Expected toolbar startup state to reuse the shared geospatial-enabled default without false-first drift')
   }
-  if (!runtimeText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, false)')) {
-    throw new Error('Expected canvas geospatial runtime to reuse the shared geospatial-disabled default without false-first drift')
+  if (!runtimeText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
+    throw new Error('Expected canvas geospatial runtime to reuse the shared geospatial-enabled default without false-first drift')
   }
-  if (!toolbarLauncherText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, false)')) {
-    throw new Error('Expected toolbar launcher startup state to reuse the shared geospatial-disabled default')
+  if (!toolbarLauncherText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
+    throw new Error('Expected toolbar launcher startup state to reuse the shared geospatial-enabled default')
   }
-  if (!toolbarToolMenuText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, false)')) {
-    throw new Error('Expected floating toolbar startup state to reuse the shared geospatial-disabled default')
+  if (!toolbarToolMenuText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
+    throw new Error('Expected floating toolbar startup state to reuse the shared geospatial-enabled default')
   }
 }
 

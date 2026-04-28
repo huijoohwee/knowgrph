@@ -119,7 +119,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
 
   const [geospatialEnabled, setGeospatialEnabled] = useState<boolean>(() => {
     try {
-      return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+      return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
     } catch {
       return false
     }

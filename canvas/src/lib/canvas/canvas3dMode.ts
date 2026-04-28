@@ -28,7 +28,7 @@ export function isVoxelSemanticModeAllowed(args: Pick<VoxelModeApplicabilityArgs
 }
 
 export function readGeospatialOverlayEnabled(): boolean {
-  return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+  return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
 }
 
 export function getVoxelModeInapplicableReason(args: VoxelModeApplicabilityArgs): VoxelModeInapplicableReason {

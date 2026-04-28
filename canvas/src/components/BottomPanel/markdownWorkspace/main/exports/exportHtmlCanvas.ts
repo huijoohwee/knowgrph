@@ -65,7 +65,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
 
     const geospatialEnabled = (() => {
       try {
-        return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+        return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
       } catch {
         return false
       }

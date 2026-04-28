@@ -99,9 +99,9 @@ export const createDefaultGympgrphGeospatialState = (): Pick<
   | 'geospatialDatasetTimeoutMs'
   | 'geospatialDatasetMaxBytes'
 > => {
-  const geospatialModeEnabled = readBool(LS_KEYS.geospatialOverlayEnabled, false)
+  const geospatialModeEnabled = readBool(LS_KEYS.geospatialOverlayEnabled, true)
   const readPersistedViewMode = (): GeospatialViewMode => {
-    const raw = readString(LS_KEYS.geospatialViewMode, '2d')
+    const raw = readString(LS_KEYS.geospatialViewMode, '2d-modern')
     if (raw === '2d-modern') return '2d-modern'
     if (raw === '3d-modern') return '3d-modern'
     if (raw === '3d') return '3d'

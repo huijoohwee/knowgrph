@@ -125,8 +125,8 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
   const setGeospatialDatasetTimeoutMs = useGympgrphStore(s => s.setGeospatialDatasetTimeoutMs)
   const setGeospatialDatasetMaxBytes = useGympgrphStore(s => s.setGeospatialDatasetMaxBytes)
 
-  const [styleUrlDraft, setStyleUrlDraft] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL))
-  const [committedStyleUrl, setCommittedStyleUrl] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL))
+  const [styleUrlDraft, setStyleUrlDraft] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, GRABMAPS_DEFAULT_STYLE_URL))
+  const [committedStyleUrl, setCommittedStyleUrl] = React.useState<string>(() => readLsString(LS_KEYS.geospatialStyleUrl, GRABMAPS_DEFAULT_STYLE_URL))
   const [pointStyleDraft, setPointStyleDraft] = React.useState<GeospatialPointStyleConfig>(() => readGeospatialPointStyleConfig())
   const modeCommitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const styleCommitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -148,7 +148,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const onChanged = () => {
-      const next = readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL)
+      const next = readLsString(LS_KEYS.geospatialStyleUrl, GRABMAPS_DEFAULT_STYLE_URL)
       setCommittedStyleUrl(next)
       setStyleUrlDraft(prev => (
         prev === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
@@ -173,9 +173,9 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
         if (typeof window !== 'undefined' && next !== '2d-svg') {
           const nextBuiltInStyle = resolveStandardViewModeStyleUrl(
             next,
-            readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL),
+            readLsString(LS_KEYS.geospatialStyleUrl, GRABMAPS_DEFAULT_STYLE_URL),
           )
-          const currentStyle = readLsString(LS_KEYS.geospatialStyleUrl, MAPLIBRE_DEFAULT_STYLE_URL)
+          const currentStyle = readLsString(LS_KEYS.geospatialStyleUrl, GRABMAPS_DEFAULT_STYLE_URL)
           if (currentStyle !== nextBuiltInStyle) {
             writeLsString(LS_KEYS.geospatialStyleUrl, nextBuiltInStyle)
             setCommittedStyleUrl(nextBuiltInStyle)
@@ -203,10 +203,10 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
         : normalizePersistedGeospatialStyleUrl(styleUrlDraft)
     if (styleCommitTimerRef.current) clearTimeout(styleCommitTimerRef.current)
     styleCommitTimerRef.current = setTimeout(() => {
-      writeLsString(LS_KEYS.geospatialStyleUrl, next || MAPLIBRE_DEFAULT_STYLE_URL)
+      writeLsString(LS_KEYS.geospatialStyleUrl, next || GRABMAPS_DEFAULT_STYLE_URL)
       if (next) persistPreferredGrabMapsStyleUrl(next)
-      setCommittedStyleUrl(next || MAPLIBRE_DEFAULT_STYLE_URL)
-      setStyleUrlDraft(next || MAPLIBRE_DEFAULT_STYLE_URL)
+      setCommittedStyleUrl(next || GRABMAPS_DEFAULT_STYLE_URL)
+      setStyleUrlDraft(next || GRABMAPS_DEFAULT_STYLE_URL)
       if (typeof window !== 'undefined') {
         try {
           window.dispatchEvent(new Event(GEOSPATIAL_STYLE_URL_CHANGED_EVENT))

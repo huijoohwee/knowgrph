@@ -42,7 +42,7 @@ export function useFitToViewAction() {
 
     const geospatialEnabled = (() => {
       try {
-        return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+        return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
       } catch {
         return false
       }

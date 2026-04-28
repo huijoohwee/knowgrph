@@ -70,7 +70,7 @@ export async function exportCanvasSvg(args: {
     const store = args.getStore()
     const geospatialEnabled = (() => {
       try {
-        return lsBool(LS_KEYS.geospatialOverlayEnabled, false)
+        return lsBool(LS_KEYS.geospatialOverlayEnabled, true)
       } catch {
         return false
       }
