@@ -35,6 +35,8 @@ export function testFlowWidgetPaletteExposesImageAndVideoWidgetsWithReadyRunDefa
     "properties.prompt = 'Generate an image responsive to the active request.'",
     'FLOW_RICH_MEDIA_PANEL_NODE_LABEL',
     "outputSrcDoc: ''",
+    'FLOW_VIDEO_TRANSCRIBER_NODE_LABEL',
+    "sourceUrl: ''",
     'const providerFamily = inferTextGenerationProviderFamily({',
     'const nextTextProperties = resolveTextGenerationGlobalDefaultsForProviderFamily({',
     'readGrabMapsDiscoveryWidgetProperties()',

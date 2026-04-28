@@ -1,8 +1,10 @@
 import type { GraphData } from '@/lib/graph/types'
+import type { GlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { normalizeGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 export type FrontmatterFlowRenderSettings = {
   rankdir: 'LR' | 'TB'
-  edgeType: 'bezier' | 'straight' | 'step' | 'smoothstep'
+  edgeType: GlobalEdgeType
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -24,11 +26,7 @@ export function readFrontmatterFlowRenderSettings(
   if (!settings) return null
   const directionRaw = String(settings.direction || '').trim().toUpperCase()
   const rankdir: 'LR' | 'TB' = directionRaw === 'TB' || directionRaw === 'BT' ? 'TB' : 'LR'
-  const edgeRaw = String(settings.edgeType || '').trim().toLowerCase()
-  const edgeType: 'bezier' | 'straight' | 'step' | 'smoothstep' =
-    edgeRaw === 'straight' || edgeRaw === 'step' || edgeRaw === 'smoothstep' || edgeRaw === 'bezier'
-      ? edgeRaw
-      : 'bezier'
+  const edgeType = normalizeGlobalEdgeType(settings.edgeType)
   return { rankdir, edgeType }
 }
 

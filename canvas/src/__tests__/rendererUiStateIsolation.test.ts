@@ -1,4 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
 
 export function testRendererUiStateIsolationKeepsPointerModePerRenderer() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
@@ -99,5 +100,31 @@ export function testRendererUiStateIsolationGraphDataSideEffectsDoNotOverrideFlo
   const state = useGraphStore.getState()
   if (state.canvas2dRenderer !== 'flowEditor') {
     throw new Error(`expected flowEditor renderer to remain active, got ${String(state.canvas2dRenderer)}`)
+  }
+}
+
+export function testRendererUiStateIsolationRestoresLastNonD3EdgeTypeAfterLeavingD3() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setSchema({
+    ...useGraphStore.getState().schema,
+    layout: {
+      ...(useGraphStore.getState().schema.layout || {}),
+      edges: {
+        ...((useGraphStore.getState().schema.layout || {}).edges || {}),
+        type: 'bezier',
+      },
+    },
+  })
+  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  if (readGlobalEdgeType(useGraphStore.getState().schema) !== 'bezier') {
+    throw new Error('expected non-D3 baseline edge type to start at bezier')
+  }
+  useGraphStore.getState().setCanvas2dRenderer('d3')
+  if (readGlobalEdgeType(useGraphStore.getState().schema) !== 'straight') {
+    throw new Error('expected D3 renderer switch to persist straight-only edge type applicability into schema state')
+  }
+  useGraphStore.getState().setCanvas2dRenderer('flow')
+  if (readGlobalEdgeType(useGraphStore.getState().schema) !== 'bezier') {
+    throw new Error('expected leaving D3 to restore the last non-D3 edge type instead of staying stale straight')
   }
 }

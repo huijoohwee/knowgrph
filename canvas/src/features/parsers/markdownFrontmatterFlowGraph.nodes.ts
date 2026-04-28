@@ -4,6 +4,7 @@ import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
@@ -45,6 +46,7 @@ function canonicalWidgetFormIdForNodeType(nodeTypeId: string): string | null {
   if (typeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'imageGeneration'
   if (typeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'videoGeneration'
   if (typeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return 'richMediaPanel'
+  if (typeId === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) return 'videoTranscriber'
   return null
 }
 

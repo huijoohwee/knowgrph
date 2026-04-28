@@ -1726,10 +1726,6 @@ export default function FlowCanvas({
     if (!isFrontmatterFlow) return base
     return {
       ...base,
-      edges: {
-        ...base.edges,
-        edgeType: frontmatterFlowRenderSettings?.edgeType || base.edges.edgeType,
-      },
       portHandles: {
         ...base.portHandles,
         enabled: true,
@@ -1738,7 +1734,7 @@ export default function FlowCanvas({
         strokeWidthPx: Math.max(1.5, base.portHandles.strokeWidthPx),
       },
     }
-  }, [documentSemanticMode, frontmatterFlowRenderSettings?.edgeType, schema, sceneGraphData])
+  }, [documentSemanticMode, schema, sceneGraphData])
 
   const layoutVariant = React.useMemo(() => {
     return [

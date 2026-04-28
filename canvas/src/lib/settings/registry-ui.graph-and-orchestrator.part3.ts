@@ -17,6 +17,7 @@ import { CANVAS_WHEEL_ZOOM_CTRL_META_BOOST_MULTIPLIER_DEFAULT } from '@/lib/canv
 import { DEFAULT_FIT_TO_SCREEN_FILL_RATIO, DEFAULT_ZOOM_MAX_SCALE, DEFAULT_ZOOM_MIN_SCALE } from '@/lib/graph/layoutDefaults'
 import { DEFAULT_PHYSICS2D_TUNING } from '@/lib/graph/physics2dTuning'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { GLOBAL_EDGE_TYPES, readGlobalEdgeType, withGlobalEdgeType } from '@/lib/graph/edgeTypes'
 import type { SettingMeta } from '@/features/settings/types'
 import {
   JSON_IMPORT_WORKSPACE_TARGET_OPTIONS,
@@ -451,32 +452,16 @@ export const uiGraphAndOrchestratorSettingsRegistryPart3: SettingMeta[] = [
     key: 'schema.layout.edges.type',
     type: 'string',
     source: 'store',
-    read: () => {
-      const schema = s().schema
-      const raw = schema.layout?.edges && typeof schema.layout.edges === 'object'
-        ? (schema.layout.edges as { type?: unknown }).type
-        : undefined
-      const v = String(raw || '').trim().toLowerCase()
-      if (v === 'straight' || v === 'step' || v === 'smoothstep' || v === 'bezier') return v
-      return 'bezier'
-    },
+    read: () => readGlobalEdgeType(s().schema),
     write: (v) => {
-      const raw = String(v || '').trim().toLowerCase()
-      const next = raw === 'straight' || raw === 'step' || raw === 'smoothstep' || raw === 'bezier' ? raw : 'bezier'
       const current = s().schema
-      const layout = current.layout || {}
-      const edges = layout.edges || {}
-      s().setSchema({
-        ...current,
-        layout: {
-          ...layout,
-          edges: { ...edges, type: next },
-        },
-      })
+      const nextSchema = withGlobalEdgeType(current, v)
+      if (nextSchema === current) return
+      s().setSchema(nextSchema)
     },
     docKey: 'schema.layout.edges.type',
     default: () => 'bezier',
-    options: ['bezier', 'straight', 'step', 'smoothstep'],
+    options: [...GLOBAL_EDGE_TYPES],
   },
   {
     key: 'schema.layout.edges.opacity',

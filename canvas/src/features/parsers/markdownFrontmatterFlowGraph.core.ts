@@ -15,6 +15,7 @@ import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import {
@@ -492,6 +493,7 @@ function readWidgetBundleNodeTypeId(formIdRaw: unknown): string {
   if (formId === 'imageGeneration') return FLOW_IMAGE_GENERATION_NODE_TYPE_ID
   if (formId === 'videoGeneration') return FLOW_VIDEO_GENERATION_NODE_TYPE_ID
   if (formId === 'richMediaPanel') return FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+  if (formId === 'videoTranscriber') return FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID
   return 'Node'
 }
 

@@ -113,20 +113,17 @@ export function ToolbarToolMenuRendererView(props: {
   const applyRendererDraft = React.useCallback(() => {
     if (edgeTypeDraft === appliedEdgeType && layoutModeDraft === appliedLayoutMode) return
     const current = useGraphStore.getState().schema as GraphSchema
-    const layout = current.layout || {}
-    const edges = layout.edges || {}
-    const nextLayoutMode = layoutModeDraft
-    setSchema({
-      ...current,
+    const withEdgeType = withGlobalEdgeType(current, edgeTypeDraft)
+    const layout = withEdgeType.layout || {}
+    const nextSchema: GraphSchema = {
+      ...withEdgeType,
       layout: {
         ...layout,
-        mode: nextLayoutMode,
-        edges: {
-          ...edges,
-          type: edgeTypeDraft,
-        },
+        mode: layoutModeDraft,
       },
-    })
+    }
+    if (nextSchema === current) return
+    setSchema(nextSchema)
   }, [appliedEdgeType, appliedLayoutMode, edgeTypeDraft, layoutModeDraft, setSchema])
 
   const resetRendererDraft = React.useCallback(() => {

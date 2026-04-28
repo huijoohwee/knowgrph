@@ -41,6 +41,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["ui.rendererIsolation.openWidgets.flowEditorDoesNotInheritFromSource","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationFlowEditorDoesNotInheritWidgetsFromSourceRenderer"],
   ["ui.rendererIsolation.openWidgets.preserveAppendOrder","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationPreservesOpenWidgetAppendOrder"],
   ["ui.rendererIsolation.graphDataSideEffects.doNotOverrideFlowEditor","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationGraphDataSideEffectsDoNotOverrideFlowEditorRenderer"],
+  ["ui.rendererIsolation.edgeType.restoreLastNonD3","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationRestoresLastNonD3EdgeTypeAfterLeavingD3"],
   ["ui.rendererIsolation.documentModes.useResolvedActiveViewMode","@/__tests__/rendererDocumentModeIsolationRegression.test","testRendererDocumentModeIsolationUsesResolvedActiveMode"],
   ["ui.rendererIsolation.d3Frontmatter.groupsDoNotForceDocumentStructure","@/__tests__/d3FrontmatterModeIsolationRegression.test","testD3FrontmatterModeDoesNotForceDocumentStructureGroups"],
   ["ui.rendererIsolation.modeCaches.useSemanticKeySsot","@/__tests__/documentSemanticModeKeySsotRegression.test","testRendererModeCachesUseDocumentSemanticModeKeySsot"],

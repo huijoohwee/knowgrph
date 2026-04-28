@@ -16,7 +16,7 @@ import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { computeIdealSpacing2d, computeMaxSpeed2d, readPhysics2dTuning } from '@/lib/graph/physics2dTuning'
 import { applyStrictOverlapRelax2d, type StrictOverlapState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.strictOverlap'
 import { renderLabels2d, type LabelRelaxState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.labels'
-import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { buildEdgePathD, readEdgePathCurveOptions, readEffectiveEdgeTypeFor2dRenderer, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { readRadarForceConfig } from '@/lib/graph/radarForces'
 
 type OrbitMode = 'flat' | 'solar' | 'atomic'
@@ -515,7 +515,7 @@ export const attachSimulationTick = (args: {
       return getEdgeEndpointFromPorts({ from, to, schema })
     }
     const radarForceCfg = readRadarForceConfig(schema)
-    const globalEdgeType = readGlobalEdgeType(schema)
+    const globalEdgeType = readEffectiveEdgeTypeFor2dRenderer({ schema, canvas2dRenderer: args.canvas2dRenderer })
     const edgeGeometryCache = new Map<GraphEdge, {
       p1: { x: number; y: number }
       p2: { x: number; y: number }

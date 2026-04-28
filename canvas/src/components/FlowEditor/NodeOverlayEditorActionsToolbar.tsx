@@ -13,7 +13,9 @@ import {
 } from '@/lib/render/richMediaSsot'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { Copy, Eraser, GitMerge, HelpCircle, Images, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
+import { Copy, Eraser, GitMerge, HelpCircle, Images, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
+import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
+import { unwrapUserProvidedText } from '@/lib/url'
 
 export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEditorActionsToolbar(args: {
   visible: boolean
@@ -37,6 +39,11 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     visible: boolean
     selected: '16:9' | '9:16' | null
     onToggle: () => void
+  }
+  importUrlAction?: {
+    visible: boolean
+    initialUrl?: string
+    onConfirm: (url: string) => void
   }
   onRun: () => void
   onDuplicate: () => void
@@ -69,6 +76,9 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
   } = args
   const mediaSelectorButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const [mediaSelectorOpen, setMediaSelectorOpen] = React.useState(false)
+  const importUrlButtonRef = React.useRef<HTMLButtonElement | null>(null)
+  const [importUrlOpen, setImportUrlOpen] = React.useState(false)
+  const [importUrlDraft, setImportUrlDraft] = React.useState('')
   const mediaSelectorOptions = React.useMemo(() => getRichMediaPanelMediaSelectorOptions(), [])
   const mediaSelectorSelectedLabel = React.useMemo(() => {
     const selected = mediaSelectorOptions.find(option => option.value === richMediaMediaSelector?.selectedMode)
@@ -79,6 +89,16 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     if (richMediaMediaSelector?.visible) return
     setMediaSelectorOpen(false)
   }, [richMediaMediaSelector?.visible])
+
+  React.useEffect(() => {
+    if (!args.importUrlAction?.visible) {
+      setImportUrlOpen(false)
+      return
+    }
+    if (importUrlOpen) return
+    const initial = String(args.importUrlAction?.initialUrl || '').trim()
+    if (initial && initial !== importUrlDraft) setImportUrlDraft(initial)
+  }, [args.importUrlAction?.initialUrl, args.importUrlAction?.visible, importUrlDraft, importUrlOpen])
 
   if (!visible) return null
   return (
@@ -103,6 +123,23 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
         >
           <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
         </IconButton>
+
+        {args.importUrlAction?.visible ? (
+          <IconButton
+            ref={importUrlButtonRef}
+            title="Import URL"
+            tooltipContent="Import URL"
+            showTooltip
+            onClick={() => setImportUrlOpen(prev => !prev)}
+            className={cn(
+              'App-toolbar__btn',
+              importUrlOpen ? UI_THEME_TOKENS.icon.active : '',
+            )}
+            data-kg-import-url="1"
+          >
+            <Link className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
 
         {richMediaMediaSelector?.visible ? (
           <IconButton
@@ -280,6 +317,34 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
               )
             })}
           </menu>
+        </section>
+      </AnchoredPopover>
+
+      <AnchoredPopover
+        open={Boolean(args.importUrlAction?.visible && importUrlOpen)}
+        anchorEl={importUrlButtonRef.current}
+        ariaLabel="Import URL"
+        placement="bottom-start"
+        minWidthPx={360}
+        maxWidthPx={520}
+        maxHeightPx={260}
+        onClose={() => setImportUrlOpen(false)}
+      >
+        <section className={`${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded p-2 shadow-sm`}>
+          <ImportUrlPrompt
+            urlDraft={importUrlDraft}
+            onChange={setImportUrlDraft}
+            autoFocus
+            confirmLabel="Set"
+            onCancel={() => setImportUrlOpen(false)}
+            onConfirm={(nextUrlRaw) => {
+              const cleaned = unwrapUserProvidedText(nextUrlRaw) || nextUrlRaw
+              const next = String(cleaned || '').trim()
+              if (!next) return
+              args.importUrlAction?.onConfirm(next)
+              setImportUrlOpen(false)
+            }}
+          />
         </section>
       </AnchoredPopover>
     </>

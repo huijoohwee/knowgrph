@@ -26,6 +26,8 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_LABEL,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_TRANSCRIBER_NODE_LABEL,
+  FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_REGISTRY_METADATA_KEY,
@@ -102,6 +104,7 @@ import {
   resolveRichMediaWidgetKind,
   runRichMediaWidgetGeneration,
 } from '@/features/chat/richMediaRun'
+import { fetchYouTubeTranscriptMarkdown } from '@/features/transcription/youtubeTranscriptMarkdown'
 import {
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
@@ -165,6 +168,7 @@ function isCanonicalFrontmatterBuiltInWidgetNode(node: Pick<GraphNode, 'id' | 't
     || nodeType === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
     || nodeType === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
     || nodeType === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    || nodeType === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID
 }
 
 function resolveGraphNodeIdByCanonicalId(graph: GraphData | null | undefined, rawId: unknown): string {
@@ -2621,6 +2625,13 @@ export default function FlowEditorCanvas(
           outputSrcDoc: '',
         })
       }
+      if (entry.nodeTypeId === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) {
+        Object.assign(properties, {
+          sourceUrl: '',
+          languageHint: '',
+          output: '',
+        })
+      }
       if (entry.nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
         Object.assign(properties, buildBytePlusVideoWidgetSeedProperties({
           prompt: 'Generate a video responsive to the active request.',
@@ -3554,6 +3565,161 @@ export default function FlowEditorCanvas(
             ? (store.widgetRegistry as WidgetRegistryEntry[])
             : [],
         })
+
+        const resolveRichMediaPanelTargetNodeId = (): string | null => {
+          const store = useGraphStore.getState()
+          const graphs: GraphData[] = [
+            (draftGraphDataRef.current || draftGraphData) as GraphData | null,
+            store.renderGraphDataOverride as GraphData | null,
+            graphForRun,
+            store.graphData as GraphData | null,
+          ].filter(Boolean) as GraphData[]
+          const allNodes: GraphNode[] = []
+          for (let i = 0; i < graphs.length; i += 1) {
+            const nodes = Array.isArray(graphs[i]!.nodes) ? (graphs[i]!.nodes as GraphNode[]) : []
+            for (let j = 0; j < nodes.length; j += 1) allNodes.push(nodes[j]!)
+          }
+          const panels = allNodes.filter(n => String(n.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+          if (panels.length === 0) return null
+          const activePanel = panels.find(n => {
+            const p = (n.properties || {}) as Record<string, unknown>
+            return (typeof p.outputSrcDoc === 'string' && p.outputSrcDoc.trim()) || (typeof p.output === 'string' && p.output.trim())
+          })
+          return String((activePanel || panels[0])!.id || '').trim() || null
+        }
+
+        const ensureRichMediaPanelNodeId = (anchorNode: GraphNode): string | null => {
+          const existing = resolveRichMediaPanelTargetNodeId()
+          if (existing) return existing
+          if (!draftGraphData) return null
+          const baseX = Number.isFinite(anchorNode.x) ? anchorNode.x : 0
+          const baseY = Number.isFinite(anchorNode.y) ? anchorNode.y : 0
+          const createdId = appendDraftNode({
+            id: null,
+            type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+            label: FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+            x: baseX + 520,
+            y: baseY,
+            properties: { media_interactive: true },
+          })
+          return createdId
+        }
+
+        const updatePanelInDraft = (id: string, patch: Record<string, unknown>) => {
+          setDraftGraphData(prev => {
+            if (!prev || !Array.isArray(prev.nodes) || prev.nodes.length === 0) return prev
+            let changed = false
+            const nextNodes = prev.nodes.map(existing => {
+              const existingId = String(existing?.id || '').trim()
+              if (existingId !== id) return existing
+              const props = (existing.properties || {}) as Record<string, unknown>
+              changed = true
+              return { ...existing, properties: { ...props, ...patch } as never }
+            })
+            if (!changed) return prev
+            const nextDraft = { ...prev, nodes: nextNodes }
+            draftGraphDataRef.current = nextDraft
+            return nextDraft
+          })
+        }
+
+        const publishTextRunOutputToRichMediaPanel = (args: {
+          anchorNode: GraphNode
+          outputText: string
+          title: string
+          model?: unknown
+          sourceUrl?: string
+          loading?: boolean
+        }) => {
+          const panelNodeId = ensureRichMediaPanelNodeId(args.anchorNode)
+          if (!panelNodeId) return
+          const nextOutput = String(args.outputText || '')
+          const patch: Record<string, unknown> = {
+            ...clearRichMediaOutputProperties({}),
+            ...buildTextWidgetOutputPatch({
+              output: nextOutput,
+              title: args.title,
+              model: args.model,
+            }),
+            richMediaActiveTab: 'text',
+            outputLoading: args.loading === true ? true : undefined,
+            outputLoadingKind: args.loading === true ? 'text' : undefined,
+            outputSourceUrl: typeof args.sourceUrl === 'string' && args.sourceUrl.trim() ? args.sourceUrl.trim() : undefined,
+          }
+          updatePanelInDraft(panelNodeId, patch)
+          updateNode(panelNodeId, { properties: patch as never })
+        }
+
+        if (String(node.type || '').trim() === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) {
+          const rawProperties = (node.properties || {}) as Record<string, unknown>
+          const sourceUrlRaw = typeof rawProperties.sourceUrl === 'string' ? rawProperties.sourceUrl.trim() : ''
+          const langRaw = typeof rawProperties.languageHint === 'string' ? rawProperties.languageHint.trim() : ''
+          if (!sourceUrlRaw) {
+            upsertUiToast({
+              id: `flow-editor-run-${id}`,
+              kind: 'neutral',
+              message: 'Import a video URL before running the Video Transcriber Widget.',
+              ttlMs: 2400,
+            })
+            return
+          }
+          setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
+          try {
+            const converted = await fetchYouTubeTranscriptMarkdown({
+              url: sourceUrlRaw,
+              ...(langRaw ? { lang: langRaw } : {}),
+            })
+            if (!converted) {
+              upsertUiToast({
+                id: `flow-editor-run-${id}`,
+                kind: 'neutral',
+                message: UI_COPY.flowEditorRunFailedToast,
+                ttlMs: 2600,
+              })
+              return
+            }
+            if ('error' in converted) {
+              upsertUiToast({
+                id: `flow-editor-run-${id}`,
+                kind: 'neutral',
+                message: converted.error.trim() ? converted.error.trim() : UI_COPY.flowEditorRunFailedToast,
+                ttlMs: 2600,
+              })
+              return
+            }
+            const nodeTitle = node.label || FLOW_VIDEO_TRANSCRIBER_NODE_LABEL
+            const resolvedSourceUrl = String(converted.sourceUrl || sourceUrlRaw).trim() || sourceUrlRaw
+            const outputText = String(converted.markdown || '')
+            updateRunOutputForKnownNodeIds(nodeProps => ({
+              ...clearRichMediaOutputProperties(nodeProps),
+              sourceUrl: resolvedSourceUrl,
+              ...(langRaw ? { languageHint: langRaw } : { languageHint: '' }),
+              ...buildTextWidgetOutputPatch({
+                output: outputText,
+                title: nodeTitle,
+                model: 'youtube',
+              }),
+              outputSourceUrl: resolvedSourceUrl,
+            }))
+            publishTextRunOutputToRichMediaPanel({
+              anchorNode: node,
+              outputText,
+              title: nodeTitle,
+              model: 'youtube',
+              sourceUrl: resolvedSourceUrl,
+              loading: false,
+            })
+            upsertUiToast({
+              id: `flow-editor-run-${id}`,
+              kind: 'neutral',
+              message: 'Transcribed video transcript.',
+              ttlMs: 2400,
+            })
+          } finally {
+            setRunLoadingStateForKnownNodeIds({ loading: false })
+          }
+          return
+        }
         const richMediaKind = resolveRichMediaWidgetKind(node)
         if (richMediaKind) {
           setRunLoadingStateForKnownNodeIds({ loading: true, kind: richMediaKind })
@@ -3678,77 +3844,6 @@ export default function FlowEditorCanvas(
             }))
           }
           let lastPublishedText = ''
-          const resolveRichMediaPanelTargetNodeId = (): string | null => {
-            const store = useGraphStore.getState()
-            const graphs: GraphData[] = [
-              (draftGraphDataRef.current || draftGraphData) as GraphData | null,
-              store.renderGraphDataOverride as GraphData | null,
-              graphForRun,
-              store.graphData as GraphData | null,
-            ].filter(Boolean) as GraphData[]
-            const allNodes: GraphNode[] = []
-            for (let i = 0; i < graphs.length; i += 1) {
-              const nodes = Array.isArray(graphs[i]!.nodes) ? (graphs[i]!.nodes as GraphNode[]) : []
-              for (let j = 0; j < nodes.length; j += 1) allNodes.push(nodes[j]!)
-            }
-            const panels = allNodes.filter(n => String(n.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
-            if (panels.length === 0) return null
-            const activePanel = panels.find(n => {
-              const p = (n.properties || {}) as Record<string, unknown>
-              return (typeof p.outputSrcDoc === 'string' && p.outputSrcDoc.trim()) || (typeof p.output === 'string' && p.output.trim())
-            })
-            return String((activePanel || panels[0])!.id || '').trim() || null
-          }
-          const ensureRichMediaPanelNodeId = (): string | null => {
-            const existing = resolveRichMediaPanelTargetNodeId()
-            if (existing) return existing
-            if (!draftGraphData) return null
-            const baseX = Number.isFinite(node.x) ? node.x : 0
-            const baseY = Number.isFinite(node.y) ? node.y : 0
-            const createdId = appendDraftNode({
-              id: null,
-              type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-              label: FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
-              x: baseX + 520,
-              y: baseY,
-              properties: { media_interactive: true },
-            })
-            return createdId
-          }
-          const publishTextRunOutputToRichMediaPanel = (outputText: string) => {
-            const panelNodeId = ensureRichMediaPanelNodeId()
-            if (!panelNodeId) return
-            const nextOutput = String(outputText || '')
-            const store = useGraphStore.getState()
-            const updatePanelInDraft = (id: string, patch: Record<string, unknown>) => {
-              setDraftGraphData(prev => {
-                if (!prev || !Array.isArray(prev.nodes) || prev.nodes.length === 0) return prev
-                let changed = false
-                const nextNodes = prev.nodes.map(existing => {
-                  const existingId = String(existing?.id || '').trim()
-                  if (existingId !== id) return existing
-                  const props = (existing.properties || {}) as Record<string, unknown>
-                  changed = true
-                  return { ...existing, properties: { ...props, ...patch } as never }
-                })
-                if (!changed) return prev
-                const nextDraft = { ...prev, nodes: nextNodes }
-                draftGraphDataRef.current = nextDraft
-                return nextDraft
-              })
-            }
-            const nodeTitle = node.label || FLOW_TEXT_GENERATION_NODE_LABEL
-            const patch = {
-              ...clearRichMediaOutputProperties({}),
-              ...buildTextWidgetOutputPatch({
-                output: nextOutput,
-                title: nodeTitle,
-                model: properties.chatModel || store.chatModel,
-              }),
-            }
-            updatePanelInDraft(panelNodeId, patch)
-            updateNode(panelNodeId, { properties: patch as never })
-          }
           const publishTextRunOutput = (outputText: string, loading: boolean) => {
             const nextOutput = String(outputText || '')
             if (providerFamily === 'byteplus') {
@@ -3757,7 +3852,13 @@ export default function FlowEditorCanvas(
                 outputLoading: loading === true ? true : undefined,
                 outputLoadingKind: loading === true ? 'text' : undefined,
               }))
-              publishTextRunOutputToRichMediaPanel(nextOutput)
+              publishTextRunOutputToRichMediaPanel({
+                anchorNode: node,
+                outputText: nextOutput,
+                title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL,
+                model: properties.chatModel || useGraphStore.getState().chatModel,
+                loading,
+              })
               return
             }
 

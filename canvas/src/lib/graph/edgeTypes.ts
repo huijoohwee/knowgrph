@@ -6,6 +6,13 @@ export type GlobalEdgeType = 'bezier' | 'straight' | 'step' | 'smoothstep'
 
 export const GLOBAL_EDGE_TYPES: GlobalEdgeType[] = ['bezier', 'straight', 'step', 'smoothstep']
 
+export const GLOBAL_EDGE_TYPE_OPTIONS: ReadonlyArray<{ value: GlobalEdgeType; label: string }> = [
+  { value: 'bezier', label: 'Bezier (default)' },
+  { value: 'straight', label: 'Straight' },
+  { value: 'step', label: 'Step' },
+  { value: 'smoothstep', label: 'Smoothstep' },
+] as const
+
 export const normalizeGlobalEdgeType = (raw: unknown): GlobalEdgeType => {
   const value = String(raw || '').trim().toLowerCase()
   if (value === 'straight' || value === 'step' || value === 'smoothstep' || value === 'bezier') return value
@@ -14,6 +21,21 @@ export const normalizeGlobalEdgeType = (raw: unknown): GlobalEdgeType => {
 
 export const readGlobalEdgeType = (schema: GraphSchema | null | undefined): GlobalEdgeType =>
   normalizeGlobalEdgeType(schema?.layout?.edges && typeof schema.layout.edges === 'object' ? (schema.layout.edges as { type?: unknown }).type : '')
+
+export const readEffectiveEdgeTypeFor2dRenderer = (args: {
+  schema: GraphSchema | null | undefined
+  canvas2dRenderer?: unknown
+}): GlobalEdgeType => {
+  const renderer = String(args.canvas2dRenderer || '').trim().toLowerCase()
+  if (renderer === 'd3') return 'straight'
+  return readGlobalEdgeType(args.schema)
+}
+
+export function getGlobalEdgeTypeOptionsFor2dRenderer(canvas2dRenderer?: unknown): ReadonlyArray<{ value: GlobalEdgeType; label: string }> {
+  const renderer = String(canvas2dRenderer || '').trim().toLowerCase()
+  if (renderer === 'd3') return GLOBAL_EDGE_TYPE_OPTIONS.filter(option => option.value === 'straight')
+  return GLOBAL_EDGE_TYPE_OPTIONS
+}
 
 export const withGlobalEdgeType = (schema: GraphSchema, nextEdgeTypeRaw: unknown): GraphSchema => {
   const nextEdgeType = normalizeGlobalEdgeType(nextEdgeTypeRaw)

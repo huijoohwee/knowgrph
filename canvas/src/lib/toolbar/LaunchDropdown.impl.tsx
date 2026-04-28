@@ -2,12 +2,13 @@ import React from 'react'
 import { BarChart3, CloudDownload, FolderOpen, FolderPlus, Globe, Link, Save, Sparkles, Upload, Download, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { SOURCE_FILES_COPY, SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
+import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/lib/config'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
 import { WORKSPACE_EXPORT_MENU_ITEMS } from '@/lib/toolbar/exportMenuSsot'
+import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 
@@ -48,7 +49,6 @@ export function LaunchDropdown({
 }: LaunchDropdownProps) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const folderInputRef = React.useRef<HTMLInputElement | null>(null)
-  const urlInputRef = React.useRef<HTMLInputElement | null>(null)
   const [urlDraft, setUrlDraft] = React.useState('')
   const [urlInputOpen, setUrlInputOpen] = React.useState(false)
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false)
@@ -392,70 +392,21 @@ export function LaunchDropdown({
               <span className="truncate">Import URL</span>
             </button>
             {urlInputOpen ? (
-              <section className="mt-1" aria-label="URL import controls">
-                {(WORKSPACE_IMPORT_URL_TEST || WORKSPACE_IMPORT_IMAGE_URL_TEST) && (
-                  <section className="mb-1 flex items-center gap-1">
-                    {WORKSPACE_IMPORT_URL_TEST ? (
-                      <button
-                        type="button"
-                        className={cn(
-                          'h-6 px-2 inline-flex items-center justify-center rounded border text-xs',
-                          UI_THEME_TOKENS.input.border,
-                          UI_THEME_TOKENS.button.text,
-                          UI_THEME_TOKENS.button.hoverBg,
-                        )}
-                        onClick={() => setUrlDraft(WORKSPACE_IMPORT_URL_TEST)}
-                      >
-                        Test URL
-                      </button>
-                    ) : null}
-                    {WORKSPACE_IMPORT_IMAGE_URL_TEST ? (
-                      <button
-                        type="button"
-                        className={cn(
-                          'h-6 px-2 inline-flex items-center justify-center rounded border text-xs',
-                          UI_THEME_TOKENS.input.border,
-                          UI_THEME_TOKENS.button.text,
-                          UI_THEME_TOKENS.button.hoverBg,
-                        )}
-                        onClick={() => setUrlDraft(WORKSPACE_IMPORT_IMAGE_URL_TEST)}
-                      >
-                        Test image
-                      </button>
-                    ) : null}
-                  </section>
-                )}
-
-                <section className="flex items-stretch gap-1">
-                  <input
-                    ref={urlInputRef}
-                    className={cn(
-                      'flex-1 min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border text-xs',
-                      UI_THEME_TOKENS.input.border,
-                      UI_THEME_TOKENS.input.bg,
-                      UI_THEME_TOKENS.input.text,
-                    )}
-                    placeholder={SOURCE_FILES_COPY.urlPlaceholder}
-                    value={urlDraft}
-                    onChange={e => setUrlDraft(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Escape') {
-                        e.preventDefault()
-                        setUrlInputOpen(false)
-                        return
-                      }
-                      if (e.key !== 'Enter') return
-                      e.preventDefault()
-                      const next = String(urlDraft || '').trim()
-                      if (!next) return
-                      ensureWorkspaceEditorCanvasVisible()
-                      onClose()
-                      if (typeof bridge.importUrl === 'function') bridge.importUrl(next)
-                      else void importUrlFallback(next)
-                      setUrlInputOpen(false)
-                    }}
-                  />
-                  {typeof bridge.importWebsite === 'function' ? (
+              <section className="mt-1">
+                <ImportUrlPrompt
+                  urlDraft={urlDraft}
+                  onChange={setUrlDraft}
+                  onCancel={() => setUrlInputOpen(false)}
+                  autoFocus
+                  confirmLabel="Import"
+                  onConfirm={(next) => {
+                    ensureWorkspaceEditorCanvasVisible()
+                    onClose()
+                    if (typeof bridge.importUrl === 'function') bridge.importUrl(next)
+                    else void importUrlFallback(next)
+                    setUrlInputOpen(false)
+                  }}
+                  rightAddon={typeof bridge.importWebsite === 'function' ? (
                     <button
                       type="button"
                       className={cn(
@@ -478,7 +429,7 @@ export function LaunchDropdown({
                       <Globe className={menuIconClass} strokeWidth={1.6} />
                     </button>
                   ) : null}
-                </section>
+                />
               </section>
             ) : null}
           </li>

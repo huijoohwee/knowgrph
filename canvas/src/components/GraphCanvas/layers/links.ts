@@ -8,7 +8,7 @@ import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/
 import { attachEdgeInteractionHandlers } from '@/components/GraphCanvas/layers/edgeInteractions'
 import { shouldShowEdgeArrow } from '@/components/GraphCanvas/edgeDisplay'
 import { edgeDragBehavior } from '@/components/GraphCanvas/utils';
-import { buildEdgePathD, readEdgePathCurveOptions, readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { buildEdgePathD, readEdgePathCurveOptions, readEffectiveEdgeTypeFor2dRenderer } from '@/lib/graph/edgeTypes'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -122,7 +122,7 @@ function shouldUsePathForEdge(e: GraphEdge, _schema: GraphSchema): boolean {
 }
 
 function resolveEdgePathD(e: GraphEdge, schema: GraphSchema, nodeLookup?: Map<string, GraphNode> | null): string {
-  const globalType = readGlobalEdgeType(schema)
+  const globalType = readEffectiveEdgeTypeFor2dRenderer({ schema, canvas2dRenderer: 'd3' })
   const existing = readEdgeVisualPathD(e)
   if (globalType === 'bezier' && existing) return existing
   const s = getEndpointPosOrZero((e as any).source, nodeLookup)

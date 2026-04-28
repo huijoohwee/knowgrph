@@ -21,6 +21,10 @@ import {
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_LABEL,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_TRANSCRIBER_FORM_ID,
+  FLOW_VIDEO_TRANSCRIBER_NODE_LABEL,
+  FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
+  FLOW_VIDEO_TRANSCRIBER_WIDGET_TYPE_ID,
   FLOW_VIDEO_SCRIPT_FORM_ID,
   FLOW_VIDEO_SCRIPT_WIDGET_LABEL,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
@@ -122,6 +126,7 @@ export function getWidgetRegistryEntryLabel(args: {
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return FLOW_IMAGE_GENERATION_NODE_LABEL
   if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return FLOW_VIDEO_GENERATION_NODE_LABEL
   if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+  if (nodeTypeId === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) return FLOW_VIDEO_TRANSCRIBER_NODE_LABEL
   return nodeTypeId || String(args.formId || '').trim() || String(args.widgetTypeId || '').trim() || FLOW_TEXT_GENERATION_NODE_LABEL
 }
 
@@ -304,7 +309,34 @@ export function buildCanonicalWidgetRegistryDraft(args: {
       formId: formId || FLOW_RICH_MEDIA_PANEL_FORM_ID,
     }
   }
+  if (nodeTypeId === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) {
+    return {
+      ...buildVideoTranscriberRegistryDraft(),
+      widgetTypeId: widgetTypeId || FLOW_VIDEO_TRANSCRIBER_WIDGET_TYPE_ID,
+      formId: formId || FLOW_VIDEO_TRANSCRIBER_FORM_ID,
+    }
+  }
   return null
+}
+
+export function buildVideoTranscriberRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {
+  return {
+    id: '',
+    isEnabled: true,
+    nodeTypeId: FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
+    widgetTypeId: FLOW_VIDEO_TRANSCRIBER_WIDGET_TYPE_ID,
+    formId: FLOW_VIDEO_TRANSCRIBER_FORM_ID,
+    fields: [
+      { fieldKey: 'sourceUrl', fieldType: 'text', schemaPath: 'properties.sourceUrl', required: true, label: 'Video URL' },
+      { fieldKey: 'languageHint', fieldType: 'text', schemaPath: 'properties.languageHint', required: false, label: 'Language hint (optional)' },
+      { fieldKey: 'output', fieldType: 'textarea', schemaPath: 'properties.output', label: 'Output' },
+    ],
+    ports: [
+      { portKey: 'sourceUrl_in', direction: 'input', schemaPath: 'properties.sourceUrl' },
+      { portKey: 'text_out', direction: 'output', schemaPath: 'properties.output' },
+    ],
+    schemaMappings: [],
+  }
 }
 
 export function buildGenerateImageRegistryDraft(): Omit<WidgetRegistryEntry, 'updatedAt'> {

@@ -22,6 +22,11 @@ export const FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID = 'RichMediaPanel' as const
 export const FLOW_RICH_MEDIA_PANEL_NODE_LABEL = 'Rich Media Panel' as const
 export const FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID = 'default' as const
 export const FLOW_RICH_MEDIA_PANEL_FORM_ID = 'richMediaPanel' as const
+
+export const FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID = 'VideoTranscriber' as const
+export const FLOW_VIDEO_TRANSCRIBER_NODE_LABEL = 'Video Transcriber Widget' as const
+export const FLOW_VIDEO_TRANSCRIBER_WIDGET_TYPE_ID = 'default' as const
+export const FLOW_VIDEO_TRANSCRIBER_FORM_ID = 'videoTranscriber' as const
 export const FLOW_TEXT_GENERATION_NODE_TYPE_ID = 'TextGeneration' as const
 export const FLOW_TEXT_GENERATION_NODE_LABEL = 'Text Widget' as const
 export const FLOW_VIDEO_GENERATION_NODE_TYPE_ID = 'VideoGeneration' as const

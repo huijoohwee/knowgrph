@@ -10,6 +10,7 @@ import {
   buildGenerateVideoRegistryDraft,
   buildBytePlusVideoScriptRegistryDraft,
   buildRichMediaPanelRegistryDraft,
+  buildVideoTranscriberRegistryDraft,
   buildTextGenerationRegistryDraft,
 } from '@/features/flow-editor-manager/registryTemplates'
 import {
@@ -24,6 +25,8 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+  FLOW_VIDEO_TRANSCRIBER_FORM_ID,
+  FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_SCRIPT_FORM_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
@@ -377,6 +380,11 @@ export function normalizeWidgetRegistryEntries(
     }),
   })
 
+  canonicalizeBuiltInForm({
+    formId: FLOW_VIDEO_TRANSCRIBER_FORM_ID,
+    draft: buildVideoTranscriberRegistryDraft(),
+  })
+
   out.sort((a, b) => {
     const t = a.nodeTypeId.localeCompare(b.nodeTypeId)
     if (t !== 0) return t
@@ -525,8 +533,15 @@ export function ensureDefaultWidgetRegistryEntries(
     }),
     nowIso,
   })
-  const seededRichMediaPanel = ensureDefaultRegistryEntry({
+  const seededVideoTranscriber = ensureDefaultRegistryEntry({
     entries: seededOpenAiText.entries,
+    nodeTypeId: FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
+    formId: FLOW_VIDEO_TRANSCRIBER_FORM_ID,
+    draft: buildVideoTranscriberRegistryDraft(),
+    nowIso,
+  })
+  const seededRichMediaPanel = ensureDefaultRegistryEntry({
+    entries: seededVideoTranscriber.entries,
     nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
     formId: FLOW_RICH_MEDIA_PANEL_FORM_ID,
     draft: buildRichMediaPanelRegistryDraft(),
@@ -547,6 +562,7 @@ export function ensureDefaultWidgetRegistryEntries(
       || seededText.changed
       || seededVideoScript.changed
       || seededOpenAiText.changed
+      || seededVideoTranscriber.changed
       || seededRichMediaPanel.changed
       || seededGrabMapsDiscovery.changed,
   }
