@@ -236,29 +236,27 @@ export function createInfiniteCanvasViewportController(args: {
     const maxK = extent && Number.isFinite(extent.maxK) ? extent.maxK : 8
     const now = Date.now()
     const intent = deltaYpx < 0 ? 'in' : 'out'
-    const minK = intent === 'out' ? Math.min(baseMinK, t0.k) : baseMinK
+    const stateIncrement = clampFlowWheelZoomIncrementMultiplier(args.getFlowWheelZoomIncrementMultiplier())
+    const factor = computeWheelZoomFactor(deltaYpx * stateIncrement)
+    const requestedK = t0.k * factor
+    const extentForNext = resolveScaleExtentForInteractiveZoom({
+      scaleExtent: { minK: baseMinK, maxK },
+      currentTransform: t0,
+      nextK: requestedK,
+    })
 
     const guard = computeZoomWheelGuardDecision({
       currentK: t0.k,
-      minK,
-      maxK,
+      minK: extentForNext.minK,
+      maxK: extentForNext.maxK,
       deltaYpx,
       nowMs: now,
       state: wheelGuardState,
     })
     wheelGuardState = guard.nextState
     if (guard.block) return
-
-    const stateIncrement = clampFlowWheelZoomIncrementMultiplier(args.getFlowWheelZoomIncrementMultiplier())
-    const factor = computeWheelZoomFactor(deltaYpx * stateIncrement)
-    const requestedK = t0.k * factor
-    const extentForNext = resolveScaleExtentForInteractiveZoom({
-      scaleExtent: { minK, maxK },
-      currentTransform: t0,
-      nextK: requestedK,
-    })
-    const nextK = clampScale(requestedK, extentForNext)
     if (!Number.isFinite(nextK) || Math.abs(nextK - t0.k) < 1e-12) return
+
 
     const durationCfg = args.getFlowWheelZoomSmoothDuration()
     const durationMs = computeFlowWheelZoomDurationMs({

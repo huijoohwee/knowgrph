@@ -85,6 +85,20 @@ export function applyComposedGraphFromSourceFiles() {
     parsedGraphData: f.parsedGraphData,
   }))
 
+  const hasEnabledContent = layers.some(layer => {
+    if (!layer.enabled) return false
+    if (layer.parsedGraphData) return true
+    return Boolean(String(layer.text || '').trim())
+  })
+  if (!hasEnabledContent) {
+    const prevMeta = (store.graphData?.metadata || {}) as Record<string, unknown>
+    const prevWasComposed = String(prevMeta.sourceLayerComposition || '') === 'compose'
+    if (prevWasComposed) {
+      store.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} })
+    }
+    return
+  }
+
   const prevMeta = (store.graphData?.metadata || {}) as Record<string, unknown>
   const prevContentKey = typeof prevMeta.sourceLayerHash === 'string' ? prevMeta.sourceLayerHash : ''
   const prevOrderKey = typeof prevMeta.sourceLayerOrderHash === 'string' ? prevMeta.sourceLayerOrderHash : ''

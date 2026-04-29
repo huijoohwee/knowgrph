@@ -22,6 +22,8 @@ import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMar
 import { buildGrabMapsProxyRequestHeaders } from 'grph-shared/geospatial/grabMapsAuth'
 import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
+import { mapLimit } from '@/lib/async/mapLimit'
+import { SOURCE_FILES_REPARSE_CONCURRENCY } from '@/lib/config'
 
 const SUPPORTED_SOURCE_FILE_IMPORT_EXTENSIONS = [...SOURCE_FILES_FORMATS.import]
 
@@ -237,7 +239,7 @@ export async function parseAndApplySourceFile(fileId: string): Promise<void> {
   }
 
   try {
-    const res = await runImportFlow({ nameForParse: before.name, textForParse: text, applyToStore: false })
+    const res = await runImportFlow({ nameForParse: before.name, textForParse: text, applyToStore: false, sideEffects: false })
     if (parseJobBySourceFileId.get(fileId) !== parseJobToken) return
     const latest = useGraphStore.getState().sourceFiles.find(f => f.id === fileId)
     if (!latest) return
@@ -272,6 +274,7 @@ export async function parseAndApplySourceFile(fileId: string): Promise<void> {
 
 export async function refreshPersistedSourceFilesForCurrentParseIdentity(): Promise<void> {
   const files = Array.isArray(useGraphStore.getState().sourceFiles) ? useGraphStore.getState().sourceFiles.slice() : []
+  const idsToReparse: string[] = []
   for (let i = 0; i < files.length; i += 1) {
     const file = files[i]
     if (!file) continue
@@ -285,8 +288,12 @@ export async function refreshPersistedSourceFilesForCurrentParseIdentity(): Prom
       text,
     })
     if (String(file.parsedTextHash || '') === nextHash) continue
-    await parseAndApplySourceFile(id)
+    idsToReparse.push(id)
   }
+  if (idsToReparse.length === 0) return
+  await mapLimit(idsToReparse, SOURCE_FILES_REPARSE_CONCURRENCY, async id => {
+    await parseAndApplySourceFile(id)
+  })
 }
 
 function exportActiveSourceFile(args: { fileId: string | null }) {

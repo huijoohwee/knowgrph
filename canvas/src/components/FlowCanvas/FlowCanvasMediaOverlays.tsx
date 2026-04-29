@@ -10,11 +10,13 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import {
   commitRichMediaPanelChange,
+  coerceRichMediaPanelSizePx,
   normalizeRichMediaPanelDensity,
   resolveRichMediaPanelInteractive,
 } from '@/lib/render/richMediaSsot'
@@ -70,7 +72,6 @@ export default function FlowCanvasMediaOverlays(args: {
     frontmatterModeEnabled,
     documentSemanticMode,
     flowEditorOverlayInteractionMode,
-    flowEditorFrontmatterInteractionMode,
     mediaPanelDensity,
     renderMediaAsNodes,
     infiniteCanvasInteractionMode,
@@ -84,6 +85,14 @@ export default function FlowCanvasMediaOverlays(args: {
     threeIframeOverlayBaseWidthMaxPxCompact,
     onPlannedOverlayNodeIdsChange,
   } = args
+
+  const flowEditorFrontmatterDocumentModeRequested = React.useMemo(() => {
+    return isFlowEditorFrontmatterDocumentModeRequested({
+      canvas2dRenderer,
+      frontmatterModeEnabled,
+      documentSemanticMode,
+    })
+  }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
   const graphSchema = schema as GraphSchema
 
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
@@ -378,16 +387,27 @@ export default function FlowCanvasMediaOverlays(args: {
       enabled: true,
       loop: 'onDemand',
       items: mediaLayoutItems,
-      manualPlacement: flowEditorFrontmatterInteractionMode,
+      manualPlacement: flowEditorFrontmatterDocumentModeRequested,
       density,
       viewportW,
       viewportH,
       readTransform: () => runtimeRef.current?.transform || d3.zoomIdentity,
       computeSizingZoomK: zoomK => computeOverlaySizingScale(zoomK, mediaLayoutItems.length, 360, 240),
       getPanelSizeForId: id => {
-        if (!flowEditorFrontmatterInteractionMode) return null
+        if (!flowEditorFrontmatterDocumentModeRequested) return null
         const override = mediaOverlayPanelSizeOverrideRef.current.get(id)
-        if (override) return override
+        if (override) {
+          writeRichMediaResizeTrace(['phase=layout-override', `id=${id}`, `w=${override.w}`, `h=${override.h}`])
+          const coerced = coerceRichMediaPanelSizePx({
+            width: override.w,
+            height: override.h,
+            viewportW,
+            viewportH,
+            minWidthPx: 220,
+            minHeightPx: 160,
+          })
+          return { w: coerced.width, h: coerced.height }
+        }
         const props = sceneNodePropsByIdRef.current.get(id) || null
         if (!props) return null
         const width = Number(props['visual:width'])
@@ -395,16 +415,33 @@ export default function FlowCanvasMediaOverlays(args: {
         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
         const zoomK = typeof runtimeRef.current?.transform?.k === 'number' && runtimeRef.current.transform.k > 0 ? runtimeRef.current.transform.k : 1
         const scale = computeOverlaySizingScale(zoomK, mediaLayoutItems.length, Math.max(24, width), Math.max(24, height))
-        return { w: Math.max(24, width) * scale, h: Math.max(24, height) * scale }
+        const coerced = coerceRichMediaPanelSizePx({
+          width: Math.max(24, width) * scale,
+          height: Math.max(24, height) * scale,
+          viewportW,
+          viewportH,
+          minWidthPx: 220,
+          minHeightPx: 160,
+        })
+        return { w: coerced.width, h: coerced.height }
       },
       getElementForId: id => mediaOverlayElsRef.current.get(id) || null,
       getNodeWorldCenterForId: id => readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'topLeft' }),
+      schema: schema && typeof schema === 'object' ? (schema as GraphSchema) : null,
+      collision: flowEditorFrontmatterDocumentModeRequested
+        ? {
+            enabled: true,
+            anchorStrength: 0.14,
+            maxAnchorShiftPx: Math.max(80, Math.round(Math.min(viewportW, viewportH) * 0.22)),
+          }
+        : { enabled: true },
       sizingConfig: {
         widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
         widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,
         widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360,
-        quantizeStepPx: flowEditorFrontmatterInteractionMode ? 1 : 16,
+        quantizeStepPx: flowEditorFrontmatterDocumentModeRequested ? 1 : 16,
       },
+      clampToViewport: { margin: 16 },
     })
     mediaOverlayLayoutScheduleRef.current = loop.schedule
     loop.schedule()
@@ -446,7 +483,7 @@ export default function FlowCanvasMediaOverlays(args: {
     <section aria-label="Flow media overlay" className="absolute inset-0 z-[80] pointer-events-none">
       {mediaNodes.map(node => {
         const isSelected = selectedOverlayNodeIdSet.has(node.id) || Array.from(selectedOverlayNodeIdSet).some(id => isCanonicalNodeIdEqual(id, node.id))
-        const resizeInteractionActive = flowEditorOverlayInteractionMode && isSelected
+        const resizeInteractionActive = flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested
         const updateNode = (id: string, patch: { properties: Record<string, unknown> }) => {
           useGraphStore.getState().updateNode(id, patch as Partial<GraphNode>)
         }
@@ -553,7 +590,7 @@ export default function FlowCanvasMediaOverlays(args: {
               requestCommit()
             } : undefined}
             flowEditorInteractionMode={flowEditorOverlayInteractionMode}
-            flowEditorFrontmatterDocumentMode={flowEditorFrontmatterInteractionMode}
+            flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}
             style={{ transform: 'translate(-99999px, -99999px)', width: 1, height: 1 }}
             onWheelCapture={stopEvent}
             onClickCapture={stopEvent}

@@ -38,6 +38,7 @@ import {
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import {
   buildRichMediaPanelOverlayState,
+  coerceRichMediaPanelSizePx,
   getRichMediaPanelNodeLabel,
   type RichMediaPanelTab,
   resolveRichMediaPanelRenderNode,
@@ -283,16 +284,27 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   }, [graphMetaKind])
   const isRichMediaPanelWidget = String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
   const showRichMediaPanelBody = isRichMediaPanelWidget && !hideFields && !minimized
-  const richMediaPanelStoredWidth = typeof node.properties?.['visual:width'] === 'number' && Number.isFinite(node.properties['visual:width'])
-    ? Math.max(RICH_MEDIA_PANEL_MIN_WIDTH, Math.round(node.properties['visual:width'] as number))
-    : 280
-  const richMediaPanelStoredHeight = typeof node.properties?.['visual:height'] === 'number' && Number.isFinite(node.properties['visual:height'])
-    ? Math.max(RICH_MEDIA_PANEL_MIN_HEIGHT, Math.round(node.properties['visual:height'] as number))
-    : 180
-  const richMediaPanelBaseSize = React.useMemo(
-    () => ({ width: richMediaPanelStoredWidth, height: richMediaPanelStoredHeight }),
-    [richMediaPanelStoredHeight, richMediaPanelStoredWidth],
-  )
+  const richMediaPanelStoredWidth =
+    typeof node.properties?.['visual:width'] === 'number' && Number.isFinite(node.properties['visual:width'])
+      ? Math.max(RICH_MEDIA_PANEL_MIN_WIDTH, Math.round(node.properties['visual:width'] as number))
+      : 280
+  const richMediaPanelStoredHeight =
+    typeof node.properties?.['visual:height'] === 'number' && Number.isFinite(node.properties['visual:height'])
+      ? Math.max(RICH_MEDIA_PANEL_MIN_HEIGHT, Math.round(node.properties['visual:height'] as number))
+      : 180
+  const richMediaPanelBaseSize = React.useMemo(() => {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : null
+    const vh = typeof window !== 'undefined' ? window.innerHeight : null
+    const coerced = coerceRichMediaPanelSizePx({
+      width: richMediaPanelStoredWidth,
+      height: richMediaPanelStoredHeight,
+      viewportW: vw,
+      viewportH: vh,
+      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
+      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
+    })
+    return { width: coerced.width, height: coerced.height }
+  }, [richMediaPanelStoredHeight, richMediaPanelStoredWidth])
   const [richMediaPanelViewSize, setRichMediaPanelViewSize] = React.useState(richMediaPanelBaseSize)
   const richMediaPanelResizeStartRef = React.useRef(richMediaPanelBaseSize)
 
@@ -337,16 +349,33 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   }, [richMediaPanelViewSize])
 
   const handleRichMediaResize = React.useCallback((args: { dx: number; dy: number }) => {
-    setRichMediaPanelViewSize({
-      width: Math.max(RICH_MEDIA_PANEL_MIN_WIDTH, Math.round(richMediaPanelResizeStartRef.current.width + args.dx)),
-      height: Math.max(RICH_MEDIA_PANEL_MIN_HEIGHT, Math.round(richMediaPanelResizeStartRef.current.height + args.dy)),
+    const vw = typeof window !== 'undefined' ? window.innerWidth : null
+    const vh = typeof window !== 'undefined' ? window.innerHeight : null
+    const coerced = coerceRichMediaPanelSizePx({
+      width: Math.round(richMediaPanelResizeStartRef.current.width + args.dx),
+      height: Math.round(richMediaPanelResizeStartRef.current.height + args.dy),
+      viewportW: vw,
+      viewportH: vh,
+      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
+      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
     })
+    setRichMediaPanelViewSize({ width: coerced.width, height: coerced.height })
   }, [])
 
   const handleRichMediaResizeEnd = React.useCallback(() => {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : null
+    const vh = typeof window !== 'undefined' ? window.innerHeight : null
+    const coerced = coerceRichMediaPanelSizePx({
+      width: richMediaPanelViewSize.width,
+      height: richMediaPanelViewSize.height,
+      viewportW: vw,
+      viewportH: vh,
+      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
+      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
+    })
     onPatchProperties({
-      'visual:width': richMediaPanelViewSize.width,
-      'visual:height': richMediaPanelViewSize.height,
+      'visual:width': coerced.width,
+      'visual:height': coerced.height,
     })
   }, [onPatchProperties, richMediaPanelViewSize.height, richMediaPanelViewSize.width])
 

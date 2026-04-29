@@ -13,7 +13,10 @@ export function testFlowEditorFrontmatterDocumentUsesManualMediaPlacement() {
   if (!loopText.includes('manualPlacement?: boolean')) {
     throw new Error('expected shared media overlay layout loop to expose a manual placement contract')
   }
-  if (!loopText.includes('args.manualPlacement === true')) {
-    throw new Error('expected shared media overlay layout loop to disable collision auto-relayout when manual placement is active')
+  if (!loopText.includes('const manualPlacement = args.manualPlacement === true')) {
+    throw new Error('expected shared media overlay layout loop to read manual placement mode')
+  }
+  if (!loopText.includes('const collisionEnabled = args.collision?.enabled !== false')) {
+    throw new Error('expected shared media overlay layout loop to keep collision enablement gated by collision config')
   }
 }

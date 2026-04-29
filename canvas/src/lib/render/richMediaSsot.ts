@@ -55,6 +55,51 @@ export function normalizeRichMediaPanelMode(value: unknown): RichMediaPanelMode 
   return value === 'embed' ? 'embed' : 'snapshot'
 }
 
+export function coerceRichMediaPanelSizePx(args: {
+  width: unknown
+  height: unknown
+  viewportW?: unknown
+  viewportH?: unknown
+  minWidthPx?: number
+  minHeightPx?: number
+  maxViewportWidthRatio?: number
+  maxViewportHeightRatio?: number
+}): { width: number; height: number } {
+  const minWidthPx =
+    typeof args.minWidthPx === 'number' && Number.isFinite(args.minWidthPx) ? Math.max(1, Math.floor(args.minWidthPx)) : 220
+  const minHeightPx =
+    typeof args.minHeightPx === 'number' && Number.isFinite(args.minHeightPx) ? Math.max(1, Math.floor(args.minHeightPx)) : 160
+
+  const rawW = typeof args.width === 'number' && Number.isFinite(args.width) ? args.width : Number(args.width)
+  const rawH = typeof args.height === 'number' && Number.isFinite(args.height) ? args.height : Number(args.height)
+  const w0 = Number.isFinite(rawW) && rawW > 0 ? rawW : minWidthPx
+  const h0 = Number.isFinite(rawH) && rawH > 0 ? rawH : minHeightPx
+
+  const vwRaw = typeof args.viewportW === 'number' && Number.isFinite(args.viewportW) ? args.viewportW : Number(args.viewportW)
+  const vhRaw = typeof args.viewportH === 'number' && Number.isFinite(args.viewportH) ? args.viewportH : Number(args.viewportH)
+  const vw = Number.isFinite(vwRaw) && vwRaw > 0 ? vwRaw : null
+  const vh = Number.isFinite(vhRaw) && vhRaw > 0 ? vhRaw : null
+
+  const maxViewportWidthRatio =
+    typeof args.maxViewportWidthRatio === 'number' && Number.isFinite(args.maxViewportWidthRatio)
+      ? Math.max(0.2, Math.min(0.98, args.maxViewportWidthRatio))
+      : 0.92
+  const maxViewportHeightRatio =
+    typeof args.maxViewportHeightRatio === 'number' && Number.isFinite(args.maxViewportHeightRatio)
+      ? Math.max(0.2, Math.min(0.98, args.maxViewportHeightRatio))
+      : 0.92
+
+  let maxW = Infinity
+  let maxH = Infinity
+  if (vw != null) maxW = Math.max(minWidthPx, Math.floor(vw * maxViewportWidthRatio))
+  if (vh != null) maxH = Math.max(minHeightPx, Math.floor(vh * maxViewportHeightRatio))
+
+  const downscale = Math.min(1, maxW / w0, maxH / h0)
+  const w1 = Math.max(minWidthPx, Math.floor(w0 * downscale))
+  const h1 = Math.max(minHeightPx, Math.floor(h0 * downscale))
+  return { width: w1, height: h1 }
+}
+
 export function resolveRichMediaPanelInteractive(args: {
   nodeInteractive: unknown
   renderMediaAsNodes: unknown

@@ -200,7 +200,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   createDefs(svg)
 
-  const display = deriveSceneDisplayGraph({ graphData, edges: edgesForSim || [] })
+  const display = deriveSceneDisplayGraph({ graphData, edges: Array.isArray(edgesForSim) ? edgesForSim : null })
   const graphDataForDisplay = display?.displayGraphData || graphData
   const activeDocumentViewMode = resolveActiveDocumentViewMode({
     frontmatterModeEnabled: args.frontmatterModeEnabled === true,

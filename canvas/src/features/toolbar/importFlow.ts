@@ -9,6 +9,7 @@ export async function runImportFlow(args: {
   nameForParse: string
   textForParse: string
   applyToStore?: boolean
+  sideEffects?: boolean
   openWorkspaceViewMode?: WorkspaceViewMode
   ui?: {
     collapsePanelsOnSuccess?: boolean
@@ -19,7 +20,8 @@ export async function runImportFlow(args: {
 }): Promise<LoaderResult | null> {
   try {
     const res = await loadGraphDataFromTextViaParser(args.nameForParse, args.textForParse, { applyToStore: args.applyToStore })
-    applyLoaderResultToParserUi(res, args.ui)
+    const sideEffectsEnabled = args.sideEffects !== false
+    if (sideEffectsEnabled) applyLoaderResultToParserUi(res, args.ui)
     if (!res) return null
     if (args.onSuccess) {
       try {
@@ -28,17 +30,19 @@ export async function runImportFlow(args: {
         void 0
       }
     }
-    if (args.openWorkspaceViewMode) {
+    if (sideEffectsEnabled && args.openWorkspaceViewMode) {
       try {
         useGraphStore.getState().setWorkspaceViewMode(args.openWorkspaceViewMode)
       } catch {
         void 0
       }
     }
-    await maybeAutoEnableGeospatialModeForGraphData({ graphData: res.graphData, openSidePanel: true })
+    if (sideEffectsEnabled) {
+      await maybeAutoEnableGeospatialModeForGraphData({ graphData: res.graphData, openSidePanel: true })
+    }
     return res
   } catch {
-    applyLoaderResultToParserUi(null, args.ui)
+    if (args.sideEffects !== false) applyLoaderResultToParserUi(null, args.ui)
     return null
   }
 }

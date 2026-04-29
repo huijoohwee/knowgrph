@@ -139,9 +139,8 @@ export function startMediaOverlayLayoutLoop2d(args: {
       return { left, top }
     }
 
-    const collisionEnabled = args.manualPlacement === true
-      ? false
-      : args.collision?.enabled !== false
+    const manualPlacement = args.manualPlacement === true
+    const collisionEnabled = args.collision?.enabled !== false
     const schema = args.schema || null
     const clampMargin = clamp ? Math.max(0, Number(clamp.margin) || 0) : 0
 
@@ -202,12 +201,21 @@ export function startMediaOverlayLayoutLoop2d(args: {
         const strength = typeof args.collision?.strength === 'number' && Number.isFinite(args.collision.strength) ? Math.max(0, args.collision.strength) : 0.82
         const iterations = typeof args.collision?.iterations === 'number' && Number.isFinite(args.collision.iterations) ? Math.max(1, Math.floor(args.collision.iterations)) : 10
         const steps = typeof args.collision?.steps === 'number' && Number.isFinite(args.collision.steps) ? Math.max(1, Math.floor(args.collision.steps)) : 12
-        const anchorStrength =
-          typeof args.collision?.anchorStrength === 'number' && Number.isFinite(args.collision.anchorStrength) ? Math.max(0, args.collision.anchorStrength) : 0.075
-        const maxAnchorShiftPx =
-          typeof args.collision?.maxAnchorShiftPx === 'number' && Number.isFinite(args.collision.maxAnchorShiftPx)
-            ? Math.max(40, args.collision.maxAnchorShiftPx)
-            : computeOverlayMaxAnchorShiftPx(args.viewportW, args.viewportH)
+        const anchorStrength = (() => {
+          if (typeof args.collision?.anchorStrength === 'number' && Number.isFinite(args.collision.anchorStrength)) {
+            return Math.max(0, args.collision.anchorStrength)
+          }
+          return manualPlacement ? 0.12 : 0.075
+        })()
+        const maxAnchorShiftPx = (() => {
+          if (typeof args.collision?.maxAnchorShiftPx === 'number' && Number.isFinite(args.collision.maxAnchorShiftPx)) {
+            return Math.max(40, args.collision.maxAnchorShiftPx)
+          }
+          const fallback = computeOverlayMaxAnchorShiftPx(args.viewportW, args.viewportH)
+          if (!manualPlacement) return fallback
+          const manualCap = Math.max(80, Math.round(Math.min(args.viewportW, args.viewportH) * 0.22))
+          return Math.min(fallback, manualCap)
+        })()
         const maxSpeedPxPerStep =
           typeof args.collision?.maxSpeedPxPerStep === 'number' && Number.isFinite(args.collision.maxSpeedPxPerStep)
             ? Math.max(0, args.collision.maxSpeedPxPerStep)

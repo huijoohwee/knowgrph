@@ -2,13 +2,18 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowCanvasSchedulesRichMediaOverlayOnInteractionFrame() {
-  const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
-  const text = readFileSync(p, 'utf8')
-  if (!text.includes('const handleInteractionFrame')) {
+  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+  const overlaysPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const flowText = readFileSync(flowCanvasPath, 'utf8')
+  const overlaysText = readFileSync(overlaysPath, 'utf8')
+  if (!flowText.includes('const handleInteractionFrame')) {
     throw new Error('expected FlowCanvas to define handleInteractionFrame')
   }
-  if (!text.includes('mediaOverlayLayoutScheduleRef.current?.()')) {
-    throw new Error('expected FlowCanvas interaction frames to schedule media overlay layout')
+  if (!flowText.includes('onInteractionFrame={handleInteractionFrame}')) {
+    throw new Error('expected FlowCanvas to forward interaction frames to FlowCanvasMediaOverlays')
+  }
+  if (!overlaysText.includes('mediaOverlayLayoutScheduleRef.current?.()')) {
+    throw new Error('expected FlowCanvas media overlays to schedule layout on interaction frames')
   }
 }
 
