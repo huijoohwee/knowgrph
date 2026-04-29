@@ -288,6 +288,25 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modWorkspaceOverlayContract.testWorkspaceEditorOverlayResizeHandleDragDirection,
     )
 
+    const modLaunchImportContract = await import('../__tests__/launchImportFallbackFileListSnapshotContract.test')
+    await execTest(
+      results,
+      'ui.toolbar.launch.import.fallback.snapshotsFileList',
+      modLaunchImportContract.testLaunchImportFallbackSnapshotsFileListBeforeClearingInput,
+    )
+    await execTest(
+      results,
+      'ui.workspaceEditor.overlay.d3SceneLayoutWrites.gated',
+      modWorkspaceOverlayContract.testWorkspaceEditorOverlayGatesD3SceneLayoutWrites,
+    )
+
+    const modWorkspaceCanvasPaneOpenGuard = await import('../__tests__/workspaceCanvasPaneOpenEditorGuard.test')
+    await execTest(
+      results,
+      'ui.workspaceEditor.overlay.canvasPaneOpen.forcedTrue',
+      modWorkspaceCanvasPaneOpenGuard.testWorkspaceCanvasPaneOpenCannotCloseWhileEditorMode,
+    )
+
     const modMarkdownWorkspaceGraphDataChurn = await import('../__tests__/markdownWorkspaceAvoidsGraphDataChurnRegression.test')
     await execTest(
       results,
@@ -426,6 +445,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       results,
       'ui.sourceFiles.compose.position.debouncedWriteBack',
       modComposedPosDebounce.testComposedPositionUpdateIsDebouncedToSourceFiles,
+    )
+    await execTest(
+      results,
+      'ui.sourceFiles.compose.import.skipsTransientEdgeOnlyOverwrite',
+      modComposedPosDebounce.testComposedGraphSkipsTransientEdgeOnlyOverwriteWhenPendingTextParses,
     )
 
     const modTableDragChurn = await import('../__tests__/graphDataTableRepeatedDragNoLayoutThrashRegression.test')

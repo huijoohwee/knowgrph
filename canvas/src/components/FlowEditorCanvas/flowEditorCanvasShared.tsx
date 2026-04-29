@@ -68,7 +68,11 @@ export function snapToGridPx(value: number, stepPx: number): number {
   return Math.round(value / step) * step
 }
 
-export function readWidgetGridLayoutSettings(schema: unknown): { gridEnabled: boolean; stepPx: number; gapPx: number } {
+export function readWidgetGridLayoutSettings(schema: unknown): {
+  gridEnabled: boolean
+  stepPx: number
+  gapPx: number
+} {
   const behavior =
     schema && typeof schema === 'object' && !Array.isArray(schema)
       ? ((schema as { behavior?: unknown }).behavior as Record<string, unknown> | undefined)

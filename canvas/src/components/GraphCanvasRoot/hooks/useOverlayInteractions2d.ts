@@ -33,7 +33,7 @@ export function useOverlayInteractions2d(args: {
     }
   }, [])
 
-  const headerDragRef = useRef<null | { id: string; baseX: number; baseY: number; structured: boolean; frozen: boolean; lastDx: number; lastDy: number }>(null)
+  const headerDragRef = useRef<null | { id: string; baseX: number; baseY: number; structured: boolean; frozen: boolean; lastDx: number; lastDy: number; workspaceViewModeAtStart: 'canvas' | 'editor' }>(null)
   const overlayPanRef = useRef<null | { pointerId: number; startClientX: number; startClientY: number; startTransform: d3.ZoomTransform }>(null)
 
   const headerDragMoveSchedulerRef = useRef(
@@ -143,8 +143,9 @@ export function useOverlayInteractions2d(args: {
       const mode = readLayoutMode(schemaRef.current)
       const structured = mode === 'radial'
       const frozen = svgEl.getAttribute('data-kg-layout-frozen') === '1'
+      const workspaceViewModeAtStart = useGraphStore.getState().workspaceViewMode === 'editor' ? 'editor' : 'canvas'
       lockGlobalUserSelect()
-      headerDragRef.current = { id, baseX: x0, baseY: y0, structured, frozen, lastDx: 0, lastDy: 0 }
+      headerDragRef.current = { id, baseX: x0, baseY: y0, structured, frozen, lastDx: 0, lastDy: 0, workspaceViewModeAtStart }
       if (sim && !structured && !frozen) {
         const alphaTarget = (() => {
           try {
@@ -209,6 +210,16 @@ export function useOverlayInteractions2d(args: {
       void 0
     }
     if (!node) return
+    const workspaceViewModeAtEnd = useGraphStore.getState().workspaceViewMode === 'editor' ? 'editor' : 'canvas'
+    if (workspaceViewModeAtEnd !== st.workspaceViewModeAtStart) {
+      node.x = st.baseX
+      node.y = st.baseY
+      if (!st.structured) {
+        node.fx = null
+        node.fy = null
+      }
+      return
+    }
     const t = svgEl ? d3.zoomTransform(svgEl as unknown as SVGSVGElement) : null
     const k = t && typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
     const p = computeOverlayDraggedPoint2d({
@@ -222,7 +233,7 @@ export function useOverlayInteractions2d(args: {
     })
     node.x = p.x
     node.y = p.y
-    if (useGraphStore.getState().workspaceViewMode === 'editor') {
+    if (st.workspaceViewModeAtStart === 'editor') {
       try {
         useGraphStore.getState().updateNode(st.id, { x: p.x, y: p.y })
       } catch {

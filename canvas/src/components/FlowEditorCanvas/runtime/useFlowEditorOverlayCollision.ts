@@ -11,6 +11,7 @@ import { FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-over
 import { worldToScreen } from '@/lib/zoom/viewport'
 import { computeWidgetScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
 import { readWidgetGridLayoutSettings, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { BALANCED_OVERLAY_SPREAD_TARGET_ASPECT, computeBalancedSpreadGrid, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
 
 function readNum(v: unknown): number {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : Number.NaN
@@ -42,6 +43,7 @@ export function useFlowEditorOverlayCollision(args: {
   selectedNodeId: string | null
   viewportW: number
   viewportH: number
+  canvasWindowOffset: { left: number; top: number }
   canvasWindowOffsetRef: React.MutableRefObject<{ left: number; top: number }>
   zoomViewKeyRef: React.MutableRefObject<string | null>
   draftGraphDataRef: React.MutableRefObject<GraphData | null>
@@ -142,9 +144,22 @@ export function useFlowEditorOverlayCollision(args: {
           })?.k) ?? null
       const zoomK = typeof zoomKRaw === 'number' && Number.isFinite(zoomKRaw) ? zoomKRaw : 1
       const zKey = String(Math.round(zoomK * 1000) / 1000)
-      const offL = Number.isFinite(args.canvasWindowOffsetRef.current.left) ? Math.round(args.canvasWindowOffsetRef.current.left * 10) / 10 : 0
-      const offT = Number.isFinite(args.canvasWindowOffsetRef.current.top) ? Math.round(args.canvasWindowOffsetRef.current.top * 10) / 10 : 0
-      const key = `${overlayNodeIds.join(',')}|${zKey}|${args.viewportW}x${args.viewportH}|${args.overlayOnlyModeEnabled ? 1 : 0}|${offL},${offT}`
+      const canvasOffset = args.canvasWindowOffsetRef.current || args.canvasWindowOffset
+      const offL = Number.isFinite(canvasOffset.left) ? Math.round(canvasOffset.left * 10) / 10 : 0
+      const offT = Number.isFinite(canvasOffset.top) ? Math.round(canvasOffset.top * 10) / 10 : 0
+      const widgetGrid = readWidgetGridLayoutSettings(args.schema)
+      const pinSig = overlayNodeIds.map(id => (st.flowWidgetPinnedByNodeId?.[id] === true ? '1' : '0')).join('')
+      const posSig = overlayNodeIds
+        .map(id => {
+          const pos = st.flowWidgetPosByNodeId?.[id]
+          const left = pos && Number.isFinite(pos.left) ? Math.round(pos.left) : 'na'
+          const top = pos && Number.isFinite(pos.top) ? Math.round(pos.top) : 'na'
+          return `${left},${top}`
+        })
+        .join('|')
+      const key =
+        `${overlayNodeIds.join(',')}|${zKey}|${args.viewportW}x${args.viewportH}|${args.overlayOnlyModeEnabled ? 1 : 0}`
+        + `|${offL},${offT}|${pinSig}|${posSig}|balanced:${Math.round(BALANCED_OVERLAY_SPREAD_TARGET_ASPECT * 1000) / 1000}`
       if (overlayCollisionResolveKeyRef.current === key) return
       overlayCollisionResolveKeyRef.current = key
       if (overlayCollisionIterKeyRef.current !== key) {
@@ -156,6 +171,8 @@ export function useFlowEditorOverlayCollision(args: {
       const floatingScaled = computeWidgetScaledSize(panelScale)
       const pinnedById = st.flowWidgetPinnedByNodeId || {}
       const posById = st.flowWidgetPosByNodeId || {}
+      const canvasOffsetLeft = Number.isFinite(canvasOffset.left) ? canvasOffset.left : 0
+      const canvasOffsetTop = Number.isFinite(canvasOffset.top) ? canvasOffset.top : 0
       const rectByNodeId = new Map<string, { left: number; top: number; width: number; height: number }>()
       for (let i = 0; i < overlayEls.length; i += 1) {
         const el = overlayEls[i]
@@ -166,8 +183,8 @@ export function useFlowEditorOverlayCollision(args: {
         const height = Number.isFinite(rect.height) ? rect.height : 0
         const leftRaw = Number.isFinite(rect.left) ? rect.left : 0
         const topRaw = Number.isFinite(rect.top) ? rect.top : 0
-        const left = leftRaw - (Number.isFinite(args.canvasWindowOffsetRef.current.left) ? args.canvasWindowOffsetRef.current.left : 0)
-        const top = topRaw - (Number.isFinite(args.canvasWindowOffsetRef.current.top) ? args.canvasWindowOffsetRef.current.top : 0)
+        const left = leftRaw - canvasOffsetLeft
+        const top = topRaw - canvasOffsetTop
         if (width > 0 && height > 0) {
           const resolved = { left, top, width, height }
           overlayRectCacheRef.current.set(id, resolved)
@@ -198,7 +215,6 @@ export function useFlowEditorOverlayCollision(args: {
             height: Math.max(160, Math.min(floatingScaled.height, sumH / count)),
           }
         : floatingScaled
-      const widgetGrid = readWidgetGridLayoutSettings(args.schema)
       const gapBase = typeof args.schema?.layout?.flow?.overlay?.collisionGapPx === 'number' ? args.schema.layout.flow.overlay.collisionGapPx : 12
       const gapPx = Math.max(0, Math.min(80, Math.floor(widgetGrid.gridEnabled ? Math.max(gapBase, widgetGrid.gapPx) : gapBase)))
       const snapStepPx = widgetGrid.gridEnabled ? Math.max(1, widgetGrid.stepPx) : 1
@@ -214,21 +230,25 @@ export function useFlowEditorOverlayCollision(args: {
       const marginBottom = isFrontmatterFlow ? Math.max(24, Math.floor(args.viewportH * 0.1)) : 24
       const usableW = Math.max(1, args.viewportW - marginLeft - marginRight)
       const usableH = Math.max(1, args.viewportH - marginTop - marginBottom)
-      const rowsMaxFit = Math.max(1, Math.floor(usableH / Math.max(1, cellSize.height)))
-      const colsMaxFit = Math.max(1, Math.floor(usableW / Math.max(1, cellSize.width)))
-      let rowsMax = rowsMaxFit
-      let dockCols = Math.max(1, Math.min(Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / rowsMaxFit)), colsMaxFit))
+      const computeGrid = () =>
+        computeBalancedSpreadGrid({
+          count: Math.max(1, unpinnedCount),
+          viewportW: usableW,
+          viewportH: usableH,
+          cellW: cellSize.width,
+          cellH: cellSize.height,
+          zoomK,
+        })
+      const baseGrid = computeGrid()
+      let rowsMax = baseGrid.rows
+      let dockCols = baseGrid.cols
       let dockWidth = dockCols * cellSize.width - gapPx
       let dockLeft = Math.max(marginLeft, args.viewportW - marginRight - dockWidth)
       let dockTop = marginTop
       if (isFrontmatterFlow || widgetGrid.gridEnabled) {
-        const aspect = usableW / Math.max(1, usableH)
-        let cols = Math.max(1, Math.min(colsMaxFit, Math.ceil(Math.sqrt(Math.max(1, unpinnedCount) * aspect))))
-        let rows = Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / cols))
-        if (rows > rowsMaxFit) {
-          cols = Math.max(1, Math.min(colsMaxFit, Math.ceil(Math.max(1, unpinnedCount) / rowsMaxFit)))
-          rows = Math.max(1, Math.ceil(Math.max(1, unpinnedCount) / cols))
-        }
+        const centeredGrid = computeGrid()
+        const cols = centeredGrid.cols
+        const rows = centeredGrid.rows
         dockCols = cols
         rowsMax = rows
         dockWidth = cols * cellSize.width - gapPx
@@ -270,7 +290,7 @@ export function useFlowEditorOverlayCollision(args: {
           viewport: { width: args.viewportW, height: args.viewportH },
           snapPx: 1,
         })
-        items.push({ id, top: clamped.top, left: clamped.left, movable: !hasStored, width: rect?.width, height: rect?.height })
+        items.push({ id, top: clamped.top, left: clamped.left, movable: true, width: rect?.width, height: rect?.height })
       }
       if (items.length === 0) return
 
@@ -293,10 +313,20 @@ export function useFlowEditorOverlayCollision(args: {
         }
         return false
       }
+      const shouldRebalanceCluster = (candidates: Array<{ id: string; left: number; top: number; width?: number; height?: number }>) =>
+        isVerticalOverlayCluster({
+          items: candidates.map(it => ({
+            left: it.left,
+            top: it.top,
+            width: it.width ?? floatingScaled.width,
+            height: it.height ?? floatingScaled.height,
+          })),
+          gapPx,
+        })
 
       const next = { ...posById }
       const seedGridAroundFixed = (worldIn: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>) => {
-        const cols = Math.max(1, Math.min(dockCols, Math.floor(Math.max(1, dockWidth) / Math.max(1, cellSize.width))))
+        const cols = Math.max(1, dockCols)
         const rows = Math.max(1, Math.ceil(Math.max(worldIn.length, 1) / cols))
         const maxRows = Math.max(rows, Math.ceil(Math.max(1, args.viewportH - dockTop - marginBottom) / Math.max(1, cellSize.height)))
         const fixed = worldIn.find(it => it.id === fixedId) || worldIn[0]
@@ -395,9 +425,9 @@ export function useFlowEditorOverlayCollision(args: {
         }
       }
       const obstacles = [...nodeObstacles, ...pinnedObstacles]
-      const wantsResolve = shouldResolveItems(world) || shouldResolveItemsAgainstObstacles(world)
+      const wantsResolve = shouldResolveItems(world) || shouldResolveItemsAgainstObstacles(world) || shouldRebalanceCluster(world)
       if (wantsResolve) {
-        if (shouldResolveItems(world)) world = clampWorld(seedGridAroundFixed(world))
+        if (shouldResolveItems(world) || shouldRebalanceCluster(world)) world = clampWorld(seedGridAroundFixed(world))
         const resolvePass = (strength: number, iterations: number, steps: number) =>
           args.schema
             ? relaxOverlayPanelsWithCollision({
@@ -443,6 +473,7 @@ export function useFlowEditorOverlayCollision(args: {
       const stillOverlaps =
         shouldResolveItems(world.map(it => ({ id: it.id, left: it.left, top: it.top, width: it.width, height: it.height })))
         || shouldResolveItemsAgainstObstacles(world.map(it => ({ id: it.id, left: it.left, top: it.top, width: it.width, height: it.height })))
+        || shouldRebalanceCluster(world.map(it => ({ id: it.id, left: it.left, top: it.top, width: it.width, height: it.height })))
       if (stillOverlaps) {
         overlayCollisionIterCountRef.current += 1
         if (overlayCollisionIterCountRef.current <= 10) {
@@ -458,14 +489,36 @@ export function useFlowEditorOverlayCollision(args: {
     if (!args.editorRuntimeActive) return
     scheduleOverlayCollisionResolve()
   }, [
-    args.canvasWindowOffsetRef.current.left,
-    args.canvasWindowOffsetRef.current.top,
+    args.canvasWindowOffset.left,
+    args.canvasWindowOffset.top,
     args.editorRuntimeActive,
     args.overlayOnlyModeEnabled,
     args.viewportH,
     args.viewportW,
     scheduleOverlayCollisionResolve,
   ])
+
+  React.useEffect(() => {
+    if (!args.editorRuntimeActive) return
+    const unsubPos = useGraphStore.subscribe(s => s.flowWidgetPosByNodeId, () => {
+      scheduleOverlayCollisionResolveRef.current()
+    })
+    const unsubPinned = useGraphStore.subscribe(s => s.flowWidgetPinnedByNodeId, () => {
+      scheduleOverlayCollisionResolveRef.current()
+    })
+    return () => {
+      try {
+        unsubPos()
+      } catch {
+        void 0
+      }
+      try {
+        unsubPinned()
+      } catch {
+        void 0
+      }
+    }
+  }, [args.editorRuntimeActive])
 
   React.useEffect(() => {
     return () => {

@@ -195,7 +195,8 @@ export const createUiSlice = (set: SetGraph) => {
     workspaceCanvasPaneOpen: lsBool(LS_KEYS.workspaceCanvasPaneOpen, true),
     setWorkspaceCanvasPaneOpen: (open: boolean) =>
       set(state => {
-        const next = open === false ? false : true
+        const rawNext = open === false ? false : true
+        const next = state.workspaceViewMode === 'editor' ? true : rawNext
         if (state.workspaceCanvasPaneOpen === next) return {}
         lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, next)
         return { workspaceCanvasPaneOpen: next } as Partial<GraphState>

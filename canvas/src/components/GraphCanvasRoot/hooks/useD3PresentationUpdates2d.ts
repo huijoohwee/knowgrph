@@ -1,5 +1,6 @@
 import { useEffect, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 import * as d3 from 'd3'
+import { useShallow } from 'zustand/react/shallow'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -51,7 +52,13 @@ export function useD3PresentationUpdates2d(args: {
   selectedEdgeIdRef: MutableRefObject<string | null>
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
-  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const { workspaceViewMode, workspaceCanvasPaneOpen } = useGraphStore(
+    useShallow(s => ({
+      workspaceViewMode: s.workspaceViewMode,
+      workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
+    })),
+  )
+  const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true
 
   const {
     activeRef,
@@ -92,7 +99,7 @@ export function useD3PresentationUpdates2d(args: {
     selectedEdgeIdRef,
     setHoverInfo,
   } = args
-  const enableEditorGestures = workspaceViewMode === 'editor' && String(canvas2dRenderer || '') !== 'd3Bipartite'
+  const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(canvas2dRenderer || '') !== 'd3Bipartite'
 
   const mediaOverlayNodeIdsKey = (() => {
     try {
@@ -216,8 +223,14 @@ export function useD3PresentationUpdates2d(args: {
         selectNode: id => useGraphStore.getState().selectNode(id),
         selectEdge: id => useGraphStore.getState().selectEdge(id),
         setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
-        addEdge: e => useGraphStore.getState().addEdge(e),
-        updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
+        addEdge: e => {
+          if (workspaceOverlayOpen) return
+          useGraphStore.getState().addEdge(e)
+        },
+        updateEdge: (id, u) => {
+          if (workspaceOverlayOpen) return
+          useGraphStore.getState().updateEdge(id, u)
+        },
         getSelectedEdgeId: () => selectedEdgeIdRef.current,
         enableEditorGestures,
         onCommitNodePosition:
@@ -266,6 +279,8 @@ export function useD3PresentationUpdates2d(args: {
     svgRef,
     tempLinkSelRef,
     zoomRef,
+    workspaceCanvasPaneOpen,
+    workspaceOverlayOpen,
     workspaceViewMode,
   ])
 

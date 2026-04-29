@@ -15,6 +15,7 @@ import { CanvasRootRuntime } from '@/features/canvas/CanvasRootRuntime'
 import { GraphStoreRuntime } from '@/features/canvas/GraphStoreRuntime'
 import { useCanvasEmbeddedPreviewRuntime } from '@/features/canvas/useCanvasEmbeddedPreviewRuntime'
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '@/lib/routing/queryParams'
+import { runGlobalInteractionCleanup } from '@/lib/canvas/interaction-recovery'
 
 import { CanvasStartupRuntimes } from '@/features/canvas/CanvasStartupRuntimes'
 
@@ -79,6 +80,11 @@ export default function CanvasPage() {
 
   const { workspacePreviewWidthPx, setResizeHandleEl } = useCanvasWorkspacePaneRuntime()
   const workspaceEditorOverlayOpen = effectiveWorkspaceViewMode === 'editor' && workspaceCanvasPaneOpen
+
+  React.useEffect(() => {
+    if (!workspaceEditorOverlayOpen) return
+    runGlobalInteractionCleanup({ resetViewportControllers: true })
+  }, [workspaceEditorOverlayOpen])
 
   const { canvasRenderMode, canvas3dMode, canvas2dRenderer } = useGraphStore(
     useShallow(s => ({
@@ -176,7 +182,10 @@ export default function CanvasPage() {
             <main className="flex-1 flex overflow-hidden" aria-label="Canvas Workspace">
               <section className="flex-1 flex flex-col overflow-hidden" aria-label="Workspace stage">
                 <section className="relative flex-1 min-h-0 overflow-hidden" aria-label="Workspace overlay stage">
-                  <section className="absolute inset-0 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]" aria-label="Canvas pane">
+                  <section
+                    className={`absolute inset-0 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]${workspaceEditorOverlayOpen ? ' pointer-events-none' : ''}`}
+                    aria-label="Canvas pane"
+                  >
                     {effectiveWorkspaceViewMode !== 'editor' ? (
                       <nav
                         className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+0.5rem)] pb-2 bg-transparent pointer-events-none"

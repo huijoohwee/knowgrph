@@ -271,6 +271,7 @@ export default function FlowEditorCanvasRuntime(
     selectedNodeId,
     viewportW,
     viewportH,
+    canvasWindowOffset,
     canvasWindowOffsetRef,
     zoomViewKeyRef,
     draftGraphDataRef,

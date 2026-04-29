@@ -58,3 +58,46 @@ export async function testComposedPositionUpdateIsDebouncedToSourceFiles() {
     bootstrap.restore()
   }
 }
+
+export async function testComposedGraphSkipsTransientEdgeOnlyOverwriteWhenPendingTextParses() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const state = useGraphStore.getState()
+    state.clearSourceFiles()
+    state.setGraphData({
+      type: 'Graph',
+      nodes: [{ id: 'stable-node', label: 'Stable', type: 'Thing', properties: {}, x: 10, y: 20 }],
+      edges: [{ id: 'stable-edge', source: 'stable-node', target: 'stable-node', properties: {} }],
+      metadata: {},
+    } as unknown as GraphData)
+
+    state.addSourceFile({
+      id: 'sf-edge-only',
+      name: 'imported.md',
+      text: '# pending parse',
+      enabled: true,
+      status: 'idle',
+      parsedGraphData: {
+        type: 'Graph',
+        nodes: [],
+        edges: [{ id: 'e1', source: 'n1', target: 'n2', properties: {} }],
+        metadata: {},
+      } as unknown as GraphData,
+      parsedTextHash: 'pending',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: 'workspace:/imported.md' },
+    })
+
+    applyComposedGraphFromSourceFiles()
+
+    const after = useGraphStore.getState().graphData
+    const nodeCount = Array.isArray(after?.nodes) ? after.nodes.length : 0
+    const hasStableNode = !!after?.nodes?.find(n => n.id === 'stable-node')
+    if (!hasStableNode || nodeCount === 0) {
+      throw new Error('expected transient edge-only composed graph to not overwrite existing node-bearing graph while parse is pending')
+    }
+  } finally {
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
+  }
+}

@@ -3,11 +3,8 @@ import { getGlobalUserSelectLockCountForTests, resetGlobalUserSelectLock } from 
 
 let installed = false
 
-export function installGlobalInteractionRecovery(): void {
-  if (installed) return
-  installed = true
-  if (typeof window === 'undefined') return
-
+export function runGlobalInteractionCleanup(args?: { resetViewportControllers?: boolean }): void {
+  const resetViewportControllers = args?.resetViewportControllers === true
   const clearDraggingFlags = () => {
     try {
       const st = useGraphStore.getState()
@@ -64,16 +61,23 @@ export function installGlobalInteractionRecovery(): void {
     }
   }
 
+  clearDraggingFlags()
+  clearUserSelectIfLocked()
+  const normalized = normalizeInlineDragStylesIfStuck()
+  if (resetViewportControllers || normalized) resetViewportControllersInDom()
+}
+
+export function installGlobalInteractionRecovery(): void {
+  if (installed) return
+  installed = true
+  if (typeof window === 'undefined') return
+
   const onPointerEnd = () => {
-    clearDraggingFlags()
-    clearUserSelectIfLocked()
-    if (normalizeInlineDragStylesIfStuck()) resetViewportControllersInDom()
+    runGlobalInteractionCleanup({ resetViewportControllers: false })
   }
 
   const onBlur = () => {
-    clearDraggingFlags()
-    clearUserSelectIfLocked()
-    resetViewportControllersInDom()
+    runGlobalInteractionCleanup({ resetViewportControllers: true })
   }
 
   const onVisibility = () => {
@@ -85,15 +89,7 @@ export function installGlobalInteractionRecovery(): void {
   }
 
   const onPointerDownCapture = () => {
-    clearUserSelectIfLocked()
-    let shouldResetViewport = false
-    try {
-      if (getGlobalUserSelectLockCountForTests() > 0) shouldResetViewport = true
-    } catch {
-      void 0
-    }
-    if (normalizeInlineDragStylesIfStuck()) shouldResetViewport = true
-    if (shouldResetViewport) resetViewportControllersInDom()
+    runGlobalInteractionCleanup({ resetViewportControllers: false })
   }
 
   window.addEventListener('pointerup', onPointerEnd, { capture: true })

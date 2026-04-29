@@ -139,6 +139,64 @@ export function startMediaOverlayLayoutLoop2d(args: {
       preferredById.set(p.id, p)
     }
 
+    const buildBalancedSeedForVerticalCluster = (
+      items: Array<{ id: string; left: number; top: number; w: number; h: number }>,
+      gapPx: number,
+    ): Array<{ id: string; left: number; top: number; w: number; h: number }> | null => {
+      if (items.length < 4) return null
+      let minCx = Number.POSITIVE_INFINITY
+      let maxCx = Number.NEGATIVE_INFINITY
+      let sumW = 0
+      let sumH = 0
+      for (let i = 0; i < items.length; i += 1) {
+        const it = items[i]!
+        const cx = it.left + it.w * 0.5
+        if (cx < minCx) minCx = cx
+        if (cx > maxCx) maxCx = cx
+        sumW += it.w
+        sumH += it.h
+      }
+      const avgW = Math.max(1, sumW / Math.max(1, items.length))
+      const avgH = Math.max(1, sumH / Math.max(1, items.length))
+      const spanX = Math.max(0, maxCx - minCx)
+      const oneColumnCluster = spanX < Math.max(24, avgW * 0.65)
+      if (!oneColumnCluster) return null
+
+      const vw = Math.max(1, Number(args.viewportW) || 1)
+      const vh = Math.max(1, Number(args.viewportH) || 1)
+      const usableW = Math.max(1, vw - clampMargin * 2)
+      const usableH = Math.max(1, vh - clampMargin * 2)
+      const cellW = Math.max(1, avgW + gapPx)
+      const cellH = Math.max(1, avgH + gapPx)
+      const colsCap = Math.max(1, Math.floor((usableW + gapPx) / Math.max(1, cellW)))
+      const rowsCap = Math.max(1, Math.floor((usableH + gapPx) / Math.max(1, cellH)))
+      const n = items.length
+      const aspect = usableW / Math.max(1, usableH)
+      const boundedAspect = Math.max(0.5, Math.min(2.5, aspect))
+      const minCols = colsCap >= 2 ? 2 : 1
+      let cols = Math.max(minCols, Math.min(colsCap, Math.ceil(Math.sqrt(n * boundedAspect))))
+      let rows = Math.max(1, Math.ceil(n / cols))
+      if (rows > rowsCap) {
+        cols = Math.max(minCols, Math.min(colsCap, Math.ceil(n / rowsCap)))
+        rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
+      }
+      const gridW = cols * cellW - gapPx
+      const gridH = rows * cellH - gapPx
+      const baseLeft = clampMargin + Math.max(0, Math.floor((usableW - gridW) * 0.5))
+      const baseTop = clampMargin + Math.max(0, Math.floor((usableH - gridH) * 0.5))
+      const ordered = [...items].sort((a, b) => a.id.localeCompare(b.id))
+      const out: Array<{ id: string; left: number; top: number; w: number; h: number }> = []
+      for (let i = 0; i < ordered.length; i += 1) {
+        const it = ordered[i]!
+        const col = i % cols
+        const row = Math.floor(i / cols)
+        const left = baseLeft + col * cellW
+        const top = baseTop + row * cellH
+        out.push({ ...it, left, top })
+      }
+      return out
+    }
+
     const nextById = new Map<string, { left: number; top: number }>()
     if (preferred.length > 0) {
       for (let i = 0; i < preferred.length; i += 1) {
@@ -152,6 +210,10 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const gapPx = typeof args.collision?.gapPx === 'number' && Number.isFinite(args.collision.gapPx) ? Math.max(0, Math.floor(args.collision.gapPx)) : derivedGap
       const boxes = preferred.map(p => ({ left: p.left, top: p.top, w: p.w, h: p.h }))
       if (hasOverlaps(boxes, gapPx)) {
+        const seedItems = buildBalancedSeedForVerticalCluster(
+          preferred.map(p => ({ id: p.id, left: p.left, top: p.top, w: p.w, h: p.h })),
+          gapPx,
+        ) || preferred.map(p => ({ id: p.id, left: p.left, top: p.top, w: p.w, h: p.h }))
         const strength = typeof args.collision?.strength === 'number' && Number.isFinite(args.collision.strength) ? Math.max(0, args.collision.strength) : 0.82
         const iterations = typeof args.collision?.iterations === 'number' && Number.isFinite(args.collision.iterations) ? Math.max(1, Math.floor(args.collision.iterations)) : 10
         const steps = typeof args.collision?.steps === 'number' && Number.isFinite(args.collision.steps) ? Math.max(1, Math.floor(args.collision.steps)) : 12
@@ -167,7 +229,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
             : 200
         const resolved = relaxOverlayPanelsWithCollision({
           schema,
-          items: preferred.map(p => ({ id: p.id, left: p.left, top: p.top, width: p.w, height: p.h, movable: true })),
+          items: seedItems.map(p => ({ id: p.id, left: p.left, top: p.top, width: p.w, height: p.h, movable: true })),
           gapPx,
           strength,
           iterations,

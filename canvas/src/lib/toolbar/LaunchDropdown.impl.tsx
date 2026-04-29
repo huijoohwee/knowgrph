@@ -121,7 +121,7 @@ export function LaunchDropdown({
   }, [])
 
   const importLocalFilesFallback = React.useCallback(
-    async (files: FileList | null) => {
+    async (files: FileList | ReadonlyArray<File> | null) => {
       const mod = await loadLaunchDropdownFallbackModule()
       await mod.importLocalFilesFallback({ files, pushUiToast })
     },
@@ -129,7 +129,7 @@ export function LaunchDropdown({
   )
 
   const importLocalFolderFallback = React.useCallback(
-    async (files: FileList | null) => {
+    async (files: FileList | ReadonlyArray<File> | null) => {
       const mod = await loadLaunchDropdownFallbackModule()
       await mod.importLocalFolderFallback({ files, pushUiToast })
     },
@@ -222,7 +222,7 @@ export function LaunchDropdown({
           const files = e.target.files
           const launchBridge = getMarkdownWorkspaceActionBridge()
           if (typeof launchBridge.importLocalFiles === 'function') launchBridge.importLocalFiles(files)
-          else void importLocalFilesFallback(files)
+          else void importLocalFilesFallback(files ? Array.from(files) : [])
           onClose()
           try {
             e.currentTarget.value = ''
@@ -250,7 +250,7 @@ export function LaunchDropdown({
           const files = e.target.files
           const launchBridge = getMarkdownWorkspaceActionBridge()
           if (typeof launchBridge.importLocalFolder === 'function') launchBridge.importLocalFolder(files)
-          else void importLocalFolderFallback(files)
+          else void importLocalFolderFallback(files ? Array.from(files) : [])
           onClose()
           try {
             e.currentTarget.value = ''

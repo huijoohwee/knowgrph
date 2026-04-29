@@ -70,6 +70,7 @@ export function applyComposedGraphFromSourceFiles() {
     id: f.id,
     name: f.name,
     enabled: Boolean(f.enabled),
+    status: f.status,
     source: f.source,
     text: f.text,
     parsedTextHash: f.parsedTextHash,
@@ -86,7 +87,9 @@ export function applyComposedGraphFromSourceFiles() {
 
   const { graphData } = composeGraphFromSourceLayers({ layers, precomputedKeys: { contentKey, orderKey } })
 
-  const composedHasContent = !!((graphData.nodes && graphData.nodes.length) || (graphData.edges && graphData.edges.length))
+  const composedNodeCount = Array.isArray(graphData.nodes) ? graphData.nodes.length : 0
+  const composedEdgeCount = Array.isArray(graphData.edges) ? graphData.edges.length : 0
+  const composedHasContent = composedNodeCount > 0 || composedEdgeCount > 0
   const hasPendingEnabledRemoteSource = layers.some(layer => {
     if (!layer.enabled) return false
     const source = layer.source
@@ -99,7 +102,14 @@ export function applyComposedGraphFromSourceFiles() {
     store.graphData &&
     ((store.graphData.nodes && store.graphData.nodes.length) || (store.graphData.edges && store.graphData.edges.length))
   )
+  const prevNodeCount = Array.isArray(store.graphData?.nodes) ? store.graphData.nodes.length : 0
   if (!composedHasContent && hasPendingEnabledRemoteSource) return
+  // During import races, a transient composed edge-only graph can appear before pending text parses finish.
+  // Keep the existing node-bearing graph until composition catches up to avoid edge-only canvas regressions.
+  if (composedNodeCount === 0 && composedEdgeCount > 0 && prevNodeCount > 0) {
+    const hasPendingEnabledParse = layers.some(l => l.enabled && String(l.status || '').trim().toLowerCase() !== 'parsed')
+    if (hasPendingEnabledParse) return
+  }
   if (!composedHasContent && prevHasContent) {
     const hasPendingEnabledText = layers.some(l => l.enabled && String(l.text || '').trim() && !l.parsedGraphData)
     const hasAnyParsedEnabled = layers.some(l => l.enabled && !!l.parsedGraphData)

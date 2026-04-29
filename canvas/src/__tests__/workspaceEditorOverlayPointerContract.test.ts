@@ -166,3 +166,22 @@ export function testWorkspaceEditorOverlayResizeHandleDragDirection() {
     throw new Error(`expected overlay width to clamp at 320, got ${minClamped}`)
   }
 }
+
+export function testWorkspaceEditorOverlayGatesD3SceneLayoutWrites() {
+  const scenePath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3GraphScene2d.ts')
+  const sceneText = readFileSync(scenePath, 'utf8')
+  const presentationPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3PresentationUpdates2d.ts')
+  const presentationText = readFileSync(presentationPath, 'utf8')
+  if (!sceneText.includes("const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true")) {
+    throw new Error('expected D3 scene hook to derive workspace overlay-open state')
+  }
+  if (!sceneText.includes('if (workspaceOverlayOpen) return')) {
+    throw new Error('expected D3 scene hook to block add/update writes while workspace overlay is open')
+  }
+  if (!presentationText.includes("const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true")) {
+    throw new Error('expected D3 presentation hook to derive workspace overlay-open state')
+  }
+  if (!presentationText.includes('if (workspaceOverlayOpen) return')) {
+    throw new Error('expected D3 presentation hook to block edge writes while workspace overlay is open')
+  }
+}

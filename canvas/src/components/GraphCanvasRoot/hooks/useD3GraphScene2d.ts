@@ -1,5 +1,6 @@
 import { useEffect, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 import * as d3 from 'd3'
+import { useShallow } from 'zustand/react/shallow'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -97,8 +98,14 @@ export function useD3GraphScene2d(args: {
   selectedEdgeIdsRef: MutableRefObject<string[] | undefined>
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
-  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
-  const enableEditorGestures = workspaceViewMode === 'editor' && String(args.canvas2dRenderer || '') !== 'd3Bipartite'
+  const { workspaceViewMode, workspaceCanvasPaneOpen } = useGraphStore(
+    useShallow(s => ({
+      workspaceViewMode: s.workspaceViewMode,
+      workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
+    })),
+  )
+  const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true
+  const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(args.canvas2dRenderer || '') !== 'd3Bipartite'
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
 
   const {
@@ -602,10 +609,22 @@ export function useD3GraphScene2d(args: {
           selectGroupExpanded: x => useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
           toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
           setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
-          addNode: n => useGraphStore.getState().addNode(n),
-          updateNode: (id, u) => useGraphStore.getState().updateNode(id, u),
-          addEdge: e => useGraphStore.getState().addEdge(e),
-          updateEdge: (id, u) => useGraphStore.getState().updateEdge(id, u),
+          addNode: n => {
+            if (workspaceOverlayOpen) return
+            useGraphStore.getState().addNode(n)
+          },
+          updateNode: (id, u) => {
+            if (workspaceOverlayOpen) return
+            useGraphStore.getState().updateNode(id, u)
+          },
+          addEdge: e => {
+            if (workspaceOverlayOpen) return
+            useGraphStore.getState().addEdge(e)
+          },
+          updateEdge: (id, u) => {
+            if (workspaceOverlayOpen) return
+            useGraphStore.getState().updateEdge(id, u)
+          },
           enableEditorGestures,
           setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
           setLifecycleStageRendering: () => useGraphStore.getState().setLifecycleStage('rendering'),
@@ -695,6 +714,8 @@ export function useD3GraphScene2d(args: {
     setHoverInfo,
     setLayoutPositionsForMode,
     viewportControlsPreset,
+    workspaceCanvasPaneOpen,
+    workspaceOverlayOpen,
     zoomToSelectionMode,
   ])
 }

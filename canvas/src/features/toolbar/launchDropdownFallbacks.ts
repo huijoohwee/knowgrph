@@ -84,10 +84,10 @@ async function focusFirstImportedWorkspaceFile(args: {
 }
 
 export async function importLocalFilesFallback(args: {
-  files: FileList | null
+  files: FileList | ReadonlyArray<File> | null
   pushUiToast: PushUiToast
 }): Promise<void> {
-  const snapshot = args.files ? Array.from(args.files) : []
+  const snapshot = args.files ? Array.from(args.files as ArrayLike<File>) : []
   if (snapshot.length === 0) return
   args.pushUiToast({
     id: 'launch:import:localFiles',
@@ -138,10 +138,10 @@ export async function importLocalFilesFallback(args: {
 }
 
 export async function importLocalFolderFallback(args: {
-  files: FileList | null
+  files: FileList | ReadonlyArray<File> | null
   pushUiToast: PushUiToast
 }): Promise<void> {
-  const snapshot = args.files ? Array.from(args.files) : []
+  const snapshot = args.files ? Array.from(args.files as ArrayLike<File>) : []
   if (snapshot.length === 0) return
   args.pushUiToast({ id: 'launch:import:folder', kind: 'neutral', message: 'Importing folder…', ttlMs: null, dismissible: false })
   try {
