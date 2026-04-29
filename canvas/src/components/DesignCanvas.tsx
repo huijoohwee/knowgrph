@@ -12,6 +12,7 @@ import { useFrameDragController } from '@/components/DesignCanvas/useFrameDragCo
 import { useDesignCanvasGraphOrchestration } from '@/components/DesignCanvas/useDesignCanvasGraphOrchestration'
 import { useDesignCanvasLabelLayout } from '@/components/DesignCanvas/useDesignCanvasLabelLayout'
 import { useDesignCanvasMarkdownPanelGroups } from '@/components/DesignCanvas/useDesignCanvasMarkdownPanelGroups'
+import { useDesignCanvasOverlayRuntime } from '@/components/DesignCanvas/useDesignCanvasOverlayRuntime'
 import { useDesignCanvasRenderData } from '@/components/DesignCanvas/useDesignCanvasRenderData'
 import { useDesignCanvasWireframeDecor } from '@/components/DesignCanvas/useDesignCanvasWireframeDecor'
 import { useGroupResizeController } from '@/components/DesignCanvas/useGroupResizeController'
@@ -27,8 +28,6 @@ import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverla
 import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { invertZoomPoint } from '@/lib/canvas/viewport-transform'
 import { readElementLocalPoint } from '@/lib/canvas/canvas-event-coords'
-import { fitAllTransform } from '@/components/GraphCanvas/fit'
-import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
@@ -43,9 +42,6 @@ const EMPTY_STRING_ARRAY: string[] = []
 const EMPTY_DESIGN_LAYER_STATE: DesignLayerState = { order: [], hiddenById: {} }
 const EMPTY_DESIGN_FRAME_POS_BY_ID: Record<string, DesignFramePos> = {}
 const EMPTY_DESIGN_FRAME_SIZE_BY_ID: Record<string, DesignFrameSize> = {}
-import { normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
-import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
-import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
 
 export default function DesignCanvas({
@@ -285,10 +281,6 @@ export default function DesignCanvas({
   const FRAME_W = 320
   const FRAME_H = 240
 
-  const localGraphDataRef = useRef<GraphData>(localGraphData)
-  useEffect(() => {
-    localGraphDataRef.current = localGraphData
-  }, [localGraphData])
   const {
     markdownPanelAllowedKinds,
     panelOnlyNodeIdSet,
@@ -315,144 +307,32 @@ export default function DesignCanvas({
     markdownDocumentName: snapshot.markdownDocumentName,
     markdownDocumentText: snapshot.markdownDocumentText,
   })
-
-  const designMediaOverlayElsRef = useRef<Map<string, HTMLElement>>(new Map())
-  const designMediaOverlayNodeByIdRef = useRef<{ graph: unknown | null; map: Map<string, GraphNode> }>({ graph: null, map: new Map() })
-  useEffect(() => {
-    const next = new Map<string, HTMLElement>()
-    for (const n of designMediaOverlayNodes) {
-      const existing = designMediaOverlayElsRef.current.get(n.id)
-      if (existing) next.set(n.id, existing)
-    }
-    designMediaOverlayElsRef.current = next
-  }, [designMediaOverlayNodeIdsKey, designMediaOverlayNodes])
-
-  const designMediaHeaderDragRef = useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number; lastDx: number; lastDy: number; schema: GraphSchema | null }>(null)
-
-  useEffect(() => {
-    if (!active) return
-    if (designMediaOverlayNodes.length === 0) return
-    const density = normalizeRichMediaPanelDensity(snapshot.mediaPanelDensity)
-    const widthRatioRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthRatioCompact : snapshot.threeIframeOverlayBaseWidthRatioDefault
-    const widthMinRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMinPxCompact : snapshot.threeIframeOverlayBaseWidthMinPxDefault
-    const widthMaxRaw = density === 'compact' ? snapshot.threeIframeOverlayBaseWidthMaxPxCompact : snapshot.threeIframeOverlayBaseWidthMaxPxDefault
-
-    const loop = startMediaOverlayLayoutLoop2d({
-      enabled: true,
-      loop: 'always',
-      items: designMediaOverlayNodes,
-      density,
-      viewportW: dims.width,
-      viewportH: dims.height,
-      readTransform: () => {
-        const svgEl = svgRef.current
-        if (!svgEl) return null
-        return d3.zoomTransform(svgEl as unknown as SVGSVGElement)
-      },
-      getElementForId: (id) => designMediaOverlayElsRef.current.get(id) || null,
-      getNodeWorldCenterForId: (id) => {
-        const graph = localGraphDataRef.current
-        if (designMediaOverlayNodeByIdRef.current.graph !== graph) {
-          const nodes = Array.isArray((graph as any)?.nodes) ? ((graph as any).nodes as GraphNode[]) : []
-          const map = new Map<string, GraphNode>()
-          for (let i = 0; i < nodes.length; i += 1) {
-            const n = nodes[i]
-            const key = String(n?.id || '').trim()
-            if (!key) continue
-            if (!map.has(key)) map.set(key, n)
-          }
-          designMediaOverlayNodeByIdRef.current = { graph, map }
-        }
-        const n = designMediaOverlayNodeByIdRef.current.map.get(id) || null
-        return readNodeCenterWorld2d(n, { coords: 'center' })
-      },
-      sizingConfig: {
-        widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
-        widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,
-        widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360,
-      },
-    })
-
-    return () => loop.stop()
-  }, [
+  const { localGraphDataRef, designMediaOverlayElsRef, designMediaHeaderDragRef } = useDesignCanvasOverlayRuntime({
     active,
+    localGraphData,
     designMediaOverlayNodeIdsKey,
     designMediaOverlayNodes,
-    dims.width,
-    dims.height,
-    snapshot.mediaPanelDensity,
-    snapshot.renderMediaAsNodes,
-    snapshot.threeIframeOverlayBaseWidthMaxPxCompact,
-    snapshot.threeIframeOverlayBaseWidthMaxPxDefault,
-    snapshot.threeIframeOverlayBaseWidthMinPxCompact,
-    snapshot.threeIframeOverlayBaseWidthMinPxDefault,
-    snapshot.threeIframeOverlayBaseWidthRatioCompact,
-    snapshot.threeIframeOverlayBaseWidthRatioDefault,
-  ])
-
-  const lastAutoFitWireframeKeyRef = useRef<string>('')
-  useEffect(() => {
-    if (!active) return
-    if (!documentUrl) return
-    if (webpageLayoutStatus !== 'ready') return
-    const svgEl = svgRef.current
-    if (!svgEl) return
-    const zoom = zoomRef.current
-    if (!zoom) return
-    const g0 = localGraphDataRef.current
-    const nodes0 = Array.isArray(g0.nodes) ? (g0.nodes as GraphNode[]) : ([] as GraphNode[])
-    if (nodes0.length === 0) {
-      const total = Array.isArray(activeWebpageLayoutGraphData?.nodes) ? activeWebpageLayoutGraphData!.nodes.length : 0
-      if (total > 0) {
-        const hidden = snapshot.designLayerState?.hiddenById || {}
-        let hiddenCount = 0
-        for (let i = 0; i < activeWebpageLayoutGraphData!.nodes.length; i += 1) {
-          const id = String((activeWebpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
-          if (!id) continue
-          if (hidden[id] === true) hiddenCount += 1
-        }
-        if (hiddenCount >= total) {
-          const ids: string[] = []
-          for (let i = 0; i < activeWebpageLayoutGraphData!.nodes.length; i += 1) {
-            const id = String((activeWebpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
-            if (id) ids.push(id)
-          }
-          try {
-            useGraphStore.getState().setDesignLayerState({ order: ids, hiddenById: {} })
-          } catch {
-            void 0
-          }
-          setWebpageStatusUi({ message: 'All wireframe layers were hidden. Reset visibility.' })
-          lastAutoFitWireframeKeyRef.current = ''
-          return
-        }
-      }
-      setWebpageLayoutStatus('error')
-      const elCount = Array.isArray(webpageLayout?.elements) ? webpageLayout!.elements.length : 0
-      setWebpageStatusUi({ message: `Wireframe is empty (0 nodes). elements=${elCount}, convertedNodes=${total}. Click Retry.` })
-      return
-    }
-    const key = `${documentUrl}#${webpageLayout?.meta?.ts || 0}#${nodes0.length}`
-    if (lastAutoFitWireframeKeyRef.current === key) return
-    lastAutoFitWireframeKeyRef.current = key
-    if (dims.width <= 80 || dims.height <= 80) return
-    const mode = readLayoutMode(snapshot.schema)
-    const opts = readFitAllOptions({ schema: snapshot.schema, mode, intent: 'initialFit' })
-    const t = fitAllTransform(nodes0, Math.max(1, dims.width), Math.max(1, dims.height), { ...opts, graphData: g0 })
-    d3.select(svgEl).call(zoom.transform as never, d3.zoomIdentity.translate(t.x, t.y).scale(t.k))
-  }, [
-    active,
-    activeWebpageLayoutGraphData,
-    dims.height,
-    dims.width,
+    viewportW: dims.width,
+    viewportH: dims.height,
+    mediaPanelDensity: snapshot.mediaPanelDensity,
+    renderMediaAsNodes: snapshot.renderMediaAsNodes,
+    threeIframeOverlayBaseWidthRatioDefault: snapshot.threeIframeOverlayBaseWidthRatioDefault,
+    threeIframeOverlayBaseWidthRatioCompact: snapshot.threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthMinPxDefault: snapshot.threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact: snapshot.threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault: snapshot.threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMaxPxCompact: snapshot.threeIframeOverlayBaseWidthMaxPxCompact,
+    svgRef,
+    zoomRef,
     documentUrl,
+    webpageLayoutStatus,
+    activeWebpageLayoutGraphData,
+    hiddenById: snapshot.designLayerState?.hiddenById,
+    webpageLayout,
+    schema: snapshot.schema as GraphSchema | null,
     setWebpageLayoutStatus,
     setWebpageStatusUi,
-    snapshot.designLayerState?.hiddenById,
-    snapshot.schema,
-    webpageLayout,
-    webpageLayoutStatus,
-  ])
+  })
 
   const setDesignFramePosMany = React.useCallback((patch: Record<string, DesignFramePos>) => {
     if (!interactionActive) return

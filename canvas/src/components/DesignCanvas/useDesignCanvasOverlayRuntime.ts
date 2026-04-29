@@ -1,0 +1,228 @@
+import React from 'react'
+import * as d3 from 'd3'
+import { fitAllTransform } from '@/components/GraphCanvas/fit'
+import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
+import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
+import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
+import { normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
+import type { GraphSchema } from '@/lib/graph/schema'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
+
+type OverlayRuntimeArgs = {
+  active: boolean
+  localGraphData: GraphData
+  designMediaOverlayNodeIdsKey: string
+  designMediaOverlayNodes: MediaOverlayNode[]
+  viewportW: number
+  viewportH: number
+  mediaPanelDensity: unknown
+  renderMediaAsNodes: boolean
+  threeIframeOverlayBaseWidthRatioDefault: unknown
+  threeIframeOverlayBaseWidthRatioCompact: unknown
+  threeIframeOverlayBaseWidthMinPxDefault: unknown
+  threeIframeOverlayBaseWidthMinPxCompact: unknown
+  threeIframeOverlayBaseWidthMaxPxDefault: unknown
+  threeIframeOverlayBaseWidthMaxPxCompact: unknown
+  svgRef: React.RefObject<SVGSVGElement | null>
+  zoomRef: React.RefObject<d3.ZoomBehavior<SVGSVGElement, unknown> | null>
+  documentUrl: string
+  webpageLayoutStatus: string
+  activeWebpageLayoutGraphData: GraphData | null
+  hiddenById: Record<string, boolean> | null | undefined
+  webpageLayout: { elements?: unknown[]; meta?: { ts?: unknown } } | null | undefined
+  schema: GraphSchema | null
+  setWebpageLayoutStatus: React.Dispatch<React.SetStateAction<'idle' | 'loading' | 'ready' | 'error'>>
+  setWebpageStatusUi: (next: { message: string }) => void
+}
+
+export function useDesignCanvasOverlayRuntime(args: OverlayRuntimeArgs) {
+  const {
+    active,
+    localGraphData,
+    designMediaOverlayNodeIdsKey,
+    designMediaOverlayNodes,
+    viewportW,
+    viewportH,
+    mediaPanelDensity,
+    renderMediaAsNodes,
+    threeIframeOverlayBaseWidthRatioDefault,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMaxPxCompact,
+    svgRef,
+    zoomRef,
+    documentUrl,
+    webpageLayoutStatus,
+    activeWebpageLayoutGraphData,
+    hiddenById,
+    webpageLayout,
+    schema,
+    setWebpageLayoutStatus,
+    setWebpageStatusUi,
+  } = args
+
+  const localGraphDataRef = React.useRef<GraphData>(localGraphData)
+  const designMediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
+  const designMediaOverlayNodeByIdRef = React.useRef<{ graph: unknown | null; map: Map<string, GraphNode> }>({
+    graph: null,
+    map: new Map(),
+  })
+  const designMediaHeaderDragRef = React.useRef<null | {
+    id: string
+    pointerId: number
+    startX: number
+    startY: number
+    startK: number
+    lastDx: number
+    lastDy: number
+    schema: GraphSchema | null
+  }>(null)
+  const lastAutoFitWireframeKeyRef = React.useRef<string>('')
+
+  React.useEffect(() => {
+    localGraphDataRef.current = localGraphData
+  }, [localGraphData])
+
+  React.useEffect(() => {
+    const next = new Map<string, HTMLElement>()
+    for (const node of designMediaOverlayNodes) {
+      const existing = designMediaOverlayElsRef.current.get(node.id)
+      if (existing) next.set(node.id, existing)
+    }
+    designMediaOverlayElsRef.current = next
+  }, [designMediaOverlayNodeIdsKey, designMediaOverlayNodes])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (designMediaOverlayNodes.length === 0) return
+    const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
+    const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
+    const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
+    const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+
+    const loop = startMediaOverlayLayoutLoop2d({
+      enabled: true,
+      loop: 'always',
+      items: designMediaOverlayNodes,
+      density,
+      viewportW,
+      viewportH,
+      readTransform: () => {
+        const svgEl = svgRef.current
+        if (!svgEl) return null
+        return d3.zoomTransform(svgEl as unknown as SVGSVGElement)
+      },
+      getElementForId: id => designMediaOverlayElsRef.current.get(id) || null,
+      getNodeWorldCenterForId: id => {
+        const graph = localGraphDataRef.current
+        if (designMediaOverlayNodeByIdRef.current.graph !== graph) {
+          const nodes = Array.isArray((graph as any)?.nodes) ? ((graph as any).nodes as GraphNode[]) : []
+          const map = new Map<string, GraphNode>()
+          for (let i = 0; i < nodes.length; i += 1) {
+            const node = nodes[i]
+            const key = String(node?.id || '').trim()
+            if (key && !map.has(key)) map.set(key, node)
+          }
+          designMediaOverlayNodeByIdRef.current = { graph, map }
+        }
+        const node = designMediaOverlayNodeByIdRef.current.map.get(id) || null
+        return readNodeCenterWorld2d(node, { coords: 'center' })
+      },
+      sizingConfig: {
+        widthRatio: Number.isFinite(widthRatioRaw as number) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
+        widthMinPx: Number.isFinite(widthMinRaw as number) ? Math.max(1, Math.floor(Number(widthMinRaw))) : 210,
+        widthMaxPx: Number.isFinite(widthMaxRaw as number) ? Math.max(1, Math.floor(Number(widthMaxRaw))) : 360,
+      },
+    })
+
+    return () => loop.stop()
+  }, [
+    active,
+    designMediaOverlayNodeIdsKey,
+    designMediaOverlayNodes,
+    mediaPanelDensity,
+    renderMediaAsNodes,
+    svgRef,
+    threeIframeOverlayBaseWidthMaxPxCompact,
+    threeIframeOverlayBaseWidthMaxPxDefault,
+    threeIframeOverlayBaseWidthMinPxCompact,
+    threeIframeOverlayBaseWidthMinPxDefault,
+    threeIframeOverlayBaseWidthRatioCompact,
+    threeIframeOverlayBaseWidthRatioDefault,
+    viewportH,
+    viewportW,
+  ])
+
+  React.useEffect(() => {
+    if (!active) return
+    if (!documentUrl) return
+    if (webpageLayoutStatus !== 'ready') return
+    const svgEl = svgRef.current
+    if (!svgEl) return
+    const zoom = zoomRef.current
+    if (!zoom) return
+    const graph = localGraphDataRef.current
+    const nodes = Array.isArray(graph.nodes) ? (graph.nodes as GraphNode[]) : ([] as GraphNode[])
+    if (nodes.length === 0) {
+      const total = Array.isArray(activeWebpageLayoutGraphData?.nodes) ? activeWebpageLayoutGraphData.nodes.length : 0
+      if (total > 0) {
+        let hiddenCount = 0
+        for (let i = 0; i < activeWebpageLayoutGraphData!.nodes.length; i += 1) {
+          const id = String((activeWebpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
+          if (id && hiddenById?.[id] === true) hiddenCount += 1
+        }
+        if (hiddenCount >= total) {
+          const ids: string[] = []
+          for (let i = 0; i < activeWebpageLayoutGraphData!.nodes.length; i += 1) {
+            const id = String((activeWebpageLayoutGraphData!.nodes[i] as GraphNode)?.id || '').trim()
+            if (id) ids.push(id)
+          }
+          try {
+            useGraphStore.getState().setDesignLayerState({ order: ids, hiddenById: {} })
+          } catch {
+            void 0
+          }
+          setWebpageStatusUi({ message: 'All wireframe layers were hidden. Reset visibility.' })
+          lastAutoFitWireframeKeyRef.current = ''
+          return
+        }
+      }
+      setWebpageLayoutStatus('error')
+      const elCount = Array.isArray(webpageLayout?.elements) ? webpageLayout!.elements.length : 0
+      setWebpageStatusUi({ message: `Wireframe is empty (0 nodes). elements=${elCount}, convertedNodes=${total}. Click Retry.` })
+      return
+    }
+    const key = `${documentUrl}#${webpageLayout?.meta?.ts || 0}#${nodes.length}`
+    if (lastAutoFitWireframeKeyRef.current === key) return
+    lastAutoFitWireframeKeyRef.current = key
+    if (viewportW <= 80 || viewportH <= 80) return
+    const mode = readLayoutMode(schema)
+    const options = readFitAllOptions({ schema, mode, intent: 'initialFit' })
+    const transform = fitAllTransform(nodes, Math.max(1, viewportW), Math.max(1, viewportH), { ...options, graphData: graph })
+    d3.select(svgEl).call(zoom.transform as never, d3.zoomIdentity.translate(transform.x, transform.y).scale(transform.k))
+  }, [
+    active,
+    activeWebpageLayoutGraphData,
+    documentUrl,
+    hiddenById,
+    schema,
+    setWebpageLayoutStatus,
+    setWebpageStatusUi,
+    svgRef,
+    viewportH,
+    viewportW,
+    webpageLayout,
+    webpageLayoutStatus,
+    zoomRef,
+  ])
+
+  return {
+    localGraphDataRef,
+    designMediaOverlayElsRef,
+    designMediaHeaderDragRef,
+  }
+}
