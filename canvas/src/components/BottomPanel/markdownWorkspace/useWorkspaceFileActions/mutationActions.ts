@@ -322,7 +322,7 @@ export function useWorkspaceMutationActions(args: {
   const canClearActiveSelection = !!(
     selectionPath && (selectionEntryKind === 'file' || (selectionEntryKind === 'folder' && selectionPath !== WORKSPACE_ROOT_PATH))
   )
-  const canDeleteActive = !!selectionPath && selectionPath !== WORKSPACE_ROOT_PATH
+  const canDeleteActive = !!selectionPath && selectionPath !== WORKSPACE_ROOT_PATH && !isInitializationWorkspacePath(selectionPath)
 
   const clearActiveSelection = React.useCallback(() => {
     if (!selectionPath) return

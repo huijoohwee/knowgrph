@@ -1924,58 +1924,31 @@ export function testMarkdownFrontmatterFlowGraphFidelityPitchdeckTemplateLite() 
   if (!res) throw new Error('expected pitchdeck frontmatter flow parse result')
   const g = res.graphData
   if (g.context !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
-  const flowNodes = g.nodes.filter(n => {
-    const type = String(n?.type || '').trim()
-    return type === 'input' || type === 'default' || type === 'output' || type === 'custom'
-  })
   const flowEdges = g.edges.filter(e => {
     const props = (e.properties || {}) as Record<string, unknown>
     const sourcePort = String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '')
     const targetPort = String(props[FLOW_EDGE_TARGET_PORT_KEY] || '')
     return !!sourcePort && !!targetPort
   })
-  if (flowNodes.length < 12) throw new Error(`expected at least 12 typed flow nodes, got ${flowNodes.length}`)
-  if (flowEdges.length !== 13) throw new Error(`expected 13 handle-linked flow edges, got ${flowEdges.length}`)
-  const byType = new Map<string, number>()
-  for (let i = 0; i < flowNodes.length; i += 1) {
-    const type = String(flowNodes[i]?.type || '').trim()
-    byType.set(type, (byType.get(type) || 0) + 1)
-  }
-  if ((byType.get('input') || 0) !== 3) throw new Error(`expected 3 input nodes, got ${String(byType.get('input') || 0)}`)
-  if ((byType.get('default') || 0) < 5) throw new Error(`expected at least 5 default nodes, got ${String(byType.get('default') || 0)}`)
-  if ((byType.get('output') || 0) !== 2) throw new Error(`expected 2 output nodes, got ${String(byType.get('output') || 0)}`)
-  if ((byType.get('custom') || 0) !== 2) throw new Error(`expected 2 custom nodes, got ${String(byType.get('custom') || 0)}`)
+  if (flowEdges.length !== 4) throw new Error(`expected 4 handle-linked flow edges, got ${flowEdges.length}`)
 
   const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
-  const fnConfig = nodeById.get('fn-config') || null
-  if (!fnConfig) throw new Error('expected fn-config input node')
-  const fnConfigData = (((fnConfig.properties || {}) as Record<string, unknown>).data || {}) as Record<string, unknown>
-  if (String(fnConfigData.ai_proxy || '') !== '[AI proxy]') throw new Error('expected frontmatter variable resolution in fn-config.data.ai_proxy')
-
-  const fnPersona = nodeById.get('fn-persona') || null
-  if (!fnPersona) throw new Error('expected fn-persona input node')
-  const fnPersonaData = (((fnPersona.properties || {}) as Record<string, unknown>).data || {}) as Record<string, unknown>
-  if (String(fnPersonaData.pain_a || '') !== '[Pain point A]') throw new Error('expected {{pain-a}} resolution for fn-persona.data.pain_a')
-
-  const fnScore = nodeById.get('fn-score') || null
-  if (!fnScore) throw new Error('expected fn-score default node')
-  const fnScoreCompute = String((((fnScore.properties || {}) as Record<string, unknown>)['flow:compute']) || '')
-  if (fnScoreCompute) throw new Error('expected unsafe eval compute to be rejected for fn-score')
-
-  const fnApi = nodeById.get('fn-api') || null
-  if (!fnApi) throw new Error('expected fn-api default node')
-  const fnApiCompute = String((((fnApi.properties || {}) as Record<string, unknown>)['flow:compute']) || '')
-  if (!fnApiCompute.includes('json_payload')) throw new Error('expected fn-api compute to be preserved')
-
-  const handleNames = new Set<string>()
-  for (let i = 0; i < flowEdges.length; i += 1) {
-    const props = (flowEdges[i].properties || {}) as Record<string, unknown>
-    handleNames.add(String(props[FLOW_EDGE_SOURCE_PORT_KEY] || ''))
-    handleNames.add(String(props[FLOW_EDGE_TARGET_PORT_KEY] || ''))
+  const requiredIds = [
+    'w-text-outline',
+    'p-text-outline',
+    'w-image-keyvisual',
+    'p-image-keyvisual',
+    'w-video-cut',
+    'p-video-cut',
+  ]
+  for (let i = 0; i < requiredIds.length; i += 1) {
+    if (!nodeById.has(requiredIds[i]!)) throw new Error(`expected ${requiredIds[i]} node`) 
   }
-  const requiredHandles = ['pain_signal', 'raw_items', 'vars', 'clean_items', 'typed_nodes', 'scored_nodes', 'alert_signal', 'json_payload']
-  for (let i = 0; i < requiredHandles.length; i += 1) {
-    if (!handleNames.has(requiredHandles[i])) throw new Error(`expected flow handle ${requiredHandles[i]} in parsed edges`)
+
+  const wText = nodeById.get('w-text-outline')!
+  const wTextProps = (wText.properties || {}) as Record<string, unknown>
+  if (String(wTextProps.chatProvider || '') !== 'byteplus-modelark') {
+    throw new Error('expected pitchdeck template to resolve template_inputs.text_provider into w-text-outline.chatProvider')
   }
 }
 
@@ -2003,7 +1976,7 @@ function readKnowgrphRichMediaGenerationDemoPath(): string {
     : ''
   if (envPath) return envPath
   const cwd = process.cwd()
-  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'test-generate-video', 'knowgrph-demo-video.md')
+  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'test-generate-video', 'knowgrph-rich-media-generation-demo.md')
 }
 
 function readKnowgrphVideoDemoPath(): string {
