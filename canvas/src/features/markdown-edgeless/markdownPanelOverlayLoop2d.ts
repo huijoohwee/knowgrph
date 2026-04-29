@@ -42,7 +42,14 @@ export function startMarkdownPanelOverlayLoop2d(args: {
     const vh = Math.max(1, Math.floor(Number(viewport.h) || 1))
     const density = args.getDensity() === 'compact' ? 'compact' : 'default'
     const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-    const sizing = computeMediaOverlaySizing({ density, viewportW: vw, zoomK: k, config: args.getSizingConfig() })
+    const sizing = computeMediaOverlaySizing({
+      density,
+      viewportW: vw,
+      viewportH: vh,
+      zoomK: k,
+      itemCount: Math.max(1, args.getItems().length),
+      config: args.getSizingConfig(),
+    })
     if (sizing.key !== lastSizingKey) {
       lastSizingKey = sizing.key
       lastSizing = sizing

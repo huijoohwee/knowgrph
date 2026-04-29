@@ -22,17 +22,18 @@ export function normalizeOverlaySizingConfig(input?: Partial<MediaOverlaySizingC
 export function computeOverlayHalfExtentsWorld(args: {
   density: MediaPanelDensity
   viewportW: number
+  viewportH: number
   zoomK: number
   config?: Partial<MediaOverlaySizingConfig> | null
 }): { halfW: number; halfH: number } {
   const density: MediaPanelDensity = args.density === 'compact' ? 'compact' : 'default'
   const viewportW = Math.max(1, Math.floor(Number(args.viewportW) || 1))
+  const viewportH = Math.max(1, Math.floor(Number(args.viewportH) || 1))
   const zoomK = Number.isFinite(args.zoomK) ? Math.max(0.001, Number(args.zoomK)) : 1
   const config = normalizeOverlaySizingConfig(args.config)
-  const sizing = computeMediaOverlaySizing({ density, viewportW, zoomK, config })
+  const sizing = computeMediaOverlaySizing({ density, viewportW, viewportH, zoomK, itemCount: 1, config })
   return {
     halfW: Math.max(1, sizing.panelW / zoomK / 2),
     halfH: Math.max(1, sizing.panelH / zoomK / 2),
   }
 }
-

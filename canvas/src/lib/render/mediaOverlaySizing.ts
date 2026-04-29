@@ -1,5 +1,6 @@
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 import { computeMediaPanelCssVars3d, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
+import { clampBalancedCollectiveScaleToViewport } from '@/lib/ui/overlayBalancedSpread'
 
 export type MediaOverlaySizingConfig = {
   widthRatio: number
@@ -30,12 +31,16 @@ function quantize(px: number, stepPx: number): number {
 export function computeMediaOverlaySizing(args: {
   density: MediaPanelDensity
   viewportW: number
+  viewportH: number
   zoomK: number
+  itemCount?: number
   config: MediaOverlaySizingConfig
 }): MediaOverlaySizing {
   const density: MediaPanelDensity = args.density === 'compact' ? 'compact' : 'default'
   const viewportW = Math.max(1, Number(args.viewportW) || 1)
+  const viewportH = Math.max(1, Number(args.viewportH) || 1)
   const zoomK = Number.isFinite(args.zoomK) ? Math.max(0.001, Number(args.zoomK)) : 1
+  const itemCount = Math.max(1, Math.floor(Number(args.itemCount) || 1))
 
   const widthRatio = Number.isFinite(args.config.widthRatio) ? Math.max(0.001, Number(args.config.widthRatio)) : 0.2
   const widthMinPx = Number.isFinite(args.config.widthMinPx) ? Math.max(1, Math.floor(args.config.widthMinPx)) : 210
@@ -44,7 +49,20 @@ export function computeMediaOverlaySizing(args: {
   const quantizeStepPx = Number.isFinite(args.config.quantizeStepPx) ? Math.max(1, Math.floor(args.config.quantizeStepPx!)) : 16
 
   const baseW = clamp(viewportW * widthRatio, widthMinPx, widthMaxPx)
-  const contentW = Math.max(2, Math.min(maxPanelPx, quantize(baseW * zoomK, quantizeStepPx)))
+  const baseComputed = computeMediaPanelCssVars3d({ density, sizeScale: 1 })
+  const basePanel = computePanelSizeFromContent16x9({ contentW: baseW, metrics: baseComputed.metrics })
+  const adaptiveScale = clampBalancedCollectiveScaleToViewport({
+    scale: zoomK,
+    viewportW,
+    viewportH,
+    count: itemCount,
+    baseWidth: basePanel.panelW,
+    baseHeight: basePanel.panelH,
+    quantizeStep: Math.max(0.01, quantizeStepPx / Math.max(1, baseW)),
+    hardMinScale: 0.62,
+    hardMaxScale: 1.08,
+  })
+  const contentW = Math.max(2, Math.min(maxPanelPx, quantize(baseW * adaptiveScale, quantizeStepPx)))
   const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))
   const computed = computeMediaPanelCssVars3d({ density, sizeScale })
   const panel = computePanelSizeFromContent16x9({ contentW, metrics: computed.metrics })
@@ -52,4 +70,3 @@ export function computeMediaOverlaySizing(args: {
 
   return { key, contentW, panelW: panel.panelW, panelH: panel.panelH, vars: computed.vars, metrics: computed.metrics }
 }
-

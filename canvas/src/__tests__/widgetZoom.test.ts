@@ -1,4 +1,5 @@
 import { computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { clampBalancedCollectiveScaleToViewport } from '@/lib/ui/overlayBalancedSpread'
 
 function approxEq(a: number, b: number, eps = 1e-6): boolean {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false
@@ -52,5 +53,34 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
   }
   if (computeWidgetScaleKey(sFloatingTinyDeltaA) !== '1.00') {
     throw new Error(`expected floating scale key to stay stable at 1.00 for tiny zoom deltas, got ${computeWidgetScaleKey(sFloatingTinyDeltaA)}`)
+  }
+
+  const balancedCollectiveScale = clampBalancedCollectiveScaleToViewport({
+    scale: 1,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: 4,
+    baseWidth: 360,
+    baseHeight: 520,
+    quantizeStep: 0.02,
+    hardMinScale: 0.68,
+    hardMaxScale: 1.06,
+  })
+  if (!(balancedCollectiveScale >= 0.68 && balancedCollectiveScale < 0.82)) {
+    throw new Error(`expected balanced collective scale to shrink oversized 4-up floating widgets on 1920x1080, got ${balancedCollectiveScale}`)
+  }
+  const singleScale = clampBalancedCollectiveScaleToViewport({
+    scale: 1,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: 1,
+    baseWidth: 360,
+    baseHeight: 520,
+    quantizeStep: 0.02,
+    hardMinScale: 0.68,
+    hardMaxScale: 1.06,
+  })
+  if (!approxEq(singleScale, 1)) {
+    throw new Error(`expected single floating widget scale to remain unchanged by collective viewport fit, got ${singleScale}`)
   }
 }

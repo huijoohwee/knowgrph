@@ -67,7 +67,9 @@ export function startMediaOverlayLayoutLoop2d(args: {
     const sizing = computeMediaOverlaySizing({
       density,
       viewportW: args.viewportW,
+      viewportH: args.viewportH,
       zoomK: k,
+      itemCount: args.items.length,
       config: args.sizingConfig,
     })
     if (sizing.key !== lastSizingKey) {

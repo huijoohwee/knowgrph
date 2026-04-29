@@ -30,14 +30,10 @@ import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { emitFlowEditorInteractionFrame, FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
-import {
-  computeWidgetScale,
-  computeWidgetScaleKey,
-  computeWidgetScaledSize,
-  WIDGET_BASE_SIZE,
-} from '@/components/FlowEditor/widgetZoom'
+import { clampBalancedCollectiveScaleToViewport } from '@/lib/ui/overlayBalancedSpread'
 import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { computeDefaultWidgetFloatingPos, computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widgetLayout'
+import { computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { getIconSizeClass } from '@/lib/ui'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
@@ -145,6 +141,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     documentWidgetRegistry,
     effectiveWidgetRegistry,
     baseWidgetRegistry,
+    openWidgetNodeIds,
     upsertUiToast,
     selectNode,
     setSelectionSource,
@@ -162,6 +159,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       documentWidgetRegistry: (s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
       effectiveWidgetRegistry: (s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
       baseWidgetRegistry: (s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
+      openWidgetNodeIds: s.openWidgetNodeIds || [],
       upsertUiToast: s.upsertUiToast,
       selectNode: s.selectNode,
       setSelectionSource: s.setSelectionSource,
@@ -493,7 +491,20 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       const [minK, maxK] = readZoomScaleExtent(s)
       return { minK: Math.min(minK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP), maxK }
     })()
-    const panelScale = computeWidgetScale(zoomK, extent, { mode: floatingRef.current ? 'floating' : 'pinnedInCanvas' })
+    const panelScaleBase = computeWidgetScale(zoomK, extent, { mode: floatingRef.current ? 'floating' : 'pinnedInCanvas' })
+    const panelScale = floatingRef.current
+      ? clampBalancedCollectiveScaleToViewport({
+          scale: panelScaleBase,
+          viewportW,
+          viewportH,
+          count: openWidgetNodeIds.length,
+          baseWidth: WIDGET_BASE_SIZE.width,
+          baseHeight: WIDGET_BASE_SIZE.height,
+          quantizeStep: 0.02,
+          hardMinScale: 0.68,
+          hardMaxScale: 1.06,
+        })
+      : panelScaleBase
     if (floatingRef.current) lastFloatingScaleKeyRef.current = computeWidgetScaleKey(panelScale)
     const scaled = computeWidgetScaledSize(panelScale)
     scaledSizeRef.current = scaled

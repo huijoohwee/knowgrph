@@ -345,7 +345,9 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     const sizing = computeMediaOverlaySizing({
       density,
       viewportW,
+      viewportH,
       zoomK: 1,
+      itemCount: 1,
       config: {
         widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
         widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,

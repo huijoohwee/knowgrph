@@ -94,3 +94,47 @@ export function computeBalancedSpreadSpacingPx(args: {
   const zoomOutFactor = clamp(1 / Math.sqrt(zoomK), 0.9, 1.2)
   return Math.max(baseGap, Math.round(baseGap * densityFactor * zoomOutFactor))
 }
+
+export function clampBalancedCollectiveScaleToViewport(args: {
+  scale: number
+  viewportW: number
+  viewportH: number
+  count: number
+  baseWidth: number
+  baseHeight: number
+  quantizeStep?: number
+  hardMinScale?: number
+  hardMaxScale?: number
+}): number {
+  const scale = Number.isFinite(args.scale) ? Number(args.scale) : 1
+  const viewportW = Math.max(1, Number(args.viewportW) || 1)
+  const viewportH = Math.max(1, Number(args.viewportH) || 1)
+  const count = Math.max(1, Math.floor(Number(args.count) || 1))
+  const baseWidth = Math.max(1, Number(args.baseWidth) || 1)
+  const baseHeight = Math.max(1, Number(args.baseHeight) || 1)
+  const quantizeStep = Number.isFinite(args.quantizeStep) && Number(args.quantizeStep) > 0 ? Number(args.quantizeStep) : 0.02
+  const hardMinScale = Number.isFinite(args.hardMinScale) ? Number(args.hardMinScale) : 0.68
+  const hardMaxScale = Number.isFinite(args.hardMaxScale) ? Number(args.hardMaxScale) : 1.06
+  const quantize = (v: number) => Math.round(v / quantizeStep) * quantizeStep
+  if (count <= 1) return clamp(quantize(clamp(scale, hardMinScale, hardMaxScale)), hardMinScale, hardMaxScale)
+
+  const density = Math.max(0, count - 1)
+  const minWidthRatio = clamp(0.12 - Math.min(0.03, density * 0.004), 0.09, 0.12)
+  const maxWidthRatio = clamp(0.24 - Math.min(0.10, density * 0.01), 0.14, 0.24)
+  const minHeightRatio = clamp(0.18 - Math.min(0.05, density * 0.005), 0.13, 0.18)
+  const maxHeightRatio = clamp(0.42 - Math.min(0.16, density * 0.015), 0.26, 0.42)
+
+  const viewportMinScale = Math.max(
+    hardMinScale,
+    (viewportW * minWidthRatio) / baseWidth,
+    (viewportH * minHeightRatio) / baseHeight,
+  )
+  const viewportMaxScale = Math.min(
+    hardMaxScale,
+    (viewportW * maxWidthRatio) / baseWidth,
+    (viewportH * maxHeightRatio) / baseHeight,
+  )
+  const minScale = clamp(viewportMinScale, hardMinScale, hardMaxScale)
+  const maxScale = clamp(Math.max(minScale, viewportMaxScale), minScale, hardMaxScale)
+  return clamp(quantize(clamp(scale, minScale, maxScale)), minScale, maxScale)
+}

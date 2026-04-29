@@ -23,8 +23,8 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
   if (!wheelText.includes('skipIgnoreGuard: true')) {
     throw new Error('expected FlowCanvas wheel proxy to bypass canvas wheel ignore guard when proxied')
   }
-  if (!wheelText.includes('if (ignoreWheelTarget) return')) {
-    throw new Error('expected FlowCanvas wheel proxy to keep explicit ignore-guard early return in window capture path')
+  if (!wheelText.includes('if (ignoreWheelTarget && !proxyOverlayWheel) return')) {
+    throw new Error('expected FlowCanvas wheel proxy to let explicit overlay proxying bypass the generic ignore-guard early return')
   }
   if (!wheelText.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas wheel proxy to reuse shared frontmatter-document mode gate SSOT')

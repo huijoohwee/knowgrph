@@ -10,9 +10,15 @@ import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWith
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
 import { FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { worldToScreen } from '@/lib/zoom/viewport'
-import { computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { readWidgetGridLayoutSettings, shouldAutoPlaceFlowEditorWidget, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
-import { BALANCED_OVERLAY_SPREAD_TARGET_ASPECT, computeBalancedSpreadGrid, computeBalancedSpreadSpacingPx, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
+import {
+  BALANCED_OVERLAY_SPREAD_TARGET_ASPECT,
+  clampBalancedCollectiveScaleToViewport,
+  computeBalancedSpreadGrid,
+  computeBalancedSpreadSpacingPx,
+  isVerticalOverlayCluster,
+} from '@/lib/ui/overlayBalancedSpread'
 
 function hasOverlap(
   a: { left: number; top: number; width?: number; height?: number },
@@ -184,7 +190,19 @@ export function useFlowEditorOverlayCollision(args: {
             zoomState: st.zoomState,
           })?.k) ?? null
       const zoomK = typeof zoomKRaw === 'number' && Number.isFinite(zoomKRaw) ? zoomKRaw : 1
-      const panelScale = computeWidgetScale(zoomK, null, { mode: 'floating' })
+      const panelScaleBase = computeWidgetScale(zoomK, null, { mode: 'floating' })
+      const unpinnedCount = overlayNodeIds.reduce((acc, id) => acc + (st.flowWidgetPinnedByNodeId?.[id] === true ? 0 : 1), 0)
+      const panelScale = clampBalancedCollectiveScaleToViewport({
+        scale: panelScaleBase,
+        viewportW: args.viewportW,
+        viewportH: args.viewportH,
+        count: Math.max(1, unpinnedCount),
+        baseWidth: WIDGET_BASE_SIZE.width,
+        baseHeight: WIDGET_BASE_SIZE.height,
+        quantizeStep: 0.02,
+        hardMinScale: 0.68,
+        hardMaxScale: 1.06,
+      })
       const panelScaleKey = computeWidgetScaleKey(panelScale)
       const canvasOffset = canvasWindowOffsetRef.current || canvasWindowOffset
       const offL = Number.isFinite(canvasOffset.left) ? Math.round(canvasOffset.left * 10) / 10 : 0
@@ -250,7 +268,6 @@ export function useFlowEditorOverlayCollision(args: {
             height: Math.max(160, Math.min(floatingScaled.height, sumH / count)),
           }
         : floatingScaled
-      const unpinnedCount = overlayNodeIds.reduce((acc, id) => acc + (pinnedById[id] === true ? 0 : 1), 0)
       const gapBase = typeof args.schema?.layout?.flow?.overlay?.collisionGapPx === 'number' ? args.schema.layout.flow.overlay.collisionGapPx : 12
       const configuredGapPx = Math.max(0, Math.min(80, Math.floor(widgetGrid.gridEnabled ? Math.max(gapBase, widgetGrid.gapPx) : gapBase)))
       const adaptiveGapPx = computeBalancedSpreadSpacingPx({

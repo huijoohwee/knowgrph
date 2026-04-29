@@ -152,7 +152,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     const resolved = resolveFlowEditorOverlayProxyTarget({ target: (e as unknown as { target?: unknown }).target, canvasEl })
     const proxyOverlayWheel = shouldProxyWheelFromOverlay(e, resolved, { isFlowEditor })
     const ignoreWheelTarget = shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
-    if (ignoreWheelTarget) return
+    if (ignoreWheelTarget && !proxyOverlayWheel) return
     const target = e.target
     const targetEl = target instanceof Element ? target : null
     const targetInCanvas = !!targetEl && (targetEl === canvasEl || canvasEl.contains(targetEl))
