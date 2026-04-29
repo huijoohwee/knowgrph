@@ -459,6 +459,14 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
   const refreshInFlightRef = React.useRef(false)
   const refreshQueuedRef = React.useRef(false)
+  const scheduleApplyComposedFromSourceFiles = React.useCallback(async () => {
+    try {
+      const mod = (await import('@/features/source-files/applyComposedGraphFromSourceFiles')) as typeof import('@/features/source-files/applyComposedGraphFromSourceFiles')
+      mod.scheduleApplyComposedGraphFromSourceFiles()
+    } catch {
+      void 0
+    }
+  }, [])
 
   const refreshOnce = React.useCallback(async () => {
     setStatusProgress('Refreshing')
@@ -488,6 +496,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
           forceIncludePaths: currentActivePath ? [currentActivePath] : [],
         })
         store.setSourceFiles(merged)
+        await scheduleApplyComposedFromSourceFiles()
       } catch {
         void 0
       }
@@ -498,7 +507,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       setLoadError(String((e as { message?: unknown })?.message ?? e))
       setStatusError('Refresh failed')
     }
-  }, [getFs, setStatusError, setStatusInfo, setStatusProgress])
+  }, [getFs, scheduleApplyComposedFromSourceFiles, setStatusError, setStatusInfo, setStatusProgress])
 
   const refresh = React.useCallback(async () => {
     if (refreshInFlightRef.current) {

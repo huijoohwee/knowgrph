@@ -1,6 +1,7 @@
 import React from 'react'
 
 import { FlowEditorWidgetOverlay, isCanonicalFrontmatterBuiltInWidgetNode, resolveGraphNodeIdByCanonicalId } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
@@ -12,30 +13,6 @@ import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flo
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
-
-function readNum(v: unknown): number {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : Number.NaN
-  return typeof n === 'number' && Number.isFinite(n) ? n : 0
-}
-
-function compareNodeIdsByVisualIndex(nodeById: Map<string, GraphNode>, aId: string, bId: string): number {
-  if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
-  if (aId === bId) return 0
-  const readKey = (id: string) => {
-    const n = nodeById.get(id)
-    const props = (n?.properties || {}) as Record<string, unknown>
-    const z = readNum(props['visual:zIndex'] ?? props['visual:depth'] ?? props['visual:layer'])
-    const y = readNum(props['visual:yIndex'])
-    const x = readNum(props['visual:xIndex'])
-    return { z, y, x, id }
-  }
-  const a = readKey(aId)
-  const b = readKey(bId)
-  if (a.z !== b.z) return a.z - b.z
-  if (a.y !== b.y) return a.y - b.y
-  if (a.x !== b.x) return a.x - b.x
-  return a.id.localeCompare(b.id)
-}
 
 export function useFlowEditorOverlaySurface(args: {
   canEdit: boolean
@@ -99,6 +76,16 @@ export function useFlowEditorOverlaySurface(args: {
       if (!id || nodeById.has(id)) continue
       nodeById.set(id, n)
     }
+    const nodeZKeyById = buildNodeZKeyById({ nodes, groups: [] })
+    const compareNodeIdsByVisualIndex = (aId: string, bId: string): number => {
+      if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
+      if (aId === bId) return 0
+      const aKey = nodeZKeyById.get(aId)
+      const bKey = nodeZKeyById.get(bId)
+      if (aKey && bKey) return compareNodeZKey(aKey, bKey)
+      if (aKey || bKey) return aKey ? -1 : 1
+      return aId.localeCompare(bId)
+    }
     if (isFrontmatterFlow && nodes.length > 0) {
       const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
       const registry = Array.isArray(registryRaw) ? (registryRaw as Array<Record<string, unknown>>) : []
@@ -132,7 +119,7 @@ export function useFlowEditorOverlaySurface(args: {
         seen.add(id)
         next.push(id)
       }
-      const sorted = next.sort((a, b) => compareNodeIdsByVisualIndex(nodeById, a, b))
+      const sorted = next.sort(compareNodeIdsByVisualIndex)
       if (sorted.length > 0) {
         lastStableOverlayEditorNodeIdsRef.current = sorted
         return sorted
@@ -280,7 +267,6 @@ export function useFlowEditorOverlaySurface(args: {
       nodeById.set(id, n)
     }
     const graphMetaKind = String(((args.renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null
-    const forcePinnedToCanvas = !args.geospatialWidgetPanelMode
     const resolveNode = (id: string) => {
       const found = nodeById.get(id) || null
       if (found) return found
@@ -313,7 +299,6 @@ export function useFlowEditorOverlaySurface(args: {
             canvasWindowOffset={args.canvasWindowOffset}
             zoomViewKey={args.zoomViewKey}
             autoRevealKey={autoRevealKey}
-            forcePinnedToCanvas={forcePinnedToCanvas}
             stackIndex={stackIndex}
             getLiveNodeWorldPos={args.getLiveNodeWorldPos}
             getLiveZoomTransform={args.getLiveZoomTransform}
@@ -328,7 +313,7 @@ export function useFlowEditorOverlaySurface(args: {
             }}
             onDuplicate={() => {
               const pinnedMap = args.flowWidgetPinnedByNodeId || {}
-              const pinned = forcePinnedToCanvas === true || pinnedMap[id] === true
+              const pinned = pinnedMap[id] === true
               if (pinned) {
                 args.upsertUiToast({
                   id: `flow-editor-node-duplicate-disabled-${id}`,

@@ -216,3 +216,24 @@ export function testWorkspaceCanvasAutoApplySkipsWidgetMode() {
     throw new Error('expected workspace canvas auto-apply effect to skip widget mode so reopen cannot apply widget bundle text as a full document')
   }
 }
+
+export function testWorkspaceRefreshSetSourceFilesImmediatelySchedulesComposeApply() {
+  const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const text = readFileSync(runtimePath, 'utf8')
+
+  if (!text.includes('const scheduleApplyComposedFromSourceFiles = React.useCallback(async () => {')) {
+    throw new Error('expected markdown workspace runtime refresh path to expose a dedicated composed-apply scheduler helper')
+  }
+  if (!text.includes("await import('@/features/source-files/applyComposedGraphFromSourceFiles')")) {
+    throw new Error('expected markdown workspace runtime refresh path to lazy-load the canonical composed source-files apply module')
+  }
+  if (!text.includes('mod.scheduleApplyComposedGraphFromSourceFiles()')) {
+    throw new Error('expected markdown workspace runtime refresh path to dispatch canonical scheduleApplyComposedGraphFromSourceFiles')
+  }
+
+  const setIdx = text.indexOf('store.setSourceFiles(merged)')
+  const applyIdx = text.indexOf('await scheduleApplyComposedFromSourceFiles()')
+  if (setIdx < 0 || applyIdx < 0 || applyIdx <= setIdx) {
+    throw new Error('expected markdown workspace runtime refresh to schedule composed apply immediately after setSourceFiles so delete/refresh clears stale overlays without page reload')
+  }
+}

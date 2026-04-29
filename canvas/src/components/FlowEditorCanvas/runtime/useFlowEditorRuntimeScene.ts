@@ -102,11 +102,6 @@ export function useFlowEditorRuntimeScene(args: {
     if (!best) return null
 
     const st = useGraphStore.getState()
-    const openIds = Array.isArray(st.openWidgetNodeIds) ? st.openWidgetNodeIds : []
-    const worldById =
-      (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
-        .flowWidgetWorldPosByNodeId || {}
-    const autoSeedWorldById = latestAutoSeedWorldPosByNodeIdRef.current || {}
     const t =
       getLiveZoomTransform() ||
       getEffectiveZoomStateForKey({
@@ -115,32 +110,12 @@ export function useFlowEditorRuntimeScene(args: {
         zoomState: st.zoomState,
       }) ||
       { k: 1, x: 0, y: 0 }
-    const zoomK = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-    const panelScale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
-    const panelScreen = computeWidgetScaledSize(panelScale)
-    const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
-    const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
-    const overlayAabbByNodeId: Record<string, { minX: number; minY: number; maxX: number; maxY: number }> = {}
-    for (let i = 0; i < openIds.length; i += 1) {
-      const openId = String(openIds[i] || '').trim()
-      if (!openId) continue
-      const world = worldById[openId] || autoSeedWorldById[openId]
-      if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
-      overlayAabbByNodeId[openId] = {
-        minX: world.x,
-        minY: world.y,
-        maxX: world.x + panelWorldW,
-        maxY: world.y + panelWorldH,
-      }
-    }
-
     const cfg = runtime.presentation.groups
     const aabb = computeFlowGroupAabb({
       scene,
       group: best as never,
       paddingPx: cfg.paddingPx,
       labelTopExtraPx: cfg.labelTopExtraPx,
-      overlayAabbByNodeId,
     })
     if (!aabb) return null
     return { groupId: bestId, ...aabb }
@@ -222,7 +197,7 @@ export function useFlowEditorRuntimeScene(args: {
       .filter(Boolean)
       .filter(id => {
         const v = pinnedById[id]
-        return typeof v === 'boolean' ? v : true
+        return typeof v === 'boolean' ? v : false
       })
       .sort((a, b) => a.localeCompare(b))
     const allBoundsByBucket = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()

@@ -18,7 +18,7 @@ export function testFlowEditorOverlaysDoNotUseFloatingPanelZIndex() {
 }
 
 export function testFlowEditorOverlaySvgIsBoundedBelowToolbar() {
-  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas.tsx')
+  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx')
   let text = ''
   try {
     text = fs.readFileSync(filePath, { encoding: 'utf8' })
@@ -34,39 +34,45 @@ export function testFlowEditorOverlaySvgIsBoundedBelowToolbar() {
 }
 
 export function testFlowEditorOverlayModeStillRendersGroups() {
-  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas.tsx')
+  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx')
   let text = ''
   try {
     text = fs.readFileSync(filePath, { encoding: 'utf8' })
   } catch {
     throw new Error(`Expected to read ${filePath}`)
   }
-  if (text.includes('renderGroups={overlayOnlyModeEnabled ? false : true}')) {
-    throw new Error('Expected Flow Editor to keep groups visible even when using overlay-only node rendering')
+  if (text.includes('renderGroups={props.overlayOnlyActive ? false : true}')) {
+    throw new Error('Expected Flow Editor group rendering to stay independent from overlay-only node rendering')
   }
-  if (!text.includes('renderGroups={true}')) {
-    throw new Error('Expected Flow Editor to explicitly enable renderGroups')
+  if (!text.includes('renderGroups={!props.geospatialWidgetPanelMode}')) {
+    throw new Error('Expected Flow Editor groups to stay enabled outside geospatial widget-panel mode')
   }
 }
 
 export function testFlowEditorOverlayOnlyModeDoesNotBlankCanvasWhenNoOverlaysOpen() {
-  const filePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas.tsx')
-  let text = ''
+  const surfacePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/FlowEditorCanvasSurface.tsx')
+  const overlaySurfacePath = path.resolve(process.cwd(), 'src/components/FlowEditorCanvas/runtime/useFlowEditorOverlaySurface.tsx')
+  let surfaceText = ''
+  let overlaySurfaceText = ''
   try {
-    text = fs.readFileSync(filePath, { encoding: 'utf8' })
+    surfaceText = fs.readFileSync(surfacePath, { encoding: 'utf8' })
+    overlaySurfaceText = fs.readFileSync(overlaySurfacePath, { encoding: 'utf8' })
   } catch {
-    throw new Error(`Expected to read ${filePath}`)
+    throw new Error(`Expected to read ${surfacePath} and ${overlaySurfacePath}`)
   }
-  if (!text.includes('const overlayOnlyActive = overlayOnlyModeEnabled && hasOverlayEditors')) {
+  if (!overlaySurfaceText.includes('const overlayOnlyActive =')) {
     throw new Error('Expected Flow Editor overlay-only rendering to be gated by whether overlays exist')
   }
-  if (!text.includes('renderEdges={overlayOnlyActive ? false : true}')) {
+  if (!overlaySurfaceText.includes('hasOverlayEditors || Boolean(args.geospatialWidgetPanelMode)')) {
+    throw new Error('Expected Flow Editor overlay-only mode to require visible overlays or geospatial panel mode')
+  }
+  if (!surfaceText.includes('renderEdges={!props.overlayOnlyActive}')) {
     throw new Error('Expected Flow Editor to keep canvas edges visible when no overlays are open')
   }
-  if (!text.includes('renderNodes={overlayOnlyActive ? false : true}')) {
+  if (!surfaceText.includes('renderNodes={!props.overlayOnlyActive}')) {
     throw new Error('Expected Flow Editor to keep canvas nodes visible when no overlays are open')
   }
-  if (!text.includes('{overlayOnlyActive && (')) {
+  if (!surfaceText.includes('{props.overlayOnlyActive && (')) {
     throw new Error('Expected overlay-only SVG edges layer to be gated by overlayOnlyActive')
   }
 }

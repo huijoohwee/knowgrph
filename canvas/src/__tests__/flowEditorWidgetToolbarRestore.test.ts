@@ -4,11 +4,11 @@ import { resolve } from 'node:path'
 export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() {
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
-  const canvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const copyPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiCopy.ts')
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayText = readFileSync(overlayPath, 'utf8')
-  const canvasText = readFileSync(canvasPath, 'utf8')
+  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
   const copyText = readFileSync(copyPath, 'utf8')
 
   const requiredToolbarSnippets = [
@@ -50,19 +50,19 @@ export function testFlowEditorWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   if (!overlayText.includes('visible={toolbarVisible}')) {
     throw new Error('expected widget tiny floating toolbar visibility to be driven by local click-open state without duplicate selected-node gating')
   }
-  if (!canvasText.includes('onRun={() => {')) {
+  if (!overlaySurfaceText.includes('onRun={() => {')) {
     throw new Error('expected FlowEditor overlay widget to wire the Run action through the shared run handler')
   }
-  if (!canvasText.includes('void runWorkflowNode(id)')) {
+  if (!overlaySurfaceText.includes('void args.runWorkflowNode(id)')) {
     throw new Error('expected FlowEditor widget Run action to reuse the existing workflow run callback')
   }
-  if (!canvasText.includes("workflowManagerTab: 'mapping'")) {
+  if (!overlaySurfaceText.includes("workflowManagerTab: 'mapping'")) {
     throw new Error('expected widget toolbar Update KV entry action to deep-link into the mapping CRUD tab')
   }
-  if (!canvasText.includes('const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({')) {
+  if (!overlaySurfaceText.includes('const resolvedWidgetRegistryEntry = resolveWidgetRegistryEntry({')) {
     throw new Error('expected Update KV entry to resolve the exact active widget registry entry before opening the mapping tab')
   }
-  if (!canvasText.includes('String(resolvedWidgetRegistryEntry?.id || \'\').trim()')) {
+  if (!overlaySurfaceText.includes('String(resolvedWidgetRegistryEntry?.id || \'\').trim()')) {
     throw new Error('expected Update KV entry to search by exact registry entry id so multiple text widget variants open the correct CRUD rows')
   }
   if (!copyText.includes("flowWidgetRun: 'Run'")) {

@@ -1,5 +1,10 @@
 export const BALANCED_OVERLAY_SPREAD_TARGET_ASPECT = 16 / 9
 
+function clamp(v: number, lo: number, hi: number): number {
+  if (!Number.isFinite(v)) return lo
+  return Math.max(lo, Math.min(hi, v))
+}
+
 export function computeBalancedSpreadGrid(args: {
   count: number
   viewportW: number
@@ -75,4 +80,17 @@ export function isVerticalOverlayCluster(args: {
   }
   const spanY = Math.max(0, maxTop - minTop)
   return spanY >= Math.max(avgH * 2.2, gapPx * 3)
+}
+
+export function computeBalancedSpreadSpacingPx(args: {
+  baseGapPx: number
+  zoomK: number
+  count: number
+}): number {
+  const baseGap = clamp(Math.floor(Number(args.baseGapPx) || 0), 8, 96)
+  const zoomK = clamp(Number(args.zoomK) || 1, 0.5, 2.5)
+  const count = Math.max(1, Math.floor(Number(args.count) || 1))
+  const densityFactor = 1 + Math.min(0.35, count / 18)
+  const zoomOutFactor = clamp(1 / Math.sqrt(zoomK), 0.9, 1.2)
+  return Math.max(baseGap, Math.round(baseGap * densityFactor * zoomOutFactor))
 }

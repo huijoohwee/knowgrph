@@ -27,10 +27,66 @@ export type MinimapPreviewOptions = {
   miniW?: number
   miniH?: number
   edgeLimit?: number
+  nodeLimit?: number
   graphId?: string | number
+  boundsOverride?: MinimapPreviewBounds
 }
 
 type PreviewResponse = { id: number; ok: boolean; value: MinimapPreviewData; error?: string }
+
+function sampleNodesForMinimap<T>(nodes: T[], limit: number): T[] {
+  const max = Math.max(0, Math.floor(limit))
+  if (max === 0) return []
+  if (nodes.length <= max) return nodes
+  const out: T[] = []
+  const stride = Math.max(1, Math.floor(nodes.length / max))
+  for (let i = 0; i < nodes.length && out.length < max; i += stride) {
+    out.push(nodes[i] as T)
+  }
+  return out
+}
+
+function collectNodesForEdgeEndpoints(nodes: NodeLite[], edges: EdgeLite[]): NodeLite[] {
+  if (!nodes || nodes.length === 0 || !edges || edges.length === 0) return []
+  const needed = new Set<string>()
+  for (let i = 0; i < edges.length; i += 1) {
+    const e = edges[i]
+    needed.add(String(e.source))
+    needed.add(String(e.target))
+  }
+  if (needed.size === 0) return []
+  const out: NodeLite[] = []
+  for (let i = 0; i < nodes.length; i += 1) {
+    if (needed.size === 0) break
+    const n = nodes[i]
+    const id = String(n.id)
+    if (!needed.has(id)) continue
+    needed.delete(id)
+    out.push(n)
+  }
+  return out
+}
+
+function mergeNodesById(primary: NodeLite[], extra: NodeLite[]): NodeLite[] {
+  if (extra.length === 0) return primary
+  const seen = new Set<string>()
+  const out: NodeLite[] = []
+  for (let i = 0; i < primary.length; i += 1) {
+    const n = primary[i]
+    const id = String(n.id)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    out.push(n)
+  }
+  for (let i = 0; i < extra.length; i += 1) {
+    const n = extra[i]
+    const id = String(n.id)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    out.push(n)
+  }
+  return out
+}
 
 function computeMinimapPreviewSync(
   nodes: NodeLite[],
@@ -42,13 +98,14 @@ function computeMinimapPreviewSync(
   const pad = typeof opts?.pad === 'number' ? opts.pad : 20
   const miniW = typeof opts?.miniW === 'number' ? opts.miniW : 160
   const miniH = typeof opts?.miniH === 'number' ? opts.miniH : 120
-  const bounds = computeGraphBounds(N, pad)
+  const bounds = opts?.boundsOverride || computeGraphBounds(N, pad)
   const scaleX = miniW / Math.max(1, bounds.width)
   const scaleY = miniH / Math.max(1, bounds.height)
   const sx = Math.min(scaleX, scaleY)
   const EDGE_LIMIT = typeof opts?.edgeLimit === 'number' ? opts.edgeLimit : 20000
   const edgesPath = E.length > EDGE_LIMIT ? '' : buildEdgesPathD(N, E, bounds, sx, opts?.graphId)
-  const nodesPath = buildNodesPathD(N, bounds, sx, 3, opts?.graphId)
+  const NODE_LIMIT = typeof opts?.nodeLimit === 'number' ? opts.nodeLimit : 25000
+  const nodesPath = buildNodesPathD(sampleNodesForMinimap(N, NODE_LIMIT), bounds, sx, 3, opts?.graphId)
   return { nodesPath, edgesPath, sx, bounds }
 }
 
@@ -65,13 +122,25 @@ export function computeMinimapPreviewInWorker(
     if (isDev || isOffline || !hasWorker) {
       return Promise.resolve(computeMinimapPreviewSync(nodes, edges, opts))
     }
+
+    const N = Array.isArray(nodes) ? nodes : []
+    const E = Array.isArray(edges) ? edges : []
+    const EDGE_LIMIT = typeof opts?.edgeLimit === 'number' ? opts.edgeLimit : 20000
+    const edgesToSend = E.length > EDGE_LIMIT ? [] : E
+    const NODE_LIMIT = typeof opts?.nodeLimit === 'number' ? opts.nodeLimit : 25000
+    const sampledNodes = sampleNodesForMinimap(N, NODE_LIMIT)
+    const endpointNodes = edgesToSend.length > 0 ? collectNodesForEdgeEndpoints(N, edgesToSend) : []
+    const nodesToSend = mergeNodesById(sampledNodes, endpointNodes)
+    const pad = typeof opts?.pad === 'number' ? opts.pad : 20
+    const boundsOverride = opts?.boundsOverride || computeGraphBounds(N, pad)
+
     return requestFromSingletonWorker<MinimapPreviewData | null>({
       globalStateKey: '__KG_MINIMAP_WORKER__',
       createWorker: () => new Worker(new URL('../../workers/minimap.worker.ts', import.meta.url), { type: 'module' }),
       timeoutMs: 12_000,
       signal,
       postMessage: (worker, id) => {
-        worker.postMessage({ type: 'preview', id, nodes, edges, ...(opts || {}) })
+        worker.postMessage({ type: 'preview', id, nodes: nodesToSend, edges: edgesToSend, ...(opts || {}), boundsOverride })
       },
       readResponse: (data) => {
         const d = data as PreviewResponse | null | undefined

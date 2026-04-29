@@ -10,13 +10,13 @@ import { filterGraphToFrontmatterFlow, filterGraphToFrontmatterMermaid, hasFront
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { computeEffectiveFrontmatterMode, isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
-import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { normalizeCollapsedGroupIds } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { deriveKeywordGraphInWorker, deriveKeywordGraphPreviewInWorker } from '@/features/semantic-mode/keywordGraphWorker'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
-import { parseGraph } from '@/lib/graph/io/adapter'
+import { parseGraph, parseGraphFromJson } from '@/lib/graph/io/adapter'
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import {
@@ -28,7 +28,8 @@ import { buildBipartiteSourceMeta } from '@/lib/bipartite/source'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
-import { resolveActiveDocumentViewMode, withActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { buildDocumentSemanticModeKey, resolveActiveDocumentViewMode, withActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 
 let mermaidFrontmatterGeometryModulePromise: Promise<typeof import('@/lib/mermaid/mermaidFrontmatterGeometry')> | null = null
 
@@ -279,6 +280,40 @@ const buildKeywordSourceTextFromBaselineGraph = (
 
 const keywordSourceTextCache = new LRUCache<string, { text: string; hash: string }>(40)
 const keywordPreviewGraphCache = new LRUCache<string, GraphData>(20)
+const workspaceJsonGraphParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
+const workspaceFrontmatterMermaidParseCache = new LRUCache<string, { graphData: GraphData | null }>(32)
+const WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS = 120
+const activeViewGraphCache = new WeakMap<object, Map<string, GraphData>>()
+
+const buildWorkspaceStructuredParseKey = (args: {
+  parseKind: 'json-graph' | 'frontmatter-mermaid'
+  markdownName: string | null
+  markdownText: string | null
+}): string => {
+  return buildSourceFileParseIdentityHash({
+    cacheNamespace: `workspace:${args.parseKind}`,
+    name: String(args.markdownName || ''),
+    text: String(args.markdownText || ''),
+  })
+}
+
+const getCachedDerivedActiveViewGraph = (args: {
+  graphData: GraphData
+  cacheKey: string
+  derive: () => GraphData
+}): GraphData => {
+  const graphKey = args.graphData as unknown as object
+  let perGraph = activeViewGraphCache.get(graphKey)
+  if (!perGraph) {
+    perGraph = new Map<string, GraphData>()
+    activeViewGraphCache.set(graphKey, perGraph)
+  }
+  const cached = perGraph.get(args.cacheKey)
+  if (cached) return cached
+  const derived = args.derive()
+  perGraph.set(args.cacheKey, derived)
+  return derived
+}
 
 const asFinite = (v: unknown): number | null => {
   if (typeof v === 'number' && Number.isFinite(v)) return v
@@ -336,15 +371,6 @@ const toWorkspaceJsonGraphData = (data: GraphData): GraphData | null => {
   }
 }
 
-const parseWorkspaceFallbackGraph = (name: string | null, text: string): GraphData | null => {
-  try {
-    const parsed = parseGraph(name || WORKSPACE_GRAPH_PARSE_HINT, text).data
-    return toWorkspaceJsonGraphData(parsed)
-  } catch {
-    return null
-  }
-}
-
 const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdownText: string | null }): GraphData | null => {
   const rawText = String(args.markdownText || '')
   const trimmed = rawText.trim()
@@ -371,7 +397,10 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
     const nodesRaw = obj && Array.isArray(obj.nodes) ? obj.nodes : null
     const edgesRaw = obj && Array.isArray(obj.edges) ? obj.edges : null
     if (!nodesRaw || !edgesRaw) {
-      return parseWorkspaceFallbackGraph(args.markdownName, trimmed)
+      const parsedGraph = parseGraphFromJson(args.markdownName || WORKSPACE_GRAPH_PARSE_HINT, parsed, {
+        textForGeoJsonTextFallback: trimmed,
+      }).data
+      return toWorkspaceJsonGraphData(parsedGraph)
     }
 
     const nodes = nodesRaw
@@ -428,7 +457,10 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
       .filter(Boolean) as GraphData['edges']
 
     if (nodes.length === 0) {
-      return parseWorkspaceFallbackGraph(args.markdownName, trimmed)
+      const parsedGraph = parseGraphFromJson(args.markdownName || WORKSPACE_GRAPH_PARSE_HINT, parsed, {
+        textForGeoJsonTextFallback: trimmed,
+      }).data
+      return toWorkspaceJsonGraphData(parsedGraph)
     }
     return toWorkspaceJsonGraphData({
       type: 'apiGraph',
@@ -443,6 +475,45 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
   } catch {
     return null
   }
+}
+
+const parseWorkspaceJsonGraphDataCached = (args: { markdownName: string | null; markdownText: string | null }): GraphData | null => {
+  const key = buildWorkspaceStructuredParseKey({
+    parseKind: 'json-graph',
+    markdownName: args.markdownName,
+    markdownText: args.markdownText,
+  })
+  const cached = workspaceJsonGraphParseCache.get(key)
+  if (cached) return cached.graphData
+  const graphData = parseWorkspaceJsonGraphData(args)
+  workspaceJsonGraphParseCache.set(key, { graphData })
+  return graphData
+}
+
+const parseWorkspaceFrontmatterMermaidGraphDataCached = (args: {
+  markdownName: string | null
+  markdownText: string | null
+}): GraphData | null => {
+  const text = String(args.markdownText || '')
+  if (!text.trim()) return null
+  if (!containsFrontmatterMermaid(text)) return null
+  const key = buildWorkspaceStructuredParseKey({
+    parseKind: 'frontmatter-mermaid',
+    markdownName: args.markdownName,
+    markdownText: args.markdownText,
+  })
+  const cached = workspaceFrontmatterMermaidParseCache.get(key)
+  if (cached) return cached.graphData
+  let graphData: GraphData | null = null
+  try {
+    const jsonld = buildMarkdownJsonLd(args.markdownName || 'workspace:frontmatter.md', text)
+    const parsed = parseJsonLd(jsonld)
+    graphData = toWorkspaceJsonGraphData(parsed)
+  } catch {
+    graphData = null
+  }
+  workspaceFrontmatterMermaidParseCache.set(key, { graphData })
+  return graphData
 }
 
 const computeBaselineIdentityKeys = (baseGraphData: GraphData): {
@@ -786,23 +857,21 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
 
   // Flowchart renderer is frontmatter-only and reuses local ingest->parse->render data.
   const wantsApiGraphBipartite = false
+  const debouncedStructuredMarkdownText = useDebouncedValue(markdownText, WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS)
   const workspaceJsonGraphData = React.useMemo(
-    () => (enabled && !wantsApiGraphBipartite ? parseWorkspaceJsonGraphData({ markdownName, markdownText }) : null),
-    [enabled, markdownName, markdownText, wantsApiGraphBipartite],
+    () =>
+      enabled && !wantsApiGraphBipartite
+        ? parseWorkspaceJsonGraphDataCached({ markdownName, markdownText: debouncedStructuredMarkdownText })
+        : null,
+    [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphBipartite],
   )
   const workspaceFrontmatterMermaidGraphData = React.useMemo(() => {
     if (!enabled || wantsApiGraphBipartite) return null
-    const text = String(markdownText || '')
-    if (!text.trim()) return null
-    if (!containsFrontmatterMermaid(text)) return null
-    try {
-      const jsonld = buildMarkdownJsonLd(markdownName || 'workspace:frontmatter.md', text)
-      const parsed = parseJsonLd(jsonld)
-      return toWorkspaceJsonGraphData(parsed)
-    } catch {
-      return null
-    }
-  }, [enabled, markdownName, markdownText, wantsApiGraphBipartite])
+    return parseWorkspaceFrontmatterMermaidGraphDataCached({
+      markdownName,
+      markdownText: debouncedStructuredMarkdownText,
+    })
+  }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphBipartite])
   const hasStructuredWorkspaceGraph = !!workspaceJsonGraphData || !!workspaceFrontmatterMermaidGraphData
   const baseGraphData = workspaceJsonGraphData || workspaceFrontmatterMermaidGraphData || baseGraphDataRaw
   const { graphData: apiGraphBipartite } = useApiGraphBipartiteGraphData(wantsApiGraphBipartite)
@@ -1148,29 +1217,44 @@ export function deriveGraphDataForActiveView(args: {
     documentSemanticMode: args.documentSemanticMode,
     documentStructureBaselineLock: args.documentStructureBaselineLock,
   })
-  const base = (() => {
-    if (mode === 'multiDimTable') {
-      const tableGraph = deriveMarkdownTableGraphForFrontmatterMode({ graphData: args.graphData })
-      return tableGraph || args.graphData
-    }
-    if (mode === 'frontmatter') {
-      const effective = computeEffectiveFrontmatterMode({
-        frontmatterModeEnabled: true,
-        documentSemanticMode: 'document',
-        graphData: args.graphData,
-      })
-      if (!effective) return args.graphData
-      return isFrontmatterFlowGraph(args.graphData)
-        ? filterGraphToFrontmatterFlow(args.graphData)
-        : filterGraphToFrontmatterMermaid(args.graphData)
-    }
-    return args.graphData
-  })()
-  const modeTaggedBase = withActiveDocumentViewMode(base, mode)
-
-  const collapsedGroupIds = Array.isArray(args.collapsedGroupIds) ? args.collapsedGroupIds : []
-  if (collapsedGroupIds.length === 0) return modeTaggedBase
-  return withActiveDocumentViewMode(deriveGraphDataWithGroupCollapse({ graphData: modeTaggedBase, collapsedGroupIds }), mode)
+  const normalizedCollapsedGroupIds = normalizeCollapsedGroupIds(args.collapsedGroupIds)
+  const semanticKey = buildDocumentSemanticModeKey({
+    frontmatterModeEnabled: args.frontmatterModeEnabled,
+    multiDimTableModeEnabled: args.multiDimTableModeEnabled,
+    documentSemanticMode: args.documentSemanticMode,
+    documentStructureBaselineLock: args.documentStructureBaselineLock,
+  })
+  const cacheKey = `${semanticKey}|mode:${mode}|collapsed:${normalizedCollapsedGroupIds.join('|')}`
+  return getCachedDerivedActiveViewGraph({
+    graphData: args.graphData,
+    cacheKey,
+    derive: () => {
+      const base = (() => {
+        if (mode === 'multiDimTable') {
+          const tableGraph = deriveMarkdownTableGraphForFrontmatterMode({ graphData: args.graphData })
+          return tableGraph || args.graphData
+        }
+        if (mode === 'frontmatter') {
+          const effective = computeEffectiveFrontmatterMode({
+            frontmatterModeEnabled: true,
+            documentSemanticMode: 'document',
+            graphData: args.graphData,
+          })
+          if (!effective) return args.graphData
+          return isFrontmatterFlowGraph(args.graphData)
+            ? filterGraphToFrontmatterFlow(args.graphData)
+            : filterGraphToFrontmatterMermaid(args.graphData)
+        }
+        return args.graphData
+      })()
+      const modeTaggedBase = withActiveDocumentViewMode(base, mode)
+      if (normalizedCollapsedGroupIds.length === 0) return modeTaggedBase
+      return withActiveDocumentViewMode(
+        deriveGraphDataWithGroupCollapse({ graphData: modeTaggedBase, collapsedGroupIds: normalizedCollapsedGroupIds }),
+        mode,
+      )
+    },
+  })
 }
 
 const INACTIVE_RENDER_SLICE = {
@@ -1269,9 +1353,14 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
 
   const lastRef = React.useRef<GraphData | null>(null)
 
-  const collapsedGroupIdsKey = React.useMemo(() => {
-    return buildCollapsedGroupIdsKey(collapsedGroupIds)
+  const collapsedGroupIdsNormalized = React.useMemo(() => {
+    return normalizeCollapsedGroupIds(collapsedGroupIds)
   }, [collapsedGroupIds])
+
+  const collapsedGroupIdsKey = React.useMemo(() => {
+    if (collapsedGroupIdsNormalized.length === 0) return ''
+    return collapsedGroupIdsNormalized.join('|')
+  }, [collapsedGroupIdsNormalized])
 
   const viewGraphData = React.useMemo(() => {
     if (!graphData) return null
@@ -1307,9 +1396,9 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     if (!collapsedGroupIdsKey) return viewGraphData
     return deriveGraphDataWithGroupCollapse({
       graphData: viewGraphData,
-      collapsedGroupIds: collapsedGroupIdsKey.split('|').filter(Boolean),
+      collapsedGroupIds: collapsedGroupIdsNormalized,
     })
-  }, [collapsedGroupIdsKey, viewGraphData])
+  }, [collapsedGroupIdsKey, collapsedGroupIdsNormalized, viewGraphData])
 
   React.useEffect(() => {
     if (!enabled) return

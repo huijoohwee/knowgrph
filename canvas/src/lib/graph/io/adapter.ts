@@ -16,6 +16,118 @@ export type ParseDiagnostics = {
   warnings: string[]
 }
 
+export const parseGraphFromJson = (
+  name: string,
+  json: unknown,
+  opts?: {
+    textForGeoJsonTextFallback?: string
+    attemptedFastGeo?: boolean
+  },
+): { data: GraphData; diag: ParseDiagnostics } => {
+  const attemptedFastGeo = opts?.attemptedFastGeo === true
+  const isPmfVoxelPayload = (() => {
+    if (!json || typeof json !== 'object' || Array.isArray(json)) return false
+    const obj = json as Record<string, unknown>
+    const layers = obj.layers
+    if (!Array.isArray(layers) || layers.length === 0) return false
+    let hasLayerNodes = false
+    for (let i = 0; i < layers.length; i += 1) {
+      const layer = layers[i]
+      if (!layer || typeof layer !== 'object' || Array.isArray(layer)) continue
+      const nodes = (layer as Record<string, unknown>).nodes
+      if (Array.isArray(nodes) && nodes.length > 0) {
+        hasLayerNodes = true
+        break
+      }
+    }
+    if (!hasLayerNodes) return false
+    const meta = obj.meta
+    return !!(meta && typeof meta === 'object' && !Array.isArray(meta))
+  })()
+  if (isPmfVoxelPayload) {
+    const data = pmfVoxelToGraphData(json)
+    return { data, diag: { format: 'json', warnings: [] } }
+  }
+
+  const widget = tryParseWidgetImportGraphData(json)
+  if (widget) {
+    return { data: widget.graphData, diag: { format: 'json', warnings: widget.warnings } }
+  }
+
+  if (json && typeof json === 'object' && !Array.isArray(json) && Array.isArray((json as any).nodes) && Array.isArray((json as any).edges)) {
+    const n0 = (json as any).nodes[0] || {}
+    const e0 = (json as any).edges[0] || {}
+    if ((n0 && typeof (n0 as any).properties === 'object') || typeof (e0 as any).label === 'string') {
+      return { data: json as GraphData, diag: { format: 'json', warnings: [] } }
+    }
+    const data = rawToGraphData(json)
+    return { data, diag: { format: 'json', warnings: [] } }
+  }
+
+  if (isGraphRagBundle(json)) {
+    const data = parseGraphRagBundle(json)
+    return { data, diag: { format: 'json', warnings: [] } }
+  }
+  if (isN8nWorkflow(json)) {
+    const { graphData, warnings } = parseN8nWorkflow(json)
+    return { data: graphData, diag: { format: 'json', warnings } }
+  }
+
+  if (json && typeof json === 'object' && !Array.isArray(json)) {
+    const t = (json as { type?: unknown }).type
+    if (t === 'FeatureCollection' || t === 'Feature') {
+      const directGeoGraph = buildGraphDataFromFeatureCollection({
+        featureCollection: json,
+        sourcePath: name,
+        sourceHash: '',
+      })
+      if (directGeoGraph && directGeoGraph.nodes.length > 0) {
+        return { data: directGeoGraph, diag: { format: 'json', warnings: [] } }
+      }
+      try {
+        const normalized = coerceGeoJsonToFeatureCollection(json as never)
+        const geoGraph = buildGraphDataFromFeatureCollection({
+          featureCollection: normalized,
+          sourcePath: name,
+          sourceHash: '',
+        })
+        if (geoGraph && geoGraph.nodes.length > 0) {
+          return { data: geoGraph, diag: { format: 'json', warnings: [] } }
+        }
+      } catch {
+        void 0
+      }
+    }
+  }
+
+  const grab = tryBuildGrabMapsGraphDataFromJson({ name, json })
+  if (grab) {
+    return { data: grab.graphData, diag: { format: 'json', warnings: grab.warnings } }
+  }
+
+  const nestedGeo = tryBuildGeodataGraphDataFromJson({ name, json, maxRecords: 15000 })
+  if (nestedGeo) {
+    return { data: nestedGeo.graphData, diag: { format: 'json', warnings: nestedGeo.warnings } }
+  }
+
+  if (!attemptedFastGeo) {
+    const text = opts?.textForGeoJsonTextFallback
+    if (typeof text === 'string' && text) {
+      const geo = tryBuildGeodataGraphDataFromJsonText({ name, text, maxRecords: 15000 })
+      if (geo) {
+        return { data: geo.graphData, diag: { format: 'json', warnings: geo.warnings } }
+      }
+    }
+  }
+
+  const raw = rawToGraphData(json)
+  if ((raw.nodes && raw.nodes.length > 0) || (raw.edges && raw.edges.length > 0)) {
+    return { data: raw, diag: { format: 'json', warnings: [] } }
+  }
+  const data = parseJsonLd(json)
+  return { data, diag: { format: 'jsonld', warnings: [] } }
+}
+
 export const parseGraph = (name: string, text: string): { data: GraphData; diag: ParseDiagnostics } => {
   const lower = (name || '').toLowerCase()
   if (lower.endsWith('.csv')) {
@@ -31,103 +143,7 @@ export const parseGraph = (name: string, text: string): { data: GraphData; diag:
 
   try {
     const json = JSON.parse(text)
-    const isPmfVoxelPayload = (() => {
-      if (!json || typeof json !== 'object' || Array.isArray(json)) return false
-      const obj = json as Record<string, unknown>
-      const layers = obj.layers
-      if (!Array.isArray(layers) || layers.length === 0) return false
-      let hasLayerNodes = false
-      for (let i = 0; i < layers.length; i += 1) {
-        const layer = layers[i]
-        if (!layer || typeof layer !== 'object' || Array.isArray(layer)) continue
-        const nodes = (layer as Record<string, unknown>).nodes
-        if (Array.isArray(nodes) && nodes.length > 0) {
-          hasLayerNodes = true
-          break
-        }
-      }
-      if (!hasLayerNodes) return false
-      const meta = obj.meta
-      return !!(meta && typeof meta === 'object' && !Array.isArray(meta))
-    })()
-    if (isPmfVoxelPayload) {
-      const data = pmfVoxelToGraphData(json)
-      return { data, diag: { format: 'json', warnings: [] } }
-    }
-
-    const widget = tryParseWidgetImportGraphData(json)
-    if (widget) {
-      return { data: widget.graphData, diag: { format: 'json', warnings: widget.warnings } }
-    }
-
-    if (json && Array.isArray(json.nodes) && Array.isArray(json.edges)) {
-      const n0 = json.nodes[0] || {}
-      const e0 = json.edges[0] || {}
-      if ((n0 && typeof n0.properties === 'object') || (e0 && typeof e0.label === 'string')) {
-        return { data: json as GraphData, diag: { format: 'json', warnings: [] } }
-      }
-      const data = rawToGraphData(json)
-      return { data, diag: { format: 'json', warnings: [] } }
-    }
-    if (isGraphRagBundle(json)) {
-      const data = parseGraphRagBundle(json)
-      return { data, diag: { format: 'json', warnings: [] } }
-    }
-    if (isN8nWorkflow(json)) {
-      const { graphData, warnings } = parseN8nWorkflow(json)
-      return { data: graphData, diag: { format: 'json', warnings } }
-    }
-
-    if (json && typeof json === 'object' && !Array.isArray(json)) {
-      const t = (json as { type?: unknown }).type
-      if (t === 'FeatureCollection' || t === 'Feature') {
-        const directGeoGraph = buildGraphDataFromFeatureCollection({
-          featureCollection: json,
-          sourcePath: name,
-          sourceHash: '',
-        })
-        if (directGeoGraph && directGeoGraph.nodes.length > 0) {
-          return { data: directGeoGraph, diag: { format: 'json', warnings: [] } }
-        }
-        try {
-          const normalized = coerceGeoJsonToFeatureCollection(json as never)
-          const geoGraph = buildGraphDataFromFeatureCollection({
-            featureCollection: normalized,
-            sourcePath: name,
-            sourceHash: '',
-          })
-          if (geoGraph && geoGraph.nodes.length > 0) {
-            return { data: geoGraph, diag: { format: 'json', warnings: [] } }
-          }
-        } catch {
-          void 0
-        }
-      }
-    }
-
-    const grab = tryBuildGrabMapsGraphDataFromJson({ name, json })
-    if (grab) {
-      return { data: grab.graphData, diag: { format: 'json', warnings: grab.warnings } }
-    }
-
-    const nestedGeo = tryBuildGeodataGraphDataFromJson({ name, json, maxRecords: 15000 })
-    if (nestedGeo) {
-      return { data: nestedGeo.graphData, diag: { format: 'json', warnings: nestedGeo.warnings } }
-    }
-
-    if (!attemptedFastGeo) {
-      const geo = tryBuildGeodataGraphDataFromJsonText({ name, text, maxRecords: 15000 })
-      if (geo) {
-        return { data: geo.graphData, diag: { format: 'json', warnings: geo.warnings } }
-      }
-    }
-
-    const raw = rawToGraphData(json)
-    if ((raw.nodes && raw.nodes.length > 0) || (raw.edges && raw.edges.length > 0)) {
-      return { data: raw, diag: { format: 'json', warnings: [] } }
-    }
-    const data = parseJsonLd(json)
-    return { data, diag: { format: 'jsonld', warnings: [] } }
+    return parseGraphFromJson(name, json, { textForGeoJsonTextFallback: text, attemptedFastGeo })
   } catch {
     const data = parseJsonLd(text)
     return { data, diag: { format: 'jsonld', warnings: [] } }

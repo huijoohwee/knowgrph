@@ -468,45 +468,51 @@ export function testFlowEditorOverlayEdgesUseRendererEdgeTypeSsot() {
 }
 
 export function testFlowEditorDraftGraphHydrationIsNotClearedByFrontmatterRequirementGuard() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
+  const runtimeText = readFileSync(runtimePath, 'utf8')
+  const renderStateText = readFileSync(renderStatePath, 'utf8')
 
-  if (!text.includes('const flowEditorBaseGraphData = React.useMemo((): GraphData | null => {')) {
+  if (!runtimeText.includes('const flowEditorBaseGraphData = React.useMemo(')) {
     throw new Error('expected FlowEditor draft graph hydration to derive a stable Flow Editor graph-family source')
   }
-  if (!text.includes('const base = flowEditorBaseGraphData as GraphData | null')) {
+  if (!renderStateText.includes('const base = args.flowEditorBaseGraphData as GraphData | null')) {
     throw new Error('expected FlowEditor draft graph hydration to avoid raw store graph fallback under view-lock transitions')
   }
-  if (!text.includes('setDraftGraphData(prev => (prev === base ? prev : base))')) {
+  if (!renderStateText.includes('setDraftGraphData(prev => (prev === base ? prev : base))')) {
     throw new Error('expected FlowEditor draft graph hydration to stay aligned with base graph for stable zoom/minimap state')
   }
-  if (text.includes('if (!canEdit) {\n      setDraftGraphData(prev => (prev === null ? prev : null))')) {
+  if (renderStateText.includes('if (!canEdit) {\n      setDraftGraphData(prev => (prev === null ? prev : null))')) {
     throw new Error('expected FlowEditor draft graph hydration to avoid editability-driven clears that break zoom/minimap alignment')
   }
-  if (text.includes('keywordModeActive')) {
+  if (runtimeText.includes('keywordModeActive') || renderStateText.includes('keywordModeActive')) {
     throw new Error('expected FlowEditor draft graph hydration to stay independent from keyword-mode coupling')
   }
 }
 
 export function testFlowEditorRenderGraphUsesBaseGraphWhenNotEditableForZoomMinimapAlignment() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
-  if (!text.includes('const flowEditorViewActive = active')) {
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const runtimeText = readFileSync(runtimePath, 'utf8')
+  const renderStateText = readFileSync(renderStatePath, 'utf8')
+  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+  if (!runtimeText.includes('const flowEditorViewActive = editorRuntimeActive')) {
     throw new Error('expected Flow Editor view activation to stay renderer-scoped and independent from document modes')
   }
-  if (!text.includes('const graphDataForRender = flowEditorViewActive ? draftGraphData : ((baseGraphData || null) as GraphData | null)')) {
+  if (!renderStateText.includes('const graphDataForRender = args.flowEditorViewActive ? draftGraphData : args.baseGraphData')) {
     throw new Error('expected FlowEditor render graph source to keep draft graph active in Flow Editor view even when edit lock is ON')
   }
-  if (!text.includes('graphData: graphDataForRender')) {
+  if (!renderStateText.includes('graphData: graphDataForRender')) {
     throw new Error('expected FlowEditor render graph derivation to use unified graphDataForRender source')
   }
-  if (!text.includes('if (!flowEditorViewActive) return []')) {
+  if (!overlaySurfaceText.includes('if (!args.flowEditorViewActive) return []')) {
     throw new Error('expected widget overlays to remain view-scoped instead of edit-lock scoped to avoid View Lock-induced renderer mutation')
   }
-  if (!text.includes('visible={flowEditorViewActive}') || !text.includes('active={canEdit}')) {
+  if (!overlaySurfaceText.includes('visible={args.flowEditorViewActive}') || !overlaySurfaceText.includes('active={args.canEdit}')) {
     throw new Error('expected widget overlays to stay visible in Flow Editor view while becoming read-only under View Lock')
   }
-  if (text.includes('frontmatterDocumentModeActive')) {
+  if (runtimeText.includes('frontmatterDocumentModeActive') || renderStateText.includes('frontmatterDocumentModeActive')) {
     throw new Error('expected Flow Editor render graph source to avoid document-mode-only overlay gating')
   }
 }
@@ -667,17 +673,16 @@ export function testFlowEditorPortHandleEdgeConnectivityUsesEndpointIdResolver()
   }
 }
 
-export function testFlowEditorWidgetOverlaysForcePinnedToCanvasForZoomFollow() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
-  if (!text.includes('const forcePinnedToCanvas = true')) {
-    throw new Error('expected FlowEditor overlay widgets to force pinned-to-canvas so they follow infinite-canvas zoom')
+export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow() {
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
+  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+  const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
+  if (overlaySurfaceText.includes('forcePinnedToCanvas')) {
+    throw new Error('expected FlowEditor overlay widgets to avoid legacy force-pinned canvas mode')
   }
-  if (!text.includes('if (forcePinnedToCanvas) return false')) {
-    throw new Error('expected widget collision initialization layout to keep forced-pinned overlays movable to prevent overlap chaos')
-  }
-  if (!text.includes("return typeof v === 'boolean' ? v : false")) {
-    throw new Error('expected widget collision initialization layout to default undefined pinned state to movable')
+  if (!runtimeSceneText.includes("return typeof v === 'boolean' ? v : false")) {
+    throw new Error('expected zoom-follow pinned buckets to treat undefined pin state as floating by default')
   }
 }
 
@@ -686,21 +691,21 @@ export function testFlowEditorPinnedWidgetForbidsAccidentalDuplicateCopy() {
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const overlayText = readFileSync(overlayPath, 'utf8')
-  const canvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const canvasText = readFileSync(canvasPath, 'utf8')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
   if (!toolbarText.includes('duplicateDisabled: boolean')) {
     throw new Error('expected widget actions toolbar to accept duplicateDisabled guard for accidental copy prevention')
   }
-  if (!toolbarText.includes('disabled={!active || duplicateDisabled}')) {
-    throw new Error('expected duplicate action to be disabled when accidental-copy guard is active')
+  if (!toolbarText.includes('{!duplicateDisabled ? (')) {
+    throw new Error('expected duplicate action to be removed when accidental-copy guard is active')
   }
-  if (!overlayText.includes('duplicateDisabled={pinnedInCanvas || forcePinnedToCanvas === true}')) {
-    throw new Error('expected pinned or forced-canvas widget mode to activate duplicateDisabled guard')
+  if (!overlayText.includes('duplicateDisabled={pinnedInCanvas}')) {
+    throw new Error('expected duplicate guard to activate only for explicitly pinned widgets')
   }
-  if (!canvasText.includes('const pinned = forcePinnedToCanvas === true || pinnedMap[id] === true')) {
-    throw new Error('expected widget duplicate callback to guard pinned/forced-canvas state before copying')
+  if (!overlaySurfaceText.includes('const pinned = pinnedMap[id] === true')) {
+    throw new Error('expected widget duplicate callback to guard only explicit pinned state before copying')
   }
-  if (!canvasText.includes('Pinned widget blocks duplicate copy.')) {
+  if (!overlaySurfaceText.includes('Pinned widget blocks duplicate copy.')) {
     throw new Error('expected widget duplicate guard to notify user when copy is blocked in pinned mode')
   }
 }

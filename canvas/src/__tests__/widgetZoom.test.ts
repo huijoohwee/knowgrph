@@ -1,4 +1,4 @@
-import { computeWidgetScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
 
 function approxEq(a: number, b: number, eps = 1e-6): boolean {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false
@@ -35,7 +35,22 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
 
   const sFloatingZoomOut = computeWidgetScale(0.2, extent, { mode: 'floating' })
   const sFloatingZoomIn = computeWidgetScale(5, extent, { mode: 'floating' })
-  if (!approxEq(sFloatingZoomOut, 1) || !approxEq(sFloatingZoomIn, 1)) {
-    throw new Error(`expected floating scale to stay zoom-invariant at 1, got ${sFloatingZoomOut} and ${sFloatingZoomIn}`)
+  if (!(sFloatingZoomOut >= 0.86 && sFloatingZoomOut < 1)) {
+    throw new Error(`expected floating zoom-out scale to shrink gently but stay bounded, got ${sFloatingZoomOut}`)
+  }
+  if (!(sFloatingZoomIn > 1 && sFloatingZoomIn <= 1.06)) {
+    throw new Error(`expected floating zoom-in scale to grow gently but stay bounded, got ${sFloatingZoomIn}`)
+  }
+  const sFloatingHugeZoomOut = computeWidgetScale(0.01, extent, { mode: 'floating' })
+  const sFloatingHugeZoomIn = computeWidgetScale(99, extent, { mode: 'floating' })
+  if (!approxEq(sFloatingHugeZoomOut, 0.86)) throw new Error(`expected floating zoom-out hard floor 0.86, got ${sFloatingHugeZoomOut}`)
+  if (!approxEq(sFloatingHugeZoomIn, 1.06)) throw new Error(`expected floating zoom-in hard cap 1.06, got ${sFloatingHugeZoomIn}`)
+  const sFloatingTinyDeltaA = computeWidgetScale(1, extent, { mode: 'floating' })
+  const sFloatingTinyDeltaB = computeWidgetScale(1.01, extent, { mode: 'floating' })
+  if (!approxEq(sFloatingTinyDeltaA, sFloatingTinyDeltaB)) {
+    throw new Error(`expected floating scale quantization to suppress tiny zoom churn, got ${sFloatingTinyDeltaA} and ${sFloatingTinyDeltaB}`)
+  }
+  if (computeWidgetScaleKey(sFloatingTinyDeltaA) !== '1.00') {
+    throw new Error(`expected floating scale key to stay stable at 1.00 for tiny zoom deltas, got ${computeWidgetScaleKey(sFloatingTinyDeltaA)}`)
   }
 }

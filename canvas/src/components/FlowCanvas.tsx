@@ -214,6 +214,7 @@ export default function FlowCanvas({
 
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
   const [plannedOverlayNodeIds, setPlannedOverlayNodeIds] = React.useState<string[]>([])
+  const plannedOverlayNodeIdsKeyRef = React.useRef('')
   const selectionBoxRafRef = React.useRef<number | null>(null)
   const requestSetSelectionBox = React.useCallback((next: null | { left: number; top: number; width: number; height: number }) => {
     if (selectionBoxRafRef.current != null) cancelAnimationFrame(selectionBoxRafRef.current)
@@ -282,6 +283,17 @@ export default function FlowCanvas({
       : (baseHandleIds.length > 0 ? baseHandleIds : undefined)
     scheduleFlowDraw()
   }, [hideNodeIds, hidePortHandleNodeIds, hideSelectedNodeGlyph, hideSelectedNodePortHandles, plannedOverlayNodeIds, scheduleFlowDraw])
+
+  const handlePlannedOverlayNodeIdsChange = React.useCallback((ids: string[]) => {
+    const next = ids.filter(Boolean)
+    const nextKey = next.join('|')
+    if (plannedOverlayNodeIdsKeyRef.current === nextKey) return
+    plannedOverlayNodeIdsKeyRef.current = nextKey
+    setPlannedOverlayNodeIds(prev => {
+      if (prev.length === next.length && prev.every((id, index) => id === next[index])) return prev
+      return next
+    })
+  }, [])
 
   React.useEffect(() => {
     drawArgsRef.current.showGroupResizeHandle = readAllowGroupResize(schema)
@@ -456,7 +468,7 @@ export default function FlowCanvas({
         threeIframeOverlayBaseWidthMinPxCompact={threeIframeOverlayBaseWidthMinPxCompact}
         threeIframeOverlayBaseWidthMaxPxDefault={threeIframeOverlayBaseWidthMaxPxDefault}
         threeIframeOverlayBaseWidthMaxPxCompact={threeIframeOverlayBaseWidthMaxPxCompact}
-        onPlannedOverlayNodeIdsChange={setPlannedOverlayNodeIds}
+        onPlannedOverlayNodeIdsChange={handlePlannedOverlayNodeIdsChange}
       />
       {selectionBox ? (
         <section

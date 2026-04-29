@@ -2,11 +2,10 @@ import { GraphData } from '@/lib/graph/types';
 import type { GraphState, RecentFileEntry } from '@/hooks/store/types'
 import type { GraphFieldSettingsById } from '@/features/graph-fields/graphFields'
 import type { StoreApi } from 'zustand';
-import { LS_KEYS } from '@/lib/config'
-import { lsSetJson } from '@/lib/persistence'
 import { withGraphDataRevision } from './graphDataSliceUtils'
 import { deepClone } from '@/lib/data/deepClone'
 import { debounce } from '@/lib/async/debounce'
+import { persistGraphDataToLocalStorage } from './graphDataPersistence'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -76,7 +75,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     }
     try {
       const persisted = get().graphData
-      if (persisted) lsSetJson(LS_KEYS.graphData, persisted)
+      if (persisted) persistGraphDataToLocalStorage(persisted)
     } catch {
       void 0
     }
@@ -100,7 +99,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     }
     try {
       const persisted = get().graphData
-      if (persisted) lsSetJson(LS_KEYS.graphData, persisted)
+      if (persisted) persistGraphDataToLocalStorage(persisted)
     } catch {
       void 0
     }
@@ -124,7 +123,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     }
     try {
       const persisted = get().graphData
-      if (persisted) lsSetJson(LS_KEYS.graphData, persisted)
+      if (persisted) persistGraphDataToLocalStorage(persisted)
     } catch {
       void 0
     }
@@ -158,7 +157,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
         };
         set({ history: [...trimmed, entry], historyIndex: trimmed.length });
         try {
-          lsSetJson(LS_KEYS.graphData, graphData)
+          persistGraphDataToLocalStorage(graphData)
         } catch {
           void 0
         }
@@ -225,7 +224,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     }
     try {
       const persisted = get().graphData
-      if (persisted) lsSetJson(LS_KEYS.graphData, persisted)
+      if (persisted) persistGraphDataToLocalStorage(persisted)
     } catch {
       void 0
     }

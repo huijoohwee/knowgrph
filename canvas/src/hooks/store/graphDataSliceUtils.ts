@@ -10,7 +10,7 @@ import {
 } from '@/features/graph-data-table/graphDataTable'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { validateWidgetRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
-import { hashStringToHex } from '@/lib/hash/stringHash'
+import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
@@ -53,6 +53,29 @@ function computeRegistrySignature(entries: Array<{ id: string; updatedAt: string
 
 const HASH_CACHE = new WeakMap<object, string>()
 
+function sampleHeadTailStrings(
+  length: number,
+  maxSamples: number,
+  getAt: (idx: number) => string,
+): string[] {
+  const max = Math.max(0, Math.floor(maxSamples))
+  const len = Math.max(0, Math.floor(length))
+  if (len === 0 || max === 0) return []
+  if (len <= max) {
+    const out: string[] = []
+    for (let i = 0; i < len; i += 1) out.push(getAt(i))
+    return out
+  }
+  const headCount = Math.max(1, Math.floor(max / 2))
+  const tailCount = Math.max(1, max - headCount)
+  const out: string[] = []
+  const head = Math.min(headCount, len)
+  for (let i = 0; i < head; i += 1) out.push(getAt(i))
+  const startTail = Math.max(head, len - tailCount)
+  for (let i = startTail; i < len; i += 1) out.push(getAt(i))
+  return out
+}
+
 export function withGraphDataRevision(graphData: GraphData, nextRevision: number): GraphData {
   const base = graphData as unknown as { metadata?: unknown }
   const metaRaw = base.metadata
@@ -70,19 +93,47 @@ export function hashGraphDataForPreviewSync(graphData: unknown): string {
     if (!graphData || typeof graphData !== 'object') return ''
     const cached = HASH_CACHE.get(graphData as object)
     if (cached) return cached
-    const gd = graphData as unknown as { metadata?: unknown }
+
+    const gd = graphData as unknown as { metadata?: unknown; nodes?: unknown; edges?: unknown }
     const metaRaw = gd.metadata
-    if (!isRecord(metaRaw)) {
-      const out = hashStringToHex(JSON.stringify(graphData))
-      HASH_CACHE.set(graphData as object, out)
+    const meta = isRecord(metaRaw) ? (metaRaw as Record<string, unknown>) : null
+    const metaSansVolatile = (() => {
+      if (!meta) return null
+      const out: Record<string, unknown> = { ...meta }
+      delete out.hash
+      delete out.graphDataRevision
+      delete out.updatedAt
+      delete out.modifiedAt
+      delete out.lastUpdated
       return out
-    }
-    const meta = metaRaw as Record<string, unknown>
-    const nextMeta: Record<string, unknown> = { ...meta }
-    delete nextMeta.hash
-    delete nextMeta.graphDataRevision
-    const sanitized = { ...(graphData as unknown as Record<string, unknown>), metadata: nextMeta }
-    const out = hashStringToHex(JSON.stringify(sanitized))
+    })()
+
+    const nodes = Array.isArray(gd.nodes) ? (gd.nodes as Array<Record<string, unknown>>) : []
+    const edges = Array.isArray(gd.edges) ? (gd.edges as Array<Record<string, unknown>>) : []
+
+    const nodeSamples = sampleHeadTailStrings(nodes.length, 32, idx => {
+      const n = nodes[idx]
+      return String(n?.id ?? '')
+    })
+    const edgeSamples = sampleHeadTailStrings(edges.length, 32, idx => {
+      const e = edges[idx]
+      const id = String(e?.id ?? '')
+      const s = String(e?.source ?? '')
+      const t = String(e?.target ?? '')
+      const label = String(e?.label ?? '')
+      return `${id}|${s}|${t}|${label}`
+    })
+
+    const out = hashSignatureParts([
+      'v2',
+      nodes.length,
+      edges.length,
+      metaSansVolatile ? hashRecordSignature(metaSansVolatile, { maxEntries: 60 }) : '',
+      nodeSamples.length,
+      ...nodeSamples,
+      edgeSamples.length,
+      ...edgeSamples,
+    ])
     HASH_CACHE.set(graphData as object, out)
     return out
   } catch {

@@ -26,7 +26,7 @@ import { useOverlayInteractions2d } from '@/components/GraphCanvasRoot/hooks/use
 import { resetGlobalUserSelectLock } from '@/lib/canvas/interaction-user-select'
 import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { buildDocumentSemanticModeKey, resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
@@ -220,14 +220,18 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   )
 
   const layoutSemanticModeKey = useMemo(() => {
-    const base = String(documentSemanticMode || 'document')
     const activeDocumentViewMode = resolveActiveDocumentViewMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true,
       multiDimTableModeEnabled: multiDimTableModeEnabled === true,
       documentSemanticMode: String(documentSemanticMode || 'document'),
       documentStructureBaselineLock: documentStructureBaselineLock === true,
     })
-    return activeDocumentViewMode === 'multiDimTable' ? `${base}:mdtbl` : base
+    return `${buildDocumentSemanticModeKey({
+      frontmatterModeEnabled: frontmatterModeEnabled === true,
+      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+      documentSemanticMode: String(documentSemanticMode || 'document'),
+      documentStructureBaselineLock: documentStructureBaselineLock === true,
+    })}|mode:${activeDocumentViewMode}`
   }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, multiDimTableModeEnabled])
 
   const markdownPanelAllowedKinds = useMemo(() => {

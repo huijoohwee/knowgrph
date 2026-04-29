@@ -1,39 +1,52 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-function readOverlayCollisionSection(text: string): string {
-  const start = text.indexOf('const overlayCollisionResolveRafRef = React.useRef<number | null>(null)')
-  const end = text.indexOf('const overlayEdgesSvgRef = React.useRef<SVGSVGElement | null>(null)')
-  if (start < 0 || end <= start) return ''
-  return text.slice(start, end)
-}
-
 export function testFlowEditorOverlayCollisionStaysStableAcrossZoomInteractionFrames() {
-  const p = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(p, 'utf8')
-  const collisionSection = readOverlayCollisionSection(text)
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
+  const text = readFileSync(runtimePath, 'utf8')
   if (text.includes('pinnedToNodeByIdRef') || text.includes('anyEditorPinnedToNode')) {
-    throw new Error('expected FlowEditorCanvas to avoid legacy pinned editor tracking state')
+    throw new Error('expected overlay collision runtime to avoid legacy pinned editor tracking state')
   }
   if (text.includes('overlayCollisionZoomDebounceRef')) {
-    throw new Error('expected FlowEditorCanvas to avoid zoom-debounce-driven collision mutation scheduling')
+    throw new Error('expected overlay collision runtime to avoid zoom-debounce-driven collision mutation scheduling')
   }
   if (text.includes('overlayCollisionLastZoomKRef')) {
-    throw new Error('expected FlowEditorCanvas to avoid zoom-k tracking for collision scheduling')
+    throw new Error('expected overlay collision runtime to avoid zoom-k tracking for collision scheduling')
   }
-  if (!collisionSection) {
-    throw new Error('expected FlowEditorCanvas to keep a distinct overlay collision section')
+  if (!text.includes('const overlayCollisionResolveRafRef = React.useRef<number | null>(null)')) {
+    throw new Error('expected overlay collision runtime to keep an explicit RAF scheduler ref')
   }
-  if (collisionSection.includes('FLOW_EDITOR_INTERACTION_FRAME_EVENT')) {
-    throw new Error('expected overlay collision section to avoid zoom interaction-frame listeners')
+  if (text.includes('FLOW_EDITOR_INTERACTION_FRAME_EVENT')) {
+    throw new Error('expected overlay collision runtime to avoid zoom interaction-frame listeners')
   }
-  if (collisionSection.includes('setTimeout(') || collisionSection.includes('clearTimeout(')) {
-    throw new Error('expected overlay collision section to avoid timeout-based zoom mutation scheduling')
+  if (text.includes('setTimeout(') || text.includes('clearTimeout(')) {
+    throw new Error('expected overlay collision runtime to avoid timeout-based zoom mutation scheduling')
   }
-  if (!collisionSection.includes('}, [active, openWidgetNodeIds, overlayOnlyModeEnabled, scheduleOverlayCollisionResolve, viewportH, viewportW])')) {
-    throw new Error('expected overlay collision scheduler effect deps to stay scoped to structural/viewport changes only')
+  if (!text.includes('scheduleOverlayCollisionResolveRef.current = scheduleOverlayCollisionResolve')) {
+    throw new Error('expected overlay collision runtime to keep a stable ref bridge for rescheduling')
   }
-  if (text.includes('attributeFilter') && text.includes('data-kg-widget')) {
-    throw new Error('expected FlowEditorCanvas to avoid mutation observers for overlay tracking')
+  if (!text.includes('canvasWindowOffset.left,') || !text.includes('viewportH,') || !text.includes('viewportW,')) {
+    throw new Error('expected overlay collision scheduler effect deps to stay scoped to structural and viewport inputs')
+  }
+  if (text.includes('attributeFilter')) {
+    throw new Error('expected overlay collision runtime to avoid mutation observers for overlay tracking')
+  }
+}
+
+export function testFlowEditorOverlayCollisionSkipsSelfCommittedStoreChurn() {
+  const p = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
+  const text = readFileSync(p, 'utf8')
+
+  if (!text.includes('const selfCommittedPosSignatureRef = React.useRef<string>(\'\')')) {
+    throw new Error('expected overlay collision runtime to keep an explicit self-commit signature guard')
+  }
+  if (!text.includes('selfCommittedPosSignatureRef.current = buildPosSignature(overlayNodeIds, next)')) {
+    throw new Error('expected overlay collision runtime to stamp self-commit signature before setFlowWidgetPosByNodeId writeback')
+  }
+  if (!text.includes('if (currentSig && currentSig === selfCommittedPosSignatureRef.current) {')) {
+    throw new Error('expected overlay collision subscription to ignore immediate self-committed flowWidgetPos updates')
+  }
+  if (!text.includes('selfCommittedPosSignatureRef.current = \'\'')) {
+    throw new Error('expected overlay collision self-commit guard to clear consumed signatures')
   }
 }

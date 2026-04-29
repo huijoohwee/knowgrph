@@ -187,6 +187,30 @@ export function testDocumentFrontmatterModePreservesFrontmatterFlowGraphFamily()
   if (String(props['flow:targetPortKey'] || '') !== 'reference_image') throw new Error('expected frontmatter-flow active view to preserve target port key')
 }
 
+export function testDeriveGraphDataForActiveViewCachesEquivalentInputs() {
+  const markdown = ['# Cache', '', '- one', '- two', ''].join('\n')
+  const graphData = parseJsonLd(buildMarkdownJsonLd('cache-view.md', markdown))
+  const first = deriveGraphDataForActiveView({
+    graphData,
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    documentSemanticMode: 'keyword',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+  const second = deriveGraphDataForActiveView({
+    graphData,
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: false,
+    documentSemanticMode: 'keyword',
+    documentStructureBaselineLock: false,
+    collapsedGroupIds: [],
+  })
+  if (first !== second) {
+    throw new Error('expected active-view derivation to reuse cached graph object for equivalent inputs')
+  }
+}
+
 export function testDocumentFocusModeResolverPrecedence() {
   const storage = ensureLocalStorage()
   storage.clear()

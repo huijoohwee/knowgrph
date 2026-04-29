@@ -99,6 +99,7 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaOverlayPanMoveSchedulerRef = React.useRef<RafLatestScheduler<{ pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean }> | null>(null)
   const mediaOverlayHeaderMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
   const mediaOverlayResizeMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
+  const lastPlannedOverlayNodeIdsKeyRef = React.useRef<string>('')
 
   React.useEffect(() => {
     __flowCanvasDebug.sceneNodeIds = Array.isArray(sceneGraphData?.nodes)
@@ -131,12 +132,14 @@ export default function FlowCanvasMediaOverlays(args: {
       for (const id of panelOnlyNodeIdSet) ids.push(id)
     }
     return ids.length <= 1 ? ids : Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
-  }, [mediaNodes, onPlannedOverlayNodeIdsChange, panelOnlyNodeIdSet])
+  }, [mediaNodes, panelOnlyNodeIdSet])
   const plannedOverlayNodeIdsKey = React.useMemo(() => plannedOverlayNodeIds.join('|'), [plannedOverlayNodeIds])
 
   React.useEffect(() => {
+    if (lastPlannedOverlayNodeIdsKeyRef.current === plannedOverlayNodeIdsKey) return
+    lastPlannedOverlayNodeIdsKeyRef.current = plannedOverlayNodeIdsKey
     onPlannedOverlayNodeIdsChange(plannedOverlayNodeIds)
-  }, [onPlannedOverlayNodeIdsChange, plannedOverlayNodeIds])
+  }, [onPlannedOverlayNodeIdsChange, plannedOverlayNodeIds, plannedOverlayNodeIdsKey])
 
   const buildDrawArgs = React.useCallback(() => drawArgsRef.current, [drawArgsRef])
   const handleFrame = React.useCallback(() => {
@@ -527,7 +530,6 @@ export default function FlowCanvasMediaOverlays(args: {
           />
         )
       })}
-      {plannedOverlayNodeIdsKey ? null : null}
     </section>
   )
 }

@@ -17,10 +17,20 @@ export const buildEdgesPathD = (
   const key = `g:${graphId ?? ''}|n:${nodes.length}|e:${edges.length}|bx:${bounds.minX}|by:${bounds.minY}|sx:${sx}`
   const cached = edgePathCache.get(key)
   if (cached) return cached
+  const needed = new Set<string>()
+  for (let i = 0; i < edges.length; i++) {
+    const e = edges[i]
+    needed.add(String(e.source))
+    needed.add(String(e.target))
+  }
   const coord: Record<string, { x: number; y: number }> = {};
   for (let i = 0; i < nodes.length; i++) {
+    if (needed.size === 0) break
     const n = nodes[i];
-    coord[n.id] = { x: Number(n.x ?? 0), y: Number(n.y ?? 0) };
+    const id = String(n.id)
+    if (!needed.has(id)) continue
+    needed.delete(id)
+    coord[id] = { x: Number(n.x ?? 0), y: Number(n.y ?? 0) };
   }
   let d = '';
   for (let i = 0; i < edges.length; i++) {

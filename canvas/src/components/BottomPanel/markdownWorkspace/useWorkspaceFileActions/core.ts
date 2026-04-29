@@ -106,6 +106,20 @@ export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHe
     [emitToast],
   )
 
+  const setStatusWarning = React.useCallback(
+    (label: string, statusOpts?: { ttlMs?: number | null; dismissible?: boolean }) => {
+      const msg = String(label || '').trim()
+      if (!msg) return
+      emitToast({
+        kind: 'warning',
+        message: msg,
+        ttlMs: statusOpts?.ttlMs,
+        dismissible: typeof statusOpts?.dismissible === 'boolean' ? statusOpts.dismissible : true,
+      })
+    },
+    [emitToast],
+  )
+
   const setStatusProgress = React.useCallback(
     (
       label: string,
@@ -144,7 +158,7 @@ export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHe
     lastToastSigById.delete(toastId)
   }, [toastId])
 
-  return { setStatusInfo, setStatusError, setStatusProgress, clearStatus, buildWebpageImportStageLabel }
+  return { setStatusInfo, setStatusWarning, setStatusError, setStatusProgress, clearStatus, buildWebpageImportStageLabel }
 }
 
 export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): {
@@ -212,7 +226,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
 
       if (hasWidgetRegistry) {
         if (baselineLocked) {
-          store.upsertUiToast({ id: 'baseline-locked', kind: 'warning', message: UI_COPY.baselineLockedToast, ttlMs: 6000 })
+          status.setStatusWarning(UI_COPY.baselineLockedToast, { ttlMs: 6000, dismissible: true })
           return
         }
         const schema = store.schema
@@ -227,7 +241,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         return
       }
     },
-    [applyMarkdownDocumentToGraph],
+    [applyMarkdownDocumentToGraph, status],
   )
 
   const focusAfterImport = React.useCallback(

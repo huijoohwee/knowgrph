@@ -40,6 +40,10 @@ export const WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS = 250_000
 
 export const WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES = 750_000
 
+export const GRAPH_DATA_LS_PERSIST_MAX_NODES = 15_000
+
+export const GRAPH_DATA_LS_PERSIST_MAX_EDGES = 35_000
+
 export * from './config.ls';
 export * from './config.copy';
 export * from './config.render';

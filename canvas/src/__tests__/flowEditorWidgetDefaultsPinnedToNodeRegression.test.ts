@@ -1,14 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-export function testFlowEditorWidgetDefaultsPinnedInCanvas() {
+export function testFlowEditorWidgetDefaultsToFloatingWhenUnset() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('flowWidgetPinnedByNodeId')) {
     throw new Error('expected NodeOverlayEditor to read pinned-by-node-id state from the graph store')
   }
-  if (!text.includes("return typeof v === 'boolean' ? v : true")) {
-    throw new Error('expected Flow widget to default pinned-in-canvas when no prior preference exists')
+  if (!text.includes("return typeof v === 'boolean' ? v : false")) {
+    throw new Error('expected Flow widget to default floating when no prior preference exists')
   }
 }
 
@@ -23,10 +23,10 @@ export function testFlowEditorWidgetPinnedStateSubscribesToStoreUpdates() {
   }
 }
 
-export function testFlowEditorAutoRevealOnlyPinsWhenCanvasPinningIsForced() {
+export function testFlowEditorAutoRevealDoesNotForcePinFloatingWidgets() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes('if (forcePinnedToCanvas === true) setPinnedInCanvas(true)')) {
-    throw new Error('expected auto-reveal pinning to stay disabled for floating geospatial widget panels')
+  if (text.includes('if (forcePinnedToCanvas === true) setPinnedInCanvas(true)')) {
+    throw new Error('expected auto-reveal to avoid legacy forced pinning for floating widgets')
   }
 }

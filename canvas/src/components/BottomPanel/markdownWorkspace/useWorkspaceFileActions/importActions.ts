@@ -173,9 +173,7 @@ export function useWorkspaceImportActions(args: {
       const url = String(urlRaw || '').trim()
       if (!url) return
       const jobId = (importJobRef.current += 1)
-      const toastId = `workspace:import:url:${hashStringToHex(url).slice(0, 10)}`
       status.setStatusProgress('Importing URL')
-      useGraphStore.getState().upsertUiToast({ id: toastId, kind: 'neutral', message: `Importing URL: ${url}`, ttlMs: null, dismissible: false, log: false })
       useGraphStore.getState().pushUiLog({ kind: 'neutral', message: `Import URL started: ${url}`, source: 'workspace:importUrl' })
       try {
         const fs = await getFs()
@@ -198,7 +196,6 @@ export function useWorkspaceImportActions(args: {
               }
               if (p.phase === 'listing') {
                 status.setStatusProgress(p.label ? String(p.label) : 'Listing')
-                useGraphStore.getState().upsertUiToast({ id: toastId, kind: 'neutral', message: `Importing URL: Listing…`, ttlMs: null, dismissible: false, log: false })
                 return
               }
               if (p.phase === 'fetching' && p.total && p.total > 0) {
@@ -206,34 +203,17 @@ export function useWorkspaceImportActions(args: {
                 const stageLabel = status.buildWebpageImportStageLabel(pct)
                 const pctInt = Math.max(0, Math.min(100, Math.floor(pct)))
                 status.setStatusProgress(stageLabel, pctInt, 100)
-                useGraphStore.getState().upsertUiToast({
-                  id: toastId,
-                  kind: 'neutral',
-                  message: `Importing URL: ${stageLabel} ${pctInt}%`,
-                  ttlMs: null,
-                  dismissible: false,
-                  log: false,
-                })
                 return
               }
               if (p.phase === 'fetching') {
                 const stageLabel = status.buildWebpageImportStageLabel(0)
                 status.setStatusProgress(stageLabel)
-                useGraphStore.getState().upsertUiToast({ id: toastId, kind: 'neutral', message: `Importing URL: ${stageLabel}…`, ttlMs: null, dismissible: false, log: false })
                 return
               }
               if (p.total && p.total > 0) {
                 const label = 'Writing'
                 if (p.current && p.current > 0) status.setStatusProgress(label, p.current, p.total)
                 else status.setStatusProgress(label)
-                useGraphStore.getState().upsertUiToast({
-                  id: toastId,
-                  kind: 'neutral',
-                  message: p.current && p.current > 0 ? `Importing URL: Writing ${p.current}/${p.total}` : `Importing URL: Writing…`,
-                  ttlMs: null,
-                  dismissible: false,
-                  log: false,
-                })
                 return
               }
               status.setStatusProgress('Writing')
@@ -288,9 +268,7 @@ export function useWorkspaceImportActions(args: {
             const needsHydration = (isFrontmatterOnlyDoc(current) || looksLikeJsShellText(body) || body.length < 220) && meta.view === 'markdown'
             if (!needsHydration) return
 
-            const toastHydrateId = `workspace:import:url:hydrate:${hashStringToHex(sourceUrl).slice(0, 10)}`
             status.setStatusProgress('Fetching')
-            useGraphStore.getState().upsertUiToast({ id: toastHydrateId, kind: 'neutral', message: `Fetching webpage content…`, ttlMs: null, dismissible: false, log: false })
 
             const fetched = await fetchWorkspaceUrlContent(sourceUrl, {
               mode: 'refresh',
@@ -299,17 +277,16 @@ export function useWorkspaceImportActions(args: {
                 const pct = Math.max(0, Math.min(100, Math.floor(Number.isFinite(p) ? p : 0)))
                 const phaseLabel = status.buildWebpageImportStageLabel(pct)
                 status.setStatusProgress(phaseLabel, pct, 100)
-                useGraphStore.getState().upsertUiToast({ id: toastHydrateId, kind: 'neutral', message: `${phaseLabel} ${pct}%`, ttlMs: null, dismissible: false, log: false })
               },
             })
             if (importJobRef.current !== jobId) return
             if (!fetched || !String(fetched.text || '').trim()) {
-              useGraphStore.getState().upsertUiToast({ id: toastHydrateId, kind: 'warning', message: `Webpage content unavailable`, ttlMs: 6000, dismissible: true })
+              status.setStatusWarning('Webpage content unavailable', { ttlMs: 6000, dismissible: true })
               return
             }
             const nextText = normalizeWebpageFrontmatterView(fetched.text, 'markdown')
             if (isFrontmatterOnlyDoc(nextText)) {
-              useGraphStore.getState().upsertUiToast({ id: toastHydrateId, kind: 'warning', message: `Webpage content unavailable`, ttlMs: 6000, dismissible: true })
+              status.setStatusWarning('Webpage content unavailable', { ttlMs: 6000, dismissible: true })
               return
             }
 
@@ -336,7 +313,7 @@ export function useWorkspaceImportActions(args: {
               }
             }
 
-            useGraphStore.getState().upsertUiToast({ id: toastHydrateId, kind: 'success', message: `Webpage content loaded`, ttlMs: 6000, dismissible: true })
+            status.setStatusInfo('Webpage content loaded', { ttlMs: 6000, dismissible: true })
           } catch {
             void 0
           }
@@ -349,13 +326,11 @@ export function useWorkspaceImportActions(args: {
           message: `Import URL finished: ${imported} imported${suffix}${failureSuffix}`,
           source: 'workspace:importUrl',
         })
-        useGraphStore.getState().pushUiToast({ id: toastId, kind: failed > 0 ? 'warning' : 'success', message: imported > 1 ? `Imported ${imported}${suffix}` : `Imported URL${suffix}`, ttlMs: 12_000, dismissible: true })
       } catch (e) {
         if (importJobRef.current !== jobId) return
         const msg = String((e as { message?: unknown })?.message ?? e)
         status.setStatusError(`Import failed: ${msg}`)
         useGraphStore.getState().pushUiLog({ kind: 'error', message: `Import URL failed: ${msg}`, source: 'workspace:importUrl' })
-        useGraphStore.getState().pushUiToast({ id: toastId, kind: 'error', message: `Import failed: ${msg}`, ttlMs: 15_000, dismissible: true })
       }
     },
     [activeDocumentKey, focusAfterImport, getFs, importJobRef, lastLoadedRef, openedPath, refresh, setActiveMarkdownDocument, setActiveText, setEntries, status],

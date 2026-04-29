@@ -3,7 +3,8 @@ import { buildEdgesPathD, buildNodesPathD } from '@/features/minimap/renderer'
 
 type NodeLite = { id: string; x?: number; y?: number };
 type EdgeLite = { id: string; source: string; target: string };
-type PreviewRequest = { type: 'preview'; id: number; nodes: NodeLite[]; edges: EdgeLite[]; pad?: number; miniW?: number; miniH?: number; edgeLimit?: number; graphId?: string | number };
+type BoundsLite = { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number };
+type PreviewRequest = { type: 'preview'; id: number; nodes: NodeLite[]; edges: EdgeLite[]; pad?: number; miniW?: number; miniH?: number; edgeLimit?: number; graphId?: string | number; boundsOverride?: BoundsLite };
 type PreviewValue = { nodesPath: string; edgesPath: string; sx: number; bounds: { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number } };
 type PreviewResponse = { id: number; ok: boolean; value: PreviewValue; error?: string };
 
@@ -16,7 +17,7 @@ self.onmessage = (e: MessageEvent<PreviewRequest>) => {
     const pad = typeof msg.pad === 'number' ? msg.pad : 20
     const miniW = typeof msg.miniW === 'number' ? msg.miniW : 160
     const miniH = typeof msg.miniH === 'number' ? msg.miniH : 120
-    const bounds = computeGraphBounds(nodes, pad)
+    const bounds = msg.boundsOverride || computeGraphBounds(nodes, pad)
     const scaleX = miniW / Math.max(1, bounds.width)
     const scaleY = miniH / Math.max(1, bounds.height)
     const sx = Math.min(scaleX, scaleY)

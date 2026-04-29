@@ -3,7 +3,8 @@ import { validateNodeProperties, validateEdgeProperties, canAddEdge } from '@/fe
 import type { StoreApi } from 'zustand';
 import type { GraphState } from '@/hooks/store/types'
 import { LS_KEYS } from '@/lib/config'
-import { lsSetJson, lsRemove } from '@/lib/persistence'
+import { lsRemove } from '@/lib/persistence'
+import { persistGraphDataToLocalStorage } from './graphDataPersistence'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { normalizeGraphData } from '@/lib/graph/normalize'
@@ -868,7 +869,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
     set({ graphData: nextGraphData, graphDataRevision: nextRevision })
     try {
-      lsSetJson(LS_KEYS.graphData, nextGraphData)
+      persistGraphDataToLocalStorage(nextGraphData)
     } catch {
       void 0
     }
@@ -1066,7 +1067,6 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     set({ minimapPreview: { nodesPath: '', edgesPath: '', sx: 1, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 1, height: 1 } }, minimapAbortController: null });
     get().cancelMinimapWorker?.();
     get().scheduleHistory('Set Data');
-    lsSetJson(LS_KEYS.graphData, nextGraphData)
 
     try {
       syncGraphFieldsWithGraphData(get, nextGraphData, { resetVisibleColumns: true })
@@ -1079,6 +1079,8 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       if (typeof quick === 'function') quick()
       const async = get().computeMinimapPreviewAsync
       if (typeof async === 'function') async()
+
+      persistGraphDataToLocalStorage(get().graphData)
 
       try {
         const mode = get().schema.layout?.mode
@@ -1277,7 +1279,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
 
     set({ lifecycleStage: 'committed' })
     try {
-      lsSetJson(LS_KEYS.graphData, get().graphData)
+      persistGraphDataToLocalStorage(get().graphData)
     } catch {
       void 0
     }
@@ -1951,7 +1953,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyWidgetRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch { void 0 }
     try {
-      lsSetJson(LS_KEYS.graphData, nextGraphData)
+      persistGraphDataToLocalStorage(nextGraphData)
     } catch {
       void 0
     }
@@ -2013,7 +2015,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyWidgetRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch { void 0 }
     try {
-      lsSetJson(LS_KEYS.graphData, nextGraphData)
+      persistGraphDataToLocalStorage(nextGraphData)
     } catch {
       void 0
     }
@@ -2084,7 +2086,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       applyWidgetRegistryFromMetadata(get, nextGraphData.metadata, nextGraphData)
     } catch { void 0 }
     try {
-      lsSetJson(LS_KEYS.graphData, nextGraphData)
+      persistGraphDataToLocalStorage(nextGraphData)
     } catch {
       void 0
     }

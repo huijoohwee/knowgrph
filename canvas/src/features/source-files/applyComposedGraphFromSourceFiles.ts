@@ -65,7 +65,14 @@ export function scheduleApplyComposedGraphFromSourceFiles() {
 export function applyComposedGraphFromSourceFiles() {
   const store = useGraphStore.getState()
   const hasEnabledSourceFiles = (store.sourceFiles || []).some(f => Boolean(f?.enabled))
-  if (!hasEnabledSourceFiles) return
+  if (!hasEnabledSourceFiles) {
+    const prevMeta = (store.graphData?.metadata || {}) as Record<string, unknown>
+    const prevWasComposed = String(prevMeta.sourceLayerComposition || '') === 'compose'
+    if (prevWasComposed) {
+      store.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} })
+    }
+    return
+  }
   const layers = (store.sourceFiles || []).map(f => ({
     id: f.id,
     name: f.name,

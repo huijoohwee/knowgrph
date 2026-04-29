@@ -49,6 +49,12 @@ export function startMediaOverlayLayoutLoop2d(args: {
   let lastSizingKey = ''
   let lastSizing: MediaOverlaySizing | null = null
   const lastWorldCenterById = new Map<string, { x: number; y: number }>()
+  const lastAppliedBoxById = new Map<string, { left: number; top: number; w: number; h: number }>()
+
+  const quantizePanelPos = (v: number) => {
+    if (!Number.isFinite(v)) return 0
+    return Math.round(v)
+  }
 
   const update = () => {
     const t = args.readTransform()
@@ -97,7 +103,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const w = overrideSize && Number.isFinite(overrideSize.w) ? Math.max(1, overrideSize.w) : useSizing.panelW
       const h = overrideSize && Number.isFinite(overrideSize.h) ? Math.max(1, overrideSize.h) : useSizing.panelH
       const rect = computePanelRect({ cx, cy, w, h, clamp })
-      preferred.push({ id, left: rect.left, top: rect.top, w, h, el })
+      preferred.push({ id, left: quantizePanelPos(rect.left), top: quantizePanelPos(rect.top), w, h, el })
     }
 
     const hasOverlaps = (items: Array<{ left: number; top: number; w: number; h: number }>, gapPx: number): boolean => {
@@ -243,7 +249,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
           const src = preferredById.get(r.id) || null
           if (!src) continue
           const clamped = clampWithMargin({ left: r.left, top: r.top }, { w: src.w, h: src.h }, clampMargin)
-          nextById.set(r.id, { left: clamped.left, top: clamped.top })
+          nextById.set(r.id, { left: quantizePanelPos(clamped.left), top: quantizePanelPos(clamped.top) })
         }
       }
     }
@@ -253,7 +259,17 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const pos = nextById.get(p.id) || { left: p.left, top: p.top }
       applyMediaPanelCssVars(p.el, useSizing.vars)
       applyMediaEagerLoadingOnce(p.el)
-      applyPanelBox(p.el, { left: pos.left, top: pos.top, w: p.w, h: p.h, display: 'block' })
+      const nextBox = { left: quantizePanelPos(pos.left), top: quantizePanelPos(pos.top), w: p.w, h: p.h }
+      const prevBox = lastAppliedBoxById.get(p.id) || null
+      const boxChanged = !prevBox
+        || Math.abs(prevBox.left - nextBox.left) >= 1
+        || Math.abs(prevBox.top - nextBox.top) >= 1
+        || Math.abs(prevBox.w - nextBox.w) >= 0.5
+        || Math.abs(prevBox.h - nextBox.h) >= 0.5
+      if (boxChanged) {
+        applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: 'block' })
+        lastAppliedBoxById.set(p.id, nextBox)
+      }
       try {
         ;(p.el as unknown as { dataset?: Record<string, string> }).dataset!.kgOverlayHasPos = '1'
       } catch {
@@ -263,6 +279,9 @@ export function startMediaOverlayLayoutLoop2d(args: {
 
     for (const id of Array.from(lastWorldCenterById.keys())) {
       if (!keepIds.has(id)) lastWorldCenterById.delete(id)
+    }
+    for (const id of Array.from(lastAppliedBoxById.keys())) {
+      if (!keepIds.has(id)) lastAppliedBoxById.delete(id)
     }
   }
 

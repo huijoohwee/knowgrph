@@ -32,6 +32,7 @@ import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
   computeWidgetScale,
+  computeWidgetScaleKey,
   computeWidgetScaledSize,
   WIDGET_BASE_SIZE,
 } from '@/components/FlowEditor/widgetZoom'
@@ -69,7 +70,6 @@ type NodeOverlayEditorProps = {
   viewportH: number
   canvasWindowOffset?: { left: number; top: number } | null
   autoRevealKey?: number
-  forcePinnedToCanvas?: boolean
   stackIndex?: number
   getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
@@ -106,7 +106,6 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   viewportH,
   canvasWindowOffset,
   autoRevealKey,
-  forcePinnedToCanvas,
   stackIndex,
   getLiveNodeWorldPos,
   getLiveZoomTransform,
@@ -224,6 +223,9 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     }),
   )
   const lastAppliedRef = React.useRef<{ left: number; top: number; scale: number; offsetLeft: number; offsetTop: number } | null>(null)
+  const lastFloatingScaleKeyRef = React.useRef<string>(
+    computeWidgetScaleKey(computeWidgetScale(zoomStateRef.current?.k ?? 1, null, { mode: 'floating' })),
+  )
   const cssInitRef = React.useRef(false)
   const pendingClampCommitRef = React.useRef<number | null>(null)
   const pinToggleCollisionGuardRef = React.useRef<number | null>(null)
@@ -235,7 +237,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       if (!id) return false
       const map = useGraphStore.getState().flowWidgetPinnedByNodeId || {}
       const v = map[id]
-      return typeof v === 'boolean' ? v : true
+      return typeof v === 'boolean' ? v : false
     },
     [],
   )
@@ -350,20 +352,19 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
 
   const labelInputRef = React.useRef<HTMLInputElement | null>(null)
 
-  const floating = false
+  const floating = pinnedInCanvas !== true
 
   const autoStackOffset = React.useMemo(() => computeWidgetAnchoredStackOffset(stackIndex), [stackIndex])
 
   React.useEffect(() => {
     if (!active) return
     if (!autoRevealKey) return
-    if (forcePinnedToCanvas === true) setPinnedInCanvas(true)
     setMinimized(prev => {
       if (!prev) return prev
       lsSetBool(LS_KEYS.flowWidgetMinimized, false)
       return false
     })
-  }, [active, autoRevealKey, forcePinnedToCanvas, setPinnedInCanvas])
+  }, [active, autoRevealKey])
 
   const enableHandlesDisabled = documentStructureBaselineLock === true || isHandlesForAllInputsEnabled(schema)
   const convertToLoopDisabled = isLoopNode(node)
@@ -456,7 +457,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     })
   }, [persistFloatingPos, pinnedLeftPx, pinnedTopPx])
 
-  const applyOverlayPosition = React.useCallback(() => {
+  const applyOverlayPosition = React.useCallback((opts?: { persistClamp?: boolean }) => {
     const el = asideRef.current
     if (!el) return
     if (!cssInitRef.current) {
@@ -487,6 +488,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       return { minK: Math.min(minK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP), maxK }
     })()
     const panelScale = computeWidgetScale(zoomK, extent, { mode: floatingRef.current ? 'floating' : 'pinnedInCanvas' })
+    if (floatingRef.current) lastFloatingScaleKeyRef.current = computeWidgetScaleKey(panelScale)
     const scaled = computeWidgetScaledSize(panelScale)
     scaledSizeRef.current = scaled
 
@@ -581,7 +583,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       }
     })()
 
-    if (shouldClampFloating && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) scheduleClampCommit(pos)
+    const allowPassiveClampPersist =
+      !widgetPos || !Number.isFinite(widgetPos.top) || !Number.isFinite(widgetPos.left)
+    if ((opts?.persistClamp === true || allowPassiveClampPersist) && shouldClampFloating && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) {
+      scheduleClampCommit(pos)
+    }
     const nextToolbarDock = pos.top >= WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX ? 'above' : 'below'
     setToolbarDock(prev => (prev === nextToolbarDock ? prev : nextToolbarDock))
     const nextToolbarSideClamp = pos.left + scaled.width + WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX > viewportWidth
@@ -615,6 +621,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     scheduleClampCommit,
     viewportH,
     viewportW,
+    widgetPos,
     zoomViewKey,
   ])
 
@@ -721,8 +728,17 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           zoomState: s.zoomState,
         }),
       next => {
-        zoomStateRef.current = next || null
-        applyOverlayPosition()
+        const nextZoom = next || null
+        if (floatingRef.current) {
+          const scaleKey = computeWidgetScaleKey(computeWidgetScale(nextZoom?.k ?? 1, null, { mode: 'floating' }))
+          if (lastFloatingScaleKeyRef.current === scaleKey) {
+            zoomStateRef.current = nextZoom
+            return
+          }
+          lastFloatingScaleKeyRef.current = scaleKey
+        }
+        zoomStateRef.current = nextZoom
+        applyOverlayPosition({ persistClamp: false })
       },
     )
     return () => {
@@ -739,10 +755,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     if (typeof window === 'undefined') return
     let raf: number | null = null
     const onFrame = () => {
+      if (floatingRef.current && !pinnedDragOverrideRef.current) return
       if (raf != null) return
       raf = requestAnimationFrame(() => {
         raf = null
-        applyOverlayPosition()
+        applyOverlayPosition({ persistClamp: false })
       })
     }
     try {
@@ -1114,7 +1131,6 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       autoStackOffset.left,
       autoStackOffset.top,
       floating,
-      forcePinnedToCanvas,
       getLiveZoomTransform,
       nodeId,
       pinnedInCanvas,
@@ -1224,7 +1240,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             active={active}
             enableHandlesDisabled={enableHandlesDisabled}
             convertToLoopDisabled={convertToLoopDisabled}
-            duplicateDisabled={pinnedInCanvas || forcePinnedToCanvas === true}
+            duplicateDisabled={pinnedInCanvas}
             importUrlAction={isVideoTranscriberWidget ? {
               visible: true,
               initialUrl: typeof (node.properties || {}).sourceUrl === 'string' ? String((node.properties || {}).sourceUrl || '').trim() : '',

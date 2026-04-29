@@ -9,6 +9,26 @@ type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
 
 const EDGE_LIMIT = 20000
+const NODE_LIMIT = 25000
+
+function sampleNodes<T>(nodes: T[], limit: number): T[] {
+  const max = Math.max(0, Math.floor(limit))
+  if (max === 0) return []
+  if (nodes.length <= max) return nodes
+  const out: T[] = []
+  const stride = Math.max(1, Math.floor(nodes.length / max))
+  for (let i = 0; i < nodes.length && out.length < max; i += stride) {
+    out.push(nodes[i] as T)
+  }
+  if (out.length >= max) return out
+  const seen = new Set(out)
+  for (let i = nodes.length - 1; i >= 0 && out.length < max; i -= 1) {
+    const n = nodes[i] as T
+    if (seen.has(n)) continue
+    out.push(n)
+  }
+  return out
+}
 
 export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
   minimapPreview: {
@@ -37,7 +57,7 @@ export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
     const scaleY = miniH / Math.max(1, bounds.height)
     const sx = Math.min(scaleX, scaleY)
     const edgesPath = edgesAll.length > EDGE_LIMIT ? '' : buildEdgesPathD(nodesAll, edgesAll, bounds, sx, graphId ?? '')
-    const nodesPath = buildNodesPathD(nodesAll, bounds, sx, 3, graphId ?? '')
+    const nodesPath = buildNodesPathD(sampleNodes(nodesAll, NODE_LIMIT), bounds, sx, 3, graphId ?? '')
     set({ minimapPreview: { nodesPath, edgesPath, sx, bounds } })
     set({ lifecycleStage: 'minimapQuick' })
   },
@@ -57,7 +77,15 @@ export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
       const promise = computeMinimapPreviewInWorker(
         nodes,
         edges,
-        { pad: 20, miniW: MINIMAP_WIDTH, miniH: MINIMAP_HEIGHT, edgeLimit: EDGE_LIMIT, graphId: graphId ?? '' },
+        {
+          pad: 20,
+          miniW: MINIMAP_WIDTH,
+          miniH: MINIMAP_HEIGHT,
+          edgeLimit: EDGE_LIMIT,
+          nodeLimit: NODE_LIMIT,
+          graphId: graphId ?? '',
+          boundsOverride: get().minimapPreview?.bounds,
+        },
         controller.signal,
       )
       promise.then((res) => {
@@ -76,7 +104,7 @@ export const createMinimapSlice = (set: SetGraph, get: GetGraph) => ({
         const scaleY = miniH / Math.max(1, bounds.height)
         const sx = Math.min(scaleX, scaleY)
         const edgesPath = edges.length > EDGE_LIMIT ? '' : buildEdgesPathD(nodes, edges, bounds, sx, graphId ?? '')
-        const nodesPath = buildNodesPathD(nodes, bounds, sx, 3, graphId ?? '')
+        const nodesPath = buildNodesPathD(sampleNodes(nodes, NODE_LIMIT), bounds, sx, 3, graphId ?? '')
         set({ minimapPreview: { nodesPath, edgesPath, sx, bounds } })
         set({ lifecycleStage: 'minimapAsync' })
       })

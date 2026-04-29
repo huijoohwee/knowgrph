@@ -124,7 +124,6 @@ type FlowEditorWidgetOverlayProps = {
   canvasWindowOffset: { left: number; top: number }
   zoomViewKey: string | null
   autoRevealKey?: number
-  forcePinnedToCanvas?: boolean
   stackIndex?: number
   getLiveNodeWorldPos?: (nodeId: string) => { x: number; y: number } | null
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
@@ -168,7 +167,6 @@ export const FlowEditorWidgetOverlay = React.memo(function FlowEditorWidgetOverl
       viewportH={args.viewportH}
       canvasWindowOffset={args.canvasWindowOffset}
       autoRevealKey={args.autoRevealKey}
-      forcePinnedToCanvas={args.forcePinnedToCanvas}
       stackIndex={args.stackIndex}
       getLiveNodeWorldPos={args.getLiveNodeWorldPos}
       getLiveZoomTransform={args.getLiveZoomTransform}

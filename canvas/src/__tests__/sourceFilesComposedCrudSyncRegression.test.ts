@@ -226,6 +226,59 @@ export async function testComposedSourceFilesPreferEnabledReadmeFrontmatterPrese
   }
 }
 
+export async function testComposedSourceFilesDeleteLastEnabledSourceClearsGraphAndOpenWidgets() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const state = useGraphStore.getState()
+    state.resetAll()
+    state.clearSourceFiles()
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
+
+    const g1: GraphData = {
+      type: 'Graph',
+      nodes: [{ id: 'n1', label: 'Widget', type: 'Text', properties: {} }],
+      edges: [],
+      metadata: {},
+    }
+
+    state.addSourceFile({
+      id: 'sf-1',
+      name: 'only.md',
+      text: 'widget',
+      enabled: true,
+      status: 'parsed',
+      parsedGraphData: g1,
+      parsedTextHash: 'h1',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: 'workspace:/only.md' },
+    })
+
+    applyComposedGraphFromSourceFiles()
+    state.setOpenWidgetNodeIds(['sf-1::n1'])
+
+    const composedBeforeDelete = useGraphStore.getState().graphData
+    if (String(((composedBeforeDelete?.metadata || {}) as Record<string, unknown>).sourceLayerComposition || '') !== 'compose') {
+      throw new Error('expected composed graph before deleting the last enabled source file')
+    }
+
+    state.setSourceFiles([])
+    applyComposedGraphFromSourceFiles()
+
+    const after = useGraphStore.getState()
+    const graph = after.graphData
+    if (!graph) throw new Error('expected graph state after deleting the last enabled source file')
+    if ((graph.nodes || []).length !== 0 || (graph.edges || []).length !== 0) {
+      throw new Error('expected deleting the last enabled source file to clear the composed graph immediately')
+    }
+    if ((after.openWidgetNodeIds || []).length !== 0) {
+      throw new Error('expected deleting the last enabled source file to prune stale open widget overlays')
+    }
+  } finally {
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
+  }
+}
+
 export async function testComposedAddNodeSeedsActiveMarkdownDocumentWhenGraphMissing() {
   const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
   try {
