@@ -117,28 +117,32 @@ async function resolveInitialWorkspaceStartupState(): Promise<{
   workspaceEntries: WorkspaceEntry[]
 }> {
   const explorer = useMarkdownExplorerStore.getState()
+  const store = useGraphStore.getState()
+  const preferValidationSeedForRenderer = store.canvas2dRenderer === 'flowEditor'
   const preferCustomValidationSeed =
     CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
     TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
-  if (explorer.lastSetActivePath && !preferCustomValidationSeed) {
-    return { activePath: explorer.activePath, workspaceEntries: [] }
-  }
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
   const workspaceEntries = await fs.listEntries()
   const workspaceFilePaths = workspaceEntries
     .filter((entry): entry is { path: WorkspacePath; kind: 'file' } => entry.kind === 'file')
     .map(entry => entry.path)
-  const nextActivePath = resolveWorkspaceStartupActivePath({
+  const desiredActivePath = resolveWorkspaceStartupActivePath({
     workspaceFilePaths,
     activePath: explorer.activePath,
-    preferValidationSeedForDefaultFamily: preferCustomValidationSeed,
+    preferValidationSeedForDefaultFamily: preferCustomValidationSeed || preferValidationSeedForRenderer,
     forceValidationSeedIfPresent: preferCustomValidationSeed,
   })
-  if (nextActivePath && nextActivePath !== explorer.activePath) {
-    explorer.setActivePath(nextActivePath)
+  if (explorer.lastSetActivePath && !preferCustomValidationSeed) {
+    if (!desiredActivePath || desiredActivePath === explorer.activePath) {
+      return { activePath: explorer.activePath, workspaceEntries: [] }
+    }
   }
-  return { activePath: nextActivePath, workspaceEntries }
+  if (desiredActivePath && desiredActivePath !== explorer.activePath) {
+    explorer.setActivePath(desiredActivePath)
+  }
+  return { activePath: desiredActivePath, workspaceEntries }
 }
 
 export function SourceFilesPersistenceBootstrap() {

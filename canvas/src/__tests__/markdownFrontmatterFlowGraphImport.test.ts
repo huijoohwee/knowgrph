@@ -2003,7 +2003,7 @@ function readKnowgrphRichMediaGenerationDemoPath(): string {
     : ''
   if (envPath) return envPath
   const cwd = process.cwd()
-  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'knowgrph-rich-media-generation-demo.md')
+  return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'test-generate-video', 'knowgrph-demo-video.md')
 }
 
 function readKnowgrphVideoDemoPath(): string {

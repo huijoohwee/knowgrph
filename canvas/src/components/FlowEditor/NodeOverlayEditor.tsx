@@ -25,6 +25,7 @@ import { isHandlesForAllInputsEnabled, isLoopNode } from '@/lib/flowEditor/flowE
 import { lsBool, lsSetBool } from '@/lib/persistence'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
+import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
@@ -44,8 +45,8 @@ import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import type { RichMediaPanelTab } from '@/lib/render/richMediaSsot'
 
-const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = 140
-const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 170
+const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = 5000
+const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 8000
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const WIDGET_ACTIONS_TOOLBAR_OFFSET_PX = 40
 const WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
@@ -190,7 +191,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     const idx = Number.isFinite(stackIndex) ? Math.max(0, Math.floor(stackIndex as number)) : 0
     const selected = String(selectedNodeId || '').trim() === nodeId
     if (selected) return FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED
-    return Math.max(20, FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE - Math.min(48, idx))
+    return FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE - idx
   }, [nodeId, selectedNodeId, stackIndex])
 
   const registryEntry: WidgetRegistryEntry | null = React.useMemo(
@@ -534,8 +535,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           baseWidth: WIDGET_BASE_SIZE.width,
           baseHeight: WIDGET_BASE_SIZE.height,
           quantizeStep: 0.02,
-          hardMinScale: 0.68,
-          hardMaxScale: 1.06,
+          hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min,
+          hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.max,
         })
       : panelScaleBase
     if (floatingRef.current) lastFloatingScaleKeyRef.current = computeWidgetScaleKey(panelScale)

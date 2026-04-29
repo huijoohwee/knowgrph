@@ -1,4 +1,5 @@
 import { clampBalancedCollectiveScaleToViewport } from '@/lib/ui/overlayBalancedSpread'
+import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 
 export const WIDGET_BASE_SIZE = {
   width: 360,
@@ -66,8 +67,10 @@ export function computeCollectiveFollowPinnedScale(args: {
   hardMaxScale?: number
 }): number {
   const baseScale = computeWidgetScale(args.zoomK, args.extent, { mode: 'pinnedInCanvas' })
-  const requestedHardMin = Number.isFinite(args.hardMinScale) ? Math.max(0.001, Number(args.hardMinScale)) : 0.68
-  const requestedHardMax = Number.isFinite(args.hardMaxScale) ? Math.max(0.001, Number(args.hardMaxScale)) : 1.06
+  const requestedHardMin =
+    Number.isFinite(args.hardMinScale) ? Math.max(0.001, Number(args.hardMinScale)) : COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min
+  const requestedHardMax =
+    Number.isFinite(args.hardMaxScale) ? Math.max(0.001, Number(args.hardMaxScale)) : COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.max
   return clampBalancedCollectiveScaleToViewport({
     scale: baseScale,
     viewportW: args.viewportW,

@@ -5,7 +5,6 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
-  resolveWorkspaceEditorPaneDefaultWidthPx,
   resolveWorkspacePaneMaxWidthPx,
 } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
@@ -74,7 +73,8 @@ export function useCanvasWorkspacePaneRuntime(): {
     wasEditorOverlayOpenRef.current = workspaceEditorOverlayOpen
     if (!workspaceEditorOverlayOpen || wasOpen) return
     const bounds = resolveWorkspacePreviewWidthBounds()
-    const next = resolveWorkspaceEditorPaneDefaultWidthPx({ minPx: bounds.minPx, maxPx: bounds.maxPx })
+    const next = clampWorkspacePreviewWidthPx(workspacePreviewWidthPxRef.current)
+    if (next === workspacePreviewWidthPxRef.current) return
     setWorkspacePreviewWidthPx(next)
     lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
   }, [workspaceEditorOverlayOpen])

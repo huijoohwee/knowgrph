@@ -7,7 +7,7 @@ export function testFlowEditorFrontmatterDocumentUsesManualMediaPlacement() {
   const overlaysText = readFileSync(flowCanvasMediaOverlaysPath, 'utf8')
   const loopText = readFileSync(layoutLoopPath, 'utf8')
 
-  if (!overlaysText.includes('manualPlacement: flowEditorFrontmatterInteractionMode')) {
+  if (!overlaysText.includes('manualPlacement: flowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas media overlays to enable manual placement in Flow Editor frontmatter document mode')
   }
   if (!loopText.includes('manualPlacement?: boolean')) {

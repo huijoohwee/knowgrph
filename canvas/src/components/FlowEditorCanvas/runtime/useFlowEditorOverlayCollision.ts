@@ -5,6 +5,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { getEffectiveZoomStateForKey, getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
+import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
@@ -198,8 +199,8 @@ export function useFlowEditorOverlayCollision(args: {
         baseWidth: WIDGET_BASE_SIZE.width,
         baseHeight: WIDGET_BASE_SIZE.height,
         quantizeStep: 0.02,
-        hardMinScale: 0.68,
-        hardMaxScale: 1.06,
+        hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min,
+        hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.max,
       })
       const panelScaleKey = computeWidgetScaleKey(panelScale)
       const canvasOffset = canvasWindowOffsetRef.current || canvasWindowOffset

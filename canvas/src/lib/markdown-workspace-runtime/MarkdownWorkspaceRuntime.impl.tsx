@@ -177,6 +177,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const setGraphData = useGraphStore(s => s.setGraphData)
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
 
   const graphNodes = useGraphStore(s => ((s.graphData as GraphData | null)?.nodes as GraphNode[] | undefined) || EMPTY_GRAPH_NODES)
   const graphEdges = useGraphStore(s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES)
@@ -1665,15 +1666,16 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   React.useEffect(() => {
     if (!entries.length) return
     if (loading) return
+    const preferValidationSeedForRenderer = canvas2dRenderer === 'flowEditor'
     const preferCustomValidationSeed =
       CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
       TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
 
-    if (!lastSetActivePath || preferCustomValidationSeed) {
+    if (!lastSetActivePath || preferCustomValidationSeed || preferValidationSeedForRenderer) {
       const startupPath = resolveWorkspaceStartupActivePath({
         workspaceFilePaths: entries.filter((entry): entry is WorkspaceEntry & { kind: 'file' } => entry.kind === 'file').map(entry => entry.path),
         activePath,
-        preferValidationSeedForDefaultFamily: preferCustomValidationSeed,
+        preferValidationSeedForDefaultFamily: preferCustomValidationSeed || preferValidationSeedForRenderer,
         forceValidationSeedIfPresent: preferCustomValidationSeed,
       })
       if (startupPath && startupPath !== activePath) {
@@ -1697,7 +1699,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       return
     }
     setActivePathSafe(firstFile.path)
-  }, [activePath, entries, lastSetActivePath, loading, setActivePathSafe])
+  }, [activePath, canvas2dRenderer, entries, lastSetActivePath, loading, setActivePathSafe])
 
   React.useEffect(() => {
     const path = String(activePath || '').trim()

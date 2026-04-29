@@ -11,6 +11,7 @@ import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
+import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -198,8 +199,8 @@ export default function FlowCanvasMediaOverlays(args: {
       baseWidth: panelW,
       baseHeight: panelH,
       quantizeStep: 0.02,
-      hardMinScale: 0.62,
-      hardMaxScale: 1.08,
+      hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.min,
+      hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.max,
     })
   }, [viewportH, viewportW])
 
@@ -481,9 +482,10 @@ export default function FlowCanvasMediaOverlays(args: {
   if (!(active && mediaNodes.length > 0)) return null
   return (
     <section aria-label="Flow media overlay" className="absolute inset-0 z-[80] pointer-events-none">
-      {mediaNodes.map(node => {
+      {mediaNodes.map((node, index) => {
         const isSelected = selectedOverlayNodeIdSet.has(node.id) || Array.from(selectedOverlayNodeIdSet).some(id => isCanonicalNodeIdEqual(id, node.id))
         const resizeInteractionActive = flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested
+        const overlayZIndex = isSelected ? 2200 : 1400 - index
         const updateNode = (id: string, patch: { properties: Record<string, unknown> }) => {
           useGraphStore.getState().updateNode(id, patch as Partial<GraphNode>)
         }
@@ -591,7 +593,7 @@ export default function FlowCanvasMediaOverlays(args: {
             } : undefined}
             flowEditorInteractionMode={flowEditorOverlayInteractionMode}
             flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}
-            style={{ transform: 'translate(-99999px, -99999px)', width: 1, height: 1 }}
+            style={{ transform: 'translate(-99999px, -99999px)', width: 1, height: 1, zIndex: overlayZIndex }}
             onWheelCapture={stopEvent}
             onClickCapture={stopEvent}
             onDoubleClickCapture={stopEvent}

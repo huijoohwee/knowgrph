@@ -30,7 +30,7 @@ async function main(): Promise<void> {
   const inputArg = readArg('--input')
   const inputPath = inputArg
     ? path.resolve(process.cwd(), inputArg)
-    : path.resolve(process.cwd(), '../../sandbox/test-data/knowgrph-rich-media-generation-demo.md')
+    : path.resolve(process.cwd(), '../../sandbox/test-data/test-generate-video/knowgrph-rich-media-generation-demo.md')
   const text = await fs.readFile(inputPath, 'utf8')
   const name = path.basename(inputPath)
 

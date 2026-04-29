@@ -172,7 +172,6 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   const [columnOrderByTableId, setColumnOrderByTableId] = useState<GraphTableColumnOrderByTableId>(() =>
     lsJson(LS_KEYS.graphTableColumnOrderByTableId, {}, parseColumnOrderByTableId),
   )
-  const hasOpenedMultiDimModeRef = useRef<boolean>(false)
   const inspectorWidthPxRef = useRef(inspectorWidthPx)
   inspectorWidthPxRef.current = inspectorWidthPx
   const [inspectorDragHandleEl, setInspectorDragHandleEl] = useState<HTMLHRElement | null>(null)
@@ -222,19 +221,6 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     lsSetIntCoalesced(LS_KEYS.graphTablePreviewWidthPx, canvasPreviewWidthPx, { min: bounds.minPx, max: bounds.maxPx })
   }, [canvasPreviewWidthPx])
 
-  useEffect(() => {
-    const modeOpen = active && viewMode === 'multiDimTable'
-    if (!modeOpen) {
-      hasOpenedMultiDimModeRef.current = false
-      return
-    }
-    if (hasOpenedMultiDimModeRef.current) return
-    hasOpenedMultiDimModeRef.current = true
-    const bounds = resolveGraphTablePreviewBounds()
-    const next = resolveWorkspaceCanvasPreviewDefaultWidthPx({ minPx: bounds.minPx, maxPx: bounds.maxPx })
-    setCanvasPreviewWidthPx(next)
-    lsSetIntCoalesced(LS_KEYS.graphTablePreviewWidthPx, next, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
-  }, [active, viewMode])
   const rowCacheRef = useRef<
     Map<GraphTableId, { hashById: Map<string, number>; stampById: Map<string, string>; rowById: Map<string, GraphTableGridRow> }>
   >(new Map())

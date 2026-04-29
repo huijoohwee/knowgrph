@@ -1,6 +1,7 @@
 import React from 'react'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
+import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 import {
   extractYamlFrontmatterBlock,
   normalizeWebpageFrontmatterView,
@@ -109,6 +110,10 @@ export function useWorkspaceMutationActions(args: {
   const deleteEntry = React.useCallback(
     async (path: WorkspacePath) => {
       const normalized = normalizeWorkspacePath(path)
+      if (isInitializationWorkspacePath(normalized)) {
+        status.setStatusError('Delete disabled for initialization file')
+        return
+      }
       status.setStatusProgress('Deleting')
       try {
         const fs = await getFs()

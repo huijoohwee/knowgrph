@@ -96,7 +96,7 @@ export function testSourceFilesComposeDoesNotBlankPendingRemoteSeeds() {
 export function testCanvasWorkspaceFrontmatterPresetKeysAreDocumentedInSourceAndFixture() {
   const frontmatterPath = resolve(process.cwd(), 'src', 'lib', 'markdown', 'frontmatter.ts')
   const readmePath = resolve(process.cwd(), '..', 'README.md')
-  const demoPath = resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'knowgrph-rich-media-generation-demo.md')
+  const demoPath = resolve(process.cwd(), '..', '..', 'sandbox', 'test-data', 'test-generate-video', 'knowgrph-demo-video.md')
   const frontmatterText = readFileSync(frontmatterPath, 'utf8')
   const readmeText = readFileSync(readmePath, 'utf8')
   const demoText = readFileSync(demoPath, 'utf8')

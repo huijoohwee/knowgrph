@@ -7,14 +7,14 @@ export async function testWorkspaceLocalImportOverwritesPendingStubInsteadOfRena
   const fs = createMemoryWorkspaceFs()
   await fs.ensureSeed()
 
-  const path = normalizeWorkspacePath('/knowgrph-rich-media-generation-demo.md')
+  const path = normalizeWorkspacePath('/knowgrph-demo-video.md')
   await fs.createFile({
     parentPath: '/',
-    name: 'knowgrph-rich-media-generation-demo.md',
-    text: buildPendingLocalImportStub({ kind: 'text', originalName: 'knowgrph-rich-media-generation-demo.md', source: 'file' }),
+    name: 'knowgrph-demo-video.md',
+    text: buildPendingLocalImportStub({ kind: 'text', originalName: 'knowgrph-demo-video.md', source: 'file' }),
   })
 
-  const file = new File(['hello-world'], 'knowgrph-rich-media-generation-demo.md', { type: 'text/markdown' })
+  const file = new File(['hello-world'], 'knowgrph-demo-video.md', { type: 'text/markdown' })
   const res = await importWorkspaceLocalFiles({ fs, files: [file], parentPath: '/' })
 
   if (!res.createdPaths.includes(path)) {
@@ -28,4 +28,3 @@ export async function testWorkspaceLocalImportOverwritesPendingStubInsteadOfRena
     throw new Error('expected stub to be overwritten with imported file text')
   }
 }
-

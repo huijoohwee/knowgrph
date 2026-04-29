@@ -242,7 +242,7 @@ export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
 ])
 export const WORKSPACE_README_SEED_REL_PATH = 'README.md'
 export const WORKSPACE_README_SEED_PATH = '/README.md' as WorkspacePath
-export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = 'sandbox/test-data/knowgrph-rich-media-generation-demo.md'
+export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = 'sandbox/test-data/test-generate-video/knowgrph-demo-video.md'
 export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
@@ -252,7 +252,7 @@ export const CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE =
 const normalizedValidationSeedPath = normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
 export const TEST_VALIDATION_WORKSPACE_SEED_PATH =
   normalizedValidationSeedPath === WORKSPACE_ROOT_PATH
-    ? ('/sandbox/test-data/knowgrph-rich-media-generation-demo.md' as WorkspacePath)
+    ? ('/sandbox/test-data/test-generate-video/knowgrph-demo-video.md' as WorkspacePath)
     : normalizedValidationSeedPath
 const DEFAULT_WORKSPACE_SEED_FAMILY_PATHS = new Set<WorkspacePath>([
   LEGACY_WORKSPACE_README_PATH,
@@ -314,7 +314,7 @@ const loadValidationWorkspaceSeedText = async (): Promise<string> => {
     TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
     [
       '---',
-      `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-rich-media-generation-demo.md'}"`,
+      `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-demo-video.md'}"`,
       'kgCanvasRenderMode: "2d"',
       'kgCanvas2dRenderer: "flowEditor"',
       'kgDocumentSemanticMode: "document"',
@@ -325,6 +325,12 @@ const loadValidationWorkspaceSeedText = async (): Promise<string> => {
       `Validation seed fallback for \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`,
     ].join('\n'),
   )
+}
+
+export function isInitializationWorkspacePath(path: WorkspacePath | null | undefined): boolean {
+  const normalized = path ? normalizeWorkspacePath(path) : null
+  if (!normalized) return false
+  return normalized === WORKSPACE_README_SEED_PATH || normalized === TEST_VALIDATION_WORKSPACE_SEED_PATH
 }
 
 export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string, updatedAtMs = Date.now()): WorkspaceEntry[] {

@@ -96,9 +96,9 @@ export async function testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRem
         },
         {
           path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
-          parentPath: '/sandbox/test-data',
+          parentPath: '/sandbox/test-data/test-generate-video',
           kind: 'file',
-          name: 'knowgrph-rich-media-generation-demo.md',
+          name: 'knowgrph-demo-video.md',
           text: [
             '---',
             'kgCanvas2dRenderer: "flowEditor"',
@@ -255,7 +255,7 @@ export function testCanvasEnvBridgeFallsBackToProcessEnvOutsideBrowser() {
   try {
     const next = readEnvString(
       'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
-      'sandbox/test-data/knowgrph-rich-media-generation-demo.md',
+      'sandbox/test-data/test-generate-video/knowgrph-demo-video.md',
     )
     if (next !== 'huijoohwee.github.io/template/knowgrph-video-script-template.md') {
       throw new Error(`expected process env fallback to resolve custom validation target, got ${String(next)}`)

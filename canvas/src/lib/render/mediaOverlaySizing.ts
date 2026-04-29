@@ -1,6 +1,7 @@
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 import { computeMediaPanelCssVars3d, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 import { clampBalancedCollectiveScaleToViewport } from '@/lib/ui/overlayBalancedSpread'
+import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 
 export type MediaOverlaySizingConfig = {
   widthRatio: number
@@ -59,8 +60,8 @@ export function computeMediaOverlaySizing(args: {
     baseWidth: basePanel.panelW,
     baseHeight: basePanel.panelH,
     quantizeStep: Math.max(0.01, quantizeStepPx / Math.max(1, baseW)),
-    hardMinScale: 0.62,
-    hardMaxScale: 1.08,
+    hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.min,
+    hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.max,
   })
   const contentW = Math.max(2, Math.min(maxPanelPx, quantize(baseW * adaptiveScale, quantizeStepPx)))
   const sizeScale = Math.max(0.001, contentW / Math.max(1, baseW))

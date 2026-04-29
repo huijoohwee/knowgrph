@@ -74,7 +74,7 @@ export async function testWorkspaceSourceFilesSyncForceIncludeReenablesExistingD
     existing: [
       {
         id: 'ws-validation',
-        name: 'knowgrph-rich-media-generation-demo.md',
+        name: 'knowgrph-demo-video.md',
         text: '---\ntitle: Validation\n---\n',
         enabled: false,
         status: 'idle',
@@ -84,15 +84,15 @@ export async function testWorkspaceSourceFilesSyncForceIncludeReenablesExistingD
     workspaceEntries: [
       {
         kind: 'file',
-        path: '/sandbox/test-data/knowgrph-rich-media-generation-demo.md',
-        parentPath: '/sandbox/test-data',
-        name: 'knowgrph-rich-media-generation-demo.md',
+        path: '/sandbox/test-data/test-generate-video/knowgrph-demo-video.md',
+        parentPath: '/sandbox/test-data/test-generate-video',
+        name: 'knowgrph-demo-video.md',
         text: '---\ntitle: Validation\nkgCanvas2dRenderer: "flowEditor"\n---\n',
         updatedAtMs: 1,
       },
     ],
     sourcesByPath: {},
-    forceIncludePaths: ['/sandbox/test-data/knowgrph-rich-media-generation-demo.md'],
+    forceIncludePaths: ['/sandbox/test-data/test-generate-video/knowgrph-demo-video.md'],
   })
 
   const validation = next.find(f => f.source?.path === TEST_VALIDATION_SOURCE_PATH)
@@ -109,9 +109,9 @@ export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFil
       { kind: 'file', path: '/README.md', parentPath: '/', name: 'README.md', text: '# Readme', updatedAtMs: 1 },
       {
         kind: 'file',
-        path: '/sandbox/test-data/knowgrph-rich-media-generation-demo.md',
-        parentPath: '/sandbox/test-data',
-        name: 'knowgrph-rich-media-generation-demo.md',
+        path: '/sandbox/test-data/test-generate-video/knowgrph-demo-video.md',
+        parentPath: '/sandbox/test-data/test-generate-video',
+        name: 'knowgrph-demo-video.md',
         text: '# Demo',
         updatedAtMs: 1,
       },
@@ -162,7 +162,7 @@ export async function testWorkspaceSeedSourceFilesReconcilePreservesEnabledValid
     },
     {
       id: 'validation',
-      name: 'knowgrph-rich-media-generation-demo.md',
+      name: 'knowgrph-demo-video.md',
       text: '# Validation',
       enabled: true,
       status: 'parsed',

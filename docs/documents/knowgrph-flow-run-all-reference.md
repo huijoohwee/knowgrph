@@ -3,7 +3,7 @@
 App SSOT entrypoint: `canvas/src/lib/flowEditor/runAllSequenceSsot.ts`
 Generated file: `docs/documents/knowgrph-flow-run-all-reference.md`.
 
-Validation script target: `sandbox/test-data/knowgrph-rich-media-generation-demo.md`.
+Validation script target: `sandbox/test-data/test-generate-video/knowgrph-demo-video.md`.
 
 | Sequence | phase id | label |
 | --- | --- | --- |

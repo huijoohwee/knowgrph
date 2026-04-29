@@ -64,7 +64,7 @@ export const TEST_VALIDATION_SOURCE_FILE: SourceFile = buildSeedSourceFile({
   id: TEST_VALIDATION_SOURCE_ID,
   path: TEST_VALIDATION_SOURCE_PATH,
   enabled: CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
-  name: workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-rich-media-generation-demo.md',
+  name: workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-demo-video.md',
 })
 
 function mergeCanonicalSourceFile(base: SourceFile, existing: SourceFile | null): SourceFile {

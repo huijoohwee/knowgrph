@@ -12,7 +12,7 @@ Keep template structure, widget fields, panel writeback, and parser expectations
 | --- | --- | --- |
 | `huijoohwee.github.io/template/pitchdeck-prd-tad-template-lite.md` | Minimal reusable template | Keep it frontmatter-first, generic, and parser-safe. |
 | `huijoohwee.github.io/template/pitchdeck-prd-tad-template.md` | Full reusable template | Keep it frontmatter-first, generic, and parser-safe. |
-| `sandbox/test-data/knowgrph-rich-media-generation-demo.md` | Validation fixture | Use it to validate shape and behavior, not as a source of hardcoded content. |
+| `sandbox/test-data/test-generate-video/knowgrph-demo-video.md` | Validation fixture | Use it to validate shape and behavior, not as a source of hardcoded content. |
 | `canvas/src/features/flow-editor-manager/registryTemplates.ts` | Widget registry SSOT | Reuse canonical widget fields, ports, and `flow:widgetFormId` values. |
 | `canvas/src/features/integrations/*Ssot*.ts` | Integration field SSOT | Reuse canonical integration field keys and row semantics. |
 | `canvas/src/lib/render/richMediaSsot.ts` | Panel behavior SSOT | Reuse canonical Rich Media Panel writeback and tab behavior. |
