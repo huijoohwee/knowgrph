@@ -42,6 +42,8 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["ui.rendererIsolation.openWidgets.preserveAppendOrder","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationPreservesOpenWidgetAppendOrder"],
   ["ui.rendererIsolation.graphDataSideEffects.doNotOverrideFlowEditor","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationGraphDataSideEffectsDoNotOverrideFlowEditorRenderer"],
   ["ui.rendererIsolation.edgeType.preserveGlobalAcrossRendererSwitches","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationPreservesGlobalEdgeTypeAcrossRendererSwitches"],
+  ["ui.rendererIsolation.designFrameLayout.persistsAcrossSameSourceHashChanges","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationPreservesDesignFrameLayoutAcrossSameSourceHashChanges"],
+  ["ui.rendererIsolation.designFrameLayout.scopedByGraphMetaKey","@/__tests__/rendererUiStateIsolation.test","testRendererUiStateIsolationScopesDesignFrameLayoutByGraphMetaKey"],
   ["ui.rendererIsolation.documentModes.useResolvedActiveViewMode","@/__tests__/rendererDocumentModeIsolationRegression.test","testRendererDocumentModeIsolationUsesResolvedActiveMode"],
   ["ui.rendererIsolation.d3Frontmatter.groupsDoNotForceDocumentStructure","@/__tests__/d3FrontmatterModeIsolationRegression.test","testD3FrontmatterModeDoesNotForceDocumentStructureGroups"],
   ["ui.rendererIsolation.modeCaches.useSemanticKeySsot","@/__tests__/documentSemanticModeKeySsotRegression.test","testRendererModeCachesUseDocumentSemanticModeKeySsot"],

@@ -22,6 +22,8 @@ import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
 
+const FLOATING_PANEL_PROXY_EXCLUDE_SELECTOR = '[data-kg-floating-panel-root="true"]'
+
 export function bindFlowNativeInteractionListeners(args: {
   ctx: FlowNativeInteractionsContext
   handlers: {
@@ -99,6 +101,7 @@ export function bindFlowNativeInteractionListeners(args: {
 
     const targetEl = e.target instanceof Element ? e.target : null
     if (!targetEl) return
+    if (targetEl.closest(FLOATING_PANEL_PROXY_EXCLUDE_SELECTOR)) return
     if (canvasEl.contains(targetEl)) return
     if (!spacePanProxyTargetSelector || !targetEl.closest(spacePanProxyTargetSelector)) return
 

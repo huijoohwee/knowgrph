@@ -272,6 +272,21 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       'ui.graphDataTable.overlay.pointerContract.noFullscreenScrim',
       modWorkspaceOverlayContract.testGraphDataTableOverlayDoesNotUseFullscreenScrim,
     )
+    await execTest(
+      results,
+      'ui.workspaceEditor.overlay.designCanvas.noLayoutMutation',
+      modWorkspaceOverlayContract.testWorkspaceEditorOverlayDoesNotMutateDesignCanvasLayout,
+    )
+    await execTest(
+      results,
+      'ui.workspaceEditor.overlay.canvasViewport.noShrink',
+      modWorkspaceOverlayContract.testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport,
+    )
+    await execTest(
+      results,
+      'ui.workspaceEditor.overlay.resizeHandle.dragDirection',
+      modWorkspaceOverlayContract.testWorkspaceEditorOverlayResizeHandleDragDirection,
+    )
 
     const modMarkdownWorkspaceGraphDataChurn = await import('../__tests__/markdownWorkspaceAvoidsGraphDataChurnRegression.test')
     await execTest(

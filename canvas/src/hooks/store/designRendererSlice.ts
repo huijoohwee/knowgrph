@@ -151,20 +151,27 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
     },
 
     designFramePosById: {} as Record<string, DesignFramePos>,
+    designFramePosByIdByGraphMetaKey: {} as Record<string, Record<string, DesignFramePos>>,
     setDesignFramePos: (id: string, pos: DesignFramePos) => {
       const key = normId(id)
       if (!key) return
       const nextPos = { x: clampFinite(pos.x, 0), y: clampFinite(pos.y, 0) }
-      const prev = get().designFramePosById || {}
+      const state = get()
+      const prev = state.designFramePosById || {}
       const prevPos = prev[key]
       if (designFramePosEq(prevPos, nextPos)) return
-      set({ designFramePosById: { ...prev, [key]: nextPos } })
+      const next = { ...prev, [key]: nextPos }
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designFramePosByIdByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+      set({ designFramePosById: next, designFramePosByIdByGraphMetaKey: nextBy })
     },
     setDesignFramePosMany: (patch: Record<string, DesignFramePos>) => {
       const src = patch || {}
       const keys = Object.keys(src)
       if (keys.length === 0) return
-      const prev = get().designFramePosById || {}
+      const state = get()
+      const prev = state.designFramePosById || {}
       let next: Record<string, DesignFramePos> | null = null
       for (let i = 0; i < keys.length; i += 1) {
         const key = normId(keys[i])
@@ -177,38 +184,56 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
         next[key] = nextPos
       }
       if (!next) return
-      set({ designFramePosById: next })
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designFramePosByIdByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+      set({ designFramePosById: next, designFramePosByIdByGraphMetaKey: nextBy })
     },
     clearDesignFramePos: (id: string) => {
       const key = normId(id)
       if (!key) return
-      const prev = get().designFramePosById || {}
+      const state = get()
+      const prev = state.designFramePosById || {}
       if (!Object.prototype.hasOwnProperty.call(prev, key)) return
       const next = { ...prev }
       delete next[key]
-      set({ designFramePosById: next })
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designFramePosByIdByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+      set({ designFramePosById: next, designFramePosByIdByGraphMetaKey: nextBy })
     },
     clearAllDesignFramePos: () => {
-      const prev = get().designFramePosById || {}
+      const state = get()
+      const prev = state.designFramePosById || {}
       if (Object.keys(prev).length === 0) return
-      set({ designFramePosById: {} })
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designFramePosByIdByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: {} } : by
+      set({ designFramePosById: {}, designFramePosByIdByGraphMetaKey: nextBy })
     },
 
     designFrameSizeById: {} as Record<string, DesignFrameSize>,
+    designFrameSizeByIdByGraphMetaKey: {} as Record<string, Record<string, DesignFrameSize>>,
     setDesignFrameSize: (id: string, size: DesignFrameSize) => {
       const key = normId(id)
       if (!key) return
       const nextSize = { w: clampSize(size.w, 1), h: clampSize(size.h, 1) }
-      const prev = get().designFrameSizeById || {}
+      const state = get()
+      const prev = state.designFrameSizeById || {}
       const prevSize = prev[key]
       if (designFrameSizeEq(prevSize, nextSize)) return
-      set({ designFrameSizeById: { ...prev, [key]: nextSize } })
+      const next = { ...prev, [key]: nextSize }
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designFrameSizeByIdByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+      set({ designFrameSizeById: next, designFrameSizeByIdByGraphMetaKey: nextBy })
     },
     setDesignFrameSizeMany: (patch: Record<string, DesignFrameSize>) => {
       const src = patch || {}
       const keys = Object.keys(src)
       if (keys.length === 0) return
-      const prev = get().designFrameSizeById || {}
+      const state = get()
+      const prev = state.designFrameSizeById || {}
       let next: Record<string, DesignFrameSize> | null = null
       for (let i = 0; i < keys.length; i += 1) {
         const key = normId(keys[i])
@@ -221,21 +246,32 @@ export const createDesignRendererSlice = (set: SetGraph, get: GetGraph) => {
         next[key] = nextSize
       }
       if (!next) return
-      set({ designFrameSizeById: next })
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designFrameSizeByIdByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+      set({ designFrameSizeById: next, designFrameSizeByIdByGraphMetaKey: nextBy })
     },
     clearDesignFrameSize: (id: string) => {
       const key = normId(id)
       if (!key) return
-      const prev = get().designFrameSizeById || {}
+      const state = get()
+      const prev = state.designFrameSizeById || {}
       if (!Object.prototype.hasOwnProperty.call(prev, key)) return
       const next = { ...prev }
       delete next[key]
-      set({ designFrameSizeById: next })
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designFrameSizeByIdByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: next } : by
+      set({ designFrameSizeById: next, designFrameSizeByIdByGraphMetaKey: nextBy })
     },
     clearAllDesignFrameSize: () => {
-      const prev = get().designFrameSizeById || {}
+      const state = get()
+      const prev = state.designFrameSizeById || {}
       if (Object.keys(prev).length === 0) return
-      set({ designFrameSizeById: {} })
+      const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+      const by = state.designFrameSizeByIdByGraphMetaKey || {}
+      const nextBy = graphKey ? { ...by, [graphKey]: {} } : by
+      set({ designFrameSizeById: {}, designFrameSizeByIdByGraphMetaKey: nextBy })
     },
   }
 }

@@ -4,14 +4,30 @@ import { lsInt, lsSetIntCoalesced } from '@/lib/persistence'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 
+const MIN_WORKSPACE_PREVIEW_WIDTH_PX = 320
+const MAX_WORKSPACE_PREVIEW_WIDTH_PX = 960
+
+function clampWorkspacePreviewWidthPx(widthPx: number): number {
+  return Math.max(MIN_WORKSPACE_PREVIEW_WIDTH_PX, Math.min(MAX_WORKSPACE_PREVIEW_WIDTH_PX, widthPx))
+}
+
+export function resolveWorkspacePreviewWidthFromPointerDrag(args: {
+  startWidthPx: number
+  startClientX: number
+  currentClientX: number
+}): number {
+  const dx = args.currentClientX - args.startClientX
+  return clampWorkspacePreviewWidthPx(Math.round(args.startWidthPx + dx))
+}
+
 export function useCanvasWorkspacePaneRuntime(): {
   workspacePreviewWidthPx: number
   setResizeHandleEl: React.Dispatch<React.SetStateAction<HTMLHRElement | null>>
 } {
   const [workspacePreviewWidthPx, setWorkspacePreviewWidthPx] = React.useState(() => {
     const raw = lsInt(LS_KEYS.workspacePreviewWidthPx, 520)
-    const next = Math.max(320, Math.min(960, raw))
-    if (next !== raw) lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960, delayMs: 0 })
+    const next = clampWorkspacePreviewWidthPx(raw)
+    if (next !== raw) lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX, delayMs: 0 })
     return next
   })
   const workspacePreviewWidthPxRef = React.useRef(workspacePreviewWidthPx)
@@ -27,15 +43,15 @@ export function useCanvasWorkspacePaneRuntime(): {
   }, [])
 
   React.useEffect(() => {
-    if (!Number.isFinite(workspacePreviewWidthPx) || workspacePreviewWidthPx < 320 || workspacePreviewWidthPx > 960) {
-      const next = Math.max(320, Math.min(960, Number.isFinite(workspacePreviewWidthPx) ? workspacePreviewWidthPx : 520))
+    if (!Number.isFinite(workspacePreviewWidthPx) || workspacePreviewWidthPx < MIN_WORKSPACE_PREVIEW_WIDTH_PX || workspacePreviewWidthPx > MAX_WORKSPACE_PREVIEW_WIDTH_PX) {
+      const next = clampWorkspacePreviewWidthPx(Number.isFinite(workspacePreviewWidthPx) ? workspacePreviewWidthPx : 520)
       setWorkspacePreviewWidthPx(next)
-      lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960, delayMs: 0 })
+      lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX, delayMs: 0 })
     }
   }, [workspacePreviewWidthPx])
 
   React.useEffect(() => {
-    lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, workspacePreviewWidthPx, { min: 320, max: 960 })
+    lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, workspacePreviewWidthPx, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX })
   }, [workspacePreviewWidthPx])
 
   React.useEffect(() => {
@@ -54,20 +70,23 @@ export function useCanvasWorkspacePaneRuntime(): {
           return true
         },
         onMove: mv => {
-          const dx = startX - mv.clientX
-          const next = Math.max(320, Math.min(960, Math.round(startWidth + dx)))
+          const next = resolveWorkspacePreviewWidthFromPointerDrag({
+            startWidthPx: startWidth,
+            startClientX: startX,
+            currentClientX: mv.clientX,
+          })
           pending = next
           rafSetPreviewWidthRef.current.schedule(next)
         },
         onEnd: () => {
           rafSetPreviewWidthRef.current.flush()
           setWorkspacePreviewWidthPx(pending)
-          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960, delayMs: 0 })
+          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX, delayMs: 0 })
         },
         onCancel: () => {
           rafSetPreviewWidthRef.current.flush()
           setWorkspacePreviewWidthPx(pending)
-          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: 320, max: 960, delayMs: 0 })
+          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX, delayMs: 0 })
         },
       })
     }

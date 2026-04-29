@@ -15,6 +15,8 @@ interface IconButtonProps extends BaseButtonProps {
   showTooltip?: boolean;
   hoverRingClass?: string;
   tooltipContent?: string;
+  ariaLabel?: string;
+  suppressTitleAttribute?: boolean;
 }
 
 const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
@@ -30,6 +32,8 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       showTooltip = false,
       hoverRingClass,
       tooltipContent,
+      ariaLabel,
+      suppressTitleAttribute = false,
       ...buttonProps
     },
     ref,
@@ -102,8 +106,8 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
             : enabledClasses,
           className,
         )}
-        title={showTooltip ? undefined : title}
-        aria-label={title}
+        title={showTooltip || suppressTitleAttribute ? undefined : title}
+        aria-label={ariaLabel ?? title}
       >
         {inner}
       </button>

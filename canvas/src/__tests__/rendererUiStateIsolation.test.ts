@@ -128,3 +128,67 @@ export function testRendererUiStateIsolationPreservesGlobalEdgeTypeAcrossRendere
     throw new Error('expected renderer switches to preserve the shared global edge type instead of mutating schema state')
   }
 }
+
+export function testRendererUiStateIsolationPreservesDesignFrameLayoutAcrossSameSourceHashChanges() {
+  const store = useGraphStore.getState()
+  store.setDocumentStructureBaselineLock(false)
+  store.setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'node-a', type: 'Node', label: 'A', x: 10, y: 20, properties: {} }],
+    edges: [],
+    metadata: { source: 'workspace:/typed.md', kind: 'frontmatter-flow', sourceLayerHash: 'h1' },
+  } as never)
+  store.setDesignFramePosMany({ 'node-a': { x: 120, y: 220 } })
+  store.setDesignFrameSizeMany({ 'node-a': { w: 320, h: 240 } })
+
+  store.setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'node-a', type: 'Node', label: 'A', x: 10, y: 20, properties: { prompt: 'changed' } }],
+    edges: [],
+    metadata: { source: 'workspace:/typed.md', kind: 'frontmatter-flow', sourceLayerHash: 'h2' },
+  } as never)
+
+  const after = useGraphStore.getState()
+  if (after.designFramePosById['node-a']?.x !== 120 || after.designFramePosById['node-a']?.y !== 220) {
+    throw new Error('expected design frame position to persist across same-source recomposition hash changes')
+  }
+  if (after.designFrameSizeById['node-a']?.w !== 320 || after.designFrameSizeById['node-a']?.h !== 240) {
+    throw new Error('expected design frame size to persist across same-source recomposition hash changes')
+  }
+}
+
+export function testRendererUiStateIsolationScopesDesignFrameLayoutByGraphMetaKey() {
+  const store = useGraphStore.getState()
+  store.setDocumentStructureBaselineLock(false)
+  store.setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'node-a', type: 'Node', label: 'A', x: 0, y: 0, properties: {} }],
+    edges: [],
+    metadata: { source: 'workspace:/doc-a.md', kind: 'frontmatter-flow', sourceLayerHash: 'doc-a' },
+  } as never)
+  store.setDesignFramePosMany({ 'node-a': { x: 50, y: 60 } })
+
+  store.setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'node-a', type: 'Node', label: 'A', x: 0, y: 0, properties: {} }],
+    edges: [],
+    metadata: { source: 'workspace:/doc-b.md', kind: 'frontmatter-flow', sourceLayerHash: 'doc-b' },
+  } as never)
+  store.setDesignFramePosMany({ 'node-a': { x: 500, y: 600 } })
+
+  store.setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'node-a', type: 'Node', label: 'A', x: 0, y: 0, properties: {} }],
+    edges: [],
+    metadata: { source: 'workspace:/doc-a.md', kind: 'frontmatter-flow', sourceLayerHash: 'doc-a' },
+  } as never)
+  const afterA = useGraphStore.getState()
+  if (afterA.designFramePosById['node-a']?.x !== 50 || afterA.designFramePosById['node-a']?.y !== 60) {
+    throw new Error('expected design frame layout for doc-a to remain isolated from other graph-meta keys')
+  }
+}

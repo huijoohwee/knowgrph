@@ -78,6 +78,7 @@ export default function CanvasPage() {
   }, [effectiveWorkspaceViewMode])
 
   const { workspacePreviewWidthPx, setResizeHandleEl } = useCanvasWorkspacePaneRuntime()
+  const workspaceEditorOverlayOpen = effectiveWorkspaceViewMode === 'editor' && workspaceCanvasPaneOpen
 
   const { canvasRenderMode, canvas3dMode, canvas2dRenderer } = useGraphStore(
     useShallow(s => ({
@@ -174,31 +175,8 @@ export default function CanvasPage() {
 
             <main className="flex-1 flex overflow-hidden" aria-label="Canvas Workspace">
               <section className="flex-1 flex flex-col overflow-hidden" aria-label="Workspace stage">
-                <section className="flex-1 min-h-0 overflow-hidden flex" aria-label="Workspace split">
-                  <section
-                    className={`relative z-[300] flex-1 min-w-0 min-h-0 overflow-hidden ${effectiveWorkspaceViewMode === 'editor' ? 'flex flex-col' : 'hidden'}`}
-                    aria-label="Workspace left pane"
-                  >
-                    {editorShellWarmed ? (
-                      <React.Suspense fallback={null}>
-                        <EmbeddedEditorShellLazy active={effectiveWorkspaceViewMode === 'editor'} />
-                      </React.Suspense>
-                    ) : null}
-                  </section>
-
-                  {effectiveWorkspaceViewMode === 'editor' ? (
-                    <VerticalResizeSeparatorHr
-                      ref={setResizeHandleEl}
-                      ariaLabel="Resize canvas"
-                      className={workspaceCanvasPaneOpen ? '' : 'hidden'}
-                    />
-                  ) : null}
-
-                  <section
-                    className={`min-h-0 overflow-hidden relative bg-[var(--kg-canvas-bg)] ${effectiveWorkspaceViewMode === 'editor' ? (workspaceCanvasPaneOpen ? 'shrink-0' : 'hidden') : 'flex-1'}`}
-                    style={effectiveWorkspaceViewMode === 'editor' ? (workspaceCanvasPaneOpen ? { width: `${workspacePreviewWidthPx}px` } : undefined) : undefined}
-                    aria-label="Canvas pane"
-                  >
+                <section className="relative flex-1 min-h-0 overflow-hidden" aria-label="Workspace overlay stage">
+                  <section className="absolute inset-0 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]" aria-label="Canvas pane">
                     {effectiveWorkspaceViewMode !== 'editor' ? (
                       <nav
                         className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+0.5rem)] pb-2 bg-transparent pointer-events-none"
@@ -214,7 +192,7 @@ export default function CanvasPage() {
                     ) : null}
                     <CanvasViewport
                       variant="workspace"
-                      layout={effectiveWorkspaceViewMode === 'editor' ? 'pane' : 'full'}
+                      layout="full"
                       geospatialModeEnabled={geospatialModeEnabled}
                       canvasRenderMode={canvasRenderMode}
                       canvas3dMode={canvas3dMode}
@@ -222,6 +200,30 @@ export default function CanvasPage() {
                       mounted2dRenderers={mounted2dRenderers}
                     />
                   </section>
+
+                  {effectiveWorkspaceViewMode === 'editor' ? (
+                    <section className="absolute inset-0 z-[300] pointer-events-none" aria-label="Workspace editor overlay shell">
+                      <section
+                        className={`absolute inset-y-0 left-0 pointer-events-auto overflow-hidden border-r border-[var(--kg-border)] bg-[var(--kg-panel-bg)] shadow-2xl ${workspaceEditorOverlayOpen ? '' : 'hidden'}`}
+                        style={{ width: `min(${workspacePreviewWidthPx}px, calc(100% - 3rem))` }}
+                        aria-label="Workspace left pane"
+                      >
+                        {editorShellWarmed ? (
+                          <React.Suspense fallback={null}>
+                            <EmbeddedEditorShellLazy active={workspaceEditorOverlayOpen} />
+                          </React.Suspense>
+                        ) : null}
+                      </section>
+
+                      <VerticalResizeSeparatorHr
+                        ref={setResizeHandleEl}
+                        ariaLabel="Resize canvas"
+                        visualStyle="centerGrip"
+                        className={`absolute inset-y-0 left-0 z-[301] h-full -translate-x-1/2 pointer-events-auto ${workspaceEditorOverlayOpen ? '' : 'hidden'}`}
+                        style={{ left: `min(${workspacePreviewWidthPx}px, calc(100% - 3rem))` }}
+                      />
+                    </section>
+                  ) : null}
                 </section>
               </section>
             </main>

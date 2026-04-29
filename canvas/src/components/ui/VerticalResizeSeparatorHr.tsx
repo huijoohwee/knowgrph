@@ -6,10 +6,25 @@ export type VerticalResizeSeparatorHrProps = Omit<
   'role' | 'aria-orientation' | 'aria-label'
 > & {
   ariaLabel: string
+  visualStyle?: 'line' | 'centerGrip'
 }
 
 export const VerticalResizeSeparatorHr = React.forwardRef<HTMLHRElement, VerticalResizeSeparatorHrProps>(
-  ({ ariaLabel, className, ...rest }, ref) => {
+  ({ ariaLabel, className, style, visualStyle = 'line', ...rest }, ref) => {
+    const visualClassName =
+      visualStyle === 'centerGrip'
+        ? 'bg-transparent hover:bg-transparent'
+        : 'bg-[color:var(--kg-border)] hover:bg-[color:var(--kg-divider)]'
+    const visualStyleOverrides: React.CSSProperties | undefined =
+      visualStyle === 'centerGrip'
+        ? {
+            backgroundColor: 'transparent',
+            backgroundImage: 'linear-gradient(var(--kg-border), var(--kg-border))',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: '1px 3.5rem',
+          }
+        : undefined
     return (
       <hr
         ref={ref}
@@ -17,9 +32,11 @@ export const VerticalResizeSeparatorHr = React.forwardRef<HTMLHRElement, Vertica
         aria-orientation="vertical"
         aria-label={ariaLabel}
         className={cn(
-          'w-1 h-full border-0 cursor-col-resize select-none touch-none bg-[color:var(--kg-border)] hover:bg-[color:var(--kg-divider)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
+          'w-1 h-full border-0 cursor-col-resize select-none touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
+          visualClassName,
           className,
         )}
+        style={visualStyleOverrides ? { ...visualStyleOverrides, ...style } : style}
         {...rest}
       />
     )
@@ -27,4 +44,3 @@ export const VerticalResizeSeparatorHr = React.forwardRef<HTMLHRElement, Vertica
 )
 
 VerticalResizeSeparatorHr.displayName = 'VerticalResizeSeparatorHr'
-

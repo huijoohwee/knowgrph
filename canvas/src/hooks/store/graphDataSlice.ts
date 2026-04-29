@@ -935,6 +935,18 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         collapsedKey && carryForwardSameSourceUiState && designKeyMissing
           ? cloneDesignLayerState(s.designLayerState)
           : collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
+      const designFramePosByKey = (s.designFramePosByIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
+      const designFrameSizeByKey = (s.designFrameSizeByIdByGraphMetaKey || {}) as Record<string, Record<string, { w: number; h: number }>>
+      const designFramePosKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designFramePosByKey, collapsedKey) : false
+      const designFrameSizeKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designFrameSizeByKey, collapsedKey) : false
+      const nextDesignFramePos =
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFramePosKeyMissing
+          ? { ...(s.designFramePosById || {}) }
+          : collapsedKey ? (designFramePosByKey[collapsedKey] || {}) : s.designFramePosById
+      const nextDesignFrameSize =
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFrameSizeKeyMissing
+          ? { ...(s.designFrameSizeById || {}) }
+          : collapsedKey ? (designFrameSizeByKey[collapsedKey] || {}) : s.designFrameSizeById
       const pinnedByKey = (s.flowWidgetPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
       const posByKey = (s.flowWidgetPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
       const worldByKey = (s.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
@@ -961,6 +973,14 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         collapsedKey && carryForwardSameSourceUiState && designKeyMissing
           ? { ...designByKey, [collapsedKey]: cloneDesignLayerState(nextDesignLayerState) }
           : designByKey
+      const nextDesignFramePosByKey =
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFramePosKeyMissing
+          ? { ...designFramePosByKey, [collapsedKey]: nextDesignFramePos }
+          : designFramePosByKey
+      const nextDesignFrameSizeByKey =
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFrameSizeKeyMissing
+          ? { ...designFrameSizeByKey, [collapsedKey]: nextDesignFrameSize }
+          : designFrameSizeByKey
       const nextPinnedByKey =
         collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
           ? { ...pinnedByKey, [collapsedKey]: nextPinned }
@@ -984,6 +1004,10 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         ...(collapsedKey ? { collapsedGroupIdsByGraphMetaKey: nextCollapsedByKey } : {}),
         ...(collapsedKey ? { designLayerState: nextDesignLayerState } : {}),
         ...(collapsedKey ? { designLayerStateByGraphMetaKey: nextDesignByKey } : {}),
+        ...(collapsedKey ? { designFramePosById: nextDesignFramePos } : {}),
+        ...(collapsedKey ? { designFramePosByIdByGraphMetaKey: nextDesignFramePosByKey } : {}),
+        ...(collapsedKey ? { designFrameSizeById: nextDesignFrameSize } : {}),
+        ...(collapsedKey ? { designFrameSizeByIdByGraphMetaKey: nextDesignFrameSizeByKey } : {}),
         ...(collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
         ...(collapsedKey ? { flowWidgetPinnedByNodeIdByGraphMetaKey: nextPinnedByKey } : {}),
         ...(collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),
@@ -1125,6 +1149,18 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         collapsedKey && carryForwardSameSourceUiState && designKeyMissing
           ? cloneDesignLayerState(s.designLayerState)
           : collapsedKey ? (designByKey[collapsedKey] || { order: [], hiddenById: {} }) : s.designLayerState
+      const designFramePosByKey = (s.designFramePosByIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
+      const designFrameSizeByKey = (s.designFrameSizeByIdByGraphMetaKey || {}) as Record<string, Record<string, { w: number; h: number }>>
+      const designFramePosKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designFramePosByKey, collapsedKey) : false
+      const designFrameSizeKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(designFrameSizeByKey, collapsedKey) : false
+      const nextDesignFramePos =
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFramePosKeyMissing
+          ? { ...(s.designFramePosById || {}) }
+          : collapsedKey ? (designFramePosByKey[collapsedKey] || {}) : s.designFramePosById
+      const nextDesignFrameSize =
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFrameSizeKeyMissing
+          ? { ...(s.designFrameSizeById || {}) }
+          : collapsedKey ? (designFrameSizeByKey[collapsedKey] || {}) : s.designFrameSizeById
       const pinnedByKey = (s.flowWidgetPinnedByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, boolean>>
       const posByKey = (s.flowWidgetPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { top: number; left: number }>>
       const worldByKey = (s.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}) as Record<string, Record<string, { x: number; y: number }>>
@@ -1151,6 +1187,14 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         collapsedKey && carryForwardSameSourceUiState && designKeyMissing
           ? { ...designByKey, [collapsedKey]: cloneDesignLayerState(nextDesignLayerState) }
           : designByKey
+      const nextDesignFramePosByKey =
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFramePosKeyMissing
+          ? { ...designFramePosByKey, [collapsedKey]: nextDesignFramePos }
+          : designFramePosByKey
+      const nextDesignFrameSizeByKey =
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && designFrameSizeKeyMissing
+          ? { ...designFrameSizeByKey, [collapsedKey]: nextDesignFrameSize }
+          : designFrameSizeByKey
       const nextPinnedByKey =
         collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
           ? { ...pinnedByKey, [collapsedKey]: nextPinned }
@@ -1172,6 +1216,10 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
         ...(collapsedKey ? { collapsedGroupIdsByGraphMetaKey: nextCollapsedByKey } : {}),
         ...(collapsedKey ? { designLayerState: nextDesignLayerState } : {}),
         ...(collapsedKey ? { designLayerStateByGraphMetaKey: nextDesignByKey } : {}),
+        ...(collapsedKey ? { designFramePosById: nextDesignFramePos } : {}),
+        ...(collapsedKey ? { designFramePosByIdByGraphMetaKey: nextDesignFramePosByKey } : {}),
+        ...(collapsedKey ? { designFrameSizeById: nextDesignFrameSize } : {}),
+        ...(collapsedKey ? { designFrameSizeByIdByGraphMetaKey: nextDesignFrameSizeByKey } : {}),
         ...(collapsedKey ? { flowWidgetPinnedByNodeId: nextPinned } : {}),
         ...(collapsedKey ? { flowWidgetPinnedByNodeIdByGraphMetaKey: nextPinnedByKey } : {}),
         ...(collapsedKey ? { flowWidgetPosByNodeId: nextPos } : {}),

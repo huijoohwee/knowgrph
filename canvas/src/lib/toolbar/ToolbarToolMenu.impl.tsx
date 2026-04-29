@@ -388,7 +388,7 @@ export function ToolbarToolMenu({
 
   const handleFloatingPanelPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
-      if (floatingPanelPinned) return
+      event.stopPropagation()
       const target = event.target
       if (!(target instanceof Element)) return
       if (
@@ -397,6 +397,12 @@ export function ToolbarToolMenu({
         )
       ) {
         return
+      }
+      if (floatingPanelPinned) return
+      try {
+        event.preventDefault()
+      } catch {
+        void 0
       }
       onHeaderPointerDown(event)
     },
@@ -462,15 +468,11 @@ export function ToolbarToolMenu({
         id: 'domTree',
         title: domLayoutReady ? 'DOM Tree' : domPanelsAvailable ? 'DOM Tree (loading)' : 'DOM Tree',
         icon: ListTree,
-        disabled: !domPanelsAvailable,
-        hidden: geospatialModeEnabled,
       },
       {
         id: 'domInspect',
         title: domLayoutReady ? 'Inspect (DOM)' : domPanelsAvailable ? 'Inspect (DOM) (loading)' : 'Inspect (DOM)',
         icon: FileCode,
-        disabled: !domPanelsAvailable,
-        hidden: geospatialModeEnabled,
       },
       {
         id: 'graphTraversal',
@@ -478,7 +480,7 @@ export function ToolbarToolMenu({
         icon: GitBranch,
       },
     ],
-    [domLayoutReady, domPanelsAvailable, geospatialModeEnabled],
+    [domLayoutReady, domPanelsAvailable],
   )
   const visibleOverflowOptions = React.useMemo(
     () => floatingPanelOverflowOptions.filter(option => !option.hidden),
@@ -519,7 +521,7 @@ export function ToolbarToolMenu({
           value={overflowValue}
           options={visibleOverflowOptions}
           title="More floating views"
-          tooltipContent="More floating views"
+          showTooltip={false}
           isButtonActive={isOverflowViewActive}
           onSelect={id => handleSelectView(id as FloatingPanelView)}
           renderButtonContent={() => <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />}
@@ -590,9 +592,9 @@ export function ToolbarToolMenu({
           ref={toolMenuCardRef}
           className={`pointer-events-auto ModalContainer App-toolbar App-toolbar--compact select-none min-w-0 w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] p-0 ${!floatingPanelPinned ? 'cursor-move' : ''}`}
           style={toolMenuCardStyle}
-          onPointerDown={handleFloatingPanelPointerDown}
+          data-kg-floating-panel-root="true"
         >
-          <header className="flex w-full flex-wrap items-start justify-between gap-1 sm:items-center sm:gap-2">
+          <header className="flex w-full flex-wrap items-start justify-between gap-1 sm:items-center sm:gap-2" onPointerDown={handleFloatingPanelPointerDown}>
             <nav className={`flex min-w-0 flex-1 flex-wrap items-center gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
               <FloatingPanelHeaderStatus
@@ -625,10 +627,10 @@ export function ToolbarToolMenu({
         ref={toolMenuCardRef}
         className={`pointer-events-auto ModalContainer flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
         style={{ ...toolMenuCardStyle, ...floatingPanelSizeStyle }}
-        onPointerDown={handleFloatingPanelPointerDown}
+        data-kg-floating-panel-root="true"
       >
         <section className="px-2 py-1 flex h-full min-h-[36px] min-w-0 flex-col gap-1" aria-label="Floating panel">
-          <header className={`flex w-full flex-wrap items-start justify-between gap-1 select-none sm:items-center sm:gap-2 ${!floatingPanelPinned ? 'cursor-move' : ''}`}>
+          <header className={`flex w-full flex-wrap items-start justify-between gap-1 select-none sm:items-center sm:gap-2 ${!floatingPanelPinned ? 'cursor-move' : ''}`} onPointerDown={handleFloatingPanelPointerDown}>
             <nav className={`flex min-w-0 flex-1 flex-wrap items-center gap-1 ${uiPanelTextFontClass}`} aria-label="Floating panel views">
               {viewButtons}
               <FloatingPanelHeaderStatus

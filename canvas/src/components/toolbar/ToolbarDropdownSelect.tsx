@@ -20,6 +20,7 @@ type ToolbarDropdownSelectProps<T extends ToolbarDropdownOptionBase> = {
   options: readonly T[]
   title: string
   tooltipContent?: string
+  showTooltip?: boolean
   disabled?: boolean
   isButtonActive?: boolean
   menuWidthClass?: string
@@ -34,6 +35,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   options,
   title,
   tooltipContent,
+  showTooltip = true,
   disabled,
   isButtonActive,
   menuWidthClass = 'w-72',
@@ -65,6 +67,8 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
         ref={buttonRef}
         className={`App-toolbar__btn ${open || isButtonActive ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName}`}
         title={title}
+        ariaLabel={title}
+        suppressTitleAttribute={!showTooltip}
         tooltipContent={tooltipContent}
         disabled={disabled}
         onClick={() => {
@@ -92,7 +96,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
           }
           setOpen(next)
         }}
-        showTooltip
+        showTooltip={showTooltip}
       >
         {renderButtonContent(activeOption)}
       </IconButton>

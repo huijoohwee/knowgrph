@@ -384,12 +384,14 @@ export interface GraphState {
   setDesignRendererWebpageGraph: (args: { key: string | null; nodesById: Record<string, GraphNode> }) => void
 
   designFramePosById: Record<string, DesignFramePos>
+  designFramePosByIdByGraphMetaKey: Record<string, Record<string, DesignFramePos>>
   setDesignFramePos: (id: string, pos: DesignFramePos) => void
   setDesignFramePosMany: (patch: Record<string, DesignFramePos>) => void
   clearDesignFramePos: (id: string) => void
   clearAllDesignFramePos: () => void
 
   designFrameSizeById: Record<string, DesignFrameSize>
+  designFrameSizeByIdByGraphMetaKey: Record<string, Record<string, DesignFrameSize>>
   setDesignFrameSize: (id: string, size: DesignFrameSize) => void
   setDesignFrameSizeMany: (patch: Record<string, DesignFrameSize>) => void
   clearDesignFrameSize: (id: string) => void
