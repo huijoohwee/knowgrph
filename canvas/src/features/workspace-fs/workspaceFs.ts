@@ -370,6 +370,7 @@ export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<Works
     .map(path => normalizeWorkspacePath(path))
     .filter((path): path is WorkspacePath => Boolean(path))
   if (normalized.length === 0) return false
+  if (!normalized.includes(LEGACY_WORKSPACE_TRIP_DEMO_PATH)) return false
   const defaultOnlyPaths = new Set<WorkspacePath>([
     LEGACY_WORKSPACE_README_PATH,
     LEGACY_WORKSPACE_TRIP_DEMO_PATH,

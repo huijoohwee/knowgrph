@@ -12,21 +12,13 @@ import { buildDeepestGroupRectByNodeId, buildGroupRectByIdFromSchemaOverrides } 
 import type { RectBounds } from '@/lib/canvas/groupContainment'
 import { listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
 import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
-import type { DesignCanvasFrameRect } from '@/components/DesignCanvas/types'
+import type { DesignCanvasFrameRect, DesignCanvasGroupBounds } from '@/components/DesignCanvas/types'
 
 type MarkdownPanelLineRanges = {
   table: Set<number>
   code: Set<number>
   blockquote: Set<number>
   iframe: Set<number>
-}
-
-type DesignGroupBounds = {
-  x: number
-  y: number
-  w: number
-  h: number
-  explicit: boolean
 }
 
 type UseDesignCanvasMarkdownPanelGroupsArgs = {
@@ -187,7 +179,7 @@ export function useDesignCanvasMarkdownPanelGroups(args: UseDesignCanvasMarkdown
   const designGroupBoundsById = React.useMemo(() => {
     const cfg = schema?.layout?.groups as { padding?: unknown } | null | undefined
     const padding = typeof cfg?.padding === 'number' && Number.isFinite(cfg.padding) ? Math.max(0, cfg.padding) : 24
-    const out: Record<string, DesignGroupBounds> = {}
+    const out: Record<string, DesignCanvasGroupBounds> = {}
     for (let i = 0; i < designGroups.length; i += 1) {
       const group = designGroups[i]
       const id = String(group.id || '').trim()

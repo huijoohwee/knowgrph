@@ -2867,7 +2867,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             renderSourceFileRight={renderSourceFileRight}
           />
 
-          <VerticalResizeSeparatorHr ref={setResizeHandleEl} ariaLabel="Resize explorer" />
+          <VerticalResizeSeparatorHr ref={setResizeHandleEl} ariaLabel="Resize explorer" visualStyle="centerGrip" />
         </>
       ) : null}
 

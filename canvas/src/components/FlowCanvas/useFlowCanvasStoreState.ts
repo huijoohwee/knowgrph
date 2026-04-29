@@ -1,0 +1,119 @@
+import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
+
+import { useContainerDims } from '@/hooks/useContainerDims'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  EMPTY_BOOL_RECORD,
+  EMPTY_POS_RECORD,
+  EMPTY_STRING_ARRAY,
+  EMPTY_WIDGET_REGISTRY,
+} from '@/components/FlowCanvas/shared'
+
+export function useFlowCanvasStoreState(args: {
+  active: boolean
+  containerRef: React.RefObject<HTMLElement>
+}) {
+  const { active, containerRef } = args
+  const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
+  const selectedNodeId = useGraphStore(s => (active ? s.selectedNodeId : null))
+  const selectedNodeIds = useGraphStore(s => (active ? s.selectedNodeIds : EMPTY_STRING_ARRAY))
+  const { width, height, dpr } = useContainerDims(containerRef)
+  const viewportW = Math.max(1, Math.floor(width))
+  const viewportH = Math.max(1, Math.floor(height))
+
+  const storeState = useGraphStore(
+    useShallow(s => {
+      if (!active) {
+        return {
+          schema: s.schema,
+          frontmatterModeEnabled: false,
+          documentSemanticMode: 'document' as const,
+          multiDimTableModeEnabled: false,
+          documentStructureBaselineLock: false,
+          collapsedGroupIds: EMPTY_STRING_ARRAY,
+          renderMediaAsNodes: false,
+          mediaPanelDensity: 'default' as const,
+          threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
+          threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
+          threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
+          threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
+          threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
+          threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
+          threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+          canvasRenderMode: '2d' as const,
+          canvas2dRenderer: 'flow' as const,
+          infiniteCanvasInteractionMode: 'static' as const,
+          viewportControlsPreset: s.viewportControlsPreset,
+          flowEditorSelectionOnDrag: false,
+          setLayoutPositionsForMode: s.setLayoutPositionsForMode,
+          graphDataRevision: s.graphDataRevision || 0,
+          viewPinned: false,
+          fitToScreenMode: false,
+          zoomToSelectionMode: false,
+          setZoomState: s.setZoomState,
+          setZoomStateForKey: s.setZoomStateForKey,
+          widgetRegistry: EMPTY_WIDGET_REGISTRY,
+          baseWidgetRegistry: EMPTY_WIDGET_REGISTRY,
+          documentWidgetRegistry: EMPTY_WIDGET_REGISTRY,
+          openWidgetNodeIds: EMPTY_STRING_ARRAY,
+          flowWidgetPinnedByNodeId: EMPTY_BOOL_RECORD,
+          flowWidgetWorldPosByNodeId: EMPTY_POS_RECORD,
+          flowWidgetPosByNodeId: EMPTY_POS_RECORD,
+          markdownDocumentName: null,
+          markdownDocumentText: '',
+        }
+      }
+      return {
+        schema: s.schema,
+        frontmatterModeEnabled: s.frontmatterModeEnabled || false,
+        documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
+        multiDimTableModeEnabled: (s as unknown as { multiDimTableModeEnabled?: unknown }).multiDimTableModeEnabled === true,
+        documentStructureBaselineLock: s.documentStructureBaselineLock === true,
+        collapsedGroupIds: s.collapsedGroupIds || [],
+        renderMediaAsNodes: s.renderMediaAsNodes,
+        mediaPanelDensity: s.mediaPanelDensity,
+        threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
+        threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
+        threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
+        threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
+        threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
+        threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
+        threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+        canvasRenderMode: s.canvasRenderMode,
+        canvas2dRenderer: s.canvas2dRenderer,
+        infiniteCanvasInteractionMode: (s.infiniteCanvasInteractionMode || 'static') as 'static' | 'interactive',
+        viewportControlsPreset: s.viewportControlsPreset,
+        flowEditorSelectionOnDrag: s.flowEditorSelectionOnDrag === true,
+        setLayoutPositionsForMode: s.setLayoutPositionsForMode,
+        graphDataRevision: s.graphDataRevision || 0,
+        viewPinned: s.viewPinned === true,
+        fitToScreenMode: s.fitToScreenMode === true,
+        zoomToSelectionMode: s.zoomToSelectionMode === true,
+        setZoomState: s.setZoomState,
+        setZoomStateForKey: s.setZoomStateForKey,
+        widgetRegistry: s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY,
+        baseWidgetRegistry: s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY,
+        documentWidgetRegistry: s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY,
+        openWidgetNodeIds: s.openWidgetNodeIds || [],
+        flowWidgetPinnedByNodeId: s.flowWidgetPinnedByNodeId || {},
+        flowWidgetWorldPosByNodeId: (s as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId || {},
+        flowWidgetPosByNodeId: s.flowWidgetPosByNodeId || {},
+        markdownDocumentName: (s as unknown as { markdownDocumentName?: unknown }).markdownDocumentName,
+        markdownDocumentText: (s as unknown as { markdownDocumentText?: unknown }).markdownDocumentText,
+      }
+    }),
+  )
+
+  return {
+    registerCanvasSnapshotFns,
+    selectedNodeId,
+    selectedNodeIds,
+    width,
+    height,
+    dpr,
+    viewportW,
+    viewportH,
+    ...storeState,
+  }
+}

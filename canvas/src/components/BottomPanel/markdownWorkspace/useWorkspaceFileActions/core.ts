@@ -78,10 +78,15 @@ export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHe
   )
 
   const setStatusInfo = React.useCallback(
-    (label: string, statusOpts?: { ttlMs?: number | null }) => {
+    (label: string, statusOpts?: { ttlMs?: number | null; dismissible?: boolean }) => {
       const msg = String(label || '').trim()
       if (!msg) return
-      emitToast({ kind: 'neutral', message: msg, ttlMs: statusOpts?.ttlMs })
+      emitToast({
+        kind: 'neutral',
+        message: msg,
+        ttlMs: statusOpts?.ttlMs,
+        dismissible: typeof statusOpts?.dismissible === 'boolean' ? statusOpts.dismissible : true,
+      })
     },
     [emitToast],
   )
@@ -124,7 +129,7 @@ export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHe
         kind: 'neutral',
         message: formatMarkdownWorkspaceStatusLabel(status),
         ttlMs: typeof statusOpts?.ttlMs === 'undefined' ? null : statusOpts.ttlMs,
-        dismissible: false,
+        dismissible: true,
       })
     },
     [emitToast],

@@ -11,6 +11,29 @@ export type DesignCanvasFrameRect = {
   h: number
 }
 
+export type DesignCanvasMarqueeBox = {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type DesignCanvasResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
+
+export type DesignCanvasGroupBounds = {
+  x: number
+  y: number
+  w: number
+  h: number
+  explicit: boolean
+}
+
+export type DesignCanvasGroupHandleConfig = {
+  hitRadiusPx: number
+  dotRadiusPx: number
+  strokeWidthPx: number
+}
+
 export type DesignCanvasNodeStyle = {
   fill?: string
   stroke?: string

@@ -7,8 +7,6 @@ import {
   LEGACY_WORKSPACE_README_TEXT,
   getWorkspaceSeedFiles,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  WORKSPACE_README_SEED_PATH,
-  shouldReconcileDefaultWorkspaceSeedFamily,
   shouldMigrateLegacyWorkspaceSeedPaths,
 } from './workspaceFs'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
@@ -66,26 +64,10 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
       .filter((path): path is WorkspacePath => Boolean(path))
     if (shouldMigrateLegacyWorkspaceSeedPaths(existingFilePaths)) {
       for (const path of existingFilePaths) entriesByPath.delete(path)
-    } else if (shouldReconcileDefaultWorkspaceSeedFamily(existingFilePaths)) {
-      const now = Date.now()
-      const seeds = await getWorkspaceSeedFiles()
-      for (const path of existingFilePaths) {
-        if (path !== WORKSPACE_README_SEED_PATH && path !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
-          entriesByPath.delete(path)
-        }
-      }
-      for (const seed of seeds) {
-        const normalizedSeedPath = normalizeWorkspacePath(seed.path)
-        const existing = entriesByPath.get(normalizedSeedPath)
-        if (existing?.kind === 'file' && String(existing.text ?? '').trim()) continue
-        const entries = expandWorkspaceSeedFileEntries(normalizedSeedPath, seed.text, now)
-        for (const entry of entries) {
-          entriesByPath.set(entry.path, entry)
-        }
-      }
     }
 
-    if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE) {
+    const hasAnyFilesNow = [...entriesByPath.values()].some(e => e.kind === 'file')
+    if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE && !hasAnyFilesNow) {
       const now = Date.now()
       const seeds = await getWorkspaceSeedFiles()
       const validationSeed = seeds.find(seed => normalizeWorkspacePath(seed.path) === TEST_VALIDATION_WORKSPACE_SEED_PATH) || null

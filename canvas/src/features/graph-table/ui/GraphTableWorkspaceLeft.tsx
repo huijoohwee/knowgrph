@@ -179,6 +179,7 @@ export function GraphTableWorkspaceLeft(props: {
                   props.setInspectorDragHandleEl(el)
                 }}
                 ariaLabel="Resize inspector"
+                visualStyle="centerGrip"
               />
               <GraphTableInspector
                 widthPx={props.inspectorWidthPx}

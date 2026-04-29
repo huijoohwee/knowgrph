@@ -14,7 +14,6 @@ import {
   importWorkspaceLocalFolder,
   importWorkspaceUrl,
 } from '../workspaceImport'
-import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
 import type { UseWorkspaceFileActionsArgs } from './types'
 
 export async function pickFirstCreatedFilePathForImportFocus(fs: WorkspaceFs, createdPaths: string[]): Promise<string | null> {
@@ -59,14 +58,6 @@ export function useWorkspaceImportActions(args: {
   const { importJobRef, status, focusAfterImport } = args.core
   const { getFs, refresh, openedPath, activeDocumentKey, setActiveText, setEntries, lastLoadedRef, setActiveMarkdownDocument } = args.ctx
 
-  const forceWorkspaceEditorCanvasLanding = React.useCallback(() => {
-    try {
-      ensureEditorCanvasLandingForDuration(2000)
-    } catch {
-      void 0
-    }
-  }, [])
-
   const hydratePendingImportedPaths = React.useCallback(async (fs: WorkspaceFs, createdPaths: string[]) => {
     for (const path of createdPaths || []) {
       const nextPath = String(path || '').trim()
@@ -107,7 +98,6 @@ export function useWorkspaceImportActions(args: {
         } catch {
           void 0
         }
-        forceWorkspaceEditorCanvasLanding()
         const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
           await focusAfterImport(createdPath, { applyToGraph: true, jobId })
@@ -127,7 +117,7 @@ export function useWorkspaceImportActions(args: {
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [focusAfterImport, forceWorkspaceEditorCanvasLanding, getFs, hydratePendingImportedPaths, refresh, importJobRef, status],
+    [focusAfterImport, getFs, hydratePendingImportedPaths, refresh, importJobRef, status],
   )
 
   const handleImportLocalFolder = React.useCallback(
@@ -156,7 +146,6 @@ export function useWorkspaceImportActions(args: {
         } catch {
           void 0
         }
-        forceWorkspaceEditorCanvasLanding()
         const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
           await focusAfterImport(createdPath, { applyToGraph: true, jobId })
@@ -176,7 +165,7 @@ export function useWorkspaceImportActions(args: {
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [focusAfterImport, forceWorkspaceEditorCanvasLanding, getFs, hydratePendingImportedPaths, refresh, importJobRef, status],
+    [focusAfterImport, getFs, hydratePendingImportedPaths, refresh, importJobRef, status],
   )
 
   const handleImportUrl = React.useCallback(

@@ -4,25 +4,17 @@ import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gri
 import { shouldStartSelectionDragForPreset } from '@/lib/canvas/viewport-controls'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import type { GraphSchema } from '@/lib/graph/schema'
-
-type FrameRect = {
-  x: number
-  y: number
-  w: number
-  h: number
-}
+import type { DesignCanvasFrameRect, DesignCanvasResizeHandle } from '@/components/DesignCanvas/types'
 
 type VisibleNode = {
   id: string
 }
 
-type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
-
 type ResizeState = {
   id: string
-  handle: ResizeHandle
+  handle: DesignCanvasResizeHandle
   startWorld: { x: number; y: number }
-  startRect: { x: number; y: number; w: number; h: number }
+  startRect: DesignCanvasFrameRect
   aspect: number
   pointerId: number
 }
@@ -52,7 +44,7 @@ type UseResizeMarqueeControllerArgs = {
   viewportControlsPreset: string
   schema: GraphSchema | null | undefined
   svgRef: React.MutableRefObject<SVGSVGElement | null>
-  positions: Record<string, FrameRect>
+  positions: Record<string, DesignCanvasFrameRect>
   visibleNodes: VisibleNode[]
   pointerToWorld: PointerToWorld
   frameElByIdRef: React.MutableRefObject<Map<string, SVGGElement>>
@@ -87,7 +79,7 @@ export function useResizeMarqueeController(args: UseResizeMarqueeControllerArgs)
   const resizeRafRef = React.useRef<number | null>(null)
   const resizePendingRef = React.useRef<ResizePendingState | null>(null)
   const marqueeRef = React.useRef<MarqueeState | null>(null)
-  const [marqueeBox, setMarqueeBox] = React.useState<null | { x: number; y: number; w: number; h: number }>(null)
+  const [marqueeBox, setMarqueeBox] = React.useState<null | DesignCanvasFrameRect>(null)
 
   const scheduleResizeVisual = React.useMemo(() => {
     return () => {
@@ -227,7 +219,7 @@ export function useResizeMarqueeController(args: UseResizeMarqueeControllerArgs)
       }
       resizePendingRef.current = { id, x: args.rect.x, y: args.rect.y, w: width, h: height }
     }
-  }, [active, canvasPointerMode2d, documentStructureBaselineLock, pointerToWorld, svgRef])
+  }, [active, canvasPointerMode2d, documentStructureBaselineLock, interactionActive, pointerToWorld, svgRef])
 
   const handleSvgPointerDown = React.useCallback((event: React.PointerEvent<SVGSVGElement>) => {
     if (!interactionActive) return false

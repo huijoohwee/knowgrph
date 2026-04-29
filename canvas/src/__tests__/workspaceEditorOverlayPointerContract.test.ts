@@ -83,6 +83,8 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   const workspaceSelectText = readFileSync(workspaceSelectPath, 'utf8')
   const workspaceSsotPath = resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceTableSsot.ts')
   const workspaceSsotText = readFileSync(workspaceSsotPath, 'utf8')
+  const workspaceToolbarPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')
+  const workspaceToolbarText = readFileSync(workspaceToolbarPath, 'utf8')
   if (!text.includes('const workspaceEditorOverlayOpen = effectiveWorkspaceViewMode === \'editor\' && workspaceCanvasPaneOpen')) {
     throw new Error('expected Canvas page to derive a dedicated workspace editor overlay-open state')
   }
@@ -119,11 +121,20 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (!workspaceSsotText.includes("if (args.workspaceCanvasPaneOpen !== true) args.setWorkspaceCanvasPaneOpen(true)")) {
     throw new Error('expected shared workspace open helper to reopen the canvas pane and clear stale OFF residue')
   }
+  if (!workspaceSsotText.includes('export function closeWorkspaceView')) {
+    throw new Error('expected workspace editor close flow to stay centralized in a shared helper')
+  }
   if (!workspaceSelectText.includes('openWorkspaceEditorPane({')) {
     throw new Error('expected toolbar Workspace View editor selection to reuse the shared workspace open helper')
   }
   if (!workspaceSelectText.includes('workspaceCanvasPaneOpen')) {
     throw new Error('expected toolbar Workspace View selection to route stale pane-open state through the shared helper')
+  }
+  if (!workspaceSelectText.includes('closeWorkspaceView({')) {
+    throw new Error('expected toolbar Workspace View ON/OFF to reuse the shared close helper for residue cleanup')
+  }
+  if (!workspaceToolbarText.includes('closeWorkspaceView({')) {
+    throw new Error('expected workspace close action to reuse the shared close helper for residue cleanup')
   }
 }
 

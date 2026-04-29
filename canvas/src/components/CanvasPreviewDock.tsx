@@ -89,6 +89,7 @@ export function CanvasPreviewDock(props: CanvasPreviewDockProps) {
             dragHandleRef.current = el
           }}
           ariaLabel={resizeAriaLabel}
+          visualStyle="centerGrip"
         />
       )}
       <aside

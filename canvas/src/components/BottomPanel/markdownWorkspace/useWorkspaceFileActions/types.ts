@@ -51,7 +51,7 @@ export type WorkspaceFileActions = {
 }
 
 export type StatusHelpers = {
-  setStatusInfo: (label: string, opts?: { ttlMs?: number | null }) => void
+  setStatusInfo: (label: string, opts?: { ttlMs?: number | null; dismissible?: boolean }) => void
   setStatusError: (label: string, opts?: { ttlMs?: number | null; dismissible?: boolean }) => void
   setStatusProgress: (
     label: string,

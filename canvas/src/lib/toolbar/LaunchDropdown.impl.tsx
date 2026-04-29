@@ -5,7 +5,6 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/lib/config'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
-import { openWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
 import { WORKSPACE_EXPORT_MENU_ITEMS } from '@/lib/toolbar/exportMenuSsot'
@@ -61,23 +60,6 @@ export function LaunchDropdown({
   const setBipartiteDataSource = useGraphStore(s => s.setBipartiteDataSource)
 
   const bridge = getMarkdownWorkspaceActionBridge()
-
-  const ensureWorkspaceEditorCanvasVisible = React.useCallback(() => {
-    try {
-      const state = useGraphStore.getState()
-      openWorkspaceEditorPane({
-        workspaceViewMode: state.workspaceViewMode,
-        editorWorkspacePane: state.editorWorkspacePane,
-        workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
-        pane: 'markdown',
-        setWorkspaceViewMode: state.setWorkspaceViewMode,
-        setEditorWorkspacePane: state.setEditorWorkspacePane,
-        setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
-      })
-    } catch {
-      void 0
-    }
-  }, [])
 
   React.useEffect(() => {
     if (!open) return
@@ -238,7 +220,8 @@ export function LaunchDropdown({
         multiple
         onChange={e => {
           const files = e.target.files
-          if (typeof bridge.importLocalFiles === 'function') bridge.importLocalFiles(files)
+          const launchBridge = getMarkdownWorkspaceActionBridge()
+          if (typeof launchBridge.importLocalFiles === 'function') launchBridge.importLocalFiles(files)
           else void importLocalFilesFallback(files)
           onClose()
           try {
@@ -265,7 +248,8 @@ export function LaunchDropdown({
         multiple
         onChange={e => {
           const files = e.target.files
-          if (typeof bridge.importLocalFolder === 'function') bridge.importLocalFolder(files)
+          const launchBridge = getMarkdownWorkspaceActionBridge()
+          if (typeof launchBridge.importLocalFolder === 'function') launchBridge.importLocalFolder(files)
           else void importLocalFolderFallback(files)
           onClose()
           try {
@@ -378,9 +362,9 @@ export function LaunchDropdown({
                     setUrlInputOpen(false)
                     return
                   }
-                  ensureWorkspaceEditorCanvasVisible()
                   onClose()
-                  if (typeof bridge.importUrl === 'function') bridge.importUrl(draft)
+                  const launchBridge = getMarkdownWorkspaceActionBridge()
+                  if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(draft)
                   else void importUrlFallback(draft)
                   setUrlInputOpen(false)
                   return
@@ -407,9 +391,9 @@ export function LaunchDropdown({
                   autoFocus
                   confirmLabel="Import"
                   onConfirm={(next) => {
-                    ensureWorkspaceEditorCanvasVisible()
                     onClose()
-                    if (typeof bridge.importUrl === 'function') bridge.importUrl(next)
+                    const launchBridge = getMarkdownWorkspaceActionBridge()
+                    if (typeof launchBridge.importUrl === 'function') launchBridge.importUrl(next)
                     else void importUrlFallback(next)
                     setUrlInputOpen(false)
                   }}
@@ -427,9 +411,9 @@ export function LaunchDropdown({
                       onClick={() => {
                         const next = String(urlDraft || '').trim()
                         if (!next) return
-                        ensureWorkspaceEditorCanvasVisible()
                         onClose()
-                        bridge.importWebsite?.(next)
+                        const launchBridge = getMarkdownWorkspaceActionBridge()
+                        launchBridge.importWebsite?.(next)
                         setUrlInputOpen(false)
                       }}
                     >

@@ -1,6 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { AlertCircle, CheckCircle, Info, X, AlertTriangle } from 'lucide-react'
+import { AlertCircle, CheckCircle, Info, X, AlertTriangle, Pin, PinOff } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -25,10 +25,20 @@ const getKindIcon = (kind: UiToastKind) => {
   return Info
 }
 
-function ToastCard({ toast, onDismiss }: { toast: UiToast; onDismiss: (id: string) => void }) {
+function ToastCard({
+  toast,
+  onDismiss,
+  onTogglePinned,
+}: {
+  toast: UiToast
+  onDismiss: (id: string) => void
+  onTogglePinned: (toast: UiToast) => void
+}) {
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const Icon = getKindIcon(toast.kind)
   const message = sanitizeMessageText(toast.message, { maxLines: 4 })
+  const pinned = toast.expiresAtMs == null
+  const PinIcon = pinned ? PinOff : Pin
   if (!message) return null
   return (
     <aside
@@ -41,39 +51,69 @@ function ToastCard({ toast, onDismiss }: { toast: UiToast; onDismiss: (id: strin
       )}
       role={toast.kind === 'error' ? 'alert' : 'status'}
     >
-      <div className="flex items-start gap-2 px-3 py-2">
-        <Icon className="w-4 h-4 mt-[1px] flex-shrink-0" strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-        <div className="min-w-0 flex-1 whitespace-pre-wrap break-words text-xs">{message}</div>
-        {toast.dismissible ? (
+      <div className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-start gap-x-2 px-3 py-2">
+        <Icon className="w-4 h-4 mt-0.5" strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+        <div className="min-w-0 whitespace-pre-wrap break-words text-xs leading-5">{message}</div>
+        <div className="mt-0.5 flex items-center gap-1 pointer-events-auto">
           <button
             type="button"
             className={cn(
-              'App-toolbar__btn',
+              'h-5 w-5 rounded inline-flex items-center justify-center relative z-[1] pointer-events-auto',
               UI_THEME_TOKENS.button.hoverBg,
-              UI_THEME_TOKENS.button.padding,
               UI_THEME_TOKENS.button.text,
             )}
-            onClick={() => onDismiss(toast.id)}
-            aria-label="Dismiss"
+            onClick={() => onTogglePinned(toast)}
+            aria-label={pinned ? 'Unpin' : 'Pin'}
+            title={pinned ? 'Unpin toast' : 'Pin toast'}
           >
-            <X className="w-4 h-4" strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+            <PinIcon className="w-3.5 h-3.5" strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
           </button>
-        ) : null}
+          {toast.dismissible ? (
+            <button
+              type="button"
+              className={cn(
+                'h-5 w-5 rounded inline-flex items-center justify-center relative z-[1] pointer-events-auto',
+                UI_THEME_TOKENS.button.hoverBg,
+                UI_THEME_TOKENS.button.text,
+              )}
+              onClick={() => onDismiss(toast.id)}
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
       </div>
     </aside>
   )
 }
 
 export function ToastHost() {
-  const { toasts, dismissUiToast, pruneUiToasts } = useGraphStore(
+  const { toasts, dismissUiToast, pruneUiToasts, pushUiToast } = useGraphStore(
     useShallow(s => ({
       toasts: s.uiToasts,
       dismissUiToast: s.dismissUiToast,
       pruneUiToasts: s.pruneUiToasts,
+      pushUiToast: s.pushUiToast,
     })),
   )
 
   const orderedToasts = Array.isArray(toasts) ? toasts : []
+
+  const togglePinned = React.useCallback(
+    (toast: UiToast) => {
+      const pinned = toast.expiresAtMs == null
+      pushUiToast({
+        id: toast.id,
+        kind: toast.kind,
+        message: toast.message,
+        ttlMs: pinned ? 10_000 : null,
+        dismissible: toast.dismissible,
+        log: false,
+      })
+    },
+    [pushUiToast],
+  )
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -106,8 +146,8 @@ export function ToastHost() {
     >
       <ol className="flex flex-col gap-2 items-end" style={{ width: 520, maxWidth: 'calc(100vw - 24px)' }} aria-label="Toast list">
         {orderedToasts.map(t => (
-          <li key={t.id} className="list-none">
-            <ToastCard toast={t} onDismiss={dismissUiToast} />
+          <li key={t.id} className="list-none pointer-events-auto">
+            <ToastCard toast={t} onDismiss={dismissUiToast} onTogglePinned={togglePinned} />
           </li>
         ))}
       </ol>

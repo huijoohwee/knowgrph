@@ -1,22 +1,7 @@
 import React from 'react'
+import type { DesignCanvasFrameRect, DesignCanvasMarqueeBox, DesignCanvasResizeHandle } from '@/components/DesignCanvas/types'
 
-type FrameRect = {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
-type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
-
-type MarqueeBox = {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
-const RESIZE_HANDLES: Array<{ k: ResizeHandle; x: (w: number) => number; y: (h: number) => number; cursor: string }> = [
+const RESIZE_HANDLES: Array<{ k: DesignCanvasResizeHandle; x: (w: number) => number; y: (h: number) => number; cursor: string }> = [
   { k: 'nw', x: () => 0, y: () => 0, cursor: 'nwse-resize' },
   { k: 'n', x: w => w / 2, y: () => 0, cursor: 'ns-resize' },
   { k: 'ne', x: w => w, y: () => 0, cursor: 'nesw-resize' },
@@ -30,10 +15,10 @@ const RESIZE_HANDLES: Array<{ k: ResizeHandle; x: (w: number) => number; y: (h: 
 export function DesignCanvasSelectionOverlay(props: {
   active: boolean
   selectedNodeId: string | null
-  positions: Record<string, FrameRect>
-  marqueeBox: MarqueeBox | null
+  positions: Record<string, DesignCanvasFrameRect>
+  marqueeBox: DesignCanvasMarqueeBox | null
   resizeOverlayRef: React.MutableRefObject<SVGGElement | null>
-  onBeginResize: (event: React.PointerEvent<SVGRectElement>, args: { id: string; handle: ResizeHandle; rect: FrameRect }) => void
+  onBeginResize: (event: React.PointerEvent<SVGRectElement>, args: { id: string; handle: DesignCanvasResizeHandle; rect: DesignCanvasFrameRect }) => void
 }) {
   const { active, selectedNodeId, positions, marqueeBox, resizeOverlayRef, onBeginResize } = props
   const id = active ? String(selectedNodeId || '').trim() : ''

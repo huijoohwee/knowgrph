@@ -1,0 +1,110 @@
+import React from 'react'
+
+import { deriveFlowEditorViewGraph } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import type { GraphData } from '@/lib/graph/types'
+import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
+
+export function useFlowEditorRenderState(args: {
+  active: boolean
+  editorRuntimeActive: boolean
+  flowEditorViewActive: boolean
+  baseGraphData: GraphData | null
+  baseGraphDataRevision: number
+  flowEditorBaseGraphData: GraphData | null
+  collapsedGroupIdsForView: string[]
+  frontmatterOnlyPolicyActive: boolean
+  activeDocumentKey: string
+  selectedEdgeId: string | null
+}) {
+  const [draftGraphData, setDraftGraphData] = React.useState<GraphData | null>(null)
+  const draftGraphDataRef = React.useRef<GraphData | null>(null)
+
+  const draftGraphDataRevision = React.useMemo(() => {
+    const draft = draftGraphData
+    if (!draft) return args.baseGraphDataRevision
+    const meta = draft.metadata
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return args.baseGraphDataRevision
+    const raw = (meta as Record<string, unknown>).graphDataRevision
+    return typeof raw === 'number' && Number.isFinite(raw) ? raw : args.baseGraphDataRevision
+  }, [args.baseGraphDataRevision, draftGraphData])
+
+  React.useLayoutEffect(() => {
+    if (!args.editorRuntimeActive) {
+      setDraftGraphData(null)
+      return
+    }
+    const base = args.flowEditorBaseGraphData as GraphData | null
+    setDraftGraphData(prev => (prev === base ? prev : base))
+  }, [args.baseGraphDataRevision, args.editorRuntimeActive, args.flowEditorBaseGraphData])
+
+  const rawRenderGraphDataOverride = React.useMemo((): GraphData | null => {
+    const graphDataForRender = args.flowEditorViewActive ? draftGraphData : args.baseGraphData
+    return deriveFlowEditorViewGraph({
+      graphData: graphDataForRender,
+      collapsedGroupIds: args.collapsedGroupIdsForView,
+      forceFrontmatterFlow: args.frontmatterOnlyPolicyActive,
+    })
+  }, [
+    args.baseGraphData,
+    args.collapsedGroupIdsForView,
+    args.flowEditorViewActive,
+    args.frontmatterOnlyPolicyActive,
+    draftGraphData,
+  ])
+
+  const [stableRenderGraphOverride, setStableRenderGraphOverride] = React.useState<{
+    documentKey: string
+    graphData: GraphData | null
+  } | null>(null)
+
+  React.useLayoutEffect(() => {
+    if (!args.active) {
+      setStableRenderGraphOverride(null)
+      return
+    }
+    const nextGraph = rawRenderGraphDataOverride
+    const nextHasNodes = Array.isArray(nextGraph?.nodes) && nextGraph.nodes.length > 0
+    if (nextHasNodes || !args.frontmatterOnlyPolicyActive) {
+      setStableRenderGraphOverride(prev => {
+        if (prev?.documentKey === args.activeDocumentKey && prev.graphData === nextGraph) return prev
+        return { documentKey: args.activeDocumentKey, graphData: nextGraph }
+      })
+      return
+    }
+    setStableRenderGraphOverride(prev => {
+      if (prev?.documentKey === args.activeDocumentKey) return prev
+      return { documentKey: args.activeDocumentKey, graphData: nextGraph }
+    })
+  }, [args.active, args.activeDocumentKey, args.frontmatterOnlyPolicyActive, rawRenderGraphDataOverride])
+
+  const renderGraphDataOverride = React.useMemo((): GraphData | null => {
+    const nextGraph = rawRenderGraphDataOverride
+    const nextHasNodes = Array.isArray(nextGraph?.nodes) && nextGraph.nodes.length > 0
+    if (nextHasNodes) return nextGraph
+    if (!args.frontmatterOnlyPolicyActive) return nextGraph
+    if (stableRenderGraphOverride?.documentKey !== args.activeDocumentKey) return nextGraph
+    const stableGraph = stableRenderGraphOverride?.graphData || null
+    const stableHasNodes = Array.isArray(stableGraph?.nodes) && stableGraph.nodes.length > 0
+    return stableHasNodes ? stableGraph : nextGraph
+  }, [args.activeDocumentKey, args.frontmatterOnlyPolicyActive, rawRenderGraphDataOverride, stableRenderGraphOverride])
+
+  const frontmatterFlowRenderSettings = React.useMemo(() => {
+    return readFrontmatterFlowRenderSettings(renderGraphDataOverride)
+  }, [renderGraphDataOverride])
+
+  const selectedDraftEdge = React.useMemo(() => {
+    if (!draftGraphData || !args.selectedEdgeId) return null
+    const edges = Array.isArray(draftGraphData.edges) ? draftGraphData.edges : []
+    return edges.find(edge => String(edge.id || '') === args.selectedEdgeId) || null
+  }, [draftGraphData, args.selectedEdgeId])
+
+  return {
+    draftGraphData,
+    draftGraphDataRef,
+    draftGraphDataRevision,
+    frontmatterFlowRenderSettings,
+    renderGraphDataOverride,
+    selectedDraftEdge,
+    setDraftGraphData,
+  }
+}

@@ -74,13 +74,40 @@ export async function testWorkspaceEnsureSeedMigratesLegacyDefaultsToReadmeAndVa
   }
 }
 
-export async function testWorkspaceEnsureSeedReconcilesPartialCanonicalSeedFamily() {
+export async function testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRemoved() {
   const { restore } = initJsdomHarness()
   try {
     const fs = createMemoryWorkspaceFs({
       initialEntries: [
         { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
-        { path: WORKSPACE_README_SEED_PATH, parentPath: '/', kind: 'file', name: 'README.md', text: '', updatedAtMs: 1 },
+        {
+          path: WORKSPACE_README_SEED_PATH,
+          parentPath: '/',
+          kind: 'file',
+          name: 'README.md',
+          text: [
+            '---',
+            'kgCanvas2dRenderer: "d3"',
+            'kgFrontmatterModeEnabled: true',
+            '---',
+            '# README',
+          ].join('\n'),
+          updatedAtMs: 1,
+        },
+        {
+          path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
+          parentPath: '/sandbox/test-data',
+          kind: 'file',
+          name: 'knowgrph-rich-media-generation-demo.md',
+          text: [
+            '---',
+            'kgCanvas2dRenderer: "flowEditor"',
+            'kgFrontmatterModeEnabled: true',
+            '---',
+            '# Validation',
+          ].join('\n'),
+          updatedAtMs: 1,
+        },
       ],
     })
     await fs.ensureSeed()
@@ -89,10 +116,17 @@ export async function testWorkspaceEnsureSeedReconcilesPartialCanonicalSeedFamil
     const readmeEntry = entries.find(e => e.path === WORKSPACE_README_SEED_PATH && e.kind === 'file')
     const validationEntry = entries.find(e => e.path === TEST_VALIDATION_WORKSPACE_SEED_PATH && e.kind === 'file')
     if (!readmeEntry || typeof readmeEntry.text !== 'string' || !readmeEntry.text.includes('kgCanvas2dRenderer: "d3"')) {
-      throw new Error('expected partial canonical seed family to repair empty README with the D3 preload seed')
+      throw new Error('expected README seed entry to exist before deletion')
     }
     if (!validationEntry || typeof validationEntry.text !== 'string' || !validationEntry.text.includes('kgCanvas2dRenderer: "flowEditor"')) {
-      throw new Error('expected partial canonical seed family to restore the validation demo seed')
+      throw new Error('expected validation seed entry to exist before deletion')
+    }
+
+    await fs.deleteEntry(TEST_VALIDATION_WORKSPACE_SEED_PATH)
+    await fs.ensureSeed()
+    const afterDelete = await fs.listEntries()
+    if (afterDelete.some(e => e.path === TEST_VALIDATION_WORKSPACE_SEED_PATH && e.kind === 'file')) {
+      throw new Error('expected deleted default seed entry to stay removed after ensureSeed')
     }
   } finally {
     restore()

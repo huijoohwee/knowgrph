@@ -25,6 +25,7 @@ import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/fro
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
+import { closeWorkspaceView } from '@/features/workspace-table/workspaceTableSsot'
 import {
   MarkdownWorkspaceDisplayMenu,
   MarkdownWorkspaceFormattingMenu,
@@ -115,6 +116,7 @@ export function MarkdownWorkspaceToolbar({
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const canNavigateSlides = layoutMode === 'presentation'
   const effectiveSplitPanes = splitPaneVisibility || { json: true, markdown: true, viewer: true }
   const inlineFloatingFormattingOwnsViewerSurface =
@@ -382,7 +384,18 @@ export function MarkdownWorkspaceToolbar({
               type="button"
               className={TOOLBAR_BUTTON_CLASSNAME}
               title={UI_LABELS.close}
-              onClick={() => setWorkspaceViewMode('canvas')}
+              onClick={() => {
+                if (typeof canvasOpen !== 'boolean' || typeof setCanvasOpen !== 'function') {
+                  setWorkspaceViewMode('canvas')
+                  return
+                }
+                closeWorkspaceView({
+                  workspaceViewMode: workspaceViewMode === 'editor' ? 'editor' : 'canvas',
+                  workspaceCanvasPaneOpen: canvasOpen,
+                  setWorkspaceViewMode,
+                  setWorkspaceCanvasPaneOpen: setCanvasOpen,
+                })
+              }}
             >
               <X className="w-4 h-4" strokeWidth={1.6} />
             </button>

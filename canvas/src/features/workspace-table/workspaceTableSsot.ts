@@ -13,6 +13,13 @@ type OpenWorkspaceEditorPaneArgs = {
   setWorkspaceCanvasPaneOpen: (open: boolean) => void
 }
 
+type CloseWorkspaceViewArgs = {
+  workspaceViewMode: WorkspaceViewMode
+  workspaceCanvasPaneOpen: boolean
+  setWorkspaceViewMode: (next: WorkspaceViewMode) => void
+  setWorkspaceCanvasPaneOpen: (open: boolean) => void
+}
+
 export function isWorkspaceTableOpen(args: {
   workspaceViewMode: WorkspaceViewMode
   editorWorkspacePane: EditorWorkspacePane
@@ -23,6 +30,11 @@ export function isWorkspaceTableOpen(args: {
 export function openWorkspaceEditorPane(args: OpenWorkspaceEditorPaneArgs) {
   if (args.workspaceViewMode !== 'editor') args.setWorkspaceViewMode('editor')
   if (args.editorWorkspacePane !== args.pane) args.setEditorWorkspacePane(args.pane)
+  if (args.workspaceCanvasPaneOpen !== true) args.setWorkspaceCanvasPaneOpen(true)
+}
+
+export function closeWorkspaceView(args: CloseWorkspaceViewArgs) {
+  if (args.workspaceViewMode !== 'canvas') args.setWorkspaceViewMode('canvas')
   if (args.workspaceCanvasPaneOpen !== true) args.setWorkspaceCanvasPaneOpen(true)
 }
 

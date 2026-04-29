@@ -8,8 +8,6 @@ import {
   LEGACY_WORKSPACE_README_TEXT,
   getWorkspaceSeedFiles,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  WORKSPACE_README_SEED_PATH,
-  shouldReconcileDefaultWorkspaceSeedFamily,
   shouldMigrateLegacyWorkspaceSeedPaths,
 } from './workspaceFs'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
@@ -108,33 +106,9 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
       for (let i = 0; i < fileRows.length; i += 1) {
         await fileRows[i]!.remove()
       }
-    } else if (shouldReconcileDefaultWorkspaceSeedFamily(existingFilePaths)) {
-      const now = Date.now()
-      const seeds = await getWorkspaceSeedFiles()
-      for (let i = 0; i < fileRows.length; i += 1) {
-        const path = normalizeWorkspacePath(String(fileRows[i]!.get('path') || ''))
-        if (path !== WORKSPACE_README_SEED_PATH && path !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
-          await fileRows[i]!.remove()
-        }
-      }
-      for (const seed of seeds) {
-        const normalizedSeedPath = normalizeWorkspacePath(seed.path)
-        const existing = await collections.entries.findOne(normalizedSeedPath).exec()
-        if (existing && existing.get('kind') === 'file' && String(existing.get('text') ?? '').trim()) continue
-        const entries = expandWorkspaceSeedFileEntries(normalizedSeedPath, seed.text, now)
-        for (const entry of entries) {
-          await collections.entries.incrementalUpsert({
-            path: entry.path,
-            parentPath: entry.parentPath || '',
-            kind: entry.kind,
-            name: entry.name,
-            text: entry.kind === 'file' ? String(entry.text ?? '') : '',
-            updatedAtMs: entry.updatedAtMs,
-          })
-        }
-      }
     }
-    if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE) {
+    const hasAnyFilesNow = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length > 0)
+    if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE && !hasAnyFilesNow) {
       const now = Date.now()
       const seeds = await getWorkspaceSeedFiles()
       const validationSeed = seeds.find(seed => normalizeWorkspacePath(seed.path) === TEST_VALIDATION_WORKSPACE_SEED_PATH) || null
