@@ -1,7 +1,7 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
-import { openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
+import { openWorkspaceEditorPane, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
 import { writeWorkspaceEditorMode } from '@/features/workspace-table/workspaceEditorMode'
 import { WORKSPACE_TABLE_PREFS_EVENT } from '@/features/workspace-table/workspaceTablePreferencesEvents'
 
@@ -41,8 +41,15 @@ export function applyJsonImportWorkspaceTarget(args?: { preferFlowEditor?: boole
     return
   }
   if (target === 'editor') {
-    if (store.workspaceViewMode !== 'editor') store.setWorkspaceViewMode('editor')
-    if (store.editorWorkspacePane !== 'markdown') store.setEditorWorkspacePane('markdown')
+    openWorkspaceEditorPane({
+      workspaceViewMode: store.workspaceViewMode,
+      editorWorkspacePane: store.editorWorkspacePane,
+      workspaceCanvasPaneOpen: store.workspaceCanvasPaneOpen,
+      pane: 'markdown',
+      setWorkspaceViewMode: store.setWorkspaceViewMode,
+      setEditorWorkspacePane: store.setEditorWorkspacePane,
+      setWorkspaceCanvasPaneOpen: store.setWorkspaceCanvasPaneOpen,
+    })
     return
   }
   writeWorkspaceEditorMode('multiDimTable')
@@ -56,7 +63,9 @@ export function applyJsonImportWorkspaceTarget(args?: { preferFlowEditor?: boole
   openWorkspaceTable({
     workspaceViewMode: store.workspaceViewMode,
     editorWorkspacePane: store.editorWorkspacePane,
+    workspaceCanvasPaneOpen: store.workspaceCanvasPaneOpen,
     setWorkspaceViewMode: store.setWorkspaceViewMode,
     setEditorWorkspacePane: store.setEditorWorkspacePane,
+    setWorkspaceCanvasPaneOpen: store.setWorkspaceCanvasPaneOpen,
   })
 }

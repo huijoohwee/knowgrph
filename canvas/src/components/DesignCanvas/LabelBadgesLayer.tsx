@@ -1,45 +1,12 @@
 import React from 'react'
-
-type RenderNodeRef = {
-  id: string
-}
-
-type FrameRect = {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
-type Chip = {
-  boxX: number
-  boxY: number
-  boxW: number
-  boxH: number
-  textX: number
-  textY: number
-  textAnchor: 'start' | 'middle' | 'end'
-  text: string
-  fontSize: number
-  fontWeight?: number
-  fill: string
-  bgFill: string
-  bgOpacity: number
-  stroke: string
-  strokeOpacity: number
-}
-
-type LabelLayout = {
-  label?: Chip
-  meta?: Chip
-}
+import type { DesignCanvasFrameNodeRef, DesignCanvasFrameRect, DesignCanvasLabelLayout } from '@/components/DesignCanvas/types'
 
 export function DesignCanvasLabelBadgesLayer(props: {
   enabled: boolean
-  renderNodes: RenderNodeRef[]
-  positions: Record<string, FrameRect>
+  renderNodes: DesignCanvasFrameNodeRef[]
+  positions: Record<string, DesignCanvasFrameRect>
   panelOnlyNodeIdSet: Set<string> | null
-  labelLayoutById: Map<string, LabelLayout>
+  labelLayoutById: Map<string, DesignCanvasLabelLayout>
 }) {
   const { enabled, renderNodes, positions, panelOnlyNodeIdSet, labelLayoutById } = props
   if (!enabled) return null

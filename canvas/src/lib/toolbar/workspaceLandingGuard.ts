@@ -1,13 +1,20 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { openWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
 export function ensureEditorCanvasLandingForDuration(durationMs: number = 1500): void {
   const ms = Number.isFinite(durationMs) ? Math.max(0, Math.min(10_000, Math.floor(durationMs))) : 1500
 
   const apply = () => {
     const state = useGraphStore.getState()
-    if (state.workspaceViewMode !== 'editor') state.setWorkspaceViewMode('editor')
-    if (state.editorWorkspacePane !== 'markdown') state.setEditorWorkspacePane('markdown')
-    if (state.workspaceCanvasPaneOpen !== true) state.setWorkspaceCanvasPaneOpen(true)
+    openWorkspaceEditorPane({
+      workspaceViewMode: state.workspaceViewMode,
+      editorWorkspacePane: state.editorWorkspacePane,
+      workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
+      pane: 'markdown',
+      setWorkspaceViewMode: state.setWorkspaceViewMode,
+      setEditorWorkspacePane: state.setEditorWorkspacePane,
+      setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
+    })
   }
 
   try {
@@ -55,4 +62,3 @@ export function ensureEditorCanvasLandingForDuration(durationMs: number = 1500):
     void 0
   }
 }
-

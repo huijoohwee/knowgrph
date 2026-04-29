@@ -157,7 +157,7 @@ export default function CanvasPage() {
           </main>
         ) : (
           <>
-            {effectiveWorkspaceViewMode === 'editor' ? (
+            {workspaceEditorOverlayOpen ? (
               <header className="absolute top-0 inset-x-0 z-[400] pointer-events-none" aria-label="Workspace Toolbar Header">
                 <nav className="absolute top-[calc(var(--kg-safe-top)+0.5rem)] right-[calc(var(--kg-safe-right)+0.5rem)] z-[200] flex items-center justify-end bg-transparent" aria-label="Canvas Toolbar" role="navigation">
                   <div className="pointer-events-auto">
@@ -201,10 +201,10 @@ export default function CanvasPage() {
                     />
                   </section>
 
-                  {effectiveWorkspaceViewMode === 'editor' ? (
+                  {workspaceEditorOverlayOpen ? (
                     <section className="absolute inset-0 z-[300] pointer-events-none" aria-label="Workspace editor overlay shell">
                       <section
-                        className={`absolute inset-y-0 left-0 pointer-events-auto overflow-hidden border-r border-[var(--kg-border)] bg-[var(--kg-panel-bg)] shadow-2xl ${workspaceEditorOverlayOpen ? '' : 'hidden'}`}
+                        className="absolute inset-y-0 left-0 pointer-events-auto overflow-hidden border-r border-[var(--kg-border)] bg-[var(--kg-panel-bg)] shadow-2xl"
                         style={{ width: `min(${workspacePreviewWidthPx}px, calc(100% - 3rem))` }}
                         aria-label="Workspace left pane"
                       >
@@ -219,7 +219,7 @@ export default function CanvasPage() {
                         ref={setResizeHandleEl}
                         ariaLabel="Resize canvas"
                         visualStyle="centerGrip"
-                        className={`absolute inset-y-0 left-0 z-[301] h-full -translate-x-1/2 pointer-events-auto ${workspaceEditorOverlayOpen ? '' : 'hidden'}`}
+                        className="absolute inset-y-0 left-0 z-[301] h-full -translate-x-1/2 pointer-events-auto"
                         style={{ left: `min(${workspacePreviewWidthPx}px, calc(100% - 3rem))` }}
                       />
                     </section>

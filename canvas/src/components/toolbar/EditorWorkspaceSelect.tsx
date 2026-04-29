@@ -4,7 +4,7 @@ import { FileCode, Link2, Table } from 'lucide-react'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
-import { isWorkspaceTableOpen, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceTableOpen, openWorkspaceEditorPane, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
 import { WORKSPACE_TABLE_TOOLBAR_UI } from '@/features/workspace-table/workspaceTableToolbarUi'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -28,16 +28,20 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
   const {
     workspaceViewMode,
     editorWorkspacePane,
+    workspaceCanvasPaneOpen,
     canvasWorkspaceSyncMode,
     setEditorWorkspacePane,
+    setWorkspaceCanvasPaneOpen,
     setWorkspaceViewMode,
     setCanvasWorkspaceSyncMode,
   } = useGraphStore(
     useShallow(s => ({
       workspaceViewMode: s.workspaceViewMode,
       editorWorkspacePane: s.editorWorkspacePane,
+      workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
       canvasWorkspaceSyncMode: s.canvasWorkspaceSyncMode,
       setEditorWorkspacePane: s.setEditorWorkspacePane,
+      setWorkspaceCanvasPaneOpen: s.setWorkspaceCanvasPaneOpen,
       setWorkspaceViewMode: s.setWorkspaceViewMode,
       setCanvasWorkspaceSyncMode: s.setCanvasWorkspaceSyncMode,
     })),
@@ -82,7 +86,14 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
         if (snap.workspaceEditorMode !== 'multiDimTable') {
           workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
         }
-        openWorkspaceTable({ workspaceViewMode, editorWorkspacePane, setWorkspaceViewMode, setEditorWorkspacePane })
+        openWorkspaceTable({
+          workspaceViewMode,
+          editorWorkspacePane,
+          workspaceCanvasPaneOpen,
+          setWorkspaceViewMode,
+          setEditorWorkspacePane,
+          setWorkspaceCanvasPaneOpen,
+        })
         return
       }
 
@@ -91,10 +102,17 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
         workspaceTablePreferencesStore.setWorkspaceEditorMode('table')
       }
 
-      if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
-      setEditorWorkspacePane('markdown')
+      openWorkspaceEditorPane({
+        workspaceViewMode,
+        editorWorkspacePane,
+        workspaceCanvasPaneOpen,
+        pane: 'markdown',
+        setWorkspaceViewMode,
+        setEditorWorkspacePane,
+        setWorkspaceCanvasPaneOpen,
+      })
     },
-    [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode],
+    [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceCanvasPaneOpen, setWorkspaceViewMode, workspaceCanvasPaneOpen, workspaceViewMode],
   )
 
   const toggleWorkspaceSyncMode = React.useCallback(() => {

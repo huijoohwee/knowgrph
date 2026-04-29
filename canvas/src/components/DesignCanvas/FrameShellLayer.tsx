@@ -1,37 +1,11 @@
 import React from 'react'
 import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
-
-export type DesignCanvasFrameNodeRef = {
-  id: string
-  label: string
-  type?: string
-}
-
-export type DesignCanvasFrameRect = {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
-export type DesignCanvasFrameVisual = {
-  fill: string
-  stroke: string
-  strokeWidth: number
-  strokeDasharray?: string
-  rx: number
-  rectOpacity: number
-  strokeOpacity: number
-  showDecor: boolean
-  filter: string
-}
-
-export type DesignCanvasInlineMediaPreview = {
-  tag: 'IMG' | 'VIDEO' | 'IFRAME'
-  titleChip: string
-  url: string
-  clipId: string
-}
+import type {
+  DesignCanvasFrameNodeRef,
+  DesignCanvasFrameRect,
+  DesignCanvasFrameVisual,
+  DesignCanvasInlineMediaPreview,
+} from '@/components/DesignCanvas/types'
 
 export function DesignCanvasFrameShellLayer(props: {
   renderNodes: DesignCanvasFrameNodeRef[]

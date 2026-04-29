@@ -1,54 +1,14 @@
 import React from 'react'
 import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
+import type { DesignCanvasFrameNodeRef, DesignCanvasFrameRect, DesignCanvasWireframePreview } from '@/components/DesignCanvas/types'
 import { truncateTextWithEllipsis } from '@/lib/ui/text/labelText'
-
-type RenderNodeRef = {
-  id: string
-}
-
-type FrameRect = {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
-type MediaPreview = {
-  kind: 'media'
-  innerX: number
-  innerY: number
-  innerW: number
-  innerH: number
-  tag: string
-  titleChip: string
-  src: string
-  isDataImage: boolean
-  clipId: string
-}
-
-type TextPreview = {
-  kind: 'text'
-  title: string
-  titleMaxChars: number
-  x: number
-  y: number
-  fontSize: number
-  fontWeight: number
-  textAnchor: 'start' | 'middle' | 'end'
-  lineH: number
-  lines: string[]
-  fill?: string
-  fontFamily?: string
-}
-
-type WireframePreview = MediaPreview | TextPreview
 
 export function DesignCanvasWireframePreviewLayer(props: {
   enabled: boolean
-  renderNodes: RenderNodeRef[]
-  positions: Record<string, FrameRect>
+  renderNodes: DesignCanvasFrameNodeRef[]
+  positions: Record<string, DesignCanvasFrameRect>
   panelOnlyNodeIdSet: Set<string> | null
-  wireframePreviewById: Map<string, WireframePreview>
+  wireframePreviewById: Map<string, DesignCanvasWireframePreview>
   forwardWheelTo: () => SVGSVGElement | null
   onOverlayPanStart: (args: { pointerId: number; buttons: number }) => void
   onOverlayPan: (args: { pointerId: number; dx: number; dy: number }) => void

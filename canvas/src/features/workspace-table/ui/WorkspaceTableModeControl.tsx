@@ -3,7 +3,6 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { warmGraphTableDb } from '@/features/graph-table-db/graphTableDb'
 import {
   JSON_IMPORT_WORKSPACE_TARGET_LABELS,
   JSON_IMPORT_WORKSPACE_TARGET_OPTIONS,
@@ -27,6 +26,7 @@ import {
   WORKSPACE_CELL_SELECT_PANEL_PLACEMENT_OPTIONS,
   type WorkspaceCellSelectPanelPlacement,
 } from '@/features/workspace-table/cellSelectPanelPlacement'
+import { openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
 
 type WorkspaceTableModeControlProps = {
@@ -37,14 +37,18 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   const {
     workspaceViewMode,
     editorWorkspacePane,
+    workspaceCanvasPaneOpen,
     setWorkspaceViewMode,
     setEditorWorkspacePane,
+    setWorkspaceCanvasPaneOpen,
   } = useGraphStore(
     useShallow(s => ({
       workspaceViewMode: s.workspaceViewMode,
       editorWorkspacePane: s.editorWorkspacePane,
+      workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
       setWorkspaceViewMode: s.setWorkspaceViewMode,
       setEditorWorkspacePane: s.setEditorWorkspacePane,
+      setWorkspaceCanvasPaneOpen: s.setWorkspaceCanvasPaneOpen,
     })),
   )
 
@@ -62,12 +66,15 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
   const workspaceCellSelectPanelPlacement = prefs.workspaceCellSelectPanelPlacement as WorkspaceCellSelectPanelPlacement
 
   const openWorkspaceTableFromControl = React.useCallback(() => {
-    // Keep this control independent from toolbar-owned helper chunks so SettingsView can lazy-load without re-entering Toolbar.
-    if (workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
-    if (editorWorkspacePane !== 'graphTable') setEditorWorkspacePane('graphTable')
-    if (typeof window === 'undefined') return
-    void warmGraphTableDb()
-  }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
+    openWorkspaceTable({
+      workspaceViewMode,
+      editorWorkspacePane,
+      workspaceCanvasPaneOpen,
+      setWorkspaceViewMode,
+      setEditorWorkspacePane,
+      setWorkspaceCanvasPaneOpen,
+    })
+  }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceCanvasPaneOpen, setWorkspaceViewMode, workspaceCanvasPaneOpen, workspaceViewMode])
 
   const handleWorkspaceEditorModeChanged = React.useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {

@@ -79,8 +79,15 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   const text = readFileSync(p, 'utf8')
   const separatorPath = resolve(process.cwd(), 'src', 'components', 'ui', 'VerticalResizeSeparatorHr.tsx')
   const separatorText = readFileSync(separatorPath, 'utf8')
+  const workspaceSelectPath = resolve(process.cwd(), 'src', 'components', 'toolbar', 'EditorWorkspaceSelect.tsx')
+  const workspaceSelectText = readFileSync(workspaceSelectPath, 'utf8')
+  const workspaceSsotPath = resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceTableSsot.ts')
+  const workspaceSsotText = readFileSync(workspaceSsotPath, 'utf8')
   if (!text.includes('const workspaceEditorOverlayOpen = effectiveWorkspaceViewMode === \'editor\' && workspaceCanvasPaneOpen')) {
     throw new Error('expected Canvas page to derive a dedicated workspace editor overlay-open state')
+  }
+  if (!text.includes('{workspaceEditorOverlayOpen ? (')) {
+    throw new Error('expected Canvas page to mount the workspace editor overlay only while the pane is open')
   }
   if (!text.includes('aria-label="Workspace editor overlay shell"')) {
     throw new Error('expected Canvas page to render workspace editor in an absolute overlay shell')
@@ -102,6 +109,21 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   }
   if (!separatorText.includes("backgroundSize: '1px 3.5rem'")) {
     throw new Error('expected centered grip variant to render a short centered separator instead of a full-height stroke')
+  }
+  if (text.includes("${workspaceEditorOverlayOpen ? '' : 'hidden'}")) {
+    throw new Error('expected Canvas page not to keep a hidden workspace editor separator mounted while the pane is off')
+  }
+  if (!workspaceSsotText.includes('export function openWorkspaceEditorPane')) {
+    throw new Error('expected workspace editor open flow to stay centralized in a shared helper')
+  }
+  if (!workspaceSsotText.includes("if (args.workspaceCanvasPaneOpen !== true) args.setWorkspaceCanvasPaneOpen(true)")) {
+    throw new Error('expected shared workspace open helper to reopen the canvas pane and clear stale OFF residue')
+  }
+  if (!workspaceSelectText.includes('openWorkspaceEditorPane({')) {
+    throw new Error('expected toolbar Workspace View editor selection to reuse the shared workspace open helper')
+  }
+  if (!workspaceSelectText.includes('workspaceCanvasPaneOpen')) {
+    throw new Error('expected toolbar Workspace View selection to route stale pane-open state through the shared helper')
   }
 }
 

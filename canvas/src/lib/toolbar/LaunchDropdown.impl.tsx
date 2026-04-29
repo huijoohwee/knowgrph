@@ -5,6 +5,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { WORKSPACE_IMPORT_IMAGE_URL_TEST, WORKSPACE_IMPORT_URL_TEST } from '@/lib/config'
 import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
+import { openWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cn } from '@/lib/utils'
 import { WORKSPACE_EXPORT_MENU_ITEMS } from '@/lib/toolbar/exportMenuSsot'
@@ -64,9 +65,15 @@ export function LaunchDropdown({
   const ensureWorkspaceEditorCanvasVisible = React.useCallback(() => {
     try {
       const state = useGraphStore.getState()
-      if (state.workspaceViewMode !== 'editor') state.setWorkspaceViewMode('editor')
-      if (state.editorWorkspacePane !== 'markdown') state.setEditorWorkspacePane('markdown')
-      if (state.workspaceCanvasPaneOpen !== true) state.setWorkspaceCanvasPaneOpen(true)
+      openWorkspaceEditorPane({
+        workspaceViewMode: state.workspaceViewMode,
+        editorWorkspacePane: state.editorWorkspacePane,
+        workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
+        pane: 'markdown',
+        setWorkspaceViewMode: state.setWorkspaceViewMode,
+        setEditorWorkspacePane: state.setEditorWorkspacePane,
+        setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
+      })
     } catch {
       void 0
     }
