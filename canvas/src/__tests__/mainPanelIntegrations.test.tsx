@@ -13,7 +13,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { PROPS_PANEL_OPEN_EVENT, SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import {
-  CHAT_BYTEPLUS_AP_SOUTHEAST_BASE,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
   CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
@@ -94,9 +93,8 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'Open FloatingPanel Chat UI',
       'chatProvider',
       'chatModel',
+      'chatContextScope',
       'integrationConfigsJson',
-      'Official AI',
-      'AI routing',
       'BytePlus Chat API',
       'Open FloatingPanel Props Panel Text Widget',
       'byteplusApi.provider',
@@ -307,30 +305,17 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAiControls() 
       throw new Error(`expected integrations scroll host to be overflow-auto, got ${JSON.stringify(integrationsScrollHost.className)}`)
     }
     ;[
-      'Context scope',
-      'AI routing',
+      'chatContextScope',
+      'integrationConfigsJson',
       'Enable AI Chat',
       'Disable AI Chat',
       'Format JSON',
       'Refresh Models',
-      'Multi-modal Run',
-      'OpenAI default text model',
-      'seedream-4-0-250828',
-      'ByteDance-Seedance-1.0-pro-fast',
     ].forEach(token => {
       if (!text.includes(token)) {
         throw new Error(`expected chat settings controls to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
-    if (!text.includes(`${CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}/api/v3`)) {
-      throw new Error(`expected integrations chat controls to include default BytePlus base url ${CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}/api/v3`)
-    }
-    if (!text.includes(CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT)) {
-      throw new Error(`expected chat settings controls to include image default ${CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT}`)
-    }
-    if (!text.includes(CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT)) {
-      throw new Error(`expected chat settings controls to include video default ${CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT}`)
-    }
   } finally {
     try {
       await unmountAndFlush(root)
@@ -1233,8 +1218,8 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusNes
     if (editors.length !== 1) {
       throw new Error(`expected BytePlus nested numeric field row to render one numeric input, got ${editors.length}`)
     }
-    if (editors[0]?.value !== '4014080') {
-      throw new Error(`expected BytePlus nested numeric field input to use the documented default 4014080, got ${JSON.stringify(editors[0]?.value)}`)
+    if (editors[0]?.value !== '3136') {
+      throw new Error(`expected BytePlus nested numeric field input to use the documented default 3136, got ${JSON.stringify(editors[0]?.value)}`)
     }
   } finally {
     try {

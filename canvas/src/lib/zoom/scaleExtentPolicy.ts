@@ -34,3 +34,21 @@ export function resolveScaleExtentForZoomRequest(args: {
   return safeScaleExtent({ minK: Math.min(merged.minK, k0 / factor), maxK: merged.maxK })
 }
 
+export function resolveScaleExtentForInteractiveZoom(args: {
+  scaleExtent: ScaleExtent
+  currentTransform: { k: number }
+  nextK: number
+}): ScaleExtent {
+  const base = safeScaleExtent(args.scaleExtent)
+  const currentK = typeof args.currentTransform.k === 'number' && Number.isFinite(args.currentTransform.k) && args.currentTransform.k > 0
+    ? args.currentTransform.k
+    : 1
+  const nextK = typeof args.nextK === 'number' && Number.isFinite(args.nextK) && args.nextK > 0
+    ? args.nextK
+    : currentK
+  let minK = base.minK
+  let maxK = base.maxK
+  if (nextK < minK) minK = Math.min(minK, currentK, nextK)
+  if (nextK > maxK) maxK = Math.max(maxK, currentK, nextK)
+  return safeScaleExtent({ minK, maxK })
+}

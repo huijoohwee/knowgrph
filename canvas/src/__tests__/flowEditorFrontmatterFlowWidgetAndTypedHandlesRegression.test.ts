@@ -550,27 +550,31 @@ export function testWidgetInitUsesLayoutHydrationAndRafClampCommit() {
 }
 
 export function testFlowEditorWidgetGridFollowsToolbarAndAvoidsRightDocking() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const flowText = readFileSync(flowEditorCanvasPath, 'utf8')
+  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
+  const sharedText = readFileSync(sharedPath, 'utf8')
+  const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
+  const collisionText = readFileSync(collisionPath, 'utf8')
+  const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
+  const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
   const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const nodeText = readFileSync(nodeOverlayEditorPath, 'utf8')
 
-  if (!flowText.includes('function readWidgetGridLayoutSettings(schema: unknown)')) {
+  if (!sharedText.includes('export function readWidgetGridLayoutSettings(schema: unknown): {')) {
     throw new Error('expected FlowEditor widget layout to derive settings from toolbar grid behavior')
   }
-  if (!flowText.includes('const widgetGrid = readWidgetGridLayoutSettings(schemaCur)')) {
+  if (!collisionText.includes('const widgetGrid = readWidgetGridLayoutSettings(schema)')) {
     throw new Error('expected FlowEditor overlay collision/layout pass to read widget grid settings')
   }
-  if (!flowText.includes("const panelScale = computeWidgetScale(zoomK, null, { mode: 'floating' })")) {
-    throw new Error('expected widget collision layout scale to keep floating-mode sizing path')
+  if (!collisionText.includes('computeCollectiveFollowPinnedScale')) {
+    throw new Error('expected widget collision layout scale to reuse the shared follow-pinned scale helper')
   }
-  if (!flowText.includes('isFrontmatterFlow || widgetGrid.gridEnabled')) {
+  if (!collisionText.includes('isFrontmatterFlow || widgetGrid.gridEnabled')) {
     throw new Error('expected widget dock layout to use centered grid strategy when toolbar grid is enabled')
   }
-  if (!flowText.includes('snapToGridPx(') || !flowText.includes('snapScreen(')) {
+  if (!collisionText.includes('snapToGridPx(') || !collisionText.includes('snapScreen(')) {
     throw new Error('expected widget overlay positions to snap to toolbar grid increments')
   }
-  if (!flowText.includes('const widgetGrid = readWidgetGridLayoutSettings(schema)')) {
+  if (!runtimeSceneText.includes('const widgetGrid = readWidgetGridLayoutSettings(args.schema)')) {
     throw new Error('expected widget seeded world positions to use toolbar grid settings')
   }
 

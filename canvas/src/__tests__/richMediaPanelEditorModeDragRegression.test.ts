@@ -15,3 +15,22 @@ export function testRichMediaPanelEditorModeDisablesInteractiveContentForDraggin
   }
 }
 
+export function testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteractiveScroll() {
+  const panelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const panelText = readFileSync(panelPath, 'utf8')
+  if (!panelText.includes('const forwardModifierWheelZoomOnly = installWheelForwarding && flowEditorFrontmatterDocumentMode === true')) {
+    throw new Error('expected RichMediaPanel to isolate explicit modifier-wheel zoom forwarding in Flow Editor frontmatter document mode')
+  }
+  if (!panelText.includes('shouldForwardWheel: forwardModifierWheelZoomOnly ? e => e.ctrlKey === true || e.metaKey === true : undefined')) {
+    throw new Error('expected RichMediaPanel to forward only explicit ctrl/cmd wheel zoom while preserving normal panel scroll')
+  }
+
+  const wheelGuardsPath = resolve(process.cwd(), '..', 'grph-shared', 'src', 'dom', 'wheelGuards.ts')
+  const wheelGuardsText = readFileSync(wheelGuardsPath, 'utf8')
+  if (!wheelGuardsText.includes('shouldForwardWheel?: (e: WheelEvent) => boolean')) {
+    throw new Error('expected shared wheel guards to accept a wheel-forwarding predicate')
+  }
+  if (!wheelGuardsText.includes('if (forwardTo && forwardAllowed)')) {
+    throw new Error('expected shared wheel guards to gate forwarding through the shared predicate result')
+  }
+}

@@ -14,4 +14,9 @@ export function testFlowEditorPinnedOverlayWheelAlwaysProxiesUnlessAlt() {
   const iScroll = Math.max(text.indexOf('isScrollable'), text.indexOf('scrollHeight'), text.indexOf('overflowY'))
   if (iPinned < 0 || iScroll < 0) throw new Error('expected overlay wheel proxy to include scroll detection and pinned proxy logic')
   if (!(iScroll < iPinned)) throw new Error('expected scroll detection to run before pinned overlay wheel proxy rule')
+  const iExplicitZoomIntent = text.indexOf('if (event.ctrlKey === true || event.metaKey === true) return true')
+  if (iExplicitZoomIntent < 0) throw new Error('expected overlay wheel proxy to force explicit ctrl/cmd zoom intent through to the canvas')
+  if (!(iExplicitZoomIntent < iScroll)) {
+    throw new Error('expected explicit ctrl/cmd zoom intent to win before scrollable overlay content checks')
+  }
 }

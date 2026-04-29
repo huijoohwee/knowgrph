@@ -3,6 +3,7 @@ import * as d3 from 'd3'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { mergeScaleExtentWithCurrent } from '@/lib/zoom/scaleExtent'
+import { resolveScaleExtentForInteractiveZoom } from '@/lib/zoom/scaleExtentPolicy'
 import { clampScale, computeAnchoredZoomTransform } from '@/lib/canvas/viewport-transform'
 
 type LocalPointReader = (e: { clientX?: unknown; clientY?: unknown; target?: unknown; currentTarget?: unknown }) =>
@@ -56,8 +57,13 @@ export function createSafariGestureZoomController(args: {
 
     const t0 = args.adapter.getTransform() || d3.zoomIdentity
     const extent = readScaleExtent(schema, t0.k)
-    const minK = ratio < 1 ? Math.min(extent.minK, t0.k) : extent.minK
-    const nextK = clampScale(t0.k * ratio, { minK, maxK: extent.maxK })
+    const requestedK = t0.k * ratio
+    const nextExtent = resolveScaleExtentForInteractiveZoom({
+      scaleExtent: ratio < 1 ? { minK: Math.min(extent.minK, t0.k), maxK: extent.maxK } : extent,
+      currentTransform: t0,
+      nextK: requestedK,
+    })
+    const nextK = clampScale(requestedK, nextExtent)
     if (!Number.isFinite(nextK) || Math.abs(nextK - t0.k) < 1e-10) return
 
     const local = args.readLocalPoint(event as unknown as { clientX?: unknown; clientY?: unknown })
@@ -109,4 +115,3 @@ export function createSafariGestureZoomController(args: {
 
   return { handleGestureStart, handleGestureChange, handleGestureEnd, handleGestureCancel }
 }
-

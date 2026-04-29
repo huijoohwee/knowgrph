@@ -1,4 +1,4 @@
-import { resolveScaleExtentForZoomRequest } from '@/lib/zoom/scaleExtentPolicy'
+import { resolveScaleExtentForInteractiveZoom, resolveScaleExtentForZoomRequest } from '@/lib/zoom/scaleExtentPolicy'
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
 
 export function testZoomScaleExtentPolicyExpandsMaxForToolbarZoomIn() {
@@ -40,3 +40,24 @@ export function testZoomScaleExtentPolicyDoesNotChangeExtentForFit() {
   }
 }
 
+export function testZoomScaleExtentPolicyExpandsMaxForInteractiveZoomIn() {
+  const extent = resolveScaleExtentForInteractiveZoom({
+    scaleExtent: { minK: 0.25, maxK: 2 },
+    currentTransform: { k: 2 },
+    nextK: 2.5,
+  })
+  if (extent.maxK < 2.5 - 1e-12) {
+    throw new Error(`expected interactive zoom-in to expand maxK >= 2.5, got ${extent.maxK}`)
+  }
+}
+
+export function testZoomScaleExtentPolicyExpandsMinForInteractiveZoomOut() {
+  const extent = resolveScaleExtentForInteractiveZoom({
+    scaleExtent: { minK: 0.5, maxK: 4 },
+    currentTransform: { k: 0.5 },
+    nextK: 0.4,
+  })
+  if (extent.minK > 0.4 + 1e-12) {
+    throw new Error(`expected interactive zoom-out to expand minK <= 0.4, got ${extent.minK}`)
+  }
+}

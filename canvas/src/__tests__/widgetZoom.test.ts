@@ -1,4 +1,4 @@
-import { computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
 import { clampBalancedCollectiveScaleToViewport } from '@/lib/ui/overlayBalancedSpread'
 
 function approxEq(a: number, b: number, eps = 1e-6): boolean {
@@ -82,5 +82,46 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
   })
   if (!approxEq(singleScale, 1)) {
     throw new Error(`expected single floating widget scale to remain unchanged by collective viewport fit, got ${singleScale}`)
+  }
+
+  const denseCollectiveScale = clampBalancedCollectiveScaleToViewport({
+    scale: 1,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: 8,
+    baseWidth: 360,
+    baseHeight: 520,
+    quantizeStep: 0.02,
+    hardMinScale: 0.68,
+    hardMaxScale: 1.06,
+  })
+  if (!(denseCollectiveScale < balancedCollectiveScale)) {
+    throw new Error(`expected dense collective scale to shrink below 4-up scale on 1920x1080, got dense=${denseCollectiveScale} four=${balancedCollectiveScale}`)
+  }
+
+  const followPinnedZoomOut = computeCollectiveFollowPinnedScale({
+    zoomK: 0.5,
+    extent,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: 1,
+    baseWidth: 360,
+    baseHeight: 520,
+  })
+  if (!approxEq(followPinnedZoomOut, 0.5)) {
+    throw new Error(`expected follow-pinned collective scale to reuse pinned zoom-out size, got ${followPinnedZoomOut}`)
+  }
+
+  const followPinnedZoomIn = computeCollectiveFollowPinnedScale({
+    zoomK: 2,
+    extent,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: 1,
+    baseWidth: 360,
+    baseHeight: 520,
+  })
+  if (!approxEq(followPinnedZoomIn, 1)) {
+    throw new Error(`expected follow-pinned collective scale to cap at pinned zoom-in size, got ${followPinnedZoomIn}`)
   }
 }

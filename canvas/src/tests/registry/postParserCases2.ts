@@ -6,6 +6,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["zoom.scaleExtentPolicy.toolbarZoomIn.expandsMax","@/__tests__/zoomScaleExtentPolicy.test","testZoomScaleExtentPolicyExpandsMaxForToolbarZoomIn"],
   ["zoom.scaleExtentPolicy.toolbarZoomOut.expandsMin","@/__tests__/zoomScaleExtentPolicy.test","testZoomScaleExtentPolicyExpandsMinForToolbarZoomOut"],
   ["zoom.scaleExtentPolicy.fit.doesNotChangeExtent","@/__tests__/zoomScaleExtentPolicy.test","testZoomScaleExtentPolicyDoesNotChangeExtentForFit"],
+  ["zoom.scaleExtentPolicy.interactiveZoomIn.expandsMax","@/__tests__/zoomScaleExtentPolicy.test","testZoomScaleExtentPolicyExpandsMaxForInteractiveZoomIn"],
+  ["zoom.scaleExtentPolicy.interactiveZoomOut.expandsMin","@/__tests__/zoomScaleExtentPolicy.test","testZoomScaleExtentPolicyExpandsMinForInteractiveZoomOut"],
   ["canvas.centerTransform.centersWorldPoint","@/__tests__/infiniteCanvasArrange.test","testCenterTransformCentersWorldPoint"],
   ["canvas.evenDistribute.enforcesMinSpacing","@/__tests__/infiniteCanvasArrange.test","testEvenDistributeUsesStableOrderingAndMinSpacing"],
   ["graph.nodes2d.rendersDiamondAndHex","@/__tests__/nodeShapes2d.test","testNodesLayerRendersDiamondAndHexPaths"],

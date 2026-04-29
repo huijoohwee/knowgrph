@@ -261,6 +261,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["flow.widget.selection.canonicalIds.resolveAcrossDraftAndOverlayGraphs","@/__tests__/flowWidgetOutputRichMediaReuse.test","testFlowEditorCanvasResolvesCanonicalSelectionIdsAcrossDraftAndOverlayGraphs"],
   ["richMediaPanel.markdownPreview.disablesGlobalTokenStoreSync","@/__tests__/flowWidgetOutputRichMediaReuse.test","testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync"],
   ["flowCanvas.richMediaOverlay.resizeGatesUseCanonicalSelectionMatch","@/__tests__/flowWidgetOutputRichMediaReuse.test","testFlowCanvasRichMediaResizeUsesCanonicalSelectionMatch"],
+  ["richMediaPanel.flowEditor.modifierWheelZoomKeepsInteractiveScroll","@/__tests__/richMediaPanelEditorModeDragRegression.test","testRichMediaPanelFlowEditorModifierWheelZoomKeepsInteractiveScroll"],
   ["searchPanel.selection.requestsSharedSelectionZoom","@/__tests__/searchPanelSelectionFocus.test","testSearchPanelSelectionRequestsSharedSelectionZoom"],
   ["flow.seed.fallback.viewportInvariant","@/__tests__/flowFallbackSeedPositions.test","testFlowFallbackSeedPositionsAreViewportInvariant"],
   ["flow.seed.fallback.centeredAtWorldOrigin","@/__tests__/flowFallbackSeedPositions.test","testFlowFallbackSeedPositionsStayCenteredAtWorldOrigin"],

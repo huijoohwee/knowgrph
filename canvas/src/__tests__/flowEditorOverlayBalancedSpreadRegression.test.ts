@@ -12,6 +12,9 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!spreadText.includes('clampBalancedCollectiveScaleToViewport')) {
     throw new Error('expected shared overlay spread helper to expose viewport-fit scaling for balanced collective overlays')
   }
+  if (!spreadText.includes('computeBalancedSpreadLayout')) {
+    throw new Error('expected shared overlay spread helper to expose centered balanced multi-column seed layout planning')
+  }
 
   const hookPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
   const hookText = readUtf8(hookPath)
@@ -21,8 +24,11 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('const panelScaleKey = computeWidgetScaleKey(panelScale)')) {
     throw new Error('expected overlay collision key to bucket relayouts by stable floating scale')
   }
-  if (!hookText.includes('clampBalancedCollectiveScaleToViewport')) {
-    throw new Error('expected overlay collision path to reuse shared viewport-fit scaling for balanced collective widget seeding')
+  if (!hookText.includes('computeCollectiveFollowPinnedScale')) {
+    throw new Error('expected overlay collision path to reuse the shared follow-pinned scale helper')
+  }
+  if (!hookText.includes('computeBalancedSpreadLayout')) {
+    throw new Error('expected overlay collision path to reuse shared centered balanced spread layout planning')
   }
   if (!hookText.includes('const OVERLAY_POSITION_QUANTUM_PX = 1')) {
     throw new Error('expected overlay collision path to quantize persisted floating positions')
@@ -139,5 +145,13 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   const sizingText = readUtf8(sizingPath)
   if (!sizingText.includes('clampBalancedCollectiveScaleToViewport')) {
     throw new Error('expected rich media overlay sizing to reuse shared viewport-fit scaling for balanced collective panel initialization')
+  }
+  const mediaLayoutPath = path.resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts')
+  const mediaLayoutText = readUtf8(mediaLayoutPath)
+  if (!mediaLayoutText.includes('computeBalancedSpreadLayout')) {
+    throw new Error('expected rich media overlay collision layout to reuse shared balanced multi-column seed layout planning')
+  }
+  if (!mediaLayoutText.includes('isVerticalOverlayCluster')) {
+    throw new Error('expected rich media overlay collision layout to reuse shared vertical-cluster detection before reseeding')
   }
 }

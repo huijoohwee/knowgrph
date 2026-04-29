@@ -2,6 +2,7 @@ export function installWheelForwardingAndBrowserZoomGuards(
   el: Element,
   opts?: {
     forwardWheelTo?: () => Element | null
+    shouldForwardWheel?: (e: WheelEvent) => boolean
     stopPropagationOnForward?: boolean
     stopPropagationOnPreventZoom?: boolean
     forwardedFlagKey?: string
@@ -11,6 +12,7 @@ export function installWheelForwardingAndBrowserZoomGuards(
   const stopPropOnForward = opts?.stopPropagationOnForward !== false
   const stopPropOnPreventZoom = opts?.stopPropagationOnPreventZoom === true
   const getForwardTo = typeof opts?.forwardWheelTo === 'function' ? opts.forwardWheelTo : null
+  const shouldForwardWheel = typeof opts?.shouldForwardWheel === 'function' ? opts.shouldForwardWheel : null
 
   const handleWheel = (e: WheelEvent) => {
     try {
@@ -20,7 +22,16 @@ export function installWheelForwardingAndBrowserZoomGuards(
     }
 
     const forwardTo = getForwardTo ? getForwardTo() : null
-    if (forwardTo) {
+    const forwardAllowed = (() => {
+      if (!forwardTo) return false
+      if (!shouldForwardWheel) return true
+      try {
+        return shouldForwardWheel(e) === true
+      } catch {
+        return false
+      }
+    })()
+    if (forwardTo && forwardAllowed) {
       try {
         e.preventDefault()
       } catch {

@@ -78,7 +78,7 @@ export const BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
     contractionNote: 'Tighter bounds narrows image token cost.',
   },
   'messages.content.image_url.image_pixel_limit.max_pixels': {
-    defaultValue: 4014080,
+    defaultValue: 3136,
     min: 3136,
     max: 4014080,
     interval: 1,
@@ -182,14 +182,14 @@ export const BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
     contractionNote: 'Disabling narrows stream metadata volume.',
   },
   max_tokens: {
-    defaultValue: 4096,
+    defaultValue: 1000,
     min: 0,
     interval: 1,
     expansionNote: 'More tokens expands response length.',
     contractionNote: 'Fewer tokens narrows response budget.',
   },
   max_completion_tokens: {
-    defaultValue: '—',
+    defaultValue: 1000,
     min: 0,
     max: 65536,
     interval: 1,

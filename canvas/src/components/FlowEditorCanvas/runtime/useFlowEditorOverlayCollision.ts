@@ -10,12 +10,11 @@ import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWith
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
 import { FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { worldToScreen } from '@/lib/zoom/viewport'
-import { computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { readWidgetGridLayoutSettings, shouldAutoPlaceFlowEditorWidget, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import {
   BALANCED_OVERLAY_SPREAD_TARGET_ASPECT,
-  clampBalancedCollectiveScaleToViewport,
-  computeBalancedSpreadGrid,
+  computeBalancedSpreadLayout,
   computeBalancedSpreadSpacingPx,
   isVerticalOverlayCluster,
 } from '@/lib/ui/overlayBalancedSpread'
@@ -190,10 +189,9 @@ export function useFlowEditorOverlayCollision(args: {
             zoomState: st.zoomState,
           })?.k) ?? null
       const zoomK = typeof zoomKRaw === 'number' && Number.isFinite(zoomKRaw) ? zoomKRaw : 1
-      const panelScaleBase = computeWidgetScale(zoomK, null, { mode: 'floating' })
       const unpinnedCount = overlayNodeIds.reduce((acc, id) => acc + (st.flowWidgetPinnedByNodeId?.[id] === true ? 0 : 1), 0)
-      const panelScale = clampBalancedCollectiveScaleToViewport({
-        scale: panelScaleBase,
+      const panelScale = computeCollectiveFollowPinnedScale({
+        zoomK,
         viewportW: args.viewportW,
         viewportH: args.viewportH,
         count: Math.max(1, unpinnedCount),
@@ -286,32 +284,30 @@ export function useFlowEditorOverlayCollision(args: {
       const marginRight = isFrontmatterFlow ? Math.max(20, Math.floor(args.viewportW * 0.1)) : 20
       const marginTop = isFrontmatterFlow ? Math.max(64, Math.floor(args.viewportH * 0.1)) : 96
       const marginBottom = isFrontmatterFlow ? Math.max(24, Math.floor(args.viewportH * 0.1)) : 24
-      const usableW = Math.max(1, args.viewportW - marginLeft - marginRight)
-      const usableH = Math.max(1, args.viewportH - marginTop - marginBottom)
-      const computeGrid = () =>
-        computeBalancedSpreadGrid({
-          count: Math.max(1, unpinnedCount),
-          viewportW: usableW,
-          viewportH: usableH,
-          cellW: cellSize.width,
-          cellH: cellSize.height,
-          zoomK,
-        })
-      const baseGrid = computeGrid()
-      let rowsMax = baseGrid.rows
-      let dockCols = baseGrid.cols
-      let dockWidth = dockCols * cellSize.width - gapPx
-      let dockLeft = Math.max(marginLeft, args.viewportW - marginRight - dockWidth)
-      let dockTop = marginTop
-      if (isFrontmatterFlow || widgetGrid.gridEnabled) {
-        const centeredGrid = computeGrid()
-        const cols = centeredGrid.cols
-        const rows = centeredGrid.rows
-        dockCols = cols
-        rowsMax = rows
-        dockWidth = cols * cellSize.width - gapPx
-        dockLeft = marginLeft + Math.max(0, Math.floor((usableW - dockWidth) / 2))
-        dockTop = marginTop + Math.max(0, Math.floor((usableH - (rows * cellSize.height - gapPx)) / 2))
+      const balancedLayout = computeBalancedSpreadLayout({
+        count: Math.max(1, unpinnedCount),
+        viewportW: args.viewportW,
+        viewportH: args.viewportH,
+        cellW: cellSize.width,
+        cellH: cellSize.height,
+        gapPx,
+        zoomK,
+        marginLeftPx: marginLeft,
+        marginRightPx: marginRight,
+        marginTopPx: marginTop,
+        marginBottomPx: marginBottom,
+        snapPx: snapStepPx,
+      })
+      const useBalancedCenteredLayout = unpinnedCount >= 2 || isFrontmatterFlow || widgetGrid.gridEnabled
+      let rowsMax = balancedLayout.rows
+      let dockCols = balancedLayout.cols
+      let dockWidth = balancedLayout.gridW
+      let dockLeft = balancedLayout.startLeft
+      let dockTop = balancedLayout.startTop
+      if (!useBalancedCenteredLayout) {
+        dockWidth = dockCols * cellSize.width - gapPx
+        dockLeft = Math.max(marginLeft, args.viewportW - marginRight - dockWidth)
+        dockTop = marginTop
       }
 
       const pinnedObstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
@@ -334,8 +330,11 @@ export function useFlowEditorOverlayCollision(args: {
         const rawCol = Math.floor(stack / rowsMax)
         const col = Math.min(rawCol, dockCols - 1)
         const row = rawCol < dockCols ? stack % rowsMax : stack - (dockCols - 1) * rowsMax
+        const centeredCell = useBalancedCenteredLayout ? balancedLayout.cells[stack] : null
         stack += 1
-        const fallback = { left: dockLeft + col * cellSize.width, top: dockTop + row * cellSize.height }
+        const fallback = centeredCell
+          ? { left: centeredCell.left, top: centeredCell.top }
+          : { left: dockLeft + col * cellSize.width, top: dockTop + row * cellSize.height }
         const base = !hasStored
           ? fallback
           : (() => {
@@ -472,7 +471,8 @@ export function useFlowEditorOverlayCollision(args: {
       if (allowNodeObstacleCollision && args.schema && rawNodes.length > 0) {
         const t = args.getLiveZoomTransform() || getZoomStateForKey({ zoomViewKey: args.zoomViewKeyRef.current, zoomStateByKey: st.zoomStateByKey }) || null
         const k = typeof t?.k === 'number' && Number.isFinite(t.k) ? t.k : 1
-        const knobs = readFlowLayoutKnobs({ schema: args.schema, rankdir: args.frontmatterFlowRenderSettings?.rankdir || 'TB' })
+        const rankdir: 'LR' | 'TB' = args.frontmatterFlowRenderSettings?.rankdir === 'LR' ? 'LR' : 'TB'
+        const knobs = readFlowLayoutKnobs({ schema: args.schema, rankdir })
         const handleExtra = args.schema.behavior?.portHandles?.enabled === true ? Math.max(0, knobs.handle.sizePx) : 0
         const nodeW = Math.max(1, Math.floor(knobs.node.widthPx + handleExtra * 2))
         const nodeH = Math.max(1, Math.floor(knobs.node.heightPx + handleExtra * 2))

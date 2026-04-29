@@ -1,3 +1,5 @@
+import { clampBalancedCollectiveScaleToViewport } from '@/lib/ui/overlayBalancedSpread'
+
 export const WIDGET_BASE_SIZE = {
   width: 360,
   height: 520,
@@ -49,4 +51,32 @@ export function computeWidgetScaledSize(scale: number): { width: number; height:
     width: WIDGET_BASE_SIZE.width * s,
     height: WIDGET_BASE_SIZE.height * s,
   }
+}
+
+export function computeCollectiveFollowPinnedScale(args: {
+  zoomK: number
+  extent?: ZoomScaleExtent | null
+  viewportW: number
+  viewportH: number
+  count: number
+  baseWidth: number
+  baseHeight: number
+  quantizeStep?: number
+  hardMinScale?: number
+  hardMaxScale?: number
+}): number {
+  const baseScale = computeWidgetScale(args.zoomK, args.extent, { mode: 'pinnedInCanvas' })
+  const requestedHardMin = Number.isFinite(args.hardMinScale) ? Math.max(0.001, Number(args.hardMinScale)) : 0.68
+  const requestedHardMax = Number.isFinite(args.hardMaxScale) ? Math.max(0.001, Number(args.hardMaxScale)) : 1.06
+  return clampBalancedCollectiveScaleToViewport({
+    scale: baseScale,
+    viewportW: args.viewportW,
+    viewportH: args.viewportH,
+    count: Math.max(1, Math.floor(Number(args.count) || 1)),
+    baseWidth: Math.max(1, Number(args.baseWidth) || 1),
+    baseHeight: Math.max(1, Number(args.baseHeight) || 1),
+    quantizeStep: Number.isFinite(args.quantizeStep) ? Math.max(0.001, Number(args.quantizeStep)) : 0.02,
+    hardMinScale: Math.min(requestedHardMin, baseScale),
+    hardMaxScale: Math.max(requestedHardMax, baseScale),
+  })
 }

@@ -993,7 +993,7 @@ export function useSettingsView({
       }> = [
         {
           title: 'Chat',
-          searchIndex: normalizeText('Chat FloatingPanel Chat UI Official AI integrationConfigsJson'),
+          searchIndex: normalizeText('Chat FloatingPanel Chat UI chatContextScope integrationConfigsJson'),
           match: (entry) => {
             const area = normalizeSettingsAreaLabel(entry.details.area)
             return area === 'Chat' || area === 'Integrations'

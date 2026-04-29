@@ -5,7 +5,7 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
-import { computeWidgetScale } from '@/components/FlowEditor/widgetZoom'
+import { computeWidgetScale, computeCollectiveFollowPinnedScale } from '@/components/FlowEditor/widgetZoom'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
@@ -180,6 +180,19 @@ export default function FlowCanvasMediaOverlays(args: {
       && frontmatterModeEnabled === true
       && String(documentSemanticMode || '').trim() === 'document'
   }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
+  const computeOverlaySizingScale = React.useCallback((zoomK: number, itemCount: number, panelW: number, panelH: number) => {
+    return computeCollectiveFollowPinnedScale({
+      zoomK,
+      viewportW,
+      viewportH,
+      count: itemCount,
+      baseWidth: panelW,
+      baseHeight: panelH,
+      quantizeStep: 0.02,
+      hardMinScale: 0.62,
+      hardMaxScale: 1.08,
+    })
+  }, [viewportH, viewportW])
 
   const writeRichMediaResizeTrace = React.useCallback((parts: Array<string | number>) => {
     try {
@@ -370,7 +383,7 @@ export default function FlowCanvasMediaOverlays(args: {
       viewportW,
       viewportH,
       readTransform: () => runtimeRef.current?.transform || d3.zoomIdentity,
-      computeSizingZoomK: zoomK => (flowEditorFrontmatterInteractionMode ? computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' }) : zoomK),
+      computeSizingZoomK: zoomK => computeOverlaySizingScale(zoomK, mediaLayoutItems.length, 360, 240),
       getPanelSizeForId: id => {
         if (!flowEditorFrontmatterInteractionMode) return null
         const override = mediaOverlayPanelSizeOverrideRef.current.get(id)
@@ -381,7 +394,7 @@ export default function FlowCanvasMediaOverlays(args: {
         const height = Number(props['visual:height'])
         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
         const zoomK = typeof runtimeRef.current?.transform?.k === 'number' && runtimeRef.current.transform.k > 0 ? runtimeRef.current.transform.k : 1
-        const scale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
+        const scale = computeOverlaySizingScale(zoomK, mediaLayoutItems.length, Math.max(24, width), Math.max(24, height))
         return { w: Math.max(24, width) * scale, h: Math.max(24, height) * scale }
       },
       getElementForId: id => mediaOverlayElsRef.current.get(id) || null,
@@ -401,10 +414,10 @@ export default function FlowCanvasMediaOverlays(args: {
     }
   }, [
     active,
-    flowEditorFrontmatterInteractionMode,
     mediaLayoutItems,
     mediaLayoutItemIdsKey,
     mediaPanelDensity,
+    computeOverlaySizingScale,
     runtimeRef,
     threeIframeOverlayBaseWidthMaxPxCompact,
     threeIframeOverlayBaseWidthMaxPxDefault,

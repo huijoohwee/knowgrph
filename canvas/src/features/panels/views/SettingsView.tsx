@@ -31,15 +31,12 @@ import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
 import { importLocalFilesFallback, importUrlFallback } from '@/features/toolbar/launchDropdownFallbacks'
 import { getIconSizeClass } from '@/lib/ui'
 import {
-  CHAT_BYTEPLUS_AP_SOUTHEAST_BASE,
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL,
   CHAT_BYTEPLUS_MODEL_OPTIONS,
   CHAT_DEFAULT_ENDPOINT_URL,
   CHAT_DEFAULT_MODEL,
   CHAT_DEFAULT_PROVIDER,
-  CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
-  CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
   CHAT_LOCAL_DEFAULT_MODEL,
   CHAT_PROVIDER_BYTEPLUS,
   CHAT_PROVIDER_LM_STUDIO,
@@ -49,10 +46,6 @@ import {
   CHAT_LOCAL_MODEL_OPTIONS,
   buildChatProxyHeaders,
   getChatDefaultEndpointUrlForProvider,
-  getBytePlusVideoModelLabel,
-  getChatProviderLabel,
-  getChatProviderRegionLabel,
-  getChatRecommendedModelHint,
   getDefaultChatModelForProvider,
   resolveChatEndpointForModels,
 } from '@/lib/chatEndpoint'
@@ -73,14 +66,23 @@ import { getGrabMapsDiscoveryWidgetLabel } from '@/features/flow-editor-manager/
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS = 'top-9'
-const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
+type SectionMeta = Readonly<{
   docsUrl?: string
   docsLabel?: string
   panelLabel: string
   note?: string
   highlights?: readonly string[]
   openPanel: () => void
-}>> = {
+}>
+const CHAT_KTV_ROW_KEYS = {
+  apiKey: 'chatApiKey',
+  provider: 'chatProvider',
+  contextScope: 'chatContextScope',
+  routing: 'integrationConfigsJson',
+  model: 'chatModel',
+} as const
+
+const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   Chat: {
     panelLabel: 'Open FloatingPanel Chat UI',
     openPanel: () => emitSidePanelOpen({ tab: 'chat', open: true }),
@@ -89,69 +91,38 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
     docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1494384',
     docsLabel: 'Open BytePlus Chat API Docs',
     panelLabel: 'Open FloatingPanel Props Panel Text Widget',
-    note: 'Open the Widget palette to drag/create a BytePlus Text Widget.',
     openPanel: () => emitPropsPanelOpen(),
   },
   [OPENAI_CHAT_API_DOC_AREA]: {
     docsUrl: 'https://developers.openai.com/api/reference/resources/responses',
     docsLabel: 'Open OpenAI Chat API Docs',
     panelLabel: 'Open FloatingPanel Props Panel OpenAI Text Widget',
-    note: 'Open the Widget palette to drag/create an OpenAI Text Widget.',
     openPanel: () => emitPropsPanelOpen(),
   },
   'BytePlus Video Generation API': {
     docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/Video_Generation_API',
     docsLabel: 'Open BytePlus Video Generation API Docs',
     panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
-    note: 'Widget palette opens in the floating props panel.',
-    highlights: [
-      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel MCP keeps backend/system/API/MCP config.',
-      'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
-    ],
     openPanel: () => emitPropsPanelOpen(),
   },
   'BytePlus Image Generation API': {
     docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1666945',
     docsLabel: 'Open BytePlus Image Generation API Docs',
     panelLabel: `Open FloatingPanel ${FLOW_IMAGE_GENERATION_NODE_LABEL}`,
-    note: 'Widget palette opens in the floating props panel.',
-    highlights: [
-      'Shared image-model SSOT stays narrowed to ByteDance-Seedream-4.0, ByteDance-Seedream-4.5, and Dola-Seedream-5.0-lite.',
-      'Editable image defaults stay on the same Integrations KTV surface reused by the image widget and run pipeline.',
-    ],
     openPanel: () => emitPropsPanelOpen(),
   },
 }
 
-const MCP_SECTION_META: Readonly<Record<string, {
-  docsUrl?: string
-  docsLabel?: string
-  panelLabel: string
-  note?: string
-  highlights?: readonly string[]
-  openPanel: () => void
-}>> = {
+const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   [MAPS_GRABMAPS_MCP_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation/mcp',
     docsLabel: 'Open GrabMaps MCP Docs',
     panelLabel: `Open FloatingPanel Props Panel ${getGrabMapsDiscoveryWidgetLabel()}`,
-    note: 'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
-    highlights: [
-      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
-      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
-    ],
     openPanel: () => emitPropsPanelOpen(),
   }
 }
 
-const MAPS_SECTION_META: Readonly<Record<string, {
-  docsUrl?: string
-  docsLabel?: string
-  panelLabel: string
-  note?: string
-  highlights?: readonly string[]
-  openPanel: () => void
-}>> = {
+const MAPS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   [MAPS_GRABMAPS_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation',
     docsLabel: 'Open GrabMaps Docs',
@@ -166,11 +137,6 @@ const MAPS_SECTION_META: Readonly<Record<string, {
     docsUrl: 'https://maps.grab.com/developer/documentation/routes',
     docsLabel: 'Open GrabMaps Routes Docs',
     panelLabel: 'Open FloatingPanel Geo',
-    note: `Keep route rendering and imported geospatial output in Geo; ${getGrabMapsDiscoveryWidgetLabel()} reuses the shared place-search defaults without owning MCP wiring.`,
-    highlights: [
-      'Directions default to lng,lat coordinate order unless lat_first is enabled.',
-      'Use overview=full when you need route geometry suitable for animation or media prompts.',
-    ],
     openPanel: () => emitSidePanelOpen({ tab: 'geo', open: true }),
   },
   [MAPS_GEO_DOC_AREA]: {
@@ -183,7 +149,6 @@ const MAPS_SECTION_META: Readonly<Record<string, {
     docsUrl: 'https://maplibre.org/maplibre-gl-js/docs/',
     docsLabel: 'Open MapLibre GL JS Docs',
     panelLabel: 'Open FloatingPanel Geo',
-    note: 'Geo panel includes MapLibre-based view modes and SVG fallback.',
     openPanel: () => emitSidePanelOpen({ tab: 'geo', open: true }),
   },
 }
@@ -224,7 +189,6 @@ export default function SettingsView({
     grabMapsHealthDetails,
     isCheckingGrabMapsHealth,
     checkGrabMapsHealth,
-    bytePlusVideoModelPreviewText,
     isCheckingBytePlusVideoModelPreview,
     checkBytePlusVideoModelPreview,
     onGlobalReset,
@@ -261,29 +225,9 @@ export default function SettingsView({
   const headerStickyTopClass = mode === 'integrations' || mode === 'mcp' ? 'top-0' : '-top-[2px]'
   const headerDividerWidthClass = mode === 'integrations' || mode === 'mcp' ? 'border-b-[0.5px]' : 'border-b'
   const settingsTypeIconSizeClass = getIconSizeClass(uiIconScale)
-  const bytePlusImageDefaultLabel = CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
-  const bytePlusVideoDefaultId = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
-  const bytePlusVideoDefaultLabel = getBytePlusVideoModelLabel(bytePlusVideoDefaultId) || bytePlusVideoDefaultId
-  const openAiTextDefaultLabel = `OpenAI default text model: ${CHAT_DEFAULT_MODEL}`
   const normalizedChatProvider = React.useMemo(
     () => String(values.chatProvider || '').trim() || CHAT_DEFAULT_PROVIDER,
     [values.chatProvider],
-  )
-  const chatProviderLabel = React.useMemo(
-    () => getChatProviderLabel(values.chatProvider),
-    [values.chatProvider],
-  )
-  const chatProviderRegion = React.useMemo(
-    () => getChatProviderRegionLabel(values.chatProvider, values.chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL),
-    [values.chatEndpointUrl, values.chatProvider],
-  )
-  const chatProviderHint = React.useMemo(
-    () => getChatRecommendedModelHint(values.chatProvider),
-    [values.chatProvider],
-  )
-  const chatAuthModeLabel = React.useMemo(
-    () => (String(values.chatAuthMode || '').trim().toLowerCase() === 'byok' ? 'BYOK' : 'Server-managed Key'),
-    [values.chatAuthMode],
   )
 
   const paymentsProviders = React.useMemo(() => [...PAYMENTS_PROVIDERS], [])
@@ -757,6 +701,286 @@ export default function SettingsView({
     const combined = [...staticOptions, ...discoveredChatModels, currentModel].filter(Boolean)
     return Array.from(new Set(combined))
   }, [discoveredChatModels, providerChatModelOptions, values.chatModel])
+  const buildSectionMetaAssistNodes = React.useCallback((sectionMeta: SectionMeta | undefined, isFirstRowInArea: boolean, rowKey: string): React.ReactNode[] => {
+    if (!sectionMeta || !isFirstRowInArea) return []
+    const nodes: React.ReactNode[] = [
+      <button
+        key={`${rowKey}-open-panel`}
+        type="button"
+        className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+        onClick={e => {
+          e.stopPropagation()
+          sectionMeta.openPanel()
+        }}
+      >
+        {sectionMeta.panelLabel}
+      </button>,
+    ]
+    if (sectionMeta.docsUrl && sectionMeta.docsLabel) {
+      nodes.push(
+        <a
+          key={`${rowKey}-docs-link`}
+          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          href={sectionMeta.docsUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={e => e.stopPropagation()}
+        >
+          {sectionMeta.docsLabel}
+        </a>,
+      )
+    }
+    if (sectionMeta.note) {
+      nodes.push(
+        <span
+          key={`${rowKey}-section-note`}
+          className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+        >
+          {sectionMeta.note}
+        </span>,
+      )
+    }
+    sectionMeta.highlights?.forEach(highlight => {
+      nodes.push(
+        <span
+          key={`${rowKey}-highlight-${highlight}`}
+          className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+        >
+          {highlight}
+        </span>,
+      )
+    })
+    return nodes
+  }, [])
+  const buildChatAssistNodes = React.useCallback((rowKey: string): React.ReactNode[] => {
+    if (rowKey === CHAT_KTV_ROW_KEYS.apiKey) {
+      return [
+        <span
+          key="chat-api-key-session"
+          className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+        >
+          Session-only; never localStorage
+        </span>,
+        <button
+          key="chat-api-key-open"
+          type="button"
+          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          onClick={e => {
+            e.stopPropagation()
+            openLocalChatApiKeyEntry()
+          }}
+        >
+          Open Local API Key
+        </button>,
+      ]
+    }
+    if (rowKey === CHAT_KTV_ROW_KEYS.provider) {
+      return [
+        <button
+          key="chat-provider-byteplus-sg"
+          type="button"
+          className={`App-toolbar__btn text-xs ${
+            normalizedChatProvider === CHAT_PROVIDER_BYTEPLUS && String(values.chatEndpointUrl || '').includes(CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL.replace('https://', ''))
+              ? uiToolbarToggleActiveClassName
+              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+          }`}
+          onClick={e => {
+            e.stopPropagation()
+            applyChatPreset('byteplus-sg')
+          }}
+        >
+          BytePlus SG
+        </button>,
+        <button
+          key="chat-provider-byteplus-eu"
+          type="button"
+          className={`App-toolbar__btn text-xs ${
+            normalizedChatProvider === CHAT_PROVIDER_BYTEPLUS && String(values.chatEndpointUrl || '').includes(CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL.replace('https://', ''))
+              ? uiToolbarToggleActiveClassName
+              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+          }`}
+          onClick={e => {
+            e.stopPropagation()
+            applyChatPreset('byteplus-eu')
+          }}
+        >
+          BytePlus EU
+        </button>,
+        <button
+          key="chat-provider-openai"
+          type="button"
+          className={`App-toolbar__btn text-xs ${
+            normalizedChatProvider === CHAT_PROVIDER_OPENAI
+              ? uiToolbarToggleActiveClassName
+              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+          }`}
+          onClick={e => {
+            e.stopPropagation()
+            applyChatPreset('openai')
+          }}
+        >
+          OpenAI
+        </button>,
+        <button
+          key="chat-provider-local"
+          type="button"
+          className={`App-toolbar__btn text-xs ${
+            normalizedChatProvider === CHAT_PROVIDER_LM_STUDIO
+              ? uiToolbarToggleActiveClassName
+              : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
+          }`}
+          onClick={e => {
+            e.stopPropagation()
+            applyChatPreset('local')
+          }}
+        >
+          Local
+        </button>,
+      ]
+    }
+    if (rowKey === CHAT_KTV_ROW_KEYS.contextScope) {
+      return [
+        <button
+          key="chat-context-selection"
+          type="button"
+          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          onClick={e => {
+            e.stopPropagation()
+            applyChatContextScope('selection')
+          }}
+        >
+          Selection
+        </button>,
+        <button
+          key="chat-context-workspace"
+          type="button"
+          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          onClick={e => {
+            e.stopPropagation()
+            applyChatContextScope('workspace')
+          }}
+        >
+          Workspace
+        </button>,
+        <button
+          key="chat-context-hybrid"
+          type="button"
+          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          onClick={e => {
+            e.stopPropagation()
+            applyChatContextScope('hybrid')
+          }}
+        >
+          Hybrid
+        </button>,
+      ]
+    }
+    if (rowKey === CHAT_KTV_ROW_KEYS.routing) {
+      return [
+        <span
+          key="chat-ai-routing-status"
+          className={`inline-flex items-center h-6 rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+        >
+          {chatIntegration.enabled ? 'Enabled' : 'Disabled'}
+        </span>,
+        <button
+          key="chat-ai-routing-enable"
+          type="button"
+          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          onClick={e => {
+            e.stopPropagation()
+            setChatIntegrationEnabled(true)
+          }}
+        >
+          Enable AI Chat
+        </button>,
+        <button
+          key="chat-ai-routing-disable"
+          type="button"
+          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
+          onClick={e => {
+            e.stopPropagation()
+            setChatIntegrationEnabled(false)
+          }}
+        >
+          Disable AI Chat
+        </button>,
+        <button
+          key="chat-ai-routing-reset"
+          type="button"
+          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          onClick={e => {
+            e.stopPropagation()
+            resetChatIntegrationRouting()
+          }}
+        >
+          Reset Routing
+        </button>,
+        <button
+          key="chat-ai-routing-format"
+          type="button"
+          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          onClick={e => {
+            e.stopPropagation()
+            formatIntegrationJson()
+          }}
+        >
+          Format JSON
+        </button>,
+      ]
+    }
+    if (rowKey === CHAT_KTV_ROW_KEYS.model) {
+      const nodes: React.ReactNode[] = [
+        <button
+          key="chat-model-refresh"
+          type="button"
+          className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
+          onClick={e => {
+            e.stopPropagation()
+            void refreshChatModels()
+          }}
+          disabled={isRefreshingChatModels}
+        >
+          {isRefreshingChatModels ? 'Refreshing...' : 'Refresh Models'}
+        </button>,
+      ]
+      if (chatModelsStatus) {
+        nodes.push(
+          <span
+            key="chat-model-status"
+            className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
+          >
+            {chatModelsStatus}
+          </span>,
+        )
+      }
+      if (chatModelSuggestions.length > 0) {
+        nodes.push(
+          <datalist key="chat-model-options" id="settings-chat-model-options">
+            {chatModelSuggestions.map(option => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>,
+        )
+      }
+      return nodes
+    }
+    return []
+  }, [
+    applyChatContextScope,
+    applyChatPreset,
+    chatIntegration.enabled,
+    chatModelSuggestions,
+    chatModelsStatus,
+    formatIntegrationJson,
+    isRefreshingChatModels,
+    normalizedChatProvider,
+    openLocalChatApiKeyEntry,
+    refreshChatModels,
+    resetChatIntegrationRouting,
+    setChatIntegrationEnabled,
+    values.chatEndpointUrl,
+  ])
 
   return (
     <article className="min-h-full flex flex-col space-y-0">
@@ -884,43 +1108,6 @@ export default function SettingsView({
               }}
             >
               <ul>
-                {sectionMeta && (
-                  <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                    <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Links</span>
-                    <button
-                      type="button"
-                      className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
-                      onClick={() => {
-                        sectionMeta.openPanel()
-                      }}
-                    >
-                      {sectionMeta.panelLabel}
-                    </button>
-                    {sectionMeta.docsUrl && sectionMeta.docsLabel && (
-                      <a
-                        className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-                        href={sectionMeta.docsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {sectionMeta.docsLabel}
-                      </a>
-                    )}
-                    {sectionMeta.note && (
-                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        {sectionMeta.note}
-                      </span>
-                    )}
-                    {sectionMeta.highlights?.map(highlight => (
-                      <span
-                        key={`${area}-${highlight}`}
-                        className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
-                      >
-                        {highlight}
-                      </span>
-                    ))}
-                  </li>
-                )}
                 {area === 'UI Density: Panels' && (
                   <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
                     <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Presets</span>
@@ -943,218 +1130,6 @@ export default function SettingsView({
                       Compact
                     </button>
                   </li>
-                )}
-                {area === 'Chat' && (
-                  <>
-                    <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                      <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Official AI</span>
-                      <span className={`inline-flex items-center h-6 rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        {chatProviderLabel}
-                      </span>
-                      <span className={`inline-flex items-center h-6 rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        {chatProviderRegion}
-                      </span>
-                      <span className={`inline-flex items-center h-6 rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        {chatAuthModeLabel}
-                      </span>
-                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        {chatProviderHint}
-                      </span>
-                    </li>
-                    <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                      <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Multi-modal Run</span>
-                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        Reuses `chatProvider`, `chatAuthMode`, `chatEndpointUrl`, and `chatApiKey`
-                      </span>
-                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        Text uses `chatModel`: {openAiTextDefaultLabel}
-                      </span>
-                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        BytePlus image default: {bytePlusImageDefaultLabel}
-                      </span>
-                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        BytePlus video default: {bytePlusVideoDefaultLabel} ({bytePlusVideoDefaultId})
-                      </span>
-                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        Default Base URL: {CHAT_BYTEPLUS_AP_SOUTHEAST_BASE}/api/v3
-                      </span>
-                      <span
-                        className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}
-                        title={bytePlusVideoModelPreviewText || undefined}
-                      >
-                        {isCheckingBytePlusVideoModelPreview
-                          ? 'Resolving BytePlus /models candidate...'
-                          : (bytePlusVideoModelPreviewText || 'Resolved /models candidate: idle')}
-                      </span>
-                    </li>
-                    <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                      <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Local key entry</span>
-                      <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        Session-only; never localStorage
-                      </span>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
-                        onClick={() => {
-                          openLocalChatApiKeyEntry()
-                        }}
-                      >
-                        Open Local API Key
-                      </button>
-                    </li>
-                    <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                      <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Provider profiles</span>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs ${
-                          normalizedChatProvider === CHAT_PROVIDER_BYTEPLUS && String(values.chatEndpointUrl || '').includes(CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL.replace('https://', ''))
-                            ? uiToolbarToggleActiveClassName
-                            : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-                        }`}
-                        onClick={() => {
-                          applyChatPreset('byteplus-sg')
-                        }}
-                      >
-                        BytePlus SG
-                      </button>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs ${
-                          normalizedChatProvider === CHAT_PROVIDER_BYTEPLUS && String(values.chatEndpointUrl || '').includes(CHAT_BYTEPLUS_EU_WEST_ENDPOINT_URL.replace('https://', ''))
-                            ? uiToolbarToggleActiveClassName
-                            : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-                        }`}
-                        onClick={() => {
-                          applyChatPreset('byteplus-eu')
-                        }}
-                      >
-                        BytePlus EU
-                      </button>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs ${
-                          normalizedChatProvider === CHAT_PROVIDER_OPENAI
-                            ? uiToolbarToggleActiveClassName
-                            : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-                        }`}
-                        onClick={() => {
-                          applyChatPreset('openai')
-                        }}
-                      >
-                        OpenAI
-                      </button>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs ${
-                          normalizedChatProvider === CHAT_PROVIDER_LM_STUDIO
-                            ? uiToolbarToggleActiveClassName
-                            : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`
-                        }`}
-                        onClick={() => {
-                          applyChatPreset('local')
-                        }}
-                      >
-                        Local
-                      </button>
-                    </li>
-                    <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                      <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Context scope</span>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-                        onClick={() => {
-                          applyChatContextScope('selection')
-                        }}
-                      >
-                        Selection
-                      </button>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-                        onClick={() => {
-                          applyChatContextScope('workspace')
-                        }}
-                      >
-                        Workspace
-                      </button>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
-                        onClick={() => {
-                          applyChatContextScope('hybrid')
-                        }}
-                      >
-                        Hybrid
-                      </button>
-                    </li>
-                    <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                      <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>AI routing</span>
-                      <span className={`inline-flex items-center h-6 rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                        {chatIntegration.enabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-                        onClick={() => {
-                          setChatIntegrationEnabled(true)
-                        }}
-                      >
-                        Enable AI Chat
-                      </button>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`}
-                        onClick={() => {
-                          setChatIntegrationEnabled(false)
-                        }}
-                      >
-                        Disable AI Chat
-                      </button>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
-                        onClick={() => {
-                          resetChatIntegrationRouting()
-                        }}
-                      >
-                        Reset Routing
-                      </button>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
-                        onClick={() => {
-                          formatIntegrationJson()
-                        }}
-                      >
-                        Format JSON
-                      </button>
-                    </li>
-                    <li className={`mb-1 flex flex-wrap items-center gap-1 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                      <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Model catalog</span>
-                      <button
-                        type="button"
-                        className={`App-toolbar__btn text-xs ${uiToolbarToggleActiveClassName}`}
-                        onClick={() => {
-                          void refreshChatModels()
-                        }}
-                        disabled={isRefreshingChatModels}
-                      >
-                        {isRefreshingChatModels ? 'Refreshing...' : 'Refresh Models'}
-                      </button>
-                      {chatModelsStatus && (
-                        <span className={`inline-flex min-h-6 items-center rounded-full border px-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.secondary}`}>
-                          {chatModelsStatus}
-                        </span>
-                      )}
-                      {chatModelSuggestions.length > 0 && (
-                        <datalist id="settings-chat-model-options">
-                          {chatModelSuggestions.map(option => (
-                            <option key={option} value={option} />
-                          ))}
-                        </datalist>
-                      )}
-                    </li>
-                  </>
                 )}
                 {entries.map(({
                   meta: s,
@@ -1208,6 +1183,7 @@ export default function SettingsView({
                   })
                   const pillButtonClassName = `inline-flex items-center justify-center h-6 rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary} px-2 text-xs whitespace-nowrap`
                   const statusPillClassName = `inline-flex items-center h-6 max-w-[14rem] rounded-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} px-2 text-xs`
+                  const isFirstRowInArea = entries[0]?.meta.key === s.key
                   return (
                     <li key={s.key}>
                       <KeyTypeValueRow
@@ -1619,6 +1595,20 @@ export default function SettingsView({
                                     >
                                       Import URL
                                     </button>
+                                  </div>
+                                )
+                              }
+                              const assistNodes = [
+                                ...buildSectionMetaAssistNodes(sectionMeta, isFirstRowInArea, s.key),
+                                ...(area === 'Chat' ? buildChatAssistNodes(s.key) : []),
+                              ]
+                              if (assistNodes.length > 0) {
+                                return (
+                                  <div className="space-y-1">
+                                    {inputNode}
+                                    <div className="flex flex-wrap items-center gap-1">
+                                      {assistNodes}
+                                    </div>
                                   </div>
                                 )
                               }

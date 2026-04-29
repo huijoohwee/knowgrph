@@ -232,6 +232,9 @@ export function testFlowCanvasWheelProxyHonorsWheelIgnoreTargets() {
   if (!text.includes('if (ignoreWheelTarget) return')) {
     throw new Error('expected FlowCanvas overlay wheel proxy to always honor canvas wheel-ignore targets and never zoom canvas from RichMediaPanel scroll surfaces')
   }
+  if (!text.includes('if (event.ctrlKey === true || event.metaKey === true) return true')) {
+    throw new Error('expected explicit ctrl/cmd wheel zoom intent over rich media overlays to proxy to canvas zoom before scroll handling')
+  }
 }
 
 export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {

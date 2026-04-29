@@ -36,6 +36,9 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     const dy = typeof (event as unknown as { deltaY?: unknown }).deltaY === 'number' ? (event as unknown as { deltaY: number }).deltaY : 0
     if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return false
 
+    // Explicit zoom intent should always reach the canvas, even from scrollable overlay content.
+    if (event.ctrlKey === true || event.metaKey === true) return true
+
     const isScrollable = (node: HTMLElement, axis: 'x' | 'y'): boolean => {
       let overflowX = ''
       let overflowY = ''
@@ -78,7 +81,6 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
     if (isFlowEditor && overlayPinnedToNode && event.altKey !== true) return true
     if (overlayPinnedToNode && resolved.isInteractive !== true && event.altKey !== true) return true
     if (isSpacePanHeld()) return true
-    if (event.ctrlKey === true || event.metaKey === true) return true
 
     return true
   }

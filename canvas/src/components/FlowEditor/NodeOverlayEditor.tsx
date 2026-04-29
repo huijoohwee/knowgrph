@@ -30,10 +30,9 @@ import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { emitFlowEditorInteractionFrame, FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
-import { clampBalancedCollectiveScaleToViewport } from '@/lib/ui/overlayBalancedSpread'
 import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { computeDefaultWidgetFloatingPos, computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widgetLayout'
-import { computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { getIconSizeClass } from '@/lib/ui'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
@@ -223,7 +222,14 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   )
   const lastAppliedRef = React.useRef<{ left: number; top: number; scale: number; offsetLeft: number; offsetTop: number } | null>(null)
   const lastFloatingScaleKeyRef = React.useRef<string>(
-    computeWidgetScaleKey(computeWidgetScale(zoomStateRef.current?.k ?? 1, null, { mode: 'floating' })),
+    computeWidgetScaleKey(computeCollectiveFollowPinnedScale({
+      zoomK: zoomStateRef.current?.k ?? 1,
+      viewportW,
+      viewportH,
+      count: openWidgetNodeIds.length,
+      baseWidth: WIDGET_BASE_SIZE.width,
+      baseHeight: WIDGET_BASE_SIZE.height,
+    })),
   )
   const cssInitRef = React.useRef(false)
   const pendingClampCommitRef = React.useRef<number | null>(null)
@@ -443,6 +449,32 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     [nodeId, setFlowWidgetWorldPosByNodeId],
   )
 
+  const readCurrentTransform = React.useCallback(() => {
+    const liveZoom = getLiveZoomTransform ? getLiveZoomTransform() : null
+    const storeZoom = getEffectiveZoomStateForKey({
+      zoomViewKey,
+      zoomStateByKey: useGraphStore.getState().zoomStateByKey,
+      zoomState: useGraphStore.getState().zoomState,
+    })
+    let z = liveZoom || zoomStateRef.current
+    if (!liveZoom && storeZoom && storeZoom !== z) {
+      z = storeZoom
+      zoomStateRef.current = storeZoom
+    }
+    return z || { k: 1, x: 0, y: 0 }
+  }, [getLiveZoomTransform, zoomViewKey])
+
+  const persistFloatingPlacement = React.useCallback((pos: { top: number; left: number }) => {
+    persistFloatingPos(pos)
+    const z = readCurrentTransform()
+    const world = screenToWorld({
+      transform: z,
+      sx: pos.left,
+      sy: pos.top,
+    })
+    persistWorldPos(world)
+  }, [persistFloatingPos, persistWorldPos, readCurrentTransform])
+
   const scheduleClampCommit = React.useCallback((next: { top: number; left: number }) => {
     if (pendingClampCommitRef.current != null) {
       try {
@@ -457,9 +489,9 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       if (pinnedTopPx === next.top && pinnedLeftPx === next.left) return
       setPinnedTopPx(prev => (prev === next.top ? prev : next.top))
       setPinnedLeftPx(prev => (prev === next.left ? prev : next.left))
-      persistFloatingPos(next)
+      persistFloatingPlacement(next)
     })
-  }, [persistFloatingPos, pinnedLeftPx, pinnedTopPx])
+  }, [persistFloatingPlacement, pinnedLeftPx, pinnedTopPx])
 
   const applyOverlayPosition = React.useCallback((opts?: { persistClamp?: boolean }) => {
     const el = asideRef.current
@@ -491,10 +523,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       const [minK, maxK] = readZoomScaleExtent(s)
       return { minK: Math.min(minK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP), maxK }
     })()
-    const panelScaleBase = computeWidgetScale(zoomK, extent, { mode: floatingRef.current ? 'floating' : 'pinnedInCanvas' })
+    const panelScaleBase = computeWidgetScale(zoomK, extent, { mode: 'pinnedInCanvas' })
     const panelScale = floatingRef.current
-      ? clampBalancedCollectiveScaleToViewport({
-          scale: panelScaleBase,
+      ? computeCollectiveFollowPinnedScale({
+          zoomK,
+          extent,
           viewportW,
           viewportH,
           count: openWidgetNodeIds.length,
@@ -547,16 +580,22 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     })
     const worldPinned = worldDragOverride || storedWorld || defaultWorld
     const worldPinnedScreen = worldToScreen({ transform: z, x: worldPinned.x, y: worldPinned.y })
+    const floatingWorld = worldDragOverride || storedWorld
+    const floatingWorldScreen = floatingWorld
+      ? worldToScreen({ transform: z, x: floatingWorld.x, y: floatingWorld.y })
+      : null
     const basePos = dragOverride
       ? { top: dragOverride.top, left: dragOverride.left }
       : floating
-        ? { top: pinnedTopPx, left: pinnedLeftPx }
+        ? floatingWorldScreen
+          ? { top: floatingWorldScreen.sy, left: floatingWorldScreen.sx }
+          : { top: pinnedTopPx, left: pinnedLeftPx }
         : { top: worldPinnedScreen.sy, left: worldPinnedScreen.sx }
     const safeBasePos = {
       top: Number.isFinite(basePos.top) ? basePos.top : 8,
       left: Number.isFinite(basePos.left) ? basePos.left : 8,
     }
-    const shouldClampFloating = floating && !dragOverride
+    const shouldClampFloating = floating && !dragOverride && !floatingWorld
     const floatingViewport = (() => {
       if (!shouldClampFloating) return { width: viewportWidth, height: viewportHeight }
       void canvasWindowOffsetRef
@@ -671,6 +710,24 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   }, [applyOverlayPosition, nodeId])
 
   React.useEffect(() => {
+    if (!active || !floating) return
+    if (pinnedDragOverrideRef.current || worldDragOverrideRef.current) return
+    const target = lastAppliedRef.current
+      ? { left: lastAppliedRef.current.left, top: lastAppliedRef.current.top }
+      : { left: pinnedLeftPx, top: pinnedTopPx }
+    if (!Number.isFinite(target.left) || !Number.isFinite(target.top)) return
+    const z = readCurrentTransform()
+    const nextWorld = screenToWorld({
+      transform: z,
+      sx: target.left,
+      sy: target.top,
+    })
+    const prevWorld = widgetWorldPosRef.current
+    if (prevWorld && Math.abs(prevWorld.x - nextWorld.x) <= 0.0001 && Math.abs(prevWorld.y - nextWorld.y) <= 0.0001) return
+    persistWorldPos(nextWorld)
+  }, [active, floating, pinnedLeftPx, pinnedTopPx, persistWorldPos, readCurrentTransform])
+
+  React.useEffect(() => {
     if (!active) return
     if (!getLiveNodeWorldPos) return
     if (floating) return
@@ -747,12 +804,20 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       next => {
         const nextZoom = next || null
         if (floatingRef.current) {
-          const scaleKey = computeWidgetScaleKey(computeWidgetScale(nextZoom?.k ?? 1, null, { mode: 'floating' }))
-          if (lastFloatingScaleKeyRef.current === scaleKey) {
-            zoomStateRef.current = nextZoom
-            return
-          }
+          const scaleKey = computeWidgetScaleKey(computeCollectiveFollowPinnedScale({
+            zoomK: nextZoom?.k ?? 1,
+            viewportW,
+            viewportH,
+            count: openWidgetNodeIds.length,
+            baseWidth: WIDGET_BASE_SIZE.width,
+            baseHeight: WIDGET_BASE_SIZE.height,
+          }))
+          const sameScale = lastFloatingScaleKeyRef.current === scaleKey
           lastFloatingScaleKeyRef.current = scaleKey
+          zoomStateRef.current = nextZoom
+          if (sameScale && !widgetWorldPosRef.current && !pinnedDragOverrideRef.current) return
+          applyOverlayPosition({ persistClamp: false })
+          return
         }
         zoomStateRef.current = nextZoom
         applyOverlayPosition({ persistClamp: false })
@@ -765,14 +830,14 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         void 0
       }
     }
-  }, [applyOverlayPosition, zoomViewKey])
+  }, [applyOverlayPosition, openWidgetNodeIds.length, viewportH, viewportW, zoomViewKey])
 
   React.useEffect(() => {
     if (!active) return
     if (typeof window === 'undefined') return
     let raf: number | null = null
     const onFrame = () => {
-      if (floatingRef.current && !pinnedDragOverrideRef.current) return
+      if (floatingRef.current && !pinnedDragOverrideRef.current && !widgetWorldPosRef.current) return
       if (raf != null) return
       raf = requestAnimationFrame(() => {
         raf = null
@@ -1107,7 +1172,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           pendingLeft = clamped.left
           setPinnedTopPx(prev => (prev === pendingTop ? prev : pendingTop))
           setPinnedLeftPx(prev => (prev === pendingLeft ? prev : pendingLeft))
-          persistFloatingPos({ top: pendingTop, left: pendingLeft })
+          persistFloatingPlacement({ top: pendingTop, left: pendingLeft })
           useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
           unlockGlobalUserSelect()
         },
@@ -1129,7 +1194,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           pendingLeft = clamped.left
           setPinnedTopPx(prev => (prev === pendingTop ? prev : pendingTop))
           setPinnedLeftPx(prev => (prev === pendingLeft ? prev : pendingLeft))
-          persistFloatingPos({ top: pendingTop, left: pendingLeft })
+          persistFloatingPlacement({ top: pendingTop, left: pendingLeft })
           useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
           unlockGlobalUserSelect()
         },
@@ -1143,7 +1208,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       getLiveZoomTransform,
       nodeId,
       pinnedInCanvas,
-      persistFloatingPos,
+      persistFloatingPlacement,
       persistWorldPos,
       pinnedLeftPx,
       pinnedTopPx,

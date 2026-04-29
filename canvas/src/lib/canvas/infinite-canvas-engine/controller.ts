@@ -24,6 +24,7 @@ import { clampFlowWheelZoomIncrementMultiplier, clampFlowWheelZoomSpeedMultiplie
 import { clampScale, computeAnchoredZoomTransform, computePinchZoomTransform } from '@/lib/canvas/viewport-transform'
 import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
 import { mergeScaleExtentWithCurrent } from '@/lib/zoom/scaleExtent'
+import { resolveScaleExtentForInteractiveZoom } from '@/lib/zoom/scaleExtentPolicy'
 
 export type InfiniteCanvasTransformAdapter = {
   getTransform: () => d3.ZoomTransform
@@ -250,7 +251,13 @@ export function createInfiniteCanvasViewportController(args: {
 
     const stateIncrement = clampFlowWheelZoomIncrementMultiplier(args.getFlowWheelZoomIncrementMultiplier())
     const factor = computeWheelZoomFactor(deltaYpx * stateIncrement)
-    const nextK = clampScale(t0.k * factor, { minK, maxK })
+    const requestedK = t0.k * factor
+    const extentForNext = resolveScaleExtentForInteractiveZoom({
+      scaleExtent: { minK, maxK },
+      currentTransform: t0,
+      nextK: requestedK,
+    })
+    const nextK = clampScale(requestedK, extentForNext)
     if (!Number.isFinite(nextK) || Math.abs(nextK - t0.k) < 1e-12) return
 
     const durationCfg = args.getFlowWheelZoomSmoothDuration()
@@ -263,7 +270,7 @@ export function createInfiniteCanvasViewportController(args: {
     startWheelZoomAnimation({
       anchor,
       toK: nextK,
-      extent: { minK, maxK },
+      extent: extentForNext,
       durationMs,
     })
   }

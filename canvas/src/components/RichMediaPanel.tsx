@@ -502,6 +502,13 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const allowPanelContentPointerEvents = !editorMode || flowEditorInteractionMode === true || isFlowEditorRenderer === true
   const allowEmbedFromStore = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
   const preferEmbed = allowEmbedFromStore && props.interactive !== false
+  const installWheelForwarding =
+    typeof props.forwardWheelTo === 'function'
+    && (
+      !preferEmbed
+      || flowEditorFrontmatterDocumentMode === true
+    )
+  const forwardModifierWheelZoomOnly = installWheelForwarding && flowEditorFrontmatterDocumentMode === true
   const forwardingEnabled =
     !preferEmbed
     && flowEditorFrontmatterDocumentMode !== true
@@ -570,12 +577,13 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     if (!el) return
 
     return installWheelForwardingAndBrowserZoomGuards(el, {
-      forwardWheelTo: forwardingEnabled && typeof props.forwardWheelTo === 'function' ? props.forwardWheelTo : undefined,
+      forwardWheelTo: installWheelForwarding ? props.forwardWheelTo : undefined,
+      shouldForwardWheel: forwardModifierWheelZoomOnly ? e => e.ctrlKey === true || e.metaKey === true : undefined,
       stopPropagationOnForward: true,
       stopPropagationOnPreventZoom: false,
       forwardedFlagKey: '__kgForwarded',
     })
-  }, [forwardingEnabled, props.forwardWheelTo])
+  }, [forwardModifierWheelZoomOnly, installWheelForwarding, props.forwardWheelTo])
 
   const overlayAlreadySelected = React.useMemo(() => {
     const overlayId = String(props.overlayId || '').trim()
