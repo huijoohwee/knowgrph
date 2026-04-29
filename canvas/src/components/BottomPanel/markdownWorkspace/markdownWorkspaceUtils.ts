@@ -1,7 +1,7 @@
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { workspaceExtLower } from '@/features/workspace-fs/path'
 
-export const SIDEBAR_MIN_PX = 220
+export const SIDEBAR_MIN_PX = 40
 export const SIDEBAR_MAX_PX = 520
 
 export function languageForPath(path: WorkspacePath): string {

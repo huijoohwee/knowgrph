@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { WorkspaceHeader, WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
+import { WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
 import IconButton from '@/components/IconButton'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
 import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
@@ -196,8 +196,7 @@ export function MarkdownWorkspaceToolbar({
 
 
   return (
-    <WorkspaceHeader ariaLabel="Markdown Toolbar" border="border">
-      <WorkspaceHeaderRow className="gap-2 kg-toolbar" ariaLabel="Markdown toolbar row">
+      <WorkspaceHeaderRow className="gap-2 kg-toolbar h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] !py-0" ariaLabel="Markdown toolbar row">
         {webpageSignalsNode ? (
           <span className="min-w-0 flex items-center">
             <span className="sr-only">Workspace editor</span>
@@ -403,6 +402,5 @@ export function MarkdownWorkspaceToolbar({
         </menu>
         </CollapsibleToolbar>
       </WorkspaceHeaderRow>
-    </WorkspaceHeader>
   )
 }

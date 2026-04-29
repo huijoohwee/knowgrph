@@ -57,6 +57,37 @@ export function isCanonicalFrontmatterBuiltInWidgetNode(node: Pick<GraphNode, 'i
     || nodeType === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID
 }
 
+export function resolveDefaultFlowWidgetPinnedInCanvas(args: {
+  graphMetaKind?: string | null
+  geospatialWidgetPanelMode?: boolean
+}): boolean {
+  if (args.geospatialWidgetPanelMode === true) return false
+  return String(args.graphMetaKind || '').trim() === 'frontmatter-flow'
+}
+
+export function shouldAutoPlaceFlowEditorWidget(args: {
+  graphMetaKind?: string | null
+  pinnedInCanvas?: boolean
+  floatingPos?: { top?: number; left?: number } | null
+  worldPos?: { x?: number; y?: number } | null
+}): boolean {
+  const kind = String(args.graphMetaKind || '').trim()
+  const pinnedInCanvas = args.pinnedInCanvas === true
+  const floatingPos = args.floatingPos || null
+  const worldPos = args.worldPos || null
+  const hasFloatingPos =
+    !!floatingPos
+    && Number.isFinite(floatingPos.top)
+    && Number.isFinite(floatingPos.left)
+  const hasWorldPos =
+    !!worldPos
+    && Number.isFinite(worldPos.x)
+    && Number.isFinite(worldPos.y)
+  if (kind !== 'frontmatter-flow') return true
+  if (pinnedInCanvas) return !hasWorldPos
+  return !hasFloatingPos
+}
+
 export function resolveGraphNodeIdByCanonicalId(graph: GraphData | null | undefined, rawId: unknown): string {
   return String(resolveGraphNodeByCanonicalId(graph, rawId)?.id || '').trim()
 }

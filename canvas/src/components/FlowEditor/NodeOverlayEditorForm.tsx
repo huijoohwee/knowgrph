@@ -36,7 +36,7 @@ import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/NodeOverlayEditorBeatByBeatSection'
 import type { GraphEdge } from '@/lib/graph/types'
-import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 import { setObjectPath } from '@/lib/data/objectPath'
 import { inferMediaKindFromResourceUrl } from '@/lib/graph/mediaUrlKind'
@@ -671,30 +671,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     },
     [onPatchProperties, onRegistrySelectionChange, registryOptions, registrySelectionId],
   )
-  const interactionFrameRafRef = React.useRef<number | null>(null)
   const emitInteractionFrame = React.useCallback(() => {
-    if (typeof window === 'undefined') return
-    if (interactionFrameRafRef.current != null) return
-    interactionFrameRafRef.current = requestAnimationFrame(() => {
-      interactionFrameRafRef.current = null
-      try {
-        window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
-      } catch {
-        void 0
-      }
-    })
-  }, [])
-
-  React.useEffect(() => {
-    return () => {
-      if (interactionFrameRafRef.current == null) return
-      try {
-        cancelAnimationFrame(interactionFrameRafRef.current)
-      } catch {
-        void 0
-      }
-      interactionFrameRafRef.current = null
-    }
+    emitFlowEditorInteractionFrame()
   }, [])
 
   const compactPreview = React.useMemo(() => {

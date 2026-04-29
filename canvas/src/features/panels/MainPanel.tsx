@@ -4,7 +4,7 @@ import HeaderActions from '@/features/panels/ui/HeaderActions'
 import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import { UI_ANCHORS, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { BarChart3, HelpCircle, MonitorPlay, Settings, History as HistoryIcon, Table, Plug, CreditCard, Map as MapIcon } from 'lucide-react'
+import { BarChart3, HelpCircle, MonitorPlay, Settings, History as HistoryIcon, Table, Plug, CreditCard, Map as MapIcon, Server } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
@@ -21,6 +21,7 @@ import {
 const mainPanelTabSupportsSearch = (tab: MainPanelTabKey): boolean => SEARCHABLE_MAIN_PANEL_TABS.has(tab)
 
 const IntegrationsHubViewLazy = React.lazy(() => import('./views/IntegrationsHubView'))
+const McpHubViewLazy = React.lazy(() => import('./views/McpHubView'))
 const MapsHubViewLazy = React.lazy(() => import('./views/MapsHubView'))
 const PaymentsHubViewLazy = React.lazy(() => import('./views/PaymentsHubView'))
 const FlowEditorManagerViewLazy = React.lazy(() => import('@/features/panels/views/FlowEditorManagerView'))
@@ -69,6 +70,14 @@ export default function MainPanel({
     allCollapsed?: boolean
   }>({ allCollapsed: true })
   const [integrationsActions, setIntegrationsActions] = React.useState<{
+    apply?: () => void
+    reset?: () => void
+    globalReset?: () => void
+    collapseAll?: () => void
+    expandAll?: () => void
+    allCollapsed?: boolean
+  }>({ allCollapsed: true })
+  const [mcpActions, setMcpActions] = React.useState<{
     apply?: () => void
     reset?: () => void
     globalReset?: () => void
@@ -178,6 +187,7 @@ export default function MainPanel({
       tabVariant="icon"
       tabIconByKey={{
         integrations: Plug,
+        mcp: Server,
         maps: MapIcon,
         payments: CreditCard,
         workflowManager: Table,
@@ -210,6 +220,8 @@ export default function MainPanel({
               ? settingsActions.apply
               : tab === 'integrations'
                 ? integrationsActions.apply
+                : tab === 'mcp'
+                  ? mcpActions.apply
                 : tab === 'maps'
                   ? mapsActions.apply
                 : tab === 'payments'
@@ -223,6 +235,8 @@ export default function MainPanel({
               ? settingsActions.reset
               : tab === 'integrations'
                 ? integrationsActions.reset
+                : tab === 'mcp'
+                  ? mcpActions.reset
                 : tab === 'maps'
                   ? mapsActions.reset
                 : tab === 'payments'
@@ -237,6 +251,8 @@ export default function MainPanel({
               ? !settingsActions.apply
               : tab === 'integrations'
                 ? !integrationsActions.apply
+                : tab === 'mcp'
+                  ? !mcpActions.apply
                 : tab === 'maps'
                   ? !mapsActions.apply
                 : tab === 'payments'
@@ -250,6 +266,8 @@ export default function MainPanel({
               ? !settingsActions.reset
               : tab === 'integrations'
                 ? !integrationsActions.reset
+                : tab === 'mcp'
+                  ? !mcpActions.reset
                 : tab === 'maps'
                   ? !mapsActions.reset
                 : tab === 'payments'
@@ -301,6 +319,25 @@ export default function MainPanel({
                     requestedAnchorId={requestedAnchorId}
                     requestedAnchorSeq={requestedAnchorSeq}
                     onRegisterActions={setIntegrationsActions}
+                  />
+                </React.Suspense>
+              </section>
+            </MainPanelBody>
+          )}
+        </section>
+        <section className="h-full min-h-0" role="tabpanel" id="main-panel-mcp-panel" aria-labelledby="main-panel-mcp-tab" hidden={tab !== 'mcp'}>
+          {tab === 'mcp' && (
+            <MainPanelBody header={null}>
+              <section
+                className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
+                data-kg-anchor={UI_ANCHORS.settingsPanel}
+              >
+                <React.Suspense fallback={null}>
+                  <McpHubViewLazy
+                    searchQuery={search}
+                    requestedAnchorId={requestedAnchorId}
+                    requestedAnchorSeq={requestedAnchorSeq}
+                    onRegisterActions={setMcpActions}
                   />
                 </React.Suspense>
               </section>

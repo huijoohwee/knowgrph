@@ -11,7 +11,7 @@ import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
 import { FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { worldToScreen } from '@/lib/zoom/viewport'
 import { computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
-import { readWidgetGridLayoutSettings, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { readWidgetGridLayoutSettings, shouldAutoPlaceFlowEditorWidget, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { BALANCED_OVERLAY_SPREAD_TARGET_ASPECT, computeBalancedSpreadGrid, computeBalancedSpreadSpacingPx, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
 
 function hasOverlap(
@@ -38,13 +38,25 @@ function quantizeOverlayPos(v: number): number {
   return Math.round(v / OVERLAY_POSITION_QUANTUM_PX) * OVERLAY_POSITION_QUANTUM_PX
 }
 
+function normalizeOverlaySignatureIds(ids: string[]): string[] {
+  if (ids.length === 0) return []
+  const next = new Set<string>()
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = String(ids[i] || '').trim()
+    if (!id) continue
+    next.add(id)
+  }
+  return Array.from(next).sort((a, b) => a.localeCompare(b))
+}
+
 function buildPosSignature(
   ids: string[],
   posById: Record<string, { top: number; left: number }> | null | undefined,
 ): string {
-  if (ids.length === 0) return ''
+  const signatureIds = normalizeOverlaySignatureIds(ids)
+  if (signatureIds.length === 0) return ''
   const byId = posById || {}
-  return ids
+  return signatureIds
     .map(id => {
       const pos = byId[id]
       const left = pos && Number.isFinite(pos.left) ? Math.round(pos.left) : 'na'
@@ -293,6 +305,10 @@ export function useFlowEditorOverlayCollision(args: {
         if (!id) continue
         const rect = rectByNodeId.get(id) || null
         if (pinnedById[id] === true) {
+          if (rect) pinnedObstacles.push({ id, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+          continue
+        }
+        if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind: graphKind, pinnedInCanvas: false, floatingPos: posById[id] })) {
           if (rect) pinnedObstacles.push({ id, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
           continue
         }
@@ -596,7 +612,7 @@ export function useFlowEditorOverlayCollision(args: {
       const overlayEls = typeof document === 'undefined'
         ? []
         : Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
-      const nodeIds = Array.from(new Set(overlayEls.map(el => String(el?.dataset?.kgWidget || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+      const nodeIds = normalizeOverlaySignatureIds(overlayEls.map(el => String(el?.dataset?.kgWidget || '').trim()))
       const currentSig = buildPosSignature(nodeIds, state.flowWidgetPosByNodeId)
       if (currentSig && currentSig === selfCommittedPosSignatureRef.current) {
         selfCommittedPosSignatureRef.current = ''

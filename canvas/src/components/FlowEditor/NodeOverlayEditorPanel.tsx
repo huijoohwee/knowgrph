@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { ChevronDown, ChevronUp, Pin, PinOff, CheckCircle, Minimize2, Maximize2 } from 'lucide-react'
 import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/FlowEditor/beatByBeat'
-import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
 import { parseMarkdownSigil } from '@/features/markdown/ui/markdownSigil'
 import {
@@ -392,18 +392,14 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
           if (e.ctrlKey === true || e.metaKey === true) {
             e.preventDefault()
           }
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
-          }
+          emitFlowEditorInteractionFrame()
         } catch {
           void 0
         }
       }}
       onScrollCapture={() => {
         try {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
-          }
+          emitFlowEditorInteractionFrame()
         } catch {
           void 0
         }

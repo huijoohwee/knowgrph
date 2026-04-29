@@ -222,6 +222,22 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
     renderSourceFileRight,
   } = props
   const panelTypography = usePanelTypography()
+  const [searchExpanded, setSearchExpanded] = React.useState(() => search.trim().length > 0)
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null)
+
+  React.useEffect(() => {
+    if (!searchExpanded) return
+    const t = window.setTimeout(() => {
+      searchInputRef.current?.focus()
+      try {
+        const len = searchInputRef.current?.value.length ?? 0
+        searchInputRef.current?.setSelectionRange(len, len)
+      } catch {
+        void 0
+      }
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [searchExpanded])
 
   const clearLabel = activeEntryKind === 'folder' ? 'Clear files' : 'Clear'
 
@@ -390,7 +406,7 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
       aria-label="Markdown Explorer"
     >
       <header
-        className={`kg-toolbar flex items-center justify-between gap-2 px-2 py-1 border-b ${UI_THEME_TOKENS.panel.border}`}
+        className={`kg-toolbar flex h-[calc(var(--kg-control-height,28px)+0.5rem+2px)] items-center justify-between gap-2 px-2 py-0 border-b ${UI_THEME_TOKENS.panel.border}`}
         aria-label="Explorer header"
       >
         <section className="min-w-0 flex-1 flex items-center gap-2" aria-label="Explorer title">
@@ -444,21 +460,54 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
                 <RefreshCcw className="w-4 h-4" />
               </button>
             </li>
+            <li className="list-none">
+              <label className="flex items-center gap-1" aria-label="Search files">
+                <input
+                  ref={searchInputRef}
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search"
+                  className={[
+                    'min-w-0 h-[var(--kg-control-height,28px)] rounded border',
+                    UI_THEME_TOKENS.input.border,
+                    UI_THEME_TOKENS.input.bg,
+                    UI_THEME_TOKENS.input.text,
+                    panelTypography.panelTextClass,
+                    'px-2 transition-[width,opacity,padding] duration-150',
+                    searchExpanded ? 'w-40 opacity-100' : 'w-0 opacity-0 px-0 border-transparent',
+                  ].join(' ')}
+                  onKeyDown={e => {
+                    if (e.key !== 'Escape') return
+                    if (search.trim().length > 0) {
+                      setSearch('')
+                      return
+                    }
+                    setSearchExpanded(false)
+                  }}
+                  onBlur={() => {
+                    if (search.trim().length > 0) return
+                    setSearchExpanded(false)
+                  }}
+                />
+                <button
+                  type="button"
+                  className={`kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
+                  aria-label={searchExpanded ? 'Hide search' : 'Show search'}
+                  title="Search"
+                  onClick={() => {
+                    setSearchExpanded(prev => {
+                      if (prev && search.trim().length === 0) return false
+                      return true
+                    })
+                  }}
+                >
+                  <Search className="w-4 h-4 shrink-0" />
+                </button>
+              </label>
+            </li>
           </ul>
         </CollapsibleToolbar>
       </header>
-
-      <form className="px-2 py-1" role="search" aria-label="Search files">
-        <label className="flex items-center gap-2">
-          <Search className={`w-4 h-4 shrink-0 ${UI_THEME_TOKENS.text.secondary}`} />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search"
-            className={`w-full min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${panelTypography.panelTextClass}`}
-          />
-        </label>
-      </form>
 
       <section className="flex-1 min-h-0 overflow-auto" aria-label="Explorer content">
         <MarkdownExplorerSection

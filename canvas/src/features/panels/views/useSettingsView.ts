@@ -129,13 +129,19 @@ function isMapsOwnedSetting(key: string, areaRaw: string): boolean {
   const area = normalizeSettingsAreaLabel(areaRaw)
   if (
     area === MAPS_GRABMAPS_DOC_AREA
-    || area === MAPS_GRABMAPS_MCP_DOC_AREA
     || area === MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA
     || area === MAPS_GEO_DOC_AREA
     || area === MAPS_MAPLIBRE_DOC_AREA
   ) return true
   if (key === 'autoEnableGeospatialOnGeoImport') return true
+  if (key.includes('.mcp.')) return false
   return key.startsWith('maps.')
+}
+
+function isMcpOwnedSetting(key: string, areaRaw: string): boolean {
+  const area = normalizeSettingsAreaLabel(areaRaw)
+  if (area === MAPS_GRABMAPS_MCP_DOC_AREA) return true
+  return key.includes('.mcp.')
 }
 
 type SettingsEntry = {
@@ -287,7 +293,7 @@ export function useSettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
-  mode?: 'all' | 'integrations' | 'payments' | 'maps'
+  mode?: 'all' | 'integrations' | 'payments' | 'maps' | 'mcp'
   paymentsProviderId?: string
 }) {
   const shouldHideSetting = React.useCallback((key: string, area?: string) => {
@@ -825,10 +831,51 @@ export function useSettingsView({
 
     const mapsDocEntries = [
       ...MAPS_API_DOC_ENTRIES,
-      ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES,
       ...GRABMAPS_DIRECTIONS_REQUEST_DOC_ENTRIES,
     ]
+    const mcpDocEntries = [
+      ...GRABMAPS_MCP_REQUEST_DOC_ENTRIES,
+    ]
     const mapsVirtualEntries: SettingsEntry[] = mapsDocEntries.map(entry => {
+      const mappedMeta = entry.valueKey
+        ? settingsRegistry.find(s => s.key === entry.valueKey)
+        : undefined
+      const anchorId = getMapsApiRowAnchorId(entry.meta.key)
+      return {
+        meta: entry.meta,
+        details: entry.details,
+        writable: Boolean(mappedMeta?.write),
+        index: normalizeText(
+          [
+            entry.details.area,
+            entry.meta.key,
+            entry.typeLabel,
+            entry.valueKey ? String(values[entry.valueKey] ?? '') : entry.value,
+            entry.details.responsibility,
+            ...(entry.searchHints || []),
+          ].join(' '),
+        ),
+        typeLabel: entry.typeLabel,
+        valueKey: entry.valueKey,
+        valueDisplayOverride:
+          entry.valueKey && Object.prototype.hasOwnProperty.call(values, entry.valueKey)
+            ? (values[entry.valueKey] as string | number | boolean | undefined)
+            : undefined,
+        valueType: mappedMeta?.type,
+        valueOptions: mappedMeta?.options,
+        tooltipRole: entry.tooltipRole,
+        tooltipActions: entry.tooltipActions,
+        tooltipDefaultValue: entry.tooltipDefaultValue,
+        tooltipMin: entry.tooltipMin,
+        tooltipMax: entry.tooltipMax,
+        tooltipInterval: entry.tooltipInterval,
+        tooltipExpansionNote: entry.tooltipExpansionNote,
+        tooltipContractionNote: entry.tooltipContractionNote,
+        tooltipImpact: entry.tooltipImpact,
+        anchorId,
+      }
+    })
+    const mcpVirtualEntries: SettingsEntry[] = mcpDocEntries.map(entry => {
       const mappedMeta = entry.valueKey
         ? settingsRegistry.find(s => s.key === entry.valueKey)
         : undefined
@@ -879,16 +926,23 @@ export function useSettingsView({
         .map(entry => entry.valueKey)
         .filter((valueKey): valueKey is string => typeof valueKey === 'string' && valueKey.trim().length > 0),
     )
+    const hiddenConcreteMcpKeys = new Set<string>(
+      mcpDocEntries
+        .map(entry => entry.valueKey)
+        .filter((valueKey): valueKey is string => typeof valueKey === 'string' && valueKey.trim().length > 0),
+    )
     const allEntries = [
       ...concreteEntries.filter(entry => {
         if (!entry.writable) return false
         if (hiddenConcreteIntegrationKeys && hiddenConcreteIntegrationKeys.has(entry.meta.key)) return false
         if (hiddenConcreteMapsKeys.has(entry.meta.key)) return false
+        if (hiddenConcreteMcpKeys.has(entry.meta.key)) return false
         return true
       }),
       ...virtualEntries,
       ...paymentsVirtualEntries,
       ...mapsVirtualEntries,
+      ...mcpVirtualEntries,
     ]
     const filteredByMode = allEntries
       .filter(entry => !shouldHideSetting(entry.meta.key, entry.details.area))
@@ -896,13 +950,15 @@ export function useSettingsView({
         const isIntegrationsOwned = isIntegrationsOwnedSetting(entry.meta.key, entry.details.area)
         const isPaymentsOwned = isPaymentsOwnedSetting(entry.meta.key, entry.details.area)
         const isMapsOwned = isMapsOwnedSetting(entry.meta.key, entry.details.area)
+        const isMcpOwned = isMcpOwnedSetting(entry.meta.key, entry.details.area)
         if (mode === 'integrations') return isIntegrationsOwned
         if (mode === 'maps') return isMapsOwned
+        if (mode === 'mcp') return isMcpOwned
         if (mode === 'payments') {
           if (!isPaymentsOwned) return false
           return !entry.meta.key.startsWith('payments.')
         }
-        return !isIntegrationsOwned && !isPaymentsOwned && !isMapsOwned
+        return !isIntegrationsOwned && !isPaymentsOwned && !isMapsOwned && !isMcpOwned
       })
     if (mode !== 'payments') return filteredByMode
 

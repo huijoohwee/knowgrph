@@ -18,6 +18,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   enabled: boolean
   loop: 'always' | 'onDemand'
   items: readonly MediaOverlayLayoutItem[]
+  manualPlacement?: boolean
   density: MediaPanelDensity
   viewportW: number
   viewportH: number
@@ -135,7 +136,9 @@ export function startMediaOverlayLayoutLoop2d(args: {
       return { left, top }
     }
 
-    const collisionEnabled = args.collision?.enabled !== false
+    const collisionEnabled = args.manualPlacement === true
+      ? false
+      : args.collision?.enabled !== false
     const schema = args.schema || null
     const clampMargin = clamp ? Math.max(0, Number(clamp.margin) || 0) : 0
 

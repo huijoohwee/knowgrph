@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { lsBool, lsInt, lsJson, lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import type { WorkspaceBacklink, WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import {
@@ -110,6 +111,7 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import { buildWidgetBundleV1, widgetBundleToJsonText } from '@/lib/graph/io/widgetBundle'
 import { WorkspaceModeSelect } from '@/components/BottomPanel/markdownWorkspace/WorkspaceModeSelect'
 import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
+import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
 const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
@@ -201,7 +203,15 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const [loading, setLoading] = React.useState(true)
   const [loadError, setLoadError] = React.useState<string>('')
   const [search, setSearch] = React.useState('')
-  const [sidebarWidthPx, setSidebarWidthPx] = React.useState(() => lsInt(LS_KEYS.markdownSidebarWidthPx, 320))
+  const [sidebarWidthPx, setSidebarWidthPx] = React.useState(() =>
+    lsInt(
+      LS_KEYS.markdownSidebarWidthPx,
+      resolveWorkspaceExplorerDefaultWidthPx({
+        minPx: SIDEBAR_MIN_PX,
+        maxPx: SIDEBAR_MAX_PX,
+      }),
+    ),
+  )
   const [explorerOpen, setExplorerOpen] = React.useState(() => lsBool(LS_KEYS.markdownSidebarOpen, true))
   const [sourceFilesCollapsed, setSourceFilesCollapsed] = React.useState(() => lsBool(LS_KEYS.markdownExplorerSourceFilesCollapsed, false))
   const [tocCollapsed, setTocCollapsed] = React.useState(() => lsBool(LS_KEYS.markdownExplorerOutlineCollapsed, false))
@@ -214,12 +224,26 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     lsJson<FolderModeContract>(LS_KEYS.markdownExplorerFolderModeContract, 'sitemap', parseFolderModeContract),
   )
   const [layoutMode, setLayoutMode] = React.useState<MarkdownWorkspaceLayoutMode>(() =>
-    lsJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, 'viewer', parseMarkdownWorkspaceLayoutMode),
+    lsJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, 'split', parseMarkdownWorkspaceLayoutMode),
   )
+  const wasWorkspaceEditorModeOpenRef = React.useRef<boolean>(workspaceViewMode === 'editor')
   const layoutModeRef = React.useRef<MarkdownWorkspaceLayoutMode>(layoutMode)
   React.useEffect(() => {
     layoutModeRef.current = layoutMode
   }, [layoutMode])
+  React.useEffect(() => {
+    const open = workspaceViewMode === 'editor'
+    const wasOpen = wasWorkspaceEditorModeOpenRef.current
+    wasWorkspaceEditorModeOpenRef.current = open
+    if (!open || wasOpen) return
+    const nextSidebarWidthPx = resolveWorkspaceExplorerDefaultWidthPx({
+      minPx: SIDEBAR_MIN_PX,
+      maxPx: SIDEBAR_MAX_PX,
+    })
+    setLayoutMode('split')
+    setExplorerOpen(true)
+    setSidebarWidthPx(nextSidebarWidthPx)
+  }, [workspaceViewMode])
   const status = useWorkspaceStatusHelpers()
   const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(() => {
     const arr = lsJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, [] as string[], parseStringArray)
@@ -526,7 +550,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [refreshOnce])
 
   const setStatusWithAutoClear = React.useCallback(
-    (label: string, ttlMs: number = 1400) => {
+    (label: string, ttlMs: number = UI_TOAST_TTL_MS.statusAutoClose) => {
       setStatusInfo(label, { ttlMs })
     },
     [setStatusInfo],
@@ -690,7 +714,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             setWebpageWorkspaceEditorTextOverride(clipped)
             setWebpageWorkspaceViewerTextOverride(view === 'json' ? `\`\`\`json\n${clipped}\n\`\`\`\n` : null)
             ticker.stop(100)
-            setStatusWithAutoClear('Loaded', 1200)
+            setStatusWithAutoClear('Loaded', UI_TOAST_TTL_MS.statusAutoCloseFast)
           } catch (err) {
             if (cancelled) return
             const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
@@ -721,7 +745,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             setWebpageWorkspaceEditorTextOverride(pretty)
             setWebpageWorkspaceViewerTextOverride(`\`\`\`json\n${pretty}\n\`\`\`\n`)
             ticker.stop(100)
-            setStatusWithAutoClear('Loaded', 1200)
+            setStatusWithAutoClear('Loaded', UI_TOAST_TTL_MS.statusAutoCloseFast)
           } catch (err) {
             if (cancelled) return
             const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
@@ -802,7 +826,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             sourceUrl: sourceUrl ? sourceUrl : null,
           })
         }
-        setStatusWithAutoClear('Loaded', 1200)
+        setStatusWithAutoClear('Loaded', UI_TOAST_TTL_MS.statusAutoCloseFast)
       } catch (e) {
         setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
@@ -908,7 +932,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         patchWorkspaceEntryInlineText(activePath, nextText)
         setActiveTextProgrammatic(nextText)
         ticker.stop(100)
-        setStatusWithAutoClear('Updated', 1200)
+        setStatusWithAutoClear('Updated', UI_TOAST_TTL_MS.statusAutoCloseFast)
       } catch (e) {
         try {
           ticker.stop()
@@ -966,7 +990,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         lastLoadedRef.current = { path: activePath, text: nextText }
         patchWorkspaceEntryInlineText(activePath, nextText)
         setActiveTextProgrammatic(nextText)
-        setStatusWithAutoClear('Updated', 1200)
+        setStatusWithAutoClear('Updated', UI_TOAST_TTL_MS.statusAutoCloseFast)
       } catch (e) {
         setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
@@ -1085,13 +1109,13 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       const text = contentMode === 'widget' ? widgetEditorText : ''
       if (!text) return
       if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
-        setStatusWithAutoClear('Clipboard not available', 2000)
+        setStatusWithAutoClear('Clipboard not available', UI_TOAST_TTL_MS.actionFeedback)
         return
       }
       void navigator.clipboard
         .writeText(text)
-        .then(() => setStatusWithAutoClear('Copied', 1200))
-        .catch(() => setStatusWithAutoClear('Copy failed', 2200))
+        .then(() => setStatusWithAutoClear('Copied', UI_TOAST_TTL_MS.statusAutoCloseFast))
+        .catch(() => setStatusWithAutoClear('Copy failed', UI_TOAST_TTL_MS.actionFeedback))
     }
   }, [contentMode, widgetEditorText, setStatusWithAutoClear])
 
@@ -1438,7 +1462,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     if (!path) return
     if (activeEntryKind === 'folder') return
     try {
-      setStatusProgress('Saving', undefined, undefined, undefined, undefined, { ttlMs: 8000 })
+      setStatusProgress('Saving', undefined, undefined, undefined, undefined, { ttlMs: UI_TOAST_TTL_MS.progressExtended })
       try {
         useGraphStore.getState().flushComposedPositionWritesNow()
       } catch {
@@ -1539,7 +1563,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     const draft = typeof window !== 'undefined' ? window.prompt('Save As', suggested) : suggested
     const raw = String(draft || '').trim()
     if (!raw) {
-      setStatusWithAutoClear('Save cancelled', 1200)
+      setStatusWithAutoClear('Save cancelled', UI_TOAST_TTL_MS.statusAutoCloseFast)
       return
     }
     const safeName = raw
@@ -1552,7 +1576,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     const finalName = safeName.includes('.') ? safeName : `${safeName}.${ext}`
 
     try {
-      setStatusProgress('Saving', undefined, undefined, undefined, undefined, { ttlMs: 8000 })
+      setStatusProgress('Saving', undefined, undefined, undefined, undefined, { ttlMs: UI_TOAST_TTL_MS.progressExtended })
       try {
         useGraphStore.getState().flushComposedPositionWritesNow()
       } catch {
@@ -2183,7 +2207,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
           while (true) {
             let savingShown = false
             autosaveStatusTimerRef.current = window.setTimeout(() => {
-              setStatusProgress('Saving', undefined, undefined, undefined, undefined, { ttlMs: 8000 })
+              setStatusProgress('Saving', undefined, undefined, undefined, undefined, { ttlMs: UI_TOAST_TTL_MS.progressExtended })
               savingShown = true
             }, 220)
             try {
@@ -2713,7 +2737,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       if (src && src.kind === 'url' && String(src.url || '').trim()) {
         try {
           window.open(String(src.url || '').trim(), '_blank', 'noopener,noreferrer')
-          setStatusWithAutoClear('Opened source URL', 1400)
+          setStatusWithAutoClear('Opened source URL', UI_TOAST_TTL_MS.statusAutoClose)
           return
         } catch {
           void 0
@@ -2727,7 +2751,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         try {
           const fileUrl = `file://${localName.replace(/\\/g, '/')}`
           window.open(fileUrl, '_blank', 'noopener,noreferrer')
-          setStatusWithAutoClear('Opened local file URL', 1600)
+          setStatusWithAutoClear('Opened local file URL', UI_TOAST_TTL_MS.statusAutoCloseMedium)
           return
         } catch {
           void 0
@@ -2737,14 +2761,14 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         try {
           const relative = normalized.replace(/^\/+/, '')
           void navigator.clipboard?.writeText(relative || normalized)
-          setStatusWithAutoClear('Copied workspace-relative path', 1800)
+          setStatusWithAutoClear('Copied workspace-relative path', UI_TOAST_TTL_MS.statusAutoCloseSlow)
         } catch {
           void 0
         }
       }
       setSelectionPathSafe(normalized)
       setActivePathSafe(normalized)
-      setStatusWithAutoClear('Revealed in Source Files explorer', 1800)
+      setStatusWithAutoClear('Revealed in Source Files explorer', UI_TOAST_TTL_MS.statusAutoCloseSlow)
     },
     [setActivePathSafe, setSelectionPathSafe, setStatusWithAutoClear, sourcesByPath],
   )

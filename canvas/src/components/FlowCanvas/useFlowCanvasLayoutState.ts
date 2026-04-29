@@ -365,6 +365,11 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
   ])
 
   const nodesForFlowZoomCollective = React.useMemo(() => {
+    const flowEditorFrontmatterDocumentMode =
+      canvas2dRenderer === 'flowEditor'
+      && frontmatterModeEnabled === true
+      && documentSemanticMode === 'document'
+    if (flowEditorFrontmatterDocumentMode) return nodesForFlowZoom
     if (!Array.isArray(nodesForFlowZoom) || nodesForFlowZoom.length === 0 || mediaNodes.length === 0) return nodesForFlowZoom
     const nodeById = new Map<string, GraphNode>()
     for (let i = 0; i < nodesForFlowZoom.length; i += 1) {
@@ -388,7 +393,15 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
       })
     }
     return extras.length > 0 ? [...nodesForFlowZoom, ...extras] : nodesForFlowZoom
-  }, [mediaNodes, mediaPanelWorldSizeForFit.panelH, mediaPanelWorldSizeForFit.panelW, nodesForFlowZoom])
+  }, [
+    canvas2dRenderer,
+    documentSemanticMode,
+    frontmatterModeEnabled,
+    mediaNodes,
+    mediaPanelWorldSizeForFit.panelH,
+    mediaPanelWorldSizeForFit.panelW,
+    nodesForFlowZoom,
+  ])
 
   const flowEditorReservedW = React.useMemo(() => {
     if (canvas2dRenderer !== 'flowEditor') return 0

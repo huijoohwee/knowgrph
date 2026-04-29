@@ -1,14 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-export function testFlowEditorWidgetDefaultsToFloatingWhenUnset() {
+export function testFlowEditorWidgetDefaultsUseSharedPinHelper() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('flowWidgetPinnedByNodeId')) {
     throw new Error('expected NodeOverlayEditor to read pinned-by-node-id state from the graph store')
   }
-  if (!text.includes("return typeof v === 'boolean' ? v : false")) {
-    throw new Error('expected Flow widget to default floating when no prior preference exists')
+  if (!text.includes('resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })')) {
+    throw new Error('expected Flow widget default pinning to reuse the shared graph-kind pin helper')
   }
 }
 

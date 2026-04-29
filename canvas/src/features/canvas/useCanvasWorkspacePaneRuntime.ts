@@ -3,12 +3,26 @@ import { LS_KEYS } from '@/lib/config'
 import { lsInt, lsSetIntCoalesced } from '@/lib/persistence'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  resolveWorkspaceEditorPaneDefaultWidthPx,
+  resolveWorkspacePaneMaxWidthPx,
+} from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
 const MIN_WORKSPACE_PREVIEW_WIDTH_PX = 320
-const MAX_WORKSPACE_PREVIEW_WIDTH_PX = 960
+const WORKSPACE_PREVIEW_RIGHT_GUTTER_PX = 48
+
+function resolveWorkspacePreviewWidthBounds() {
+  const maxPx = resolveWorkspacePaneMaxWidthPx({
+    minPx: MIN_WORKSPACE_PREVIEW_WIDTH_PX,
+    rightGutterPx: WORKSPACE_PREVIEW_RIGHT_GUTTER_PX,
+  })
+  return { minPx: MIN_WORKSPACE_PREVIEW_WIDTH_PX, maxPx }
+}
 
 function clampWorkspacePreviewWidthPx(widthPx: number): number {
-  return Math.max(MIN_WORKSPACE_PREVIEW_WIDTH_PX, Math.min(MAX_WORKSPACE_PREVIEW_WIDTH_PX, widthPx))
+  const bounds = resolveWorkspacePreviewWidthBounds()
+  return Math.max(bounds.minPx, Math.min(bounds.maxPx, widthPx))
 }
 
 export function resolveWorkspacePreviewWidthFromPointerDrag(args: {
@@ -24,10 +38,22 @@ export function useCanvasWorkspacePaneRuntime(): {
   workspacePreviewWidthPx: number
   setResizeHandleEl: React.Dispatch<React.SetStateAction<HTMLHRElement | null>>
 } {
+  const workspaceEditorOverlayOpen = useGraphStore(
+    s => s.workspaceViewMode === 'editor' && s.workspaceCanvasPaneOpen === true,
+  )
   const [workspacePreviewWidthPx, setWorkspacePreviewWidthPx] = React.useState(() => {
-    const raw = lsInt(LS_KEYS.workspacePreviewWidthPx, 520)
+    const raw = lsInt(
+      LS_KEYS.workspacePreviewWidthPx,
+      resolveWorkspaceEditorPaneDefaultWidthPx({
+        minPx: MIN_WORKSPACE_PREVIEW_WIDTH_PX,
+        maxPx: resolveWorkspacePreviewWidthBounds().maxPx,
+      }),
+    )
     const next = clampWorkspacePreviewWidthPx(raw)
-    if (next !== raw) lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX, delayMs: 0 })
+    if (next !== raw) {
+      const bounds = resolveWorkspacePreviewWidthBounds()
+      lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
+    }
     return next
   })
   const workspacePreviewWidthPxRef = React.useRef(workspacePreviewWidthPx)
@@ -42,16 +68,36 @@ export function useCanvasWorkspacePaneRuntime(): {
     }
   }, [])
 
+  const wasEditorOverlayOpenRef = React.useRef<boolean>(workspaceEditorOverlayOpen)
   React.useEffect(() => {
-    if (!Number.isFinite(workspacePreviewWidthPx) || workspacePreviewWidthPx < MIN_WORKSPACE_PREVIEW_WIDTH_PX || workspacePreviewWidthPx > MAX_WORKSPACE_PREVIEW_WIDTH_PX) {
-      const next = clampWorkspacePreviewWidthPx(Number.isFinite(workspacePreviewWidthPx) ? workspacePreviewWidthPx : 520)
+    const wasOpen = wasEditorOverlayOpenRef.current
+    wasEditorOverlayOpenRef.current = workspaceEditorOverlayOpen
+    if (!workspaceEditorOverlayOpen || wasOpen) return
+    const bounds = resolveWorkspacePreviewWidthBounds()
+    const next = resolveWorkspaceEditorPaneDefaultWidthPx({ minPx: bounds.minPx, maxPx: bounds.maxPx })
+    setWorkspacePreviewWidthPx(next)
+    lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
+  }, [workspaceEditorOverlayOpen])
+
+  React.useEffect(() => {
+    const bounds = resolveWorkspacePreviewWidthBounds()
+    if (!Number.isFinite(workspacePreviewWidthPx) || workspacePreviewWidthPx < bounds.minPx || workspacePreviewWidthPx > bounds.maxPx) {
+      const next = clampWorkspacePreviewWidthPx(
+        Number.isFinite(workspacePreviewWidthPx)
+          ? workspacePreviewWidthPx
+          : resolveWorkspaceEditorPaneDefaultWidthPx({
+              minPx: bounds.minPx,
+              maxPx: bounds.maxPx,
+            }),
+      )
       setWorkspacePreviewWidthPx(next)
-      lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX, delayMs: 0 })
+      lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
     }
   }, [workspacePreviewWidthPx])
 
   React.useEffect(() => {
-    lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, workspacePreviewWidthPx, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX })
+    const bounds = resolveWorkspacePreviewWidthBounds()
+    lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, workspacePreviewWidthPx, { min: bounds.minPx, max: bounds.maxPx })
   }, [workspacePreviewWidthPx])
 
   React.useEffect(() => {
@@ -79,14 +125,16 @@ export function useCanvasWorkspacePaneRuntime(): {
           rafSetPreviewWidthRef.current.schedule(next)
         },
         onEnd: () => {
+          const bounds = resolveWorkspacePreviewWidthBounds()
           rafSetPreviewWidthRef.current.flush()
           setWorkspacePreviewWidthPx(pending)
-          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX, delayMs: 0 })
+          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
         },
         onCancel: () => {
+          const bounds = resolveWorkspacePreviewWidthBounds()
           rafSetPreviewWidthRef.current.flush()
           setWorkspacePreviewWidthPx(pending)
-          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: MIN_WORKSPACE_PREVIEW_WIDTH_PX, max: MAX_WORKSPACE_PREVIEW_WIDTH_PX, delayMs: 0 })
+          lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, pending, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
         },
       })
     }

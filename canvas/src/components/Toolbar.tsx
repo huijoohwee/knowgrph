@@ -256,15 +256,6 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <SearchIcon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
-      <IconButton
-        className="App-toolbar__btn"
-        title={UI_LABELS.chat}
-        tooltipContent={UI_LABELS.chat}
-        onClick={actions.handleOpenChat}
-        showTooltip
-      >
-        <MessageCircle className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
       {isSearchOpen && (
         <DropdownPanel
           anchorRef={searchBtnRef}
@@ -277,7 +268,15 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
           </React.Suspense>
         </DropdownPanel>
       )}
-
+      <IconButton
+        className="App-toolbar__btn"
+        title={UI_LABELS.chat}
+        tooltipContent={UI_LABELS.chat}
+        onClick={actions.handleOpenChat}
+        showTooltip
+      >
+        <MessageCircle className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
       <IconButton
         className={`App-toolbar__btn ${
           themeMode === 'dark' ? uiPrimaryIconActiveClassName : uiPrimaryIconInactiveClassName

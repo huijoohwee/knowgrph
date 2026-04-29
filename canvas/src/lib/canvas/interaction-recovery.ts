@@ -73,7 +73,9 @@ export function installGlobalInteractionRecovery(): void {
   if (typeof window === 'undefined') return
 
   const onPointerEnd = () => {
-    runGlobalInteractionCleanup({ resetViewportControllers: false })
+    // Destroying the viewport controller only clears transient drag/wheel state;
+    // listeners stay bound and future interactions recreate state normally.
+    runGlobalInteractionCleanup({ resetViewportControllers: true })
   }
 
   const onBlur = () => {

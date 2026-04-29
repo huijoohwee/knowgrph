@@ -66,9 +66,9 @@ export function GraphTableWorkspaceHeader(props: {
 }) {
   return (
     <WorkspaceHeader ariaLabel="Table header" border="divider">
-      <WorkspaceHeaderRow ariaLabel="Table header row">
+      <WorkspaceHeaderRow className="kg-toolbar min-h-[var(--kg-control-height,28px)] py-0" ariaLabel="Table header row">
         <section className="kg-toolbar min-w-0 flex items-center gap-3" aria-label="Table navigation">
-          <h1 className="font-semibold">{UI_LABELS.graphDataTable}</h1>
+          <span className="sr-only">{UI_LABELS.graphDataTable}</span>
 
           <nav className="kg-toolbar flex items-center gap-2" aria-label="Dataset selector">
             <button

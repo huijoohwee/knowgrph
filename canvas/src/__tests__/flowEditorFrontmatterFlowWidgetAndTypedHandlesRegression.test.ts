@@ -212,8 +212,8 @@ export function testFlowEditorWidgetFormEmitsInteractionFrameOnScrollAndWheel() 
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
 
-  if (!text.includes('FLOW_EDITOR_INTERACTION_FRAME_EVENT')) {
-    throw new Error('expected widget form to emit flow editor interaction frame event')
+  if (!text.includes('emitFlowEditorInteractionFrame')) {
+    throw new Error('expected widget form to reuse the shared flow editor interaction frame emitter')
   }
   if (!text.includes('onScrollCapture={() => emitInteractionFrame()}')) {
     throw new Error('expected widget form scroll to emit interaction frame for edge-anchor resync')
@@ -249,8 +249,8 @@ export function testWidgetWheelCaptureDoesNotBlockInternalScroll() {
     throw new Error('expected widget panel wheel capture handler')
   }
   const wheelCaptureBlock = text.slice(wheelCaptureStart, Math.min(text.length, wheelCaptureStart + 420))
-  if (!wheelCaptureBlock.includes('window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))')) {
-    throw new Error('expected widget panel wheel capture to keep interaction-frame sync')
+  if (!wheelCaptureBlock.includes('emitFlowEditorInteractionFrame()')) {
+    throw new Error('expected widget panel wheel capture to keep interaction-frame sync through the shared emitter')
   }
   if (wheelCaptureBlock.includes('e.stopPropagation()')) {
     throw new Error('expected widget panel wheel capture to avoid stopPropagation so internal panel scroll remains usable')

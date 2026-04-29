@@ -1,8 +1,9 @@
 import type { GraphState, UiToast, UiToastInput } from '@/hooks/store/types'
 import { createId } from '@/lib/id'
+import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 
 const MAX_TOASTS = 3
-const DEFAULT_TTL_MS = 10_000
+const DEFAULT_TTL_MS = UI_TOAST_TTL_MS.defaultAutoClose
 
 const coerceId = (raw: unknown): string => String(raw || '').trim()
 

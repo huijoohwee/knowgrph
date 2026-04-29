@@ -323,7 +323,12 @@ export default function FlowCanvas({
     updateOverlayHiddenDrawArgs,
   ])
 
-  useAutoZoomModes2d({ viewportW, viewportH, paused: !active })
+  const suppressAutoZoomModes = active
+    && canvas2dRenderer === 'flowEditor'
+    && frontmatterModeEnabled
+    && documentSemanticMode === 'document'
+
+  useAutoZoomModes2d({ viewportW, viewportH, paused: !active || suppressAutoZoomModes })
 
   React.useEffect(() => {
     collisionSchemaRef.current = schema

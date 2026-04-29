@@ -2,6 +2,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 
 export type MainPanelTabKey =
   | 'integrations'
+  | 'mcp'
   | 'maps'
   | 'payments'
   | 'workflowManager'
@@ -14,6 +15,7 @@ export type MainPanelTabKey =
 export function isMainPanelTabKey(key: string): key is MainPanelTabKey {
   return (
     key === 'integrations' ||
+    key === 'mcp' ||
     key === 'maps' ||
     key === 'payments' ||
     key === 'workflowManager' ||
@@ -27,6 +29,7 @@ export function isMainPanelTabKey(key: string): key is MainPanelTabKey {
 
 export const SEARCHABLE_MAIN_PANEL_TABS = new Set<MainPanelTabKey>([
   'integrations',
+  'mcp',
   'maps',
   'payments',
   'help',
@@ -37,6 +40,7 @@ export const SEARCHABLE_MAIN_PANEL_TABS = new Set<MainPanelTabKey>([
 
 export const MAIN_PANEL_TABS: Array<{ key: MainPanelTabKey; label: string }> = [
   { key: 'integrations', label: UI_LABELS.integrations },
+  { key: 'mcp', label: UI_LABELS.mcp },
   { key: 'maps', label: UI_LABELS.maps },
   { key: 'payments', label: UI_LABELS.payments },
   { key: 'workflowManager', label: UI_LABELS.workflowManager },
@@ -49,6 +53,7 @@ export const MAIN_PANEL_TABS: Array<{ key: MainPanelTabKey; label: string }> = [
 
 export const MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB: Partial<Record<MainPanelTabKey, string>> = {
   integrations: UI_COPY.searchSettingsPlaceholder,
+  mcp: UI_COPY.searchSettingsPlaceholder,
   maps: UI_COPY.searchSettingsPlaceholder,
   payments: UI_COPY.searchSettingsPlaceholder,
   help: UI_COPY.searchShortcutsPlaceholder,
@@ -59,6 +64,7 @@ export const MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB: Partial<Record<MainPanelTabKe
 
 export const MAIN_PANEL_FOOTER_LABEL_BY_TAB: Record<MainPanelTabKey, string> = {
   integrations: UI_LABELS.integrations,
+  mcp: UI_LABELS.mcp,
   maps: UI_LABELS.maps,
   payments: UI_LABELS.payments,
   workflowManager: UI_LABELS.workflowManager,
@@ -68,4 +74,3 @@ export const MAIN_PANEL_FOOTER_LABEL_BY_TAB: Record<MainPanelTabKey, string> = {
   settings: UI_LABELS.settings,
   history: UI_LABELS.history,
 }
-

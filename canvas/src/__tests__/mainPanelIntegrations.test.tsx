@@ -2,7 +2,9 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import MainPanel from '@/features/panels/MainPanel'
 import IntegrationsHubView from '@/features/panels/views/IntegrationsHubView'
+import McpHubView from '@/features/panels/views/McpHubView'
 import MapsHubView from '@/features/panels/views/MapsHubView'
+import PaymentsHubView from '@/features/panels/views/PaymentsHubView'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -17,6 +19,7 @@ import {
   CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
 } from '@/lib/chatEndpoint'
+import { MAIN_PANEL_TABS } from '@/features/panels/mainPanelTabs'
 import { getIntegrationVirtualSettingStorageKey } from '@/features/integrations/integrationVirtualSettings'
 import { getBytePlusChatApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
 
@@ -543,7 +546,7 @@ export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
 
     const text = container.textContent || ''
     ;[
-      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel Maps keeps backend/system/API/MCP config.',
+      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel MCP keeps backend/system/API/MCP config.',
       'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
     ].forEach(token => {
       if (!text.includes(token)) {
@@ -585,9 +588,6 @@ export async function testMapsHubSurfacesGrabMapsSearchDiscoveryCopy() {
     const text = container.textContent || ''
     ;[
       'Style loading uses Bearer auth against https://maps.grab.com/api/style.json.',
-      'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
-      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
-      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
       'Directions default to lng,lat coordinate order unless lat_first is enabled.',
       'Use overview=full when you need route geometry suitable for animation or media prompts.',
     ].forEach(token => {
@@ -595,6 +595,164 @@ export async function testMapsHubSurfacesGrabMapsSearchDiscoveryCopy() {
         throw new Error(`expected maps hub to retain backend/system/API GrabMaps guidance ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
       }
     })
+    ;[
+      'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
+      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
+      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
+    ].forEach(token => {
+      if (text.includes(token)) {
+        throw new Error(`expected maps hub MCP guidance to move out of maps tab ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    if (text.includes('Global Reset')) {
+      throw new Error('expected maps hub to omit global reset section')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMcpHubSurfacesGrabMapsMcpServerConfig() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(root, React.createElement(McpHubView), anyWindow.requestAnimationFrame, 4)
+
+    const text = container.textContent || ''
+    ;[
+      'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
+      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
+      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
+      'grabmapsMcp.server_key',
+      'grabmapsMcp.command',
+      'grabmapsMcp.args',
+      'grabmapsMcp.env',
+      'grabmapsMcp.startup_timeout_ms',
+    ].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected MCP hub to include MCP server guidance/config ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    if (text.includes('Global Reset')) {
+      throw new Error('expected MCP hub to omit global reset section')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testPaymentsHubOmitsGlobalResetSection() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(root, React.createElement(PaymentsHubView), anyWindow.requestAnimationFrame, 4)
+
+    const text = container.textContent || ''
+    ;['Key', 'Type', 'Value'].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected payments hub settings surface to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    if (text.includes('Global Reset')) {
+      throw new Error('expected payments hub to omit global reset section')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testMainPanelTabsPlaceMcpImmediatelyAfterIntegrations() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
+      setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
+      anyWindow.requestAnimationFrame
+
+    useGraphStore.getState().resetAll()
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, { requestedTab: 'mcp' } as never),
+      anyWindow.requestAnimationFrame,
+      8,
+    )
+
+    const tabKeys = MAIN_PANEL_TABS.map(tab => tab.key)
+    const integrationsIndex = tabKeys.indexOf('integrations')
+    const mcpIndex = tabKeys.indexOf('mcp')
+    if (integrationsIndex < 0 || mcpIndex < 0) {
+      throw new Error(`expected tab keys to include integrations and mcp, got ${JSON.stringify(tabKeys)}`)
+    }
+    if (mcpIndex !== integrationsIndex + 1) {
+      throw new Error(`expected MCP tab key to be immediately right of Integrations, got ${JSON.stringify(tabKeys)}`)
+    }
+
+    const mcpPanel = container.querySelector('#main-panel-mcp-panel')
+    const integrationsPanel = container.querySelector('#main-panel-integrations-panel')
+    if (!mcpPanel || mcpPanel.hasAttribute('hidden')) {
+      throw new Error('expected requested mcp tab to render visible mcp panel')
+    }
+    if (!integrationsPanel || !integrationsPanel.hasAttribute('hidden')) {
+      throw new Error('expected integrations panel to remain hidden while mcp tab is active')
+    }
   } finally {
     try {
       await unmountAndFlush(root)

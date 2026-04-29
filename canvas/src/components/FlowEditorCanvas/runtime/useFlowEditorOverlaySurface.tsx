@@ -1,6 +1,11 @@
 import React from 'react'
 
-import { FlowEditorWidgetOverlay, isCanonicalFrontmatterBuiltInWidgetNode, resolveGraphNodeIdByCanonicalId } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import {
+  FlowEditorWidgetOverlay,
+  isCanonicalFrontmatterBuiltInWidgetNode,
+  resolveDefaultFlowWidgetPinnedInCanvas,
+  resolveGraphNodeIdByCanonicalId,
+} from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
@@ -209,24 +214,25 @@ export function useFlowEditorOverlaySurface(args: {
 
     const st = useGraphStore.getState()
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
-    const hasAnyExplicit = overlayEditorNodeIds.some(id => Object.prototype.hasOwnProperty.call(pinnedById, id))
-    const seedKey = `${args.baseGraphDataRevision}|${overlayEditorNodeIds.join(',')}|${hasAnyExplicit ? 1 : 0}`
+    const graphMetaKind = String(((args.renderGraphDataOverride.metadata || {}) as Record<string, unknown>).kind || '').trim()
+    const defaultPinned = resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
+    const missingIds = overlayEditorNodeIds.filter(id => id && !Object.prototype.hasOwnProperty.call(pinnedById, id))
+    const seedKey = `${args.baseGraphDataRevision}|${overlayEditorNodeIds.join(',')}|${missingIds.join(',')}|${defaultPinned ? 1 : 0}`
     if (seededFrontmatterAutoWidgetsKeyRef.current === seedKey) return
     seededFrontmatterAutoWidgetsKeyRef.current = seedKey
-    if (hasAnyExplicit) return
+    if (missingIds.length === 0) return
 
     const nextPinned = { ...pinnedById }
     let changed = false
-    for (let i = 0; i < overlayEditorNodeIds.length; i += 1) {
-      const id = overlayEditorNodeIds[i]
+    for (let i = 0; i < missingIds.length; i += 1) {
+      const id = missingIds[i]
       if (!id) continue
-      if (Object.prototype.hasOwnProperty.call(nextPinned, id)) continue
-      nextPinned[id] = false
+      nextPinned[id] = defaultPinned
       changed = true
     }
     if (!changed) return
     st.setFlowWidgetPinnedByNodeId(nextPinned)
-    args.scheduleOverlayCollisionResolve()
+    if (!defaultPinned) args.scheduleOverlayCollisionResolve()
   }, [args.baseGraphDataRevision, args.renderGraphDataOverride, args.scheduleOverlayCollisionResolve, overlayEditorNodeIds])
 
   const seededGeospatialOverlayWidgetPinsKeyRef = React.useRef<string>('')
@@ -236,14 +242,15 @@ export function useFlowEditorOverlaySurface(args: {
     const st = useGraphStore.getState()
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
     const missingIds = overlayEditorNodeIds.filter(id => id && !Object.prototype.hasOwnProperty.call(pinnedById, id))
-    const seedKey = `${overlayEditorNodeIds.join(',')}|${missingIds.join(',')}`
+    const defaultPinned = resolveDefaultFlowWidgetPinnedInCanvas({ geospatialWidgetPanelMode: true })
+    const seedKey = `${overlayEditorNodeIds.join(',')}|${missingIds.join(',')}|${defaultPinned ? 1 : 0}`
     if (seededGeospatialOverlayWidgetPinsKeyRef.current === seedKey) return
     seededGeospatialOverlayWidgetPinsKeyRef.current = seedKey
     if (missingIds.length === 0) return
     const nextPinned = { ...pinnedById }
-    for (let i = 0; i < missingIds.length; i += 1) nextPinned[missingIds[i]!] = false
+    for (let i = 0; i < missingIds.length; i += 1) nextPinned[missingIds[i]!] = defaultPinned
     st.setFlowWidgetPinnedByNodeId(nextPinned)
-    args.scheduleOverlayCollisionResolve()
+    if (!defaultPinned) args.scheduleOverlayCollisionResolve()
   }, [args.geospatialWidgetPanelMode, args.scheduleOverlayCollisionResolve, overlayEditorNodeIds])
 
   const connectedValuesByNodeId = React.useMemo(() => {
@@ -254,6 +261,10 @@ export function useFlowEditorOverlaySurface(args: {
       targetNodeIds,
     })
   }, [args.widgetRegistry, overlayEditorNodeIds, args.renderGraphDataOverride])
+
+  const handlePinnedInCanvasChange = React.useCallback(() => {
+    args.scheduleOverlayCollisionResolve()
+  }, [args.scheduleOverlayCollisionResolve])
 
   const overlayEditorElements = React.useMemo(() => {
     if (!args.flowEditorViewActive) return []
@@ -358,9 +369,7 @@ export function useFlowEditorOverlaySurface(args: {
                 },
               }))
             }}
-            onPinnedInCanvasChange={() => {
-              args.scheduleOverlayCollisionResolve()
-            }}
+            onPinnedInCanvasChange={handlePinnedInCanvasChange}
             onRenameSchemaFieldId={({ prevId, nextId }) => args.renameSchemaFieldIdByNodeId(id, prevId, nextId)}
           />
         )
@@ -392,7 +401,6 @@ export function useFlowEditorOverlaySurface(args: {
     args.renderGraphDataOverride?.edges,
     args.renderGraphDataOverride?.nodes,
     args.runWorkflowNode,
-    args.scheduleOverlayCollisionResolve,
     args.setNodeLabelById,
     args.setNodePropertiesById,
     args.setNodeTypeById,
@@ -405,6 +413,7 @@ export function useFlowEditorOverlaySurface(args: {
     args.widgetRegistry,
     args.zoomViewKey,
     connectedValuesByNodeId,
+    handlePinnedInCanvasChange,
     overlayEditorNodeIds,
   ])
 

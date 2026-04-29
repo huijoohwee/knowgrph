@@ -241,6 +241,7 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
       const detailWorkflowManagerTab = e.detail?.workflowManagerTab === 'mapping' ? 'mapping' : 'graph'
       const tab: MainPanelTabKey =
         detailTab === 'integrations'
+        || detailTab === 'mcp'
         || detailTab === 'maps'
         || detailTab === 'payments'
         || detailTab === 'workflowManager'

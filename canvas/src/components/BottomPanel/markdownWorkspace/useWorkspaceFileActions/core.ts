@@ -15,6 +15,7 @@ import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { StatusHelpers, UseWorkspaceFileActionsArgs } from './types'
 import type { MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
 import { formatMarkdownWorkspaceStatusLabel } from '../markdownWorkspaceStatusUi'
+import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 
 const DEFAULT_WORKSPACE_STATUS_TOAST_ID = 'markdown-workspace-status'
 
@@ -57,7 +58,7 @@ export function useWorkspaceStatusHelpers(opts?: { toastId?: string }): StatusHe
       const message = String(args.message || '').trim()
       if (!message) return
       const kind = args.kind
-      const ttlMs = typeof args.ttlMs === 'undefined' ? 1400 : args.ttlMs
+      const ttlMs = typeof args.ttlMs === 'undefined' ? UI_TOAST_TTL_MS.statusAutoClose : args.ttlMs
       const dismissible = typeof args.dismissible === 'boolean' ? args.dismissible : kind === 'error'
       const sig = `${kind}|${ttlMs ?? 'null'}|${dismissible ? '1' : '0'}|${message}`
       if (shouldSkipToast(toastId, sig)) return
@@ -226,7 +227,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
 
       if (hasWidgetRegistry) {
         if (baselineLocked) {
-          status.setStatusWarning(UI_COPY.baselineLockedToast, { ttlMs: 6000, dismissible: true })
+          status.setStatusWarning(UI_COPY.baselineLockedToast, { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
           return
         }
         const schema = store.schema

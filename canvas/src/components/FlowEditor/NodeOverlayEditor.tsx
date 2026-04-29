@@ -29,13 +29,14 @@ import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
-import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { emitFlowEditorInteractionFrame, FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
   computeWidgetScale,
   computeWidgetScaleKey,
   computeWidgetScaledSize,
   WIDGET_BASE_SIZE,
 } from '@/components/FlowEditor/widgetZoom'
+import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { computeDefaultWidgetFloatingPos, computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widgetLayout'
 import { getIconSizeClass } from '@/lib/ui'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
@@ -237,9 +238,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       if (!id) return false
       const map = useGraphStore.getState().flowWidgetPinnedByNodeId || {}
       const v = map[id]
-      return typeof v === 'boolean' ? v : false
+      return typeof v === 'boolean'
+        ? v
+        : resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
     },
-    [],
+    [graphMetaKind],
   )
 
   const [pinnedInCanvas, setPinnedInCanvasState] = React.useState<boolean>(() => readPinnedInCanvas(nodeId))
@@ -369,7 +372,10 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const enableHandlesDisabled = documentStructureBaselineLock === true || isHandlesForAllInputsEnabled(schema)
   const convertToLoopDisabled = isLoopNode(node)
 
+  const lastPinnedInCanvasNotifiedRef = React.useRef<boolean | null>(null)
   React.useEffect(() => {
+    if (lastPinnedInCanvasNotifiedRef.current === pinnedInCanvas) return
+    lastPinnedInCanvasNotifiedRef.current = pinnedInCanvas
     onPinnedInCanvasChange?.(pinnedInCanvas)
   }, [onPinnedInCanvasChange, pinnedInCanvas])
 
@@ -1000,11 +1006,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           if (!p) return
           worldDragOverrideRef.current = p
           applyOverlayPosition()
-          try {
-            window.dispatchEvent(new CustomEvent(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
-          } catch {
-            void 0
-          }
+          emitFlowEditorInteractionFrame()
         }
 
         const scheduler = createRafLatestScheduler((p: { x: number; y: number }) => {
@@ -1059,11 +1061,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         pendingLeft = pos.left
         pinnedDragOverrideRef.current = { left: pendingLeft, top: pendingTop }
         applyOverlayPosition()
-        try {
-          window.dispatchEvent(new CustomEvent(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
-        } catch {
-          void 0
-        }
+        emitFlowEditorInteractionFrame()
       }
 
       const scheduler = createRafLatestScheduler((pos: { top: number; left: number }) => {

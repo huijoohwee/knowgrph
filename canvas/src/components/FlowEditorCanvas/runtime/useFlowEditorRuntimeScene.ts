@@ -3,9 +3,10 @@ import React from 'react'
 import { computeFlowGroupAabb, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
 import { computeWidgetScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { resolveDefaultFlowWidgetPinnedInCanvas, shouldAutoPlaceFlowEditorWidget } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
-import { FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
+import { emitFlowEditorInteractionFrame as emitFlowEditorInteractionFrameEvent } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { viewportCenterToWorld } from '@/lib/zoom/viewport'
 import { readWidgetGridLayoutSettings, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
@@ -133,6 +134,11 @@ export function useFlowEditorRuntimeScene(args: {
     if (!Array.isArray(openIds) || openIds.length === 0) return
 
     const st = useGraphStore.getState()
+    const graphMetaKind = String((((st.graphData || null)?.metadata || {}) as Record<string, unknown>).kind || '').trim()
+    const frontmatterFlowGraphActive = graphMetaKind === 'frontmatter-flow'
+    const defaultPinnedInCanvas = frontmatterFlowGraphActive
+      ? resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
+      : true
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
     const worldById =
       (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
@@ -143,8 +149,9 @@ export function useFlowEditorRuntimeScene(args: {
       .filter(Boolean)
       .filter(id => {
         const v = pinnedById[id]
-        const pinned = typeof v === 'boolean' ? v : true
+        const pinned = typeof v === 'boolean' ? v : defaultPinnedInCanvas
         if (!pinned) return false
+        if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: pinned, worldPos: worldById[id] })) return false
         const w = worldById[id]
         return !(w && Number.isFinite(w.x) && Number.isFinite(w.y))
       })
@@ -197,7 +204,7 @@ export function useFlowEditorRuntimeScene(args: {
       .filter(Boolean)
       .filter(id => {
         const v = pinnedById[id]
-        return typeof v === 'boolean' ? v : false
+        return typeof v === 'boolean' ? v : defaultPinnedInCanvas
       })
       .sort((a, b) => a.localeCompare(b))
     const allBoundsByBucket = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()
@@ -225,23 +232,27 @@ export function useFlowEditorRuntimeScene(args: {
       if (!a || !b) return false
       return Math.abs(a.x - b.x) <= 0.0001 && Math.abs(a.y - b.y) <= 0.0001
     }
-    const reseedEligible = openIds
-      .map(id => String(id || '').trim())
-      .filter(Boolean)
-      .filter(id => {
-        const v = pinnedById[id]
-        const pinned = typeof v === 'boolean' ? v : true
-        if (!pinned) return false
-        const current = worldById[id]
-        if (!current || !Number.isFinite(current.x) || !Number.isFinite(current.y)) return false
-        const currentLayoutSignature = `${args.baseGraphDataRevision}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
-        return snapshot.signature !== '' && snapshot.signature !== currentLayoutSignature && isSameWorldPos(current, snapshot.positions[id])
-      })
+    const reseedEligible = frontmatterFlowGraphActive
+      ? []
+      : openIds
+        .map(id => String(id || '').trim())
+        .filter(Boolean)
+        .filter(id => {
+          const v = pinnedById[id]
+          const pinned = typeof v === 'boolean' ? v : defaultPinnedInCanvas
+          if (!pinned) return false
+          if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: pinned, worldPos: worldById[id] })) return false
+          const current = worldById[id]
+          if (!current || !Number.isFinite(current.x) || !Number.isFinite(current.y)) return false
+          const currentLayoutSignature = `${args.baseGraphDataRevision}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
+          return snapshot.signature !== '' && snapshot.signature !== currentLayoutSignature && isSameWorldPos(current, snapshot.positions[id])
+        })
     const overlapEligible = (() => {
       const idsByBucket = new Map<string, string[]>()
       for (let i = 0; i < pinnedOpenIds.length; i += 1) {
         const id = pinnedOpenIds[i]!
         const world = worldById[id]
+        if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind, pinnedInCanvas: true, worldPos: world })) continue
         if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) continue
         const group = getLiveContainmentGroupAabbForNode(id)
         const bucketId = group ? `group:${group.groupId}` : viewportBucketId
@@ -322,12 +333,7 @@ export function useFlowEditorRuntimeScene(args: {
   }, [args.active, args.baseGraphDataRevision, args.openWidgetNodeIds, args.schema, args.viewportH, args.viewportW, args.zoomViewKeyRef, getLiveContainmentGroupAabbForNode, getLiveZoomTransform])
 
   const emitFlowEditorInteractionFrame = React.useCallback(() => {
-    if (typeof window === 'undefined') return
-    try {
-      window.dispatchEvent(new CustomEvent(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
-    } catch {
-      void 0
-    }
+    emitFlowEditorInteractionFrameEvent()
   }, [])
 
   return {

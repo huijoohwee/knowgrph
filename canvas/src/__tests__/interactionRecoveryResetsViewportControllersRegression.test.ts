@@ -13,6 +13,9 @@ export function testInteractionRecoveryResetsViewportControllers() {
   if (!text.includes('normalizeInlineDragStylesIfStuck')) {
     throw new Error('expected interaction recovery to normalize stuck drag styles')
   }
+  if (!text.includes("runGlobalInteractionCleanup({ resetViewportControllers: true })")) {
+    throw new Error('expected pointer-end interaction recovery to flush viewport controller state')
+  }
 }
 
 export function testFlowCanvasRegistersViewportControllerDestroy() {

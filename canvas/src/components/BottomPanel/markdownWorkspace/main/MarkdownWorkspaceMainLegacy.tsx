@@ -115,6 +115,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const setWorkspaceCanvasPaneOpen = useGraphStore(s => s.setWorkspaceCanvasPaneOpen)
+  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const graphData = useGraphStore(s => s.graphData)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const {
@@ -226,6 +227,14 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       setViewerMode('read')
     }
   }, [layoutMode, viewerKind, viewerMode])
+  const wasWorkspaceEditorModeOpenRef = React.useRef<boolean>(workspaceViewMode === 'editor')
+  React.useEffect(() => {
+    const open = workspaceViewMode === 'editor'
+    const wasOpen = wasWorkspaceEditorModeOpenRef.current
+    wasWorkspaceEditorModeOpenRef.current = open
+    if (!open || wasOpen) return
+    setSplitPaneVisibility({ json: true, markdown: true, viewer: true })
+  }, [workspaceViewMode])
 
   const workspaceEditorMode = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,

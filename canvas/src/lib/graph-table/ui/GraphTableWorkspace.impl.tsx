@@ -58,6 +58,21 @@ import {
   scheduleGraphTableWorkspaceViewStateSync,
   toGraphTableWorkspaceViewStateSignature,
 } from './graphTableWorkspace.stateSync'
+import {
+  resolveWorkspaceCanvasPreviewDefaultWidthPx,
+  resolveWorkspacePaneMaxWidthPx,
+} from '@/features/workspace-table/workspaceViewCanvasDefaults'
+
+const GRAPH_TABLE_PREVIEW_MIN_WIDTH_PX = 320
+const GRAPH_TABLE_PREVIEW_RIGHT_GUTTER_PX = 48
+
+function resolveGraphTablePreviewBounds() {
+  const maxPx = resolveWorkspacePaneMaxWidthPx({
+    minPx: GRAPH_TABLE_PREVIEW_MIN_WIDTH_PX,
+    rightGutterPx: GRAPH_TABLE_PREVIEW_RIGHT_GUTTER_PX,
+  })
+  return { minPx: GRAPH_TABLE_PREVIEW_MIN_WIDTH_PX, maxPx }
+}
 
 const INACTIVE_GRAPH_SLICE = {
   baseGraphData: null,
@@ -128,9 +143,13 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   const [inspectorWidthPx, setInspectorWidthPx] = useState(() => lsInt(LS_KEYS.graphTableInspectorWidthPx, 360))
   const [canvasPreviewCollapsed, setCanvasPreviewCollapsed] = useState(() => lsBool(LS_KEYS.graphTablePreviewCollapsed, false))
   const [canvasPreviewWidthPx, setCanvasPreviewWidthPx] = useState(() => {
-    const raw = lsInt(LS_KEYS.workspacePreviewWidthPx, 520)
-    const next = Math.max(320, Math.min(960, raw))
-    if (next !== raw) lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, next, { min: 320, max: 960, delayMs: 0 })
+    const bounds = resolveGraphTablePreviewBounds()
+    const raw = lsInt(
+      LS_KEYS.graphTablePreviewWidthPx,
+      resolveWorkspaceCanvasPreviewDefaultWidthPx({ minPx: bounds.minPx, maxPx: bounds.maxPx }),
+    )
+    const next = Math.max(bounds.minPx, Math.min(bounds.maxPx, raw))
+    if (next !== raw) lsSetIntCoalesced(LS_KEYS.graphTablePreviewWidthPx, next, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
     return next
   })
   const [columnVisibilityById, setColumnVisibilityById] = useState<GraphTableColumnVisibilityById>(() =>
@@ -153,6 +172,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   const [columnOrderByTableId, setColumnOrderByTableId] = useState<GraphTableColumnOrderByTableId>(() =>
     lsJson(LS_KEYS.graphTableColumnOrderByTableId, {}, parseColumnOrderByTableId),
   )
+  const hasOpenedMultiDimModeRef = useRef<boolean>(false)
   const inspectorWidthPxRef = useRef(inspectorWidthPx)
   inspectorWidthPxRef.current = inspectorWidthPx
   const [inspectorDragHandleEl, setInspectorDragHandleEl] = useState<HTMLHRElement | null>(null)
@@ -198,8 +218,23 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   }, [canvasPreviewCollapsed])
 
   useEffect(() => {
-    lsSetIntCoalesced(LS_KEYS.workspacePreviewWidthPx, canvasPreviewWidthPx, { min: 320, max: 960 })
+    const bounds = resolveGraphTablePreviewBounds()
+    lsSetIntCoalesced(LS_KEYS.graphTablePreviewWidthPx, canvasPreviewWidthPx, { min: bounds.minPx, max: bounds.maxPx })
   }, [canvasPreviewWidthPx])
+
+  useEffect(() => {
+    const modeOpen = active && viewMode === 'multiDimTable'
+    if (!modeOpen) {
+      hasOpenedMultiDimModeRef.current = false
+      return
+    }
+    if (hasOpenedMultiDimModeRef.current) return
+    hasOpenedMultiDimModeRef.current = true
+    const bounds = resolveGraphTablePreviewBounds()
+    const next = resolveWorkspaceCanvasPreviewDefaultWidthPx({ minPx: bounds.minPx, maxPx: bounds.maxPx })
+    setCanvasPreviewWidthPx(next)
+    lsSetIntCoalesced(LS_KEYS.graphTablePreviewWidthPx, next, { min: bounds.minPx, max: bounds.maxPx, delayMs: 0 })
+  }, [active, viewMode])
   const rowCacheRef = useRef<
     Map<GraphTableId, { hashById: Map<string, number>; stampById: Map<string, string>; rowById: Map<string, GraphTableGridRow> }>
   >(new Map())

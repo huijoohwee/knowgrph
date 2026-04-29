@@ -100,6 +100,19 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaOverlayHeaderMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
   const mediaOverlayResizeMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
   const lastPlannedOverlayNodeIdsKeyRef = React.useRef<string>('')
+  const sceneNodePropsByIdRef = React.useRef<Map<string, Record<string, unknown>>>(new Map())
+
+  React.useEffect(() => {
+    const next = new Map<string, Record<string, unknown>>()
+    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as Array<{ id?: unknown; properties?: unknown }>) : []
+    for (let i = 0; i < nodes.length; i += 1) {
+      const id = String(nodes[i]?.id || '').trim()
+      const props = nodes[i]?.properties
+      if (!id || !props || typeof props !== 'object' || Array.isArray(props)) continue
+      next.set(id, props as Record<string, unknown>)
+    }
+    sceneNodePropsByIdRef.current = next
+  }, [sceneGraphData])
 
   React.useEffect(() => {
     __flowCanvasDebug.sceneNodeIds = Array.isArray(sceneGraphData?.nodes)
@@ -134,6 +147,15 @@ export default function FlowCanvasMediaOverlays(args: {
     return ids.length <= 1 ? ids : Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
   }, [mediaNodes, panelOnlyNodeIdSet])
   const plannedOverlayNodeIdsKey = React.useMemo(() => plannedOverlayNodeIds.join('|'), [plannedOverlayNodeIds])
+  const mediaLayoutItemIds = React.useMemo(
+    () => mediaNodes.map(node => String(node.id || '').trim()).filter(Boolean),
+    [mediaNodes],
+  )
+  const mediaLayoutItemIdsKey = React.useMemo(() => mediaLayoutItemIds.join('|'), [mediaLayoutItemIds])
+  const mediaLayoutItems = React.useMemo(
+    () => mediaLayoutItemIds.map(id => ({ id })),
+    [mediaLayoutItemIdsKey],
+  )
 
   React.useEffect(() => {
     if (lastPlannedOverlayNodeIdsKeyRef.current === plannedOverlayNodeIdsKey) return
@@ -334,7 +356,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [flowEditorOverlayInteractionMode, sceneGraphData])
 
   React.useEffect(() => {
-    if (!active || mediaNodes.length === 0) return
+    if (!active || mediaLayoutItems.length === 0) return
     const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
     const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
     const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
@@ -342,7 +364,8 @@ export default function FlowCanvasMediaOverlays(args: {
     const loop = startMediaOverlayLayoutLoop2d({
       enabled: true,
       loop: 'onDemand',
-      items: mediaNodes,
+      items: mediaLayoutItems,
+      manualPlacement: flowEditorFrontmatterInteractionMode,
       density,
       viewportW,
       viewportH,
@@ -352,11 +375,7 @@ export default function FlowCanvasMediaOverlays(args: {
         if (!flowEditorFrontmatterInteractionMode) return null
         const override = mediaOverlayPanelSizeOverrideRef.current.get(id)
         if (override) return override
-        const node = Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes.find(entry => String(entry?.id || '') === id) : null
-        const props =
-          node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
-            ? (node.properties as Record<string, unknown>)
-            : null
+        const props = sceneNodePropsByIdRef.current.get(id) || null
         if (!props) return null
         const width = Number(props['visual:width'])
         const height = Number(props['visual:height'])
@@ -383,10 +402,10 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [
     active,
     flowEditorFrontmatterInteractionMode,
-    mediaNodes,
+    mediaLayoutItems,
+    mediaLayoutItemIdsKey,
     mediaPanelDensity,
     runtimeRef,
-    sceneGraphData,
     threeIframeOverlayBaseWidthMaxPxCompact,
     threeIframeOverlayBaseWidthMaxPxDefault,
     threeIframeOverlayBaseWidthMinPxCompact,

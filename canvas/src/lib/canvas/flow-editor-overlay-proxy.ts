@@ -13,6 +13,21 @@ export const FLOW_EDITOR_OVERLAY_INTERACTIVE_SELECTOR =
 
 export const FLOW_EDITOR_INTERACTION_FRAME_EVENT = 'kg-flow-editor-interaction-frame'
 
+let flowEditorInteractionFrameRaf: number | null = null
+
+export function emitFlowEditorInteractionFrame(): void {
+  if (typeof window === 'undefined') return
+  if (flowEditorInteractionFrameRaf != null) return
+  flowEditorInteractionFrameRaf = window.requestAnimationFrame(() => {
+    flowEditorInteractionFrameRaf = null
+    try {
+      window.dispatchEvent(new Event(FLOW_EDITOR_INTERACTION_FRAME_EVENT))
+    } catch {
+      void 0
+    }
+  })
+}
+
 export type FlowEditorOverlayProxyTarget =
   | { kind: 'none' }
   | { kind: 'canvas'; targetEl: Element }

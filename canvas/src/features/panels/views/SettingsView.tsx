@@ -105,7 +105,7 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
     panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
     note: 'Widget palette opens in the floating props panel.',
     highlights: [
-      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel Maps keeps backend/system/API/MCP config.',
+      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel MCP keeps backend/system/API/MCP config.',
       'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
     ],
     openPanel: () => emitPropsPanelOpen(),
@@ -123,6 +123,27 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, {
   },
 }
 
+const MCP_SECTION_META: Readonly<Record<string, {
+  docsUrl?: string
+  docsLabel?: string
+  panelLabel: string
+  note?: string
+  highlights?: readonly string[]
+  openPanel: () => void
+}>> = {
+  [MAPS_GRABMAPS_MCP_DOC_AREA]: {
+    docsUrl: 'https://maps.grab.com/developer/documentation/mcp',
+    docsLabel: 'Open GrabMaps MCP Docs',
+    panelLabel: `Open FloatingPanel Props Panel ${getGrabMapsDiscoveryWidgetLabel()}`,
+    note: 'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
+    highlights: [
+      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
+      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
+    ],
+    openPanel: () => emitPropsPanelOpen(),
+  }
+}
+
 const MAPS_SECTION_META: Readonly<Record<string, {
   docsUrl?: string
   docsLabel?: string
@@ -135,22 +156,11 @@ const MAPS_SECTION_META: Readonly<Record<string, {
     docsUrl: 'https://maps.grab.com/developer/documentation',
     docsLabel: 'Open GrabMaps Docs',
     panelLabel: 'Open FloatingPanel Geo',
-    note: 'MainPanel Maps remains backend/system/API-facing for GrabMaps auth, style, route, and MCP configuration.',
+    note: 'MainPanel Maps remains backend/system/API-facing for GrabMaps auth, style, and route configuration.',
     highlights: [
       'Style loading uses Bearer auth against https://maps.grab.com/api/style.json.',
     ],
     openPanel: () => emitSidePanelOpen({ tab: 'geo', open: true }),
-  },
-  [MAPS_GRABMAPS_MCP_DOC_AREA]: {
-    docsUrl: 'https://maps.grab.com/developer/documentation/mcp',
-    docsLabel: 'Open GrabMaps MCP Docs',
-    panelLabel: `Open FloatingPanel Props Panel ${getGrabMapsDiscoveryWidgetLabel()}`,
-    note: 'Backend/system/API/MCP-facing config for the shared GrabMaps remote MCP server and tool defaults.',
-    highlights: [
-      'Default remote server uses `grab-maps-playground` with `npx mcp-remote@latest` over `https://maps.grab.com/api/v1/mcp`.',
-      'Auth uses `Authorization:${AUTH_HEADER}` with `AUTH_HEADER=Bearer mcp_{TOKEN}` and `startup_timeout_ms=60000`.',
-    ],
-    openPanel: () => emitPropsPanelOpen(),
   },
   [MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation/routes',
@@ -196,7 +206,7 @@ export default function SettingsView({
     expandAll?: () => void
     allCollapsed?: boolean
   }) => void
-  mode?: 'all' | 'integrations' | 'payments' | 'maps'
+  mode?: 'all' | 'integrations' | 'payments' | 'maps' | 'mcp'
 }) {
   const [paymentsProviderId, setPaymentsProviderId] = React.useState<string>(DEFAULT_PAYMENT_PROVIDER_ID)
   const {
@@ -248,8 +258,8 @@ export default function SettingsView({
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
-  const headerStickyTopClass = mode === 'integrations' ? 'top-0' : '-top-[2px]'
-  const headerDividerWidthClass = mode === 'integrations' ? 'border-b-[0.5px]' : 'border-b'
+  const headerStickyTopClass = mode === 'integrations' || mode === 'mcp' ? 'top-0' : '-top-[2px]'
+  const headerDividerWidthClass = mode === 'integrations' || mode === 'mcp' ? 'border-b-[0.5px]' : 'border-b'
   const settingsTypeIconSizeClass = getIconSizeClass(uiIconScale)
   const bytePlusImageDefaultLabel = CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT
   const bytePlusVideoDefaultId = CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT
@@ -842,6 +852,8 @@ export default function SettingsView({
           const sectionMeta =
             mode === 'integrations'
               ? INTEGRATIONS_SECTION_META[area]
+              : mode === 'mcp'
+                ? MCP_SECTION_META[area]
               : mode === 'maps'
                 ? MAPS_SECTION_META[area]
                 : undefined
@@ -1643,7 +1655,7 @@ export default function SettingsView({
             </CollapsibleSection>
           )
         })}
-        {mode !== 'integrations' && (
+        {mode === 'all' && (
           <CollapsibleSection
             title="Resets and data"
             collapsed={false}

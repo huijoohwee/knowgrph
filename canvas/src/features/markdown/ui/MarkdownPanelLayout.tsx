@@ -19,6 +19,7 @@ import { MarkdownBacklinksPanel } from './MarkdownBacklinksPanel'
 import IconButton from '@/components/IconButton'
 import { FilePlus, FolderOpen, FolderPlus, RefreshCw } from 'lucide-react'
 import { MarkdownSidebarSection } from './MarkdownSidebarSection'
+import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 
 export type MarkdownPanelLayoutProps = {
   children: React.ReactNode
@@ -369,31 +370,23 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
     <section className={`flex flex-1 min-h-0 relative h-full ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} ${className || ''}`}>
       {sidebarPosition === 'left' ? renderAside : null}
       {sidebarPosition === 'left' && showSidebar ? (
-        <span
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
+        <VerticalResizeSeparatorHr
+          ariaLabel="Resize explorer"
           tabIndex={0}
           onPointerDown={handleSidebarResizePointerDown}
-          className={`group relative z-20 flex-shrink-0 self-stretch cursor-col-resize bg-transparent select-none pointer-events-auto touch-none flex items-center border-r ${UI_THEME_TOKENS.panel.border}`}
-          style={{ width: '16px' }}
-        >
-          <span className={`pointer-events-none mx-auto w-px h-20 rounded-full ${UI_THEME_TOKENS.panel.divider} transition-colors ${UI_THEME_TOKENS.button.hoverBg}`} />
-        </span>
+          visualStyle="centerGrip"
+          className="relative z-20 flex-shrink-0 self-stretch pointer-events-auto"
+        />
       ) : null}
       <main className="relative z-0 flex-1 flex flex-col min-w-0 overflow-hidden">{children}</main>
       {sidebarPosition === 'right' && showSidebar ? (
-        <span
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
+        <VerticalResizeSeparatorHr
+          ariaLabel="Resize explorer"
           tabIndex={0}
           onPointerDown={handleSidebarResizePointerDown}
-          className={`group relative z-20 flex-shrink-0 self-stretch cursor-col-resize bg-transparent select-none pointer-events-auto touch-none flex items-center border-l ${UI_THEME_TOKENS.panel.border}`}
-          style={{ width: '16px' }}
-        >
-          <span className={`pointer-events-none mx-auto w-px h-20 rounded-full ${UI_THEME_TOKENS.panel.divider} transition-colors ${UI_THEME_TOKENS.button.hoverBg}`} />
-        </span>
+          visualStyle="centerGrip"
+          className="relative z-20 flex-shrink-0 self-stretch pointer-events-auto"
+        />
       ) : null}
       {sidebarPosition === 'right' ? renderAside : null}
     </section>

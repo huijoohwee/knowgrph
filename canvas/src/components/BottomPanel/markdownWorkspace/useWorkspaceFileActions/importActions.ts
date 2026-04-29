@@ -3,10 +3,10 @@ import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsEvents'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { hashStringToHex } from '@/lib/hash/stringHash'
 import { isFrontmatterOnlyDoc, normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { bulkSetWorkspaceEntrySources } from '@/features/workspace-fs/sourceIndex'
 import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
+import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import {
   fetchWorkspaceUrlContent,
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -281,12 +281,12 @@ export function useWorkspaceImportActions(args: {
             })
             if (importJobRef.current !== jobId) return
             if (!fetched || !String(fetched.text || '').trim()) {
-              status.setStatusWarning('Webpage content unavailable', { ttlMs: 6000, dismissible: true })
+              status.setStatusWarning('Webpage content unavailable', { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
               return
             }
             const nextText = normalizeWebpageFrontmatterView(fetched.text, 'markdown')
             if (isFrontmatterOnlyDoc(nextText)) {
-              status.setStatusWarning('Webpage content unavailable', { ttlMs: 6000, dismissible: true })
+              status.setStatusWarning('Webpage content unavailable', { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
               return
             }
 
@@ -313,7 +313,7 @@ export function useWorkspaceImportActions(args: {
               }
             }
 
-            status.setStatusInfo('Webpage content loaded', { ttlMs: 6000, dismissible: true })
+            status.setStatusInfo('Webpage content loaded', { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
           } catch {
             void 0
           }
