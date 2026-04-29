@@ -57,6 +57,11 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
     "testMarkdownFrontmatterFlowGraphFidelityKnowgrphRichMediaGenerationDemo",
   ],
   [
+    "markdown.frontmatterFlowGraph.fidelity.knowgrphVideoDemo.directorBriefShots",
+    "@/__tests__/markdownFrontmatterFlowGraphImport.test",
+    "testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirectorBriefShotsToWidgets",
+  ],
+  [
     "markdown.flowBlock.richMediaPanel.widgetsConnectToPorts",
     "@/__tests__/richMediaPanelWidgetFlowBlock.test",
     "testFrontmatterFlowWidgetsConnectToRichMediaPanelPorts",

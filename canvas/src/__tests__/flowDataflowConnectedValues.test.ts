@@ -194,6 +194,83 @@ export const testFlowDataflowConnectedValuesTransformsAndPropagation = () => {
   if (cx.value !== 'HELLO') throw new Error(`expected properties.x to be "HELLO", got ${String(cx.value)}`)
 }
 
+export const testFlowDataflowConnectedValuesSynthesizesOutputSrcDocFromOutput = () => {
+  const graphData = {
+    type: 'GraphData',
+    nodes: [
+      {
+        id: 't',
+        type: 'TextGeneration',
+        label: 'Text Node',
+        properties: {
+          output: '# Hello\n\nWorld',
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'textGeneration',
+        },
+      },
+      {
+        id: 'p',
+        type: 'RichMediaPanel',
+        label: 'Panel',
+        properties: {
+          [FLOW_WIDGET_TYPE_ID_KEY]: 'default',
+          [FLOW_WIDGET_FORM_ID_KEY]: 'richMediaPanel',
+        },
+      },
+    ],
+    edges: [
+      {
+        id: 'e1',
+        source: 't',
+        target: 'p',
+        label: '',
+        properties: {
+          'flow:sourcePortKey': 'outputSrcDoc',
+          'flow:targetPortKey': 'outputSrcDoc',
+        },
+      },
+    ],
+  }
+
+  const registry = [
+    {
+      id: 'rt',
+      isEnabled: true,
+      nodeTypeId: 'TextGeneration',
+      widgetTypeId: 'default',
+      formId: 'textGeneration',
+      fields: [],
+      ports: [
+        { portKey: 'outputSrcDoc', direction: 'output' as const, schemaPath: 'properties.outputSrcDoc' },
+      ],
+      schemaMappings: [],
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    },
+    {
+      id: 'rp',
+      isEnabled: true,
+      nodeTypeId: 'RichMediaPanel',
+      widgetTypeId: 'default',
+      formId: 'richMediaPanel',
+      fields: [],
+      ports: [
+        { portKey: 'outputSrcDoc', direction: 'input' as const, schemaPath: 'properties.outputSrcDoc' },
+      ],
+      schemaMappings: [],
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    },
+  ]
+
+  const byNodeId = computeFlowConnectedValuesBySchemaPath({ graphData: graphData as never, registry })
+  const panel = byNodeId.get('p')
+  if (!panel) throw new Error('expected connected values for panel node')
+  const srcDoc = panel['properties.outputSrcDoc']
+  if (!srcDoc) throw new Error('expected connected value at properties.outputSrcDoc')
+  const html = String(srcDoc.value || '')
+  if (!html.startsWith('<!doctype html>')) throw new Error('expected synthesized srcdoc to be HTML')
+  if (!html.includes('Hello')) throw new Error('expected synthesized srcdoc to contain text output')
+}
+
 export const testFlowDataflowConnectedValuesRgbTransforms = () => {
   const graphData = {
     type: 'GraphData',

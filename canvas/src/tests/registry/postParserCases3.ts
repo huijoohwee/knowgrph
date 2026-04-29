@@ -43,6 +43,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["design.layers.uiState.scopedByGraphMetaKey","@/__tests__/designLayerStateScopedByGraphMetaKey.test","testDesignLayerStateIsScopedByGraphMetaKey"],
   ["ui.flowWidget.state.scopedByGraphMetaKey","@/__tests__/flowWidgetUiStateScopedByGraphMetaKey.test","testFlowWidgetUiStateIsScopedByGraphMetaKey"],
   ["ui.flowWidget.state.carriesAcrossSameSourceRecomposeHashChanges","@/__tests__/flowWidgetUiStateScopedByGraphMetaKey.test","testFlowWidgetUiStateCarriesAcrossSameSourceRecomposeHashChanges"],
+  ["ui.flowWidget.state.resetsAcrossSameSourceLayoutChanges","@/__tests__/flowWidgetUiStateScopedByGraphMetaKey.test","testFlowWidgetOverlayStateDoesNotCarryAcrossSameSourceLayoutChanges"],
   ["metrics.graphrag.writesNamespacedCausalityComponents","@/__tests__/metricsProperties.test","testGraphRagAnalyticsWritesNamespacedCausalityComponents"],
   ["metrics.keywordGraph.writesKeywordFrequencyAndStrengthScore","@/__tests__/metricsProperties.test","testKeywordGraphWritesKeywordFrequencyAndStrengthScore"],
   ["densityClustering.maxNodesExceededReturnsEmpty","@/__tests__/densityClusteringBounded.test","testDensityClusteringReturnsEmptyWhenMaxNodesExceeded"],

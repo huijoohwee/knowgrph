@@ -5,7 +5,7 @@ import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { getDocumentPathFromMetadata, toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
-import { hashStringToHex } from '@/lib/hash/stringHash'
+import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 
 type UseMarkdownApplyProps = {
   markdownText: string
@@ -108,11 +108,16 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
           })
           return
         }
+        const parsedTextHash = buildSourceFileParseIdentityHash({
+          cacheNamespace: `source-file:${exactSourceFile.id}`,
+          name: String(exactSourceFile.name || baseName),
+          text: markdownText,
+        })
         updateSourceFile(exactSourceFile.id, {
           status: 'parsed',
           error: undefined,
           parsedParserId: res.parserId,
-          parsedTextHash: hashStringToHex(markdownText),
+          parsedTextHash,
           parsedGraphRevision: 0,
           parsedGraphData: res.graphData,
         })

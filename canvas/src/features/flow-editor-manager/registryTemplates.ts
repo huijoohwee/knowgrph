@@ -231,6 +231,7 @@ function buildCommonTextGenerationPorts(): WidgetRegistryEntry['ports'] {
   return [
     { portKey: 'prompt_in', direction: 'input', schemaPath: 'properties.prompt' },
     { portKey: 'text_out', direction: 'output', schemaPath: 'properties.output' },
+    { portKey: 'outputSrcDoc', direction: 'output', schemaPath: 'properties.outputSrcDoc' },
   ]
 }
 
@@ -264,6 +265,7 @@ export function buildWidgetDraftFromSmartFields(args: {
           ]),
     ],
     ports: [
+      { portKey: 'prompt_in', direction: 'input', schemaPath: 'properties.prompt' },
       { portKey: 'reference_image', direction: 'input', schemaPath: 'properties.reference_image' },
       {
         portKey: mode === 'image' ? 'imageUrl' : mode === 'video' ? 'videoUrl' : 'output',

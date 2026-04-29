@@ -317,7 +317,7 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   })
   await execTest(results, 'toolbar.workspaceSelect.visibleWhenCollapsed', async () => {
     const mod = await modToolbarWorkspaceSelectCollapsed()
-    mod.testToolbarCollapsedStillRendersWorkspaceSelect()
+    mod.testToolbarAlwaysExpandedWithoutCollapseControls()
   })
   await execTest(results, 'graphTable.toolbar.menus.portalToAvoidClipping', async () => {
     const mod = await modGraphTableToolbarMenuPortal()

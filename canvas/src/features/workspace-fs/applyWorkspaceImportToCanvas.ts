@@ -8,7 +8,6 @@ import {
   WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS,
   WORKSPACE_IMPORT_AUTO_PARSE_MAX_TOTAL_CHARS,
 } from '@/lib/config'
-import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config.render'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
@@ -20,6 +19,7 @@ import { loadWorkspaceSourceIndex } from './sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles, workspaceSourcePathKey } from './syncToSourceFiles'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 
 type ApplyWorkspaceImportToCanvasOpts = {
   applyToGraph?: boolean
@@ -175,7 +175,11 @@ export async function applyWorkspaceImportToCanvas(args: {
     if (text.length > WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS) continue
     if (text.length > remainingChars) continue
 
-    const textHash = hashStringToHexCached(`workspace-import:${path}`, text)
+    const textHash = buildSourceFileParseIdentityHash({
+      cacheNamespace: `workspace-import:${path}`,
+      name: workspaceDocumentKey(path),
+      text,
+    })
     if (current.parsedGraphData && String(current.parsedTextHash || '') === textHash) continue
 
     remainingFiles -= 1

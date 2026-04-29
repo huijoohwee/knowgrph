@@ -847,7 +847,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const panelIsLoading = panel?.isLoading === true
   const panelLoadingLabel = String(panel?.loadingLabel || '').trim() || 'Generating output...'
   const loadingSkeletonVariant: RichMediaSkeletonVariant =
-    showTextPanel ? 'text' : (kind === 'image' || kind === 'video' ? kind : 'iframe')
+    panelSelectedTab === 'text' ? 'text' : (kind === 'image' || kind === 'video' ? kind : 'iframe')
   const expectedEmptyPlaceholderVariant: RichMediaPlaceholderMode =
     panelSelectedTab === 'text' || panelSelectedTab === 'image' || panelSelectedTab === 'video'
       ? panelSelectedTab

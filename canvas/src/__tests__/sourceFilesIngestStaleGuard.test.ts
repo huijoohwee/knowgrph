@@ -4,14 +4,25 @@ import { resolve } from 'node:path'
 export function testSourceFilesIngestUsesParseJobGuardForStaleAsyncResults() {
   const p = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
   const text = readFileSync(p, 'utf8')
+  const hashPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFileParseIdentity.ts')
+  const hashText = readFileSync(hashPath, 'utf8')
   if (!text.includes('parseJobBySourceFileId')) {
     throw new Error('expected source file ingest parse path to keep per-file parse job tokens')
   }
   if (!text.includes("parseJobBySourceFileId.get(fileId) !== parseJobToken")) {
     throw new Error('expected stale parse jobs to be dropped before state writeback')
   }
-  if (!text.includes("hashStringToHexCached(`source-file:${fileId}`, String(latest.text || '')) !== textHash")) {
-    throw new Error('expected parse writeback to verify latest text hash before applying results')
+  if (!text.includes('buildSourceFileParseIdentityHash({')) {
+    throw new Error('expected source file ingest parse path to centralize parse identity hashing')
+  }
+  if (!text.includes("cacheNamespace: `source-file:${fileId}`")) {
+    throw new Error('expected source file ingest parse identity to stay scoped per source file')
+  }
+  if (!text.includes("name: String(latest.name || '')")) {
+    throw new Error('expected parse writeback identity to include latest source file name')
+  }
+  if (!hashText.includes('SOURCE_FILE_PARSE_SEMANTICS_VERSION = 2')) {
+    throw new Error('expected source file parse identity to carry an explicit semantics version for startup invalidation')
   }
 }
 
@@ -127,5 +138,81 @@ export function testSourceFilesBootstrapResyncsOnWorkspaceViewModeChanges() {
   }
   if (!text.includes('useMarkdownExplorerStore.subscribe(s => s.activePath')) {
     throw new Error('expected source files bootstrap to continue resyncing on active path changes')
+  }
+}
+
+export function testWorkspaceImportParseIdentityUsesSemanticsVersionAndName() {
+  const importPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'applyWorkspaceImportToCanvas.ts')
+  const text = readFileSync(importPath, 'utf8')
+
+  if (!text.includes('buildSourceFileParseIdentityHash({')) {
+    throw new Error('expected workspace import parse path to reuse shared source-file parse identity hashing')
+  }
+  if (!text.includes('cacheNamespace: `workspace-import:${path}`')) {
+    throw new Error('expected workspace import parse identity to stay scoped by workspace path')
+  }
+  if (!text.includes('name: workspaceDocumentKey(path)')) {
+    throw new Error('expected workspace import parse identity to include workspace document name')
+  }
+}
+
+export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInsteadOfDirectGraphOverride() {
+  const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const text = readFileSync(runtimePath, 'utf8')
+
+  if (!text.includes('const shouldReuseExistingWorkspaceSourceFile =')) {
+    throw new Error('expected markdown workspace runtime to centralize reuse of an already-parsed workspace source file')
+  }
+  if (!text.includes('cachedHash === hash')) {
+    throw new Error('expected markdown workspace runtime to guard workspace-source reuse on matching parsed text hash')
+  }
+  if (!text.includes('await applyComposedFromSourceFiles()')) {
+    throw new Error('expected markdown workspace runtime reuse path to defer graph ownership back to composed source files')
+  }
+  if (!text.includes('findWorkspaceSourceFileByPath(path)')) {
+    throw new Error('expected markdown workspace runtime to resolve the canonical workspace-backed source file before reparsing')
+  }
+  if (!text.includes('buildSourceFileParseIdentityHash({')) {
+    throw new Error('expected markdown workspace runtime to reuse shared parse identity hashing for workspace-opened markdown files')
+  }
+  if (!text.includes('cacheNamespace: `workspace-import:${path}`')) {
+    throw new Error('expected markdown workspace runtime parse identity to stay aligned with workspace import hashing')
+  }
+  if (!text.includes('name: workspaceDocumentKey(path)')) {
+    throw new Error('expected markdown workspace runtime parse identity to include the canonical workspace document key')
+  }
+}
+
+export function testMarkdownApplyPrefersCanonicalSourceFileComposePath() {
+  const slicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graphDataSlice.ts')
+  const ingestPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
+  const sliceText = readFileSync(slicePath, 'utf8')
+  const ingestText = readFileSync(ingestPath, 'utf8')
+
+  if (!sliceText.includes('function findSourceFileForMarkdownDocument')) {
+    throw new Error('expected markdown apply path to centralize active source-file resolution before direct parser apply')
+  }
+  if (!sliceText.includes('const exactSourceFile = findSourceFileForMarkdownDocument(state, nextName)')) {
+    throw new Error('expected applyMarkdownDocumentToGraph to prefer a matching source file for active markdown documents')
+  }
+  if (!sliceText.includes("await mod.parseAndApplySourceFile(exactSourceFile.id)")) {
+    throw new Error('expected applyMarkdownDocumentToGraph to reuse the canonical source-file parse/apply flow')
+  }
+  if (!ingestText.includes('export async function parseAndApplySourceFile(fileId: string): Promise<void>')) {
+    throw new Error('expected source-file ingest integration to export canonical parseAndApplySourceFile for shared callers')
+  }
+}
+
+export function testWorkspaceCanvasAutoApplySkipsWidgetMode() {
+  const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const text = readFileSync(runtimePath, 'utf8')
+  const anchor = "React.useEffect(() => {\n    if (!workspaceCanvasPaneOpen) return"
+  const idx = text.indexOf(anchor)
+  if (idx < 0) {
+    throw new Error('expected workspace canvas auto-apply effect in markdown workspace runtime')
+  }
+  const body = text.slice(idx, idx + 500)
+  if (!body.includes("if (contentMode === 'widget') return")) {
+    throw new Error('expected workspace canvas auto-apply effect to skip widget mode so reopen cannot apply widget bundle text as a full document')
   }
 }

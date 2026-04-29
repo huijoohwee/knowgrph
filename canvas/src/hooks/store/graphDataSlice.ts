@@ -251,6 +251,32 @@ function hasStableSameSourceTopology(current: GraphData | null, next: GraphData 
   return true
 }
 
+function hasStableSameSourceNodeLayout(current: GraphData | null, next: GraphData | null): boolean {
+  if (!current || !next) return false
+  if (!hasStableSameSourceTopology(current, next)) return false
+  const currentById = new Map<string, { x: number | null; y: number | null }>()
+  for (let i = 0; i < (current.nodes || []).length; i += 1) {
+    const node = current.nodes[i]
+    const id = String(node?.id || '').trim()
+    if (!id) continue
+    currentById.set(id, {
+      x: typeof node?.x === 'number' && Number.isFinite(node.x) ? Math.round(node.x) : null,
+      y: typeof node?.y === 'number' && Number.isFinite(node.y) ? Math.round(node.y) : null,
+    })
+  }
+  for (let i = 0; i < (next.nodes || []).length; i += 1) {
+    const node = next.nodes[i]
+    const id = String(node?.id || '').trim()
+    if (!id) continue
+    const cur = currentById.get(id)
+    if (!cur) return false
+    const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? Math.round(node.x) : null
+    const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? Math.round(node.y) : null
+    if (cur.x !== x || cur.y !== y) return false
+  }
+  return true
+}
+
 function cloneDesignLayerState(
   value: import('@/features/design/designLayersState').DesignLayerState | undefined,
 ): import('@/features/design/designLayersState').DesignLayerState {
@@ -535,6 +561,23 @@ function isActiveMarkdownSourceFile(state: GraphState, file: GraphState['sourceF
   return !!sourcePath && sourcePath === activeDocPath
 }
 
+function findSourceFileForMarkdownDocument(state: GraphState, name: string): GraphState['sourceFiles'][number] | null {
+  const sourceFiles = Array.isArray(state.sourceFiles) ? state.sourceFiles : []
+  if (sourceFiles.length === 0) return null
+  const explorerActivePath = normalizeComposedSourcePath(useMarkdownExplorerStore.getState().activePath)
+  const activeDocPath = normalizeComposedSourcePath(state.markdownDocumentName) || explorerActivePath || normalizeComposedSourcePath(name)
+  if (activeDocPath) {
+    const byPath = sourceFiles.find(file => {
+      const sourcePath = normalizeComposedSourcePath(file?.source?.path || file?.name || '')
+      return !!sourcePath && sourcePath === activeDocPath
+    })
+    if (byPath) return byPath
+  }
+  const trimmedName = String(name || '').trim()
+  if (!trimmedName) return null
+  return sourceFiles.find(file => String(file?.name || '').trim() === trimmedName) || null
+}
+
 function writeWorkspaceSourceTextIfPresent(file: GraphState['sourceFiles'][number], text: string): void {
   const workspacePath = normalizeComposedSourcePath(file?.source?.path || '')
   if (!workspacePath) return
@@ -690,6 +733,26 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
     })()
 
     if (!shouldApply) return false
+
+    const exactSourceFile = findSourceFileForMarkdownDocument(state, nextName)
+    if (exactSourceFile) {
+      const nextSourceText = nextText
+      if (
+        String(exactSourceFile.text || '') !== nextSourceText ||
+        exactSourceFile.status === 'error'
+      ) {
+        get().updateSourceFile(exactSourceFile.id, {
+          text: nextSourceText,
+          status: 'idle',
+          error: undefined,
+        })
+      }
+      const mod = (await import('@/features/source-files/sourceFilesIngestIntegration')) as typeof import('@/features/source-files/sourceFilesIngestIntegration')
+      await mod.parseAndApplySourceFile(exactSourceFile.id)
+      const latest = get().sourceFiles.find(file => file.id === exactSourceFile.id) || null
+      const parsedGraph = latest?.parsedGraphData || null
+      return !!(parsedGraph && ((parsedGraph.nodes || []).length > 0 || (parsedGraph.edges || []).length > 0))
+    }
 
     const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
     const res = await loadGraphDataFromTextViaParser(nextName, nextText, { applyToStore: true, syncMarkdownDocument: false })
@@ -852,6 +915,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       !!currentGraphKey &&
       collapsedKey !== currentGraphKey &&
       hasStableSameSourceTopology(currentGraph, nextGraphDataBase)
+    const carryForwardSameSourceWidgetOverlayState =
+      carryForwardSameSourceUiState &&
+      hasStableSameSourceNodeLayout(currentGraph, nextGraphDataBase)
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
@@ -876,15 +942,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       const posKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(posByKey, collapsedKey) : false
       const worldKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(worldByKey, collapsedKey) : false
       const nextPinned =
-        collapsedKey && carryForwardSameSourceUiState && pinnedKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
           ? { ...(s.flowWidgetPinnedByNodeId || {}) }
           : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
       const nextPos =
-        collapsedKey && carryForwardSameSourceUiState && posKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
           ? { ...(s.flowWidgetPosByNodeId || {}) }
           : collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
       const nextWorld =
-        collapsedKey && carryForwardSameSourceUiState && worldKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && worldKeyMissing
           ? { ...(s.flowWidgetWorldPosByNodeId || {}) }
           : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
       const nextCollapsedByKey =
@@ -896,15 +962,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
           ? { ...designByKey, [collapsedKey]: cloneDesignLayerState(nextDesignLayerState) }
           : designByKey
       const nextPinnedByKey =
-        collapsedKey && carryForwardSameSourceUiState && pinnedKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
           ? { ...pinnedByKey, [collapsedKey]: nextPinned }
           : pinnedByKey
       const nextPosByKey =
-        collapsedKey && carryForwardSameSourceUiState && posKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
           ? { ...posByKey, [collapsedKey]: nextPos }
           : posByKey
       const nextWorldByKey =
-        collapsedKey && carryForwardSameSourceUiState && worldKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && worldKeyMissing
           ? { ...worldByKey, [collapsedKey]: nextWorld }
           : worldByKey
       return {
@@ -1042,6 +1108,9 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       !!currentGraphKey &&
       collapsedKey !== currentGraphKey &&
       hasStableSameSourceTopology(currentGraph, nextGraphData)
+    const carryForwardSameSourceWidgetOverlayState =
+      carryForwardSameSourceUiState &&
+      hasStableSameSourceNodeLayout(currentGraph, nextGraphData)
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const byKey = (s.collapsedGroupIdsByGraphMetaKey || {}) as Record<string, string[]>
@@ -1063,15 +1132,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
       const posKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(posByKey, collapsedKey) : false
       const worldKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(worldByKey, collapsedKey) : false
       const nextPinned =
-        collapsedKey && carryForwardSameSourceUiState && pinnedKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
           ? { ...(s.flowWidgetPinnedByNodeId || {}) }
           : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
       const nextPos =
-        collapsedKey && carryForwardSameSourceUiState && posKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
           ? { ...(s.flowWidgetPosByNodeId || {}) }
           : collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
       const nextWorld =
-        collapsedKey && carryForwardSameSourceUiState && worldKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && worldKeyMissing
           ? { ...(s.flowWidgetWorldPosByNodeId || {}) }
           : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
       const nextCollapsedByKey =
@@ -1083,15 +1152,15 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
           ? { ...designByKey, [collapsedKey]: cloneDesignLayerState(nextDesignLayerState) }
           : designByKey
       const nextPinnedByKey =
-        collapsedKey && carryForwardSameSourceUiState && pinnedKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
           ? { ...pinnedByKey, [collapsedKey]: nextPinned }
           : pinnedByKey
       const nextPosByKey =
-        collapsedKey && carryForwardSameSourceUiState && posKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
           ? { ...posByKey, [collapsedKey]: nextPos }
           : posByKey
       const nextWorldByKey =
-        collapsedKey && carryForwardSameSourceUiState && worldKeyMissing
+        collapsedKey && carryForwardSameSourceWidgetOverlayState && worldKeyMissing
           ? { ...worldByKey, [collapsedKey]: nextWorld }
           : worldByKey
       return {

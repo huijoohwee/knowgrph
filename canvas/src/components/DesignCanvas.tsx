@@ -1,6 +1,14 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import * as d3 from 'd3'
 import { useShallow } from 'zustand/react/shallow'
+import { DesignCanvasArrangeActionBar } from '@/components/DesignCanvas/ArrangeActionBar'
+import { DesignCanvasLabelBadgesLayer } from '@/components/DesignCanvas/LabelBadgesLayer'
+import { DesignCanvasMediaOverlay } from '@/components/DesignCanvas/MediaOverlay'
+import { DesignCanvasSelectionOverlay } from '@/components/DesignCanvas/SelectionOverlay'
+import { DesignCanvasWireframePreviewLayer } from '@/components/DesignCanvas/WireframePreviewLayer'
+import { useDesignCanvasArrangeActions } from '@/components/DesignCanvas/arrangeActions'
+import { DesignCanvasWebpageStatusPanel } from '@/components/DesignCanvas/webpageStatusPanel'
+import { useDesignCanvasWebpageWireframe } from '@/components/DesignCanvas/webpageWireframe'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
@@ -22,23 +30,11 @@ import { relaxNodesWithCollision } from '@/components/GraphCanvas/layout/relax'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
-import { computeEvenlyDistributedPositions } from '@/lib/canvas/evenDistribute'
-import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
-import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } from '@/lib/canvas/camera-options-2d'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import { shouldStartSelectionDragForPreset } from '@/lib/canvas/viewport-controls'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { computeGroupResizeBottomRight, computeMinGroupResizeSize } from '@/lib/canvas/groupResizeMath2d'
-import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
-import { getCachedWebpageLayoutSnapshot, setCachedWebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutCache'
-import { convertWebpageLayoutToGraphData } from '@/lib/websites/webpageLayoutToGraph'
-import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
-import { normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
-import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
-import type { WebpageFrontmatterMeta, WebpageFidelityLevel } from '@/lib/markdown/frontmatter'
-import { createProgressTicker } from '@/lib/progress/progressTicker'
-import type { WebpageDomProbeResult } from '@/lib/websites/webpageDomExport'
 import { hashText } from '@/features/parsers/hash'
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 
@@ -47,32 +43,28 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { estimateLabelCharWidthPx, estimateMaxCharsForWidthPx, truncateTextWithEllipsis, wrapTextByMaxChars } from '@/lib/ui/text/labelText'
 import { relaxAabbLabels, type AabbLabelParticle } from '@/lib/ui/labels/relaxAabbLabels'
 import { readDesignWireframeSettings } from '@/lib/render/designWireframeSettings'
-import { tryExtractDesignDocumentUrl } from '@/lib/render/designDocumentUrl'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
-import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
 import type { DesignLayerState } from '@/features/design/designLayersState'
+import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
 
 const EMPTY_STRING_ARRAY: string[] = []
-const EMPTY_UNKNOWN_RECORD: Record<string, unknown> = {}
 const EMPTY_DESIGN_LAYER_STATE: DesignLayerState = { order: [], hiddenById: {} }
 const EMPTY_DESIGN_FRAME_POS_BY_ID: Record<string, DesignFramePos> = {}
 const EMPTY_DESIGN_FRAME_SIZE_BY_ID: Record<string, DesignFrameSize> = {}
 import { buildDeepestGroupRectByNodeId, buildGroupRectByIdFromSchemaOverrides } from '@/lib/canvas/groupExplicitBounds'
 import { clampDelta, computeDeltaClampForTopLeftNodes, type DeltaClamp, type RectBounds } from '@/lib/canvas/groupContainment'
 import { commitGroupBoundsOverrideToStore } from '@/lib/canvas/groupBoundsOverridesStore'
-import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
 import { listDisplayRichMediaOverlayNodes, normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
-import RichMediaPanel from '@/components/RichMediaPanel'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
@@ -90,178 +82,6 @@ type FrameNode = {
   id: string
   label: string
   type?: string
-}
-
-type WebpageStatusUiState = {
-  progress: number
-  message: string
-}
-
-type WebpageStatusUiStore = {
-  getState: () => WebpageStatusUiState
-  setState: (patch: Partial<WebpageStatusUiState>) => void
-  subscribe: (listener: () => void) => () => void
-}
-
-type WebpageSourceState = {
-  workspacePath: string
-  frontmatter: WebpageFrontmatterMeta | null
-}
-
-function createWebpageStatusUiStore(): WebpageStatusUiStore {
-  let state: WebpageStatusUiState = { progress: 0, message: '' }
-  const listeners = new Set<() => void>()
-  return {
-    getState: () => state,
-    setState: patch => {
-      const next = { ...state, ...patch }
-      if (next.progress === state.progress && next.message === state.message) return
-      state = next
-      listeners.forEach(listener => listener())
-    },
-    subscribe: listener => {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-  }
-}
-
-function useWebpageStatusUi(store: WebpageStatusUiStore): WebpageStatusUiState {
-  return React.useSyncExternalStore(store.subscribe, store.getState, store.getState)
-}
-
-const DesignCanvasWebpageStatusPanel = React.memo(function DesignCanvasWebpageStatusPanel(props: {
-  active: boolean
-  documentUrl: string | null
-  webpageFrontmatter: WebpageFrontmatterMeta | null
-  webpageWorkspacePath: string
-  webpageLayoutStatus: 'idle' | 'loading' | 'ready' | 'error'
-  webpageStatusStore: WebpageStatusUiStore
-  onDecreaseFidelity: () => void
-  onIncreaseFidelity: () => void
-  onRetry: () => void
-}) {
-  const {
-    active,
-    documentUrl,
-    webpageFrontmatter,
-    webpageWorkspacePath,
-    webpageLayoutStatus,
-    webpageStatusStore,
-    onDecreaseFidelity,
-    onIncreaseFidelity,
-    onRetry,
-  } = props
-  const { progress, message } = useWebpageStatusUi(webpageStatusStore)
-
-  if (!active) return null
-
-  return (
-    <div className="pointer-events-none absolute left-3 top-3 z-50 max-w-[min(720px,calc(100%-24px))] rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-2 text-xs text-[var(--kg-text)] shadow">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-semibold">Webpage Wireframe</div>
-          {documentUrl ? <div className="truncate opacity-80">{documentUrl}</div> : <div className="opacity-80">No webpage URL found for this graph</div>}
-          {documentUrl ? (
-            <div className="mt-1 flex items-center gap-2 opacity-80">
-              <div>Fidelity: {webpageFrontmatter?.fidelityLevel || 3}</div>
-              {webpageWorkspacePath ? (
-                <div className="flex gap-1">
-                  <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs" onClick={onDecreaseFidelity}>
-                    -
-                  </button>
-                  <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-0.5 text-xs" onClick={onIncreaseFidelity}>
-                    +
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="mt-2 opacity-70">Import a URL-based document or add kgWebpageUrl frontmatter.</div>
-          )}
-        </div>
-        {webpageLayoutStatus === 'loading' ? (
-          <div className="shrink-0 tabular-nums">{Math.max(0, Math.min(100, Math.floor(progress)))}%</div>
-        ) : null}
-      </div>
-      {webpageLayoutStatus === 'loading' ? (
-        <div className="mt-2">
-          <div className="h-2 w-full overflow-hidden rounded bg-[var(--kg-border)]/40">
-            <div
-              className="h-full bg-[var(--kg-canvas-accent)]"
-              style={{ width: `${Math.max(0, Math.min(100, Math.floor(progress)))}%` }}
-            />
-          </div>
-          {message ? <div className="mt-1 opacity-80">{message}</div> : null}
-        </div>
-      ) : webpageLayoutStatus === 'error' ? (
-        <div className="mt-2">
-          <div className="text-[var(--kg-danger,#c0392b)]">{message || 'Export failed'}</div>
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              className="pointer-events-auto rounded border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-2 py-1 text-xs"
-              onClick={onRetry}
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      ) : webpageLayoutStatus === 'ready' ? (
-        message ? <div className="mt-2 opacity-70">{message}</div> : null
-      ) : null}
-    </div>
-  )
-})
-
-function tryExtractWebpageWorkspacePath(graphData: GraphData | null): string | null {
-  const meta = graphData?.metadata && typeof graphData.metadata === 'object' ? (graphData.metadata as Record<string, unknown>) : null
-  const layers = meta?.sourceLayers
-  if (!Array.isArray(layers)) return null
-  for (let i = 0; i < layers.length; i += 1) {
-    const layer = layers[i] as Record<string, unknown> | null
-    const src = layer?.source as Record<string, unknown> | null
-    const path =
-      src && typeof src.path === 'string'
-        ? String(src.path || '').trim()
-        : layer && typeof layer.path === 'string'
-          ? String(layer.path || '').trim()
-          : ''
-    if (!path.startsWith('workspace:')) continue
-    const rel = path.slice('workspace:'.length)
-    const normalized = normalizeWorkspacePath(rel)
-    if (normalized) return normalized
-  }
-  return null
-}
-
-function tryExtractDocumentPaths(graphData: GraphData | null): string[] {
-  const out: string[] = []
-  const meta = graphData?.metadata && typeof graphData.metadata === 'object' ? (graphData.metadata as Record<string, unknown>) : null
-  const docPath = meta && typeof meta.documentPath === 'string' ? meta.documentPath.trim() : ''
-  if (docPath) out.push(docPath)
-  const nodes = Array.isArray(graphData?.nodes) ? (graphData!.nodes! as unknown as Array<Record<string, unknown>>) : []
-  for (let i = 0; i < Math.min(80, nodes.length); i += 1) {
-    const n = nodes[i]
-    const nm = n && typeof n === 'object' && 'metadata' in n ? ((n as { metadata?: unknown }).metadata as Record<string, unknown> | null) : null
-    if (!nm) continue
-    const p = typeof nm.documentPath === 'string' ? nm.documentPath.trim() : ''
-    if (p) out.push(p)
-  }
-  const unique = new Set<string>()
-  const cleaned: string[] = []
-  for (let i = 0; i < out.length; i += 1) {
-    const raw = String(out[i] || '').trim()
-    if (!raw) continue
-    const noHash = raw.split('#')[0] || raw
-    const noQuery = noHash.split('?')[0] || noHash
-    const k = noQuery.replace(/^\/+/, '').trim()
-    if (!k) continue
-    if (unique.has(k)) continue
-    unique.add(k)
-    cleaned.push(k)
-  }
-  return cleaned.slice(0, 6)
 }
 
 export default function DesignCanvas({
@@ -495,438 +315,37 @@ export default function DesignCanvas({
     snapshot.multiDimTableModeEnabled,
   ])
 
-  const directDocumentUrl = useMemo(() => tryExtractDesignDocumentUrl(snapshot.graphData as GraphData | null), [snapshot.graphData])
-  const [webpageSource, setWebpageSource] = React.useState<WebpageSourceState>({ workspacePath: '', frontmatter: null })
-  const webpageWorkspacePath = webpageSource.workspacePath
-  const webpageFrontmatter = webpageSource.frontmatter
-  const documentUrl = useMemo(() => {
-    const fmUrl = String(webpageFrontmatter?.url || '').trim()
-    if (fmUrl && /^https?:\/\//i.test(fmUrl)) return fmUrl
-    const fallbackUrl = String(directDocumentUrl || '').trim()
-    return fallbackUrl && /^https?:\/\//i.test(fallbackUrl) ? fallbackUrl : null
-  }, [directDocumentUrl, webpageFrontmatter?.url])
-  const [webpageLayout, setWebpageLayout] = React.useState<WebpageLayoutSnapshot | null>(null)
-  const [webpageLayoutStatus, setWebpageLayoutStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
-  const [webpageLayoutRetryNonce, setWebpageLayoutRetryNonce] = React.useState<number>(0)
-  const webpageStatusStoreRef = React.useRef<WebpageStatusUiStore | null>(null)
-  if (!webpageStatusStoreRef.current) webpageStatusStoreRef.current = createWebpageStatusUiStore()
-  const setWebpageStatusUi = React.useCallback((patch: Partial<WebpageStatusUiState>) => {
-    webpageStatusStoreRef.current?.setState(patch)
-  }, [])
-  const lastWebpageLayoutUrlRef = useRef<string>('')
-  const lastWebpageLayoutReqRef = useRef<number>(0)
-  const webpageLayoutGraphCacheRef = useRef<Map<string, GraphData>>(new Map())
-  const webpageLayoutGraphCacheOrderRef = useRef<string[]>([])
-
-  useEffect(() => {
-    if (!active) return
-    const graph = snapshot.graphData as GraphData | null
-    const p = tryExtractWebpageWorkspacePath(graph)
-    let cancelled = false
-    void (async () => {
-      const fs = await getWorkspaceFs()
-      const candidates: string[] = []
-      if (p) candidates.push(p)
-
-      if (candidates.length === 0) {
-        const docKeys = tryExtractDocumentPaths(graph)
-        if (docKeys.length > 0) {
-          const entries = await fs.listEntries().catch(() => [])
-          const byDocKey = new Map<string, string>()
-          for (let i = 0; i < entries.length; i += 1) {
-            const e = entries[i] as { kind?: unknown; path?: unknown } | null
-            if (!e || e.kind !== 'file') continue
-            const wp = normalizeWorkspacePath(e.path)
-            const dk = workspaceDocumentKey(wp)
-            if (!dk) continue
-            if (!byDocKey.has(dk)) byDocKey.set(dk, wp)
-          }
-          for (let i = 0; i < docKeys.length; i += 1) {
-            const match = byDocKey.get(docKeys[i] || '')
-            if (match) candidates.push(match)
-          }
-        }
-      }
-
-      for (let i = 0; i < candidates.length; i += 1) {
-        if (cancelled) return
-        const text = await fs.readFileText(candidates[i]!).catch(() => '')
-        const fm = parseWebpageFrontmatterMeta(text)
-        const url = String(fm?.url || '').trim()
-        if (!url || !/^https?:\/\//i.test(url)) continue
-        if (!cancelled) {
-          setWebpageSource({
-            workspacePath: String(candidates[i] || ''),
-            frontmatter: fm,
-          })
-        }
-        return
-      }
-
-      if (!cancelled) {
-        setWebpageSource({ workspacePath: '', frontmatter: null })
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [active, directDocumentUrl, snapshot.graphData, webpageLayoutRetryNonce])
-
-  useEffect(() => {
-    if (!active) return
-    const url = String(documentUrl || '').trim()
-    if (!url) {
-      lastWebpageLayoutUrlRef.current = ''
-      setWebpageLayout(null)
-      setWebpageLayoutStatus('idle')
-      setWebpageStatusUi({ progress: 0, message: '' })
-      return
-    }
-    const prevUrl = lastWebpageLayoutUrlRef.current
-    lastWebpageLayoutUrlRef.current = url
-    const reqId = (lastWebpageLayoutReqRef.current += 1)
-    let cancelled = false
-    const allowCache = webpageLayoutRetryNonce <= 0
-    const fidelity: WebpageFidelityLevel =
-      webpageFrontmatter?.fidelityLevel === 1 || webpageFrontmatter?.fidelityLevel === 2 || webpageFrontmatter?.fidelityLevel === 3 || webpageFrontmatter?.fidelityLevel === 4
-        ? webpageFrontmatter.fidelityLevel
-        : 3
-    const maxElements = fidelity === 4 ? 3200 : fidelity === 3 ? 2400 : fidelity === 2 ? 1800 : 1400
-    const viewportW = (() => {
-      try {
-        const w = typeof window !== 'undefined' ? window.innerWidth : 0
-        if (!Number.isFinite(w) || w <= 0) return 1200
-        return Math.max(900, Math.min(1400, Math.floor(w * 0.9)))
-      } catch {
-        return 1200
-      }
-    })()
-    const viewportH = (() => {
-      try {
-        const h = typeof window !== 'undefined' ? window.innerHeight : 0
-        if (!Number.isFinite(h) || h <= 0) return 800
-        return Math.max(650, Math.min(1000, Math.floor(h * 0.84)))
-      } catch {
-        return 800
-      }
-    })()
-    const networkIdleMs = fidelity >= 3 ? 1100 : 900
-    const domQuietMs = fidelity >= 3 ? 900 : 650
-    const minWaitAfterLoadMs = fidelity >= 3 ? 1600 : 1200
-    const epoch = typeof snapshot.designWireframeCacheEpoch === 'number' && Number.isFinite(snapshot.designWireframeCacheEpoch) ? snapshot.designWireframeCacheEpoch : 0
-    const layoutCacheKey = `layout:v2:e=${epoch}:maxEl=${maxElements}:vp=${viewportW}x${viewportH}:scroll=1:faq=1:netIdle=1:netIdleMs=${networkIdleMs}:domQuietMs=${domQuietMs}:minAfter=${minWaitAfterLoadMs}`
-    if (allowCache) {
-      const cached = getCachedWebpageLayoutSnapshot(url, layoutCacheKey)
-      if (cached) {
-        setWebpageLayout(cached)
-        setWebpageLayoutStatus('ready')
-        setWebpageStatusUi({ progress: 100, message: 'Loaded from cache' })
-        return
-      }
-    }
-    if (prevUrl && prevUrl !== url) setWebpageLayout(null)
-    setWebpageLayoutStatus('loading')
-    setWebpageStatusUi({ progress: 0, message: 'Loading webpage for wireframe…' })
-    const ticker = createProgressTicker({
-      onProgress: p => setWebpageStatusUi({ progress: p }),
-      intervalMs: 280,
-      maxPercentage: 92,
-      maxStepPercentage: 12,
-    })
-    const ac = new AbortController()
-    void (async () => {
-      try {
-        ticker.start()
-        const { probeWebpageDomViaHiddenIframe } = await import('@/lib/websites/webpageDomExport')
-        const probe = await probeWebpageDomViaHiddenIframe({
-          url,
-          mode: 'layout',
-          maxElements,
-          scrollCrawl: true,
-          expandFaq: true,
-          timeoutMs: 45_000,
-          waitForNetworkIdle: true,
-          networkIdleMs,
-          domQuietMs,
-          minWaitAfterLoadMs,
-          viewportW,
-          viewportH,
-          signal: ac.signal,
-        })
-        if (cancelled) return
-        if (reqId !== lastWebpageLayoutReqRef.current) return
-        if (!probe.ok) {
-          const fail = probe as Extract<WebpageDomProbeResult, { ok: false }>
-          ticker.stop()
-          setWebpageLayout(null)
-          setWebpageLayoutStatus('error')
-          setWebpageStatusUi({ message: `Export failed (${fail.stage}): ${fail.error}` })
-          try {
-            useGraphStore.getState().pushUiToast({
-              id: 'design-webpage-layout-failed',
-              kind: 'warning',
-              message: `Webpage wireframe export failed (${fail.stage}): ${fail.error}`,
-              ttlMs: 8000,
-            })
-          } catch {
-            void 0
-          }
-          return
-        }
-        const res = probe.result
-        if (!res?.text) {
-          ticker.stop()
-          setWebpageLayout(null)
-          setWebpageLayoutStatus('error')
-          setWebpageStatusUi({ message: 'Export failed: empty result' })
-          return
-        }
-        const snap = (() => {
-          try {
-            const parsed = JSON.parse(res.text) as unknown
-            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-            const obj = parsed as Record<string, unknown>
-            const meta = obj.meta as Record<string, unknown> | null
-            const elements = obj.elements as unknown
-            if (!meta || typeof meta !== 'object') return null
-            if (!Array.isArray(elements)) return null
-            if (meta.kind !== 'layout') return null
-            return parsed as WebpageLayoutSnapshot
-          } catch {
-            return null
-          }
-        })()
-        if (!snap) {
-          ticker.stop()
-          setWebpageLayout(null)
-          setWebpageLayoutStatus('error')
-          setWebpageStatusUi({ message: 'Export failed: invalid snapshot payload' })
-          return
-        }
-        setCachedWebpageLayoutSnapshot(url, snap, layoutCacheKey)
-        setWebpageLayout(snap)
-        setWebpageLayoutStatus('ready')
-        ticker.stop(100)
-        const n = Array.isArray(snap.elements) ? snap.elements.length : 0
-        setWebpageStatusUi({ progress: 100, message: `Wireframe ready — elements=${n}` })
-      } catch (e) {
-        if (cancelled) return
-        if (reqId !== lastWebpageLayoutReqRef.current) return
-        ticker.stop()
-        const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''
-        setWebpageLayout(null)
-        setWebpageLayoutStatus('error')
-        setWebpageStatusUi({ message: `Export failed: ${msg || 'Request failed'}` })
-        try {
-          useGraphStore.getState().pushUiToast({
-            id: 'design-webpage-layout-failed',
-            kind: 'warning',
-            message: `Webpage wireframe export failed: ${msg || 'Request failed'}`,
-            ttlMs: 8000,
-          })
-        } catch {
-          void 0
-        }
-      } finally {
-        try {
-          ticker.stop()
-        } catch {
-          void 0
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-      try {
-        ac.abort()
-      } catch {
-        void 0
-      }
-      try {
-        ticker.stop()
-      } catch {
-        void 0
-      }
-    }
-  }, [active, documentUrl, snapshot.designWireframeCacheEpoch, webpageLayoutRetryNonce])
-
   const designGraphDataForDisplay = useMemo(() => {
     const g = (activeRenderGraphData || snapshot.graphData) as GraphData | null
     if (!g) return null
     return deriveSceneDisplayGraph({ graphData: g })?.displayGraphData || g
   }, [activeRenderGraphData, snapshot.graphData])
-
-  const webpageLayoutGraphData = useMemo(() => {
-    if (!webpageLayout) return null
-    const fidelity: WebpageFidelityLevel = webpageFrontmatter?.fidelityLevel === 1 || webpageFrontmatter?.fidelityLevel === 2 || webpageFrontmatter?.fidelityLevel === 3 || webpageFrontmatter?.fidelityLevel === 4 ? webpageFrontmatter.fidelityLevel : 3
-    const url = String(documentUrl || '').trim()
-    const ts = typeof webpageLayout.meta?.ts === 'number' && Number.isFinite(webpageLayout.meta.ts) ? webpageLayout.meta.ts : null
-    const elCountKey = Array.isArray(webpageLayout?.elements) ? webpageLayout.elements.length : null
-    const epoch = typeof snapshot.designWireframeCacheEpoch === 'number' && Number.isFinite(snapshot.designWireframeCacheEpoch) ? snapshot.designWireframeCacheEpoch : 0
-    const cacheKey = url && ts != null && elCountKey != null ? `${url}#${ts}#${elCountKey}::f${fidelity}::e${epoch}` : null
-    if (cacheKey) {
-      const cached = webpageLayoutGraphCacheRef.current.get(cacheKey) || null
-      if (cached) return cached
-    }
-    const areaScale = fidelity === 4 ? 0.55 : fidelity === 3 ? 0.75 : fidelity === 2 ? 1 : 1.25
-    const nodeScale = fidelity === 4 ? 1.7 : fidelity === 3 ? 1.35 : fidelity === 2 ? 1 : 0.75
-    const vpW = typeof webpageLayout.meta?.viewport?.w === 'number' ? webpageLayout.meta.viewport.w : null
-    const vpH = typeof webpageLayout.meta?.viewport?.h === 'number' ? webpageLayout.meta.viewport.h : null
-    const vpArea = vpW != null && vpH != null && Number.isFinite(vpW) && Number.isFinite(vpH) ? vpW * vpH : null
-    const baseMinAreaPx = (() => {
-      if (vpArea != null && vpArea > 0) {
-        const scaled = Math.round(vpArea * 0.012)
-        return Math.max(6000, Math.min(30_000, scaled))
-      }
-      return 9000
-    })()
-    const minAreaPx0 = Math.max(1, Math.round(baseMinAreaPx * areaScale))
-    const elementCount = Array.isArray(webpageLayout?.elements) ? webpageLayout.elements.length : 0
-    const baseMaxNodes = (() => {
-      const base = elementCount > 0 ? Math.max(900, Math.min(2600, Math.round(elementCount * 0.55))) : 1400
-      return Math.max(200, Math.min(5000, Math.round(base * nodeScale)))
-    })()
-    const primary = {
-      minAreaPx: minAreaPx0,
-      maxNodes: baseMaxNodes,
-    }
-    const secondary = {
-      minAreaPx: Math.max(1, Math.round(minAreaPx0 * 0.82)),
-      maxNodes: Math.max(200, Math.min(5000, Math.round(baseMaxNodes * 1.3))),
-    }
-    const tertiary = {
-      minAreaPx: 1,
-      maxNodes: Math.max(2000, Math.min(5000, Math.round(3400 * nodeScale))),
-    }
-    const g1 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: primary.maxNodes, minAreaPx: primary.minAreaPx, fidelityLevel: fidelity })
-    const n1 = Array.isArray(g1?.nodes) ? g1.nodes.length : 0
-    if (n1 >= 18) {
-      if (cacheKey && g1) {
-        const order = webpageLayoutGraphCacheOrderRef.current
-        const map = webpageLayoutGraphCacheRef.current
-        if (!map.has(cacheKey)) {
-          order.push(cacheKey)
-          if (order.length > 8) {
-            const drop = order.shift()
-            if (drop) map.delete(drop)
-          }
-        }
-        map.set(cacheKey, g1)
-      }
-      return g1
-    }
-    const g2 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: secondary.maxNodes, minAreaPx: secondary.minAreaPx, fidelityLevel: fidelity })
-    const n2 = Array.isArray(g2?.nodes) ? g2.nodes.length : 0
-    const best = n2 > n1 ? g2 : g1
-    const bestN = Math.max(n1, n2)
-    if (bestN >= 8) {
-      if (cacheKey && best) {
-        const order = webpageLayoutGraphCacheOrderRef.current
-        const map = webpageLayoutGraphCacheRef.current
-        if (!map.has(cacheKey)) {
-          order.push(cacheKey)
-          if (order.length > 8) {
-            const drop = order.shift()
-            if (drop) map.delete(drop)
-          }
-        }
-        map.set(cacheKey, best)
-      }
-      return best
-    }
-    const g3 = convertWebpageLayoutToGraphData(webpageLayout, { maxNodes: tertiary.maxNodes, minAreaPx: tertiary.minAreaPx, fidelityLevel: fidelity })
-    const n3 = Array.isArray(g3?.nodes) ? g3.nodes.length : 0
-    const final = n3 > bestN ? g3 : best
-    if (cacheKey && final) {
-      const order = webpageLayoutGraphCacheOrderRef.current
-      const map = webpageLayoutGraphCacheRef.current
-      if (!map.has(cacheKey)) {
-        order.push(cacheKey)
-        if (order.length > 8) {
-          const drop = order.shift()
-          if (drop) map.delete(drop)
-        }
-      }
-      map.set(cacheKey, final)
-    }
-    return final
-  }, [documentUrl, webpageFrontmatter?.fidelityLevel, webpageLayout])
-  const useWebpageLayoutGraph = useMemo(() => {
-    const graphForMode = (activeRenderGraphData || snapshot.graphData) as GraphData | null
-    const effectiveFrontmatter = computeEffectiveFrontmatterMode({
-      frontmatterModeEnabled: snapshot.frontmatterModeEnabled === true,
-      documentSemanticMode: snapshot.documentSemanticMode,
-      graphData: graphForMode,
-    })
-    return snapshot.documentSemanticMode === 'document' && !effectiveFrontmatter
-  }, [
-    activeRenderGraphData,
-    snapshot.documentSemanticMode,
-    snapshot.frontmatterModeEnabled,
-    snapshot.graphData,
-  ])
-  const activeWebpageLayoutGraphData = useMemo(() => (useWebpageLayoutGraph ? webpageLayoutGraphData : null), [useWebpageLayoutGraph, webpageLayoutGraphData])
-
-  useEffect(() => {
-    if (!documentUrl) return
-    if (webpageLayoutStatus !== 'ready') return
-    const elCount = Array.isArray(webpageLayout?.elements) ? webpageLayout!.elements.length : 0
-    const nodeCount = Array.isArray(activeWebpageLayoutGraphData?.nodes) ? activeWebpageLayoutGraphData!.nodes.length : 0
-    if (nodeCount > 0) setWebpageStatusUi({ message: `Wireframe ready — elements=${elCount}, nodes=${nodeCount}` })
-    else setWebpageStatusUi({ message: `Wireframe ready — elements=${elCount}, nodes=0` })
-  }, [activeWebpageLayoutGraphData, documentUrl, webpageLayout?.elements, webpageLayoutStatus])
-
-  const webpageLayoutKey = useMemo(() => {
-    const url = String(documentUrl || '').trim()
-    if (!url) return null
-    const ts = typeof webpageLayout?.meta?.ts === 'number' && Number.isFinite(webpageLayout.meta.ts) ? webpageLayout.meta.ts : null
-    const n = Array.isArray(webpageLayout?.elements) ? webpageLayout.elements.length : null
-    if (ts == null || n == null) return null
-    const fidelity: WebpageFidelityLevel = webpageFrontmatter?.fidelityLevel === 1 || webpageFrontmatter?.fidelityLevel === 2 || webpageFrontmatter?.fidelityLevel === 3 || webpageFrontmatter?.fidelityLevel === 4 ? webpageFrontmatter.fidelityLevel : 3
-    const base = `${url}#${ts}#${n}::f${fidelity}`
-    const nodes = Array.isArray(activeWebpageLayoutGraphData?.nodes) ? (activeWebpageLayoutGraphData!.nodes as GraphNode[]) : null
-    if (!nodes || nodes.length === 0) return base
-    const ids: string[] = []
-    for (let i = 0; i < nodes.length && ids.length < 240; i += 1) {
-      const id = String(nodes[i]?.id || '').trim()
-      if (id) ids.push(id)
-    }
-    ids.sort()
-    const sig = hashText(`${ids.join('|')}|${nodes.length}`)
-    return `${base}::g${sig}`
-  }, [activeWebpageLayoutGraphData?.nodes, documentUrl, webpageFrontmatter?.fidelityLevel, webpageLayout?.elements, webpageLayout?.meta?.ts])
-
-  const webpageGraphNodesById = useMemo(() => {
-    if (!activeWebpageLayoutGraphData?.nodes || activeWebpageLayoutGraphData.nodes.length === 0) return null
-    const out: Record<string, GraphNode> = {}
-    for (let i = 0; i < activeWebpageLayoutGraphData.nodes.length; i += 1) {
-      const n = activeWebpageLayoutGraphData.nodes[i] as GraphNode
-      const id = String(n.id || '').trim()
-      if (!id) continue
-      out[id] = n
-    }
-    return out
-  }, [activeWebpageLayoutGraphData])
-
-  const markdownOverlayKey = useMemo(() => {
-    const name = String(snapshot.markdownDocumentName || '').trim()
-    const text = String(snapshot.markdownDocumentText || '')
-    if (!name || !text.trim()) return null
-    return `md:${name}::${hashText(text)}`
-  }, [snapshot.markdownDocumentName, snapshot.markdownDocumentText])
-
-  useEffect(() => {
-    if (!active) {
-      snapshot.setDesignRendererWebpageGraph({ key: null, nodesById: {} })
-      return
-    }
-    if (markdownOverlayKey) {
-      snapshot.setDesignRendererWebpageGraph({ key: markdownOverlayKey, nodesById: {} })
-      return
-    }
-    if (webpageLayoutKey && webpageGraphNodesById) snapshot.setDesignRendererWebpageGraph({ key: webpageLayoutKey, nodesById: webpageGraphNodesById })
-    else snapshot.setDesignRendererWebpageGraph({ key: null, nodesById: {} })
-  }, [active, markdownOverlayKey, snapshot.setDesignRendererWebpageGraph, webpageGraphNodesById, webpageLayoutKey])
+  const {
+    documentUrl,
+    webpageFrontmatter,
+    webpageWorkspacePath,
+    webpageLayout,
+    webpageLayoutStatus,
+    setWebpageLayoutStatus,
+    setWebpageStatusUi,
+    webpageStatusStore,
+    activeWebpageLayoutGraphData,
+    webpageLayoutKey,
+    webpageGraphNodesById,
+    decreaseWebpageFidelity,
+    increaseWebpageFidelity,
+    retryWebpageLayout,
+  } = useDesignCanvasWebpageWireframe({
+    active,
+    graphData: snapshot.graphData as GraphData | null,
+    activeRenderGraphData: activeRenderGraphData as GraphData | null,
+    designWireframeCacheEpoch: snapshot.designWireframeCacheEpoch,
+    documentSemanticMode: String(snapshot.documentSemanticMode || 'document'),
+    frontmatterModeEnabled: snapshot.frontmatterModeEnabled === true,
+    markdownDocumentName: snapshot.markdownDocumentName,
+    markdownDocumentText: snapshot.markdownDocumentText,
+    setDesignRendererWebpageGraph: snapshot.setDesignRendererWebpageGraph,
+  })
 
   const baseFrameNodes = useMemo(() => {
     if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {
@@ -1433,7 +852,19 @@ export default function DesignCanvas({
     const opts = readFitAllOptions({ schema: snapshot.schema, mode, intent: 'initialFit' })
     const t = fitAllTransform(nodes0, Math.max(1, dims.width), Math.max(1, dims.height), { ...opts, graphData: g0 })
     d3.select(svgEl).call(zoom.transform as never, d3.zoomIdentity.translate(t.x, t.y).scale(t.k))
-  }, [active, activeWebpageLayoutGraphData, dims.height, dims.width, documentUrl, snapshot.designLayerState?.hiddenById, snapshot.schema, webpageLayout?.meta?.ts, webpageLayoutStatus])
+  }, [
+    active,
+    activeWebpageLayoutGraphData,
+    dims.height,
+    dims.width,
+    documentUrl,
+    setWebpageLayoutStatus,
+    setWebpageStatusUi,
+    snapshot.designLayerState?.hiddenById,
+    snapshot.schema,
+    webpageLayout,
+    webpageLayoutStatus,
+  ])
 
   const setDesignFramePosMany = snapshot.setDesignFramePosMany
   const setDesignFrameSizeMany = snapshot.setDesignFrameSizeMany
@@ -3072,111 +2503,14 @@ export default function DesignCanvas({
     wireframeSettings.showTextPreview,
   ])
 
-  const selectedIds = useMemo(() => {
-    const ids = Array.isArray(snapshot.selectedNodeIds) ? snapshot.selectedNodeIds : []
-    const out: string[] = []
-    const seen = new Set<string>()
-    for (let i = 0; i < ids.length; i += 1) {
-      const id = String(ids[i] || '').trim()
-      if (!id) continue
-      if (seen.has(id)) continue
-      seen.add(id)
-      if (!positions[id]) continue
-      out.push(id)
-    }
-    return out
-  }, [positions, snapshot.selectedNodeIds])
-
-  const applyArrange = useMemo(() => {
-    type Action =
-      | 'align-left'
-      | 'align-center-x'
-      | 'align-right'
-      | 'align-top'
-      | 'align-center-y'
-      | 'align-bottom'
-      | 'distribute-x'
-      | 'distribute-y'
-    return (action: Action) => {
-      if (!active) return
-      if (selectedIds.length < 2) return
-      const refId = (() => {
-        const a = String(snapshot.selectedNodeId || '').trim()
-        if (a && selectedIds.includes(a)) return a
-        return selectedIds[0] || ''
-      })()
-      const ref = refId ? positions[refId] : null
-      if (!ref) return
-      const updates: Record<string, { x: number; y: number }> = {}
-      const grid = readSnapGridConfigFromSchema(snapshot.schema)
-      const gridSize = grid.enabled ? grid.size : 0
-      const snap = (v: number) => (grid.enabled ? snapScalarToGrid(v, grid.size) : v)
-
-      if (action === 'distribute-x' || action === 'distribute-y') {
-        const pts = selectedIds.map((id) => {
-          const p = positions[id]!
-          return { id, x: p.x + p.w / 2, y: p.y + p.h / 2 }
-        })
-        const nextCenters = computeEvenlyDistributedPositions({ nodes: pts, axis: action === 'distribute-x' ? 'x' : 'y', minSpacing: gridSize || 24 })
-        for (let i = 0; i < selectedIds.length; i += 1) {
-          const id = selectedIds[i]!
-          const p = positions[id]!
-          const c = nextCenters[id]
-          if (!c) continue
-          const nextX = action === 'distribute-x' ? c.x - p.w / 2 : p.x
-          const nextY = action === 'distribute-y' ? c.y - p.h / 2 : p.y
-          updates[id] = { x: snap(nextX), y: snap(nextY) }
-        }
-        if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
-        return
-      }
-
-      for (let i = 0; i < selectedIds.length; i += 1) {
-        const id = selectedIds[i]!
-        const p = positions[id]!
-        let x = p.x
-        let y = p.y
-        if (action === 'align-left') x = ref.x
-        if (action === 'align-right') x = ref.x + ref.w - p.w
-        if (action === 'align-center-x') x = ref.x + ref.w / 2 - p.w / 2
-        if (action === 'align-top') y = ref.y
-        if (action === 'align-bottom') y = ref.y + ref.h - p.h
-        if (action === 'align-center-y') y = ref.y + ref.h / 2 - p.h / 2
-        updates[id] = { x: snap(x), y: snap(y) }
-      }
-      if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
-    }
-  }, [active, positions, selectedIds, setDesignFramePosMany, snapshot.schema?.behavior?.snapGrid, snapshot.selectedNodeId])
-
-  useEffect(() => {
-    if (!active) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return
-      const arrange = readArrangeShortcut(e)
-      if (arrange) {
-        e.preventDefault()
-        applyArrange(arrange)
-        return
-      }
-      if (selectedIds.length === 0) return
-      const grid = readSnapGridConfigFromSchema(snapshot.schema)
-      const delta = readNudgeDelta({ e, snapGridEnabled: grid.enabled, snapGridSize: grid.size })
-      if (!delta) return
-      e.preventDefault()
-      const updates: Record<string, { x: number; y: number }> = {}
-      for (let i = 0; i < selectedIds.length; i += 1) {
-        const id = selectedIds[i]!
-        const p = positions[id]
-        if (!p) continue
-        updates[id] = { x: p.x + delta.dx, y: p.y + delta.dy }
-      }
-      if (Object.keys(updates).length > 0) setDesignFramePosMany(updates)
-    }
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, { capture: true } as AddEventListenerOptions)
-    }
-  }, [active, applyArrange, positions, selectedIds, setDesignFramePosMany, snapshot.schema?.behavior?.snapGrid])
+  const { selectedIds, applyArrange } = useDesignCanvasArrangeActions({
+    active,
+    positions,
+    schema: snapshot.schema,
+    selectedNodeId: snapshot.selectedNodeId,
+    selectedNodeIds: Array.isArray(snapshot.selectedNodeIds) ? snapshot.selectedNodeIds : EMPTY_STRING_ARRAY,
+    setDesignFramePosMany,
+  })
 
   const canvasGrid = React.useMemo(() => readCanvasGridRenderConfigFromSchema(snapshot.schema), [snapshot.schema])
   const getZoomTransform = React.useCallback(() => {
@@ -3185,30 +2519,6 @@ export default function DesignCanvas({
     return d3.zoomTransform(el)
   }, [])
   const getZoomEventTarget = React.useCallback(() => svgRef.current, [])
-
-  const adjustWebpageFidelity = React.useCallback((delta: -1 | 1) => {
-    const p = String(webpageWorkspacePath || '').trim()
-    if (!p) return
-    void (async () => {
-      const fs = await getWorkspaceFs()
-      const text = await fs.readFileText(p).catch(() => '')
-      const fm = parseWebpageFrontmatterMeta(text)
-      if (!fm) return
-      const cur = fm.fidelityLevel === 1 || fm.fidelityLevel === 2 || fm.fidelityLevel === 3 || fm.fidelityLevel === 4 ? fm.fidelityLevel : 3
-      const next = (delta < 0 ? (cur > 1 ? cur - 1 : 1) : (cur < 4 ? cur + 1 : 4)) as WebpageFidelityLevel
-      const nextText = upsertWebpageFrontmatterMeta(text, { ...fm, fidelityLevel: next })
-      await fs.writeFileText(p, nextText).catch(() => void 0)
-      setWebpageSource(prev => ({ ...prev, frontmatter: { ...fm, fidelityLevel: next } }))
-      setWebpageLayoutRetryNonce(n => n + 1)
-    })()
-  }, [webpageWorkspacePath])
-
-  const handleRetryWebpageLayout = React.useCallback(() => {
-    setWebpageLayout(null)
-    setWebpageLayoutStatus('loading')
-    setWebpageStatusUi({ progress: 0, message: 'Retrying…' })
-    setWebpageLayoutRetryNonce(n => n + 1)
-  }, [setWebpageStatusUi])
 
   return (
     <section
@@ -3222,39 +2532,12 @@ export default function DesignCanvas({
         webpageFrontmatter={webpageFrontmatter}
         webpageWorkspacePath={webpageWorkspacePath}
         webpageLayoutStatus={webpageLayoutStatus}
-        webpageStatusStore={webpageStatusStoreRef.current}
-        onDecreaseFidelity={() => adjustWebpageFidelity(-1)}
-        onIncreaseFidelity={() => adjustWebpageFidelity(1)}
-        onRetry={handleRetryWebpageLayout}
+        webpageStatusStore={webpageStatusStore}
+        onDecreaseFidelity={decreaseWebpageFidelity}
+        onIncreaseFidelity={increaseWebpageFidelity}
+        onRetry={retryWebpageLayout}
       />
-      {active && selectedIds.length >= 2 ? (
-        <div className="pointer-events-none absolute right-3 top-3 z-50 flex flex-wrap gap-1 rounded-md border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-2 text-xs text-[var(--kg-text)] shadow">
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-left')}>
-            Align L
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-x')}>
-            Align CX
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-right')}>
-            Align R
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-top')}>
-            Align T
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-center-y')}>
-            Align CY
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('align-bottom')}>
-            Align B
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-x')}>
-            Dist X
-          </button>
-          <button type="button" className="pointer-events-auto rounded border border-[var(--kg-border)] px-2 py-1" onClick={() => applyArrange('distribute-y')}>
-            Dist Y
-          </button>
-        </div>
-      ) : null}
+      <DesignCanvasArrangeActionBar active={active} selectedCount={selectedIds.length} onAction={applyArrange} />
       <InfiniteGridCanvasOverlay
         enabled={canvasGrid?.enabled === true}
         gridSize={canvasGrid?.size || 10}
@@ -4119,263 +3402,37 @@ export default function DesignCanvas({
             )
           })}
 
-          {styleById && snapshot.renderMediaAsNodes !== true ? (
-            <g data-kg-layer="wireframe-text" style={{ pointerEvents: 'none' }}>
-              {renderNodes.map(n => {
-                if (panelOnlyNodeIdSet?.has(n.id)) return null
-                const p = positions[n.id]
-                if (!p) return null
-                const preview = wireframePreviewById.get(n.id) || null
-                if (!preview) return null
-                return (
-                  <g key={`txt:${n.id}`} transform={`translate(${p.x},${p.y})`}>
-                    {preview.kind === 'media' ? (
-                      preview.tag === 'IMG' || preview.tag === 'VIDEO' || preview.tag === 'IFRAME' ? (
-                        <DesignRichMediaPreview
-                          tag={preview.tag}
-                          url={preview.src}
-                          titleChip={preview.titleChip}
-                          clipId={preview.clipId}
-                          innerX={preview.innerX}
-                          innerY={preview.innerY}
-                          innerW={preview.innerW}
-                          innerH={preview.innerH}
-                          opacity={0.92}
-                          interactive={false}
-                          forwardWheelTo={() => svgRef.current}
-                          onOverlayPanStart={({ pointerId, buttons }) => {
-                            if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
-                            startDesignMediaOverlayPan({ pointerId })
-                          }}
-                          onOverlayPan={({ pointerId, dx, dy }) => moveDesignMediaOverlayPan({ pointerId, dx, dy })}
-                          onOverlayPanEnd={({ pointerId }) => endDesignMediaOverlayPan({ pointerId })}
-                        />
-                      ) : (
-                        <g opacity={0.92}>
-                          <rect
-                            x={preview.innerX}
-                            y={preview.innerY}
-                            width={preview.innerW}
-                            height={preview.innerH}
-                            rx={6}
-                            fill="rgba(0,0,0,0)"
-                            stroke="var(--kg-border)"
-                            strokeWidth={1}
-                            strokeDasharray="5 4"
-                          />
-                          <rect
-                            x={preview.innerX}
-                            y={preview.innerY}
-                            width={Math.min(preview.innerW, Math.max(64, (preview.titleChip.length + 6) * 6))}
-                            height={18}
-                            rx={5}
-                            fill="var(--kg-panel-bg)"
-                            stroke="var(--kg-border)"
-                            strokeWidth={1}
-                            strokeOpacity={0.7}
-                          />
-                          <text x={preview.innerX + 10} y={preview.innerY + 13} fill="var(--kg-text-tertiary)" fontSize={10} fontWeight={600}>
-                            {preview.titleChip}
-                          </text>
-                          {preview.tag === 'SVG' ? (
-                            <g opacity={0.22}>
-                              <path
-                                d={`M ${preview.innerX + preview.innerW / 2 - 18} ${preview.innerY + preview.innerH / 2 - 12} Q ${preview.innerX + preview.innerW / 2 - 30} ${preview.innerY + preview.innerH / 2} ${preview.innerX + preview.innerW / 2 - 18} ${preview.innerY + preview.innerH / 2 + 12}`}
-                                fill="none"
-                                stroke="var(--kg-text-tertiary)"
-                                strokeWidth={2}
-                                strokeLinecap="round"
-                              />
-                              <path
-                                d={`M ${preview.innerX + preview.innerW / 2 + 18} ${preview.innerY + preview.innerH / 2 - 12} Q ${preview.innerX + preview.innerW / 2 + 30} ${preview.innerY + preview.innerH / 2} ${preview.innerX + preview.innerW / 2 + 18} ${preview.innerY + preview.innerH / 2 + 12}`}
-                                fill="none"
-                                stroke="var(--kg-text-tertiary)"
-                                strokeWidth={2}
-                                strokeLinecap="round"
-                              />
-                              <path
-                                d={`M ${preview.innerX + preview.innerW / 2 - 4} ${preview.innerY + preview.innerH / 2 + 14} L ${preview.innerX + preview.innerW / 2 + 4} ${preview.innerY + preview.innerH / 2 - 14}`}
-                                fill="none"
-                                stroke="var(--kg-text-tertiary)"
-                                strokeWidth={2}
-                                strokeLinecap="round"
-                              />
-                            </g>
-                          ) : null}
-                        </g>
-                      )
-                    ) : (
-                      <g opacity={0.82}>
-                        {preview.title ? (
-                          <text x={14} y={34} fill="var(--kg-text-tertiary)" fontSize={10} fontWeight={600}>
-                            {truncateTextWithEllipsis(preview.title, preview.titleMaxChars)}
-                          </text>
-                        ) : null}
-                        <text
-                          x={preview.x}
-                          y={preview.y}
-                          fill={preview.fill || 'var(--kg-text-primary)'}
-                          fontSize={preview.fontSize}
-                          fontWeight={preview.fontWeight}
-                          fontFamily={preview.fontFamily}
-                          textAnchor={preview.textAnchor}
-                        >
-                          {preview.lines.map((t, idx) => (
-                            <tspan key={idx} x={preview.x} dy={idx === 0 ? 0 : preview.lineH}>
-                              {t}
-                            </tspan>
-                          ))}
-                        </text>
-                      </g>
-                    )}
-                  </g>
-                )
-              })}
-            </g>
-          ) : null}
+          <DesignCanvasWireframePreviewLayer
+            enabled={Boolean(styleById) && snapshot.renderMediaAsNodes !== true}
+            renderNodes={renderNodes}
+            positions={positions}
+            panelOnlyNodeIdSet={panelOnlyNodeIdSet}
+            wireframePreviewById={wireframePreviewById}
+            forwardWheelTo={() => svgRef.current}
+            onOverlayPanStart={({ pointerId, buttons }) => {
+              if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
+              startDesignMediaOverlayPan({ pointerId })
+            }}
+            onOverlayPan={({ pointerId, dx, dy }) => moveDesignMediaOverlayPan({ pointerId, dx, dy })}
+            onOverlayPanEnd={({ pointerId }) => endDesignMediaOverlayPan({ pointerId })}
+          />
 
-          {styleById ? (
-            <g style={{ pointerEvents: 'none' }}>
-              {renderNodes.map(n => {
-                if (panelOnlyNodeIdSet?.has(n.id)) return null
-                const p = positions[n.id]
-                if (!p) return null
-                const layout = labelLayoutById.get(n.id) || null
-                if (!layout) return null
-                return (
-                  <g key={`lbl:${n.id}`} transform={`translate(${p.x},${p.y})`}>
-                    {layout.label ? (
-                      <g>
-                        <rect
-                          x={layout.label.boxX}
-                          y={layout.label.boxY}
-                          width={layout.label.boxW}
-                          height={layout.label.boxH}
-                          rx={4}
-                          fill={layout.label.bgFill}
-                          opacity={layout.label.bgOpacity}
-                          stroke={layout.label.stroke}
-                          strokeOpacity={layout.label.strokeOpacity}
-                          strokeWidth={1}
-                        />
-                        <text
-                          x={layout.label.textX}
-                          y={layout.label.textY}
-                          textAnchor={layout.label.textAnchor}
-                          fill={layout.label.fill}
-                          fontSize={layout.label.fontSize}
-                          fontWeight={layout.label.fontWeight}
-                        >
-                          {layout.label.text}
-                        </text>
-                      </g>
-                    ) : null}
-                    {layout.meta ? (
-                      <g>
-                        <rect
-                          x={layout.meta.boxX}
-                          y={layout.meta.boxY}
-                          width={layout.meta.boxW}
-                          height={layout.meta.boxH}
-                          rx={4}
-                          fill={layout.meta.bgFill}
-                          opacity={layout.meta.bgOpacity}
-                          stroke={layout.meta.stroke}
-                          strokeOpacity={layout.meta.strokeOpacity}
-                          strokeWidth={1}
-                        />
-                        <text
-                          x={layout.meta.textX}
-                          y={layout.meta.textY}
-                          textAnchor={layout.meta.textAnchor}
-                          fill={layout.meta.fill}
-                          fontSize={layout.meta.fontSize}
-                        >
-                          {layout.meta.text}
-                        </text>
-                      </g>
-                    ) : null}
-                  </g>
-                )
-              })}
-            </g>
-          ) : null}
+          <DesignCanvasLabelBadgesLayer
+            enabled={Boolean(styleById)}
+            renderNodes={renderNodes}
+            positions={positions}
+            panelOnlyNodeIdSet={panelOnlyNodeIdSet}
+            labelLayoutById={labelLayoutById}
+          />
 
-          {active && snapshot.selectedNodeId ? (() => {
-            const id = String(snapshot.selectedNodeId || '').trim()
-            if (!id) return null
-            const p = positions[id]
-            if (!p) return null
-            const hs = 9
-            const o = hs / 2
-            const fill = 'var(--kg-canvas-accent)'
-            const stroke = 'var(--kg-panel-bg)'
-            const sx = p.w
-            const sy = p.h
-            const handles: Array<{ k: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'; x: number; y: number; cursor: string }> = [
-              { k: 'nw', x: 0, y: 0, cursor: 'nwse-resize' },
-              { k: 'n', x: sx / 2, y: 0, cursor: 'ns-resize' },
-              { k: 'ne', x: sx, y: 0, cursor: 'nesw-resize' },
-              { k: 'e', x: sx, y: sy / 2, cursor: 'ew-resize' },
-              { k: 'se', x: sx, y: sy, cursor: 'nwse-resize' },
-              { k: 's', x: sx / 2, y: sy, cursor: 'ns-resize' },
-              { k: 'sw', x: 0, y: sy, cursor: 'nesw-resize' },
-              { k: 'w', x: 0, y: sy / 2, cursor: 'ew-resize' },
-            ]
-            return (
-              <g
-                ref={el => {
-                  resizeOverlayElRef.current = el
-                }}
-                data-kg-layer="wireframe-resize"
-                transform={`translate(${p.x},${p.y})`}
-              >
-                <rect
-                  data-kg-resize-outline="1"
-                  x={-1}
-                  y={-1}
-                  width={p.w + 2}
-                  height={p.h + 2}
-                  fill="rgba(0,0,0,0)"
-                  stroke="var(--kg-canvas-accent)"
-                  strokeWidth={1}
-                  opacity={0.45}
-                  style={{ pointerEvents: 'none' }}
-                />
-                {handles.map(h => (
-                  <rect
-                    key={`${id}:${h.k}`}
-                    data-kg-resize-handle={h.k}
-                    x={h.x - o}
-                    y={h.y - o}
-                    width={hs}
-                    height={hs}
-                    rx={2}
-                    fill={fill}
-                    stroke={stroke}
-                    strokeWidth={1}
-                    style={{ cursor: h.cursor }}
-                    onPointerDown={e => beginResize(e, { id, handle: h.k, rect: { x: p.x, y: p.y, w: p.w, h: p.h } })}
-                  />
-                ))}
-              </g>
-            )
-          })() : null}
-
-          {marqueeBox ? (
-            <rect
-              x={marqueeBox.x}
-              y={marqueeBox.y}
-              width={Math.max(0, marqueeBox.w)}
-              height={Math.max(0, marqueeBox.h)}
-              fill="var(--kg-canvas-accent)"
-              opacity="0.08"
-              stroke="var(--kg-canvas-accent)"
-              strokeWidth={1}
-              strokeDasharray="4 3"
-              style={{ pointerEvents: 'none' }}
-            />
-          ) : null}
+          <DesignCanvasSelectionOverlay
+            active={active}
+            selectedNodeId={snapshot.selectedNodeId}
+            positions={positions}
+            marqueeBox={marqueeBox}
+            resizeOverlayRef={resizeOverlayElRef}
+            onBeginResize={beginResize}
+          />
         </g>
       </svg>
       <MarkdownDesignOverlay
@@ -4385,104 +3442,83 @@ export default function DesignCanvas({
         markdownDocumentText={snapshot.markdownDocumentText}
         allowedKinds={markdownPanelAllowedKinds}
       />
-      {active && designMediaOverlayNodes.length > 0 ? (
-        <section aria-label="Design media overlay" className="absolute inset-0 z-[80] pointer-events-none">
-          {designMediaOverlayNodes.map(n => {
-            return (
-              <RichMediaPanel
-                key={n.id}
-                ref={(el) => {
-                  if (!el) {
-                    designMediaOverlayElsRef.current.delete(n.id)
-                    return
-                  }
-                  designMediaOverlayElsRef.current.set(n.id, el)
-                }}
-                className="absolute left-0 top-0 pointer-events-auto"
-                title={n.title}
-                url={n.url}
-                srcDoc={n.srcDoc}
-                openUrl={n.openUrl}
-                kind={n.kind}
-                interactive={n.interactive}
-                hideUntilReady={true}
-                iframeMode="srcdoc-when-needed"
-                forwardWheelTo={() => svgRef.current}
-                shouldStartHeaderDrag={() => {
-                  if (isSpacePanHeld()) return false
-                  if (snapshot.canvasPointerMode2d === 'pan') return false
-                  return true
-                }}
-                onOverlayPanStart={({ pointerId, buttons }) => {
-                  if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
-                  startDesignMediaOverlayPan({ pointerId })
-                }}
-                onOverlayPan={({ pointerId, dx, dy }) => moveDesignMediaOverlayPan({ pointerId, dx, dy })}
-                onOverlayPanEnd={({ pointerId }) => endDesignMediaOverlayPan({ pointerId })}
-                onHeaderDragStart={({ pointerId }) => {
-                  const p = positions[n.id]
-                  if (!p) return
-                  const svgEl = svgRef.current
-                  if (!svgEl) return
-                  const t = d3.zoomTransform(svgEl)
-                  const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
-                  const schema = ((snapshot as unknown as { schema?: unknown }).schema || (useGraphStore.getState() as unknown as { schema?: unknown }).schema) as
-                    | GraphSchema
-                    | null
-                  designMediaHeaderDragRef.current = { id: n.id, pointerId, startX: p.x, startY: p.y, startK: k, lastDx: 0, lastDy: 0, schema }
-                }}
-                onHeaderDrag={({ dx, dy, pointerId }) => {
-                  const st = designMediaHeaderDragRef.current
-                  if (!st || st.id !== n.id || st.pointerId !== pointerId) return
-                  st.lastDx = dx
-                  st.lastDy = dy
-                  if (!st.schema) {
-                    const k = Number.isFinite(st.startK) && st.startK > 0 ? st.startK : 1
-                    setDesignFramePosMany({ [n.id]: { x: st.startX + dx / k, y: st.startY + dy / k } })
-                    return
-                  }
-                  const p = computeOverlayDraggedPoint2d({
-                    baseX: st.startX,
-                    baseY: st.startY,
-                    dxClientPx: dx,
-                    dyClientPx: dy,
-                    zoomK: st.startK,
-                    schema: st.schema,
-                    snapToGrid: false,
-                  })
-                  setDesignFramePosMany({ [n.id]: { x: p.x, y: p.y } })
-                }}
-                onHeaderDragEnd={({ pointerId }) => {
-                  const st = designMediaHeaderDragRef.current
-                  if (!st || st.id !== n.id || st.pointerId !== pointerId) return
-                  if (st.schema) {
-                    try {
-                      const p = computeOverlayDraggedPoint2d({
-                        baseX: st.startX,
-                        baseY: st.startY,
-                        dxClientPx: st.lastDx,
-                        dyClientPx: st.lastDy,
-                        zoomK: st.startK,
-                        schema: st.schema,
-                        snapToGrid: true,
-                      })
-                      setDesignFramePosMany({ [n.id]: { x: p.x, y: p.y } })
-                    } catch {
-                      void 0
-                    }
-                  }
-                  designMediaHeaderDragRef.current = null
-                }}
-                style={{
-                  transform: 'translate(-99999px, -99999px)',
-                  width: 1,
-                  height: 1,
-                }}
-              />
-            )
-          })}
-        </section>
-      ) : null}
+      <DesignCanvasMediaOverlay
+        active={active}
+        designMediaOverlayNodes={designMediaOverlayNodes}
+        onRegisterOverlayEl={(id, el) => {
+          if (!el) {
+            designMediaOverlayElsRef.current.delete(id)
+            return
+          }
+          designMediaOverlayElsRef.current.set(id, el)
+        }}
+        forwardWheelTo={() => svgRef.current}
+        shouldStartHeaderDrag={() => {
+          if (isSpacePanHeld()) return false
+          if (snapshot.canvasPointerMode2d === 'pan') return false
+          return true
+        }}
+        onOverlayPanStart={({ pointerId, buttons }) => {
+          if ((buttons & 1) !== 1 && (buttons & 4) !== 4) return
+          startDesignMediaOverlayPan({ pointerId })
+        }}
+        onOverlayPan={({ pointerId, dx, dy }) => moveDesignMediaOverlayPan({ pointerId, dx, dy })}
+        onOverlayPanEnd={({ pointerId }) => endDesignMediaOverlayPan({ pointerId })}
+        onHeaderDragStart={({ nodeId, pointerId }) => {
+          const p = positions[nodeId]
+          if (!p) return
+          const svgEl = svgRef.current
+          if (!svgEl) return
+          const t = d3.zoomTransform(svgEl)
+          const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
+          const schema = ((snapshot as unknown as { schema?: unknown }).schema || (useGraphStore.getState() as unknown as { schema?: unknown }).schema) as
+            | GraphSchema
+            | null
+          designMediaHeaderDragRef.current = { id: nodeId, pointerId, startX: p.x, startY: p.y, startK: k, lastDx: 0, lastDy: 0, schema }
+        }}
+        onHeaderDrag={({ nodeId, dx, dy, pointerId }) => {
+          const st = designMediaHeaderDragRef.current
+          if (!st || st.id !== nodeId || st.pointerId !== pointerId) return
+          st.lastDx = dx
+          st.lastDy = dy
+          if (!st.schema) {
+            const k = Number.isFinite(st.startK) && st.startK > 0 ? st.startK : 1
+            setDesignFramePosMany({ [nodeId]: { x: st.startX + dx / k, y: st.startY + dy / k } })
+            return
+          }
+          const p = computeOverlayDraggedPoint2d({
+            baseX: st.startX,
+            baseY: st.startY,
+            dxClientPx: dx,
+            dyClientPx: dy,
+            zoomK: st.startK,
+            schema: st.schema,
+            snapToGrid: false,
+          })
+          setDesignFramePosMany({ [nodeId]: { x: p.x, y: p.y } })
+        }}
+        onHeaderDragEnd={({ nodeId, pointerId }) => {
+          const st = designMediaHeaderDragRef.current
+          if (!st || st.id !== nodeId || st.pointerId !== pointerId) return
+          if (st.schema) {
+            try {
+              const p = computeOverlayDraggedPoint2d({
+                baseX: st.startX,
+                baseY: st.startY,
+                dxClientPx: st.lastDx,
+                dyClientPx: st.lastDy,
+                zoomK: st.startK,
+                schema: st.schema,
+                snapToGrid: true,
+              })
+              setDesignFramePosMany({ [nodeId]: { x: p.x, y: p.y } })
+            } catch {
+              void 0
+            }
+          }
+          designMediaHeaderDragRef.current = null
+        }}
+      />
     </section>
   )
 }

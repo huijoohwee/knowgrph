@@ -1,10 +1,11 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { FileCode, GitBranch, Hand, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, FileCode, GitBranch, Hand, ListTree, Map, MessageCircle, MonitorPlay, SlidersHorizontal } from 'lucide-react'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
 import IconButton from '@/components/IconButton'
+import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 import { FLOATING_PANEL_SCROLL_CLASSNAME } from '@/components/ui/FloatingPanel'
 import { ToolbarToolMenuRendererView } from '@/features/toolbar/ToolbarToolMenuRendererView'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -57,6 +58,14 @@ type FloatingPanelViewButtonSpec = {
   disabled?: boolean
   hidden?: boolean
   spotlightView?: string
+}
+
+type FloatingPanelOverflowOption = {
+  id: FloatingPanelView
+  title: string
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+  disabled?: boolean
+  hidden?: boolean
 }
 
 type GeospatialPanelHostProps = {
@@ -437,35 +446,56 @@ export function ToolbarToolMenu({
     UI_THEME_TOKENS.text.primary,
   )
 
-  const floatingPanelViewButtonSpecs = React.useMemo<FloatingPanelViewButtonSpec[]>(
+  const floatingPanelPrimaryViewButtonSpecs = React.useMemo<FloatingPanelViewButtonSpec[]>(
     () => [
       { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: SlidersHorizontal },
+      { view: 'interaction', title: 'Interaction', icon: Hand },
+      { view: 'chat', title: UI_LABELS.chat, icon: MessageCircle },
+      { view: 'geo', title: UI_LABELS.geo, icon: Map },
+      { view: 'renderer', title: UI_LABELS.renderer, icon: MonitorPlay },
+    ],
+    [],
+  )
+  const floatingPanelOverflowOptions = React.useMemo<FloatingPanelOverflowOption[]>(
+    () => [
       {
-        view: 'domTree',
+        id: 'domTree',
         title: domLayoutReady ? 'DOM Tree' : domPanelsAvailable ? 'DOM Tree (loading)' : 'DOM Tree',
         icon: ListTree,
         disabled: !domPanelsAvailable,
         hidden: geospatialModeEnabled,
       },
       {
-        view: 'domInspect',
+        id: 'domInspect',
         title: domLayoutReady ? 'Inspect (DOM)' : domPanelsAvailable ? 'Inspect (DOM) (loading)' : 'Inspect (DOM)',
         icon: FileCode,
         disabled: !domPanelsAvailable,
         hidden: geospatialModeEnabled,
       },
-      { view: 'interaction', title: 'Interaction', icon: Hand },
-      { view: 'chat', title: UI_LABELS.chat, icon: MessageCircle },
-      { view: 'geo', title: UI_LABELS.geo, icon: Map },
-      { view: 'renderer', title: UI_LABELS.renderer, icon: MonitorPlay },
-      { view: 'graphTraversal', title: UI_LABELS.graphTraversal, icon: GitBranch, spotlightView: 'graphTraversal' },
+      {
+        id: 'graphTraversal',
+        title: UI_LABELS.graphTraversal,
+        icon: GitBranch,
+      },
     ],
     [domLayoutReady, domPanelsAvailable, geospatialModeEnabled],
   )
+  const visibleOverflowOptions = React.useMemo(
+    () => floatingPanelOverflowOptions.filter(option => !option.hidden),
+    [floatingPanelOverflowOptions],
+  )
+  const isOverflowViewActive = floatingPanelView === 'domTree' || floatingPanelView === 'domInspect' || floatingPanelView === 'graphTraversal'
+  const overflowValue = React.useMemo(() => {
+    if (floatingPanelView === 'domTree' || floatingPanelView === 'domInspect' || floatingPanelView === 'graphTraversal') {
+      return floatingPanelView
+    }
+    const fallback = visibleOverflowOptions.find(option => !option.disabled)?.id ?? visibleOverflowOptions[0]?.id
+    return fallback ?? 'graphTraversal'
+  }, [floatingPanelView, visibleOverflowOptions])
 
   const viewButtons = (
     <>
-      {floatingPanelViewButtonSpecs.map(spec => {
+      {floatingPanelPrimaryViewButtonSpecs.map(spec => {
         if (spec.hidden) return null
         const Icon = spec.icon
         return (
@@ -484,6 +514,24 @@ export function ToolbarToolMenu({
           </IconButton>
         )
       })}
+      {visibleOverflowOptions.length > 0 ? (
+        <ToolbarDropdownSelect
+          value={overflowValue}
+          options={visibleOverflowOptions}
+          title="More floating views"
+          tooltipContent="More floating views"
+          isButtonActive={isOverflowViewActive}
+          onSelect={id => handleSelectView(id as FloatingPanelView)}
+          renderButtonContent={() => <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />}
+          renderOptionContent={option => (
+            <>
+              <option.icon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
+              <span className="truncate">{option.title}</span>
+            </>
+          )}
+          menuWidthClass="w-56"
+        />
+      ) : null}
     </>
   )
 
@@ -533,7 +581,7 @@ export function ToolbarToolMenu({
     return () => {
       window.removeEventListener(GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT, handleOpenGraphTraversal)
     }
-  }, [])
+  }, [setFloatingPanelView])
 
   if (floatingPanelMinimized) {
     return (

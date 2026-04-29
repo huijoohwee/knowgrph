@@ -23,7 +23,7 @@ export type ChatInputAppendEventDetail = {
 }
 
 export type WorkflowRunAllEventDetail = {
-  source?: 'propsPanel' | 'inspector' | 'unknown'
+  source?: 'propsPanel' | 'toolbar' | 'inspector' | 'unknown'
 }
 
 export function emitPropsPanelOpen(detail?: PropsPanelOpenEventDetail): void {

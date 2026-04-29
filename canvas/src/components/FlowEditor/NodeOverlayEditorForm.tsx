@@ -1035,7 +1035,32 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
               const rawDeclaredFields = (properties as Record<string, unknown>)[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]
               const declaredFields = Array.isArray(rawDeclaredFields) ? rawDeclaredFields : []
-              if (!showFrontmatterWidgetRegistrySection) {
+              const registrySchemaPaths = (() => {
+                if (!registryEntry) return null
+                const out = new Set<string>()
+                const fields = Array.isArray(registryEntry.fields) ? registryEntry.fields : []
+                for (let i = 0; i < fields.length; i += 1) {
+                  const field = fields[i] as unknown as { fieldKey?: unknown; schemaPath?: unknown }
+                  const fieldKey = String(field?.fieldKey || '').trim()
+                  const schemaPath = normalizeRegistrySchemaPath(
+                    typeof field?.schemaPath === 'string' ? field.schemaPath : undefined,
+                    fieldKey,
+                  )
+                  if (schemaPath) out.add(schemaPath)
+                }
+                const ports = Array.isArray(registryEntry.ports) ? registryEntry.ports : []
+                for (let i = 0; i < ports.length; i += 1) {
+                  const port = ports[i] as unknown as { portKey?: unknown; schemaPath?: unknown }
+                  const portKey = String(port?.portKey || '').trim()
+                  const schemaPath = normalizeRegistrySchemaPath(
+                    typeof port?.schemaPath === 'string' ? port.schemaPath : undefined,
+                    portKey,
+                  )
+                  if (schemaPath) out.add(schemaPath)
+                }
+                return out
+              })()
+              if (declaredFields.length > 0) {
                 for (let fieldIndex = 0; fieldIndex < declaredFields.length; fieldIndex += 1) {
                   const spec = declaredFields[fieldIndex]
                   if (!spec || typeof spec !== 'object') continue
@@ -1044,6 +1069,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                   const fieldType = String(rec.fieldType || '').trim() || 'unknown'
                   const schemaPath = String(rec.schemaPath || fieldKey).trim()
                   if (!fieldKey || !schemaPath) continue
+                  const normalizedSchemaPath = normalizeRegistrySchemaPath(schemaPath, fieldKey)
+                  if (registrySchemaPaths?.has(normalizedSchemaPath)) continue
                   if (
                     schemaPath === FRONTMATTER_FLOW_HANDLES_VALUE_KEY ||
                     schemaPath === 'flow:compute' ||

@@ -10,7 +10,7 @@ import {
   type SourceFilesWorkspaceState,
 } from '@/features/source-files/sourceFilesDb'
 import { applyComposedGraphFromSourceFiles, scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
-import { hydratePendingUrlSourceFiles } from '@/features/source-files/sourceFilesIngestIntegration'
+import { hydratePendingUrlSourceFiles, refreshPersistedSourceFilesForCurrentParseIdentity } from '@/features/source-files/sourceFilesIngestIntegration'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
@@ -178,6 +178,7 @@ export function SourceFilesPersistenceBootstrap() {
 
         try {
           __canvasStartupDebug.sourceBootstrapHydrateRuns += 1
+          await refreshPersistedSourceFilesForCurrentParseIdentity()
           await hydratePendingUrlSourceFiles()
           __canvasStartupDebug.sourceBootstrapLastHydrateFinishedAtMs = Date.now()
         } catch {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { HelpCircle, Settings, Search as SearchIcon, History as HistoryIcon, SunMoon, Plus, MessageCircle, Play } from 'lucide-react';
 import IconButton from '@/components/IconButton';
 import { DropdownPanel } from '@/lib/ui/overlay';
 import { UI_LABELS, UI_COPY } from '@/lib/config';
@@ -11,6 +11,8 @@ import { useCanvasToolbarContext } from '@/components/toolbar/useCanvasToolbarCo
 import { Canvas2dRendererSelect } from '@/components/toolbar/Canvas2dRendererSelect';
 import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect';
 import { InteractionModeSelect } from '@/components/toolbar/InteractionModeSelect';
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { emitWorkflowRunAll } from '@/features/canvas/utils'
 
 import { ZoomModeSelect } from '@/components/toolbar/ZoomModeSelect';
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
@@ -54,17 +56,12 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
     setIsMainPanelOpen,
     setMainPanelCollapsed,
     setMainPanelPinned,
-    setWorkspaceToolbarExpanded,
     themeMode,
     toggleFitToScreenMode,
-    toolbarCollapsed,
     toolbarNavRef,
+    canvas2dRenderer,
   } = useCanvasToolbarContext({ onReset, onZoomSelection })
-
-  const [collapsedFixedPos, setCollapsedFixedPos] = useState<{ top: number; left: number } | null>(null);
-  useEffect(() => {
-    if (!toolbarCollapsed) setCollapsedFixedPos(null);
-  }, [toolbarCollapsed]);
+  const pushUiToast = useGraphStore(s => s.pushUiToast)
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchBtnRef = useRef<HTMLButtonElement>(null);
@@ -76,19 +73,17 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   const effectiveMainPanelPinned = isNarrowViewport ? true : mainPanelPinned
   const effectiveMainPanelCollapsed = isNarrowViewport ? false : mainPanelCollapsed
   const navStyle: React.CSSProperties | undefined =
-    toolbarCollapsed && collapsedFixedPos && !isWorkspaceOverlayMode
-      ? { position: 'fixed', top: collapsedFixedPos.top, left: collapsedFixedPos.left }
-      : isNarrowViewport
-        ? {
-            maxWidth: 'calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)',
-            overflowX: 'auto',
-            overflowY: 'hidden',
-            overscrollBehaviorX: 'contain',
-            overscrollBehaviorY: 'none',
-            WebkitOverflowScrolling: 'touch',
-            touchAction: 'pan-x manipulation',
-          }
-        : undefined
+    isNarrowViewport
+      ? {
+          maxWidth: 'calc(100vw - var(--kg-safe-left) - var(--kg-safe-right) - 1rem)',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          overscrollBehaviorX: 'contain',
+          overscrollBehaviorY: 'none',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x manipulation',
+        }
+      : undefined
 
   useEffect(() => {
     if (!isMainPanelOpen) return
@@ -104,68 +99,21 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
   return (
     <nav
       ref={toolbarNavRef}
-      className={`${navClassBase} ${toolbarCollapsed ? 'App-toolbar--collapsed' : ''} ${isNarrowViewport ? 'App-toolbar--touch-scroll' : ''}`}
+      className={`${navClassBase} ${isNarrowViewport ? 'App-toolbar--touch-scroll' : ''}`}
       role="navigation"
       aria-label="Main Toolbar"
       data-kg-canvas-wheel-ignore="true"
       style={navStyle}
     >
-      {toolbarCollapsed ? (
-        <>
-          <React.Suspense fallback={null}>
-            <ToolbarMenuLauncherLazy
-              onOpenMainPanel={openMainPanel}
-              onCloseMainPanel={() => setIsMainPanelOpen(false)}
-              onLaunchSpotlight={actions.handleLaunch}
-              onLaunchStatus={actions.handleLaunchStats}
-            />
-          </React.Suspense>
+      <React.Suspense fallback={null}>
+        <ToolbarMenuLauncherLazy
+          onOpenMainPanel={openMainPanel}
+          onCloseMainPanel={() => setIsMainPanelOpen(false)}
+          onLaunchSpotlight={actions.handleLaunch}
+          onLaunchStatus={actions.handleLaunchStats}
+        />
+      </React.Suspense>
 
-          <EditorWorkspaceSelect
-            iconSizeClass={iconSizeClass}
-            iconStrokeWidth={iconStrokeWidth}
-            ensureBaselineUnlocked={ensureBaselineUnlocked}
-          />
-          <InteractionModeSelect
-            iconSizeClass={iconSizeClass}
-            iconStrokeWidth={iconStrokeWidth}
-            ensureBaselineUnlocked={ensureBaselineUnlocked}
-          />
-
-          <Canvas2dRendererSelect
-            iconSizeClass={iconSizeClass}
-            iconStrokeWidth={iconStrokeWidth}
-            ensureBaselineUnlocked={ensureBaselineUnlocked}
-            geospatialEnabled={geospatialEnabled}
-            onOpenGeospatialMode={actions.handleOpenGeospatialMode}
-          />
-
-          <IconButton
-            className="App-toolbar__btn"
-            title="Expand toolbar"
-            tooltipContent="Expand toolbar"
-            onClick={() => {
-              setCollapsedFixedPos(null);
-              setWorkspaceToolbarExpanded(true);
-            }}
-            showTooltip
-          >
-            <ChevronLeft className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-          </IconButton>
-        </>
-      ) : (
-        <React.Suspense fallback={null}>
-          <ToolbarMenuLauncherLazy
-            onOpenMainPanel={openMainPanel}
-            onCloseMainPanel={() => setIsMainPanelOpen(false)}
-            onLaunchSpotlight={actions.handleLaunch}
-            onLaunchStatus={actions.handleLaunchStats}
-          />
-        </React.Suspense>
-      )}
-
-      {toolbarCollapsed ? null : (
-        <>
       <EditorWorkspaceSelect
         iconSizeClass={iconSizeClass}
         iconStrokeWidth={iconStrokeWidth}
@@ -282,6 +230,21 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <Plus className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
+      <IconButton
+        className="App-toolbar__btn"
+        title={canvas2dRenderer === 'flowEditor' ? 'Run all' : 'Run all (Flow Editor only)'}
+        tooltipContent={canvas2dRenderer === 'flowEditor' ? 'Run all' : 'Run all (Flow Editor only)'}
+        onClick={() => {
+          if (canvas2dRenderer !== 'flowEditor') {
+            pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Flow Editor to run all.', ttlMs: 2200 })
+            return
+          }
+          emitWorkflowRunAll({ source: 'toolbar' })
+        }}
+        showTooltip
+      >
+        <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} />
+      </IconButton>
       <ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />
       <hr className="App-toolbar__divider" aria-hidden="true" />
       <IconButton
@@ -325,30 +288,7 @@ export default function Toolbar({ onZoomIn, onZoomOut, onReset, onZoomSelection 
       >
         <SunMoon className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
-      <IconButton
-        className="App-toolbar__btn"
-        title="Collapse toolbar"
-        tooltipContent="Collapse toolbar"
-        onClick={() => {
-          if (!isWorkspaceOverlayMode) {
-            const el = toolbarNavRef.current;
-            if (el) {
-              try {
-                const rect = el.getBoundingClientRect();
-                setCollapsedFixedPos({ top: rect.top, left: rect.left });
-              } catch {
-                void 0;
-              }
-            }
-          }
-          setWorkspaceToolbarExpanded(false);
-        }}
-        showTooltip
-      >
-        <ChevronRight className={iconSizeClass} strokeWidth={iconStrokeWidth} />
-      </IconButton>
-        </>
-      )}
+ 
     </nav>
   );
 }

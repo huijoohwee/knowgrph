@@ -47,6 +47,346 @@ import {
   mergeSubgraphs,
   readSocketTypes,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.compose'
+import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
+
+function guessJsonTypeLabel(value: unknown): string {
+  if (value == null) return 'null'
+  if (Array.isArray(value)) return 'array'
+  const t = typeof value
+  if (t === 'string') return 'string'
+  if (t === 'number') return 'number'
+  if (t === 'boolean') return 'boolean'
+  if (t === 'object') return 'object'
+  return 'unknown'
+}
+
+function parseDurationSeconds(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  const s = raw.match(/^([0-9]+(?:\.[0-9]+)?)\s*s$/i)
+  if (s) {
+    const n = Number(s[1])
+    return Number.isFinite(n) && n > 0 ? n : null
+  }
+  return null
+}
+
+function pickFirstNodeDefaults(args: {
+  rawNodes: unknown[]
+  nodeTypeId: string
+  keys: string[]
+}): Record<string, unknown> {
+  const rawNodes = Array.isArray(args.rawNodes) ? args.rawNodes : []
+  const typeId = String(args.nodeTypeId || '').trim()
+  const keys = Array.isArray(args.keys) ? args.keys : []
+  for (let i = 0; i < rawNodes.length; i += 1) {
+    const row = rawNodes[i]
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+    const rec = row as Record<string, unknown>
+    if (String(rec.type || '').trim() !== typeId) continue
+    const props = rec.properties
+    if (!props || typeof props !== 'object' || Array.isArray(props)) continue
+    const out: Record<string, unknown> = {}
+    for (let k = 0; k < keys.length; k += 1) {
+      const key = String(keys[k] || '').trim()
+      if (!key) continue
+      const v = (props as Record<string, unknown>)[key]
+      if (typeof v !== 'undefined') out[key] = v
+    }
+    return out
+  }
+  return {}
+}
+
+function buildShotMarkdown(shot: Record<string, unknown>): string {
+  const lines: string[] = []
+  const shotId = String(shot.shot || '').trim()
+  lines.push(`# Shot ${shotId || ''}`.trim())
+  const timecode = String(shot.timecode || '').trim()
+  const epoch = String(shot.epoch || '').trim()
+  const frameLabel = String(shot.frame_label || '').trim()
+  if (timecode || epoch || frameLabel) {
+    lines.push('')
+    if (timecode) lines.push(`- Timecode: ${timecode}`)
+    if (epoch) lines.push(`- Epoch: ${epoch}`)
+    if (frameLabel) lines.push(`- Frame: ${frameLabel}`)
+  }
+  const description = String(shot.description || '').trim()
+  if (description) {
+    lines.push('')
+    lines.push('## Description')
+    lines.push('')
+    lines.push(description)
+  }
+  const duration = String(shot.duration || '').trim()
+  if (duration) {
+    lines.push('')
+    lines.push(`- Duration: ${duration}`)
+  }
+  const imagePrompt = String(shot.image_prompt || '').trim()
+  if (imagePrompt) {
+    lines.push('')
+    lines.push('## Image Prompt')
+    lines.push('')
+    lines.push(imagePrompt)
+  }
+  const videoPrompt = String(shot.video_prompt || '').trim()
+  if (videoPrompt) {
+    lines.push('')
+    lines.push('## Video Prompt')
+    lines.push('')
+    lines.push(videoPrompt)
+  }
+  const camera = shot.camera
+  if (camera && typeof camera === 'object') {
+    lines.push('')
+    lines.push('## Camera')
+    lines.push('')
+    try {
+      lines.push('```json')
+      lines.push(JSON.stringify(camera, null, 2))
+      lines.push('```')
+    } catch {
+      lines.push(String(camera))
+    }
+  }
+  return lines.join('\n').trim() + '\n'
+}
+
+function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
+  const directorBrief = isRecord(meta.director_brief) ? (meta.director_brief as Record<string, unknown>) : null
+  if (!directorBrief) return
+  const shots = Array.isArray(directorBrief.shots) ? directorBrief.shots : []
+  if (shots.length === 0) return
+
+  const rawNodes = Array.isArray(meta.nodes) ? meta.nodes : []
+  const connections = Array.isArray(meta.connections) ? meta.connections.slice() : []
+  const seenNodeIds = new Set<string>(rawNodes.map(n => (n && typeof n === 'object' && !Array.isArray(n) ? String((n as Record<string, unknown>).id || '').trim() : '')).filter(Boolean))
+  const rawNodeIndexById = new Map<string, number>()
+  for (let i = 0; i < rawNodes.length; i += 1) {
+    const row = rawNodes[i]
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+    const id = String((row as Record<string, unknown>).id || '').trim()
+    if (!id || rawNodeIndexById.has(id)) continue
+    rawNodeIndexById.set(id, i)
+  }
+
+  const bounds = (() => {
+    let minX = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
+    for (let i = 0; i < rawNodes.length; i += 1) {
+      const row = rawNodes[i]
+      if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+      const rec = row as Record<string, unknown>
+      const pos = (rec.pos && typeof rec.pos === 'object' && !Array.isArray(rec.pos)) ? (rec.pos as Record<string, unknown>) : null
+      const x = typeof pos?.x === 'number' && Number.isFinite(pos.x) ? pos.x : null
+      const y = typeof pos?.y === 'number' && Number.isFinite(pos.y) ? pos.y : null
+      if (x == null || y == null) continue
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+    }
+    const ok = Number.isFinite(minX) && Number.isFinite(maxX) && Number.isFinite(minY) && Number.isFinite(maxY)
+    return ok ? { minX, maxX, minY, maxY } : { minX: 0, maxX: 0, minY: 0, maxY: 0 }
+  })()
+
+  const GRID_COL_GAP_X = 420
+  const GRID_ROW_GAP_Y = 560
+  const GRID_START_X = bounds.maxX + 520
+  const GRID_START_Y = bounds.minY
+  const PANEL_OFFSET_Y = 260
+  // 3 columns means 2 inter-column gaps; previous overestimate biased tall layouts.
+  const SHOT_CELL_WIDTH = GRID_COL_GAP_X * 2 + 320
+  const SHOT_CELL_HEIGHT = GRID_ROW_GAP_Y
+
+  const chooseShotGridCols = (count: number): number => {
+    const n = Math.max(1, Math.floor(count))
+    const targetAspect = 16 / 9
+    const maxCols = Math.min(6, n)
+    let bestCols = 1
+    let bestErr = Number.POSITIVE_INFINITY
+    for (let cols = 1; cols <= maxCols; cols += 1) {
+      const rows = Math.ceil(n / cols)
+      const aspect = (cols * SHOT_CELL_WIDTH) / Math.max(1, rows * SHOT_CELL_HEIGHT)
+      const err = Math.abs(Math.log(aspect / targetAspect))
+      if (err < bestErr) {
+        bestErr = err
+        bestCols = cols
+      }
+    }
+    return bestCols
+  }
+  const shotGridCols = chooseShotGridCols(shots.length)
+
+  const textDefaults = pickFirstNodeDefaults({
+    rawNodes,
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    keys: ['chatProvider', 'chatAuthMode', 'chatEndpointUrl', 'chatModel', 'chatThinkingType', 'chatReasoningEffort', 'chatStream'],
+  })
+  const imageDefaults = pickFirstNodeDefaults({
+    rawNodes,
+    nodeTypeId: FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+    keys: ['model', 'size', 'output_format', 'response_format', 'optimize_prompt_options', 'aspect_ratio', 'stream', 'watermark', 'seed', 'guidance_scale'],
+  })
+  const videoDefaults = pickFirstNodeDefaults({
+    rawNodes,
+    nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+    keys: ['model', 'ratio', 'resolution', 'duration', 'generate_audio', 'draft', 'camera_fixed', 'image_url_url'],
+  })
+
+  const appendConnection = (from: string, to: string, label: string) => {
+    connections.push({ from, to, label, animated: true })
+  }
+
+  const appendNode = (node: Record<string, unknown>) => {
+    const id = String(node.id || '').trim()
+    if (!id) return
+    const existingIndex = rawNodeIndexById.get(id)
+    if (typeof existingIndex === 'number' && Number.isFinite(existingIndex)) {
+      // Derived shot nodes are SSOT from director_brief.shots and should be refreshed.
+      if (id.startsWith('db-shot-')) {
+        rawNodes[existingIndex] = node
+      }
+      return
+    }
+    if (seenNodeIds.has(id)) return
+    seenNodeIds.add(id)
+    rawNodeIndexById.set(id, rawNodes.length)
+    rawNodes.push(node)
+  }
+
+  for (let i = 0; i < shots.length; i += 1) {
+    const shotRaw = shots[i]
+    if (!isRecord(shotRaw)) continue
+    const shot = shotRaw as Record<string, unknown>
+    const shotId = String(shot.shot || '').trim() || `S${String(i + 1).padStart(2, '0')}`
+    const shotKey = cleanIdPart(shotId) || `S${String(i + 1).padStart(2, '0')}`
+
+    const textNodeId = `db-shot-${shotKey}-text`
+    const textPanelId = `db-shot-${shotKey}-text-panel`
+    const imageNodeId = `db-shot-${shotKey}-image`
+    const imagePanelId = `db-shot-${shotKey}-image-panel`
+    const videoNodeId = `db-shot-${shotKey}-video`
+    const videoPanelId = `db-shot-${shotKey}-video-panel`
+
+    const gridCol = i % shotGridCols
+    const gridRow = Math.floor(i / shotGridCols)
+    const x0 = GRID_START_X + gridCol * SHOT_CELL_WIDTH
+    const y0 = GRID_START_Y + gridRow * SHOT_CELL_HEIGHT
+    const colX = {
+      text: x0 + 0 * GRID_COL_GAP_X,
+      image: x0 + 1 * GRID_COL_GAP_X,
+      video: x0 + 2 * GRID_COL_GAP_X,
+    } as const
+
+    const fieldSpecs: Array<{ fieldKey: string; fieldType: string; schemaPath: string }> = []
+    const fieldValues: Record<string, unknown> = {}
+    const addField = (k: string, v: unknown) => {
+      const key = String(k || '').trim()
+      if (!key) return
+      fieldValues[key] = v
+      fieldSpecs.push({ fieldKey: key, fieldType: guessJsonTypeLabel(v), schemaPath: `properties.${key}` })
+    }
+
+    addField('shot', shotId)
+    for (const [k, v] of Object.entries(shot)) {
+      const key = String(k || '').trim()
+      if (!key || key === 'shot') continue
+      addField(key, v)
+    }
+    addField('shot_index', i + 1)
+    const durationSeconds = parseDurationSeconds(shot.duration)
+    if (durationSeconds != null) addField('duration_seconds', durationSeconds)
+
+    const shotMarkdown = buildShotMarkdown({ ...shot, shot: shotId })
+    appendNode({
+      id: textNodeId,
+      type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      label: `Shot ${shotId} · Text`,
+      pos: { x: colX.text, y: y0 },
+      properties: {
+        ...textDefaults,
+        ...fieldValues,
+        [FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]: fieldSpecs,
+        output: shotMarkdown,
+        'visual:zIndex': 0,
+      },
+    })
+    appendNode({
+      id: textPanelId,
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      label: `Shot ${shotId} · Panel (Text)`,
+      pos: { x: colX.text, y: y0 + PANEL_OFFSET_Y },
+      properties: {
+        media_interactive: true,
+        'visual:zIndex': 1,
+      },
+    })
+
+    const imagePrompt = String(shot.image_prompt || '').trim()
+    appendNode({
+      id: imageNodeId,
+      type: FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+      label: `Shot ${shotId} · Image`,
+      pos: { x: colX.image, y: y0 },
+      properties: {
+        ...imageDefaults,
+        ...(imagePrompt ? { prompt: imagePrompt } : null),
+        shot: shotId,
+        'visual:zIndex': 0,
+      },
+    })
+    appendNode({
+      id: imagePanelId,
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      label: `Shot ${shotId} · Panel (Image)`,
+      pos: { x: colX.image, y: y0 + PANEL_OFFSET_Y },
+      properties: {
+        media_interactive: true,
+        'visual:zIndex': 1,
+      },
+    })
+
+    const videoPrompt = String(shot.video_prompt || '').trim()
+    const durationOverride = durationSeconds != null ? { duration: durationSeconds } : null
+    appendNode({
+      id: videoNodeId,
+      type: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+      label: `Shot ${shotId} · Video`,
+      pos: { x: colX.video, y: y0 },
+      properties: {
+        ...videoDefaults,
+        ...(videoPrompt ? { prompt: videoPrompt } : null),
+        ...(durationOverride || null),
+        shot: shotId,
+        'visual:zIndex': 0,
+      },
+    })
+    appendNode({
+      id: videoPanelId,
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      label: `Shot ${shotId} · Panel (Video)`,
+      pos: { x: colX.video, y: y0 + PANEL_OFFSET_Y },
+      properties: {
+        media_interactive: true,
+        'visual:zIndex': 1,
+      },
+    })
+
+    appendConnection(`${textNodeId}.text_out`, `${textPanelId}.output`, 'text_out → output')
+    appendConnection(`${textNodeId}.outputSrcDoc`, `${textPanelId}.outputSrcDoc`, 'outputSrcDoc → outputSrcDoc')
+    appendConnection(`${imageNodeId}.imageUrl`, `${imagePanelId}.imageUrl`, 'imageUrl → imageUrl')
+    appendConnection(`${imageNodeId}.imageUrl`, `${videoNodeId}.reference_image`, 'imageUrl → reference_image')
+    appendConnection(`${videoNodeId}.videoUrl`, `${videoPanelId}.videoUrl`, 'videoUrl → videoUrl')
+  }
+
+  meta.nodes = rawNodes
+  meta.connections = connections
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -94,25 +434,50 @@ function readFrontmatterFlowDirection(metaRecord: Record<string, unknown>): 'LR'
   return raw === 'RL' || raw === 'TB' || raw === 'BT' ? raw : 'LR'
 }
 
+function buildFrontmatterFlowSourceLayerHash(args: {
+  stableId: string
+  nodes: ReadonlyArray<GraphNode>
+  edges: ReadonlyArray<GraphEdge>
+}): string {
+  const stableId = String(args.stableId || '').trim()
+  const nodeSig = (Array.isArray(args.nodes) ? args.nodes : [])
+    .map(node => {
+      const id = asString(node?.id)
+      const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? Math.round(node.x) : 'na'
+      const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? Math.round(node.y) : 'na'
+      return `${id}|${x}|${y}`
+    })
+    .filter(Boolean)
+    .sort()
+    .join(';')
+  const edgeSig = (Array.isArray(args.edges) ? args.edges : [])
+    .map(edge => `${asString(edge?.id)}|${asString(edge?.source)}|${asString(edge?.target)}`)
+    .filter(Boolean)
+    .sort()
+    .join(';')
+  return hashText(`frontmatter-flow|${stableId}|nodes:${nodeSig}|edges:${edgeSig}`)
+}
+
 function shouldSeedBalancedNodeLayout(nodes: ReadonlyArray<GraphNode>): boolean {
   if (!Array.isArray(nodes) || nodes.length === 0) return false
-  const seen = new Set<string>()
-  let missing = false
+  let autoSeeded = 0
+  let explicitPositioned = 0
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
     const props = isRecord(node?.properties) ? (node.properties as Record<string, unknown>) : null
-    if (props?.['frontmatter:autoSeededPos'] === true) return true
-    const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : null
-    const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : null
-    if (x == null || y == null) {
-      missing = true
+    const isAutoSeeded = props?.['frontmatter:autoSeededPos'] === true
+    if (isAutoSeeded) {
+      autoSeeded += 1
       continue
     }
-    const key = `${Math.round(x)}:${Math.round(y)}`
-    if (seen.has(key)) return true
-    seen.add(key)
+    const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : null
+    const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : null
+    if (x != null && y != null) explicitPositioned += 1
   }
-  return missing
+  if (explicitPositioned >= 3) return false
+  if (autoSeeded === 0) return false
+  const minAutoSeeded = Math.max(3, Math.floor(nodes.length * 0.6))
+  return autoSeeded >= minAutoSeeded
 }
 
 function assignBalancedViewportSpread(args: {
@@ -793,7 +1158,11 @@ export function tryParseMarkdownFrontmatterFlowGraph(
       : normalized.nodes
     const frontmatterMeta = buildSourceFrontmatterMeta(metaRecord)
     const stableId = readFrontmatterStableId(frontmatterMeta, name)
-    const sourceLayerHash = hashText(`frontmatter-flow|${stableId}`)
+    const sourceLayerHash = buildFrontmatterFlowSourceLayerHash({
+      stableId,
+      nodes: layoutedNodes,
+      edges,
+    })
     const socketTypes = readSocketTypes(metaRecord)
     const warnings = [...readFlowWarnings(metaRecord), ...buildConnectionWarnings({ meta: metaRecord, socketTypes, declared: connParsed.declared })]
     const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null
@@ -899,6 +1268,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     : metaWithIndexMermaidFallback
 
   const metaRecord = normalizeMetaWithFlowBlock(metaForNormalization as Record<string, unknown>)
+  deriveDirectorBriefShotWidgets(metaRecord)
   const sourceFrontmatterMeta = enrichSourceFrontmatterMetaFromRawLines({
     sourceFrontmatterMeta: buildSourceFrontmatterMeta(metaWithIndexMermaidFallback),
     lines,
@@ -985,7 +1355,11 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   const subgraphs = mergedSubgraphs
 
   const stableId = readFrontmatterStableId(sourceFrontmatterMeta, name)
-  const sourceLayerHash = hashText(`frontmatter-flow|${stableId}`)
+  const sourceLayerHash = buildFrontmatterFlowSourceLayerHash({
+    stableId,
+    nodes: layoutedNodes,
+    edges,
+  })
 
   const socketTypes = readSocketTypes(metaRecord)
   const warnings = [

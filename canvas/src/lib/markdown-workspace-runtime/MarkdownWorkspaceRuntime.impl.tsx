@@ -94,7 +94,8 @@ import {
   peekPendingWorkspaceLocalImport,
 } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
+import { mergeWorkspaceEntriesIntoSourceFiles, workspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
 import { tryBuildGeodataGraphDataFromJsonText } from '@/lib/graph/io/geodataJson'
@@ -114,6 +115,12 @@ const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
   const out = raw.map(v => String(v || '').trim()).filter(Boolean)
   return out
+}
+
+function findWorkspaceSourceFileByPath(path: WorkspacePath) {
+  const key = workspaceSourcePathKey(path)
+  const sourceFiles = Array.isArray(useGraphStore.getState().sourceFiles) ? useGraphStore.getState().sourceFiles : []
+  return sourceFiles.find(file => String(file?.source?.path || '') === key) || null
 }
 
 function parseYoutubeWorkspaceFrontmatter(text: string): { videoId: string; format: 'markdown' | 'json' } | null {
@@ -1844,7 +1851,11 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
           }
         }
         if (activeDocumentKey && nextText.trim()) {
-          const hash = hashStringToHex(nextText)
+          const hash = buildSourceFileParseIdentityHash({
+            cacheNamespace: `workspace-import:${path}`,
+            name: workspaceDocumentKey(path),
+            text: nextText,
+          })
           if (!wasIndexedForPath(path, hash)) {
             const ext = workspaceExtLower(path)
             const isCanvasHtmlExport = (() => {
@@ -1871,8 +1882,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             const store = useGraphStore.getState()
             const workspaceSourcePath = `workspace:${path}`
             const fileId = (() => {
-              const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-              const existing = current.find(f => String(f?.source?.path || '') === workspaceSourcePath) || null
+              const existing = findWorkspaceSourceFileByPath(path)
               if (existing) return existing.id
               const id = `ws:${hashStringToHex(workspaceSourcePath)}`
               const url = sourceUrl ? sourceUrl : undefined
@@ -1904,12 +1914,19 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
             }
 
             const existing = (() => {
-              const current = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-              return current.find(f => f.id === fileId) || null
+              return findWorkspaceSourceFileByPath(path)
             })()
 
             const cachedGraph = existing?.parsedGraphData
             const cachedHash = typeof existing?.parsedTextHash === 'string' ? existing.parsedTextHash : ''
+            const shouldReuseExistingWorkspaceSourceFile =
+              !!(
+                existing &&
+                existing.enabled &&
+                String(existing?.source?.path || '') === workspaceSourcePath &&
+                cachedGraph &&
+                cachedHash === hash
+              )
 
             const isGeoCandidate = (() => {
               const lower = String(path || '').toLowerCase()
@@ -1958,6 +1975,26 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
               } catch {
                 void 0
               }
+            }
+
+            if (shouldReuseExistingWorkspaceSourceFile) {
+              if (isStaleJob()) return
+              try {
+                store.updateSourceFile(fileId, {
+                  name: sourceFileName,
+                  text: nextText.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextText : '',
+                  enabled: true,
+                  status: 'parsed',
+                  error: undefined,
+                  parsedGraphRevision: typeof existing?.parsedGraphRevision === 'number' ? existing!.parsedGraphRevision : 0,
+                })
+              } catch {
+                void 0
+              }
+              await applyComposedFromSourceFiles()
+              if (isStaleJob()) return
+              rememberIndexedForPath(path, hash)
+              return
             }
 
             if (geoGraph) {
@@ -2557,6 +2594,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
   React.useEffect(() => {
     if (!workspaceCanvasPaneOpen) return
+    if (contentMode === 'widget') return
     const name = String(activeDocumentKey || '').trim()
     if (!name) return
     const text = String(activeText || '')
@@ -2569,7 +2607,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     if (lastAutoApplySigRef.current === sig) return
     lastAutoApplySigRef.current = sig
     void handleApply()
-  }, [activeDocumentKey, activeText, graphContentRevision, handleApply, workspaceCanvasPaneOpen])
+  }, [activeDocumentKey, activeText, contentMode, graphContentRevision, handleApply, workspaceCanvasPaneOpen])
 
   React.useEffect(() => {
     if (!workspaceCanvasPaneOpen) return

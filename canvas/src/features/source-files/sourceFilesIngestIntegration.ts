@@ -11,7 +11,6 @@ import { exportAsGeoJsonBlob } from '@/lib/graph/io/geojson'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { runImportFlow } from '@/features/toolbar/importFlow'
 import { applyImportedCsvToStore, applyImportedJsonToStore } from '@/features/toolbar/importSideEffects'
-import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { findNextSourceFileIndex } from '@/features/source-files/sourceFileNaming'
 import { writeLocalMarkdownFileText } from '@/features/source-files/localMarkdownFolder'
@@ -22,6 +21,7 @@ import { convertPdfFileToMarkdown, convertPdfUrlToMarkdown, fetchYouTubeTranscri
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { buildGrabMapsProxyRequestHeaders } from 'grph-shared/geospatial/grabMapsAuth'
 import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
+import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 
 const SUPPORTED_SOURCE_FILE_IMPORT_EXTENSIONS = [...SOURCE_FILES_FORMATS.import]
 
@@ -201,12 +201,17 @@ async function applyImportedTextToSourceFile(args: {
   await parseAndApplySourceFile(args.id)
 }
 
-async function parseAndApplySourceFile(fileId: string): Promise<void> {
+export async function parseAndApplySourceFile(fileId: string): Promise<void> {
   const before = useGraphStore.getState().sourceFiles.find(f => f.id === fileId)
   if (!before) return
+  const name = String(before.name || '')
   const text = String(before.text || '')
   if (!text.trim()) return
-  const textHash = hashStringToHexCached(`source-file:${fileId}`, text)
+  const textHash = buildSourceFileParseIdentityHash({
+    cacheNamespace: `source-file:${fileId}`,
+    name,
+    text,
+  })
   if (before.status === 'loading' && pendingParseTextHashBySourceFileId.get(fileId) === textHash) {
     return
   }
@@ -236,7 +241,11 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
     if (parseJobBySourceFileId.get(fileId) !== parseJobToken) return
     const latest = useGraphStore.getState().sourceFiles.find(f => f.id === fileId)
     if (!latest) return
-    if (hashStringToHexCached(`source-file:${fileId}`, String(latest.text || '')) !== textHash) return
+    if (buildSourceFileParseIdentityHash({
+      cacheNamespace: `source-file:${fileId}`,
+      name: String(latest.name || ''),
+      text: String(latest.text || ''),
+    }) !== textHash) return
     const parsedOk = !!(res && res.graphData && res.parserId && res.counts && (res.counts.n > 0 || res.counts.e > 0))
     if (parsedOk) {
       store.updateSourceFile(fileId, {
@@ -258,6 +267,25 @@ async function parseAndApplySourceFile(fileId: string): Promise<void> {
     store.updateSourceFile(fileId, { status: 'error', error: msg, parsedGraphRevision: undefined, parsedGraphData: undefined })
   } finally {
     clearPendingParseForJob()
+  }
+}
+
+export async function refreshPersistedSourceFilesForCurrentParseIdentity(): Promise<void> {
+  const files = Array.isArray(useGraphStore.getState().sourceFiles) ? useGraphStore.getState().sourceFiles.slice() : []
+  for (let i = 0; i < files.length; i += 1) {
+    const file = files[i]
+    if (!file) continue
+    const id = String(file.id || '').trim()
+    const name = String(file.name || '')
+    const text = String(file.text || '')
+    if (!id || !text.trim()) continue
+    const nextHash = buildSourceFileParseIdentityHash({
+      cacheNamespace: `source-file:${id}`,
+      name,
+      text,
+    })
+    if (String(file.parsedTextHash || '') === nextHash) continue
+    await parseAndApplySourceFile(id)
   }
 }
 

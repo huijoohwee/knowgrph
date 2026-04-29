@@ -10,6 +10,7 @@ import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resol
 import { applyFlowDataflowReducer, applyFlowDataflowTransform } from '@/lib/flowEditor/flowDataflowTransforms'
 import { isFrontmatterFlowComputedEnabled } from '@/lib/graph/frontmatterFlowSettings'
 import { readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
+import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 
 export type FlowConnectedValueSource = {
   edgeId: string
@@ -127,7 +128,18 @@ function computeOutputPortValue(args: {
   const path = args.outputPortPaths.get(args.portKey) || `properties.${args.portKey}`
   const computed = args.computedByNodeId.get(args.nodeId)?.[path]
   if (computed) return computed.value
-  return getObjectPath(args.node, path)
+  const direct = getObjectPath(args.node, path)
+  if (typeof direct !== 'undefined') return direct
+  if (path === 'properties.outputSrcDoc') {
+    const output = getObjectPath(args.node, 'properties.output')
+    if (typeof output === 'string' && output.trim()) {
+      return buildTextWidgetOutputSrcDoc({
+        title: args.node.label,
+        text: output,
+      })
+    }
+  }
+  return direct
 }
 
 function buildConnectedValuesForNode(args: {

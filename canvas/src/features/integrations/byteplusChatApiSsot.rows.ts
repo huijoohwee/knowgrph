@@ -179,10 +179,18 @@ export function resolveBytePlusTextWidgetChatApiRowKey(args: {
 }
 
 export function buildBytePlusTextGenerationFields(): WidgetRegistryField[] {
-  return BYTEPLUS_TEXT_WIDGET_FIELD_BINDINGS
-    .map(binding => binding.field)
-    .filter((field): field is WidgetRegistryField => !!field)
-    .map(field => ({ ...field }))
+  return [
+    ...BYTEPLUS_TEXT_WIDGET_FIELD_BINDINGS
+      .map(binding => binding.field)
+      .filter((field): field is WidgetRegistryField => !!field)
+      .map(field => ({ ...field })),
+    {
+      fieldKey: 'output',
+      fieldType: 'textarea',
+      schemaPath: 'properties.output',
+      label: 'Output',
+    },
+  ]
 }
 
 export const BYTEPLUS_CHAT_API_DOC_ROWS: ReadonlyArray<BytePlusApiDocRow> = [

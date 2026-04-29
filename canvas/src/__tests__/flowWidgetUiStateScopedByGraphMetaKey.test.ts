@@ -89,3 +89,46 @@ export function testFlowWidgetUiStateCarriesAcrossSameSourceRecomposeHashChanges
     throw new Error('expected same-source recomposition to preserve widget world position across sourceLayerHash changes')
   }
 }
+
+export function testFlowWidgetOverlayStateDoesNotCarryAcrossSameSourceLayoutChanges() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', x: 0, y: 0, properties: {} }],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'layout-hash-a',
+    },
+  } as never)
+
+  useGraphStore.getState().setFlowWidgetPinnedByNodeId({ NODE_TEXT: true })
+  useGraphStore.getState().setFlowWidgetPosByNodeId({ NODE_TEXT: { top: 120, left: 240 } })
+  useGraphStore.getState().setFlowWidgetWorldPosByNodeId({ NODE_TEXT: { x: 12, y: 24 } })
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', x: 640, y: 320, properties: {} }],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'layout-hash-b',
+    },
+  } as never)
+
+  const after = useGraphStore.getState()
+  if (after.flowWidgetPinnedByNodeId.NODE_TEXT !== undefined) {
+    throw new Error('expected layout-changing same-source recomposition to reset pinned widget state')
+  }
+  if (after.flowWidgetPosByNodeId.NODE_TEXT !== undefined) {
+    throw new Error('expected layout-changing same-source recomposition to reset widget viewport position')
+  }
+  if (after.flowWidgetWorldPosByNodeId.NODE_TEXT !== undefined) {
+    throw new Error('expected layout-changing same-source recomposition to reset widget world position')
+  }
+}

@@ -11,6 +11,8 @@ import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistry
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
+import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 
 export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
   const md = [
@@ -2004,6 +2006,15 @@ function readKnowgrphRichMediaGenerationDemoPath(): string {
   return path.resolve(cwd, '..', '..', 'sandbox', 'test-data', 'knowgrph-rich-media-generation-demo.md')
 }
 
+function readKnowgrphVideoDemoPath(): string {
+  const envPath = typeof process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH === 'string'
+    ? process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  const cwd = process.cwd()
+  return path.resolve(cwd, '..', 'knowgrph-video-demo.md')
+}
+
 function readKgcAiPipelinePrdTadPath(): string {
   const envPath = typeof process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH === 'string'
     ? process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH.trim()
@@ -2326,4 +2337,80 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphRichMediaGenerat
   const displayEdgeIds = new Set(display.displayEdges.map(e => String(e.id || '').trim()).filter(Boolean))
   if (!displayEdgeIds.has('e-video')) throw new Error('expected display graph to keep e-video visible')
   if (!displayEdgeIds.has('e-scene01-to-video-ref')) throw new Error('expected display graph to keep e-scene01-to-video-ref visible')
+}
+
+export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirectorBriefShotsToWidgets() {
+  const samplePath = readKnowgrphVideoDemoPath()
+  if (!samplePath || !fs.existsSync(samplePath)) return
+  const md = fs.readFileSync(samplePath, 'utf8')
+  const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)
+  if (!res) throw new Error('expected knowgrph video demo frontmatter parse result')
+  const g = res.graphData
+  if (String(g.context || '').trim() !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
+  const shotText = nodeById.get('db-shot-S01-text') || null
+  if (!shotText) throw new Error('expected derived director_brief shot node db-shot-S01-text')
+  if (String(shotText.type || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+    throw new Error('expected shot text node to be TextGeneration')
+  }
+  const props = (shotText.properties || {}) as Record<string, unknown>
+  const rawSpecs = props[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]
+  const fieldSpecs = Array.isArray(rawSpecs) ? rawSpecs : []
+  const specKeys = fieldSpecs
+    .map(v => (v && typeof v === 'object' && !Array.isArray(v) ? String((v as Record<string, unknown>).fieldKey || '').trim() : ''))
+    .filter(Boolean)
+  ;['shot', 'timecode', 'epoch', 'description', 'image_prompt', 'video_prompt'].forEach(k => {
+    if (!specKeys.includes(k)) throw new Error(`expected shot node to expose field spec ${k}`)
+  })
+  if (String(props.shot || '').trim() !== 'S01') throw new Error('expected shot node properties.shot to be S01')
+  const output = String(props.output || '')
+  if (!output.includes('# Shot S01')) throw new Error('expected shot node to prepopulate markdown output')
+
+  const posText = { x: (shotText as unknown as { x?: unknown }).x, y: (shotText as unknown as { y?: unknown }).y }
+  if (!(typeof posText.x === 'number' && Number.isFinite(posText.x))) throw new Error('expected shot text node x position')
+  if (!(typeof posText.y === 'number' && Number.isFinite(posText.y))) throw new Error('expected shot text node y position')
+  if (Number(props['visual:zIndex']) !== 0) throw new Error('expected shot text visual:zIndex=0')
+
+  const shotTextPanel = nodeById.get('db-shot-S01-text-panel') || null
+  if (!shotTextPanel) throw new Error('expected derived shot panel node db-shot-S01-text-panel')
+  const panelProps = (shotTextPanel.properties || {}) as Record<string, unknown>
+  if (Number(panelProps['visual:zIndex']) !== 1) throw new Error('expected shot panel visual:zIndex=1')
+  const posPanel = { x: (shotTextPanel as unknown as { x?: unknown }).x, y: (shotTextPanel as unknown as { y?: unknown }).y }
+  if (posPanel.x === posText.x && posPanel.y === posText.y) throw new Error('expected shot panel to not overlap shot text position')
+
+  const shot2 = nodeById.get('db-shot-S02-text') || null
+  if (!shot2) throw new Error('expected derived director_brief shot node db-shot-S02-text')
+  const pos2 = { x: (shot2 as unknown as { x?: unknown }).x, y: (shot2 as unknown as { y?: unknown }).y }
+  if (!(typeof pos2.x === 'number' && Number.isFinite(pos2.x))) throw new Error('expected shot S02 x position')
+  if (!(typeof pos2.y === 'number' && Number.isFinite(pos2.y))) throw new Error('expected shot S02 y position')
+  if (pos2.x === posText.x && pos2.y === posText.y) throw new Error('expected shot S02 to not overlap shot S01')
+
+  const shot3 = nodeById.get('db-shot-S03-text') || null
+  if (!shot3) throw new Error('expected derived director_brief shot node db-shot-S03-text')
+  const pos3 = { x: (shot3 as unknown as { x?: unknown }).x, y: (shot3 as unknown as { y?: unknown }).y }
+  if (!(typeof pos3.x === 'number' && Number.isFinite(pos3.x))) throw new Error('expected shot S03 x position')
+  if (!(typeof pos3.y === 'number' && Number.isFinite(pos3.y))) throw new Error('expected shot S03 y position')
+  if (Math.abs(Number(pos3.y) - Number(posText.y)) > 1) {
+    throw new Error('expected first three shots to spread across the same first row for 16:9 balance')
+  }
+
+  const edgeUniqs = new Set(
+    g.edges
+      .map(e => {
+        const p = (e.properties || {}) as Record<string, unknown>
+        const fromPort = String(p[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
+        const toPort = String(p[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
+        const source = String(e.source || '').trim()
+        const target = String(e.target || '').trim()
+        return source && target && fromPort && toPort ? `${source}.${fromPort}->${target}.${toPort}` : ''
+      })
+      .filter(Boolean),
+  )
+  if (!edgeUniqs.has('db-shot-S01-text.text_out->db-shot-S01-text-panel.output')) {
+    throw new Error('expected derived shot text_out edge to text panel')
+  }
+  if (!edgeUniqs.has('db-shot-S01-image.imageUrl->db-shot-S01-video.reference_image')) {
+    throw new Error('expected derived shot imageUrl edge to video reference_image')
+  }
 }

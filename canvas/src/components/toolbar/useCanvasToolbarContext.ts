@@ -175,13 +175,6 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     ? String((schema?.behavior?.canvasGrid as any).majorStroke).trim()
     : ''
 
-  const [workspaceToolbarExpanded, setWorkspaceToolbarExpanded] = useState(true)
-  React.useEffect(() => {
-    if (!isWorkspaceOverlayMode) return
-    setWorkspaceToolbarExpanded(false)
-  }, [isWorkspaceOverlayMode])
-  const toolbarCollapsed = workspaceToolbarExpanded !== true
-
   const ensureBaselineUnlocked = useCallback((): boolean => {
     if (documentStructureBaselineLock !== true) return true
     upsertUiToast({
@@ -351,14 +344,11 @@ export function useCanvasToolbarContext({ onReset, onZoomSelection }: CanvasTool
     setSchema,
     setSelectMode,
     setSelectionSource,
-    setWorkspaceToolbarExpanded,
     snapGridEnabled,
     snapGridSize,
     themeMode,
     toggleFitToScreenMode,
-    toolbarCollapsed,
     toolbarNavRef,
-    workspaceToolbarExpanded,
     zoomToSelectionMode,
   }
 }

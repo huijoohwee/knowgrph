@@ -127,7 +127,11 @@ export function useFlowComputedPositions(args: {
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
     const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
-    const graphKey = `rev:${rev}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKeyIgnoringPending(g)}:${layoutVariant}`
+    const sourceSeedHash = hashPositions(
+      extractNodePositions(nodeList as ReadonlyArray<{ id?: unknown; x?: unknown; y?: unknown }>),
+      nodeList.map(n => String(n?.id || '')).filter(Boolean),
+    )
+    const graphKey = `rev:${rev}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKeyIgnoringPending(g)}:${layoutVariant}:${sourceSeedHash}`
     if (graphKey === lastLayoutGraphKeyRef.current && computedPositionsRef.current) return
     lastLayoutGraphKeyRef.current = graphKey
 
@@ -197,11 +201,19 @@ export function useFlowComputedPositions(args: {
       const cacheUnstable = cacheCoverageOk && looksUnstablePositions({ nodes: nodeList, positions: cached, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
       const allowCache = cacheCoverageOk && !cacheUnstable
 
-      const otherCoverageOk = !allowCache && hasCacheCoverage({ nodes: nodeList, positions: seededFromOtherRenderer, minCoverage: 0.9 })
+      const preferSourceSeededPositions =
+        flowEditorMode === true &&
+        effectiveFrontmatter === true &&
+        !usePerNodeVisualSize
+
+      const shouldUseCacheFirst = !preferSourceSeededPositions
+      const cacheAllowed = shouldUseCacheFirst && allowCache
+
+      const otherCoverageOk = !cacheAllowed && hasCacheCoverage({ nodes: nodeList, positions: seededFromOtherRenderer, minCoverage: 0.9 })
       const otherUnstable = otherCoverageOk && looksUnstablePositions({ nodes: nodeList, positions: seededFromOtherRenderer, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
       const allowOther = otherCoverageOk && !otherUnstable
 
-      const nodesCoverageOk = !allowCache && !allowOther && hasCacheCoverage({ nodes: nodeList, positions: seededFromNodes, minCoverage: 0.9 })
+      const nodesCoverageOk = !cacheAllowed && !allowOther && hasCacheCoverage({ nodes: nodeList, positions: seededFromNodes, minCoverage: 0.9 })
       const nodesUnstable = nodesCoverageOk && looksUnstablePositions({ nodes: nodeList, positions: seededFromNodes, nodeSize: { widthPx: nodeW, heightPx: nodeH } })
       const allowNodes = nodesCoverageOk && !nodesUnstable
 
@@ -210,7 +222,7 @@ export function useFlowComputedPositions(args: {
       const isMermaidLayout = usePerNodeVisualSize
       const computed = isMermaidLayout && seededFromNodes && nodesCoverageOk
         ? seededFromNodes
-        : allowCache
+        : cacheAllowed
         ? cached
         : allowOther
           ? seededFromOtherRenderer

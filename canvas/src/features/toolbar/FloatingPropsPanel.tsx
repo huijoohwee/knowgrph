@@ -1,5 +1,4 @@
 import React from 'react'
-import { Play } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
@@ -12,13 +11,11 @@ import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
-import { emitWorkflowRunAll } from '@/features/canvas/utils'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
 export function FloatingPropsPanel() {
-  const pushUiToast = useGraphStore(s => s.pushUiToast)
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
@@ -46,7 +43,6 @@ export function FloatingPropsPanel() {
       }),
     [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry],
   )
-  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const widgetPaletteEntries = React.useMemo(
     () => (Array.isArray(widgetRegistry) ? widgetRegistry : []).filter(e => e && e.isEnabled),
     [widgetRegistry],
@@ -120,20 +116,6 @@ export function FloatingPropsPanel() {
       <section className="border-b border-[color:var(--kg-border)]" aria-label="Widgets">
         <div className={cn('px-2 py-1 flex items-center justify-between', UI_THEME_TOKENS.panel.bg)}>
           <span className={cn(uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.tertiary)}>Widgets</span>
-          <button
-            type="button"
-            className={cn('p-1 rounded', UI_THEME_TOKENS.button.hoverBg)}
-            title={canvas2dRenderer === 'flowEditor' ? 'Run all' : 'Run all (Flow Editor only)'}
-            onClick={() => {
-              if (canvas2dRenderer !== 'flowEditor') {
-                pushUiToast({ id: 'props-panel-run-all-disabled', kind: 'neutral', message: 'Open Flow Editor to run all.', ttlMs: 2200 })
-                return
-              }
-              emitWorkflowRunAll({ source: 'propsPanel' })
-            }}
-          >
-            <Play className="w-4 h-4" strokeWidth={1.8} />
-          </button>
         </div>
         <WidgetPalette entries={widgetPaletteEntries} dragEnabled={widgetDragEnabled} />
       </section>

@@ -499,6 +499,12 @@ export function buildBytePlusVideoGenerationFields(): WidgetRegistryField[] {
         { value: 'url', label: 'url' },
       ],
     },
+    {
+      fieldKey: 'reference_image',
+      fieldType: 'text',
+      schemaPath: 'properties.reference_image',
+      label: 'Reference image',
+    },
   ]
 }
 
