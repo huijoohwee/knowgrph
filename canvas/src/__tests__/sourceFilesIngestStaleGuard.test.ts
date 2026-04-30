@@ -166,7 +166,7 @@ export function testWorkspaceImportParseIdentityUsesSemanticsVersionAndName() {
 }
 
 export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInsteadOfDirectGraphOverride() {
-  const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
   const text = readFileSync(runtimePath, 'utf8')
 
   if (!text.includes('const shouldReuseExistingWorkspaceSourceFile =')) {
@@ -211,32 +211,36 @@ export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInste
 
 export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraphApply() {
   const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
-  const text = readFileSync(bootstrapPath, 'utf8')
+  const runtimeSharedPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesRuntimeShared.ts')
+  const bootstrapText = readFileSync(bootstrapPath, 'utf8')
+  const runtimeSharedText = readFileSync(runtimeSharedPath, 'utf8')
 
-  if (!text.includes('applyToGraph?: boolean')) {
+  if (!runtimeSharedText.includes('applyToGraph?: boolean')) {
     throw new Error('expected workspace bootstrap materialize helper to make graph apply explicit instead of implicit')
   }
-  if (!text.includes('applyToGraph: true,')) {
+  if (!bootstrapText.includes('applyToGraph: true,')) {
     throw new Error('expected initial bootstrap materialization to opt into graph apply explicitly')
   }
-  if (!text.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false })')) {
+  if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false })')) {
     throw new Error('expected active-path rematerialization to stay hydration-only so Editor Workspace open cannot replay import graph apply')
   }
 }
 
 export function testMarkdownApplyPrefersCanonicalSourceFileComposePath() {
-  const slicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graphDataSlice.ts')
+  const documentActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataDocumentActions.ts')
+  const sourceResolutionPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataFrontmatterFlowSync.ts')
   const ingestPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
-  const sliceText = readFileSync(slicePath, 'utf8')
+  const documentActionsText = readFileSync(documentActionsPath, 'utf8')
+  const sourceResolutionText = readFileSync(sourceResolutionPath, 'utf8')
   const ingestText = readFileSync(ingestPath, 'utf8')
 
-  if (!sliceText.includes('function findSourceFileForMarkdownDocument')) {
+  if (!sourceResolutionText.includes('export function findSourceFileForMarkdownDocument')) {
     throw new Error('expected markdown apply path to centralize active source-file resolution before direct parser apply')
   }
-  if (!sliceText.includes('const exactSourceFile = findSourceFileForMarkdownDocument(state, nextName)')) {
+  if (!documentActionsText.includes('const exactSourceFile = findSourceFileForMarkdownDocument(state, nextName)')) {
     throw new Error('expected applyMarkdownDocumentToGraph to prefer a matching source file for active markdown documents')
   }
-  if (!sliceText.includes("await mod.parseAndApplySourceFile(exactSourceFile.id)")) {
+  if (!documentActionsText.includes("await mod.parseAndApplySourceFile(exactSourceFile.id)")) {
     throw new Error('expected applyMarkdownDocumentToGraph to reuse the canonical source-file parse/apply flow')
   }
   if (!ingestText.includes('export async function parseAndApplySourceFile(fileId: string): Promise<void>')) {

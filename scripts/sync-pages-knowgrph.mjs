@@ -15,10 +15,7 @@ const repoFileTargetDir = path.resolve(githubRoot, 'huijoohwee', '__repo_file')
 const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const repoFileSeeds = [
   { source: path.resolve(knowgrphRoot, 'README.md'), target: path.resolve(repoFileTargetDir, 'README.md') },
-  {
-    source: path.resolve(githubRoot, 'sandbox', 'test-data', 'test-generate-video', 'knowgrph-demo-video.md'),
-    target: path.resolve(repoFileTargetDir, 'sandbox', 'test-data', 'test-generate-video', 'knowgrph-demo-video.md'),
-  },
+  { source: path.resolve(knowgrphRoot, 'knowgrph-video-demo.md'), target: path.resolve(repoFileTargetDir, 'knowgrph-video-demo.md') },
 ]
 const blockedRelativeRoots = new Set([
   'cesium',

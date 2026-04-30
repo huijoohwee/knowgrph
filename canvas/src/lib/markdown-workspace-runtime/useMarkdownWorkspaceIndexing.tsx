@@ -1,7 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
-import type { GraphData } from '@/lib/graph/types'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import {
@@ -308,11 +307,6 @@ export function useMarkdownWorkspaceIndexing(args: {
                 String(existing?.status || '').toLowerCase() === 'parsed' &&
                 existing?.error == null
               )
-              const shouldUseDirectGraphDataFor = (graphData: GraphData | null | undefined) => {
-                if (!(store.canvasRenderMode === '2d' && store.canvas2dRenderer === 'flowEditor')) return false
-                const meta = (graphData?.metadata || {}) as Record<string, unknown>
-                return String(meta.sourceLayerComposition || '') !== 'compose'
-              }
               const applyComposedFromSourceFiles = async () => {
                 if (isStaleJob()) return
                 try {
@@ -324,13 +318,7 @@ export function useMarkdownWorkspaceIndexing(args: {
               }
 
               if (workspaceSourceAlreadyMaterialized) {
-                if (shouldUseDirectGraphDataFor(cachedGraph)) {
-                  try {
-                    store.setGraphData(cachedGraph as GraphData)
-                  } catch {
-                    void 0
-                  }
-                }
+                await applyComposedFromSourceFiles()
                 if (!isStaleJob()) rememberIndexedForPath(path, hash)
                 return
               }
@@ -411,15 +399,7 @@ export function useMarkdownWorkspaceIndexing(args: {
                 } catch {
                   void 0
                 }
-                if (shouldUseDirectGraphDataFor(geoGraph)) {
-                  try {
-                    store.setGraphData(geoGraph)
-                  } catch {
-                    void 0
-                  }
-                } else {
-                  await applyComposedFromSourceFiles()
-                }
+                await applyComposedFromSourceFiles()
                 if (!isStaleJob()) rememberIndexedForPath(path, hash)
                 return
               }
@@ -435,15 +415,7 @@ export function useMarkdownWorkspaceIndexing(args: {
                 } catch {
                   void 0
                 }
-                if (shouldUseDirectGraphDataFor(cachedGraph)) {
-                  try {
-                    store.setGraphData(cachedGraph)
-                  } catch {
-                    void 0
-                  }
-                } else {
-                  await applyComposedFromSourceFiles()
-                }
+                await applyComposedFromSourceFiles()
               } else {
                 if (isStaleJob()) return
                 const { loadGraphDataFromTextViaParser } = (await import('@/features/parsers/loader')) as typeof import('@/features/parsers/loader')
@@ -477,15 +449,7 @@ export function useMarkdownWorkspaceIndexing(args: {
                   } catch {
                     void 0
                   }
-                  if (shouldUseDirectGraphDataFor(graphData)) {
-                    try {
-                      store.setGraphData(graphData)
-                    } catch {
-                      void 0
-                    }
-                  } else {
-                    await applyComposedFromSourceFiles()
-                  }
+                  await applyComposedFromSourceFiles()
                 } else if (!isStaleJob()) {
                   try {
                     store.updateSourceFile(fileId, { status: 'error', error: 'Parser returned empty graph' })

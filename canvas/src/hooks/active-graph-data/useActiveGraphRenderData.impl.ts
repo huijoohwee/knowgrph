@@ -139,7 +139,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     return collapsedGroupIdsNormalized.join('|')
   }, [collapsedGroupIdsNormalized])
 
-  const viewGraphData = React.useMemo(() => {
+  const computed = React.useMemo(() => {
     if (!graphData) return null
     const flowchartMode = canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
     if (flowchartMode) {
@@ -148,7 +148,12 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
       if (isFrontmatterFlowGraphData(graphData)) return graphData
       const source = hasFrontmatterMermaidSeeds(graphData) ? graphData : null
       if (!source) return null
-      return withActiveDocumentViewMode(filterGraphToFrontmatterMermaid(source), 'frontmatter')
+      const flowchartGraphData = withActiveDocumentViewMode(filterGraphToFrontmatterMermaid(source), 'frontmatter')
+      if (!collapsedGroupIdsKey) return flowchartGraphData
+      return deriveGraphDataWithGroupCollapse({
+        graphData: flowchartGraphData,
+        collapsedGroupIds: collapsedGroupIdsNormalized,
+      })
     }
     return deriveGraphDataForActiveView({
       graphData,
@@ -156,11 +161,14 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
       multiDimTableModeEnabled: effectiveMultiDimTableModeEnabled,
       documentSemanticMode: effectiveDocumentSemanticMode,
       documentStructureBaselineLock,
-      collapsedGroupIds: [],
+      collapsedGroupIds,
     })
   }, [
     canvas2dRenderer,
     canvasRenderMode,
+    collapsedGroupIds,
+    collapsedGroupIdsKey,
+    collapsedGroupIdsNormalized,
     effectiveDocumentSemanticMode,
     effectiveFrontmatterModeEnabled,
     effectiveMultiDimTableModeEnabled,
@@ -168,15 +176,6 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     markdownText,
     documentStructureBaselineLock,
   ])
-
-  const computed = React.useMemo(() => {
-    if (!viewGraphData) return null
-    if (!collapsedGroupIdsKey) return viewGraphData
-    return deriveGraphDataWithGroupCollapse({
-      graphData: viewGraphData,
-      collapsedGroupIds: collapsedGroupIdsNormalized,
-    })
-  }, [collapsedGroupIdsKey, collapsedGroupIdsNormalized, viewGraphData])
 
   React.useEffect(() => {
     if (!enabled) return

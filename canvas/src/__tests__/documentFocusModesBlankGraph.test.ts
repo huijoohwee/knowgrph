@@ -1,6 +1,7 @@
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
+import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
 import { writeWorkspaceDataViewState } from '@/components/BottomPanel/markdownWorkspace/main/viewer/workspaceDataViewConfig'
 
 class MemoryStorage implements Storage {
@@ -208,6 +209,52 @@ export function testDeriveGraphDataForActiveViewCachesEquivalentInputs() {
   })
   if (first !== second) {
     throw new Error('expected active-view derivation to reuse cached graph object for equivalent inputs')
+  }
+}
+
+export function testCanvasDocumentModeToolbarActionsNormalizeConflictingFlags() {
+  const calls: string[] = []
+  const baseParams = {
+    ensureBaselineUnlocked: () => true,
+    geospatialEnabled: false,
+    onOpenGeospatialMode: () => calls.push('openGeo'),
+    canvas2dRenderer: 'd3' as const,
+    canvas3dMode: '3d',
+    canvasRenderMode: '2d' as const,
+    renderMediaAsNodes: false,
+    schema: {},
+    setCanvas2dRenderer: (value: string) => calls.push(`renderer:${value}`),
+    setCanvasRenderMode: (value: string) => calls.push(`surface:${value}`),
+    setCanvas3dMode: (value: string) => calls.push(`3d:${value}`),
+    setSchema: () => calls.push('schema'),
+    setRenderMediaAsNodes: (value: boolean) => calls.push(`media:${String(value)}`),
+    setDocumentSemanticMode: (value: 'document' | 'keyword') => calls.push(`semantic:${value}`),
+    setFrontmatterModeEnabled: (value: boolean) => calls.push(`frontmatter:${String(value)}`),
+    setMultiDimTableModeEnabled: (value: boolean) => calls.push(`mdtbl:${String(value)}`),
+  }
+
+  applyCanvasViewSelection({
+    ...baseParams,
+    id: 'document:frontmatter',
+    documentSemanticMode: 'keyword',
+    frontmatterModeEnabled: false,
+    multiDimTableModeEnabled: true,
+  })
+  const frontmatterCalls = calls.splice(0)
+  if (frontmatterCalls.join('|') !== 'mdtbl:false|frontmatter:true|semantic:document') {
+    throw new Error(`expected Frontmatter toolbar action to normalize conflicting mode flags, got ${frontmatterCalls.join('|')}`)
+  }
+
+  applyCanvasViewSelection({
+    ...baseParams,
+    id: 'document:multiDimTable',
+    documentSemanticMode: 'keyword',
+    frontmatterModeEnabled: true,
+    multiDimTableModeEnabled: false,
+  })
+  const tableCalls = calls.splice(0)
+  if (tableCalls.join('|') !== 'frontmatter:false|mdtbl:true|semantic:document') {
+    throw new Error(`expected Multi-dimensional Table toolbar action to normalize conflicting mode flags, got ${tableCalls.join('|')}`)
   }
 }
 

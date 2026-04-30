@@ -116,12 +116,16 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   }
   if (id === 'document:frontmatter') {
     if (geospatialEnabled) return
-    setFrontmatterModeEnabled(true)
+    if (multiDimTableModeEnabled) setMultiDimTableModeEnabled(false)
+    if (!frontmatterModeEnabled) setFrontmatterModeEnabled(true)
+    if (documentSemanticMode !== 'document') setDocumentSemanticMode('document')
     return
   }
   if (id === 'document:multiDimTable') {
     if (geospatialEnabled || frontmatterOnlyAllowed) return
-    setMultiDimTableModeEnabled(true)
+    if (frontmatterModeEnabled) setFrontmatterModeEnabled(false)
+    if (!multiDimTableModeEnabled) setMultiDimTableModeEnabled(true)
+    if (documentSemanticMode !== 'document') setDocumentSemanticMode('document')
     return
   }
   if (id === 'surface:2d') {

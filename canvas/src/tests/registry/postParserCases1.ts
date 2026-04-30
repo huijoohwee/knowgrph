@@ -522,6 +522,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["graph.d3.edgesVisible.multiDimensionalTableMode","@/__tests__/edges.test","testD3EdgesVisibleInMultiDimensionalTableMode"],
   ["graph.documentFocus.frontmatterFlow.preservesGraphFamily","@/__tests__/documentFocusModesBlankGraph.test","testDocumentFrontmatterModePreservesFrontmatterFlowGraphFamily"],
   ["graph.documentFocus.activeView.cachesEquivalentInputs","@/__tests__/documentFocusModesBlankGraph.test","testDeriveGraphDataForActiveViewCachesEquivalentInputs"],
+  ["graph.documentFocus.toolbarActions.normalizeConflictingFlags","@/__tests__/documentFocusModesBlankGraph.test","testCanvasDocumentModeToolbarActionsNormalizeConflictingFlags"],
   ["graph.documentFocus.modeResolver.precedence","@/__tests__/documentFocusModesBlankGraph.test","testDocumentFocusModeResolverPrecedence"],
   ["edgeCreation.finalizeCreate","@/__tests__/edgeCreation.test","testFinalizeCreateEdge"],
   ["edgeCreation.finalizeExisting","@/__tests__/edgeCreation.test","testFinalizeUseExistingEdge"],

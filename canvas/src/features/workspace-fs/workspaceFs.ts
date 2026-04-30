@@ -242,7 +242,7 @@ export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
 ])
 export const WORKSPACE_README_SEED_REL_PATH = 'README.md'
 export const WORKSPACE_README_SEED_PATH = '/README.md' as WorkspacePath
-export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = 'sandbox/test-data/test-generate-video/knowgrph-demo-video.md'
+export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = 'knowgrph-video-demo.md'
 export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
