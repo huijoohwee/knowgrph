@@ -8,7 +8,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { applySchemaGroupBoundsOverrides, readSchemaGroupBoundsOverrides } from '@/lib/canvas/groupBoundsOverrides'
 import { SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES } from '@/lib/config.render'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { buildDocumentSemanticViewModeKey, resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 
 export type SceneGroupsDerivation = {
   key: string
@@ -67,7 +67,7 @@ const buildKey = (args: {
       return ''
     }
   })()
-  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+  const semanticViewModeKey = buildDocumentSemanticViewModeKey({
     frontmatterModeEnabled: args.frontmatterModeEnabled === true,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
     documentSemanticMode: String(args.documentSemanticMode || 'document'),
@@ -79,9 +79,7 @@ const buildKey = (args: {
     `meta:${metaKey}`,
     `n:${String(nodesLen)}`,
     `e:${String(edgesLen)}`,
-    `sem:${String(args.documentSemanticMode || '')}`,
-    `fm:${args.frontmatterModeEnabled ? 1 : 0}`,
-    `mode:${activeDocumentViewMode}`,
+    `view:${semanticViewModeKey}`,
     `groups:${schemaGroupsKey}`,
     boundsOverridesKey ? `groupBounds:${boundsOverridesKey}` : '',
   ].filter(Boolean).join('|')

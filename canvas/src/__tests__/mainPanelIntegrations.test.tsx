@@ -490,7 +490,7 @@ export async function testMainPanelRequestedIntegrationsSearchBytePlusImageField
     if (text.includes('Optional. Reference image URL or Base64 payload.')) {
       throw new Error('expected BytePlus image request field value cell to stop rendering descriptive prose')
     }
-    const editors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="text"]'))
+    const editors = Array.from(container.querySelectorAll('input[type="text"]')) as HTMLInputElement[]
     if (editors.length !== 1) {
       throw new Error(`expected BytePlus image request field row to render one configurable text input, got ${editors.length}`)
     }
@@ -1112,7 +1112,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersWritableVir
     if (!text.includes('byteplusVideoApi.polling_endpoint')) {
       throw new Error(`expected BytePlus polling_endpoint row in integrations search, got ${JSON.stringify(text)}`)
     }
-    const editors = Array.from(container.querySelectorAll<HTMLInputElement>('input')).filter(
+    const editors = (Array.from(container.querySelectorAll('input')) as HTMLInputElement[]).filter(
       input => input.value === persistedEndpoint,
     )
     if (editors.length !== 1) {
@@ -1214,7 +1214,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusNes
     if (text.includes('Optional. Maximum allowed image pixels.')) {
       throw new Error('expected BytePlus nested numeric field value cell to stop rendering descriptive prose')
     }
-    const editors = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="number"]'))
+    const editors = Array.from(container.querySelectorAll('input[type="number"]') as NodeListOf<HTMLInputElement>)
     if (editors.length !== 1) {
       throw new Error(`expected BytePlus nested numeric field row to render one numeric input, got ${editors.length}`)
     }

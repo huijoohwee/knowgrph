@@ -47,12 +47,29 @@ function clearRichMediaRenderDrivers(properties: Record<string, unknown>, opts?:
   return next
 }
 
+const connectedRenderNodeCacheByNode = new WeakMap<GraphNode, WeakMap<FlowConnectedValuesBySchemaPath, GraphNode>>()
+
+function readConnectedRenderNodeCache(node: GraphNode, connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath): GraphNode | null {
+  return connectedRenderNodeCacheByNode.get(node)?.get(connectedValuesBySchemaPath) || null
+}
+
+function writeConnectedRenderNodeCache(node: GraphNode, connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath, renderedNode: GraphNode): void {
+  let byValues = connectedRenderNodeCacheByNode.get(node)
+  if (!byValues) {
+    byValues = new WeakMap<FlowConnectedValuesBySchemaPath, GraphNode>()
+    connectedRenderNodeCacheByNode.set(node, byValues)
+  }
+  byValues.set(connectedValuesBySchemaPath, renderedNode)
+}
+
 export function applyConnectedValuesToNodeForRender(args: {
   node: GraphNode
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 }): GraphNode {
   const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
   if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return args.node
+  const cached = readConnectedRenderNodeCache(args.node, connectedValuesBySchemaPath)
+  if (cached) return cached
 
   let next = {
     ...args.node,
@@ -103,9 +120,11 @@ export function applyConnectedValuesToNodeForRender(args: {
         : normalizedPath
     if (!renderPath) continue
     if (freezeConnectedOutputActive && (renderPath === 'properties.output' || renderPath === 'properties.outputSrcDoc')) continue
-    next = setObjectPath(next as unknown as Record<string, unknown>, renderPath, connected.value) as GraphNode
+    next = setObjectPath(next as unknown as Record<string, unknown>, renderPath, connected.value) as unknown as GraphNode
     changed = true
   }
 
-  return changed ? next : args.node
+  const renderedNode = changed ? next : args.node
+  writeConnectedRenderNodeCache(args.node, connectedValuesBySchemaPath, renderedNode)
+  return renderedNode
 }

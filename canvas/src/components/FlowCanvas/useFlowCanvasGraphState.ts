@@ -15,6 +15,7 @@ import {
 } from '@/lib/render/richMediaSsot'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { pickGraphDataForFlowRenderer } from '@/components/FlowCanvas/shared'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 type UseFlowCanvasGraphStateArgs = {
   graphDataOverride: GraphData | null | undefined
@@ -32,9 +33,9 @@ type UseFlowCanvasGraphStateArgs = {
   infiniteCanvasInteractionMode: 'static' | 'interactive'
   excludeRichMediaOverlayNodeIds?: string[]
   openWidgetNodeIds: string[]
-  widgetRegistry: unknown[]
-  baseWidgetRegistry: unknown[]
-  documentWidgetRegistry: unknown[]
+  widgetRegistry: WidgetRegistryEntry[]
+  baseWidgetRegistry: WidgetRegistryEntry[]
+  documentWidgetRegistry: WidgetRegistryEntry[]
   threeIframeOverlayPoolMax?: number
 }
 

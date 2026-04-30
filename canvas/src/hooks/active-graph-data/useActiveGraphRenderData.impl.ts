@@ -4,9 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphState } from '@/hooks/useGraphStore'
 import { hasFrontmatterMermaidSeeds, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
-import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { normalizeCollapsedGroupIds } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
@@ -130,15 +128,6 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
 
   const lastRef = React.useRef<GraphData | null>(null)
 
-  const collapsedGroupIdsNormalized = React.useMemo(() => {
-    return normalizeCollapsedGroupIds(collapsedGroupIds)
-  }, [collapsedGroupIds])
-
-  const collapsedGroupIdsKey = React.useMemo(() => {
-    if (collapsedGroupIdsNormalized.length === 0) return ''
-    return collapsedGroupIdsNormalized.join('|')
-  }, [collapsedGroupIdsNormalized])
-
   const computed = React.useMemo(() => {
     if (!graphData) return null
     const flowchartMode = canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
@@ -148,12 +137,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
       if (isFrontmatterFlowGraphData(graphData)) return graphData
       const source = hasFrontmatterMermaidSeeds(graphData) ? graphData : null
       if (!source) return null
-      const flowchartGraphData = withActiveDocumentViewMode(filterGraphToFrontmatterMermaid(source), 'frontmatter')
-      if (!collapsedGroupIdsKey) return flowchartGraphData
-      return deriveGraphDataWithGroupCollapse({
-        graphData: flowchartGraphData,
-        collapsedGroupIds: collapsedGroupIdsNormalized,
-      })
+      return withActiveDocumentViewMode(filterGraphToFrontmatterMermaid(source), 'frontmatter')
     }
     return deriveGraphDataForActiveView({
       graphData,
@@ -167,8 +151,6 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     canvas2dRenderer,
     canvasRenderMode,
     collapsedGroupIds,
-    collapsedGroupIdsKey,
-    collapsedGroupIdsNormalized,
     effectiveDocumentSemanticMode,
     effectiveFrontmatterModeEnabled,
     effectiveMultiDimTableModeEnabled,

@@ -2,6 +2,7 @@ import type { MutableRefObject } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { workspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
+import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { normalizeWebpageFrontmatterView } from '@/lib/markdown/frontmatter'
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
@@ -10,23 +11,11 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
 import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 
-type SetActiveMarkdownDocumentFn = (args: {
-  name: string
-  text: string
-  normalizeMermaidMmd: boolean
-  autoEnableFrontmatter?: boolean
-  sourceUrl?: string | null
-}) => unknown
-
-type GetFsFn = () => Promise<{
-  writeFileText: (path: WorkspacePath, text: string) => Promise<unknown>
-  readFileText: (path: WorkspacePath) => Promise<string | null | undefined>
-}>
 
 export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
   activeDocumentKey: string
   activeDocumentSourceUrl: string | null
-  setActiveMarkdownDocument: SetActiveMarkdownDocumentFn
+  setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   text: string
 }): void => {
   if (!args.activeDocumentKey) return
@@ -111,12 +100,12 @@ export const applyWorkspaceSpecialFileEffects = (args: {
 export const writeWorkspaceFileAndSync = async (args: {
   path: WorkspacePath
   text: string
-  getFs: GetFsFn
+  getFs: MarkdownWorkspaceRuntimeGetFs
   lastLoadedRef: MutableRefObject<{ path: WorkspacePath; text: string } | null>
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
   activeDocumentKey: string
   activeDocumentSourceUrl: string | null
-  setActiveMarkdownDocument: SetActiveMarkdownDocumentFn
+  setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   setGraphRagWorkflowJsonText: (text: string) => void
   resetParsedState: boolean
 }): Promise<void> => {
@@ -144,7 +133,7 @@ export const writeWorkspaceFileAndSync = async (args: {
 
 export const resolveAuthoritativeWorkspaceText = async (args: {
   path: WorkspacePath
-  getFs: GetFsFn
+  getFs: MarkdownWorkspaceRuntimeGetFs
   lastLoadedRef: MutableRefObject<{ path: WorkspacePath; text: string } | null>
   activeTextRef: MutableRefObject<string>
   userEditedActiveTextRef: MutableRefObject<boolean>
@@ -161,7 +150,9 @@ export const resolveAuthoritativeWorkspaceText = async (args: {
     return lastLoaded.text
   }
   const fs = await args.getFs()
-  const hydrated = await fs.readFileText(args.path).catch(() => '')
+  const hydrated = typeof fs.readFileText === 'function'
+    ? await fs.readFileText(args.path).catch(() => '')
+    : ''
   if (String(hydrated || '').trim()) return String(hydrated || '')
   return String(args.activeTextRef.current || '')
 }

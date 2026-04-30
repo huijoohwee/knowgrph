@@ -1,4 +1,4 @@
-import { useEffect, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
+import { useEffect, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 import * as d3 from 'd3'
 import { useShallow } from 'zustand/react/shallow'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
@@ -59,6 +59,8 @@ export function useD3PresentationUpdates2d(args: {
     })),
   )
   const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true
+  const workspaceOverlayOpenRef = useRef(workspaceOverlayOpen)
+  workspaceOverlayOpenRef.current = workspaceOverlayOpen
 
   const {
     activeRef,
@@ -224,11 +226,11 @@ export function useD3PresentationUpdates2d(args: {
         selectEdge: id => useGraphStore.getState().selectEdge(id),
         setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
         addEdge: e => {
-          if (workspaceOverlayOpen) return
+          if (workspaceOverlayOpenRef.current) return
           useGraphStore.getState().addEdge(e)
         },
         updateEdge: (id, u) => {
-          if (workspaceOverlayOpen) return
+          if (workspaceOverlayOpenRef.current) return
           useGraphStore.getState().updateEdge(id, u)
         },
         getSelectedEdgeId: () => selectedEdgeIdRef.current,
@@ -279,9 +281,6 @@ export function useD3PresentationUpdates2d(args: {
     svgRef,
     tempLinkSelRef,
     zoomRef,
-    workspaceCanvasPaneOpen,
-    workspaceOverlayOpen,
-    workspaceViewMode,
   ])
 
   useEffect(() => {

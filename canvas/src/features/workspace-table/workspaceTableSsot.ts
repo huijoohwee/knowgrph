@@ -28,14 +28,17 @@ export function isWorkspaceTableOpen(args: {
 }
 
 export function openWorkspaceEditorPane(args: OpenWorkspaceEditorPaneArgs) {
-  if (args.workspaceViewMode !== 'editor') args.setWorkspaceViewMode('editor')
   if (args.editorWorkspacePane !== args.pane) args.setEditorWorkspacePane(args.pane)
+  if (args.workspaceViewMode !== 'editor') {
+    args.setWorkspaceViewMode('editor')
+    return
+  }
   if (args.workspaceCanvasPaneOpen !== true) args.setWorkspaceCanvasPaneOpen(true)
 }
 
 export function closeWorkspaceView(args: CloseWorkspaceViewArgs) {
   if (args.workspaceViewMode !== 'canvas') args.setWorkspaceViewMode('canvas')
-  if (args.workspaceCanvasPaneOpen !== true) args.setWorkspaceCanvasPaneOpen(true)
+  if (args.workspaceCanvasPaneOpen !== false) args.setWorkspaceCanvasPaneOpen(false)
 }
 
 export function openWorkspaceTable(args: {

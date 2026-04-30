@@ -1,24 +1,24 @@
 import React from 'react'
-import { useGympgrphStore } from './store'
-import { useMapLibreBasemap } from './features/geospatial/useMapLibreBasemap'
-import { LS_KEYS } from './lib/config'
+import { useGympgrphStore } from './store.js'
+import { useMapLibreBasemap } from './features/geospatial/useMapLibreBasemap.js'
+import { LS_KEYS } from './lib/config.js'
 import { onGeospatialModeChanged, type GeospatialViewMode } from 'grph-shared/geospatial/events'
 import { GEOSPATIAL_POINT_STYLE_CHANGED_EVENT, GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
-import { computeBoundsFromCollections } from './geo'
-import { clearGeoJsonSourceData, ensureDatasetLayer, isMapLibreStyleReady, setGeoJsonSourceData } from './maplibreLayers'
-import { colorForDataset } from './colors'
-import { isPointOnlyFeatureCollection } from './selection'
+import { computeBoundsFromCollections } from './geo.js'
+import { clearGeoJsonSourceData, ensureDatasetLayer, isMapLibreStyleReady, setGeoJsonSourceData } from './maplibreLayers.js'
+import { colorForDataset } from './colors.js'
+import { isPointOnlyFeatureCollection } from './selection.js'
 import {
   isGrabMapsPresetActive,
   normalizePersistedGeospatialStyleUrl,
   resolveEffectiveGeospatialStyleUrl,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
-} from './features/geospatial/basemapStyle'
+} from './features/geospatial/basemapStyle.js'
 import {
   MAIN_PANEL_DEFAULT_GEOSPATIAL_POINT_STYLE_CONFIG,
   pointStyleConfigSignature,
   readGeospatialPointStyleConfig,
-} from './features/geospatial/pointStyleConfig'
+} from './features/geospatial/pointStyleConfig.js'
 import type { FeatureCollection } from 'geojson'
 import { geoEquirectangular, geoGraticule, geoPath } from 'd3'
 

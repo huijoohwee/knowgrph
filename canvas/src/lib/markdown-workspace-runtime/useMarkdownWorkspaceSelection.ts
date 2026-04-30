@@ -14,17 +14,10 @@ import {
   WORKSPACE_ROOT_PATH,
 } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import { normalizeWebpageFrontmatterView } from '@/lib/markdown/frontmatter'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
-
-type SetActiveMarkdownDocumentFn = (args: {
-  name: string
-  text: string
-  normalizeMermaidMmd: boolean
-  autoEnableFrontmatter?: boolean
-  sourceUrl?: string | null
-}) => unknown
 
 export function useMarkdownWorkspaceSelection(args: {
   activePath: WorkspacePath | null
@@ -36,7 +29,7 @@ export function useMarkdownWorkspaceSelection(args: {
   setActiveTextProgrammatic: (text: string) => void
   markdownDocumentName: string
   markdownDocumentText: string
-  setActiveMarkdownDocument: SetActiveMarkdownDocumentFn
+  setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   sourcesByPath: WorkspaceSourceIndex
   viewerInlineEditActive: boolean
   activeRef: React.MutableRefObject<boolean>

@@ -1,4 +1,4 @@
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry, WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
@@ -252,17 +252,17 @@ export function buildWidgetDraftFromSmartFields(args: {
         ? buildBytePlusImageGenerationFields()
         : mode === 'video'
           ? buildBytePlusVideoGenerationFields()
-          : [
+          : ([
             {
               fieldKey: 'model',
               fieldType: 'select',
               schemaPath: 'properties.model',
               required: true,
               label: 'Model',
-              options: FLOW_EDITOR_VIDEO_MODEL_OPTIONS,
+              options: [...FLOW_EDITOR_VIDEO_MODEL_OPTIONS],
             },
             { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', required: true, label: 'Prompt' },
-          ]),
+          ] satisfies WidgetRegistryField[])),
     ],
     ports: [
       { portKey: 'prompt_in', direction: 'input', schemaPath: 'properties.prompt' },

@@ -4,6 +4,11 @@ id: md:knowgrph-pitchdeck
 author: joohwee
 institution: "Knowgrph — airvio.co/knowgrph"
 date: "2026-04-28"
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: "d3"
+kgDocumentSemanticMode: "document"
+kgFrontmatterModeEnabled: true
+kgDocumentStructureBaselineLock: false
 index:
   legend:
     nodes:

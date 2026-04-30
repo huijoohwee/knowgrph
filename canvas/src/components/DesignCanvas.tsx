@@ -342,7 +342,7 @@ export default function DesignCanvas({
     interactionActive,
     canvasPointerMode2d: String(snapshot.canvasPointerMode2d || ''),
     documentStructureBaselineLock: snapshot.documentStructureBaselineLock === true,
-    viewportControlsPreset: String(snapshot.viewportControlsPreset || ''),
+    viewportControlsPreset: snapshot.viewportControlsPreset,
     schema: snapshot.schema,
     svgRef,
     positions,
@@ -463,7 +463,7 @@ export default function DesignCanvas({
       workspaceEditorOverlayEnabled={workspaceEditorOverlayEnabled}
       markdownDocumentName={snapshot.markdownDocumentName}
       markdownDocumentText={snapshot.markdownDocumentText}
-      markdownPanelAllowedKinds={markdownPanelAllowedKinds}
+      markdownPanelAllowedKinds={[...markdownPanelAllowedKinds]}
       stopOverlayEvent={stopOverlayEvent}
       designMediaOverlayNodes={designMediaOverlayNodes}
       onRegisterOverlayEl={registerOverlayEl}

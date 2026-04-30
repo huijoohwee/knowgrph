@@ -36,7 +36,7 @@ export const RICH_MEDIA_DISPLAY_COPY = {
 } as const
 
 export const RICH_MEDIA_PANEL_CONNECT_VIEW_LABEL = 'Rich Media Panel (Connect media to render)' as const
-export const RICH_MEDIA_PANEL_KTV_VIEW_LABEL = FLOW_RICH_MEDIA_PANEL_NODE_LABEL as const
+export const RICH_MEDIA_PANEL_KTV_VIEW_LABEL = FLOW_RICH_MEDIA_PANEL_NODE_LABEL
 export const RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL = 'Media Selector' as const
 
 export function isRichMediaPanelDisplayEnabled(renderMediaAsNodes: unknown): boolean {

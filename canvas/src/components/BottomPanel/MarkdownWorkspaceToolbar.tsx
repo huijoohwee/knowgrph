@@ -26,6 +26,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
 import { UI_TEXT_TRUNCATE } from '@/lib/ui/textLayout'
 import { closeWorkspaceView } from '@/features/workspace-table/workspaceTableSsot'
+import { DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY, type MarkdownWorkspacePaneVisibility } from './markdownWorkspace/main/types'
+import type { MarkdownWorkspaceDerivedViewerMode } from './markdownWorkspace/main/viewer/MarkdownWorkspaceDerivedViewer'
 import {
   MarkdownWorkspaceDisplayMenu,
   MarkdownWorkspaceFormattingMenu,
@@ -36,8 +38,8 @@ export type MarkdownWorkspaceToolbarProps = {
   explorerOpen: boolean
   setExplorerOpen: (next: boolean) => void
 
-  canvasOpen?: boolean
-  setCanvasOpen?: (next: boolean) => void
+  canvasOpen: boolean
+  setCanvasOpen: (next: boolean) => void
 
   layoutMode: MarkdownWorkspaceLayoutMode
   setLayoutMode: (mode: MarkdownWorkspaceLayoutMode) => void
@@ -47,10 +49,10 @@ export type MarkdownWorkspaceToolbarProps = {
   setMarkdownTextHighlight: (next: boolean) => void
 
   viewerKind?: 'markdown' | 'html' | 'json'
-  viewerMode?: 'read' | 'table' | 'multiDimTable' | 'kanban'
-  setViewerMode?: (next: 'read' | 'table' | 'multiDimTable' | 'kanban') => void
-  splitPaneVisibility?: { json: boolean; markdown: boolean; viewer: boolean }
-  setSplitPaneVisibility?: (next: { json: boolean; markdown: boolean; viewer: boolean }) => void
+  viewerMode?: MarkdownWorkspaceDerivedViewerMode
+  setViewerMode?: (next: MarkdownWorkspaceDerivedViewerMode) => void
+  splitPaneVisibility?: MarkdownWorkspacePaneVisibility
+  setSplitPaneVisibility?: (next: MarkdownWorkspacePaneVisibility) => void
   onSaveAs?: () => void
   onExportWorkspaceFile?: () => void
   onExportMarkdown?: () => void
@@ -118,7 +120,10 @@ export function MarkdownWorkspaceToolbar({
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const canNavigateSlides = layoutMode === 'presentation'
-  const effectiveSplitPanes = splitPaneVisibility || { json: true, markdown: true, viewer: true }
+  const effectiveSplitPanes = React.useMemo(
+    () => splitPaneVisibility || DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY,
+    [splitPaneVisibility],
+  )
   const inlineFloatingFormattingOwnsViewerSurface =
     (layoutMode === 'viewer'
       || (layoutMode === 'split' && Boolean(effectiveSplitPanes.viewer)))
@@ -384,10 +389,6 @@ export function MarkdownWorkspaceToolbar({
               className={TOOLBAR_BUTTON_CLASSNAME}
               title={UI_LABELS.close}
               onClick={() => {
-                if (typeof canvasOpen !== 'boolean' || typeof setCanvasOpen !== 'function') {
-                  setWorkspaceViewMode('canvas')
-                  return
-                }
                 closeWorkspaceView({
                   workspaceViewMode: workspaceViewMode === 'editor' ? 'editor' : 'canvas',
                   workspaceCanvasPaneOpen: canvasOpen,

@@ -1,19 +1,20 @@
+import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { createResilientWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 
 export async function testWorkspaceFsResilientShadowKeepsCreatedFileReadableAfterSilentReadMiss() {
   let storedPath = ''
   let storedText = ''
-  const inner = {
+  const inner: WorkspaceFs = {
     ensureSeed: async () => void 0,
-    listEntries: async () => [{ path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 }],
+    listEntries: async () => [{ path: '/' as WorkspacePath, parentPath: null, kind: 'folder' as const, name: '', updatedAtMs: 1 }],
     readFileText: async () => null,
     writeFileText: async () => void 0,
-    createFile: async (args: { parentPath: string; name: string; text: string }) => {
+    createFile: async (args: { parentPath: WorkspacePath; name: string; text: string }) => {
       storedPath = `${args.parentPath === '/' ? '' : args.parentPath}/${args.name}` || `/${args.name}`
       storedText = args.text
-      return storedPath
+      return storedPath as WorkspacePath
     },
-    createFolder: async (args: { parentPath: string; name: string }) => `${args.parentPath === '/' ? '' : args.parentPath}/${args.name}` || `/${args.name}`,
+    createFolder: async (args: { parentPath: WorkspacePath; name: string }) => (`${args.parentPath === '/' ? '' : args.parentPath}/${args.name}` || `/${args.name}`) as WorkspacePath,
     deleteEntry: async () => void 0,
   }
 

@@ -112,8 +112,11 @@ export const testMarkdownWorkspaceRealtimeSyncAppliesEditorChangesBackToGraph = 
   if (!interactionsText.includes("argsRef.current = args")) {
     throw new Error('Expected markdown workspace interactions to keep current inputs behind a ref for stable apply callbacks')
   }
-  if (!interactionsText.includes("if (!workspaceCanvasPaneOpen || canvasWorkspaceSyncMode !== 'realtime' || contentMode === 'widget') return")) {
-    throw new Error('Expected realtime editor->graph sync to explicitly gate by workspace pane, realtime mode, and widget mode')
+  if (!interactionsText.includes('const workspaceApplyEffectsEnabled = active && workspaceCanvasPaneOpen === true')) {
+    throw new Error('Expected markdown workspace apply effects to be gated by active runtime and workspace pane visibility')
+  }
+  if (!interactionsText.includes("if (!workspaceApplyEffectsEnabled || canvasWorkspaceSyncMode !== 'realtime' || contentMode === 'widget') return")) {
+    throw new Error('Expected realtime editor->graph sync to explicitly gate by workspace apply effect state, realtime mode, and widget mode')
   }
   if (!interactionsText.includes("const graphText = markdownDocumentName === name ? String(markdownDocumentText || '') : ''")) {
     throw new Error('Expected realtime editor->graph sync to compare against current graph-backed markdown document text')
@@ -146,6 +149,72 @@ export const testMarkdownWorkspaceSkipsMissingActiveEntryLoadsUntilPathRecovery 
   const text = readUtf8(indexingPath)
   if (!text.includes("if (!path || !args.activeEntry || args.activeEntryKind === 'folder') return")) {
     throw new Error('Expected markdown workspace indexing to skip file loads until the active path resolves to a real workspace entry')
+  }
+}
+
+export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
+  const mainPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'MarkdownWorkspaceMainLegacy.tsx')
+  const editorPanePath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'editor', 'MarkdownEditorPane.tsx')
+  const layoutPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'layout', 'MarkdownWorkspaceLayout.tsx')
+  const toolbarPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')
+  const dropdownPath = path.resolve(process.cwd(), 'src', 'components', 'toolbar', 'ToolbarDropdownSelect.tsx')
+  const typesPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'types.ts')
+  const mainText = readUtf8(mainPath)
+  const editorPaneText = readUtf8(editorPanePath)
+  const layoutText = readUtf8(layoutPath)
+  const toolbarText = readUtf8(toolbarPath)
+  const dropdownText = readUtf8(dropdownPath)
+  const typesText = readUtf8(typesPath)
+  if (!typesText.includes('DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY')) {
+    throw new Error('Expected workspace pane visibility defaults to live in the shared main types module')
+  }
+  if (!typesText.includes('json: false')) {
+    throw new Error('Expected JSON pane to be opt-in by default to avoid eager Markdown JSON-LD generation on load')
+  }
+  if (!typesText.includes('markdown: false')) {
+    throw new Error('Expected Markdown editor pane to be opt-in by default in split loading so the viewer can render first')
+  }
+  if (mainText.includes('markdownDerivedViewerMode') || mainText.includes('markdownDerivedViewerKind')) {
+    throw new Error('Expected workspace main loading to ignore persisted derived viewer modes to avoid stale heavy startup render paths')
+  }
+  if (!mainText.includes("React.useState<MarkdownWorkspaceDerivedViewerKind>('markdown')")) {
+    throw new Error('Expected workspace main viewer kind to initialize from the cheap markdown SSOT')
+  }
+  if (!mainText.includes("React.useState<MarkdownWorkspaceDerivedViewerMode>('read')")) {
+    throw new Error('Expected workspace main viewer mode to initialize from the cheap read SSOT')
+  }
+  if (!mainText.includes('const deferredSourceEditorTextRaw = React.useDeferredValue(sourceEditorTextRaw)')) {
+    throw new Error('Expected workspace main to defer JSON editor source text before expensive JSON/JSON-LD derivations')
+  }
+  if (!mainText.includes('if (!jsonPaneVisible) return')) {
+    throw new Error('Expected JSON editor text derivation to be gated by JSON pane visibility')
+  }
+  if (mainText.includes('setSplitPaneVisibility({ json: true, markdown: true, viewer: true })')) {
+    throw new Error('Expected toolbar Editor Workspace open not to eagerly mount JSON, Markdown, and Viewer panes together')
+  }
+  if (!mainText.includes('prev.markdown && !prev.json && !prev.viewer ? prev : { json: false, markdown: true, viewer: false }')) {
+    throw new Error('Expected toolbar Editor Workspace open to normalize to markdown-only visibility')
+  }
+  if (dropdownText.includes('flushSync')) {
+    throw new Error('Expected toolbar dropdown selection not to force a synchronous close commit before opening Workspace View')
+  }
+  if (editorPaneText.includes('const lineStarts = React.useMemo')) {
+    throw new Error('Expected markdown editor pane not to scan full text for line starts during open render')
+  }
+  if (!editorPaneText.includes('const getLineStarts = React.useCallback')) {
+    throw new Error('Expected markdown editor pane to build line starts lazily after caret events')
+  }
+  if (!mainText.includes("const markdownPaneVisible = layoutMode === 'editor' ? true : layoutMode === 'split' && splitPaneVisibility.markdown")) {
+    throw new Error('Expected markdown pane visibility to keep editor mode usable while keeping split markdown editor opt-in')
+  }
+  if (!mainText.includes('if (!markdownPaneVisible && !viewerPaneVisible) return null')) {
+    throw new Error('Expected JSON-to-markdown derivation to be skipped when markdown and viewer panes are hidden')
+  }
+  if (!layoutText.includes('props.splitPaneVisibility.json ?')) {
+    throw new Error('Expected layout to avoid mounting hidden JSON editor pane')
+  }
+  if (!toolbarText.includes('DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY')) {
+    throw new Error('Expected toolbar split pane fallback to reuse shared visibility defaults')
   }
 }
 

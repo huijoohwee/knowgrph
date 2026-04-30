@@ -275,7 +275,7 @@ export async function testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetT
     root.render(React.createElement(PreviewPanelView))
     for (let i = 0; i < 8; i += 1) await waitForNextFrame(dom.window)
 
-    const graphCards = Array.from(doc.querySelectorAll('button')).filter(btn =>
+    const graphCards = Array.from(doc.querySelectorAll('button') as NodeListOf<HTMLButtonElement>).filter(btn =>
       String(btn.textContent || '').includes('Node media:'),
     )
     if (graphCards.length !== 1) {

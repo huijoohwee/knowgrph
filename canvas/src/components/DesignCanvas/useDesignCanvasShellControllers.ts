@@ -24,7 +24,7 @@ type UseDesignCanvasShellControllersArgs = {
   interactionActive: boolean
   canvasPointerMode2d: string
   svgRef: React.RefObject<SVGSVGElement | null>
-  mediaOverlayPanRef: React.RefObject<{ pointerId: number; startTransform: d3.ZoomTransform } | null>
+  mediaOverlayPanRef: React.MutableRefObject<{ pointerId: number; startTransform: d3.ZoomTransform } | null>
   designMediaOverlayElsRef: React.RefObject<Map<string, HTMLElement>>
   setDesignFramePosManyRaw: (patch: Record<string, DesignFramePos>) => void
   setDesignFrameSizeManyRaw: (patch: Record<string, DesignFrameSize>) => void

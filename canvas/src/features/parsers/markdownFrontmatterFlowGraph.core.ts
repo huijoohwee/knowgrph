@@ -1311,7 +1311,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   })
 
   const clusters = hasFlowDerivedNodes
-    ? { clusterNodes: [], subgraphs: [] as Array<Record<string, unknown>> }
+    ? { clusterNodes: [], subgraphs: [] as Array<{ id: string; label: string; memberNodeIds: string[]; parentId?: string | null; kind?: 'cluster' }> }
     : normalizeClusters(metaRecord, normalized.nodes)
   if (!hasFlowDerivedNodes) {
     for (let i = 0; i < clusters.clusterNodes.length; i += 1) {

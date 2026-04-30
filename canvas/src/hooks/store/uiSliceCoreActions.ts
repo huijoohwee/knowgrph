@@ -33,7 +33,13 @@ export const createUiCoreActions = (set: SetGraph)=> ({
       set(s => {
         const current = s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'
         const next = current === 'editor' ? 'canvas' : 'editor'
-        return { workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, next) }
+        const nextPaneOpen = next === 'editor' ? true : s.workspaceCanvasPaneOpen
+        if (s.workspaceViewMode === next && s.workspaceCanvasPaneOpen === nextPaneOpen) return {}
+        if (next === 'editor' && s.workspaceCanvasPaneOpen !== true) lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, true)
+        return {
+          workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, next),
+          workspaceCanvasPaneOpen: nextPaneOpen,
+        } as Partial<GraphState>
       }),
 
     setCodeHighlightDurationMs: (ms: number) => set({ codeHighlightDurationMs: Math.max(0, Math.floor(ms)) }),

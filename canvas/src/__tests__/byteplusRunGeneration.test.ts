@@ -870,7 +870,6 @@ export async function testResolveBytePlusVideoModelPreviewExposesResolvedCandida
         apiKey: 'byteplus-key',
       },
       'ByteDance-Seedance-1.5-pro',
-      { fast: false },
     )
     if (preview.preferredModel !== 'ByteDance-Seedance-1.5-pro') {
       throw new Error(`expected preview to preserve preferred canonical model label, got ${String(preview.preferredModel)}`)
@@ -910,7 +909,6 @@ export async function testResolveBytePlusVideoModelPreviewDoesNotFalseMatchDateS
         apiKey: 'byteplus-key',
       },
       'ByteDance-Seedance-1.5-pro',
-      { fast: false },
     )
     if (preview.resolvedModel !== 'ByteDance-Seedance-1.5-pro') {
       throw new Error(`expected resolver to avoid false 1.5 -> 1.0-fast date-suffix match, got ${String(preview.resolvedModel)}`)

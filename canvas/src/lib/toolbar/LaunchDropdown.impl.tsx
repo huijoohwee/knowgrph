@@ -49,6 +49,7 @@ export function LaunchDropdown({
 }: LaunchDropdownProps) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const folderInputRef = React.useRef<HTMLInputElement | null>(null)
+  const urlInputRef = React.useRef<HTMLInputElement | null>(null)
   const [urlDraft, setUrlDraft] = React.useState('')
   const [urlInputOpen, setUrlInputOpen] = React.useState(false)
   const [exportMenuOpen, setExportMenuOpen] = React.useState(false)

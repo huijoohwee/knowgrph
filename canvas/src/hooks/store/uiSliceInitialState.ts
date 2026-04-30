@@ -39,6 +39,14 @@ export const createUiInitialState = (
 )=> {
   const { lsNum, lsBool, lsInt, lsFloat, lsJson } = readers
   const { initialChatProvider, initialChatAuthMode, initialChatEndpointUrl, initialChatModel } = chat
+  const initialWorkspaceViewMode = lsJson<'canvas' | 'editor'>(
+    LS_KEYS.workspaceViewMode,
+    'canvas',
+    value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
+  )
+  const initialWorkspaceCanvasPaneOpen = initialWorkspaceViewMode === 'editor'
+    ? true
+    : lsBool(LS_KEYS.workspaceCanvasPaneOpen, true)
   return {
     ...createPanelLayoutUiSlice(set),
 
@@ -69,11 +77,7 @@ export const createUiInitialState = (
         return { floatingPanelView: next } as Partial<GraphState>
       }),
 
-    workspaceViewMode: lsJson<'canvas' | 'editor'>(
-      LS_KEYS.workspaceViewMode,
-      'canvas',
-      value => (value === 'editor' || value === 'canvas' ? value : 'canvas'),
-    ),
+    workspaceViewMode: initialWorkspaceViewMode,
 
     editorWorkspacePane: lsJson<'markdown' | 'graphTable'>(
       LS_KEYS.editorWorkspacePane,
@@ -81,7 +85,7 @@ export const createUiInitialState = (
       value => (value === 'graphTable' || value === 'markdown' ? value : 'markdown'),
     ),
 
-    workspaceCanvasPaneOpen: lsBool(LS_KEYS.workspaceCanvasPaneOpen, true),
+    workspaceCanvasPaneOpen: initialWorkspaceCanvasPaneOpen,
     setWorkspaceCanvasPaneOpen: (open: boolean) =>
       set(state => {
         const rawNext = open === false ? false : true

@@ -65,7 +65,7 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
   await fs.ensureSeed()
   const workspaceEntries = await fs.listEntries()
   const workspaceFilePaths = workspaceEntries
-    .filter((entry): entry is { path: WorkspacePath; kind: 'file' } => entry.kind === 'file')
+    .filter(entry => entry.kind === 'file')
     .map(entry => entry.path)
   const desiredActivePath = resolveWorkspaceStartupActivePath({
     workspaceFilePaths,

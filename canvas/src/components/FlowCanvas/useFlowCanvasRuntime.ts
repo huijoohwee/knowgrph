@@ -22,6 +22,9 @@ import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layo
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import type { GraphSchema } from '@/lib/graph/schema'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
+import type { ZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 
@@ -30,7 +33,7 @@ export function useFlowCanvasRuntime(args: {
   flowEditorSurfaceId?: string
   allowNodeDragOverride?: boolean
   collisionDuringDrag: boolean
-  viewportControlsPreset: unknown
+  viewportControlsPreset: ViewportControlsPreset
   flowEditorSelectionOnDrag: boolean
   canvas2dRenderer: string
   canvasRef: React.MutableRefObject<HTMLCanvasElement | null>
@@ -44,7 +47,7 @@ export function useFlowCanvasRuntime(args: {
   dragRef: React.MutableRefObject<FlowCanvasDrag>
   lastPointerInCanvasRef: React.MutableRefObject<null | { sx: number; sy: number; ts: number }>
   lastWheelIntentRef: React.MutableRefObject<null | { dir: 'in' | 'out'; ts: number }>
-  zoomWheelGuardRef: React.MutableRefObject<unknown>
+  zoomWheelGuardRef: React.MutableRefObject<ZoomWheelGuardState>
   userSelectLockPointerIdRef: React.MutableRefObject<number | null>
   positionsDirtySinceCommitRef: React.MutableRefObject<boolean>
   collisionSchemaRef: React.MutableRefObject<GraphSchema | null>
@@ -68,7 +71,7 @@ export function useFlowCanvasRuntime(args: {
   flowConfigEffective: any
   flowPresentation: any
   sceneGroups: any[]
-  widgetRegistry: unknown[]
+  widgetRegistry: WidgetRegistryEntry[]
   forbidCircleNodes: boolean
   graphDataForZoom: any
   graphDataForZoomRequests: any

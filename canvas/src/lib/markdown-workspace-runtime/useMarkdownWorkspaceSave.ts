@@ -9,19 +9,7 @@ import {
   scheduleMarkdownWorkspaceAutosaveSync,
 } from './markdownWorkspaceRuntime.stateSync'
 import { writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
-
-type GetFsFn = () => Promise<{
-  writeFileText: (path: WorkspacePath, text: string) => Promise<unknown>
-  createFile: (args: { parentPath: WorkspacePath; name: string; text: string }) => Promise<WorkspacePath>
-}>
-
-type SetActiveMarkdownDocumentFn = (args: {
-  name: string
-  text: string
-  normalizeMermaidMmd: boolean
-  autoEnableFrontmatter?: boolean
-  sourceUrl?: string | null
-}) => unknown
+import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
 export function useMarkdownWorkspaceSave(args: {
   active: boolean
@@ -32,10 +20,10 @@ export function useMarkdownWorkspaceSave(args: {
   debouncedText: string
   activeDocumentKey: string
   activeDocumentSourceUrl: string | null
-  getFs: GetFsFn
+  getFs: MarkdownWorkspaceRuntimeGetFs
   lastLoadedRef: React.MutableRefObject<{ path: WorkspacePath; text: string } | null>
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
-  setActiveMarkdownDocument: SetActiveMarkdownDocumentFn
+  setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   setGraphRagWorkflowJsonText: (text: string) => void
   setStatusProgress: (
     label: string,

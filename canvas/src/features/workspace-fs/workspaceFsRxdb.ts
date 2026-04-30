@@ -7,6 +7,7 @@ import {
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_README_TEXT,
   getWorkspaceSeedFiles,
+  isInitializationWorkspacePath,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   shouldMigrateLegacyWorkspaceSeedPaths,
 } from './workspaceFs'
@@ -247,7 +248,7 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     await ensureRoot()
     const { collections } = await getDb()
     const p = normalizeWorkspacePath(path)
-    if (p === WORKSPACE_ROOT_PATH) return
+    if (p === WORKSPACE_ROOT_PATH || isInitializationWorkspacePath(p)) return
     const row = await collections.entries.findOne(p).exec()
     if (!row) return
     if (row.get('kind') === 'file') {

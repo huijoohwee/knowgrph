@@ -1,17 +1,19 @@
 import React from 'react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { MarkdownWorkspaceToolbar } from '../../../MarkdownWorkspaceToolbar'
+import type { MarkdownWorkspacePaneVisibility } from '../types'
 
 export function MarkdownWorkspaceLayout(props: {
   toolbarProps: React.ComponentProps<typeof MarkdownWorkspaceToolbar>
   layoutMode: MarkdownWorkspaceLayoutMode
   renderMarkdownEditor: () => React.ReactNode
   renderJsonEditor: () => React.ReactNode
-  splitPaneVisibility: { json: boolean; markdown: boolean; viewer: boolean }
+  splitPaneVisibility: MarkdownWorkspacePaneVisibility
   viewer: React.ReactNode
   presentation: React.ReactNode
   slidesGallery: React.ReactNode
 }) {
+  const editorMarkdownPaneVisible = props.layoutMode === 'editor' ? true : props.splitPaneVisibility.markdown
   const splitPanes = [
     props.splitPaneVisibility.json ? (
       <section key="json" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="JSON Editor">
@@ -43,13 +45,17 @@ export function MarkdownWorkspaceLayout(props: {
 
       {props.layoutMode === 'editor' ? (
         <section className="flex-1 min-h-0 flex" aria-label="Monaco editors">
-          <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="JSON Editor">
-            {props.renderJsonEditor()}
-          </section>
-          <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" />
-          <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor">
-            {props.renderMarkdownEditor()}
-          </section>
+          {props.splitPaneVisibility.json ? (
+            <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="JSON Editor">
+              {props.renderJsonEditor()}
+            </section>
+          ) : null}
+          {props.splitPaneVisibility.json && editorMarkdownPaneVisible ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" /> : null}
+          {editorMarkdownPaneVisible ? (
+            <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor">
+              {props.renderMarkdownEditor()}
+            </section>
+          ) : null}
         </section>
       ) : props.layoutMode === 'viewer' ? (
         props.viewer

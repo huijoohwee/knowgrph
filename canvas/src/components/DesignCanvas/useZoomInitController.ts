@@ -11,6 +11,7 @@ import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 
 type ZoomBehaviorRef = React.MutableRefObject<d3.ZoomBehavior<SVGSVGElement, unknown> | null>
 type SvgRef = React.MutableRefObject<SVGSVGElement | null>
@@ -31,7 +32,7 @@ type UseZoomInitControllerArgs = {
   canvasRenderMode: unknown
   canvas2dRenderer: unknown
   schema: GraphSchema | null | undefined
-  viewportControlsPreset: unknown
+  viewportControlsPreset: ViewportControlsPreset
   documentSemanticMode: unknown
   frontmatterModeEnabled: unknown
   documentStructureBaselineLock: unknown

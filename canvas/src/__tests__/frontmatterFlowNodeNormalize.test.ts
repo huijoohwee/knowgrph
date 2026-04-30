@@ -1,6 +1,41 @@
 import { normalizeNodes } from '@/features/parsers/markdownFrontmatterFlowGraph.nodes'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph.core'
-import { describe, expect, it } from 'vitest'
+
+type ExpectValue = {
+  toBe: (expected: unknown) => void
+  toBeTruthy: () => void
+  toBeGreaterThan: (expected: number) => void
+  toBeUndefined: () => void
+  not: {
+    toBe: (expected: unknown) => void
+    toBeUndefined: () => void
+  }
+}
+
+const describe = (_name: string, run: () => void) => run()
+const it = (_name: string, run: () => void) => run()
+const expect = (actual: unknown): ExpectValue => ({
+  toBe: expected => {
+    if (actual !== expected) throw new Error(`expected ${String(actual)} to be ${String(expected)}`)
+  },
+  toBeTruthy: () => {
+    if (!actual) throw new Error(`expected ${String(actual)} to be truthy`)
+  },
+  toBeGreaterThan: expected => {
+    if (typeof actual !== 'number' || actual <= expected) throw new Error(`expected ${String(actual)} to be greater than ${String(expected)}`)
+  },
+  toBeUndefined: () => {
+    if (actual !== undefined) throw new Error(`expected ${String(actual)} to be undefined`)
+  },
+  not: {
+    toBe: expected => {
+      if (actual === expected) throw new Error(`expected ${String(actual)} not to be ${String(expected)}`)
+    },
+    toBeUndefined: () => {
+      if (actual === undefined) throw new Error('expected value not to be undefined')
+    },
+  },
+})
 
 function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)

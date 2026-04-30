@@ -195,7 +195,7 @@ export function SourceFilesPersistenceBootstrap() {
         }
       })
     }
-    const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(s => s.activePath, () => {
+    const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(() => {
       syncNow()
     })
     return () => {

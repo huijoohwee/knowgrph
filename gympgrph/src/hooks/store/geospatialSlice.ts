@@ -1,6 +1,6 @@
 import { emitGeospatialModeChanged } from 'grph-shared/geospatial/events'
-import { LS_KEYS } from '../../lib/config'
-import type { GeospatialFitRequest, GeospatialInteractionMode, GeospatialViewMode } from './types'
+import { LS_KEYS } from '../../lib/config.js'
+import type { GeospatialFitRequest, GeospatialInteractionMode, GeospatialViewMode } from './types.js'
 
 const readBool = (key: string, fallback: boolean): boolean => {
   if (typeof window === 'undefined') return fallback

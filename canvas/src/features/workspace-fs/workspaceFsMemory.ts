@@ -6,6 +6,7 @@ import {
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_README_TEXT,
   getWorkspaceSeedFiles,
+  isInitializationWorkspacePath,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   shouldMigrateLegacyWorkspaceSeedPaths,
 } from './workspaceFs'
@@ -173,7 +174,7 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
   const deleteEntry = async (path: WorkspacePath) => {
     ensureRoot()
     const p = normalizeWorkspacePath(path)
-    if (p === WORKSPACE_ROOT_PATH) return
+    if (p === WORKSPACE_ROOT_PATH || isInitializationWorkspacePath(p)) return
     const target = entriesByPath.get(p)
     if (!target) return
     if (target.kind === 'file') {

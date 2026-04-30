@@ -1,10 +1,10 @@
 import React from 'react'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
-import type { WorkspaceFs } from '@/features/workspace-fs/types'
+import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isFrontmatterOnlyDoc, normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
-import { bulkSetWorkspaceEntrySources } from '@/features/workspace-fs/sourceIndex'
+import { bulkSetWorkspaceEntrySources, type WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import {
@@ -22,28 +22,26 @@ export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportRes
   const createdPaths = Array.isArray(rec.createdPaths)
     ? rec.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
     : []
-  const sources = Array.isArray(rec.sources)
-    ? rec.sources
-        .map(item => {
-          const path = String((item as { path?: unknown } | null)?.path || '').trim()
-          const source = (item as { source?: unknown } | null)?.source
-          if (!path || !source || typeof source !== 'object') return null
-          const kind = String((source as { kind?: unknown }).kind || '').trim()
-          if (kind === 'url') {
-            const url = String((source as { url?: unknown }).url || '').trim()
-            if (!url) return null
-            return { path, source: { kind: 'url' as const, url } }
-          }
-          if (kind === 'local') {
-            const originalName = typeof (source as { originalName?: unknown }).originalName === 'string'
-              ? (source as { originalName?: string }).originalName || null
-              : null
-            return { path, source: { kind: 'local' as const, originalName } }
-          }
-          return null
-        })
-        .filter((item): item is WorkspaceImportResult['sources'][number] => !!item)
-    : []
+  const sources: WorkspaceImportResult['sources'] = []
+  if (Array.isArray(rec.sources)) {
+    for (const item of rec.sources) {
+      const path = String((item as { path?: unknown } | null)?.path || '').trim() as WorkspacePath
+      const rawSource = (item as { source?: unknown } | null)?.source
+      if (!path || !rawSource || typeof rawSource !== 'object') continue
+      const kind = String((rawSource as { kind?: unknown }).kind || '').trim()
+      if (kind === 'url') {
+        const url = String((rawSource as { url?: unknown }).url || '').trim()
+        if (url) sources.push({ path, source: { kind: 'url', url } })
+        continue
+      }
+      if (kind === 'local') {
+        const originalName = typeof (rawSource as { originalName?: unknown }).originalName === 'string'
+          ? (rawSource as { originalName?: string }).originalName || null
+          : null
+        sources.push({ path, source: { kind: 'local', originalName } })
+      }
+    }
+  }
   const skipped = Array.isArray(rec.skipped)
     ? rec.skipped
         .map(item => {

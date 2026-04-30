@@ -19,13 +19,17 @@ export function MarkdownEditorPane(props: {
 }) {
   const rafIdRef = React.useRef<number | null>(null)
   const lastSelectionStartRef = React.useRef<number | null>(null)
-  const lineStarts = React.useMemo(() => {
-    const s = String(props.value || '')
-    const out: number[] = [0]
-    for (let i = 0; i < s.length; i += 1) {
-      if (s.charCodeAt(i) === 10) out.push(i + 1)
+  const lineStartsRef = React.useRef<{ value: string; starts: number[] } | null>(null)
+  const getLineStarts = React.useCallback(() => {
+    const value = String(props.value || '')
+    const cached = lineStartsRef.current
+    if (cached && cached.value === value) return cached.starts
+    const starts: number[] = [0]
+    for (let i = 0; i < value.length; i += 1) {
+      if (value.charCodeAt(i) === 10) starts.push(i + 1)
     }
-    return out
+    lineStartsRef.current = { value, starts }
+    return starts
   }, [props.value])
 
   const scheduleEmitCaretLine = React.useCallback(
@@ -38,19 +42,20 @@ export function MarkdownEditorPane(props: {
       if (rafIdRef.current !== null) return
       rafIdRef.current = requestAnimationFrame(() => {
         rafIdRef.current = null
+        const lineStarts = getLineStarts()
         let lo = 0
         let hi = lineStarts.length - 1
         while (lo <= hi) {
           const mid = (lo + hi) >> 1
-          const v = lineStarts[mid]
-          if (v <= offset) lo = mid + 1
+          const value = lineStarts[mid]
+          if (value <= offset) lo = mid + 1
           else hi = mid - 1
         }
         const line = Math.max(1, Math.min(lineStarts.length, hi + 1))
         onCaretLine(line)
       })
     },
-    [lineStarts, props.onCaretLine],
+    [getLineStarts, props.onCaretLine],
   )
 
   React.useEffect(() => {

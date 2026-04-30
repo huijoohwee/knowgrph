@@ -1,5 +1,5 @@
 import { shouldAutosaveWorkspaceFile } from '@/components/BottomPanel/markdownWorkspace/workspaceAutosave'
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -71,9 +71,10 @@ export async function testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange() {
     const editorRef = { current: null } as React.MutableRefObject<unknown>
 
     const root = createRoot(container as unknown as HTMLElement)
-    root.render(
-      React.createElement(MarkdownWorkspaceMain, {
-        themeMode: 'light',
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownWorkspaceMain, {
+          themeMode: 'light',
         uiPanelTextFontClass: 'font-sans text-xs',
         uiPanelMonospaceTextClass: 'font-mono text-xs',
         layoutMode: 'split',
@@ -101,9 +102,9 @@ export async function testMarkdownWorkspaceSplitPreviewFlushesOnDocKeyChange() {
         editorRef,
         setHighlightLine: () => {},
       } as never),
-    )
-
-    await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
+      )
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 0))
+    })
 
     const rootEl =
       (doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null) ||

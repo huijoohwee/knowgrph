@@ -409,22 +409,47 @@ export function testBytePlusVideoWidgetPipelineRendersInRichMediaPanel() {
 }
 
 export function testFlowCanvasUsesConnectedValuesForRichMediaPanelOverlays() {
-  const filePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
-  const text = readFileSync(filePath, 'utf8')
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const overlay = readFileSync(overlayPath, 'utf8')
+  const dataflowPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
+  const dataflow = readFileSync(dataflowPath, 'utf8')
+  const mediaNodePath = resolve(process.cwd(), 'src', 'lib', 'render', 'effectiveMediaNode.ts')
+  const mediaNode = readFileSync(mediaNodePath, 'utf8')
 
-  const requiredSnippets = [
+  const requiredOverlaySnippets = [
     'computeFlowConnectedValuesBySchemaPath',
-    'buildDataflowWidgetRegistry',
-    'applyConnectedValuesToNodeForRender',
-    'const mediaRenderNodes = React.useMemo(() => {',
+    'overlayEditorNodeIdsKey',
+    'connectedValueTargetNodeIds',
     'connectedValuesByNodeId',
-    'baseWidgetRegistry: s.widgetRegistry',
-    'widgetRegistry: baseWidgetRegistry',
-    'const nodes = mediaRenderNodes',
+    'connectedValuesBySchemaPath={connectedValuesBySchemaPath}',
   ]
-  for (const snippet of requiredSnippets) {
-    if (!text.includes(snippet)) {
-      throw new Error(`expected FlowCanvas rich media overlay snippet: ${snippet}`)
+  for (const snippet of requiredOverlaySnippets) {
+    if (!overlay.includes(snippet)) {
+      throw new Error(`expected Flow Editor overlay connected-values snippet: ${snippet}`)
+    }
+  }
+
+  const requiredCacheSnippets = [
+    'connectedValuesResultCache',
+    'buildConnectedValuesTargetKey',
+    'readConnectedValuesResultCache',
+    'writeConnectedValuesResultCache',
+  ]
+  for (const snippet of requiredCacheSnippets) {
+    if (!dataflow.includes(snippet)) {
+      throw new Error(`expected flow dataflow cache snippet: ${snippet}`)
+    }
+  }
+
+  const requiredMediaNodeSnippets = [
+    'connectedRenderNodeCacheByNode',
+    'readConnectedRenderNodeCache',
+    'writeConnectedRenderNodeCache',
+    'applyConnectedValuesToNodeForRender',
+  ]
+  for (const snippet of requiredMediaNodeSnippets) {
+    if (!mediaNode.includes(snippet)) {
+      throw new Error(`expected cached connected media render-node snippet: ${snippet}`)
     }
   }
 }

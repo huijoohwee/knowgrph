@@ -4,6 +4,7 @@ import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { Z_INDEX_GRAPH_MEDIA_LAYER } from '@/lib/ui/zIndex'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
+import type { GraphNode } from '@/lib/graph/types'
 import { commitRichMediaPanelChange, resolveRichMediaPanelInteractive } from '@/lib/render/richMediaSsot'
 
 export function RichMediaOverlayLayer2d(props: {
@@ -74,7 +75,7 @@ export function RichMediaOverlayLayer2d(props: {
               commitRichMediaPanelChange({
                 nodeId: n.id,
                 next,
-                updateNode,
+                updateNode: (id, patch) => updateNode(id, patch as Partial<import('@/lib/graph/types').GraphNode>),
               })
             }}
             forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => svgRef.current)}

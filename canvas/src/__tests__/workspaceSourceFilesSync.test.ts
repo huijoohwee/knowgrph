@@ -53,6 +53,32 @@ export async function testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace
   if (wsB.source?.url !== 'https://example.com/b.md') throw new Error('expected /b.md to carry url')
 }
 
+export async function testWorkspaceSourceFilesSyncPreservesParsedGraphRevision() {
+  const parsedGraphData = { type: 'Graph', nodes: [{ id: 'n1', type: 'Entity', label: 'n1', properties: {} }], edges: [] } as SourceFile['parsedGraphData']
+  const existing: SourceFile[] = [
+    {
+      id: 'ws-prev',
+      name: 'a.md',
+      text: 'prev',
+      enabled: true,
+      status: 'parsed',
+      parsedTextHash: 'h',
+      parsedGraphRevision: 7,
+      parsedGraphData,
+      source: { kind: 'local', path: 'workspace:/a.md' },
+    },
+  ]
+
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing,
+    workspaceEntries: [{ kind: 'file', path: '/a.md', parentPath: '/', name: 'a.md', updatedAtMs: 1 }],
+    sourcesByPath: { '/a.md': { kind: 'local', originalName: 'a.md' } },
+  })
+
+  if (next[0] !== existing[0]) throw new Error('expected unchanged workspace source file object to be reused')
+  if (next[0]?.parsedGraphRevision !== 7) throw new Error('expected parsedGraphRevision to be preserved across workspace source sync')
+}
+
 export async function testWorkspaceSourceFilesSyncForceIncludesActiveWorkspaceMarkdown() {
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [],

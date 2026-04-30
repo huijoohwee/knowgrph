@@ -46,9 +46,9 @@ export type DesignCanvasRenderShellProps = {
   canvasGrid: {
     enabled?: boolean
     size?: number
-    anchor?: string
+    anchor?: 'gridLine' | 'cellCenter'
     lockToBaseStep?: boolean
-    variant?: string
+    variant?: 'lines' | 'dots'
     majorEvery?: number
     dotRadiusPx?: number
     minorAlpha?: number
@@ -111,7 +111,7 @@ export type DesignCanvasRenderShellProps = {
   workspaceEditorOverlayEnabled: boolean
   markdownDocumentName: string | null
   markdownDocumentText: string
-  markdownPanelAllowedKinds: readonly string[]
+  markdownPanelAllowedKinds: Array<'table' | 'code' | 'blockquote' | 'callout' | 'html'>
   stopOverlayEvent: (event: React.SyntheticEvent) => void
   designMediaOverlayNodes: MediaOverlayNode[]
   onRegisterOverlayEl: (id: string, el: HTMLElement | null) => void

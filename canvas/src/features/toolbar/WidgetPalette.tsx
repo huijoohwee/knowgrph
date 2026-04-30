@@ -83,13 +83,13 @@ export default function WidgetPalette(args: {
                     }}
                     onDragStart={(ev) => {
                       if (!dragEnabled) return
-                      markFlowWidgetPointerDragNativeStart(ev.nativeEvent.pointerId)
+                      markFlowWidgetPointerDragNativeStart()
                       const payload = buildFlowWidgetDragPayload({ registryEntryId: entry.id })
                       if (!payload) return
                       setFlowWidgetDragDataTransfer({ dataTransfer: ev.dataTransfer, payload, label })
                     }}
                     onDragEnd={(ev) => {
-                      clearActiveFlowWidgetPointerDragSession(ev.nativeEvent.pointerId)
+                      clearActiveFlowWidgetPointerDragSession()
                     }}
                   >
                     <span className={`block ${UI_THEME_TOKENS.text.primary}`}>{label}</span>

@@ -25,12 +25,55 @@ export type FlowConnectedValue = {
 
 export type FlowConnectedValuesBySchemaPath = Record<string, FlowConnectedValue>
 
+const CONNECTED_VALUES_RESULT_CACHE_LIMIT = 64
+const connectedValuesResultCache = new WeakMap<GraphData, Map<ReadonlyArray<WidgetRegistryEntry>, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>>()
+
 function cleanString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function buildConnectedValuesTargetKey(targetNodeIds?: ReadonlySet<string>): string {
+  if (!targetNodeIds || targetNodeIds.size === 0) return '*'
+  return Array.from(targetNodeIds.values())
+    .map(v => cleanString(v))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))
+    .join('\n')
+}
+
+function readConnectedValuesResultCache(args: {
+  graphData: GraphData
+  registry: ReadonlyArray<WidgetRegistryEntry>
+  targetKey: string
+}): Map<string, FlowConnectedValuesBySchemaPath> | null {
+  return connectedValuesResultCache.get(args.graphData)?.get(args.registry)?.get(args.targetKey) || null
+}
+
+function writeConnectedValuesResultCache(args: {
+  graphData: GraphData
+  registry: ReadonlyArray<WidgetRegistryEntry>
+  targetKey: string
+  result: Map<string, FlowConnectedValuesBySchemaPath>
+}): void {
+  let byRegistry = connectedValuesResultCache.get(args.graphData)
+  if (!byRegistry) {
+    byRegistry = new Map<ReadonlyArray<WidgetRegistryEntry>, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>()
+    connectedValuesResultCache.set(args.graphData, byRegistry)
+  }
+  let byTarget = byRegistry.get(args.registry)
+  if (!byTarget) {
+    byTarget = new Map<string, Map<string, FlowConnectedValuesBySchemaPath>>()
+    byRegistry.set(args.registry, byTarget)
+  }
+  if (!byTarget.has(args.targetKey) && byTarget.size >= CONNECTED_VALUES_RESULT_CACHE_LIMIT) {
+    const oldestKey = byTarget.keys().next().value
+    if (typeof oldestKey === 'string') byTarget.delete(oldestKey)
+  }
+  byTarget.set(args.targetKey, args.result)
 }
 
 function normalizeSchemaPath(schemaPath: string | undefined, fallbackKey: string): string {
@@ -218,18 +261,23 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
 }): Map<string, FlowConnectedValuesBySchemaPath> {
   const graph = args.graphData
   if (!graph) return new Map()
+  const registry = Array.isArray(args.registry) ? args.registry : []
+  const targetKey = buildConnectedValuesTargetKey(args.targetNodeIds)
+  const cached = readConnectedValuesResultCache({ graphData: graph, registry, targetKey })
+  if (cached) return cached
   const computeEnabled = isFrontmatterFlowComputedEnabled(graph)
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
   const edges = Array.isArray(graph.edges) ? graph.edges : []
 
   const byNodeId = nodeIndex(nodes)
-  const registryByNodeId = resolveRegistryEntryByNodeId({ nodes, registry: args.registry })
+  const registryByNodeId = resolveRegistryEntryByNodeId({ nodes, registry })
 
   const requestedTargets = args.targetNodeIds
+  const allConnections = collectConnections(edges)
   const includedNodeIds = (() => {
     if (!requestedTargets || requestedTargets.size === 0) return new Set<string>(Array.from(byNodeId.keys()))
     const reverseAdj = new Map<string, string[]>()
-    for (const c of collectConnections(edges)) {
+    for (const c of allConnections) {
       if (!reverseAdj.has(c.targetId)) reverseAdj.set(c.targetId, [])
       reverseAdj.get(c.targetId)!.push(c.sourceId)
     }
@@ -273,7 +321,7 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
 
   const computedByNodeId = new Map<string, FlowConnectedValuesBySchemaPath>()
   const maxIterations = Math.max(2, Math.min(12, includedNodes.length + 1))
-  const connections = collectConnections(edges).filter(c => includedNodeIds.has(c.sourceId) && includedNodeIds.has(c.targetId))
+  const connections = allConnections.filter(c => includedNodeIds.has(c.sourceId) && includedNodeIds.has(c.targetId))
   const objectValueKeyCache = new WeakMap<object, string>()
 
   const valueKey = (v: unknown): string => {
@@ -383,5 +431,6 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
     if (requestedTargets && !requestedTargets.has(id)) continue
     out.set(id, computedByNodeId.get(id) || {})
   }
+  writeConnectedValuesResultCache({ graphData: graph, registry, targetKey, result: out })
   return out
 }

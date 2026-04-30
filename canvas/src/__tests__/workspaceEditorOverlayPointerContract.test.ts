@@ -85,10 +85,15 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   const workspaceSelectText = readFileSync(workspaceSelectPath, 'utf8')
   const workspaceSsotPath = resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceTableSsot.ts')
   const workspaceSsotText = readFileSync(workspaceSsotPath, 'utf8')
+  const uiInitialStatePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
+  const uiInitialStateText = readFileSync(uiInitialStatePath, 'utf8')
   const workspaceToolbarPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')
   const workspaceToolbarText = readFileSync(workspaceToolbarPath, 'utf8')
-  if (!text.includes('const workspaceEditorOverlayOpen = effectiveWorkspaceViewMode === \'editor\' && workspaceCanvasPaneOpen')) {
-    throw new Error('expected Canvas page to derive a dedicated workspace editor overlay-open state')
+  if (!text.includes("const workspaceEditorOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen")) {
+    throw new Error('expected Canvas page to derive overlay-open state from canonical store state only')
+  }
+  if (text.includes('effectiveWorkspaceViewMode')) {
+    throw new Error('expected Canvas page not to keep stale effective workspace mode aliases after query bootstrap')
   }
   if (!text.includes('{workspaceEditorOverlayOpen ? (')) {
     throw new Error('expected Canvas page to mount the workspace editor overlay only while the pane is open')
@@ -126,20 +131,41 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (!workspaceSsotText.includes("if (args.workspaceCanvasPaneOpen !== true) args.setWorkspaceCanvasPaneOpen(true)")) {
     throw new Error('expected shared workspace open helper to reopen the canvas pane and clear stale OFF residue')
   }
+  if (!uiInitialStateText.includes("const initialWorkspaceCanvasPaneOpen = initialWorkspaceViewMode === 'editor'")) {
+    throw new Error('expected UI initial state to normalize persisted editor mode with pane-open state')
+  }
+  if (!workspaceSsotText.includes("args.setWorkspaceViewMode('editor')\n    return")) {
+    throw new Error('expected shared workspace open helper to avoid duplicate pane-open setter churn after editor mode normalization')
+  }
   if (!workspaceSsotText.includes('export function closeWorkspaceView')) {
     throw new Error('expected workspace editor close flow to stay centralized in a shared helper')
   }
   if (!workspaceSelectText.includes('openWorkspaceEditorPane({')) {
     throw new Error('expected toolbar Workspace View editor selection to reuse the shared workspace open helper')
   }
-  if (!workspaceSelectText.includes('workspaceCanvasPaneOpen')) {
-    throw new Error('expected toolbar Workspace View selection to route stale pane-open state through the shared helper')
+  if (!workspaceSelectText.includes('const state = useGraphStore.getState()')) {
+    throw new Error('expected toolbar Workspace View selection to read live store state at click time')
+  }
+  if (!workspaceSelectText.includes('liveWorkspaceCanvasPaneOpen')) {
+    throw new Error('expected toolbar Workspace View selection to route live pane-open state through the shared helper')
+  }
+  if (!workspaceSelectText.includes('onTriggerClick={handleTriggerClick}')) {
+    throw new Error('expected selected Workspace View trigger click to repair stale closed editor pane state directly')
+  }
+  if (!workspaceSelectText.includes("if (liveWorkspaceViewMode !== 'editor' || liveWorkspaceCanvasPaneOpen === true) return false")) {
+    throw new Error('expected Workspace View trigger repair to run only for active editor mode with a closed pane')
   }
   if (workspaceSelectText.includes('closeWorkspaceView({')) {
     throw new Error('expected toolbar Workspace View selection to avoid redundant close-then-open churn when the shared open helper can normalize state directly')
   }
+  if (!workspaceSsotText.includes("if (args.workspaceCanvasPaneOpen !== false) args.setWorkspaceCanvasPaneOpen(false)")) {
+    throw new Error('expected shared workspace close helper to clear pane-open residue for a clean reopen transition')
+  }
   if (!workspaceToolbarText.includes('closeWorkspaceView({')) {
     throw new Error('expected workspace close action to reuse the shared close helper for residue cleanup')
+  }
+  if (workspaceToolbarText.includes("setWorkspaceViewMode('canvas')")) {
+    throw new Error('expected workspace close action to avoid manual canvas-mode fallback bypassing the shared close helper')
   }
 }
 
@@ -191,13 +217,25 @@ export function testWorkspaceEditorOverlayGatesD3SceneLayoutWrites() {
   if (!sceneText.includes("const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true")) {
     throw new Error('expected D3 scene hook to derive workspace overlay-open state')
   }
-  if (!sceneText.includes('if (workspaceOverlayOpen) return')) {
+  if (!sceneText.includes('workspaceOverlayOpenRef.current = workspaceOverlayOpen')) {
+    throw new Error('expected D3 scene hook to keep overlay-open state as a latest-value guard')
+  }
+  if (!sceneText.includes('if (workspaceOverlayOpenRef.current) return')) {
     throw new Error('expected D3 scene hook to block add/update writes while workspace overlay is open')
+  }
+  if (sceneText.includes('    workspaceOverlayOpen,\n    zoomToSelectionMode,')) {
+    throw new Error('expected D3 scene hook not to rebuild from workspace overlay-open dependency churn')
   }
   if (!presentationText.includes("const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true")) {
     throw new Error('expected D3 presentation hook to derive workspace overlay-open state')
   }
-  if (!presentationText.includes('if (workspaceOverlayOpen) return')) {
+  if (!presentationText.includes('workspaceOverlayOpenRef.current = workspaceOverlayOpen')) {
+    throw new Error('expected D3 presentation hook to keep overlay-open state as a latest-value guard')
+  }
+  if (!presentationText.includes('if (workspaceOverlayOpenRef.current) return')) {
     throw new Error('expected D3 presentation hook to block edge writes while workspace overlay is open')
+  }
+  if (presentationText.includes('    workspaceOverlayOpen,\n    workspaceViewMode,')) {
+    throw new Error('expected D3 presentation hook not to rerun from workspace overlay-open dependency churn')
   }
 }

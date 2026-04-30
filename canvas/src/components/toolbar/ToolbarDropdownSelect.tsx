@@ -25,6 +25,7 @@ type ToolbarDropdownSelectProps<T extends ToolbarDropdownOptionBase> = {
   isButtonActive?: boolean
   menuWidthClass?: string
   onSelect: (id: T['id']) => void
+  onTriggerClick?: () => boolean | void
   renderButtonContent: (activeOption: T) => React.ReactNode
   renderOptionContent?: (option: T) => React.ReactNode
   renderMenuAppend?: () => React.ReactNode
@@ -40,6 +41,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   isButtonActive,
   menuWidthClass = 'w-72',
   onSelect,
+  onTriggerClick,
   renderButtonContent,
   renderOptionContent,
   renderMenuAppend,
@@ -49,6 +51,10 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const dropdownIdRef = React.useRef(`toolbar-dropdown-${Math.random().toString(36).slice(2)}`)
   const activeOption = React.useMemo(() => options.find(option => option.id === value) || options[0], [options, value])
+  const closeMenuNow = React.useCallback(() => {
+    setOpen(false)
+    setOpenSubmenuId(null)
+  }, [])
   React.useEffect(() => {
     const handleDropdownOpen = (event: Event) => {
       const customEvent = event as CustomEvent<{ sourceId?: string }>
@@ -72,6 +78,10 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
         tooltipContent={tooltipContent}
         disabled={disabled}
         onClick={() => {
+          if (onTriggerClick?.() === true) {
+            closeMenuNow()
+            return
+          }
           const next = !open
           if (next) {
             try {
@@ -139,9 +149,8 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                           setOpenSubmenuId(option.id)
                           return
                         }
+                        closeMenuNow()
                         onSelect(option.id)
-                        setOpen(false)
-                        setOpenSubmenuId(null)
                       }}
                       title={
                         option.disabled && (option.disabledReason || option.enableHint)
@@ -180,9 +189,8 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                                 disabled={child.disabled}
                                 onClick={() => {
                                   if (child.disabled) return
+                                  closeMenuNow()
                                   onSelect(child.id)
-                                  setOpen(false)
-                                  setOpenSubmenuId(null)
                                 }}
                                 title={
                                   child.disabled && (child.disabledReason || child.enableHint)

@@ -79,7 +79,7 @@ export function computeFlowHandlesByNode(args: {
     if (fields.length) schemaFieldsByNodeId.set(id, fields)
 
     const entry = resolveWidgetRegistryEntry({
-      node: { type: String(n?.type ?? ''), properties: (n as { properties?: unknown }).properties as never },
+      node: { id, type: String(n?.type ?? ''), properties: (n as { properties?: unknown }).properties as never },
       registry,
     })
     const ports = entry?.ports || []

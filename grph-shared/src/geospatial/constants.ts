@@ -7,6 +7,7 @@ export const GEOSPATIAL_LS_KEYS = {
   geospatialOverlayEnabled: 'kg:ui:geospatial:overlayEnabled',
   geospatialViewMode: 'kg:ui:geospatial:viewMode',
   geospatialStyleUrl: 'kg:ui:geospatial:styleUrl',
+  grabMapsBasemapStyleUrl: 'kg:maps:grabmaps:basemap:styleUrl',
   geospatialPointStyleConfig: 'kg:ui:geospatial:pointStyleConfig',
   geospatialOverlayOpacity: 'kg:ui:geospatial:overlayOpacity',
   geospatialInteractionMode: 'kg:ui:geospatial:interactionMode',

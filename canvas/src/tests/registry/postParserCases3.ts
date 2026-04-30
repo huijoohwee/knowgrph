@@ -109,6 +109,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["workspace.import.githubRepo","@/__tests__/workspaceImportGithubRepo.test","testWorkspaceImportGitHubRepoImportsFiles"],
   ["workspace.import.githubRepo.sitemap","@/__tests__/workspaceImportGithubRepo.test","testWorkspaceImportGitHubRepoSitemapHasTemplatesAndStats"],
   ["workspace.sourceFiles.sync.mergesAndPreserves","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace"],
+  ["workspace.sourceFiles.sync.preservesParsedGraphRevision","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncPreservesParsedGraphRevision"],
   ["workspace.sourceFiles.sync.forceIncludeReenablesValidationSeed","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncForceIncludeReenablesExistingDisabledValidationSeed"],
   ["workspace.sourceFiles.sync.alwaysIncludesCanonicalSeedFiles","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFiles"],
   ["workspace.sourceFiles.sync.reconcilesPersistedDefaultFamilyToCanonicalOrder","@/__tests__/workspaceSourceFilesSync.test","testWorkspaceSeedSourceFilesReconcilePersistedDefaultFamilyToCanonicalOrder"],

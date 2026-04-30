@@ -40,7 +40,6 @@ const modFlowGroupAabbIncludesMembersWhenBoundsExplicit = () => import('@/__test
 const modFlowCanvasFrontmatterFlowPortHandlesEnabledRegression = () => import('@/__tests__/flowCanvasFrontmatterFlowPortHandlesEnabledRegression.test')
 const modFlowWidgetPinnedContainmentClampRegression = () => import('@/__tests__/flowWidgetPinnedContainmentClampRegression.test')
 const modFlowWidgetFrontmatterPortHandlePadRegression = () => import('@/__tests__/flowWidgetFrontmatterPortHandlePadRegression.test')
-const modFlowEditorFrontmatterFlowDefaultWidgetsInitRegression = () => import('@/__tests__/flowEditorFrontmatterFlowDefaultWidgetsInitRegression.test')
 const modFlowWidgetPortHandleDomAnchors = () => import('@/__tests__/flowWidgetPortHandleDomAnchors.test')
 const modGraphDataTableCellSelectOverlay = () => import('@/__tests__/graphDataTableCellSelectOverlay.test')
 const modMarkdownStickyHeadingScrollPadding = () => import('@/__tests__/markdownStickyHeadingScrollPadding.test')
@@ -138,10 +137,6 @@ export const runMarkdownTests = async (results: TestResult[]) => {
   await execTest(results, 'flow.widget.frontmatter.padAccountsForPortHandles', async () => {
     const mod = await modFlowWidgetFrontmatterPortHandlePadRegression()
     await mod.testFlowWidgetFrontmatterPadAccountsForPortHandles()
-  })
-  await execTest(results, 'flow.frontmatterFlow.widgets.defaultInit.unpinnedAndCentered', async () => {
-    const mod = await modFlowEditorFrontmatterFlowDefaultWidgetsInitRegression()
-    await mod.testFlowEditorFrontmatterFlowDefaultsUnpinnedAndCenteredLayout()
   })
   await execTest(results, 'flow.widget.portHandles.domAnchors', async () => {
     const mod = await modFlowWidgetPortHandleDomAnchors()

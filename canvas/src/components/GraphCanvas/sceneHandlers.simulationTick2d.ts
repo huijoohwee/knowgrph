@@ -445,9 +445,9 @@ export const attachSimulationTick = (args: {
         widthMinPx: Number(minPx),
         widthMaxPx: Number(maxPx),
       })
-      const key = `${density}|${width}|${zoomK}|${cfg.widthRatio}|${cfg.widthMinPx}|${cfg.widthMaxPx}`
+      const key = `${density}|${width}|${height}|${zoomK}|${cfg.widthRatio}|${cfg.widthMinPx}|${cfg.widthMaxPx}`
       if (key === lastOverlayHalfExtentsKey) return lastOverlayHalfExtents
-      const out = computeOverlayHalfExtentsWorld({ density, viewportW: width, zoomK, config: cfg })
+      const out = computeOverlayHalfExtentsWorld({ density, viewportW: width, viewportH: height, zoomK, config: cfg })
       lastOverlayHalfExtentsKey = key
       lastOverlayHalfExtents = out
       return out

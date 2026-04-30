@@ -19,31 +19,20 @@ import { workspaceDocumentKey } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { inferYoutubeVideoIdFromPath, parseYoutubeWorkspaceFrontmatter } from './markdownWorkspaceRuntime.shared'
 import { resolveAuthoritativeWorkspaceText } from './markdownWorkspaceRuntime.io'
-
-type GetFsFn = () => Promise<{
-  writeFileText: (path: WorkspacePath, text: string) => Promise<unknown>
-  readFileText: (path: WorkspacePath) => Promise<string | null | undefined>
-}>
-
-type SetActiveMarkdownDocumentFn = (args: {
-  name: string
-  text: string
-  normalizeMermaidMmd: boolean
-  sourceUrl?: string | null
-}) => unknown
+import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
 export function useMarkdownWorkspaceDerivedViews(args: {
   activePath: WorkspacePath | null
   activeText: string
   layoutMode: string
-  getFs: GetFsFn
+  getFs: MarkdownWorkspaceRuntimeGetFs
   sourcesByPath: WorkspaceSourceIndex
   lastLoadedRef: React.MutableRefObject<{ path: WorkspacePath; text: string } | null>
   activeTextRef: React.MutableRefObject<string>
   userEditedActiveTextRef: React.MutableRefObject<boolean>
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
   setActiveTextProgrammatic: (next: string) => void
-  setActiveMarkdownDocument: SetActiveMarkdownDocumentFn
+  setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   setStatusError: (label: string) => void
   setStatusProgress: (
     label: string,

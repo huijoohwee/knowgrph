@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { buildGympgrphGeospatialActions, createDefaultGympgrphGeospatialState, type GympgrphGeospatialState } from './hooks/store/geospatialSlice'
+import { buildGympgrphGeospatialActions, createDefaultGympgrphGeospatialState, type GympgrphGeospatialState } from './hooks/store/geospatialSlice.js'
 
 export type GympgrphState = GympgrphGeospatialState
 

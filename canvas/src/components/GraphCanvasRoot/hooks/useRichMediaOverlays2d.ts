@@ -17,6 +17,9 @@ import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLo
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config.flow-editor'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 export function useRichMediaOverlays2d(args: {
   active: boolean
@@ -113,15 +116,29 @@ export function useRichMediaOverlays2d(args: {
   const mediaOverlayNodes = useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
-    const poolMax = poolMaxRaw > 0 ? threeIframeOverlayPoolMax : 24
+    const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     const st = useGraphStore.getState() as unknown as { selectedNodeId?: unknown; selectedNodeIds?: unknown }
     const preferredNodeIds = [st.selectedNodeId, ...(Array.isArray(st.selectedNodeIds) ? st.selectedNodeIds : [])]
+    const richMediaPanelNodeIds = new Set<string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      if (String(node?.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
+      const id = String(node?.id || '').trim()
+      if (id) richMediaPanelNodeIds.add(id)
+    }
+    const metadata = (sceneGraphData?.metadata || {}) as Record<string, unknown>
+    const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+    const registry = Array.isArray(registryRaw) ? (registryRaw as WidgetRegistryEntry[]) : []
+    const connectedValuesByNodeId = richMediaPanelNodeIds.size > 0
+      ? computeFlowConnectedValuesBySchemaPath({ graphData: sceneGraphData, registry, targetNodeIds: richMediaPanelNodeIds })
+      : undefined
     const suggested = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes,
       nodes,
-      poolMax: threeIframeOverlayPoolMax,
+      poolMax,
       preferredNodeIds,
       excludeNodeIdSet,
+      connectedValuesByNodeId,
     })
 
     const stickyMap = stickyOverlayNodeByIdRef.current

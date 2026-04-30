@@ -7,12 +7,12 @@ import {
 import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
 import { tryCreateGrabMapsLibraryMap } from 'grph-shared/geospatial/grabMapsLibrary'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
-import { LS_KEYS } from '../../lib/config'
+import { LS_KEYS } from '../../lib/config.js'
 import {
   MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL,
   MAPLIBRE_DEFAULT_STYLE_URL,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
-} from './basemapStyle'
+} from './basemapStyle.js'
 
 type BasemapProbe = {
   tileSourceId: string

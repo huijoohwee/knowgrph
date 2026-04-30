@@ -1,4 +1,4 @@
-import type { JSONValue } from '@/lib/graph/types'
+import type { GraphData, JSONValue } from '@/lib/graph/types'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
 import type { GetGraph, SetGraph } from './graphDataSliceAccess'
 import { isJsonValue } from '@/lib/graph/jsonValue'

@@ -168,11 +168,13 @@ export async function applyWorkspaceImportToCanvas(args: {
     if (!current) continue
     if (!current.enabled) continue
 
-    let text = ''
-    try {
-      text = String((await fs.readFileText(path)) || '')
-    } catch {
-      text = ''
+    let text = typeof current.text === 'string' ? current.text : ''
+    if (!text.trim()) {
+      try {
+        text = String((await fs.readFileText(path)) || '')
+      } catch {
+        text = ''
+      }
     }
     if (!text.trim()) continue
     if (text.length > WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS) continue

@@ -35,20 +35,7 @@ import {
   resolveWorkspaceDirtyState,
 } from './markdownWorkspaceRuntime.shared'
 import { pushWorkspaceTextToActiveMarkdownDocument } from './markdownWorkspaceRuntime.io'
-
-type GetFsFn = () => Promise<{
-  readFileText: (path: WorkspacePath) => Promise<string | null | undefined>
-  writeFileText: (path: WorkspacePath, text: string) => Promise<unknown>
-  createFile: (args: { parentPath: WorkspacePath; name: string; text: string }) => Promise<unknown>
-}>
-
-type SetActiveMarkdownDocumentFn = (args: {
-  name: string
-  text: string
-  normalizeMermaidMmd: boolean
-  autoEnableFrontmatter?: boolean
-  sourceUrl?: string | null
-}) => unknown
+import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
 export function useMarkdownWorkspaceIndexing(args: {
   active: boolean
@@ -62,7 +49,7 @@ export function useMarkdownWorkspaceIndexing(args: {
   activeDocumentKey: string
   activeDocumentSourceUrl: string | null
   sourcesByPath: WorkspaceSourceIndex
-  getFs: GetFsFn
+  getFs: MarkdownWorkspaceRuntimeGetFs
   lastLoadedRef: React.MutableRefObject<{ path: WorkspacePath; text: string } | null>
   activePathRef: React.MutableRefObject<WorkspacePath | null>
   activeTextRef: React.MutableRefObject<string>
@@ -72,7 +59,7 @@ export function useMarkdownWorkspaceIndexing(args: {
   indexJobRef: React.MutableRefObject<number>
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
   setActiveTextProgrammatic: (text: string) => void
-  setActiveMarkdownDocument: SetActiveMarkdownDocumentFn
+  setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   setEntries: React.Dispatch<React.SetStateAction<WorkspaceEntry[]>>
   setStatusError: (label: string) => void
   setStatusProgress: (

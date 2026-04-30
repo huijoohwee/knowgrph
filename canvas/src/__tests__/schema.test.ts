@@ -112,6 +112,7 @@ export const testSchemaPersistenceWrites = () => {
     catalog: {
       ...(customSchema.catalog || {}),
       nodeTypes: [...(customSchema.catalog?.nodeTypes || []), 'SchemaPersistTestType'],
+      edgeLabels: customSchema.catalog?.edgeLabels || [],
     },
   })
   const persistedModified = canonicalizeSchemaForPersistence(modified)

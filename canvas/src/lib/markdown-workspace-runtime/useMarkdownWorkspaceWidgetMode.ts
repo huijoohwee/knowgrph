@@ -19,6 +19,7 @@ export function useMarkdownWorkspaceWidgetMode(args: {
   isMarkdownPath: (path: string) => boolean
 }) {
   const [contentMode, setContentMode] = React.useState<'document' | 'widget'>('document')
+  const wasMarkdownPathRef = React.useRef<boolean>(args.isMarkdownPath(String(args.activePath || '')))
   const userForcedDocumentRef = React.useRef(false)
   const setContentModeAuto = React.useCallback((mode: 'document' | 'widget') => {
     if (mode === 'document') {
@@ -94,8 +95,12 @@ export function useMarkdownWorkspaceWidgetMode(args: {
   }, [contentMode, setContentModeAuto, widgetAvailable])
 
   React.useEffect(() => {
+    const isMarkdownPathActive = args.isMarkdownPath(String(args.activePath || ''))
+    const wasMarkdownPath = wasMarkdownPathRef.current
+    wasMarkdownPathRef.current = isMarkdownPathActive
     if (!widgetAvailable || contentMode === 'widget' || userForcedDocumentRef.current) return
-    if (args.isMarkdownPath(String(args.activePath || ''))) return
+    if (isMarkdownPathActive) return
+    if (wasMarkdownPath) return
     setContentModeAuto('widget')
   }, [args.activePath, args.isMarkdownPath, contentMode, setContentModeAuto, widgetAvailable])
 

@@ -1,14 +1,14 @@
-import React, { act } from 'react'
+import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import Toolbar from '@/components/Toolbar'
 import { EmbeddedEditorShell } from '@/components/EmbeddedEditorShell'
 import { EmbeddedCanvasPreviewFrame } from '@/components/EmbeddedCanvasPreviewFrame'
-import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
 import { EditorWorkspaceSelect } from '@/components/toolbar/EditorWorkspaceSelect'
+import WorkflowManagerInspectorPanel from '@/features/flow-editor-manager/WorkflowManagerInspectorPanel'
+import { closeWorkspaceView } from '@/features/workspace-table/workspaceTableSsot'
 import { FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID } from '@/lib/config'
 
 const tick = async () => {
@@ -59,7 +59,133 @@ export async function testToolbarWorkspaceViewDropdownSelectsEditorWorkspace() {
       throw new Error('expected workspaceViewMode to be editor after selecting Editor Workspace')
     }
 
-    root.unmount()
+    await act(async () => {
+      root.unmount()
+    })
+  } finally {
+    try {
+      useGraphStore.getState().setWorkspaceViewMode('canvas')
+    } catch {
+      void 0
+    }
+    restore()
+    restoreWindow()
+  }
+}
+
+export async function testToolbarWorkspaceViewReopensEditorWorkspaceAfterInitialOpenClose() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    useGraphStore.getState().resetAll()
+    useGraphStore.getState().setWorkspaceViewMode('editor')
+
+    const initiallyOpen = useGraphStore.getState()
+    if (initiallyOpen.workspaceViewMode !== 'editor' || initiallyOpen.workspaceCanvasPaneOpen !== true) {
+      throw new Error('expected test to initialize with Editor Workspace open')
+    }
+
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(<EditorWorkspaceSelect iconSizeClass="h-4 w-4" iconStrokeWidth={1.6} />)
+    })
+
+    const selectEditorWorkspace = async () => {
+      const workspaceViewBtn = dom.window.document.querySelector('button[aria-label="Workspace View"]') as HTMLButtonElement | null
+      if (!workspaceViewBtn) throw new Error('expected Workspace View button')
+      await act(async () => {
+        workspaceViewBtn.click()
+      })
+      await tick()
+      const menuButtons = Array.from(dom.window.document.querySelectorAll('menu button')) as HTMLButtonElement[]
+      const editorOption =
+        menuButtons.find(btn => String(btn.title || '').trim() === 'Editor Workspace') ||
+        menuButtons.find(btn => String(btn.textContent || '').includes('Editor Workspace')) ||
+        null
+      if (!editorOption) throw new Error('expected Editor Workspace option')
+      await act(async () => {
+        editorOption.click()
+      })
+      await tick()
+    }
+
+    await act(async () => {
+      closeWorkspaceView({
+        workspaceViewMode: initiallyOpen.workspaceViewMode,
+        workspaceCanvasPaneOpen: initiallyOpen.workspaceCanvasPaneOpen,
+        setWorkspaceViewMode: initiallyOpen.setWorkspaceViewMode,
+        setWorkspaceCanvasPaneOpen: initiallyOpen.setWorkspaceCanvasPaneOpen,
+      })
+    })
+    await tick()
+    const closed = useGraphStore.getState()
+    if (closed.workspaceViewMode !== 'canvas' || closed.workspaceCanvasPaneOpen !== false) {
+      throw new Error('expected workspace close to clear pane-open residue before toolbar reopen')
+    }
+
+    await selectEditorWorkspace()
+    const reopened = useGraphStore.getState()
+    if (reopened.workspaceViewMode !== 'editor' || reopened.workspaceCanvasPaneOpen !== true) {
+      throw new Error('expected toolbar reopen to restore editor workspace with a clean pane-open transition')
+    }
+
+    await act(async () => {
+      root.unmount()
+    })
+  } finally {
+    try {
+      useGraphStore.getState().setWorkspaceViewMode('canvas')
+    } catch {
+      void 0
+    }
+    restore()
+    restoreWindow()
+  }
+}
+
+export async function testToolbarWorkspaceViewButtonReopensClosedEditorPane() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  try {
+    useGraphStore.getState().resetAll()
+    useGraphStore.setState({ workspaceViewMode: 'editor', workspaceCanvasPaneOpen: false })
+
+    const staleClosed = useGraphStore.getState()
+    if (staleClosed.workspaceViewMode !== 'editor' || staleClosed.workspaceCanvasPaneOpen !== false) {
+      throw new Error('expected test to initialize with active Editor Workspace mode but closed pane')
+    }
+
+    const container = dom.window.document.getElementById('root')
+    if (!container) throw new Error('missing root container')
+
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(<EditorWorkspaceSelect iconSizeClass="h-4 w-4" iconStrokeWidth={1.6} />)
+    })
+
+    const workspaceViewBtn = dom.window.document.querySelector('button[aria-label="Workspace View"]') as HTMLButtonElement | null
+    if (!workspaceViewBtn) throw new Error('expected Workspace View button')
+
+    await act(async () => {
+      workspaceViewBtn.click()
+    })
+    await tick()
+
+    const reopened = useGraphStore.getState()
+    if (reopened.workspaceViewMode !== 'editor' || reopened.workspaceCanvasPaneOpen !== true) {
+      throw new Error('expected selected Workspace View button click to reopen the stale closed editor pane')
+    }
+    const menu = dom.window.document.querySelector('menu')
+    if (menu) throw new Error('expected stale closed editor pane repair not to leave a dropdown open')
+
+    await act(async () => {
+      root.unmount()
+    })
   } finally {
     try {
       useGraphStore.getState().setWorkspaceViewMode('canvas')
@@ -115,22 +241,15 @@ export async function testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlow
     if (!container) throw new Error('missing root container')
 
     root = createRoot(container)
-    root.render(
-      <ToolbarToolMenu
-        pipelineStatus={null}
-        exportStatus={null}
-        toolMenuCardRef={{ current: null }}
-        toolMenuCardStyle={{ top: 0, left: 0 }}
-        onHeaderPointerDown={() => void 0}
-        requestedFloatingPanelView="inspector"
-        requestedFloatingPanelViewSeq={1}
-        onClose={() => void 0}
-      />,
-    )
+    await act(async () => {
+      root.render(<WorkflowManagerInspectorPanel />)
+    })
 
     let inspector: Element | null = null
     for (let i = 0; i < 60; i++) {
-      await tick()
+      await act(async () => {
+        await tick()
+      })
       inspector = dom.window.document.querySelector('[aria-label="Record inspector"]')
       if (inspector) break
     }
@@ -146,7 +265,9 @@ export async function testEditorWorkspaceInspectorUsesSelectionInspectorWhenFlow
       void 0
     }
     try {
-      root?.unmount()
+      await act(async () => {
+        root?.unmount()
+      })
     } catch {
       void 0
     }

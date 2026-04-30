@@ -2,6 +2,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
+import { useMarkdownWorkspaceWidgetMode } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceWidgetMode'
 
 const tick = async (n: number = 1) => {
   for (let i = 0; i < n; i += 1) {
@@ -23,6 +24,63 @@ const ensureRangeRect = (dom: ReturnType<typeof initJsdomHarness>['dom']) => {
     }
   } catch {
     void 0
+  }
+}
+
+export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocumentMode() {
+  const { dom, restore } = initJsdomHarness()
+  const doc = dom.window.document
+  const container = doc.createElement('div')
+  doc.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  const snapshots: string[] = []
+
+  function Harness(props: { activePath: string; graphContentRevision: number }) {
+    const state = useMarkdownWorkspaceWidgetMode({
+      graphNodes: [{ id: 'w-text-script', type: 'TextGeneration', properties: {} } as never],
+      graphEdges: [{ id: 'e-video', source: 'w-text-script', target: 'p-text-script' } as never],
+      graphContentRevision: props.graphContentRevision,
+      widgetRegistry: [{ isEnabled: true, nodeTypeId: 'TextGeneration' } as never],
+      openWidgetNodeIds: ['w-text-script'],
+      selectedNodeId: null,
+      activePath: props.activePath,
+      isMarkdownPath: path => String(path || '').toLowerCase().endsWith('.md'),
+    })
+
+    React.useEffect(() => {
+      snapshots.push(state.contentMode)
+    }, [state.contentMode])
+
+    return null
+  }
+
+  try {
+    await act(async () => {
+      root.render(React.createElement(Harness, { activePath: '/knowgrph-video-demo.md', graphContentRevision: 1 }))
+      await tick(2)
+    })
+
+    if (snapshots[0] !== 'document') {
+      throw new Error('expected markdown workspace seed to stay in document mode on first load even when widgets are available')
+    }
+
+    await act(async () => {
+      root.render(React.createElement(Harness, { activePath: '/workspace/output.json', graphContentRevision: 2 }))
+      await tick(2)
+    })
+
+    if (snapshots.includes('widget')) {
+      throw new Error('expected first transition away from markdown seed to avoid auto-switching into widget mode during workspace load')
+    }
+  } finally {
+    try {
+      await act(async () => {
+        root.unmount()
+      })
+    } catch {
+      void 0
+    }
+    restore()
   }
 }
 
@@ -277,14 +335,11 @@ export async function testMarkdownWorkspaceEditorOmitsDocumentSelectorInHeader()
     const monacoEditors = container.querySelector('section[aria-label="Monaco editors"]') as HTMLElement | null
     if (!monacoEditors) throw new Error('expected editor layout to render dedicated Monaco editor surfaces')
     const jsonEditorPane = monacoEditors.querySelector('section[aria-label="JSON Editor"]') as HTMLElement | null
-    if (!jsonEditorPane) throw new Error('expected editor layout to include JSON Editor pane')
+    if (jsonEditorPane) throw new Error('expected editor layout to avoid mounting JSON Editor pane until it is explicitly enabled')
     const markdownEditorPane = monacoEditors.querySelector('section[aria-label="Markdown Editor"]') as HTMLElement | null
     if (!markdownEditorPane) throw new Error('expected editor layout to include Markdown Editor pane')
     const jsonEditorTextarea = container.querySelector('textarea[aria-label="JSON Editor Text"]') as HTMLTextAreaElement | null
-    if (!jsonEditorTextarea) throw new Error('expected JSON editor textarea surface in workspace editor')
-    if (!String(jsonEditorTextarea.value || '').trim().startsWith('{')) {
-      throw new Error('expected JSON editor pane to show JSON content instead of markdown source text')
-    }
+    if (jsonEditorTextarea) throw new Error('expected JSON editor textarea surface not to mount during initial editor load')
     const markdownEditorTextarea = container.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
     if (!markdownEditorTextarea) throw new Error('expected markdown editor textarea surface in workspace editor')
     if (!String(markdownEditorTextarea.value || '').includes('Editor line one')) {
@@ -352,10 +407,7 @@ export async function testMarkdownWorkspaceEditorKeepsJsonPaneBlankForEmptyMarkd
     })
 
     const jsonEditorTextarea = container.querySelector('textarea[aria-label="JSON Editor Text"]') as HTMLTextAreaElement | null
-    if (!jsonEditorTextarea) throw new Error('expected JSON editor textarea surface in workspace editor')
-    if (String(jsonEditorTextarea.value || '') !== '') {
-      throw new Error('expected JSON editor pane to stay blank for empty markdown input')
-    }
+    if (jsonEditorTextarea) throw new Error('expected JSON editor pane not to mount for empty markdown input during initial editor load')
     const markdownEditorTextarea = container.querySelector('textarea[aria-label="Markdown Editor Text"]') as HTMLTextAreaElement | null
     if (!markdownEditorTextarea) throw new Error('expected markdown editor textarea surface in workspace editor')
     if (String(markdownEditorTextarea.value || '') !== '') {

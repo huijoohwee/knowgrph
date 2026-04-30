@@ -1,4 +1,4 @@
-import type { GeospatialViewMode } from './types'
+import type { GeospatialViewMode } from '../../hooks/store/types.js'
 
 import { GRABMAPS_DEFAULT_STYLE_URL } from 'grph-shared/geospatial/grabMapsSsot'
 import { readGrabMapsAuthModeFromBrowser, readGrabMapsByokApiKeyFromBrowser } from 'grph-shared/geospatial/grabMapsAuth'

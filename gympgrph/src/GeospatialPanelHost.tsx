@@ -2,9 +2,9 @@ import React from 'react'
 import type { GeospatialViewMode } from 'grph-shared/geospatial/events'
 import { GEOSPATIAL_STYLE_URL_CHANGED_EVENT } from 'grph-shared/geospatial/constants'
 import { UI_THEME_TOKENS } from 'grph-shared/ui/themeTokens'
-import { requestGeospatialCurrentLocation, requestGeospatialFitToData, requestGeospatialFitToSelection } from './geospatialFit'
-import { LS_KEYS } from './lib/config'
-import { useGympgrphStore } from './store'
+import { requestGeospatialCurrentLocation, requestGeospatialFitToData, requestGeospatialFitToSelection } from './geospatialFit.js'
+import { LS_KEYS } from './lib/config.js'
+import { useGympgrphStore } from './store.js'
 import {
   GRABMAPS_DEFAULT_STYLE_URL,
   MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL,
@@ -17,14 +17,14 @@ import {
   normalizeGeospatialViewMode,
   resolveStandardViewModeStyleUrl,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
-} from './features/geospatial/basemapStyle'
+} from './features/geospatial/basemapStyle.js'
 import {
   MAIN_PANEL_DEFAULT_GEOSPATIAL_POINT_STYLE_CONFIG,
   normalizeGeospatialPointStyleConfig,
   readGeospatialPointStyleConfig,
   type GeospatialPointStyleConfig,
   writeGeospatialPointStyleConfig,
-} from './features/geospatial/pointStyleConfig'
+} from './features/geospatial/pointStyleConfig.js'
 
 type GeospatialPanelHostProps = {
   active?: boolean

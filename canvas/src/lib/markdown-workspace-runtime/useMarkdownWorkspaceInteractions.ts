@@ -356,6 +356,7 @@ export function useMarkdownWorkspaceInteractions(args: {
 
   const lastAutoApplySigRef = React.useRef<string | null>(null)
   const lastRealtimeApplySigRef = React.useRef<string | null>(null)
+  const workspaceApplyEffectsEnabled = active && workspaceCanvasPaneOpen === true
   const handleApply = React.useCallback(async () => {
     const current = argsRef.current
     const name = String(current.activeDocumentKey || '').trim()
@@ -408,7 +409,7 @@ export function useMarkdownWorkspaceInteractions(args: {
   }, [geoDatasetIntegration])
 
   React.useEffect(() => {
-    if (!workspaceCanvasPaneOpen || contentMode === 'widget') return
+    if (!workspaceApplyEffectsEnabled || contentMode === 'widget') return
     const name = String(activeDocumentKey || '').trim()
     const text = String(activeText || '')
     if (!name || !text.trim()) return
@@ -421,10 +422,10 @@ export function useMarkdownWorkspaceInteractions(args: {
     if (lastAutoApplySigRef.current === sig) return
     lastAutoApplySigRef.current = sig
     void handleApply()
-  }, [activeDocumentKey, activeText, contentMode, graphEdgesRef, graphNodesRef, handleApply, markdownDocumentName, markdownDocumentText, workspaceCanvasPaneOpen])
+  }, [activeDocumentKey, activeText, contentMode, graphEdgesRef, graphNodesRef, handleApply, markdownDocumentName, markdownDocumentText, workspaceApplyEffectsEnabled])
 
   React.useEffect(() => {
-    if (!workspaceCanvasPaneOpen || canvasWorkspaceSyncMode !== 'realtime' || contentMode === 'widget') return
+    if (!workspaceApplyEffectsEnabled || canvasWorkspaceSyncMode !== 'realtime' || contentMode === 'widget') return
     const name = String(activeDocumentKey || '').trim()
     const text = String(activeText || '')
     if (!name || !text.trim()) return
@@ -437,7 +438,7 @@ export function useMarkdownWorkspaceInteractions(args: {
       void handleApply()
     }, WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS)
     return () => window.clearTimeout(timer)
-  }, [activeDocumentKey, activeText, canvasWorkspaceSyncMode, contentMode, handleApply, markdownDocumentName, markdownDocumentText, workspaceCanvasPaneOpen])
+  }, [activeDocumentKey, activeText, canvasWorkspaceSyncMode, contentMode, handleApply, markdownDocumentName, markdownDocumentText, workspaceApplyEffectsEnabled])
 
   const handleFormatAction = React.useCallback(
     (action: MarkdownFormatAction) => {

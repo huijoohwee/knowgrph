@@ -222,7 +222,7 @@ export function testCanvasDocumentModeToolbarActionsNormalizeConflictingFlags() 
     canvas3dMode: '3d',
     canvasRenderMode: '2d' as const,
     renderMediaAsNodes: false,
-    schema: {},
+    schema: { nodeStyles: {}, edgeStyles: {}, rules: [], behavior: { allowEdgeCreation: true, allowNodeDrag: true } },
     setCanvas2dRenderer: (value: string) => calls.push(`renderer:${value}`),
     setCanvasRenderMode: (value: string) => calls.push(`surface:${value}`),
     setCanvas3dMode: (value: string) => calls.push(`3d:${value}`),

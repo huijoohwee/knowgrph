@@ -47,19 +47,17 @@ export default function CanvasPage() {
   )
 
   const queryRequestsEditorWorkspace = shouldOpenEditorWorkspaceFromSearch(location.search)
-  const effectiveWorkspaceViewMode: 'canvas' | 'editor' = queryRequestsEditorWorkspace ? 'editor' : workspaceViewMode
-  const launchSpotlightShortcutEnabled = !isEmbeddedPreview && effectiveWorkspaceViewMode !== 'editor'
+  const launchSpotlightShortcutEnabled = !isEmbeddedPreview && workspaceViewMode !== 'editor'
   const consumedEditorWorkspaceQueryRef = React.useRef(false)
 
   React.useEffect(() => {
-    if (!queryRequestsEditorWorkspace) return
+    if (!queryRequestsEditorWorkspace || consumedEditorWorkspaceQueryRef.current) return
+    consumedEditorWorkspaceQueryRef.current = true
     try {
       setWorkspaceViewMode('editor')
     } catch {
       void 0
     }
-    if (consumedEditorWorkspaceQueryRef.current) return
-    consumedEditorWorkspaceQueryRef.current = true
     try {
       const params = new URLSearchParams(String(location.search || ''))
       if (!String(params.get(QUERY_PARAM_OPEN_EDITOR_WORKSPACE) || '').trim()) return
@@ -72,13 +70,13 @@ export default function CanvasPage() {
     }
   }, [location.search, queryRequestsEditorWorkspace, setWorkspaceViewMode])
 
-  const [editorShellWarmed, setEditorShellWarmed] = React.useState(effectiveWorkspaceViewMode === 'editor')
+  const [editorShellWarmed, setEditorShellWarmed] = React.useState(workspaceViewMode === 'editor')
   React.useEffect(() => {
-    if (effectiveWorkspaceViewMode === 'editor') setEditorShellWarmed(true)
-  }, [effectiveWorkspaceViewMode])
+    if (workspaceViewMode === 'editor') setEditorShellWarmed(true)
+  }, [workspaceViewMode])
 
   const { workspacePreviewWidthPx, setResizeHandleEl } = useCanvasWorkspacePaneRuntime()
-  const workspaceEditorOverlayOpen = effectiveWorkspaceViewMode === 'editor' && workspaceCanvasPaneOpen
+  const workspaceEditorOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen
 
   React.useEffect(() => {
     if (!workspaceEditorOverlayOpen) return
@@ -171,7 +169,7 @@ export default function CanvasPage() {
                     className={`absolute inset-0 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]${workspaceEditorOverlayOpen ? ' pointer-events-none' : ''}`}
                     aria-label="Canvas pane"
                   >
-                    {effectiveWorkspaceViewMode !== 'editor' ? (
+                    {workspaceViewMode !== 'editor' ? (
                       <nav
                         className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+0.5rem)] pb-2 bg-transparent pointer-events-none"
                         aria-label="Canvas Toolbar"

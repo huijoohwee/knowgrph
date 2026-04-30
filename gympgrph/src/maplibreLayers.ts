@@ -1,5 +1,5 @@
 import type { FeatureCollection } from 'geojson'
-import type { GeospatialPointStyleConfig } from './features/geospatial/pointStyleConfig'
+import type { GeospatialPointStyleConfig } from './features/geospatial/pointStyleConfig.js'
 
 const EMPTY_FEATURE_COLLECTION: FeatureCollection = { type: 'FeatureCollection', features: [] }
 

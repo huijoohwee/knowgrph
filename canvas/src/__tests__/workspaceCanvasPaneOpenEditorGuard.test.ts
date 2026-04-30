@@ -22,6 +22,13 @@ export async function testWorkspaceCanvasPaneOpenCannotCloseWhileEditorMode() {
     if (after.workspaceCanvasPaneOpen !== true) {
       throw new Error('expected workspaceCanvasPaneOpen to remain true while workspaceViewMode is editor')
     }
+    after.setWorkspaceViewMode('canvas')
+    after.setWorkspaceCanvasPaneOpen(false)
+    useGraphStore.getState().toggleWorkspaceViewMode()
+    const toggledOpen = useGraphStore.getState()
+    if (toggledOpen.workspaceViewMode !== 'editor' || toggledOpen.workspaceCanvasPaneOpen !== true) {
+      throw new Error('expected toggleWorkspaceViewMode to share editor pane-open normalization')
+    }
   } finally {
     await new Promise<void>(resolve => setTimeout(resolve, 0))
     bootstrap.restore()

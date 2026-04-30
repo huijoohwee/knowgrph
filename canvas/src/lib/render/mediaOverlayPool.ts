@@ -33,17 +33,7 @@ export type MediaOverlayNode = {
   panel?: RichMediaPanelOverlayState
 }
 
-type RankedMediaNode = {
-  id: string
-  title: string
-  url: string
-  srcDoc?: string
-  openUrl: string
-  interactive: boolean
-  kind: MediaOverlayKind
-  rank: number
-  idx: number
-}
+const EMPTY_NODE_BY_ID = new Map<string, GraphNode>()
 
 type Candidate = {
   id: string
@@ -237,26 +227,6 @@ function computeRichMediaPanelOverlayRankBonus(candidate: Candidate): number {
   return score
 }
 
-function pushTopRanked(list: RankedMediaNode[], item: RankedMediaNode, limit: number) {
-  if (limit <= 0) return
-  if (list.length < limit) {
-    list.push(item)
-  } else {
-    const worst = list[list.length - 1]!
-    if (item.rank < worst.rank) return
-    if (item.rank === worst.rank && item.idx >= worst.idx) return
-    list[list.length - 1] = item
-  }
-  for (let i = list.length - 1; i > 0; i -= 1) {
-    const a = list[i - 1]!
-    const b = list[i]!
-    if (a.rank > b.rank) break
-    if (a.rank === b.rank && a.idx <= b.idx) break
-    list[i - 1] = b
-    list[i] = a
-  }
-}
-
 export function listMediaOverlayNodes(args: {
   enabled: boolean
   nodes: GraphNode[]
@@ -275,12 +245,17 @@ export function listMediaOverlayNodes(args: {
   const preferredSet = preferred.length ? new Set(preferred) : null
   const exclude = args.excludeNodeIdSet || null
   const connectedValuesByNodeId = args.connectedValuesByNodeId || null
-  const nodeById = new Map<string, GraphNode>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const node = nodes[i]
-    const id = String(node?.id || '').trim()
-    if (!id) continue
-    nodeById.set(id, node)
+  let nodeById: Map<string, GraphNode> | null = null
+  const getNodeById = (): ReadonlyMap<string, GraphNode> => {
+    if (nodeById) return nodeById
+    nodeById = new Map<string, GraphNode>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      const id = String(node?.id || '').trim()
+      if (!id) continue
+      nodeById.set(id, node)
+    }
+    return nodeById
   }
 
   const candidates: Candidate[] = []
@@ -302,16 +277,17 @@ export function listMediaOverlayNodes(args: {
     if (!spec) continue
     const kind = spec.kind as MediaOverlayKind
     if (!kinds.has(kind)) continue
+    const panelNodeById = String(n0.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID ? getNodeById() : undefined
     const title = buildOverlayTitle({
       node: n0,
-      nodeById,
+      nodeById: panelNodeById || EMPTY_NODE_BY_ID,
       connectedValuesBySchemaPath,
     })
     const openUrl = chooseOpenUrl(nodeForSpec, spec.url)
     const panel = buildRichMediaPanelOverlayState({
       node: n0,
       connectedValuesBySchemaPath,
-      nodeById,
+      nodeById: panelNodeById,
     })
     const preferredHit = preferredSet?.has(id) === true
     const rankBase = computeMediaRank(nodeForSpec, spec)

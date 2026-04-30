@@ -152,7 +152,7 @@ const ensureWorkspaceFilePathExists = async (requestedPath: string): Promise<Wor
   const parent = normalizeWorkspacePath(lastSlash > 0 ? normalized.slice(0, lastSlash) : '/')
   const name = normalized.split('/').filter(Boolean).slice(-1)[0] || ''
   if (!name) return normalized
-  await ensureWorkspaceFolderTreeIfMissing(parent)
+  await ensureWorkspaceFolderTreeIfMissing({ fs, folderPath: parent })
   const created = await fs.createFile({ parentPath: parent, name, text: '' })
   return normalizeWorkspacePath(created)
 }
@@ -165,7 +165,7 @@ export const createNewChatHistoryWorkspaceFilePath = async (
   const scopeKey = resolveSessionScopeKey(args)
   const rootPathRaw = String(args?.defaultLocalRootPath || '').trim()
   const folder: WorkspacePath = normalizeWorkspacePath(rootPathRaw || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT)
-  await ensureWorkspaceFolderTreeIfMissing(folder)
+  await ensureWorkspaceFolderTreeIfMissing({ folderPath: folder })
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
   const normalized = await createTimestampedWorkspaceFile({

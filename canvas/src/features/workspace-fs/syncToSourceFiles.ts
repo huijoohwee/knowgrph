@@ -47,6 +47,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     if (String(prev.error || '') !== String(next.error || '')) return false
     if (String(prev.parsedParserId || '') !== String(next.parsedParserId || '')) return false
     if (String(prev.parsedTextHash || '') !== String(next.parsedTextHash || '')) return false
+    if ((prev.parsedGraphRevision || 0) !== (next.parsedGraphRevision || 0)) return false
     if (prev.parsedGraphData !== next.parsedGraphData) return false
     if (!sourceEqual(prev.source, next.source)) return false
     return true
@@ -99,6 +100,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       error: prev?.error,
       parsedParserId: prev?.parsedParserId,
       parsedTextHash: prev?.parsedTextHash,
+      parsedGraphRevision: prev?.parsedGraphRevision,
       parsedGraphData: prev?.parsedGraphData,
       source,
     }

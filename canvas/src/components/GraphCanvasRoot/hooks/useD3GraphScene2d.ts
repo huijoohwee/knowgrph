@@ -105,6 +105,8 @@ export function useD3GraphScene2d(args: {
     })),
   )
   const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true
+  const workspaceOverlayOpenRef = useRef(workspaceOverlayOpen)
+  workspaceOverlayOpenRef.current = workspaceOverlayOpen
   const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(args.canvas2dRenderer || '') !== 'd3Bipartite'
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
 
@@ -610,19 +612,19 @@ export function useD3GraphScene2d(args: {
           toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
           setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
           addNode: n => {
-            if (workspaceOverlayOpen) return
+            if (workspaceOverlayOpenRef.current) return
             useGraphStore.getState().addNode(n)
           },
           updateNode: (id, u) => {
-            if (workspaceOverlayOpen) return
+            if (workspaceOverlayOpenRef.current) return
             useGraphStore.getState().updateNode(id, u)
           },
           addEdge: e => {
-            if (workspaceOverlayOpen) return
+            if (workspaceOverlayOpenRef.current) return
             useGraphStore.getState().addEdge(e)
           },
           updateEdge: (id, u) => {
-            if (workspaceOverlayOpen) return
+            if (workspaceOverlayOpenRef.current) return
             useGraphStore.getState().updateEdge(id, u)
           },
           enableEditorGestures,
@@ -714,8 +716,6 @@ export function useD3GraphScene2d(args: {
     setHoverInfo,
     setLayoutPositionsForMode,
     viewportControlsPreset,
-    workspaceCanvasPaneOpen,
-    workspaceOverlayOpen,
     zoomToSelectionMode,
   ])
 }

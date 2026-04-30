@@ -18,6 +18,10 @@ import { projectPositionsToSphereShell } from '@/features/three/sphereConstraint
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults } from '@/components/FlowCanvas/handles'
 import { togglePortHandlesEnabledInSchema, shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
+import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
+import { buildRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 import type { GraphNode } from '@/lib/graph/types'
 
 const readSlideDemoOrFallback = (): { nameForParse: string; text: string; documentPath: string } => {
@@ -52,6 +56,14 @@ const readKgcPipelinePrdTadPath = (): string => {
     : ''
   if (envPath) return envPath
   return path.resolve(process.cwd(), '..', '..', '..', 'huijoohwee.github.io', 'docs', 'kgc-ai-pipeline-prd-tad.md')
+}
+
+const readKnowgrphVideoDemoPath = (): string => {
+  const envPath = typeof process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH === 'string'
+    ? process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  return path.resolve(process.cwd(), '..', 'knowgrph-video-demo.md')
 }
 
 const toSimpleFlowGraph = (graphData: { nodes?: unknown; edges?: unknown }) => {
@@ -316,6 +328,77 @@ export const testImportRenderPipelineFrontmatterFlowSampleInfiniteCanvas = async
     layoutPositionCacheByMode: useGraphStore.getState().layoutPositionCacheByMode,
   })
   if (!layout.cacheKey.trim()) throw new Error('expected layout cache key for Infinite Canvas computing-flow sample')
+}
+
+export const testImportRenderPipelineKnowgrphVideoDemoFlowEditorDocumentModes = async () => {
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setCanvasRenderMode('3d')
+  useGraphStore.getState().setCanvas2dRenderer('d3')
+  useGraphStore.getState().setDocumentSemanticMode('keyword')
+  useGraphStore.getState().setFrontmatterModeEnabled(false)
+  useGraphStore.getState().setMultiDimTableModeEnabled(true)
+
+  const samplePath = readKnowgrphVideoDemoPath()
+  if (!fs.existsSync(samplePath)) return
+  const text = fs.readFileSync(samplePath, 'utf8')
+  const parsed = await loadGraphDataFromTextViaParser(samplePath, text, { applyToStore: true, syncMarkdownDocument: false })
+  if (!parsed?.graphData) throw new Error('expected graphData from knowgrph video demo import')
+  if (String(parsed.graphData.context || '').trim() !== 'frontmatter-flow') {
+    throw new Error('expected frontmatter-flow context from knowgrph video demo import')
+  }
+  const store = useGraphStore.getState()
+  if (store.canvasRenderMode !== '2d') throw new Error(`expected 2d render mode, got ${String(store.canvasRenderMode)}`)
+  if (store.canvas2dRenderer !== 'flowEditor') throw new Error(`expected flowEditor renderer, got ${String(store.canvas2dRenderer)}`)
+  if (store.documentSemanticMode !== 'document') throw new Error(`expected document semantic mode, got ${String(store.documentSemanticMode)}`)
+  if (store.frontmatterModeEnabled !== true) throw new Error('expected frontmatter mode enabled')
+  if (store.multiDimTableModeEnabled !== false) throw new Error('expected multi-dimensional table mode disabled')
+
+  const activeGraph = deriveGraphDataForActiveView({
+    graphData: parsed.graphData,
+    frontmatterModeEnabled: store.frontmatterModeEnabled,
+    multiDimTableModeEnabled: store.multiDimTableModeEnabled,
+    documentSemanticMode: store.documentSemanticMode,
+    documentStructureBaselineLock: store.documentStructureBaselineLock === true,
+    collapsedGroupIds: [],
+  })
+  if ((activeGraph.nodes || []).length === 0) throw new Error('expected active video demo graph nodes')
+
+  const display = deriveSceneDisplayGraph({ graphData: activeGraph })
+  if (!display) throw new Error('expected video demo display graph derivation')
+  if (display.displayNodes.length === 0) throw new Error('expected video demo display nodes')
+  const hasRichMedia = display.displayNodes.some(node => {
+    const text = JSON.stringify({ label: node.label, type: node.type, properties: node.properties || {}, metadata: node.metadata || {} }).toLowerCase()
+    return text.includes('video') || text.includes('image')
+  })
+  if (!hasRichMedia) throw new Error('expected video demo display graph to include rich media nodes')
+
+  const nodes = (activeGraph.nodes || []) as GraphNode[]
+  const registryRaw = ((activeGraph.metadata || {}) as Record<string, unknown>).flowWidgetRegistry
+  const widgetRegistry = Array.isArray(registryRaw) ? registryRaw as Parameters<typeof computeFlowConnectedValuesBySchemaPath>[0]['registry'] : []
+  const richMediaPanelNodes = nodes.filter(node => String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  if (richMediaPanelNodes.length === 0) throw new Error('expected video demo to include Rich Media Panel widget nodes')
+  const targetNodeIds = new Set(richMediaPanelNodes.map(node => String(node.id || '').trim()).filter(Boolean))
+  const connectedValuesA = computeFlowConnectedValuesBySchemaPath({ graphData: activeGraph, registry: widgetRegistry, targetNodeIds })
+  const connectedValuesB = computeFlowConnectedValuesBySchemaPath({ graphData: activeGraph, registry: widgetRegistry, targetNodeIds })
+  if (connectedValuesA !== connectedValuesB) throw new Error('expected connected widget value cache reuse for video demo Rich Media Panels')
+
+  const mediaKinds = new Set<string>()
+  for (let i = 0; i < richMediaPanelNodes.length; i += 1) {
+    const panelNode = richMediaPanelNodes[i]
+    const id = String(panelNode.id || '').trim()
+    const connectedValuesBySchemaPath = id ? connectedValuesA.get(id) : undefined
+    const panel = buildRichMediaPanelOverlayState({ node: panelNode, connectedValuesBySchemaPath })
+    if (!panel) throw new Error(`expected Rich Media Panel overlay state for ${id || 'unknown panel'}`)
+    const renderNodeA = resolveRichMediaPanelRenderNode({ node: panelNode, connectedValuesBySchemaPath })
+    const renderNodeB = resolveRichMediaPanelRenderNode({ node: panelNode, connectedValuesBySchemaPath })
+    if (renderNodeA !== renderNodeB) throw new Error(`expected cached Rich Media Panel render node for ${id || 'unknown panel'}`)
+    const spec = getNodeMediaSpec(renderNodeA)
+    if (spec) mediaKinds.add(String(spec.kind || ''))
+  }
+  const graphText = JSON.stringify({ nodes: activeGraph.nodes || [], edges: activeGraph.edges || [] }).toLowerCase()
+  if (!graphText.includes('text') && !mediaKinds.has('iframe')) throw new Error('expected video demo text widget/render path')
+  if (!graphText.includes('image') && !mediaKinds.has('image')) throw new Error('expected video demo image widget/render path')
+  if (!graphText.includes('video') && !mediaKinds.has('video')) throw new Error('expected video demo video widget/render path')
 }
 
 export const testImportRenderPipelineKgcPipelinePrdTadAutoAppliesFlowEditorDocumentModes = async () => {

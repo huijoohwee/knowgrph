@@ -72,6 +72,7 @@ export const testGympgrphEnsureDatasetLayerClusterCountUsesNotoSans = () => {
   type LayerStub = { id: string; layout?: Record<string, unknown> } & Record<string, unknown>
   type SourceStub = Record<string, unknown>
   type MapStub = {
+    loaded: () => boolean
     getLayer: (id: string) => LayerStub | null
     addLayer: (layer: LayerStub) => void
     removeLayer: (id: string) => void

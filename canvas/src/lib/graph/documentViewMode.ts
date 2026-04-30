@@ -33,6 +33,19 @@ export function buildDocumentSemanticModeKey(args: {
   return 'document'
 }
 
+export function buildDocumentSemanticViewModeKey(args: {
+  frontmatterModeEnabled: boolean
+  multiDimTableModeEnabled: boolean
+  documentSemanticMode: string
+  documentStructureBaselineLock: boolean
+  flowEditorStandalone?: boolean
+}): string {
+  const activeDocumentViewMode = args.flowEditorStandalone === true
+    ? 'documentStructure'
+    : resolveActiveDocumentViewMode(args)
+  return `${buildDocumentSemanticModeKey(args)}|mode:${activeDocumentViewMode}`
+}
+
 export function readGraphActiveDocumentViewMode(graphData: { context?: unknown; metadata?: unknown } | null | undefined): ActiveDocumentViewMode | null {
   if (!graphData || typeof graphData !== 'object') return null
   const meta = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)

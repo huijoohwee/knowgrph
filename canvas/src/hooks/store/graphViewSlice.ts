@@ -1,7 +1,7 @@
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { LS_KEYS } from '@/lib/config.ls.keys'
-import { getLocalStorage, lsJson, lsSetInt, readJsonFromStorage } from '@/lib/persistence'
+import { getLocalStorage, lsJson, lsSetInt, lsSetJson, readJsonFromStorage } from '@/lib/persistence'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'

@@ -72,7 +72,9 @@ export function WorkspaceDataViewHeader(props: {
       ? MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel
       : props.viewerMode === 'read'
         ? 'Read'
-        : getWorkspaceEditorModeLabel(props.viewerMode)
+        : props.viewerMode === 'geospatial'
+          ? MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel
+          : getWorkspaceEditorModeLabel(props.viewerMode)
   const hasActiveFilters = !!(props.state.searchQuery.trim() || props.state.visibleGroups)
 
   const groupByLabel = React.useMemo(() => {

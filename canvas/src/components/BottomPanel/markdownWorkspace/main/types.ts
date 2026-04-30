@@ -6,6 +6,14 @@ import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '../markdownWorkspaceTypes'
 import type { WebpageFrontmatterMeta, WebpageViewMode } from '@/lib/markdown/frontmatter'
 
+export type MarkdownWorkspacePaneVisibility = { json: boolean; markdown: boolean; viewer: boolean }
+
+export const DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY: MarkdownWorkspacePaneVisibility = {
+  json: false,
+  markdown: false,
+  viewer: true,
+}
+
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
   uiPanelTextFontClass: string

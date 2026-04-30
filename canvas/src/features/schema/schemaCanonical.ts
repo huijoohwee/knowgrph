@@ -105,7 +105,7 @@ export const canonicalizeSchemaForPersistence = (schema: GraphSchema | null | un
     }) as GraphSchema['validation'],
     endpointMatrix: deepSortJson(validated.endpointMatrix) as GraphSchema['endpointMatrix'],
   }
-  return deepSortJson(stripDefaults(next, defaultSchema) ?? {}) as GraphSchema
+  return deepSortJson(stripDefaults(next, defaultSchema) ?? {}) as unknown as GraphSchema
 }
 
 export const stringifyCanonicalSchema = (schema: GraphSchema | null | undefined): string => {

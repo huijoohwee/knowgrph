@@ -4,6 +4,7 @@ import type { ToolMode } from '@/components/FlowEditorCanvas/flowEditorCanvasSha
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { GraphSchema } from '@/lib/graph/schema'
 import { pickDefaultFlowPortKey } from '@/lib/graph/flowPorts'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 
@@ -11,7 +12,7 @@ export function useFlowEditorGraphActions(args: {
   active: boolean
   draftGraphData: GraphData | null
   baseGraphData: GraphData | null
-  schema: unknown
+  schema: GraphSchema
   selectedNodeId: string | null
   toolMode: ToolMode
   pendingEdgeSourceId: string | null

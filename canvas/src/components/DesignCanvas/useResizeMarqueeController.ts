@@ -41,7 +41,7 @@ type UseResizeMarqueeControllerArgs = {
   interactionActive: boolean
   canvasPointerMode2d: string
   documentStructureBaselineLock: boolean
-  viewportControlsPreset: string
+  viewportControlsPreset: 'map' | 'design'
   schema: GraphSchema | null | undefined
   svgRef: React.MutableRefObject<SVGSVGElement | null>
   positions: Record<string, DesignCanvasFrameRect>
@@ -136,7 +136,7 @@ export function useResizeMarqueeController(args: UseResizeMarqueeControllerArgs)
         const handleOffset = handleSize / 2
         const width = Math.max(1, pending.w)
         const height = Math.max(1, pending.h)
-        const points: Array<{ key: ResizeHandle; x: number; y: number }> = [
+        const points: Array<{ key: DesignCanvasResizeHandle; x: number; y: number }> = [
           { key: 'nw', x: 0, y: 0 },
           { key: 'n', x: width / 2, y: 0 },
           { key: 'ne', x: width, y: 0 },
@@ -180,7 +180,7 @@ export function useResizeMarqueeController(args: UseResizeMarqueeControllerArgs)
   const beginResize = React.useMemo(() => {
     return (
       event: React.PointerEvent,
-      args: { id: string; handle: ResizeHandle; rect: { x: number; y: number; w: number; h: number } },
+      args: { id: string; handle: DesignCanvasResizeHandle; rect: { x: number; y: number; w: number; h: number } },
     ) => {
       if (!interactionActive) return
       if (!active) return

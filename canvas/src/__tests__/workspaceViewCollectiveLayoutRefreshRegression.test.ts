@@ -10,6 +10,20 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (text.includes('workspaceCanvasPaneOpen === true ? 1 : 0')) {
     throw new Error('expected Flow Editor collective collision refresh to avoid workspace pane open state coupling')
   }
+  if (!text.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
+    throw new Error('expected Flow Editor collective collision to track workspace overlay open state without key coupling')
+  }
+  if (!text.includes("return state.workspaceViewMode === 'editor' && state.workspaceCanvasPaneOpen === true")) {
+    throw new Error('expected Flow Editor collective collision to derive workspace overlay open state from store')
+  }
+  if (!text.includes('if (workspaceOverlayOpenRef.current) return')) {
+    throw new Error('expected workspace overlay open state to block persisted Flow Editor widget position mutation')
+  }
+  const mutationGuardIndex = text.indexOf('if (workspaceOverlayOpenRef.current) return')
+  const writebackIndex = text.indexOf('st.setFlowWidgetPosByNodeId(next)')
+  if (mutationGuardIndex < 0 || writebackIndex < 0 || mutationGuardIndex > writebackIndex) {
+    throw new Error('expected workspace overlay mutation guard before Flow Editor position writeback')
+  }
   if (!text.includes('const unsubOpenWidgets = useGraphStore.subscribe(')) {
     throw new Error('expected Flow Editor collective collision to subscribe to open widget ids')
   }
@@ -64,10 +78,10 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   if (flowEditorText.includes('workspaceViewSig') || flowEditorText.includes('workspaceViewLayoutRefreshNonce')) {
     throw new Error('expected Flow Editor collective layout to stay decoupled from workspace view refresh signatures')
   }
-  if (!flowEditorText.includes('args.flowEditorSurfaceId,')) {
+  if (!flowEditorText.includes('flowEditorSurfaceId,')) {
     throw new Error('expected Flow Editor collective layout runtime to key collision resolution off the active overlay surface identity')
   }
-  if (!flowEditorText.includes('}, [editorRuntimeActive, args.flowEditorSurfaceId])')) {
+  if (!flowEditorText.includes('}, [editorRuntimeActive, flowEditorSurfaceId])')) {
     throw new Error('expected Flow Editor collective layout subscriptions to rebind when the active overlay surface identity changes')
   }
 
@@ -92,7 +106,7 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
     throw new Error('expected frontmatter collective scheduling to stay decoupled from workspace view refresh signatures')
   }
 
-  const graphDataSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graphDataSlice.ts')
+  const graphDataSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataCommitActions.ts')
   const graphDataSliceText = readFileSync(graphDataSlicePath, 'utf8')
   if (!graphDataSliceText.includes('preserveStableSameSourceOverlayState')) {
     throw new Error('expected graph commit path to preserve stable same-source collective overlay state during indexing recomposition')

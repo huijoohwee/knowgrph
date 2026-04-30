@@ -84,8 +84,17 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
 
   const apply = React.useCallback(
     (key: EditorWorkspaceOptionKey) => {
+      const state = useGraphStore.getState()
+      const liveWorkspaceViewMode = state.workspaceViewMode
+      const liveEditorWorkspacePane = state.editorWorkspacePane
+      const liveWorkspaceCanvasPaneOpen = state.workspaceCanvasPaneOpen
+      const liveIsGraphTable = isWorkspaceTableOpen({
+        workspaceViewMode: liveWorkspaceViewMode,
+        editorWorkspacePane: liveEditorWorkspacePane,
+      })
+
       if (key === 'multiDimTable') {
-        if (isGraphTable && workspaceCanvasPaneOpen === true) {
+        if (liveIsGraphTable && liveWorkspaceCanvasPaneOpen === true) {
           return
         }
         const snap = workspaceTablePreferencesStore.getSnapshot()
@@ -93,17 +102,17 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
         }
         openWorkspaceTable({
-          workspaceViewMode,
-          editorWorkspacePane,
-          workspaceCanvasPaneOpen,
-          setWorkspaceViewMode,
-          setEditorWorkspacePane,
-          setWorkspaceCanvasPaneOpen,
+          workspaceViewMode: liveWorkspaceViewMode,
+          editorWorkspacePane: liveEditorWorkspacePane,
+          workspaceCanvasPaneOpen: liveWorkspaceCanvasPaneOpen,
+          setWorkspaceViewMode: state.setWorkspaceViewMode,
+          setEditorWorkspacePane: state.setEditorWorkspacePane,
+          setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
         })
         return
       }
 
-      if (workspaceViewMode === 'editor' && !isGraphTable && workspaceCanvasPaneOpen === true) {
+      if (liveWorkspaceViewMode === 'editor' && !liveIsGraphTable && liveWorkspaceCanvasPaneOpen === true) {
         return
       }
 
@@ -113,25 +122,35 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
       }
 
       openWorkspaceEditorPane({
-        workspaceViewMode,
-        editorWorkspacePane,
-        workspaceCanvasPaneOpen,
+        workspaceViewMode: liveWorkspaceViewMode,
+        editorWorkspacePane: liveEditorWorkspacePane,
+        workspaceCanvasPaneOpen: liveWorkspaceCanvasPaneOpen,
         pane: 'markdown',
-        setWorkspaceViewMode,
-        setEditorWorkspacePane,
-        setWorkspaceCanvasPaneOpen,
+        setWorkspaceViewMode: state.setWorkspaceViewMode,
+        setEditorWorkspacePane: state.setEditorWorkspacePane,
+        setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
       })
     },
-    [
-      editorWorkspacePane,
-      isGraphTable,
-      setEditorWorkspacePane,
-      setWorkspaceCanvasPaneOpen,
-      setWorkspaceViewMode,
-      workspaceCanvasPaneOpen,
-      workspaceViewMode,
-    ],
+    [],
   )
+
+  const handleTriggerClick = React.useCallback(() => {
+    const state = useGraphStore.getState()
+    const liveWorkspaceViewMode = state.workspaceViewMode
+    const liveEditorWorkspacePane = state.editorWorkspacePane
+    const liveWorkspaceCanvasPaneOpen = state.workspaceCanvasPaneOpen
+    if (liveWorkspaceViewMode !== 'editor' || liveWorkspaceCanvasPaneOpen === true) return false
+    openWorkspaceEditorPane({
+      workspaceViewMode: liveWorkspaceViewMode,
+      editorWorkspacePane: liveEditorWorkspacePane,
+      workspaceCanvasPaneOpen: liveWorkspaceCanvasPaneOpen,
+      pane: liveEditorWorkspacePane,
+      setWorkspaceViewMode: state.setWorkspaceViewMode,
+      setEditorWorkspacePane: state.setEditorWorkspacePane,
+      setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
+    })
+    return true
+  }, [])
 
   const toggleWorkspaceSyncMode = React.useCallback(() => {
     if (ensureBaselineUnlocked && !ensureBaselineUnlocked()) return
@@ -156,6 +175,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
       tooltipContent={triggerTooltip}
       isButtonActive={isEditor}
       onSelect={id => apply(id)}
+      onTriggerClick={handleTriggerClick}
       renderButtonContent={() =>
         activeKey === 'multiDimTable' ? (
           <Table className={iconSizeClass} strokeWidth={iconStrokeWidth} />

@@ -189,8 +189,9 @@ export async function testRichMediaPanelVideoBecomesVisibleOnLoadedMetadataWhenH
     video.dispatchEvent(new dom.window.Event('loadedmetadata'))
     for (let i = 0; i < 4; i += 1) await tick()
 
-    if (article.style.opacity !== '1') {
-      throw new Error(`expected loadedmetadata to reveal hideUntilReady video panel, got opacity=${article.style.opacity}`)
+    const loadedOpacity = String(article.style.getPropertyValue('opacity'))
+    if (loadedOpacity !== '1') {
+      throw new Error(`expected loadedmetadata to reveal hideUntilReady video panel, got opacity=${loadedOpacity}`)
     }
 
     root.unmount()
@@ -220,6 +221,7 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
           hasText: true,
           hasImage: false,
           hasVideo: false,
+          hasPoi: false,
           text: '',
           connectedText: '# Hello\n\n![preview](https://example.com/preview.png)\n',
         },
@@ -241,7 +243,7 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
 
     const markdownPreview = container.querySelector('[data-kg-rich-media-markdown-preview="1"]')
     if (!markdownPreview) throw new Error('expected RichMediaPanel text mode to mount the shared markdown preview surface')
-    const heading = Array.from(container.querySelectorAll('h1,h2,h3')).find(el => (el.textContent || '').trim() === 'Hello')
+    const heading = Array.from(container.querySelectorAll('h1,h2,h3') as NodeListOf<HTMLElement>).find(el => (el.textContent || '').trim() === 'Hello')
     if (!heading) throw new Error('expected markdown heading to render through RichMediaPanel text mode')
 
     root.unmount()

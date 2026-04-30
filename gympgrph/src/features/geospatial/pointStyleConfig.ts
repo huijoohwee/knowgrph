@@ -1,4 +1,4 @@
-import { LS_KEYS } from '../../lib/config'
+import { LS_KEYS } from '../../lib/config.js'
 const GEOSPATIAL_POINT_STYLE_CHANGED_EVENT = 'kg:geospatialPointStyleChanged'
 
 export type GeospatialPointStyleConfig = {

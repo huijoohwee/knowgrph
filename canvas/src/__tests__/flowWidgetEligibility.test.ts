@@ -12,8 +12,8 @@ export function testFlowWidgetEligibilityKeepsDottedEndpointEdges() {
       { id: 'n-x', type: 'Node', label: 'X', properties: {} },
     ],
     edges: [
-      { id: 'e-1', source: 'n-a.out', target: 'n-b.in', properties: {} },
-      { id: 'e-x', source: 'n-a.out', target: 'n-x.in', properties: {} },
+      { id: 'e-1', label: 'e-1', source: 'n-a.out', target: 'n-b.in', properties: {} },
+      { id: 'e-x', label: 'e-x', source: 'n-a.out', target: 'n-x.in', properties: {} },
     ],
     metadata: {},
   }
@@ -39,8 +39,8 @@ export function testFlowWidgetEligibilityKeepsCanonicalWidgetTypesWithoutMetadat
       { id: 'n-plain', type: 'Node', label: 'Plain node', properties: {} },
     ],
     edges: [
-      { id: 'e-text', source: 'w-text', target: 'p-media', properties: {} },
-      { id: 'e-plain', source: 'n-plain', target: 'p-media', properties: {} },
+      { id: 'e-text', label: 'e-text', source: 'w-text', target: 'p-media', properties: {} },
+      { id: 'e-plain', label: 'e-plain', source: 'n-plain', target: 'p-media', properties: {} },
     ],
     metadata: {},
   }

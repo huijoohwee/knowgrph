@@ -1,4 +1,4 @@
-import { useGympgrphStore } from './store'
+import { useGympgrphStore } from './store.js'
 
 export function requestGeospatialFitToSelection(): void {
   const store = useGympgrphStore.getState()

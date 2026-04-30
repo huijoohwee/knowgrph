@@ -1,7 +1,7 @@
 import type { FeatureCollection } from 'geojson'
-import { LS_KEYS } from './lib/config'
-import { coerceFetchUrl } from './lib/url'
-import { coerceGeoJsonToFeatureCollection } from './geojson'
+import { LS_KEYS } from './lib/config.js'
+import { coerceFetchUrl } from './lib/url.js'
+import { coerceGeoJsonToFeatureCollection } from './geojson.js'
 import { LRUCache } from 'grph-shared/cache/LRUCache'
 
 export type GeospatialDatasetSource = { kind: 'url'; url: string }

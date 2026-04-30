@@ -1,5 +1,6 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
+import type { LsStorageKey } from '@/lib/config'
 import { lsFloat, lsJson, lsSetFloat, lsSetJson } from '@/lib/persistence'
 import { normalizeGrabMapsAuthMode, sanitizeGrabMapsApiKey } from 'grph-shared/geospatial/grabMapsAuth'
 import { GRABMAPS_DEFAULT_DIRECTIONS_URL, GRABMAPS_DEFAULT_MCP_URL, GRABMAPS_DEFAULT_STYLE_URL } from 'grph-shared/geospatial/grabMapsSsot'
@@ -31,7 +32,7 @@ const normalizeJsonText = (value: unknown, fallback: string): string => {
 
 const localStringSetting = (args: {
   key: string
-  storageKey: string
+  storageKey: LsStorageKey
   defaultValue: string
   docKey?: string
   options?: string[]
@@ -53,7 +54,7 @@ const localStringSetting = (args: {
 
 const localJsonSetting = (args: {
   key: string
-  storageKey: string
+  storageKey: LsStorageKey
   defaultValue: string
   docKey?: string
 }): SettingMeta => ({
@@ -70,7 +71,7 @@ const localJsonSetting = (args: {
 
 const localNumberSetting = (args: {
   key: string
-  storageKey: string
+  storageKey: LsStorageKey
   defaultValue: number
   min?: number
   max?: number

@@ -210,14 +210,15 @@ export function useFlowEditorOverlaySurface(args: {
     if (!defaultPinned) args.scheduleOverlayCollisionResolve()
   }, [args.geospatialWidgetPanelMode, args.scheduleOverlayCollisionResolve, overlayEditorNodeIds])
 
+  const overlayEditorNodeIdsKey = React.useMemo(() => overlayEditorNodeIds.join('\n'), [overlayEditorNodeIds])
+  const connectedValueTargetNodeIds = React.useMemo(() => new Set(overlayEditorNodeIdsKey ? overlayEditorNodeIdsKey.split('\n') : []), [overlayEditorNodeIdsKey])
   const connectedValuesByNodeId = React.useMemo(() => {
-    const targetNodeIds = new Set(overlayEditorNodeIds)
     return computeFlowConnectedValuesBySchemaPath({
       graphData: args.renderGraphDataOverride,
       registry: Array.isArray(args.widgetRegistry) ? args.widgetRegistry : [],
-      targetNodeIds,
+      targetNodeIds: connectedValueTargetNodeIds,
     })
-  }, [args.widgetRegistry, overlayEditorNodeIds, args.renderGraphDataOverride])
+  }, [args.widgetRegistry, connectedValueTargetNodeIds, args.renderGraphDataOverride])
 
   const handlePinnedInCanvasChange = React.useCallback(() => {
     args.scheduleOverlayCollisionResolve()

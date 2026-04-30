@@ -42,6 +42,28 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
+const composedGraphCacheByFirstGraph = new WeakMap<GraphData, Map<string, GraphData>>()
+const COMPOSED_GRAPH_CACHE_LIMIT = 24
+
+function readComposedGraphCache(firstGraph: GraphData | null, key: string): GraphData | null {
+  if (!firstGraph || !key) return null
+  return composedGraphCacheByFirstGraph.get(firstGraph)?.get(key) || null
+}
+
+function writeComposedGraphCache(firstGraph: GraphData | null, key: string, graphData: GraphData): void {
+  if (!firstGraph || !key) return
+  let byKey = composedGraphCacheByFirstGraph.get(firstGraph)
+  if (!byKey) {
+    byKey = new Map<string, GraphData>()
+    composedGraphCacheByFirstGraph.set(firstGraph, byKey)
+  }
+  if (!byKey.has(key) && byKey.size >= COMPOSED_GRAPH_CACHE_LIMIT) {
+    const oldest = byKey.keys().next().value
+    if (typeof oldest === 'string') byKey.delete(oldest)
+  }
+  byKey.set(key, graphData)
+}
+
 function mergeWidgetRegistryMetadata(layers: SourceLayerInput[]): JSONValue[] | undefined {
   const out: JSONValue[] = []
   const seen = new Set<string>()
@@ -91,6 +113,9 @@ export function composeGraphFromSourceLayers(args: {
   const enabledParsed = layers.filter(l => l.enabled && l.parsedGraphData)
 
   const base = enabledParsed[0]?.parsedGraphData || null
+  const cacheKey = `${contentKey}\n${orderKey}\n${String(args.fallbackType || '')}`
+  const cachedGraphData = readComposedGraphCache(base, cacheKey)
+  if (cachedGraphData) return { graphData: cachedGraphData, contentKey, orderKey }
   const baseType = base?.type || args.fallbackType || 'Graph'
   const baseContext = typeof base?.context === 'undefined' ? 'sourceLayers' : (base?.context as JSONValue)
   const baseMetadata = base?.metadata && typeof base.metadata === 'object' ? (base.metadata as Record<string, JSONValue>) : {}
@@ -157,14 +182,16 @@ export function composeGraphFromSourceLayers(args: {
   const mergedWidgetRegistry = mergeWidgetRegistryMetadata(enabledParsed)
   if (mergedWidgetRegistry) nextMetadata[FLOW_WIDGET_REGISTRY_METADATA_KEY] = mergedWidgetRegistry
 
+  const graphData: GraphData = {
+    context: baseContext,
+    metadata: nextMetadata,
+    type: baseType,
+    nodes,
+    edges,
+  }
+  writeComposedGraphCache(base, cacheKey, graphData)
   return {
-    graphData: {
-      context: baseContext,
-      metadata: nextMetadata,
-      type: baseType,
-      nodes,
-      edges,
-    },
+    graphData,
     contentKey,
     orderKey,
   }

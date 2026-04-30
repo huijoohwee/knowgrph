@@ -69,7 +69,7 @@ export type GridColumnMeta = {
   width: number
   pinned: boolean
   editable: boolean
-  dataKind?: 'text' | 'number' | 'boolean' | 'date' | 'json'
+  dataKind?: 'text' | 'number' | 'boolean' | 'date' | 'json' | 'geodata'
 }
 
 export type GridDisplayRow<RowT> =

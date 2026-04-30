@@ -24,7 +24,7 @@ export const testFlowWidgetRegistryResolvePrefersDefault = () => {
     },
   ]
 
-  const entry = resolveWidgetRegistryEntry({ node: { type: 'Schema', properties: {} }, registry })
+  const entry = resolveWidgetRegistryEntry({ node: { id: 'node-default', type: 'Schema', properties: {} }, registry })
   if (!entry) throw new Error('expected a resolved entry')
   if (entry.id !== 'b') throw new Error(`expected default entry id=b, got ${String(entry.id)}`)
 }
@@ -54,7 +54,7 @@ export const testFlowWidgetRegistryResolveHonorsNodeOverride = () => {
   ]
 
   const entry = resolveWidgetRegistryEntry({
-    node: { type: 'Schema', properties: { 'flow:widgetTypeId': 'special' } },
+    node: { id: 'n-special', type: 'Schema', properties: { 'flow:widgetTypeId': 'special' } },
     registry,
   })
   if (!entry) throw new Error('expected a resolved entry')
@@ -86,14 +86,14 @@ export const testFlowWidgetRegistryResolveHonorsFormOverrideOrFallsBack = () => 
   ]
 
   const byForm = resolveWidgetRegistryEntry({
-    node: { type: 'Schema', properties: { 'flow:widgetFormId': 'f1' } },
+    node: { id: 'node-form', type: 'Schema', properties: { 'flow:widgetFormId': 'f1' } },
     registry,
   })
   if (!byForm) throw new Error('expected a resolved entry for form=f1')
   if (byForm.id !== 'b') throw new Error(`expected form override entry id=b, got ${String(byForm.id)}`)
 
   const fallback = resolveWidgetRegistryEntry({
-    node: { type: 'Schema', properties: { 'flow:widgetFormId': 'missing' } },
+    node: { id: 'node-missing', type: 'Schema', properties: { 'flow:widgetFormId': 'missing' } },
     registry,
   })
   if (!fallback) throw new Error('expected a resolved entry for missing form')

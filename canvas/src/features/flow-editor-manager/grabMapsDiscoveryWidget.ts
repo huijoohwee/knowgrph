@@ -8,6 +8,7 @@ import {
   type DiscoverySettingKey,
 } from '@/features/integrations/grabMapsSsot'
 import { LS_KEYS } from '@/lib/config.ls.keys'
+import type { LsStorageKey } from '@/lib/config'
 import { lsFloat, lsJson, lsSetFloat, lsSetJson } from '@/lib/persistence'
 
 export { GRABMAPS_DISCOVERY_FIELD_META, GRABMAPS_DISCOVERY_SETTING_SPECS } from '@/features/integrations/grabMapsSsot'
@@ -21,7 +22,7 @@ export type DiscoveryWidgetProperties = Record<DiscoveryPropertyKey, unknown>
 export type GrabMapsDiscoverySettingsValues = Partial<Record<DiscoverySettingKey, string | number | boolean>>
 
 type DiscoverySettingSpec = {
-  storageKey: string
+  storageKey: LsStorageKey
   valueType: 'string' | 'number'
   defaultValue: string | number
   min?: number
@@ -29,7 +30,7 @@ type DiscoverySettingSpec = {
   options?: readonly string[]
 }
 
-const DISCOVERY_SETTING_STORAGE_KEYS: Readonly<Record<DiscoverySettingKey, string>> = {
+const DISCOVERY_SETTING_STORAGE_KEYS: Readonly<Record<DiscoverySettingKey, LsStorageKey>> = {
   'maps.grabmaps.mcp.discovery.chatModel': LS_KEYS.grabMapsMcpDiscoveryChatModel,
   'maps.grabmaps.mcp.searchPlaces.query': LS_KEYS.grabMapsMcpSearchPlacesQuery,
   'maps.grabmaps.mcp.searchPlaces.country': LS_KEYS.grabMapsMcpSearchPlacesCountry,

@@ -8,6 +8,7 @@ export function computeOverlayHalfExtentsByNodeId2d(args: {
   panelOnlyNodeIdSet?: Set<string> | null
   mediaOverlayNodeIdSet?: Set<string> | null
   viewportW: number
+  viewportH?: number
   zoomK: number
   mediaPanelDensity: MediaPanelDensity
   overlaySizing?: {
@@ -72,6 +73,7 @@ export function computeOverlayHalfExtentsByNodeId2d(args: {
   const fallback = computeOverlayHalfExtentsWorld({
     density,
     viewportW: args.viewportW,
+    viewportH: args.viewportH ?? args.viewportW,
     zoomK: args.zoomK,
     config: overlayCfg,
   })

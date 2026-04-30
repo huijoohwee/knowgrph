@@ -4,7 +4,7 @@ import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewD
 import { computeEffectiveFrontmatterMode, isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
 import { normalizeCollapsedGroupIds } from '@/lib/canvas/collapsedGroupIdsKey'
-import { buildDocumentSemanticModeKey, resolveActiveDocumentViewMode, withActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { buildDocumentSemanticViewModeKey, resolveActiveDocumentViewMode, withActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 
 const activeViewGraphCache = new WeakMap<object, Map<string, GraphData>>()
 
@@ -41,13 +41,13 @@ export function deriveGraphDataForActiveView(args: {
     documentStructureBaselineLock: args.documentStructureBaselineLock,
   })
   const normalizedCollapsedGroupIds = normalizeCollapsedGroupIds(args.collapsedGroupIds)
-  const semanticKey = buildDocumentSemanticModeKey({
+  const semanticViewModeKey = buildDocumentSemanticViewModeKey({
     frontmatterModeEnabled: args.frontmatterModeEnabled,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled,
     documentSemanticMode: args.documentSemanticMode,
     documentStructureBaselineLock: args.documentStructureBaselineLock,
   })
-  const cacheKey = `${semanticKey}|mode:${mode}|collapsed:${normalizedCollapsedGroupIds.join('|')}`
+  const cacheKey = `${semanticViewModeKey}|collapsed:${normalizedCollapsedGroupIds.join('|')}`
   return getCachedDerivedActiveViewGraph({
     graphData: args.graphData,
     cacheKey,
