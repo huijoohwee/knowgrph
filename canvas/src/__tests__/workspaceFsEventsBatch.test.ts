@@ -2,6 +2,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import {
   notifyWorkspaceFsChanged,
   runWorkspaceFsChangedBatch,
+  suppressNextWorkspaceFsChangedEvent,
   subscribeWorkspaceFsChanged,
   type WorkspaceFsChangedDetail,
 } from '@/features/workspace-fs/workspaceFsEvents'
@@ -35,3 +36,30 @@ export async function testWorkspaceFsChangedBatchCoalescesNotifications() {
   }
 }
 
+export async function testWorkspaceFsChangedBatchCanSuppressManualRefreshFollowUpEvent() {
+  const { restore } = initJsdomHarness()
+  try {
+    const received: WorkspaceFsChangedDetail[] = []
+    const unsubscribe = subscribeWorkspaceFsChanged(detail => {
+      received.push(detail)
+    })
+
+    const result = await runWorkspaceFsChangedBatch(async () => {
+      suppressNextWorkspaceFsChangedEvent()
+      notifyWorkspaceFsChanged({ op: 'createFile', path: '/manual-refresh.md' })
+      notifyWorkspaceFsChanged({ op: 'writeFileText', path: '/manual-refresh.md' })
+      return 'kept-result'
+    })
+
+    if (result !== 'kept-result') {
+      throw new Error(`expected suppressed batch to preserve callback result, got ${String(result)}`)
+    }
+    if (received.length !== 0) {
+      throw new Error(`expected suppressed manual-refresh batch to emit 0 events, got ${received.length}`)
+    }
+
+    unsubscribe()
+  } finally {
+    restore()
+  }
+}

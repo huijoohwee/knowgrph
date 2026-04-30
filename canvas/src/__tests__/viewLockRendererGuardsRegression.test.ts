@@ -10,7 +10,7 @@ export function testViewLockCopyAndRendererGuardsStayConsistent() {
   const minimapPath = resolve(process.cwd(), 'src', 'features', 'minimap', 'Minimap.tsx')
   const threeLayoutPath = resolve(process.cwd(), 'src', 'features', 'three', 'layout.ts')
   const canvasSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'canvasSlice.ts')
-  const activeGraphDataPath = resolve(process.cwd(), 'src', 'hooks', 'useActiveGraphData.ts')
+  const activeGraphDataPath = resolve(process.cwd(), 'src', 'hooks', 'active-graph-data', 'useActiveGraphRenderData.impl.ts')
   const copyPath = resolve(process.cwd(), 'src', 'lib', 'config-copy', 'uiCopy.ts')
 
   const interactionText = readFileSync(interactionPath, 'utf8')

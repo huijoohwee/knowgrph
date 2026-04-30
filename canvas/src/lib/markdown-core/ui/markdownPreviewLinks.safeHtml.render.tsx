@@ -1,5 +1,6 @@
 import React from 'react'
 import { parseAsciiBoxTable } from '@/features/markdown/ui/codeblock/asciiBoxTable'
+import { parseHtmlFragmentCached } from './markdownHtmlParseCache'
 
 type RenderOpts = {
   activeDocumentPath: string
@@ -75,15 +76,13 @@ export const renderSafeHtmlBlockImpl = (
 ): React.ReactNode | null => {
   const win = (globalThis as unknown as { window?: Window }).window
   if (!win) return null
-  const DomParserCtor = (globalThis as unknown as { DOMParser?: typeof DOMParser }).DOMParser
-  if (!DomParserCtor) return null
   const raw = String(html || '').trim()
   if (!raw || !raw.includes('<')) return null
   try {
     const NodeRef = (globalThis as unknown as { Node?: typeof Node }).Node || (win as unknown as { Node?: typeof Node }).Node
-    const parser = new DomParserCtor()
-    const doc = parser.parseFromString(`<body>${raw}</body>`, 'text/html')
-    const root = doc.body
+    const parsed = parseHtmlFragmentCached(raw)
+    const root = parsed?.body
+    if (!root) return null
     const fragmentOpts = opts.fragmentOptions
     const fragmentEnabled = !!fragmentOpts?.enabled
     const fragmentClassNames = fragmentOpts?.classNames || []

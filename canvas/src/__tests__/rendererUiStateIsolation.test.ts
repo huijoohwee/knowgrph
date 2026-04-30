@@ -1,5 +1,7 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 export function testRendererUiStateIsolationKeepsPointerModePerRenderer() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
@@ -126,6 +128,47 @@ export function testRendererUiStateIsolationPreservesGlobalEdgeTypeAcrossRendere
   useGraphStore.getState().setCanvas2dRenderer('flow')
   if (readGlobalEdgeType(useGraphStore.getState().schema) !== 'bezier') {
     throw new Error('expected renderer switches to preserve the shared global edge type instead of mutating schema state')
+  }
+}
+
+export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitRendererMode() {
+  const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
+  const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
+  const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const flowEditorSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
+  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+  const flowCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
+  const editorText = readFileSync(editorPath, 'utf8')
+  const panelText = readFileSync(panelPath, 'utf8')
+  const collisionText = readFileSync(collisionPath, 'utf8')
+  const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
+  const flowEditorSurfaceText = readFileSync(flowEditorSurfacePath, 'utf8')
+  const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
+  const flowCanvasRuntimeText = readFileSync(flowCanvasRuntimePath, 'utf8')
+  if (!editorText.includes('data-kg-flow-editor-mode="1"')) {
+    throw new Error('expected Flow Editor widget aside roots to expose explicit Flow Editor mode')
+  }
+  if (panelText.includes('data-kg-flow-editor-mode="1"') || panelText.includes('data-kg-widget={String(node.id || \'\')}')) {
+    throw new Error('expected Flow Editor floating panels to avoid masquerading as canvas overlay roots')
+  }
+  if (!editorText.includes('data-kg-flow-editor-surface={flowEditorSurfaceId || undefined}')) {
+    throw new Error('expected Flow Editor widget aside roots to expose explicit Flow Editor surface identity')
+  }
+  if (!flowEditorSurfaceText.includes('data-kg-flow-editor-surface-root={props.flowEditorSurfaceId}')) {
+    throw new Error('expected Flow Editor surface root to expose explicit surface identity')
+  }
+  if (!flowCanvasText.includes('flowEditorSurfaceId,')) {
+    throw new Error('expected FlowCanvas to thread Flow Editor surface identity into runtime children')
+  }
+  if (!flowCanvasRuntimeText.includes('flowEditorSurfaceId: args.flowEditorSurfaceId')) {
+    throw new Error('expected FlowCanvas runtime to forward the active Flow Editor surface identity into interaction binding')
+  }
+  if (!collisionText.includes('readFlowEditorOverlaySurfaceId(el) === String(args.flowEditorSurfaceId || \'\').trim()')) {
+    throw new Error('expected Flow Editor collision queries to stay scoped to the active surface identity')
+  }
+  if (!overlayEdgesText.includes('readFlowEditorOverlaySurfaceId(el) !== args.flowEditorSurfaceId')) {
+    throw new Error('expected Flow Editor overlay edge queries to exclude overlays from other surfaces')
   }
 }
 

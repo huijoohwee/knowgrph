@@ -6,6 +6,7 @@ import { withGraphDataRevision } from './graphDataSliceUtils'
 import { deepClone } from '@/lib/data/deepClone'
 import { debounce } from '@/lib/async/debounce'
 import { persistGraphDataToLocalStorage } from './graphDataPersistence'
+import { hashArrayOfObjectsSignature, hashRecordSignature } from '@/lib/hash/signature'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -16,6 +17,42 @@ type HistoryEntry = {
   timestamp: number
   graphData: GraphData
   graphFieldSettingsById?: GraphFieldSettingsById
+  signature?: string
+}
+
+const getHistorySnapshotSignature = (
+  graphData: GraphData | null,
+  graphFieldSettingsById: GraphFieldSettingsById | null | undefined,
+): string => {
+  const safeGraph = graphData || { nodes: [], edges: [], metadata: null }
+  return [
+    `nodes:${hashArrayOfObjectsSignature(safeGraph.nodes || [], { maxItems: 80, maxKeysPerItem: 8 })}`,
+    `edges:${hashArrayOfObjectsSignature(safeGraph.edges || [], { maxItems: 80, maxKeysPerItem: 8 })}`,
+    `meta:${hashRecordSignature(safeGraph.metadata || {}, { maxEntries: 40 })}`,
+    `fields:${hashRecordSignature(graphFieldSettingsById || {}, { maxEntries: 80 })}`,
+  ].join('|')
+}
+
+const buildHistoryEntry = (args: {
+  label: string
+  timestamp: number
+  graphData: GraphData
+  graphFieldSettingsById: GraphFieldSettingsById
+}): HistoryEntry => {
+  const signature = getHistorySnapshotSignature(args.graphData, args.graphFieldSettingsById)
+  return {
+    id: `h-${Date.now().toString(36)}`,
+    label: args.label,
+    timestamp: args.timestamp,
+    graphData: args.graphData,
+    graphFieldSettingsById: args.graphFieldSettingsById,
+    signature,
+  }
+}
+
+const shouldSkipHistoryCommit = (history: HistoryEntry[], nextSignature: string): boolean => {
+  const last = history.length > 0 ? history[history.length - 1] : null
+  return !!last && String(last.signature || '') === nextSignature
 }
 
 export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
@@ -46,16 +83,17 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
   addHistory: (label: string = 'Snapshot') => {
     const { graphData, graphFieldSettingsById, history, historyIndex } = get();
     if (!graphData) return;
+    const nextSignature = getHistorySnapshotSignature(graphData, graphFieldSettingsById)
+    const trimmed = history.slice(0, historyIndex + 1);
+    if (shouldSkipHistoryCommit(trimmed as HistoryEntry[], nextSignature)) return
     const graphCopy: GraphData = deepClone(graphData)
     const fieldSettingsCopy: GraphFieldSettingsById = deepClone(graphFieldSettingsById || {})
-    const trimmed = history.slice(0, historyIndex + 1);
-    const entry = {
-      id: `h-${Date.now().toString(36)}`,
+    const entry = buildHistoryEntry({
       label,
       timestamp: Date.now(),
       graphData: graphCopy,
       graphFieldSettingsById: fieldSettingsCopy,
-    };
+    })
     set({ history: [...trimmed, entry], historyIndex: trimmed.length });
   },
 
@@ -145,16 +183,17 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
       const next = debounce((l: string) => {
         const { graphData, graphFieldSettingsById, history, historyIndex } = get();
         if (!graphData) return;
+        const nextSignature = getHistorySnapshotSignature(graphData, graphFieldSettingsById)
+        const trimmed = history.slice(0, historyIndex + 1);
+        if (shouldSkipHistoryCommit(trimmed as HistoryEntry[], nextSignature)) return
         const graphCopy: GraphData = deepClone(graphData)
         const fieldSettingsCopy: GraphFieldSettingsById = deepClone(graphFieldSettingsById || {})
-        const trimmed = history.slice(0, historyIndex + 1);
-        const entry = {
-          id: `h-${Date.now().toString(36)}`,
+        const entry = buildHistoryEntry({
           label: l,
           timestamp: Date.now(),
           graphData: graphCopy,
           graphFieldSettingsById: fieldSettingsCopy,
-        };
+        })
         set({ history: [...trimmed, entry], historyIndex: trimmed.length });
         try {
           persistGraphDataToLocalStorage(graphData)
@@ -195,6 +234,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
             timestamp: Math.floor(h.timestamp),
             graphData: deepClone(h.graphData) as GraphData,
             graphFieldSettingsById: deepClone(h.graphFieldSettingsById || {}) as GraphFieldSettingsById,
+            signature: getHistorySnapshotSignature(h.graphData, h.graphFieldSettingsById || {}),
           }))
       : [];
 

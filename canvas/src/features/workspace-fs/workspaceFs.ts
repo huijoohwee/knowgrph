@@ -1,4 +1,4 @@
-import type { WorkspaceEntry, WorkspacePath } from './types'
+import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
 import { buildRepoFilePath } from '@/lib/url'

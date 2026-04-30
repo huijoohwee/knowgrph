@@ -4,6 +4,7 @@ import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 
 type PushUiToast = (toast: UiToastInput) => void
 
@@ -52,7 +53,6 @@ async function focusFirstImportedWorkspaceFile(args: {
     const docKey = workspaceDocumentKey(firstPath)
     const name = docKey || workspaceBasename(firstPath) || firstPath
     const state = useGraphStore.getState()
-    const workspaceViewMode = state.workspaceViewMode === 'editor' ? 'editor' : 'canvas'
     const normalizedPath = firstPath as WorkspacePath
     try {
       useMarkdownExplorerStore.getState().setActivePath(normalizedPath)
@@ -73,9 +73,7 @@ async function focusFirstImportedWorkspaceFile(args: {
       normalizeMermaidMmd: false,
       sourceUrl: null,
       jsonSourceText: null,
-      workspaceViewMode,
-      applyToGraph: true,
-      forceApplyToGraph: true,
+      applyToGraph: false,
     })
 
   } catch {
@@ -97,7 +95,14 @@ export async function importLocalFilesFallback(args: {
     dismissible: false,
   })
   try {
-    const [{ getWorkspaceFs }, { WORKSPACE_ROOT_PATH }, { runWorkspaceFsChangedBatch }, { bulkSetWorkspaceEntrySources }, { importWorkspaceLocalFiles }] =
+    const [
+      { getWorkspaceFs },
+      { WORKSPACE_ROOT_PATH },
+      { runWorkspaceFsChangedBatch },
+      { bulkSetWorkspaceEntrySources },
+      { importWorkspaceLocalFiles },
+      { normalizeWorkspaceImportResult },
+    ] =
       await Promise.all([
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
         import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
@@ -106,16 +111,19 @@ export async function importLocalFilesFallback(args: {
         import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<
           typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')
         >,
+        import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions') as Promise<
+          typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
+        >,
       ])
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
-    const res = (await runWorkspaceFsChangedBatch(() =>
+    const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() =>
       importWorkspaceLocalFiles({
         fs,
         files: snapshot,
         parentPath: WORKSPACE_ROOT_PATH,
       }),
-    )) as WorkspaceImportResult
+    ))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
     await applyWorkspaceImportToCanvasIfAvailable({ fs, createdPaths: res.createdPaths })
     await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
@@ -123,7 +131,7 @@ export async function importLocalFilesFallback(args: {
       id: 'launch:import:localFiles',
       kind: 'success',
       message: `Imported ${res.createdPaths.length} file(s)`,
-      ttlMs: 2200,
+      ttlMs: UI_TOAST_TTL_MS.actionFeedback,
       dismissible: false,
     })
   } catch (e) {
@@ -131,7 +139,7 @@ export async function importLocalFilesFallback(args: {
       id: 'launch:import:localFiles',
       kind: 'error',
       message: `Import failed: ${String((e as { message?: unknown })?.message ?? e)}`,
-      ttlMs: 6000,
+      ttlMs: UI_TOAST_TTL_MS.warningExtended,
       dismissible: true,
     })
   }
@@ -145,7 +153,13 @@ export async function importLocalFolderFallback(args: {
   if (snapshot.length === 0) return
   args.pushUiToast({ id: 'launch:import:folder', kind: 'neutral', message: 'Importing folder…', ttlMs: null, dismissible: false })
   try {
-    const [{ getWorkspaceFs }, { runWorkspaceFsChangedBatch }, { bulkSetWorkspaceEntrySources }, { importWorkspaceLocalFolder }] =
+    const [
+      { getWorkspaceFs },
+      { runWorkspaceFsChangedBatch },
+      { bulkSetWorkspaceEntrySources },
+      { importWorkspaceLocalFolder },
+      { normalizeWorkspaceImportResult },
+    ] =
       await Promise.all([
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
         import('@/features/workspace-fs/workspaceFsEvents') as Promise<typeof import('@/features/workspace-fs/workspaceFsEvents')>,
@@ -153,10 +167,13 @@ export async function importLocalFolderFallback(args: {
         import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<
           typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')
         >,
+        import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions') as Promise<
+          typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
+        >,
       ])
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
-    const res = (await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot }))) as WorkspaceImportResult
+    const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot })))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
     await applyWorkspaceImportToCanvasIfAvailable({ fs, createdPaths: res.createdPaths })
     await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
@@ -164,7 +181,7 @@ export async function importLocalFolderFallback(args: {
       id: 'launch:import:folder',
       kind: 'success',
       message: `Imported ${res.createdPaths.length} file(s)`,
-      ttlMs: 2200,
+      ttlMs: UI_TOAST_TTL_MS.actionFeedback,
       dismissible: false,
     })
   } catch (e) {
@@ -172,7 +189,7 @@ export async function importLocalFolderFallback(args: {
       id: 'launch:import:folder',
       kind: 'error',
       message: `Import failed: ${String((e as { message?: unknown })?.message ?? e)}`,
-      ttlMs: 6000,
+      ttlMs: UI_TOAST_TTL_MS.warningExtended,
       dismissible: true,
     })
   }
@@ -187,7 +204,14 @@ export async function importUrlFallback(args: {
   const toastId = 'launch:import:url'
   args.pushUiToast({ id: toastId, kind: 'neutral', message: 'Importing URL…', ttlMs: null, dismissible: false })
   try {
-    const [{ getWorkspaceFs }, { WORKSPACE_ROOT_PATH }, { runWorkspaceFsChangedBatch }, { bulkSetWorkspaceEntrySources }, { importWorkspaceUrl }] =
+    const [
+      { getWorkspaceFs },
+      { WORKSPACE_ROOT_PATH },
+      { runWorkspaceFsChangedBatch },
+      { bulkSetWorkspaceEntrySources },
+      { importWorkspaceUrl },
+      { normalizeWorkspaceImportResult },
+    ] =
       await Promise.all([
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
         import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
@@ -196,10 +220,13 @@ export async function importUrlFallback(args: {
         import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<
           typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')
         >,
+        import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions') as Promise<
+          typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
+        >,
       ])
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
-    const res = (await runWorkspaceFsChangedBatch(() =>
+    const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() =>
       importWorkspaceUrl({
         fs,
         urlRaw: url,
@@ -209,7 +236,7 @@ export async function importUrlFallback(args: {
           args.pushUiToast({ id: toastId, kind: 'neutral', message: label, ttlMs: null, dismissible: false })
         },
       }),
-    )) as WorkspaceImportResult
+    ))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
     await applyWorkspaceImportToCanvasIfAvailable({ fs, createdPaths: res.createdPaths })
     await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
@@ -217,7 +244,7 @@ export async function importUrlFallback(args: {
       id: toastId,
       kind: 'success',
       message: `Imported ${res.createdPaths.length} file(s)`,
-      ttlMs: 2200,
+      ttlMs: UI_TOAST_TTL_MS.actionFeedback,
       dismissible: false,
     })
   } catch (e) {
@@ -225,7 +252,7 @@ export async function importUrlFallback(args: {
       id: toastId,
       kind: 'error',
       message: `Import failed: ${String((e as { message?: unknown })?.message ?? e)}`,
-      ttlMs: 6000,
+      ttlMs: UI_TOAST_TTL_MS.warningExtended,
       dismissible: true,
     })
   }
@@ -244,13 +271,13 @@ export async function createNewFolderFallback(args: {
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
     await fs.createFolder({ parentPath: WORKSPACE_ROOT_PATH, name: 'folder' })
-    args.pushUiToast({ id: toastId, kind: 'success', message: 'Created folder', ttlMs: 1800, dismissible: false })
+    args.pushUiToast({ id: toastId, kind: 'success', message: 'Created folder', ttlMs: UI_TOAST_TTL_MS.statusAutoCloseSlow, dismissible: false })
   } catch (e) {
     args.pushUiToast({
       id: toastId,
       kind: 'error',
       message: `Failed: ${String((e as { message?: unknown })?.message ?? e)}`,
-      ttlMs: 6000,
+      ttlMs: UI_TOAST_TTL_MS.warningExtended,
       dismissible: true,
     })
   }

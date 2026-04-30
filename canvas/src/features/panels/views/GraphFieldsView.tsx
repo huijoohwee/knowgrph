@@ -54,7 +54,8 @@ export default function GraphFieldsView({
   const upsertUiToast = useGraphStore(s => s.upsertUiToast)
   const dismissUiToast = useGraphStore(s => s.dismissUiToast)
   const settingsById = useGraphStore(s => s.graphFieldSettingsById)
-  const setGraphFieldSettingsById = useGraphStore(s => s.setGraphFieldSettingsById)
+  const patchGraphFieldSetting = useGraphStore(s => s.patchGraphFieldSetting)
+  const removeGraphFieldSetting = useGraphStore(s => s.removeGraphFieldSetting)
   const graphDataTableVisibleColumns = useGraphStore(s => s.graphDataTableVisibleColumns)
   const graphDataTableColumnOrder = useGraphStore(s => s.graphDataTableColumnOrder)
   const setGraphDataTableVisibleColumns = useGraphStore(s => s.setGraphDataTableVisibleColumns)
@@ -264,7 +265,7 @@ export default function GraphFieldsView({
             selectedGlobalView={selectedGlobalView}
             setSelectedGlobalView={setSelectedGlobalView}
             settingsById={settingsById}
-            setGraphFieldSettingsById={setGraphFieldSettingsById}
+            patchGraphFieldSetting={patchGraphFieldSetting}
             graphDataTableVisibleColumns={graphDataTableVisibleColumns}
             graphDataTableColumnOrder={graphDataTableColumnOrder}
             setGraphDataTableVisibleColumns={setGraphDataTableVisibleColumns}
@@ -279,7 +280,8 @@ export default function GraphFieldsView({
             selectedGlobalView={selectedGlobalView}
             setSelectedGlobalView={setSelectedGlobalView}
             settingsById={settingsById}
-            setGraphFieldSettingsById={setGraphFieldSettingsById}
+            patchGraphFieldSetting={patchGraphFieldSetting}
+            removeGraphFieldSetting={removeGraphFieldSetting}
             onResync={resync}
             onStatusChange={onStatusChange}
             />

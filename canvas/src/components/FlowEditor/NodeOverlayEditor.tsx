@@ -26,12 +26,16 @@ import { lsBool, lsSetBool } from '@/lib/persistence'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { clampOverlayTopLeftFullyInViewport, clampOverlayTopLeftToViewport } from '@/lib/ui/overlayClamp'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
+import { Z_INDEX_GRAPH_OVERLAY_BASE, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { emitFlowEditorInteractionFrame, FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
-import { resolveDefaultFlowWidgetPinnedInCanvas } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import {
+  resolveDefaultFlowWidgetPinnedInCanvas,
+  shouldUseFlowEditorWidgetFloatingScreenAuthority,
+} from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { computeDefaultWidgetFloatingPos, computeWidgetAnchoredStackOffset } from '@/components/FlowEditor/widgetLayout'
 import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { getIconSizeClass } from '@/lib/ui'
@@ -45,8 +49,8 @@ import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import type { RichMediaPanelTab } from '@/lib/render/richMediaSsot'
 
-const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = 5000
-const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = 8000
+const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = Z_INDEX_GRAPH_OVERLAY_BASE
+const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = Z_INDEX_GRAPH_OVERLAY_SELECTED
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const WIDGET_ACTIONS_TOOLBAR_OFFSET_PX = 40
 const WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
@@ -62,6 +66,7 @@ const RICH_MEDIA_ASPECT_DEFAULT_HEIGHT = 180
 type NodeOverlayEditorProps = {
   visible?: boolean
   active: boolean
+  flowEditorSurfaceId?: string
   node: GraphNode
   viewportW: number
   viewportH: number
@@ -98,6 +103,7 @@ type NodeOverlayEditorProps = {
 
 const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   active,
+  flowEditorSurfaceId,
   node,
   viewportW,
   viewportH,
@@ -361,6 +367,10 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const labelInputRef = React.useRef<HTMLInputElement | null>(null)
 
   const floating = pinnedInCanvas !== true
+  const floatingUsesScreenAuthority = shouldUseFlowEditorWidgetFloatingScreenAuthority({
+    graphMetaKind,
+    pinnedInCanvas,
+  })
 
   const autoStackOffset = React.useMemo(() => computeWidgetAnchoredStackOffset(stackIndex), [stackIndex])
 
@@ -573,7 +583,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     const floating = floatingRef.current
     const dragOverride = pinnedDragOverrideRef.current
     const worldDragOverride = worldDragOverrideRef.current
-    const storedWorld = widgetWorldPosRef.current
+    const storedWorld = floatingUsesScreenAuthority ? null : widgetWorldPosRef.current
     const defaultWorld = screenToWorld({
       transform: z,
       sx: anchoredPosRef.current.left + autoStackOffset.left,
@@ -641,7 +651,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     })()
 
     const allowPassiveClampPersist =
-      !widgetPos || !Number.isFinite(widgetPos.top) || !Number.isFinite(widgetPos.left)
+      !floatingUsesScreenAuthority
+      && (!widgetPos || !Number.isFinite(widgetPos.top) || !Number.isFinite(widgetPos.left))
     if ((opts?.persistClamp === true || allowPassiveClampPersist) && shouldClampFloating && (pos.top !== safeBasePos.top || pos.left !== safeBasePos.left)) {
       scheduleClampCommit(pos)
     }
@@ -1247,6 +1258,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       ref={asideRef}
       aria-label={UI_LABELS.flowWidget}
       data-kg-widget={String(node.id || '')}
+      data-kg-flow-editor-mode="1"
+      data-kg-flow-editor-surface={flowEditorSurfaceId || undefined}
       data-kg-widget-pinned={pinnedInCanvas ? '1' : '0'}
       data-kg-canvas-wheel-ignore="true"
       className="fixed"

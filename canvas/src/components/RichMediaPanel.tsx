@@ -71,6 +71,7 @@ export type RichMediaPanelProps = {
   }
   flowEditorInteractionMode?: boolean
   flowEditorFrontmatterDocumentMode?: boolean
+  flowEditorSurfaceId?: string
   onPanelChange?: (next: { activeTab: RichMediaPanelTab; freezeConnectedOutput: boolean; text?: string }) => void
 }
 
@@ -1187,6 +1188,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}
         data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
         data-kg-flow-editor-mode={flowEditorInteractionMode ? '1' : undefined}
+        data-kg-flow-editor-surface={flowEditorInteractionMode ? (props.flowEditorSurfaceId || undefined) : undefined}
         data-kg-frontmatter-document-mode={flowEditorFrontmatterDocumentMode ? '1' : undefined}
         data-kg-resize-enabled={installResize ? '1' : undefined}
         style={{
@@ -1218,6 +1220,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}
       data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
       data-kg-flow-editor-mode={flowEditorInteractionMode ? '1' : undefined}
+      data-kg-flow-editor-surface={flowEditorInteractionMode ? (props.flowEditorSurfaceId || undefined) : undefined}
       data-kg-frontmatter-document-mode={flowEditorFrontmatterDocumentMode ? '1' : undefined}
       data-kg-resize-enabled={installResize ? '1' : undefined}
       style={rootStyle}

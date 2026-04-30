@@ -3,16 +3,21 @@ import React from 'react'
 import NodeOverlayEditor from '@/components/FlowEditor/NodeOverlayEditor'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibility'
+import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
+import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import {
-  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
-  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-  FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
-} from '@/lib/config'
+import { isCanonicalFrontmatterBuiltInWidgetNode } from '@/lib/flowEditor/widgetPlacementAuthority'
+export {
+  isCanonicalFrontmatterBuiltInWidgetNode,
+  resolveDefaultFlowWidgetPinnedInCanvas,
+  shouldAutoPlaceFlowEditorWidget,
+  shouldUseFlowEditorWidgetFloatingScreenAuthority,
+  stripFrontmatterAutoManagedWidgetScreenPositions,
+} from '@/lib/flowEditor/widgetPlacementAuthority'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 export type ToolMode = 'select' | 'addEdge'
@@ -46,46 +51,6 @@ export function readFiniteGeoLatLng(properties: Record<string, unknown>): { lat:
   const lng = pickFiniteNumber(geoRaw?.lng)
   if (lat == null || lng == null) return null
   return { lat, lng }
-}
-
-export function isCanonicalFrontmatterBuiltInWidgetNode(node: Pick<GraphNode, 'id' | 'type'> | null | undefined): boolean {
-  const nodeType = String(node?.type || '').trim()
-  return nodeType === FLOW_TEXT_GENERATION_NODE_TYPE_ID
-    || nodeType === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
-    || nodeType === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
-    || nodeType === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
-    || nodeType === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID
-}
-
-export function resolveDefaultFlowWidgetPinnedInCanvas(args: {
-  graphMetaKind?: string | null
-  geospatialWidgetPanelMode?: boolean
-}): boolean {
-  if (args.geospatialWidgetPanelMode === true) return false
-  return String(args.graphMetaKind || '').trim() === 'frontmatter-flow'
-}
-
-export function shouldAutoPlaceFlowEditorWidget(args: {
-  graphMetaKind?: string | null
-  pinnedInCanvas?: boolean
-  floatingPos?: { top?: number; left?: number } | null
-  worldPos?: { x?: number; y?: number } | null
-}): boolean {
-  const kind = String(args.graphMetaKind || '').trim()
-  const pinnedInCanvas = args.pinnedInCanvas === true
-  const floatingPos = args.floatingPos || null
-  const worldPos = args.worldPos || null
-  const hasFloatingPos =
-    !!floatingPos
-    && Number.isFinite(floatingPos.top)
-    && Number.isFinite(floatingPos.left)
-  const hasWorldPos =
-    !!worldPos
-    && Number.isFinite(worldPos.x)
-    && Number.isFinite(worldPos.y)
-  if (kind !== 'frontmatter-flow') return true
-  if (pinnedInCanvas) return !hasWorldPos
-  return !hasFloatingPos
 }
 
 export function resolveGraphNodeIdByCanonicalId(graph: GraphData | null | undefined, rawId: unknown): string {
@@ -143,9 +108,64 @@ export function deriveFlowEditorViewGraph(args: {
   })
 }
 
+export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null | undefined): string[] {
+  if (!graphData || !isFrontmatterFlowGraph(graphData)) return []
+  const metadata = ((graphData.metadata || {}) as Record<string, unknown>)
+  const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : []
+  if (nodes.length === 0) return []
+
+  const eligibleIds = buildFlowWidgetEligibleNodeIdSet(nodes)
+  const nodeZKeyById = buildNodeZKeyById({ nodes, groups: [] })
+  const compareNodeIdsByVisualIndex = (aId: string, bId: string): number => {
+    if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
+    if (aId === bId) return 0
+    const aKey = nodeZKeyById.get(aId)
+    const bKey = nodeZKeyById.get(bId)
+    if (aKey && bKey) return compareNodeZKey(aKey, bKey)
+    if (aKey || bKey) return aKey ? -1 : 1
+    return aId.localeCompare(bId)
+  }
+
+  const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  const registry = Array.isArray(registryRaw) ? (registryRaw as Array<Record<string, unknown>>) : []
+  const allowedFlowNodeIds = new Set<string>()
+  for (let i = 0; i < registry.length; i += 1) {
+    const entry = registry[i]
+    const formId = typeof entry?.formId === 'string' ? String(entry.formId).trim() : ''
+    if (!formId || !formId.startsWith('fm:')) continue
+    const nodeId = formId.slice('fm:'.length).trim()
+    if (!nodeId) continue
+    allowedFlowNodeIds.add(nodeId)
+  }
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const id = String(n?.id || '').trim()
+    if (!id || !isCanonicalFrontmatterBuiltInWidgetNode(n)) continue
+    allowedFlowNodeIds.add(id)
+  }
+  if (allowedFlowNodeIds.size === 0) {
+    for (const id of eligibleIds) allowedFlowNodeIds.add(id)
+  }
+  if (allowedFlowNodeIds.size === 0) return []
+
+  const next: string[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i < nodes.length; i += 1) {
+    const n = nodes[i]
+    const id = String(n?.id || '').trim()
+    if (!id || seen.has(id)) continue
+    if (String(n?.type || '') === 'Section') continue
+    if (!allowedFlowNodeIds.has(id)) continue
+    seen.add(id)
+    next.push(id)
+  }
+  return next.sort(compareNodeIdsByVisualIndex)
+}
+
 type FlowEditorWidgetOverlayProps = {
   visible?: boolean
   active: boolean
+  flowEditorSurfaceId?: string
   node: GraphNode
   graphMetaKind?: string | null
   edges: ReadonlyArray<GraphEdge>
@@ -185,6 +205,7 @@ export const FlowEditorWidgetOverlay = React.memo(function FlowEditorWidgetOverl
     <NodeOverlayEditor
       visible={args.visible}
       active={args.active}
+      flowEditorSurfaceId={args.flowEditorSurfaceId}
       node={args.node}
       graphMetaKind={args.graphMetaKind}
       edges={args.edges}

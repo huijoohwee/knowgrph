@@ -1,5 +1,7 @@
-export const FLOW_EDITOR_OVERLAY_ROOT_SELECTOR = '[data-kg-widget]'
-export const RICH_MEDIA_OVERLAY_ROOT_SELECTOR = '[data-kg-rich-media-overlay="1"]'
+export const FLOW_EDITOR_OVERLAY_MODE_SELECTOR = '[data-kg-flow-editor-mode="1"]'
+export const FLOW_EDITOR_OVERLAY_SURFACE_ATTR = 'data-kg-flow-editor-surface'
+export const FLOW_EDITOR_OVERLAY_ROOT_SELECTOR = `[data-kg-widget]${FLOW_EDITOR_OVERLAY_MODE_SELECTOR}`
+export const RICH_MEDIA_OVERLAY_ROOT_SELECTOR = `[data-kg-rich-media-overlay="1"]${FLOW_EDITOR_OVERLAY_MODE_SELECTOR}`
 export const CANVAS_OVERLAY_PROXY_ROOT_SELECTOR = [
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
@@ -41,7 +43,19 @@ export function readCanvasOverlayPinnedState(overlayRoot: HTMLElement | null | u
   return richMediaPinned === '1'
 }
 
-export function resolveFlowEditorOverlayProxyTarget(args: { target: unknown; canvasEl: Element }): FlowEditorOverlayProxyTarget {
+export function readCanvasOverlayNodeId(overlayRoot: HTMLElement | null | undefined): string {
+  if (!overlayRoot) return ''
+  const widgetId = String(overlayRoot.dataset.kgWidget || '').trim()
+  if (widgetId) return widgetId
+  return String(overlayRoot.dataset.nodeId || '').trim()
+}
+
+export function readFlowEditorOverlaySurfaceId(overlayRoot: HTMLElement | null | undefined): string {
+  if (!overlayRoot) return ''
+  return String(overlayRoot.dataset.kgFlowEditorSurface || '').trim()
+}
+
+export function resolveFlowEditorOverlayProxyTarget(args: { target: unknown; canvasEl: Element; flowEditorSurfaceId?: string | null }): FlowEditorOverlayProxyTarget {
   const el = args.target instanceof Element ? args.target : null
   if (!el) return { kind: 'none' }
   if (args.canvasEl.contains(el)) return { kind: 'canvas', targetEl: el }
@@ -49,6 +63,11 @@ export function resolveFlowEditorOverlayProxyTarget(args: { target: unknown; can
   const root = el.closest(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR)
   const overlayRoot = root instanceof HTMLElement ? root : null
   if (!overlayRoot) return { kind: 'none' }
+  const activeSurfaceId = String(args.flowEditorSurfaceId || '').trim()
+  if (activeSurfaceId) {
+    const overlaySurfaceId = readFlowEditorOverlaySurfaceId(overlayRoot)
+    if (!overlaySurfaceId || overlaySurfaceId !== activeSurfaceId) return { kind: 'none' }
+  }
 
   const isInteractive = !!el.closest(FLOW_EDITOR_OVERLAY_INTERACTIVE_SELECTOR)
   return { kind: 'overlay', targetEl: el, overlayRoot, isInteractive }

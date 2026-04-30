@@ -77,6 +77,7 @@ export type FlowCanvasDrag =
 
 export type BindFlowCanvasNativeInteractionsArgs = {
   active: boolean
+  flowEditorSurfaceId?: string
   canvasEl: HTMLCanvasElement
   runtime: FlowNativeRuntime
   viewportControlsPreset: ViewportControlsPreset
@@ -103,4 +104,3 @@ export type BindFlowCanvasNativeInteractionsArgs = {
     | null
   >
 }
-

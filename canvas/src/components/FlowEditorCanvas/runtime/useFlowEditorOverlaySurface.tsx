@@ -1,12 +1,12 @@
 import React from 'react'
 
 import {
+  deriveFrontmatterFlowOverlayNodeIds,
   FlowEditorWidgetOverlay,
   isCanonicalFrontmatterBuiltInWidgetNode,
   resolveDefaultFlowWidgetPinnedInCanvas,
   resolveGraphNodeIdByCanonicalId,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
-import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
@@ -16,10 +16,10 @@ import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchem
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 
 export function useFlowEditorOverlaySurface(args: {
+  flowEditorSurfaceId: string
   canEdit: boolean
   flowEditorViewActive: boolean
   flowEditorFrontmatterGraphAvailable: boolean
@@ -71,9 +71,7 @@ export function useFlowEditorOverlaySurface(args: {
   const overlayEditorNodeIds = React.useMemo(() => {
     if (!args.flowEditorViewActive) return []
     const isFrontmatterFlow = args.renderGraphDataOverride ? isFrontmatterFlowGraph(args.renderGraphDataOverride) : false
-    const metadata = ((args.renderGraphDataOverride?.metadata || {}) as Record<string, unknown>)
     const nodes = Array.isArray(args.renderGraphDataOverride?.nodes) ? (args.renderGraphDataOverride?.nodes as GraphNode[]) : []
-    const eligibleIds = buildFlowWidgetEligibleNodeIdSet(nodes)
     const nodeById = new Map<string, GraphNode>()
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
@@ -81,56 +79,15 @@ export function useFlowEditorOverlaySurface(args: {
       if (!id || nodeById.has(id)) continue
       nodeById.set(id, n)
     }
-    const nodeZKeyById = buildNodeZKeyById({ nodes, groups: [] })
-    const compareNodeIdsByVisualIndex = (aId: string, bId: string): number => {
-      if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
-      if (aId === bId) return 0
-      const aKey = nodeZKeyById.get(aId)
-      const bKey = nodeZKeyById.get(bId)
-      if (aKey && bKey) return compareNodeZKey(aKey, bKey)
-      if (aKey || bKey) return aKey ? -1 : 1
-      return aId.localeCompare(bId)
-    }
     if (isFrontmatterFlow && nodes.length > 0) {
-      const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
-      const registry = Array.isArray(registryRaw) ? (registryRaw as Array<Record<string, unknown>>) : []
-      const allowedFlowNodeIds = new Set<string>()
-      for (let i = 0; i < registry.length; i += 1) {
-        const entry = registry[i]
-        const formId = typeof entry?.formId === 'string' ? String(entry.formId).trim() : ''
-        if (!formId || !formId.startsWith('fm:')) continue
-        const nodeId = formId.slice('fm:'.length).trim()
-        if (!nodeId) continue
-        allowedFlowNodeIds.add(nodeId)
-      }
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        const id = String(n?.id || '').trim()
-        if (!id || !isCanonicalFrontmatterBuiltInWidgetNode(n)) continue
-        allowedFlowNodeIds.add(id)
-      }
-      if (allowedFlowNodeIds.size === 0) {
-        for (const id of eligibleIds) allowedFlowNodeIds.add(id)
-      }
-      if (allowedFlowNodeIds.size === 0) return []
-      const next: string[] = []
-      const seen = new Set<string>()
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        const id = String(n?.id || '').trim()
-        if (!id || seen.has(id)) continue
-        if (String(n?.type || '') === 'Section') continue
-        if (!allowedFlowNodeIds.has(id)) continue
-        seen.add(id)
-        next.push(id)
-      }
-      const sorted = next.sort(compareNodeIdsByVisualIndex)
+      const sorted = deriveFrontmatterFlowOverlayNodeIds(args.renderGraphDataOverride)
       if (sorted.length > 0) {
         lastStableOverlayEditorNodeIdsRef.current = sorted
         return sorted
       }
-      return lastStableOverlayEditorNodeIdsRef.current
+      return nodes.length > 0 ? lastStableOverlayEditorNodeIdsRef.current : []
     }
+    const eligibleIds = buildFlowWidgetEligibleNodeIdSet(nodes)
     if (args.flowEditorFrontmatterGraphAvailable) return []
     const next: string[] = []
     const seen = new Set<string>()
@@ -297,6 +254,7 @@ export function useFlowEditorOverlaySurface(args: {
             key={`qe-${id}`}
             visible={args.flowEditorViewActive}
             active={args.canEdit}
+            flowEditorSurfaceId={args.flowEditorSurfaceId}
             node={node}
             graphMetaKind={graphMetaKind}
             edges={edges}

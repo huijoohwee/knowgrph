@@ -502,7 +502,7 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
     throw new Error('expected ThreeGraph GLTF export path to lazy-load GLTFExporter')
   }
 
-  const activeGraphDataText = readFileSync(resolve(root, 'src', 'hooks', 'useActiveGraphData.ts'), 'utf8')
+  const activeGraphDataText = readFileSync(resolve(root, 'src', 'hooks', 'active-graph-data', 'useActiveGraphRenderData.impl.ts'), 'utf8')
   if (activeGraphDataText.includes("from '@/lib/mermaid/mermaidFrontmatterGeometry'")) {
     throw new Error('expected useActiveGraphData to avoid static mermaidFrontmatterGeometry import on startup path')
   }

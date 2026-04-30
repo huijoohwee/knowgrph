@@ -7,6 +7,7 @@ import { importSchemaFromFileIntoStore, exportSchemaAsJSON, parseSchemaText } fr
 import { lintSchemaMetadata, validateSchema } from '@/features/schema/validation'
 import type { Action } from '@/features/panels/ui/ActionsRowModel'
 import { UI_COPY } from '@/lib/config'
+import { stringifyCanonicalSchema } from '@/features/schema/schemaCanonical'
 
 export function computeSchemaTabEnterText(tab: string, previousText: string, schema: GraphSchema | null): string | null {
   if (tab !== 'schema') return null
@@ -58,7 +59,7 @@ export function useSchemaTab(tab: string) {
 
   const schemaHash = useMemo(() => {
     try {
-      return JSON.stringify(schema)
+      return stringifyCanonicalSchema(schema)
     } catch {
       return ''
     }

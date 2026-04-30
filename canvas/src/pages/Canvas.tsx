@@ -1,7 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { getCanvas2dSurfaceId } from '@/lib/config.render'
 import { useLocation } from 'react-router-dom'
 import { CanvasViewport } from '@/components/CanvasViewport'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
@@ -94,19 +93,6 @@ export default function CanvasPage() {
     })),
   )
   const geospatialModeEnabled = useCanvasGeospatialRuntime()
-  const active2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
-
-  const [mounted2dRenderers, setMounted2dRenderers] = React.useState<{ d3: boolean; flow: boolean; design: boolean; flowEditor: boolean }>(() => ({
-    d3: active2dSurface === 'd3',
-    flow: active2dSurface === 'flow',
-    design: active2dSurface === 'design',
-    flowEditor: active2dSurface === 'flowEditor',
-  }))
-
-  React.useEffect(() => {
-    if (!active2dSurface) return
-    setMounted2dRenderers(prev => (prev[active2dSurface] ? prev : { ...prev, [active2dSurface]: true }))
-  }, [active2dSurface])
 
   const makeZoomHandler = (type: 'in' | 'out' | 'fit' | 'reset' | 'selection') => () => {
     const store = useGraphStore.getState()
@@ -158,7 +144,6 @@ export default function CanvasPage() {
               canvasRenderMode={canvasRenderMode}
               canvas3dMode={canvas3dMode}
               canvas2dRenderer={canvas2dRenderer}
-              mounted2dRenderers={mounted2dRenderers}
             />
           </main>
         ) : (
@@ -206,7 +191,6 @@ export default function CanvasPage() {
                       canvasRenderMode={canvasRenderMode}
                       canvas3dMode={canvas3dMode}
                       canvas2dRenderer={canvas2dRenderer}
-                      mounted2dRenderers={mounted2dRenderers}
                     />
                   </section>
 

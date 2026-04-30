@@ -37,6 +37,14 @@ export const runJsonLdTests = async (results: TestResult[]) => {
     const mod = await modJsonLdRoundtrip()
     await mod.testJsonLdTriplesMatchExpectedSet()
   })
+  await execTest(results, 'jsonld.graphSerializer.canonicalizesOrdering', async () => {
+    const mod = await modJsonLdRoundtrip()
+    await mod.testJsonLdGraphSerializerCanonicalizesOrdering()
+  })
+  await execTest(results, 'jsonld.graphParser.canonicalizesOrdering', async () => {
+    const mod = await modJsonLdRoundtrip()
+    await mod.testJsonLdGraphParserCanonicalizesOrdering()
+  })
   await execTest(results, 'jsonld.workflow.historyGraphShape', async () => {
     const mod = await modWorkflowJsonLd()
     await mod.testWorkflowJsonLdHistoryGraphShape()
@@ -44,6 +52,10 @@ export const runJsonLdTests = async (results: TestResult[]) => {
   await execTest(results, 'jsonld.workflow.graphFieldSettingsGraphShape', async () => {
     const mod = await modWorkflowJsonLd()
     await mod.testWorkflowJsonLdGraphFieldSettingsGraphShape()
+  })
+  await execTest(results, 'jsonld.workflow.graphFieldSettings.canonicalizesOrdering', async () => {
+    const mod = await modWorkflowJsonLd()
+    await mod.testWorkflowJsonLdGraphFieldSettingsCanonicalizesOrdering()
   })
   await execTest(results, 'jsonld.workflow.graphFieldSettings.agenticRagRoundTrip', async () => {
     const mod = await modWorkflowJsonLd()

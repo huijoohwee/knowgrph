@@ -3,6 +3,12 @@ import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-share
 import { areReplacementLinesNoop } from '@/features/markdown/ui/markdownEditParitySsot'
 import { buildMarkdownSigil, parseMarkdownSigil, unwrapDefaultHighlight } from '@/features/markdown/ui/markdownSigil'
 import { toggleHeadingAcrossLines } from './markdownBlockContainerCore.toolbar'
+import {
+  computeFloatingMenuPosition,
+  getRangeRectSafe,
+  readLiveSelectionSnapshot,
+  type LiveSelectionSnapshot,
+} from './markdownBlockContainerCore.interaction'
 
 export const useMarkdownBlockContainerMarkdownFormatting = (args: {
   editorPresentation: 'markdown' | 'html'
@@ -23,6 +29,7 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
   setLinkPopover: React.Dispatch<React.SetStateAction<{ show: boolean; leftPx: number; topPx: number; href: string }>>
   setBubble: React.Dispatch<React.SetStateAction<{ show: boolean; leftPx: number; topPx: number }>>
   linkRangeRef: React.MutableRefObject<Range | null>
+  liveSelectionSnapshotRef: React.MutableRefObject<LiveSelectionSnapshot | null>
   readSelectionOffsetsForFormatting: () => { startOffset: number; endOffset: number } | null
   execInline: (cmd: 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'removeFormat') => void
   insertHtmlAroundSelection: (payload: { leftHtml: string; rightHtml: string }) => void
@@ -39,12 +46,11 @@ export const useMarkdownBlockContainerMarkdownFormatting = (args: {
         const root = args.editorRef.current
         if (!root) return
         const sel = typeof window !== 'undefined' ? window.getSelection() : null
-        if (sel && sel.rangeCount > 0) args.linkRangeRef.current = sel.getRangeAt(0).cloneRange()
-        const rect = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).getBoundingClientRect() : null
-        const host = root.closest('[data-start-line]') as HTMLElement | null
-        const hostRect = host?.getBoundingClientRect() || root.getBoundingClientRect()
-        const leftPx = rect ? rect.left - hostRect.left : 0
-        const topPx = rect ? rect.bottom - hostRect.top + 6 : 0
+        const snapshot = readLiveSelectionSnapshot({ root, selection: sel })
+        args.liveSelectionSnapshotRef.current = snapshot
+        if (snapshot?.range) args.linkRangeRef.current = snapshot.range.cloneRange()
+        const rect = snapshot?.rect || (sel && sel.rangeCount > 0 ? getRangeRectSafe(sel.getRangeAt(0)) : null)
+        const { leftPx, topPx } = computeFloatingMenuPosition({ rangeRect: rect, root })
         args.setLinkPopover({ show: true, leftPx, topPx, href: '' })
         args.setBubble(prev => (prev.show ? { ...prev, show: false } : prev))
       }

@@ -1,6 +1,7 @@
 import type { RefObject, SyntheticEvent } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
+import { Z_INDEX_GRAPH_MEDIA_LAYER } from '@/lib/ui/zIndex'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { commitRichMediaPanelChange, resolveRichMediaPanelInteractive } from '@/lib/render/richMediaSsot'
@@ -43,7 +44,11 @@ export function RichMediaOverlayLayer2d(props: {
   const updateNode = useGraphStore(s => s.updateNode)
 
   return (
-    <section aria-label="D3 rich media overlay" className="absolute inset-0 z-[80] pointer-events-none">
+    <section
+      aria-label="D3 rich media overlay"
+      className="absolute inset-0 pointer-events-none"
+      style={{ zIndex: Z_INDEX_GRAPH_MEDIA_LAYER }}
+    >
       {mediaOverlayNodes.map(n => {
         const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' ? n.kind : undefined
         return (

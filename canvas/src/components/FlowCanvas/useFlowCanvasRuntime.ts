@@ -27,6 +27,7 @@ import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
 
 export function useFlowCanvasRuntime(args: {
   active: boolean
+  flowEditorSurfaceId?: string
   allowNodeDragOverride?: boolean
   collisionDuringDrag: boolean
   viewportControlsPreset: unknown
@@ -415,6 +416,7 @@ export function useFlowCanvasRuntime(args: {
     if (!runtime || !canvasEl) return
     return bindFlowCanvasNativeInteractions({
       active,
+      flowEditorSurfaceId: args.flowEditorSurfaceId,
       canvasEl,
       runtime,
       viewportControlsPreset,
@@ -445,6 +447,7 @@ export function useFlowCanvasRuntime(args: {
     buildDrawArgs,
     canvas2dRenderer,
     canvasRef,
+    args.flowEditorSurfaceId,
     collisionDuringDrag,
     flowEditorSelectionOnDrag,
     handleInteractionFrame,

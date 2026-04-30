@@ -11,6 +11,7 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 
 export default function FlowEditorCanvasSurface(props: {
   rootRef: React.RefObject<HTMLElement | null>
+  flowEditorSurfaceId: string
   active: boolean
   canEdit: boolean
   geospatialWidgetPanelMode?: boolean
@@ -45,6 +46,7 @@ export default function FlowEditorCanvasSurface(props: {
       ref={props.rootRef}
       className={`absolute inset-0 z-0 ${props.geospatialWidgetPanelMode ? 'pointer-events-none' : ''}`}
       aria-label="Flow Editor"
+      data-kg-flow-editor-surface-root={props.flowEditorSurfaceId}
       onDragOverCapture={(ev) => {
         if (props.geospatialWidgetPanelMode || !props.canEdit) return
         ev.preventDefault()
@@ -98,6 +100,7 @@ export default function FlowEditorCanvasSurface(props: {
     >
       <FlowCanvas
         active={props.active}
+        flowEditorSurfaceId={props.flowEditorSurfaceId}
         allowNodeDragOverride={props.canEdit}
         graphDataOverride={props.renderGraphDataOverride}
         graphDataRevisionOverride={props.flowEditorViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}

@@ -2,6 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
+const markdownWorkspaceRuntimePath = () =>
+  path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+const markdownWorkspaceEffectiveContentPath = () =>
+  path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceEffectiveContent.ts')
+const markdownWorkspaceInteractionsPath = () =>
+  path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceInteractions.ts')
 
 export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
@@ -98,32 +104,70 @@ export const testMarkdownWorkspaceRuntimeGraphWritebackRefreshesActiveEditorText
 }
 
 export const testMarkdownWorkspaceRealtimeSyncAppliesEditorChangesBackToGraph = () => {
-  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
-  const text = readUtf8(runtimePath)
-  if (!text.includes("const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)")) {
+  const runtimeText = readUtf8(markdownWorkspaceRuntimePath())
+  const interactionsText = readUtf8(markdownWorkspaceInteractionsPath())
+  if (!runtimeText.includes("const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)")) {
     throw new Error('Expected Markdown Workspace runtime to read shared canvas workspace sync mode state')
   }
-  if (!text.includes("if (canvasWorkspaceSyncMode !== 'realtime') return")) {
-    throw new Error('Expected Markdown Workspace runtime to explicitly gate auto-apply by realtime sync mode')
+  if (!interactionsText.includes("argsRef.current = args")) {
+    throw new Error('Expected markdown workspace interactions to keep current inputs behind a ref for stable apply callbacks')
   }
-  if (!text.includes("if (contentMode === 'widget') return")) {
-    throw new Error('Expected realtime editor->graph sync to avoid feeding widget bundle text back into frontmatter graph apply')
+  if (!interactionsText.includes("if (!workspaceCanvasPaneOpen || canvasWorkspaceSyncMode !== 'realtime' || contentMode === 'widget') return")) {
+    throw new Error('Expected realtime editor->graph sync to explicitly gate by workspace pane, realtime mode, and widget mode')
   }
-  if (!text.includes("const graphText = markdownDocumentName === name ? String(markdownDocumentText || '') : ''")) {
+  if (!interactionsText.includes("const graphText = markdownDocumentName === name ? String(markdownDocumentText || '') : ''")) {
     throw new Error('Expected realtime editor->graph sync to compare against current graph-backed markdown document text')
   }
-  if (!text.includes('lastRealtimeApplySigRef')) {
+  if (!interactionsText.includes('lastRealtimeApplySigRef')) {
     throw new Error('Expected realtime editor->graph sync to dedupe repeated apply cycles')
   }
-  if (!text.includes('void handleApply()')) {
+  if (!interactionsText.includes('WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS')) {
+    throw new Error('Expected realtime editor->graph sync to coalesce rapid typing behind the shared debounce window')
+  }
+  if (!interactionsText.includes('const sig = `${name}:${hashStringToHex(text)}`')) {
+    throw new Error('Expected realtime editor->graph sync to dedupe via lightweight text hashing instead of storing whole document text in memory')
+  }
+  if (!interactionsText.includes('const timer = window.setTimeout(() => {')) {
+    throw new Error('Expected realtime editor->graph sync to debounce apply scheduling during rapid editor input')
+  }
+  if (!interactionsText.includes('return () => window.clearTimeout(timer)')) {
+    throw new Error('Expected realtime editor->graph sync debounce to cancel stale pending apply timers')
+  }
+  if (!interactionsText.includes('void handleApply()')) {
     throw new Error('Expected realtime editor->graph sync to reuse shared markdown apply path')
+  }
+  if (interactionsText.includes('}, [args, geoDatasetIntegration])')) {
+    throw new Error('Expected markdown apply callback to avoid aggregate args dependency churn during Workspace View open')
   }
 }
 
 export const testMarkdownWorkspaceSkipsMissingActiveEntryLoadsUntilPathRecovery = () => {
-  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
-  const text = readUtf8(runtimePath)
-  if (!text.includes('if (!activeEntry) return')) {
-    throw new Error('Expected markdown workspace runtime to skip file loads until the active path resolves to a real workspace entry')
+  const indexingPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
+  const text = readUtf8(indexingPath)
+  if (!text.includes("if (!path || !args.activeEntry || args.activeEntryKind === 'folder') return")) {
+    throw new Error('Expected markdown workspace indexing to skip file loads until the active path resolves to a real workspace entry')
+  }
+}
+
+export const testMarkdownWorkspaceRuntimeKeepsEffectiveContentInSharedSsot = () => {
+  const runtimeText = readUtf8(markdownWorkspaceRuntimePath())
+  const effectiveText = readUtf8(markdownWorkspaceEffectiveContentPath())
+  if (!runtimeText.includes("import { useMarkdownWorkspaceEffectiveContent } from './useMarkdownWorkspaceEffectiveContent'")) {
+    throw new Error('Expected markdown workspace runtime to import the effective-content SSOT hook')
+  }
+  if (!runtimeText.includes('const effectiveContent = useMarkdownWorkspaceEffectiveContent({')) {
+    throw new Error('Expected markdown workspace runtime to delegate editor/viewer effective content derivation to the SSOT hook')
+  }
+  if (runtimeText.includes('const effectiveActiveText =') || runtimeText.includes('const editorLanguage = activePath')) {
+    throw new Error('Expected markdown workspace runtime to avoid regrowing inline effective content and editor language derivation')
+  }
+  if (!effectiveText.includes('languageForPath(activePath)')) {
+    throw new Error('Expected effective-content hook to centralize workspace editor language derivation')
+  }
+  if (!effectiveText.includes('disableEditorMutations')) {
+    throw new Error('Expected effective-content hook to centralize editor mutation gating')
+  }
+  if (!effectiveText.includes('saveEnabled')) {
+    throw new Error('Expected effective-content hook to centralize workspace save eligibility')
   }
 }

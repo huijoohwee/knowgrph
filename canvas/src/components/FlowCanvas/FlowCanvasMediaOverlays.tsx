@@ -15,12 +15,18 @@ import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimit
 import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { Z_INDEX_GRAPH_MEDIA_LAYER, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
 import {
   commitRichMediaPanelChange,
   coerceRichMediaPanelSizePx,
   normalizeRichMediaPanelDensity,
   resolveRichMediaPanelInteractive,
 } from '@/lib/render/richMediaSsot'
+import {
+  FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
+  readCanvasOverlayNodeId,
+  readFlowEditorOverlaySurfaceId,
+} from '@/lib/canvas/flow-editor-overlay-proxy'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
@@ -54,6 +60,7 @@ export default function FlowCanvasMediaOverlays(args: {
   threeIframeOverlayBaseWidthMinPxCompact?: number
   threeIframeOverlayBaseWidthMaxPxDefault?: number
   threeIframeOverlayBaseWidthMaxPxCompact?: number
+  flowEditorSurfaceId?: string
   onPlannedOverlayNodeIdsChange: (ids: string[]) => void
 }) {
   const {
@@ -85,6 +92,7 @@ export default function FlowCanvasMediaOverlays(args: {
     threeIframeOverlayBaseWidthMinPxCompact,
     threeIframeOverlayBaseWidthMaxPxDefault,
     threeIframeOverlayBaseWidthMaxPxCompact,
+    flowEditorSurfaceId,
     onPlannedOverlayNodeIdsChange,
   } = args
 
@@ -436,6 +444,21 @@ export default function FlowCanvasMediaOverlays(args: {
       },
       getElementForId: id => mediaOverlayElsRef.current.get(id) || null,
       getNodeWorldCenterForId: id => readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'topLeft' }),
+      getCollisionObstacles: () => {
+        if (!flowEditorOverlayInteractionMode || typeof document === 'undefined') return []
+        const obstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
+        const els = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
+        for (let i = 0; i < els.length; i += 1) {
+          const el = els[i]
+          if (readFlowEditorOverlaySurfaceId(el) !== flowEditorSurfaceId) continue
+          const id = readCanvasOverlayNodeId(el)
+          if (!id || mediaOverlayElsRef.current.has(id)) continue
+          const rect = el.getBoundingClientRect()
+          if (!(rect.width > 0) || !(rect.height > 0)) continue
+          obstacles.push({ id, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+        }
+        return obstacles
+      },
       schema: schema && typeof schema === 'object' ? (schema as GraphSchema) : null,
       collision: flowEditorFrontmatterDocumentModeRequested
         ? {
@@ -465,6 +488,8 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaLayoutItemIdsKey,
     mediaPanelDensity,
     computeOverlaySizingScale,
+    flowEditorOverlayInteractionMode,
+    flowEditorSurfaceId,
     runtimeRef,
     schema,
     threeIframeOverlayBaseWidthMaxPxCompact,
@@ -491,11 +516,17 @@ export default function FlowCanvasMediaOverlays(args: {
 
   if (!(active && mediaNodes.length > 0)) return null
   return (
-    <section aria-label="Flow media overlay" className="absolute inset-0 z-[80] pointer-events-none">
+    <section
+      aria-label="Flow media overlay"
+      className="absolute inset-0 pointer-events-none"
+      style={{ zIndex: Z_INDEX_GRAPH_MEDIA_LAYER }}
+    >
       {mediaNodes.map((node, index) => {
         const isSelected = selectedOverlayNodeIdSet.has(node.id) || Array.from(selectedOverlayNodeIdSet).some(id => isCanonicalNodeIdEqual(id, node.id))
         const resizeInteractionActive = flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested
-        const overlayZIndex = isSelected ? 2200 : 1400 - index
+        const overlayZIndex = isSelected
+          ? Z_INDEX_GRAPH_OVERLAY_SELECTED
+          : Math.max(1, Z_INDEX_GRAPH_MEDIA_LAYER - Math.max(0, index))
         const updateNode = (id: string, patch: { properties: Record<string, unknown> }) => {
           useGraphStore.getState().updateNode(id, patch as Partial<GraphNode>)
         }
@@ -603,6 +634,7 @@ export default function FlowCanvasMediaOverlays(args: {
             } : undefined}
             flowEditorInteractionMode={flowEditorOverlayInteractionMode}
             flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}
+            flowEditorSurfaceId={flowEditorSurfaceId}
             style={{ transform: 'translate(-99999px, -99999px)', width: 1, height: 1, zIndex: overlayZIndex }}
             onWheelCapture={stopEvent}
             onClickCapture={stopEvent}

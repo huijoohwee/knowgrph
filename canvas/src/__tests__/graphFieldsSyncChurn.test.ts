@@ -1,4 +1,5 @@
 import { syncGraphFieldsWithGraphData } from '@/hooks/store/graphDataSliceUtils'
+import { createHistorySlice } from '@/hooks/store/historySlice'
 
 export function testSyncGraphFieldsAvoidsRedundantStoreSets() {
   const graphData = {
@@ -51,5 +52,42 @@ export function testSyncGraphFieldsAvoidsRedundantStoreSets() {
     afterSecond.settingsSets !== afterFirst.settingsSets
   ) {
     throw new Error(`expected second sync to do nothing, got ${JSON.stringify({ afterFirst, afterSecond })}`)
+  }
+}
+
+export function testHistorySliceSkipsRedundantSemanticSnapshots() {
+  const graphData = {
+    type: 'Graph',
+    context: 't',
+    metadata: { kind: 't' },
+    nodes: [{ id: 'a', type: 'Node', label: 'A', properties: { value: 1 } }],
+    edges: [],
+  } as const
+
+  const state = {
+    graphData,
+    graphDataRevision: 1,
+    graphFieldSettingsById: {},
+    history: [] as Array<unknown>,
+    historyIndex: -1,
+    historyDebounceMs: 0,
+    setGraphFieldSettingsById: (_next: unknown) => void 0,
+    resyncGraphFieldsFromGraphData: () => void 0,
+  }
+
+  const setState = (next: Record<string, unknown>) => {
+    Object.assign(state, next)
+  }
+
+  const getState = (() => state) as never
+  const slice = createHistorySlice(setState as never, getState)
+
+  slice.addHistory('Snapshot')
+  const firstLen = state.history.length
+  slice.addHistory('Snapshot')
+  const secondLen = state.history.length
+
+  if (firstLen !== 1 || secondLen !== 1) {
+    throw new Error(`expected history slice to skip redundant semantic snapshots, got lengths ${firstLen} -> ${secondLen}`)
   }
 }

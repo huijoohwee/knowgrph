@@ -6,6 +6,7 @@ import {
   normalizeSettingsForField,
   type GraphField,
   type GraphFieldId,
+  type GraphFieldSettings,
   type GraphFieldSettingsById,
   type GraphFieldSettingsResolved,
   type GraphFieldType,
@@ -44,7 +45,7 @@ type GraphFieldsListPanelProps = {
   selectedGlobalView: GraphFieldsSelectedView
   setSelectedGlobalView: React.Dispatch<React.SetStateAction<GraphFieldsSelectedView>>
   settingsById: GraphFieldSettingsById
-  setGraphFieldSettingsById: (next: GraphFieldSettingsById) => void
+  patchGraphFieldSetting: (fieldId: GraphFieldId, patch: Partial<GraphFieldSettings>) => void
   graphDataTableVisibleColumns: GraphDataTableColumnVisibilityByKey
   graphDataTableColumnOrder: GraphDataTableColumnKey[]
   setGraphDataTableVisibleColumns: (next: GraphDataTableColumnVisibilityByKey) => void
@@ -62,7 +63,7 @@ export default function GraphFieldsListPanel({
   selectedGlobalView,
   setSelectedGlobalView,
   settingsById,
-  setGraphFieldSettingsById,
+  patchGraphFieldSetting,
   graphDataTableVisibleColumns,
   graphDataTableColumnOrder,
   setGraphDataTableVisibleColumns,
@@ -133,12 +134,9 @@ export default function GraphFieldsListPanel({
       const field = fieldById.get(fieldId)
       if (!field) return
       const current = normalizeSettingsForField(field, settingsById[fieldId])
-      setGraphFieldSettingsById({
-        ...settingsById,
-        [fieldId]: { ...current, ...patch },
-      })
+      patchGraphFieldSetting(fieldId, { ...current, ...patch })
     },
-    [fieldById, setGraphFieldSettingsById, settingsById],
+    [fieldById, patchGraphFieldSetting, settingsById],
   )
 
   const schemaDefinedFieldIds = React.useMemo(
@@ -216,11 +214,7 @@ export default function GraphFieldsListPanel({
       onStatusChange(UI_COPY.graphFieldsNewFieldAlreadyExistsStatus)
       return
     }
-    const nextSettings: GraphFieldSettingsById = {
-      ...settingsById,
-      [id]: { displayName: cleaned, isHidden: false, fieldType: newFieldType, isCustom: true },
-    }
-    setGraphFieldSettingsById(nextSettings)
+    patchGraphFieldSetting(id, { displayName: cleaned, isHidden: false, fieldType: newFieldType, isCustom: true })
     const colKey = `prop:${newFieldScope}:${cleaned}` as GraphDataTableColumnKey
     setCuratorColumnVisibility(colKey, true)
     const currentOrder = useGraphStore.getState().graphDataTableColumnOrder
@@ -240,7 +234,7 @@ export default function GraphFieldsListPanel({
     onStatusChange,
     setGraphDataTableColumnOrder,
     setCuratorColumnVisibility,
-    setGraphFieldSettingsById,
+    patchGraphFieldSetting,
     setSelectedFieldId,
     settingsById,
   ])

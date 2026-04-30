@@ -9,13 +9,12 @@ import { useMarkdownBlockContainerMarkdownFormatting } from './markdownBlockCont
 import { useMarkdownBlockContainerEditOpenCaretProbe } from './markdownBlockContainerCore.editOpenCaretProbe'
 import { useMarkdownBlockContainerSelectionToolbarSync } from './markdownBlockContainerCore.selectionToolbarSync'
 import { useMarkdownBlockContainerEditInitialization } from './markdownBlockContainerCore.editInitialization'
-import { useMarkdownBlockContainerEditorEvents } from './markdownBlockContainerCore.editorEvents'
 import { MarkdownBlockContainerEditSurfaceView } from './markdownBlockContainerCore.editSurfaceView'
 import { useMarkdownBlockContainerDraftCommit } from './markdownBlockContainerCore.draftCommit'
 import { useMarkdownBlockContainerRuntimeProbe } from './markdownBlockContainerCore.runtimeProbe'
-import { useMarkdownBlockContainerHostOrchestration } from './markdownBlockContainerCore.hostOrchestration'
-import { useMarkdownBlockContainerLinkPopover } from './markdownBlockContainerCore.linkPopover'
 import { useMarkdownBlockContainerInlineUiState } from './markdownBlockContainerCore.inlineUiState'
+import { useMarkdownBlockContainerSelectionState } from './markdownBlockContainerCore.selectionState'
+import { useMarkdownBlockContainerHostEditing } from './markdownBlockContainerCore.hostEditing'
 import {
   cancelMarkdownBlockInlineEditStateSync,
   scheduleMarkdownBlockInlineEditStateSync,
@@ -23,7 +22,6 @@ import {
   toMarkdownBlockInlineEditStateTaskKey,
 } from './markdownBlockContainerCore.stateSync'
 import { useMarkdownInlineSelectionActions } from './markdownInlineSelectionActions'
-import { ensureWordSelectionInRoot } from './markdownBlockContainerCore.interaction'
 const MARKDOWN_EDIT_TYPOGRAPHY_SOURCE_SELECTOR =
   'h1,h2,h3,h4,h5,h6,p,li,blockquote,section,aside,div,span'
 type MarkdownBlockContainerProps = {
@@ -166,9 +164,12 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
   const toolbarInteractingRef = React.useRef(false)
   const toolbarInteractionUntilRef = React.useRef(0)
   const selectionSyncSuspendUntilRef = React.useRef(0)
-  const linkRangeRef = React.useRef<Range | null>(null)
-  const lastNonCollapsedSelectionOffsetsRef = React.useRef<{ startOffset: number; endOffset: number } | null>(null)
-  const lastNonCollapsedDomRangeRef = React.useRef<Range | null>(null)
+  const {
+    linkRangeRef,
+    lastNonCollapsedSelectionOffsetsRef,
+    lastNonCollapsedDomRangeRef,
+    liveSelectionSnapshotRef,
+  } = useMarkdownBlockContainerSelectionState()
   const editorPresentation = editPresentation === 'html' ? 'html' : 'markdown'
   const htmlRenderMode = editHtmlRender === 'block' ? 'block' : 'inline'
   const normalizeRenderedBlockHtmlForEditor = React.useCallback((renderedHtml: string): string => {
@@ -352,6 +353,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     setLinkPopover,
     setBubble,
     linkRangeRef,
+    liveSelectionSnapshotRef,
     readSelectionOffsetsForFormatting,
     execInline,
     insertHtmlAroundSelection,
@@ -375,6 +377,7 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     toolbarInteractionUntilRef,
     lastNonCollapsedSelectionOffsetsRef,
     lastNonCollapsedDomRangeRef,
+    liveSelectionSnapshotRef,
     selectionSyncSuspendUntilRef,
     bubbleRafRef,
     selectionSyncBurstTokenRef,
@@ -410,43 +413,14 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     initialEditorHtmlRef,
     lastPointerSelectionModeRef,
   })
-  React.useEffect(() => {
-    if (!editing) return
-    if (!editTrimEmptyBlockEdges) return
-    scheduleEdgeTrimBurst()
-    return () => {
-      if (edgeTrimRafRef.current) {
-        window.cancelAnimationFrame(edgeTrimRafRef.current)
-        edgeTrimRafRef.current = 0
-      }
-    }
-  }, [editing, editTrimEmptyBlockEdges, scheduleEdgeTrimBurst])
   const hasCachedSelection = !!lastNonCollapsedSelectionOffsetsRef.current
     && lastNonCollapsedSelectionOffsetsRef.current.startOffset !== lastNonCollapsedSelectionOffsetsRef.current.endOffset
-  const handleVariableMenuMouseDownCapture = React.useCallback(() => {
-    toolbarInteractingRef.current = true
-    captureSelectionForFloatingToolbar({
-      getSelectionOffsets,
-      lastNonCollapsedSelectionOffsetsRef,
-      lastNonCollapsedDomRangeRef,
-    })
-  }, [getSelectionOffsets])
   const {
+    handleVariableMenuMouseDownCapture,
     handleLinkCancel,
     handleLinkHrefChange,
     handleLinkInputKeyDown,
     handleLinkSubmit,
-  } = useMarkdownBlockContainerLinkPopover({
-    editorPresentation,
-    linkPopover,
-    setLinkPopover,
-    editorRef,
-    linkRangeRef,
-    getSelectionOffsets,
-    getDraft,
-    setDraftToDom,
-  })
-  const {
     onInput: handleEditorInput,
     onCopy: handleEditorCopy,
     onCut: handleEditorCut,
@@ -456,8 +430,24 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     onMouseUp: handleEditorMouseUp,
     onDoubleClick: handleEditorDoubleClick,
     onKeyDown: handleEditorKeyDown,
-  } = useMarkdownBlockContainerEditorEvents({
-    editorRef,
+    setHostNodeRef,
+    onHostClick,
+    onHostDoubleClick,
+  } = useMarkdownBlockContainerHostEditing({
+    editing,
+    editTrimEmptyBlockEdges,
+    scheduleEdgeTrimBurst,
+    edgeTrimRafRef,
+    lastNonCollapsedSelectionOffsetsRef,
+    lastNonCollapsedDomRangeRef,
+    toolbarInteractingRef,
+    getSelectionOffsets,
+    editorPresentation,
+    linkPopover,
+    setLinkPopover,
+    linkRangeRef,
+    getDraft,
+    setDraftToDom,
     forbidCopy,
     editPreserveWhitespace,
     readEditorPlainText,
@@ -466,11 +456,8 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     editTrimEdgeNewlines,
     draftRef,
     editDirtyRef,
-    editTrimEmptyBlockEdges,
-    scheduleEdgeTrimBurst,
     emitParityProbe,
     editDisableRichUi,
-    getSelectionOffsets,
     setVariableMenuStable,
     variableMenu,
     setSlashMenuStable,
@@ -482,56 +469,28 @@ export const MarkdownBlockContainer = React.forwardRef<HTMLElement, MarkdownBloc
     toolbarRef,
     variableMenuRef,
     commit,
-    toolbarInteractingRef,
     toolbarInteractionUntilRef,
     editOpenBlurGuardUntilRef,
     lastEditorPointerDownAtRef,
     lastEditorPointerUpAtRef,
     lastDocumentPointerDownAtRef,
     lastDocumentPointerDownTargetRef,
-    lastNonCollapsedSelectionOffsetsRef,
-    lastNonCollapsedDomRangeRef,
+    liveSelectionSnapshotRef,
     editorMouseUpSyncScheduleKey,
     syncSelectionToolbarState,
     runSelectionSyncBurst,
     cancel,
     applyVariableToken,
-    linkRangeRef,
-    setLinkPopover,
-  })
-  const handleHostDoubleClickWhileEditing = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
-    lastPointerSelectionModeRef.current = 'word'
-    lastPointerRef.current = { x: event.clientX, y: event.clientY }
-    lastPointerTargetRef.current = event.target instanceof Node ? event.target : null
-    const currentTarget = (editorRef.current || event.currentTarget) as HTMLElement
-    handleEditorDoubleClick({
-      detail: 2,
-      currentTarget,
-      target: event.target as EventTarget,
-      stopPropagation: () => {},
-      preventDefault: () => {},
-    } as unknown as React.MouseEvent<HTMLElement>)
-    window.requestAnimationFrame(() => {
-      const root = editorRef.current
-      if (!root) return
-      const sel = typeof window !== 'undefined' ? window.getSelection() : null
-      if (sel && String(sel.toString() || '').trim().length > 0) return
-      ensureWordSelectionInRoot(root)
-      runSelectionSyncBurst(() => syncSelectionToolbarState())
-    })
-  }, [handleEditorDoubleClick, runSelectionSyncBurst, syncSelectionToolbarState])
-  const { setHostNodeRef, onHostClick, onHostDoubleClick } = useMarkdownBlockContainerHostOrchestration({
-    editing,
     hostRef,
     forwardedRef: ref,
-    editorRef,
-    lastDocumentPointerDownTargetRef,
-    lastDocumentPointerDownAtRef,
     originalOnClick,
     openEditor,
-    onEditingHostDoubleClick: handleHostDoubleClickWhileEditing,
     probe,
     probeSelection,
+    lastPointerSelectionModeRef,
+    lastPointerRef,
+    lastPointerTargetRef,
+    editorRef,
   })
   return (
     <Tag

@@ -313,19 +313,30 @@ export function testForbidHardcodedSandboxAbsolutePaths() {
   }
 }
 
-export function testCanvas2dRendererSwitchWarmsInactiveRenderer() {
+export function testCanvasViewportMountsOnlyActiveRendererSurface() {
   const viewportPath = resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const canvasPagePath = resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx')
   const text = readFileSync(viewportPath, 'utf8')
+  const canvasPageText = readFileSync(canvasPagePath, 'utf8')
   const requiredSnippets = [
-    'mounted2dRenderers.d3 ? <GraphCanvasLazy active={d3SurfaceActive} />',
-    "mounted2dRenderers.flow ? <FlowCanvasLazy active={canvas2dRenderer === 'flow'} />",
-    "mounted2dRenderers.flowEditor ? <FlowEditorCanvasLazy active={canvas2dRenderer === 'flowEditor'} />",
+    "d3SurfaceActive ? <GraphCanvasLazy active /> : null",
+    "active2dSurface === 'flow' ? <FlowCanvasLazy active /> : null",
+    "active2dSurface === 'flowEditor' ? <FlowEditorCanvas active /> : null",
     "canvasRenderMode === '2d' && (",
   ]
   const missing = requiredSnippets.filter(s => !text.includes(s))
   if (missing.length) {
     const msg = missing.map(s => `missing: ${s}`).join('\n')
-    throw new Error(`CanvasViewport must warm-mount the inactive 2D renderer after prefetch, while toggling via active/visibility:\n${msg}`)
+    throw new Error(`CanvasViewport must mount only the active renderer surface instead of retaining inactive renderer trees:\n${msg}`)
+  }
+  if (text.includes('mounted2dRenderers')) {
+    throw new Error('CanvasViewport should not retain a mounted2dRenderers warm-state map after switching renderers')
+  }
+  if (text.includes('threeWarmed') || text.includes('geospatialWarmed')) {
+    throw new Error('CanvasViewport should not keep warmed 3d/geospatial overlays mounted after mode switches')
+  }
+  if (canvasPageText.includes('mounted2dRenderers')) {
+    throw new Error('Canvas page should not track mounted renderer history once viewport ownership is active-only')
   }
 }
 

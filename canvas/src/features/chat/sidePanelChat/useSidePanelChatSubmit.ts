@@ -30,6 +30,7 @@ import {
   isKgcStructuredMarkdown,
   upsertChatHistoryWorkspaceDraft,
 } from '../chatHistoryWorkspace'
+import { toKgcTraceWorkspacePath } from '../chatHistoryWorkspace.paths'
 import {
   buildProviderChatRequestOptions,
   clampTemperature,
@@ -134,8 +135,9 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
           defaultLocalRootPath: args.chatLocalStorageRootPath,
           onResolvedPath: p => args.setChatKnowgrphWorkspacePath(p),
         })
-        args.setStreamingWorkspacePath(liveKgcPath)
-        args.followWorkspaceMarkdownPath(liveKgcPath)
+        const liveTracePath = toKgcTraceWorkspacePath(liveKgcPath) || liveKgcPath
+        args.setStreamingWorkspacePath(liveTracePath)
+        args.followWorkspaceMarkdownPath(liveTracePath)
         await upsertChatHistoryWorkspaceDraft({
           requestedPath: liveKgcPath,
           onResolvedPath: p => args.setChatKnowgrphWorkspacePath(p),
@@ -370,9 +372,10 @@ export const useSidePanelChatSubmit = (args: SidePanelChatSubmitArgs) => {
         const flushDraft = async (text: string, force: boolean) => {
           if (args.chatStorageTarget !== 'chatKnowgrph') return
           if (!liveKgcPath) return
-          if (!force && args.streamDraftTextRef.current && args.streamDraftTextRef.current.path === liveKgcPath && args.streamDraftTextRef.current.text === text) return
-          args.followWorkspaceMarkdownPath(liveKgcPath)
-          args.streamDraftTextRef.current = { path: liveKgcPath, text }
+          const liveTracePath = toKgcTraceWorkspacePath(liveKgcPath) || liveKgcPath
+          if (!force && args.streamDraftTextRef.current && args.streamDraftTextRef.current.path === liveTracePath && args.streamDraftTextRef.current.text === text) return
+          args.followWorkspaceMarkdownPath(liveTracePath)
+          args.streamDraftTextRef.current = { path: liveTracePath, text }
           try {
             await upsertChatHistoryWorkspaceDraft({
               requestedPath: liveKgcPath,

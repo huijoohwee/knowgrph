@@ -27,6 +27,15 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isScalar = (value: unknown): value is string | number | boolean =>
   typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
 
+const compareText = (a: unknown, b: unknown): number => String(a || '').localeCompare(String(b || ''))
+
+const compareGraphFieldIds = (a: GraphFieldId, b: GraphFieldId): number => {
+  const pa = parseGraphFieldId(a)
+  const pb = parseGraphFieldId(b)
+  const scopeRank = (scope: string | undefined): number => scope === 'node' ? 0 : scope === 'edge' ? 1 : 2
+  return scopeRank(pa?.scope) - scopeRank(pb?.scope) || compareText(pa?.key || a, pb?.key || b) || compareText(a, b)
+}
+
 function normalizeGraphFieldType(value: unknown): GraphFieldType | undefined {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
@@ -323,14 +332,18 @@ export function buildGraphFieldSettingsJsonLdDocument(
 ): JsonObject {
   const items: JsonObject[] = []
 
-  Object.entries(settingsById).forEach(([id, settings]) => {
-    if (!settings) return
-    const parsed = parseGraphFieldId(id as GraphFieldId)
+  const entries = Object.entries(settingsById)
+    .map(([id, settings]) => ({ id: normalizeGraphFieldId(id), settings }))
+    .filter((entry): entry is { id: GraphFieldId; settings: GraphFieldSettings } => !!entry.id && !!entry.settings)
+    .sort((a, b) => compareGraphFieldIds(a.id, b.id))
+
+  entries.forEach(({ id, settings }) => {
+    const parsed = parseGraphFieldId(id)
     if (!parsed) return
     const fieldType = settings.fieldType
     const description = settings.description
     const fieldForAgentic: GraphField = {
-      id: id as GraphFieldId,
+      id,
       scope: parsed.scope,
       key: parsed.key,
       kind: 'unknown',
@@ -456,9 +469,23 @@ export function parseGraphFieldSettingsDocument(
 
   const settingsById: GraphFieldSettingsById = {}
 
-  fieldsArray.forEach((entry) => {
-    if (!isRecord(entry)) return
-
+  fieldsArray
+    .filter(isRecord)
+    .sort((a, b) => {
+      const getId = (entry: Record<string, unknown>): GraphFieldId | null => {
+        const fieldIdRaw = entry['kg:fieldId'] ?? entry.fieldId ?? entry.id ?? entry['@id']
+        const scopeRaw = entry['kg:scope'] ?? entry.scope
+        const keyRaw = entry['kg:key'] ?? entry.key
+        return typeof fieldIdRaw === 'string' && fieldIdRaw.includes(':')
+          ? normalizeGraphFieldId(fieldIdRaw)
+          : normalizeGraphFieldIdFromScopeKey(scopeRaw, keyRaw)
+      }
+      const idA = getId(a)
+      const idB = getId(b)
+      if (idA && idB) return compareGraphFieldIds(idA, idB)
+      return compareText(idA || '', idB || '')
+    })
+    .forEach((entry) => {
     const fieldIdRaw = entry['kg:fieldId'] ?? entry.fieldId ?? entry.id ?? entry['@id']
     const scopeRaw = entry['kg:scope'] ?? entry.scope
     const keyRaw = entry['kg:key'] ?? entry.key

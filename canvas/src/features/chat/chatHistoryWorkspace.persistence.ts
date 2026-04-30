@@ -90,6 +90,40 @@ const stripDraftBlock = (existing: string, traceId: string): string => {
   return `${src.slice(0, startIdx)}${src.slice(endIdx + end.length)}`.replace(/\n{3,}/g, '\n\n').trimEnd() + '\n'
 }
 
+const buildChatHistoryHeader = (title: string): string => {
+  return [`# ${title}`, '', 'This file is managed by Knowgrph Chat.', ''].join('\n')
+}
+
+const buildChatHistoryEntry = (args: {
+  timestampMs: number
+  traceId: string
+  providerSummary: string
+  userText: string
+  assistantText: string
+}): string => {
+  const assistantSection = ['### assistant', wrapFence(args.assistantText, 'markdown'), ''].join('\n')
+  return [
+    `## ${formatReadableTimestamp(args.timestampMs)}`,
+    '',
+    `Trace-ID: ${args.traceId}`,
+    '',
+    `Provider: ${String(args.providerSummary || '').trim() || 'unknown'}`,
+    '',
+    '### user',
+    wrapFence(args.userText, 'text'),
+    '',
+    assistantSection,
+  ].join('\n')
+}
+
+const appendChatHistoryEntryText = (existingRaw: string, title: string, entry: string): string => {
+  const existing = String(existingRaw || '')
+  const trimmed = existing.trim()
+  const header = trimmed ? '' : buildChatHistoryHeader(title)
+  const joiner = existing.endsWith('\n') || !existing ? '' : '\n'
+  return [existing, header, entry].filter(Boolean).join(joiner)
+}
+
 const writeWorkspaceFileTextEnsuringFile = async (args: {
   fs: Awaited<ReturnType<typeof getWorkspaceFs>>
   path: string
@@ -131,13 +165,8 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
     }
     const fs = await getWorkspaceFs()
     await fs.ensureSeed()
-    const existingRaw = (await fs.readFileText(key)) || ''
     const traceId = String(args.traceId || '').trim() || `trace-${args.timestampMs}`
-    const existing = stripDraftBlock(existingRaw, traceId)
     const baseTitle = args.title || (prefix === 'kgc' ? 'Knowledge Graph Canvas Storage' : 'Chat History Storage')
-    const header = existing.trim()
-      ? ''
-      : [`# ${baseTitle}`, '', 'This file is managed by Knowgrph Chat.', ''].join('\n')
     const assistantBody = String(args.assistantText || '').replace(/\r\n/g, '\n').trim()
     const kgcAssistantBody = normalizeKgcAssistantBodyForStorage({
       timestampMs: args.timestampMs,
@@ -146,12 +175,14 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
       assistantText: assistantBody || 'No response content.',
     })
     if (prefix === 'kgc') {
+      const existingRaw = (await fs.readFileText(key)) || ''
       const normalizedIdentity = normalizeKgcFrontmatterIdentityToFileName({
         markdown: kgcAssistantBody,
         workspacePath: key,
         timestampMs: args.timestampMs,
       })
       const next = buildKgcWorkspaceDocument({ canonicalKgc: normalizedIdentity })
+      if (next === existingRaw) return
       await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
       void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
       const tracePath = toKgcTraceWorkspacePath(key)
@@ -161,22 +192,20 @@ export const appendChatHistoryWorkspaceFile = async (args: ChatHistoryWorkspaceA
       }
       return
     }
-    const assistantSection = ['### assistant', wrapFence(args.assistantText, 'markdown'), ''].join('\n')
-    const entry = [
-      `## ${formatReadableTimestamp(args.timestampMs)}`,
-      '',
-      `Trace-ID: ${traceId}`,
-      '',
-      `Provider: ${String(args.providerSummary || '').trim() || 'unknown'}`,
-      '',
-      '### user',
-      wrapFence(args.userText, 'text'),
-      '',
-      assistantSection,
-    ].join('\n')
-    const joiner = existing.endsWith('\n') || !existing ? '' : '\n'
-    const next = [existing, header, entry].filter(Boolean).join(joiner)
-    await fs.writeFileText(key, next)
+    const tracePath = `${key.replace(/\.md$/i, '')}--${traceId}.md`
+    const entry = buildChatHistoryEntry({
+      timestampMs: args.timestampMs,
+      traceId,
+      providerSummary: args.providerSummary,
+      userText: args.userText,
+      assistantText: args.assistantText,
+    })
+    await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: `${entry.trimEnd()}\n` })
+    void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: `${entry.trimEnd()}\n` })
+    const existingRaw = (await fs.readFileText(key)) || ''
+    const next = appendChatHistoryEntryText(existingRaw, baseTitle, entry)
+    if (next === existingRaw) return
+    await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
     void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
   })
   inFlightByPath.set(key, run)
@@ -213,7 +242,6 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
       // Streaming behavior: avoid dumping fallback template for partial chunks.
       // Only persist canonical KGC during draft when the streamed content is already structured.
       if (!isKgcStructuredMarkdown(assistantDraftText)) {
-        const existing = stripDraftBlock(existingRaw, traceId)
         const draft = buildKgcDraftEntry({
           timestampMs: args.timestampMs,
           traceId,
@@ -221,17 +249,15 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
           userText: args.userText,
           assistantText: assistantDraftText || '_Streaming..._',
         })
-        const joiner = existing.endsWith('\n') || !existing ? '' : '\n'
-        const next = [existing, draft].filter(Boolean).join(joiner)
-        if (next === existingRaw) return
-        await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
         const tracePath = toKgcTraceWorkspacePath(key)
         if (tracePath) {
+          const traceExistingRaw = (await fs.readFileText(tracePath)) || ''
+          const traceExisting = stripDraftBlock(traceExistingRaw, traceId)
+          const joiner = traceExisting.endsWith('\n') || !traceExisting ? '' : '\n'
+          const next = [traceExisting, draft].filter(Boolean).join(joiner)
+          if (next === traceExistingRaw) return
           await writeWorkspaceFileTextEnsuringFile({ fs, path: tracePath, text: next })
           void mirrorWorkspaceFileToHostFs({ absolutePath: tracePath, text: next })
-        }
-        if (!existingRaw.trim()) {
-          void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
         }
         return
       }
@@ -260,10 +286,6 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
       return
     }
     const baseTitle = args.title || 'Chat History Storage'
-    const header = existingRaw.trim()
-      ? ''
-      : [`# ${baseTitle}`, '', 'This file is managed by Knowgrph Chat.', ''].join('\n')
-    const existing = stripDraftBlock(existingRaw, traceId)
     const draft = buildKgcDraftEntry({
       timestampMs: args.timestampMs,
       traceId,
@@ -271,10 +293,9 @@ export const upsertChatHistoryWorkspaceDraft = async (args: ChatHistoryWorkspace
       userText: args.userText,
       assistantText: args.assistantText,
     })
-    const joiner = existing.endsWith('\n') || !existing ? '' : '\n'
-    const next = [existing, header, draft].filter(Boolean).join(joiner)
+    const next = appendChatHistoryEntryText(existingRaw, baseTitle, draft)
     if (next === existingRaw) return
-    await fs.writeFileText(key, next)
+    await writeWorkspaceFileTextEnsuringFile({ fs, path: key, text: next })
     if (!existingRaw.trim()) {
       void mirrorWorkspaceFileToHostFs({ absolutePath: key, text: next })
     }

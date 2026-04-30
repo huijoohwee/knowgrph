@@ -9,7 +9,12 @@ import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimit
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
-import { FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
+import {
+  FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
+  RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
+  readCanvasOverlayNodeId,
+  readFlowEditorOverlaySurfaceId,
+} from '@/lib/canvas/flow-editor-overlay-proxy'
 import { worldToScreen } from '@/lib/zoom/viewport'
 import { computeCollectiveFollowPinnedScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { readWidgetGridLayoutSettings, shouldAutoPlaceFlowEditorWidget, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
@@ -18,6 +23,7 @@ import {
   computeBalancedSpreadLayout,
   computeBalancedSpreadViewportMargins,
   computeBalancedSpreadSpacingPx,
+  isHorizontalOverlayStrip,
   isVerticalOverlayCluster,
 } from '@/lib/ui/overlayBalancedSpread'
 
@@ -77,6 +83,7 @@ export function useFlowEditorOverlayCollision(args: {
   editorRuntimeActive: boolean
   overlayOnlyModeEnabled: boolean
   renderGraphDataOverride: GraphData | null
+  graphContentRevision: number
   schema: any
   selectedNodeId: string | null
   viewportW: number
@@ -88,6 +95,7 @@ export function useFlowEditorOverlayCollision(args: {
   frontmatterFlowRenderSettings: { rankdir?: string } | null
   getLiveNodeWorldPos: (nodeId: string) => { x: number; y: number } | null
   getLiveZoomTransform: () => { k: number; x: number; y: number } | null
+  flowEditorSurfaceId?: string
 }) {
   const {
     editorRuntimeActive,
@@ -112,11 +120,27 @@ export function useFlowEditorOverlayCollision(args: {
   const overlayCollisionIterCountRef = React.useRef<number>(0)
   const overlayCollisionWarmupStartedAtMsRef = React.useRef<number | null>(null)
   const overlayCollisionWarmupAttemptsRef = React.useRef<number>(0)
+  const overlayMeasurementWarmupStartedAtMsRef = React.useRef<number | null>(null)
+  const overlayMeasurementWarmupAttemptsRef = React.useRef<number>(0)
   const scheduleOverlayCollisionResolveRef = React.useRef<() => void>(() => void 0)
   const selfCommittedPosSignatureRef = React.useRef<string>('')
   const overlayCollisionSettleBaseKeyRef = React.useRef<string>('')
   const overlayCollisionBestUnresolvedRef = React.useRef<number>(Number.POSITIVE_INFINITY)
   const overlayCollisionRecentSigRef = React.useRef<string[]>([])
+
+  const resetOverlayCollisionTransientState = React.useCallback((clearRectCache = false) => {
+    overlayCollisionResolveKeyRef.current = ''
+    overlayCollisionIterKeyRef.current = ''
+    overlayCollisionIterCountRef.current = 0
+    overlayCollisionWarmupStartedAtMsRef.current = null
+    overlayCollisionWarmupAttemptsRef.current = 0
+    overlayMeasurementWarmupStartedAtMsRef.current = null
+    overlayMeasurementWarmupAttemptsRef.current = 0
+    overlayCollisionSettleBaseKeyRef.current = ''
+    overlayCollisionBestUnresolvedRef.current = Number.POSITIVE_INFINITY
+    overlayCollisionRecentSigRef.current = []
+    if (clearRectCache) overlayRectCacheRef.current.clear()
+  }, [])
 
   const scheduleOverlayCollisionResolve = React.useCallback(() => {
     if (!editorRuntimeActive) return
@@ -129,6 +153,7 @@ export function useFlowEditorOverlayCollision(args: {
       if (!editorRuntimeActive) return
 
       const overlayEls = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
+        .filter(el => readFlowEditorOverlaySurfaceId(el) === String(args.flowEditorSurfaceId || '').trim())
       if (overlayEls.length < 2) {
         const st = useGraphStore.getState()
         const wantsResolve = (st.openWidgetNodeIds || []).length >= 2 || overlayOnlyModeEnabled
@@ -178,7 +203,10 @@ export function useFlowEditorOverlayCollision(args: {
         }
         return isFrontmatterFlow ? next.sort(compareByVisualIndex) : next.sort((a, b) => a.localeCompare(b))
       })()
-      if (overlayNodeIds.length < 2) return
+      if (overlayNodeIds.length < 2) {
+        resetOverlayCollisionTransientState(true)
+        return
+      }
 
       const st = useGraphStore.getState()
       if (st.flowWidgetDraggingNodeId) return
@@ -222,11 +250,21 @@ export function useFlowEditorOverlayCollision(args: {
       }
 
       const floatingScaled = computeWidgetScaledSize(panelScale)
+      const graphDataForOverlayRuntime = args.draftGraphDataRef.current || renderGraphDataOverride || null
       const pinnedById = st.flowWidgetPinnedByNodeId || {}
       const posById = st.flowWidgetPosByNodeId || {}
+      const nodeTypeById = new Map<string, string>()
+      const graphNodes = Array.isArray(graphDataForOverlayRuntime?.nodes) ? (graphDataForOverlayRuntime.nodes as GraphNode[]) : []
+      for (let i = 0; i < graphNodes.length; i += 1) {
+        const node = graphNodes[i]
+        const id = String(node?.id || '').trim()
+        if (!id) continue
+        nodeTypeById.set(id, String(node?.type || '').trim())
+      }
       const canvasOffsetLeft = Number.isFinite(canvasOffset.left) ? canvasOffset.left : 0
       const canvasOffsetTop = Number.isFinite(canvasOffset.top) ? canvasOffset.top : 0
       const rectByNodeId = new Map<string, { left: number; top: number; width: number; height: number }>()
+      const unresolvedRectIdSet = new Set<string>()
       for (let i = 0; i < overlayEls.length; i += 1) {
         const el = overlayEls[i]
         const id = String(el.dataset.kgWidget || '').trim()
@@ -249,6 +287,7 @@ export function useFlowEditorOverlayCollision(args: {
           rectByNodeId.set(id, cached)
           continue
         }
+        unresolvedRectIdSet.add(id)
         if (Number.isFinite(left) && Number.isFinite(top)) rectByNodeId.set(id, { left, top, width: floatingScaled.width, height: floatingScaled.height })
       }
 
@@ -318,6 +357,18 @@ export function useFlowEditorOverlayCollision(args: {
       }
 
       const pinnedObstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
+      if (typeof document !== 'undefined') {
+        const richMediaEls = Array.from(document.querySelectorAll<HTMLElement>(RICH_MEDIA_OVERLAY_ROOT_SELECTOR))
+        for (let i = 0; i < richMediaEls.length; i += 1) {
+          const el = richMediaEls[i]
+          if (readFlowEditorOverlaySurfaceId(el) !== args.flowEditorSurfaceId) continue
+          const id = readCanvasOverlayNodeId(el)
+          if (!id) continue
+          const rect = el.getBoundingClientRect()
+          if (!(rect.width > 0) || !(rect.height > 0)) continue
+          pinnedObstacles.push({ id: `rich-media:${id}`, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+        }
+      }
       const items: Array<{ id: string; top: number; left: number; movable: boolean; width?: number; height?: number }> = []
       let stack = 0
       for (let i = 0; i < overlayNodeIds.length; i += 1) {
@@ -328,7 +379,12 @@ export function useFlowEditorOverlayCollision(args: {
           if (rect) pinnedObstacles.push({ id, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
           continue
         }
-        if (!shouldAutoPlaceFlowEditorWidget({ graphMetaKind: graphKind, pinnedInCanvas: false, floatingPos: posById[id] })) {
+        if (!shouldAutoPlaceFlowEditorWidget({
+          graphMetaKind: graphKind,
+          pinnedInCanvas: false,
+          floatingPos: posById[id],
+          nodeTypeId: nodeTypeById.get(id) || '',
+        })) {
           if (rect) pinnedObstacles.push({ id, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
           continue
         }
@@ -360,7 +416,40 @@ export function useFlowEditorOverlayCollision(args: {
         })
         items.push({ id, top: clamped.top, left: clamped.left, movable: true, width: rect?.width, height: rect?.height })
       }
-      if (items.length === 0) return
+      if (items.length === 0) {
+        resetOverlayCollisionTransientState(true)
+        return
+      }
+
+      const unresolvedMovableIds = items
+        .map(item => item.id)
+        .filter(id => unresolvedRectIdSet.has(id))
+      const canDeferUntilMeasuredCollectiveLayout =
+        unresolvedMovableIds.length > 0
+        && items.every(item => {
+          const stored = posById[item.id]
+          return !!stored && Number.isFinite(stored.top) && Number.isFinite(stored.left)
+        })
+      if (canDeferUntilMeasuredCollectiveLayout) {
+        overlayMeasurementWarmupAttemptsRef.current += 1
+        if (overlayMeasurementWarmupStartedAtMsRef.current == null) {
+          overlayMeasurementWarmupStartedAtMsRef.current = Date.now()
+        }
+        const startedAt = overlayMeasurementWarmupStartedAtMsRef.current || Date.now()
+        const elapsed = Date.now() - startedAt
+        if (overlayMeasurementWarmupAttemptsRef.current < 60 && elapsed < 1600) {
+          resetOverlayCollisionTransientState()
+          scheduleOverlayCollisionResolveRef.current()
+          return
+        }
+      } else {
+        overlayMeasurementWarmupStartedAtMsRef.current = null
+        overlayMeasurementWarmupAttemptsRef.current = 0
+      }
+      if (!canDeferUntilMeasuredCollectiveLayout) {
+        overlayMeasurementWarmupStartedAtMsRef.current = null
+        overlayMeasurementWarmupAttemptsRef.current = 0
+      }
 
       const fixedId = (() => {
         const sel = String(args.selectedNodeId || '').trim()
@@ -381,16 +470,15 @@ export function useFlowEditorOverlayCollision(args: {
         }
         return false
       }
-      const shouldRebalanceCluster = (candidates: Array<{ id: string; left: number; top: number; width?: number; height?: number }>) =>
-        isVerticalOverlayCluster({
-          items: candidates.map(it => ({
-            left: it.left,
-            top: it.top,
-            width: it.width ?? floatingScaled.width,
-            height: it.height ?? floatingScaled.height,
-          })),
-          gapPx,
-        })
+      const shouldRebalanceCluster = (candidates: Array<{ id: string; left: number; top: number; width?: number; height?: number }>) => {
+        const clusterItems = candidates.map(it => ({
+          left: it.left,
+          top: it.top,
+          width: it.width ?? floatingScaled.width,
+          height: it.height ?? floatingScaled.height,
+        }))
+        return isVerticalOverlayCluster({ items: clusterItems, gapPx }) || isHorizontalOverlayStrip({ items: clusterItems, gapPx })
+      }
 
       const next = { ...posById }
       const seedGridAroundFixed = (worldIn: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>) => {
@@ -470,7 +558,7 @@ export function useFlowEditorOverlayCollision(args: {
         })
 
       let world = clampWorld(toWorld())
-      const graph = args.draftGraphDataRef.current
+      const graph = graphDataForOverlayRuntime
       const rawNodes = Array.isArray(graph?.nodes) ? (graph!.nodes as Array<{ id?: unknown; x?: unknown; y?: unknown }>) : []
       const nodeObstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
       const overlayNodeIdSet = new Set<string>(overlayNodeIds)
@@ -593,7 +681,7 @@ export function useFlowEditorOverlayCollision(args: {
           overlayCollisionIterCountRef.current <= 10
           && (improved || (!seenBefore && overlayCollisionIterCountRef.current <= 4))
         if (allowReschedule) {
-          overlayCollisionResolveKeyRef.current = ''
+          resetOverlayCollisionTransientState()
           scheduleOverlayCollisionResolveRef.current()
         }
       }
@@ -603,10 +691,12 @@ export function useFlowEditorOverlayCollision(args: {
     canvasWindowOffsetRef,
     draftGraphDataRef,
     editorRuntimeActive,
+    args.flowEditorSurfaceId,
     frontmatterFlowRenderSettings,
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     overlayOnlyModeEnabled,
+    resetOverlayCollisionTransientState,
     renderGraphDataOverride,
     schema,
     selectedNodeId,
@@ -618,14 +708,17 @@ export function useFlowEditorOverlayCollision(args: {
 
   React.useEffect(() => {
     if (!editorRuntimeActive) return
+    resetOverlayCollisionTransientState()
     scheduleOverlayCollisionResolve()
   }, [
     canvasWindowOffset.left,
     canvasWindowOffset.top,
     editorRuntimeActive,
+    args.graphContentRevision,
     overlayOnlyModeEnabled,
     viewportH,
     viewportW,
+    resetOverlayCollisionTransientState,
     scheduleOverlayCollisionResolve,
   ])
 
@@ -636,6 +729,7 @@ export function useFlowEditorOverlayCollision(args: {
       const overlayEls = typeof document === 'undefined'
         ? []
         : Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
+          .filter(el => readFlowEditorOverlaySurfaceId(el) === String(args.flowEditorSurfaceId || '').trim())
       const nodeIds = normalizeOverlaySignatureIds(overlayEls.map(el => String(el?.dataset?.kgWidget || '').trim()))
       const currentSig = buildPosSignature(nodeIds, state.flowWidgetPosByNodeId)
       if (currentSig && currentSig === selfCommittedPosSignatureRef.current) {
@@ -670,7 +764,7 @@ export function useFlowEditorOverlayCollision(args: {
         void 0
       }
     }
-  }, [editorRuntimeActive])
+  }, [editorRuntimeActive, args.flowEditorSurfaceId])
 
   React.useEffect(() => {
     return () => {

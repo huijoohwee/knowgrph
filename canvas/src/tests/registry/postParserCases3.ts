@@ -55,6 +55,8 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["zoom.fit.flowEditorFrontmatterDocumentSkipsSyntheticMediaBounds","@/__tests__/flowEditorFrontmatterDocumentFitIsolation.test","testFlowEditorFrontmatterDocumentSkipsSyntheticMediaFitBounds"],
   ["overlay.media.flowEditorFrontmatterDocumentUsesManualPlacement","@/__tests__/flowEditorFrontmatterDocumentManualMediaPlacement.test","testFlowEditorFrontmatterDocumentUsesManualMediaPlacement"],
   ["overlay.widget.flowEditorFrontmatterManualPlacementAuthority","@/__tests__/flowEditorFrontmatterManualPlacementAuthority.test","testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelper"],
+  ["overlay.widget.frontmatterStableSameSourceFloatingLayoutCarry","@/__tests__/flowWidgetUiStateScopedByGraphMetaKey.test","testFrontmatterBuiltInFloatingScreenLayoutCarriesAcrossStableSameSourceRecompose"],
+  ["overlay.widget.frontmatterStableSameSourcePartialCoverageClears","@/__tests__/flowWidgetUiStateScopedByGraphMetaKey.test","testFrontmatterBuiltInFloatingPartialCoverageDoesNotCarryAcrossStableSameSourceRecompose"],
   ["ui.flowWidget.shrinksOnZoomOutAndCapsOnZoomIn","@/__tests__/widgetZoom.test","testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn"],
   ["zoom.ssot.fit.cachedAcrossRequests","@/__tests__/zoomActionsSsot.test","testZoomActionsFitTransformIsCachedAcrossRequests"],
   ["zoom.ssot.out.autoMinScaleTracksFitToView","@/__tests__/zoomActionsSsot.test","testZoomActionsZoomOutAutoMinScaleTracksFitToView"],

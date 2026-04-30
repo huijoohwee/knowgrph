@@ -41,15 +41,28 @@ export default function FlowEditorCanvasRuntime(
     geospatialWidgetPanelMode?: boolean
   },
 ) {
+  const flowEditorSurfaceIdRef = React.useRef<string>('')
+  if (!flowEditorSurfaceIdRef.current) {
+    flowEditorSurfaceIdRef.current = `kgfe-${Math.random().toString(36).slice(2, 10)}`
+  }
+  const flowEditorSurfaceId = flowEditorSurfaceIdRef.current
   const editorRuntimeActive = active || geospatialWidgetPanelMode
   const widgetDropBridgeOnly = widgetDropCaptureEnabled && !active && !geospatialWidgetPanelMode
   const rootRef = React.useRef<HTMLElement | null>(null)
-  const { width, height, left: containerLeft, top: containerTop } = useContainerDims(rootRef)
+  const resolveViewportMeasureElement = React.useCallback((self: HTMLElement | null): HTMLElement | null => {
+    if (!self) return null
+    const viewportRoot = self.closest('[data-kg-canvas-viewport-root="1"]')
+    return viewportRoot instanceof HTMLElement ? viewportRoot : self
+  }, [])
+  const { width, height, left: containerLeft, top: containerTop } = useContainerDims(rootRef, {
+    resolveMeasureElement: resolveViewportMeasureElement,
+  })
   const viewportW = Math.max(1, Math.floor(width))
   const viewportH = Math.max(1, Math.floor(height))
 
   const baseGraphData = useGraphStore(s => s.graphData)
   const baseGraphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
+  const graphContentRevision = useGraphStore(s => s.graphContentRevision || 0)
   const {
     canvasRenderMode,
     canvas2dRenderer,
@@ -209,22 +222,6 @@ export default function FlowEditorCanvasRuntime(
     openWidgetNodeIdsRef.current = openWidgetNodeIds
   }, [openWidgetNodeIds])
 
-  const {
-    emitFlowEditorInteractionFrame,
-    flowRuntimeRefRef,
-    getLiveContainmentGroupAabbForNode,
-    getLiveNodeWorldPos,
-    getLiveZoomTransform,
-  } = useFlowEditorRuntimeScene({
-    active,
-    openWidgetNodeIds,
-    viewportW,
-    viewportH,
-    schema,
-    baseGraphDataRevision,
-    zoomViewKeyRef,
-  })
-
   const [toolMode, setToolMode] = React.useState<ToolMode>('select')
   const [pendingEdgeSourceId, setPendingEdgeSourceId] = React.useState<string | null>(null)
   const [pendingEdgeSourcePortKey, setPendingEdgeSourcePortKey] = React.useState<string | null>(null)
@@ -259,6 +256,23 @@ export default function FlowEditorCanvasRuntime(
     selectedEdgeId,
   })
 
+  const {
+    emitFlowEditorInteractionFrame,
+    flowRuntimeRefRef,
+    getLiveContainmentGroupAabbForNode,
+    getLiveNodeWorldPos,
+    getLiveZoomTransform,
+  } = useFlowEditorRuntimeScene({
+    active,
+    openWidgetNodeIds,
+    renderGraphDataOverride,
+    viewportW,
+    viewportH,
+    schema,
+    baseGraphDataRevision,
+    zoomViewKeyRef,
+  })
+
   const overlayOnlyModeEnabled = React.useMemo(() => {
     return flowEditorViewActive
   }, [flowEditorViewActive])
@@ -267,6 +281,7 @@ export default function FlowEditorCanvasRuntime(
     editorRuntimeActive,
     overlayOnlyModeEnabled,
     renderGraphDataOverride,
+    graphContentRevision,
     schema,
     selectedNodeId,
     viewportW,
@@ -278,11 +293,13 @@ export default function FlowEditorCanvasRuntime(
     frontmatterFlowRenderSettings,
     getLiveNodeWorldPos,
     getLiveZoomTransform,
+    flowEditorSurfaceId,
   })
 
   const { overlayEdgesSvgRef } = useFlowEditorOverlayEdges({
     active,
     overlayOnlyModeEnabled,
+    flowEditorSurfaceId,
     rootRef,
     draftGraphDataRef,
     overlayEditorNodeIdsRef,
@@ -518,6 +535,7 @@ export default function FlowEditorCanvasRuntime(
     overlayOnlyActive,
     overlayOnlyHidePortHandleNodeIds,
   } = useFlowEditorOverlaySurface({
+    flowEditorSurfaceId,
     canEdit,
     flowEditorViewActive,
     flowEditorFrontmatterGraphAvailable,
@@ -566,6 +584,7 @@ export default function FlowEditorCanvasRuntime(
   return (
     <FlowEditorCanvasSurface
       rootRef={rootRef}
+      flowEditorSurfaceId={flowEditorSurfaceId}
       active={active}
       canEdit={canEdit}
       geospatialWidgetPanelMode={geospatialWidgetPanelMode}

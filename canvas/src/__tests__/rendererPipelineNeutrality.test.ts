@@ -70,7 +70,7 @@ export function test2dRendererPipelineUsesSharedSurfaceHelpers() {
 }
 
 export function testWorkspaceJsonPipelineStaysNeutralAndFileAgnostic() {
-  const text = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'useActiveGraphData.ts'), 'utf8')
+  const text = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'active-graph-data', 'workspaceStructuredGraph.ts'), 'utf8')
   const perDocumentUiStateText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'persistence', 'perDocumentUiState.ts'), 'utf8')
   const canvasSliceText = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'canvasSlice.ts'), 'utf8')
   if (!text.includes("const WORKSPACE_GRAPH_PARSE_HINT = 'workspace:inline-data'")) {

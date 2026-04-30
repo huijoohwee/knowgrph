@@ -333,8 +333,8 @@ export const validateSchema = (s: Partial<GraphSchema>): GraphSchema => {
     toStringArray(v.targets).forEach(x => nodeTypeSet.add(x))
   }
 
-  const nodeTypes = Array.from(nodeTypeSet).filter(Boolean)
-  const edgeLabels = Array.from(edgeLabelSet).filter(Boolean)
+  const nodeTypes = Array.from(nodeTypeSet).filter(Boolean).sort((a, b) => a.localeCompare(b))
+  const edgeLabels = Array.from(edgeLabelSet).filter(Boolean).sort((a, b) => a.localeCompare(b))
 
   return {
     ...next,

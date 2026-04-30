@@ -35,6 +35,9 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   if (!text.includes('if (!flowEditorViewActive) return []')) {
     throw new Error('expected flow editor widget id derivation to avoid fallback ids whenever flow editor view is inactive')
   }
+  if (!text.includes('return nodes.length > 0 ? lastStableOverlayEditorNodeIdsRef.current : []')) {
+    throw new Error('expected frontmatter-flow widget overlay fallback ids to clear when the graph is transiently empty instead of replaying stale ids')
+  }
   if (!text.includes('forceFrontmatterFlow: frontmatterOnlyPolicyActive')) {
     throw new Error('expected Flow Editor to force flow-only graph-family derivation under frontmatter-only policy')
   }
@@ -137,8 +140,8 @@ export function testFrontmatterWidgetOverlayPointerCaptureSkipsInteractiveContro
 }
 
 export function testFlowEditorOverlayEdgeSchedulerStabilizesAcrossScrollPanZoom() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const edgeHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const text = readFileSync(edgeHookPath, 'utf8')
 
   if (!text.includes('overlayEdgeLayoutSigRef')) {
     throw new Error('expected overlay edge scheduler to cache layout signature and suppress redundant redraw churn')
@@ -172,6 +175,59 @@ export function testFlowEditorOverlayEdgeSchedulerStabilizesAcrossScrollPanZoom(
   }
   if (!text.includes('getEdgeBaseStroke') || !text.includes('getEdgeStrokeWidth')) {
     throw new Error('expected overlay edge renderer to reuse shared graph edge stroke and width resolvers')
+  }
+}
+
+export function testFlowEditorOverlayEdgesAnchorThroughSharedOverlayRoots() {
+  const edgeHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const edgeHookText = readFileSync(edgeHookPath, 'utf8')
+  if (!edgeHookText.includes('CANVAS_OVERLAY_PROXY_ROOT_SELECTOR')) {
+    throw new Error('expected overlay edge renderer to resolve anchors through the shared Flow Editor overlay surface')
+  }
+  if (!edgeHookText.includes('readCanvasOverlayNodeId')) {
+    throw new Error('expected overlay edge renderer to reuse the shared overlay node-id reader across widgets and Rich Media panels')
+  }
+  if (!edgeHookText.includes('querySelectorAll<HTMLElement>(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR)')) {
+    throw new Error('expected overlay edge renderer to scan both widget and Rich Media overlay roots when collecting anchor rects')
+  }
+  if (!edgeHookText.includes('const domOverlayRootEntries = (() => {')) {
+    throw new Error('expected overlay edge renderer to collect active overlay roots once before filtering endpoints')
+  }
+  if (!edgeHookText.includes('for (let i = 0; i < domOverlayRootEntries.length; i += 1) {')) {
+    throw new Error('expected overlay edge renderer to reuse active overlay-root entries for both node-set and rect collection')
+  }
+  if (!edgeHookText.includes('set.add(id)')) {
+    throw new Error('expected overlay edge renderer to merge active overlay DOM ids into the canonical overlay edge node set')
+  }
+
+  const proxyPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'flow-editor-overlay-proxy.ts')
+  const proxyText = readFileSync(proxyPath, 'utf8')
+  if (!proxyText.includes('export function readCanvasOverlayNodeId')) {
+    throw new Error('expected shared overlay proxy module to centralize node-id resolution for overlay roots')
+  }
+  if (!proxyText.includes("return String(overlayRoot.dataset.nodeId || '').trim()")) {
+    throw new Error('expected shared overlay node-id reader to support Rich Media overlay roots via data-node-id')
+  }
+}
+
+export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceToggleChurn() {
+  const edgeHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const text = readFileSync(edgeHookPath, 'utf8')
+
+  if (!text.includes('const lastStableOverlayEdgeNodeIdsRef = React.useRef<string[]>([])')) {
+    throw new Error('expected overlay edge renderer to retain a stable active node set across transient workspace toggle DOM churn')
+  }
+  if (!text.includes('lastStableOverlayEdgeNodeIdsRef.current = Array.from(set)')) {
+    throw new Error('expected overlay edge renderer to refresh its stable node-set cache from live overlay ids before transient empties')
+  }
+  if (!text.includes('for (let i = 0; i < lastStableOverlayEdgeNodeIdsRef.current.length; i += 1) {')) {
+    throw new Error('expected overlay edge renderer to reuse the stable node-set cache when live overlay ids momentarily disappear')
+  }
+  if (text.includes('if (overlayRectsByNodeId.size === 0) {\n        removeAllPaths(overlayEdgePathByIdRef)')) {
+    throw new Error('expected overlay edge renderer to stop clearing all paths on transient empty overlay rects during workspace toggle churn')
+  }
+  if (!text.includes('if (overlayRectsByNodeId.size === 0) return')) {
+    throw new Error('expected overlay edge renderer to preserve current edges until overlay rects recover on the next frame')
   }
 }
 

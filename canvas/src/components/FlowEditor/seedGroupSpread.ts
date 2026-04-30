@@ -1,23 +1,9 @@
-export type WidgetSeedBounds = { minX: number; minY: number; maxX: number; maxY: number }
+import {
+  BALANCED_OVERLAY_SPREAD_TARGET_ASPECT,
+  computeBalancedSpreadGridForTargetAspect,
+} from '@/lib/ui/overlayBalancedSpread'
 
-function chooseGrid(args: { count: number; targetAspect: number }): { cols: number; rows: number } {
-  const count = Math.max(1, Math.floor(args.count))
-  const targetAspect = Math.max(0.35, Math.min(2.8, args.targetAspect))
-  let best = { cols: 1, rows: count, cost: Number.POSITIVE_INFINITY }
-  for (let cols = 1; cols <= count; cols += 1) {
-    const rows = Math.max(1, Math.ceil(count / cols))
-    const filledAspect = cols / rows
-    const emptyCells = cols * rows - count
-    const aspectPenalty = Math.abs(Math.log(filledAspect / targetAspect))
-    const emptyPenalty = emptyCells / Math.max(1, count)
-    const skinnyPenalty = Math.abs(cols - rows) / Math.max(cols, rows)
-    const cost = aspectPenalty * 4 + emptyPenalty * 1.5 + skinnyPenalty * 0.2
-    if (cost < best.cost - 1e-9 || (Math.abs(cost - best.cost) <= 1e-9 && cols * rows < best.cols * best.rows)) {
-      best = { cols, rows, cost }
-    }
-  }
-  return { cols: best.cols, rows: best.rows }
-}
+export type WidgetSeedBounds = { minX: number; minY: number; maxX: number; maxY: number }
 
 function buildCenteredRowCells(args: {
   count: number
@@ -81,12 +67,20 @@ export function placeWidgetsCenteredInGroupBounds(args: {
   const centerY = (minY + maxY) / 2
   const boundW = Math.max(1, maxX - minX)
   const boundH = Math.max(1, maxY - minY)
-  const targetAspect = Math.max(0.35, Math.min(2.8, boundW / boundH))
-  const { cols, rows } = chooseGrid({ count: ids.length, targetAspect })
-
   const cellW = Number.isFinite(args.cellW) ? Math.max(1, args.cellW) : 1
   const cellH = Number.isFinite(args.cellH) ? Math.max(1, args.cellH) : 1
   const gapWorld = Number.isFinite(args.gapWorld) ? Math.max(0, args.gapWorld) : 0
+  const targetAspect = Math.max(
+    0.5,
+    Math.min(2.8, (boundW / boundH) * 0.35 + BALANCED_OVERLAY_SPREAD_TARGET_ASPECT * 0.65),
+  )
+  const { cols, rows } = computeBalancedSpreadGridForTargetAspect({
+    count: ids.length,
+    cellW,
+    cellH,
+    targetAspect,
+    minCols: ids.length >= 4 ? 2 : 1,
+  })
   const gridW = cols * cellW - gapWorld
   const gridH = rows * cellH - gapWorld
   const startX = args.snapWorld(centerX - gridW / 2)

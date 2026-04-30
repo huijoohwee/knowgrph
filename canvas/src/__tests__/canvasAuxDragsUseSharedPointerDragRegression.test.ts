@@ -18,7 +18,7 @@ export function testPreviewZoomPanViewportUsesSharedPointerDrag() {
 }
 
 export function testMermaidCodeblockPanUsesSharedPointerDrag() {
-  const p = resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'preview-panel', 'ui', 'MermaidDiagram.tsx')
+  const p = resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'preview-panel', 'ui', 'MermaidDiagram.impl.tsx')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('startPointerDrag')) throw new Error('expected Mermaid codeblock drag to use shared startPointerDrag')
   if (text.includes('.setPointerCapture(')) throw new Error('expected MermaidDiagram not to call setPointerCapture directly')

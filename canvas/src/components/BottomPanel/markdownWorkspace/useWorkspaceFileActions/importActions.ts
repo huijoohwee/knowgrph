@@ -1,6 +1,6 @@
 import React from 'react'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
-import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsEvents'
+import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isFrontmatterOnlyDoc, normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
@@ -14,7 +14,59 @@ import {
   importWorkspaceLocalFolder,
   importWorkspaceUrl,
 } from '../workspaceImport'
+import type { WorkspaceImportResult } from '../workspaceImport/types'
 import type { UseWorkspaceFileActionsArgs } from './types'
+
+export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportResult {
+  const rec = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const createdPaths = Array.isArray(rec.createdPaths)
+    ? rec.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
+    : []
+  const sources = Array.isArray(rec.sources)
+    ? rec.sources
+        .map(item => {
+          const path = String((item as { path?: unknown } | null)?.path || '').trim()
+          const source = (item as { source?: unknown } | null)?.source
+          if (!path || !source || typeof source !== 'object') return null
+          const kind = String((source as { kind?: unknown }).kind || '').trim()
+          if (kind === 'url') {
+            const url = String((source as { url?: unknown }).url || '').trim()
+            if (!url) return null
+            return { path, source: { kind: 'url' as const, url } }
+          }
+          if (kind === 'local') {
+            const originalName = typeof (source as { originalName?: unknown }).originalName === 'string'
+              ? (source as { originalName?: string }).originalName || null
+              : null
+            return { path, source: { kind: 'local' as const, originalName } }
+          }
+          return null
+        })
+        .filter((item): item is WorkspaceImportResult['sources'][number] => !!item)
+    : []
+  const skipped = Array.isArray(rec.skipped)
+    ? rec.skipped
+        .map(item => {
+          const name = String((item as { name?: unknown } | null)?.name || '').trim()
+          const reasonRaw = String((item as { reason?: unknown } | null)?.reason || '').trim()
+          const reason = reasonRaw === 'missing-name' ? 'missing-name' : reasonRaw === 'unsupported' ? 'unsupported' : ''
+          if (!reason) return null
+          return { name, reason }
+        })
+        .filter((item): item is WorkspaceImportResult['skipped'][number] => !!item)
+    : []
+  const failed = Array.isArray(rec.failed)
+    ? rec.failed
+        .map(item => {
+          const name = String((item as { name?: unknown } | null)?.name || '').trim()
+          const error = String((item as { error?: unknown } | null)?.error || '').trim()
+          if (!error) return null
+          return { name, error }
+        })
+        .filter((item): item is WorkspaceImportResult['failed'][number] => !!item)
+    : []
+  return { createdPaths, sources, skipped, failed }
+}
 
 export async function pickFirstCreatedFilePathForImportFocus(fs: WorkspaceFs, createdPaths: string[]): Promise<string | null> {
   const normalized = Array.isArray(createdPaths) ? createdPaths.map(path => String(path || '').trim()).filter(Boolean) : []
@@ -75,8 +127,9 @@ export function useWorkspaceImportActions(args: {
       try {
         const fs = await getFs()
         await fs.ensureSeed()
-        const res = await runWorkspaceFsChangedBatch(() =>
-          importWorkspaceLocalFiles({
+        const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
+          suppressNextWorkspaceFsChangedEvent()
+          return importWorkspaceLocalFiles({
             fs,
             files: snapshot,
             parentPath: WORKSPACE_ROOT_PATH,
@@ -84,23 +137,30 @@ export function useWorkspaceImportActions(args: {
               if (importJobRef.current !== jobId) return
               status.setStatusProgress(p.label || 'Importing', p.current, p.total, p.bytesCurrent, p.bytesTotal)
             },
-          }),
-        )
+          })
+        }))
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await hydratePendingImportedPaths(fs, res.createdPaths)
-        await refresh()
+        const refreshed = await refresh()
         try {
           const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
             '@/features/workspace-fs/applyWorkspaceImportToCanvas'
           )
-          await applyWorkspaceImportToCanvas({ fs, createdPaths: res.createdPaths })
+          await applyWorkspaceImportToCanvas({
+            fs,
+            createdPaths: res.createdPaths,
+            opts: {
+              workspaceEntries: refreshed.entries,
+              sourcesByPath: refreshed.sourcesByPath,
+            },
+          })
         } catch {
           void 0
         }
         const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
-          await focusAfterImport(createdPath, { applyToGraph: true, jobId })
+          await focusAfterImport(createdPath, { applyToGraph: false, jobId })
         }
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
@@ -128,27 +188,35 @@ export function useWorkspaceImportActions(args: {
       try {
         const fs = await getFs()
         await fs.ensureSeed()
-        const res = await runWorkspaceFsChangedBatch(() =>
-          importWorkspaceLocalFolder({
+        const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
+          suppressNextWorkspaceFsChangedEvent()
+          return importWorkspaceLocalFolder({
             fs,
             files: snapshot,
-          }),
-        )
+          })
+        }))
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
         await hydratePendingImportedPaths(fs, res.createdPaths)
-        await refresh()
+        const refreshed = await refresh()
         try {
           const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
             '@/features/workspace-fs/applyWorkspaceImportToCanvas'
           )
-          await applyWorkspaceImportToCanvas({ fs, createdPaths: res.createdPaths })
+          await applyWorkspaceImportToCanvas({
+            fs,
+            createdPaths: res.createdPaths,
+            opts: {
+              workspaceEntries: refreshed.entries,
+              sourcesByPath: refreshed.sourcesByPath,
+            },
+          })
         } catch {
           void 0
         }
         const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
-          await focusAfterImport(createdPath, { applyToGraph: true, jobId })
+          await focusAfterImport(createdPath, { applyToGraph: false, jobId })
         }
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
@@ -181,8 +249,9 @@ export function useWorkspaceImportActions(args: {
         const maxImportLogRows = 59
         let logCount = 1
         let lastLabel = ''
-        const res = await runWorkspaceFsChangedBatch(() =>
-          importWorkspaceUrl({
+        const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => {
+          suppressNextWorkspaceFsChangedEvent()
+          return importWorkspaceUrl({
             fs,
             urlRaw: url,
             parentPath: WORKSPACE_ROOT_PATH,
@@ -218,11 +287,11 @@ export function useWorkspaceImportActions(args: {
               }
               status.setStatusProgress('Writing')
             },
-          }),
-        )
+          })
+        }))
         if (importJobRef.current !== jobId) return
         bulkSetWorkspaceEntrySources(res.sources)
-        await refresh()
+        const refreshed = await refresh()
 
         const imported = res.createdPaths.length
         const skipped = res.skipped.length
@@ -243,13 +312,21 @@ export function useWorkspaceImportActions(args: {
           const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
             '@/features/workspace-fs/applyWorkspaceImportToCanvas'
           )
-          await applyWorkspaceImportToCanvas({ fs, createdPaths: res.createdPaths, opts: { applyToGraph: shouldApplyToGraph } })
+          await applyWorkspaceImportToCanvas({
+            fs,
+            createdPaths: res.createdPaths,
+            opts: {
+              applyToGraph: shouldApplyToGraph,
+              workspaceEntries: refreshed.entries,
+              sourcesByPath: refreshed.sourcesByPath,
+            },
+          })
         } catch {
           void 0
         }
 
         if (createdPath) {
-          await focusAfterImport(createdPath, { sourceUrl, applyToGraph: shouldApplyToGraph, jobId })
+          await focusAfterImport(createdPath, { sourceUrl, applyToGraph: false, jobId })
         }
 
         const hydrateWebpageStub = async () => {

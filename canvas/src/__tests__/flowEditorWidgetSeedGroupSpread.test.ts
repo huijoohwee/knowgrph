@@ -83,3 +83,23 @@ export function testFlowEditorWidgetSeedGroupSpreadStaysCenteredOnTinyGroupBound
     throw new Error(`expected seeded centroid at bounds center, got ${centroid.x},${centroid.y}`)
   }
 }
+
+export function testFlowEditorWidgetSeedGroupSpreadAvoidsSingleRowWideStripAfterReseed() {
+  const ids = ['a', 'b', 'c', 'd', 'e', 'f']
+  const cellW = 384
+  const cellH = 544
+  const gapWorld = 24
+  const placed = placeWidgetsCenteredInGroupBounds({
+    ids,
+    bounds: { minX: 0, minY: 0, maxX: 2400, maxY: 180 },
+    cellW,
+    cellH,
+    gapWorld,
+    snapWorld: v => v,
+  })
+
+  const uniqueRows = new Set(placed.map(entry => Math.round(entry.y)))
+  if (uniqueRows.size < 2) {
+    throw new Error(`expected wide-bounds reseed to avoid a single-row strip, got rows=${JSON.stringify(placed.map(entry => entry.y))}`)
+  }
+}

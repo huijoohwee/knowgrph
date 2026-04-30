@@ -33,6 +33,9 @@ export function testFlowCanvasSpacePanCanStartFromOverlay() {
   if (!text.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas overlay space-pan proxy to reuse shared frontmatter-document mode gate SSOT')
   }
+  if (!text.includes('flowEditorSurfaceId: ctx.args.flowEditorSurfaceId')) {
+    throw new Error('expected FlowCanvas overlay space-pan proxy to forward the active Flow Editor surface identity into shared overlay proxy resolution')
+  }
   if (!text.includes('capture: true')) {
     throw new Error('expected FlowCanvas overlay space-pan proxy listeners to use capture')
   }

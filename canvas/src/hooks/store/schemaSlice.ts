@@ -1,7 +1,7 @@
 import { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import { validateSchema } from '@/features/schema/validation'
 import { LS_KEYS, UI_COPY } from '@/lib/config'
-import { getLocalStorage } from '@/lib/persistence'
+import { getLocalStorage, lsSetJsonCoalesced } from '@/lib/persistence'
 import { layoutModeRequires2d, readLayoutMode2d } from '@/lib/graph/layoutMode'
 import type { GraphState } from '@/hooks/store/types'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
@@ -9,6 +9,8 @@ import type { StoreApi } from 'zustand';
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { coerceCanvas2dRendererForSchema } from '@/lib/canvas/renderModeConstraints'
+import { hashStringToHex } from '@/lib/hash/stringHash'
+import { canonicalizeSchemaForPersistence, stringifyCanonicalSchema } from '@/features/schema/schemaCanonical'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -25,14 +27,31 @@ type ValidationRule = {
 type EndpointMatrix = NonNullable<GraphSchema['endpointMatrix']>
 type EndpointSpec = EndpointMatrix[string]
 
+const SCHEMA_LS_PERSIST_DELAY_MS = 180
+let lastSchemaStorageSignature = ''
+
+const getSchemaStorageSignature = (schema: GraphSchema | null): string => {
+  if (!schema) return 'null'
+  try {
+    return hashStringToHex(stringifyCanonicalSchema(schema))
+  } catch {
+    return ''
+  }
+}
+
 export function writeSchemaToStorage(storage: Storage | null, schema: GraphSchema | null): void {
   if (!storage) return
   try {
     if (!schema) {
+      lastSchemaStorageSignature = 'null'
       storage.removeItem(LS_KEYS.graphSchema)
       return
     }
-    storage.setItem(LS_KEYS.graphSchema, JSON.stringify(schema))
+    const canonical = canonicalizeSchemaForPersistence(schema)
+    const signature = getSchemaStorageSignature(schema)
+    if (signature && signature === lastSchemaStorageSignature) return
+    lastSchemaStorageSignature = signature
+    lsSetJsonCoalesced(LS_KEYS.graphSchema, canonical, { delayMs: SCHEMA_LS_PERSIST_DELAY_MS })
   } catch {
     void 0
   }
@@ -43,6 +62,7 @@ export function readSchemaFromStorage(storage: Storage | null): GraphSchema | nu
   try {
     const raw = storage.getItem(LS_KEYS.graphSchema)
     if (!raw) return null
+    lastSchemaStorageSignature = hashStringToHex(raw)
     const parsed = JSON.parse(raw) as unknown
     if (!parsed || typeof parsed !== 'object') return null
     const validated = validateSchema(parsed as Partial<GraphSchema>)
@@ -181,7 +201,7 @@ export const createSchemaSlice = (set: SetGraph, get: GetGraph) => {
       return
     }
     try {
-      const json = JSON.stringify(schema)
+      const json = stringifyCanonicalSchema(schema)
       let hash = 0
       for (let i = 0; i < json.length; i += 1) {
         const chr = json.charCodeAt(i)

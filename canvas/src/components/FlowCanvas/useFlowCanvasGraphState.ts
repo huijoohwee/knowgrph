@@ -168,6 +168,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
 
   const stickyOverlayNodeByIdRef = React.useRef(new Map<string, ReturnType<typeof listDisplayRichMediaOverlayNodes>[number]>())
   const stickyOverlayOrderRef = React.useRef<string[]>([])
+  const useStickyOverlayPool = !flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode
 
   const mediaNodes = React.useMemo(() => {
     const nodes = mediaRenderNodes
@@ -180,6 +181,13 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       excludeNodeIdSet: flowEditorRichMediaPanelOverlayExcludeNodeIdSet,
       connectedValuesByNodeId: mediaRenderConnectedValuesByNodeId,
     })
+    if (!useStickyOverlayPool) {
+      const stickyMap = stickyOverlayNodeByIdRef.current
+      stickyMap.clear()
+      for (let i = 0; i < suggested.length; i += 1) stickyMap.set(suggested[i]!.id, suggested[i]!)
+      stickyOverlayOrderRef.current = suggested.map(node => String(node.id || '').trim()).filter(Boolean)
+      return suggested
+    }
 
     const prevOrder = stickyOverlayOrderRef.current
     const stickyMap = stickyOverlayNodeByIdRef.current
@@ -222,7 +230,16 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       }
     }
     return out
-  }, [flowEditorRichMediaPanelOverlayExcludeNodeIdSet, mediaRenderConnectedValuesByNodeId, mediaRenderNodes, renderMediaAsNodes, threeIframeOverlayPoolMax])
+  }, [
+    flowEditorFrontmatterInteractionMode,
+    flowEditorOverlayInteractionMode,
+    flowEditorRichMediaPanelOverlayExcludeNodeIdSet,
+    mediaRenderConnectedValuesByNodeId,
+    mediaRenderNodes,
+    renderMediaAsNodes,
+    threeIframeOverlayPoolMax,
+    useStickyOverlayPool,
+  ])
 
   const selectedOverlayNodeIdSet = React.useMemo(() => {
     const out = new Set<string>()

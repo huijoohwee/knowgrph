@@ -7,9 +7,45 @@ import {
   KG_EDGE_LABEL_CLASS,
   KG_PROPERTY_CLASS,
 } from '@/lib/agenticrag'
+import { canonicalizeSchemaForPersistence } from './schemaCanonical'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+const sortStrings = (value: unknown): string[] => {
+  return Array.isArray(value)
+    ? value.map(v => String(v || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
+    : []
+}
+
+const getSortedRecordEntries = <T>(value: Record<string, T> | null | undefined): Array<[string, T]> => {
+  return Object.entries(value || {}).sort((a, b) => a[0].localeCompare(b[0]))
+}
+
+const getTypeTags = (raw: Record<string, unknown>): string[] => {
+  const value = raw['@type']
+  if (Array.isArray(value)) return value.map(v => String(v || '').trim()).filter(Boolean)
+  const single = String(value || '').trim()
+  return single ? [single] : []
+}
+
+const hasTypeTag = (raw: Record<string, unknown>, expected: string): boolean => {
+  return getTypeTags(raw).includes(expected)
+}
+
+const buildPropertyEntry = (
+  owner: string,
+  propertyName: string,
+  spec: PropertySpec | null | undefined,
+): Record<string, unknown> => {
+  return {
+    '@id': `${KG_PROP_PREFIX}${propertyName}`,
+    '@type': KG_PROPERTY_CLASS,
+    name: propertyName,
+    owner,
+    range: asPropType(spec?.type),
+  }
 }
 
 export function schemaToJsonLd(schema: GraphSchema): {
@@ -17,37 +53,34 @@ export function schemaToJsonLd(schema: GraphSchema): {
   '@graph': Array<Record<string, unknown>>
   metadata?: Record<string, unknown>
 } {
+  const canonical = canonicalizeSchemaForPersistence(schema) || schema
   const ctx: Record<string, unknown> = { kg: 'http://example.org/kg#' }
-  const schemaContext = schema.serialization?.context
+  const schemaContext = canonical.serialization?.context
   if (schemaContext && typeof schemaContext === 'object' && !Array.isArray(schemaContext)) {
     Object.assign(ctx, schemaContext)
   }
   const graph: Array<Record<string, unknown>> = []
-  const nodeTypes = Array.isArray(schema.catalog?.nodeTypes) ? schema.catalog?.nodeTypes : []
-  const edgeLabels = Array.isArray(schema.catalog?.edgeLabels) ? schema.catalog?.edgeLabels : []
+  const nodeTypes = sortStrings(canonical.catalog?.nodeTypes)
+  const edgeLabels = sortStrings(canonical.catalog?.edgeLabels)
   nodeTypes.forEach((nt) => {
     graph.push({ '@id': `${KG_CLASS_PREFIX}${nt}`, '@type': KG_NODE_TYPE_CLASS, name: nt })
   })
   edgeLabels.forEach((el) => {
     graph.push({ '@id': `${KG_PROP_PREFIX}${el}`, '@type': KG_EDGE_LABEL_CLASS, name: el })
   })
-  const nodeProps = schema.propertySchemas?.node || {}
-  Object.keys(nodeProps).forEach((owner) => {
-    const propsForOwner = nodeProps[owner] || {}
-    Object.keys(propsForOwner).forEach((p) => {
-      const spec = propsForOwner[p]
-      graph.push({ '@id': `${KG_PROP_PREFIX}${p}`, '@type': KG_PROPERTY_CLASS, name: p, owner, range: spec.type })
+  const nodeProps = canonical.propertySchemas?.node || {}
+  getSortedRecordEntries(nodeProps).forEach(([owner, propsForOwner]) => {
+    getSortedRecordEntries(propsForOwner || {}).forEach(([propertyName, spec]) => {
+      graph.push(buildPropertyEntry(owner, propertyName, spec))
     })
   })
-  const edgeProps = schema.propertySchemas?.edge || {}
-  Object.keys(edgeProps).forEach((owner) => {
-    const propsForOwner = edgeProps[owner] || {}
-    Object.keys(propsForOwner).forEach((p) => {
-      const spec = propsForOwner[p]
-      graph.push({ '@id': `${KG_PROP_PREFIX}${p}`, '@type': KG_PROPERTY_CLASS, name: p, owner, range: spec.type })
+  const edgeProps = canonical.propertySchemas?.edge || {}
+  getSortedRecordEntries(edgeProps).forEach(([owner, propsForOwner]) => {
+    getSortedRecordEntries(propsForOwner || {}).forEach(([propertyName, spec]) => {
+      graph.push(buildPropertyEntry(owner, propertyName, spec))
     })
   })
-  const metadata = schema.metadata
+  const metadata = canonical.metadata
   const doc: {
     '@context': Record<string, unknown>
     '@graph': Array<Record<string, unknown>>
@@ -113,47 +146,44 @@ export function schemaFromJsonLd(jsonld: unknown): GraphSchema {
 
   const nodeTypeOwners = new Set<string>()
   const edgeLabelOwners = new Set<string>()
+  const propertyEntries: Array<{ owner: string; name: string; range: PropertySpec['type'] }> = []
 
   for (const raw of graphArray) {
     if (!isRecord(raw)) continue
     const name = String(raw.name ?? '').trim()
     if (!name) continue
-    const typeTag = raw['@type']
-    if (typeTag === 'kg:NodeType') {
+    if (hasTypeTag(raw, KG_NODE_TYPE_CLASS)) {
       base.catalog?.nodeTypes.push(name)
       nodeTypeOwners.add(name)
       continue
     }
-    if (typeTag === 'kg:EdgeLabel') {
+    if (hasTypeTag(raw, KG_EDGE_LABEL_CLASS)) {
       base.catalog?.edgeLabels.push(name)
       edgeLabelOwners.add(name)
       continue
     }
-    if (typeTag === 'kg:Property') {
+    if (hasTypeTag(raw, KG_PROPERTY_CLASS)) {
       const owner = String(raw.owner ?? '').trim()
       const range = asPropType(raw.range)
       if (!owner) continue
-      const isNodeOwner = nodeTypeOwners.has(owner)
-      const isEdgeOwner = edgeLabelOwners.has(owner)
-      if (isNodeOwner) {
-        if (!nodeSchemas[owner]) {
-          nodeSchemas[owner] = {}
-        }
-        nodeSchemas[owner]![name] = { type: range }
-        continue
-      }
-      if (isEdgeOwner) {
-        if (!edgeSchemas[owner]) {
-          edgeSchemas[owner] = {}
-        }
-        edgeSchemas[owner]![name] = { type: range }
-        continue
-      }
-      if (!nodeSchemas[owner]) {
-        nodeSchemas[owner] = {}
-      }
-      nodeSchemas[owner]![name] = { type: range }
+      propertyEntries.push({ owner, name, range })
     }
+  }
+
+  propertyEntries
+    .sort((a, b) => a.owner.localeCompare(b.owner) || a.name.localeCompare(b.name))
+    .forEach(({ owner, name, range }) => {
+      const isEdgeOwner = edgeLabelOwners.has(owner)
+      const target = isEdgeOwner ? edgeSchemas : nodeSchemas
+      if (!target[owner]) {
+        target[owner] = {}
+      }
+      target[owner]![name] = { type: range }
+    })
+
+  if (base.catalog) {
+    base.catalog.nodeTypes = sortStrings(base.catalog.nodeTypes)
+    base.catalog.edgeLabels = sortStrings(base.catalog.edgeLabels)
   }
 
   base.propertySchemas = {
@@ -161,5 +191,5 @@ export function schemaFromJsonLd(jsonld: unknown): GraphSchema {
     edge: edgeSchemas,
   }
 
-  return base
+  return canonicalizeSchemaForPersistence(base) || base
 }

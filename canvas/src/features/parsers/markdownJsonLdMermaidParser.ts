@@ -217,27 +217,9 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
   ): string => {
     const safeName = name.trim()
     if (!safeName) return ''
-    
-    // Check if already exists
+
     const existing = mermaidNodeIdsByName.get(safeName)
-    // If it exists, we might still want to apply the class if it wasn't applied before?
-    // But typically we create it once. 
-    // However, if the user does `A:::c1 --> B`, and later `A:::c2 --> C`, Mermaid might merge or override.
-    // For simplicity, we assume the first declaration or explicit class statements rule.
-    // But since we have the className now, we should probably ensure it's recorded if this is the first time we see it?
-    // Actually, `existing` check prevents re-creation. 
-    // If we want to support `A:::cls` applying even if node exists, we'd need to update the node.
-    // But `ensureNode` might merge properties if we call it again?
-    // `ctx.ensureNode` usually merges. Let's check `ensureNode` in parser context.
-    // Usually it just pushes to a list or map.
-    
-    if (existing) {
-      // If we have a className that wasn't applied via `class` statement, we might want to apply it.
-      // But `ensureNode` creates a JSON-LD object. We can't easily "update" it here without knowing implementation of ensureNode.
-      // Assuming ensureNode handles merging or we just ignore subsequent definitions.
-      // Let's stick to "first wins" or "existing wins" for now, consistent with current logic.
-      return existing
-    }
+    if (existing) return existing
 
     const nodeId = `mermaid:${gid}:${diagramKey}:${slugify(safeName)}`
     mermaidNodeIdsByName.set(safeName, nodeId)
@@ -245,27 +227,28 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
     // Determine parent subgraph
     const currentSubgraph = subgraphStack.length > 0 ? subgraphStack[subgraphStack.length - 1] : null
     
+    const primitive = mapShapeToPrimitive(shape)
+    const canonicalShape = typeof shape === 'string' ? shape.trim().toLowerCase() : ''
+    const visualShape = canonicalShape === 'circle' || canonicalShape === 'rect' || canonicalShape === 'diamond' || canonicalShape === 'hex'
+      ? canonicalShape
+      : 'rect'
     const nodeProps: Record<string, unknown> = {
       nodeName: safeName,
-      label: label ?? safeName, // Use name as label if no label provided
+      label: label ?? safeName,
       'visual:layer': Math.max(1, subgraphStack.length + 1),
-      'frontmatter:primitive': mapShapeToPrimitive(shape),
+      'visual:nestingDepth': subgraphStack.length,
+      'visual:shape': visualShape,
+      'visual:shapeCanonical': primitive,
+      'frontmatter:primitive': primitive,
       mermaidScope: scope,
       ...(isFrontmatter ? { isMermaidFrontmatter: true } : {}),
       ...(diagramId ? { mermaidDiagramId: diagramId } : {}),
-    }
-    if (shape && typeof shape === 'string') {
-      const v = shape.trim().toLowerCase()
-      if (v === 'circle' || v === 'rect' || v === 'diamond' || v === 'hex') {
-        nodeProps['visual:shape'] = v
-      }
     }
 
     if (currentSubgraph) {
       nodeProps.mermaidSubgraphName = currentSubgraph.name
       nodeProps['visual:parentId'] = currentSubgraph.id
       nodeProps['visual:topParentId'] = subgraphStack.length > 0 ? subgraphStack[0]!.id : currentSubgraph.id
-      // Also link the node to the subgraph
       addRel(currentSubgraph.id, 'hasMermaidNode', nodeId)
     }
 
@@ -323,6 +306,9 @@ export const parseMermaidFrontmatter = (code: string, ctx: MermaidParserContext)
         nodeName: safeName,
         'frontmatter:primitive': 'cluster',
         'visual:layer': Math.max(1, subgraphStack.length + 1),
+        'visual:nestingDepth': subgraphStack.length,
+        'visual:shape': 'group',
+        'visual:shapeCanonical': 'cluster',
         mermaidScope: scope,
         ...(isFrontmatter ? { isMermaidFrontmatter: true } : {}),
         ...(diagramId ? { mermaidDiagramId: diagramId } : {}),

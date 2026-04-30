@@ -79,6 +79,8 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   const text = readFileSync(p, 'utf8')
   const separatorPath = resolve(process.cwd(), 'src', 'components', 'ui', 'VerticalResizeSeparatorHr.tsx')
   const separatorText = readFileSync(separatorPath, 'utf8')
+  const viewportPath = resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx')
+  const viewportText = readFileSync(viewportPath, 'utf8')
   const workspaceSelectPath = resolve(process.cwd(), 'src', 'components', 'toolbar', 'EditorWorkspaceSelect.tsx')
   const workspaceSelectText = readFileSync(workspaceSelectPath, 'utf8')
   const workspaceSsotPath = resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceTableSsot.ts')
@@ -96,6 +98,9 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   }
   if (!text.includes('layout="full"')) {
     throw new Error('expected Canvas viewport to remain in full layout while workspace editor overlay is active')
+  }
+  if (!viewportText.includes('data-kg-canvas-viewport-root="1"')) {
+    throw new Error('expected Canvas viewport root to expose an explicit canonical viewport marker for downstream measurement')
   }
   if (text.includes("layout={effectiveWorkspaceViewMode === 'editor' ? 'pane' : 'full'}")) {
     throw new Error('expected Canvas page to avoid pane-layout shrinkage when workspace editor is enabled')
@@ -130,8 +135,8 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (!workspaceSelectText.includes('workspaceCanvasPaneOpen')) {
     throw new Error('expected toolbar Workspace View selection to route stale pane-open state through the shared helper')
   }
-  if (!workspaceSelectText.includes('closeWorkspaceView({')) {
-    throw new Error('expected toolbar Workspace View ON/OFF to reuse the shared close helper for residue cleanup')
+  if (workspaceSelectText.includes('closeWorkspaceView({')) {
+    throw new Error('expected toolbar Workspace View selection to avoid redundant close-then-open churn when the shared open helper can normalize state directly')
   }
   if (!workspaceToolbarText.includes('closeWorkspaceView({')) {
     throw new Error('expected workspace close action to reuse the shared close helper for residue cleanup')
@@ -164,6 +169,17 @@ export function testWorkspaceEditorOverlayResizeHandleDragDirection() {
   })
   if (minClamped !== 320) {
     throw new Error(`expected overlay width to clamp at 320, got ${minClamped}`)
+  }
+}
+
+export function testFlowEditorUsesCanonicalCanvasViewportForMeasurement() {
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const runtimeText = readFileSync(runtimePath, 'utf8')
+  if (!runtimeText.includes('self.closest(\'[data-kg-canvas-viewport-root="1"]\')')) {
+    throw new Error('expected Flow Editor runtime to resolve viewport dims from the canonical canvas viewport root')
+  }
+  if (!runtimeText.includes('useContainerDims(rootRef, {')) {
+    throw new Error('expected Flow Editor runtime to route viewport measurement through the shared container-dims hook')
   }
 }
 

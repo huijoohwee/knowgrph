@@ -10,6 +10,10 @@ export interface ContainerDims {
   dpr: number;
 }
 
+type UseContainerDimsOptions = {
+  resolveMeasureElement?: (self: HTMLElement | null) => HTMLElement | null;
+}
+
 function readContainerDims(el: HTMLElement | null): ContainerDims {
   if (!el) {
     return {
@@ -35,19 +39,28 @@ function isSameDims(a: ContainerDims, b: ContainerDims): boolean {
   return eq(a.width, b.width) && eq(a.height, b.height) && eq(a.left, b.left) && eq(a.top, b.top) && eq(a.dpr, b.dpr);
 }
 
-export function useContainerDims(ref: React.RefObject<HTMLElement | null>): ContainerDims {
-  const [dims, setDims] = useState<ContainerDims>(() => readContainerDims(ref.current));
+function resolveMeasureElement(
+  ref: React.RefObject<HTMLElement | null>,
+  options?: UseContainerDimsOptions,
+): HTMLElement | null {
+  const self = ref.current;
+  const resolved = options?.resolveMeasureElement?.(self) || null;
+  return resolved || self;
+}
+
+export function useContainerDims(ref: React.RefObject<HTMLElement | null>, options?: UseContainerDimsOptions): ContainerDims {
+  const [dims, setDims] = useState<ContainerDims>(() => readContainerDims(resolveMeasureElement(ref, options)));
 
   useIsomorphicLayoutEffect(() => {
     if (!ref.current) return;
-    const next = readContainerDims(ref.current);
+    const next = readContainerDims(resolveMeasureElement(ref, options));
     setDims(prev => (isSameDims(prev, next) ? prev : next));
-  }, [ref]);
+  }, [options, ref]);
 
   useEffect(() => {
     if (!ref.current) return;
     const sync = () => {
-      const el = ref.current;
+      const el = resolveMeasureElement(ref, options);
       if (!el) return;
       const next = readContainerDims(el);
       setDims(prev => (isSameDims(prev, next) ? prev : next));
@@ -56,13 +69,16 @@ export function useContainerDims(ref: React.RefObject<HTMLElement | null>): Cont
     const ro = new ResizeObserver(() => {
       sync();
     });
-    ro.observe(ref.current);
+    const self = ref.current;
+    const target = resolveMeasureElement(ref, options);
+    if (self) ro.observe(self);
+    if (target && target !== self) ro.observe(target);
     if (typeof window !== 'undefined') window.addEventListener('resize', sync);
     return () => {
       ro.disconnect();
       if (typeof window !== 'undefined') window.removeEventListener('resize', sync);
     };
-  }, [ref]);
+  }, [options, ref]);
 
   return dims;
 }

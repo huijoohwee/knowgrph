@@ -457,3 +457,62 @@ export function testJsonLdTriplesMatchExpectedSet() {
     if (!workerKeys.has(k)) throw new Error(`missing triple ${k}`)
   }
 }
+
+export function testJsonLdGraphSerializerCanonicalizesOrdering() {
+  const a: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'b', label: 'B', type: 'Thing', properties: { z: 1, a: 2 } },
+      { id: 'a', label: 'A', type: 'Thing', properties: { b: true, a: false } },
+    ],
+    edges: [
+      { id: 'edge-z', source: 'b', target: 'a', label: 'relates', properties: { z: 1, a: 2 } },
+      { id: 'edge-a', source: 'a', target: 'b', label: 'relates', properties: { b: 1, a: 2 } },
+    ],
+  }
+  const b: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'a', label: 'A', type: 'Thing', properties: { a: false, b: true } },
+      { id: 'b', label: 'B', type: 'Thing', properties: { a: 2, z: 1 } },
+    ],
+    edges: [
+      { id: 'edge-a', source: 'a', target: 'b', label: 'relates', properties: { a: 2, b: 1 } },
+      { id: 'edge-z', source: 'b', target: 'a', label: 'relates', properties: { a: 2, z: 1 } },
+    ],
+  }
+  const left = JSON.stringify(toJsonLd(a))
+  const right = JSON.stringify(toJsonLd(b))
+  if (left !== right) throw new Error('graph JSON-LD serializer should ignore non-semantic insertion ordering')
+}
+
+export function testJsonLdGraphParserCanonicalizesOrdering() {
+  const context = {
+    '@vocab': 'https://schema.org/',
+    relates: { '@id': 'kg:relates', '@type': '@id' },
+    dependsOn: { '@id': 'kg:dependsOn', '@type': '@id' },
+  }
+  const a = {
+    '@context': context,
+    '@graph': [
+      { '@id': 'kg:b', '@type': 'Thing', name: 'B' },
+      { '@id': 'kg:a', '@type': 'Thing', name: 'A', relates: ['kg:b'], dependsOn: ['kg:c'] },
+      { '@id': 'kg:c', '@type': 'Thing', name: 'C' },
+    ],
+  }
+  const b = {
+    '@context': context,
+    '@graph': [
+      { '@id': 'kg:c', '@type': 'Thing', name: 'C' },
+      { '@id': 'kg:a', '@type': 'Thing', name: 'A', dependsOn: ['kg:c'], relates: ['kg:b'] },
+      { '@id': 'kg:b', '@type': 'Thing', name: 'B' },
+    ],
+  }
+  const key = (graph: GraphData): string => JSON.stringify({
+    nodes: graph.nodes.map(node => `${node.id}|${node.type}|${node.label}`),
+    edges: graph.edges.map(edge => `${edge.source}|${edge.label}|${edge.target}`),
+  })
+  const left = key(parseJsonLd(a))
+  const right = key(parseJsonLd(b))
+  if (left !== right) throw new Error('graph JSON-LD parser should ignore non-semantic @graph/property insertion ordering')
+}

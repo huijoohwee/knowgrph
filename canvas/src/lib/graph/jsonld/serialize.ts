@@ -9,6 +9,12 @@ import {
   KG_PREFIX,
 } from '@/lib/agenticrag';
 
+const compareText = (a: unknown, b: unknown): number => String(a || '').localeCompare(String(b || ''));
+
+const getSortedJsonEntries = (value: Record<string, unknown> | null | undefined): Array<[string, unknown]> => {
+  return Object.entries(value || {}).sort((a, b) => compareText(a[0], b[0]));
+};
+
 export function toJsonLd(
   data: GraphData,
 ): { '@context': Record<string, unknown> | string; '@graph': Array<Record<string, unknown>>; metadata?: Record<string, JSONValue> } {
@@ -33,7 +39,10 @@ export function toJsonLd(
     return `${KG_PREFIX}edge_${toSafeIdSegment(text)}`;
   };
   const graph: Array<Record<string, unknown>> = [];
-  for (const n of data.nodes) {
+  const nodes = [...(data.nodes || [])].sort((a, b) =>
+    compareText(a.id, b.id) || compareText(a.type, b.type) || compareText(a.label, b.label),
+  );
+  for (const n of nodes) {
     const id = toKgId(String(n.id));
     if (!id) continue;
     const item: Record<string, unknown> = {
@@ -46,16 +55,19 @@ export function toJsonLd(
     if (typeof n.y === 'number') item.y = n.y;
     if (typeof n.fx === 'number') item.fx = n.fx;
     if (typeof n.fy === 'number') item.fy = n.fy;
-    Object.keys(n.properties || {}).forEach((k) => {
+    getSortedJsonEntries(n.properties || {}).forEach(([k, value]) => {
       if (!k || k === '@id' || k === '@type' || k === 'labels' || k === 'name' || k === 'metadata') return;
-      item[k] = (n.properties || {})[k] as JSONValue;
+      item[k] = value as JSONValue;
     });
     if (n.metadata && Object.keys(n.metadata).length > 0) {
       item.metadata = n.metadata;
     }
     graph.push(item);
   }
-  for (const e of data.edges) {
+  const edges = [...(data.edges || [])].sort((a, b) =>
+    compareText(a.source, b.source) || compareText(a.label, b.label) || compareText(a.target, b.target) || compareText(a.id, b.id),
+  );
+  for (const e of edges) {
     const src = toKgId(String(e.source));
     const tgt = toKgId(String(e.target));
     if (!src || !tgt) continue;
@@ -68,9 +80,9 @@ export function toJsonLd(
       target: tgt,
       label: String(e.label),
     };
-    Object.keys(e.properties || {}).forEach((k) => {
+    getSortedJsonEntries(e.properties || {}).forEach(([k, value]) => {
       if (!k || k === '@id' || k === '@type' || k === 'source' || k === 'target' || k === 'label' || k === 'metadata') return;
-      item[k] = (e.properties || {})[k] as JSONValue;
+      item[k] = value as JSONValue;
     });
     if (e.metadata && Object.keys(e.metadata).length > 0) {
       item.metadata = e.metadata;

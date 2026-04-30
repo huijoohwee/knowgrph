@@ -407,8 +407,6 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     <FloatingPanel
       as="section"
       ariaLabel={UI_LABELS.flowWidget}
-      data-kg-widget={String(node.id || '')}
-      data-kg-widget-pinned={pinned ? '1' : '0'}
       className={cn(
         'rounded-xl border shadow-lg flex flex-col relative',
         UI_THEME_TOKENS.panel.bg,

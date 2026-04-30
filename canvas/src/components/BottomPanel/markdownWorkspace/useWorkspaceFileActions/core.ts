@@ -16,6 +16,7 @@ import type { StatusHelpers, UseWorkspaceFileActionsArgs } from './types'
 import type { MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
 import { formatMarkdownWorkspaceStatusLabel } from '../markdownWorkspaceStatusUi'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
+import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 
 const DEFAULT_WORKSPACE_STATUS_TOAST_ID = 'markdown-workspace-status'
 
@@ -302,7 +303,10 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
       try {
         const fs = await getFs()
         const parentPath = opts?.parentPath ? normalizeWorkspacePath(opts.parentPath) : WORKSPACE_ROOT_PATH
-        const path = await fs.createFile({ parentPath, name: 'note.md', text: '' })
+        const path = await runWorkspaceFsChangedBatch(async () => {
+          suppressNextWorkspaceFsChangedEvent()
+          return await fs.createFile({ parentPath, name: 'note.md', text: '' })
+        })
         setWorkspaceEntrySource(path, { kind: 'local', originalName: null })
         await refresh()
         setActivePathSafe(path)
@@ -321,7 +325,10 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
       try {
         const fs = await getFs()
         const parentPath = opts?.parentPath ? normalizeWorkspacePath(opts.parentPath) : WORKSPACE_ROOT_PATH
-        const path = await fs.createFolder({ parentPath, name: 'folder' })
+        const path = await runWorkspaceFsChangedBatch(async () => {
+          suppressNextWorkspaceFsChangedEvent()
+          return await fs.createFolder({ parentPath, name: 'folder' })
+        })
         setExpandedPaths(prev => new Set(prev).add(path))
         await refresh()
         setSelectionPathSafe(path)

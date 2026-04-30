@@ -1,6 +1,8 @@
 import type { GraphData } from '@/lib/graph/types'
 import { GRAPH_DATA_LS_PERSIST_MAX_EDGES, GRAPH_DATA_LS_PERSIST_MAX_NODES, LS_KEYS } from '@/lib/config'
-import { lsSetJson } from '@/lib/persistence'
+import { lsSetJsonCoalesced } from '@/lib/persistence'
+
+const GRAPH_DATA_LS_PERSIST_DELAY_MS = 160
 
 export function shouldPersistGraphDataToLocalStorage(graphData: GraphData | null): boolean {
   if (!graphData) return true
@@ -14,9 +16,8 @@ export function shouldPersistGraphDataToLocalStorage(graphData: GraphData | null
 export function persistGraphDataToLocalStorage(graphData: GraphData | null): void {
   try {
     if (!shouldPersistGraphDataToLocalStorage(graphData)) return
-    lsSetJson(LS_KEYS.graphData, graphData)
+    lsSetJsonCoalesced(LS_KEYS.graphData, graphData, { delayMs: GRAPH_DATA_LS_PERSIST_DELAY_MS })
   } catch {
     void 0
   }
 }
-

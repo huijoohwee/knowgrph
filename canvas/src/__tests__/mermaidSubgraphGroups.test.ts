@@ -42,7 +42,14 @@ export const testMermaidSubgraphParsingAddsParentId = () => {
     return String(props.subgraphName || '') === 'Inner'
   })
   if (!inner) throw new Error('expected Inner subgraph')
+  const outerProps = (outer.properties || {}) as Record<string, unknown>
   const innerProps = (inner.properties || {}) as Record<string, unknown>
+  if (String(outerProps['visual:shape'] || '') !== 'group') throw new Error('Outer should have canonical group visual shape')
+  if (String(outerProps['visual:shapeCanonical'] || '') !== 'cluster') throw new Error('Outer should have canonical cluster shape')
+  if (outerProps['visual:nestingDepth'] !== 0) throw new Error('Outer should have canonical nesting depth 0')
+  if (String(innerProps['visual:shape'] || '') !== 'group') throw new Error('Inner should have canonical group visual shape')
+  if (String(innerProps['visual:shapeCanonical'] || '') !== 'cluster') throw new Error('Inner should have canonical cluster shape')
+  if (innerProps['visual:nestingDepth'] !== 1) throw new Error('Inner should have canonical nesting depth 1')
   if (String(innerProps['visual:parentId'] || '') !== outerId) throw new Error('Inner should reference visual:parentId')
 
   const findByName = (name: string) =>
@@ -57,6 +64,10 @@ export const testMermaidSubgraphParsingAddsParentId = () => {
   if (String(aProps['visual:parentId'] || '') !== outerId) throw new Error('A should be parented by Outer')
   if (String(bProps['visual:parentId'] || '') !== outerId) throw new Error('B should be parented by Outer')
   if (String(cProps['visual:parentId'] || '') !== String(inner['@id'] || '')) throw new Error('C should be parented by Inner')
+  if (aProps['visual:nestingDepth'] !== 1 || bProps['visual:nestingDepth'] !== 1) throw new Error('Outer child nodes should have canonical nesting depth 1')
+  if (cProps['visual:nestingDepth'] !== 2) throw new Error('Inner child node should have canonical nesting depth 2')
+  if (String(aProps['visual:shapeCanonical'] || '') !== 'node') throw new Error('A should have canonical node shape')
+  if (String(cProps['visual:shapeCanonical'] || '') !== 'node') throw new Error('C should have canonical node shape')
 
   for (let i = 0; i < nodes.length; i += 1) {
     const props = (nodes[i].properties || {}) as Record<string, unknown>

@@ -90,6 +90,193 @@ export function testFlowWidgetUiStateCarriesAcrossSameSourceRecomposeHashChanges
   }
 }
 
+export function testFrontmatterBuiltInFloatingScreenLayoutCarriesAcrossStableSameSourceRecompose() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', x: 120, y: 80, properties: {} }],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'frontmatter-hash-a',
+    },
+  } as never)
+
+  useGraphStore.getState().setFlowWidgetPinnedByNodeId({ NODE_TEXT: false })
+  useGraphStore.getState().setFlowWidgetPosByNodeId({ NODE_TEXT: { top: 180, left: 320 } })
+  useGraphStore.getState().setFlowWidgetWorldPosByNodeId({ NODE_TEXT: { x: 16, y: 28 } })
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [{ id: 'NODE_TEXT', type: 'TextGeneration', label: 'Text Widget', x: 120, y: 80, properties: { prompt: 'updated' } }],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'frontmatter-hash-b',
+    },
+  } as never)
+
+  const after = useGraphStore.getState()
+  if (after.flowWidgetPinnedByNodeId.NODE_TEXT !== false) {
+    throw new Error('expected stable same-source frontmatter recompose to preserve floating widget pinned semantics')
+  }
+  if (after.flowWidgetPosByNodeId.NODE_TEXT?.top !== 180 || after.flowWidgetPosByNodeId.NODE_TEXT?.left !== 320) {
+    throw new Error('expected stable same-source frontmatter recompose to preserve initialized floating widget screen layout')
+  }
+  if (after.flowWidgetWorldPosByNodeId.NODE_TEXT?.x !== 16 || after.flowWidgetWorldPosByNodeId.NODE_TEXT?.y !== 28) {
+    throw new Error('expected stable same-source frontmatter recompose to preserve derived widget world layout state')
+  }
+}
+
+export function testFrontmatterBuiltInFloatingResidueClusterDoesNotCarryAcrossStableSameSourceRecompose() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [
+      { id: 'NODE_TEXT_A', type: 'TextGeneration', label: 'Text A', x: 120, y: 80, properties: {} },
+      { id: 'NODE_TEXT_B', type: 'TextGeneration', label: 'Text B', x: 180, y: 80, properties: {} },
+      { id: 'NODE_TEXT_C', type: 'TextGeneration', label: 'Text C', x: 240, y: 80, properties: {} },
+      { id: 'NODE_TEXT_D', type: 'TextGeneration', label: 'Text D', x: 300, y: 80, properties: {} },
+    ],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'frontmatter-residue-a',
+    },
+  } as never)
+
+  useGraphStore.getState().setFlowWidgetPinnedByNodeId({
+    NODE_TEXT_A: false,
+    NODE_TEXT_B: false,
+    NODE_TEXT_C: false,
+    NODE_TEXT_D: false,
+  })
+  useGraphStore.getState().setFlowWidgetPosByNodeId({
+    NODE_TEXT_A: { top: 120, left: 320 },
+    NODE_TEXT_B: { top: 760, left: 320 },
+    NODE_TEXT_C: { top: 1400, left: 320 },
+    NODE_TEXT_D: { top: 2040, left: 320 },
+  })
+  useGraphStore.getState().setFlowWidgetWorldPosByNodeId({
+    NODE_TEXT_A: { x: 16, y: 28 },
+    NODE_TEXT_B: { x: 18, y: 30 },
+    NODE_TEXT_C: { x: 20, y: 32 },
+    NODE_TEXT_D: { x: 22, y: 34 },
+  })
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [
+      { id: 'NODE_TEXT_A', type: 'TextGeneration', label: 'Text A', x: 120, y: 80, properties: { prompt: 'updated-a' } },
+      { id: 'NODE_TEXT_B', type: 'TextGeneration', label: 'Text B', x: 180, y: 80, properties: { prompt: 'updated-b' } },
+      { id: 'NODE_TEXT_C', type: 'TextGeneration', label: 'Text C', x: 240, y: 80, properties: { prompt: 'updated-c' } },
+      { id: 'NODE_TEXT_D', type: 'TextGeneration', label: 'Text D', x: 300, y: 80, properties: { prompt: 'updated-d' } },
+    ],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'frontmatter-residue-b',
+    },
+  } as never)
+
+  const after = useGraphStore.getState()
+  if (after.flowWidgetPinnedByNodeId.NODE_TEXT_A !== false) {
+    throw new Error('expected stable same-source frontmatter recompose to preserve floating widget pinned semantics even when residue layout is stripped')
+  }
+  if (
+    after.flowWidgetPosByNodeId.NODE_TEXT_A !== undefined
+    || after.flowWidgetPosByNodeId.NODE_TEXT_B !== undefined
+    || after.flowWidgetPosByNodeId.NODE_TEXT_C !== undefined
+    || after.flowWidgetPosByNodeId.NODE_TEXT_D !== undefined
+  ) {
+    throw new Error('expected stable same-source frontmatter recompose to strip long-column residue screen layout for auto-managed built-in widgets')
+  }
+  if (after.flowWidgetWorldPosByNodeId.NODE_TEXT_A?.x !== 16 || after.flowWidgetWorldPosByNodeId.NODE_TEXT_D?.y !== 34) {
+    throw new Error('expected stable same-source frontmatter recompose to preserve derived world layout state while clearing residue screen positions')
+  }
+}
+
+export function testFrontmatterBuiltInFloatingPartialCoverageDoesNotCarryAcrossStableSameSourceRecompose() {
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [
+      { id: 'NODE_TEXT_A', type: 'TextGeneration', label: 'Text A', x: 120, y: 80, properties: {} },
+      { id: 'NODE_TEXT_B', type: 'ImageGeneration', label: 'Image B', x: 180, y: 80, properties: {} },
+      { id: 'NODE_TEXT_C', type: 'VideoGeneration', label: 'Video C', x: 240, y: 80, properties: {} },
+      { id: 'NODE_TEXT_D', type: 'RichMediaPanel', label: 'Panel D', x: 300, y: 80, properties: {} },
+    ],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'frontmatter-partial-a',
+    },
+  } as never)
+
+  useGraphStore.getState().setFlowWidgetPinnedByNodeId({
+    NODE_TEXT_A: false,
+    NODE_TEXT_B: false,
+    NODE_TEXT_C: false,
+    NODE_TEXT_D: false,
+  })
+  useGraphStore.getState().setFlowWidgetPosByNodeId({
+    NODE_TEXT_A: { top: 180, left: 320 },
+    NODE_TEXT_B: { top: 180, left: 760 },
+  })
+  useGraphStore.getState().setFlowWidgetWorldPosByNodeId({
+    NODE_TEXT_A: { x: 16, y: 28 },
+    NODE_TEXT_B: { x: 18, y: 30 },
+    NODE_TEXT_C: { x: 20, y: 32 },
+    NODE_TEXT_D: { x: 22, y: 34 },
+  })
+
+  useGraphStore.getState().setGraphData({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [
+      { id: 'NODE_TEXT_A', type: 'TextGeneration', label: 'Text A', x: 120, y: 80, properties: { prompt: 'updated-a' } },
+      { id: 'NODE_TEXT_B', type: 'ImageGeneration', label: 'Image B', x: 180, y: 80, properties: { prompt: 'updated-b' } },
+      { id: 'NODE_TEXT_C', type: 'VideoGeneration', label: 'Video C', x: 240, y: 80, properties: { prompt: 'updated-c' } },
+      { id: 'NODE_TEXT_D', type: 'RichMediaPanel', label: 'Panel D', x: 300, y: 80, properties: { prompt: 'updated-d' } },
+    ],
+    edges: [],
+    metadata: {
+      kind: 'frontmatter-flow',
+      source: 'workspace:/typed.md',
+      sourceLayerHash: 'frontmatter-partial-b',
+    },
+  } as never)
+
+  const after = useGraphStore.getState()
+  if (after.flowWidgetPinnedByNodeId.NODE_TEXT_A !== false) {
+    throw new Error('expected stable same-source frontmatter recompose to preserve floating widget pinned semantics when partial screen coverage is cleared')
+  }
+  if (
+    after.flowWidgetPosByNodeId.NODE_TEXT_A !== undefined
+    || after.flowWidgetPosByNodeId.NODE_TEXT_B !== undefined
+    || after.flowWidgetPosByNodeId.NODE_TEXT_C !== undefined
+    || after.flowWidgetPosByNodeId.NODE_TEXT_D !== undefined
+  ) {
+    throw new Error('expected stable same-source frontmatter recompose to clear partial auto-managed screen coverage before indexing can replay a hybrid collective layout')
+  }
+  if (after.flowWidgetWorldPosByNodeId.NODE_TEXT_A?.x !== 16 || after.flowWidgetWorldPosByNodeId.NODE_TEXT_D?.y !== 34) {
+    throw new Error('expected stable same-source frontmatter recompose to preserve derived world layout state while clearing partial screen coverage')
+  }
+}
+
 export function testFlowWidgetOverlayStateDoesNotCarryAcrossSameSourceLayoutChanges() {
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
 

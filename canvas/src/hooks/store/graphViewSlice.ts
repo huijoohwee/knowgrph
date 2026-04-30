@@ -1,7 +1,7 @@
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { LS_KEYS } from '@/lib/config.ls.keys'
-import { getLocalStorage, lsJson, lsSetInt, lsSetJson } from '@/lib/persistence'
+import { getLocalStorage, lsJson, lsSetInt, readJsonFromStorage } from '@/lib/persistence'
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
@@ -314,25 +314,151 @@ const isSameWorldByNodeId = (
   return true
 }
 
+const getFlowWidgetGraphIndexStorageKey = (baseKey: string): string => `${String(baseKey || '').trim()}:graphKeys`
+const getFlowWidgetGraphShardStorageKey = (baseKey: string, graphKey: string): string =>
+  `${String(baseKey || '').trim()}:${encodeURIComponent(String(graphKey || '').trim())}`
+
+const readFlowWidgetGraphIndex = (storage: Storage | null, baseKey: string): string[] => {
+  if (!storage) return []
+  try {
+    const raw = storage.getItem(getFlowWidgetGraphIndexStorageKey(baseKey))
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(v => String(v || '').trim()).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+const parseFlowWidgetPinnedByGraphMap = (raw: unknown): WidgetPinnedByGraphMap => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: WidgetPinnedByGraphMap = {}
+  for (const [graphKeyRaw, entry] of Object.entries(raw as Record<string, unknown>)) {
+    const graphKey = String(graphKeyRaw || '').trim()
+    if (!graphKey) continue
+    const inner = normalizePinnedByNodeId(entry as Record<string, boolean> | null | undefined)
+    out[graphKey] = inner
+  }
+  return out
+}
+
+const parseFlowWidgetPosByGraphMap = (raw: unknown): WidgetPosByGraphMap => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: WidgetPosByGraphMap = {}
+  for (const [graphKeyRaw, entry] of Object.entries(raw as Record<string, unknown>)) {
+    const graphKey = String(graphKeyRaw || '').trim()
+    if (!graphKey) continue
+    const inner = normalizePosByNodeId(entry as Record<string, { top: number; left: number }> | null | undefined)
+    out[graphKey] = inner
+  }
+  return out
+}
+
+const parseFlowWidgetWorldByGraphMap = (raw: unknown): WidgetWorldByGraphMap => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: WidgetWorldByGraphMap = {}
+  for (const [graphKeyRaw, entry] of Object.entries(raw as Record<string, unknown>)) {
+    const graphKey = String(graphKeyRaw || '').trim()
+    if (!graphKey) continue
+    const inner = normalizeWorldByNodeId(entry as Record<string, { x: number; y: number }> | null | undefined)
+    out[graphKey] = inner
+  }
+  return out
+}
+
+const readShardedFlowWidgetGraphMap = <T>(
+  storage: Storage | null,
+  baseKey: string,
+  parseEntry: (raw: unknown) => T,
+  parseLegacy: (raw: unknown) => Record<string, T>,
+): Record<string, T> => {
+  if (!storage) return {}
+  const graphKeys = readFlowWidgetGraphIndex(storage, baseKey)
+  if (graphKeys.length > 0) {
+    const out: Record<string, T> = {}
+    for (let i = 0; i < graphKeys.length; i += 1) {
+      const graphKey = graphKeys[i]
+      try {
+        const raw = storage.getItem(getFlowWidgetGraphShardStorageKey(baseKey, graphKey))
+        if (!raw) continue
+        out[graphKey] = parseEntry(JSON.parse(raw) as unknown)
+      } catch {
+        void 0
+      }
+    }
+    return out
+  }
+  return readJsonFromStorage(storage, baseKey, {} as Record<string, T>, parseLegacy)
+}
+
+const writeShardedFlowWidgetGraphState = <T extends Record<string, unknown>>(
+  storage: Storage | null,
+  baseKey: string,
+  graphKey: string,
+  value: T,
+): void => {
+  if (!storage) return
+  const normalizedBaseKey = String(baseKey || '').trim()
+  const normalizedGraphKey = String(graphKey || '').trim()
+  if (!normalizedBaseKey || !normalizedGraphKey) return
+  const nextIndex = readFlowWidgetGraphIndex(storage, normalizedBaseKey)
+  const hasEntries = Object.keys(value).length > 0
+  const shardStorageKey = getFlowWidgetGraphShardStorageKey(normalizedBaseKey, normalizedGraphKey)
+  try {
+    if (hasEntries) {
+      storage.setItem(shardStorageKey, JSON.stringify(value))
+      const deduped = [normalizedGraphKey, ...nextIndex.filter(key => key !== normalizedGraphKey)]
+      storage.setItem(getFlowWidgetGraphIndexStorageKey(normalizedBaseKey), JSON.stringify(deduped))
+    } else {
+      storage.removeItem(shardStorageKey)
+      const pruned = nextIndex.filter(key => key !== normalizedGraphKey)
+      if (pruned.length > 0) {
+        storage.setItem(getFlowWidgetGraphIndexStorageKey(normalizedBaseKey), JSON.stringify(pruned))
+      } else {
+        storage.removeItem(getFlowWidgetGraphIndexStorageKey(normalizedBaseKey))
+      }
+    }
+    storage.removeItem(normalizedBaseKey)
+  } catch {
+    void 0
+  }
+}
+
 let pendingFlowWidgetPersistence: {
-  pinnedByGraph?: WidgetPinnedByGraphMap
-  posByGraph?: WidgetPosByGraphMap
-  worldByGraph?: WidgetWorldByGraphMap
+  pinned?: { graphKey: string; value: Record<string, boolean> }
+  pos?: { graphKey: string; value: Record<string, { top: number; left: number }> }
+  world?: { graphKey: string; value: Record<string, { x: number; y: number }> }
 } = {}
 
 const scheduleFlowWidgetPersistence = (patch: {
-  pinnedByGraph?: WidgetPinnedByGraphMap
-  posByGraph?: WidgetPosByGraphMap
-  worldByGraph?: WidgetWorldByGraphMap
+  pinned?: { graphKey: string; value: Record<string, boolean> }
+  pos?: { graphKey: string; value: Record<string, { top: number; left: number }> }
+  world?: { graphKey: string; value: Record<string, { x: number; y: number }> }
 }): void => {
-  if (patch.pinnedByGraph) pendingFlowWidgetPersistence.pinnedByGraph = patch.pinnedByGraph
-  if (patch.posByGraph) pendingFlowWidgetPersistence.posByGraph = patch.posByGraph
-  if (patch.worldByGraph) pendingFlowWidgetPersistence.worldByGraph = patch.worldByGraph
+  if (patch.pinned) pendingFlowWidgetPersistence.pinned = patch.pinned
+  if (patch.pos) pendingFlowWidgetPersistence.pos = patch.pos
+  if (patch.world) pendingFlowWidgetPersistence.world = patch.world
 
   const signature = hashSignatureParts([
-    pendingFlowWidgetPersistence.pinnedByGraph ? hashRecordSignature(pendingFlowWidgetPersistence.pinnedByGraph, { maxEntries: 36 }) : '',
-    pendingFlowWidgetPersistence.posByGraph ? hashRecordSignature(pendingFlowWidgetPersistence.posByGraph, { maxEntries: 36 }) : '',
-    pendingFlowWidgetPersistence.worldByGraph ? hashRecordSignature(pendingFlowWidgetPersistence.worldByGraph, { maxEntries: 36 }) : '',
+    pendingFlowWidgetPersistence.pinned
+      ? hashSignatureParts([
+          pendingFlowWidgetPersistence.pinned.graphKey,
+          hashRecordSignature(pendingFlowWidgetPersistence.pinned.value, { maxEntries: 36 }),
+        ])
+      : '',
+    pendingFlowWidgetPersistence.pos
+      ? hashSignatureParts([
+          pendingFlowWidgetPersistence.pos.graphKey,
+          hashRecordSignature(pendingFlowWidgetPersistence.pos.value, { maxEntries: 36 }),
+        ])
+      : '',
+    pendingFlowWidgetPersistence.world
+      ? hashSignatureParts([
+          pendingFlowWidgetPersistence.world.graphKey,
+          hashRecordSignature(pendingFlowWidgetPersistence.world.value, { maxEntries: 36 }),
+        ])
+      : '',
   ])
 
   scheduleWorkspaceSyncTask(
@@ -340,9 +466,10 @@ const scheduleFlowWidgetPersistence = (patch: {
     () => {
       const pending = pendingFlowWidgetPersistence
       pendingFlowWidgetPersistence = {}
-      if (pending.pinnedByGraph) lsSetJson(LS_KEYS.flowWidgetPinnedByGraphMetaKey, pending.pinnedByGraph)
-      if (pending.posByGraph) lsSetJson(LS_KEYS.flowWidgetPosByGraphMetaKey, pending.posByGraph)
-      if (pending.worldByGraph) lsSetJson(LS_KEYS.flowWidgetWorldPosByGraphMetaKey, pending.worldByGraph)
+      const storage = getLocalStorage()
+      if (pending.pinned) writeShardedFlowWidgetGraphState(storage, LS_KEYS.flowWidgetPinnedByGraphMetaKey, pending.pinned.graphKey, pending.pinned.value)
+      if (pending.pos) writeShardedFlowWidgetGraphState(storage, LS_KEYS.flowWidgetPosByGraphMetaKey, pending.pos.graphKey, pending.pos.value)
+      if (pending.world) writeShardedFlowWidgetGraphState(storage, LS_KEYS.flowWidgetWorldPosByGraphMetaKey, pending.world.graphKey, pending.world.value)
     },
     FLOW_WIDGET_PERSIST_DELAY_MS,
     {
@@ -353,7 +480,8 @@ const scheduleFlowWidgetPersistence = (patch: {
 }
 
 export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
-  const pinnedSemanticsMigrationPlan = planGraphViewPinnedSemanticsMigration(getLocalStorage())
+  const storage = getLocalStorage()
+  const pinnedSemanticsMigrationPlan = planGraphViewPinnedSemanticsMigration(storage)
   return {
   collapsedGroupIds: [] as string[],
   collapsedGroupIdsByGraphMetaKey: {} as Record<string, string[]>,
@@ -422,28 +550,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
     set({ openWidgetNodeIds: next, openWidgetNodeIdsByRenderer: nextBy })
   },
   flowWidgetPinnedByNodeId: pinnedSemanticsMigrationPlan.effectivePinnedByNodeId,
-  flowWidgetPinnedByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, boolean>>>(
-    LS_KEYS.flowWidgetPinnedByGraphMetaKey,
-    {},
-    raw => {
-      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-      const out: Record<string, Record<string, boolean>> = {}
-      for (const [graphKeyRaw, entry] of Object.entries(raw as Record<string, unknown>)) {
-        const graphKey = String(graphKeyRaw || '').trim()
-        if (!graphKey) continue
-        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
-        const inner: Record<string, boolean> = {}
-        for (const [nodeIdRaw, v] of Object.entries(entry as Record<string, unknown>)) {
-          const nodeId = String(nodeIdRaw || '').trim()
-          if (!nodeId) continue
-          if (typeof v !== 'boolean') continue
-          inner[nodeId] = v
-        }
-        out[graphKey] = inner
-      }
-      return out
-    },
-  ),
+  flowWidgetPinnedByNodeIdByGraphMetaKey: readShardedFlowWidgetGraphMap(storage, LS_KEYS.flowWidgetPinnedByGraphMetaKey, raw => normalizePinnedByNodeId(raw as Record<string, boolean> | null | undefined), parseFlowWidgetPinnedByGraphMap),
   setFlowWidgetPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
     const state = get()
     const nextPinnedById = normalizePinnedByNodeId(pinnedById)
@@ -460,36 +567,12 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
         flowWidgetPinnedByNodeId: nextPinnedById,
         flowWidgetPinnedByNodeIdByGraphMetaKey: nextBy,
       })
-      scheduleFlowWidgetPersistence({ pinnedByGraph: nextBy })
+      scheduleFlowWidgetPersistence({ pinned: { graphKey, value: nextPinnedById } })
       return
     }
     set({ flowWidgetPinnedByNodeId: nextPinnedById })
   },
-  flowWidgetPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { top: number; left: number }>>>(
-    LS_KEYS.flowWidgetPosByGraphMetaKey,
-    {},
-    raw => {
-      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-      const out: Record<string, Record<string, { top: number; left: number }>> = {}
-      for (const [graphKeyRaw, entry] of Object.entries(raw as Record<string, unknown>)) {
-        const graphKey = String(graphKeyRaw || '').trim()
-        if (!graphKey) continue
-        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
-        const inner: Record<string, { top: number; left: number }> = {}
-        for (const [nodeIdRaw, v] of Object.entries(entry as Record<string, unknown>)) {
-          const nodeId = String(nodeIdRaw || '').trim()
-          if (!nodeId) continue
-          const o = v as { top?: unknown; left?: unknown } | null
-          const top = typeof o?.top === 'number' && Number.isFinite(o.top) ? (o.top as number) : null
-          const left = typeof o?.left === 'number' && Number.isFinite(o.left) ? (o.left as number) : null
-          if (top == null || left == null) continue
-          inner[nodeId] = { top, left }
-        }
-        out[graphKey] = inner
-      }
-      return out
-    },
-  ),
+  flowWidgetPosByNodeIdByGraphMetaKey: readShardedFlowWidgetGraphMap(storage, LS_KEYS.flowWidgetPosByGraphMetaKey, raw => normalizePosByNodeId(raw as Record<string, { top: number; left: number }> | null | undefined), parseFlowWidgetPosByGraphMap),
   flowWidgetPosByNodeId: lsJson<Record<string, { top: number; left: number }>>(
     LS_KEYS.flowWidgetPosByNodeId,
     {},
@@ -511,36 +594,12 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
         flowWidgetPosByNodeId: nextPosByNodeId,
         flowWidgetPosByNodeIdByGraphMetaKey: nextBy,
       })
-      scheduleFlowWidgetPersistence({ posByGraph: nextBy })
+      scheduleFlowWidgetPersistence({ pos: { graphKey, value: nextPosByNodeId } })
       return
     }
     set({ flowWidgetPosByNodeId: nextPosByNodeId })
   },
-  flowWidgetWorldPosByNodeIdByGraphMetaKey: lsJson<Record<string, Record<string, { x: number; y: number }>>>(
-    LS_KEYS.flowWidgetWorldPosByGraphMetaKey,
-    {},
-    raw => {
-      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
-      const out: Record<string, Record<string, { x: number; y: number }>> = {}
-      for (const [graphKeyRaw, entry] of Object.entries(raw as Record<string, unknown>)) {
-        const graphKey = String(graphKeyRaw || '').trim()
-        if (!graphKey) continue
-        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
-        const inner: Record<string, { x: number; y: number }> = {}
-        for (const [nodeIdRaw, v] of Object.entries(entry as Record<string, unknown>)) {
-          const nodeId = String(nodeIdRaw || '').trim()
-          if (!nodeId) continue
-          const o = v as { x?: unknown; y?: unknown } | null
-          const x = typeof o?.x === 'number' && Number.isFinite(o.x) ? (o.x as number) : null
-          const y = typeof o?.y === 'number' && Number.isFinite(o.y) ? (o.y as number) : null
-          if (x == null || y == null) continue
-          inner[nodeId] = { x, y }
-        }
-        out[graphKey] = inner
-      }
-      return out
-    },
-  ),
+  flowWidgetWorldPosByNodeIdByGraphMetaKey: readShardedFlowWidgetGraphMap(storage, LS_KEYS.flowWidgetWorldPosByGraphMetaKey, raw => normalizeWorldByNodeId(raw as Record<string, { x: number; y: number }> | null | undefined), parseFlowWidgetWorldByGraphMap),
   flowWidgetWorldPosByNodeId: lsJson<Record<string, { x: number; y: number }>>(
     LS_KEYS.flowWidgetWorldPosByNodeId,
     {},
@@ -575,7 +634,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
         flowWidgetWorldPosByNodeId: nextWorldByNodeId,
         flowWidgetWorldPosByNodeIdByGraphMetaKey: nextBy,
       })
-      scheduleFlowWidgetPersistence({ worldByGraph: nextBy })
+      scheduleFlowWidgetPersistence({ world: { graphKey, value: nextWorldByNodeId } })
       return
     }
     set({ flowWidgetWorldPosByNodeId: nextWorldByNodeId })

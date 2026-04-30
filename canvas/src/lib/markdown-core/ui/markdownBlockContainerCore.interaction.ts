@@ -17,6 +17,38 @@ export const resolveActiveSelectionRange = (args: {
   return cachedRange
 }
 
+export const readSelectionSyncSignature = (args: {
+  root: HTMLElement
+  selection: Selection | null
+}): string | null => {
+  const { root, selection } = args
+  if (!selection || selection.rangeCount <= 0) return null
+  const range = selection.getRangeAt(0)
+  if (range.collapsed) return null
+  const container = range.commonAncestorContainer
+  const node = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement
+  if (!node || !root.contains(node)) return null
+  const anchorNode = selection.anchorNode
+  const focusNode = selection.focusNode
+  const anchorParent = anchorNode?.nodeType === Node.ELEMENT_NODE ? (anchorNode as Element) : anchorNode?.parentElement || null
+  const focusParent = focusNode?.nodeType === Node.ELEMENT_NODE ? (focusNode as Element) : focusNode?.parentElement || null
+  if ((anchorParent && !root.contains(anchorParent)) || (focusParent && !root.contains(focusParent))) return null
+  return [
+    selection.anchorOffset,
+    selection.focusOffset,
+    range.startOffset,
+    range.endOffset,
+    String(selection.toString() || '').length,
+  ].join(':')
+}
+
+export const hasExpandedSelectionInRoot = (args: {
+  root: HTMLElement
+  selection: Selection | null
+}): boolean => {
+  return !!readSelectionSyncSignature(args)
+}
+
 export const getRangeRectSafe = (range: Range): DOMRect | null => {
   const anyRange = range as unknown as { getBoundingClientRect?: () => DOMRect }
   if (typeof anyRange.getBoundingClientRect !== 'function') return null
@@ -27,12 +59,52 @@ export const getRangeRectSafe = (range: Range): DOMRect | null => {
   }
 }
 
-export const computeBubblePosition = (args: {
+export type LiveSelectionSnapshot = {
+  range: Range
+  rect: DOMRect | null
+}
+
+export const readLiveSelectionSnapshot = (args: {
+  root: HTMLElement
+  selection: Selection | null
+}): LiveSelectionSnapshot | null => {
+  const signature = readSelectionSyncSignature(args)
+  if (!signature) return null
+  const selection = args.selection
+  if (!selection || selection.rangeCount <= 0) return null
+  const range = selection.getRangeAt(0)
+  return {
+    range,
+    rect: getRangeRectSafe(range),
+  }
+}
+
+export const getEditorHostRect = (root: HTMLElement): DOMRect => {
+  const host = root.closest('[data-start-line]') as HTMLElement | null
+  return host?.getBoundingClientRect() || root.getBoundingClientRect()
+}
+
+export const computeFloatingMenuPosition = (args: {
   rangeRect: DOMRect | null
   root: HTMLElement
+  gapPx?: number
 }): { leftPx: number; topPx: number } => {
-  const host = args.root.closest('[data-start-line]') as HTMLElement | null
-  const hostRect = host?.getBoundingClientRect() || args.root.getBoundingClientRect()
+  const hostRect = getEditorHostRect(args.root)
+  return {
+    leftPx: args.rangeRect ? args.rangeRect.left - hostRect.left : 0,
+    topPx: args.rangeRect ? args.rangeRect.bottom - hostRect.top + (args.gapPx ?? 6) : 0,
+  }
+}
+
+export const computeBubblePosition = (args: {
+  rangeRect: DOMRect | null
+  root?: HTMLElement
+  hostRect?: DOMRect
+}): { leftPx: number; topPx: number } => {
+  const hostRect = args.hostRect || (args.root ? getEditorHostRect(args.root) : null)
+  if (!hostRect) {
+    return { leftPx: 16, topPx: 8 }
+  }
   const fallbackLeft = Math.max(16, Math.min(Math.max(0, hostRect.width - 16), 24))
   const fallbackTop = 8
   const rawLeftPx = args.rangeRect ? (args.rangeRect.left + args.rangeRect.width / 2 - hostRect.left) : fallbackLeft

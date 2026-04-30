@@ -1,7 +1,7 @@
 import React from 'react'
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
-import { runWorkspaceFsChangedBatch } from '@/features/workspace-fs/workspaceFsEvents'
+import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { mapLimit } from '@/lib/async/mapLimit'
@@ -196,6 +196,7 @@ export function useWorkspaceWebsiteImportAction(args: {
         await fs.ensureSeed()
 
         const created = await runWorkspaceFsChangedBatch(async () => {
+          suppressNextWorkspaceFsChangedEvent()
           const rootFolder = await ensureFolderPath(fs, `/websites/${safeWebsitePathSegment(host)}/${safeWebsitePathSegment(importId)}`)
           const createdPaths: WorkspacePath[] = []
           const sources: Array<{ path: WorkspacePath; source: { kind: 'url'; url: string; path: string } }> = []
@@ -392,4 +393,3 @@ export function useWorkspaceWebsiteImportAction(args: {
 
   return { handleImportWebsite }
 }
-

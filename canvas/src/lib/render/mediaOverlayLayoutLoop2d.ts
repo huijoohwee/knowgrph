@@ -9,6 +9,7 @@ import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 import {
   computeBalancedSpreadLayout,
   computeBalancedSpreadViewportMargins,
+  isHorizontalOverlayStrip,
   isVerticalOverlayCluster,
 } from '@/lib/ui/overlayBalancedSpread'
 
@@ -43,6 +44,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   getPanelSizeForId?: (id: string) => { w: number; h: number } | null
   getElementForId: (id: string) => HTMLElement | null
   getNodeWorldCenterForId: (id: string) => { x: number; y: number } | null
+  getCollisionObstacles?: () => Array<{ id: string; left: number; top: number; width: number; height: number }>
   sizingConfig: MediaOverlaySizingConfig
   clampToViewport?: { margin: number } | null
 }): MediaOverlayLayoutLoop {
@@ -54,8 +56,11 @@ export function startMediaOverlayLayoutLoop2d(args: {
   let rafLoop: number | null = null
   let lastSizingKey = ''
   let lastSizing: MediaOverlaySizing | null = null
+  let collectiveCenterWarmupStartedAtMs: number | null = null
+  let collectiveCenterWarmupAttempts = 0
   const lastWorldCenterById = new Map<string, { x: number; y: number }>()
   const lastAppliedBoxById = new Map<string, { left: number; top: number; w: number; h: number }>()
+  let scheduleCollectiveLayoutUpdate: () => void = () => void 0
 
   const quantizePanelPos = (v: number) => {
     if (!Number.isFinite(v)) return 0
@@ -87,6 +92,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       : undefined
 
     const keepIds = new Set<string>()
+    const missingCenterIds: string[] = []
 
     const preferred: Array<{ id: string; left: number; top: number; w: number; h: number; el: HTMLElement }> = []
 
@@ -102,7 +108,10 @@ export function startMediaOverlayLayoutLoop2d(args: {
         lastWorldCenterById.set(id, centerNow)
       }
       const center = centerNow || lastWorldCenterById.get(id) || null
-      if (!center) continue
+      if (!center) {
+        missingCenterIds.push(id)
+        continue
+      }
       const cx = t.applyX(center.x)
       const cy = t.applyY(center.y)
       if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue
@@ -112,6 +121,23 @@ export function startMediaOverlayLayoutLoop2d(args: {
       const h = overrideSize && Number.isFinite(overrideSize.h) ? Math.max(1, overrideSize.h) : useSizing.panelH
       const rect = computePanelRect({ cx, cy, w, h, clamp })
       preferred.push({ id, left: quantizePanelPos(rect.left), top: quantizePanelPos(rect.top), w, h, el })
+    }
+
+    const canDeferUntilCollectiveCentersStabilize =
+      args.items.length > 1
+      && missingCenterIds.length > 0
+      && preferred.length > 0
+    if (canDeferUntilCollectiveCentersStabilize) {
+      collectiveCenterWarmupAttempts += 1
+      if (collectiveCenterWarmupStartedAtMs == null) collectiveCenterWarmupStartedAtMs = Date.now()
+      const elapsed = Date.now() - (collectiveCenterWarmupStartedAtMs || Date.now())
+      if (collectiveCenterWarmupAttempts < 60 && elapsed < 1600) {
+        scheduleCollectiveLayoutUpdate()
+        return
+      }
+    } else {
+      collectiveCenterWarmupStartedAtMs = null
+      collectiveCenterWarmupAttempts = 0
     }
 
     const hasOverlaps = (items: Array<{ left: number; top: number; w: number; h: number }>, gapPx: number): boolean => {
@@ -165,13 +191,24 @@ export function startMediaOverlayLayoutLoop2d(args: {
     if (collisionEnabled && schema && preferred.length > 1) {
       const derivedGap = Math.max(0, Math.round(Math.max(6, useSizing.metrics.padding + useSizing.metrics.borderW)))
       const gapPx = typeof args.collision?.gapPx === 'number' && Number.isFinite(args.collision.gapPx) ? Math.max(0, Math.floor(args.collision.gapPx)) : derivedGap
+      const externalObstacles = typeof args.getCollisionObstacles === 'function' ? args.getCollisionObstacles() : []
       const boxes = preferred.map(p => ({ left: p.left, top: p.top, w: p.w, h: p.h }))
-      if (hasOverlaps(boxes, gapPx)) {
+      const needsBalancedReseed =
+        hasOverlaps(boxes, gapPx)
+        || isVerticalOverlayCluster({
+          items: preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h })),
+          gapPx,
+        })
+        || isHorizontalOverlayStrip({
+          items: preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h })),
+          gapPx,
+        })
+      if (needsBalancedReseed) {
         const verticalSeed = (() => {
-          if (!isVerticalOverlayCluster({
-            items: preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h })),
-            gapPx,
-          })) return null
+          const clusterItems = preferred.map(p => ({ left: p.left, top: p.top, width: p.w, height: p.h }))
+          if (!isVerticalOverlayCluster({ items: clusterItems, gapPx }) && !isHorizontalOverlayStrip({ items: clusterItems, gapPx })) {
+            return null
+          }
           let sumW = 0
           let sumH = 0
           for (let i = 0; i < preferred.length; i += 1) {
@@ -236,6 +273,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
         const resolved = relaxOverlayPanelsWithCollision({
           schema,
           items: seedItems.map(p => ({ id: p.id, left: p.left, top: p.top, width: p.w, height: p.h, movable: true })),
+          obstacles: externalObstacles,
           gapPx,
           strength,
           iterations,
@@ -292,6 +330,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
       update()
     })
   }
+  scheduleCollectiveLayoutUpdate = schedule
 
   const loop = () => {
     rafLoop = requestAnimationFrame(loop)

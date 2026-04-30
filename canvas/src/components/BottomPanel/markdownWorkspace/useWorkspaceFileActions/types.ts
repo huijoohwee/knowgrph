@@ -1,9 +1,15 @@
 import type React from 'react'
+import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
+
+export type WorkspaceRefreshSnapshot = {
+  entries: WorkspaceEntry[]
+  sourcesByPath: WorkspaceSourceIndex
+}
 
 export type UseWorkspaceFileActionsArgs = {
   getFs: () => Promise<WorkspaceFs>
-  refresh: () => Promise<void>
+  refresh: () => Promise<WorkspaceRefreshSnapshot>
 
   openedPath: WorkspacePath | null
   selectionPath: WorkspacePath | null
@@ -24,7 +30,6 @@ export type UseWorkspaceFileActionsArgs = {
     sourceUrl?: string | null
     jsonSourceText?: string | null
     autoEnableFrontmatter?: boolean
-    workspaceViewMode?: import('@/hooks/store/types').WorkspaceViewMode | null
     recent?: Omit<import('@/hooks/store/types').RecentFileEntry, 'id' | 'timestamp'> | null
     applyToGraph?: boolean
     forceApplyToGraph?: boolean

@@ -286,8 +286,10 @@ export async function importGraphFieldSettingsJsonLd(
       return;
     }
     const state = useGraphStore.getState();
-    const current = state.graphFieldSettingsById || {};
-    state.setGraphFieldSettingsById({ ...current, ...parsed.settingsById });
+    for (const [fieldId, value] of Object.entries(parsed.settingsById || {})) {
+      if (!value) continue;
+      state.patchGraphFieldSetting(fieldId as keyof typeof parsed.settingsById & string, value);
+    }
     const count = Object.keys(parsed.settingsById).length;
     const msg = IMPORT_EXPORT_STATUS_COPY.graphFieldSettingsImported(count);
     deps.setTransientExportStatus(msg);

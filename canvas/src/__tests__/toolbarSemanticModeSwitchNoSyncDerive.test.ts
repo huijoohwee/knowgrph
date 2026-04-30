@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testKeywordModeDerivationIsOffMainThreadOrDeferred() {
-  const p = resolve(process.cwd(), 'src', 'hooks', 'useActiveGraphData.ts')
+  const p = resolve(process.cwd(), 'src', 'hooks', 'active-graph-data', 'useActiveGraphData.impl.ts')
   const text = readFileSync(p, 'utf8')
   if (!text.includes('deriveKeywordGraphInWorker')) {
     throw new Error('expected keyword derivation to use worker helper')
@@ -19,7 +19,7 @@ export function testKeywordModeDerivationIsOffMainThreadOrDeferred() {
   if (text.includes("documentStructureBaselineLock") && text.includes("? 'document'")) {
     throw new Error('expected baseline lock to not force semantic mode to document during render')
   }
-  if (!text.includes("pending: true")) {
-    throw new Error('expected keyword mode to return a pending keyword graph instead of document graph while deriving')
+  if (text.includes("pending: true")) {
+    throw new Error('expected keyword mode to avoid synthetic pending graph placeholders while deriving')
   }
 }

@@ -12,6 +12,7 @@ import {
 import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { fetchWorkspaceUrlContent } from '../workspaceImport'
 import { loadWorkspaceSourceIndex, removeWorkspaceEntrySourcesForPrefix, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 import type { UseWorkspaceFileActionsArgs } from './types'
 
 export function useWorkspaceMutationActions(args: {
@@ -117,7 +118,10 @@ export function useWorkspaceMutationActions(args: {
       status.setStatusProgress('Deleting')
       try {
         const fs = await getFs()
-        await fs.deleteEntry(normalized)
+        await runWorkspaceFsChangedBatch(async () => {
+          suppressNextWorkspaceFsChangedEvent()
+          await fs.deleteEntry(normalized)
+        })
         removeWorkspaceEntrySourcesForPrefix(normalized)
         await refresh()
         status.setStatusInfo('Deleted')
@@ -160,30 +164,32 @@ export function useWorkspaceMutationActions(args: {
         const sourceIndex = loadWorkspaceSourceIndex()
         const sourcePrefix = sourcePath.endsWith('/') ? sourcePath : `${sourcePath}/`
         const nextPrefix = nextPath.endsWith('/') ? nextPath : `${nextPath}/`
-
-        if (target.kind === 'file') {
-          const text = String((await fs.readFileText(sourcePath)) || '')
-          await fs.createFile({ parentPath, name: nextName, text })
-        } else {
-          await fs.createFolder({ parentPath, name: nextName })
-          const descendants = list
-            .filter(e => normalizeWorkspacePath(e.path).startsWith(sourcePrefix))
-            .sort((a, b) => normalizeWorkspacePath(a.path).length - normalizeWorkspacePath(b.path).length)
-          for (const entry of descendants) {
-            const oldPath = normalizeWorkspacePath(entry.path)
-            const rel = oldPath.slice(sourcePrefix.length)
-            const mapped = normalizeWorkspacePath(`${nextPrefix}${rel}`)
-            const mappedParent = normalizeWorkspacePath(entry.parentPath ? `${nextPath}/${normalizeWorkspacePath(entry.parentPath).slice(sourcePath.length + 1)}` : nextPath)
-            if (entry.kind === 'folder') {
-              await fs.createFolder({ parentPath: mappedParent, name: normalizeWorkspacePath(mapped).split('/').pop() || 'folder' })
-            } else {
-              const text = String((await fs.readFileText(oldPath)) || '')
-              await fs.createFile({ parentPath: mappedParent, name: normalizeWorkspacePath(mapped).split('/').pop() || 'file.md', text })
+        await runWorkspaceFsChangedBatch(async () => {
+          suppressNextWorkspaceFsChangedEvent()
+          if (target.kind === 'file') {
+            const text = String((await fs.readFileText(sourcePath)) || '')
+            await fs.createFile({ parentPath, name: nextName, text })
+          } else {
+            await fs.createFolder({ parentPath, name: nextName })
+            const descendants = list
+              .filter(e => normalizeWorkspacePath(e.path).startsWith(sourcePrefix))
+              .sort((a, b) => normalizeWorkspacePath(a.path).length - normalizeWorkspacePath(b.path).length)
+            for (const entry of descendants) {
+              const oldPath = normalizeWorkspacePath(entry.path)
+              const rel = oldPath.slice(sourcePrefix.length)
+              const mapped = normalizeWorkspacePath(`${nextPrefix}${rel}`)
+              const mappedParent = normalizeWorkspacePath(entry.parentPath ? `${nextPath}/${normalizeWorkspacePath(entry.parentPath).slice(sourcePath.length + 1)}` : nextPath)
+              if (entry.kind === 'folder') {
+                await fs.createFolder({ parentPath: mappedParent, name: normalizeWorkspacePath(mapped).split('/').pop() || 'folder' })
+              } else {
+                const text = String((await fs.readFileText(oldPath)) || '')
+                await fs.createFile({ parentPath: mappedParent, name: normalizeWorkspacePath(mapped).split('/').pop() || 'file.md', text })
+              }
             }
           }
-        }
 
-        await fs.deleteEntry(sourcePath)
+          await fs.deleteEntry(sourcePath)
+        })
         removeWorkspaceEntrySourcesForPrefix(sourcePath)
         const applySourceMove = (fromPath: WorkspacePath, toPath: WorkspacePath) => {
           const src = sourceIndex[normalizeWorkspacePath(fromPath)]

@@ -111,7 +111,11 @@ export function bindFlowNativeInteractionListeners(args: {
     const shiftKey = e.shiftKey === true
     const spacePanHeld = isSpacePanHeld()
 
-    const resolved = resolveFlowEditorOverlayProxyTarget({ target: targetEl, canvasEl })
+    const resolved = resolveFlowEditorOverlayProxyTarget({
+      target: targetEl,
+      canvasEl,
+      flowEditorSurfaceId: ctx.args.flowEditorSurfaceId,
+    })
     const overlayPinnedToNode = resolved.kind === 'overlay' && readCanvasOverlayPinnedState(resolved.overlayRoot)
     const overlayResizeHandle =
       resolved.kind === 'overlay' && resolved.targetEl.closest(CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR)

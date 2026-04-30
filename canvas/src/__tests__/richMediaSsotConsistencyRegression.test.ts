@@ -72,6 +72,12 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!flowCanvasText.includes('excludeRichMediaOverlayNodeIds={overlayEditorNodeIds}')) {
     throw new Error('expected FlowEditorCanvas to pass overlay editor node ids into FlowCanvas Rich Media duplicate exclusion')
   }
+  if (!flowCanvasText.includes('const useStickyOverlayPool = !flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode')) {
+    throw new Error('expected FlowCanvas Rich Media overlay pool to disable sticky carryover in Flow Editor/frontmatter collective modes')
+  }
+  if (!flowCanvasText.includes('if (!useStickyOverlayPool) {')) {
+    throw new Error('expected FlowCanvas Rich Media overlay pool to follow the live suggested overlay set directly in Flow Editor/frontmatter collective modes')
+  }
   if (!d3HookText.includes('listDisplayRichMediaOverlayNodes')) {
     throw new Error('expected D3 rich media overlay hook to reuse upstream Rich Media overlay enablement SSOT')
   }

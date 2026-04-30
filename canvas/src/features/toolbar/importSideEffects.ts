@@ -17,13 +17,20 @@ export function applyImportedMarkdownToStore(args: {
   if (!name) return
 
   const state = useGraphStore.getState()
+  const workspaceViewMode = args.curationView === 'markdown' ? 'editor' : args.curationView === 'grid' ? 'canvas' : null
+  if (workspaceViewMode === 'editor' || workspaceViewMode === 'canvas') {
+    try {
+      state.setWorkspaceViewMode(workspaceViewMode)
+    } catch {
+      void 0
+    }
+  }
   void state.setActiveMarkdownDocument({
     name,
     text,
     normalizeMermaidMmd: false,
     sourceUrl,
     jsonSourceText: null,
-    workspaceViewMode: args.curationView === 'markdown' ? 'editor' : args.curationView === 'grid' ? 'canvas' : null,
     recent: args.recent,
     applyToGraph: true,
     forceApplyToGraph: true,

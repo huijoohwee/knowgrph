@@ -13,6 +13,15 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
   if (!proxyText.includes('[data-kg-rich-media-overlay="1"]')) {
     throw new Error('expected shared overlay proxy selector to include Rich Media Panel overlay roots')
   }
+  if (!proxyText.includes('[data-kg-flow-editor-mode="1"]')) {
+    throw new Error('expected shared overlay proxy selector to scope overlay roots to explicit Flow Editor mode')
+  }
+  if (!proxyText.includes('flowEditorSurfaceId?: string | null')) {
+    throw new Error('expected shared overlay proxy resolver to accept the active Flow Editor surface identity')
+  }
+  if (!proxyText.includes("if (!overlaySurfaceId || overlaySurfaceId !== activeSurfaceId) return { kind: 'none' }")) {
+    throw new Error('expected shared overlay proxy resolver to reject stale or null-surface overlay roots')
+  }
 
   const wheelPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'interactions', 'wheelAndGesture.ts')
   const wheelText = readFileSync(wheelPath, 'utf8')
@@ -28,5 +37,8 @@ export function testFlowCanvasWheelZoomCanStartFromFlowEditorOverlay() {
   }
   if (!wheelText.includes('isFlowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas wheel proxy to reuse shared frontmatter-document mode gate SSOT')
+  }
+  if (!wheelText.includes('flowEditorSurfaceId: ctx.args.flowEditorSurfaceId')) {
+    throw new Error('expected FlowCanvas wheel proxy to forward the active Flow Editor surface identity into shared overlay proxy resolution')
   }
 }

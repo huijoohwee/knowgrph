@@ -8,6 +8,7 @@ import {
   normalizeSettingsForField,
   type GraphField,
   type GraphFieldSettingsById,
+  type GraphFieldSettings,
   type GraphFieldType,
   type GraphFieldSettingsResolved,
 } from '@/features/graph-fields/graphFields'
@@ -51,7 +52,8 @@ type FieldSettingsPanelProps = {
   selectedGlobalView: GraphFieldsSelectedView
   setSelectedGlobalView: React.Dispatch<React.SetStateAction<GraphFieldsSelectedView>>
   settingsById: GraphFieldSettingsById
-  setGraphFieldSettingsById: (next: GraphFieldSettingsById) => void
+  patchGraphFieldSetting: (fieldId: GraphField['id'], patch: Partial<GraphFieldSettings>) => void
+  removeGraphFieldSetting: (fieldId: GraphField['id']) => void
   onResync: () => void
   onStatusChange: (msg: string) => void
 }
@@ -62,7 +64,8 @@ export default function FieldSettingsPanel({
   selectedGlobalView,
   setSelectedGlobalView,
   settingsById,
-  setGraphFieldSettingsById,
+  patchGraphFieldSetting,
+  removeGraphFieldSetting,
   onResync,
   onStatusChange,
 }: FieldSettingsPanelProps) {
@@ -163,10 +166,7 @@ export default function FieldSettingsPanel({
   const updateSelectedSettings = React.useCallback(
     (patch: Partial<GraphFieldSettingsResolved>) => {
       if (!selectedField || !selectedSettings) return
-      setGraphFieldSettingsById({
-        ...settingsById,
-        [selectedField.id]: { ...selectedSettings, ...patch },
-      })
+      patchGraphFieldSetting(selectedField.id, { ...selectedSettings, ...patch })
       if (typeof patch.isHidden === 'boolean') {
         const state = useGraphStore.getState()
         const key = `prop:${selectedField.scope}:${selectedField.key}` as GraphDataTableColumnKey
@@ -177,15 +177,13 @@ export default function FieldSettingsPanel({
         })
       }
     },
-    [selectedField, selectedSettings, setGraphFieldSettingsById, settingsById],
+    [patchGraphFieldSetting, selectedField, selectedSettings],
   )
 
   const resetSelectedSettings = React.useCallback(() => {
     if (!selectedField) return
-    const next: GraphFieldSettingsById = { ...settingsById }
-    delete next[selectedField.id]
-    setGraphFieldSettingsById(next)
-  }, [selectedField, setGraphFieldSettingsById, settingsById])
+    removeGraphFieldSetting(selectedField.id)
+  }, [removeGraphFieldSetting, selectedField])
 
   const setSelectedDefaultValue = React.useCallback(
     (defaultValue: JSONValue | null) => {
@@ -252,11 +250,8 @@ export default function FieldSettingsPanel({
     if (!suggestedFieldType) return
     const raw = settingsById[selectedField.id]
     if (raw?.fieldType) return
-    setGraphFieldSettingsById({
-      ...settingsById,
-      [selectedField.id]: { ...selectedSettings, fieldType: suggestedFieldType },
-    })
-  }, [selectedField, selectedSettings, setGraphFieldSettingsById, settingsById, suggestedFieldType])
+    patchGraphFieldSetting(selectedField.id, { ...selectedSettings, fieldType: suggestedFieldType })
+  }, [patchGraphFieldSetting, selectedField, selectedSettings, settingsById, suggestedFieldType])
 
   return (
     <MainPanelSettingsPanelShell

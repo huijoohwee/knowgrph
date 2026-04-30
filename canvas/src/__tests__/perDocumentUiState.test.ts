@@ -36,12 +36,21 @@ export function testPerDocumentUiStateReadWriteAndLruTrim() {
     writePerDocumentUiState({ storage, documentKey: key, documentRef: `Doc-${i}.md`, state: { canvas2dRenderer: 'd3', canvasRenderMode: '2d' } })
   }
 
-  const raw = storage.getItem(LS_KEYS.perDocumentUiStateMap)
-  if (!raw) throw new Error('Expected persisted map to exist')
-  const parsed = JSON.parse(raw) as { order?: unknown; byKey?: unknown }
-  const order = Array.isArray(parsed.order) ? parsed.order : []
+  const orderRaw = storage.getItem(`${LS_KEYS.perDocumentUiStateMap}:order`)
+  if (!orderRaw) throw new Error('Expected persisted per-document UI order key to exist')
+  const order = JSON.parse(orderRaw) as unknown[]
   if (order.length > 24) {
     throw new Error(`Expected LRU-trimmed order length <= 24, got ${order.length}`)
   }
+  if (storage.getItem(LS_KEYS.perDocumentUiStateMap) != null) {
+    throw new Error('Expected legacy whole-map per-document UI payload to be removed after sharded persistence writes')
+  }
+  const latestKey = String(order[0] || '')
+  if (!latestKey) {
+    throw new Error('Expected sharded per-document UI order to retain the latest document key')
+  }
+  const latestRaw = storage.getItem(`${LS_KEYS.perDocumentUiStateMap}:${latestKey}`)
+  if (!latestRaw) {
+    throw new Error('Expected latest document UI state to persist under its own shard key')
+  }
 }
-

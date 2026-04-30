@@ -37,8 +37,8 @@ import {
   buildMarkdownVariableSsotAnchorId,
   parseMarkdownVariableTokens,
 } from '@/features/markdown/ui/markdownVariableReferences'
+import { renderInlineHtmlToken } from './markdownInlineHtmlToken'
 
-const SAFE_HTML_ID_RE = /^[A-Za-z0-9^][A-Za-z0-9^:._-]{0,255}$/
 const SVG_DATA_URI_BASE64_PREFIX = 'data:image/svg+xml;base64,'
 
 const padBase64 = (raw: string): string => {
@@ -150,7 +150,7 @@ const splitVariableRefs = (text: string): Array<
 export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRenderOpts): React.ReactNode => {
   const { activeDocumentPath, uiPanelTextFontClass, uiPanelMonospaceTextClass, markdownPresentationMode } = opts
   const fragmentOpts = opts.fragmentOptions || null
-  let fragmentIndex = 0
+  const fragmentIndexRef = { current: 0 }
   const inlineCodeClassName = MARKDOWN_INLINE_CODE_VIEW_CLASS
 
   const renderTokens = (subTokens: Token[] | undefined, insideLink: boolean): React.ReactNode => {
@@ -406,227 +406,15 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
       )
     }
     if (tt.type === 'html') {
-      const raw = String((t as unknown as TokensHTML).text || '').trim()
-      if (!raw) {
-        return <React.Fragment key={key}>{''}</React.Fragment>
-      }
-      const rawLower = raw.toLowerCase()
-      if (/^<\s*!--[\s\S]*?--\s*>$/.test(rawLower)) {
-        return <React.Fragment key={key}>{''}</React.Fragment>
-      }
-      if (/^<\s*\/\s*a\b[^>]*>$/.test(rawLower)) {
-        return <React.Fragment key={key}>{''}</React.Fragment>
-      }
-      if (
-        rawLower.startsWith('<v-click') ||
-        rawLower.startsWith('</v-click') ||
-        rawLower.startsWith('<v-mark') ||
-        rawLower.startsWith('</v-mark')
-      ) {
-        const isStandalone =
-          (rawLower.startsWith('<v-click') && !rawLower.includes('</v-click>')) ||
-          (rawLower.startsWith('</v-click') && !rawLower.includes('<v-click')) ||
-          (rawLower.startsWith('<v-mark') && !rawLower.includes('</v-mark>')) ||
-          (rawLower.startsWith('</v-mark') && !rawLower.includes('<v-mark'))
-        if (isStandalone) {
-          return <React.Fragment key={key}>{''}</React.Fragment>
-        }
-      }
-      if (typeof window !== 'undefined' && typeof DOMParser !== 'undefined') {
-        try {
-          const parser = new DOMParser()
-          const doc = parser.parseFromString(raw, 'text/html')
-          const el = doc.body.firstElementChild
-          if (!el) {
-            return <React.Fragment key={key}>{raw}</React.Fragment>
-          }
-          const tag = el.tagName.toLowerCase()
-          const blockTags = new Set([
-            'div',
-            'section',
-            'main',
-            'article',
-            'aside',
-            'nav',
-            'header',
-            'footer',
-            'ul',
-            'ol',
-            'table',
-            'details',
-            'figure',
-            'img',
-            'picture',
-            'iframe',
-            'video',
-            'audio',
-            'svg',
-          ])
-          if (blockTags.has(tag)) {
-            const lower = rawLower
-            const hasClose = lower.includes(`</${tag}`) || /\/\s*>$/.test(lower)
-            if (hasClose) {
-              if (tag === 'iframe') {
-                const srcRaw = el.getAttribute('src') || el.getAttribute('data-src') || ''
-                if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
-                  const src = resolveHref(srcRaw, activeDocumentPath)
-                  const mode = useGraphStore.getState().richMediaPanelMode
-                  const preferEmbed = mode === 'embed'
-                  if (!preferEmbed && /^https?:/i.test(src)) {
-                    return (
-                      <MediaWebpageSnapshot
-                        key={key}
-                        url={src}
-                        title={el.getAttribute('title') || 'Embedded content'}
-                        presentationMode={opts.markdownPresentationMode}
-                      />
-                    )
-                  }
-                  return (
-                    <MediaIframe
-                      key={key}
-                      src={src}
-                      title={el.getAttribute('title') || 'Embedded content'}
-                      presentationMode={opts.markdownPresentationMode}
-                    />
-                  )
-                }
-              }
-              const rendered = renderSafeHtmlBlock(raw, {
-                activeDocumentPath,
-                uiPanelTextFontClass,
-                uiPanelMonospaceTextClass,
-                markdownPresentationMode,
-                renderNodeText: (text, k) => <React.Fragment key={k}>{text}</React.Fragment>,
-                fragmentOptions: fragmentOpts,
-              })
-              if (rendered) {
-                return <React.Fragment key={key}>{rendered}</React.Fragment>
-              }
-            }
-          }
-          if (fragmentOpts?.enabled) {
-            const tagMatch = fragmentOpts.tags.some(name => name.toLowerCase() === tag)
-            const classMatch =
-              fragmentOpts.classNames.length > 0 && (el.classList?.length || 0) > 0
-                ? fragmentOpts.classNames.some(name => el.classList.contains(name))
-                : false
-            if (tagMatch || classMatch) {
-              const explicitIndexAttr =
-                el.getAttribute('data-fragment-index') || el.getAttribute('at') || null
-              let idx: number
-              if (explicitIndexAttr != null && explicitIndexAttr.trim()) {
-                const parsed = Number.parseInt(explicitIndexAttr.trim(), 10)
-                idx = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
-              } else {
-                fragmentIndex += 1
-                idx = fragmentIndex
-              }
-              const current = Number.isFinite(fragmentOpts.currentStep)
-                ? Math.max(0, fragmentOpts.currentStep || 0)
-                : 0
-              if (idx <= 0 || current < idx) {
-                return <React.Fragment key={key}>{''}</React.Fragment>
-              }
-            }
-          }
-          if (tag === 'v-click') {
-            return <React.Fragment key={key}>{el.textContent || ''}</React.Fragment>
-          }
-          if (tag === 'v-mark') {
-            const type = String(el.getAttribute('type') || '').trim().toLowerCase()
-            const color = String(el.getAttribute('color') || '').trim().toLowerCase()
-            const cls: string[] = []
-            if (type === 'circle') cls.push('inline-block border border-current rounded-full px-1')
-            if (type === 'underline') cls.push('underline decoration-2 underline-offset-2')
-            if (type === 'strike-through') cls.push('line-through')
-            if (color === 'red') cls.push(`${UI_THEME_TOKENS.status.error} px-1 rounded-sm`)
-            if (color === 'yellow') cls.push(`${UI_THEME_TOKENS.status.warning} px-1 rounded-sm`)
-            if (cls.length) {
-              return (
-                <span key={key} className={cls.join(' ')}>
-                  {el.textContent || ''}
-                </span>
-              )
-            }
-            return <span key={key}>{el.textContent || ''}</span>
-          }
-          if (tag === 'abbr') {
-            const title = el.getAttribute('title') || ''
-            const text = el.textContent || ''
-            return (
-              <abbr
-                key={key}
-                title={title || undefined}
-                className={`${UI_THEME_TOKENS.status.warning} border-b border-dotted cursor-help px-0.5 rounded-sm`}
-              >
-                {text}
-              </abbr>
-            )
-          }
-          if (tag === 'span') {
-            const className = el.getAttribute('class') || undefined
-            const text = el.textContent || ''
-            return (
-              <span key={key} className={className}>
-                {text}
-              </span>
-            )
-          }
-          if (tag === 'a') {
-            const hrefRaw = String(el.getAttribute('href') || el.getAttribute('xlink:href') || '').trim()
-            if (hrefRaw && isSafeHref(hrefRaw)) {
-              const href = resolveHref(hrefRaw, activeDocumentPath)
-              const anchor = buildAnchorAttrs(href)
-              const text = el.textContent || href
-              return (
-                <a
-                  key={key}
-                  href={href || undefined}
-                  target={anchor.target}
-                  rel={anchor.rel}
-                  className={anchor.className}
-                >
-                  {text}
-                </a>
-              )
-            }
-            const idRaw = String(el.getAttribute('id') || '').trim()
-            if (idRaw && SAFE_HTML_ID_RE.test(idRaw)) {
-              return <a key={key} id={idRaw} className="block h-0 scroll-mt-16" aria-hidden />
-            }
-            return <React.Fragment key={key}>{raw}</React.Fragment>
-          }
-          if (tag === 'br') {
-            return <br key={key} />
-          }
-          if (tag === 'code') {
-            const text = el.textContent || ''
-            return (
-              <code key={key} className={inlineCodeClassName}>
-                {text}
-              </code>
-            )
-          }
-          if (tag === 'pre') {
-            const codeEl = el.querySelector('code')
-            const text = codeEl ? codeEl.textContent || '' : el.textContent || ''
-            return (
-              <pre
-                key={key}
-                className={`inline-block align-top max-w-full overflow-auto rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-2 py-1`}
-              >
-                <code className={uiPanelMonospaceTextClass}>{text}</code>
-              </pre>
-            )
-          }
-          const fallbackText = el && el.textContent ? el.textContent : raw
-          return <React.Fragment key={key}>{fallbackText}</React.Fragment>
-        } catch {
-          return <React.Fragment key={key}>{raw}</React.Fragment>
-        }
-      }
-      return <React.Fragment key={key}>{raw}</React.Fragment>
+      return renderInlineHtmlToken({
+        token: t as TokensHTML,
+        key,
+        opts,
+        uiPanelTextFontClass,
+        uiPanelMonospaceTextClass,
+        inlineCodeClassName,
+        fragmentIndexRef,
+      })
     }
     if ((t as unknown as { tokens?: unknown }).tokens) {
       return (

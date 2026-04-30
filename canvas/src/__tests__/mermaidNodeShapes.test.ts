@@ -37,6 +37,20 @@ export function testMermaidParserCapturesNodeShapes() {
   if (shapeOf('C') !== 'circle') throw new Error('expected circle node to map to visual:shape=circle')
   if (shapeOf('D') !== 'rect') throw new Error('expected box node to map to visual:shape=rect')
 
+  const canonicalShapeOf = (nodeName: string) => {
+    const n = byName.get(nodeName)
+    if (!n) return ''
+    const props = (n.properties || {}) as Record<string, unknown>
+    return typeof props['visual:shapeCanonical'] === 'string' ? props['visual:shapeCanonical'] : ''
+  }
+
+  const nestingDepthOf = (nodeName: string) => {
+    const n = byName.get(nodeName)
+    if (!n) return -1
+    const props = (n.properties || {}) as Record<string, unknown>
+    return typeof props['visual:nestingDepth'] === 'number' ? props['visual:nestingDepth'] : -1
+  }
+
   const primitiveOf = (nodeName: string) => {
     const n = byName.get(nodeName)
     if (!n) return ''
@@ -47,4 +61,11 @@ export function testMermaidParserCapturesNodeShapes() {
   if (primitiveOf('B') !== 'edge') throw new Error('expected hexagon primitive=edge')
   if (primitiveOf('C') !== 'cluster') throw new Error('expected circle primitive=cluster')
   if (primitiveOf('D') !== 'node') throw new Error('expected box primitive=node')
+  if (canonicalShapeOf('A') !== primitiveOf('A')) throw new Error('expected A canonical shape to match primitive')
+  if (canonicalShapeOf('B') !== primitiveOf('B')) throw new Error('expected B canonical shape to match primitive')
+  if (canonicalShapeOf('C') !== primitiveOf('C')) throw new Error('expected C canonical shape to match primitive')
+  if (canonicalShapeOf('D') !== primitiveOf('D')) throw new Error('expected D canonical shape to match primitive')
+  if (nestingDepthOf('A') !== 0 || nestingDepthOf('B') !== 0 || nestingDepthOf('C') !== 0 || nestingDepthOf('D') !== 0) {
+    throw new Error('expected top-level Mermaid nodes to have canonical nesting depth 0')
+  }
 }

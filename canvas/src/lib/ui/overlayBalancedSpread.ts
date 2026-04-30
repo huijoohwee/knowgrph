@@ -6,6 +6,51 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v))
 }
 
+export function computeBalancedSpreadGridForTargetAspect(args: {
+  count: number
+  cellW: number
+  cellH: number
+  targetAspect: number
+  minCols?: number
+  maxCols?: number
+  maxRows?: number
+}): { cols: number; rows: number } {
+  const n = Math.max(1, Math.floor(args.count))
+  const cellW = Math.max(1, Number(args.cellW) || 1)
+  const cellH = Math.max(1, Number(args.cellH) || 1)
+  const targetAspect = clamp(Number(args.targetAspect) || BALANCED_OVERLAY_SPREAD_TARGET_ASPECT, 0.5, 2.8)
+  const maxCols = Math.max(1, Math.min(n, Math.floor(Number(args.maxCols) || n)))
+  const maxRows = Math.max(1, Math.min(n, Math.floor(Number(args.maxRows) || n)))
+  const minCols = Math.max(1, Math.min(maxCols, Math.floor(Number(args.minCols) || 1)))
+  const softRowsCap = Math.max(3, Math.min(maxRows, Math.ceil(Math.sqrt(n) * 1.8)))
+  let best: { cols: number; rows: number; score: number } | null = null
+  for (let cols = minCols; cols <= maxCols; cols += 1) {
+    const rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
+    if (rows > maxRows) continue
+    const gridAspect = (cols * cellW) / Math.max(1, rows * cellH)
+    const aspectScore = Math.abs(Math.log(Math.max(0.2, gridAspect) / Math.max(0.2, targetAspect)))
+    const emptySlots = cols * rows - n
+    const emptyPenalty = (emptySlots / Math.max(1, n)) * 0.24
+    const verticalPenalty = rows > cols ? (rows - cols) * 0.16 : 0
+    const widePenalty = cols > rows + 2 ? (cols - rows - 2) * 0.05 : 0
+    const tallPenalty = rows > softRowsCap ? (rows - softRowsCap) * 0.2 : 0
+    const singleRowPenalty = rows === 1 && n >= 5 ? 0.24 : 0
+    const singleColPenalty = cols === 1 && n >= 3 ? 0.35 : 0
+    const score =
+      aspectScore
+      + emptyPenalty
+      + verticalPenalty
+      + widePenalty
+      + tallPenalty
+      + singleRowPenalty
+      + singleColPenalty
+    if (!best || score < best.score - 1e-9 || (Math.abs(score - best.score) <= 1e-9 && cols > best.cols)) {
+      best = { cols, rows, score }
+    }
+  }
+  return best ? { cols: best.cols, rows: best.rows } : { cols: minCols, rows: Math.max(1, Math.ceil(n / Math.max(1, minCols))) }
+}
+
 export function computeBalancedSpreadGrid(args: {
   count: number
   viewportW: number
@@ -33,33 +78,15 @@ export function computeBalancedSpreadGrid(args: {
       (viewportAspect * 0.55 + BALANCED_OVERLAY_SPREAD_TARGET_ASPECT * 0.45) * Math.sqrt(zoomK),
     ),
   )
-  const softRowsCap = Math.max(3, Math.min(rowsCap, Math.ceil(Math.sqrt(n) * 1.8)))
-  let best: { cols: number; rows: number; score: number } | null = null
-  for (let cols = minCols; cols <= colsCap; cols += 1) {
-    const rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
-    if (rows > rowsCap) continue
-    const gridAspect = (cols * cellW) / Math.max(1, rows * cellH)
-    const aspectScore = Math.abs(Math.log(Math.max(0.2, gridAspect) / Math.max(0.2, weightedAspect)))
-    const emptySlots = cols * rows - n
-    const emptyPenalty = (emptySlots / Math.max(1, n)) * 0.24
-    const verticalPenalty = rows > cols ? (rows - cols) * 0.16 : 0
-    const widePenalty = cols > rows + 2 ? (cols - rows - 2) * 0.05 : 0
-    const tallPenalty = rows > softRowsCap ? (rows - softRowsCap) * 0.2 : 0
-    const singleRowPenalty = rows === 1 && n >= 5 ? 0.24 : 0
-    const singleColPenalty = cols === 1 && n >= 3 ? 0.35 : 0
-    const score =
-      aspectScore
-      + emptyPenalty
-      + verticalPenalty
-      + widePenalty
-      + tallPenalty
-      + singleRowPenalty
-      + singleColPenalty
-    if (!best || score < best.score - 1e-9 || (Math.abs(score - best.score) <= 1e-9 && cols > best.cols)) {
-      best = { cols, rows, score }
-    }
-  }
-  return best ? { cols: best.cols, rows: best.rows } : { cols: minCols, rows: Math.max(1, Math.ceil(n / Math.max(1, minCols))) }
+  return computeBalancedSpreadGridForTargetAspect({
+    count: n,
+    cellW,
+    cellH,
+    targetAspect: weightedAspect,
+    minCols,
+    maxCols: colsCap,
+    maxRows: rowsCap,
+  })
 }
 
 export function computeBalancedSpreadViewportMargins(args: {
@@ -123,6 +150,75 @@ export function isVerticalOverlayCluster(args: {
   }
   const spanY = Math.max(0, maxTop - minTop)
   return spanY >= Math.max(avgH * 2.2, gapPx * 3)
+}
+
+function countOverlayRows(args: {
+  items: Array<{ top: number; height: number }>
+  gapPx: number
+}): number {
+  const items = Array.isArray(args.items) ? args.items : []
+  if (items.length === 0) return 0
+  let sumH = 0
+  for (let i = 0; i < items.length; i += 1) {
+    sumH += Math.max(1, items[i]?.height || 1)
+  }
+  const avgH = Math.max(1, sumH / items.length)
+  const gapPx = Math.max(0, Number(args.gapPx) || 0)
+  const rowThreshold = Math.max(24, avgH * 0.62, gapPx * 1.25)
+  const tops = items
+    .map(it => Number(it?.top) || 0)
+    .sort((a, b) => a - b)
+  const rowAnchors: number[] = []
+  for (let i = 0; i < tops.length; i += 1) {
+    const top = tops[i]!
+    const rowIdx = rowAnchors.findIndex(anchor => Math.abs(anchor - top) <= rowThreshold)
+    if (rowIdx < 0) {
+      rowAnchors.push(top)
+      continue
+    }
+    rowAnchors[rowIdx] = Math.round((rowAnchors[rowIdx]! + top) / 2)
+  }
+  return rowAnchors.length
+}
+
+export function isHorizontalOverlayStrip(args: {
+  items: Array<{ left: number; top: number; width: number; height: number }>
+  gapPx: number
+}): boolean {
+  const items = Array.isArray(args.items) ? args.items : []
+  if (items.length < 4) return false
+  let minLeft = Number.POSITIVE_INFINITY
+  let maxLeft = Number.NEGATIVE_INFINITY
+  let minTop = Number.POSITIVE_INFINITY
+  let maxTop = Number.NEGATIVE_INFINITY
+  let sumW = 0
+  let sumH = 0
+  for (let i = 0; i < items.length; i += 1) {
+    const it = items[i]!
+    const width = Math.max(1, it.width)
+    const height = Math.max(1, it.height)
+    minLeft = Math.min(minLeft, it.left)
+    maxLeft = Math.max(maxLeft, it.left)
+    minTop = Math.min(minTop, it.top)
+    maxTop = Math.max(maxTop, it.top)
+    sumW += width
+    sumH += height
+  }
+  const avgW = Math.max(1, sumW / items.length)
+  const avgH = Math.max(1, sumH / items.length)
+  const gapPx = Math.max(0, Number(args.gapPx) || 0)
+  const rowCount = countOverlayRows({
+    items: items.map(it => ({ top: it.top, height: it.height })),
+    gapPx,
+  })
+  if (rowCount > 2) return false
+  const spanX = Math.max(0, maxLeft - minLeft)
+  const spanY = Math.max(0, maxTop - minTop)
+  const layoutAspect = (spanX + avgW) / Math.max(1, spanY + avgH)
+  const singleRow = rowCount <= 1 && items.length >= 4 && spanX >= Math.max(avgW * 2.4, gapPx * 3)
+  const shallowDoubleRow = rowCount === 2 && items.length >= 6 && spanY <= avgH * 1.45 && spanX >= Math.max(avgW * 3.2, gapPx * 4)
+  const overWide = rowCount <= 2 && items.length >= 5 && layoutAspect >= BALANCED_OVERLAY_SPREAD_TARGET_ASPECT * 1.95
+  return singleRow || shallowDoubleRow || overWide
 }
 
 export function computeBalancedSpreadSpacingPx(args: {

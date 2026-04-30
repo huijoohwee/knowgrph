@@ -1,5 +1,6 @@
 import React from 'react'
 import { parseMarkdownSigil } from '@/features/markdown/ui/markdownSigil'
+import { hasExpandedSelectionInRoot } from './markdownBlockContainerCore.interaction'
 
 type SelectionOffsets = { startOffset: number; endOffset: number }
 
@@ -34,11 +35,8 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     const root = args.editorRef.current
     if (!root) return
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
-    if (!sel || sel.rangeCount <= 0) return
+    if (!sel || !hasExpandedSelectionInRoot({ root, selection: sel })) return
     const range = sel.getRangeAt(0)
-    const container = range.commonAncestorContainer
-    const node = container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement
-    if (!node || !root.contains(node)) return
     const wrap = document.createElement('div')
     wrap.appendChild(range.cloneContents())
     const html = `${payload.leftHtml}${wrap.innerHTML}${payload.rightHtml}`
@@ -64,12 +62,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       void 0
     }
     const pickRange = (): Range | null => {
-      if (sel.rangeCount > 0) {
-        const r = sel.getRangeAt(0)
-        const c = r.commonAncestorContainer
-        const n = c.nodeType === Node.ELEMENT_NODE ? (c as Element) : c.parentElement
-        if (n && root.contains(n) && !r.collapsed) return r
-      }
+      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
       const last = args.lastNonCollapsedDomRangeRef.current
       if (last && !last.collapsed) {
         const c = last.commonAncestorContainer
@@ -89,12 +82,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
       }
       const offsets = args.getSelectionOffsets() || args.lastNonCollapsedSelectionOffsetsRef.current
       if (offsets && offsets.startOffset !== offsets.endOffset) args.setSelectionByOffsets(offsets)
-      if (sel.rangeCount > 0) {
-        const rr = sel.getRangeAt(0)
-        const cc = rr.commonAncestorContainer
-        const nn = cc.nodeType === Node.ELEMENT_NODE ? (cc as Element) : cc.parentElement
-        if (nn && root.contains(nn) && !rr.collapsed) return rr
-      }
+      if (hasExpandedSelectionInRoot({ root, selection: sel })) return sel.getRangeAt(0)
       return null
     }
     const findFirstWordRange = (): Range | null => {
@@ -185,11 +173,7 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     if (!root) return
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
     if (!sel) return
-    try {
-      if (sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed) return
-    } catch {
-      void 0
-    }
+    if (hasExpandedSelectionInRoot({ root, selection: sel })) return
     const last = args.lastNonCollapsedDomRangeRef.current
     if (last && !last.collapsed) {
       const c = last.commonAncestorContainer

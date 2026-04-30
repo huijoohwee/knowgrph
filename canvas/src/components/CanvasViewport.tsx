@@ -378,11 +378,10 @@ export type CanvasViewportProps = {
   canvasRenderMode: '2d' | '3d'
   canvas3dMode: Canvas3dModeId
   canvas2dRenderer: Canvas2dRendererId
-  mounted2dRenderers: { d3: boolean; flow: boolean; design: boolean; flowEditor: boolean }
 }
 
 export function CanvasViewport(props: CanvasViewportProps) {
-  const { variant, layout = 'full', geospatialModeEnabled, canvasRenderMode, canvas3dMode, canvas2dRenderer, mounted2dRenderers } = props
+  const { variant, layout = 'full', geospatialModeEnabled, canvasRenderMode, canvas3dMode, canvas2dRenderer } = props
   const activeGraphData = useActiveGraphRenderData(true)
   const active2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
   const d3SurfaceActive = active2dSurface === 'd3'
@@ -406,20 +405,13 @@ export function CanvasViewport(props: CanvasViewportProps) {
   })
   const activeSurface = geospatialModeEnabled ? 'geo' : canvasRenderMode === '3d' ? '3d' : '2d'
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
-  const [geospatialWarmed, setGeospatialWarmed] = React.useState(geospatialModeEnabled)
-  const [threeWarmed, setThreeWarmed] = React.useState(!geospatialModeEnabled && canvasRenderMode === '3d')
-  React.useEffect(() => {
-    if (geospatialModeEnabled) setGeospatialWarmed(true)
-  }, [geospatialModeEnabled])
-  React.useEffect(() => {
-    if (!geospatialModeEnabled && canvasRenderMode === '3d') setThreeWarmed(true)
-  }, [canvasRenderMode, geospatialModeEnabled])
   const rootRef = React.useRef<HTMLElement | null>(null)
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
 
   return (
     <section
       ref={rootRef}
+      data-kg-canvas-viewport-root="1"
       className="relative w-full h-full overflow-hidden"
       style={{ touchAction: 'manipulation', overscrollBehavior: 'none', WebkitTapHighlightColor: 'transparent' }}
       aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
@@ -428,22 +420,22 @@ export function CanvasViewport(props: CanvasViewportProps) {
         {!geospatialModeEnabled && canvasRenderMode === '2d' && (
           <div className="absolute inset-0 z-[10]">
             <div className={`absolute inset-0 ${d3SurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={!d3SurfaceActive}>
-              {mounted2dRenderers.d3 ? <GraphCanvasLazy active={d3SurfaceActive} /> : null}
+              {d3SurfaceActive ? <GraphCanvasLazy active /> : null}
             </div>
             <div className={`absolute inset-0 ${active2dSurface === 'flow' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'flow'}>
-              {mounted2dRenderers.flow ? <FlowCanvasLazy active={active2dSurface === 'flow'} /> : null}
+              {active2dSurface === 'flow' ? <FlowCanvasLazy active /> : null}
             </div>
             <div className={`absolute inset-0 ${active2dSurface === 'design' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'design'}>
-              {mounted2dRenderers.design ? <DesignCanvasLazy active={active2dSurface === 'design'} /> : null}
+              {active2dSurface === 'design' ? <DesignCanvasLazy active /> : null}
             </div>
             <div className={`absolute inset-0 ${active2dSurface === 'flowEditor' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'flowEditor'}>
-              {mounted2dRenderers.flowEditor ? <FlowEditorCanvas active={active2dSurface === 'flowEditor'} /> : null}
+              {active2dSurface === 'flowEditor' ? <FlowEditorCanvas active /> : null}
             </div>
           </div>
         )}
-        {!geospatialModeEnabled && canvasRenderMode === '3d' && threeWarmed ? (
+        {!geospatialModeEnabled && canvasRenderMode === '3d' ? (
           <div className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
-            <ThreeGraphLazy active={activeSurface === '3d'} mode={effectiveCanvas3dMode} />
+            <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
           </div>
         ) : null}
 
@@ -453,7 +445,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </div>
         ) : null}
 
-        {geospatialWarmed ? (
+        {geospatialModeEnabled ? (
           <CanvasViewportGeospatialOverlay
             active={activeSurface === 'geo'}
             geospatialModeEnabled={geospatialModeEnabled}

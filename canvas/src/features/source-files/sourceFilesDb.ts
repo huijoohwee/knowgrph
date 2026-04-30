@@ -144,6 +144,11 @@ const normalizeWorkspacePath = (v: unknown): string | null => {
   return normalized || null
 }
 
+const normalizeOptionalBoolean = (v: unknown): boolean | undefined => {
+  if (typeof v !== 'boolean') return undefined
+  return v
+}
+
 const normalizeSourceFileForPersistence = (payload: SourceFile): SourceFile => {
   const id = normalizeOptionalString(payload?.id)
   const name = normalizeText(payload?.name)
@@ -177,6 +182,28 @@ const normalizeSourceFileForPersistence = (payload: SourceFile): SourceFile => {
   } satisfies SourceFile
 }
 
+const arePersistedSourceFileSourcesEqual = (a: SourceFile['source'], b: SourceFile['source']): boolean => {
+  if (!a && !b) return true
+  if (!a || !b) return false
+  return (
+    String(a.kind || '') === String(b.kind || '') &&
+    normalizeOptionalString(a.path) === normalizeOptionalString(b.path) &&
+    normalizeOptionalString(a.url) === normalizeOptionalString(b.url)
+  )
+}
+
+const arePersistedSourceFilesEqual = (a: SourceFile, b: SourceFile): boolean =>
+  String(a.id || '') === String(b.id || '') &&
+  String(a.name || '') === String(b.name || '') &&
+  String(a.text || '') === String(b.text || '') &&
+  !!a.enabled === !!b.enabled &&
+  normalizeOptionalBoolean(a.geoLayerEnabled) === normalizeOptionalBoolean(b.geoLayerEnabled) &&
+  String(a.status || '') === String(b.status || '') &&
+  normalizeOptionalString(a.error) === normalizeOptionalString(b.error) &&
+  normalizeOptionalString(a.parsedParserId) === normalizeOptionalString(b.parsedParserId) &&
+  normalizeOptionalString(a.parsedTextHash) === normalizeOptionalString(b.parsedTextHash) &&
+  arePersistedSourceFileSourcesEqual(a.source, b.source)
+
 const normalizeWorkspaceState = (v: unknown): SourceFilesWorkspaceState => {
   const obj = (v && typeof v === 'object' ? (v as Record<string, unknown>) : {})
   const accessModeRaw = normalizeOptionalString(obj.accessMode)
@@ -191,6 +218,12 @@ const normalizeWorkspaceState = (v: unknown): SourceFilesWorkspaceState => {
     selectedFolderPath: normalizeWorkspacePath(obj.selectedFolderPath),
   }
 }
+
+const arePersistedWorkspaceStatesEqual = (a: SourceFilesWorkspaceState, b: SourceFilesWorkspaceState): boolean =>
+  a.folderName === b.folderName &&
+  a.accessMode === b.accessMode &&
+  a.folderCacheId === b.folderCacheId &&
+  a.selectedFolderPath === b.selectedFolderPath
 
 export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
   const { collections } = await getDb()
@@ -212,24 +245,31 @@ export const loadPersistedSourceFiles = async (): Promise<SourceFile[]> => {
 export const persistSourceFiles = async (files: SourceFile[]): Promise<void> => {
   const list = Array.isArray(files) ? files : []
   const now = Date.now()
-  const rows: SourceFileRowV1[] = list
+  const rows = list
     .map((payload, orderIndex) => {
       const normalized = normalizeSourceFileForPersistence(payload)
       const id = String(normalized?.id || '').trim()
       if (!id) return null
-      return { id, orderIndex, payload: normalized, updatedAtMs: now } satisfies SourceFileRowV1
+      return { id, orderIndex, payload: normalized }
     })
-    .filter(Boolean) as SourceFileRowV1[]
+    .filter(Boolean) as Array<Pick<SourceFileRowV1, 'id' | 'orderIndex' | 'payload'>>
 
   const { collections } = await getDb()
   const existing = await collections.sourceFiles.find().exec()
+  const existingById = new Map(existing.map(doc => [String(doc.get('id') || ''), doc]))
   const keep = new Set(rows.map(r => r.id))
   for (const doc of existing) {
     if (keep.has(doc.get('id'))) continue
     await doc.remove()
   }
   for (const row of rows) {
-    await collections.sourceFiles.incrementalUpsert(row)
+    const existingDoc = existingById.get(row.id)
+    if (existingDoc) {
+      const existingOrderIndex = Number(existingDoc.get('orderIndex') || 0)
+      const existingPayload = normalizeSourceFileForPersistence(existingDoc.get('payload') as SourceFile)
+      if (existingOrderIndex === row.orderIndex && arePersistedSourceFilesEqual(existingPayload, row.payload)) continue
+    }
+    await collections.sourceFiles.incrementalUpsert({ ...row, updatedAtMs: now })
   }
 }
 
@@ -244,5 +284,10 @@ export const persistSourceFilesWorkspace = async (state: SourceFilesWorkspaceSta
   const { collections } = await getDb()
   const now = Date.now()
   const payload = normalizeWorkspaceState(state)
+  const existing = await collections.workspace.findOne('workspace').exec()
+  if (existing) {
+    const existingPayload = normalizeWorkspaceState(existing.get('payload'))
+    if (arePersistedWorkspaceStatesEqual(existingPayload, payload)) return
+  }
   await collections.workspace.incrementalUpsert({ id: 'workspace', payload, updatedAtMs: now })
 }

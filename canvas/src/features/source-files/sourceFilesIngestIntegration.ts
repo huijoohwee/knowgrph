@@ -151,23 +151,35 @@ function syncDocumentViewFromSourceFile(
     const trimmed = text.trim()
     const fencedLang = lower.endsWith('.yml') || lower.endsWith('.yaml') ? 'yaml' : 'text'
     const markdown = trimmed ? ['```' + fencedLang, trimmed, '```', ''].join('\n') : text
+    if (!baselineLocked) {
+      try {
+        store.setWorkspaceViewMode('editor')
+      } catch {
+        void 0
+      }
+    }
     void store.setActiveMarkdownDocument({
       name,
       text: markdown,
       normalizeMermaidMmd: false,
       sourceUrl: sourceUrl || null,
       jsonSourceText: null,
-      workspaceViewMode: baselineLocked ? null : 'editor',
     })
     return
   }
   const normalized = normalizeMermaidMmdToMarkdown(name, text)
+  if (!baselineLocked) {
+    try {
+      store.setWorkspaceViewMode('editor')
+    } catch {
+      void 0
+    }
+  }
   void store.setActiveMarkdownDocument({
     name,
     text: normalized,
     normalizeMermaidMmd: false,
     sourceUrl: sourceUrl || null,
-    workspaceViewMode: baselineLocked ? null : 'editor',
     applyToGraph: opts?.applyToGraph ?? true,
     forceApplyToGraph: true,
   })

@@ -24,6 +24,7 @@ export type FlowCanvasProps = {
   hideNodeIds?: string[]
   hidePortHandleNodeIds?: string[]
   excludeRichMediaOverlayNodeIds?: string[]
+  flowEditorSurfaceId?: string
   renderEdges?: boolean
   renderGroups?: boolean
   renderNodes?: boolean

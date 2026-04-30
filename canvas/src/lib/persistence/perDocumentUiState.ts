@@ -38,9 +38,38 @@ type PersistedMapCache = {
   parsed: PersistedMapV1
 }
 
+type PersistedOrderCache = {
+  raw: string | null
+  parsed: string[]
+}
+
+type PersistedEntryCache = {
+  raw: string | null
+  parsed: PerDocumentUiState | null
+}
+
 // Small, single-key cache: this payload is bounded (MAX_DOCS) and read frequently
 // under rapid document switching. Caching avoids repeated JSON.parse + coercion.
 let perDocumentUiStateCache: PersistedMapCache = { raw: null, parsed: EMPTY }
+let perDocumentUiStateOrderCache: PersistedOrderCache = { raw: null, parsed: [] }
+const perDocumentUiStateEntryCache = new Map<string, PersistedEntryCache>()
+
+const PER_DOCUMENT_UI_STATE_ENTRY_CACHE_LIMIT = 64
+const getPerDocumentUiStateOrderKey = (): string => `${LS_KEYS.perDocumentUiStateMap}:order`
+const getPerDocumentUiStateEntryKey = (documentKey: string): string => `${LS_KEYS.perDocumentUiStateMap}:${documentKey}`
+
+const notePerDocumentUiStateEntryCache = (storageKey: string, next: PersistedEntryCache): void => {
+  if (!storageKey) return
+  if (perDocumentUiStateEntryCache.has(storageKey)) {
+    perDocumentUiStateEntryCache.delete(storageKey)
+  }
+  perDocumentUiStateEntryCache.set(storageKey, next)
+  if (perDocumentUiStateEntryCache.size <= PER_DOCUMENT_UI_STATE_ENTRY_CACHE_LIMIT) return
+  const oldestKey = perDocumentUiStateEntryCache.keys().next().value
+  if (typeof oldestKey === 'string' && oldestKey) {
+    perDocumentUiStateEntryCache.delete(oldestKey)
+  }
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -137,6 +166,75 @@ function readPerDocumentUiStateMapCached(storage: Storage | null): PersistedMapV
   }
 }
 
+function readPerDocumentUiStateOrderCached(storage: Storage | null): string[] {
+  if (!storage) return []
+  const orderKey = getPerDocumentUiStateOrderKey()
+  let raw: string | null = null
+  try {
+    raw = storage.getItem(orderKey)
+  } catch {
+    return []
+  }
+  if (!raw) {
+    perDocumentUiStateOrderCache = { raw: null, parsed: [] }
+    return []
+  }
+  if (raw === perDocumentUiStateOrderCache.raw) return perDocumentUiStateOrderCache.parsed
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    const order = coerceStringArray(parsed).slice(0, MAX_DOCS)
+    perDocumentUiStateOrderCache = { raw, parsed: order }
+    return order
+  } catch {
+    perDocumentUiStateOrderCache = { raw, parsed: [] }
+    return []
+  }
+}
+
+function readPerDocumentUiStateEntryCached(storage: Storage | null, documentKey: string): PerDocumentUiState | null {
+  if (!storage) return null
+  const storageKey = getPerDocumentUiStateEntryKey(documentKey)
+  let raw: string | null = null
+  try {
+    raw = storage.getItem(storageKey)
+  } catch {
+    return null
+  }
+  const cached = perDocumentUiStateEntryCache.get(storageKey)
+  if (cached && cached.raw === raw) return cached.parsed
+  if (!raw) {
+    notePerDocumentUiStateEntryCache(storageKey, { raw: null, parsed: null })
+    return null
+  }
+  try {
+    const parsed = coerceState(JSON.parse(raw) as unknown)
+    const next = { raw, parsed }
+    notePerDocumentUiStateEntryCache(storageKey, next)
+    return parsed
+  } catch {
+    notePerDocumentUiStateEntryCache(storageKey, { raw, parsed: null })
+    return null
+  }
+}
+
+function readPersistedPerDocumentUiState(storage: Storage | null): PersistedMapV1 {
+  const order = readPerDocumentUiStateOrderCached(storage)
+  if (order.length > 0) {
+    const byKey: Record<string, PerDocumentUiState> = {}
+    const normalizedOrder: string[] = []
+    for (let i = 0; i < order.length; i += 1) {
+      const documentKey = String(order[i] || '').trim()
+      if (!documentKey) continue
+      const entry = readPerDocumentUiStateEntryCached(storage, documentKey)
+      if (!entry) continue
+      normalizedOrder.push(documentKey)
+      byKey[documentKey] = entry
+    }
+    return { v: 1, order: normalizedOrder, byKey }
+  }
+  return readPerDocumentUiStateMapCached(storage)
+}
+
 function writePerDocumentUiStateMapCached(storage: Storage | null, map: PersistedMapV1): void {
   if (!storage) return
   try {
@@ -168,9 +266,11 @@ export function readPerDocumentUiState(args: {
   documentKey: string
 }): PerDocumentUiState | null {
   const storage = args.storage === undefined ? getLocalStorage() : args.storage
-  const map = readPerDocumentUiStateMapCached(storage)
   const key = String(args.documentKey || '').trim()
   if (!key) return null
+  const order = readPerDocumentUiStateOrderCached(storage)
+  if (order.length > 0) return readPerDocumentUiStateEntryCached(storage, key)
+  const map = readPerDocumentUiStateMapCached(storage)
   return map.byKey[key] ?? null
 }
 
@@ -184,7 +284,7 @@ export function writePerDocumentUiState(args: {
   const documentKey = String(args.documentKey || '').trim()
   if (!documentKey) return
   const now = Date.now()
-  const map = readPerDocumentUiStateMapCached(storage)
+  const map = readPersistedPerDocumentUiState(storage)
 
   const nextEntry: PerDocumentUiState = {
     ...args.state,
@@ -201,5 +301,34 @@ export function writePerDocumentUiState(args: {
     const v = nextByKey[k]
     if (v) trimmedByKey[k] = v
   }
-  writePerDocumentUiStateMapCached(storage, { v: 1, order: trimmedOrder, byKey: trimmedByKey })
+  if (!storage) return
+  try {
+    const orderRaw = JSON.stringify(trimmedOrder)
+    if (orderRaw !== perDocumentUiStateOrderCache.raw) {
+      storage.setItem(getPerDocumentUiStateOrderKey(), orderRaw)
+      perDocumentUiStateOrderCache = { raw: orderRaw, parsed: trimmedOrder }
+    }
+    for (let i = 0; i < trimmedOrder.length; i += 1) {
+      const key = trimmedOrder[i]
+      const entry = trimmedByKey[key]
+      if (!entry) continue
+      const storageKey = getPerDocumentUiStateEntryKey(key)
+      const raw = JSON.stringify(entry)
+      const cached = perDocumentUiStateEntryCache.get(storageKey)
+      if (!cached || cached.raw !== raw) {
+        storage.setItem(storageKey, raw)
+        notePerDocumentUiStateEntryCache(storageKey, { raw, parsed: entry })
+      }
+    }
+    for (const staleKey of Object.keys(map.byKey)) {
+      if (trimmedByKey[staleKey]) continue
+      const storageKey = getPerDocumentUiStateEntryKey(staleKey)
+      storage.removeItem(storageKey)
+      notePerDocumentUiStateEntryCache(storageKey, { raw: null, parsed: null })
+    }
+    storage.removeItem(LS_KEYS.perDocumentUiStateMap)
+    perDocumentUiStateCache = { raw: null, parsed: EMPTY }
+  } catch {
+    void 0
+  }
 }

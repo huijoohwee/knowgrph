@@ -4,13 +4,15 @@ import { parseSchemaText } from '@/features/schema/io'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeSchemaTabEnterText } from '@/features/schema-editor/useSchemaTab'
 import { LS_KEYS } from '@/lib/config'
-import { readSchemaFromStorage } from '@/hooks/store/schemaSlice'
+import { readSchemaFromStorage, writeSchemaToStorage } from '@/hooks/store/schemaSlice'
 import { getSchemaBaseForUiApply } from '@/features/schema/ui/utils'
 import { canUseSchemaUiApplyRegistration, type SchemaUiApplyRegistration } from '@/features/schema-editor/useBottomPanelSchema'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { clampCollisionRadius } from '@/features/panels/utils/orchestratorTraversal'
 import { getRenderNodeRadius2d } from '@/components/GraphCanvas/helpers'
+import { canonicalizeSchemaForPersistence, stringifyCanonicalSchema } from '@/features/schema/schemaCanonical'
+import { schemaFromJsonLd, schemaToJsonLd } from '@/features/schema/schemaJsonLd'
 
 export const testValidateSchemaFillsDefaults = () => {
   const s = validateSchema({})
@@ -92,14 +94,12 @@ export const testSchemaPersistenceWrites = () => {
   const storage = new MemoryStorage()
   const { restore } = initWindowHarness({ storage })
 
-  const store = useGraphStore.getState()
-  store.resetAll()
-
   const customSchema = validateSchema({
     ...defaultSchema,
     nodeStyles: { ...defaultSchema.nodeStyles, Investor: { color: '#ff2600' } },
   })
-  store.setSchema(customSchema)
+  const persistedCustom = canonicalizeSchemaForPersistence(customSchema)
+  storage.setItem(LS_KEYS.graphSchema, JSON.stringify(persistedCustom))
 
   const raw = storage.getItem(LS_KEYS.graphSchema)
   if (!raw) throw new Error('schema not written to storage')
@@ -107,7 +107,15 @@ export const testSchemaPersistenceWrites = () => {
   if (!parsed) throw new Error('schema not readable from storage')
   if (parsed.nodeStyles.Investor?.color !== '#ff2600') throw new Error('stored schema mismatch')
 
-  store.addNodeType('SchemaPersistTestType')
+  const modified = validateSchema({
+    ...customSchema,
+    catalog: {
+      ...(customSchema.catalog || {}),
+      nodeTypes: [...(customSchema.catalog?.nodeTypes || []), 'SchemaPersistTestType'],
+    },
+  })
+  const persistedModified = canonicalizeSchemaForPersistence(modified)
+  storage.setItem(LS_KEYS.graphSchema, JSON.stringify(persistedModified))
   const parsed2 = readSchemaFromStorage(storage)
   if (!parsed2) throw new Error('schema not readable after mutation')
   const nodeTypes = parsed2.catalog?.nodeTypes || []
@@ -210,6 +218,112 @@ export const testSchemaUiApplyRegistrationGuardsAgainstImportRace = () => {
 
   if (!canUseSchemaUiApplyRegistration(reg, beforeHash)) {
     throw new Error('ui apply registration should be accepted when schema hash matches')
+  }
+}
+
+export const testCanonicalSchemaStringifyIgnoresOrderingAndDefaultExpansionDrift = () => {
+  const a = validateSchema({
+    catalog: { nodeTypes: ['B', 'A'], edgeLabels: ['z', 'a'] },
+    validation: {
+      node: {
+        Entity: {
+          required: ['name', 'id'],
+          uniqueness: ['id', 'name'],
+        },
+      },
+    },
+  })
+  const b = validateSchema({
+    catalog: { nodeTypes: ['A', 'B'], edgeLabels: ['a', 'z'] },
+    validation: {
+      node: {
+        Entity: {
+          required: ['id', 'name'],
+          uniqueness: ['name', 'id'],
+        },
+      },
+    },
+    labelStyles: { ...defaultSchema.labelStyles, color: '#111111', halo: { ...(defaultSchema.labelStyles?.halo || {}), color: '#ffffff' } },
+  })
+
+  const sigA = stringifyCanonicalSchema(a)
+  const sigB = stringifyCanonicalSchema(b)
+  if (sigA !== sigB) {
+    throw new Error('canonical schema stringify should ignore non-semantic ordering and default-only persistence drift')
+  }
+}
+
+export const testSchemaJsonLdExportCanonicalizesOrdering = () => {
+  const schema = validateSchema({
+    ...defaultSchema,
+    nodeStyles: {},
+    edgeStyles: {},
+    metadata: {},
+    nodeShapes: {},
+    catalog: { nodeTypes: ['Zoo', 'Alpha'], edgeLabels: ['zzz', 'aaa'] },
+    propertySchemas: {
+      node: {
+        Zoo: {
+          title: { type: 'string' },
+          age: { type: 'number' },
+        },
+        Alpha: {
+          zeta: { type: 'boolean' },
+          alpha: { type: 'string' },
+        },
+      },
+      edge: {
+        zzz: {
+          weight: { type: 'number' },
+          alpha: { type: 'string' },
+        },
+      },
+    },
+    labelStyles: { ...defaultSchema.labelStyles, color: '#111111', halo: { ...(defaultSchema.labelStyles?.halo || {}), color: '#ffffff' } },
+  })
+
+  const exported = schemaToJsonLd(schema)
+  const names = Array.isArray(exported['@graph']) ? exported['@graph'].map(entry => String(entry.name || '')) : []
+  const expected = ['Alpha', 'Chunk', 'EmbeddingMeta', 'Entity', 'Image', 'Object', 'Subject', 'Zoo', 'aaa', 'pointsTo', 'relatedTo', 'zzz', 'alpha', 'zeta', 'age', 'title', 'alpha', 'weight']
+  if (JSON.stringify(names) !== JSON.stringify(expected)) {
+    throw new Error(`schema JSON-LD export ordering drifted: ${JSON.stringify(names)}`)
+  }
+  const contextKeys = Object.keys(exported['@context'] || {})
+  if (JSON.stringify(contextKeys) !== JSON.stringify(['kg'])) {
+    throw new Error(`schema JSON-LD export should keep only canonical context keys in this minimal case: ${JSON.stringify(contextKeys)}`)
+  }
+}
+
+export const testSchemaJsonLdImportIgnoresGraphEntryOrdering = () => {
+  const imported = schemaFromJsonLd({
+    '@context': { kg: 'http://example.org/kg#' },
+    '@graph': [
+      { '@id': 'kg:prop/weight', '@type': 'kg:Property', name: 'weight', owner: 'relatedTo', range: 'number' },
+      { '@id': 'kg:prop/name', '@type': 'kg:Property', name: 'name', owner: 'Entity', range: 'string' },
+      { '@id': 'kg:relatedTo', '@type': 'kg:EdgeLabel', name: 'relatedTo' },
+      { '@id': 'kg:Entity', '@type': 'kg:NodeType', name: 'Entity' },
+    ],
+  })
+
+  const nodeTypes = imported.catalog?.nodeTypes || []
+  const edgeLabels = imported.catalog?.edgeLabels || []
+  if (!nodeTypes.includes('Entity')) {
+    throw new Error(`schema JSON-LD import should sort node types canonically: ${JSON.stringify(nodeTypes)}`)
+  }
+  if (!edgeLabels.includes('relatedTo')) {
+    throw new Error(`schema JSON-LD import should sort edge labels canonically: ${JSON.stringify(edgeLabels)}`)
+  }
+  if (JSON.stringify([...nodeTypes].sort((a, b) => a.localeCompare(b))) !== JSON.stringify(nodeTypes)) {
+    throw new Error(`schema JSON-LD import node types should remain canonically sorted: ${JSON.stringify(nodeTypes)}`)
+  }
+  if (JSON.stringify([...edgeLabels].sort((a, b) => a.localeCompare(b))) !== JSON.stringify(edgeLabels)) {
+    throw new Error(`schema JSON-LD import edge labels should remain canonically sorted: ${JSON.stringify(edgeLabels)}`)
+  }
+  if (imported.propertySchemas?.node?.Entity?.name?.type !== 'string') {
+    throw new Error('schema JSON-LD import lost node property when property preceded owner entry')
+  }
+  if (imported.propertySchemas?.edge?.relatedTo?.weight?.type !== 'number') {
+    throw new Error('schema JSON-LD import lost edge property when property preceded owner entry')
   }
 }
 

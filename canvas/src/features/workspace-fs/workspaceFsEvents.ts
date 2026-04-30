@@ -10,19 +10,34 @@ export type WorkspaceFsChangedDetail = {
 
 let workspaceFsChangedBatchDepth = 0
 let pendingWorkspaceFsChangedDetail: WorkspaceFsChangedDetail | null = null
+let suppressPendingWorkspaceFsChangedBatchEvent = false
 
 export async function runWorkspaceFsChangedBatch<T>(fn: () => Promise<T> | T): Promise<T> {
   workspaceFsChangedBatchDepth += 1
+  let result!: T
   try {
-    return await fn()
+    result = await fn()
   } finally {
     workspaceFsChangedBatchDepth = Math.max(0, workspaceFsChangedBatchDepth - 1)
     if (workspaceFsChangedBatchDepth === 0 && pendingWorkspaceFsChangedDetail) {
       const pending = pendingWorkspaceFsChangedDetail
       pendingWorkspaceFsChangedDetail = null
-      notifyWorkspaceFsChanged({ op: 'batch', path: pending.path })
+      if (suppressPendingWorkspaceFsChangedBatchEvent) {
+        suppressPendingWorkspaceFsChangedBatchEvent = false
+      } else {
+        notifyWorkspaceFsChanged({ op: 'batch', path: pending.path })
+      }
     }
+    if (workspaceFsChangedBatchDepth === 0) suppressPendingWorkspaceFsChangedBatchEvent = false
   }
+  return result
+}
+
+export function suppressNextWorkspaceFsChangedEvent(count: number = 1): void {
+  const next = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0
+  if (next < 1) return
+  if (workspaceFsChangedBatchDepth < 1) return
+  suppressPendingWorkspaceFsChangedBatchEvent = true
 }
 
 export function notifyWorkspaceFsChanged(detail?: WorkspaceFsChangedDetail): void {

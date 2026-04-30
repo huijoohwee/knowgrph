@@ -40,6 +40,7 @@ export default function FlowCanvas({
   hideNodeIds,
   hidePortHandleNodeIds,
   excludeRichMediaOverlayNodeIds,
+  flowEditorSurfaceId,
   renderEdges,
   renderGroups,
   renderNodes,
@@ -359,6 +360,7 @@ export default function FlowCanvas({
 
   useFlowCanvasRuntime({
     active,
+    flowEditorSurfaceId,
     allowNodeDragOverride,
     collisionDuringDrag,
     viewportControlsPreset,
@@ -473,6 +475,7 @@ export default function FlowCanvas({
         threeIframeOverlayBaseWidthMinPxCompact={threeIframeOverlayBaseWidthMinPxCompact}
         threeIframeOverlayBaseWidthMaxPxDefault={threeIframeOverlayBaseWidthMaxPxDefault}
         threeIframeOverlayBaseWidthMaxPxCompact={threeIframeOverlayBaseWidthMaxPxCompact}
+        flowEditorSurfaceId={flowEditorSurfaceId}
         onPlannedOverlayNodeIdsChange={handlePlannedOverlayNodeIdsChange}
       />
       {selectionBox ? (

@@ -165,13 +165,13 @@ export async function performYouTubeImport(type: YouTubeImportType, providedUrlO
 
     const state = useGraphStore.getState()
     const markdownName = ensureMarkdownFileName(converted.displayName)
+    state.setWorkspaceViewMode('editor')
     void state.setActiveMarkdownDocument({
       name: markdownName,
       text: markdownForEditors,
       normalizeMermaidMmd: false,
       sourceUrl: converted.sourceUrl,
       jsonSourceText: null,
-      workspaceViewMode: 'editor',
       recent: { name: markdownName, url: converted.sourceUrl, type: 'markdown' },
     })
 

@@ -151,7 +151,11 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
       frontmatterModeEnabled: st.frontmatterModeEnabled === true,
       documentSemanticMode: String(st.documentSemanticMode || ''),
     })) return
-    const resolved = resolveFlowEditorOverlayProxyTarget({ target: (e as unknown as { target?: unknown }).target, canvasEl })
+    const resolved = resolveFlowEditorOverlayProxyTarget({
+      target: (e as unknown as { target?: unknown }).target,
+      canvasEl,
+      flowEditorSurfaceId: ctx.args.flowEditorSurfaceId,
+    })
     const proxyOverlayWheel = shouldProxyWheelFromOverlay(e, resolved, { isFlowEditor })
     const ignoreWheelTarget = shouldIgnoreCanvasWheelEvent({ event: e, ignoreSelector: UI_SELECTORS.canvasWheelIgnore })
     if (ignoreWheelTarget && !proxyOverlayWheel) return
@@ -182,7 +186,11 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
       frontmatterModeEnabled: st.frontmatterModeEnabled === true,
       documentSemanticMode: String(st.documentSemanticMode || ''),
     })) return false
-    const resolved = resolveFlowEditorOverlayProxyTarget({ target: (event as unknown as { target?: unknown }).target, canvasEl })
+    const resolved = resolveFlowEditorOverlayProxyTarget({
+      target: (event as unknown as { target?: unknown }).target,
+      canvasEl,
+      flowEditorSurfaceId: ctx.args.flowEditorSurfaceId,
+    })
     if (resolved.kind === 'none') return false
     return true
   }

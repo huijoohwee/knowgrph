@@ -11,11 +11,8 @@ import {
 } from '@/features/source-files/sourceFilesDb'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { hydratePendingUrlSourceFiles, refreshPersistedSourceFilesForCurrentParseIdentity } from '@/features/source-files/sourceFilesIngestIntegration'
-import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
-import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import { loadWorkspaceSourceIndex, type WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
-import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
@@ -23,12 +20,10 @@ import {
   WORKSPACE_SYNC_TASK_SOURCE_FILES_PERSIST,
   WORKSPACE_SYNC_TASK_SOURCE_FILES_WORKSPACE,
 } from '@/lib/async/workspaceSyncKeys'
-import { resolveWorkspaceStartupActivePath } from '@/features/workspace-fs/workspaceFs'
 import {
-  CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
-  DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
-  TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
-} from '@/features/workspace-fs/workspaceFs'
+  materializeActiveWorkspaceEntryIntoSourceFiles,
+  resolveInitialWorkspaceStartupState,
+} from '@/features/source-files/sourceFilesRuntimeShared'
 
 const sourceFileTextHashCache = new WeakMap<object, string>()
 
@@ -80,72 +75,6 @@ function stripPersistedWorkspaceBackedSourceFiles(value: unknown) {
     const sourcePath = String((entry as { source?: { path?: unknown } } | null)?.source?.path || '')
     return !sourcePath.startsWith('workspace:')
   })
-}
-
-export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
-  activePathOverride?: WorkspacePath | null
-  fs?: Awaited<ReturnType<typeof getWorkspaceFs>>
-  workspaceEntries?: WorkspaceEntry[]
-  sourcesByPath?: WorkspaceSourceIndex
-}): Promise<void> {
-  const activePath = String(args?.activePathOverride ?? useMarkdownExplorerStore.getState().activePath ?? '').trim()
-  if (!activePath) return
-  const fs = args?.fs || (await getWorkspaceFs())
-  await fs.ensureSeed()
-  const workspaceEntries = Array.isArray(args?.workspaceEntries) ? args.workspaceEntries : await fs.listEntries()
-  const sourcesByPath = args?.sourcesByPath || loadWorkspaceSourceIndex()
-  const store = useGraphStore.getState()
-  const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-  const merged = mergeWorkspaceEntriesIntoSourceFiles({
-    existing,
-    workspaceEntries,
-    sourcesByPath,
-    forceIncludePaths: [activePath],
-  })
-  if (merged !== existing) {
-    store.setSourceFiles(merged)
-  }
-  const materialized = await applyWorkspaceImportToCanvas({
-    fs,
-    createdPaths: [activePath],
-    opts: { workspaceEntries, sourcesByPath },
-  })
-  if (materialized.parsedCount > 0 || materialized.enabledCount > 0) {
-    scheduleApplyComposedGraphFromSourceFiles()
-  }
-}
-
-async function resolveInitialWorkspaceStartupState(): Promise<{
-  activePath: WorkspacePath | null
-  workspaceEntries: WorkspaceEntry[]
-}> {
-  const explorer = useMarkdownExplorerStore.getState()
-  const store = useGraphStore.getState()
-  const preferValidationSeedForRenderer = store.canvas2dRenderer === 'flowEditor'
-  const preferCustomValidationSeed =
-    CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
-    TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
-  const fs = await getWorkspaceFs()
-  await fs.ensureSeed()
-  const workspaceEntries = await fs.listEntries()
-  const workspaceFilePaths = workspaceEntries
-    .filter((entry): entry is { path: WorkspacePath; kind: 'file' } => entry.kind === 'file')
-    .map(entry => entry.path)
-  const desiredActivePath = resolveWorkspaceStartupActivePath({
-    workspaceFilePaths,
-    activePath: explorer.activePath,
-    preferValidationSeedForDefaultFamily: preferCustomValidationSeed || preferValidationSeedForRenderer,
-    forceValidationSeedIfPresent: preferCustomValidationSeed,
-  })
-  if (explorer.lastSetActivePath && !preferCustomValidationSeed) {
-    if (!desiredActivePath || desiredActivePath === explorer.activePath) {
-      return { activePath: explorer.activePath, workspaceEntries: [] }
-    }
-  }
-  if (desiredActivePath && desiredActivePath !== explorer.activePath) {
-    explorer.setActivePath(desiredActivePath)
-  }
-  return { activePath: desiredActivePath, workspaceEntries }
 }
 
 export function SourceFilesPersistenceBootstrap() {
@@ -210,6 +139,7 @@ export function SourceFilesPersistenceBootstrap() {
             activePathOverride: startup.activePath,
             workspaceEntries: startup.workspaceEntries.length > 0 ? startup.workspaceEntries : undefined,
             sourcesByPath: startupSourcesByPath,
+            applyToGraph: true,
           })
           lastMaterializedActivePathRef.current = String(startup.activePath || '').trim()
         } catch {
@@ -259,7 +189,7 @@ export function SourceFilesPersistenceBootstrap() {
       }
       if (lastMaterializedActivePathRef.current === activePath) return
       lastMaterializedActivePathRef.current = activePath
-      void materializeActiveWorkspaceEntryIntoSourceFiles().catch(() => {
+      void materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false }).catch(() => {
         if (lastMaterializedActivePathRef.current === activePath) {
           lastMaterializedActivePathRef.current = ''
         }
@@ -268,12 +198,8 @@ export function SourceFilesPersistenceBootstrap() {
     const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(s => s.activePath, () => {
       syncNow()
     })
-    const unsubscribeWorkspaceViewMode = useGraphStore.subscribe(s => s.workspaceViewMode, () => {
-      syncNow()
-    })
     return () => {
       unsubscribeActivePath()
-      unsubscribeWorkspaceViewMode()
     }
   }, [])
 

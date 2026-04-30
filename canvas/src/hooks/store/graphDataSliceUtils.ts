@@ -1,4 +1,4 @@
-import type { GetGraph } from '@/hooks/store/graphDataSlice'
+import type { GetGraph } from '@/hooks/store/graph-data-slice/graphDataSliceAccess'
 import type { GraphData } from '@/lib/graph/types'
 import { parseLayoutMode } from './graphDataSliceParsers'
 import { computeDerivedFields, parseGraphFieldId } from '@/features/graph-fields/graphFields'
@@ -316,7 +316,13 @@ export function syncGraphFieldsWithGraphData(
     nextSettings[k as keyof typeof currentSettings] = v
   }
   if (!recordsShallowEqual(currentSettings as Record<string, unknown>, nextSettings as Record<string, unknown>)) {
-    get().setGraphFieldSettingsById(nextSettings)
+    const state = get()
+    const currentKeys = new Set(Object.keys(currentSettings))
+    const nextKeys = new Set(Object.keys(nextSettings))
+    for (const staleKey of currentKeys) {
+      if (nextKeys.has(staleKey)) continue
+      state.removeGraphFieldSetting(staleKey as keyof typeof nextSettings & string)
+    }
   }
 }
 

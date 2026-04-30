@@ -1,5 +1,12 @@
 import React from 'react'
 import { scheduleCoalescedTask } from '@/lib/async/coalescedScheduler'
+import {
+  computeFloatingMenuPosition,
+  getRangeRectSafe,
+  hasExpandedSelectionInRoot,
+  readLiveSelectionSnapshot,
+  type LiveSelectionSnapshot,
+} from './markdownBlockContainerCore.interaction'
 
 type VariableMode = 'ref' | 'create' | 'update' | 'fallback' | 'delete'
 
@@ -38,6 +45,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
   lastDocumentPointerDownTargetRef: React.MutableRefObject<Node | null>
   lastNonCollapsedSelectionOffsetsRef: React.MutableRefObject<{ startOffset: number; endOffset: number } | null>
   lastNonCollapsedDomRangeRef: React.MutableRefObject<Range | null>
+  liveSelectionSnapshotRef: React.MutableRefObject<LiveSelectionSnapshot | null>
   editorMouseUpSyncScheduleKey: string
   syncSelectionToolbarState: () => void
   runSelectionSyncBurst: (fn: () => void) => void
@@ -79,14 +87,11 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     args.emitParityProbe()
     if (args.editDisableRichUi) return
     const sel = typeof window !== 'undefined' ? window.getSelection() : null
-    if (!sel || sel.rangeCount <= 0) return
-    const range = sel.getRangeAt(0)
-    if (typeof (range as Range).getBoundingClientRect !== 'function') return
-    const rect = range.getBoundingClientRect()
-    const host = el.closest('[data-start-line]') as HTMLElement | null
-    const hostRect = host?.getBoundingClientRect() || el.getBoundingClientRect()
-    const leftPx = rect.left - hostRect.left
-    const topPx = rect.bottom - hostRect.top + 6
+    const snapshot = readLiveSelectionSnapshot({ root: el, selection: sel })
+    args.liveSelectionSnapshotRef.current = snapshot
+    const rect = snapshot?.rect || null
+    if (!rect) return
+    const { leftPx, topPx } = computeFloatingMenuPosition({ rangeRect: rect, root: el })
     const offsets = args.getSelectionOffsets()
     const caretOffset = offsets?.startOffset ?? 0
     const lineStartIdx = text.lastIndexOf('\n', Math.max(0, caretOffset) - 1) + 1
@@ -136,14 +141,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     const root = args.editorRef.current
     if (Date.now() < args.selectionSyncSuspendUntilRef.current && root) {
       const selNow = typeof window !== 'undefined' ? window.getSelection() : null
-      if (selNow && selNow.rangeCount > 0) {
-        const rr = selNow.getRangeAt(0)
-        if (!rr.collapsed) {
-          const cc = rr.commonAncestorContainer
-          const nn = cc.nodeType === Node.ELEMENT_NODE ? (cc as Element) : cc.parentElement
-          if (nn && root.contains(nn)) return
-        }
-      }
+      if (hasExpandedSelectionInRoot({ root, selection: selNow })) return
     }
     if (args.toolbarInteractingRef.current) return scheduleBlurCommit(60)
     if (Date.now() < args.toolbarInteractionUntilRef.current) return scheduleBlurCommit(60)
@@ -168,14 +166,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
       if (active && toolbarNode && toolbarNode.contains(active)) return
       if (active && variableNode && variableNode.contains(active)) return
       const selNow = typeof window !== 'undefined' ? window.getSelection() : null
-      if (selNow && selNow.rangeCount > 0) {
-        const rr = selNow.getRangeAt(0)
-        if (!rr.collapsed) {
-          const cc = rr.commonAncestorContainer
-          const nn = cc.nodeType === Node.ELEMENT_NODE ? (cc as Element) : cc.parentElement
-          if (nn && root.contains(nn)) return
-        }
-      }
+      if (hasExpandedSelectionInRoot({ root, selection: selNow })) return
     }
     if (Date.now() < args.editOpenBlurGuardUntilRef.current) return scheduleBlurCommit(60)
     if (Date.now() - args.lastEditorPointerDownAtRef.current < 420 || Date.now() - args.lastEditorPointerUpAtRef.current < 260) {
@@ -233,6 +224,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
     if (selNow && selNow.rangeCount > 0) {
       const rr = selNow.getRangeAt(0)
       if (!rr.collapsed) {
+        args.liveSelectionSnapshotRef.current = { range: rr, rect: getRangeRectSafe(rr) }
         const selection = args.getSelectionOffsets()
         if (selection && selection.startOffset !== selection.endOffset) args.lastNonCollapsedSelectionOffsetsRef.current = selection
         try {
@@ -261,16 +253,7 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
         return
       }
       const selNow = typeof window !== 'undefined' ? window.getSelection() : null
-      const hasSelection =
-        !!selNow &&
-        selNow.rangeCount > 0 &&
-        !selNow.getRangeAt(0).collapsed &&
-        (() => {
-          const rr = selNow.getRangeAt(0)
-          const cc = rr.commonAncestorContainer
-          const nn = cc.nodeType === Node.ELEMENT_NODE ? (cc as Element) : cc.parentElement
-          return !!nn && root.contains(nn)
-        })()
+      const hasSelection = hasExpandedSelectionInRoot({ root, selection: selNow })
       if (!hasSelection && attempt < 4) {
         window.requestAnimationFrame(() => runWhenEditorReady(attempt + 1))
         return
@@ -333,14 +316,13 @@ export const useMarkdownBlockContainerEditorEvents = (args: {
       const el = args.editorRef.current
       if (!el) return
       const sel = typeof window !== 'undefined' ? window.getSelection() : null
-      if (!sel || sel.rangeCount <= 0) return
-      const range = sel.getRangeAt(0)
+      const snapshot = readLiveSelectionSnapshot({ root: el, selection: sel })
+      const range = snapshot?.range || null
+      if (!range) return
+      args.liveSelectionSnapshotRef.current = snapshot
       args.linkRangeRef.current = range.cloneRange()
-      const rect = range.getBoundingClientRect()
-      const host = el.closest('[data-start-line]') as HTMLElement | null
-      const hostRect = host?.getBoundingClientRect() || el.getBoundingClientRect()
-      const leftPx = rect.left - hostRect.left
-      const topPx = rect.bottom - hostRect.top + 6
+      const rect = snapshot?.rect || null
+      const { leftPx, topPx } = computeFloatingMenuPosition({ rangeRect: rect, root: el })
       args.setLinkPopover({ show: true, leftPx, topPx, href: '' })
       args.setBubble(prev => (prev.show ? { ...prev, show: false } : prev))
     }

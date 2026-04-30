@@ -174,6 +174,41 @@ export function testWorkflowJsonLdGraphFieldSettingsGraphShape() {
   }
 }
 
+export function testWorkflowJsonLdGraphFieldSettingsCanonicalizesOrdering() {
+  const first: GraphFieldSettingsById = {
+    'edge:weight': { displayName: 'Weight', isHidden: false, fieldType: 'Number', isCustom: false },
+    'node:title': { displayName: 'Title', isHidden: false, fieldType: 'Single line text', isCustom: true },
+    'node:name': { displayName: 'Name', isHidden: false, fieldType: 'Single line text', isCustom: false },
+  }
+  const second: GraphFieldSettingsById = {
+    'node:name': { displayName: 'Name', isHidden: false, fieldType: 'Single line text', isCustom: false },
+    'node:title': { displayName: 'Title', isHidden: false, fieldType: 'Single line text', isCustom: true },
+    'edge:weight': { displayName: 'Weight', isHidden: false, fieldType: 'Number', isCustom: false },
+  }
+  const docA = buildGraphFieldSettingsJsonLdDocument('graph-1', first)
+  const docB = buildGraphFieldSettingsJsonLdDocument('graph-1', second)
+  const ids = (doc: Record<string, JSONValue>): string[] => {
+    const fields = doc['kg:fields'] as unknown
+    if (!Array.isArray(fields)) throw new Error('graph field settings JSON-LD kg:fields is not an array')
+    return fields.map(entry => {
+      const raw = (entry as Record<string, unknown>)['kg:fieldId']
+      return typeof raw === 'string' ? raw : ''
+    })
+  }
+  const expected = ['node:name', 'node:title', 'edge:weight']
+  if (JSON.stringify(ids(docA)) !== JSON.stringify(expected)) {
+    throw new Error(`graph field settings JSON-LD field order drifted: ${JSON.stringify(ids(docA))}`)
+  }
+  if (JSON.stringify(ids(docA)) !== JSON.stringify(ids(docB))) {
+    throw new Error('graph field settings JSON-LD should ignore settings map insertion order')
+  }
+  const parsed = parseGraphFieldSettingsDocument({ ...docA, 'kg:fields': [...(docA['kg:fields'] as unknown[] || [])].reverse() })
+  if (!parsed) throw new Error('parseGraphFieldSettingsDocument returned null for reversed fields')
+  if (JSON.stringify(Object.keys(parsed.settingsById)) !== JSON.stringify(expected)) {
+    throw new Error(`parsed graph field settings keys should be canonical: ${JSON.stringify(Object.keys(parsed.settingsById))}`)
+  }
+}
+
 export function testWorkflowJsonLdGraphFieldSettingsAgenticRagRoundTrip() {
   const settingsById: GraphFieldSettingsById = {
     'node:chunk_text': {

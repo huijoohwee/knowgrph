@@ -16,6 +16,24 @@ function DimsProbe() {
   )
 }
 
+function DimsProbeWithViewportSource() {
+  const ref = React.useRef<HTMLDivElement | null>(null)
+  const dims = useContainerDims(ref, {
+    resolveMeasureElement: self => {
+      if (!self) return null
+      const viewportRoot = self.closest('[data-kg-canvas-viewport-root="1"]')
+      return viewportRoot instanceof HTMLElement ? viewportRoot : self
+    },
+  })
+  return (
+    <section data-kg-canvas-viewport-root="1" data-testid="viewport-root">
+      <div ref={ref} data-testid="probe-inner">
+        {`${Math.floor(dims.width)}x${Math.floor(dims.height)}@${Math.floor(dims.left)},${Math.floor(dims.top)}`}
+      </div>
+    </section>
+  )
+}
+
 export async function testUseContainerDimsMeasuresMountedRectBeforeResizeObserverTicks() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
@@ -63,6 +81,77 @@ export async function testUseContainerDimsMeasuresMountedRectBeforeResizeObserve
       await new Promise<void>(resolve => setTimeout(resolve, 5))
     }
     throw new Error(`expected initial measured rect, got ${container.textContent || '<empty>'}`)
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testUseContainerDimsCanResolveCanonicalViewportSource() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    ;(globalThis as unknown as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub
+    ;(dom.window as unknown as { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub
+
+    const proto = dom.window.HTMLElement.prototype as HTMLElement
+    const originalGetBoundingClientRect = proto.getBoundingClientRect
+    dom.window.HTMLElement.prototype.getBoundingClientRect = function () {
+      const el = this as HTMLElement
+      if (el.dataset.testid === 'viewport-root') {
+        return {
+          left: 0,
+          top: 0,
+          width: 1920,
+          height: 1080,
+          right: 1920,
+          bottom: 1080,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect
+      }
+      if (el.dataset.testid === 'probe-inner') {
+        return {
+          left: 540,
+          top: 24,
+          width: 260,
+          height: 600,
+          right: 800,
+          bottom: 624,
+          x: 540,
+          y: 24,
+          toJSON: () => ({}),
+        } as DOMRect
+      }
+      return originalGetBoundingClientRect.call(this)
+    }
+
+    const container = dom.window.document.createElement('div')
+    dom.window.document.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(<DimsProbeWithViewportSource />)
+
+    const deadline = Date.now() + 500
+    while (Date.now() < deadline) {
+      const text = container.textContent || ''
+      if (text.includes('1920x1080@0,0')) return
+      await new Promise<void>(resolve => setTimeout(resolve, 5))
+    }
+    throw new Error(`expected canonical viewport rect, got ${container.textContent || '<empty>'}`)
   } finally {
     try {
       root?.unmount()

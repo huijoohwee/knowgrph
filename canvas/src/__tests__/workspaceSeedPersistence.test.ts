@@ -2,7 +2,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { materializeActiveWorkspaceEntryIntoSourceFiles } from '@/features/source-files/SourceFilesPersistenceBootstrap'
+import { materializeActiveWorkspaceEntryIntoSourceFiles } from '@/features/source-files/sourceFilesRuntimeShared'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   LEGACY_WORKSPACE_README_PATH,
@@ -312,6 +312,7 @@ export async function testWorkspaceBootstrapMaterializesActiveWorkspaceEntryInto
     await materializeActiveWorkspaceEntryIntoSourceFiles({
       activePathOverride: '/huijoohwee.github.io/template/knowgrph-video-script-template.md' as never,
       fs,
+      applyToGraph: true,
     })
     await new Promise<void>(resolve => setTimeout(resolve, 0))
 
@@ -356,11 +357,75 @@ export async function testWorkspaceBootstrapMaterializeReusesProvidedWorkspaceSn
       fs,
       workspaceEntries,
       sourcesByPath: {},
+      applyToGraph: true,
     })
     await new Promise<void>(resolve => setTimeout(resolve, 0))
 
     if (listEntriesCalls !== 1) {
       throw new Error(`expected bootstrap materialization to reuse provided workspace entries, got ${String(listEntriesCalls)} listEntries calls`)
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceBootstrapMaterializeDoesNotApplyGraphWithoutExplicitOptIn() {
+  const { restore } = initJsdomHarness()
+  try {
+    useGraphStore.getState().resetAll()
+    const fs = createMemoryWorkspaceFs({
+      initialEntries: [
+        { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+        {
+          path: '/notes/imported.md',
+          parentPath: '/notes',
+          kind: 'file',
+          name: 'imported.md',
+          text: [
+            '---',
+            'title: Imported',
+            'kgCanvasRenderMode: "2d"',
+            'kgCanvas2dRenderer: "flowEditor"',
+            'kgDocumentSemanticMode: "document"',
+            'kgFrontmatterModeEnabled: true',
+            'flow:',
+            '  nodes:',
+            '    - id: a',
+            '      type: Text',
+            '      label: A',
+            '    - id: b',
+            '      type: Text',
+            '      label: B',
+            '  edges:',
+            '    - id: e1',
+            '      source: a',
+            '      target: b',
+            '---',
+            '',
+            '# Imported',
+          ].join('\n'),
+          updatedAtMs: 1,
+        },
+      ],
+    })
+    const state = useGraphStore.getState()
+    state.setGraphData({ nodes: [{ id: 'keep', type: 'Text', x: 0, y: 0 } as never], edges: [] as never, metadata: {} as never } as never)
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: '/notes/imported.md' as never,
+      fs,
+    })
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    const after = useGraphStore.getState()
+    if (!after.graphData || (after.graphData.nodes || []).length !== 1 || String(after.graphData.nodes?.[0]?.id || '') !== 'keep') {
+      throw new Error('expected bootstrap workspace materialization to avoid graph apply unless explicitly opted in')
+    }
+    const sourceFile = after.sourceFiles.find(file => file.source?.path === 'workspace:/notes/imported.md')
+    if (!sourceFile) {
+      throw new Error('expected bootstrap workspace materialization to still mirror the active file into Source Files')
+    }
+    if (sourceFile.enabled !== true) {
+      throw new Error('expected bootstrap workspace materialization to keep the active source file enabled without applying graph state')
     }
   } finally {
     restore()

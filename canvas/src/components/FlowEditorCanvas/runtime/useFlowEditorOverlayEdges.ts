@@ -1,14 +1,19 @@
 import React from 'react'
 
-import { buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
+import { FLOW_HANDLE_DEFAULT_EDGE_ID, buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { type ToolMode, isRecord, pickString } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
-import { FLOW_EDITOR_INTERACTION_FRAME_EVENT, FLOW_EDITOR_OVERLAY_ROOT_SELECTOR } from '@/lib/canvas/flow-editor-overlay-proxy'
+import {
+  CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
+  FLOW_EDITOR_INTERACTION_FRAME_EVENT,
+  readCanvasOverlayNodeId,
+  readFlowEditorOverlaySurfaceId,
+} from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
-  buildSchemaFieldPortKey,
-  readSchemaFieldSpecs,
+  pickDefaultFlowPortKey,
+  readFlowEdgePortKey,
 } from '@/lib/graph/flowPorts'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphEdge } from '@/lib/graph/types'
@@ -38,6 +43,7 @@ function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>
 export function useFlowEditorOverlayEdges(args: {
   active: boolean
   overlayOnlyModeEnabled: boolean
+  flowEditorSurfaceId: string
   rootRef: React.RefObject<HTMLElement | null>
   draftGraphDataRef: React.MutableRefObject<GraphData | null>
   overlayEditorNodeIdsRef: React.MutableRefObject<string[]>
@@ -61,6 +67,7 @@ export function useFlowEditorOverlayEdges(args: {
   const overlayEdgeSocketStyleByTypeRef = React.useRef<Map<string, { color: string; edgeWidthPx: number | null }>>(new Map())
   const overlayEdgeLayoutSigRef = React.useRef<string>('')
   const overlayEdgeAnchorCacheRef = React.useRef<Map<string, { x: number; y: number }>>(new Map())
+  const lastStableOverlayEdgeNodeIdsRef = React.useRef<string[]>([])
   const overlayEdgeTopPctCacheRef = React.useRef<{
     key: string
     registry: ReadonlyArray<WidgetRegistryEntry> | null
@@ -134,17 +141,43 @@ export function useFlowEditorOverlayEdges(args: {
         return next
       })()
 
+      const domOverlayRootEntries = (() => {
+        if (typeof document === 'undefined') return [] as Array<{ id: string; el: HTMLElement }>
+        const entries: Array<{ id: string; el: HTMLElement }> = []
+        const els = Array.from(document.querySelectorAll<HTMLElement>(CANVAS_OVERLAY_PROXY_ROOT_SELECTOR))
+        for (let i = 0; i < els.length; i += 1) {
+          const el = els[i]
+          if (readFlowEditorOverlaySurfaceId(el) !== args.flowEditorSurfaceId) continue
+          const id = readCanvasOverlayNodeId(el)
+          if (!id) continue
+          entries.push({ id, el })
+        }
+        return entries
+      })()
+
       const overlayIdSet = (() => {
-        const ids = Array.isArray(args.overlayEditorNodeIdsRef.current) && args.overlayEditorNodeIdsRef.current.length > 0
+        const liveIds = Array.isArray(args.overlayEditorNodeIdsRef.current) && args.overlayEditorNodeIdsRef.current.length > 0
           ? args.overlayEditorNodeIdsRef.current
           : (Array.isArray(args.openWidgetNodeIdsRef.current) ? args.openWidgetNodeIdsRef.current : [])
         const sel = String(args.pendingOverlayNodeIdRef.current || '').trim()
         const set = new Set<string>()
-        for (let i = 0; i < ids.length; i += 1) {
-          const id = String(ids[i] || '').trim()
+        for (let i = 0; i < liveIds.length; i += 1) {
+          const id = String(liveIds[i] || '').trim()
+          if (id) set.add(id)
+        }
+        for (let i = 0; i < domOverlayRootEntries.length; i += 1) {
+          const id = String(domOverlayRootEntries[i]?.id || '').trim()
           if (id) set.add(id)
         }
         if (sel) set.add(sel)
+        if (set.size > 0) {
+          lastStableOverlayEdgeNodeIdsRef.current = Array.from(set)
+          return set
+        }
+        for (let i = 0; i < lastStableOverlayEdgeNodeIdsRef.current.length; i += 1) {
+          const id = String(lastStableOverlayEdgeNodeIdsRef.current[i] || '').trim()
+          if (id) set.add(id)
+        }
         return set
       })()
       if (overlayIdSet.size === 0) {
@@ -163,14 +196,15 @@ export function useFlowEditorOverlayEdges(args: {
         nodes.push({ id, type: rawNodes[i]?.type, properties: rawNodes[i]?.properties })
       }
 
-      const firstSchemaPortKeyByNodeId = (() => {
-        const map = new Map<string, string>()
+      const defaultPortKeyByNodeId = (() => {
+        const map = new Map<string, { in: string; out: string }>()
         for (let i = 0; i < nodes.length; i += 1) {
-          const id = String(nodes[i]?.id || '').trim()
+          const node = nodes[i]
+          const id = String(node?.id || '').trim()
           if (!id) continue
-          const fields = readSchemaFieldSpecs({ properties: nodes[i]?.properties as never }).map(f => f.id).filter(Boolean)
-          const first = fields[0]
-          if (first) map.set(id, buildSchemaFieldPortKey(first))
+          const outPortKey = pickDefaultFlowPortKey({ properties: node?.properties as never }, 'out') || FLOW_HANDLE_DEFAULT_EDGE_ID
+          const inPortKey = pickDefaultFlowPortKey({ properties: node?.properties as never }, 'in') || FLOW_HANDLE_DEFAULT_EDGE_ID
+          map.set(id, { out: outPortKey, in: inPortKey })
         }
         return map
       })()
@@ -215,10 +249,15 @@ export function useFlowEditorOverlayEdges(args: {
         if (!id || !source || !target) continue
         if (!overlayIdSet.has(source) || !overlayIdSet.has(target)) continue
         const props = rawEdges[i]?.properties
-        const sourcePortKeyRaw = readPropString(props, FLOW_EDGE_SOURCE_PORT_KEY)
-        const targetPortKeyRaw = readPropString(props, FLOW_EDGE_TARGET_PORT_KEY)
-        const sourcePortKey = sourcePortKeyRaw || firstSchemaPortKeyByNodeId.get(source) || id
-        const targetPortKey = targetPortKeyRaw || firstSchemaPortKeyByNodeId.get(target) || id
+        const edgeWithProps = { properties: props as GraphEdge['properties'] } as Pick<GraphEdge, 'properties'>
+        const sourcePortKey =
+          readFlowEdgePortKey(edgeWithProps, 'source')
+          || defaultPortKeyByNodeId.get(source)?.out
+          || FLOW_HANDLE_DEFAULT_EDGE_ID
+        const targetPortKey =
+          readFlowEdgePortKey(edgeWithProps, 'target')
+          || defaultPortKeyByNodeId.get(target)?.in
+          || FLOW_HANDLE_DEFAULT_EDGE_ID
         const edgeTypeFromEdge = pickString(rawEdges[i]?.type)
         const edgeTypeFromProps = readPropString(props, 'flow:socketType')
         const edgeSocketType = edgeTypeFromEdge || edgeTypeFromProps
@@ -236,13 +275,12 @@ export function useFlowEditorOverlayEdges(args: {
       }
 
       const overlayRectsByNodeId = (() => {
-        if (typeof document === 'undefined') return new Map<string, DOMRect>()
         const map = new Map<string, DOMRect>()
         const elById = new Map<string, HTMLElement>()
-        const els = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
-        for (let i = 0; i < els.length; i += 1) {
-          const el = els[i]
-          const id = String(el?.dataset?.kgWidget || '').trim()
+        for (let i = 0; i < domOverlayRootEntries.length; i += 1) {
+          const entry = domOverlayRootEntries[i]
+          const el = entry?.el
+          const id = entry?.id
           if (!id || !nodeIds.has(id)) continue
           map.set(id, el.getBoundingClientRect())
           elById.set(id, el)
@@ -250,12 +288,7 @@ export function useFlowEditorOverlayEdges(args: {
         overlayElByNodeIdRef.current = elById
         return map
       })()
-      if (overlayRectsByNodeId.size === 0) {
-        removeAllPaths(overlayEdgePathByIdRef)
-        overlayEdgeLayoutSigRef.current = ''
-        overlayEdgeAnchorCacheRef.current.clear()
-        return
-      }
+      if (overlayRectsByNodeId.size === 0) return
 
       const topPctByNodeAndHandle = (() => {
         const overlayNodeIds = nodes.map(n => String(n.id || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
@@ -413,7 +446,11 @@ export function useFlowEditorOverlayEdges(args: {
         const sourceId = String(pending.sourceId || '').trim()
         const sRect = sourceId ? overlayRectsByNodeId.get(sourceId) : null
         if (sRect && cursor) {
-          const handleKey = String(pending.sourcePortKey || firstSchemaPortKeyByNodeId.get(sourceId) || '__flow_default_handle__').trim()
+          const handleKey = String(
+            pending.sourcePortKey
+            || defaultPortKeyByNodeId.get(sourceId)?.out
+            || FLOW_HANDLE_DEFAULT_EDGE_ID,
+          ).trim()
           const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: handleKey })
           const sPct = topPctByNodeAndHandle.get(sourceId)?.get(outHandleId) ?? 50
           const a = readAnchor({ nodeId: sourceId, dir: 'out', portKey: handleKey, fallbackRect: sRect, fallbackPct: sPct })
@@ -457,12 +494,24 @@ export function useFlowEditorOverlayEdges(args: {
         const sRect = overlayRectsByNodeId.get(source)
         const tRect = overlayRectsByNodeId.get(target)
         if (!sRect || !tRect || !(sRect.height > 0 && tRect.height > 0)) continue
-        const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: e.sourcePortKey || edgeId })
-        const inHandleId = buildFlowHandleId({ dir: 'in', edgeId: e.targetPortKey || edgeId })
+        const outHandleId = buildFlowHandleId({ dir: 'out', edgeId: e.sourcePortKey || FLOW_HANDLE_DEFAULT_EDGE_ID })
+        const inHandleId = buildFlowHandleId({ dir: 'in', edgeId: e.targetPortKey || FLOW_HANDLE_DEFAULT_EDGE_ID })
         const sPct = topPctByNodeAndHandle.get(source)?.get(outHandleId) ?? 50
         const tPct = topPctByNodeAndHandle.get(target)?.get(inHandleId) ?? 50
-        const sAnchor = readAnchor({ nodeId: source, dir: 'out', portKey: e.sourcePortKey || edgeId, fallbackRect: sRect, fallbackPct: sPct })
-        const tAnchor = readAnchor({ nodeId: target, dir: 'in', portKey: e.targetPortKey || edgeId, fallbackRect: tRect, fallbackPct: tPct })
+        const sAnchor = readAnchor({
+          nodeId: source,
+          dir: 'out',
+          portKey: e.sourcePortKey || FLOW_HANDLE_DEFAULT_EDGE_ID,
+          fallbackRect: sRect,
+          fallbackPct: sPct,
+        })
+        const tAnchor = readAnchor({
+          nodeId: target,
+          dir: 'in',
+          portKey: e.targetPortKey || FLOW_HANDLE_DEFAULT_EDGE_ID,
+          fallbackRect: tRect,
+          fallbackPct: tPct,
+        })
         const sx = (sAnchor ? sAnchor.x : sRect.right) - baseLeft
         const tx = (tAnchor ? tAnchor.x : tRect.left) - baseLeft
         const sy = (sAnchor ? sAnchor.y : sRect.top + (Math.max(0, Math.min(100, sPct)) / 100) * sRect.height) - baseTop
@@ -577,6 +626,7 @@ export function useFlowEditorOverlayEdges(args: {
       removeAllPaths(overlayEdgePathByIdRef)
       overlayEdgeLayoutSigRef.current = ''
       overlayEdgeAnchorCacheRef.current.clear()
+      lastStableOverlayEdgeNodeIdsRef.current = []
       if (overlayPendingEdgePathRef.current) {
         try {
           overlayPendingEdgePathRef.current.remove()

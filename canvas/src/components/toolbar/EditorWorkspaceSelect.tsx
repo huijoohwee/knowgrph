@@ -5,7 +5,6 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { ToolbarDropdownSelect } from '@/components/toolbar/ToolbarDropdownSelect'
 import {
-  closeWorkspaceView,
   isWorkspaceTableOpen,
   openWorkspaceEditorPane,
   openWorkspaceTable,
@@ -75,7 +74,6 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
   )
 
   const activeKey: EditorWorkspaceOptionKey | null = isGraphTable ? 'multiDimTable' : isEditor ? 'editor' : null
-  const activeOption = activeKey ? options.find(o => o.key === activeKey) || null : null
 
   const triggerTitle = UI_LABELS.workspaceView
   const triggerTooltip = (() => {
@@ -87,24 +85,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
   const apply = React.useCallback(
     (key: EditorWorkspaceOptionKey) => {
       if (key === 'multiDimTable') {
-        if (isGraphTable) {
-          if (workspaceCanvasPaneOpen !== true) {
-            closeWorkspaceView({
-              workspaceViewMode: workspaceViewMode === 'editor' ? 'editor' : 'canvas',
-              workspaceCanvasPaneOpen,
-              setWorkspaceViewMode,
-              setWorkspaceCanvasPaneOpen,
-            })
-            openWorkspaceTable({
-              workspaceViewMode: workspaceViewMode === 'editor' ? 'editor' : 'canvas',
-              editorWorkspacePane,
-              workspaceCanvasPaneOpen: true,
-              setWorkspaceViewMode,
-              setEditorWorkspacePane,
-              setWorkspaceCanvasPaneOpen,
-            })
-            return
-          }
+        if (isGraphTable && workspaceCanvasPaneOpen === true) {
           return
         }
         const snap = workspaceTablePreferencesStore.getSnapshot()
@@ -122,25 +103,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
         return
       }
 
-      if (workspaceViewMode === 'editor' && !isGraphTable) {
-        if (workspaceCanvasPaneOpen !== true) {
-          closeWorkspaceView({
-            workspaceViewMode: 'editor',
-            workspaceCanvasPaneOpen,
-            setWorkspaceViewMode,
-            setWorkspaceCanvasPaneOpen,
-          })
-          openWorkspaceEditorPane({
-            workspaceViewMode: 'canvas',
-            editorWorkspacePane,
-            workspaceCanvasPaneOpen: true,
-            pane: 'markdown',
-            setWorkspaceViewMode,
-            setEditorWorkspacePane,
-            setWorkspaceCanvasPaneOpen,
-          })
-          return
-        }
+      if (workspaceViewMode === 'editor' && !isGraphTable && workspaceCanvasPaneOpen === true) {
         return
       }
 

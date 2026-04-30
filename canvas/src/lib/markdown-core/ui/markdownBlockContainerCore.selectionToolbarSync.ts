@@ -1,7 +1,15 @@
 import React from 'react'
 import { cancelCoalescedTask, scheduleCoalescedTask } from '@/lib/async/coalescedScheduler'
 import { captureSelectionForFloatingToolbar } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
-import { computeBubblePosition, getRangeRectSafe, resolveActiveSelectionRange } from './markdownBlockContainerCore.interaction'
+import {
+  computeBubblePosition,
+  getEditorHostRect,
+  hasExpandedSelectionInRoot,
+  readLiveSelectionSnapshot,
+  readSelectionSyncSignature,
+  resolveActiveSelectionRange,
+  type LiveSelectionSnapshot,
+} from './markdownBlockContainerCore.interaction'
 
 type BubbleState = { show: boolean; leftPx: number; topPx: number }
 
@@ -17,6 +25,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
   toolbarInteractionUntilRef: React.MutableRefObject<number>
   lastNonCollapsedSelectionOffsetsRef: React.MutableRefObject<{ startOffset: number; endOffset: number } | null>
   lastNonCollapsedDomRangeRef: React.MutableRefObject<Range | null>
+  liveSelectionSnapshotRef: React.MutableRefObject<LiveSelectionSnapshot | null>
   selectionSyncSuspendUntilRef: React.MutableRefObject<number>
   bubbleRafRef: React.MutableRefObject<number>
   selectionSyncBurstTokenRef: React.MutableRefObject<number>
@@ -38,6 +47,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     toolbarInteractionUntilRef,
     lastNonCollapsedSelectionOffsetsRef,
     lastNonCollapsedDomRangeRef,
+    liveSelectionSnapshotRef,
     selectionSyncSuspendUntilRef,
     bubbleRafRef,
     selectionSyncBurstTokenRef,
@@ -49,6 +59,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
   } = args
   const lastSelectionSignatureRef = React.useRef<string>('')
   const lastHostRectSignatureRef = React.useRef<string>('')
+  const pendingSelectionSignatureRef = React.useRef<string>('')
   const holdToolbarInteraction = React.useCallback(() => {
     if (blurCommitTimerRef.current) {
       window.clearTimeout(blurCommitTimerRef.current)
@@ -72,11 +83,14 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     if (toolbarInteractingRef.current) return
     const root = editorRef.current
     if (!root) return
+    const domSelection = typeof window !== 'undefined' ? window.getSelection() : null
+    const liveSelectionSnapshot = readLiveSelectionSnapshot({ root, selection: domSelection })
+    liveSelectionSnapshotRef.current = liveSelectionSnapshot
+    const selectionSyncSignature = readSelectionSyncSignature({ root, selection: domSelection }) || ''
     const selection = getSelectionOffsets()
-    const selectionSignature = selection ? `${selection.startOffset}:${selection.endOffset}` : ''
-    const hostForSignature = root.closest('[data-start-line]') as HTMLElement | null
-    const hostRectForSignature = hostForSignature?.getBoundingClientRect() || root.getBoundingClientRect()
-    const hostRectSignature = `${Math.round(hostRectForSignature.left)}:${Math.round(hostRectForSignature.top)}:${Math.round(hostRectForSignature.width)}:${Math.round(hostRectForSignature.height)}`
+    const selectionSignature = selectionSyncSignature || (selection ? `${selection.startOffset}:${selection.endOffset}` : '')
+    const hostRect = getEditorHostRect(root)
+    const hostRectSignature = `${Math.round(hostRect.left)}:${Math.round(hostRect.top)}:${Math.round(hostRect.width)}:${Math.round(hostRect.height)}`
     if (
       selectionSignature &&
       selectionSignature === lastSelectionSignatureRef.current &&
@@ -85,10 +99,9 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     ) {
       return
     }
-    const sel = typeof window !== 'undefined' ? window.getSelection() : null
     const activeRange = resolveActiveSelectionRange({
       root,
-      selection: sel,
+      selection: domSelection,
       cachedRange: lastNonCollapsedDomRangeRef.current,
     })
     if (!activeRange) {
@@ -101,8 +114,8 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
       setBubble(prev => (prev.show ? { ...prev, show: false } : prev))
       return
     }
-    const rect = getRangeRectSafe(activeRange)
-    const { leftPx, topPx } = computeBubblePosition({ rangeRect: rect, root })
+    const rect = liveSelectionSnapshot?.range === activeRange ? liveSelectionSnapshot.rect : null
+    const { leftPx, topPx } = computeBubblePosition({ rangeRect: rect, hostRect })
     if (selection && selection.startOffset !== selection.endOffset) {
       lastNonCollapsedSelectionOffsetsRef.current = selection
     }
@@ -126,7 +139,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     }
     setSlashMenu(prev => (prev.show ? { ...prev, show: false } : prev))
     setLinkPopover(prev => (prev.show ? { ...prev, show: false, href: '' } : prev))
-  }, [editDisableRichUi, editing, editorRef, getSelectionOffsets, lastNonCollapsedDomRangeRef, lastNonCollapsedSelectionOffsetsRef, lastBubbleProbeRef, probe, setBubble, setLinkPopover, setSlashMenu, toolbarInteractingRef])
+  }, [editDisableRichUi, editing, editorRef, getSelectionOffsets, lastNonCollapsedDomRangeRef, lastNonCollapsedSelectionOffsetsRef, lastBubbleProbeRef, liveSelectionSnapshotRef, probe, setBubble, setLinkPopover, setSlashMenu, toolbarInteractingRef])
 
   const syncSelectionToolbarState = React.useCallback(() => {
     if (!editDisableRichUi) updateBubble()
@@ -149,24 +162,23 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     const schedule = () => {
       if (toolbarInteractingRef.current) return
       const selNow = typeof window !== 'undefined' ? window.getSelection() : null
-      if (selNow && selNow.rangeCount > 0) {
-        const rr = selNow.getRangeAt(0)
-        const cc = rr.commonAncestorContainer
-        const nn = cc.nodeType === Node.ELEMENT_NODE ? (cc as Element) : cc.parentElement
-        if (!rr.collapsed && nn && !root.contains(nn) && !lastNonCollapsedDomRangeRef.current) return
+      const selectionSignature = readSelectionSyncSignature({ root, selection: selNow }) || ''
+      if (!selectionSignature) {
+        const cached = lastNonCollapsedDomRangeRef.current
+        if (!cached || cached.collapsed) return
+      } else if (selectionSignature === pendingSelectionSignatureRef.current) {
+        return
+      } else {
+        pendingSelectionSignatureRef.current = selectionSignature
       }
-      if (Date.now() < selectionSyncSuspendUntilRef.current) {
-        if (!selNow || selNow.rangeCount <= 0) return
-        const rr = selNow.getRangeAt(0)
-        if (rr.collapsed) return
-        const cc = rr.commonAncestorContainer
-        const nn = cc.nodeType === Node.ELEMENT_NODE ? (cc as Element) : cc.parentElement
-        if (!nn || !root.contains(nn)) return
-      }
+      const hasLiveSelection = hasExpandedSelectionInRoot({ root, selection: selNow })
+      if (selNow && selNow.rangeCount > 0 && !hasLiveSelection && !lastNonCollapsedDomRangeRef.current) return
+      if (Date.now() < selectionSyncSuspendUntilRef.current && !hasLiveSelection) return
       if (bubbleRafRef.current) return
       bubbleRafRef.current = 1
       scheduleCoalescedTask(bubbleScheduleKey, () => {
         bubbleRafRef.current = 0
+        pendingSelectionSignatureRef.current = ''
         updateBubble()
       }, 0)
     }
@@ -178,6 +190,8 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
       root.removeEventListener('keyup', schedule)
       cancelCoalescedTask(bubbleScheduleKey)
       cancelCoalescedTask(editorMouseUpSyncScheduleKey)
+      liveSelectionSnapshotRef.current = null
+      pendingSelectionSignatureRef.current = ''
       bubbleRafRef.current = 0
     }
   }, [
@@ -188,6 +202,7 @@ export const useMarkdownBlockContainerSelectionToolbarSync = (args: {
     editorMouseUpSyncScheduleKey,
     editorRef,
     lastNonCollapsedDomRangeRef,
+    liveSelectionSnapshotRef,
     selectionSyncSuspendUntilRef,
     toolbarInteractingRef,
     updateBubble,

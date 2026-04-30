@@ -206,10 +206,19 @@ export async function testFlowEditorPinnedWidgetsReseedWhenViewportStabilizes() 
     }
 
     const initialWorld = await waitForSeed()
-    const flowEditorRoot = doc.querySelector('section[aria-label="Flow Editor"]') as HTMLElement | null
-    if (!flowEditorRoot) throw new Error('expected flow editor root')
+    const measureRoot = await (async () => {
+      const deadline = Date.now() + 1200
+      while (Date.now() < deadline) {
+        const viewportRoot = doc.querySelector('[data-kg-canvas-viewport-root="1"]') as HTMLElement | null
+        if (viewportRoot) return viewportRoot
+        const flowEditorRoot = doc.querySelector('[aria-label="Flow Editor"]') as HTMLElement | null
+        if (flowEditorRoot) return flowEditorRoot
+        await new Promise<void>(resolve => setTimeout(resolve, 5))
+      }
+      throw new Error('expected Flow Editor measurement root')
+    })()
 
-    flowEditorRoot.getBoundingClientRect = () =>
+    measureRoot.getBoundingClientRect = () =>
       ({
         left: 540,
         top: 24,
@@ -352,6 +361,87 @@ export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyStacked() {
         if (overlapX && overlapY) throw new Error(`expected no overlap after reseed: ${a.id} vs ${b.id}`)
       }
     }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyVerticalStrip() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) => setTimeout(() => cb(Date.now()), 0) as unknown as number
+    ;(globalThis as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame = anyWindow.requestAnimationFrame
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+
+    useGraphStore.setState(s => ({
+      ...s,
+      graphData: {
+        type: 'Graph',
+        nodes: [
+          { id: 'n1', label: 'n1', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n2', label: 'n2', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n3', label: 'n3', type: 'Anchor', x: 0, y: 0, properties: {} },
+          { id: 'n4', label: 'n4', type: 'Anchor', x: 0, y: 0, properties: {} },
+        ],
+        edges: [],
+        metadata: { kind: 'test', source: 'flowEditorPinnedWidgetsVerticalStrip' },
+      },
+      graphDataRevision: (s.graphDataRevision || 0) + 1,
+      canvasRenderMode: '2d',
+      canvas2dRenderer: 'flowEditor',
+      frontmatterModeEnabled: false,
+      documentSemanticMode: 'document',
+      documentStructureBaselineLock: false,
+    }))
+
+    api.setZoomState({ k: 1, x: 0, y: 0 })
+    api.setOpenWidgetNodeIds(['n1', 'n2', 'n3', 'n4'])
+    api.setFlowWidgetPinnedByNodeId({})
+    api.setFlowWidgetWorldPosByNodeId({
+      n1: { x: 400, y: 40 },
+      n2: { x: 400, y: 220 },
+      n3: { x: 400, y: 400 },
+      n4: { x: 400, y: 580 },
+    })
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+
+    const ids = ['n1', 'n2', 'n3', 'n4']
+    const readWorld = () =>
+      ((useGraphStore.getState() as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
+        .flowWidgetWorldPosByNodeId || {}) as Record<string, { x: number; y: number }>
+
+    const worldById = await (async () => {
+      const deadline = Date.now() + 1200
+      while (Date.now() < deadline) {
+        const current = readWorld()
+        const uniqueX = new Set(ids.map(id => Math.round((current[id]?.x || 0) * 1000)))
+        if (uniqueX.size >= 2) return current
+        await new Promise<void>(resolve => setTimeout(resolve, 5))
+      }
+      throw new Error('expected vertical-strip widgets to reseed into spread positions')
+    })()
+
+    const uniqueX = new Set(ids.map(id => Math.round((worldById[id]?.x || 0) * 1000)))
+    if (uniqueX.size < 2) throw new Error('expected reseeded vertical-strip widgets to use multiple columns')
   } finally {
     try {
       root?.unmount()

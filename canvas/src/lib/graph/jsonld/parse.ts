@@ -19,6 +19,24 @@ import {
   AGENTIC_RAG_MINIMAL_CONTEXT,
 } from './utils';
 
+const compareText = (a: unknown, b: unknown): number => String(a || '').localeCompare(String(b || ''));
+
+const getSortedRecordKeys = (value: Record<string, unknown>): string[] => Object.keys(value).sort((a, b) => compareText(a, b));
+
+const getStableRecordText = (value: Record<string, unknown>): string => {
+  return getSortedRecordKeys(value).map(key => `${key}:${JSON.stringify(value[key])}`).join('|');
+};
+
+const compareRecords = (a: Record<string, unknown>, b: Record<string, unknown>): number => compareText(getStableRecordText(a), getStableRecordText(b));
+
+const sortJsonLdNodes = (nodes: GraphNode[]): GraphNode[] => {
+  return [...nodes].sort((a, b) => compareText(a.id, b.id) || compareText(a.type, b.type) || compareText(a.label, b.label));
+};
+
+const sortJsonLdEdges = (edges: GraphEdge[]): GraphEdge[] => {
+  return [...edges].sort((a, b) => compareText(a.source, b.source) || compareText(a.label, b.label) || compareText(a.target, b.target) || compareText(a.id, b.id));
+};
+
 export function parseJsonLd(jsonld: unknown): GraphData {
   const root = jsonld as Record<string, unknown> | unknown[];
   const graph = Array.isArray(root) ? root : ((isRecord(root) && Array.isArray((root as Record<string, unknown>)['@graph'])) ? ((root as Record<string, unknown>)['@graph'] as unknown[]) : []);
@@ -160,7 +178,7 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     nodeMap.set(id, item);
     const props: Record<string, JSONValue> = {};
     let metadata: Record<string, JSONValue> | undefined;
-    Object.keys(item).forEach((k) => {
+    getSortedRecordKeys(item).forEach((k) => {
       const shouldSkipLabelsKey = isNodeType(typeList);
       if (k === '@id' || k === '@type' || k === 'name' || k === 'label') return;
       if (k === 'labels' && shouldSkipLabelsKey) return;
@@ -174,7 +192,7 @@ export function parseJsonLd(jsonld: unknown): GraphData {
       if (k === 'properties') {
         const inner = item[k] as unknown;
         if (isRecord(inner)) {
-          Object.keys(inner).forEach((pk) => {
+          getSortedRecordKeys(inner).forEach((pk) => {
             if (!pk || pk === '@id' || pk === '@type' || pk === 'labels' || pk === 'name' || pk === 'metadata') return;
             if (typeof props[pk] !== 'undefined') return;
             props[pk] = inner[pk] as JSONValue;
@@ -201,8 +219,9 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     if (typeof item['fy'] === 'number') node.fy = item['fy'] as number;
     nodes.push(node);
   }
-  for (const [id, item] of nodeMap.entries()) {
-    const keys = Object.keys(item);
+  const nodeEntries = Array.from(nodeMap.entries()).sort((a, b) => compareText(a[0], b[0]));
+  for (const [id, item] of nodeEntries) {
+    const keys = getSortedRecordKeys(item);
     for (const k of keys) {
       if (k === '@id' || k === '@type' || k === 'name' || k === 'label') continue;
       if (k.startsWith('kg:')) continue;
@@ -232,7 +251,7 @@ export function parseJsonLd(jsonld: unknown): GraphData {
           if (typeof rawId === 'string') {
             tgtId = stripKg(rawId as unknown);
           }
-          Object.keys(raw).forEach((pk) => {
+          getSortedRecordKeys(raw).forEach((pk) => {
             if (pk === '@id' || pk === 'id') return;
             props[pk] = raw[pk] as JSONValue;
           });
@@ -243,6 +262,7 @@ export function parseJsonLd(jsonld: unknown): GraphData {
       }
     }
   }
+  edgeNodes.sort(compareRecords);
   for (const e of edgeNodes) {
     const src = stripKg(e[KG_SUBJECT] as unknown);
     const tgt = stripKg(e[KG_OBJECT] as unknown);
@@ -250,7 +270,7 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     if (typeof label === 'string') label = normalizeEdgeLabel(label);
     const props: Record<string, JSONValue> = {};
     let metadata: Record<string, JSONValue> | undefined;
-    Object.keys(e).forEach((k) => {
+    getSortedRecordKeys(e).forEach((k) => {
       if (k === '@id' || k === KG_SUBJECT || k === KG_OBJECT || k === KG_PREDICATE) return;
       if (k === 'metadata') {
         const vMeta = e[k] as unknown;
@@ -261,6 +281,7 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     });
     edges.push({ id: `${src}-${String(label)}-${tgt}-${edges.length}`, source: src, target: tgt, label: String(label), properties: props, metadata });
   }
+  edgeNodesKnowgrph.sort(compareRecords);
   for (const e of edgeNodesKnowgrph) {
     const src = stripKg((e['source_node'] as unknown) ?? (e['source'] as unknown));
     const tgt = stripKg((e['target_node'] as unknown) ?? (e['target'] as unknown));
@@ -269,7 +290,7 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     if (typeof label === 'string') label = normalizeEdgeLabel(label);
     const props: Record<string, JSONValue> = {};
     let metadata: Record<string, JSONValue> | undefined;
-    Object.keys(e).forEach((k) => {
+    getSortedRecordKeys(e).forEach((k) => {
       if (k === '@id' || k === '@type' || k === 'source_node' || k === 'target_node' || k === 'relation' || k === 'source' || k === 'target' || k === 'label') return;
       if (k === 'metadata') {
         const vMeta = e[k] as unknown;
@@ -280,6 +301,7 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     });
     edges.push({ id: `${src}-${String(label)}-${tgt}-${edges.length}`, source: src, target: tgt, label: String(label), properties: props, metadata });
   }
+  edgeNodesAgentic.sort(compareRecords);
   for (const e of edgeNodesAgentic) {
     const rawSrc = (e['source'] as unknown) ?? (e['source_node'] as unknown);
     const rawTgt = (e['target'] as unknown) ?? (e['target_node'] as unknown);
@@ -290,7 +312,7 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     if (typeof label === 'string') label = normalizeEdgeLabel(label);
     const props: Record<string, JSONValue> = {};
     let metadata: Record<string, JSONValue> | undefined;
-    Object.keys(e).forEach((k) => {
+    getSortedRecordKeys(e).forEach((k) => {
       if (
         k === '@id' ||
         k === '@type' ||
@@ -315,5 +337,5 @@ export function parseJsonLd(jsonld: unknown): GraphData {
         : `${src}-${String(label)}-${tgt}-${edges.length}`;
     edges.push({ id: edgeId, source: src, target: tgt, label: String(label), properties: props, metadata });
   }
-  return { context: graphContext, metadata: graphMetadata, type: 'Graph', nodes, edges };
+  return { context: graphContext, metadata: graphMetadata, type: 'Graph', nodes: sortJsonLdNodes(nodes), edges: sortJsonLdEdges(edges) };
 }
