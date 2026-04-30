@@ -1,4 +1,5 @@
 export const BALANCED_OVERLAY_SPREAD_TARGET_ASPECT = 16 / 9
+export type BalancedSpreadViewportPreset = 'widgetCanvas' | 'widgetFrontmatter' | 'richMedia'
 
 function clamp(v: number, lo: number, hi: number): number {
   if (!Number.isFinite(v)) return lo
@@ -32,19 +33,61 @@ export function computeBalancedSpreadGrid(args: {
       (viewportAspect * 0.55 + BALANCED_OVERLAY_SPREAD_TARGET_ASPECT * 0.45) * Math.sqrt(zoomK),
     ),
   )
-
-  let cols = Math.max(minCols, Math.min(colsCap, Math.ceil(Math.sqrt(n * weightedAspect))))
-  let rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
-  if (rows > rowsCap) {
-    cols = Math.max(minCols, Math.min(colsCap, Math.ceil(n / rowsCap)))
-    rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
-  }
   const softRowsCap = Math.max(3, Math.min(rowsCap, Math.ceil(Math.sqrt(n) * 1.8)))
-  if (rows > softRowsCap && cols < colsCap) {
-    cols = Math.max(minCols, Math.min(colsCap, Math.ceil(n / softRowsCap)))
-    rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
+  let best: { cols: number; rows: number; score: number } | null = null
+  for (let cols = minCols; cols <= colsCap; cols += 1) {
+    const rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
+    if (rows > rowsCap) continue
+    const gridAspect = (cols * cellW) / Math.max(1, rows * cellH)
+    const aspectScore = Math.abs(Math.log(Math.max(0.2, gridAspect) / Math.max(0.2, weightedAspect)))
+    const emptySlots = cols * rows - n
+    const emptyPenalty = (emptySlots / Math.max(1, n)) * 0.24
+    const verticalPenalty = rows > cols ? (rows - cols) * 0.16 : 0
+    const widePenalty = cols > rows + 2 ? (cols - rows - 2) * 0.05 : 0
+    const tallPenalty = rows > softRowsCap ? (rows - softRowsCap) * 0.2 : 0
+    const singleRowPenalty = rows === 1 && n >= 5 ? 0.24 : 0
+    const singleColPenalty = cols === 1 && n >= 3 ? 0.35 : 0
+    const score =
+      aspectScore
+      + emptyPenalty
+      + verticalPenalty
+      + widePenalty
+      + tallPenalty
+      + singleRowPenalty
+      + singleColPenalty
+    if (!best || score < best.score - 1e-9 || (Math.abs(score - best.score) <= 1e-9 && cols > best.cols)) {
+      best = { cols, rows, score }
+    }
   }
-  return { cols, rows }
+  return best ? { cols: best.cols, rows: best.rows } : { cols: minCols, rows: Math.max(1, Math.ceil(n / Math.max(1, minCols))) }
+}
+
+export function computeBalancedSpreadViewportMargins(args: {
+  viewportW: number
+  viewportH: number
+  preset?: BalancedSpreadViewportPreset
+  minLeftPx?: number
+  minRightPx?: number
+  minTopPx?: number
+  minBottomPx?: number
+}): { left: number; right: number; top: number; bottom: number } {
+  const viewportW = Math.max(1, Number(args.viewportW) || 1)
+  const viewportH = Math.max(1, Number(args.viewportH) || 1)
+  const preset = args.preset || 'widgetCanvas'
+  const viewportAspect = viewportW / Math.max(1, viewportH)
+  const aspectBias = clamp(Math.sqrt(viewportAspect / BALANCED_OVERLAY_SPREAD_TARGET_ASPECT), 0.92, 1.12)
+  const profile =
+    preset === 'widgetFrontmatter'
+      ? { leftRatio: 0.1, rightRatio: 0.1, topRatio: 0.1, bottomRatio: 0.085, minLeft: 20, minRight: 20, minTop: 64, minBottom: 24 }
+      : preset === 'richMedia'
+        ? { leftRatio: 0.072, rightRatio: 0.072, topRatio: 0.085, bottomRatio: 0.07, minLeft: 24, minRight: 24, minTop: 24, minBottom: 24 }
+        : { leftRatio: 0.06, rightRatio: 0.06, topRatio: 0.09, bottomRatio: 0.06, minLeft: 20, minRight: 20, minTop: 96, minBottom: 24 }
+  const left = Math.max(profile.minLeft, Math.floor(viewportW * profile.leftRatio * aspectBias), Math.max(0, Math.floor(Number(args.minLeftPx) || 0)))
+  const right = Math.max(profile.minRight, Math.floor(viewportW * profile.rightRatio * aspectBias), Math.max(0, Math.floor(Number(args.minRightPx) || 0)))
+  const verticalBias = clamp(1 / aspectBias, 0.92, 1.08)
+  const top = Math.max(profile.minTop, Math.floor(viewportH * profile.topRatio * verticalBias), Math.max(0, Math.floor(Number(args.minTopPx) || 0)))
+  const bottom = Math.max(profile.minBottom, Math.floor(viewportH * profile.bottomRatio * verticalBias), Math.max(0, Math.floor(Number(args.minBottomPx) || 0)))
+  return { left, right, top, bottom }
 }
 
 export function isVerticalOverlayCluster(args: {

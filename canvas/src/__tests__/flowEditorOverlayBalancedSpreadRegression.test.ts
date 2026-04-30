@@ -15,6 +15,9 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!spreadText.includes('computeBalancedSpreadLayout')) {
     throw new Error('expected shared overlay spread helper to expose centered balanced multi-column seed layout planning')
   }
+  if (!spreadText.includes('computeBalancedSpreadViewportMargins')) {
+    throw new Error('expected shared overlay spread helper to centralize 16:9 collective viewport margins')
+  }
 
   const hookPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
   const hookText = readUtf8(hookPath)
@@ -29,6 +32,9 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   }
   if (!hookText.includes('computeBalancedSpreadLayout')) {
     throw new Error('expected overlay collision path to reuse shared centered balanced spread layout planning')
+  }
+  if (!hookText.includes('computeBalancedSpreadViewportMargins')) {
+    throw new Error('expected overlay collision path to reuse shared 16:9 viewport margins instead of local hardcodes')
   }
   if (!hookText.includes('const OVERLAY_POSITION_QUANTUM_PX = 1')) {
     throw new Error('expected overlay collision path to quantize persisted floating positions')
@@ -150,6 +156,9 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   const mediaLayoutText = readUtf8(mediaLayoutPath)
   if (!mediaLayoutText.includes('computeBalancedSpreadLayout')) {
     throw new Error('expected rich media overlay collision layout to reuse shared balanced multi-column seed layout planning')
+  }
+  if (!mediaLayoutText.includes('computeBalancedSpreadViewportMargins')) {
+    throw new Error('expected rich media overlay collision layout to reuse shared 16:9 viewport margins')
   }
   if (!mediaLayoutText.includes('isVerticalOverlayCluster')) {
     throw new Error('expected rich media overlay collision layout to reuse shared vertical-cluster detection before reseeding')

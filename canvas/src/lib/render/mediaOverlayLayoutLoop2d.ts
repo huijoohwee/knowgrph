@@ -6,7 +6,11 @@ import { applyMediaEagerLoadingOnce } from '@/lib/render/mediaEagerLoading'
 import { computeMediaOverlaySizing, type MediaOverlaySizingConfig, type MediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
-import { computeBalancedSpreadLayout, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
+import {
+  computeBalancedSpreadLayout,
+  computeBalancedSpreadViewportMargins,
+  isVerticalOverlayCluster,
+} from '@/lib/ui/overlayBalancedSpread'
 
 export type MediaOverlayLayoutItem = { id: string }
 
@@ -177,6 +181,15 @@ export function startMediaOverlayLayoutLoop2d(args: {
           }
           const avgW = Math.max(1, sumW / Math.max(1, preferred.length))
           const avgH = Math.max(1, sumH / Math.max(1, preferred.length))
+          const spreadMargins = computeBalancedSpreadViewportMargins({
+            viewportW: args.viewportW,
+            viewportH: args.viewportH,
+            preset: 'richMedia',
+            minLeftPx: clampMargin,
+            minRightPx: clampMargin,
+            minTopPx: clampMargin,
+            minBottomPx: clampMargin,
+          })
           const layout = computeBalancedSpreadLayout({
             count: preferred.length,
             viewportW: args.viewportW,
@@ -185,10 +198,10 @@ export function startMediaOverlayLayoutLoop2d(args: {
             cellH: Math.max(1, avgH + gapPx),
             gapPx,
             zoomK: rawK,
-            marginLeftPx: clampMargin,
-            marginRightPx: clampMargin,
-            marginTopPx: clampMargin,
-            marginBottomPx: clampMargin,
+            marginLeftPx: spreadMargins.left,
+            marginRightPx: spreadMargins.right,
+            marginTopPx: spreadMargins.top,
+            marginBottomPx: spreadMargins.bottom,
             snapPx: 1,
           })
           const ordered = [...preferred].sort((a, b) => a.id.localeCompare(b.id))

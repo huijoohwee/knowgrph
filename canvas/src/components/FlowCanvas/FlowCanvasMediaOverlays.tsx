@@ -73,6 +73,7 @@ export default function FlowCanvasMediaOverlays(args: {
     frontmatterModeEnabled,
     documentSemanticMode,
     flowEditorOverlayInteractionMode,
+    flowEditorFrontmatterInteractionMode,
     mediaPanelDensity,
     renderMediaAsNodes,
     infiniteCanvasInteractionMode,
@@ -95,7 +96,6 @@ export default function FlowCanvasMediaOverlays(args: {
     })
   }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
   const graphSchema = schema as GraphSchema
-
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const mediaOverlayPanelSizeOverrideRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
   const mediaOverlayPanelSizeTargetWorldRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
@@ -185,11 +185,6 @@ export default function FlowCanvasMediaOverlays(args: {
       void 0
     }
   }, [])
-  const isFlowEditorFrontmatterDocumentInteractionMode = React.useCallback(() => {
-    return canvas2dRenderer === 'flowEditor'
-      && frontmatterModeEnabled === true
-      && String(documentSemanticMode || '').trim() === 'document'
-  }, [canvas2dRenderer, documentSemanticMode, frontmatterModeEnabled])
   const computeOverlaySizingScale = React.useCallback((zoomK: number, itemCount: number, panelW: number, panelH: number) => {
     return computeCollectiveFollowPinnedScale({
       zoomK,
@@ -297,7 +292,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [active, flowEditorOverlayInteractionMode, runtimeRef])
 
   const beginMediaOverlayResize = React.useCallback((id: string, pointerId: number) => {
-    if (!active || !flowEditorOverlayInteractionMode || !isFlowEditorFrontmatterDocumentInteractionMode()) {
+    if (!active || !flowEditorOverlayInteractionMode || !flowEditorFrontmatterDocumentModeRequested) {
       writeRichMediaResizeTrace(['phase=skip', `id=${id}`, `pid=${pointerId}`])
       return
     }
@@ -334,7 +329,7 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: startW, h: stableH })
     writeRichMediaResizeTrace(['phase=start', `id=${id}`, `pid=${pointerId}`, `startW=${startW}`, `startH=${stableH}`])
     handleFrame()
-  }, [active, flowEditorOverlayInteractionMode, handleFrame, isFlowEditorFrontmatterDocumentInteractionMode, runtimeRef, writeRichMediaResizeTrace])
+  }, [active, flowEditorFrontmatterDocumentModeRequested, flowEditorOverlayInteractionMode, handleFrame, runtimeRef, writeRichMediaResizeTrace])
 
   React.useEffect(() => {
     if (canvas2dRenderer === 'flowEditor') return
@@ -377,6 +372,19 @@ export default function FlowCanvasMediaOverlays(args: {
     }
     if (changed) mediaOverlayLayoutScheduleRef.current?.()
   }, [flowEditorOverlayInteractionMode, sceneGraphData])
+
+  React.useEffect(() => {
+    if (!active) return
+    mediaOverlayLayoutScheduleRef.current?.()
+    onInteractionFrame?.()
+  }, [
+    active,
+    flowEditorFrontmatterDocumentModeRequested,
+    flowEditorFrontmatterInteractionMode,
+    mediaLayoutItemIdsKey,
+    onInteractionFrame,
+    plannedOverlayNodeIdsKey,
+  ])
 
   React.useEffect(() => {
     if (!active || mediaLayoutItems.length === 0) return
@@ -452,11 +460,13 @@ export default function FlowCanvasMediaOverlays(args: {
     }
   }, [
     active,
+    flowEditorFrontmatterDocumentModeRequested,
     mediaLayoutItems,
     mediaLayoutItemIdsKey,
     mediaPanelDensity,
     computeOverlaySizingScale,
     runtimeRef,
+    schema,
     threeIframeOverlayBaseWidthMaxPxCompact,
     threeIframeOverlayBaseWidthMaxPxDefault,
     threeIframeOverlayBaseWidthMinPxCompact,

@@ -3,6 +3,7 @@ import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemo
 import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { materializeActiveWorkspaceEntryIntoSourceFiles } from '@/features/source-files/SourceFilesPersistenceBootstrap'
+import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
@@ -329,6 +330,37 @@ export async function testWorkspaceBootstrapMaterializesActiveWorkspaceEntryInto
     }
     if (!sourceFile.parsedGraphData || (sourceFile.parsedGraphData.nodes || []).length < 2) {
       throw new Error('expected bootstrap materialization to populate parsedGraphData for the active workspace file')
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testWorkspaceBootstrapMaterializeReusesProvidedWorkspaceSnapshotWithoutExtraListEntries() {
+  const { restore } = initJsdomHarness()
+  try {
+    useGraphStore.getState().resetAll()
+    const baseFs = createMemoryWorkspaceFs()
+    let listEntriesCalls = 0
+    const fs: WorkspaceFs = {
+      ...baseFs,
+      listEntries: async () => {
+        listEntriesCalls += 1
+        return baseFs.listEntries()
+      },
+    }
+    await fs.ensureSeed()
+    const workspaceEntries = await fs.listEntries()
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: WORKSPACE_README_SEED_PATH as never,
+      fs,
+      workspaceEntries,
+      sourcesByPath: {},
+    })
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    if (listEntriesCalls !== 1) {
+      throw new Error(`expected bootstrap materialization to reuse provided workspace entries, got ${String(listEntriesCalls)} listEntries calls`)
     }
   } finally {
     restore()

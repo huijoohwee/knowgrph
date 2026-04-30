@@ -5,6 +5,7 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
+  resolveWorkspaceEditorPaneDefaultWidthPx,
   resolveWorkspacePaneMaxWidthPx,
 } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 

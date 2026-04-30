@@ -139,6 +139,15 @@ export function testSourceFilesBootstrapResyncsOnWorkspaceViewModeChanges() {
   if (!text.includes('useMarkdownExplorerStore.subscribe(s => s.activePath')) {
     throw new Error('expected source files bootstrap to continue resyncing on active path changes')
   }
+  if (!text.includes('const lastMaterializedActivePathRef = React.useRef')) {
+    throw new Error('expected source files bootstrap to dedupe redundant materialization by active workspace path')
+  }
+  if (!text.includes('if (lastMaterializedActivePathRef.current === activePath) return')) {
+    throw new Error('expected source files bootstrap to skip repeated workspace-view materialization when the active path is unchanged')
+  }
+  if (text.includes('}\n    syncNow()\n    const unsubscribeActivePath')) {
+    throw new Error('expected source files bootstrap to avoid an eager duplicate mount resync before startup bootstrap completes')
+  }
 }
 
 export function testWorkspaceImportParseIdentityUsesSemanticsVersionAndName() {

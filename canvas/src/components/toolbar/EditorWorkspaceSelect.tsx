@@ -88,12 +88,23 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
     (key: EditorWorkspaceOptionKey) => {
       if (key === 'multiDimTable') {
         if (isGraphTable) {
-          closeWorkspaceView({
-            workspaceViewMode: workspaceViewMode === 'editor' ? 'editor' : 'canvas',
-            workspaceCanvasPaneOpen,
-            setWorkspaceViewMode,
-            setWorkspaceCanvasPaneOpen,
-          })
+          if (workspaceCanvasPaneOpen !== true) {
+            closeWorkspaceView({
+              workspaceViewMode: workspaceViewMode === 'editor' ? 'editor' : 'canvas',
+              workspaceCanvasPaneOpen,
+              setWorkspaceViewMode,
+              setWorkspaceCanvasPaneOpen,
+            })
+            openWorkspaceTable({
+              workspaceViewMode: workspaceViewMode === 'editor' ? 'editor' : 'canvas',
+              editorWorkspacePane,
+              workspaceCanvasPaneOpen: true,
+              setWorkspaceViewMode,
+              setEditorWorkspacePane,
+              setWorkspaceCanvasPaneOpen,
+            })
+            return
+          }
           return
         }
         const snap = workspaceTablePreferencesStore.getSnapshot()
@@ -112,12 +123,24 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
       }
 
       if (workspaceViewMode === 'editor' && !isGraphTable) {
-        closeWorkspaceView({
-          workspaceViewMode: 'editor',
-          workspaceCanvasPaneOpen,
-          setWorkspaceViewMode,
-          setWorkspaceCanvasPaneOpen,
-        })
+        if (workspaceCanvasPaneOpen !== true) {
+          closeWorkspaceView({
+            workspaceViewMode: 'editor',
+            workspaceCanvasPaneOpen,
+            setWorkspaceViewMode,
+            setWorkspaceCanvasPaneOpen,
+          })
+          openWorkspaceEditorPane({
+            workspaceViewMode: 'canvas',
+            editorWorkspacePane,
+            workspaceCanvasPaneOpen: true,
+            pane: 'markdown',
+            setWorkspaceViewMode,
+            setEditorWorkspacePane,
+            setWorkspaceCanvasPaneOpen,
+          })
+          return
+        }
         return
       }
 

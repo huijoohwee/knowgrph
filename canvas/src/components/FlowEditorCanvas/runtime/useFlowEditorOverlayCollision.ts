@@ -16,6 +16,7 @@ import { readWidgetGridLayoutSettings, shouldAutoPlaceFlowEditorWidget, snapToGr
 import {
   BALANCED_OVERLAY_SPREAD_TARGET_ASPECT,
   computeBalancedSpreadLayout,
+  computeBalancedSpreadViewportMargins,
   computeBalancedSpreadSpacingPx,
   isVerticalOverlayCluster,
 } from '@/lib/ui/overlayBalancedSpread'
@@ -281,10 +282,15 @@ export function useFlowEditorOverlayCollision(args: {
         width: Math.max(1, snapScreen(typicalSize.width + gapPx)),
         height: Math.max(1, snapScreen(Math.round(typicalSize.height * 0.76) + gapPx)),
       }
-      const marginLeft = isFrontmatterFlow ? Math.max(20, Math.floor(args.viewportW * 0.1)) : 20
-      const marginRight = isFrontmatterFlow ? Math.max(20, Math.floor(args.viewportW * 0.1)) : 20
-      const marginTop = isFrontmatterFlow ? Math.max(64, Math.floor(args.viewportH * 0.1)) : 96
-      const marginBottom = isFrontmatterFlow ? Math.max(24, Math.floor(args.viewportH * 0.1)) : 24
+      const spreadMargins = computeBalancedSpreadViewportMargins({
+        viewportW: args.viewportW,
+        viewportH: args.viewportH,
+        preset: isFrontmatterFlow ? 'widgetFrontmatter' : 'widgetCanvas',
+      })
+      const marginLeft = spreadMargins.left
+      const marginRight = spreadMargins.right
+      const marginTop = spreadMargins.top
+      const marginBottom = spreadMargins.bottom
       const balancedLayout = computeBalancedSpreadLayout({
         count: Math.max(1, unpinnedCount),
         viewportW: args.viewportW,
@@ -641,6 +647,12 @@ export function useFlowEditorOverlayCollision(args: {
     const unsubPinned = useGraphStore.subscribe(s => s.flowWidgetPinnedByNodeId, () => {
       scheduleOverlayCollisionResolveRef.current()
     })
+    const unsubOpenWidgets = useGraphStore.subscribe(
+      s => normalizeOverlaySignatureIds(Array.isArray(s.openWidgetNodeIds) ? s.openWidgetNodeIds : []).join('|'),
+      () => {
+        scheduleOverlayCollisionResolveRef.current()
+      },
+    )
     return () => {
       try {
         unsubPos()
@@ -649,6 +661,11 @@ export function useFlowEditorOverlayCollision(args: {
       }
       try {
         unsubPinned()
+      } catch {
+        void 0
+      }
+      try {
+        unsubOpenWidgets()
       } catch {
         void 0
       }

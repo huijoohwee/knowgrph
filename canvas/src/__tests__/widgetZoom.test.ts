@@ -1,5 +1,9 @@
 import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
-import { clampBalancedCollectiveScaleToViewport } from '@/lib/ui/overlayBalancedSpread'
+import {
+  clampBalancedCollectiveScaleToViewport,
+  computeBalancedSpreadGrid,
+  computeBalancedSpreadViewportMargins,
+} from '@/lib/ui/overlayBalancedSpread'
 
 function approxEq(a: number, b: number, eps = 1e-6): boolean {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false
@@ -123,5 +127,44 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
   })
   if (!approxEq(followPinnedZoomIn, 1)) {
     throw new Error(`expected follow-pinned collective scale to cap at pinned zoom-in size, got ${followPinnedZoomIn}`)
+  }
+}
+
+export function testBalancedSpreadPrefersWide16x9CollectiveLayout() {
+  const fourUp = computeBalancedSpreadGrid({
+    count: 4,
+    viewportW: 1920,
+    viewportH: 1080,
+    cellW: 360,
+    cellH: 420,
+    zoomK: 1,
+  })
+  if (!(fourUp.cols === 3 && fourUp.rows === 2)) {
+    throw new Error(`expected 4-up 16:9 collective layout to prefer 3x2, got ${fourUp.cols}x${fourUp.rows}`)
+  }
+
+  const sixUp = computeBalancedSpreadGrid({
+    count: 6,
+    viewportW: 1920,
+    viewportH: 1080,
+    cellW: 320,
+    cellH: 420,
+    zoomK: 1,
+  })
+  if (!(sixUp.cols === 4 && sixUp.rows === 2)) {
+    throw new Error(`expected 6-up 16:9 collective layout to prefer 4x2, got ${sixUp.cols}x${sixUp.rows}`)
+  }
+
+  const mediaMargins = computeBalancedSpreadViewportMargins({
+    viewportW: 1920,
+    viewportH: 1080,
+    preset: 'richMedia',
+    minLeftPx: 16,
+    minRightPx: 16,
+    minTopPx: 16,
+    minBottomPx: 16,
+  })
+  if (!(mediaMargins.left >= 24 && mediaMargins.right >= 24 && mediaMargins.top > mediaMargins.bottom)) {
+    throw new Error(`expected rich-media 16:9 margins to stay edge-safe with top emphasis, got ${JSON.stringify(mediaMargins)}`)
   }
 }

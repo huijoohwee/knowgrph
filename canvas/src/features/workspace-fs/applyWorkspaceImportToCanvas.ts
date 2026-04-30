@@ -15,7 +15,7 @@ import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatt
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { WorkspaceFs, WorkspacePath } from './types'
 import { normalizeWorkspacePath, workspaceDocumentKey } from './path'
-import { loadWorkspaceSourceIndex } from './sourceIndex'
+import { loadWorkspaceSourceIndex, type WorkspaceSourceIndex } from './sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles, workspaceSourcePathKey } from './syncToSourceFiles'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
@@ -23,6 +23,8 @@ import { buildSourceFileParseIdentityHash } from '@/features/source-files/source
 
 type ApplyWorkspaceImportToCanvasOpts = {
   applyToGraph?: boolean
+  workspaceEntries?: WorkspaceEntry[]
+  sourcesByPath?: WorkspaceSourceIndex
 }
 
 type ApplyWorkspaceImportToCanvasResult = {
@@ -108,7 +110,8 @@ export async function applyWorkspaceImportToCanvas(args: {
   const store = useGraphStore.getState()
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
   const fs = args.fs
-  const [workspaceEntries, sourcesByPath] = await Promise.all([fs.listEntries(), Promise.resolve(loadWorkspaceSourceIndex())])
+  const workspaceEntries = Array.isArray(args.opts?.workspaceEntries) ? args.opts.workspaceEntries : await fs.listEntries()
+  const sourcesByPath = args.opts?.sourcesByPath || loadWorkspaceSourceIndex()
   const merged = mergeWorkspaceEntriesIntoSourceFiles({ existing, workspaceEntries, sourcesByPath })
 
   const indexByWorkspaceSourcePath = new Map<string, number>()

@@ -255,6 +255,7 @@ export function createInfiniteCanvasViewportController(args: {
     })
     wheelGuardState = guard.nextState
     if (guard.block) return
+    const nextK = clampScale(requestedK, extentForNext)
     if (!Number.isFinite(nextK) || Math.abs(nextK - t0.k) < 1e-12) return
 
 
