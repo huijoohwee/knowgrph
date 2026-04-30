@@ -174,9 +174,9 @@ export async function testFloatingPanelGeoViewRemainsClickableWhenDisabledByStat
 
     for (let i = 0; i < 10; i++) await tick()
 
-    const geoButton = Array.from(container.querySelectorAll('button') as NodeListOf<HTMLButtonElement>).find(button =>
-      String(button.getAttribute('aria-label') || '') === UI_LABELS.geo,
-    )
+    const geoButton = Array.from(container.querySelectorAll('button')).find(button =>
+      String((button as HTMLButtonElement).getAttribute('aria-label') || '') === UI_LABELS.geo,
+    ) as HTMLButtonElement | undefined
     if (!geoButton) throw new Error(`expected ${UI_LABELS.geo} button to render`)
     if (geoButton.disabled) {
       throw new Error(`expected ${UI_LABELS.geo} button to stay clickable when geospatial mode is off`)

@@ -2,6 +2,7 @@ import React from 'react'
 
 import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { getEffectiveZoomStateForKey, getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
@@ -134,7 +135,7 @@ export function useFlowEditorOverlayCollision(args: {
   React.useEffect(() => {
     const readWorkspaceOverlayOpen = () => {
       const state = useGraphStore.getState()
-      return state.workspaceViewMode === 'editor' && state.workspaceCanvasPaneOpen === true
+      return isWorkspaceEditorOverlayOpen(state)
     }
     workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
     const unsub = useGraphStore.subscribe(

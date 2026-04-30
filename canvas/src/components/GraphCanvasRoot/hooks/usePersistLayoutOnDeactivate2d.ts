@@ -6,6 +6,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
+import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
@@ -39,15 +41,21 @@ export function usePersistLayoutOnDeactivate2d(args: {
     if (Object.keys(positions).length === 0) return
 
     const state = useGraphStore.getState()
+    if (isWorkspaceEditorOverlayOpen(state)) return
     const schemaValue = schemaRef.current
     const mode = schemaValue ? readLayoutMode(schemaValue) : 'radial'
     const semanticModeBase = String(state.documentSemanticMode || 'document')
-    const semanticModeKey = state.multiDimTableModeEnabled === true ? `${semanticModeBase}:mdtbl` : semanticModeBase
     const graphDataForView = sceneGraphDataRef.current ?? ((state.graphData as unknown as GraphData | null) ?? null)
     const frontmatter = computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: state.frontmatterModeEnabled === true,
       documentSemanticMode: semanticModeBase as 'document' | 'keyword',
       graphData: graphDataForView,
+    })
+    const semanticModeKey = buildDocumentSemanticModeKey({
+      frontmatterModeEnabled: frontmatter,
+      multiDimTableModeEnabled: state.multiDimTableModeEnabled === true,
+      documentSemanticMode: semanticModeBase,
+      documentStructureBaselineLock: state.documentStructureBaselineLock === true,
     })
     const datasetKey = computeLayoutDatasetKey({
       graphData: graphDataForView as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null,

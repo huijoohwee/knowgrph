@@ -12,19 +12,27 @@ const markdownWorkspaceInteractionsPath = () =>
 export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
   const text = readUtf8(runtimePath)
-  if (!text.includes('const isStaleJob = () =>')) {
-    throw new Error('Expected markdown workspace runtime to define stale-index job guard')
+  if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
+    throw new Error('Expected workspace runtime open-edge layout normalization to use canonical overlay-open semantics')
   }
-  if (!text.includes('if (isStaleJob()) return')) {
-    throw new Error('Expected markdown workspace runtime to short-circuit stale jobs before mutating state')
+  if (!text.includes('}, [workspaceEditorOverlayOpen])')) {
+    throw new Error('Expected workspace runtime open-edge layout normalization not to key off workspaceViewMode alone')
   }
-  if (!text.includes('await maybeAutoEnableGeospatialModeForGraphData') || !text.includes('if (isStaleJob()) return')) {
+  const indexingPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
+  const indexingText = readUtf8(indexingPath)
+  if (!indexingText.includes('const isStaleJob = () =>')) {
+    throw new Error('Expected markdown workspace indexing to define stale-index job guard')
+  }
+  if (!indexingText.includes('if (isStaleJob()) return')) {
+    throw new Error('Expected markdown workspace indexing to short-circuit stale jobs before mutating state')
+  }
+  if (!indexingText.includes('await maybeAutoEnableGeospatialModeForGraphData') || !indexingText.includes('if (isStaleJob()) return')) {
     throw new Error('Expected geospatial auto-enable path to be protected by stale-job guard')
   }
 }
 
 export const testMarkdownWorkspaceRuntimeWidgetAutoRestoreDoesNotMarkUserForcedDocument = () => {
-  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceWidgetMode.ts')
   const text = readUtf8(runtimePath)
   if (!text.includes('const setContentModeAuto = React.useCallback')) {
     throw new Error('Expected markdown workspace runtime to expose auto content mode setter')
@@ -41,15 +49,23 @@ export const testMarkdownWorkspaceRuntimeWidgetAutoRestoreDoesNotMarkUserForcedD
   if (!text.includes('userForcedDocumentRef.current = false')) {
     throw new Error('Expected widget auto-restore to clear user-forced document tracking')
   }
-  if (!text.includes("if (contentMode === 'widget' && widgetAvailable) return")) {
+  if (!text.includes('const widgetLookupActive = active && widgetCandidateIdsKey !== emptyWidgetCandidateIdsKey')) {
+    throw new Error('Expected widget graph lookup to be gated by active widget candidate semantics')
+  }
+  if (!text.includes('if (contentMode !== \'widget\' || widgetNodeIds.length === 0 || !graphLookupById) return \'\'')) {
+    throw new Error('Expected widget bundle construction to run only when widget mode is active')
+  }
+  const indexingPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
+  const indexingText = readUtf8(indexingPath)
+  if (!indexingText.includes("if (args.contentMode === 'widget' && args.widgetAvailable) return")) {
     throw new Error('Expected widget mode to skip markdown file re-indexing when widget content is the active SSOT')
   }
 }
 
 export const testMarkdownWorkspaceRuntimeWidgetBundleIncludesOpenWidgetSet = () => {
-  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceWidgetMode.ts')
   const text = readUtf8(runtimePath)
-  if (!text.includes('const widgetNodeIds = React.useMemo(() => {')) {
+  if (!text.includes('const resolvedWidgetNodeIds = React.useMemo(() => {')) {
     throw new Error('Expected markdown workspace runtime to derive widget content from a widget node id set')
   }
   if (!text.includes('const widgetNodeIdSet = new Set(widgetNodeIds)')) {
@@ -194,6 +210,12 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   }
   if (!mainText.includes('prev.markdown && !prev.json && !prev.viewer ? prev : { json: false, markdown: true, viewer: false }')) {
     throw new Error('Expected toolbar Editor Workspace open to normalize to markdown-only visibility')
+  }
+  if (!mainText.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
+    throw new Error('Expected workspace main open-edge pane normalization to use canonical overlay-open semantics')
+  }
+  if (!mainText.includes('}, [workspaceEditorOverlayOpen])')) {
+    throw new Error('Expected workspace main open-edge pane normalization not to key off workspaceViewMode alone')
   }
   if (dropdownText.includes('flushSync')) {
     throw new Error('Expected toolbar dropdown selection not to force a synchronous close commit before opening Workspace View')

@@ -118,6 +118,15 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   const mediaRenderConnectedValuesByNodeId = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
     if (nodes.length === 0) return new Map()
+    const targetNodeIds = new Set<string>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      const id = String(node?.id || '').trim()
+      if (!id) continue
+      if (isRichMediaPanelNode(node)) targetNodeIds.add(id)
+      else if (getNodeMediaSpec(node)) targetNodeIds.add(id)
+    }
+    if (targetNodeIds.size === 0) return new Map()
     const dataflowRegistry = buildDataflowWidgetRegistry({
       documentWidgetRegistry,
       effectiveWidgetRegistry: widgetRegistry,
@@ -126,6 +135,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     return computeFlowConnectedValuesBySchemaPath({
       graphData: sceneGraphData,
       registry: dataflowRegistry,
+      targetNodeIds,
     })
   }, [baseWidgetRegistry, documentWidgetRegistry, sceneGraphData, widgetRegistry])
 
@@ -232,8 +242,6 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     }
     return out
   }, [
-    flowEditorFrontmatterInteractionMode,
-    flowEditorOverlayInteractionMode,
     flowEditorRichMediaPanelOverlayExcludeNodeIdSet,
     mediaRenderConnectedValuesByNodeId,
     mediaRenderNodes,

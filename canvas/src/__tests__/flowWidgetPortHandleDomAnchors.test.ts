@@ -490,7 +490,7 @@ export const testTextWidgetRegistryFieldRowsKeepPlaceholderPortHandles = async (
     const label = host.querySelector(`label[for="${fieldId}"]`)
     const row = label?.closest('tr')
     if (!row) throw new Error(`expected ${fieldId} field row to render`)
-    const cells = Array.from(row.querySelectorAll('td') as NodeListOf<HTMLTableCellElement>) as HTMLTableCellElement[]
+    const cells = Array.from(row.querySelectorAll('td')) as HTMLTableCellElement[]
     if (cells.length !== 5) throw new Error(`expected ${fieldId} field row to expose 5 cells, got ${cells.length}`)
     const inDot = cells[0]?.querySelector('button[disabled]')
     const outDot = cells[4]?.querySelector('button[disabled]')

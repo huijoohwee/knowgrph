@@ -393,7 +393,7 @@ export function testMarkdownFlowBlockPreservesFlowWidgetNodeTypesAndFormIds() {
   }
 }
 
-export function testMarkdownFlowBlockNormalizesLegacyVideoWidgetTypeToCanonicalDefault() {
+export function testMarkdownFlowBlockRejectsLegacyVideoWidgetTypeAlias() {
   const md = [
     '# Title',
     '',
@@ -424,8 +424,8 @@ export function testMarkdownFlowBlockNormalizesLegacyVideoWidgetTypeToCanonicalD
   if (String(videoProps[FLOW_WIDGET_FORM_ID_KEY] || '') !== 'videoGeneration') {
     throw new Error(`expected flow:widgetFormId=videoGeneration, got ${String(videoProps[FLOW_WIDGET_FORM_ID_KEY] || '')}`)
   }
-  if (String(videoProps[FLOW_WIDGET_TYPE_ID_KEY] || '') !== 'default') {
-    throw new Error(`expected flow:widgetTypeId=default after normalization, got ${String(videoProps[FLOW_WIDGET_TYPE_ID_KEY] || '')}`)
+  if (String(videoProps[FLOW_WIDGET_TYPE_ID_KEY] || '') !== 'ports') {
+    throw new Error(`expected stale flow:widgetTypeId alias to remain unremapped for rejection, got ${String(videoProps[FLOW_WIDGET_TYPE_ID_KEY] || '')}`)
   }
 
   const canonicalVideoDraft = buildCanonicalWidgetRegistryDraft({ nodeTypeId: 'VideoGeneration' })
@@ -435,10 +435,7 @@ export function testMarkdownFlowBlockNormalizesLegacyVideoWidgetTypeToCanonicalD
     registry: [{ ...canonicalVideoDraft, id: 'video-default', updatedAt: '2026-04-27T00:00:00.000Z' }],
     graphMetaKind: 'frontmatter-flow',
   })
-  if (!resolved) throw new Error('expected canonical video registry entry to resolve for normalized frontmatter node')
-  if (String(resolved.widgetTypeId || '') !== 'default') {
-    throw new Error(`expected resolved canonical video widgetTypeId=default, got ${String(resolved.widgetTypeId || '')}`)
-  }
+  if (resolved) throw new Error('expected stale video widgetTypeId alias to be rejected instead of remapped')
 }
 
 export function testMarkdownFrontmatterFlowGraphHonorsUserSubgraphs() {

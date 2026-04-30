@@ -39,6 +39,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
     editorWorkspacePane,
     workspaceCanvasPaneOpen,
     setWorkspaceViewMode,
+    setWorkspaceViewState,
     setEditorWorkspacePane,
     setWorkspaceCanvasPaneOpen,
   } = useGraphStore(
@@ -47,6 +48,7 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       editorWorkspacePane: s.editorWorkspacePane,
       workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
       setWorkspaceViewMode: s.setWorkspaceViewMode,
+      setWorkspaceViewState: s.setWorkspaceViewState,
       setEditorWorkspacePane: s.setEditorWorkspacePane,
       setWorkspaceCanvasPaneOpen: s.setWorkspaceCanvasPaneOpen,
     })),
@@ -71,10 +73,11 @@ export function WorkspaceTableModeControl({ className }: WorkspaceTableModeContr
       editorWorkspacePane,
       workspaceCanvasPaneOpen,
       setWorkspaceViewMode,
+      setWorkspaceViewState,
       setEditorWorkspacePane,
       setWorkspaceCanvasPaneOpen,
     })
-  }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceCanvasPaneOpen, setWorkspaceViewMode, workspaceCanvasPaneOpen, workspaceViewMode])
+  }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceCanvasPaneOpen, setWorkspaceViewMode, setWorkspaceViewState, workspaceCanvasPaneOpen, workspaceViewMode])
 
   const handleWorkspaceEditorModeChanged = React.useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {

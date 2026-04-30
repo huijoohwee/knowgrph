@@ -25,7 +25,7 @@ type ToolbarDropdownSelectProps<T extends ToolbarDropdownOptionBase> = {
   isButtonActive?: boolean
   menuWidthClass?: string
   onSelect: (id: T['id']) => void
-  onTriggerClick?: () => boolean | void
+  onTriggerClick?: () => boolean
   renderButtonContent: (activeOption: T) => React.ReactNode
   renderOptionContent?: (option: T) => React.ReactNode
   renderMenuAppend?: () => React.ReactNode

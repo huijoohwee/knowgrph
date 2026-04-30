@@ -118,6 +118,7 @@ export function MarkdownWorkspaceToolbar({
 }: MarkdownWorkspaceToolbarProps) {
   const panelTypography = usePanelTypography()
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
+  const setWorkspaceViewState = useGraphStore(s => s.setWorkspaceViewState)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const canNavigateSlides = layoutMode === 'presentation'
   const effectiveSplitPanes = React.useMemo(
@@ -393,6 +394,7 @@ export function MarkdownWorkspaceToolbar({
                   workspaceViewMode: workspaceViewMode === 'editor' ? 'editor' : 'canvas',
                   workspaceCanvasPaneOpen: canvasOpen,
                   setWorkspaceViewMode,
+                  setWorkspaceViewState,
                   setWorkspaceCanvasPaneOpen: setCanvasOpen,
                 })
               }}

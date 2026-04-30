@@ -266,18 +266,21 @@ export function listMediaOverlayNodes(args: {
     if (exclude?.has(id)) continue
 
     const connectedValuesBySchemaPath = connectedValuesByNodeId?.get(id)
+    const isRichMediaPanel = String(n0.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    const baseSpec = getNodeMediaSpec(n0)
     const nodeForSpec = (() => {
       if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return n0
+      if (!isRichMediaPanel && baseSpec) return n0
       const connectedNode = applyConnectedValuesToNodeForRender({ node: n0, connectedValuesBySchemaPath })
       const connectedSpec = getNodeMediaSpec(connectedNode)
       if (connectedSpec) return connectedNode
       return n0
     })()
-    const spec = getNodeMediaSpec(nodeForSpec)
+    const spec = nodeForSpec === n0 ? baseSpec : getNodeMediaSpec(nodeForSpec)
     if (!spec) continue
     const kind = spec.kind as MediaOverlayKind
     if (!kinds.has(kind)) continue
-    const panelNodeById = String(n0.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID ? getNodeById() : undefined
+    const panelNodeById = isRichMediaPanel ? getNodeById() : undefined
     const title = buildOverlayTitle({
       node: n0,
       nodeById: panelNodeById || EMPTY_NODE_BY_ID,
@@ -288,6 +291,7 @@ export function listMediaOverlayNodes(args: {
       node: n0,
       connectedValuesBySchemaPath,
       nodeById: panelNodeById,
+      renderNode: nodeForSpec,
     })
     const preferredHit = preferredSet?.has(id) === true
     const rankBase = computeMediaRank(nodeForSpec, spec)

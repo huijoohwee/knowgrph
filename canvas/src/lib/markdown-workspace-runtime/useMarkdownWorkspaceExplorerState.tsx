@@ -68,6 +68,9 @@ export function useMarkdownWorkspaceExplorerState(args: {
     return fs
   }, [])
 
+  const runtimeRef = React.useRef(args)
+  runtimeRef.current = args
+
   const scheduleApplyComposedFromSourceFiles = React.useCallback(async () => {
     try {
       const mod = (await import('@/features/source-files/applyComposedGraphFromSourceFiles')) as typeof import('@/features/source-files/applyComposedGraphFromSourceFiles')
@@ -78,11 +81,12 @@ export function useMarkdownWorkspaceExplorerState(args: {
   }, [])
 
   const refreshOnce = React.useCallback(async (): Promise<WorkspaceRefreshSnapshot> => {
-    args.setStatusProgress('Refreshing')
-    args.setLoading(true)
-    args.setLoadError('')
+    const runtime = runtimeRef.current
+    runtime.setStatusProgress('Refreshing')
+    runtime.setLoading(true)
+    runtime.setLoadError('')
     try {
-      const currentActivePath = args.activePathRef.current
+      const currentActivePath = runtime.activePathRef.current
       const fs = await getFs()
       await fs.ensureSeed()
       const list = await fs.listEntries()
@@ -93,9 +97,9 @@ export function useMarkdownWorkspaceExplorerState(args: {
         if (entry.text.length <= maxInline) return entry
         return { ...entry, text: undefined }
       })
-      args.setEntries(prev => (areWorkspaceEntriesEqual(prev, pruned) ? prev : pruned))
+      runtime.setEntries(prev => (areWorkspaceEntriesEqual(prev, pruned) ? prev : pruned))
       const sources = loadWorkspaceSourceIndex()
-      args.setSourcesByPath(prev => (areWorkspaceSourcesEqual(prev, sources) ? prev : sources))
+      runtime.setSourcesByPath(prev => (areWorkspaceSourcesEqual(prev, sources) ? prev : sources))
       try {
         const store = useGraphStore.getState()
         const merged = mergeWorkspaceEntriesIntoSourceFiles({
@@ -111,24 +115,25 @@ export function useMarkdownWorkspaceExplorerState(args: {
       } catch {
         void 0
       }
-      args.setLoading(false)
-      args.setStatusInfo('Ready')
+      runtime.setLoading(false)
+      runtime.setStatusInfo('Ready')
       return { entries: pruned, sourcesByPath: sources }
     } catch (e) {
-      args.setLoading(false)
-      args.setLoadError(String((e as { message?: unknown })?.message ?? e))
-      args.setStatusError('Refresh failed')
+      const currentRuntime = runtimeRef.current
+      currentRuntime.setLoading(false)
+      currentRuntime.setLoadError(String((e as { message?: unknown })?.message ?? e))
+      currentRuntime.setStatusError('Refresh failed')
       return { entries: [] as WorkspaceEntry[], sourcesByPath: loadWorkspaceSourceIndex() }
     }
-  }, [args, getFs, scheduleApplyComposedFromSourceFiles])
+  }, [getFs, scheduleApplyComposedFromSourceFiles])
 
   const refresh = React.useCallback(async (): Promise<WorkspaceRefreshSnapshot> => {
     if (refreshInFlightRef.current) {
       refreshQueuedRef.current = true
-      return { entries: args.entries, sourcesByPath: loadWorkspaceSourceIndex() }
+      return { entries: runtimeRef.current.entries, sourcesByPath: loadWorkspaceSourceIndex() }
     }
     refreshInFlightRef.current = true
-    let snapshot: WorkspaceRefreshSnapshot = { entries: args.entries, sourcesByPath: loadWorkspaceSourceIndex() }
+    let snapshot: WorkspaceRefreshSnapshot = { entries: runtimeRef.current.entries, sourcesByPath: loadWorkspaceSourceIndex() }
     try {
       do {
         refreshQueuedRef.current = false
@@ -143,10 +148,11 @@ export function useMarkdownWorkspaceExplorerState(args: {
   React.useEffect(() => {
     if (!args.active) return
     const unsubscribe = subscribeWorkspaceFsChanged(detail => {
-      if (args.viewerInlineEditActiveRef.current) return
-      const activePath = args.activePathRef.current
-      const last = args.lastLoadedRef.current
-      const isDirty = !!(activePath && last?.path === activePath && last.text !== args.activeTextRef.current)
+      const runtime = runtimeRef.current
+      if (runtime.viewerInlineEditActiveRef.current) return
+      const activePath = runtime.activePathRef.current
+      const last = runtime.lastLoadedRef.current
+      const isDirty = !!(activePath && last?.path === activePath && last.text !== runtime.activeTextRef.current)
       const changedPath = typeof detail?.path === 'string' && detail.path ? detail.path : null
       const operation = typeof detail?.op === 'string' ? detail.op : ''
       if (isDirty && (!changedPath || changedPath === activePath)) return
@@ -164,7 +170,7 @@ export function useMarkdownWorkspaceExplorerState(args: {
       cancelMarkdownWorkspaceRefreshSync()
       unsubscribe()
     }
-  }, [args.active, args.activePathRef, args.activeTextRef, args.lastLoadedRef, args.viewerInlineEditActiveRef, refresh])
+  }, [args.active, refresh])
 
   const persistWorkspacePrefsPendingRef = React.useRef<{
     sidebarWidthPx: number
@@ -238,8 +244,10 @@ export function useMarkdownWorkspaceExplorerState(args: {
     sidebarWidthPxRef.current = args.sidebarWidthPx
   }, [args.sidebarWidthPx])
 
+  const resizeHandleEl = args.resizeHandleEl
+  const setSidebarWidthPx = args.setSidebarWidthPx
   React.useEffect(() => {
-    const el = args.resizeHandleEl
+    const el = resizeHandleEl
     if (!el) return
     const onDown = (ev: PointerEvent) => {
       if (ev.button !== undefined && ev.button !== 0) return
@@ -254,15 +262,15 @@ export function useMarkdownWorkspaceExplorerState(args: {
           const dx = mv.clientX - startX
           const next = Math.max(SIDEBAR_MIN_PX, Math.min(SIDEBAR_MAX_PX, Math.round(startWidth + dx)))
           pending = next
-          args.setSidebarWidthPx(next)
+          setSidebarWidthPx(next)
         },
-        onEnd: () => args.setSidebarWidthPx(pending),
-        onCancel: () => args.setSidebarWidthPx(pending),
+        onEnd: () => setSidebarWidthPx(pending),
+        onCancel: () => setSidebarWidthPx(pending),
       })
     }
     el.addEventListener('pointerdown', onDown)
     return () => el.removeEventListener('pointerdown', onDown)
-  }, [args.resizeHandleEl, args.setSidebarWidthPx])
+  }, [resizeHandleEl, setSidebarWidthPx])
 
   const filteredEntries = React.useMemo(() => {
     const q = String(args.search || '').trim().toLowerCase()

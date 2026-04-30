@@ -1,7 +1,12 @@
-import { warmGraphTableDb } from '@/features/graph-table-db/graphTableDb'
-
 type WorkspaceViewMode = 'canvas' | 'editor'
 type EditorWorkspacePane = 'markdown' | 'graphTable'
+
+export function isWorkspaceEditorOverlayOpen(args: {
+  workspaceViewMode: WorkspaceViewMode
+  workspaceCanvasPaneOpen: boolean
+}): boolean {
+  return args.workspaceViewMode === 'editor' && args.workspaceCanvasPaneOpen === true
+}
 
 type OpenWorkspaceEditorPaneArgs = {
   workspaceViewMode: WorkspaceViewMode
@@ -9,6 +14,7 @@ type OpenWorkspaceEditorPaneArgs = {
   workspaceCanvasPaneOpen: boolean
   pane: EditorWorkspacePane
   setWorkspaceViewMode: (next: WorkspaceViewMode) => void
+  setWorkspaceViewState?: (next: { mode: WorkspaceViewMode; paneOpen?: boolean }) => void
   setEditorWorkspacePane: (next: EditorWorkspacePane) => void
   setWorkspaceCanvasPaneOpen: (open: boolean) => void
 }
@@ -17,6 +23,7 @@ type CloseWorkspaceViewArgs = {
   workspaceViewMode: WorkspaceViewMode
   workspaceCanvasPaneOpen: boolean
   setWorkspaceViewMode: (next: WorkspaceViewMode) => void
+  setWorkspaceViewState?: (next: { mode: WorkspaceViewMode; paneOpen?: boolean }) => void
   setWorkspaceCanvasPaneOpen: (open: boolean) => void
 }
 
@@ -29,14 +36,24 @@ export function isWorkspaceTableOpen(args: {
 
 export function openWorkspaceEditorPane(args: OpenWorkspaceEditorPaneArgs) {
   if (args.editorWorkspacePane !== args.pane) args.setEditorWorkspacePane(args.pane)
-  if (args.workspaceViewMode !== 'editor') {
-    args.setWorkspaceViewMode('editor')
-    return
+  if (args.workspaceViewMode !== 'editor' || args.workspaceCanvasPaneOpen !== true) {
+    if (args.setWorkspaceViewState) {
+      args.setWorkspaceViewState({ mode: 'editor', paneOpen: true })
+      return
+    }
+    if (args.workspaceViewMode !== 'editor') {
+      args.setWorkspaceViewMode('editor')
+      return
+    }
+    args.setWorkspaceCanvasPaneOpen(true)
   }
-  if (args.workspaceCanvasPaneOpen !== true) args.setWorkspaceCanvasPaneOpen(true)
 }
 
 export function closeWorkspaceView(args: CloseWorkspaceViewArgs) {
+  if (args.setWorkspaceViewState) {
+    args.setWorkspaceViewState({ mode: 'canvas', paneOpen: false })
+    return
+  }
   if (args.workspaceViewMode !== 'canvas') args.setWorkspaceViewMode('canvas')
   if (args.workspaceCanvasPaneOpen !== false) args.setWorkspaceCanvasPaneOpen(false)
 }
@@ -46,6 +63,7 @@ export function openWorkspaceTable(args: {
   editorWorkspacePane: EditorWorkspacePane
   workspaceCanvasPaneOpen: boolean
   setWorkspaceViewMode: (next: WorkspaceViewMode) => void
+  setWorkspaceViewState?: (next: { mode: WorkspaceViewMode; paneOpen?: boolean }) => void
   setEditorWorkspacePane: (next: EditorWorkspacePane) => void
   setWorkspaceCanvasPaneOpen: (open: boolean) => void
 }) {
@@ -55,9 +73,10 @@ export function openWorkspaceTable(args: {
     workspaceCanvasPaneOpen: args.workspaceCanvasPaneOpen,
     pane: 'graphTable',
     setWorkspaceViewMode: args.setWorkspaceViewMode,
+    setWorkspaceViewState: args.setWorkspaceViewState,
     setEditorWorkspacePane: args.setEditorWorkspacePane,
     setWorkspaceCanvasPaneOpen: args.setWorkspaceCanvasPaneOpen,
   })
   if (typeof window === 'undefined') return
-  void warmGraphTableDb()
+  void import('@/features/graph-table-db/graphTableDb').then(mod => mod.warmGraphTableDb())
 }

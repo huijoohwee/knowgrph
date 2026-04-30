@@ -1,6 +1,7 @@
 import React from 'react'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { DEFAULT_FLOW_DAGRE_MAX_NODES, DEFAULT_FLOW_ELK_MAX_NODES } from '@/lib/graph/layoutDefaults'
 import { buildElkLayout } from '@/components/FlowCanvas/elkLayout'
 import { buildDagreLayout, buildFastGridLayout, buildGraphMetaKeyIgnoringPending } from '@/components/FlowCanvas/layout'
@@ -553,7 +554,8 @@ export function useFlowComputedPositions(args: {
           cacheKey &&
           typeof setLayoutPositionsForMode === 'function' &&
           packed &&
-          Object.keys(packed).length > 0
+          Object.keys(packed).length > 0 &&
+          !isWorkspaceEditorOverlayOpen(useGraphStore.getState())
         ) {
           setLayoutPositionsForMode(cacheKey, packed)
         }

@@ -5,12 +5,13 @@ import {
 } from '@/lib/graph/flowPorts'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
-import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort, WidgetRegistrySchemaMapping } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { applyFlowDataflowReducer, applyFlowDataflowTransform } from '@/lib/flowEditor/flowDataflowTransforms'
 import { isFrontmatterFlowComputedEnabled } from '@/lib/graph/frontmatterFlowSettings'
 import { readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
+import { hashRecordSignature32 } from '@/lib/hash/signature'
 
 export type FlowConnectedValueSource = {
   edgeId: string
@@ -26,10 +27,36 @@ export type FlowConnectedValue = {
 export type FlowConnectedValuesBySchemaPath = Record<string, FlowConnectedValue>
 
 const CONNECTED_VALUES_RESULT_CACHE_LIMIT = 64
-const connectedValuesResultCache = new WeakMap<GraphData, Map<ReadonlyArray<WidgetRegistryEntry>, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>>()
+const connectedValuesResultCache = new WeakMap<GraphData, Map<string, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>>()
 
 function cleanString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
+}
+
+function registryCollectionKey(registry: ReadonlyArray<WidgetRegistryEntry>): string {
+  if (!Array.isArray(registry) || registry.length === 0) return ''
+  const parts: string[] = []
+  for (let i = 0; i < registry.length; i += 1) {
+    const entry = registry[i]
+    if (!entry || entry.isEnabled !== true) continue
+    const nodeTypeId = cleanString(entry.nodeTypeId)
+    if (!nodeTypeId) continue
+    const fields = Array.isArray(entry.fields) ? entry.fields as ReadonlyArray<WidgetRegistryField> : []
+    const ports = Array.isArray(entry.ports) ? entry.ports as ReadonlyArray<WidgetRegistryPort> : []
+    const mappings = Array.isArray(entry.schemaMappings) ? entry.schemaMappings as ReadonlyArray<WidgetRegistrySchemaMapping> : []
+    const fieldsKey = fields.map(field => `${cleanString(field.fieldKey)}:${cleanString(field.schemaPath)}`).join(',')
+    const portsKey = ports.map(port => `${cleanString(port.portKey)}:${cleanString(port.direction)}:${cleanString(port.schemaPath)}`).join(',')
+    const mappingsKey = mappings.map(mapping => `${cleanString(mapping.fromPath)}>${cleanString(mapping.toPath)}`).join(',')
+    parts.push([
+      nodeTypeId,
+      cleanString(entry.widgetTypeId),
+      cleanString(entry.formId),
+      fieldsKey,
+      portsKey,
+      mappingsKey,
+    ].join('|'))
+  }
+  return parts.join('\n')
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -47,27 +74,27 @@ function buildConnectedValuesTargetKey(targetNodeIds?: ReadonlySet<string>): str
 
 function readConnectedValuesResultCache(args: {
   graphData: GraphData
-  registry: ReadonlyArray<WidgetRegistryEntry>
+  registryKey: string
   targetKey: string
 }): Map<string, FlowConnectedValuesBySchemaPath> | null {
-  return connectedValuesResultCache.get(args.graphData)?.get(args.registry)?.get(args.targetKey) || null
+  return connectedValuesResultCache.get(args.graphData)?.get(args.registryKey)?.get(args.targetKey) || null
 }
 
 function writeConnectedValuesResultCache(args: {
   graphData: GraphData
-  registry: ReadonlyArray<WidgetRegistryEntry>
+  registryKey: string
   targetKey: string
   result: Map<string, FlowConnectedValuesBySchemaPath>
 }): void {
   let byRegistry = connectedValuesResultCache.get(args.graphData)
   if (!byRegistry) {
-    byRegistry = new Map<ReadonlyArray<WidgetRegistryEntry>, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>()
+    byRegistry = new Map<string, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>()
     connectedValuesResultCache.set(args.graphData, byRegistry)
   }
-  let byTarget = byRegistry.get(args.registry)
+  let byTarget = byRegistry.get(args.registryKey)
   if (!byTarget) {
     byTarget = new Map<string, Map<string, FlowConnectedValuesBySchemaPath>>()
-    byRegistry.set(args.registry, byTarget)
+    byRegistry.set(args.registryKey, byTarget)
   }
   if (!byTarget.has(args.targetKey) && byTarget.size >= CONNECTED_VALUES_RESULT_CACHE_LIMIT) {
     const oldestKey = byTarget.keys().next().value
@@ -262,8 +289,9 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
   const graph = args.graphData
   if (!graph) return new Map()
   const registry = Array.isArray(args.registry) ? args.registry : []
+  const registryKey = registryCollectionKey(registry)
   const targetKey = buildConnectedValuesTargetKey(args.targetNodeIds)
-  const cached = readConnectedValuesResultCache({ graphData: graph, registry, targetKey })
+  const cached = readConnectedValuesResultCache({ graphData: graph, registryKey, targetKey })
   if (cached) return cached
   const computeEnabled = isFrontmatterFlowComputedEnabled(graph)
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
@@ -325,28 +353,19 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
   const objectValueKeyCache = new WeakMap<object, string>()
 
   const valueKey = (v: unknown): string => {
-    if (typeof v === 'string') return `s:${v}`
+    if (typeof v === 'string') return `s:${v.length}:${v}`
     if (typeof v === 'number') return Number.isFinite(v) ? `n:${v}` : 'n:NaN'
     if (typeof v === 'boolean') return v ? 'b:1' : 'b:0'
     if (v == null) return 'null'
+    if (Array.isArray(v)) return `a:${v.length}:${hashRecordSignature32({ value: v }, { maxEntries: 1, maxDepth: 3 })}`
     if (typeof v === 'object') {
       const key = objectValueKeyCache.get(v as object)
       if (key) return key
-      try {
-        const next = `j:${JSON.stringify(v)}`
-        objectValueKeyCache.set(v as object, next)
-        return next
-      } catch {
-        const next = `u:${String(v)}`
-        objectValueKeyCache.set(v as object, next)
-        return next
-      }
+      const next = `o:${hashRecordSignature32(v, { maxEntries: 80, maxDepth: 3 })}`
+      objectValueKeyCache.set(v as object, next)
+      return next
     }
-    try {
-      return `j:${JSON.stringify(v)}`
-    } catch {
-      return `u:${String(v)}`
-    }
+    return `u:${String(v)}`
   }
 
   const connectedKey = (m: FlowConnectedValuesBySchemaPath): string => {
@@ -431,6 +450,6 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
     if (requestedTargets && !requestedTargets.has(id)) continue
     out.set(id, computedByNodeId.get(id) || {})
   }
-  writeConnectedValuesResultCache({ graphData: graph, registry, targetKey, result: out })
+  writeConnectedValuesResultCache({ graphData: graph, registryKey, targetKey, result: out })
   return out
 }

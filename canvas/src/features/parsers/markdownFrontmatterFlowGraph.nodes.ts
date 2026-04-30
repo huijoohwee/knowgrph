@@ -400,12 +400,8 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     const explicitWidgetTypeId = typeof propsFromRow[FLOW_WIDGET_TYPE_ID_KEY] === 'string'
       ? String(propsFromRow[FLOW_WIDGET_TYPE_ID_KEY] || '').trim()
       : ''
-    const normalizedExplicitWidgetTypeId =
-      type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID && explicitWidgetTypeId === 'ports'
-        ? canonicalWidgetTypeId
-        : explicitWidgetTypeId
     const formId = explicitFormId || formIdFallback
-    const widgetTypeId = normalizedExplicitWidgetTypeId || canonicalWidgetTypeId
+    const widgetTypeId = explicitWidgetTypeId || canonicalWidgetTypeId
     const fieldsFromRow = (() => {
       const raw = (propsFromRow as unknown as Record<string, unknown>)[FRONTMATTER_FLOW_WIDGET_FIELDS_KEY]
       if (!Array.isArray(raw)) return [] as Array<{ fieldKey: string; fieldType: string; schemaPath?: string }>

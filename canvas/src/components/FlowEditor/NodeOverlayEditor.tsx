@@ -13,6 +13,7 @@ import {
 } from '@/lib/graph/layoutDefaults'
 import { useOutsideClose } from '@/hooks/useOutsideClose'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import {
@@ -437,11 +438,13 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const persistFloatingPos = React.useCallback(
     (pos: { top: number; left: number }) => {
       if (!nodeId) return
-      const current = useGraphStore.getState().flowWidgetPosByNodeId || {}
+      const state = useGraphStore.getState()
+      if (isWorkspaceEditorOverlayOpen(state)) return
+      const current = state.flowWidgetPosByNodeId || {}
       const prev = current[nodeId]
       if (prev && prev.top === pos.top && prev.left === pos.left) return
       const next = { ...current, [nodeId]: { top: pos.top, left: pos.left } }
-      useGraphStore.getState().setFlowWidgetPosByNodeId(next)
+      state.setFlowWidgetPosByNodeId(next)
     },
     [nodeId],
   )
@@ -449,9 +452,13 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const persistWorldPos = React.useCallback(
     (pos: { x: number; y: number }) => {
       if (!nodeId) return
-      const current =
-        (useGraphStore.getState() as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
-          .flowWidgetWorldPosByNodeId || {}
+      const state = useGraphStore.getState() as {
+        workspaceViewMode: 'canvas' | 'editor'
+        workspaceCanvasPaneOpen: boolean
+        flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
+      }
+      if (isWorkspaceEditorOverlayOpen(state)) return
+      const current = state.flowWidgetWorldPosByNodeId || {}
       const prev = current[nodeId]
       if (prev && Math.abs(prev.x - pos.x) <= 0.0001 && Math.abs(prev.y - pos.y) <= 0.0001) return
       const next = { ...current, [nodeId]: { x: pos.x, y: pos.y } }
@@ -681,9 +688,15 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     lastAppliedRef.current = { left: pos.left, top: pos.top, scale: panelScale, offsetLeft, offsetTop }
     el.style.transform = `matrix(${panelScale}, 0, 0, ${panelScale}, ${tx}, ${ty})`
   }, [
+    autoStackOffset.left,
+    autoStackOffset.top,
+    floatingUsesScreenAuthority,
+    getLiveContainmentGroupAabbForNode,
     getLiveNodeWorldPos,
     getLiveZoomTransform,
+    graphMetaKind,
     nodeId,
+    openWidgetNodeIds.length,
     pinnedLeftPx,
     pinnedTopPx,
     scheduleClampCommit,

@@ -11,6 +11,7 @@ import {
 } from '@/lib/async/workspaceSyncKeys'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 
@@ -553,6 +554,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   flowWidgetPinnedByNodeIdByGraphMetaKey: readShardedFlowWidgetGraphMap(storage, LS_KEYS.flowWidgetPinnedByGraphMetaKey, raw => normalizePinnedByNodeId(raw as Record<string, boolean> | null | undefined), parseFlowWidgetPinnedByGraphMap),
   setFlowWidgetPinnedByNodeId: (pinnedById: Record<string, boolean>) => {
     const state = get()
+    if (isWorkspaceEditorOverlayOpen(state)) return
     const nextPinnedById = normalizePinnedByNodeId(pinnedById)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
@@ -580,6 +582,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   ),
   setFlowWidgetPosByNodeId: (pos: Record<string, { top: number; left: number }>) => {
     const state = get()
+    if (isWorkspaceEditorOverlayOpen(state)) return
     const nextPosByNodeId = normalizePosByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetPosByNodeIdByGraphMetaKey || {}
@@ -620,6 +623,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   ),
   setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => {
     const state = get()
+    if (isWorkspaceEditorOverlayOpen(state)) return
     const nextWorldByNodeId = normalizeWorldByNodeId(pos)
     const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
     const by = state.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}

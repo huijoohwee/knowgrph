@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -34,9 +36,11 @@ export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocument
   doc.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
   const snapshots: string[] = []
+  const widgetAvailabilitySnapshots: boolean[] = []
 
-  function Harness(props: { activePath: string; graphContentRevision: number }) {
+  function Harness(props: { active?: boolean; activePath: string; graphContentRevision: number }) {
     const state = useMarkdownWorkspaceWidgetMode({
+      active: props.active,
       graphNodes: [{ id: 'w-text-script', type: 'TextGeneration', properties: {} } as never],
       graphEdges: [{ id: 'e-video', source: 'w-text-script', target: 'p-text-script' } as never],
       graphContentRevision: props.graphContentRevision,
@@ -50,13 +54,25 @@ export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocument
     React.useEffect(() => {
       snapshots.push(state.contentMode)
     }, [state.contentMode])
+    React.useEffect(() => {
+      widgetAvailabilitySnapshots.push(state.widgetAvailable)
+    }, [state.widgetAvailable])
 
     return null
   }
 
   try {
     await act(async () => {
-      root.render(React.createElement(Harness, { activePath: '/knowgrph-video-demo.md', graphContentRevision: 1 }))
+      root.render(React.createElement(Harness, { active: false, activePath: '/knowgrph-video-demo.md', graphContentRevision: 1 }))
+      await tick(2)
+    })
+
+    if (widgetAvailabilitySnapshots.includes(true)) {
+      throw new Error('expected inactive markdown workspace widget mode to skip graph lookup and widget availability')
+    }
+
+    await act(async () => {
+      root.render(React.createElement(Harness, { active: true, activePath: '/knowgrph-video-demo.md', graphContentRevision: 1 }))
       await tick(2)
     })
 
@@ -65,7 +81,7 @@ export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocument
     }
 
     await act(async () => {
-      root.render(React.createElement(Harness, { activePath: '/workspace/output.json', graphContentRevision: 2 }))
+      root.render(React.createElement(Harness, { active: true, activePath: '/workspace/output.json', graphContentRevision: 2 }))
       await tick(2)
     })
 
@@ -81,6 +97,44 @@ export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocument
       void 0
     }
     restore()
+  }
+}
+
+export function testMarkdownWorkspaceWidgetModeUsesSemanticCacheAndLazyBundleBuild() {
+  const p = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceWidgetMode.ts')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes("import { hashSignatureParts } from '@/lib/hash/signature'")) {
+    throw new Error('expected widget mode to reuse shared hash signature helper for semantic cache keys')
+  }
+  if (!text.includes('openWidgetNodeIdsSnapshotRef') || !text.includes('widgetRegistrySnapshotRef') || !text.includes('graphLookupRef')) {
+    throw new Error('expected widget mode to cache hot-path snapshots by semantic keys instead of raw array identity')
+  }
+  const bundleStart = text.indexOf('const widgetBundleJsonText = React.useMemo(() => {')
+  const bundleEnd = text.indexOf('  const widgetEditorText = React.useMemo(() => {')
+  if (bundleStart < 0 || bundleEnd <= bundleStart) {
+    throw new Error('expected widget bundle generation to remain isolated in its own memo')
+  }
+  const bundleSection = text.slice(bundleStart, bundleEnd)
+  if (!bundleSection.includes("if (contentMode !== 'widget' || widgetNodeIds.length === 0")) {
+    throw new Error('expected widget bundle JSON generation to stay lazy while document mode is active')
+  }
+  if (bundleSection.includes('nodes.find(')) {
+    throw new Error('expected widget bundle generation to reuse graphLookup.byId instead of rescanning nodes per widget')
+  }
+
+  const explorerPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceExplorerState.tsx')
+  const explorerText = readFileSync(explorerPath, 'utf8')
+  if (!explorerText.includes('const runtimeRef = React.useRef(args)') || !explorerText.includes('runtimeRef.current = args')) {
+    throw new Error('expected workspace explorer refresh to read current runtime state through a stable ref')
+  }
+  if (explorerText.includes('}, [args, getFs, scheduleApplyComposedFromSourceFiles])')) {
+    throw new Error('expected workspace refreshOnce not to depend on the fresh args object')
+  }
+  if (!explorerText.includes('}, [getFs, scheduleApplyComposedFromSourceFiles])')) {
+    throw new Error('expected workspace refreshOnce identity to stay stable across render-only state churn')
+  }
+  if (!explorerText.includes('}, [args.active, refresh])')) {
+    throw new Error('expected filesystem refresh subscription to depend only on active state and stable refresh')
   }
 }
 

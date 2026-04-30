@@ -54,7 +54,7 @@ export const testFlowWidgetRegistryResolveHonorsNodeOverride = () => {
   ]
 
   const entry = resolveWidgetRegistryEntry({
-    node: { id: 'n-special', type: 'Schema', properties: { 'flow:widgetTypeId': 'special' } },
+    node: { id: 'node-special', type: 'Schema', properties: { 'flow:widgetTypeId': 'special' } },
     registry,
   })
   if (!entry) throw new Error('expected a resolved entry')

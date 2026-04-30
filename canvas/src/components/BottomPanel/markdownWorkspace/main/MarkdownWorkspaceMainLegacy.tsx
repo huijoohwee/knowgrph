@@ -28,6 +28,7 @@ import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { useWorkspaceExportBridge } from './useWorkspaceExportBridge'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 import { tryBuildWidgetBundleMarkdownFromJsonText } from '@/lib/graph/io/widgetBundle'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 const MarkdownWorkspacePresentationSurfaceLazy = React.lazy(
   async (): Promise<{ default: typeof import('./presentation/MarkdownWorkspacePresentationSurface')['MarkdownWorkspacePresentationSurface'] }> =>
@@ -106,6 +107,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const setWorkspaceCanvasPaneOpen = useGraphStore(s => s.setWorkspaceCanvasPaneOpen)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const graphData = useGraphStore(s => s.graphData)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const {
@@ -181,16 +183,15 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
       setViewerMode('read')
     }
   }, [layoutMode, viewerKind, viewerMode])
-  const wasWorkspaceEditorModeOpenRef = React.useRef<boolean>(workspaceViewMode === 'editor')
+  const wasWorkspaceEditorOverlayOpenRef = React.useRef<boolean>(workspaceEditorOverlayOpen)
   React.useEffect(() => {
-    const open = workspaceViewMode === 'editor'
-    const wasOpen = wasWorkspaceEditorModeOpenRef.current
-    wasWorkspaceEditorModeOpenRef.current = open
-    if (!open || wasOpen) return
+    const wasOpen = wasWorkspaceEditorOverlayOpenRef.current
+    wasWorkspaceEditorOverlayOpenRef.current = workspaceEditorOverlayOpen
+    if (!workspaceEditorOverlayOpen || wasOpen) return
     setSplitPaneVisibility(prev => (
       prev.markdown && !prev.json && !prev.viewer ? prev : { json: false, markdown: true, viewer: false }
     ))
-  }, [workspaceViewMode])
+  }, [workspaceEditorOverlayOpen])
 
   const workspaceEditorMode = React.useSyncExternalStore(
     workspaceTablePreferencesStore.subscribe,

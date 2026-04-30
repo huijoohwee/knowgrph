@@ -98,11 +98,12 @@ export function buildRichMediaPanelOverlayState(args: {
   node: GraphNode
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   nodeById?: ReadonlyMap<string, GraphNode>
+  renderNode?: GraphNode
 }): RichMediaPanelOverlayState | undefined {
   const baseNode = args.node
   if (String(baseNode.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return undefined
   const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
-  const nodeForState = resolveRichMediaPanelRenderNode({ node: baseNode, connectedValuesBySchemaPath })
+  const nodeForState = args.renderNode || resolveRichMediaPanelRenderNode({ node: baseNode, connectedValuesBySchemaPath })
   const props = (nodeForState.properties || {}) as Record<string, unknown>
   const output = typeof props.output === 'string' ? props.output : ''
   const outputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''

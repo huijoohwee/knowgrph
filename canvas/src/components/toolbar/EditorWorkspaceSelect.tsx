@@ -106,6 +106,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           editorWorkspacePane: liveEditorWorkspacePane,
           workspaceCanvasPaneOpen: liveWorkspaceCanvasPaneOpen,
           setWorkspaceViewMode: state.setWorkspaceViewMode,
+          setWorkspaceViewState: state.setWorkspaceViewState,
           setEditorWorkspacePane: state.setEditorWorkspacePane,
           setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
         })
@@ -127,6 +128,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
         workspaceCanvasPaneOpen: liveWorkspaceCanvasPaneOpen,
         pane: 'markdown',
         setWorkspaceViewMode: state.setWorkspaceViewMode,
+        setWorkspaceViewState: state.setWorkspaceViewState,
         setEditorWorkspacePane: state.setEditorWorkspacePane,
         setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
       })
@@ -146,6 +148,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
       workspaceCanvasPaneOpen: liveWorkspaceCanvasPaneOpen,
       pane: liveEditorWorkspacePane,
       setWorkspaceViewMode: state.setWorkspaceViewMode,
+      setWorkspaceViewState: state.setWorkspaceViewState,
       setEditorWorkspacePane: state.setEditorWorkspacePane,
       setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
     })

@@ -11,6 +11,25 @@ type SetGraph = StoreApi<GraphState>['setState']
 export const createUiCoreActions = (set: SetGraph)=> ({
     setEditMode: (mode: boolean) => set({ isEditMode: mode }),
 
+    setWorkspaceViewState: (next: { mode: 'canvas' | 'editor'; paneOpen?: boolean }) =>
+      set(state => {
+        const nextMode = next.mode === 'editor' ? 'editor' : 'canvas'
+        const nextPaneOpen = nextMode === 'editor'
+          ? true
+          : next.paneOpen === false
+            ? false
+            : next.paneOpen === true
+              ? true
+              : state.workspaceCanvasPaneOpen
+        if (state.workspaceViewMode === nextMode && state.workspaceCanvasPaneOpen === nextPaneOpen) return {}
+        if (state.workspaceViewMode !== nextMode) lsSetJson(LS_KEYS.workspaceViewMode, nextMode)
+        if (state.workspaceCanvasPaneOpen !== nextPaneOpen) lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, nextPaneOpen)
+        return {
+          workspaceViewMode: nextMode,
+          workspaceCanvasPaneOpen: nextPaneOpen,
+        } as Partial<GraphState>
+      }),
+
     setWorkspaceViewMode: (mode: 'canvas' | 'editor') =>
       set(state => {
         const nextMode = mode === 'editor' ? 'editor' : 'canvas'

@@ -30,6 +30,7 @@ import { useMarkdownWorkspaceSave } from './useMarkdownWorkspaceSave'
 import { useMarkdownWorkspaceSelection } from './useMarkdownWorkspaceSelection'
 import { useMarkdownWorkspaceViewShell } from './useMarkdownWorkspaceViewShell'
 import { useMarkdownWorkspaceWidgetMode } from './useMarkdownWorkspaceWidgetMode'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const active = props.active !== false
@@ -74,7 +75,8 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const requestRevealLine = useMarkdownExplorerStore(s => s.requestRevealLine)
   const lastSetActivePath = useMarkdownExplorerStore(s => s.lastSetActivePath)
 
-  const effectiveBottomPanelCollapsed = workspaceViewMode === 'editor' ? false : bottomPanelCollapsed
+  const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
+  const effectiveBottomPanelCollapsed = workspaceEditorOverlayOpen ? false : bottomPanelCollapsed
   const [entries, setEntries] = React.useState<WorkspaceEntry[]>([])
   const [sourcesByPath, setSourcesByPath] = React.useState(() => loadWorkspaceSourceIndex())
   const [loading, setLoading] = React.useState(true)
@@ -164,22 +166,22 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const activePathRef = React.useRef<WorkspacePath | null>(null)
   activePathRef.current = activePath
 
-  const wasWorkspaceEditorModeOpenRef = React.useRef<boolean>(workspaceViewMode === 'editor')
+  const wasWorkspaceEditorOverlayOpenRef = React.useRef<boolean>(workspaceEditorOverlayOpen)
   const layoutModeRef = React.useRef<MarkdownWorkspaceLayoutMode>(layoutMode)
   React.useEffect(() => {
     layoutModeRef.current = layoutMode
   }, [layoutMode])
   React.useEffect(() => {
-    const open = workspaceViewMode === 'editor'
-    const wasOpen = wasWorkspaceEditorModeOpenRef.current
-    wasWorkspaceEditorModeOpenRef.current = open
-    if (!open || wasOpen) return
+    const wasOpen = wasWorkspaceEditorOverlayOpenRef.current
+    wasWorkspaceEditorOverlayOpenRef.current = workspaceEditorOverlayOpen
+    if (!workspaceEditorOverlayOpen || wasOpen) return
     setLayoutMode('split')
     setExplorerOpen(true)
     setSidebarWidthPx(resolveWorkspaceExplorerDefaultWidthPx({ minPx: SIDEBAR_MIN_PX, maxPx: SIDEBAR_MAX_PX }))
-  }, [workspaceViewMode])
+  }, [workspaceEditorOverlayOpen])
 
   const widgetState = useMarkdownWorkspaceWidgetMode({
+    active,
     graphNodes,
     graphEdges,
     graphContentRevision,

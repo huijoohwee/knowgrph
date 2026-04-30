@@ -22,26 +22,30 @@ export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportRes
   const createdPaths = Array.isArray(rec.createdPaths)
     ? rec.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
     : []
-  const sources: WorkspaceImportResult['sources'] = []
-  if (Array.isArray(rec.sources)) {
-    for (const item of rec.sources) {
-      const path = String((item as { path?: unknown } | null)?.path || '').trim() as WorkspacePath
-      const rawSource = (item as { source?: unknown } | null)?.source
-      if (!path || !rawSource || typeof rawSource !== 'object') continue
-      const kind = String((rawSource as { kind?: unknown }).kind || '').trim()
-      if (kind === 'url') {
-        const url = String((rawSource as { url?: unknown }).url || '').trim()
-        if (url) sources.push({ path, source: { kind: 'url', url } })
-        continue
-      }
-      if (kind === 'local') {
-        const originalName = typeof (rawSource as { originalName?: unknown }).originalName === 'string'
-          ? (rawSource as { originalName?: string }).originalName || null
-          : null
-        sources.push({ path, source: { kind: 'local', originalName } })
-      }
-    }
-  }
+  const sources = Array.isArray(rec.sources)
+    ? rec.sources
+        .map((item): WorkspaceImportResult['sources'][number] | null => {
+          const path = String((item as { path?: unknown } | null)?.path || '').trim() as WorkspacePath
+          const rawSource = (item as { source?: unknown } | null)?.source
+          if (!path || !rawSource || typeof rawSource !== 'object') return null
+          const kind = String((rawSource as { kind?: unknown }).kind || '').trim()
+          if (kind === 'url') {
+            const url = String((rawSource as { url?: unknown }).url || '').trim()
+            if (!url) return null
+            return { path, source: { kind: 'url' as const, url } }
+          }
+          if (kind === 'local') {
+            const originalName = typeof (rawSource as { originalName?: unknown }).originalName === 'string'
+              ? String((rawSource as { originalName?: string }).originalName || '').trim()
+              : ''
+            return originalName
+              ? { path, source: { kind: 'local' as const, originalName } }
+              : { path, source: { kind: 'local' as const } }
+          }
+          return null
+        })
+        .filter((item): item is WorkspaceImportResult['sources'][number] => !!item)
+    : []
   const skipped = Array.isArray(rec.skipped)
     ? rec.skipped
         .map(item => {

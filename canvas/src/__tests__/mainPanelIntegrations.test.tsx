@@ -1214,7 +1214,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusNes
     if (text.includes('Optional. Maximum allowed image pixels.')) {
       throw new Error('expected BytePlus nested numeric field value cell to stop rendering descriptive prose')
     }
-    const editors = Array.from(container.querySelectorAll('input[type="number"]') as NodeListOf<HTMLInputElement>)
+    const editors = Array.from(container.querySelectorAll('input[type="number"]')) as HTMLInputElement[]
     if (editors.length !== 1) {
       throw new Error(`expected BytePlus nested numeric field row to render one numeric input, got ${editors.length}`)
     }

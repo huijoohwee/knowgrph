@@ -22,12 +22,27 @@ export async function testWorkspaceCanvasPaneOpenCannotCloseWhileEditorMode() {
     if (after.workspaceCanvasPaneOpen !== true) {
       throw new Error('expected workspaceCanvasPaneOpen to remain true while workspaceViewMode is editor')
     }
-    after.setWorkspaceViewMode('canvas')
-    after.setWorkspaceCanvasPaneOpen(false)
+    after.setWorkspaceViewState({ mode: 'canvas', paneOpen: false })
+    const atomicClose = useGraphStore.getState()
+    if (atomicClose.workspaceViewMode !== 'canvas' || atomicClose.workspaceCanvasPaneOpen !== false) {
+      throw new Error('expected atomic workspace close to clear mode and pane-open state together')
+    }
     useGraphStore.getState().toggleWorkspaceViewMode()
     const toggledOpen = useGraphStore.getState()
     if (toggledOpen.workspaceViewMode !== 'editor' || toggledOpen.workspaceCanvasPaneOpen !== true) {
       throw new Error('expected toggleWorkspaceViewMode to share editor pane-open normalization')
+    }
+    const transitions: string[] = []
+    const unsubscribe = useGraphStore.subscribe(s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen] as const, next => {
+      transitions.push(`${next[0]}:${next[1] ? 'open' : 'closed'}`)
+    })
+    try {
+      useGraphStore.getState().setWorkspaceViewState({ mode: 'canvas', paneOpen: false })
+    } finally {
+      unsubscribe()
+    }
+    if (transitions.includes('canvas:open')) {
+      throw new Error('expected workspace close not to publish intermediate canvas/open state')
     }
   } finally {
     await new Promise<void>(resolve => setTimeout(resolve, 0))

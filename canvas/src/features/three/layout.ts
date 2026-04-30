@@ -6,6 +6,7 @@ import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
+import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
 import { computeLayoutDatasetKey, buildLayoutViewKey, buildLayoutPositionCacheKey } from '@/lib/canvas/layoutPositioning'
 import { coverageOfPositions, pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
@@ -37,7 +38,6 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
     const canvas3dMode = mode
     const layoutMode = schema ? (schema.layout?.mode as string) || 'radial' : 'radial'
     const semanticModeBase = String(documentSemanticMode || 'document')
-    const semanticMode = multiDimTableModeEnabled === true ? `${semanticModeBase}:mdtbl` : semanticModeBase
     const graphDataForView =
       (graphDataForViewOverride as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) ||
       (graphData as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null) ||
@@ -46,6 +46,12 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
       frontmatterModeEnabled: frontmatterModeEnabled === true,
       documentSemanticMode: semanticModeBase as 'document' | 'keyword',
       graphData: (graphDataForViewOverride || graphData) as any,
+    })
+    const semanticMode = buildDocumentSemanticModeKey({
+      frontmatterModeEnabled: effectiveFrontmatter,
+      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
+      documentSemanticMode: semanticModeBase,
+      documentStructureBaselineLock: documentStructureBaselineLock === true,
     })
     const datasetKey = computeLayoutDatasetKey({ graphData: graphDataForView, graphDataRevision })
     const graphMetaKey = buildGraphMetaKeyIgnoringPending((graphDataForViewOverride || graphData) as any)

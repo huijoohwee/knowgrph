@@ -2,6 +2,7 @@ import React from 'react'
 import * as d3 from 'd3'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
@@ -61,6 +62,7 @@ export function useFlowRequestCommit(args: {
       if (!runtime) return
       const t = runtime.transform || d3.zoomIdentity
       const current = useGraphStore.getState()
+      const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen(current)
       commitZoomTransformToStore({
         state: {
           viewPinned: current.viewPinned,
@@ -76,6 +78,7 @@ export function useFlowRequestCommit(args: {
         graphDataRevision,
       })
       if (!cacheKey || typeof setLayoutPositionsForMode !== 'function') return
+      if (workspaceOverlayOpen) return
       if (!positionsDirtySinceCommitRef.current) return
       const scene = runtime.scene
       if (!scene) return

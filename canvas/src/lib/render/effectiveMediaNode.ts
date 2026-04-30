@@ -3,6 +3,7 @@ import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataf
 import { setObjectPath } from '@/lib/data/objectPath'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { resolveRichMediaConnectedRenderSchemaPath } from '@/lib/flowEditor/widgetAutoRender'
+import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 
 const RICH_MEDIA_RENDER_SCHEMA_PATHS = new Set([
   'properties.output',
@@ -47,19 +48,41 @@ function clearRichMediaRenderDrivers(properties: Record<string, unknown>, opts?:
   return next
 }
 
-const connectedRenderNodeCacheByNode = new WeakMap<GraphNode, WeakMap<FlowConnectedValuesBySchemaPath, GraphNode>>()
+const CONNECTED_RENDER_NODE_CACHE_LIMIT = 48
+const connectedRenderNodeCacheByNode = new WeakMap<GraphNode, Map<string, GraphNode>>()
 
-function readConnectedRenderNodeCache(node: GraphNode, connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath): GraphNode | null {
-  return connectedRenderNodeCacheByNode.get(node)?.get(connectedValuesBySchemaPath) || null
+function connectedRenderValueSignature(connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath): string {
+  const paths = Object.keys(connectedValuesBySchemaPath).sort()
+  const parts: Array<string | number | boolean> = ['paths', paths.length]
+  for (let i = 0; i < paths.length; i += 1) {
+    const path = paths[i]
+    const connected = connectedValuesBySchemaPath[path]
+    const sources = Array.isArray(connected?.sources) ? connected.sources : []
+    const sourceParts: string[] = []
+    for (let j = 0; j < sources.length; j += 1) {
+      const source = sources[j]
+      sourceParts.push(`${String(source.edgeId || '').trim()}|${String(source.nodeId || '').trim()}|${String(source.portKey || '').trim()}`)
+    }
+    parts.push(path, hashRecordSignature32({ value: connected?.value }, { maxEntries: 1, maxDepth: 3 }), sourceParts.join(','))
+  }
+  return hashSignatureParts(parts)
 }
 
-function writeConnectedRenderNodeCache(node: GraphNode, connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath, renderedNode: GraphNode): void {
-  let byValues = connectedRenderNodeCacheByNode.get(node)
-  if (!byValues) {
-    byValues = new WeakMap<FlowConnectedValuesBySchemaPath, GraphNode>()
-    connectedRenderNodeCacheByNode.set(node, byValues)
+function readConnectedRenderNodeCache(node: GraphNode, signature: string): GraphNode | null {
+  return connectedRenderNodeCacheByNode.get(node)?.get(signature) || null
+}
+
+function writeConnectedRenderNodeCache(node: GraphNode, signature: string, renderedNode: GraphNode): void {
+  let bySignature = connectedRenderNodeCacheByNode.get(node)
+  if (!bySignature) {
+    bySignature = new Map<string, GraphNode>()
+    connectedRenderNodeCacheByNode.set(node, bySignature)
   }
-  byValues.set(connectedValuesBySchemaPath, renderedNode)
+  if (!bySignature.has(signature) && bySignature.size >= CONNECTED_RENDER_NODE_CACHE_LIMIT) {
+    const oldestKey = bySignature.keys().next().value
+    if (typeof oldestKey === 'string') bySignature.delete(oldestKey)
+  }
+  bySignature.set(signature, renderedNode)
 }
 
 export function applyConnectedValuesToNodeForRender(args: {
@@ -68,7 +91,8 @@ export function applyConnectedValuesToNodeForRender(args: {
 }): GraphNode {
   const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
   if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return args.node
-  const cached = readConnectedRenderNodeCache(args.node, connectedValuesBySchemaPath)
+  const cacheSignature = connectedRenderValueSignature(connectedValuesBySchemaPath)
+  const cached = readConnectedRenderNodeCache(args.node, cacheSignature)
   if (cached) return cached
 
   let next = {
@@ -125,6 +149,6 @@ export function applyConnectedValuesToNodeForRender(args: {
   }
 
   const renderedNode = changed ? next : args.node
-  writeConnectedRenderNodeCache(args.node, connectedValuesBySchemaPath, renderedNode)
+  writeConnectedRenderNodeCache(args.node, cacheSignature, renderedNode)
   return renderedNode
 }

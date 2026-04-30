@@ -4,7 +4,7 @@ import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExpo
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData } from '@/lib/graph/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -59,17 +59,16 @@ export function useFlowCanvasSnapshots(args: {
         if (!graphData || !schema) return null
 
         const documentSemanticMode = store.documentSemanticMode === 'keyword' ? 'keyword' : 'document'
-        const activeDocumentViewMode = resolveActiveDocumentViewMode({
-          frontmatterModeEnabled: store.frontmatterModeEnabled === true,
-          multiDimTableModeEnabled: store.multiDimTableModeEnabled === true,
-          documentSemanticMode: String(store.documentSemanticMode || 'document'),
-          documentStructureBaselineLock: store.documentStructureBaselineLock === true,
-        })
-        const layoutSemanticModeKey = activeDocumentViewMode === 'multiDimTable' ? `${documentSemanticMode}:mdtbl` : documentSemanticMode
         const frontmatterModeEnabled = computeEffectiveFrontmatterMode({
           frontmatterModeEnabled: store.frontmatterModeEnabled,
           documentSemanticMode: store.documentSemanticMode,
           graphData,
+        })
+        const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+          frontmatterModeEnabled,
+          multiDimTableModeEnabled: store.multiDimTableModeEnabled === true,
+          documentSemanticMode,
+          documentStructureBaselineLock: store.documentStructureBaselineLock === true,
         })
 
         const markdownDesignBlocks = (() => {

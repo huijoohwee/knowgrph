@@ -8,6 +8,7 @@ import type { SceneGroupsDerivation } from '@/lib/scene/sceneDerivation'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { withD3BipartiteSceneSchema } from '@/lib/canvas/d3BipartiteSchemaOverrides'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { setupGraphScene } from '@/components/GraphCanvas/scene'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
@@ -104,7 +105,7 @@ export function useD3GraphScene2d(args: {
       workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
     })),
   )
-  const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true
+  const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const workspaceOverlayOpenRef = useRef(workspaceOverlayOpen)
   workspaceOverlayOpenRef.current = workspaceOverlayOpen
   const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(args.canvas2dRenderer || '') !== 'd3Bipartite'
@@ -317,7 +318,7 @@ export function useD3GraphScene2d(args: {
           } catch {
             void 0
           }
-          if (!isMermaidLayout && Object.keys(prevPositions).length > 0) {
+          if (!isMermaidLayout && Object.keys(prevPositions).length > 0 && !workspaceOverlayOpenRef.current) {
             const state = useGraphStore.getState()
             const prevDatasetKey = lastDatasetKeyRef.current
             const prevMode = lastLayoutModeRef.current

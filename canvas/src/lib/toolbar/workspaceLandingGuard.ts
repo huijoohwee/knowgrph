@@ -12,6 +12,7 @@ export function ensureEditorCanvasLandingForDuration(durationMs: number = 1500):
       workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
       pane: 'markdown',
       setWorkspaceViewMode: state.setWorkspaceViewMode,
+      setWorkspaceViewState: state.setWorkspaceViewState,
       setEditorWorkspacePane: state.setEditorWorkspacePane,
       setWorkspaceCanvasPaneOpen: state.setWorkspaceCanvasPaneOpen,
     })

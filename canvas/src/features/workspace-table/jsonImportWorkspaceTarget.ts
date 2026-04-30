@@ -47,6 +47,7 @@ export function applyJsonImportWorkspaceTarget(args?: { preferFlowEditor?: boole
       workspaceCanvasPaneOpen: store.workspaceCanvasPaneOpen,
       pane: 'markdown',
       setWorkspaceViewMode: store.setWorkspaceViewMode,
+      setWorkspaceViewState: store.setWorkspaceViewState,
       setEditorWorkspacePane: store.setEditorWorkspacePane,
       setWorkspaceCanvasPaneOpen: store.setWorkspaceCanvasPaneOpen,
     })
@@ -65,6 +66,7 @@ export function applyJsonImportWorkspaceTarget(args?: { preferFlowEditor?: boole
     editorWorkspacePane: store.editorWorkspacePane,
     workspaceCanvasPaneOpen: store.workspaceCanvasPaneOpen,
     setWorkspaceViewMode: store.setWorkspaceViewMode,
+    setWorkspaceViewState: store.setWorkspaceViewState,
     setEditorWorkspacePane: store.setEditorWorkspacePane,
     setWorkspaceCanvasPaneOpen: store.setWorkspaceCanvasPaneOpen,
   })

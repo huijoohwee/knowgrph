@@ -365,7 +365,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["ui.flowWidget.portHandles.gutterRendersWhenEnabled","@/__tests__/flowWidgetPortHandleGutter.test","testFlowWidgetRendersPortHandleGutterWhenEnabled"],
   ["ui.flowWidget.schemaFieldPorts.renderRowHandles","@/__tests__/flowWidgetSchemaFieldPorts.test","testFlowWidgetSchemaFieldPortsRenderRowHandles"],
   ["ui.flowWidget.textGeneration.omitsLegacySmartMediaRows","@/__tests__/flowWidgetSchemaFieldPorts.test","testTextGenerationWidgetDoesNotRenderLegacySmartMediaRows"],
-  ["parser.frontmatterVideo.normalizesLegacyWidgetTypeToCanonicalDefault","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFlowBlockNormalizesLegacyVideoWidgetTypeToCanonicalDefault"],
+  ["parser.frontmatterVideo.rejectsLegacyWidgetTypeAlias","@/__tests__/markdownFrontmatterFlowGraphImport.test","testMarkdownFlowBlockRejectsLegacyVideoWidgetTypeAlias"],
   ["ui.flowWidget.frontmatterText.usesCanonicalWidgetIdentityPattern","@/__tests__/flowWidgetSchemaFieldPorts.test","testFrontmatterTextWidgetUsesCanonicalWidgetIdentityPattern"],
   ["ui.flowWidget.frontmatterImage.reusesCanonicalRegistryRows","@/__tests__/flowWidgetSchemaFieldPorts.test","testFrontmatterImageWidgetReusesCanonicalRegistryRowsAndSingleHandleSurface"],
   ["ui.flowWidget.frontmatterVideo.usesCanonicalWidgetIdentityPattern","@/__tests__/flowWidgetSchemaFieldPorts.test","testFrontmatterVideoWidgetUsesCanonicalWidgetIdentityPattern"],

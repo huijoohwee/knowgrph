@@ -70,6 +70,69 @@ export const testFlowDataflowConnectedValuesBySchemaPath = () => {
   if (mapped.value !== 'hello') throw new Error(`expected properties.mapped to be hello, got ${String(mapped.value)}`)
 }
 
+export const testFlowDataflowConnectedValuesCacheReusesEquivalentRegistryShapes = () => {
+  const graphData = {
+    type: 'GraphData',
+    nodes: [
+      {
+        id: 'a',
+        type: 'Node',
+        label: 'A',
+        properties: { value: 'hello', [FLOW_WIDGET_TYPE_ID_KEY]: 'out', [FLOW_WIDGET_FORM_ID_KEY]: 'out' },
+      },
+      { id: 'b', type: 'Node', label: 'B', properties: { [FLOW_WIDGET_TYPE_ID_KEY]: 'in', [FLOW_WIDGET_FORM_ID_KEY]: 'in' } },
+    ],
+    edges: [
+      {
+        id: 'e1',
+        source: 'a',
+        target: 'b',
+        label: 'linksTo',
+        properties: {
+          'flow:sourcePortKey': 'out',
+          'flow:targetPortKey': 'in',
+        },
+      },
+    ],
+  }
+
+  const registry = [
+    {
+      id: 'qa',
+      isEnabled: true,
+      nodeTypeId: 'Node',
+      widgetTypeId: 'out',
+      formId: 'out',
+      fields: [],
+      ports: [{ portKey: 'out', direction: 'output' as const, schemaPath: 'properties.value' }],
+      schemaMappings: [],
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    },
+    {
+      id: 'qb',
+      isEnabled: true,
+      nodeTypeId: 'Node',
+      widgetTypeId: 'in',
+      formId: 'in',
+      fields: [],
+      ports: [{ portKey: 'in', direction: 'input' as const, schemaPath: 'properties.input' }],
+      schemaMappings: [],
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    },
+  ]
+
+  const equivalentRegistry = registry.map(entry => ({
+    ...entry,
+    fields: [...entry.fields],
+    ports: [...entry.ports],
+    schemaMappings: [...entry.schemaMappings],
+  }))
+  const targetNodeIds = new Set(['b'])
+  const first = computeFlowConnectedValuesBySchemaPath({ graphData: graphData as never, registry, targetNodeIds })
+  const second = computeFlowConnectedValuesBySchemaPath({ graphData: graphData as never, registry: equivalentRegistry, targetNodeIds })
+  if (first !== second) throw new Error('expected connected-values cache to reuse equivalent registry shapes')
+}
+
 export const testFlowDataflowConnectedValuesTransformsAndPropagation = () => {
   const graphData = {
     type: 'GraphData',

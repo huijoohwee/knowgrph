@@ -6,6 +6,7 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { SceneGroupsDerivation } from '@/lib/scene/sceneDerivation'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { updateForceSimulationPresentation } from '@/components/GraphCanvas/simulation'
 import { updateGraphSceneGroupsPresentation, updateGraphSceneNodesPresentation } from '@/components/GraphCanvas/scene'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
@@ -58,7 +59,7 @@ export function useD3PresentationUpdates2d(args: {
       workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
     })),
   )
-  const workspaceOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen === true
+  const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const workspaceOverlayOpenRef = useRef(workspaceOverlayOpen)
   workspaceOverlayOpenRef.current = workspaceOverlayOpen
 
