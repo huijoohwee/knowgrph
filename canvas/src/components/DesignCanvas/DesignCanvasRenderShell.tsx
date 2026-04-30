@@ -42,6 +42,7 @@ export type DesignCanvasRenderShellProps = {
   onIncreaseFidelity: () => void
   onRetry: () => void
   selectedCount: number
+  arrangeActionsActive: boolean
   onArrangeAction: (action: string) => void
   canvasGrid: {
     enabled?: boolean
@@ -135,6 +136,7 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
     onIncreaseFidelity,
     onRetry,
     selectedCount,
+    arrangeActionsActive,
     onArrangeAction,
     canvasGrid,
     dims,
@@ -211,7 +213,7 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
         onIncreaseFidelity={onIncreaseFidelity}
         onRetry={onRetry}
       />
-      <DesignCanvasArrangeActionBar active={interactionActive} selectedCount={selectedCount} onAction={onArrangeAction} />
+      <DesignCanvasArrangeActionBar active={arrangeActionsActive} selectedCount={selectedCount} onAction={onArrangeAction} />
       <InfiniteGridCanvasOverlay
         enabled={canvasGrid?.enabled === true}
         gridSize={canvasGrid?.size || 10}

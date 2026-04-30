@@ -54,13 +54,18 @@ export function testWorkspaceEditorOverlayDoesNotMutateDesignCanvasLayout() {
   if (!text.includes('event.stopPropagation()')) {
     throw new Error('expected DesignCanvas workspace overlay events to stop propagation before reaching the canvas underneath')
   }
-  if (!text.includes('<DesignCanvasArrangeActionBar active={interactionActive}')) {
+  if (!text.includes('const arrangeActionsActive = active && !workspaceEditorOverlayMode')) {
     throw new Error('expected arrange actions to disable while workspace editor overlay is active')
+  }
+  if (!text.includes('arrangeActionsActive={arrangeActionsActive}')) {
+    throw new Error('expected DesignCanvas to forward overlay-gated arrange action state')
   }
   if (!text.includes('if (!interactionActive) return')) {
     throw new Error('expected DesignCanvas layout writes to short-circuit while workspace editor overlay is enabled')
   }
-  if (!text.includes('if (!interactionActive) return\n                        if (isSpacePanHeld()) return')) {
+  const renderShellPath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'DesignCanvasRenderShell.tsx')
+  const renderShellText = readFileSync(renderShellPath, 'utf8')
+  if (!renderShellText.includes('if (!interactionActive) return\n                        if (isSpacePanHeld()) return')) {
     throw new Error('expected group selection pointerdown to stop reacting while workspace editor overlay is enabled')
   }
   if (!text.includes('useGlobalInteractionCleanup({\n    interactionActive,')) {

@@ -8,6 +8,7 @@ import {
   resolveWorkspaceEditorPaneDefaultWidthPx,
   resolveWorkspacePaneMaxWidthPx,
 } from '@/features/workspace-table/workspaceViewCanvasDefaults'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 const MIN_WORKSPACE_PREVIEW_WIDTH_PX = 320
 const WORKSPACE_PREVIEW_RIGHT_GUTTER_PX = 48
@@ -38,9 +39,7 @@ export function useCanvasWorkspacePaneRuntime(): {
   workspacePreviewWidthPx: number
   setResizeHandleEl: React.Dispatch<React.SetStateAction<HTMLHRElement | null>>
 } {
-  const workspaceEditorOverlayOpen = useGraphStore(
-    s => s.workspaceViewMode === 'editor' && s.workspaceCanvasPaneOpen === true,
-  )
+  const workspaceEditorOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
   const [workspacePreviewWidthPx, setWorkspacePreviewWidthPx] = React.useState(() => {
     const raw = lsInt(
       LS_KEYS.workspacePreviewWidthPx,

@@ -2,6 +2,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { RecentFileEntry } from '@/hooks/store/types'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { applyJsonImportWorkspaceTarget } from '@/features/workspace-table/jsonImportWorkspaceTarget'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { tryBuildJsonMarkdownDocumentFromText } from '@/features/markdown/jsonToMarkdownDocument'
 
 export function applyImportedMarkdownToStore(args: {
@@ -18,9 +19,15 @@ export function applyImportedMarkdownToStore(args: {
 
   const state = useGraphStore.getState()
   const workspaceViewMode = args.curationView === 'markdown' ? 'editor' : args.curationView === 'grid' ? 'canvas' : null
-  if (workspaceViewMode === 'editor' || workspaceViewMode === 'canvas') {
+  if (workspaceViewMode === 'editor') {
     try {
-      state.setWorkspaceViewMode(workspaceViewMode)
+      openMarkdownWorkspaceEditorPane(state)
+    } catch {
+      void 0
+    }
+  } else if (workspaceViewMode === 'canvas') {
+    try {
+      state.setWorkspaceViewState({ mode: 'canvas' })
     } catch {
       void 0
     }

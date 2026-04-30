@@ -70,7 +70,7 @@ export default function DesignCanvas({
     mediaOverlayPanRef.current = null
   }, [])
 
-  const { snapshot, interactionActive, workspaceEditorOverlayEnabled } = useDesignCanvasBootstrap({
+  const { snapshot } = useDesignCanvasBootstrap({
     active,
     svgRef,
     emptyStringArray: EMPTY_STRING_ARRAY,
@@ -78,6 +78,10 @@ export default function DesignCanvas({
     emptyDesignFramePosById: EMPTY_DESIGN_FRAME_POS_BY_ID,
     emptyDesignFrameSizeById: EMPTY_DESIGN_FRAME_SIZE_BY_ID,
   })
+  const workspaceEditorOverlayMode = snapshot.workspaceViewMode === 'editor'
+  const interactionActive = active && !workspaceEditorOverlayMode
+  const arrangeActionsActive = active && !workspaceEditorOverlayMode
+  const workspaceEditorOverlayEnabled = workspaceEditorOverlayMode && active && !!String(snapshot.markdownDocumentText || '').trim()
   const stopOverlayEvent = React.useCallback((event: React.SyntheticEvent) => {
     try {
       event.stopPropagation()
@@ -405,6 +409,7 @@ export default function DesignCanvas({
       onIncreaseFidelity={increaseWebpageFidelity}
       onRetry={retryWebpageLayout}
       selectedCount={selectedIds.length}
+      arrangeActionsActive={arrangeActionsActive}
       onArrangeAction={applyArrange}
       canvasGrid={canvasGrid}
       dims={dims}

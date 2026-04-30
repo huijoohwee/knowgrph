@@ -15,6 +15,7 @@ import { GraphStoreRuntime } from '@/features/canvas/GraphStoreRuntime'
 import { useCanvasEmbeddedPreviewRuntime } from '@/features/canvas/useCanvasEmbeddedPreviewRuntime'
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '@/lib/routing/queryParams'
 import { runGlobalInteractionCleanup } from '@/lib/canvas/interaction-recovery'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 import { CanvasStartupRuntimes } from '@/features/canvas/CanvasStartupRuntimes'
 
@@ -34,7 +35,7 @@ export default function CanvasPage() {
     uiToolbarOpacity,
     workspaceViewMode,
     workspaceCanvasPaneOpen,
-    setWorkspaceViewMode,
+    setWorkspaceViewState,
   } = useGraphStore(
     useShallow(s => ({
       uiOverlayOpacity: s.uiOverlayOpacity,
@@ -42,7 +43,7 @@ export default function CanvasPage() {
       uiToolbarOpacity: s.uiToolbarOpacity,
       workspaceViewMode: s.workspaceViewMode,
       workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
-      setWorkspaceViewMode: s.setWorkspaceViewMode,
+      setWorkspaceViewState: s.setWorkspaceViewState,
     })),
   )
 
@@ -54,7 +55,7 @@ export default function CanvasPage() {
     if (!queryRequestsEditorWorkspace || consumedEditorWorkspaceQueryRef.current) return
     consumedEditorWorkspaceQueryRef.current = true
     try {
-      setWorkspaceViewMode('editor')
+      setWorkspaceViewState({ mode: 'editor', paneOpen: true })
     } catch {
       void 0
     }
@@ -68,7 +69,7 @@ export default function CanvasPage() {
     } catch {
       void 0
     }
-  }, [location.search, queryRequestsEditorWorkspace, setWorkspaceViewMode])
+  }, [location.search, queryRequestsEditorWorkspace, setWorkspaceViewState])
 
   const [editorShellWarmed, setEditorShellWarmed] = React.useState(workspaceViewMode === 'editor')
   React.useEffect(() => {
@@ -76,7 +77,7 @@ export default function CanvasPage() {
   }, [workspaceViewMode])
 
   const { workspacePreviewWidthPx, setResizeHandleEl } = useCanvasWorkspacePaneRuntime()
-  const workspaceEditorOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen
+  const workspaceEditorOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen && isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
 
   React.useEffect(() => {
     if (!workspaceEditorOverlayOpen) return

@@ -195,9 +195,7 @@ export function SourceFilesPersistenceBootstrap() {
         }
       })
     }
-    const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(() => {
-      syncNow()
-    })
+    const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(s => s.activePath && syncNow())
     return () => {
       unsubscribeActivePath()
     }
@@ -231,7 +229,7 @@ export function SourceFilesPersistenceBootstrap() {
       cancelWorkspaceSyncTask(taskKey)
       unsubscribe()
     }
-  }, [])
+  }, [runtimePersistenceScopeKey])
 
   const getWorkspaceSnapshot = React.useCallback((): SourceFilesWorkspaceState => {
     const s = useGraphStore.getState()
@@ -301,7 +299,7 @@ export function SourceFilesPersistenceBootstrap() {
       cancelWorkspaceSyncTask(taskKey)
       unsubscribe()
     }
-  }, [getWorkspaceSnapshot])
+  }, [getWorkspaceSnapshot, runtimePersistenceScopeKey])
 
   return null
 }

@@ -93,7 +93,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('useGraphStore.subscribe(s => s.flowWidgetPosByNodeId')) {
     throw new Error('expected overlay collision path to reschedule on floating position updates')
   }
-  if (!hookText.includes('const allowNodeObstacleCollision = !args.overlayOnlyModeEnabled')) {
+  if (!hookText.includes('const allowNodeObstacleCollision = !overlayOnlyModeEnabled')) {
     throw new Error('expected overlay collision runtime to disable hidden node-obstacle feedback in overlay-only mode')
   }
   if (!hookText.includes('if (overlayNodeIdSet.has(id)) continue')) {
@@ -102,7 +102,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('compareNodeZKey')) {
     throw new Error('expected overlay collision runtime to reuse shared node z-order comparison helper')
   }
-  if (!hookText.includes('const graphDataForOverlayRuntime = args.draftGraphDataRef.current || renderGraphDataOverride || null')) {
+  if (!hookText.includes('const graphDataForOverlayRuntime =') || !hookText.includes('draftGraphDataRef.current || renderGraphDataOverride || null')) {
     throw new Error('expected overlay collision runtime to resolve a single upstream graph source before deriving node types and obstacles')
   }
 

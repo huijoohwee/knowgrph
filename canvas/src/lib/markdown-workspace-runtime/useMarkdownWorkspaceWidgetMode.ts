@@ -46,16 +46,22 @@ export function useMarkdownWorkspaceWidgetMode(args: {
     graphEdgesRef.current = args.graphEdges
   }, [args.graphEdges])
 
-  const openWidgetNodeIdsKey = React.useMemo(
-    () => hashSignatureParts(['open', ...args.openWidgetNodeIds.map(id => String(id || '').trim())]),
-    [args.openWidgetNodeIds],
-  )
+  const openWidgetNodeIdsKey = React.useMemo(() => {
+    const parts: string[] = ['open']
+    for (const rawId of args.openWidgetNodeIds) {
+      const id = String(rawId || '').trim()
+      if (id) parts.push(id)
+    }
+    return hashSignatureParts(parts)
+  }, [args.openWidgetNodeIds])
   const openWidgetNodeIdsSnapshotRef = React.useRef<{ key: string; value: string[] } | null>(null)
   if (openWidgetNodeIdsSnapshotRef.current?.key !== openWidgetNodeIdsKey) {
-    openWidgetNodeIdsSnapshotRef.current = {
-      key: openWidgetNodeIdsKey,
-      value: args.openWidgetNodeIds.map(id => String(id || '').trim()),
+    const value: string[] = []
+    for (const rawId of args.openWidgetNodeIds) {
+      const id = String(rawId || '').trim()
+      if (id) value.push(id)
     }
+    openWidgetNodeIdsSnapshotRef.current = { key: openWidgetNodeIdsKey, value }
   }
   const openWidgetNodeIdsSnapshot = openWidgetNodeIdsSnapshotRef.current.value
 

@@ -1,6 +1,16 @@
 type WorkspaceViewMode = 'canvas' | 'editor'
 type EditorWorkspacePane = 'markdown' | 'graphTable'
 
+type WorkspaceEditorOpenStore = {
+  workspaceViewMode: WorkspaceViewMode
+  editorWorkspacePane: EditorWorkspacePane
+  workspaceCanvasPaneOpen: boolean
+  setWorkspaceViewMode: (next: WorkspaceViewMode) => void
+  setWorkspaceViewState?: (next: { mode: WorkspaceViewMode; paneOpen?: boolean }) => void
+  setEditorWorkspacePane: (next: EditorWorkspacePane) => void
+  setWorkspaceCanvasPaneOpen: (open: boolean) => void
+}
+
 export function isWorkspaceEditorOverlayOpen(args: {
   workspaceViewMode: WorkspaceViewMode
   workspaceCanvasPaneOpen: boolean
@@ -56,6 +66,19 @@ export function closeWorkspaceView(args: CloseWorkspaceViewArgs) {
   }
   if (args.workspaceViewMode !== 'canvas') args.setWorkspaceViewMode('canvas')
   if (args.workspaceCanvasPaneOpen !== false) args.setWorkspaceCanvasPaneOpen(false)
+}
+
+export function openMarkdownWorkspaceEditorPane(store: WorkspaceEditorOpenStore) {
+  openWorkspaceEditorPane({
+    workspaceViewMode: store.workspaceViewMode,
+    editorWorkspacePane: store.editorWorkspacePane,
+    workspaceCanvasPaneOpen: store.workspaceCanvasPaneOpen,
+    pane: 'markdown',
+    setWorkspaceViewMode: store.setWorkspaceViewMode,
+    setWorkspaceViewState: store.setWorkspaceViewState,
+    setEditorWorkspacePane: store.setEditorWorkspacePane,
+    setWorkspaceCanvasPaneOpen: store.setWorkspaceCanvasPaneOpen,
+  })
 }
 
 export function openWorkspaceTable(args: {

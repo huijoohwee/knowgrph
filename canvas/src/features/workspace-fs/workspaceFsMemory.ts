@@ -2,6 +2,7 @@ import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
+  buildWorkspaceSeedFileEntry,
   expandWorkspaceSeedFileEntries,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_README_TEXT,
@@ -85,6 +86,18 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
     const seeded = lsBool(LS_KEYS.markdownWorkspaceSeeded, false)
     const userClearedAll = lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)
     if (hasFiles) {
+      const seeds = await getWorkspaceSeedFiles()
+      let changed = false
+      for (const seed of seeds) {
+        const path = normalizeWorkspacePath(seed.path)
+        const existing = entriesByPath.get(path)
+        if (!existing || existing.kind !== 'file') continue
+        const nextText = String(seed.text ?? '')
+        if (String(existing.text ?? '') === nextText) continue
+        entriesByPath.set(path, buildWorkspaceSeedFileEntry(path, nextText, Date.now()))
+        changed = true
+      }
+      if (changed) notifyWorkspaceFsChanged({ op: 'ensureSeed', path: WORKSPACE_ROOT_PATH })
       if (!seeded) lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
       if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
       return

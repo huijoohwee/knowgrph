@@ -33,6 +33,7 @@ import {
 } from '@/features/chat/SidePanelChat.helpers'
 import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFinalizeAssistantSuccess'
 import { useSidePanelChatSubmit } from '@/features/chat/sidePanelChat/useSidePanelChatSubmit'
+import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 
 const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-request'
 
@@ -82,8 +83,6 @@ export default function SidePanelChat() {
   const setChatKnowgrphWorkspacePath = useGraphStore(s => s.setChatKnowgrphWorkspacePath)
   const chatHistoryWorkspacePath = useGraphStore(s => s.chatHistoryWorkspacePath || null)
   const setChatHistoryWorkspacePath = useGraphStore(s => s.setChatHistoryWorkspacePath)
-  const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
-  const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const workspaceViewMode = useGraphStore(s => (s.workspaceViewMode === 'editor' ? 'editor' : 'canvas'))
   const editorWorkspacePane = useGraphStore(s => (s.editorWorkspacePane === 'graphTable' ? 'graphTable' : 'markdown'))
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
@@ -182,8 +181,7 @@ export default function SidePanelChat() {
 
   const openWorkspaceMarkdownPath = React.useCallback((path: string) => {
     const normalized = toCanonicalKgcWorkspacePath(path)
-    setWorkspaceViewMode('editor')
-    setEditorWorkspacePane('markdown')
+    openMarkdownWorkspaceEditorPane(useGraphStore.getState())
     useMarkdownExplorerStore.getState().setActivePath(normalized)
     lsSetJson<'split' | 'editor' | 'viewer'>(LS_KEYS.markdownLayoutMode, 'editor')
     if (typeof window !== 'undefined') {
@@ -193,15 +191,16 @@ export default function SidePanelChat() {
         void 0
       }
     }
-  }, [setEditorWorkspacePane, setWorkspaceViewMode])
+  }, [])
 
   const followWorkspaceMarkdownPath = React.useCallback((path: string) => {
     const normalized = toCanonicalKgcWorkspacePath(path)
     const nowMs = Date.now()
     const prevFollow = streamFollowRef.current
     const samePath = !!prevFollow && prevFollow.path === normalized
-    if (!samePath || workspaceViewMode !== 'editor') setWorkspaceViewMode('editor')
-    if (!samePath || editorWorkspacePane !== 'markdown') setEditorWorkspacePane('markdown')
+    if (!samePath || workspaceViewMode !== 'editor' || editorWorkspacePane !== 'markdown') {
+      openMarkdownWorkspaceEditorPane(useGraphStore.getState())
+    }
     const explorer = useMarkdownExplorerStore.getState()
     const activePath = String(explorer.activePath || '').trim()
     if (!samePath || activePath !== normalized) explorer.setActivePath(normalized)
@@ -219,7 +218,7 @@ export default function SidePanelChat() {
       explorer.requestRevealLine(tailLine)
       streamFollowRef.current = { path: normalized, atMs: nowMs }
     }
-  }, [editorWorkspacePane, setEditorWorkspacePane, setWorkspaceViewMode, workspaceViewMode])
+  }, [editorWorkspacePane, workspaceViewMode])
 
   const handleNewChat = React.useCallback(async () => {
     if (isLoading || chatStorageTarget !== 'chatKnowgrph') return

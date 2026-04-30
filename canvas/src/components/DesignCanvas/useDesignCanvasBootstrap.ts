@@ -162,13 +162,7 @@ export function useDesignCanvasBootstrap(args: UseDesignCanvasBootstrapArgs) {
     }),
   )
 
-  const workspaceEditorOverlayMode = snapshot.workspaceViewMode === 'editor'
-  const interactionActive = active && !workspaceEditorOverlayMode
-  const workspaceEditorOverlayEnabled = workspaceEditorOverlayMode && active && !!String(snapshot.markdownDocumentText || '').trim()
-
   return {
     snapshot,
-    interactionActive,
-    workspaceEditorOverlayEnabled,
   }
 }

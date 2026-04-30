@@ -333,6 +333,19 @@ export function isInitializationWorkspacePath(path: WorkspacePath | null | undef
   return normalized === WORKSPACE_README_SEED_PATH || normalized === TEST_VALIDATION_WORKSPACE_SEED_PATH
 }
 
+export function buildWorkspaceSeedFileEntry(path: WorkspacePath, text: string, updatedAtMs = Date.now()): WorkspaceEntry {
+  const normalizedPath = normalizeWorkspacePath(path)
+  const folderPaths = ancestorPathsForWorkspacePath(normalizedPath)
+  return {
+    path: normalizedPath,
+    parentPath: folderPaths.length > 0 ? normalizeWorkspacePath(folderPaths[folderPaths.length - 1]!) : WORKSPACE_ROOT_PATH,
+    kind: 'file',
+    name: workspaceBasename(normalizedPath),
+    text: String(text ?? ''),
+    updatedAtMs,
+  }
+}
+
 export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string, updatedAtMs = Date.now()): WorkspaceEntry[] {
   const normalizedPath = normalizeWorkspacePath(path)
   const folderPaths = ancestorPathsForWorkspacePath(normalizedPath)
@@ -349,14 +362,7 @@ export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string
       updatedAtMs,
     })
   }
-  out.push({
-    path: normalizedPath,
-    parentPath: folderPaths.length > 0 ? normalizeWorkspacePath(folderPaths[folderPaths.length - 1]!) : WORKSPACE_ROOT_PATH,
-    kind: 'file',
-    name: workspaceBasename(normalizedPath),
-    text: String(text ?? ''),
-    updatedAtMs,
-  })
+  out.push(buildWorkspaceSeedFileEntry(normalizedPath, text, updatedAtMs))
   return out
 }
 

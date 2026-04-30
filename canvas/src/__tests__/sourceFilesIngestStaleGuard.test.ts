@@ -249,15 +249,15 @@ export function testMarkdownApplyPrefersCanonicalSourceFileComposePath() {
 }
 
 export function testWorkspaceCanvasAutoApplySkipsWidgetMode() {
-  const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
-  const text = readFileSync(runtimePath, 'utf8')
-  const anchor = "React.useEffect(() => {\n    if (!workspaceCanvasPaneOpen) return"
+  const interactionPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceInteractions.ts')
+  const text = readFileSync(interactionPath, 'utf8')
+  const anchor = "React.useEffect(() => {\n    if (!workspaceApplyEffectsEnabled || contentMode === 'widget') return"
   const idx = text.indexOf(anchor)
   if (idx < 0) {
-    throw new Error('expected workspace canvas auto-apply effect in markdown workspace runtime')
+    throw new Error('expected workspace canvas auto-apply effect in markdown workspace interaction runtime')
   }
   const body = text.slice(idx, idx + 500)
-  if (!body.includes("if (contentMode === 'widget') return")) {
+  if (!body.includes("contentMode === 'widget'")) {
     throw new Error('expected workspace canvas auto-apply effect to skip widget mode so reopen cannot apply widget bundle text as a full document')
   }
   if (!body.includes("const graphText = markdownDocumentName === name ? String(markdownDocumentText || '') : ''")) {

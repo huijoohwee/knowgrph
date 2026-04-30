@@ -3,6 +3,7 @@ import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
+  buildWorkspaceSeedFileEntry,
   expandWorkspaceSeedFileEntries,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_README_TEXT,
@@ -132,6 +133,24 @@ export function createWorkspaceRxdbFs(): WorkspaceFs {
     const seeded = lsBool(LS_KEYS.markdownWorkspaceSeeded, false)
     const userClearedAll = lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)
     if (fileCount > 0) {
+      const seeds = await getWorkspaceSeedFiles()
+      let changed = false
+      for (const seed of seeds) {
+        const path = normalizeWorkspacePath(seed.path)
+        const row = await collections.entries.findOne(path).exec()
+        if (!row || row.get('kind') !== 'file') continue
+        const nextText = String(seed.text ?? '')
+        if (String(row.get('text') ?? '') === nextText) continue
+        const entry = buildWorkspaceSeedFileEntry(path, nextText, Date.now())
+        await row.incrementalPatch({
+          parentPath: entry.parentPath || '',
+          name: entry.name,
+          text: String(entry.text ?? ''),
+          updatedAtMs: entry.updatedAtMs,
+        })
+        changed = true
+      }
+      if (changed) notifyWorkspaceFsChanged({ op: 'ensureSeed', path: WORKSPACE_ROOT_PATH })
       if (!seeded) lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
       if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
       return

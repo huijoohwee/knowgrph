@@ -1,4 +1,5 @@
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
+import { TEST_VALIDATION_WORKSPACE_SEED_PATH, WORKSPACE_README_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
 
 export const testWorkspaceFsMemoryInitialEntries = async () => {
   const fs = createMemoryWorkspaceFs({
@@ -32,5 +33,36 @@ export const testWorkspaceFsMemoryForbidsInitializationFileDelete = async () => 
   const entries = await fs.listEntries()
   if (!entries.some(e => e.kind === 'file' && e.path === '/README.md')) throw new Error('Expected README initialization file to remain after delete')
   if (!entries.some(e => e.kind === 'file' && e.path === '/knowgrph-video-demo.md')) throw new Error('Expected video demo initialization file to remain after delete')
+}
+
+export const testWorkspaceFsMemoryRefreshesStaleInitializationFileText = async () => {
+  const fs = createMemoryWorkspaceFs({
+    initialEntries: [
+      { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+      {
+        path: WORKSPACE_README_SEED_PATH,
+        parentPath: '/',
+        kind: 'file',
+        name: 'README.md',
+        text: 'stale README initialization content',
+        updatedAtMs: 1,
+      },
+      {
+        path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
+        parentPath: '/',
+        kind: 'file',
+        name: 'knowgrph-video-demo.md',
+        text: 'stale video demo initialization content',
+        updatedAtMs: 1,
+      },
+    ],
+  })
+
+  await fs.ensureSeed()
+
+  const readmeText = await fs.readFileText(WORKSPACE_README_SEED_PATH)
+  const videoDemoText = await fs.readFileText(TEST_VALIDATION_WORKSPACE_SEED_PATH)
+  if (!String(readmeText || '').includes('kgCanvas2dRenderer: "d3"')) throw new Error('Expected stale README initialization content to refresh from current seed source')
+  if (!String(videoDemoText || '').includes('kgCanvas2dRenderer: "flowEditor"')) throw new Error('Expected stale video demo initialization content to refresh from current seed source')
 }
 

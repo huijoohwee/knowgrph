@@ -119,6 +119,22 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (rootLayoutGuardIndex < 0 || rootLayoutWriteIndex < 0 || rootLayoutGuardIndex > rootLayoutWriteIndex) {
     throw new Error('expected root layout cache setter to reject workspace overlay writes')
   }
+  if (!text.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected FlowCanvas media overlays to reuse workspace overlay-open SSOT')
+  }
+  if (!text.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
+    throw new Error('expected FlowCanvas media overlays to track workspace overlay open state without layout-key coupling')
+  }
+  const richMediaRuntimeGuardIndex = text.indexOf('if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return')
+  const richMediaDirtyWriteIndex = text.indexOf('positionsDirtySinceCommitRef.current = true')
+  if (richMediaRuntimeGuardIndex < 0 || richMediaDirtyWriteIndex < 0 || richMediaRuntimeGuardIndex > richMediaDirtyWriteIndex) {
+    throw new Error('expected Rich Media overlay runtime position writes to be blocked while workspace overlay is open')
+  }
+  const resizeGuardIndex = text.indexOf('if (!workspaceOverlayOpenRef.current) {')
+  const resizeWriteIndex = text.indexOf("store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })")
+  if (resizeGuardIndex < 0 || resizeWriteIndex < 0 || resizeGuardIndex > resizeWriteIndex) {
+    throw new Error('expected Rich Media resize persistence to be blocked while workspace overlay is open')
+  }
   if (text.includes('workspaceViewLayoutRefreshNonce')) {
     throw new Error('expected FlowCanvas media overlay scheduling to avoid workspace layout refresh nonce coupling')
   }

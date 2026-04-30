@@ -400,6 +400,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["workspaceFs.events.batch.coalescesNotifications","@/__tests__/workspaceFsEventsBatch.test","testWorkspaceFsChangedBatchCoalescesNotifications"],
   ["workspaceFs.memory.initialEntries","@/__tests__/workspaceFsMemoryInitialEntries.test","testWorkspaceFsMemoryInitialEntries"],
   ["workspaceFs.memory.forbidsInitializationFileDelete","@/__tests__/workspaceFsMemoryInitialEntries.test","testWorkspaceFsMemoryForbidsInitializationFileDelete"],
+  ["workspaceFs.memory.refreshesStaleInitializationFileText","@/__tests__/workspaceFsMemoryInitialEntries.test","testWorkspaceFsMemoryRefreshesStaleInitializationFileText"],
   ["workspaceFs.resilientShadow.keepsCreatedFileReadableAfterSilentReadMiss","@/__tests__/workspaceFsResilientShadow.test","testWorkspaceFsResilientShadowKeepsCreatedFileReadableAfterSilentReadMiss"],
   ["flow.widgetRegistry.frontmatterFallback.keepsNodeTypeMatchesWhenFormIdsDiffer","@/__tests__/widgetRegistryFrontmatterFallback.test","testWidgetRegistryFrontmatterFallbackKeepsNodeTypeMatchesWhenFormIdsDiffer"],
   ["graphCanvas.displayFilter.fallback","@/__tests__/graphCanvasDisplayFilterFallback.test","testGraphCanvasDisplayFilterFallback"],

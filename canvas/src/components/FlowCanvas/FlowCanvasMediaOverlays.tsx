@@ -30,6 +30,7 @@ import {
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 export default function FlowCanvasMediaOverlays(args: {
   active: boolean
@@ -118,7 +119,20 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaOverlayHeaderMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
   const mediaOverlayResizeMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
   const lastPlannedOverlayNodeIdsKeyRef = React.useRef<string>('')
+  const workspaceOverlayOpenRef = React.useRef(false)
   const sceneNodePropsByIdRef = React.useRef<Map<string, Record<string, unknown>>>(new Map())
+
+  React.useEffect(() => {
+    const readWorkspaceOverlayOpen = () => isWorkspaceEditorOverlayOpen(useGraphStore.getState())
+    workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
+    const unsub = useGraphStore.subscribe(
+      s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen] as const,
+      () => {
+        workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
+      },
+    )
+    return () => unsub()
+  }, [])
 
   React.useEffect(() => {
     const next = new Map<string, Record<string, unknown>>()
@@ -216,7 +230,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [])
 
   const applyMediaOverlayPanMove = React.useCallback((queued: { pointerId: number; clientX: number; clientY: number; dx: number; dy: number; buttons: number; shiftKey: boolean }) => {
-    if (!flowEditorOverlayInteractionMode) return
+    if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
     const drag = mediaOverlayPanRef.current
     if (!drag || drag.pointerId !== queued.pointerId) return
     const runtime = runtimeRef.current
@@ -236,7 +250,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [buildDrawArgs, flowEditorOverlayInteractionMode, onInteractionFrame, runtimeRef])
 
   const applyMediaOverlayHeaderDragMove = React.useCallback((id: string, queued: { pointerId: number; dx: number; dy: number }) => {
-    if (!flowEditorOverlayInteractionMode) return
+    if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
     const drag = mediaOverlayHeaderDragRef.current
     if (!drag || drag.id !== id || drag.pointerId !== queued.pointerId) return
     const runtime = runtimeRef.current
@@ -264,7 +278,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [buildDrawArgs, flowEditorOverlayInteractionMode, graphSchema, handleFrame, positionsDirtySinceCommitRef, runtimeRef])
 
   const applyMediaOverlayResizeMove = React.useCallback((id: string, queued: { pointerId: number; dx: number; dy: number }) => {
-    if (!flowEditorOverlayInteractionMode) return
+    if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
     const drag = mediaOverlayResizeRef.current
     if (!drag || drag.id !== id || drag.pointerId !== queued.pointerId) return
     const scale = Math.max(0.001, drag.startScale)
@@ -282,7 +296,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [flowEditorOverlayInteractionMode, handleFrame, writeRichMediaResizeTrace])
 
   const beginMediaOverlayPan = React.useCallback((payload: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => {
-    if (!active || !flowEditorOverlayInteractionMode) return
+    if (!active || !flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
     const runtime = runtimeRef.current
     if (!runtime) return
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
@@ -290,7 +304,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [active, flowEditorOverlayInteractionMode, runtimeRef])
 
   const beginMediaOverlayHeaderDrag = React.useCallback((id: string, pointerId: number) => {
-    if (!active || !flowEditorOverlayInteractionMode) return
+    if (!active || !flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return
     const runtime = runtimeRef.current
     const scene = runtime?.scene
     const node = scene?.nodeById.get(id)
@@ -300,7 +314,7 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [active, flowEditorOverlayInteractionMode, runtimeRef])
 
   const beginMediaOverlayResize = React.useCallback((id: string, pointerId: number) => {
-    if (!active || !flowEditorOverlayInteractionMode || !flowEditorFrontmatterDocumentModeRequested) {
+    if (!active || !flowEditorOverlayInteractionMode || !flowEditorFrontmatterDocumentModeRequested || workspaceOverlayOpenRef.current) {
       writeRichMediaResizeTrace(['phase=skip', `id=${id}`, `pid=${pointerId}`])
       return
     }
@@ -528,6 +542,7 @@ export default function FlowCanvasMediaOverlays(args: {
           ? Z_INDEX_GRAPH_OVERLAY_SELECTED
           : Math.max(1, Z_INDEX_GRAPH_MEDIA_LAYER - Math.max(0, index))
         const updateNode = (id: string, patch: { properties: Record<string, unknown> }) => {
+          if (workspaceOverlayOpenRef.current) return
           useGraphStore.getState().updateNode(id, patch as Partial<GraphNode>)
         }
         return (
@@ -576,7 +591,7 @@ export default function FlowCanvasMediaOverlays(args: {
               }
               mediaOverlayPanMoveLatestRef.current = null
               mediaOverlayPanRef.current = null
-              requestCommit()
+              if (!workspaceOverlayOpenRef.current) requestCommit()
             } : undefined}
             onHeaderDragStart={flowEditorOverlayInteractionMode ? ({ pointerId }) => beginMediaOverlayHeaderDrag(node.id, pointerId) : undefined}
             onHeaderDrag={flowEditorOverlayInteractionMode ? ({ dx, dy, pointerId }) => {
@@ -596,7 +611,7 @@ export default function FlowCanvasMediaOverlays(args: {
               }
               mediaOverlayHeaderMoveLatestRef.current = null
               mediaOverlayHeaderDragRef.current = null
-              requestCommit()
+              if (!workspaceOverlayOpenRef.current) requestCommit()
             } : undefined}
             resizable={flowEditorOverlayInteractionMode && isSelected}
             onResizeStart={resizeInteractionActive ? ({ pointerId }) => beginMediaOverlayResize(node.id, pointerId) : undefined}
@@ -617,20 +632,22 @@ export default function FlowCanvasMediaOverlays(args: {
               }
               mediaOverlayResizeMoveLatestRef.current = null
               mediaOverlayResizeRef.current = null
-              try {
-                const store = useGraphStore.getState() as { graphData?: { nodes?: Array<{ id?: unknown; properties?: unknown }> }; updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void }
-                const currentNode = store.graphData?.nodes?.find(entry => String(entry?.id || '') === node.id) || null
-                const baseProps =
-                  currentNode?.properties && typeof currentNode.properties === 'object' && !Array.isArray(currentNode.properties)
-                    ? (currentNode.properties as Record<string, unknown>)
-                    : {}
-                store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })
-              } catch {
-                void 0
+              if (!workspaceOverlayOpenRef.current) {
+                try {
+                  const store = useGraphStore.getState() as { graphData?: { nodes?: Array<{ id?: unknown; properties?: unknown }> }; updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void }
+                  const currentNode = store.graphData?.nodes?.find(entry => String(entry?.id || '') === node.id) || null
+                  const baseProps =
+                    currentNode?.properties && typeof currentNode.properties === 'object' && !Array.isArray(currentNode.properties)
+                      ? (currentNode.properties as Record<string, unknown>)
+                      : {}
+                  store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })
+                } catch {
+                  void 0
+                }
+                writeRichMediaResizeTrace(['phase=end', `id=${node.id}`, `pid=${pointerId}`, `finalW=${drag.lastW}`, `finalH=${drag.lastH}`])
+                mediaOverlayLayoutScheduleRef.current?.()
+                requestCommit()
               }
-              writeRichMediaResizeTrace(['phase=end', `id=${node.id}`, `pid=${pointerId}`, `finalW=${drag.lastW}`, `finalH=${drag.lastH}`])
-              mediaOverlayLayoutScheduleRef.current?.()
-              requestCommit()
             } : undefined}
             flowEditorInteractionMode={flowEditorOverlayInteractionMode}
             flowEditorFrontmatterDocumentMode={flowEditorFrontmatterDocumentModeRequested}

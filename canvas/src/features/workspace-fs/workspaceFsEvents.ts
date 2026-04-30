@@ -4,7 +4,7 @@ import { normalizeWorkspacePath } from './path'
 export const WORKSPACE_FS_CHANGED_EVENT = 'kg:workspace-fs:changed'
 
 export type WorkspaceFsChangedDetail = {
-  op?: 'createFile' | 'createFolder' | 'writeFileText' | 'deleteEntry' | 'batch'
+  op?: 'createFile' | 'createFolder' | 'writeFileText' | 'deleteEntry' | 'ensureSeed' | 'batch'
   path?: WorkspacePath
 }
 
