@@ -14,8 +14,13 @@ export const createUiCoreActions = (set: SetGraph)=> ({
     setWorkspaceViewMode: (mode: 'canvas' | 'editor') =>
       set(state => {
         const nextMode = mode === 'editor' ? 'editor' : 'canvas'
-        if (state.workspaceViewMode === nextMode) return {}
-        return { workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, nextMode) }
+        const nextPaneOpen = nextMode === 'editor' ? true : state.workspaceCanvasPaneOpen
+        if (state.workspaceViewMode === nextMode && state.workspaceCanvasPaneOpen === nextPaneOpen) return {}
+        if (nextMode === 'editor' && state.workspaceCanvasPaneOpen !== true) lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, true)
+        return {
+          workspaceViewMode: lsSetJson(LS_KEYS.workspaceViewMode, nextMode),
+          workspaceCanvasPaneOpen: nextPaneOpen,
+        } as Partial<GraphState>
       }),
 
     setEditorWorkspacePane: (pane: 'markdown' | 'graphTable') =>

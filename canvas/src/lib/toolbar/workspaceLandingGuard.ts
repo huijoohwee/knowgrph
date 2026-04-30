@@ -41,17 +41,16 @@ export function ensureEditorCanvasLandingForDuration(durationMs: number = 1500):
 
   const unsubscribe = useGraphStore.subscribe(
     s => [s.workspaceViewMode, s.editorWorkspacePane, s.workspaceCanvasPaneOpen] as const,
-    () => {
+    ([workspaceViewMode, editorWorkspacePane, workspaceCanvasPaneOpen]) => {
       if (stopping) return
+      if (workspaceViewMode !== 'editor' || editorWorkspacePane !== 'markdown' || workspaceCanvasPaneOpen !== true) {
+        stop()
+        return
+      }
       const elapsed = Date.now() - startedAt
       if (elapsed > ms) {
         stop()
         return
-      }
-      try {
-        apply()
-      } catch {
-        stop()
       }
     },
   )

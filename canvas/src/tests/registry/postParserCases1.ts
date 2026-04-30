@@ -241,6 +241,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["schema.jsonld.importIgnoresGraphEntryOrdering","@/__tests__/schema.test","testSchemaJsonLdImportIgnoresGraphEntryOrdering"],
   ["workspace.kgc.activePathCanonicalizesCompanionFiles","@/__tests__/markdownExplorerKgcCanonicalization.test","testMarkdownExplorerStoreCanonicalizesKgcCompanionActivePath"],
   ["flowEditor.kgc.runTargetsCanonicalWorkspaceDocument","@/__tests__/flowEditorKgcRunContract.test","testFlowEditorRunTargetsCanonicalKgcWorkspaceDocument"],
+  ["flowEditor.kgc.landingGuardStopsAfterWorkspaceClose","@/__tests__/flowEditorKgcRunContract.test","testFlowEditorLandingGuardStopsAfterWorkspaceClose"],
   ["byteplus.defaults.exposeSeedTextImageVideoModels","@/__tests__/byteplusRunGeneration.test","testBytePlusDefaultCatalogExposesSeedTextImageVideoModels"],
   ["chatAssetProxy.viteRoutesSharedRemoteFetchHandler","@/__tests__/chatAssetProxyIntegration.test","testViteConfigRoutesChatAssetProxyThroughSharedRemoteFetchHandler"],
   ["byteplus.run.markdownUsesSharedChatProxyResponse","@/__tests__/byteplusRunGeneration.test","testGenerateRunMarkdownWithProviderUsesChatProxyResponse"],
