@@ -309,6 +309,7 @@ export default function FlowEditorCanvasRuntime(
     flowEditorSurfaceId,
     rootRef,
     draftGraphDataRef,
+    renderGraphDataOverride,
     overlayEditorNodeIdsRef,
     openWidgetNodeIdsRef,
     pendingOverlayNodeIdRef,
@@ -593,7 +594,7 @@ export default function FlowEditorCanvasRuntime(
     overlayEdgesEnabledRef.current = overlayOnlyActive
     if (!overlayOnlyActive) return
     scheduleOverlayEdgeUpdate()
-  }, [overlayEditorNodeIdsKey, overlayOnlyActive, scheduleOverlayEdgeUpdate])
+  }, [overlayEditorNodeIdsKey, overlayOnlyActive, overlayTopologyLayoutSignature, scheduleOverlayEdgeUpdate])
 
   if (widgetDropBridgeOnly) {
     return <section ref={rootRef} className="absolute inset-0 pointer-events-none opacity-0" aria-hidden="true" />

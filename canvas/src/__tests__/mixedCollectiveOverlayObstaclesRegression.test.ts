@@ -26,6 +26,9 @@ export function testFlowEditorRichMediaCollectiveTreatsWidgetOverlaysAsCurrentSu
   if (!overlaysText.includes('queryActiveFlowEditorOverlays()')) {
     throw new Error('expected Flow Editor Rich Media collective layout to query widget overlay roots through the active-surface selector')
   }
+  if (!overlaysText.includes('collectCanonicalFlowEditorOverlayRectEntries(queryActiveFlowEditorOverlays())')) {
+    throw new Error('expected Flow Editor Rich Media collective layout to reuse the shared canonical overlay rect collector for widget obstacles')
+  }
   if (!overlaysText.includes('FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR')) {
     throw new Error('expected Flow Editor Rich Media collective obstacles to be bounded by the active surface root')
   }

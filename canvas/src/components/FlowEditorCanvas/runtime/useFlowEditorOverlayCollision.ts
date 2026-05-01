@@ -12,11 +12,11 @@ import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
 import {
+  collectCanonicalFlowEditorOverlayRectEntries,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
   isTransientOffscreenRichMediaOverlayRoot,
-  readCanvasOverlayNodeId,
   readFlowEditorOverlaySurfaceId,
   shouldReplaceFlowEditorOverlayRectCandidate,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
@@ -204,9 +204,10 @@ export function useFlowEditorOverlayCollision(args: {
       overlayCollisionWarmupStartedAtMsRef.current = null
       overlayCollisionWarmupAttemptsRef.current = 0
 
-      const graphKind = String(((renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
+      const graphDataForOverlayRuntime = draftGraphDataRef.current || renderGraphDataOverride || null
+      const graphKind = String((((graphDataForOverlayRuntime || null)?.metadata || {}) as Record<string, unknown>).kind || '').trim()
       const isFrontmatterFlow = graphKind === 'frontmatter-flow'
-      const nodes = Array.isArray(renderGraphDataOverride?.nodes) ? (renderGraphDataOverride!.nodes as GraphNode[]) : []
+      const nodes = Array.isArray(graphDataForOverlayRuntime?.nodes) ? (graphDataForOverlayRuntime!.nodes as GraphNode[]) : []
       const nodeById = new Map<string, GraphNode>()
       for (let i = 0; i < nodes.length; i += 1) {
         const n = nodes[i]
@@ -283,7 +284,6 @@ export function useFlowEditorOverlayCollision(args: {
       }
 
       const floatingScaled = computeWidgetScaledSize(panelScale)
-      const graphDataForOverlayRuntime = draftGraphDataRef.current || renderGraphDataOverride || null
       const pinnedById = st.flowWidgetPinnedByNodeId || {}
       const posById = st.flowWidgetPosByNodeId || {}
       const nodeTypeById = new Map<string, string>()
@@ -396,18 +396,14 @@ export function useFlowEditorOverlayCollision(args: {
       const pinnedObstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
       if (typeof document !== 'undefined') {
         const richMediaEls = queryActiveSurfaceOverlays(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
-        const richMediaObstacleById = new Map<string, { el: HTMLElement; rect: DOMRect }>()
-        for (let i = 0; i < richMediaEls.length; i += 1) {
-          const el = richMediaEls[i]
-          const id = readCanvasOverlayNodeId(el)
-          if (!id) continue
-          const rect = el.getBoundingClientRect()
-          if (isTransientOffscreenRichMediaOverlayRoot(el, rect)) continue
-          const nextRaw = { el, rect }
-          if (shouldReplaceFlowEditorOverlayRectCandidate(richMediaObstacleById.get(id), nextRaw)) richMediaObstacleById.set(id, nextRaw)
-        }
-        for (const [id, entry] of richMediaObstacleById) {
-          pinnedObstacles.push({ id: `rich-media:${id}`, left: entry.rect.left, top: entry.rect.top, width: entry.rect.width, height: entry.rect.height })
+        const canonicalRichMediaObstacles = collectCanonicalFlowEditorOverlayRectEntries(richMediaEls)
+        for (let i = 0; i < canonicalRichMediaObstacles.length; i += 1) {
+          const entry = canonicalRichMediaObstacles[i]
+          const id = entry?.id
+          const rect = entry?.rect
+          if (!id || !rect) continue
+          if (isTransientOffscreenRichMediaOverlayRoot(entry.el, rect)) continue
+          pinnedObstacles.push({ id: `rich-media:${id}`, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
         }
       }
       const storedCollectiveItems = overlayNodeIds

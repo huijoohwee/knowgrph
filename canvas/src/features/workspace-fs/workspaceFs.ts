@@ -454,6 +454,13 @@ export function resolveWorkspaceStartupActivePath(args: {
     return TEST_VALIDATION_WORKSPACE_SEED_PATH
   }
   if (isDefaultWorkspaceSeedFamilyOnly(workspaceFilePaths)) {
+    if (
+      activePathExists &&
+      args.preferValidationSeedForDefaultFamily === true &&
+      activePath !== TEST_VALIDATION_WORKSPACE_SEED_PATH
+    ) {
+      return activePath
+    }
     if (args.preferValidationSeedForDefaultFamily === true && workspaceFilePathSet.has(TEST_VALIDATION_WORKSPACE_SEED_PATH)) {
       return TEST_VALIDATION_WORKSPACE_SEED_PATH
     }

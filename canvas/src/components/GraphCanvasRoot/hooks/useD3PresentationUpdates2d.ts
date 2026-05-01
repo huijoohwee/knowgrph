@@ -9,10 +9,60 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { updateForceSimulationPresentation } from '@/components/GraphCanvas/simulation'
 import { updateGraphSceneGroupsPresentation, updateGraphSceneNodesPresentation } from '@/components/GraphCanvas/scene'
+import type { NodeHalfExtents } from '@/components/GraphCanvas/layout/overlap'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
+
+function mergeStableOverlayHalfExtents(args: {
+  nodes: GraphNode[]
+  computed: Record<string, NodeHalfExtents> | null
+  panelOnlyNodeIdSet: Set<string>
+  mediaOverlayNodeIdSet: Set<string>
+  lastStableByNodeId: Map<string, NodeHalfExtents>
+}): Record<string, NodeHalfExtents> | null {
+  const nodeIds = new Set<string>()
+  for (const id of args.panelOnlyNodeIdSet) {
+    const trimmed = String(id || '').trim()
+    if (trimmed) nodeIds.add(trimmed)
+  }
+  for (const id of args.mediaOverlayNodeIdSet) {
+    const trimmed = String(id || '').trim()
+    if (trimmed) nodeIds.add(trimmed)
+  }
+  if (nodeIds.size === 0) return args.computed
+  const nodesById = new Map<string, GraphNode>()
+  for (let i = 0; i < args.nodes.length; i += 1) {
+    const node = args.nodes[i]
+    const id = String(node?.id || '').trim()
+    if (id) nodesById.set(id, node)
+  }
+  const out: Record<string, NodeHalfExtents> = args.computed ? { ...args.computed } : {}
+  let changed = false
+  for (const id of nodeIds) {
+    const node = nodesById.get(id)
+    const props =
+      node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
+        ? (node.properties as Record<string, unknown>)
+        : null
+    const w = typeof props?.['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : null
+    const h = typeof props?.['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : null
+    if (w != null && h != null && w > 0 && h > 0) {
+      const stable = { halfW: Math.max(1, w / 2), halfH: Math.max(1, h / 2) }
+      args.lastStableByNodeId.set(id, stable)
+      out[id] = stable
+      changed = true
+      continue
+    }
+    const lastStable = args.lastStableByNodeId.get(id)
+    if (!lastStable) continue
+    out[id] = lastStable
+    changed = true
+  }
+  if (!changed) return args.computed
+  return Object.keys(out).length > 0 ? out : null
+}
 
 export function useD3PresentationUpdates2d(args: {
   activeRef: MutableRefObject<boolean>
@@ -62,6 +112,7 @@ export function useD3PresentationUpdates2d(args: {
   const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const workspaceOverlayOpenRef = useRef(workspaceOverlayOpen)
   workspaceOverlayOpenRef.current = workspaceOverlayOpen
+  const lastStableOverlayHalfExtentsByNodeIdRef = useRef<Map<string, NodeHalfExtents>>(new Map())
 
   const {
     activeRef,
@@ -142,6 +193,39 @@ export function useD3PresentationUpdates2d(args: {
       return groupKeyByNodeId[id] || null
     }
     if (!frozen) {
+      const sceneNodes = Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : []
+      const computedOverlayHalfExtentsByNodeId = computeOverlayHalfExtentsByNodeId2d({
+        nodes: sceneNodes,
+        panelOnlyNodeIdSet,
+        mediaOverlayNodeIdSet,
+        viewportW: Math.max(1, Math.floor(sceneWidth)),
+        zoomK: (() => {
+          try {
+            const el = svgRef.current
+            if (!el) return 1
+            const k = d3.zoomTransform(el).k
+            return typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
+          } catch {
+            return 1
+          }
+        })(),
+        mediaPanelDensity,
+        overlaySizing: {
+          overlayBaseWidthRatioDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioDefault,
+          overlayBaseWidthRatioCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioCompact,
+          overlayBaseWidthMinPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxDefault,
+          overlayBaseWidthMinPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxCompact,
+          overlayBaseWidthMaxPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxDefault,
+          overlayBaseWidthMaxPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxCompact,
+        },
+      })
+      const stableOverlayHalfExtentsByNodeId = mergeStableOverlayHalfExtents({
+        nodes: sceneNodes,
+        computed: computedOverlayHalfExtentsByNodeId,
+        panelOnlyNodeIdSet,
+        mediaOverlayNodeIdSet,
+        lastStableByNodeId: lastStableOverlayHalfExtentsByNodeIdRef.current,
+      })
       pipelinePerfMeasureSync({
         name: 'render',
         stage: 'presentation:forces',
@@ -153,38 +237,14 @@ export function useD3PresentationUpdates2d(args: {
         },
         run: () => updateForceSimulationPresentation({
           simulation: simulationRef.current,
-          nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
+          nodes: sceneNodes,
           edges: edgesForSim,
           width: sceneWidth,
           height: sceneHeight,
           schema: schemaValue,
           groupKeyOf,
           groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
-          nodeHalfExtentsByNodeId: computeOverlayHalfExtentsByNodeId2d({
-            nodes: Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : [],
-            panelOnlyNodeIdSet,
-            mediaOverlayNodeIdSet,
-            viewportW: Math.max(1, Math.floor(sceneWidth)),
-            zoomK: (() => {
-              try {
-                const el = svgRef.current
-                if (!el) return 1
-                const k = d3.zoomTransform(el).k
-                return typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1
-              } catch {
-                return 1
-              }
-            })(),
-            mediaPanelDensity,
-            overlaySizing: {
-              overlayBaseWidthRatioDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioDefault,
-              overlayBaseWidthRatioCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioCompact,
-              overlayBaseWidthMinPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxDefault,
-              overlayBaseWidthMinPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxCompact,
-              overlayBaseWidthMaxPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxDefault,
-              overlayBaseWidthMaxPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxCompact,
-            },
-          }),
+          nodeHalfExtentsByNodeId: stableOverlayHalfExtentsByNodeId,
         }),
       })
     }

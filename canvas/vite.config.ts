@@ -25,6 +25,7 @@ const resolvedReactDomClient = nodeRequire.resolve('react-dom/client')
 const resolvedThreeSrc = nodeRequire.resolve('three/src/Three.js')
 const resolvedD3Entry = nodeRequire.resolve('d3')
 const resolvedMaplibreEntry = nodeRequire.resolve('maplibre-gl')
+const resolvedZustandEntry = nodeRequire.resolve('zustand')
 const resolvedGympgrphSrc = path.resolve(__dirname, '../gympgrph/src/index.ts')
 const resolvedGympgrphMapPreviewSrc = path.resolve(__dirname, '../gympgrph/src/mapPreview.ts')
 const resolvedGympgrphTestkitSrc = path.resolve(__dirname, '../gympgrph/src/testkit.ts')
@@ -5353,7 +5354,7 @@ export default defineConfig(({ command }) => ({
   },
   resolve: {
     preserveSymlinks: true,
-    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'd3'],
+    dedupe: ['react', 'react-dom', 'highlight.js', 'dayjs', 'mermaid', 'maplibre-gl', 'd3', 'zustand'],
     alias: [
       { find: 'react/jsx-runtime', replacement: resolvedReactJsxRuntime },
       { find: 'react/jsx-dev-runtime', replacement: resolvedReactJsxDevRuntime },
@@ -5363,6 +5364,7 @@ export default defineConfig(({ command }) => ({
       { find: /^three$/, replacement: resolvedThreeSrc },
       { find: /^d3$/, replacement: resolvedD3Entry },
       { find: /^maplibre-gl$/, replacement: resolvedMaplibreEntry },
+      { find: /^zustand$/, replacement: resolvedZustandEntry },
       { find: /^gympgrph$/, replacement: resolvedGympgrphSrc },
       { find: /^gympgrph\/map-preview$/, replacement: resolvedGympgrphMapPreviewSrc },
       { find: /^gympgrph\/testkit$/, replacement: resolvedGympgrphTestkitSrc },

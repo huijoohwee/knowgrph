@@ -29,10 +29,12 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const scenePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const surfacePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const presentationPath = path.resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3PresentationUpdates2d.ts')
   const hookText = readUtf8(hookPath)
   const runtimeText = readUtf8(runtimePath)
   const sceneText = readUtf8(scenePath)
   const surfaceText = readUtf8(surfacePath)
+  const presentationText = readUtf8(presentationPath)
   if (!hookText.includes('const posSig = buildPosSignature(overlayNodeIds, st.flowWidgetPosByNodeId)')) {
     throw new Error('expected overlay collision key to include shared stored-position signatures')
   }
@@ -296,6 +298,8 @@ export const testFlowEditorPinnedContainmentBoundsIgnoreOverlayFeedback = () => 
 export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = () => {
   const flowCanvasPath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const flowCanvasText = readUtf8(flowCanvasPath)
+  const presentationPath = path.resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3PresentationUpdates2d.ts')
+  const presentationText = readUtf8(presentationPath)
   if (!flowCanvasText.includes('const plannedOverlayNodeIdsKeyRef = React.useRef')) {
     throw new Error('expected FlowCanvas to keep a stable planned-overlay signature ref')
   }
@@ -317,6 +321,36 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   if (!overlayText.includes('const mediaLayoutItems = React.useMemo(') || !overlayText.includes('[mediaLayoutItemIdsKey]')) {
     throw new Error('expected Rich Media layout items to be keyed by semantic overlay id signature, not raw mediaNodes array identity')
   }
+  if (!overlayText.includes('const mediaLayoutPropsSignature = React.useMemo(')) {
+    throw new Error('expected Rich Media layout scheduling to derive a semantic active-node props signature instead of waiting for incidental interaction churn')
+  }
+  if (!overlayText.includes("readMediaLayoutNodePropsSignature(mediaLayoutItemIds, sceneGraphData)")) {
+    throw new Error('expected Rich Media layout scheduling to key off the active overlay ids plus the current scene graph node props SSOT')
+  }
+  if (!overlayText.includes('const mediaOverlayPanelLastKnownWorldSizeRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())')) {
+    throw new Error('expected Rich Media overlay sizing to retain the last stable panel world size across transient graph prop gaps')
+  }
+  if (!overlayText.includes('if (options?.clearLastKnownWorldSize === true) mediaOverlayPanelLastKnownWorldSizeRef.current.clear()')) {
+    throw new Error('expected Rich Media overlay interaction reset to preserve stable panel world sizes except on full teardown')
+  }
+  if (!overlayText.includes('const stableSize = readStablePanelWorldSize(record)')) {
+    throw new Error('expected Rich Media overlay sizing to refresh its last-known size cache from semantic scene node props')
+  }
+  if (!overlayText.includes('for (const id of Array.from(lastKnownSizes.keys())) {')) {
+    throw new Error('expected Rich Media overlay size cache to prune removed nodes without dropping active-node stable sizes during workspace churn')
+  }
+  if (!overlayText.includes('readStablePanelWorldSize(props) || mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null')) {
+    throw new Error('expected Rich Media layout sizing to reuse the last stable panel size when visual width/height are transiently missing')
+  }
+  if (!presentationText.includes('const lastStableOverlayHalfExtentsByNodeIdRef = useRef<Map<string, NodeHalfExtents>>(new Map())')) {
+    throw new Error('expected D3 presentation to retain last stable overlay half-extents across transient missing visual size props')
+  }
+  if (!presentationText.includes('const stableOverlayHalfExtentsByNodeId = mergeStableOverlayHalfExtents({')) {
+    throw new Error('expected D3 presentation to merge computed overlay extents with the last stable overlay half-extents cache')
+  }
+  if (!presentationText.includes('lastStableByNodeId: lastStableOverlayHalfExtentsByNodeIdRef.current')) {
+    throw new Error('expected D3 presentation to update overlay half-extents from a shared ref-backed SSOT cache')
+  }
   if (!overlayText.includes('workspaceOverlayOpenRef.current') || !overlayText.includes('workspaceOverlayOpenKey')) {
     throw new Error('expected Rich Media layout scheduling to track Workspace overlay open/close without raw workspace deps in hot layout state')
   }
@@ -325,6 +359,12 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   }
   if (!overlayText.includes('if (workspaceOverlayOpenRef.current) return')) {
     throw new Error('expected passive Rich Media layout scheduling to skip while Workspace/Indexing overlay is open')
+  }
+  if (!overlayText.includes('mediaLayoutPropsSignature,')) {
+    throw new Error('expected passive Rich Media layout scheduling to resync on semantic panel output and sizing changes')
+  }
+  if (!overlayText.includes('const sceneGraphDataRevision = React.useMemo(() => readGraphDataRevision(sceneGraphData), [sceneGraphData])')) {
+    throw new Error('expected Rich Media overlay maintenance effects to use graph revisions instead of raw scene graph identity churn')
   }
   const richMediaPanelPath = path.resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const richMediaPanelText = readUtf8(richMediaPanelPath)
@@ -378,16 +418,19 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   if (!proxyText.includes('export function shouldReplaceFlowEditorOverlayRectCandidate')) {
     throw new Error('expected shared overlay proxy contract to centralize duplicate overlay root geometry selection')
   }
+  if (!proxyText.includes('export function collectCanonicalFlowEditorOverlayRectEntries')) {
+    throw new Error('expected shared overlay proxy contract to centralize canonical visible overlay rect collection')
+  }
 
   const overlayCollisionPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
   const overlayCollisionText = readUtf8(overlayCollisionPath)
-  if (!overlayCollisionText.includes('isTransientOffscreenRichMediaOverlayRoot(el, rect)')) {
+  if (!overlayCollisionText.includes('isTransientOffscreenRichMediaOverlayRoot(entry.el, rect)')) {
     throw new Error('expected Balanced overlay collision to ignore offscreen Rich Media bootstrap roots before obstacle planning')
   }
   if (!overlayCollisionText.includes('shouldReplaceFlowEditorOverlayRectCandidate(selectedRawRectByNodeId.get(id), nextRaw)')) {
     throw new Error('expected Balanced overlay collision to choose one canonical visible widget root before layout geometry use')
   }
-  if (!overlayCollisionText.includes('shouldReplaceFlowEditorOverlayRectCandidate(richMediaObstacleById.get(id), nextRaw)')) {
-    throw new Error('expected Balanced overlay collision to choose one canonical visible Rich Media obstacle per node')
+  if (!overlayCollisionText.includes('collectCanonicalFlowEditorOverlayRectEntries(richMediaEls)')) {
+    throw new Error('expected Balanced overlay collision to reuse the shared canonical overlay rect collector for Rich Media obstacles')
   }
 }

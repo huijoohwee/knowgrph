@@ -154,11 +154,25 @@ export function testWorkspaceStartupActivePathPrefersValidationSeedForCustomVali
       WORKSPACE_README_SEED_PATH,
       TEST_VALIDATION_WORKSPACE_SEED_PATH,
     ],
-    activePath: WORKSPACE_README_SEED_PATH,
+    activePath: null,
     preferValidationSeedForDefaultFamily: true,
   })
   if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
     throw new Error(`expected custom validation target startup to prefer validation seed, got ${String(next)}`)
+  }
+}
+
+export function testWorkspaceStartupActivePathPreservesExplicitDefaultSeedSelection() {
+  const next = resolveWorkspaceStartupActivePath({
+    workspaceFilePaths: [
+      WORKSPACE_README_SEED_PATH,
+      TEST_VALIDATION_WORKSPACE_SEED_PATH,
+    ],
+    activePath: WORKSPACE_README_SEED_PATH,
+    preferValidationSeedForDefaultFamily: true,
+  })
+  if (next !== WORKSPACE_README_SEED_PATH) {
+    throw new Error(`expected explicit default seed selection to be preserved, got ${String(next)}`)
   }
 }
 

@@ -81,6 +81,21 @@ export function shouldReplaceFlowEditorOverlayRectCandidate(
   return nextArea > currentArea + 1
 }
 
+export function collectCanonicalFlowEditorOverlayRectEntries(
+  overlayRoots: Iterable<HTMLElement>,
+): Array<{ id: string; el: HTMLElement; rect: DOMRect }> {
+  const selectedById = new Map<string, { el: HTMLElement; rect: DOMRect }>()
+  for (const el of overlayRoots) {
+    const id = readCanvasOverlayNodeId(el)
+    if (!id) continue
+    const rect = el.getBoundingClientRect()
+    const next = { el, rect }
+    if (shouldReplaceFlowEditorOverlayRectCandidate(selectedById.get(id), next)) selectedById.set(id, next)
+  }
+  return Array.from(selectedById.entries())
+    .map(([id, entry]) => ({ id, el: entry.el, rect: entry.rect }))
+}
+
 export function resolveFlowEditorOverlayProxyTarget(args: { target: unknown; canvasEl: Element; flowEditorSurfaceId?: string | null }): FlowEditorOverlayProxyTarget {
   const el = args.target instanceof Element ? args.target : null
   if (!el) return { kind: 'none' }

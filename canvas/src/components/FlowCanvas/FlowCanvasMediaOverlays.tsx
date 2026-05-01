@@ -23,15 +23,73 @@ import {
   resolveRichMediaPanelInteractive,
 } from '@/lib/render/richMediaSsot'
 import {
+  collectCanonicalFlowEditorOverlayRectEntries,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
   FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
-  readCanvasOverlayNodeId,
   readFlowEditorOverlaySurfaceId,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { hashSignatureParts } from '@/lib/hash/signature'
+
+function readMediaLayoutMeasureKey(value: unknown): string {
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) ? String(Math.round(n)) : ''
+}
+
+function readStablePanelWorldSize(
+  props: Record<string, unknown> | null | undefined,
+): { w: number; h: number } | null {
+  if (!props) return null
+  const width = Number(props['visual:width'])
+  const height = Number(props['visual:height'])
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
+  return {
+    w: Math.max(24, width),
+    h: Math.max(24, height),
+  }
+}
+
+function readMediaLayoutNodePropsSignature(
+  ids: string[],
+  sceneGraphData: GraphData | null,
+): string {
+  if (ids.length === 0) return ''
+  const wanted = new Set(ids)
+  const nodes = Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes : []
+  const parts: string[] = []
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    const id = String(node?.id || '').trim()
+    if (!id || !wanted.has(id)) continue
+    const props =
+      node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
+        ? (node.properties as Record<string, unknown>)
+        : {}
+    parts.push([
+      id,
+      readMediaLayoutMeasureKey(props['visual:width']),
+      readMediaLayoutMeasureKey(props['visual:height']),
+      String(props.outputLoadingKind || '').trim(),
+      typeof props.output === 'string' && props.output.trim() ? 'text' : '',
+      typeof props.imageUrl === 'string' && props.imageUrl.trim() ? 'image' : '',
+      typeof props.videoUrl === 'string' && props.videoUrl.trim() ? 'video' : '',
+      typeof props.outputPath === 'string' && props.outputPath.trim() ? String(props.outputPath).trim() : '',
+      String(props.richMediaActiveTab || '').trim(),
+    ].join(':'))
+  }
+  parts.sort((a, b) => a.localeCompare(b))
+  return hashSignatureParts(['flow-canvas-media-layout-props', ids.length, ...parts])
+}
+
+function readGraphDataRevision(graphData: GraphData | null | undefined): number {
+  const meta = graphData?.metadata
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return 0
+  const raw = (meta as Record<string, unknown>).graphDataRevision
+  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
+}
 
 export default function FlowCanvasMediaOverlays(args: {
   active: boolean
@@ -109,6 +167,7 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
   const mediaOverlayPanelSizeOverrideRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
   const mediaOverlayPanelSizeTargetWorldRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
+  const mediaOverlayPanelLastKnownWorldSizeRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
   const mediaOverlayLayoutScheduleRef = React.useRef<null | (() => void)>(null)
   const mediaOverlayHeaderDragRef = React.useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number; lastDx: number; lastDy: number }>(null)
   const mediaOverlayPanRef = React.useRef<null | { pointerId: number; startTransform: d3.ZoomTransform }>(null)
@@ -124,7 +183,7 @@ export default function FlowCanvasMediaOverlays(args: {
   const [workspaceOverlayOpenKey, setWorkspaceOverlayOpenKey] = React.useState(0)
   const sceneNodePropsByIdRef = React.useRef<Map<string, Record<string, unknown>>>(new Map())
 
-  const cancelMediaOverlayInteractionState = React.useCallback(() => {
+  const cancelMediaOverlayInteractionState = React.useCallback((options?: { clearLastKnownWorldSize?: boolean }) => {
     mediaOverlayPanMoveSchedulerRef.current?.cancel()
     mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
     mediaOverlayResizeMoveSchedulerRef.current?.cancel()
@@ -136,6 +195,7 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaOverlayResizeRef.current = null
     mediaOverlayPanelSizeOverrideRef.current.clear()
     mediaOverlayPanelSizeTargetWorldRef.current.clear()
+    if (options?.clearLastKnownWorldSize === true) mediaOverlayPanelLastKnownWorldSizeRef.current.clear()
   }, [])
 
   React.useEffect(() => {
@@ -159,12 +219,19 @@ export default function FlowCanvasMediaOverlays(args: {
 
   React.useEffect(() => {
     const next = new Map<string, Record<string, unknown>>()
+    const lastKnownSizes = mediaOverlayPanelLastKnownWorldSizeRef.current
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as Array<{ id?: unknown; properties?: unknown }>) : []
     for (let i = 0; i < nodes.length; i += 1) {
       const id = String(nodes[i]?.id || '').trim()
       const props = nodes[i]?.properties
       if (!id || !props || typeof props !== 'object' || Array.isArray(props)) continue
-      next.set(id, props as Record<string, unknown>)
+      const record = props as Record<string, unknown>
+      next.set(id, record)
+      const stableSize = readStablePanelWorldSize(record)
+      if (stableSize) lastKnownSizes.set(id, stableSize)
+    }
+    for (const id of Array.from(lastKnownSizes.keys())) {
+      if (!next.has(id)) lastKnownSizes.delete(id)
     }
     sceneNodePropsByIdRef.current = next
   }, [sceneGraphData])
@@ -203,7 +270,10 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [mediaNodes, panelOnlyNodeIdSet])
   const plannedOverlayNodeIdsKey = React.useMemo(() => plannedOverlayNodeIds.join('|'), [plannedOverlayNodeIds])
   const mediaLayoutItemIds = React.useMemo(
-    () => mediaNodes.map(node => String(node.id || '').trim()).filter(Boolean),
+    () => {
+      const ids = mediaNodes.map(node => String(node.id || '').trim()).filter(Boolean)
+      return ids.length <= 1 ? ids : Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
+    },
     [mediaNodes],
   )
   const mediaLayoutItemIdsKey = React.useMemo(() => mediaLayoutItemIds.join('|'), [mediaLayoutItemIds])
@@ -223,6 +293,11 @@ export default function FlowCanvasMediaOverlays(args: {
     [mediaLayoutItemIdsKey],
   )
   const mediaLayoutItemsKey = React.useMemo(() => mediaLayoutItems.map(item => item.id).join('|'), [mediaLayoutItems])
+  const mediaLayoutPropsSignature = React.useMemo(
+    () => readMediaLayoutNodePropsSignature(mediaLayoutItemIds, sceneGraphData),
+    [mediaLayoutItemIdsKey, mediaLayoutItemIds, sceneGraphData],
+  )
+  const sceneGraphDataRevision = React.useMemo(() => readGraphDataRevision(sceneGraphData), [sceneGraphData])
 
   React.useEffect(() => {
     if (lastPlannedOverlayNodeIdsKeyRef.current === plannedOverlayNodeIdsKey) return
@@ -428,7 +503,7 @@ export default function FlowCanvasMediaOverlays(args: {
       }
     }
     if (changed) mediaOverlayLayoutScheduleRef.current?.()
-  }, [flowEditorOverlayInteractionMode, sceneGraphData])
+  }, [flowEditorOverlayInteractionMode, mediaLayoutPropsSignature, sceneGraphDataRevision])
 
   React.useEffect(() => {
     if (!active) return
@@ -441,6 +516,7 @@ export default function FlowCanvasMediaOverlays(args: {
     flowEditorFrontmatterDocumentModeRequested,
     flowEditorFrontmatterInteractionMode,
     mediaLayoutItemIdsKey,
+    mediaLayoutPropsSignature,
     onInteractionFrame,
     plannedOverlayNodeIdsKey,
   ])
@@ -481,15 +557,13 @@ export default function FlowCanvasMediaOverlays(args: {
           return { w: coerced.width, h: coerced.height }
         }
         const props = sceneNodePropsByIdRef.current.get(id) || null
-        if (!props) return null
-        const width = Number(props['visual:width'])
-        const height = Number(props['visual:height'])
-        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
+        const stableSize = readStablePanelWorldSize(props) || mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null
+        if (!stableSize) return null
         const zoomK = typeof runtimeRef.current?.transform?.k === 'number' && runtimeRef.current.transform.k > 0 ? runtimeRef.current.transform.k : 1
-        const scale = computeOverlaySizingScale(zoomK, stableMediaLayoutItems.length, Math.max(24, width), Math.max(24, height))
+        const scale = computeOverlaySizingScale(zoomK, stableMediaLayoutItems.length, stableSize.w, stableSize.h)
         const coerced = coerceRichMediaPanelSizePx({
-          width: Math.max(24, width) * scale,
-          height: Math.max(24, height) * scale,
+          width: stableSize.w * scale,
+          height: stableSize.h * scale,
           viewportW,
           viewportH,
           minWidthPx: 220,
@@ -501,13 +575,12 @@ export default function FlowCanvasMediaOverlays(args: {
       getNodeWorldCenterForId: id => readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'topLeft' }),
       getCollisionObstacles: () => {
         const obstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
-        const els = queryActiveFlowEditorOverlays()
-        for (let i = 0; i < els.length; i += 1) {
-          const el = els[i]
-          const id = readCanvasOverlayNodeId(el)
-          if (!id || mediaOverlayElsRef.current.has(id)) continue
-          const rect = el.getBoundingClientRect()
-          if (!(rect.width > 0) || !(rect.height > 0)) continue
+        const canonicalOverlayRects = collectCanonicalFlowEditorOverlayRectEntries(queryActiveFlowEditorOverlays())
+        for (let i = 0; i < canonicalOverlayRects.length; i += 1) {
+          const entry = canonicalOverlayRects[i]
+          const id = entry?.id
+          const rect = entry?.rect
+          if (!id || !rect || mediaOverlayElsRef.current.has(id)) continue
           obstacles.push({ id, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
         }
         return obstacles
@@ -557,7 +630,7 @@ export default function FlowCanvasMediaOverlays(args: {
   ])
 
   React.useEffect(() => {
-    return () => cancelMediaOverlayInteractionState()
+    return () => cancelMediaOverlayInteractionState({ clearLastKnownWorldSize: true })
   }, [cancelMediaOverlayInteractionState])
 
   if (!(active && mediaNodes.length > 0)) return null

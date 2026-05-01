@@ -390,6 +390,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["workspaceFs.seed.keepsUserDeletedDefaultSeedEntryRemoved","@/__tests__/workspaceSeedPersistence.test","testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRemoved"],
   ["workspaceFs.startup.prefersReadmeForDefaultSeedFamily","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPrefersReadmeForDefaultSeedFamily"],
   ["workspaceFs.startup.prefersValidationSeedForCustomValidationTarget","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPrefersValidationSeedForCustomValidationTarget"],
+  ["workspaceFs.startup.preservesExplicitDefaultSeedSelection","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPreservesExplicitDefaultSeedSelection"],
   ["workspaceFs.startup.forcesValidationSeedWhenCustomTargetExists","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathForcesValidationSeedWhenCustomTargetExists"],
   ["workspaceFs.startup.preservesCustomWorkspaceSelection","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPreservesCustomWorkspaceSelection"],
   ["workspaceFs.explorer.prefersReadmeFirstForCanonicalDefaultFamily","@/__tests__/workspaceSeedPersistence.test","testWorkspaceExplorerSortPrefersReadmeFirstForCanonicalDefaultFamily"],

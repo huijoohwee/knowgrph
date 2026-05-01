@@ -19,6 +19,7 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { hashSignatureParts } from '@/lib/hash/signature'
+import { isFlowEditorQeTraceEnabled, pushFlowEditorQeTrace } from '@/lib/flowEditor/flowEditorQeTrace'
 
 export function useFlowEditorOverlaySurface(args: {
   flowEditorSurfaceId: string
@@ -67,9 +68,13 @@ export function useFlowEditorOverlaySurface(args: {
 }) {
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEditorNodeIdsRef = React.useRef<string[]>([])
+  const frontmatterOverlayOnlyCoverageRef = React.useRef<{ key: string; untilMs: number } | null>(null)
 
   React.useEffect(() => {
-    if (!args.flowEditorViewActive) lastStableOverlayEditorNodeIdsRef.current = []
+    if (!args.flowEditorViewActive) {
+      lastStableOverlayEditorNodeIdsRef.current = []
+      frontmatterOverlayOnlyCoverageRef.current = null
+    }
   }, [args.flowEditorViewActive])
 
   const overlayEditorNodeIds = React.useMemo(() => {
@@ -131,19 +136,12 @@ export function useFlowEditorOverlaySurface(args: {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    const w = window as Window & { localStorage?: Storage; __KG_FLOW_EDITOR_QE_TRACE__?: Array<Record<string, unknown>> }
-    let enabled = false
-    try {
-      enabled = Boolean(w.localStorage && w.localStorage.getItem('kg:debug:flowEditorWidgetTrace') === '1')
-    } catch {
-      enabled = false
-    }
-    if (!enabled) return
+    if (!isFlowEditorQeTraceEnabled(window)) return
 
     const graphNodes = Array.isArray(args.renderGraphDataOverride?.nodes) ? args.renderGraphDataOverride.nodes.length : 0
     const graphEdges = Array.isArray(args.renderGraphDataOverride?.edges) ? args.renderGraphDataOverride.edges.length : 0
-    const entry: Record<string, unknown> = {
-      ts: Date.now(),
+    pushFlowEditorQeTrace(window, {
+      kind: 'overlay-surface',
       active: args.canEdit ? 1 : 0,
       view: args.flowEditorViewActive ? 1 : 0,
       frontmatterGraph: args.flowEditorFrontmatterGraphAvailable ? 1 : 0,
@@ -152,11 +150,8 @@ export function useFlowEditorOverlaySurface(args: {
       openWidgetCount: Array.isArray(args.openWidgetNodeIds) ? args.openWidgetNodeIds.length : 0,
       overlayCount: overlayEditorNodeIds.length,
       overlayIdsHead: overlayEditorNodeIds.slice(0, 8).join(','),
-    }
-    const buf = Array.isArray(w.__KG_FLOW_EDITOR_QE_TRACE__) ? w.__KG_FLOW_EDITOR_QE_TRACE__ : []
-    buf.push(entry)
-    if (buf.length > 150) buf.splice(0, buf.length - 150)
-    w.__KG_FLOW_EDITOR_QE_TRACE__ = buf
+      overlayOnlyActive: overlayEditorNodeIds.length > 0 ? 1 : 0,
+    })
   }, [
     args.canEdit,
     args.flowEditorFrontmatterGraphAvailable,
@@ -402,7 +397,7 @@ export function useFlowEditorOverlaySurface(args: {
   const frontmatterOverlayHideSafety = React.useMemo(() => {
     const kind = String(((args.renderGraphDataOverride?.metadata || {}) as Record<string, unknown>).kind || '').trim()
     if (kind !== 'frontmatter-flow') {
-      return { kind, visibleNodeIds: [] as string[], hasFullOverlayCoverageForVisibleNodes: true }
+      return { kind, visibleNodeIds: [] as string[], hasFullOverlayCoverageForVisibleNodes: true, coverageGuardKey: '' }
     }
     const display = deriveSceneDisplayGraph({ graphData: args.renderGraphDataOverride })
     const visibleNodeIds = Array.isArray(display?.displayNodes)
@@ -414,13 +409,40 @@ export function useFlowEditorOverlaySurface(args: {
     const overlayIdSet = new Set(overlayEditorNodeIds)
     const visibleFlowNodeIds = visibleNodeIds.filter(id => eligibleIds.size === 0 || eligibleIds.has(id))
     const hasFullOverlayCoverageForVisibleNodes = visibleFlowNodeIds.every(id => overlayIdSet.has(id))
-    return { kind, visibleNodeIds: visibleFlowNodeIds, hasFullOverlayCoverageForVisibleNodes }
-  }, [args.renderGraphDataOverride, overlayEditorNodeIds])
+    const coverageGuardKey = hashSignatureParts([
+      'frontmatter-overlay-only-coverage',
+      args.overlayTopologyLayoutSignature,
+      ...visibleFlowNodeIds,
+    ])
+    return { kind, visibleNodeIds: visibleFlowNodeIds, hasFullOverlayCoverageForVisibleNodes, coverageGuardKey }
+  }, [args.overlayTopologyLayoutSignature, args.renderGraphDataOverride, overlayEditorNodeIds])
 
   const overlayOnlyActive =
-    args.flowEditorViewActive
-    && (frontmatterOverlayHideSafety.kind !== 'frontmatter-flow' || frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes)
-    && (hasOverlayEditors || Boolean(args.geospatialWidgetPanelMode))
+    (() => {
+      const baseActive = args.flowEditorViewActive && (hasOverlayEditors || Boolean(args.geospatialWidgetPanelMode))
+      if (!baseActive) {
+        frontmatterOverlayOnlyCoverageRef.current = null
+        return false
+      }
+      if (frontmatterOverlayHideSafety.kind !== 'frontmatter-flow') return true
+      const now = Date.now()
+      if (frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes) {
+        frontmatterOverlayOnlyCoverageRef.current = {
+          key: frontmatterOverlayHideSafety.coverageGuardKey,
+          untilMs: now + 1600,
+        }
+        return true
+      }
+      const stableCoverage = frontmatterOverlayOnlyCoverageRef.current
+      if (
+        stableCoverage
+        && stableCoverage.key === frontmatterOverlayHideSafety.coverageGuardKey
+        && stableCoverage.untilMs > now
+      ) {
+        return true
+      }
+      return false
+    })()
 
   const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {
     if (!overlayOnlyActive) return undefined
