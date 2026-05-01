@@ -1,6 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { DOCUMENT_CONTAINMENT_EDGE_LABELS } from '@/lib/graph/documentContainmentEdgeLabels'
+import { buildHierarchyDepthResolver, buildHierarchicalLeafMemberCollector } from '@/components/GraphCanvas/layout/hierarchicalGroupMembers'
 
 const isHeadingSectionNode = (n: GraphNode): boolean => {
   if (String(n.type || '') !== 'Section') return false
@@ -45,57 +46,33 @@ export const deriveMarkdownHeadingGroups = (data: GraphData): GraphGroup[] => {
     childSectionsById.set(src, set)
   }
 
-  const depthById = new Map<string, number>()
-  const computeDepth = (id: string): number => {
-    const cached = depthById.get(id)
-    if (typeof cached === 'number') return cached
-    const parent = parentSectionById.get(id)
-    const depth = parent ? computeDepth(parent) + 1 : 0
-    depthById.set(id, depth)
-    return depth
-  }
-
-  const leafCache = new Map<string, string[]>()
-  const collectLeafMembers = (sectionId: string, stack: Set<string>): string[] => {
-    const cached = leafCache.get(sectionId)
-    if (cached) return cached
-    if (stack.has(sectionId)) return []
-    stack.add(sectionId)
-
-    const out = new Set<string>()
-    const visitNode = (nodeId: string) => {
-      if (!nodeId) return
-      if (sectionById.has(nodeId)) return
-      out.add(nodeId)
-      const outEdges = outEdgesBySrc.get(nodeId) || []
-      for (let i = 0; i < outEdges.length; i += 1) {
-        const e = outEdges[i]
-        if (!isItemEdge(e)) continue
-        const tgt = String(e.target || '')
-        if (!tgt) continue
-        if (sectionById.has(tgt)) continue
-        out.add(tgt)
+  const computeDepth = buildHierarchyDepthResolver(parentSectionById)
+  const collectLeafMembers = buildHierarchicalLeafMemberCollector({
+    getChildIds: sectionId => childSectionsById.get(sectionId),
+    getDirectMemberIds: sectionId => {
+      const out = new Set<string>()
+      const visitNode = (nodeId: string) => {
+        const key = String(nodeId || '').trim()
+        if (!key || sectionById.has(key)) return
+        out.add(key)
+        const outEdges = outEdgesBySrc.get(key) || []
+        for (let i = 0; i < outEdges.length; i += 1) {
+          const e = outEdges[i]
+          if (!isItemEdge(e)) continue
+          const tgt = String(e.target || '').trim()
+          if (!tgt || sectionById.has(tgt)) continue
+          out.add(tgt)
+        }
       }
-    }
 
-    const sectionOut = outEdgesBySrc.get(sectionId) || []
-    for (let i = 0; i < sectionOut.length; i += 1) {
-      const e = sectionOut[i]
-      if (isContainmentEdge(e) && !isSectionEdge(e)) {
-        visitNode(String(e.target || ''))
-      } else if (isSectionEdge(e)) {
-        const childId = String(e.target || '')
-        if (!childId || !sectionById.has(childId)) continue
-        const childLeaves = collectLeafMembers(childId, stack)
-        for (let j = 0; j < childLeaves.length; j += 1) out.add(childLeaves[j]!)
+      const sectionOut = outEdgesBySrc.get(sectionId) || []
+      for (let i = 0; i < sectionOut.length; i += 1) {
+        const e = sectionOut[i]
+        if (isContainmentEdge(e) && !isSectionEdge(e)) visitNode(String(e.target || ''))
       }
-    }
-
-    stack.delete(sectionId)
-    const finalized = Array.from(out).sort((a, b) => a.localeCompare(b))
-    leafCache.set(sectionId, finalized)
-    return finalized
-  }
+      return out
+    },
+  })
 
   const groups: GraphGroup[] = []
   sectionById.forEach((node, id) => {
@@ -106,7 +83,7 @@ export const deriveMarkdownHeadingGroups = (data: GraphData): GraphGroup[] => {
       label,
       source: 'markdownHeading',
       depth: computeDepth(id),
-      memberNodeIds: collectLeafMembers(id, new Set()),
+      memberNodeIds: collectLeafMembers(id),
       parentGroupId: parent ? `md:${parent}` : null,
       style: {
         fill: 'var(--kg-panel-bg)',

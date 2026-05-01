@@ -55,6 +55,7 @@ import { useArrangeRequestEffect2d } from '@/components/GraphCanvasRoot/hooks/us
 import { ArrangeToolbar2d } from '@/components/GraphCanvasRoot/components/ArrangeToolbar2d'
 import { useMarqueeSelection2d } from '@/components/GraphCanvasRoot/hooks/useMarqueeSelection2d'
 import { MarqueeBoxOverlay } from '@/components/GraphCanvasRoot/components/MarqueeBoxOverlay'
+import { readMergedGraphNodeLookup } from '@/components/GraphCanvasRoot/utils/mergedNodeLookup'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 
 const MARKDOWN_PANEL_ALLOWED_KINDS = ['table', 'code', 'blockquote', 'callout', 'html'] as const
@@ -475,7 +476,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     })
   }, [markdownDocumentName, deferredMarkdownDocumentText])
 
-  const nodeByIdForPanelsRef = useRef<{ rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
+  const nodeByIdForPanelsRef = useRef<{ graphData: GraphData | null; rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
+    graphData: null,
     rev: -1,
     sim: null,
     map: new Map(),
@@ -486,27 +488,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     if (!id) return null
     const sim = simulationRef.current
     const graph = sceneGraphDataRef.current
-    const graphNodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
-    const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
     const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
-    const cached = nodeByIdForPanelsRef.current
-    if (cached.rev !== rev || cached.sim !== sim) {
-      const map = new Map<string, GraphNode>()
-      for (let i = 0; i < graphNodes.length; i += 1) {
-        const n = graphNodes[i]
-        const key = String(n?.id || '').trim()
-        if (!key) continue
-        map.set(key, n)
-      }
-      for (let i = 0; i < simNodes.length; i += 1) {
-        const n = simNodes[i]
-        const key = String(n?.id || '').trim()
-        if (!key) continue
-        map.set(key, n)
-      }
-      nodeByIdForPanelsRef.current = { rev, sim: sim || null, map }
-    }
-    const n = nodeByIdForPanelsRef.current.map.get(id) || null
+    const nodeById = readMergedGraphNodeLookup({
+      cacheRef: nodeByIdForPanelsRef,
+      cacheScope: 'graph-canvas-root-panel-node-lookup',
+      graphData: graph,
+      graphRevision: rev,
+      simulation: sim,
+    })
+    const n = nodeById.get(id) || null
     return readNodeCenterWorld2d(n, { coords: 'center' })
   }, [graphDataRevision])
 
@@ -533,14 +523,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         const iframeNodeIds: string[] = []
 
         const sim = simulationRef.current
-        const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
-        const simById = new Map<string, GraphNode>()
-        for (let i = 0; i < simNodes.length; i += 1) {
-          const n = simNodes[i]!
-          const id = String(n?.id || '').trim()
-          if (!id) continue
-          simById.set(id, n)
-        }
+        const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
+        const nodeById = readMergedGraphNodeLookup({
+          cacheRef: nodeByIdForPanelsRef,
+          cacheScope: 'graph-canvas-root-panel-node-lookup',
+          graphData: sceneGraphData,
+          graphRevision: rev,
+          simulation: sim,
+        })
         const lastPos = graphBlockPanelLastPosRef.current
         const keepPosIds = new Set<string>()
 
@@ -561,7 +551,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           if (!id) continue
           const xGraph = getNum((n as unknown as { x?: unknown }).x)
           const yGraph = getNum((n as unknown as { y?: unknown }).y)
-          const simNode = simById.get(id) || null
+          const simNode = nodeById.get(id) || null
           const xSim = simNode ? getNum((simNode as unknown as { x?: unknown }).x) : null
           const ySim = simNode ? getNum((simNode as unknown as { y?: unknown }).y) : null
           const prev = lastPos.get(id) || null
@@ -819,7 +809,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     }
     const sorted = Array.from(idsSet).sort((a, b) => a.localeCompare(b))
     return { panelOnlyNodeIdsKey: sorted.join('|'), panelOnlyNodeIdSet: new Set(sorted) }
-  }, [graphBlockPanel, markdownAnchorNodeIdByBlockId, markdownPanelLineRanges, panelIframeNodeIdsKey, panelIframeNodeIdSet, sceneGraphData])
+  }, [graphBlockPanel, markdownAnchorNodeIdByBlockId, markdownPanelLineRanges, panelIframeNodeIdSet, sceneGraphData])
 
   const panelOnlyNodeIdSetRef = React.useRef<Set<string> | null>(null)
   const panelOnlyNodeIdsKeyRef = React.useRef<string>('')
@@ -950,6 +940,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     zoomRef,
     simulationRef,
     sceneGraphDataRef,
+    graphDataRevision: graphDataRevision || 0,
     schemaRef: schemaRef as unknown as React.MutableRefObject<GraphSchema>,
     requestOverlaySchedule,
   })

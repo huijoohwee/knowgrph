@@ -199,6 +199,7 @@ function hasMeaningfulRichMediaPanelOverlayContent(candidate: Candidate): boolea
   if (String(candidate.url || '').trim()) return true
   if (String(candidate.openUrl || '').trim()) return true
   if (String(candidate.srcDoc || '').trim()) return true
+  if (candidate.panel.activeTab !== 'auto') return true
   if (candidate.panel.hasImage || candidate.panel.hasVideo || candidate.panel.hasText) return true
   if (candidate.panel.isLoading) return true
   return false
@@ -218,6 +219,10 @@ function getRichMediaPanelTextDedupKey(candidate: Candidate): string {
 function computeRichMediaPanelOverlayRankBonus(candidate: Candidate): number {
   if (!candidate.panel) return 0
   let score = 0
+  if (candidate.panel.activeTab === 'video') score += 160
+  else if (candidate.panel.activeTab === 'image') score += 140
+  else if (candidate.panel.activeTab === 'text') score += 120
+  else if (candidate.panel.activeTab === 'poi') score += 80
   if (candidate.panel.hasVideo) score += 140
   if (candidate.panel.hasImage) score += 120
   if (candidate.panel.hasText) score += 100
@@ -225,6 +230,18 @@ function computeRichMediaPanelOverlayRankBonus(candidate: Candidate): number {
   if (String(candidate.srcDoc || '').trim()) score += 40
   if (String(candidate.title || '').includes(' for ')) score += 20
   return score
+}
+
+function buildRichMediaPanelFallbackSpec(panel: RichMediaPanelOverlayState | undefined): {
+  kind: MediaOverlayKind
+  url: string
+  interactive: boolean
+} | null {
+  if (!panel) return null
+  if (panel.activeTab === 'image') return { kind: 'image', url: '', interactive: false }
+  if (panel.activeTab === 'video') return { kind: 'video', url: '', interactive: false }
+  if (panel.activeTab === 'text' || panel.activeTab === 'poi') return { kind: 'iframe', url: '', interactive: false }
+  return null
 }
 
 export function listMediaOverlayNodes(args: {
@@ -235,6 +252,7 @@ export function listMediaOverlayNodes(args: {
   preferredNodeIds?: readonly string[]
   excludeNodeIdSet?: Set<string>
   connectedValuesByNodeId?: ReadonlyMap<string, FlowConnectedValuesBySchemaPath>
+  nodeById?: ReadonlyMap<string, GraphNode>
 }): MediaOverlayNode[] {
   if (!args.enabled) return []
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
@@ -245,8 +263,10 @@ export function listMediaOverlayNodes(args: {
   const preferredSet = preferred.length ? new Set(preferred) : null
   const exclude = args.excludeNodeIdSet || null
   const connectedValuesByNodeId = args.connectedValuesByNodeId || null
+  const externalNodeById = args.nodeById || null
   let nodeById: Map<string, GraphNode> | null = null
   const getNodeById = (): ReadonlyMap<string, GraphNode> => {
+    if (externalNodeById) return externalNodeById
     if (nodeById) return nodeById
     nodeById = new Map<string, GraphNode>()
     for (let i = 0; i < nodes.length; i += 1) {
@@ -267,35 +287,52 @@ export function listMediaOverlayNodes(args: {
 
     const connectedValuesBySchemaPath = connectedValuesByNodeId?.get(id)
     const isRichMediaPanel = String(n0.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
-    const baseSpec = getNodeMediaSpec(n0)
+    const panelNodeById = isRichMediaPanel ? getNodeById() : undefined
+    const panel = buildRichMediaPanelOverlayState({
+      node: n0,
+      connectedValuesBySchemaPath,
+      nodeById: panelNodeById,
+    })
+    const baseSpec = getNodeMediaSpec(n0) || buildRichMediaPanelFallbackSpec(panel)
     const nodeForSpec = (() => {
       if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return n0
       if (!isRichMediaPanel && baseSpec) return n0
       const connectedNode = applyConnectedValuesToNodeForRender({ node: n0, connectedValuesBySchemaPath })
-      const connectedSpec = getNodeMediaSpec(connectedNode)
+      const connectedPanel = isRichMediaPanel
+        ? buildRichMediaPanelOverlayState({
+            node: n0,
+            connectedValuesBySchemaPath,
+            nodeById: panelNodeById,
+            renderNode: connectedNode,
+          })
+        : undefined
+      const connectedSpec = getNodeMediaSpec(connectedNode) || buildRichMediaPanelFallbackSpec(connectedPanel)
       if (connectedSpec) return connectedNode
       return n0
     })()
-    const spec = nodeForSpec === n0 ? baseSpec : getNodeMediaSpec(nodeForSpec)
+    const resolvedPanel = isRichMediaPanel
+      ? buildRichMediaPanelOverlayState({
+          node: n0,
+          connectedValuesBySchemaPath,
+          nodeById: panelNodeById,
+          renderNode: nodeForSpec,
+        })
+      : panel
+    const spec = nodeForSpec === n0
+      ? baseSpec
+      : (getNodeMediaSpec(nodeForSpec) || buildRichMediaPanelFallbackSpec(resolvedPanel))
     if (!spec) continue
     const kind = spec.kind as MediaOverlayKind
     if (!kinds.has(kind)) continue
-    const panelNodeById = isRichMediaPanel ? getNodeById() : undefined
     const title = buildOverlayTitle({
       node: n0,
       nodeById: panelNodeById || EMPTY_NODE_BY_ID,
       connectedValuesBySchemaPath,
     })
     const openUrl = chooseOpenUrl(nodeForSpec, spec.url)
-    const panel = buildRichMediaPanelOverlayState({
-      node: n0,
-      connectedValuesBySchemaPath,
-      nodeById: panelNodeById,
-      renderNode: nodeForSpec,
-    })
     const preferredHit = preferredSet?.has(id) === true
     const rankBase = computeMediaRank(nodeForSpec, spec)
-    const panelRankBonus = panel
+    const panelRankBonus = resolvedPanel
       ? computeRichMediaPanelOverlayRankBonus({
           id,
           title,
@@ -306,7 +343,7 @@ export function listMediaOverlayNodes(args: {
           openUrl,
           interactive: spec.interactive,
           kind,
-          panel,
+          panel: resolvedPanel,
           rank: 0,
           idx: i,
           preferred: preferredHit,
@@ -323,7 +360,7 @@ export function listMediaOverlayNodes(args: {
       openUrl,
       interactive: spec.interactive,
       kind,
-      ...(panel ? { panel } : {}),
+      ...(resolvedPanel ? { panel: resolvedPanel } : {}),
       rank,
       idx: i,
       preferred: preferredHit,

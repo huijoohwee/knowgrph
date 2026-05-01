@@ -8,6 +8,7 @@ export const MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL = 'https://demotiles.maplibre.or
 export const MAPLIBRE_MODERN_DEFAULT_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 export const MAPLIBRE_GLOBE_DEFAULT_STYLE_URL = 'https://demotiles.maplibre.org/globe.json'
 export const MAPLIBRE_DEFAULT_STYLE_URL = MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL
+export const DEFAULT_GEOSPATIAL_VIEW_MODE: GeospatialViewMode = '2d-modern'
 export { GRABMAPS_DEFAULT_STYLE_URL }
 
 export const normalizeGeospatialViewMode = (mode: unknown): GeospatialViewMode => {
@@ -19,7 +20,7 @@ export const normalizeGeospatialViewMode = (mode: unknown): GeospatialViewMode =
         ? '2d-modern'
         : mode === '2d-svg'
           ? '2d-svg'
-          : '2d'
+          : DEFAULT_GEOSPATIAL_VIEW_MODE
 }
 
 export const getBuiltInDefaultStyleUrl = (mode: GeospatialViewMode): string => {

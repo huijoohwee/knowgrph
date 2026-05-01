@@ -30,6 +30,8 @@ import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
 import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 type GroupDatum = GraphGroup
 const readMouseEventDetail = (event: MouseEvent): number => {
   const detail = (event as unknown as { detail?: unknown }).detail
@@ -80,7 +82,7 @@ export const createGroupsLayer = (args: {
   const shape: 'rect' | 'geo' = cfg.shape === 'geo' ? 'geo' : 'rect'
   const groupResizeDotTransition = 'var(--kg-transition-group-resize-dot)'
 
-  const nodeById = new Map<string, GraphNode>()
+  const displayNodes: GraphNode[] = []
   const headingLevelByGroupId = new Map<string, number>()
   for (let i = 0; i < graphData.nodes.length; i += 1) {
     const n = graphData.nodes[i]
@@ -91,8 +93,19 @@ export const createGroupsLayer = (args: {
       continue
     }
     if (!isDisplayNode(n)) continue
-    nodeById.set(String(n.id), n)
+    displayNodes.push(n)
   }
+  const displayNodeLookup = getCachedGraphLookup({
+    cacheScope: 'graph-canvas-groups-display-nodes',
+    graphData: { type: 'application/json', nodes: displayNodes, edges: [] },
+    graphSemanticKey: hashScopedStringArraySignature(
+      'graph-canvas-groups-display-nodes',
+      displayNodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`),
+    ),
+    // Group dragging mutates live node refs, so this path must rebind to the current graph objects.
+    preferCurrentGraphDataRefs: true,
+  })
+  const nodeById = displayNodeLookup?.nodeById || new Map<string, GraphNode>()
 
   const nodeHalfExtentsById = new Map<string, { halfW: number; halfH: number }>()
   for (const [id, n] of nodeById.entries()) {

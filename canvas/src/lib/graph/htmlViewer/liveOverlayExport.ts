@@ -143,6 +143,26 @@ const pickCanonicalSourceByKey = (map: Map<string, Element>, key: string, candid
   }
 }
 
+const readMarkdownOverlayId = (el: Element): string => String(el.getAttribute('data-md-id') || '').trim()
+
+const readMarkdownOverlayAnchorNodeId = (el: Element): string => {
+  return String(el.getAttribute('data-kg-anchor-node-id') || '').trim()
+}
+
+const canonicalizeMarkdownOverlayAttrs = (el: Element, args: { id: string; anchorNodeId?: string }): void => {
+  try {
+    el.setAttribute('data-md-id', args.id)
+  } catch {
+    void 0
+  }
+  try {
+    if (args.anchorNodeId) el.setAttribute('data-kg-anchor-node-id', args.anchorNodeId)
+    else el.removeAttribute('data-kg-anchor-node-id')
+  } catch {
+    void 0
+  }
+}
+
 export const captureLiveRichMediaOverlayHtmlForHtmlViewerExport = (args: {
   overlayRootEl: Element | null
 }): string => {
@@ -203,19 +223,19 @@ export const captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport = (args: {
       'section[aria-label="Flow media overlay"]',
       '#kg-overlay',
       '[data-kg-markdown-design-overlay="1"]',
-      '[data-kg-markdown-design-block]',
+      '[data-md-id]',
     ])
     if (roots.length === 0) return ''
 
     const blockById = new Map<string, Element>()
     for (let i = 0; i < roots.length; i += 1) {
       const root = roots[i]
-      const rootBlocks = root.matches?.('[data-kg-markdown-design-block]')
+      const rootBlocks = root.matches?.('[data-md-id]')
         ? [root]
-        : Array.from(root.querySelectorAll('[data-kg-markdown-design-block]'))
+        : Array.from(root.querySelectorAll('[data-md-id]'))
       for (let j = 0; j < rootBlocks.length; j += 1) {
         const block = rootBlocks[j] as Element
-        const id = String(block.getAttribute('data-kg-markdown-design-block') || '').trim()
+        const id = readMarkdownOverlayId(block)
         if (!id) continue
         pickCanonicalSourceByKey(blockById, id, block)
       }
@@ -232,8 +252,9 @@ export const captureLiveMarkdownDesignOverlayHtmlForHtmlViewerExport = (args: {
       hideOverlayUntilRuntimePositions(clone)
 
       try {
-        const id = String(srcBlock.getAttribute('data-kg-markdown-design-block') || '').trim()
-        if (id) clone.setAttribute('data-md-id', id)
+        const id = readMarkdownOverlayId(srcBlock)
+        const anchorNodeId = readMarkdownOverlayAnchorNodeId(srcBlock)
+        if (id) canonicalizeMarkdownOverlayAttrs(clone, { id, anchorNodeId })
       } catch {
         void 0
       }

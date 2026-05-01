@@ -1,4 +1,3 @@
-import React from 'react'
 import { hashStringToIndex } from 'grph-shared/hash/stringHash'
 import { LS_KEYS } from './lib/config.js'
 import { applyMediaProxySrc, coerceFetchUrl, MEDIA_PROXY_ENDPOINT } from './lib/url.js'
@@ -29,10 +28,6 @@ export { ensureDatasetLayer, setGeoJsonSourceData }
 export { coerceFeatureCollectionIds, isPointOnlyFeatureCollection, pickPoiSelection }
 export { colorForDataset }
 export { useMapLibreBasemap }
-
-export const GeospatialOverlayHostLazy = React.lazy(async () => ({
-  default: GeospatialOverlayHostComponent,
-}))
 
 export const GeospatialOverlayHost = GeospatialOverlayHostComponent
 

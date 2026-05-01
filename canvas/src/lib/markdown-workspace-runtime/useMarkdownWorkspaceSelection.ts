@@ -257,7 +257,9 @@ export function useMarkdownWorkspaceSelection(args: {
       CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
       TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
 
-    if (!args.lastSetActivePath || preferCustomValidationSeed || preferValidationSeedForRenderer) {
+    // Keep the renderer-based validation seed preference limited to startup. Once the
+    // user explicitly switches files, preserve that selection instead of snapping back.
+    if (!args.lastSetActivePath || preferCustomValidationSeed) {
       const startupPath = resolveWorkspaceStartupActivePath({
         workspaceFilePaths: args.entries.filter((entry): entry is WorkspaceEntry & { kind: 'file' } => entry.kind === 'file').map(entry => entry.path),
         activePath: args.activePath,

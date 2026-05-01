@@ -125,7 +125,6 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   markdownLayoutMode: 'ui.bottomPanel',
   markdownViewerWidthMode: 'ui.bottomPanel',
   markdownDerivedViewerKind: 'ui.bottomPanel',
-  markdownDerivedViewerMode: 'ui.bottomPanel',
   bipartiteApiRunId: 'render.prefs',
   workspaceEditorMode: 'ui.workspace',
   monacoLanguageJsonEnabled: 'ui.monaco',

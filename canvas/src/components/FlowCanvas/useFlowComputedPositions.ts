@@ -18,6 +18,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { FlowConfig } from '@/components/FlowCanvas/config'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { computeRadarGalaxyPositions2d } from '@/lib/graph/radarGalaxyLayout'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 export function useFlowComputedPositions(args: {
   active: boolean
@@ -80,6 +81,15 @@ export function useFlowComputedPositions(args: {
     layoutPositionsForModeRef.current = layoutPositionsForMode || null
   }, [layoutPositionsForMode])
 
+  const sceneGraphLookup = React.useMemo(() => {
+    return getCachedGraphLookup({
+      cacheScope: 'flow-canvas-computed-positions-scene-graph',
+      graphData: sceneGraphData,
+      graphRevision: graphDataRevision,
+    })
+  }, [graphDataRevision, sceneGraphData])
+  const sceneGraphNodeById = sceneGraphLookup?.nodeById || null
+
   const hashPositions = (
     positions: Record<string, { x: number; y: number }> | null,
     nodeIds: string[],
@@ -140,14 +150,6 @@ export function useFlowComputedPositions(args: {
       const nodeW = Math.max(1, Math.floor(flowConfig.node.widthPx))
       const nodeH = Math.max(1, Math.floor(flowConfig.node.heightPx))
       const usePerNodeVisualSize = String((g as unknown as { context?: unknown })?.context || '') === 'frontmatter-mermaid'
-      const nodeById = new Map<string, unknown>()
-      if (usePerNodeVisualSize) {
-        for (let i = 0; i < nodeList.length; i += 1) {
-          const n = nodeList[i] as unknown as { id?: unknown }
-          const id = String(n?.id || '')
-          if (id) nodeById.set(id, n)
-        }
-      }
 
       const centerToTopLeft = (positions: Record<string, { x: number; y: number }> | null): Record<string, { x: number; y: number }> | null => {
         if (!positions) return null
@@ -162,7 +164,7 @@ export function useFlowComputedPositions(args: {
           if (!Number.isFinite(x) || !Number.isFinite(y)) continue
           const dims = (() => {
             if (!usePerNodeVisualSize) return { w: nodeW, h: nodeH }
-            const n = nodeById.get(id) as unknown as { properties?: unknown } | undefined
+            const n = sceneGraphNodeById?.get(id) as unknown as { properties?: unknown } | undefined
             const props = n?.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
             const vw = props && typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width'] as number) ? (props['visual:width'] as number) : null
             const vh = props && typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height'] as number) ? (props['visual:height'] as number) : null
@@ -581,6 +583,7 @@ export function useFlowComputedPositions(args: {
     layoutViewKey,
     rankdir,
     sceneGraphData,
+    sceneGraphNodeById,
     sceneGroups,
     schema,
     setLayoutPositionsForMode,

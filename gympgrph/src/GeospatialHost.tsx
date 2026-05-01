@@ -1,4 +1,5 @@
 import React from 'react'
+import { hashStringToHex } from 'grph-shared/hash/stringHash'
 import { useGympgrphStore } from './store.js'
 import { useMapLibreBasemap } from './features/geospatial/useMapLibreBasemap.js'
 import { LS_KEYS } from './lib/config.js'
@@ -9,7 +10,9 @@ import { clearGeoJsonSourceData, ensureDatasetLayer, isMapLibreStyleReady, setGe
 import { colorForDataset } from './colors.js'
 import { isPointOnlyFeatureCollection } from './selection.js'
 import {
+  DEFAULT_GEOSPATIAL_VIEW_MODE,
   isGrabMapsPresetActive,
+  normalizeGeospatialViewMode,
   normalizePersistedGeospatialStyleUrl,
   resolveEffectiveGeospatialStyleUrl,
   SAFE_SVG_FALLBACK_STYLE_SENTINEL,
@@ -55,6 +58,12 @@ function getSnapshotGraphData(snapshot: unknown): unknown {
   return snapshot.graphData
 }
 
+function getSnapshotGraphRevision(snapshot: unknown): number {
+  if (!isRecord(snapshot)) return 0
+  const raw = snapshot.graphRevision
+  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
+}
+
 function getOverlayHandlers(snapshot: unknown, handlers: unknown): Record<string, unknown> | null {
   if (isRecord(handlers)) return handlers
   if (!isRecord(snapshot)) return null
@@ -94,7 +103,15 @@ function getSnapshotGeospatialPanelNodeIds(snapshot: unknown): Set<string> {
 
 type FeatureProjection = {
   featureCollection: FeatureCollection
+  featureById: Map<string, FeatureCollection['features'][number]>
   signature: string
+}
+
+function buildIdSetSignature(scope: string, ids: Set<string>): string {
+  if (ids.size === 0) return `${scope}:0`
+  const normalized = Array.from(ids).map(id => String(id || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
+  if (normalized.length === 0) return `${scope}:0`
+  return `${scope}:${normalized.length}:${hashStringToHex(`${scope}|${normalized.join('|')}`)}`
 }
 
 function GeospatialPointLegend(props: {
@@ -337,10 +354,22 @@ function SvgGeospatialFallback(args: {
   )
 }
 
-function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds: Set<string>, panelNodeIds: Set<string>): FeatureProjection {
+function buildFeatureCollectionFromGraphData(
+  graphData: unknown,
+  panelNodeIds: Set<string>,
+  graphRevision: number,
+): FeatureProjection {
   const features: FeatureCollection['features'] = []
+  const featureById = new Map<string, FeatureCollection['features'][number]>()
   const signatureParts: string[] = []
-  if (!isRecord(graphData)) return { featureCollection: { type: 'FeatureCollection', features }, signature: 'n:0' }
+  const panelNodeIdsSignature = buildIdSetSignature('panel', panelNodeIds)
+  if (!isRecord(graphData)) {
+    return {
+      featureCollection: { type: 'FeatureCollection', features },
+      featureById,
+      signature: hashStringToHex(`n:0|${panelNodeIdsSignature}|rev:${graphRevision}`),
+    }
+  }
   const meta = isRecord(graphData.metadata) ? graphData.metadata : null
   const lineFeaturesRaw = meta ? readNestedValue(meta, ['kgGeospatialLineFeatures']) : null
   if (isRecord(lineFeaturesRaw) && String(lineFeaturesRaw.type || '') === 'FeatureCollection') {
@@ -358,7 +387,19 @@ function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds
         const id = typeof idRaw === 'string' || typeof idRaw === 'number' ? String(idRaw) : ''
         const labelRaw = props.label
         const label = typeof labelRaw === 'string' && labelRaw.trim() ? labelRaw.trim() : 'Route'
-        features.push({
+        if (graphRevision <= 0 && signatureParts.length < 500) {
+          const firstCoord = Array.isArray(coords[0]) ? coords[0] : null
+          const lastCoord = Array.isArray(coords[coords.length - 1]) ? coords[coords.length - 1] : null
+          signatureParts.push([
+            'line',
+            id || `kg-line:${i + 1}`,
+            label,
+            Array.isArray(coords) ? coords.length : 0,
+            Array.isArray(firstCoord) ? `${Number(firstCoord[0] || 0).toFixed(6)}:${Number(firstCoord[1] || 0).toFixed(6)}` : '',
+            Array.isArray(lastCoord) ? `${Number(lastCoord[0] || 0).toFixed(6)}:${Number(lastCoord[1] || 0).toFixed(6)}` : '',
+          ].join(':'))
+        }
+        const feature = {
           type: 'Feature',
           id: id || `kg-line:${i + 1}`,
           geometry: { type: 'LineString', coordinates: coords as any },
@@ -367,12 +408,22 @@ function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds
             label,
             kgCategory: typeof props.kgCategory === 'string' && props.kgCategory.trim() ? props.kgCategory : 'route',
           } as any,
-        })
+        } satisfies FeatureCollection['features'][number]
+        features.push(feature)
+        if (feature.id != null) {
+          featureById.set(String(feature.id), feature)
+        }
       }
     }
   }
   const nodesRaw = graphData.nodes
-  if (!Array.isArray(nodesRaw)) return { featureCollection: { type: 'FeatureCollection', features }, signature: 'n:0' }
+  if (!Array.isArray(nodesRaw)) {
+    return {
+      featureCollection: { type: 'FeatureCollection', features },
+      featureById,
+      signature: hashStringToHex(`n:0|${panelNodeIdsSignature}|rev:${graphRevision}`),
+    }
+  }
   for (let i = 0; i < nodesRaw.length; i += 1) {
     const node = nodesRaw[i]
     if (!isRecord(node)) continue
@@ -408,9 +459,10 @@ function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds
       }
       return 'other'
     })()
-    const selected = selectedNodeIds.has(nodeId)
-    if (signatureParts.length < 500) signatureParts.push(`${nodeId}:${category}:${lng.toFixed(6)}:${lat.toFixed(6)}:${selected ? 1 : 0}`)
-    features.push({
+    if (graphRevision <= 0 && signatureParts.length < 500) {
+      signatureParts.push(`${nodeId}:${category}:${lng.toFixed(6)}:${lat.toFixed(6)}`)
+    }
+    const feature = {
       type: 'Feature',
       id: nodeId,
       geometry: { type: 'Point', coordinates: [lng, lat] },
@@ -419,13 +471,18 @@ function buildFeatureCollectionFromGraphData(graphData: unknown, selectedNodeIds
         label,
         type: nodeType,
         kgCategory: category,
-        selected,
       },
-    })
+    } satisfies FeatureCollection['features'][number]
+    features.push(feature)
+    featureById.set(nodeId, feature)
   }
+  const structureSignature = graphRevision > 0
+    ? `rev:${graphRevision}`
+    : `sig:${hashStringToHex(`features:${features.length}|${signatureParts.join('|')}`)}`
   return {
     featureCollection: { type: 'FeatureCollection', features },
-    signature: `n:${String(features.length)}|${signatureParts.join('|')}`,
+    featureById,
+    signature: `${structureSignature}|${panelNodeIdsSignature}|count:${features.length}`,
   }
 }
 
@@ -448,16 +505,12 @@ const readStyleUrl = (): string | null => {
 }
 
 const readPersistedViewMode = (): GeospatialViewMode => {
-    if (typeof window === 'undefined') return '2d-modern'
+  if (typeof window === 'undefined') return DEFAULT_GEOSPATIAL_VIEW_MODE
   try {
     const raw = String(window.localStorage.getItem(LS_KEYS.geospatialViewMode) || '').trim()
-    if (raw === '2d-modern') return '2d-modern'
-    if (raw === '3d-modern') return '3d-modern'
-    if (raw === '3d') return '3d'
-    if (raw === '2d-svg') return '2d-svg'
-      return '2d-modern'
+    return normalizeGeospatialViewMode(raw || DEFAULT_GEOSPATIAL_VIEW_MODE)
   } catch {
-      return '2d-modern'
+    return DEFAULT_GEOSPATIAL_VIEW_MODE
   }
 }
 
@@ -473,10 +526,13 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
   const map3dContainerRef = React.useRef<HTMLDivElement | null>(null)
   const [targetStyleUrl, setTargetStyleUrl] = React.useState<string | null>(() => readStyleUrl())
   const [pointStyleConfig, setPointStyleConfig] = React.useState(() => readGeospatialPointStyleConfig())
-  const [geospatialViewMode, setGeospatialViewMode] = React.useState<GeospatialViewMode>(() => storeGeospatialViewMode || readPersistedViewMode())
+  const [geospatialViewMode, setGeospatialViewMode] = React.useState<GeospatialViewMode>(
+    () => normalizeGeospatialViewMode(storeGeospatialViewMode || readPersistedViewMode()),
+  )
 
   React.useEffect(() => {
-    setGeospatialViewMode(storeGeospatialViewMode || readPersistedViewMode())
+    const next = normalizeGeospatialViewMode(storeGeospatialViewMode || readPersistedViewMode())
+    setGeospatialViewMode(prev => (prev === next ? prev : next))
   }, [storeGeospatialViewMode])
 
   React.useEffect(() => {
@@ -497,7 +553,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
 
   React.useEffect(() => {
     return onGeospatialModeChanged(detail => {
-      const next = detail.viewMode || readPersistedViewMode()
+      const next = normalizeGeospatialViewMode(detail.viewMode || readPersistedViewMode())
       setGeospatialViewMode(prev => (prev === next ? prev : next))
     })
   }, [])
@@ -518,31 +574,43 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
     if (show2dSvgFallback) return 'svg'
     return 'maplibre'
   }, [effectiveTargetStyleUrl, geospatialViewMode, show2dSvgFallback])
+  const snapshotGraphData = getSnapshotGraphData(props.snapshot)
+  const snapshotGraphRevision = getSnapshotGraphRevision(props.snapshot)
   const selectedNodeIds = React.useMemo(() => getSnapshotSelectedNodeIds(props.snapshot), [props.snapshot])
+  const selectedNodeIdsKey = React.useMemo(() => buildIdSetSignature('selected', selectedNodeIds), [selectedNodeIds])
   const geospatialPanelNodeIds = React.useMemo(() => getSnapshotGeospatialPanelNodeIds(props.snapshot), [props.snapshot])
+  const geospatialPanelNodeIdsKey = React.useMemo(
+    () => buildIdSetSignature('panel', geospatialPanelNodeIds),
+    [geospatialPanelNodeIds],
+  )
   const graphProjection = React.useMemo(() => {
-    const graphData = getSnapshotGraphData(props.snapshot)
-    return buildFeatureCollectionFromGraphData(graphData, selectedNodeIds, geospatialPanelNodeIds)
-  }, [geospatialPanelNodeIds, props.snapshot, selectedNodeIds])
+    return buildFeatureCollectionFromGraphData(
+      snapshotGraphData,
+      geospatialPanelNodeIds,
+      snapshotGraphRevision,
+    )
+  }, [
+    geospatialPanelNodeIdsKey,
+    snapshotGraphData,
+    snapshotGraphRevision,
+  ])
   const overlayDebugInfo = React.useMemo(() => {
-    const graphData = getSnapshotGraphData(props.snapshot)
-    if (!isRecord(graphData)) return null
-    const meta = isRecord(graphData.metadata) ? graphData.metadata : null
+    if (!isRecord(snapshotGraphData)) return null
+    const meta = isRecord(snapshotGraphData.metadata) ? snapshotGraphData.metadata : null
     const raw = meta && isRecord(meta.kgGeospatialOverlayDebug) ? meta.kgGeospatialOverlayDebug : null
     return raw
-  }, [props.snapshot])
+  }, [snapshotGraphData])
   const graphFeatureCollection = graphProjection.featureCollection
   const graphBounds = React.useMemo(() => computeBoundsFromCollections([graphFeatureCollection]), [graphFeatureCollection])
   const selectedFeatureCollection = React.useMemo(() => {
-    const features = Array.isArray(graphFeatureCollection.features) ? graphFeatureCollection.features : []
-    const selected = features.filter(feature => {
-      const idRaw = (feature as { id?: unknown }).id
-      const id = typeof idRaw === 'string' || typeof idRaw === 'number' ? String(idRaw) : ''
-      if (!id) return false
-      return selectedNodeIds.has(id)
-    })
+    const selected: FeatureCollection['features'] = []
+    for (const nodeId of selectedNodeIds) {
+      const feature = graphProjection.featureById.get(nodeId)
+      if (!feature) continue
+      selected.push(feature)
+    }
     return { type: 'FeatureCollection', features: selected } as FeatureCollection
-  }, [graphFeatureCollection, selectedNodeIds])
+  }, [graphProjection.featureById, selectedNodeIds, selectedNodeIdsKey])
   const selectedBounds = React.useMemo(() => computeBoundsFromCollections([selectedFeatureCollection]), [selectedFeatureCollection])
   const graphDataKey = React.useMemo(() => graphProjection.signature, [graphProjection.signature])
   const mapLibreRuntimeEnabled = show2dMapLibre || show3d

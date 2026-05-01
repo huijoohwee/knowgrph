@@ -119,6 +119,7 @@ export default function PreviewPanelView() {
     })
   }, [
     frontmatterModeEnabled,
+    frontmatterMermaidCode,
     frontmatterMermaidDiagrams,
     mermaidFocusCode,
     mermaidFrontmatterConfig,
@@ -172,7 +173,7 @@ export default function PreviewPanelView() {
   const mediaItems: MediaItem[] = React.useMemo(() => {
     const list: MediaItem[] = []
     const docPath = markdownDocumentName || ''
-    const frontmatterMermaid = String((meta as Record<string, unknown>).mermaid || '').trim()
+    const frontmatterMermaid = frontmatterMermaidCode
     const looksImageUrl = (href: string) =>
       /^data:image\//i.test(href) || /\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(href)
     const looksAudioUrl = (href: string) =>
@@ -498,7 +499,19 @@ export default function PreviewPanelView() {
     }
 
     return list
-  }, [baseWidgetRegistry, documentWidgetRegistry, graphData, graphDataRevision, markdownDocumentName, mermaidFrontmatterConfig, meta, rootThemeMode, tokens, widgetRegistry])
+  }, [
+    baseWidgetRegistry,
+    documentWidgetRegistry,
+    frontmatterMermaidCode,
+    frontmatterMermaidDiagrams,
+    graphData,
+    graphDataRevision,
+    markdownDocumentName,
+    mermaidFrontmatterConfig,
+    rootThemeMode,
+    tokens,
+    widgetRegistry,
+  ])
 
   const hasMermaidFocus = !!mermaidFocusCode
 
@@ -590,62 +603,38 @@ export default function PreviewPanelView() {
       )
     }
 
-    if (activeMedia.kind === 'image') {
-      return (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className={`aspect-video w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
-            <RichMediaPanel
-              title={activeMedia.panelTitle || activeMedia.alt || activeMedia.label}
-              url={activeMedia.src}
-              openUrl={activeMedia.openUrl || activeMedia.src}
-              kind="image"
-              interactive={false}
-              iframeMode="srcdoc-when-needed"
-              showHeader={true}
-              style={{ width: '100%', height: '100%', boxShadow: 'none' }}
-            />
-          </div>
-        </div>
-      )
-    }
+    const isRichMediaPanelKind =
+      activeMedia.kind === 'image'
+      || activeMedia.kind === 'video'
+      || activeMedia.kind === 'iframe'
+      || activeMedia.kind === 'youtube'
+      || activeMedia.kind === 'vimeo'
+      || activeMedia.kind === 'webpage'
+      || activeMedia.kind === 'tweet'
 
-    if (activeMedia.kind === 'video') {
+    if (isRichMediaPanelKind) {
+      const richMediaKind = activeMedia.kind === 'image'
+        ? 'image'
+        : activeMedia.kind === 'video'
+          ? 'video'
+          : 'iframe'
+      const richMediaTitle = activeMedia.panelTitle || activeMedia.alt || activeMedia.label
+      const richMediaOpenUrl = activeMedia.openUrl || activeMedia.src
+      const richMediaNeedsExplicitLoad = richMediaKind === 'iframe'
+      const richMediaLoaded = !richMediaNeedsExplicitLoad || loadedEmbedKey === activeMedia.key
+      const frameClass = richMediaKind === 'iframe'
+        ? `aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`
+        : `aspect-video w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`
       return (
         <div className="w-full h-full flex items-center justify-center">
-          <div className={`aspect-video w-full max-w-4xl rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
-            <RichMediaPanel
-              title={activeMedia.panelTitle || activeMedia.label}
-              url={activeMedia.src}
-              openUrl={activeMedia.openUrl || activeMedia.src}
-              kind="video"
-              interactive={true}
-              iframeMode="srcdoc-when-needed"
-              showHeader={true}
-              style={{ width: '100%', height: '100%', boxShadow: 'none' }}
-            />
-          </div>
-        </div>
-      )
-    }
-
-    if (
-      activeMedia.kind === 'iframe' ||
-      activeMedia.kind === 'youtube' ||
-      activeMedia.kind === 'vimeo' ||
-      activeMedia.kind === 'webpage' ||
-      activeMedia.kind === 'tweet'
-    ) {
-      const loaded = loadedEmbedKey === activeMedia.key
-      return (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className={`aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`}>
-            {loaded ? (
+          <div className={frameClass}>
+            {richMediaLoaded ? (
               <RichMediaPanel
-                title={activeMedia.panelTitle || activeMedia.label}
+                title={richMediaTitle}
                 url={activeMedia.src}
-                openUrl={activeMedia.openUrl || activeMedia.src}
-                kind="iframe"
-                interactive={true}
+                openUrl={richMediaOpenUrl}
+                kind={richMediaKind}
+                interactive={richMediaKind !== 'image'}
                 iframeMode="srcdoc-when-needed"
                 showHeader={true}
                 style={{ width: '100%', height: '100%', boxShadow: 'none' }}
@@ -660,7 +649,7 @@ export default function PreviewPanelView() {
                   >
                     {UI_COPY.markdownMediaLoadEmbedLabel}
                   </button>
-                  <a className="text-xs underline" href={activeMedia.openUrl || activeMedia.src} target="_blank" rel="noreferrer">
+                  <a className="text-xs underline" href={richMediaOpenUrl} target="_blank" rel="noreferrer">
                     {UI_COPY.markdownMediaOpenInNewTabLabel}
                   </a>
                 </div>

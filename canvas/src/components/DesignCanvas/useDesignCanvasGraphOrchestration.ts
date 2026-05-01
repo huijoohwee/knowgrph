@@ -6,9 +6,11 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import type { DesignCanvasFrameNodeRef, DesignCanvasFrameRect } from '@/components/DesignCanvas/types'
 import type { DesignLayerState } from '@/features/design/designLayersState'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 const FRAME_W = 320
 const FRAME_H = 240
+const EMPTY_GRAPH_NODE_BY_ID = new Map<string, GraphNode>()
 
 type UseDesignCanvasGraphOrchestrationArgs = {
   active: boolean
@@ -130,6 +132,20 @@ export function useDesignCanvasGraphOrchestration(args: UseDesignCanvasGraphOrch
     markdownDocumentText,
     setDesignRendererWebpageGraph,
   })
+  const designGraphLookup = React.useMemo(() => {
+    return getCachedGraphLookup({
+      cacheScope: 'design-canvas-orchestration-display-graph',
+      graphData: designGraphDataForDisplay,
+    })
+  }, [designGraphDataForDisplay])
+  const designGraphNodeById = designGraphLookup?.nodeById || EMPTY_GRAPH_NODE_BY_ID
+  const activeWebpageLayoutLookup = React.useMemo(() => {
+    return getCachedGraphLookup({
+      cacheScope: 'design-canvas-orchestration-webpage-layout-graph',
+      graphData: activeWebpageLayoutGraphData,
+    })
+  }, [activeWebpageLayoutGraphData])
+  const activeWebpageLayoutNodeById = activeWebpageLayoutLookup?.nodeById || EMPTY_GRAPH_NODE_BY_ID
 
   const baseFrameNodes = React.useMemo(() => {
     if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {
@@ -186,32 +202,15 @@ export function useDesignCanvasGraphOrchestration(args: UseDesignCanvasGraphOrch
     setDesignRendererNodes(layersPanelNodes)
   }, [active, layersPanelNodes, setDesignRendererNodes])
 
-  const designGraphDisplayNodes = designGraphDataForDisplay?.nodes
-  const designGraphNodeById = React.useMemo(() => {
-    const nodes = Array.isArray(designGraphDisplayNodes) ? (designGraphDisplayNodes as GraphNode[]) : []
-    const map = new Map<string, GraphNode>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]
-      const id = String(node?.id || '').trim()
-      if (id && !map.has(id)) map.set(id, node)
-    }
-    return map
-  }, [designGraphDisplayNodes])
-
   const positions = React.useMemo(() => {
     const posOverrides = designFramePosById || {}
     const sizeOverrides = designFrameSizeById || {}
     const out: Record<string, DesignCanvasFrameRect> = {}
 
     if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {
-      const byId = new Map<string, GraphNode>()
-      for (let i = 0; i < activeWebpageLayoutGraphData.nodes.length; i += 1) {
-        const node = activeWebpageLayoutGraphData.nodes[i] as GraphNode
-        byId.set(String(node.id), node)
-      }
       for (let i = 0; i < visibleNodes.length; i += 1) {
         const node = visibleNodes[i]
-        const base = byId.get(node.id)
+        const base = activeWebpageLayoutNodeById.get(node.id)
         if (!base) continue
         const props = (base.properties || {}) as Record<string, unknown>
         const baseW = typeof props['visual:width'] === 'number' ? (props['visual:width'] as number) : FRAME_W
@@ -271,6 +270,7 @@ export function useDesignCanvasGraphOrchestration(args: UseDesignCanvasGraphOrch
     return out
   }, [
     activeWebpageLayoutGraphData,
+    activeWebpageLayoutNodeById,
     designFramePosById,
     designFrameSizeById,
     designGraphNodeById,
@@ -282,16 +282,11 @@ export function useDesignCanvasGraphOrchestration(args: UseDesignCanvasGraphOrch
 
   const localGraphData = React.useMemo(() => {
     if (activeWebpageLayoutGraphData?.nodes && activeWebpageLayoutGraphData.nodes.length > 0) {
-      const byId = new Map<string, GraphNode>()
-      for (let i = 0; i < activeWebpageLayoutGraphData.nodes.length; i += 1) {
-        const node = activeWebpageLayoutGraphData.nodes[i] as GraphNode
-        byId.set(String(node.id), node)
-      }
       return {
         type: 'Graph',
         context: activeWebpageLayoutGraphData.context,
         nodes: visibleNodes.map(node => {
-          const base = byId.get(node.id)
+          const base = activeWebpageLayoutNodeById.get(node.id)
           const position = positions[node.id]
           if (!base || !position) return { id: node.id, label: node.label, type: 'Frame', properties: {}, x: 0, y: 0 }
           const props = (base.properties || {}) as Record<string, unknown>
@@ -344,7 +339,7 @@ export function useDesignCanvasGraphOrchestration(args: UseDesignCanvasGraphOrch
       edges,
       metadata: designGraphDataForDisplay?.metadata || graphData?.metadata,
     } as GraphData
-  }, [activeWebpageLayoutGraphData, designGraphDataForDisplay, graphData?.metadata, positions, visibleNodes])
+  }, [activeWebpageLayoutGraphData, activeWebpageLayoutNodeById, designGraphDataForDisplay, graphData?.metadata, positions, visibleNodes])
 
   return {
     documentUrl,

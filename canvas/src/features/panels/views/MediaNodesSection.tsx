@@ -37,7 +37,15 @@ export default function MediaNodesSection({
   const setRenderMediaAsNodes = useGraphStore(s => s.setRenderMediaAsNodes)
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
   const setMediaNodeOpacity = useGraphStore(s => s.setMediaNodeOpacity)
-  const richMediaDisplayMode = readRichMediaDisplayMode(renderMediaAsNodes)
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
+  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
+  const documentSemanticMode = useGraphStore(s => s.documentSemanticMode)
+  const richMediaDisplayMode = readRichMediaDisplayMode({
+    renderMediaAsNodes,
+    canvas2dRenderer,
+    frontmatterModeEnabled,
+    documentSemanticMode,
+  })
   const copy = RENDER_PANEL_SECTION_COPY.mediaNodes
 
   const rows = React.useMemo<MediaNodeRow[]>(() => {

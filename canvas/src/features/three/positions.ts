@@ -1,1 +1,1 @@
-export * from '@/lib/three'
+export * from '@/lib/three/positions.impl'

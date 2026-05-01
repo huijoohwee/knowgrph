@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
+import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
 import { coerceNodesForFit, fitAllTransform } from '@/components/GraphCanvas/fit'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
@@ -17,11 +17,14 @@ import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowComputedPositions } from '@/components/FlowCanvas/useFlowComputedPositions'
 import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
+import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
 import { placeFlowFallbackSeedPositions } from '@/components/FlowCanvas/seedFallbackPositions'
 import { isFlowTransformShowingGraph } from '@/components/FlowCanvas/transformGuards'
 import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
 type UseFlowCanvasLayoutStateArgs = {
   active: boolean
@@ -337,6 +340,24 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     })
   }, [canvas2dRenderer, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, graphDataForZoom, nodesForFlowTransformGuard])
 
+  const nodesForFlowZoomLookup = React.useMemo(() => {
+    if (!Array.isArray(nodesForFlowZoom) || nodesForFlowZoom.length === 0) return null
+    return getCachedGraphLookup({
+      cacheScope: 'flow-canvas-layout-state-flow-zoom',
+      graphData: { type: 'application/json', nodes: nodesForFlowZoom, edges: [] },
+      graphRevision: graphDataRevision,
+      graphSemanticKey: hashScopedStringArraySignature(
+        'flow-canvas-layout-state-flow-zoom',
+        nodesForFlowZoom.map(node => {
+          const id = String(node?.id || '').trim()
+          const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : ''
+          const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : ''
+          return `${id}:${String(node?.type || '').trim()}:${x}:${y}`
+        }),
+      ),
+    })
+  }, [graphDataRevision, nodesForFlowZoom])
+
   const mediaPanelWorldSizeForFit = React.useMemo(() => {
     const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
     const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
@@ -363,6 +384,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     threeIframeOverlayBaseWidthMinPxDefault,
     threeIframeOverlayBaseWidthRatioCompact,
     threeIframeOverlayBaseWidthRatioDefault,
+    viewportH,
     viewportW,
   ])
 
@@ -373,11 +395,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
       && documentSemanticMode === 'document'
     if (flowEditorFrontmatterDocumentMode) return nodesForFlowZoom
     if (!Array.isArray(nodesForFlowZoom) || nodesForFlowZoom.length === 0 || mediaNodes.length === 0) return nodesForFlowZoom
-    const nodeById = new Map<string, GraphNode>()
-    for (let i = 0; i < nodesForFlowZoom.length; i += 1) {
-      const id = String(nodesForFlowZoom[i]?.id || '').trim()
-      if (id) nodeById.set(id, nodesForFlowZoom[i]!)
-    }
+    const nodeById = nodesForFlowZoomLookup?.nodeById || new Map<string, GraphNode>()
     const extras: GraphNode[] = []
     const panelW = Math.max(2, Number(mediaPanelWorldSizeForFit.panelW) || 2)
     const panelH = Math.max(2, Number(mediaPanelWorldSizeForFit.panelH) || 2)
@@ -402,6 +420,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     mediaNodes,
     mediaPanelWorldSizeForFit.panelH,
     mediaPanelWorldSizeForFit.panelW,
+    nodesForFlowZoomLookup,
     nodesForFlowZoom,
   ])
 
@@ -441,27 +460,24 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     const nodesForGuard = nodesForFlowTransformGuard
     if (isFlowEditor && nodesForGuard.length === 0) return null
     const schemaNow = useGraphStore.getState().schema
-    const mode = readLayoutMode(schemaNow)
-    const opts = readFitAllOptions({ schema: schemaNow, mode, intent: 'initialFit' })
     const activeDocumentViewMode = resolveActiveDocumentViewMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true,
       multiDimTableModeEnabled: multiDimTableModeEnabled === true,
       documentSemanticMode: String(documentSemanticMode || 'document'),
       documentStructureBaselineLock: documentStructureBaselineLock === true,
     })
-    if (activeDocumentViewMode === 'documentStructure') {
-      opts.detectClusters = false
-      opts.includeGroupsBounds = true
-      opts.deriveGroupsOptions = { forceDocumentStructure: true }
-      opts.schema = { ...schemaNow, layout: { ...(schemaNow?.layout || {}), groups: { ...(schemaNow?.layout?.groups || {}), enabled: true } } } as GraphSchema
-    }
+    const opts = buildFlowFitOptions({
+      schema: schemaNow,
+      intent: 'initialFit',
+      frontmatterModeEnabled,
+      multiDimTableModeEnabled,
+      documentSemanticMode,
+      documentStructureBaselineLock,
+      enableDocumentStructureBounds: true,
+    })
     const fitW = Math.max(1, viewportW - (isFlowEditor ? flowEditorReservedW : 0))
     const fit = isFlowEditor
       ? (() => {
-          const port = schemaNow?.behavior?.portHandles || null
-          const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
-          const portSizePx = typeof (port as { size?: unknown } | null)?.size === 'number' ? Math.max(0, (port as { size: number }).size) : 4
-          const portOffsetPx = typeof (port as { offset?: unknown } | null)?.offset === 'number' ? Math.max(0, (port as { offset: number }).offset) : 2
           return fitFlowEditorPinnedWidgets({
             nodes: nodesForFit,
             fitW,
@@ -470,7 +486,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
             openWidgetNodeIds,
             pinnedById: flowWidgetPinnedByNodeId || {},
             worldPosById: flowWidgetWorldPosByNodeId || {},
-            portExtraPadScreenPx: portEnabled ? portSizePx + portOffsetPx + 8 : 0,
+            portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schemaNow),
             graphData,
             fitOpts: opts,
           })

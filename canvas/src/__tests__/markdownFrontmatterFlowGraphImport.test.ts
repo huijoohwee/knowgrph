@@ -11,7 +11,7 @@ import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistry
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
 import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
-import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 
 export function testMarkdownFrontmatterFlowGraphImportsNodesEdgesAndRegistry() {
@@ -1985,6 +1985,15 @@ function readKnowgrphVideoDemoPath(): string {
   return path.resolve(cwd, '..', 'knowgrph-video-demo.md')
 }
 
+function readKnowgrphVideoDemoSeededPath(): string {
+  const envPath = typeof process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_SEEDED_PATH === 'string'
+    ? process.env.KG_TEST_KNOWGRPH_VIDEO_DEMO_SEEDED_PATH.trim()
+    : ''
+  if (envPath) return envPath
+  const cwd = process.cwd()
+  return path.resolve(cwd, '..', 'knowgrph-video-demo-seeded.md')
+}
+
 function readKgcAiPipelinePrdTadPath(): string {
   const envPath = typeof process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH === 'string'
     ? process.env.KG_TEST_KGC_PIPELINE_PRD_TAD_PATH.trim()
@@ -2346,8 +2355,32 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirecto
   if (!shotTextPanel) throw new Error('expected derived shot panel node db-shot-S01-text-panel')
   const panelProps = (shotTextPanel.properties || {}) as Record<string, unknown>
   if (Number(panelProps['visual:zIndex']) !== 1) throw new Error('expected shot panel visual:zIndex=1')
+  if (String(panelProps.richMediaActiveTab || '') !== 'text') throw new Error('expected shot text panel richMediaActiveTab=text')
   const posPanel = { x: (shotTextPanel as unknown as { x?: unknown }).x, y: (shotTextPanel as unknown as { y?: unknown }).y }
   if (posPanel.x === posText.x && posPanel.y === posText.y) throw new Error('expected shot panel to not overlap shot text position')
+
+  const shotImagePanel = nodeById.get('db-shot-S01-image-panel') || null
+  const shotVideoPanel = nodeById.get('db-shot-S01-video-panel') || null
+  if (!shotImagePanel) throw new Error('expected derived shot panel node db-shot-S01-image-panel')
+  if (!shotVideoPanel) throw new Error('expected derived shot panel node db-shot-S01-video-panel')
+  if (String((((shotImagePanel.properties || {}) as Record<string, unknown>).richMediaActiveTab) || '') !== 'image') {
+    throw new Error('expected shot image panel richMediaActiveTab=image')
+  }
+  if (String((((shotVideoPanel.properties || {}) as Record<string, unknown>).richMediaActiveTab) || '') !== 'video') {
+    throw new Error('expected shot video panel richMediaActiveTab=video')
+  }
+
+  const topLevelPanelNodes = g.nodes.filter(node => String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  const topLevelPanelById = new Map(topLevelPanelNodes.map(node => [String(node.id || '').trim(), node] as const))
+  if (String((((topLevelPanelById.get('p-text-script')?.properties || {}) as Record<string, unknown>).richMediaActiveTab) || '') !== 'text') {
+    throw new Error('expected authored text panel richMediaActiveTab=text')
+  }
+  if (String((((topLevelPanelById.get('p-img-scene')?.properties || {}) as Record<string, unknown>).richMediaActiveTab) || '') !== 'image') {
+    throw new Error('expected authored image panel richMediaActiveTab=image')
+  }
+  if (String((((topLevelPanelById.get('p-video-scene')?.properties || {}) as Record<string, unknown>).richMediaActiveTab) || '') !== 'video') {
+    throw new Error('expected authored video panel richMediaActiveTab=video')
+  }
 
   const shot2 = nodeById.get('db-shot-S02-text') || null
   if (!shot2) throw new Error('expected derived director_brief shot node db-shot-S02-text')
@@ -2393,4 +2426,30 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirecto
   if (!edgeUniqs.has('db-shot-S01-image.imageUrl->db-shot-S01-video.reference_image')) {
     throw new Error('expected derived shot imageUrl edge to video reference_image')
   }
+}
+
+export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoSeededVisualPayloads() {
+  const samplePath = readKnowgrphVideoDemoSeededPath()
+  if (!samplePath || !fs.existsSync(samplePath)) return
+  const md = fs.readFileSync(samplePath, 'utf8')
+  const res = tryParseMarkdownFrontmatterFlowGraph(path.basename(samplePath), md)
+  if (!res) throw new Error('expected seeded knowgrph video demo frontmatter parse result')
+  const g = res.graphData
+  if (String(g.context || '').trim() !== 'frontmatter-flow') throw new Error('expected frontmatter-flow context')
+
+  const nodeById = new Map(g.nodes.map(n => [String(n.id || ''), n] as const))
+  const textPanel = nodeById.get('p-text-script') || null
+  const imagePanel = nodeById.get('p-img-scene') || null
+  const videoPanel = nodeById.get('p-video-scene') || null
+  if (!textPanel || !imagePanel || !videoPanel) throw new Error('expected seeded visual demo to preserve authored top-level panels')
+
+  const textProps = (textPanel.properties || {}) as Record<string, unknown>
+  const imageProps = (imagePanel.properties || {}) as Record<string, unknown>
+  const videoProps = (videoPanel.properties || {}) as Record<string, unknown>
+  if (String(textProps.richMediaActiveTab || '') !== 'text') throw new Error('expected seeded text panel richMediaActiveTab=text')
+  if (String(imageProps.richMediaActiveTab || '') !== 'image') throw new Error('expected seeded image panel richMediaActiveTab=image')
+  if (String(videoProps.richMediaActiveTab || '') !== 'video') throw new Error('expected seeded video panel richMediaActiveTab=video')
+  if (!String(textProps.outputSrcDoc || '').includes('Seeded Visual Demo')) throw new Error('expected seeded text panel outputSrcDoc content')
+  if (!String(imageProps.imageUrl || '').includes('Example.jpg')) throw new Error('expected seeded image panel imageUrl fixture')
+  if (!String(videoProps.videoUrl || '').includes('flower.mp4')) throw new Error('expected seeded video panel videoUrl fixture')
 }

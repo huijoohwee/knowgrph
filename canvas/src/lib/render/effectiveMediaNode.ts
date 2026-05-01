@@ -18,38 +18,86 @@ function hasRenderableConnectedValue(value: unknown): boolean {
   return true
 }
 
-function clearRichMediaRenderDrivers(properties: Record<string, unknown>, opts?: { preserveOutput?: boolean }): Record<string, unknown> {
+function clearRichMediaGenericRenderDrivers(properties: Record<string, unknown>): Record<string, unknown> {
   const next = { ...properties }
-  const preserveOutput = opts?.preserveOutput === true
   delete next.media_kind
   delete next.mediaKind
   delete next.media_url
   delete next.mediaUrl
   delete next.iframe_url
   delete next.iframeUrl
-  delete next.image
-  delete next.imageUrl
-  delete next.image_url
-  delete next.video
-  delete next.videoUrl
-  delete next.video_url
   delete next.media
   delete next.src
   delete next.url
-  if (!preserveOutput) {
-    delete next.output
-    delete next.outputSrcDoc
-    delete next.text
-    delete next.markdown
-  }
   delete next['dom:tag']
   delete next['dom:attrs:src']
   delete next['dom:attrs:srcdoc']
   return next
 }
 
+function clearRichMediaRenderChannel(args: {
+  properties: Record<string, unknown>
+  renderPath: string
+  preserveOutput?: boolean
+}): Record<string, unknown> {
+  const next = { ...args.properties }
+  if (args.renderPath === 'properties.imageUrl') {
+    delete next.image
+    delete next.imageUrl
+    delete next.image_url
+    return next
+  }
+  if (args.renderPath === 'properties.videoUrl') {
+    delete next.video
+    delete next.videoUrl
+    delete next.video_url
+    return next
+  }
+  if (args.renderPath === 'properties.output' || args.renderPath === 'properties.outputSrcDoc') {
+    if (args.preserveOutput === true) return next
+    delete next.output
+    delete next.outputSrcDoc
+    return next
+  }
+  return next
+}
+
 const CONNECTED_RENDER_NODE_CACHE_LIMIT = 48
 const connectedRenderNodeCacheByNode = new WeakMap<GraphNode, Map<string, GraphNode>>()
+
+function baseRenderNodeSignature(node: GraphNode): string {
+  const props = (node.properties || {}) as Record<string, unknown>
+  return hashSignatureParts([
+    String(node.id || '').trim(),
+    String(node.type || '').trim(),
+    hashRecordSignature32({
+      media_kind: props.media_kind,
+      mediaKind: props.mediaKind,
+      media_url: props.media_url,
+      mediaUrl: props.mediaUrl,
+      iframe_url: props.iframe_url,
+      iframeUrl: props.iframeUrl,
+      image: props.image,
+      imageUrl: props.imageUrl,
+      image_url: props.image_url,
+      video: props.video,
+      videoUrl: props.videoUrl,
+      video_url: props.video_url,
+      media: props.media,
+      src: props.src,
+      url: props.url,
+      output: props.output,
+      outputSrcDoc: props.outputSrcDoc,
+      text: props.text,
+      markdown: props.markdown,
+      richMediaActiveTab: props.richMediaActiveTab,
+      freezeConnectedOutput: props.freezeConnectedOutput,
+      domTag: props['dom:tag'],
+      domSrc: props['dom:attrs:src'],
+      domSrcDoc: props['dom:attrs:srcdoc'],
+    }, { maxEntries: 32, maxDepth: 2 }),
+  ])
+}
 
 function connectedRenderValueSignature(connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath): string {
   const paths = Object.keys(connectedValuesBySchemaPath).sort()
@@ -91,7 +139,10 @@ export function applyConnectedValuesToNodeForRender(args: {
 }): GraphNode {
   const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
   if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return args.node
-  const cacheSignature = connectedRenderValueSignature(connectedValuesBySchemaPath)
+  const cacheSignature = hashSignatureParts([
+    baseRenderNodeSignature(args.node),
+    connectedRenderValueSignature(connectedValuesBySchemaPath),
+  ])
   const cached = readConnectedRenderNodeCache(args.node, cacheSignature)
   if (cached) return cached
 
@@ -124,9 +175,8 @@ export function applyConnectedValuesToNodeForRender(args: {
   if (richMediaPanelHasConnectedRenderValue) {
     next = {
       ...next,
-      properties: clearRichMediaRenderDrivers((next.properties || {}) as Record<string, unknown>, {
-        preserveOutput: freezeConnectedOutputActive,
-      }),
+      // Preserve authored variants that are not being replaced by connected render output.
+      properties: clearRichMediaGenericRenderDrivers((next.properties || {}) as Record<string, unknown>),
     } as GraphNode
     changed = true
   }
@@ -144,6 +194,16 @@ export function applyConnectedValuesToNodeForRender(args: {
         : normalizedPath
     if (!renderPath) continue
     if (freezeConnectedOutputActive && (renderPath === 'properties.output' || renderPath === 'properties.outputSrcDoc')) continue
+    if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+      next = {
+        ...next,
+        properties: clearRichMediaRenderChannel({
+          properties: (next.properties || {}) as Record<string, unknown>,
+          renderPath,
+          preserveOutput: freezeConnectedOutputActive,
+        }),
+      } as GraphNode
+    }
     next = setObjectPath(next as unknown as Record<string, unknown>, renderPath, connected.value) as unknown as GraphNode
     changed = true
   }

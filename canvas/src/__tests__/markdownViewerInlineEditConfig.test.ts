@@ -252,16 +252,16 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!derivedViewerText.includes('forbidCopy={false}')) {
     throw new Error('expected derived markdown read viewer code-fence copy action to stay enabled in read mode')
   }
-  const legacyMainPath = path.resolve(root, 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'MarkdownWorkspaceMainLegacy.tsx')
-  const legacyMainText = readUtf8(legacyMainPath)
-  if (!legacyMainText.includes('onInsertLineAfter={disableViewerMutations ? undefined : onInsertLineAfter}')) {
-    throw new Error('expected legacy markdown read viewer to keep insert-line controls enabled unless mutations are disabled')
+  const workspaceMainPath = path.resolve(root, 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'MarkdownWorkspaceMain.tsx')
+  const workspaceMainText = readUtf8(workspaceMainPath)
+  if (!workspaceMainText.includes('onInsertLineAfter={disableViewerMutations ? undefined : onInsertLineAfter}')) {
+    throw new Error('expected markdown workspace read viewer to keep insert-line controls enabled unless mutations are disabled')
   }
-  if (!legacyMainText.includes('onReorderLineBlock={disableViewerMutations ? undefined : onReorderLineBlock}')) {
-    throw new Error('expected legacy markdown read viewer to keep reorder-line controls enabled unless mutations are disabled')
+  if (!workspaceMainText.includes('onReorderLineBlock={disableViewerMutations ? undefined : onReorderLineBlock}')) {
+    throw new Error('expected markdown workspace read viewer to keep reorder-line controls enabled unless mutations are disabled')
   }
-  if (!legacyMainText.includes('forbidCopy={false}')) {
-    throw new Error('expected legacy markdown read viewer code-fence copy action to stay enabled in read mode')
+  if (!workspaceMainText.includes('forbidCopy={false}')) {
+    throw new Error('expected markdown workspace read viewer code-fence copy action to stay enabled in read mode')
   }
 
   const codePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx')

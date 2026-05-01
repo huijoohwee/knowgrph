@@ -1,6 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import { readParsedGraphRevisionOrInitial } from '@/features/source-files/sourceFileParsedGraphRevision'
 
 export type SourceLayerInput = {
   id: string
@@ -92,7 +93,7 @@ export function buildSourceLayerKeys(layers: SourceLayerInput[]): { contentKey: 
     id: String(l.id || '').trim(),
     included: Boolean(l.enabled && l.parsedGraphData),
     hash: computeTextHash(l),
-    rev: typeof l.parsedGraphRevision === 'number' ? l.parsedGraphRevision : 0,
+    rev: readParsedGraphRevisionOrInitial(l.parsedGraphRevision),
   }))
   const contentKey = normalized
     .slice()
@@ -101,6 +102,69 @@ export function buildSourceLayerKeys(layers: SourceLayerInput[]): { contentKey: 
     .join('|')
   const orderKey = normalized.map(l => `${l.id}:${l.included ? '1' : '0'}:${l.hash}:r${l.rev}`).join('|')
   return { contentKey, orderKey }
+}
+
+export function readSourceLayerKeysFromGraphData(graphData: GraphData | null | undefined): {
+  contentKey: string
+  orderKey: string
+} {
+  const metadata =
+    graphData?.metadata && typeof graphData.metadata === 'object'
+      ? (graphData.metadata as Record<string, unknown>)
+      : {}
+  return {
+    contentKey: typeof metadata.sourceLayerHash === 'string' ? metadata.sourceLayerHash : '',
+    orderKey: typeof metadata.sourceLayerOrderHash === 'string' ? metadata.sourceLayerOrderHash : '',
+  }
+}
+
+export function resolveSourceLayerKeyChange(args: {
+  previousGraphData: GraphData | null | undefined
+  contentKey: string
+  orderKey: string
+}): 'unchanged' | 'order-only' | 'content' {
+  const previous = readSourceLayerKeysFromGraphData(args.previousGraphData)
+  if (previous.contentKey === args.contentKey && previous.orderKey === args.orderKey) {
+    return 'unchanged'
+  }
+  if (previous.contentKey === args.contentKey) {
+    return 'order-only'
+  }
+  return 'content'
+}
+
+export function updateGraphDataSourceLayerKeys(args: {
+  graphData: GraphData
+  layers: SourceLayerInput[]
+}): {
+  graphData: GraphData
+  contentKey: string
+  orderKey: string
+  changed: boolean
+} {
+  const { contentKey, orderKey } = buildSourceLayerKeys(args.layers)
+  const prev = readSourceLayerKeysFromGraphData(args.graphData)
+  if (prev.contentKey === contentKey && prev.orderKey === orderKey) {
+    return {
+      graphData: args.graphData,
+      contentKey,
+      orderKey,
+      changed: false,
+    }
+  }
+  return {
+    graphData: {
+      ...args.graphData,
+      metadata: {
+        ...(args.graphData.metadata && typeof args.graphData.metadata === 'object' ? args.graphData.metadata : {}),
+        sourceLayerHash: contentKey as unknown as JSONValue,
+        sourceLayerOrderHash: orderKey as unknown as JSONValue,
+      },
+    },
+    contentKey,
+    orderKey,
+    changed: true,
+  }
 }
 
 export function composeGraphFromSourceLayers(args: {

@@ -46,14 +46,30 @@ export const testMarkdownWorkspaceRuntimeWidgetAutoRestoreDoesNotMarkUserForcedD
   if (!text.includes('const userForcedDocumentRef = React.useRef(false)')) {
     throw new Error('Expected markdown workspace runtime to keep explicit user-forced document tracking')
   }
+  if (!text.includes("const setContentMode = React.useCallback((mode: 'document' | 'widget') => {")) {
+    throw new Error('Expected markdown workspace runtime to funnel explicit content-mode changes through a sticky user-intent setter')
+  }
+  if (!text.includes("userForcedDocumentRef.current = mode === 'document'")) {
+    throw new Error('Expected explicit document-mode selection to stay sticky until widget mode is explicitly re-enabled')
+  }
   if (!text.includes('userForcedDocumentRef.current = false')) {
     throw new Error('Expected widget auto-restore to clear user-forced document tracking')
   }
   if (!text.includes('const widgetLookupActive = active && widgetCandidateIdsKey !== emptyWidgetCandidateIdsKey')) {
     throw new Error('Expected widget graph lookup to be gated by active widget candidate semantics')
   }
-  if (!text.includes('if (contentMode !== \'widget\' || widgetNodeIds.length === 0 || !graphLookupById) return \'\'')) {
+  if (!text.includes('const widgetBundleBuildActive = active && contentMode === \'widget\' && widgetAvailable')) {
     throw new Error('Expected widget bundle construction to run only when widget mode is active')
+  }
+  if (!text.includes('const widgetGraphSemanticKey = React.useMemo(() => {')) {
+    throw new Error('Expected widget lookup caching to derive a semantic graph key before rebuilding node and edge maps')
+  }
+  const runtimeEntryText = readUtf8(markdownWorkspaceRuntimePath())
+  if (!runtimeEntryText.includes('const graphSemanticKey = React.useMemo(() => {')) {
+    throw new Error('Expected markdown workspace runtime to derive a semantic graph key from composed source-layer metadata')
+  }
+  if (!runtimeEntryText.includes('graphSemanticKey,')) {
+    throw new Error('Expected markdown workspace runtime to pass semantic graph keys into widget mode')
   }
   const indexingPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
   const indexingText = readUtf8(indexingPath)
@@ -74,7 +90,10 @@ export const testMarkdownWorkspaceRuntimeWidgetBundleIncludesOpenWidgetSet = () 
   if (!text.includes('nodes: widgetNodes,')) {
     throw new Error('Expected widget bundle graph to include all open widget nodes')
   }
-  if (!text.includes('return widgetNodeIdSet.has(sourceId) || widgetNodeIdSet.has(targetId)')) {
+  if (!text.includes('const incidentEdges = graphLookupEdgesByNodeId.get(nodeId) || []')) {
+    throw new Error('Expected widget bundle edges to reuse cached graph edge lookups per graph revision')
+  }
+  if (!text.includes('if (!widgetNodeIdSet.has(sourceId) && !widgetNodeIdSet.has(targetId)) continue')) {
     throw new Error('Expected widget bundle edges to be collected from the open widget set')
   }
 }
@@ -169,7 +188,7 @@ export const testMarkdownWorkspaceSkipsMissingActiveEntryLoadsUntilPathRecovery 
 }
 
 export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
-  const mainPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'MarkdownWorkspaceMainLegacy.tsx')
+  const mainPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'MarkdownWorkspaceMain.tsx')
   const editorPanePath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'editor', 'MarkdownEditorPane.tsx')
   const layoutPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'layout', 'MarkdownWorkspaceLayout.tsx')
   const toolbarPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')

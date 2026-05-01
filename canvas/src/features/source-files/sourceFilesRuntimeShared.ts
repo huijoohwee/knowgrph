@@ -6,12 +6,77 @@ import { loadWorkspaceSourceIndex, type WorkspaceSourceIndex } from '@/features/
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   resolveWorkspaceStartupActivePath,
 } from '@/features/workspace-fs/workspaceFs'
+
+export function resolveMaterializedWorkspaceActivePath(args?: {
+  activePathOverride?: WorkspacePath | null
+  explorerActivePath?: WorkspacePath | null
+}): WorkspacePath | null {
+  const raw = args?.activePathOverride ?? args?.explorerActivePath ?? null
+  const trimmed = String(raw || '').trim()
+  if (!trimmed) return null
+  const withoutWorkspacePrefix = trimmed.startsWith('workspace:') ? trimmed.slice('workspace:'.length) : trimmed
+  const normalized = normalizeWorkspacePath(withoutWorkspacePrefix)
+  return normalized === '/' ? null : normalized
+}
+
+export function buildMaterializedWorkspaceActivePathKey(args?: {
+  activePathOverride?: WorkspacePath | null
+  explorerActivePath?: WorkspacePath | null
+}): string {
+  return String(resolveMaterializedWorkspaceActivePath(args) || '')
+}
+
+export function buildMaterializedWorkspaceForceIncludePaths(args?: {
+  activePathOverride?: WorkspacePath | null
+  explorerActivePath?: WorkspacePath | null
+}): WorkspacePath[] {
+  const activePath = resolveMaterializedWorkspaceActivePath(args)
+  return activePath ? [activePath] : []
+}
+
+export async function resolveWorkspaceMaterializationEntries(args: {
+  fs: Awaited<ReturnType<typeof getWorkspaceFs>>
+  workspaceEntries?: WorkspaceEntry[]
+}): Promise<WorkspaceEntry[]> {
+  return Array.isArray(args.workspaceEntries) ? args.workspaceEntries : await args.fs.listEntries()
+}
+
+export function readReusableWorkspaceEntriesSnapshot(
+  workspaceEntries: WorkspaceEntry[] | null | undefined,
+): WorkspaceEntry[] | undefined {
+  return Array.isArray(workspaceEntries) && workspaceEntries.length > 0 ? workspaceEntries : undefined
+}
+
+export function buildInitialWorkspaceStartupSnapshot(args: {
+  currentActivePath: WorkspacePath | null
+  desiredActivePath: WorkspacePath | null
+  workspaceEntries: WorkspaceEntry[]
+  lastSetActivePath?: boolean
+  preferCustomValidationSeed?: boolean
+}): {
+  activePath: WorkspacePath | null
+  workspaceEntries: WorkspaceEntry[]
+} {
+  if (args.lastSetActivePath && !args.preferCustomValidationSeed) {
+    if (!args.desiredActivePath || args.desiredActivePath === args.currentActivePath) {
+      return {
+        activePath: args.currentActivePath,
+        workspaceEntries: [],
+      }
+    }
+  }
+  return {
+    activePath: args.desiredActivePath,
+    workspaceEntries: args.workspaceEntries,
+  }
+}
 
 export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
   activePathOverride?: WorkspacePath | null
@@ -20,11 +85,17 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
   sourcesByPath?: WorkspaceSourceIndex
   applyToGraph?: boolean
 }): Promise<void> {
-  const activePath = String(args?.activePathOverride ?? useMarkdownExplorerStore.getState().activePath ?? '').trim()
+  const activePath = resolveMaterializedWorkspaceActivePath({
+    activePathOverride: args?.activePathOverride ?? null,
+    explorerActivePath: useMarkdownExplorerStore.getState().activePath,
+  })
   if (!activePath) return
   const fs = args?.fs || (await getWorkspaceFs())
   await fs.ensureSeed()
-  const workspaceEntries = Array.isArray(args?.workspaceEntries) ? args.workspaceEntries : await fs.listEntries()
+  const workspaceEntries = await resolveWorkspaceMaterializationEntries({
+    fs,
+    workspaceEntries: args?.workspaceEntries,
+  })
   const sourcesByPath = args?.sourcesByPath || loadWorkspaceSourceIndex()
   const store = useGraphStore.getState()
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
@@ -32,7 +103,9 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
     existing,
     workspaceEntries,
     sourcesByPath,
-    forceIncludePaths: [activePath],
+    forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
+      activePathOverride: activePath,
+    }),
   })
   if (merged !== existing) {
     store.setSourceFiles(merged)
@@ -69,17 +142,20 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
     .map(entry => entry.path)
   const desiredActivePath = resolveWorkspaceStartupActivePath({
     workspaceFilePaths,
-    activePath: explorer.activePath,
+    activePath: resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath }),
     preferValidationSeedForDefaultFamily: preferCustomValidationSeed || preferValidationSeedForRenderer,
     forceValidationSeedIfPresent: preferCustomValidationSeed,
   })
-  if (explorer.lastSetActivePath && !preferCustomValidationSeed) {
-    if (!desiredActivePath || desiredActivePath === explorer.activePath) {
-      return { activePath: explorer.activePath, workspaceEntries: [] }
-    }
-  }
-  if (desiredActivePath && desiredActivePath !== explorer.activePath) {
+  const currentActivePath = resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath })
+  const snapshot = buildInitialWorkspaceStartupSnapshot({
+    currentActivePath,
+    desiredActivePath,
+    workspaceEntries,
+    lastSetActivePath: explorer.lastSetActivePath,
+    preferCustomValidationSeed,
+  })
+  if (desiredActivePath && desiredActivePath !== currentActivePath) {
     explorer.setActivePath(desiredActivePath)
   }
-  return { activePath: desiredActivePath, workspaceEntries }
+  return snapshot
 }

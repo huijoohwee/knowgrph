@@ -48,7 +48,13 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config.flow-editor'
-import type { RichMediaPanelTab } from '@/lib/render/richMediaSsot'
+import {
+  normalizeRichMediaPanelTab,
+  resolveRichMediaAspectSelection,
+  resolveToggledRichMediaAspectSize,
+  type RichMediaPanelAspectSelection,
+  type RichMediaPanelTab,
+} from '@/lib/render/richMediaSsot'
 
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = Z_INDEX_GRAPH_OVERLAY_BASE
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = Z_INDEX_GRAPH_OVERLAY_SELECTED
@@ -57,8 +63,6 @@ const WIDGET_ACTIONS_TOOLBAR_OFFSET_PX = 40
 const WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
 const WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX = 8
 const WIDGET_ACTIONS_TOOLBAR_SIDE_CLEARANCE_PX = 220
-const RICH_MEDIA_ASPECT_HORIZONTAL = '16:9' as const
-const RICH_MEDIA_ASPECT_VERTICAL = '9:16' as const
 const RICH_MEDIA_ASPECT_MIN_WIDTH = 220
 const RICH_MEDIA_ASPECT_MIN_HEIGHT = 160
 const RICH_MEDIA_ASPECT_DEFAULT_WIDTH = 280
@@ -313,6 +317,10 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   const defaultFloatingPos = React.useMemo(() => {
     return computeDefaultWidgetFloatingPos({ stackIndex, viewportW, viewportH })
   }, [stackIndex, viewportH, viewportW])
+  const floatingCacheUsesScreenAuthority = React.useMemo(
+    () => shouldUseFlowEditorWidgetFloatingScreenAuthority({ graphMetaKind, pinnedInCanvas: false }),
+    [graphMetaKind],
+  )
 
   const resolveFloatingPos = React.useCallback(
     (pos: { top: number; left: number } | undefined, fallback: { top: number; left: number }): { top: number; left: number } => {
@@ -336,6 +344,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           topRaw >= offset.top - 2 &&
           topRaw <= offset.top + viewportHeight + 2
         const coerce = looksLikeWindowCoords ? { left: leftRaw - offset.left, top: topRaw - offset.top } : v
+        if (floatingCacheUsesScreenAuthority) return coerce
         const clamped = clampOverlayTopLeftFullyInViewport({
           pos: coerce,
           size: WIDGET_BASE_SIZE,
@@ -346,7 +355,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       }
       return fallback
     },
-    [viewportH, viewportW],
+    [floatingCacheUsesScreenAuthority, viewportH, viewportW],
   )
 
   const [pinnedTopPx, setPinnedTopPx] = React.useState<number>(() => resolveFloatingPos(widgetPos, defaultFloatingPos).top)
@@ -372,6 +381,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     graphMetaKind,
     pinnedInCanvas,
   })
+  const previousPinnedInCanvasRef = React.useRef<boolean>(pinnedInCanvas)
 
   const autoStackOffset = React.useMemo(() => computeWidgetAnchoredStackOffset(stackIndex), [stackIndex])
 
@@ -493,6 +503,23 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     persistWorldPos(world)
   }, [persistFloatingPos, persistWorldPos, readCurrentTransform])
 
+  const preserveFloatingScreenPlacementOnUnpin = React.useCallback(() => {
+    const applied = lastAppliedRef.current
+    if (!applied) return
+    const next = { top: applied.top, left: applied.left }
+    setPinnedTopPx(prev => (prev === next.top ? prev : next.top))
+    setPinnedLeftPx(prev => (prev === next.left ? prev : next.left))
+    persistFloatingPos(next)
+  }, [persistFloatingPos])
+
+  useIsomorphicLayoutEffect(() => {
+    const wasPinned = previousPinnedInCanvasRef.current === true
+    if (wasPinned && pinnedInCanvas !== true && floatingUsesScreenAuthority) {
+      preserveFloatingScreenPlacementOnUnpin()
+    }
+    previousPinnedInCanvasRef.current = pinnedInCanvas
+  }, [floatingUsesScreenAuthority, pinnedInCanvas, preserveFloatingScreenPlacementOnUnpin])
+
   const scheduleClampCommit = React.useCallback((next: { top: number; left: number }) => {
     if (pendingClampCommitRef.current != null) {
       try {
@@ -613,7 +640,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       top: Number.isFinite(basePos.top) ? basePos.top : 8,
       left: Number.isFinite(basePos.left) ? basePos.left : 8,
     }
-    const shouldClampFloating = floating && !dragOverride && !floatingWorld
+    const shouldClampFloating = floating && !dragOverride && !floatingWorld && !floatingUsesScreenAuthority
     const floatingViewport = (() => {
       if (!shouldClampFloating) return { width: viewportWidth, height: viewportHeight }
       void canvasWindowOffsetRef
@@ -656,7 +683,6 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         top: clamp(posBase.top, minTop, maxTop),
       }
     })()
-
     const allowPassiveClampPersist =
       !floatingUsesScreenAuthority
       && (!widgetPos || !Number.isFinite(widgetPos.top) || !Number.isFinite(widgetPos.left))
@@ -958,10 +984,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   }, [])
   const richMediaSelectedMode = React.useMemo<RichMediaPanelTab>(() => {
     if (!isRichMediaPanelWidget) return 'auto'
-    const raw = String((node.properties || {}).richMediaActiveTab || '').trim().toLowerCase()
-    return raw === 'text' || raw === 'image' || raw === 'video' || raw === 'poi' || raw === 'auto'
-      ? raw as RichMediaPanelTab
-      : 'auto'
+    return normalizeRichMediaPanelTab((node.properties || {}).richMediaActiveTab)
   }, [isRichMediaPanelWidget, node.properties])
   const handleSelectRichMediaMode = React.useCallback((nextMode: RichMediaPanelTab) => {
     if (!isRichMediaPanelWidget) return
@@ -969,46 +992,59 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       richMediaActiveTab: nextMode,
     })
   }, [isRichMediaPanelWidget, onPatchProperties])
-  const richMediaAspectSelection = React.useMemo<'16:9' | '9:16' | null>(() => {
+  const richMediaAspectSelection = React.useMemo<RichMediaPanelAspectSelection | null>(() => {
     if (!isRichMediaPanelWidget) return null
     const props = (node.properties || {}) as Record<string, unknown>
-    const width = Number(props['visual:width'])
-    const height = Number(props['visual:height'])
-    if (!(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return null
-    const ratio = width / height
-    const horizontal = 16 / 9
-    const vertical = 9 / 16
-    return Math.abs(ratio - horizontal) <= Math.abs(ratio - vertical)
-      ? RICH_MEDIA_ASPECT_HORIZONTAL
-      : RICH_MEDIA_ASPECT_VERTICAL
+    return resolveRichMediaAspectSelection({
+      width: props['visual:width'],
+      height: props['visual:height'],
+    })
   }, [isRichMediaPanelWidget, node.properties])
   const handleToggleRichMediaAspect = React.useCallback(() => {
     if (!isRichMediaPanelWidget) return
     const props = (node.properties || {}) as Record<string, unknown>
-    const width0 = Number(props['visual:width'])
-    const height0 = Number(props['visual:height'])
-    const widthBase = Number.isFinite(width0) && width0 > 0 ? width0 : RICH_MEDIA_ASPECT_DEFAULT_WIDTH
-    const heightBase = Number.isFinite(height0) && height0 > 0 ? height0 : RICH_MEDIA_ASPECT_DEFAULT_HEIGHT
-    const area = Math.max(RICH_MEDIA_ASPECT_MIN_WIDTH * RICH_MEDIA_ASPECT_MIN_HEIGHT, widthBase * heightBase)
-    const next = richMediaAspectSelection === RICH_MEDIA_ASPECT_VERTICAL
-      ? RICH_MEDIA_ASPECT_HORIZONTAL
-      : RICH_MEDIA_ASPECT_VERTICAL
-    const target = next === RICH_MEDIA_ASPECT_HORIZONTAL ? (16 / 9) : (9 / 16)
-    let nextHeight = Math.sqrt(area / target)
-    let nextWidth = target * nextHeight
-    if (nextWidth < RICH_MEDIA_ASPECT_MIN_WIDTH) {
-      nextWidth = RICH_MEDIA_ASPECT_MIN_WIDTH
-      nextHeight = nextWidth / target
-    }
-    if (nextHeight < RICH_MEDIA_ASPECT_MIN_HEIGHT) {
-      nextHeight = RICH_MEDIA_ASPECT_MIN_HEIGHT
-      nextWidth = nextHeight * target
-    }
+    const next = resolveToggledRichMediaAspectSize({
+      width: props['visual:width'],
+      height: props['visual:height'],
+      selected: richMediaAspectSelection,
+      minWidthPx: RICH_MEDIA_ASPECT_MIN_WIDTH,
+      minHeightPx: RICH_MEDIA_ASPECT_MIN_HEIGHT,
+      defaultWidthPx: RICH_MEDIA_ASPECT_DEFAULT_WIDTH,
+      defaultHeightPx: RICH_MEDIA_ASPECT_DEFAULT_HEIGHT,
+    })
     onPatchProperties({
-      'visual:width': Math.round(nextWidth),
-      'visual:height': Math.round(nextHeight),
+      'visual:width': next.width,
+      'visual:height': next.height,
     })
   }, [isRichMediaPanelWidget, node.properties, onPatchProperties, richMediaAspectSelection])
+  const richMediaPanelToolbarProps = React.useMemo(() => {
+    if (!isRichMediaPanelWidget) return {}
+    return {
+      richMediaViewToggle: {
+        visible: true,
+        isKtvRows: hideFields,
+        onToggle: handleToggleHideFields,
+      },
+      richMediaMediaSelector: {
+        visible: true,
+        selectedMode: richMediaSelectedMode,
+        onSelect: handleSelectRichMediaMode,
+      },
+      richMediaAspectToggle: {
+        visible: true,
+        selected: richMediaAspectSelection,
+        onToggle: handleToggleRichMediaAspect,
+      },
+    }
+  }, [
+    handleSelectRichMediaMode,
+    handleToggleHideFields,
+    handleToggleRichMediaAspect,
+    hideFields,
+    isRichMediaPanelWidget,
+    richMediaAspectSelection,
+    richMediaSelectedMode,
+  ])
 
   const spacePanUserSelectUnlockRef = React.useRef<null | (() => void)>(null)
 
@@ -1349,21 +1385,6 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
                 onPatchProperties({ sourceUrl: url })
               },
             } : undefined}
-            richMediaViewToggle={isRichMediaPanelWidget ? {
-              visible: true,
-              isKtvRows: hideFields,
-              onToggle: handleToggleHideFields,
-            } : undefined}
-            richMediaMediaSelector={isRichMediaPanelWidget ? {
-              visible: true,
-              selectedMode: richMediaSelectedMode,
-              onSelect: handleSelectRichMediaMode,
-            } : undefined}
-            richMediaAspectToggle={isRichMediaPanelWidget ? {
-              visible: true,
-              selected: richMediaAspectSelection,
-              onToggle: handleToggleRichMediaAspect,
-            } : undefined}
             onRun={onRun}
             onDuplicate={onDuplicate}
             onClearOutput={onClearOutput}
@@ -1401,6 +1422,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         onValidate={onValidate}
         onRegistrySelectionChange={handleRegistrySelectionChange}
         onRenameSchemaFieldId={onRenameSchemaFieldId}
+        {...richMediaPanelToolbarProps}
 
         registryEntry={registryEntry}
         registryEntries={widgetRegistry}

@@ -16,6 +16,7 @@ import {
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { pickGraphDataForFlowRenderer } from '@/components/FlowCanvas/shared'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 type UseFlowCanvasGraphStateArgs = {
   graphDataOverride: GraphData | null | undefined
@@ -151,32 +152,39 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       })
     })
   }, [mediaRenderConnectedValuesByNodeId, sceneGraphData])
+  const sceneGraphLookup = React.useMemo(() => {
+    return getCachedGraphLookup({
+      cacheScope: 'flow-canvas-scene-graph',
+      graphData: sceneGraphData,
+      graphRevision: graphDataRevision,
+    })
+  }, [graphDataRevision, sceneGraphData])
+  const sceneGraphNodeById = sceneGraphLookup?.nodeById || null
 
   const flowEditorRichMediaPanelOverlayExcludeNodeIdSet = React.useMemo(() => {
     if (canvas2dRenderer !== 'flowEditor') return undefined
+    const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode
     const candidateRawIds = [
       ...(Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds : []),
       ...(Array.isArray(excludeRichMediaOverlayNodeIds) ? excludeRichMediaOverlayNodeIds : []),
     ]
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
     if (nodes.length === 0) return undefined
-    const nodeById = new Map<string, GraphNode>()
     const out = new Set<string>()
     for (let i = 0; i < nodes.length; i += 1) {
       const node = nodes[i]!
       const id = String(node?.id || '').trim()
       if (!id) continue
-      nodeById.set(id, node)
-      if (isRichMediaPanelNode(node)) out.add(id)
+      if (excludeAllRichMediaPanelNodes && isRichMediaPanelNode(node)) out.add(id)
     }
     for (let i = 0; i < candidateRawIds.length; i += 1) {
       const rawId = candidateRawIds[i]
       const id = String(resolveGraphNodeByCanonicalId(sceneGraphData, rawId)?.id || rawId || '').trim()
-      if (!id || !isRichMediaPanelNode(nodeById.get(id))) continue
+      if (!id || !isRichMediaPanelNode(sceneGraphNodeById?.get(id))) continue
       out.add(id)
     }
     return out.size > 0 ? out : undefined
-  }, [canvas2dRenderer, excludeRichMediaOverlayNodeIds, openWidgetNodeIds, sceneGraphData])
+  }, [canvas2dRenderer, excludeRichMediaOverlayNodeIds, flowEditorFrontmatterInteractionMode, openWidgetNodeIds, sceneGraphData, sceneGraphNodeById])
 
   const stickyOverlayNodeByIdRef = React.useRef(new Map<string, ReturnType<typeof listDisplayRichMediaOverlayNodes>[number]>())
   const stickyOverlayOrderRef = React.useRef<string[]>([])
@@ -188,10 +196,14 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
     const suggested = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes,
+      canvas2dRenderer,
+      frontmatterModeEnabled,
+      documentSemanticMode,
       nodes,
       poolMax,
       excludeNodeIdSet: flowEditorRichMediaPanelOverlayExcludeNodeIdSet,
       connectedValuesByNodeId: mediaRenderConnectedValuesByNodeId,
+      nodeById: sceneGraphNodeById || undefined,
     })
     if (!useStickyOverlayPool) {
       const stickyMap = stickyOverlayNodeByIdRef.current
@@ -207,16 +219,11 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
 
     const needed = new Set<string>(prevOrder)
     for (let i = 0; i < suggested.length; i += 1) needed.add(String(suggested[i]!.id || '').trim())
-    const nodeById = new Map<string, GraphNode>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]!
-      const id = String(node?.id || '').trim()
-      if (id && needed.has(id)) nodeById.set(id, node)
-    }
     const isValid = (id: string) => {
       const key = String(id || '').trim()
       if (!key) return false
-      const node = nodeById.get(key)
+      if (!needed.has(key)) return false
+      const node = sceneGraphNodeById?.get(key)
       return !!node && !!getNodeMediaSpec(node)
     }
 
@@ -247,8 +254,12 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     mediaRenderConnectedValuesByNodeId,
     mediaRenderNodes,
     renderMediaAsNodes,
+    canvas2dRenderer,
+    documentSemanticMode,
+    frontmatterModeEnabled,
     threeIframeOverlayPoolMax,
     useStickyOverlayPool,
+    sceneGraphNodeById,
   ])
 
   const selectedOverlayNodeIdSet = React.useMemo(() => {

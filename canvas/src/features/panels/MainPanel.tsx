@@ -10,15 +10,13 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
 import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 import {
-  MAIN_PANEL_FOOTER_LABEL_BY_TAB,
-  MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB,
   MAIN_PANEL_TABS,
-  SEARCHABLE_MAIN_PANEL_TABS,
+  getMainPanelTabMeta,
   isMainPanelTabKey,
   type MainPanelTabKey,
 } from '@/features/panels/mainPanelTabs'
 
-const mainPanelTabSupportsSearch = (tab: MainPanelTabKey): boolean => SEARCHABLE_MAIN_PANEL_TABS.has(tab)
+const mainPanelTabSupportsSearch = (tab: MainPanelTabKey): boolean => getMainPanelTabMeta(tab).searchable
 
 const IntegrationsHubViewLazy = React.lazy(() => import('./views/IntegrationsHubView'))
 const McpHubViewLazy = React.lazy(() => import('./views/McpHubView'))
@@ -129,9 +127,10 @@ export default function MainPanel({
     useShallow(s => ({ lastTraversalSummary: s.lastTraversalSummary })),
   )
   const graphData = useActiveGraphData()
+  const activeTabMeta = getMainPanelTabMeta(tab)
   const searchVisible = searchOpen && mainPanelTabSupportsSearch(tab)
-  const searchPlaceholder = MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB[tab] || UI_LABELS.search
-  const footerLabel = MAIN_PANEL_FOOTER_LABEL_BY_TAB[tab]
+  const searchPlaceholder = activeTabMeta.searchPlaceholder || UI_LABELS.search
+  const footerLabel = activeTabMeta.footerLabel
 
   const traversalChip = React.useMemo(() => {
     const summary = lastTraversalSummary

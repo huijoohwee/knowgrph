@@ -1,67 +1,9 @@
 
 import { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
-import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
-
-type BBox = {
-  minX: number
-  maxX: number
-  minY: number
-  maxY: number
-  width: number
-  height: number
-  cx: number
-  cy: number
-}
-
-type Component = {
-  id: string
-  nodes: GraphNode[]
-  bbox: BBox
-}
-
-const getNodesBBox = (nodes: GraphNode[], schema: GraphSchema): BBox | null => {
-  if (nodes.length === 0) return null
-
-  let minX = Infinity
-  let maxX = -Infinity
-  let minY = Infinity
-  let maxY = -Infinity
-  let valid = 0
-
-  for (const n of nodes) {
-    const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-    const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-    if (x == null || y == null) continue
-
-    const { halfW, halfH } = getNodeHalfExtents2d(n, schema)
-    // Add some padding for the node itself
-    const padding = 20
-    const x0 = x - halfW - padding
-    const x1 = x + halfW + padding
-    const y0 = y - halfH - padding
-    const y1 = y + halfH + padding
-
-    if (x0 < minX) minX = x0
-    if (x1 > maxX) maxX = x1
-    if (y0 < minY) minY = y0
-    if (y1 > maxY) maxY = y1
-    valid++
-  }
-
-  if (valid === 0 || minX === Infinity) return null
-
-  return {
-    minX,
-    maxX,
-    minY,
-    maxY,
-    width: maxX - minX,
-    height: maxY - minY,
-    cx: (minX + maxX) / 2,
-    cy: (minY + maxY) / 2,
-  }
-}
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { buildNodeAdjacencyFromIncidentEdges, deriveConnectivityComponents } from '@/components/GraphCanvas/layout/graphConnectivity'
 
 export const applyCollectiveGraphLayout = (args: {
   nodes: GraphNode[]
@@ -74,61 +16,33 @@ export const applyCollectiveGraphLayout = (args: {
   const { nodes, edges, width, height, schema, padding = 80 } = args
   if (nodes.length < 2) return
 
-  const nodeById = new Map<string, GraphNode>()
-  const adj = new Map<string, string[]>()
-  for (const n of nodes) {
-    const id = String(n.id)
-    nodeById.set(id, n)
-    adj.set(id, [])
-  }
-  
-  edges.forEach(e => {
-    const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
-    const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
-    const sid = String(s)
-    const tid = String(t)
-    if (nodeById.has(sid) && nodeById.has(tid)) {
-      adj.get(sid)?.push(tid)
-      adj.get(tid)?.push(sid)
-    }
+  const graphLookup = getCachedGraphLookup({
+    cacheScope: 'graph-canvas-collective-fit',
+    graphData: { type: 'application/json', nodes, edges },
+    graphSemanticKey: hashScopedStringArraySignature(
+      'graph-canvas-collective-fit',
+      [
+        ...nodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`),
+        ...edges.map(edge => {
+          const sourceId = typeof edge?.source === 'object' ? String((edge.source as { id?: unknown })?.id || '').trim() : String(edge?.source || '').trim()
+          const targetId = typeof edge?.target === 'object' ? String((edge.target as { id?: unknown })?.id || '').trim() : String(edge?.target || '').trim()
+          return `${String(edge?.id || '').trim()}:${sourceId}:${targetId}`
+        }),
+      ],
+    ),
   })
-
-  const visited = new Set<string>()
-  const components: Component[] = []
-  
-  for (const n of nodes) {
-    const id = String(n.id)
-    if (visited.has(id)) continue
-    
-    const componentNodes: GraphNode[] = []
-    const stack = [id]
-    visited.add(id)
-    
-    while (stack.length) {
-      const curr = stack.pop()!
-      const node = nodeById.get(curr)
-      if (node) componentNodes.push(node)
-      
-      const neighbors = adj.get(curr) || []
-      for (const neigh of neighbors) {
-        if (!visited.has(neigh)) {
-          visited.add(neigh)
-          stack.push(neigh)
-        }
-      }
-    }
-    
-    if (componentNodes.length > 0) {
-      const bbox = getNodesBBox(componentNodes, schema)
-      if (bbox) {
-        components.push({
-          id: `comp-${components.length}`,
-          nodes: componentNodes,
-          bbox,
-        })
-      }
-    }
-  }
+  const nodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
+  const adjacencyByNodeId = buildNodeAdjacencyFromIncidentEdges({
+    nodes,
+    nodeById,
+    incidentEdgesByNodeId: graphLookup?.incidentEdgesByNodeId || new Map<string, GraphEdge[]>(),
+  })
+  const components = deriveConnectivityComponents({
+    nodes,
+    nodeById,
+    adjacencyByNodeId,
+    schema,
+  })
 
   if (components.length === 0) return
 

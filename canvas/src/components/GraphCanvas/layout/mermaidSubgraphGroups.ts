@@ -1,6 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { buildHierarchyDepthResolver, buildHierarchicalLeafMemberCollector } from '@/components/GraphCanvas/layout/hierarchicalGroupMembers'
 
 type SubgraphMembership = {
   memberNodeIds: Set<string>
@@ -90,35 +91,11 @@ export const deriveMermaidSubgraphGroups = (data: GraphData): MermaidSubgraphGro
     }
   }
 
-  const depthBySubgraphId = new Map<string, number>()
-  const computeDepth = (id: string): number => {
-    const cached = depthBySubgraphId.get(id)
-    if (typeof cached === 'number') return cached
-    const parent = parentBySubgraphId.get(id)
-    const depth = parent ? computeDepth(parent) + 1 : 0
-    depthBySubgraphId.set(id, depth)
-    return depth
-  }
-
-  const descendantLeafNodesCache = new Map<string, string[]>()
-  const collectLeafNodes = (subgraphId: string): string[] => {
-    const cached = descendantLeafNodesCache.get(subgraphId)
-    if (cached) return cached
-    const mem = membershipBySubgraphId.get(subgraphId)
-    if (!mem) {
-      descendantLeafNodesCache.set(subgraphId, [])
-      return []
-    }
-    const out = new Set<string>()
-    mem.memberNodeIds.forEach(id => out.add(String(id)))
-    mem.childSubgraphIds.forEach(childId => {
-      const arr = collectLeafNodes(childId)
-      for (let i = 0; i < arr.length; i += 1) out.add(arr[i])
-    })
-    const finalized = Array.from(out).sort((a, b) => a.localeCompare(b))
-    descendantLeafNodesCache.set(subgraphId, finalized)
-    return finalized
-  }
+  const computeDepth = buildHierarchyDepthResolver(parentBySubgraphId)
+  const collectLeafNodes = buildHierarchicalLeafMemberCollector({
+    getChildIds: subgraphId => membershipBySubgraphId.get(subgraphId)?.childSubgraphIds,
+    getDirectMemberIds: subgraphId => membershipBySubgraphId.get(subgraphId)?.memberNodeIds,
+  })
 
   const groups: GraphGroup[] = []
   subgraphById.forEach((node, id) => {

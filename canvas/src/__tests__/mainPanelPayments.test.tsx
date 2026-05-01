@@ -4,28 +4,8 @@ import MainPanel from '@/features/panels/MainPanel'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { installDeterministicRaf, mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
-
-const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
-  for (let i = 0; i < count; i += 1) {
-    await new Promise<void>(resolve => {
-      if (typeof raf === 'function') raf(() => resolve())
-      else setTimeout(() => resolve(), 0)
-    })
-  }
-}
-
-const renderAndFlush = async (
-  root: ReturnType<typeof createRoot>,
-  node: React.ReactNode,
-  raf: ((cb: (ts: number) => void) => number) | undefined,
-  frameCount = 3,
-) => {
-  await act(async () => {
-    root.render(node)
-    await waitForFrames(raf, frameCount)
-  })
-}
 
 export async function testMainPanelPaymentsRendersStripeProviderSurface() {
   const storage = new MemoryStorage()
@@ -34,11 +14,7 @@ export async function testMainPanelPaymentsRendersStripeProviderSurface() {
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -46,12 +22,10 @@ export async function testMainPanelPaymentsRendersStripeProviderSurface() {
     const container = doc.createElement('div')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    await renderAndFlush(
-      root,
-      React.createElement(MainPanel, { requestedTab: 'payments', requestedSearchQuery: '' } as never),
-      anyWindow.requestAnimationFrame,
-      4,
-    )
+    await mountReactRoot(root, React.createElement(MainPanel, { requestedTab: 'payments', requestedSearchQuery: '' } as never), {
+      window: dom.window,
+      frames: 4,
+    })
 
     const text = container.textContent || ''
     const expectedTokens = [
@@ -74,7 +48,7 @@ export async function testMainPanelPaymentsRendersStripeProviderSurface() {
     })
   } finally {
     try {
-      root?.unmount()
+      if (root) await unmountReactRoot(root, { window: dom.window })
     } catch {
       void 0
     }

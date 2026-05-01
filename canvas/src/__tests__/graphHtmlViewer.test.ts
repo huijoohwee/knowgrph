@@ -301,8 +301,8 @@ export async function testExportHtmlViewerKeepsOnlyGraphLinkedOverlaySeedsInRunt
   const overlayHtml = [
     '<article data-kg-rich-media-panel="1" data-node-id="m1" data-kg-kind="image" data-kg-url="https://example.com/linked.png"></article>',
     '<article data-kg-rich-media-panel="1" data-node-id="ghost" data-kg-kind="image" data-kg-url="https://example.com/disconnected.png"></article>',
-    '<article data-kg-markdown-design-block="md-1" data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"></article>',
-    '<article data-kg-markdown-design-block="md-ghost" data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"></article>',
+    '<article data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"></article>',
+    '<article data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"></article>',
   ].join('')
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
@@ -340,8 +340,8 @@ export async function testExportHtmlViewerKeepsOnlyGraphLinkedOverlaySeedsWhenEd
   const overlayHtml = [
     '<article data-kg-rich-media-panel="1" data-node-id="m1" data-kg-kind="image" data-kg-url="https://example.com/linked.png"></article>',
     '<article data-kg-rich-media-panel="1" data-node-id="ghost" data-kg-kind="image" data-kg-url="https://example.com/disconnected.png"></article>',
-    '<article data-kg-markdown-design-block="md-1" data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"></article>',
-    '<article data-kg-markdown-design-block="md-ghost" data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"></article>',
+    '<article data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"></article>',
+    '<article data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"></article>',
   ].join('')
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
@@ -376,8 +376,8 @@ export async function testExportHtmlViewerFiltersEmbeddedOverlayHtmlByGraphConne
   const overlayHtml = [
     '<article data-kg-rich-media-panel="1" data-node-id="m1"><div>Connected media</div></article>',
     '<article data-kg-rich-media-panel="1" data-node-id="ghost"><div>Disconnected media</div></article>',
-    '<article data-kg-markdown-design-block="md-1" data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"><div>Connected md</div></article>',
-    '<article data-kg-markdown-design-block="md-ghost" data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"><div>Disconnected md</div></article>',
+    '<article data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"><div>Connected md</div></article>',
+    '<article data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"><div>Disconnected md</div></article>',
   ].join('')
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
@@ -428,8 +428,8 @@ export async function testExportHtmlViewerPrefersInteractiveOverlayOverFixedDupl
 export async function testExportHtmlViewerDedupesMarkdownByAnchorNode() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="a1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const overlayHtml = [
-    '<article data-kg-markdown-design-block="md-a" data-md-id="md-a" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><div>A</div></article>',
-    '<article data-kg-markdown-design-block="md-b" data-md-id="md-b" data-kg-world-x="1" data-kg-world-y="1" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><div>B</div></article>',
+    '<article data-md-id="md-a" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><div>A</div></article>',
+    '<article data-md-id="md-b" data-kg-world-x="1" data-kg-world-y="1" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="a1"><div>B</div></article>',
   ].join('')
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
@@ -584,7 +584,7 @@ export async function testExportHtmlViewerOverlayExportStripsTransformPositionin
 
     const mdRoot = document.createElement('div')
     const block = document.createElement('div')
-    block.setAttribute('data-kg-markdown-design-block', 'b1')
+    block.setAttribute('data-md-id', 'b1')
     block.style.position = 'absolute'
     block.style.left = '10px'
     block.style.top = '20px'
@@ -642,7 +642,6 @@ export async function testExportHtmlViewerOverlayExportCollectsFlowAnd3dRoots() 
     const mdRoot = document.createElement('section')
     mdRoot.setAttribute('aria-label', 'Flow media overlay')
     const mdPanel = document.createElement('article')
-    mdPanel.setAttribute('data-kg-markdown-design-block', 'md-flow-1')
     mdPanel.setAttribute('data-md-id', 'md-flow-1')
     mdPanel.textContent = 'Markdown'
     mdRoot.appendChild(mdPanel)
@@ -665,7 +664,7 @@ export async function testExportHtmlViewerSeedsOverlayPanelsIntoRuntimePayloads(
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="n1"><circle cx="10" cy="10" r="5" fill="blue"/></g><line data-edge-id="e1" data-source-id="m1" data-target-id="n1" x1="0" y1="0" x2="10" y2="10"/></svg>`
   const overlayHtml =
     '<article data-kg-rich-media-panel="1" data-node-id="m1" data-kg-kind="iframe" data-kg-url="https://example.com/media" data-kg-open-url="https://example.com/open"><header class="kg-mediaHeader" data-kg-media-panel-header="1"><h3 class="kg-mediaTitle">Overlay Media</h3></header></article>' +
-    '<article data-kg-markdown-design-block="b1" data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><div class="kg-mdTitle">MD Block</div></header></article>'
+    '<article data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><div class="kg-mdTitle">MD Block</div></header></article>'
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
     svgMarkup: svg,
@@ -680,8 +679,11 @@ export async function testExportHtmlViewerSeedsOverlayPanelsIntoRuntimePayloads(
   if (!html.includes('"id":"m1"') || !html.includes('https://example.com/media')) {
     throw new Error('expected overlay media panel to seed runtime media payload')
   }
-  if (!html.includes('data-kg-markdown-design-block="b1"') || !html.includes('data-kg-anchor-node-id="n1"')) {
-    throw new Error('expected overlay markdown panel attributes to be preserved in exported html')
+  if (!html.includes('data-md-id="b1"') || !html.includes('data-kg-anchor-node-id="n1"')) {
+    throw new Error('expected overlay markdown panel canonical attributes to be preserved in exported html')
+  }
+  if (html.includes('data-kg-markdown-design-block="b1"')) {
+    throw new Error('expected exported html to remove legacy markdown overlay identity aliases')
   }
   if (!html.includes('data-kg-world-x="-4"') || !html.includes('data-kg-world-w="12"')) {
     throw new Error('expected overlay markdown world geometry attributes to be preserved')
@@ -691,7 +693,7 @@ export async function testExportHtmlViewerSeedsOverlayPanelsIntoRuntimePayloads(
 export async function testExportHtmlViewerSeedsNodePositionsFromOverlayMarkdownWorldAttrs() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40"><g data-node-id="n2"><circle cx="10" cy="10" r="5" fill="blue"/></g><line data-edge-id="e1" data-source-id="n1" data-target-id="n2" x1="0" y1="0" x2="10" y2="10"/></svg>`
   const overlayHtml =
-    '<article data-kg-markdown-design-block="b1" data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><div class="kg-mdTitle">MD Block</div></header></article>'
+    '<article data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><div class="kg-mdTitle">MD Block</div></header></article>'
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
     svgMarkup: svg,
@@ -711,7 +713,7 @@ export async function testExportHtmlViewerSeedsNodePositionsFromOverlayMarkdownW
 export async function testExportHtmlViewerMarkdownOverlaySupportsAnchorNodeIds() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="n1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-kg-layer="markdown-design-blocks"><foreignObject x="-5" y="-5" width="10" height="10" data-kg-markdown-block-id="b1" data-kg-anchor-node-id="n1"></foreignObject></g></svg>`
   const overlayHtml =
-    '<article data-kg-markdown-design-block="b1" data-kg-anchor-node-id="n1"><header data-kg-media-panel-header="1">H</header><section><table><tr><td>T</td></tr></table></section></article>'
+    '<article data-md-id="b1" data-kg-anchor-node-id="n1"><header data-kg-media-panel-header="1">H</header><section><table><tr><td>T</td></tr></table></section></article>'
   const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg, overlayHtml })
   if (!html) throw new Error('expected html')
   if (!html.includes('data-kg-anchor-node-id')) {
@@ -719,6 +721,12 @@ export async function testExportHtmlViewerMarkdownOverlaySupportsAnchorNodeIds()
   }
   if (!html.includes('if (xanchor) overlay.__kgMdById[xanchor] = ex;')) {
     throw new Error('expected runtime to index markdown overlays by anchor node id')
+  }
+  if (!html.includes('data-md-id="b1"')) {
+    throw new Error('expected exported html to preserve canonical markdown overlay identity on data-md-id')
+  }
+  if (html.includes('data-kg-markdown-design-block="b1"')) {
+    throw new Error('expected exported html to avoid the removed legacy markdown overlay identity alias')
   }
   if (!html.includes('data-kg-anchor-node-id="n1"')) {
     throw new Error('expected provided overlay html to preserve markdown anchor node id')

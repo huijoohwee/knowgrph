@@ -260,6 +260,9 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
         }
       }
     }
+    if (selected === 'video') return { kind: 'video', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
+    if (selected === 'image') return { kind: 'image', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
+    if (selected === 'text' || selected === 'poi') return { kind: 'iframe', url: '', interactive: false }
   }
   const domMediaUrl = (() => {
     if (!domTag) return ''

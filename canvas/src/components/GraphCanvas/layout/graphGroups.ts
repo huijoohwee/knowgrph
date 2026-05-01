@@ -2,6 +2,7 @@ import type { GraphData } from '@/lib/graph/types'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { deriveMermaidSubgraphGroups } from '@/components/GraphCanvas/layout/mermaidSubgraphGroups'
 import { deriveMarkdownHeadingGroups } from '@/components/GraphCanvas/layout/markdownHeadingGroups'
+import { finalizeGroupBucketMemberNodeIds, pushGroupBucketMember, readUpdatedBucketLayoutMeta } from '@/components/GraphCanvas/layout/groupBuckets'
 import { readSubgraphs, subgraphGroupId } from '@/lib/graph/subgraphs'
 import { compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
 import { getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
@@ -37,15 +38,12 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
       const kind = typeof props['keyword:kind'] === 'string' ? props['keyword:kind'].trim() : ''
       const role = typeof props['keyword:role'] === 'string' ? props['keyword:role'].trim() : ''
       if (kind === 'entity' && (role === 'subject' || role === 'object' || role === 'entity')) {
-        const k = `keywordRole:${role}`
-        const arr = byKey.get(k) || []
-        arr.push(String(n.id))
-        byKey.set(k, arr)
+        pushGroupBucketMember(byKey, `keywordRole:${role}`, n.id)
       }
     }
     const out: GraphGroup[] = []
     byKey.forEach((memberNodeIds, key) => {
-      const ids = Array.from(new Set(memberNodeIds)).filter(Boolean).sort((a, b) => a.localeCompare(b))
+      const ids = finalizeGroupBucketMemberNodeIds(memberNodeIds)
       if (ids.length === 0) return
       const role = key === 'keywordRole:subject' ? 'subject' : key === 'keywordRole:object' ? 'object' : 'entity'
       const label =
@@ -87,9 +85,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
       const nerRaw = typeof props['keyword:ner'] === 'string' ? props['keyword:ner'].trim() : ''
       const ner = nerRaw ? nerRaw.toUpperCase() : ''
       if (!ner || ner === 'O') continue
-      const arr = byNer.get(ner) || []
-      arr.push(String(n.id))
-      byNer.set(ner, arr)
+      pushGroupBucketMember(byNer, ner, n.id)
     }
 
     if (byNer.size === 0) return [] as GraphGroup[]
@@ -105,7 +101,7 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
 
     const groups: Array<{ ner: string; ids: string[] }> = []
     byNer.forEach((memberNodeIds, ner) => {
-      const ids = Array.from(new Set(memberNodeIds)).filter(Boolean).sort((a, b) => a.localeCompare(b))
+      const ids = finalizeGroupBucketMemberNodeIds(memberNodeIds)
       if (ids.length < 2) return
       groups.push({ ner, ids })
     })
@@ -140,38 +136,18 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
             ? raw.trim()
             : ''
       if (!key) continue
-      const arr = byCommunity.get(key) || []
-      arr.push(String(n.id))
-      byCommunity.set(key, arr)
-
-      const current = propsByCommunity.get(key) || {}
-      
-      let depthCandidate = current.depth
-      if (typeof raw === 'number' && Number.isFinite(raw)) {
-        depthCandidate = Math.max(depthCandidate ?? -Infinity, raw)
-      }
-
+      pushGroupBucketMember(byCommunity, key, n.id)
       const explicitDepth = typeof props['visual:depth'] === 'number' ? props['visual:depth'] : typeof props['visual:zIndex'] === 'number' ? props['visual:zIndex'] : undefined
-      if (typeof explicitDepth === 'number' && Number.isFinite(explicitDepth)) {
-         depthCandidate = Math.max(depthCandidate ?? -Infinity, explicitDepth)
-      }
-
-      const xIndex = typeof props['visual:xIndex'] === 'number' ? props['visual:xIndex'] : undefined
-      const yIndex = typeof props['visual:yIndex'] === 'number' ? props['visual:yIndex'] : undefined
-
-      if (typeof xIndex === 'number' && Number.isFinite(xIndex)) {
-          current.xIndex = Math.max(current.xIndex ?? -Infinity, xIndex)
-      }
-      if (typeof yIndex === 'number' && Number.isFinite(yIndex)) {
-          current.yIndex = Math.max(current.yIndex ?? -Infinity, yIndex)
-      }
-      
-      current.depth = depthCandidate
-      propsByCommunity.set(key, current)
+      propsByCommunity.set(key, readUpdatedBucketLayoutMeta(propsByCommunity.get(key), {
+        bucketValue: raw,
+        explicitDepth,
+        xIndex: props['visual:xIndex'],
+        yIndex: props['visual:yIndex'],
+      }))
     }
     const out: GraphGroup[] = []
     byCommunity.forEach((memberNodeIds, key) => {
-      const ids = Array.from(new Set(memberNodeIds)).filter(Boolean).sort((a, b) => a.localeCompare(b))
+      const ids = finalizeGroupBucketMemberNodeIds(memberNodeIds)
       if (ids.length === 0) return
       const props = propsByCommunity.get(key)
       out.push({
@@ -204,39 +180,19 @@ export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStru
             ? raw.trim()
             : ''
       if (!key) continue
-      const arr = byLayer.get(key) || []
-      arr.push(String(n.id))
-      byLayer.set(key, arr)
-
-      const current = propsByLayer.get(key) || {}
-
-      let depthCandidate = current.depth
-      if (typeof raw === 'number' && Number.isFinite(raw)) {
-        depthCandidate = Math.max(depthCandidate ?? -Infinity, raw)
-      }
-
+      pushGroupBucketMember(byLayer, key, n.id)
       const explicitDepth = typeof props['visual:depth'] === 'number' ? props['visual:depth'] : typeof props['visual:zIndex'] === 'number' ? props['visual:zIndex'] : undefined
-      if (typeof explicitDepth === 'number' && Number.isFinite(explicitDepth)) {
-        depthCandidate = Math.max(depthCandidate ?? -Infinity, explicitDepth)
-      }
-
-      const xIndex = typeof props['visual:xIndex'] === 'number' ? props['visual:xIndex'] : undefined
-      const yIndex = typeof props['visual:yIndex'] === 'number' ? props['visual:yIndex'] : undefined
-
-      if (typeof xIndex === 'number' && Number.isFinite(xIndex)) {
-        current.xIndex = Math.max(current.xIndex ?? -Infinity, xIndex)
-      }
-      if (typeof yIndex === 'number' && Number.isFinite(yIndex)) {
-        current.yIndex = Math.max(current.yIndex ?? -Infinity, yIndex)
-      }
-
-      current.depth = depthCandidate
-      propsByLayer.set(key, current)
+      propsByLayer.set(key, readUpdatedBucketLayoutMeta(propsByLayer.get(key), {
+        bucketValue: raw,
+        explicitDepth,
+        xIndex: props['visual:xIndex'],
+        yIndex: props['visual:yIndex'],
+      }))
     }
 
     const out: GraphGroup[] = []
     byLayer.forEach((memberNodeIds, key) => {
-      const ids = Array.from(new Set(memberNodeIds)).filter(Boolean).sort((a, b) => a.localeCompare(b))
+      const ids = finalizeGroupBucketMemberNodeIds(memberNodeIds)
       if (ids.length === 0) return
       const props = propsByLayer.get(key)
       out.push({

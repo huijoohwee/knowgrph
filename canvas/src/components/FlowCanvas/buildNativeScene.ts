@@ -21,6 +21,7 @@ import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsType
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildBestGroupInfoByNodeId, compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 export function buildAndSetFlowNativeScene(args: {
   runtime: FlowNativeRuntime
@@ -120,9 +121,13 @@ export function buildAndSetFlowNativeScene(args: {
     edges: edgeList as ReadonlyArray<{ id: unknown; source: unknown; target: unknown }>,
     widgetRegistry: args.widgetRegistry || null,
   })
+  const inputGraphLookup = getCachedGraphLookup({
+    cacheScope: 'flow-canvas-build-native-scene-input-graph',
+    graphData: g,
+  })
 
   const nodeById = new Map<string, NonNullable<FlowNativeScene['nodes']>[number]>()
-  const inputNodeById = new Map<string, unknown>()
+  const inputNodeById = inputGraphLookup?.nodeById || new Map<string, GraphNode>()
   const nodes: NonNullable<FlowNativeScene['nodes']> = []
   const collapsedSet = (() => {
     const meta = g?.metadata && typeof g.metadata === 'object' && !Array.isArray(g.metadata) ? (g.metadata as Record<string, unknown>) : null
@@ -349,7 +354,6 @@ export function buildAndSetFlowNativeScene(args: {
     }
     nodes.push(node)
     nodeById.set(id, node)
-    inputNodeById.set(id, n)
   }
   nodes.sort((a, b) => {
     const az = typeof (a as unknown as { zIndex?: unknown }).zIndex === 'number' ? ((a as unknown as { zIndex: number }).zIndex) : 0
@@ -396,8 +400,8 @@ export function buildAndSetFlowNativeScene(args: {
       sharedDisplayLabel ||
       ((sourcePortKey || targetPortKey) &&
         (buildFlowEdgeDisplayLabelFromPorts({
-          sourceNode: inputNodeById.get(source) as never,
-          targetNode: inputNodeById.get(target) as never,
+          sourceNode: (inputNodeById.get(source) || null) as never,
+          targetNode: (inputNodeById.get(target) || null) as never,
           sourcePortKey,
           targetPortKey,
         }) ||

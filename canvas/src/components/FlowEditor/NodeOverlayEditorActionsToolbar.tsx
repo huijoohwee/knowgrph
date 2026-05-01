@@ -13,7 +13,7 @@ import {
 } from '@/lib/render/richMediaSsot'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import { Copy, Eraser, GitMerge, HelpCircle, Images, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
+import { Copy, Eraser, ExternalLink, GitMerge, HelpCircle, Images, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2 } from 'lucide-react'
 import { ImportUrlPrompt } from '@/features/toolbar/ImportUrlPrompt'
 import { unwrapUserProvidedText } from '@/lib/url'
 
@@ -40,6 +40,27 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     selected: '16:9' | '9:16' | null
     onToggle: () => void
   }
+  richMediaTextModeToggle?: {
+    visible: boolean
+    freezeConnectedOutput: boolean
+    onToggle: () => void
+  }
+  openExternalAction?: {
+    visible: boolean
+    label?: string
+    onOpen: () => void
+  }
+  actionVisibility?: Partial<{
+    run: boolean
+    updateKvEntry: boolean
+    openInSidepane: boolean
+    enableHandles: boolean
+    convertToLoop: boolean
+    duplicate: boolean
+    clearOutput: boolean
+    help: boolean
+    remove: boolean
+  }>
   importUrlAction?: {
     visible: boolean
     initialUrl?: string
@@ -65,6 +86,8 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     richMediaViewToggle,
     richMediaMediaSelector,
     richMediaAspectToggle,
+    richMediaTextModeToggle,
+    openExternalAction,
     onRun,
     onDuplicate,
     onClearOutput,
@@ -74,6 +97,16 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
     onConvertToLoopNode,
     onUpdateKvEntry,
   } = args
+  const actionVisibility = args.actionVisibility || {}
+  const showRunAction = actionVisibility.run !== false
+  const showUpdateKvEntryAction = actionVisibility.updateKvEntry !== false
+  const showOpenInSidepaneAction = actionVisibility.openInSidepane !== false
+  const showEnableHandlesAction = actionVisibility.enableHandles !== false
+  const showConvertToLoopAction = actionVisibility.convertToLoop !== false
+  const showDuplicateAction = actionVisibility.duplicate !== false
+  const showClearOutputAction = actionVisibility.clearOutput !== false
+  const showHelpAction = actionVisibility.help !== false
+  const showRemoveAction = actionVisibility.remove !== false
   const mediaSelectorButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const [mediaSelectorOpen, setMediaSelectorOpen] = React.useState(false)
   const importUrlButtonRef = React.useRef<HTMLButtonElement | null>(null)
@@ -114,15 +147,17 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
           }
         }}
       >
-        <IconButton
-          title={UI_COPY.flowWidgetRun}
-          tooltipContent={UI_COPY.flowWidgetRun}
-          showTooltip
-          onClick={onRun}
-          className="App-toolbar__btn"
-        >
-          <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-        </IconButton>
+        {showRunAction ? (
+          <IconButton
+            title={UI_COPY.flowWidgetRun}
+            tooltipContent={UI_COPY.flowWidgetRun}
+            showTooltip
+            onClick={onRun}
+            className="App-toolbar__btn"
+          >
+            <Play className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
 
         {args.importUrlAction?.visible ? (
           <IconButton
@@ -176,6 +211,37 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
           </IconButton>
         ) : null}
 
+        {richMediaTextModeToggle?.visible ? (
+          <IconButton
+            title={richMediaTextModeToggle.freezeConnectedOutput ? 'View connected output' : 'Edit output'}
+            tooltipContent={richMediaTextModeToggle.freezeConnectedOutput ? 'View connected output' : 'Edit output'}
+            showTooltip
+            onClick={richMediaTextModeToggle.onToggle}
+            className={cn(
+              'App-toolbar__btn px-1.5 min-w-[40px] text-[10px] font-semibold',
+              richMediaTextModeToggle.freezeConnectedOutput ? UI_THEME_TOKENS.icon.active : '',
+            )}
+            data-kg-rich-media-text-mode-toggle="1"
+          >
+            <span aria-hidden={true}>
+              {richMediaTextModeToggle.freezeConnectedOutput ? 'View' : 'Edit'}
+            </span>
+          </IconButton>
+        ) : null}
+
+        {openExternalAction?.visible ? (
+          <IconButton
+            title={openExternalAction.label || 'Open source'}
+            tooltipContent={openExternalAction.label || 'Open source'}
+            showTooltip
+            onClick={openExternalAction.onOpen}
+            className="App-toolbar__btn"
+            data-kg-rich-media-open-source="1"
+          >
+            <ExternalLink className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
+
         {richMediaViewToggle?.visible ? (
           <IconButton
             title={getRichMediaPanelViewTitle(richMediaViewToggle.isKtvRows)}
@@ -188,35 +254,39 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
           </IconButton>
         ) : null}
 
-        <IconButton
-          title={UI_LABELS.applyToNode}
-          tooltipContent="Update KV entry"
-          showTooltip
-          onClick={onUpdateKvEntry || (() => {
-            if (typeof window === 'undefined') return
-            window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, {
-              detail: {
-                tab: 'workflowManager' as const,
-                workflowManagerTab: 'mapping' as const,
-              },
-            }))
-          })}
-          className="App-toolbar__btn"
-        >
-          <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-        </IconButton>
+        {showUpdateKvEntryAction ? (
+          <IconButton
+            title={UI_LABELS.applyToNode}
+            tooltipContent="Update KV entry"
+            showTooltip
+            onClick={onUpdateKvEntry || (() => {
+              if (typeof window === 'undefined') return
+              window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, {
+                detail: {
+                  tab: 'workflowManager' as const,
+                  workflowManagerTab: 'mapping' as const,
+                },
+              }))
+            })}
+            className="App-toolbar__btn"
+          >
+            <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
 
-        <IconButton
-          title={UI_LABELS.openInSidepane}
-          tooltipContent={UI_COPY.flowWidgetOpenInSidepane}
-          showTooltip
-          onClick={() => emitSidePanelOpen({ tab: 'node', open: true })}
-          className="App-toolbar__btn"
-        >
-          <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-        </IconButton>
+        {showOpenInSidepaneAction ? (
+          <IconButton
+            title={UI_LABELS.openInSidepane}
+            tooltipContent={UI_COPY.flowWidgetOpenInSidepane}
+            showTooltip
+            onClick={() => emitSidePanelOpen({ tab: 'node', open: true })}
+            className="App-toolbar__btn"
+          >
+            <PanelRightOpen className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
 
-        {!enableHandlesDisabled ? (
+        {showEnableHandlesAction && !enableHandlesDisabled ? (
           <IconButton
             title={UI_LABELS.enableHandlesForAllInputs}
             tooltipContent={UI_COPY.flowWidgetEnableHandles}
@@ -228,7 +298,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
           </IconButton>
         ) : null}
 
-        {!convertToLoopDisabled ? (
+        {showConvertToLoopAction && !convertToLoopDisabled ? (
           <IconButton
             title={UI_LABELS.convertToLoopNode}
             tooltipContent={UI_COPY.flowWidgetConvertToLoop}
@@ -240,7 +310,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
           </IconButton>
         ) : null}
 
-        {!duplicateDisabled ? (
+        {showDuplicateAction && !duplicateDisabled ? (
           <IconButton
             title={UI_LABELS.duplicate}
             tooltipContent={UI_COPY.flowWidgetDuplicate}
@@ -252,35 +322,41 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
           </IconButton>
         ) : null}
 
-        <IconButton
-          title={UI_LABELS.clearOutput}
-          tooltipContent={UI_COPY.flowWidgetClearOutput}
-          showTooltip
-          onClick={onClearOutput}
-          className="App-toolbar__btn"
-        >
-          <Eraser className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-        </IconButton>
+        {showClearOutputAction ? (
+          <IconButton
+            title={UI_LABELS.clearOutput}
+            tooltipContent={UI_COPY.flowWidgetClearOutput}
+            showTooltip
+            onClick={onClearOutput}
+            className="App-toolbar__btn"
+          >
+            <Eraser className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
 
-        <IconButton
-          title={UI_LABELS.help}
-          tooltipContent={UI_COPY.flowWidgetHelp}
-          showTooltip
-          onClick={onHelp}
-          className="App-toolbar__btn"
-        >
-          <HelpCircle className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-        </IconButton>
+        {showHelpAction ? (
+          <IconButton
+            title={UI_LABELS.help}
+            tooltipContent={UI_COPY.flowWidgetHelp}
+            showTooltip
+            onClick={onHelp}
+            className="App-toolbar__btn"
+          >
+            <HelpCircle className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
 
-        <IconButton
-          title={UI_LABELS.removeNode}
-          tooltipContent={UI_COPY.flowWidgetRemoveNode}
-          showTooltip
-          onClick={onRemove}
-          className={cn('App-toolbar__btn', 'text-red-700 dark:text-red-400')}
-        >
-          <Trash2 className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
-        </IconButton>
+        {showRemoveAction ? (
+          <IconButton
+            title={UI_LABELS.removeNode}
+            tooltipContent={UI_COPY.flowWidgetRemoveNode}
+            showTooltip
+            onClick={onRemove}
+            className={cn('App-toolbar__btn', 'text-red-700 dark:text-red-400')}
+          >
+            <Trash2 className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
+          </IconButton>
+        ) : null}
       </nav>
 
       <AnchoredPopover

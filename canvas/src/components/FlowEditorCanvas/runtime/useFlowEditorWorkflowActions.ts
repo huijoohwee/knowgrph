@@ -37,6 +37,12 @@ function bumpDraftGraphDataRevision(graphData: GraphData): GraphData {
   return { ...graphData, metadata: { ...metadata, graphDataRevision: current + 1 } }
 }
 
+function readGraphDataRevision(graphData: GraphData | null | undefined): number {
+  const metadata = (graphData?.metadata || {}) as Record<string, unknown>
+  const raw = metadata.graphDataRevision
+  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
+}
+
 export function useFlowEditorWorkflowActions(args: {
   flowEditorViewActive: boolean
   baseGraphKind: string
@@ -505,7 +511,12 @@ export function useFlowEditorWorkflowActions(args: {
       const registryEntries = registry.filter(e => e && e.isEnabled && nodeTypeIds.has(String(e.nodeTypeId || '').trim()))
       const fallbackResolved = resolveWidgetRegistryEntry({ node, registry, graphMetaKind: args.baseGraphKind })
       const entries = registryEntries.length > 0 ? registryEntries : fallbackResolved ? [fallbackResolved] : []
-      await exportWidgetBundleAsJson({ graphData: subgraph, registryEntries: entries, suggestedName: `flow-node-${writableNodeId}.widget.bundle.json` })
+      await exportWidgetBundleAsJson({
+        graphData: subgraph,
+        registryEntries: entries,
+        suggestedName: `flow-node-${writableNodeId}.widget.bundle.json`,
+        graphRevision: readGraphDataRevision(subgraph),
+      })
       args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorRunExportedToast, ttlMs: 2200 })
     } catch (error) {
       const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
@@ -564,7 +575,12 @@ export function useFlowEditorWorkflowActions(args: {
       }
       const store = useGraphStore.getState()
       const registry = Array.isArray(store.widgetRegistry) ? store.widgetRegistry : []
-      await exportWidgetBundleAsJson({ graphData: draft, registryEntries: registry, suggestedName: 'flow-workflow.widget.bundle.json' })
+      await exportWidgetBundleAsJson({
+        graphData: draft,
+        registryEntries: registry,
+        suggestedName: 'flow-workflow.widget.bundle.json',
+        graphRevision: readGraphDataRevision(draft),
+      })
       args.upsertUiToast({ id: 'flow-editor-export-bundle', kind: 'neutral', message: UI_COPY.flowEditorRunExportedToast, ttlMs: 2200 })
     } catch {
       args.upsertUiToast({ id: 'flow-editor-export-bundle-failed', kind: 'neutral', message: UI_COPY.flowEditorRunFailedToast, ttlMs: 2600 })

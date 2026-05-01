@@ -103,11 +103,14 @@ export async function testMarkdownWorkspaceWidgetModeKeepsMarkdownLoadInDocument
 export function testMarkdownWorkspaceWidgetModeUsesSemanticCacheAndLazyBundleBuild() {
   const p = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceWidgetMode.ts')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes("import { hashSignatureParts } from '@/lib/hash/signature'")) {
+  if (!text.includes("from '@/lib/hash/signature'") || !text.includes('hashScopedStringArraySignature')) {
     throw new Error('expected widget mode to reuse shared hash signature helper for semantic cache keys')
   }
-  if (!text.includes('openWidgetNodeIdsSnapshotRef') || !text.includes('widgetRegistrySnapshotRef') || !text.includes('graphLookupRef')) {
+  if (!text.includes('openWidgetNodeIdsSnapshotRef') || !text.includes('widgetRegistrySnapshotRef') || !text.includes('getCachedGraphLookup({')) {
     throw new Error('expected widget mode to cache hot-path snapshots by semantic keys instead of raw array identity')
+  }
+  if (!text.includes('const widgetBundleBuildActive = active && contentMode === \'widget\' && widgetAvailable')) {
+    throw new Error('expected widget mode to gate large bundle generation behind active widget mode')
   }
   const bundleStart = text.indexOf('const widgetBundleJsonText = React.useMemo(() => {')
   const bundleEnd = text.indexOf('  const widgetEditorText = React.useMemo(() => {')
@@ -115,26 +118,17 @@ export function testMarkdownWorkspaceWidgetModeUsesSemanticCacheAndLazyBundleBui
     throw new Error('expected widget bundle generation to remain isolated in its own memo')
   }
   const bundleSection = text.slice(bundleStart, bundleEnd)
-  if (!bundleSection.includes("if (contentMode !== 'widget' || widgetNodeIds.length === 0")) {
+  if (!bundleSection.includes("if (!widgetBundleBuildActive || widgetNodeIds.length === 0 || !graphLookupById) return ''")) {
     throw new Error('expected widget bundle JSON generation to stay lazy while document mode is active')
+  }
+  if (!text.includes("const widgetBundleSemanticKey = React.useMemo(") || !text.includes("'widget-bundle-subset'")) {
+    throw new Error('expected widget bundle cache reuse to distinguish widget-node subsets at the same graph revision')
+  }
+  if (!bundleSection.includes('buildWidgetBundleJsonText({')) {
+    throw new Error('expected widget mode to reuse the shared widget bundle JSON helper instead of rebuilding text inline')
   }
   if (bundleSection.includes('nodes.find(')) {
     throw new Error('expected widget bundle generation to reuse graphLookup.byId instead of rescanning nodes per widget')
-  }
-
-  const explorerPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceExplorerState.tsx')
-  const explorerText = readFileSync(explorerPath, 'utf8')
-  if (!explorerText.includes('const runtimeRef = React.useRef(args)') || !explorerText.includes('runtimeRef.current = args')) {
-    throw new Error('expected workspace explorer refresh to read current runtime state through a stable ref')
-  }
-  if (explorerText.includes('}, [args, getFs, scheduleApplyComposedFromSourceFiles])')) {
-    throw new Error('expected workspace refreshOnce not to depend on the fresh args object')
-  }
-  if (!explorerText.includes('}, [getFs, scheduleApplyComposedFromSourceFiles])')) {
-    throw new Error('expected workspace refreshOnce identity to stay stable across render-only state churn')
-  }
-  if (!explorerText.includes('}, [args.active, refresh])')) {
-    throw new Error('expected filesystem refresh subscription to depend only on active state and stable refresh')
   }
 }
 

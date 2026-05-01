@@ -21,6 +21,32 @@ export const hashSignatureParts32 = (parts: SignaturePrimitive[]): number => {
   return hashString32(buildSignatureText(parts))
 }
 
+export const normalizeStringArrayForSignature = (
+  value: unknown,
+  options?: {
+    unique?: boolean
+    sort?: boolean
+  },
+): string[] => {
+  const raw = Array.isArray(value) ? value : []
+  const normalized = raw.map(v => String(v ?? '').trim()).filter(Boolean)
+  if (normalized.length === 0) return []
+  const unique = options?.unique === true ? Array.from(new Set(normalized)) : normalized
+  if (options?.sort === true) unique.sort((left, right) => left.localeCompare(right))
+  return unique
+}
+
+export const hashScopedStringArraySignature = (
+  scope: SignaturePrimitive,
+  value: unknown,
+  options?: {
+    unique?: boolean
+    sort?: boolean
+  },
+): string => {
+  return hashSignatureParts([scope, ...normalizeStringArrayForSignature(value, options)])
+}
+
 export const hashStringArraySignature = (
   value: unknown,
   options?: {

@@ -6,10 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-
-const tick = async () => {
-  await new Promise<void>(resolve => setTimeout(resolve, 0))
-}
+import { mountReactRoot, unmountReactRoot, waitForNextTask } from '@/tests/lib/reactRootHarness'
 
 export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
   const { restore, dom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
@@ -29,7 +26,7 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
     if (!container) throw new Error('missing root container')
 
     const root = createRoot(container)
-    root.render(
+    await mountReactRoot(root,
       <ToolbarToolMenu
         pipelineStatus={null}
         exportStatus={null}
@@ -40,9 +37,7 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
         requestedFloatingPanelViewSeq={1}
         onClose={() => void 0}
       />,
-    )
-
-    for (let i = 0; i < 10; i++) await tick()
+    { tasks: 10 })
 
     const nav = dom.window.document.querySelector('nav[aria-label="Floating panel views"]')
     if (!nav) throw new Error('expected Floating panel views nav')
@@ -64,7 +59,7 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
 
     let designLayers: HTMLElement | null = null
     for (let i = 0; i < 30; i++) {
-      await tick()
+      await waitForNextTask()
       designLayers = dom.window.document.querySelector('[aria-label="Design Layers"]') as HTMLElement | null
       if (designLayers) break
     }
@@ -73,7 +68,7 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
       throw new Error('expected Design Layers view to be removed from floating panel after Workflow Manager consolidation')
     }
 
-    root.unmount()
+    await unmountReactRoot(root, { tasks: 1 })
   } finally {
     restore()
   }
@@ -97,7 +92,7 @@ export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() 
     if (!container) throw new Error('missing root container')
 
     const root = createRoot(container)
-    root.render(
+    await mountReactRoot(root,
       <ToolbarToolMenu
         pipelineStatus="ingest->parse->render"
         exportStatus={null}
@@ -108,9 +103,7 @@ export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() 
         requestedFloatingPanelViewSeq={2}
         onClose={() => void 0}
       />,
-    )
-
-    for (let i = 0; i < 10; i++) await tick()
+    { tasks: 10 })
 
     const shellBodies = Array.from(
       dom.window.document.querySelectorAll(`[aria-label="${UI_LABELS.floatingPanel}"]`),
@@ -135,7 +128,7 @@ export async function testFloatingPanelInteractionViewUsesFullHeightShellBody() 
       throw new Error('expected interaction panel content to render')
     }
 
-    root.unmount()
+    await unmountReactRoot(root, { tasks: 1 })
   } finally {
     restore()
   }
@@ -159,7 +152,7 @@ export async function testFloatingPanelGeoViewRemainsClickableWhenDisabledByStat
     if (!container) throw new Error('missing root container')
 
     const root = createRoot(container)
-    root.render(
+    await mountReactRoot(root,
       <ToolbarToolMenu
         pipelineStatus={null}
         exportStatus={null}
@@ -170,9 +163,7 @@ export async function testFloatingPanelGeoViewRemainsClickableWhenDisabledByStat
         requestedFloatingPanelViewSeq={3}
         onClose={() => void 0}
       />,
-    )
-
-    for (let i = 0; i < 10; i++) await tick()
+    { tasks: 10 })
 
     const geoButton = Array.from(container.querySelectorAll('button')).find(button =>
       String((button as HTMLButtonElement).getAttribute('aria-label') || '') === UI_LABELS.geo,
@@ -184,8 +175,8 @@ export async function testFloatingPanelGeoViewRemainsClickableWhenDisabledByStat
 
     await act(async () => {
       geoButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-      await tick()
-      await tick()
+      await waitForNextTask()
+      await waitForNextTask()
     })
 
     const geoPanel = dom.window.document.querySelector('[aria-label="Geospatial panel"]')
@@ -197,7 +188,7 @@ export async function testFloatingPanelGeoViewRemainsClickableWhenDisabledByStat
       throw new Error(`expected Geo panel to remain actionable when disabled, got ${JSON.stringify(text)}`)
     }
 
-    root.unmount()
+    await unmountReactRoot(root, { tasks: 1 })
   } finally {
     restore()
   }

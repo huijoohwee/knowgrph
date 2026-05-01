@@ -4,8 +4,9 @@ import { UI_COPY } from '@/lib/config'
 import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { getDocumentPathFromMetadata, toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
-import { composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
+import { composeGraphFromSourceLayers, resolveSourceLayerKeyChange } from '@/lib/graph/sourceLayers'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
+import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 
 type UseMarkdownApplyProps = {
   markdownText: string
@@ -83,15 +84,24 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
       if (exactSourceFile && typeof updateSourceFile === 'function') {
         updateSourceFile(exactSourceFile.id, {
           text: markdownText,
-          status: 'loading',
-          error: undefined,
-          parsedGraphData: undefined,
-          parsedParserId: undefined,
-          parsedTextHash: undefined,
+          ...buildSourceFileLifecycleState({ status: 'loading' }),
         })
         const res = await loadGraphDataFromTextViaParser(baseName, markdownText, { applyToStore: false })
+        const parsedTextHash = buildSourceFileParseIdentityHash({
+          cacheNamespace: `source-file:${exactSourceFile.id}`,
+          name: String(exactSourceFile.name || baseName),
+          text: markdownText,
+        })
         if (!res || !res.graphData) {
-          updateSourceFile(exactSourceFile.id, { status: 'error', error: UI_COPY.parserDataLoadFailed })
+          updateSourceFile(exactSourceFile.id, {
+            ...buildSourceFileLifecycleState({
+              status: 'error',
+              error: UI_COPY.parserDataLoadFailed,
+              parserId: res?.parserId,
+              textHash: parsedTextHash,
+              graphData: undefined,
+            }),
+          })
           setApplyStatus({ ok: false, msg: UI_COPY.parserDataLoadFailed })
           return
         }
@@ -101,25 +111,28 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
         const edgeCount = counts ? Number(counts.e || 0) : 0
         const hasGraph = nodeCount > 0 || edgeCount > 0
         if (warnings.length > 0 && !hasGraph) {
-          updateSourceFile(exactSourceFile.id, { status: 'error', error: warnings[0] || UI_COPY.parserDataLoadFailed })
+          updateSourceFile(exactSourceFile.id, {
+            ...buildSourceFileLifecycleState({
+              status: 'error',
+              error: warnings[0] || UI_COPY.parserDataLoadFailed,
+              parserId: res.parserId,
+              textHash: parsedTextHash,
+              graphData: undefined,
+            }),
+          })
           setApplyStatus({
             ok: false,
             msg: UI_COPY.parserDataLoadSyntaxErrorStatus(warnings[0] || ''),
           })
           return
         }
-        const parsedTextHash = buildSourceFileParseIdentityHash({
-          cacheNamespace: `source-file:${exactSourceFile.id}`,
-          name: String(exactSourceFile.name || baseName),
-          text: markdownText,
-        })
         updateSourceFile(exactSourceFile.id, {
-          status: 'parsed',
-          error: undefined,
-          parsedParserId: res.parserId,
-          parsedTextHash,
-          parsedGraphRevision: 0,
-          parsedGraphData: res.graphData,
+          ...buildSourceFileLifecycleState({
+            status: 'parsed',
+            parserId: res.parserId,
+            textHash: parsedTextHash,
+            graphData: res.graphData,
+          }),
         })
 
         const afterStore = useGraphStore.getState()
@@ -134,17 +147,19 @@ export function useMarkdownApply(props: UseMarkdownApplyProps) {
           parsedGraphData: f.parsedGraphData,
         }))
         const { graphData, contentKey, orderKey } = composeGraphFromSourceLayers({ layers })
-        const prevMeta = (beforeGraph?.metadata || {}) as Record<string, unknown>
-        const prevContentKey = typeof prevMeta.sourceLayerHash === 'string' ? prevMeta.sourceLayerHash : ''
-        const prevOrderKey = typeof prevMeta.sourceLayerOrderHash === 'string' ? prevMeta.sourceLayerOrderHash : ''
-        if (prevContentKey === contentKey && prevOrderKey === orderKey) {
+        const change = resolveSourceLayerKeyChange({
+          previousGraphData: beforeGraph,
+          contentKey,
+          orderKey,
+        })
+        if (change === 'unchanged') {
           setApplyStatus({
             ok: true,
             msg: res.input && res.input.name ? res.input.name : UI_COPY.parserDataLoadSuccess,
           })
           return
         }
-        if (prevContentKey === contentKey && prevOrderKey !== orderKey) {
+        if (change === 'order-only') {
           if (typeof setGraphDataPreservingLayout === 'function') setGraphDataPreservingLayout(graphData)
         } else {
           if (typeof setGraphData === 'function') setGraphData(graphData)

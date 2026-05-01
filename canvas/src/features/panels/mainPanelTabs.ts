@@ -12,65 +12,113 @@ export type MainPanelTabKey =
   | 'settings'
   | 'history'
 
-export function isMainPanelTabKey(key: string): key is MainPanelTabKey {
-  return (
-    key === 'integrations' ||
-    key === 'mcp' ||
-    key === 'maps' ||
-    key === 'payments' ||
-    key === 'workflowManager' ||
-    key === 'help' ||
-    key === 'dashboard' ||
-    key === 'preview' ||
-    key === 'settings' ||
-    key === 'history'
-  )
+type MainPanelTabMeta = {
+  key: MainPanelTabKey
+  label: string
+  searchable: boolean
+  searchPlaceholder?: string
+  footerLabel: string
 }
 
-export const SEARCHABLE_MAIN_PANEL_TABS = new Set<MainPanelTabKey>([
-  'integrations',
-  'mcp',
-  'maps',
-  'payments',
-  'help',
-  'settings',
-  'history',
-  'workflowManager',
-])
-
-export const MAIN_PANEL_TABS: Array<{ key: MainPanelTabKey; label: string }> = [
-  { key: 'integrations', label: UI_LABELS.integrations },
-  { key: 'mcp', label: UI_LABELS.mcp },
-  { key: 'maps', label: UI_LABELS.maps },
-  { key: 'payments', label: UI_LABELS.payments },
-  { key: 'workflowManager', label: UI_LABELS.workflowManager },
-  { key: 'dashboard', label: UI_LABELS.dashboard },
-  { key: 'preview', label: UI_LABELS.previewPanel },
-  { key: 'settings', label: UI_LABELS.settings },
-  { key: 'history', label: UI_LABELS.history },
-  { key: 'help', label: UI_LABELS.help },
+const MAIN_PANEL_TAB_METADATA: MainPanelTabMeta[] = [
+  {
+    key: 'integrations',
+    label: UI_LABELS.integrations,
+    searchable: true,
+    searchPlaceholder: UI_COPY.searchSettingsPlaceholder,
+    footerLabel: UI_LABELS.integrations,
+  },
+  {
+    key: 'mcp',
+    label: UI_LABELS.mcp,
+    searchable: true,
+    searchPlaceholder: UI_COPY.searchSettingsPlaceholder,
+    footerLabel: UI_LABELS.mcp,
+  },
+  {
+    key: 'maps',
+    label: UI_LABELS.maps,
+    searchable: true,
+    searchPlaceholder: UI_COPY.searchSettingsPlaceholder,
+    footerLabel: UI_LABELS.maps,
+  },
+  {
+    key: 'payments',
+    label: UI_LABELS.payments,
+    searchable: true,
+    searchPlaceholder: UI_COPY.searchSettingsPlaceholder,
+    footerLabel: UI_LABELS.payments,
+  },
+  {
+    key: 'workflowManager',
+    label: UI_LABELS.workflowManager,
+    searchable: true,
+    searchPlaceholder: UI_COPY.searchFlowEditorManagerRegistryPlaceholder,
+    footerLabel: UI_LABELS.workflowManager,
+  },
+  {
+    key: 'dashboard',
+    label: UI_LABELS.dashboard,
+    searchable: false,
+    footerLabel: UI_LABELS.dashboard,
+  },
+  {
+    key: 'preview',
+    label: UI_LABELS.previewPanel,
+    searchable: false,
+    footerLabel: UI_LABELS.previewPanel,
+  },
+  {
+    key: 'settings',
+    label: UI_LABELS.settings,
+    searchable: true,
+    searchPlaceholder: UI_COPY.searchSettingsPlaceholder,
+    footerLabel: UI_LABELS.settings,
+  },
+  {
+    key: 'history',
+    label: UI_LABELS.history,
+    searchable: true,
+    searchPlaceholder: UI_LABELS.search,
+    footerLabel: UI_LABELS.history,
+  },
+  {
+    key: 'help',
+    label: UI_LABELS.help,
+    searchable: true,
+    searchPlaceholder: UI_COPY.searchShortcutsPlaceholder,
+    footerLabel: UI_LABELS.help,
+  },
 ]
 
-export const MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB: Partial<Record<MainPanelTabKey, string>> = {
-  integrations: UI_COPY.searchSettingsPlaceholder,
-  mcp: UI_COPY.searchSettingsPlaceholder,
-  maps: UI_COPY.searchSettingsPlaceholder,
-  payments: UI_COPY.searchSettingsPlaceholder,
-  help: UI_COPY.searchShortcutsPlaceholder,
-  settings: UI_COPY.searchSettingsPlaceholder,
-  history: UI_LABELS.search,
-  workflowManager: UI_COPY.searchFlowEditorManagerRegistryPlaceholder,
+const MAIN_PANEL_TAB_KEY_SET = new Set<MainPanelTabKey>(MAIN_PANEL_TAB_METADATA.map(tab => tab.key))
+const MAIN_PANEL_TAB_META_BY_KEY: Record<MainPanelTabKey, MainPanelTabMeta> = Object.fromEntries(
+  MAIN_PANEL_TAB_METADATA.map(tab => [tab.key, tab]),
+) as Record<MainPanelTabKey, MainPanelTabMeta>
+
+export function isMainPanelTabKey(key: string): key is MainPanelTabKey {
+  return MAIN_PANEL_TAB_KEY_SET.has(key as MainPanelTabKey)
 }
 
-export const MAIN_PANEL_FOOTER_LABEL_BY_TAB: Record<MainPanelTabKey, string> = {
-  integrations: UI_LABELS.integrations,
-  mcp: UI_LABELS.mcp,
-  maps: UI_LABELS.maps,
-  payments: UI_LABELS.payments,
-  workflowManager: UI_LABELS.workflowManager,
-  help: UI_LABELS.help,
-  dashboard: UI_LABELS.dashboard,
-  preview: UI_LABELS.previewPanel,
-  settings: UI_LABELS.settings,
-  history: UI_LABELS.history,
+export const SEARCHABLE_MAIN_PANEL_TABS = new Set<MainPanelTabKey>(
+  MAIN_PANEL_TAB_METADATA.filter(tab => tab.searchable).map(tab => tab.key),
+)
+
+export const MAIN_PANEL_TABS: Array<{ key: MainPanelTabKey; label: string }> = MAIN_PANEL_TAB_METADATA.map(
+  ({ key, label }) => ({ key, label }),
+)
+
+export const MAIN_PANEL_SEARCH_PLACEHOLDER_BY_TAB: Partial<Record<MainPanelTabKey, string>> = Object.fromEntries(
+  MAIN_PANEL_TAB_METADATA.filter(tab => typeof tab.searchPlaceholder === 'string').map(tab => [
+    tab.key,
+    tab.searchPlaceholder as string,
+  ]),
+) as Partial<Record<MainPanelTabKey, string>>
+
+export const MAIN_PANEL_FOOTER_LABEL_BY_TAB: Record<MainPanelTabKey, string> = Object.fromEntries(
+  MAIN_PANEL_TAB_METADATA.map(tab => [tab.key, tab.footerLabel]),
+) as Record<MainPanelTabKey, string>
+
+export function getMainPanelTabMeta(tab: MainPanelTabKey): MainPanelTabMeta {
+  return MAIN_PANEL_TAB_META_BY_KEY[tab]
 }

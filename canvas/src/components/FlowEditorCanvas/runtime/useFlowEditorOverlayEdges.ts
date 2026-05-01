@@ -3,7 +3,11 @@ import React from 'react'
 import { FLOW_HANDLE_DEFAULT_EDGE_ID, buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
+import {
+  hashRecordSignature32,
+  hashScopedStringArraySignature,
+  hashSignatureParts,
+} from '@/lib/hash/signature'
 import { type ToolMode, isRecord, pickString } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import {
@@ -49,7 +53,7 @@ function readGraphDataRevision(graph: GraphData | null | undefined): number {
 }
 
 function buildOverlayNodeHandleSignature(
-  nodes: ReadonlyArray<{ id: unknown; type?: unknown; properties?: unknown }>,
+  nodes: ReadonlyArray<{ id?: unknown; type?: unknown; properties?: unknown }>,
 ): string {
   if (!Array.isArray(nodes) || nodes.length === 0) return ''
   const parts = nodes
@@ -111,6 +115,8 @@ export function useFlowEditorOverlayEdges(args: {
   const overlayEdgePartialNodeSetRetryRef = React.useRef<{ key: string; count: number } | null>(null)
   const overlayEdgeReadinessRetryRef = React.useRef<{ key: string; count: number } | null>(null)
   const lastStableOverlayEdgeNodeIdsRef = React.useRef<string[]>([])
+  const lastStableOverlayEdgeGraphRef = React.useRef<GraphData | null>(null)
+  const overlayEdgeWorkspaceCloseRecoveryUntilRef = React.useRef(0)
   const overlayGraphLookupCacheRef = React.useRef<{
     key: string
     nodes: Array<{ id: unknown; type?: unknown; properties?: unknown }>
@@ -349,9 +355,29 @@ export function useFlowEditorOverlayEdges(args: {
         return
       }
       overlayEdgeReadinessRetryRef.current = null
-      const graph = args.draftGraphDataRef.current || args.renderGraphDataOverride || null
+      const liveGraph = args.draftGraphDataRef.current || args.renderGraphDataOverride || null
+      const now = Date.now()
+      const liveGraphNodeCount = Array.isArray(liveGraph?.nodes) ? liveGraph.nodes.length : 0
+      const liveGraphEdgeCount = Array.isArray(liveGraph?.edges) ? liveGraph.edges.length : 0
+      const stableGraph = lastStableOverlayEdgeGraphRef.current
+      const stableGraphNodeCount = Array.isArray(stableGraph?.nodes) ? stableGraph.nodes.length : 0
+      const stableGraphEdgeCount = Array.isArray(stableGraph?.edges) ? stableGraph.edges.length : 0
+      const withinWorkspaceCloseRecoveryWindow = now <= overlayEdgeWorkspaceCloseRecoveryUntilRef.current
+      const shouldReuseStableGraph =
+        withinWorkspaceCloseRecoveryWindow
+        && !!stableGraph
+        && stableGraphNodeCount > 0
+        && stableGraphEdgeCount > 0
+        && (
+          !liveGraph
+          || liveGraph === stableGraph
+          || liveGraphNodeCount === 0
+          || liveGraphEdgeCount === 0
+        )
+      const graph = shouldReuseStableGraph ? stableGraph : liveGraph
       if (!graph) {
         pushOverlayEdgeTrace('missing-graph-data', {
+          withinWorkspaceCloseRecoveryWindow: withinWorkspaceCloseRecoveryWindow ? 1 : 0,
           lastStableNodeCount: lastStableOverlayEdgeNodeIdsRef.current.length,
           existingPathCount: overlayEdgePathByIdRef.current.size,
         })
@@ -377,6 +403,9 @@ export function useFlowEditorOverlayEdges(args: {
       const rawEdges = Array.isArray(graph.edges)
         ? (graph.edges as Array<{ id?: unknown; source?: unknown; target?: unknown; type?: unknown; properties?: unknown }>)
         : []
+      if (rawNodes.length > 0 && rawEdges.length > 0) {
+        lastStableOverlayEdgeGraphRef.current = graph
+      }
 
       const socketStyleByType = (() => {
         const meta = (graph.metadata || {}) as Record<string, unknown>
@@ -500,6 +529,11 @@ export function useFlowEditorOverlayEdges(args: {
         return typeof raw === 'string' ? raw.trim() : ''
       }
       const overlayNodeIdsForLookup = Array.from(overlayIdSet).sort((a, b) => a.localeCompare(b))
+      const overlayNodeIdsForLookupKey = hashScopedStringArraySignature(
+        'overlay-node-ids',
+        overlayNodeIdsForLookup,
+        { unique: true, sort: true },
+      )
       const graphRevision = readGraphDataRevision(graph)
       const nodeHandleSemanticKey = buildOverlayNodeHandleSignature(rawNodes)
       const graphSemanticKey = graphRevision > 0
@@ -509,7 +543,11 @@ export function useFlowEditorOverlayEdges(args: {
             buildOverlayTopologyLayoutSignature(graph),
             nodeHandleSemanticKey,
           ])
-      const graphLookupKey = hashSignatureParts(['overlay-graph-lookup', graphSemanticKey, ...overlayNodeIdsForLookup])
+      const graphLookupKey = hashSignatureParts([
+        'overlay-graph-lookup',
+        graphSemanticKey,
+        overlayNodeIdsForLookupKey,
+      ])
       const cachedGraphLookup = overlayGraphLookupCacheRef.current
       const graphLookup = (() => {
         if (cachedGraphLookup && cachedGraphLookup.key === graphLookupKey) return cachedGraphLookup
@@ -582,6 +620,8 @@ export function useFlowEditorOverlayEdges(args: {
 
       if (nodeIds.size === 0 || edges.length === 0) {
         pushOverlayEdgeTrace('empty-filtered-edge-set', {
+          reusedStableGraph: shouldReuseStableGraph ? 1 : 0,
+          withinWorkspaceCloseRecoveryWindow: withinWorkspaceCloseRecoveryWindow ? 1 : 0,
           overlayIdCount: overlayIdSet.size,
           filteredNodeCount: nodeIds.size,
           filteredEdgeCount: edges.length,
@@ -589,7 +629,7 @@ export function useFlowEditorOverlayEdges(args: {
           existingPathCount: overlayEdgePathByIdRef.current.size,
         })
         if (
-          overlayEdgePathByIdRef.current.size > 0
+          (overlayEdgePathByIdRef.current.size > 0 || shouldReuseStableGraph)
           && scheduleTransientOverlayEdgeRetry(['empty-filtered-edge-set', String(nodeIds.size), String(edges.length), String(overlayIdSet.size), String(rawEdges.length)])
         ) return
         removeAllPaths(overlayEdgePathByIdRef)
@@ -644,7 +684,11 @@ export function useFlowEditorOverlayEdges(args: {
       }
 
       const topPctByNodeAndHandle = (() => {
-        const overlayNodeIds = nodes.map(n => String(n.id || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
+        const overlayNodeIds = nodes.map(n => String(n.id || '').trim()).filter(Boolean)
+        const overlayNodeIdsKey = hashScopedStringArraySignature('topPct-overlay-node-ids', overlayNodeIds, {
+          unique: true,
+          sort: true,
+        })
         const overlayEdgeKeyParts: string[] = []
         for (let i = 0; i < edges.length; i += 1) {
           const e = edges[i]
@@ -652,7 +696,9 @@ export function useFlowEditorOverlayEdges(args: {
           const targetId = readEdgeEndpointId(e.target)
           overlayEdgeKeyParts.push(`${e.id}:${sourceId}->${targetId}:${e.sourcePortKey}|${e.targetPortKey}`)
         }
-        overlayEdgeKeyParts.sort((a, b) => a.localeCompare(b))
+        const overlayEdgeKey = hashScopedStringArraySignature('topPct-overlay-edges', overlayEdgeKeyParts, {
+          sort: true,
+        })
         const reg = Array.isArray(args.widgetRegistryRef.current) ? (args.widgetRegistryRef.current as ReadonlyArray<WidgetRegistryEntry>) : null
         const registryKeyParts: Array<string | number | boolean> = ['registry', Array.isArray(reg) ? reg.length : 0]
         if (Array.isArray(reg)) {
@@ -670,8 +716,8 @@ export function useFlowEditorOverlayEdges(args: {
         const cacheKey = hashSignatureParts([
           'topPct',
           graphSemanticKey,
-          overlayNodeIds.join(','),
-          overlayEdgeKeyParts.join(','),
+          overlayNodeIdsKey,
+          overlayEdgeKey,
           hashSignatureParts(registryKeyParts),
         ])
         const cached = overlayEdgeTopPctCacheRef.current
@@ -952,7 +998,9 @@ export function useFlowEditorOverlayEdges(args: {
         overlayEdgePathByIdRef.current.delete(id)
       }
       if (transientMissingEdgeAnchorParts.length > 0) {
-        const retryKey = hashSignatureParts(['missing-edge-anchors', ...transientMissingEdgeAnchorParts.sort((a, b) => a.localeCompare(b))])
+        const retryKey = hashScopedStringArraySignature('missing-edge-anchors', transientMissingEdgeAnchorParts, {
+          sort: true,
+        })
         const prevRetry = overlayEdgeTransientRetryRef.current
         const nextCount = prevRetry && prevRetry.key === retryKey ? prevRetry.count + 1 : 1
         overlayEdgeTransientRetryRef.current = { key: retryKey, count: nextCount }
@@ -1031,7 +1079,10 @@ export function useFlowEditorOverlayEdges(args: {
           cancelOverlayEdgeUpdate()
           return
         }
-        if (wasOpen) scheduleOverlayEdgeUpdate()
+        if (wasOpen) {
+          overlayEdgeWorkspaceCloseRecoveryUntilRef.current = Date.now() + 1500
+          scheduleOverlayEdgeUpdate()
+        }
       },
     )
     return () => unsub()

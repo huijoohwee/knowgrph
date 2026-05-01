@@ -10,6 +10,7 @@ import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWork
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
 import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
+import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 
 
 export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
@@ -42,19 +43,18 @@ export const updateExistingWorkspaceSourceFile = (args: {
     if (args.resetParsedState) {
       store.updateSourceFile(existing.id, {
         text: args.text,
-        status: 'idle',
-        error: undefined,
-        parsedParserId: undefined,
-        parsedTextHash: undefined,
-        parsedGraphData: undefined,
+        ...buildSourceFileLifecycleState({ status: 'idle' }),
       })
       return
     }
     const inlineText = args.text.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? args.text : undefined
     store.updateSourceFile(existing.id, {
       text: inlineText ?? '',
-      status: 'idle',
-      error: undefined,
+      ...buildSourceFileLifecycleState({
+        status: 'idle',
+        previousState: existing,
+        preserveParsedState: true,
+      }),
     })
   } catch {
     void 0

@@ -20,6 +20,8 @@ import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config.flow-editor'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { readMergedGraphNodeLookup } from '@/components/GraphCanvasRoot/utils/mergedNodeLookup'
 
 export function useRichMediaOverlays2d(args: {
   active: boolean
@@ -87,7 +89,12 @@ export function useRichMediaOverlays2d(args: {
       setMountedOverlayIdsKey('')
     }
   }, [])
-  const iframeNodeByIdRef = useRef<{ rev: number; sim: unknown | null; map: Map<string, GraphNode> }>({ rev: -1, sim: null, map: new Map() })
+  const iframeNodeByIdRef = useRef<{ graphData: GraphData | null; rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
+    graphData: null,
+    rev: -1,
+    sim: null,
+    map: new Map(),
+  })
   const mediaOverlayScheduleRef = useRef<(() => void) | null>(null)
   const mediaOverlaySchedulePendingRef = useRef<boolean>(false)
   const mediaOverlayScheduleBootstrapRef = useRef(
@@ -102,6 +109,17 @@ export function useRichMediaOverlays2d(args: {
   const iframeOverlayRefFnByIdRef = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map())
   const stickyOverlayNodeByIdRef = useRef<Map<string, ReturnType<typeof listDisplayRichMediaOverlayNodes>[number]>>(new Map())
   const stickyOverlayOrderRef = useRef<string[]>([])
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
+  const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
+  const documentSemanticMode = useGraphStore(s => String(s.documentSemanticMode || ''))
+  const sceneGraphLookup = useMemo(() => {
+    return getCachedGraphLookup({
+      cacheScope: 'graph-canvas-root-rich-media-overlays-scene-graph',
+      graphData: sceneGraphData,
+      graphRevision: graphDataRevision,
+    })
+  }, [graphDataRevision, sceneGraphData])
+  const sceneGraphNodeById = sceneGraphLookup?.nodeById || null
 
   const requestMediaOverlaySchedule = useCallback(() => {
     const schedule = mediaOverlayScheduleRef.current
@@ -134,11 +152,15 @@ export function useRichMediaOverlays2d(args: {
       : undefined
     const suggested = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes,
+      canvas2dRenderer,
+      frontmatterModeEnabled,
+      documentSemanticMode,
       nodes,
       poolMax,
       preferredNodeIds,
       excludeNodeIdSet,
       connectedValuesByNodeId,
+      nodeById: sceneGraphNodeById || undefined,
     })
 
     const stickyMap = stickyOverlayNodeByIdRef.current
@@ -185,20 +207,12 @@ export function useRichMediaOverlays2d(args: {
       if (id) needed.add(id)
     }
 
-    const nodeById = new Map<string, GraphNode>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]!
-      const id = String(n?.id || '').trim()
-      if (!id) continue
-      if (!needed.has(id)) continue
-      nodeById.set(id, n)
-    }
-
     const isValidOverlayId = (id: string): boolean => {
       const key = String(id || '').trim()
       if (!key) return false
+      if (!needed.has(key)) return false
       if (excludeNodeIdSet?.has(key)) return false
-      const n = nodeById.get(key)
+      const n = sceneGraphNodeById?.get(key)
       if (!n) return false
       const spec = getNodeMediaSpec(n)
       if (!spec) return false
@@ -246,7 +260,18 @@ export function useRichMediaOverlays2d(args: {
       }
     }
     return out
-  }, [excludeNodeIdsKey, freezeOverlayMembership, graphDataRevision, sceneGraphData, threeIframeOverlayPoolMax])
+  }, [
+    canvas2dRenderer,
+    documentSemanticMode,
+    excludeNodeIdSet,
+    freezeOverlayMembership,
+    frontmatterModeEnabled,
+    graphDataRevision,
+    renderMediaAsNodes,
+    sceneGraphData,
+    sceneGraphNodeById,
+    threeIframeOverlayPoolMax,
+  ])
 
   const { mediaOverlayNodeIdsKey, mediaOverlayNodeIdSet } = useMemo(() => {
     const ids = mediaOverlayNodes.map(n => n.id)
@@ -291,9 +316,10 @@ export function useRichMediaOverlays2d(args: {
   }, [active, mediaOverlayNodeIdsKey, mediaOverlayNodes, renderMediaAsNodes, sceneGraphData, threeIframeOverlayPoolMax])
 
   useEffect(() => {
+    const bootstrapScheduler = mediaOverlayScheduleBootstrapRef.current
     return () => {
       try {
-        mediaOverlayScheduleBootstrapRef.current.cancel()
+        bootstrapScheduler.cancel()
       } catch {
         void 0
       }
@@ -313,7 +339,7 @@ export function useRichMediaOverlays2d(args: {
       if (!keep.has(id)) refMap.delete(id)
     }
     updateMountedOverlayIdsKey()
-  }, [mediaOverlayNodeIdsKey, mediaOverlayNodes])
+  }, [mediaOverlayNodeIdsKey, mediaOverlayNodes, updateMountedOverlayIdsKey])
 
   const getOverlayRefForId = useCallback(
     (id: string) => {
@@ -345,7 +371,7 @@ export function useRichMediaOverlays2d(args: {
       iframeOverlayRefFnByIdRef.current.set(key, fn)
       return fn
     },
-    [requestMediaOverlaySchedule],
+    [requestMediaOverlaySchedule, updateMountedOverlayIdsKey],
   )
 
   const mediaOverlayHideNodeIdSet = React.useMemo(() => {
@@ -381,26 +407,15 @@ export function useRichMediaOverlays2d(args: {
       getNodeWorldCenterForId: id => {
         const graph = sceneGraphDataRef.current
         const sim = simulationRef.current
-        const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
-        const graphNodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
         const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? graphDataRevision : 0
-        if (iframeNodeByIdRef.current.rev !== rev || iframeNodeByIdRef.current.sim !== sim) {
-          const map = new Map<string, GraphNode>()
-          for (let i = 0; i < graphNodes.length; i += 1) {
-            const n = graphNodes[i]
-            const key = String(n?.id || '').trim()
-            if (!key) continue
-            map.set(key, n)
-          }
-          for (let i = 0; i < simNodes.length; i += 1) {
-            const n = simNodes[i]
-            const key = String(n?.id || '').trim()
-            if (!key) continue
-            map.set(key, n)
-          }
-          iframeNodeByIdRef.current = { rev, sim: sim || null, map }
-        }
-        const n = iframeNodeByIdRef.current.map.get(id) || null
+        const nodeById = readMergedGraphNodeLookup({
+          cacheRef: iframeNodeByIdRef,
+          cacheScope: 'graph-canvas-root-rich-media-overlays-layout-graph',
+          graphData: graph,
+          graphRevision: rev,
+          simulation: sim,
+        })
+        const n = nodeById.get(id) || null
         return readNodeCenterWorld2d(n, { coords: 'center' })
       },
       sizingConfig: {
@@ -433,6 +448,7 @@ export function useRichMediaOverlays2d(args: {
     sceneHeight,
     sceneWidth,
     sceneGraphDataRef,
+    schemaRef,
     simulationRef,
     svgRef,
     threeIframeOverlayBaseWidthMaxPxCompact,

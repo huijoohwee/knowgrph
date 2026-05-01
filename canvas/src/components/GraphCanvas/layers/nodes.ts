@@ -12,11 +12,7 @@ import {
   getRenderNodeRadius2d,
   hasNodeMedia,
 } from '@/components/GraphCanvas/helpers';
-import { applyImageLikeProxySrc } from '@/lib/url';
 import { DEFAULT_ZOOM_MAX_SCALE } from '@/lib/graph/layoutDefaults'
-import {
-  computeMediaPanelWorldDims,
-} from '@/lib/render/mediaPanelSpec'
 import { getPortHandlesConfig, readNodePortHandleVisualMetrics, shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandles';
 import { getFlowPortHandlePosition2d, listFlowPortHandleDatums2d, type FlowPortHandleDatum2d } from '@/components/GraphCanvas/flowPortHandles2d'
 import { bindGraphCanvasFlowPortHandleInteractions } from '@/components/GraphCanvas/flowPortHandleInteractions'
@@ -28,14 +24,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { compareNodeZKey, type NodeZKey } from '@/lib/canvas/groupZOrder'
 import { bindNodeDraggingWithGroupContainment } from '@/components/GraphCanvas/layers/nodesDragBinding'
 import { createNodeGroupChevronSel } from '@/components/GraphCanvas/layers/nodesGroupChevrons'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
-
-import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens';
-
-const MEDIA_PANEL_BORDER_COLOR = UI_THEME_COLORS_CSS.border;
-const MEDIA_PANEL_BG_FILL_OPACITY = 0.3;
-const MEDIA_PANEL_HEADER_FILL_OPACITY = 0.42;
 
 const readNumberProp = (props: Record<string, unknown>, key: string): number | null => {
   const raw = props[key]
@@ -147,176 +139,7 @@ export const createNodesLayer = (args: {
     return true
   }
 
-  const mediaLayer = g.append('g').attr('data-kg-layer', 'media');
-  let mediaPanelSel: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown> | null = null;
-  if (!preferDomMediaOverlays && renderMediaAsNodes && mediaByNodeId.size > 0) {
-    const mediaNodes = renderNodes.filter(n => mediaByNodeId.has(String(n.id)));
-    if (mediaNodes.length > 0) {
-      const density = mediaPanelDensity === 'compact' ? 'compact' : 'default';
-      const dims = computeMediaPanelWorldDims(density);
-      const headerHeight = dims.headerHeight;
-      const padding = dims.padding;
-
-      mediaPanelSel = (mediaLayer
-        .selectAll<SVGGElement, GraphNode>('g.media-node-panel')
-        .data(mediaNodes, (d: unknown) => String((d as GraphNode).id))
-        .enter()
-        .append('g')
-        .attr('class', 'media-node-panel')
-        .attr('data-role', 'media-node-panel')
-        .attr('data-node-id', (d: GraphNode) => String(d.id)) as unknown) as d3.Selection<
-        SVGGElement,
-        GraphNode,
-        SVGGElement,
-        unknown
-      >;
-
-      mediaPanelSel.each(function (d: GraphNode) {
-        const spec = mediaByNodeId.get(String(d.id));
-        if (!spec) return;
-        const panel = d3.select(this);
-        const rawLabel = String(d.label || d.id || '').trim();
-        const rawType = String(d.type || '').trim();
-        const baseLabel = rawLabel || String(d.id || '');
-        const fullTitle = rawType ? `${baseLabel} (${rawType})` : baseLabel || 'Media node';
-        const bodyHeight = dims.bodyHeight;
-        const panelHeight = dims.panelHeight;
-        const panelWidth = dims.panelWidth;
-        const corner = dims.corner;
-        const baseFill = getNodeBaseFill(d, schema)
-        const baseStroke = schema.nodeStroke?.[d.type]?.color ?? UI_THEME_COLORS_CSS.nodeStroke
-        const isIframe = spec.kind === 'iframe'
-        const panelFill = UI_THEME_COLORS_CSS.bg
-        const panelFillOpacity = 1
-        const headerFill = 'var(--kg-media-panel-header-bg)'
-        const headerFillOpacity = 1
-        const bg = panel
-          .append('rect')
-          .attr('data-role', 'media-panel-bg')
-          .attr('x', -panelWidth / 2)
-          .attr('y', -panelHeight / 2)
-          .attr('width', panelWidth)
-          .attr('height', panelHeight)
-          .attr('rx', corner)
-          .attr('ry', corner)
-          .attr('fill', panelFill)
-          .attr('fill-opacity', panelFillOpacity)
-          .attr('stroke', baseStroke || MEDIA_PANEL_BORDER_COLOR)
-          .attr('stroke-width', dims.borderWidth)
-          .attr('stroke-opacity', 1);
-        const header = panel
-          .append('g')
-          .attr('class', 'media-panel-header')
-          .attr('data-role', 'media-panel-header');
-        header
-          .append('rect')
-          .attr('x', -panelWidth / 2)
-          .attr('y', -panelHeight / 2)
-          .attr('width', panelWidth)
-          .attr('height', headerHeight)
-          .attr('fill', headerFill)
-          .attr('fill-opacity', headerFillOpacity);
-        header
-          .append('text')
-          .attr('x', 0)
-          .attr('y', -panelHeight / 2 + headerHeight / 2)
-          .attr('text-anchor', 'middle')
-          .attr('dominant-baseline', 'middle')
-          .attr('font-size', 10)
-          .attr('fill', UI_THEME_COLORS_CSS.text)
-          .attr('opacity', 1)
-          .text(fullTitle);
-        const contentX = -panelWidth / 2 + padding;
-        const contentY = -panelHeight / 2 + headerHeight + padding;
-        const contentWidth = panelWidth - padding * 2;
-        const contentHeight = Math.max(0, panelHeight - headerHeight - padding * 2);
-        if (spec.kind === 'image' || spec.kind === 'svg') {
-          panel
-            .append('image')
-            .attr('data-role', 'media-panel-media')
-            .attr('x', contentX)
-            .attr('y', contentY)
-            .attr('width', contentWidth)
-            .attr('height', contentHeight)
-            .attr('preserveAspectRatio', 'xMidYMid meet')
-            .attr('crossorigin', 'anonymous')
-            .attr('href', () => applyImageLikeProxySrc(spec.url))
-            .style('pointer-events', 'none');
-        } else if (spec.kind === 'video') {
-          const fo = panel
-            .append('foreignObject')
-            .attr('data-role', 'media-panel-media')
-            .attr('x', contentX)
-            .attr('y', contentY)
-            .attr('width', contentWidth)
-            .attr('height', contentHeight)
-            .style('overflow', 'hidden')
-            .style('pointer-events', spec.interactive ? 'auto' : 'none') as unknown as d3.Selection<
-            SVGForeignObjectElement,
-            GraphNode,
-            SVGGElement,
-            unknown
-          >;
-          fo.each(function () {
-            const container = d3
-              .select(this)
-              .append('xhtml:section')
-              .style('margin', '0')
-              .style('padding', '0')
-              .style('width', '100%')
-              .style('height', '100%')
-              .style('border-radius', `${corner}px`)
-              .style('overflow', 'hidden')
-              .style('background', UI_THEME_COLORS_CSS.bg)
-              .style('pointer-events', spec.interactive ? 'auto' : 'none');
-            const url = applyImageLikeProxySrc(spec.url);
-            const video = container
-              .append('xhtml:video')
-              .attr('src', url)
-              .attr('playsinline', 'true')
-              .attr('muted', 'true')
-              .attr('controls', 'true')
-              .attr('preload', 'metadata')
-              .style('width', '100%')
-              .style('height', '100%')
-              .style('object-fit', 'cover');
-            video
-              .on('mousedown', event => {
-                event.stopPropagation();
-              })
-              .on('click', event => {
-                event.stopPropagation();
-              })
-              .on('dblclick', event => {
-                event.stopPropagation();
-              })
-              .on('contextmenu', event => {
-                event.stopPropagation();
-              });
-          });
-        }
-        if (isIframe) {
-          panel
-            .append('text')
-            .attr('x', 0)
-            .attr('y', -panelHeight / 2 + headerHeight + contentHeight / 2 + padding)
-            .attr('text-anchor', 'middle')
-            .attr('dominant-baseline', 'middle')
-            .attr('font-size', 12)
-            .attr('fill', UI_THEME_COLORS_CSS.text)
-            .attr('opacity', 0.7)
-            .text('IFRAME');
-        }
-        panel.append('title').text(fullTitle);
-        bg.lower();
-      });
-    }
-  }
-
-  const mediaSel =
-    mediaPanelSel && mediaByNodeId.size > 0
-      ? (mediaPanelSel as unknown as d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown>)
-      : null;
+  const mediaSel: d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null = null;
 
   const nodeLayer = g.append('g').attr('data-kg-layer', 'nodes');
 
@@ -478,7 +301,7 @@ export const createNodesLayer = (args: {
     .style('user-select', 'none')
     .style('cursor', 'pointer');
 
-  const mediaInteractiveSel = mediaPanelSel as unknown as d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null
+  const mediaInteractiveSel: d3.Selection<SVGElement, GraphNode, SVGGElement, unknown> | null = null
 
   const groupChevronSel = createNodeGroupChevronSel({ g, nodes: renderNodes })
 
@@ -487,7 +310,6 @@ export const createNodesLayer = (args: {
       nodeZKeyById.get(id) || { id, groupDepth: -1, groupSize: Number.POSITIVE_INFINITY, zIndex: 0, zMode: 'group', yIndex: 0, xIndex: 0 }
     const cmp = (a: GraphNode, b: GraphNode) => compareNodeZKey(keyForId(String(a.id)), keyForId(String(b.id)))
     node.sort(cmp)
-    if (mediaPanelSel) mediaPanelSel.sort(cmp)
     if (groupChevronSel) groupChevronSel.sort(cmp)
   }
 
@@ -650,8 +472,16 @@ export const createNodesLayer = (args: {
   })()
 
   if (portHandlesSel) {
-    const nodeById = new Map<string, GraphNode>()
-    for (let i = 0; i < renderNodes.length; i += 1) nodeById.set(String(renderNodes[i].id), renderNodes[i])
+    const renderNodeLookupKey = hashScopedStringArraySignature(
+      'graph-canvas-port-handle-render-nodes',
+      renderNodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`),
+    )
+    const nodeLookup = getCachedGraphLookup({
+      cacheScope: 'graph-canvas-port-handle-render-nodes',
+      graphData: { type: 'application/json', nodes: renderNodes, edges: [] },
+      graphSemanticKey: renderNodeLookupKey,
+    })
+    const nodeById = nodeLookup?.nodeById || new Map<string, GraphNode>()
     const dynamicForNode = (n: GraphNode) => {
       const dims = getNodeRectDimensions2d(n, schema)
       return readNodePortHandleVisualMetrics({

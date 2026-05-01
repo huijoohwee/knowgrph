@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand';
 import type { GraphState, SourceFile } from './types';
 import { reorderList } from '@/lib/reorder';
+import { normalizeSourceFileRecord, normalizeSourceFiles } from '@/features/source-files/sourceFileParsedState';
 
 const hasSourceFilePatchDiff = (file: SourceFile, updates: Partial<SourceFile>): boolean => {
   for (const [key, value] of Object.entries(updates) as Array<[keyof SourceFile, SourceFile[keyof SourceFile]]>) {
@@ -23,15 +24,15 @@ export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
   clearSourceFiles: () => void;
 }> = (set) => ({
   sourceFiles: [],
-  setSourceFiles: (files) => set(() => ({ sourceFiles: Array.isArray(files) ? files : [] })),
-  addSourceFile: (file) => set((state) => ({ sourceFiles: [...state.sourceFiles, file] })),
+  setSourceFiles: (files) => set(() => ({ sourceFiles: normalizeSourceFiles(files) })),
+  addSourceFile: (file) => set((state) => ({ sourceFiles: [...state.sourceFiles, normalizeSourceFileRecord(file)] })),
   updateSourceFile: (id, updates) => set((state) => {
     let changed = false;
     const sourceFiles = state.sourceFiles.map((f) => {
       if (f.id !== id) return f;
       if (!hasSourceFilePatchDiff(f, updates)) return f;
       changed = true;
-      return { ...f, ...updates };
+      return normalizeSourceFileRecord({ ...f, ...updates });
     });
     return changed ? { sourceFiles } : state;
   }),
@@ -65,7 +66,7 @@ export const createSourceFilesSlice: StateCreator<GraphState, [], [], {
       if (f.id !== id) return f;
       if (Object.is(f.status, status) && Object.is(f.error, error)) return f;
       changed = true;
-      return { ...f, status, error };
+      return normalizeSourceFileRecord({ ...f, status, error });
     });
     return changed ? { sourceFiles } : state;
   }),

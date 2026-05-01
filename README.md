@@ -1,9 +1,9 @@
 ---
-title: "Knowgrph — AI-assisted Programmatic Video Generation"
-id: md:knowgrph-pitchdeck
+title: "Knowgrph — Write it. See it. Ship it."
+id: md:knowgrph-readme-v3
 author: joohwee
 institution: "Knowgrph — airvio.co/knowgrph"
-date: "2026-04-28"
+date: "2026-05-01"
 kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "d3"
 kgDocumentSemanticMode: "document"
@@ -20,9 +20,9 @@ index:
       business:  "#117a65 — teal   — revenue line / model tier"
       milestone: "#5d6d7e — grey   — roadmap item"
     edges:
-      user_flow: "solid #2980b9  2px  — actor interacts with / uses product surface"
+      user_flow: "solid #2980b9  2px  — actor interacts with product surface"
       work_flow: "dashed #d68910 2px  — pitch section narrative progression"
-      data_flow: "dotted #7d3c98 1.5px — artifact / data passes between pipeline nodes"
+      data_flow: "dotted #7d3c98 1.5px — artifact passes between pipeline nodes"
   mermaid: |
     %%{init:{
       "theme":"base",
@@ -35,7 +35,6 @@ index:
     }}%%
     flowchart TD
 
-      %% ════ NODE CLASS DEFINITIONS ════════════════════════════════
       classDef problem   fill:#c0392b,color:#fff,stroke:#922b21,stroke-width:1.5px
       classDef insight   fill:#d68910,color:#fff,stroke:#9a6301,stroke-width:1.5px
       classDef product   fill:#1a6fa8,color:#fff,stroke:#154f7a,stroke-width:1.5px
@@ -44,476 +43,314 @@ index:
       classDef business  fill:#117a65,color:#fff,stroke:#0e6655,stroke-width:1.5px
       classDef milestone fill:#5d6d7e,color:#fff,stroke:#424f5c,stroke-width:1.5px
 
-      %% ════ S0 · HOOK ═════════════════════════════════════════════
       subgraph S0["① Hook"]
         TAGLINE["Write it. See it. Ship it."]:::insight
-        CANVAS_IS["Canvas = product · AI = runtime"]:::insight
+        POS["Extends CapCut · bridges to Higgsfield · no learning curve"]:::insight
       end
 
-      %% ════ S1 · PROBLEM ══════════════════════════════════════════
-      subgraph S1["② Problem — CapCut Ceiling"]
-        subgraph S1A["Creator pain"]
-          P_VARIANT["Variant tax — 5 langs × 3 SKUs = 15 re-edits"]:::problem
-          P_MEMORY["No brand memory — resets every project"]:::problem
-          P_MANUAL["Timeline-first — not automatable"]:::problem
+      subgraph S1["② Problem — The Middle Is Empty"]
+        subgraph S1A["Too much"]
+          P_STEEP["Node-graph tools — too steep, hours to learn"]:::problem
+          P_BLIND["Higgsfield — powerful but context-blind"]:::problem
         end
-        subgraph S1B["Tool gap"]
-          P_STEEP["Node-graph tools — too steep"]:::problem
-          P_BLIND["Higgsfield — context-blind, one-click only"]:::problem
-          P_TABS["3 disconnected tabs, context lost at handoff"]:::problem
+        subgraph S1B["Too little"]
+          P_ONE["CapCut — fast for one · breaks at variants"]:::problem
+          P_MEMORY["No brand memory · no locale context · manual re-edit"]:::problem
+        end
+        P_GAP["Solopreneur stuck in the middle — no tool fits"]:::problem
+      end
+
+      subgraph S2["③ ICP — Global Emerging Market Creator"]
+        subgraph S2A["Who"]
+          ICP_SOLO["Solopreneur / one-person company"]:::actor
+          ICP_FREE["Freelancer / independent creator"]:::actor
+          ICP_INFL["Influencer / content creator"]:::actor
+          ICP_ECOM["E-commerce seller (TikTok Shop, Shopee, Mercado)"]:::actor
+        end
+        subgraph S2B["Where — fragmented, local-context markets"]
+          MKT_SEA["Southeast Asia — ID PH TH VN SG MY"]:::actor
+          MKT_LATAM["Latin America — MX BR CO AR"]:::actor
+          MKT_MENA["MENA — EG SA AE NG"]:::actor
+          MKT_SA["South Asia — IN BD PK"]:::actor
+          MKT_US["US — Wild West frontier creators"]:::actor
+          MKT_CAR["Caribbean — island creators"]:::actor
+        end
+        subgraph S2C["Behaviour"]
+          GTM_CC["Already on CapCut · hits variant ceiling"]:::actor
+          GTM_LOOP["Gets template · runs once · ships N · shares forward"]:::insight
         end
       end
 
-      %% ════ S2 · MARKET ═══════════════════════════════════════════
-      subgraph S2["③ Market — SEA Creator Economy"]
-        subgraph S2A["Geography"]
-          MKT_SEA["SEA — 500M social users"]:::actor
-          MKT_ID["Indonesia · TikTok Shop"]:::actor
-          MKT_PH["Philippines · Shopee"]:::actor
-          MKT_TH["Thailand · LINE / TikTok"]:::actor
-          MKT_VN["Vietnam · TikTok / Zalo"]:::actor
-          MKT_SG["Singapore · aspirational tier"]:::actor
-        end
-        subgraph S2B["Segments"]
-          SEG_CREATOR["Micro-influencers / digital creators"]:::actor
-          SEG_ECOM["E-commerce sellers"]:::actor
-          SEG_BRAND["Brand marketing teams"]:::actor
-        end
-        subgraph S2C["Existing behaviour"]
-          GTM_CC["CapCut-native mobile creators"]:::actor
-          GTM_LOOP["Share template → hit ceiling → Knowgrph"]:::insight
-        end
-      end
-
-      %% ════ S3 · INSIGHT ══════════════════════════════════════════
-      subgraph S3["④ Insight — The Middle Path"]
-        I_MD["Markdown = control plane"]:::insight
-        I_AI["AI = orchestrator (not sidebar)"]:::insight
-        I_WIDGET["Widgets = compiled pipeline stages"]:::insight
-        I_SSOT["Brief = brand memory + local context"]:::insight
-        I_DEPS["Upstream change → downstream recompute"]:::insight
+      subgraph S3["④ Insight — Extend, Don't Replace"]
+        I_EXT["Knowgrph augments CapCut — not a replacement"]:::insight
+        I_MD["Markdown brief = brand memory + local context"]:::insight
+        I_AI["AI = orchestrator across text → image → video"]:::insight
+        I_AUTO["Upstream change → all variants recompute"]:::insight
         I_POS["CapCut for one video · Knowgrph for sixty"]:::insight
       end
 
-      %% ════ S4 · PRODUCT ══════════════════════════════════════════
       subgraph S4["⑤ Product — Widget Canvas"]
-        subgraph S4A["Core Pipeline Widgets"]
-          W_TEXT["Text Gen widget"]:::product
-          W_IMG["Image Gen widget"]:::product
-          W_VID["Video Gen widget"]:::product
-          W_PANEL["Rich Media Panel"]:::product
+        subgraph S4A["Core Pipeline"]
+          W_TEXT["Text Gen — scene plan + captions"]:::product
+          W_IMG["Image Gen — local keyframes"]:::product
+          W_VID["Video Gen — 9:16 clip"]:::product
+          W_PANEL["Rich Media Panel — preview + export"]:::product
         end
-        subgraph S4B["Canvas Surfaces"]
-          L_FLOW["Flow Editor Canvas"]:::product
-          L_MD["Markdown Workspace / Brief Editor"]:::product
-          L_CHAT["Side Panel Chat"]:::product
-          L_2D["2D Graph Canvas — D3"]:::product
-          L_3D["3D Canvas — Three.js"]:::product
-          L_GEO["Geospatial — MapLibre"]:::product
-        end
-        subgraph S4C["Brief Structure"]
+        subgraph S4B["Brief Layers"]
           BR_BRAND["Brand memory — palette · font · tone"]:::output
-          BR_LOCALE["Locale layer — language · cultural calendar · format"]:::output
-          BR_VARIANT["Variant field — swap market → full recompute"]:::output
+          BR_LOCALE["Locale — language · cultural context · format"]:::output
+          BR_VARIANT["Variant field — swap → full recompute"]:::output
         end
       end
 
-      %% ════ S5 · WORKFLOW ═════════════════════════════════════════
-      subgraph S5["⑥ End-to-End Workflow"]
-        subgraph S5A["INGEST"]
-          WF_SRC["MD brief — brand + locale + shots"]:::product
-          WF_PARSE["Parser + Validator"]:::product
-          WF_GD[("GraphData SSOT")]:::output
-        end
-        subgraph S5B["PRODUCE"]
-          WF_TG["Text Gen — scene plan + localised captions"]:::product
-          WF_IG["Image Gen — culturally-grounded keyframes"]:::product
-          WF_VG["Video Gen — 9:16 TikTok-ready clip"]:::product
-        end
-        subgraph S5C["REUSE"]
-          WF_RMP["Rich Media Panel — preview + scrub"]:::product
-          WF_BRANCH["Variant branch — swap one field, N exports"]:::product
-          WF_EXP["Export: MP4 / PNG / JSON / HTML"]:::output
-        end
+      subgraph S5["⑥ Demo — RoboDrone X1 · Three Skies"]
+        DM_US["US · Wild West mesa → ghost mustang stampede"]:::output
+        DM_CAR["Caribbean · island tempest → mermaid queen cathedral"]:::output
+        DM_SG["SG · Marina Bay → RoboTown AI sentinel"]:::output
+        DM_PAR["Parent — safety · flight time · crash-proof"]:::actor
+        DM_KID["Child — multiverse portal opens at the horizon"]:::actor
+        DM_NODE["Three worlds as canvas nodes · one brief"]:::product
       end
 
-      %% ════ S6 · ARCHITECTURE ═════════════════════════════════════
       subgraph S6["⑦ Architecture"]
-        subgraph S6A["Frontend — React 18 + TS + Vite"]
-          A_FC["Flow Editor Canvas"]:::product
-          A_MC["Markdown Workspace"]:::product
-          A_RMP["Rich Media Panel"]:::product
-          A_ZU["Zustand state slices"]:::product
-        end
-        subgraph S6B["AI Runtime — BytePlus"]
-          A_CHAT["OpenArk Chat — seed-2-0-lite"]:::product
-          A_IMG["OpenArk Image — seedream-4-0"]:::product
-          A_VID["Seed Video — seedance-1-0-pro"]:::product
-        end
-        subgraph S6C["Parser Engine — Python"]
-          A_KG["NetworkX Knowledge Graph"]:::product
-          A_GN["Graph Normalizer — DuckDB / RDFLib"]:::product
-        end
-        subgraph S6D["Infra"]
-          A_CF["Cloudflare Pages — PWA"]:::product
-          A_STR["Stripe — subscription + usage billing"]:::business
-          A_RXD["RxDB — offline-first local store"]:::product
-        end
+        A_FE["React 18 + TS + Vite — client-first PWA"]:::product
+        A_BP["BytePlus OpenArk + Seed — text · image · video"]:::product
+        A_PY["Python parser — NetworkX · DuckDB"]:::product
+        A_CF["Cloudflare Pages · Stripe · RxDB"]:::product
       end
 
-      %% ════ S7 · DEMO ═════════════════════════════════════════════
-      subgraph S7["⑧ Multiverse Demo — RoboDrone X1"]
-        subgraph S7A["Locale Briefs — real scene + imagination layer"]
-          DM_VN["VN · paddy field → rice spirit village"]:::output
-          DM_PH["PH · mango grove → floating island kingdom"]:::output
-          DM_TH["TH · water market → neon sky-barge arena"]:::output
-          DM_ID["ID · island coast → sea serpent canyon battle"]:::output
-          DM_SG["SG · Marina Bay → RoboTown AI sentinel"]:::output
-        end
-        subgraph S7B["Dual Audience Layer"]
-          DM_PAR["Parent — trust signals: safety · flight time · crash-proof"]:::actor
-          DM_KID["Child — multiverse adventure scene"]:::actor
-        end
-        subgraph S7C["Canvas Reveal"]
-          DM_NODE["Five locale scenes as canvas nodes"]:::product
-          DM_CURSOR["Cursor hovers — pipeline visible"]:::insight
-        end
+      subgraph S7["⑧ Business Model"]
+        B_SUB["Workspace subscription"]:::business
+        B_USE["Usage-based compute"]:::business
+        B_MKT["Template marketplace — locale pipelines"]:::business
       end
 
-      %% ════ S8 · DIFFERENTIATION ══════════════════════════════════
-      subgraph S8["⑨ Differentiation"]
-        D_CC["CapCut — one video, manual variants"]:::problem
-        D_HF["Higgsfield — one click, context-blind"]:::problem
-        D_STEEP["Node-graph editors — full control, no creators"]:::problem
-        D_US["Knowgrph — automatable · inspectable · local-aware"]:::insight
-        D_EDGE["The seam between stages is the product"]:::insight
+      subgraph S8["⑨ Roadmap"]
+        R_NOW["Now — brief→video pipeline · BytePlus · Stripe"]:::milestone
+        R_NEXT["Next — batch variants · eval harness · templates"]:::milestone
+        R_LATER["Later — collab · mobile brief editor · plugins"]:::milestone
       end
 
-      %% ════ S9 · TECH STACK ═══════════════════════════════════════
-      subgraph S9["⑩ Tech Stack"]
-        subgraph S9A["Frontend"]
-          T_REACT["React 18 + TypeScript + Vite 6"]:::product
-          T_D3["D3.js — 2D force graph"]:::product
-          T_THREE["Three.js + R3F — 3D WebGL"]:::product
-          T_MAP["MapLibre GL JS — geospatial"]:::product
-          T_MON["Monaco Editor — code"]:::product
-          T_MD["markdown-it + Mermaid + KaTeX"]:::product
-        end
-        subgraph S9B["Backend + Infra"]
-          T_PY["Python 3.10+ — NetworkX · RDFLib · DuckDB"]:::product
-          T_RXD["RxDB — offline-first"]:::product
-          T_CF["Cloudflare Pages — PWA · R2 · AI Gateway"]:::product
-          T_STR["Stripe — subscription + usage"]:::business
-          T_MCP["@modelcontextprotocol/sdk"]:::product
-        end
+      subgraph S9["⑩ The Ask"]
+        ASK_DP["Design partners — creators at variant ceiling"]:::actor
+        ASK_DIST["Distribution — creator community intros"]:::actor
+        ASK_DATA["Real-world locale briefs + templates"]:::output
       end
 
-      %% ════ S10 · BUSINESS MODEL ══════════════════════════════════
-      subgraph S10["⑪ Business Model"]
-        B_SUB["Workspace subscription — canvas · storage · templates"]:::business
-        B_USE["Usage-based compute — per-image · per-second"]:::business
-        B_MKT["Template marketplace — locale pipeline templates"]:::business
-        B_ENT["Enterprise — SSO · audit logs · on-prem"]:::business
-      end
+      %% USER FLOW
+      GTM_CC -->|"hits ceiling"| W_PANEL
+      ICP_SOLO -->|"writes brief"| W_TEXT
+      ICP_ECOM -->|"authors campaign"| W_TEXT
+      DM_PAR -->|"buys via"| W_PANEL
+      DM_KID -->|"enters world in"| DM_NODE
 
-      %% ════ S11 · ROADMAP ═════════════════════════════════════════
-      subgraph S11["⑫ Roadmap"]
-        subgraph S11A["Now — shipping"]
-          R_CORE["MD→widget orchestration · BytePlus integration"]:::milestone
-          R_FLOW["Flow Editor Canvas · widget registry · Stripe"]:::milestone
-        end
-        subgraph S11B["Next"]
-          R_BATCH["Batch variant generation · eval harness"]:::milestone
-          R_TMPL["Scene template + subgraph library"]:::milestone
-          R_MCP["MCP server — AI-IDE canvas control"]:::milestone
-        end
-        subgraph S11C["Later"]
-          R_COLLAB["Real-time collab — WebSocket + CRDT"]:::milestone
-          R_PLUG["Plugin system — sandboxed widget extensions"]:::milestone
-          R_AUDIO["Multi-track — audio stems · captions · overlays"]:::milestone
-        end
-      end
-
-      %% ════ S12 · ASK ═════════════════════════════════════════════
-      subgraph S12["⑬ The Ask"]
-        ASK_DP["Design partners — CapCut creators at variant ceiling"]:::actor
-        ASK_FB["Domain feedback — brand guidelines · locale constraints"]:::actor
-        ASK_DATA["Real-world briefs + locale templates"]:::output
-        ASK_DIST["Distribution intros — SEA creator communities"]:::actor
-      end
-
-      %% ════ USER FLOW EDGES — solid #2980b9 ═══════════════════════
-      %% actor → product surface interactions
-      GTM_CC -->|"hits variant ceiling"| L_MD
-      SEG_CREATOR -->|"writes brief"| L_MD
-      SEG_ECOM -->|"authors campaign"| L_MD
-      SEG_BRAND -->|"scripts pipeline"| L_FLOW
-      DM_PAR -->|"buys drone via"| W_PANEL
-      DM_KID -->|"imagines world in"| DM_NODE
-      ASK_DP -->|"validates product with"| W_PANEL
-
-      %% ════ WORK FLOW EDGES — dashed #d68910 ══════════════════════
-      %% narrative section progression
-      S0 -.->|"frames problem"| S1
-      S1 -.->|"scopes market"| S2
-      S2 -.->|"motivates insight"| S3
-      S3 -.->|"enables product"| S4
-      S4 -.->|"executes workflow"| S5
+      %% WORK FLOW
+      S0 -.->|"frames"| S1
+      S1 -.->|"scopes ICP"| S2
+      S2 -.->|"motivates"| S3
+      S3 -.->|"enables"| S4
+      S4 -.->|"shown by"| S5
       S5 -.->|"runs on"| S6
-      S4 -.->|"demonstrated by"| S7
-      S7 -.->|"validated against"| S8
-      S8 -.->|"built with"| S9
-      S9 -.->|"monetised via"| S10
-      S10 -.->|"delivered by"| S11
-      S11 -.->|"closes with"| S12
+      S6 -.->|"monetised via"| S7
+      S7 -.->|"delivered by"| S8
+      S8 -.->|"closes"| S9
 
-      %% ════ DATA FLOW EDGES — dotted #7d3c98 ══════════════════════
-      %% artifact / data passing through pipeline nodes
-      WF_SRC -->|"raw brief"| WF_PARSE
-      WF_PARSE -->|"validated graph"| WF_GD
-      WF_GD -->|"schema pass"| WF_TG
-      WF_TG -->|"text_out · scene plan"| WF_IG
-      WF_IG -->|"imageUrl · keyframes"| WF_VG
-      WF_VG -->|"videoUrl · 9:16 clip"| WF_RMP
-      WF_TG -->|"text_out"| WF_RMP
-      WF_IG -->|"imageUrl"| WF_RMP
-      WF_BRANCH -->|"variant field swap"| WF_TG
-      WF_RMP -->|"export trigger"| WF_EXP
-      BR_BRAND -->|"locked context"| WF_SRC
-      BR_LOCALE -->|"locale context"| WF_SRC
-      BR_VARIANT -->|"market swap"| WF_BRANCH
-      W_TEXT -->|"text_out → prompt_in"| W_IMG
-      W_IMG -->|"imageUrl → reference_image"| W_VID
+      %% DATA FLOW
+      BR_BRAND -->|"locked context"| W_TEXT
+      BR_LOCALE -->|"locale context"| W_TEXT
+      BR_VARIANT -->|"swap → recompute"| W_TEXT
+      W_TEXT -->|"text_out"| W_IMG
+      W_IMG -->|"imageUrl"| W_VID
       W_VID -->|"videoUrl"| W_PANEL
-      A_CHAT -->|"completions"| W_TEXT
-      A_IMG -->|"generations"| W_IMG
-      A_VID -->|"renders"| W_VID
+      A_BP -->|"completions · generations · renders"| W_TEXT
 ---
 
 # Knowgrph
 
-**AI-assisted programmatic video generation.** A widget-based canvas where AI-orchestrated Markdown responses become images — and images become video.
+**Brief in. Campaign out.** A node canvas where Markdown becomes images — and images become video — orchestrated by AI. Built for solo creators who already know CapCut and need to go further without starting over.
 
-> The canvas is the product. The AI is the runtime.
-
----
-
-## The problem
-
-Video production is still timeline-first, which makes it slow, hard to automate, hard to audit, and hard to scale. Teams want video to behave like software: versioned, testable, composable, diffable.
-
-Today's toolchain gives you three disconnected tabs — a chat window, an image generator, a timeline editor — and every handoff loses context.
+> Not a replacement. An extension.
 
 ---
 
-## The insight
+## The problem — the middle is empty
 
-If you can represent a scene plan as structured Markdown, then:
+Every creator eventually hits a ceiling. The tool that got them here can't take them further.
 
-- **AI becomes the orchestrator** — not just a chat sidebar, but the runtime that drives each stage
-- **Widgets become compiled stages** — text node produces structured narrative; image node renders keyframes; video node composes clips
-- **The canvas becomes a single source of truth** for prompts, intermediate artifacts, final outputs, and provenance
+| | Too sophisticated | Just right | Too simple |
+|---|---|---|---|
+| **Tool** | Node-graph editors · Higgsfield | **← Knowgrph fits here →** | CapCut |
+| **Learning curve** | Hours to days | Minutes | Seconds |
+| **Local context** | Possible but manual | Built-in to the brief | None |
+| **Variants** | Manual wiring | Swap one field, N exports | Full re-edit |
+| **Who it's for** | Technical users | **Solopreneurs · freelancers · creators** | Anyone |
 
-Markdown is the control plane. Media generation is the data plane.
+CapCut is fast for one video. It breaks when a creator needs ten — same brand, three markets, two formats. Every variant is a full manual re-edit. No brand memory. No locale context. No pipeline.
 
-Every connection on the canvas is an explicit data dependency. Change one prompt upstream, and all downstream nodes re-execute automatically.
+Node-graph editors are too steep. Higgsfield is powerful but context-blind — it doesn't know that Eid gifting is not Christmas gifting, that a Wild West frontier aesthetic needs a different energy than a Caribbean island, or that your brand font is not the default.
 
----
-
-## What we are building
-
-Knowgrph is a widget-based node canvas for AI-assisted media pipelines — where the entire text → image → video workflow lives as an inspectable, executable graph.
-
-| Widget | Role | Output |
-|---|---|---|
-| Text Generation | AI produces structured scene plans, shot lists, captions from Markdown brief | Structured text |
-| Image Generation | Renders keyframes, storyboards, overlays from plan-derived prompts | Image URL |
-| Video Generation | Composes images + motion prompts into clips with resolution, duration, audio | Video URL |
-| Rich Media Panel | Canonical preview surface for all outputs | Rendered preview |
+**Knowgrph is the middle path** — structured enough to scale, simple enough to start in minutes.
 
 ---
 
-## The workflow (end-to-end)
+## Who it's for — global emerging market creators
+
+The ICP is not a geography. It's a situation: **a solo creator, freelancer, or one-person business in a fragmented emerging market who makes content for a local audience and needs local context baked in.**
+
+This person exists in:
+- Southeast Asia (Jakarta, Manila, Bangkok, Ho Chi Minh City, Singapore)
+- Latin America (Mexico City, São Paulo, Bogotá, Buenos Aires)
+- MENA (Cairo, Riyadh, Lagos, Dubai)
+- South Asia (Mumbai, Dhaka, Karachi)
+- Frontier markets everywhere — including the US creator economy's long tail and the Caribbean
+
+What they share: they already use CapCut. They've hit a ceiling. They want to ship more, faster, without a learning curve. They want a tool that knows their market, their language, their cultural moment — without having to explain it every time.
+
+**They don't want to replace CapCut. They want something that picks up where CapCut stops.**
+
+---
+
+## The insight — extend, don't replace
+
+Knowgrph augments the CapCut workflow. It doesn't compete with it.
+
+A CapCut creator already knows what good video looks like. Knowgrph handles the part that kills them: re-editing the same brief six times by hand for six markets.
+
+If you can write a scene plan as structured Markdown, then:
+- **AI becomes the orchestrator** — text node produces localised scene plans, image node renders culturally-grounded keyframes, video node composes the clip
+- **The brief becomes brand memory** — palette, font, tone, cultural context, locale — locked once, inherited by every downstream node
+- **Upstream change → downstream recompute** — swap one field, every variant updates automatically
+
+```
+CapCut creator → hits variant ceiling
+→ gets Knowgrph template from a creator group
+→ runs once → ships 6 variants
+→ shares template forward → new creator joins
+```
+
+Template sharing is the distribution loop, same as CapCut templates spread today. Every share is a distribution event.
+
+---
+
+## What it does
+
+One Markdown brief. Three pipeline stages. N variants.
 
 ```mermaid
 flowchart LR
-  subgraph Ingest ["1. INGEST"]
-    MD[Markdown brief] --> P[Parser]
+  subgraph Brief
+    MD["Markdown brief\nbrand + locale + shots"]
   end
-  subgraph Produce ["2. PRODUCE"]
-    P --> TG[Text Gen]
-    TG --> IG[Image Gen]
-    IG --> VG[Video Gen]
+  subgraph Produce
+    MD --> TG["Text Gen\nscene plan + captions"]
+    TG --> IG["Image Gen\nlocal keyframes"]
+    IG --> VG["Video Gen\n9:16 clip"]
   end
-  subgraph Reuse ["3. REUSE"]
-    TG --> RMP[Rich Media Panel]
-    IG --> RMP
-    VG --> RMP
-    RMP --> EXP[Export: JSON / PNG / HTML / MP4]
+  subgraph Reuse
+    VG --> RMP["Rich Media Panel\npreview + export"]
+    SWAP["swap variant field"] --> TG
   end
 ```
+
+The brief carries three locked layers:
+
+```markdown
+## Campaign brief · variant: US-WEST
+Brand: SkyKids · Palette: amber, sand · Tone: frontier · adventurous
+Product: RoboDrone X1 · Age: 8–14 · Price: $49
+— parent layer —
+Trust: obstacle-sense / 20-min flight / crash-proof shell
+— child adventure layer —
+Shot 1: boy on mesa cliff, sunrise, drone launches
+Shot 2: ghost mustang herd charges across sky-plain above canyon
+Shot 3: drone banks through cathedral arch light beams
+CTA: "Ship it before school break!" · Format: 9:16 · Platform: TikTok US
+```
+
+Swap `variant: US-WEST` → `variant: CARIBBEAN`. Hook rewrites. Keyframes change. Video recomposes. **Zero manual re-edit.**
+
+---
+
+## Demo — RoboDrone X1 · Three Skies
+
+Same drone. Three worlds. Three completely different children. Three completely different reasons a parent buys it.
+
+**US · Wild West frontier mesa**
+- Real scene: boy on sandstone cliff at sunrise, canyon below
+- Multiverse: ghost mustang herd charges silver across a sky-plain above the canyon; spectral frontier town hangs inverted from the clouds; drone leads the stampede through cathedral light arches
+- Parent trust: crash-proof shell, obstacle-sense, 20-min flight
+- Hook: *"Lead the ghost herd. Own the frontier."*
+
+**Caribbean · island tempest**
+- Real scene: girl on white-sand beach, tropical storm rolling in off turquoise water
+- Multiverse: drone punches through the rain wall; mermaid queen rises from the deep — coral crown, bioluminescent scales; drone descends as her herald through a cathedral of lightning-lit coral spires
+- Parent trust: waterproof-rated, obstacle-sense, crash-proof shell
+- Hook: *"Fly the tempest. Serve the queen."*
+
+**Singapore · Marina Bay → RoboTown**
+- Real scene: girl on Marina Bay promenade at blue-hour dusk
+- Multiverse: Merlion morphs to 100m chrome AI sentinel with amber scanning eyes; city becomes RoboTown — sensor arrays, drone corridors, neural grid bay; girl's drone ascends to command position
+- Parent trust: precision sensors, 20-min flight, crash-proof shell
+- Hook: *"Command the future. Your city. Your drone."*
+
+**Canvas reveal:** pull-back from SG command position — three locale scenes materialise as glowing nodes on a dark canvas, connected by luminous bezier threads. Three parent silhouettes at each node base. A cursor hovers. One brief. Three multiverses.
 
 ---
 
 ## Architecture
 
-```mermaid
-flowchart TB
-  subgraph Frontend ["Canvas App (React + Vite + TS)"]
-    FC[Flow Editor Canvas]
-    GC[Graph Canvas]
-    MC[Markdown Workspace]
-    RMP[Rich Media Panel]
-    SP[Side Panel Chat]
-  end
-  subgraph AI ["AI Providers"]
-    BPChat[Text API]
-    BPImg[Image API]
-    BPVid[Video API]
-  end
-  subgraph Backend ["Parser Engine (Python)"]
-    KB[Knowledge Graph Builder]
-    GP[Graph Data Normalizer]
-  end
-  FC --> SP --> BPChat
-  FC --> BPImg
-  FC --> BPVid
-  FC --> RMP
-  MC --> Frontend
-```
-
-Key principle: **Client-First.** The browser handles parsing, rendering, and orchestration — AI APIs called directly from the canvas via serverless endpoints.
-
----
-
-## System design — INGEST / PRODUCE / REUSE
+Client-first. The browser handles parsing, rendering, and orchestration. AI APIs called directly from the canvas. No heavy backend required.
 
 ```mermaid
 flowchart LR
-  subgraph INGEST
-    SRC[MD / JSON / CSV / PDF / HTML / URL] --> LD[Loaders]
-    LD --> VAL[Validator]
-    VAL --> GD[(GraphData SSOT)]
-  end
-  subgraph PRODUCE
-    GD --> SCH[Schema Engine]
-    SCH --> DER[Deriver]
-  end
-  subgraph REUSE
-    DER --> R2D[2D Renderer — D3 SVG]
-    DER --> R3D[3D Renderer — Three.js]
-    DER --> RFLOW[Flow Editor]
-    R2D & R3D & RFLOW --> EXP[Exporters]
-  end
+  MD[Markdown brief] --> FC[Flow Editor Canvas]
+  FC --> BP["BytePlus OpenArk\nchat · image · video · Seed"]
+  BP --> RMP[Rich Media Panel]
+  FC --> RMP
+  RMP --> EXP["Export: MP4 / PNG / JSON"]
 ```
-
-Six design principles: Client-First, Performance, Neutrality, Modularity, Observability, Scalability (10k+ nodes).
-
----
-
-## Why the canvas matters
-
-The canvas transforms a "creative" into an explicit directed graph of stages — giving media creation software-like guarantees:
-
-- **Reproducibility** — same Markdown + same parameters + same seed = identical artifacts
-- **Traceability** — every output carries upstream provenance
-- **Composable reuse** — save subgraphs as templates; wire into new pipelines in one click
-- **Safe iteration** — diff a single prompt without breaking the project; downstream nodes re-execute
-- **Variant branching** — one brief branches into style variants without duplicating work
-
----
-
-## Differentiation
-
-| Approach | Strength | Weakness |
-|---|---|---|
-| Timeline editors (Premiere, CapCut) | Fine-grained control | Not automatable; variants = manual labor |
-| Prompt-only image tools | Fast single output | No pipeline; poor reproducibility |
-| Agent chains (LangGraph, n8n) | Flexible reasoning | Hard to visually inspect |
-| **Knowgrph** | **Automatable + Inspectable + Reusable + Visual** | Requires template discipline; early-stage UX |
-
-The canvas is the build log.
-
----
-
-## Target users
-
-- **Growth & marketing teams** — campaign variants at scale: 10 languages × 3 CTAs × 2 styles = 60 videos from one Markdown brief
-- **Product teams** — feature launch explainers, onboarding walkthroughs from PRDs
-- **Education creators** — course clips, lesson summaries from structured lesson Markdown
-- **Internal comms** — weekly update videos generated from status Markdown
-- **Developers & DevRel** — programmatic media as part of CI/CD: docs → diagrams → explainer videos on every merge
-
-Common thread: teams needing many videos with consistent structure and zero-friction iteration.
-
----
-
-## Tech stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | React 18 + TypeScript + Vite 6 |
-| State | Zustand (slice-based stores) |
-| 2D visualization | D3.js force-directed + ELK/Dagre layouts |
-| 3D visualization | Three.js + @react-three/fiber (WebGL) |
-| Geospatial | MapLibre GL JS + Turf.js |
-| Code editing | Monaco Editor |
-| Markdown engine | markdown-it + remark/rehype + Mermaid + KaTeX |
-| Local DB | RxDB (offline-first) |
-| Backend parsers | Python 3.10+ (NetworkX, RDFLib, DuckDB, NLTK) |
-| AI providers | BytePlus OpenArk + OpenAI Responses API |
-| Payments | Stripe (subscriptions, usage-based billing) |
-| MCP protocol | @modelcontextprotocol/sdk |
+| 2D / 3D | D3.js · Three.js + R3F |
+| Markdown | markdown-it + Mermaid + KaTeX |
+| AI runtime | BytePlus OpenArk (chat · image) + Seed (video) |
+| Local DB | RxDB — offline-first |
+| Parsers | Python 3.10+ — NetworkX · DuckDB |
+| Payments | Stripe — subscription + usage |
 | Deployment | Cloudflare Pages (PWA) — airvio.co/knowgrph |
 
-Shell size: ~248 KB gzip; Monaco, Mermaid, Three.js lazy-loaded on demand.
+Shell: ~248 KB gzip. Monaco, Mermaid, Three.js lazy-loaded.
 
 ---
 
 ## Business model
 
-- **Workspace subscription** — authoring canvas, collaboration, storage, template library
-- **Usage-based compute** — per-image and per-second-of-output pricing with budget caps
-- **Template marketplace** (future) — branded subgraph templates sold per pipeline
-- **Enterprise tier** — SSO/SAML, audit logs, on-prem/VPC, policy controls
-
-Principle: cost and quality fully predictable with explicit, user-visible parameters.
+**Workspace subscription** — canvas, collaboration, storage, template library.  
+**Usage-based compute** — per-image and per-second pricing with explicit budget caps. No surprise bills.  
+**Template marketplace** — creators sell locale-aware pipeline templates; buyers get a proven brief-to-video workflow, not just a prompt.
 
 ---
 
 ## Roadmap
 
-**Now (shipping)**
-- Markdown-to-widget orchestration via frontmatter flow parser
-- BytePlus OpenArk integration (chat, image, video)
-- Flow Editor Canvas with widget registry, port handles, typed envelopes
-- Stripe paywall and subscription gating
-
-**Next**
-- Scene templates + subgraph library
-- Batch variant generation
-- Evaluation harness (quality, brand compliance, regression)
-- MCP server enhancement for AI-IDE canvas control
-
-**Later**
-- Multi-track composition (audio stem, captions, overlays)
-- Real-time collaboration (WebSocket + CRDT)
-- Plugin system (sandboxed custom widget extensions)
+**Now** — brief→video pipeline, BytePlus OpenArk + Seed, Flow Editor Canvas, Stripe gating  
+**Next** — batch variant generation, eval harness, scene template library, MCP server  
+**Later** — mobile-first brief editor (form UI over Markdown), real-time collaboration, plugin system
 
 ---
 
 ## The ask
 
-- **Design partners** — teams generating video content variants weekly frustrated by timeline-tool friction
-- **Domain feedback** — brand guidelines, compliance review, localization workflow constraints
-- **Real-world data** — briefs, creative specs, existing output templates to encode as Markdown pipelines
-- **Distribution intros** — growth teams, product marketing leads, education creators, DevRel communities
+**Design partners** — solo creators and freelancers who've hit the CapCut ceiling and are shipping content across 2+ markets or languages.  
+**Distribution intros** — creator community leads, influencer networks, TikTok Shop / Shopee seller communities in any emerging market.  
+**Locale briefs** — real-world campaign specs to encode as Markdown pipelines and seed the template marketplace.
 
-If you believe video creation should feel like writing software — declarative, versionable, composable, inspectable — let us build it together.
+If you believe video creation should be as reusable as code — declarative, local-aware, automatable — let us build it together.
 
 ---
 
-**Live demo**: airvio.co/knowgrph
-**Contact**: joohwee @ airvio.co
+**Demo:** airvio.co/knowgrph  
 
 > *"Write it. See it. Ship it."*

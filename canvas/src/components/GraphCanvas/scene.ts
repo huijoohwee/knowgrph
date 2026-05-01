@@ -34,6 +34,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 import { createUniqueId } from '@/lib/ids'
 import {
@@ -202,6 +203,14 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
 
   const display = deriveSceneDisplayGraph({ graphData, edges: Array.isArray(edgesForSim) ? edgesForSim : null })
   const graphDataForDisplay = display?.displayGraphData || graphData
+  const displayGraphLookup = getCachedGraphLookup({
+    cacheScope: 'graph-canvas-scene-display-graph',
+    graphData: graphDataForDisplay,
+    graphRevision: args.graphDataRevision,
+    // Simulation tick reads live display-node refs, so this path must keep current graph objects.
+    preferCurrentGraphDataRefs: true,
+  })
+  const displayNodeById = display?.nodeById || displayGraphLookup?.nodeById || null
   const activeDocumentViewMode = resolveActiveDocumentViewMode({
     frontmatterModeEnabled: args.frontmatterModeEnabled === true,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
@@ -601,7 +610,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     g,
     edgesForDisplay,
     schema,
-    nodeById: display?.nodeById || null,
+    nodeById: displayNodeById,
     simulation,
     hoverEnabled,
     setHoverInfo,
@@ -690,7 +699,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     g,
     edgesForDisplay,
     schema,
-    nodeById: display?.nodeById || null,
+    nodeById: displayNodeById,
   })
   linksSelRef.current = linkSel
 
@@ -772,7 +781,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     labelsSelRef,
     nodes: graphDataForDisplay.nodes,
     edges: edgesForDisplay,
-    nodeById: display?.nodeById || null,
+    nodeById: displayNodeById,
     groupsForBboxCollide: args.groupsForBboxCollide,
     getSchema,
     documentSemanticMode: args.documentSemanticMode,

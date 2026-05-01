@@ -2,6 +2,8 @@ import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { resolveGroupCollisions, type CollisionGroupItem } from '@/lib/graph/collision/boxCollision'
 import { isRadarHubNode, isRadarSpokeEdge } from '@/lib/graph/radarForces'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
 import { resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveThreeSeed, resolveVoxelGridStep, resolveVoxelLayerSpacing, quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine } from '@/features/three/threeLayoutConfig'
 import { listVoxelLayers, resolveVoxelLayerKey } from '@/features/three/voxelLayers'
@@ -196,14 +198,24 @@ export function computePositions3d(
     const hubOrbitRadiusFactor = typeof hubOrbitRadiusFactorRaw === 'number' && Number.isFinite(hubOrbitRadiusFactorRaw)
       ? Math.max(0.05, Math.min(0.8, hubOrbitRadiusFactorRaw))
       : 0.2
-    const nodeById = new Map<string, GraphNode>()
+    const graphLookup = getCachedGraphLookup({
+      cacheScope: 'three-positions-hub-orbit',
+      graphData: { type: 'application/json', nodes, edges: [] },
+      graphSemanticKey: hashScopedStringArraySignature(
+        'three-positions-hub-orbit',
+        nodes.map(node => {
+          const props = (node?.properties || {}) as Record<string, unknown>
+          return `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}:${String(props['kg:radarCluster'] || '').trim()}`
+        }),
+      ),
+    })
+    const nodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
     const hubIds: string[] = []
     const hubSet = new Set<string>()
     for (let i = 0; i < nodes.length; i += 1) {
       const node = nodes[i]
       const id = String(node.id || '').trim()
       if (!id) continue
-      nodeById.set(id, node)
       if (isRadarHubNode(node)) {
         hubIds.push(id)
         hubSet.add(id)

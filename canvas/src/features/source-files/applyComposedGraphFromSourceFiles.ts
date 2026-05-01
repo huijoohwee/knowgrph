@@ -1,38 +1,19 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { buildSourceLayerKeys, composeGraphFromSourceLayers } from '@/lib/graph/sourceLayers'
+import {
+  buildSourceLayerKeys,
+  composeGraphFromSourceLayers,
+  resolveSourceLayerKeyChange,
+} from '@/lib/graph/sourceLayers'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
-import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import {
+  resolveComposedApplyDeferralReason,
+  shouldClearComposedGraphForEmptyState,
+} from '@/features/source-files/composedApplyGuards'
+import { resolvePreferredComposedSourceRawTextFromState } from '@/features/source-files/composedSourceSelection'
 
 let pendingComposeRaf: number | null = null
-
-function normalizeComposedSourcePath(rawPath: unknown): string {
-  const text = String(rawPath || '').trim().replace(/\\/g, '/')
-  if (!text) return ''
-  const withoutWorkspacePrefix = text.startsWith('workspace:') ? text.slice('workspace:'.length) : text
-  const normalized = normalizeWorkspacePath(withoutWorkspacePrefix)
-  return normalized === '/' ? '' : normalized
-}
-
-function resolvePreferredComposedSourceRawText(): string {
-  const store = useGraphStore.getState()
-  const activePath =
-    normalizeComposedSourcePath(store.markdownDocumentName) ||
-    normalizeComposedSourcePath(useMarkdownExplorerStore.getState().activePath)
-  const sourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-  if (activePath) {
-    const activeSourceFile = sourceFiles.find(file => {
-      if (!file?.enabled) return false
-      return normalizeComposedSourcePath(file.source?.path || file.name || '') === activePath
-    })
-    if (activeSourceFile && String(activeSourceFile.text || '').trim()) {
-      return String(activeSourceFile.text || '')
-    }
-  }
-  const firstEnabledSeed = sourceFiles.find(file => file?.enabled && String(file.text || '').trim())
-  return firstEnabledSeed ? String(firstEnabledSeed.text || '') : ''
-}
 
 function applyComposedSourceImportModes(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
   try {
@@ -40,7 +21,11 @@ function applyComposedSourceImportModes(graphData: ReturnType<typeof composeGrap
   } catch {
     void 0
   }
-  const rawText = resolvePreferredComposedSourceRawText()
+  const store = useGraphStore.getState()
+  const rawText = resolvePreferredComposedSourceRawTextFromState({
+    state: store,
+    explorerActivePath: useMarkdownExplorerStore.getState().activePath,
+  })
   if (!rawText) return
   try {
     applyCanvasFrontmatterPreset({ graphData, rawText })
@@ -66,9 +51,13 @@ export function applyComposedGraphFromSourceFiles() {
   const store = useGraphStore.getState()
   const hasEnabledSourceFiles = (store.sourceFiles || []).some(f => Boolean(f?.enabled))
   if (!hasEnabledSourceFiles) {
-    const prevMeta = (store.graphData?.metadata || {}) as Record<string, unknown>
-    const prevWasComposed = String(prevMeta.sourceLayerComposition || '') === 'compose'
-    if (prevWasComposed) {
+    if (
+      shouldClearComposedGraphForEmptyState({
+        previousGraphData: store.graphData,
+        hasEnabledSourceFiles,
+        hasEnabledContent: false,
+      })
+    ) {
       store.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} })
     }
     return
@@ -91,53 +80,36 @@ export function applyComposedGraphFromSourceFiles() {
     return Boolean(String(layer.text || '').trim())
   })
   if (!hasEnabledContent) {
-    const prevMeta = (store.graphData?.metadata || {}) as Record<string, unknown>
-    const prevWasComposed = String(prevMeta.sourceLayerComposition || '') === 'compose'
-    if (prevWasComposed) {
+    if (
+      shouldClearComposedGraphForEmptyState({
+        previousGraphData: store.graphData,
+        hasEnabledSourceFiles,
+        hasEnabledContent,
+      })
+    ) {
       store.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} })
     }
     return
   }
 
-  const prevMeta = (store.graphData?.metadata || {}) as Record<string, unknown>
-  const prevContentKey = typeof prevMeta.sourceLayerHash === 'string' ? prevMeta.sourceLayerHash : ''
-  const prevOrderKey = typeof prevMeta.sourceLayerOrderHash === 'string' ? prevMeta.sourceLayerOrderHash : ''
-
   const { contentKey, orderKey } = buildSourceLayerKeys(layers)
-  if (prevContentKey === contentKey && prevOrderKey === orderKey) return
+  const change = resolveSourceLayerKeyChange({
+    previousGraphData: store.graphData,
+    contentKey,
+    orderKey,
+  })
+  if (change === 'unchanged') return
 
   const { graphData } = composeGraphFromSourceLayers({ layers, precomputedKeys: { contentKey, orderKey } })
+  if (
+    resolveComposedApplyDeferralReason({
+      layers,
+      composedGraphData: graphData,
+      previousGraphData: store.graphData,
+    })
+  ) return
 
-  const composedNodeCount = Array.isArray(graphData.nodes) ? graphData.nodes.length : 0
-  const composedEdgeCount = Array.isArray(graphData.edges) ? graphData.edges.length : 0
-  const composedHasContent = composedNodeCount > 0 || composedEdgeCount > 0
-  const hasPendingEnabledRemoteSource = layers.some(layer => {
-    if (!layer.enabled) return false
-    const source = layer.source
-    if (!source || source.kind !== 'url') return false
-    if (String(source.url || '').trim() === '') return false
-    if (String(layer.text || '').trim()) return false
-    return !layer.parsedGraphData
-  })
-  const prevHasContent = !!(
-    store.graphData &&
-    ((store.graphData.nodes && store.graphData.nodes.length) || (store.graphData.edges && store.graphData.edges.length))
-  )
-  const prevNodeCount = Array.isArray(store.graphData?.nodes) ? store.graphData.nodes.length : 0
-  if (!composedHasContent && hasPendingEnabledRemoteSource) return
-  // During import races, a transient composed edge-only graph can appear before pending text parses finish.
-  // Keep the existing node-bearing graph until composition catches up to avoid edge-only canvas regressions.
-  if (composedNodeCount === 0 && composedEdgeCount > 0 && prevNodeCount > 0) {
-    const hasPendingEnabledParse = layers.some(l => l.enabled && String(l.status || '').trim().toLowerCase() !== 'parsed')
-    if (hasPendingEnabledParse) return
-  }
-  if (!composedHasContent && prevHasContent) {
-    const hasPendingEnabledText = layers.some(l => l.enabled && String(l.text || '').trim() && !l.parsedGraphData)
-    const hasAnyParsedEnabled = layers.some(l => l.enabled && !!l.parsedGraphData)
-    if (hasPendingEnabledText && !hasAnyParsedEnabled) return
-  }
-
-  if (prevContentKey === contentKey && prevOrderKey !== orderKey) {
+  if (change === 'order-only') {
     store.setGraphDataPreservingLayout(graphData)
     applyComposedSourceImportModes(graphData)
     return

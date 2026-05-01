@@ -3,18 +3,24 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
   "exports": {
     ".": {
-      "import": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./map-preview": {
-      "import": "./src/mapPreview.ts",
-      "default": "./src/mapPreview.ts"
+      "types": "./dist/mapPreview.d.ts",
+      "import": "./dist/mapPreview.js",
+      "default": "./dist/mapPreview.js"
     },
     "./testkit": {
-      "import": "./src/testkit.ts",
-      "default": "./src/testkit.ts"
+      "types": "./dist/testkit.d.ts",
+      "import": "./dist/testkit.js",
+      "default": "./dist/testkit.js"
     }
   },
   "dependencies": {
@@ -35,5 +41,10 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "typescript": "~5.8.3"
-  }
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ]
 }

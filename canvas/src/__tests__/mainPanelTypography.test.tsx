@@ -4,17 +4,9 @@ import MainPanel from '@/features/panels/MainPanel'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
-
-const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
-  for (let i = 0; i < count; i += 1) {
-    await new Promise<void>(resolve => {
-      if (typeof raf === 'function') raf(() => resolve())
-      else setTimeout(() => resolve(), 0)
-    })
-  }
-}
 
 export async function testMainPanelTypographyUsesUiSettings() {
   const storage = new MemoryStorage()
@@ -23,11 +15,7 @@ export async function testMainPanelTypographyUsesUiSettings() {
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    installDeterministicRaf(dom.window)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -51,9 +39,10 @@ export async function testMainPanelTypographyUsesUiSettings() {
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(React.createElement(MainPanel, { requestedTab: 'help' } as never))
-
-    await waitForFrames(anyWindow.requestAnimationFrame, 4)
+    await mountReactRoot(root, React.createElement(MainPanel, { requestedTab: 'help' } as never), {
+      window: dom.window,
+      frames: 4,
+    })
 
     const traversal = container.querySelector('[aria-label="Graph Traversal"]')
     if (!traversal) throw new Error('expected main panel to render traversal summary chip')
@@ -71,7 +60,7 @@ export async function testMainPanelTypographyUsesUiSettings() {
     }
   } finally {
     try {
-      root?.unmount()
+      if (root) await unmountReactRoot(root, { window: dom.window })
     } catch {
       void 0
     }
@@ -87,11 +76,7 @@ export async function testMainPanelRequestedSettingsSearchUsesTabMetadata() {
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    installDeterministicRaf(dom.window)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -101,14 +86,14 @@ export async function testMainPanelRequestedSettingsSearchUsesTabMetadata() {
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(
+    await mountReactRoot(
+      root,
       React.createElement(MainPanel, {
         requestedTab: 'settings',
         requestedSearchQuery: 'geo',
       } as never),
+      { window: dom.window, frames: 4 },
     )
-
-    await waitForFrames(anyWindow.requestAnimationFrame, 4)
 
     const searchInput = container.querySelector('input')
     if (!(searchInput instanceof dom.window.HTMLInputElement)) {
@@ -122,7 +107,7 @@ export async function testMainPanelRequestedSettingsSearchUsesTabMetadata() {
     }
   } finally {
     try {
-      root?.unmount()
+      if (root) await unmountReactRoot(root, { window: dom.window })
     } catch {
       void 0
     }
@@ -138,11 +123,7 @@ export async function testMainPanelRequestedPaymentsSearchUsesTabMetadata() {
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    installDeterministicRaf(dom.window)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -152,14 +133,14 @@ export async function testMainPanelRequestedPaymentsSearchUsesTabMetadata() {
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(
+    await mountReactRoot(
+      root,
       React.createElement(MainPanel, {
         requestedTab: 'payments',
         requestedSearchQuery: 'stripe',
       } as never),
+      { window: dom.window, frames: 4 },
     )
-
-    await waitForFrames(anyWindow.requestAnimationFrame, 4)
 
     const searchInput = container.querySelector('input')
     if (!(searchInput instanceof dom.window.HTMLInputElement)) {
@@ -173,7 +154,7 @@ export async function testMainPanelRequestedPaymentsSearchUsesTabMetadata() {
     }
   } finally {
     try {
-      root?.unmount()
+      if (root) await unmountReactRoot(root, { window: dom.window })
     } catch {
       void 0
     }

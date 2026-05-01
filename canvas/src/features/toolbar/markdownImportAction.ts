@@ -13,6 +13,7 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { ensureMarkdownFileName, upsertWorkspaceTextDocument } from '@/features/workspace-fs/upsertWorkspaceTextDocument'
 import { applyImportedMarkdownToStore } from '@/features/toolbar/importSideEffects'
 import { hashText } from '@/features/parsers/hash'
+import { buildSourceFileRecord } from '@/features/source-files/sourceFileParsedState'
 import {
   fetchRemoteMarkdownText,
   promptForUrl,
@@ -49,14 +50,13 @@ export async function performMarkdownImport(type: MarkdownImportType, providedUr
 
     const store = useGraphStore.getState()
     pickedFiles.forEach(f => {
-      store.addSourceFile({
+      store.addSourceFile(buildSourceFileRecord({
         id: createId('sf'),
         name: f.displayName || f.name,
         text: f.text,
         enabled: true,
-        status: 'idle',
         source: f.sourceUrl ? { kind: 'url', url: f.sourceUrl } : { kind: 'local', path: f.name },
-      })
+      }))
     })
 
     const first = pickedFiles[0]

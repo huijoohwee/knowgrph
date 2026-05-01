@@ -9,6 +9,7 @@ import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import { buildMaterializedWorkspaceForceIncludePaths } from '@/features/source-files/sourceFilesRuntimeShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
@@ -106,7 +107,9 @@ export function useMarkdownWorkspaceExplorerState(args: {
           existing: store.sourceFiles,
           workspaceEntries: pruned,
           sourcesByPath: sources,
-          forceIncludePaths: currentActivePath ? [currentActivePath] : [],
+          forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
+            activePathOverride: currentActivePath,
+          }),
         })
         if (merged !== store.sourceFiles) {
           store.setSourceFiles(merged)

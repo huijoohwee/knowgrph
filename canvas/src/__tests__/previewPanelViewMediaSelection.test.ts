@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
@@ -6,6 +6,7 @@ import PreviewPanelView from '@/features/panels/views/PreviewPanelView'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame } from '@/tests/lib/reactRootHarness'
 import { buildMarkdownPreviewMediaKey } from '@/features/markdown/ui/markdownPreviewLinks'
 
 const buildGraphWithMediaNode = (): GraphData => ({
@@ -64,15 +65,6 @@ const buildMarkdown = (): string =>
     '',
   ].join('\n')
 
-const waitForNextFrame = (win: Window): Promise<void> => {
-  const anyWindow = win as unknown as { requestAnimationFrame?: (cb: () => void) => number }
-  if (!anyWindow.requestAnimationFrame) {
-    anyWindow.requestAnimationFrame = (cb: () => void) =>
-      setTimeout(cb, 0) as unknown as number
-  }
-  return new Promise<void>(resolve => anyWindow.requestAnimationFrame!(() => resolve()))
-}
-
 export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
   const storage = new MemoryStorage()
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -107,8 +99,7 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
     state.setMarkdownPreviewMermaidFocus(null)
     state.setMarkdownPreviewActiveMediaKey(null)
 
-    root.render(React.createElement(PreviewPanelView))
-    for (let i = 0; i < 8; i += 1) await waitForNextFrame(dom.window)
+    await mountReactRoot(root, React.createElement(PreviewPanelView), { window: dom.window, frames: 8 })
 
     const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
     const graphCard = buttons.find(btn => {
@@ -119,8 +110,10 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
       throw new Error('graph media gallery card not found')
     }
 
-    graphCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-    await waitForNextFrame(dom.window)
+    await act(async () => {
+      graphCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
 
     const after = useGraphStore.getState()
 
@@ -142,7 +135,7 @@ export async function testPreviewPanelGraphMediaSelectionOpensMarkdownPanel() {
       )
     }
 
-    root.unmount()
+    await unmountReactRoot(root, { window: dom.window })
   } finally {
     restoreDom()
     restoreWindow()
@@ -186,15 +179,16 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
     state.setMarkdownPreviewMermaidFocus(null)
     state.setMarkdownPreviewActiveMediaKey(null)
 
-    root.render(React.createElement(PreviewPanelView))
-    for (let i = 0; i < 8; i += 1) await waitForNextFrame(dom.window)
+    await mountReactRoot(root, React.createElement(PreviewPanelView), { window: dom.window, frames: 8 })
 
     const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
     const webpageCard = buttons.find(btn => String(btn.textContent || '').toLowerCase().includes('webpage'))
     if (!webpageCard) throw new Error('webpage gallery card not found')
 
-    webpageCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-    await waitForNextFrame(dom.window)
+    await act(async () => {
+      webpageCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
 
     const loadButtons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
     const loadEmbed = loadButtons.find(btn => String(btn.textContent || '').toLowerCase().includes('load embed'))
@@ -206,8 +200,10 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
         .join(' | ')
       throw new Error(`load embed button not found. buttons=${sample}`)
     }
-    loadEmbed.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-    await waitForNextFrame(dom.window)
+    await act(async () => {
+      loadEmbed.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
 
     const mediaHeader = doc.querySelector('[data-kg-media-panel-header="1"]')
     if (!mediaHeader) throw new Error('expected RichMediaPanel header in active media preview')
@@ -230,8 +226,10 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
     const tweetCard = buttonsAfter.find(btn => String(btn.textContent || '').toLowerCase().includes('tweet'))
     if (!tweetCard) throw new Error('tweet gallery card not found')
 
-    tweetCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-    await waitForNextFrame(dom.window)
+    await act(async () => {
+      tweetCard.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await waitForNextFrame(dom.window)
+    })
 
     const expectedTweetKey = buildMarkdownPreviewMediaKey(
       'tweet',
@@ -247,7 +245,7 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
       )
     }
 
-    root.unmount()
+    await unmountReactRoot(root, { window: dom.window })
   } finally {
     restoreDom()
     restoreWindow()
@@ -272,8 +270,7 @@ export async function testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetT
     state.setMarkdownPreviewMermaidFocus(null)
     state.setMarkdownPreviewActiveMediaKey(null)
 
-    root.render(React.createElement(PreviewPanelView))
-    for (let i = 0; i < 8; i += 1) await waitForNextFrame(dom.window)
+    await mountReactRoot(root, React.createElement(PreviewPanelView), { window: dom.window, frames: 8 })
 
     const graphCards = (Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]).filter(btn =>
       String(btn.textContent || '').includes('Node media:'),
@@ -289,7 +286,7 @@ export async function testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetT
       throw new Error(`expected graph media card title to stay on the single Rich Media Panel SSOT, got ${graphCardText}`)
     }
 
-    root.unmount()
+    await unmountReactRoot(root, { window: dom.window })
   } finally {
     restoreDom()
     restoreWindow()

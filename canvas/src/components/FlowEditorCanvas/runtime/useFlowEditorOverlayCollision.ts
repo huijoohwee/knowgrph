@@ -4,6 +4,7 @@ import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { hashScopedStringArraySignature, hashSignatureParts, normalizeStringArrayForSignature } from '@/lib/hash/signature'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { getEffectiveZoomStateForKey, getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
@@ -11,6 +12,7 @@ import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimit
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import {
   collectCanonicalFlowEditorOverlayRectEntries,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
@@ -57,14 +59,7 @@ function quantizeOverlayPos(v: number): number {
 }
 
 function normalizeOverlaySignatureIds(ids: string[]): string[] {
-  if (ids.length === 0) return []
-  const next = new Set<string>()
-  for (let i = 0; i < ids.length; i += 1) {
-    const id = String(ids[i] || '').trim()
-    if (!id) continue
-    next.add(id)
-  }
-  return Array.from(next).sort((a, b) => a.localeCompare(b))
+  return normalizeStringArrayForSignature(ids, { unique: true, sort: true })
 }
 
 function buildPosSignature(
@@ -74,14 +69,13 @@ function buildPosSignature(
   const signatureIds = normalizeOverlaySignatureIds(ids)
   if (signatureIds.length === 0) return ''
   const byId = posById || {}
-  return signatureIds
-    .map(id => {
+  const parts = signatureIds.map(id => {
       const pos = byId[id]
       const left = pos && Number.isFinite(pos.left) ? Math.round(pos.left) : 'na'
       const top = pos && Number.isFinite(pos.top) ? Math.round(pos.top) : 'na'
       return `${id}:${left},${top}`
     })
-    .join('|')
+  return hashSignatureParts(['overlay-pos', ...parts])
 }
 
 export function useFlowEditorOverlayCollision(args: {
@@ -207,14 +201,21 @@ export function useFlowEditorOverlayCollision(args: {
       const graphDataForOverlayRuntime = draftGraphDataRef.current || renderGraphDataOverride || null
       const graphKind = String((((graphDataForOverlayRuntime || null)?.metadata || {}) as Record<string, unknown>).kind || '').trim()
       const isFrontmatterFlow = graphKind === 'frontmatter-flow'
-      const nodes = Array.isArray(graphDataForOverlayRuntime?.nodes) ? (graphDataForOverlayRuntime!.nodes as GraphNode[]) : []
-      const nodeById = new Map<string, GraphNode>()
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        const id = String(n?.id || '').trim()
-        if (!id || nodeById.has(id)) continue
-        nodeById.set(id, n)
-      }
+      const graphMeta = graphDataForOverlayRuntime?.metadata
+      const graphRevision =
+        graphMeta && typeof graphMeta === 'object' && !Array.isArray(graphMeta)
+          ? (() => {
+              const raw = (graphMeta as Record<string, unknown>).graphDataRevision
+              return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
+            })()
+          : 0
+      const overlayGraphLookup = getCachedGraphLookup({
+        cacheScope: 'flow-editor-overlay-collision-graph',
+        graphData: graphDataForOverlayRuntime,
+        graphRevision,
+      })
+      const nodes = overlayGraphLookup?.nodes || []
+      const nodeById = overlayGraphLookup?.nodeById || new Map<string, GraphNode>()
       const nodeZKeyById = buildNodeZKeyById({ nodes, groups: [] })
       const compareByVisualIndex = (aId: string, bId: string): number => {
         if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
@@ -270,12 +271,25 @@ export function useFlowEditorOverlayCollision(args: {
       const offL = Number.isFinite(canvasOffset.left) ? Math.round(canvasOffset.left * 10) / 10 : 0
       const offT = Number.isFinite(canvasOffset.top) ? Math.round(canvasOffset.top * 10) / 10 : 0
       const widgetGrid = readWidgetGridLayoutSettings(schema)
-      const pinSig = overlayNodeIds.map(id => (st.flowWidgetPinnedByNodeId?.[id] === true ? '1' : '0')).join('')
+      const overlayNodeIdsKey = hashScopedStringArraySignature('overlay-collision-node-ids', overlayNodeIds)
+      const pinSig = hashSignatureParts([
+        'overlay-pins',
+        ...overlayNodeIds.map(id => `${id}:${st.flowWidgetPinnedByNodeId?.[id] === true ? '1' : '0'}`),
+      ])
       const posSig = buildPosSignature(overlayNodeIds, st.flowWidgetPosByNodeId)
-      const settleBaseKey =
-        `${overlayNodeIds.join(',')}|${panelScaleKey}|${viewportW}x${viewportH}|${overlayOnlyModeEnabled ? 1 : 0}`
-        + `|${offL},${offT}|${pinSig}|balanced:${Math.round(BALANCED_OVERLAY_SPREAD_TARGET_ASPECT * 1000) / 1000}`
-      const key = `${settleBaseKey}|${posSig}`
+      const settleBaseKey = hashSignatureParts([
+        'overlay-collision-settle',
+        overlayNodeIdsKey,
+        panelScaleKey,
+        viewportW,
+        viewportH,
+        overlayOnlyModeEnabled,
+        offL,
+        offT,
+        pinSig,
+        Math.round(BALANCED_OVERLAY_SPREAD_TARGET_ASPECT * 1000) / 1000,
+      ])
+      const key = hashSignatureParts(['overlay-collision-key', settleBaseKey, posSig])
       if (overlayCollisionResolveKeyRef.current === key) return
       overlayCollisionResolveKeyRef.current = key
       if (overlayCollisionIterKeyRef.current !== key) {

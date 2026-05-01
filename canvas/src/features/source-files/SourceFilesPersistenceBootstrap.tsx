@@ -7,13 +7,11 @@ import {
   loadPersistedSourceFilesWorkspace,
   persistSourceFiles,
   persistSourceFilesWorkspace,
-  type SourceFilesWorkspaceState,
 } from '@/features/source-files/sourceFilesDb'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { hydratePendingUrlSourceFiles, refreshPersistedSourceFilesForCurrentParseIdentity } from '@/features/source-files/sourceFilesIngestIntegration'
 import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
-import { hashStringToHex } from '@/lib/hash/stringHash'
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
   WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE,
@@ -21,53 +19,24 @@ import {
   WORKSPACE_SYNC_TASK_SOURCE_FILES_WORKSPACE,
 } from '@/lib/async/workspaceSyncKeys'
 import {
+  buildMaterializedWorkspaceActivePathKey,
+  buildMaterializedWorkspaceForceIncludePaths,
   materializeActiveWorkspaceEntryIntoSourceFiles,
+  readReusableWorkspaceEntriesSnapshot,
+  resolveMaterializedWorkspaceActivePath,
   resolveInitialWorkspaceStartupState,
 } from '@/features/source-files/sourceFilesRuntimeShared'
-
-const sourceFileTextHashCache = new WeakMap<object, string>()
-
-const getSourceFileTextHash = (entry: unknown): string => {
-  if (!entry || typeof entry !== 'object') return hashStringToHex('')
-  const cached = sourceFileTextHashCache.get(entry as object)
-  if (cached) return cached
-  const item = entry as { text?: unknown }
-  const next = hashStringToHex(String(item?.text || ''))
-  sourceFileTextHashCache.set(entry as object, next)
-  return next
-}
-
-const arraysEqualByIdAndHash = (a: unknown, b: unknown): boolean => {
-  const aa = Array.isArray(a) ? a : []
-  const bb = Array.isArray(b) ? b : []
-  if (aa.length !== bb.length) return false
-  for (let i = 0; i < aa.length; i += 1) {
-    const x = aa[i] as { id?: unknown; parsedTextHash?: unknown; text?: unknown; enabled?: unknown }
-    const y = bb[i] as { id?: unknown; parsedTextHash?: unknown; text?: unknown; enabled?: unknown }
-    if (String(x?.id || '') !== String(y?.id || '')) return false
-    if (String(x?.parsedTextHash || '') !== String(y?.parsedTextHash || '')) return false
-    if (String(x?.enabled || '') !== String(y?.enabled || '')) return false
-    const xTextHash = getSourceFileTextHash(x)
-    const yTextHash = getSourceFileTextHash(y)
-    if (xTextHash !== yTextHash) return false
-  }
-  return true
-}
-
-const sourceFilesSignature = (value: unknown): string => {
-  const items = Array.isArray(value) ? value : []
-  if (items.length < 1) return '[]'
-  return items
-    .map(entry => {
-      const item = entry as { id?: unknown; parsedTextHash?: unknown; text?: unknown; enabled?: unknown }
-      const id = String(item?.id || '')
-      const parsedTextHash = String(item?.parsedTextHash || '')
-      const enabled = String(item?.enabled || '')
-      const textHash = getSourceFileTextHash(item)
-      return `${id}:${parsedTextHash}:${enabled}:${textHash}`
-    })
-    .join('|')
-}
+import {
+  areSourceFilesEqualByIdAndHash,
+  buildSourceFilesCompositionSignature,
+  buildSourceFilesPersistenceSignature,
+} from '@/features/source-files/sourceFilesSignatures'
+import {
+  areSourceFilesWorkspaceStatesEqual,
+  buildSourceFilesWorkspaceStateSignature,
+  normalizeSourceFilesWorkspaceState,
+  type SourceFilesWorkspaceState,
+} from '@/features/source-files/sourceFilesWorkspaceState'
 
 function stripPersistedWorkspaceBackedSourceFiles(value: unknown) {
   const items = Array.isArray(value) ? value : []
@@ -81,6 +50,7 @@ export function SourceFilesPersistenceBootstrap() {
   const runtimePersistenceScopeKey = WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE
   const hydratedRef = React.useRef(false)
   const lastPersistedRef = React.useRef<unknown>(null)
+  const lastComposeSignatureRef = React.useRef('')
   const workspaceHydratedRef = React.useRef(false)
   const lastWorkspacePersistedRef = React.useRef<unknown>(null)
   const lastMaterializedActivePathRef = React.useRef('')
@@ -123,6 +93,9 @@ export function SourceFilesPersistenceBootstrap() {
         }
         try {
           const startup = await resolveInitialWorkspaceStartupState()
+          const startupActivePath = resolveMaterializedWorkspaceActivePath({
+            activePathOverride: startup.activePath,
+          })
           const startupSourcesByPath = loadWorkspaceSourceIndex()
           const store = useGraphStore.getState()
           const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
@@ -130,21 +103,26 @@ export function SourceFilesPersistenceBootstrap() {
             existing,
             workspaceEntries: startup.workspaceEntries,
             sourcesByPath: startupSourcesByPath,
-            forceIncludePaths: startup.activePath ? [startup.activePath] : [],
+            forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
+              activePathOverride: startupActivePath,
+            }),
           })
           if (merged !== existing) {
             store.setSourceFiles(merged)
           }
           await materializeActiveWorkspaceEntryIntoSourceFiles({
-            activePathOverride: startup.activePath,
-            workspaceEntries: startup.workspaceEntries.length > 0 ? startup.workspaceEntries : undefined,
+            activePathOverride: startupActivePath,
+            workspaceEntries: readReusableWorkspaceEntriesSnapshot(startup.workspaceEntries),
             sourcesByPath: startupSourcesByPath,
             applyToGraph: true,
           })
-          lastMaterializedActivePathRef.current = String(startup.activePath || '').trim()
+          lastMaterializedActivePathRef.current = buildMaterializedWorkspaceActivePathKey({
+            activePathOverride: startupActivePath,
+          })
         } catch {
           void 0
         }
+        lastComposeSignatureRef.current = buildSourceFilesCompositionSignature(useGraphStore.getState().sourceFiles)
         try {
           scheduleApplyComposedGraphFromSourceFiles()
         } catch {
@@ -182,15 +160,20 @@ export function SourceFilesPersistenceBootstrap() {
 
   React.useEffect(() => {
     const syncNow = () => {
-      const activePath = String(useMarkdownExplorerStore.getState().activePath || '').trim()
+      const activePath = resolveMaterializedWorkspaceActivePath({
+        explorerActivePath: useMarkdownExplorerStore.getState().activePath,
+      })
       if (!activePath) {
         lastMaterializedActivePathRef.current = ''
         return
       }
-      if (lastMaterializedActivePathRef.current === activePath) return
-      lastMaterializedActivePathRef.current = activePath
+      const activePathKey = buildMaterializedWorkspaceActivePathKey({
+        activePathOverride: activePath,
+      })
+      if (lastMaterializedActivePathRef.current === activePathKey) return
+      lastMaterializedActivePathRef.current = activePathKey
       void materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false }).catch(() => {
-        if (lastMaterializedActivePathRef.current === activePath) {
+        if (lastMaterializedActivePathRef.current === activePathKey) {
           lastMaterializedActivePathRef.current = ''
         }
       })
@@ -207,23 +190,27 @@ export function SourceFilesPersistenceBootstrap() {
       s => s.sourceFiles,
       next => {
         if (!hydratedRef.current) return
-        if (arraysEqualByIdAndHash(next, lastPersistedRef.current)) return
+        if (areSourceFilesEqualByIdAndHash(next, lastPersistedRef.current)) return
 
-        try {
-          scheduleApplyComposedGraphFromSourceFiles()
-        } catch {
-          void 0
+        const compositionSignature = buildSourceFilesCompositionSignature(next)
+        if (compositionSignature !== lastComposeSignatureRef.current) {
+          lastComposeSignatureRef.current = compositionSignature
+          try {
+            scheduleApplyComposedGraphFromSourceFiles()
+          } catch {
+            void 0
+          }
         }
 
-        const signature = sourceFilesSignature(next)
+        const signature = buildSourceFilesPersistenceSignature(next)
         scheduleWorkspaceSyncTask(taskKey, () => {
           const snapshot = useGraphStore.getState().sourceFiles
-          if (arraysEqualByIdAndHash(snapshot, lastPersistedRef.current)) return
+          if (areSourceFilesEqualByIdAndHash(snapshot, lastPersistedRef.current)) return
           lastPersistedRef.current = snapshot
           void persistSourceFiles(snapshot)
         }, 600, { signature, scopeKey: runtimePersistenceScopeKey })
       },
-      { equalityFn: arraysEqualByIdAndHash },
+      { equalityFn: areSourceFilesEqualByIdAndHash },
     )
     return () => {
       cancelWorkspaceSyncTask(taskKey)
@@ -233,49 +220,35 @@ export function SourceFilesPersistenceBootstrap() {
 
   const getWorkspaceSnapshot = React.useCallback((): SourceFilesWorkspaceState => {
     const s = useGraphStore.getState()
-    return {
+    return normalizeSourceFilesWorkspaceState({
       folderName: s.localMarkdownFolderName,
       accessMode: s.localMarkdownFolderAccessMode,
       folderCacheId: s.localMarkdownFolderCacheId,
       selectedFolderPath: s.localMarkdownSelectedFolderPath,
-    }
+    })
   }, [])
 
   React.useEffect(() => {
     const taskKey = WORKSPACE_SYNC_TASK_SOURCE_FILES_WORKSPACE
     const unsubscribe = useGraphStore.subscribe(
-      s => [s.localMarkdownFolderName, s.localMarkdownFolderAccessMode, s.localMarkdownFolderCacheId, s.localMarkdownSelectedFolderPath],
-      () => {
+      s =>
+        normalizeSourceFilesWorkspaceState({
+          folderName: s.localMarkdownFolderName,
+          accessMode: s.localMarkdownFolderAccessMode,
+          folderCacheId: s.localMarkdownFolderCacheId,
+          selectedFolderPath: s.localMarkdownSelectedFolderPath,
+        }),
+      snapshot => {
         if (!workspaceHydratedRef.current) return
-        const snapshot = getWorkspaceSnapshot()
         const prev = lastWorkspacePersistedRef.current as SourceFilesWorkspaceState | null
-        if (
-          prev &&
-          prev.folderName === snapshot.folderName &&
-          prev.accessMode === snapshot.accessMode &&
-          prev.folderCacheId === snapshot.folderCacheId &&
-          prev.selectedFolderPath === snapshot.selectedFolderPath
-        ) {
+        if (prev && areSourceFilesWorkspaceStatesEqual(prev, snapshot)) {
           return
         }
-        const signature = hashStringToHex(
-          [
-            String(snapshot.folderName || ''),
-            String(snapshot.accessMode || ''),
-            String(snapshot.folderCacheId || ''),
-            String(snapshot.selectedFolderPath || ''),
-          ].join('|'),
-        )
+        const signature = buildSourceFilesWorkspaceStateSignature(snapshot)
         scheduleWorkspaceSyncTask(taskKey, () => {
           const nextSnapshot = getWorkspaceSnapshot()
           const prevSnapshot = lastWorkspacePersistedRef.current as SourceFilesWorkspaceState | null
-          if (
-            prevSnapshot &&
-            prevSnapshot.folderName === nextSnapshot.folderName &&
-            prevSnapshot.accessMode === nextSnapshot.accessMode &&
-            prevSnapshot.folderCacheId === nextSnapshot.folderCacheId &&
-            prevSnapshot.selectedFolderPath === nextSnapshot.selectedFolderPath
-          ) {
+          if (prevSnapshot && areSourceFilesWorkspaceStatesEqual(prevSnapshot, nextSnapshot)) {
             return
           }
           lastWorkspacePersistedRef.current = nextSnapshot
@@ -283,16 +256,7 @@ export function SourceFilesPersistenceBootstrap() {
         }, 600, { signature, scopeKey: runtimePersistenceScopeKey })
       },
       {
-        equalityFn: (a, b) => {
-          const aa = Array.isArray(a) ? a : []
-          const bb = Array.isArray(b) ? b : []
-          return (
-            String(aa[0] || '') === String(bb[0] || '') &&
-            String(aa[1] || '') === String(bb[1] || '') &&
-            String(aa[2] || '') === String(bb[2] || '') &&
-            String(aa[3] || '') === String(bb[3] || '')
-          )
-        },
+        equalityFn: areSourceFilesWorkspaceStatesEqual,
       },
     )
     return () => {

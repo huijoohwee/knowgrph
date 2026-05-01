@@ -1,6 +1,7 @@
 import type { SourceFile } from '@/hooks/store/types'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { workspaceBasename } from '@/features/workspace-fs/path'
+import { buildSourceFileRecord } from '@/features/source-files/sourceFileParsedState'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   LEGACY_WORKSPACE_README_PATH,
@@ -13,12 +14,23 @@ export const WORKSPACE_README_SOURCE_PATH = `workspace:${WORKSPACE_README_SEED_P
 export const WORKSPACE_README_SOURCE_ID = `ws:${hashStringToHex(WORKSPACE_README_SOURCE_PATH)}`
 export const TEST_VALIDATION_SOURCE_PATH = `workspace:${TEST_VALIDATION_WORKSPACE_SEED_PATH}`
 export const TEST_VALIDATION_SOURCE_ID = `ws:${hashStringToHex(TEST_VALIDATION_SOURCE_PATH)}`
+export const BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH = '/sandbox/test-data/test-generate-video/knowgrph-demo-video.md'
+export const BUNDLED_TEST_VALIDATION_SOURCE_PATH = `workspace:${BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH}`
 
 const DEFAULT_WORKSPACE_SEED_SOURCE_PATHS = new Set<string>([
   `workspace:${LEGACY_WORKSPACE_README_PATH}`,
   `workspace:${LEGACY_WORKSPACE_TRIP_DEMO_PATH}`,
+  BUNDLED_TEST_VALIDATION_SOURCE_PATH,
   WORKSPACE_README_SOURCE_PATH,
   TEST_VALIDATION_SOURCE_PATH,
+])
+
+const WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH = new Map<string, string>([
+  [String(LEGACY_WORKSPACE_README_PATH), WORKSPACE_README_SOURCE_PATH],
+  [String(WORKSPACE_README_SEED_PATH), WORKSPACE_README_SOURCE_PATH],
+  [String(LEGACY_WORKSPACE_TRIP_DEMO_PATH), TEST_VALIDATION_SOURCE_PATH],
+  [String(BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH), TEST_VALIDATION_SOURCE_PATH],
+  [String(TEST_VALIDATION_WORKSPACE_SEED_PATH), TEST_VALIDATION_SOURCE_PATH],
 ])
 
 export function isDefaultWorkspaceSeedSourcePath(path: unknown): boolean {
@@ -28,6 +40,11 @@ export function isDefaultWorkspaceSeedSourcePath(path: unknown): boolean {
 export function isCanonicalWorkspaceSeedSourcePath(path: unknown): boolean {
   const normalized = String(path || '').trim()
   return normalized === WORKSPACE_README_SOURCE_PATH || normalized === TEST_VALIDATION_SOURCE_PATH
+}
+
+export function resolveWorkspaceSeedSourcePath(path: unknown): string | null {
+  const normalized = String(path || '').trim()
+  return WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(normalized) || null
 }
 
 export function defaultEnabledForWorkspaceSourcePath(path: unknown, forceEnabled = false): boolean {
@@ -43,14 +60,13 @@ function buildSeedSourceFile(args: {
   enabled: boolean
   name: string
 }): SourceFile {
-  return {
+  return buildSourceFileRecord({
     id: args.id,
     name: args.name,
     text: '',
     enabled: args.enabled,
-    status: 'idle',
     source: { kind: 'local', path: args.path },
-  }
+  })
 }
 
 export const WORKSPACE_README_SOURCE_FILE: SourceFile = buildSeedSourceFile({

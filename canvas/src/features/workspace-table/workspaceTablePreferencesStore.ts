@@ -89,7 +89,6 @@ const emitWorkspaceTablePreferencesChanged = () => {
 
 const isWorkspacePreferenceStorageKey = (storageKey: string | null): boolean =>
   storageKey === LS_KEYS.workspaceEditorMode ||
-  storageKey === LS_KEYS.markdownDerivedViewerMode ||
   storageKey === LS_KEYS.graphTableViewMode ||
   storageKey === LS_KEYS.workspaceCellSelectPanelPlacement ||
   storageKey === LS_KEYS.jsonImportWorkspaceTarget ||

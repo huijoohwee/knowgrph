@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
@@ -42,61 +42,65 @@ export async function testDesignRichMediaPreviewRendersImageVideoAndIframe() {
     doc.body.appendChild(container)
     const root = createRoot(container as unknown as HTMLElement)
 
-    root.render(
-      React.createElement(
-        'svg',
-        { width: 600, height: 240 },
-        React.createElement(DesignRichMediaPreview, {
-          tag: 'IMG',
-          url: 'https://example.com/image.png',
-          titleChip: 'Image',
-          clipId: 'clip-img',
-          innerX: 10,
-          innerY: 10,
-          innerW: 180,
-          innerH: 120,
-          interactive: false,
-        }),
-        React.createElement(DesignRichMediaPreview, {
-          tag: 'VIDEO',
-          url: 'https://example.com/video.mp4',
-          titleChip: 'Video',
-          clipId: 'clip-vid',
-          innerX: 210,
-          innerY: 10,
-          innerW: 180,
-          innerH: 120,
-          interactive: false,
-        }),
-        React.createElement(DesignRichMediaPreview, {
-          tag: 'IFRAME',
-          url: 'https://www.citriniresearch.com/p/2028gic',
-          titleChip: 'IFrame',
-          clipId: 'clip-ifr',
-          innerX: 410,
-          innerY: 10,
-          innerW: 85,
-          innerH: 120,
-          interactive: false,
-        }),
-        React.createElement(DesignRichMediaPreview, {
-          tag: 'IFRAME',
-          url: 'https://www.ycombinator.com/library/8d-how-to-build-a-great-series-a-pitch-and-deck',
-          titleChip: 'IFrame',
-          clipId: 'clip-ifr-2',
-          innerX: 505,
-          innerY: 10,
-          innerW: 85,
-          innerH: 120,
-          interactive: false,
-        }),
-      ),
-    )
+    await act(async () => {
+      root.render(
+        React.createElement(
+          'svg',
+          { width: 600, height: 240 },
+          React.createElement(DesignRichMediaPreview, {
+            tag: 'IMG',
+            url: 'https://example.com/image.png',
+            titleChip: 'Image',
+            clipId: 'clip-img',
+            innerX: 10,
+            innerY: 10,
+            innerW: 180,
+            innerH: 120,
+            interactive: false,
+          }),
+          React.createElement(DesignRichMediaPreview, {
+            tag: 'VIDEO',
+            url: 'https://example.com/video.mp4',
+            titleChip: 'Video',
+            clipId: 'clip-vid',
+            innerX: 210,
+            innerY: 10,
+            innerW: 180,
+            innerH: 120,
+            interactive: false,
+          }),
+          React.createElement(DesignRichMediaPreview, {
+            tag: 'IFRAME',
+            url: 'https://www.citriniresearch.com/p/2028gic',
+            titleChip: 'IFrame',
+            clipId: 'clip-ifr',
+            innerX: 410,
+            innerY: 10,
+            innerW: 85,
+            innerH: 120,
+            interactive: false,
+          }),
+          React.createElement(DesignRichMediaPreview, {
+            tag: 'IFRAME',
+            url: 'https://www.ycombinator.com/library/8d-how-to-build-a-great-series-a-pitch-and-deck',
+            titleChip: 'IFrame',
+            clipId: 'clip-ifr-2',
+            innerX: 505,
+            innerY: 10,
+            innerW: 85,
+            innerH: 120,
+            interactive: false,
+          }),
+        ),
+      )
+      for (let i = 0; i < 6; i += 1) await tick(dom.window as unknown as Window)
+    })
 
-    for (let i = 0; i < 6; i += 1) await tick(dom.window as unknown as Window)
-
-    const svgImage = doc.querySelector('image') as SVGImageElement | null
-    if (!svgImage) throw new Error('expected svg image element')
+    const image = doc.querySelector('img') as HTMLImageElement | null
+    if (!image) throw new Error('expected shared RichMediaPanel image element')
+    if (!String(image.getAttribute('src') || '').includes('/__fetch_remote?url=')) {
+      throw new Error('expected image src to use media proxy on localhost')
+    }
 
     const video = doc.querySelector('video') as HTMLVideoElement | null
     if (!video) throw new Error('expected video element')
@@ -111,7 +115,9 @@ export async function testDesignRichMediaPreviewRendersImageVideoAndIframe() {
       if (!srcdoc.trim()) throw new Error('expected iframe srcdoc to be populated')
     }
 
-    root.unmount()
+    await act(async () => {
+      root.unmount()
+    })
   } finally {
     ;(globalThis as unknown as { fetch?: unknown }).fetch = prevFetch
     restore()

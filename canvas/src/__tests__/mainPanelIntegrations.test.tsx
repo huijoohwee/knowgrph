@@ -9,6 +9,7 @@ import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames as waitForFramesShared } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { PROPS_PANEL_OPEN_EVENT, SIDE_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
@@ -23,12 +24,10 @@ import { getIntegrationVirtualSettingStorageKey } from '@/features/integrations/
 import { getBytePlusChatApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
 
 const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
-  for (let i = 0; i < count; i += 1) {
-    await new Promise<void>(resolve => {
-      if (typeof raf === 'function') raf(() => resolve())
-      else setTimeout(() => resolve(), 0)
-    })
-  }
+  void raf
+  const win = (globalThis as unknown as { window?: Window }).window
+  if (!win) throw new Error('expected window for frame flush')
+  await waitForFramesShared(win, count)
 }
 
 const renderAndFlush = async (
@@ -37,17 +36,16 @@ const renderAndFlush = async (
   raf: ((cb: (ts: number) => void) => number) | undefined,
   frameCount = 3,
 ) => {
-  await act(async () => {
-    root.render(node)
-    await waitForFrames(raf, frameCount)
-  })
+  void raf
+  const win = (globalThis as unknown as { window?: Window }).window
+  if (!win) throw new Error('expected window for root render flush')
+  await mountReactRoot(root, node as React.ReactElement, { window: win, frames: frameCount })
 }
 
 const unmountAndFlush = async (root: ReturnType<typeof createRoot> | null) => {
   if (!root) return
-  await act(async () => {
-    root.unmount()
-  })
+  const win = (globalThis as unknown as { window?: Window }).window
+  await unmountReactRoot(root, win ? { window: win } : undefined)
 }
 
 export async function testIntegrationsHubReusesSettingsEntryList() {
@@ -58,10 +56,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -145,10 +140,7 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -215,10 +207,7 @@ export async function testMainPanelRequestedSettingsSearchExcludesIntegrationEnt
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -263,10 +252,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsAiControls() 
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -335,10 +321,7 @@ export async function testMainPanelRequestedIntegrationsSearchPreservesCustomMod
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -397,10 +380,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -462,10 +442,7 @@ export async function testMainPanelRequestedIntegrationsSearchBytePlusImageField
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -516,10 +493,7 @@ export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -557,10 +531,7 @@ export async function testMapsHubSurfacesGrabMapsSearchDiscoveryCopy() {
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -611,10 +582,7 @@ export async function testMcpHubSurfacesGrabMapsMcpServerConfig() {
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -661,10 +629,7 @@ export async function testPaymentsHubOmitsGlobalResetSection() {
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -702,10 +667,7 @@ export async function testMainPanelTabsPlaceMcpImmediatelyAfterIntegrations() {
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -757,10 +719,7 @@ export async function testPropsPanelOwnsGrabMapsDiscoveryWidgetCopy() {
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -812,10 +771,7 @@ export async function testPropsPanelDiscoveryWidgetRunsKeywordSearchWithoutDupli
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     globalWithFetch.fetch = (async (input: unknown, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : ''
@@ -875,10 +831,7 @@ export async function testMainPanelBytePlusModelRowNormalizesAwayOpenAiValueLeak
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -932,10 +885,7 @@ export async function testMainPanelRequestedIntegrationsSearchUnifiesBytePlusVid
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -983,10 +933,7 @@ export async function testMainPanelRequestedIntegrationsSearchReusesBytePlusScal
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
     useGraphStore.getState().setChatTopP(0.92)
@@ -1033,10 +980,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusJso
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
     useGraphStore.getState().setChatResponseFormatJson('{"type":"json_object"}')
@@ -1082,10 +1026,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersWritableVir
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
     const persistedEndpoint = 'GET /api/v3/contents/generations/tasks/custom'
@@ -1137,10 +1078,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusMes
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
     useGraphStore.getState().setChatMessagesJson('[{"role":"user","content":"hi"}]')
@@ -1186,10 +1124,7 @@ export async function testMainPanelRequestedIntegrationsSearchRendersBytePlusNes
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 
@@ -1240,10 +1175,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsOpenAiApiRows
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     const api = useGraphStore.getState()
     api.resetAll()
@@ -1294,10 +1226,7 @@ export async function testMainPanelRequestedIntegrationsAnchorScrollsExactBytePl
 
   try {
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
 

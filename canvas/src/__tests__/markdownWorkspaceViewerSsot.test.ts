@@ -7,7 +7,7 @@ export const testMarkdownWorkspaceViewerUsesMarkdownPreviewSsot = () => {
   const entryPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'MarkdownWorkspaceMain.tsx')
   const entryText = readUtf8(entryPath)
   const resolvedText = (() => {
-    const m = entryText.match(/from\s+['"](\.\/main\/MarkdownWorkspaceMainLegacy)['"]/)
+    const m = entryText.match(/from\s+['"](\.\/main\/MarkdownWorkspaceMain)['"]/)
     if (!m || !m[1]) return entryText
     const targetPath = path.resolve(path.dirname(entryPath), String(m[1])) + '.tsx'
     if (!fs.existsSync(targetPath)) return entryText

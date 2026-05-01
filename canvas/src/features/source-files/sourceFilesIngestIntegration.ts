@@ -22,6 +22,7 @@ import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMar
 import { buildGrabMapsProxyRequestHeaders } from 'grph-shared/geospatial/grabMapsAuth'
 import { toGrabMapsProxyUrl } from 'grph-shared/geospatial/grabMapsProxy'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
+import { buildSourceFileLifecycleState, buildSourceFileRecord } from '@/features/source-files/sourceFileParsedState'
 import { mapLimit } from '@/lib/async/mapLimit'
 import { SOURCE_FILES_REPARSE_CONCURRENCY } from '@/lib/config'
 
@@ -118,7 +119,13 @@ function ensureTargetSourceFileId(args: { fileId: string | null; suggestedName?:
       return `source-${idx}.md`
     })()
   const id = createId('sf')
-  store.addSourceFile({ id, name: nextName, text: '', enabled: true, status: 'idle', source: { kind: 'local', path: nextName } })
+  store.addSourceFile(buildSourceFileRecord({
+    id,
+    name: nextName,
+    text: '',
+    enabled: true,
+    source: { kind: 'local', path: nextName },
+  }))
   return id
 }
 
@@ -185,12 +192,7 @@ function syncDocumentViewFromSourceFile(
   })
 }
 
-const buildSourceFileParsedReset = () => ({
-  parsedParserId: undefined,
-  parsedTextHash: undefined,
-  parsedGraphRevision: undefined,
-  parsedGraphData: undefined,
-})
+const buildSourceFileIdleReset = () => buildSourceFileLifecycleState({ status: 'idle' })
 
 const parseJobBySourceFileId = new Map<string, number>()
 const pendingParseTextHashBySourceFileId = new Map<string, string>()
@@ -205,9 +207,7 @@ async function applyImportedTextToSourceFile(args: {
   store.updateSourceFile(args.id, {
     name: args.name,
     text: args.text,
-    status: 'idle',
-    error: undefined,
-    ...buildSourceFileParsedReset(),
+    ...buildSourceFileIdleReset(),
     source: args.source,
     enabled: true,
   })
@@ -231,16 +231,28 @@ export async function parseAndApplySourceFile(fileId: string): Promise<void> {
   }
   if (before.parsedGraphData && before.parsedTextHash === textHash) {
     useGraphStore.getState().updateSourceFile(fileId, {
-      status: 'parsed',
-      error: undefined,
-      parsedGraphRevision: typeof before.parsedGraphRevision === 'number' ? before.parsedGraphRevision : 0,
+      ...buildSourceFileLifecycleState({
+        status: 'parsed',
+        parserId: before.parsedParserId,
+        textHash: before.parsedTextHash,
+        graphData: before.parsedGraphData,
+        previousState: before,
+        preserveExistingRevision: true,
+      }),
     })
     scheduleApplyComposedGraphFromSourceFiles()
     return
   }
 
   const store = useGraphStore.getState()
-  store.updateSourceFile(fileId, { status: 'loading', error: undefined })
+  store.updateSourceFile(
+    fileId,
+    buildSourceFileLifecycleState({
+      status: 'loading',
+      previousState: before,
+      preserveParsedState: true,
+    }),
+  )
   const parseJobToken = (parseJobBySourceFileId.get(fileId) || 0) + 1
   parseJobBySourceFileId.set(fileId, parseJobToken)
   pendingParseTextHashBySourceFileId.set(fileId, textHash)
@@ -263,12 +275,12 @@ export async function parseAndApplySourceFile(fileId: string): Promise<void> {
     const parsedOk = !!(res && res.graphData && res.parserId && res.counts && (res.counts.n > 0 || res.counts.e > 0))
     if (parsedOk) {
       store.updateSourceFile(fileId, {
-        status: 'parsed',
-        error: undefined,
-        parsedParserId: res?.parserId,
-        parsedTextHash: textHash,
-        parsedGraphRevision: 0,
-        parsedGraphData: res?.graphData,
+        ...buildSourceFileLifecycleState({
+          status: 'parsed',
+          parserId: res?.parserId,
+          textHash,
+          graphData: res?.graphData,
+        }),
       })
       scheduleApplyComposedGraphFromSourceFiles()
       return
@@ -278,7 +290,15 @@ export async function parseAndApplySourceFile(fileId: string): Promise<void> {
       res && Array.isArray(res.warnings) && typeof res.warnings[0] === 'string' && res.warnings[0].trim()
         ? res.warnings[0].trim()
         : 'Parse failed'
-    store.updateSourceFile(fileId, { status: 'error', error: msg, parsedGraphRevision: undefined, parsedGraphData: undefined })
+    store.updateSourceFile(fileId, {
+      ...buildSourceFileLifecycleState({
+        status: 'error',
+        error: msg,
+        parserId: res?.parserId,
+        textHash,
+        graphData: undefined,
+      }),
+    })
   } finally {
     clearPendingParseForJob()
   }
@@ -350,12 +370,7 @@ function clearActiveSourceFile(args: { fileId: string | null }) {
   if (!file) return
   store.updateSourceFile(file.id, {
     text: '',
-    status: 'idle',
-    error: undefined,
-    parsedParserId: undefined,
-    parsedTextHash: undefined,
-    parsedGraphRevision: undefined,
-    parsedGraphData: undefined,
+    ...buildSourceFileIdleReset(),
   })
   syncDocumentViewFromSourceFile(
     {
@@ -402,22 +417,55 @@ async function importLocalIntoActive(args: { fileId: string | null }): Promise<v
     const mb = (picked.size / (1024 * 1024)).toFixed(1)
     const limitMb = (geospatialDatasetMaxBytes / (1024 * 1024)).toFixed(1)
     const id = ensureTargetSourceFileId({ fileId: args.fileId, suggestedName: picked.name })
-    store.updateSourceFile(id, { status: 'error', error: `Too large (${mb} MB > ${limitMb} MB)` })
+    const previous = store.sourceFiles.find(file => file.id === id)
+    store.updateSourceFile(
+      id,
+      buildSourceFileLifecycleState({
+        status: 'error',
+        error: `Too large (${mb} MB > ${limitMb} MB)`,
+        previousState: previous,
+        preserveParsedState: true,
+      }),
+    )
     return
   }
 
   const lower = String(picked.name || '').toLowerCase()
   const id = ensureTargetSourceFileId({ fileId: args.fileId, suggestedName: picked.name })
-  store.updateSourceFile(id, { status: 'loading', error: undefined, enabled: true })
+  const previous = store.sourceFiles.find(file => file.id === id)
+  store.updateSourceFile(id, {
+    ...buildSourceFileLifecycleState({
+      status: 'loading',
+      previousState: previous,
+      preserveParsedState: true,
+    }),
+    enabled: true,
+  })
 
   if (/\.(pdf)(\?|#|$)/i.test(lower)) {
     const converted = await convertPdfFileToMarkdown(picked)
     if (!converted) {
-      store.updateSourceFile(id, { status: 'error', error: 'Request failed' })
+      store.updateSourceFile(
+        id,
+        buildSourceFileLifecycleState({
+          status: 'error',
+          error: 'Request failed',
+          previousState: previous,
+          preserveParsedState: true,
+        }),
+      )
       return
     }
     if (converted.ok === false) {
-      store.updateSourceFile(id, { status: 'error', error: converted.error })
+      store.updateSourceFile(
+        id,
+        buildSourceFileLifecycleState({
+          status: 'error',
+          error: converted.error,
+          previousState: previous,
+          preserveParsedState: true,
+        }),
+      )
       return
     }
     await applyImportedTextToSourceFile({
@@ -447,18 +495,43 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
   const lower = normalizedUrl.toLowerCase()
 
   const id = ensureTargetSourceFileId({ fileId: args.fileId, suggestedName: deriveFilenameFromUrl(normalizedUrl, 'source.txt') })
-  store.updateSourceFile(id, { status: 'loading', error: undefined, enabled: true, source: { kind: 'url', url: normalizedUrl } })
+  const previous = store.sourceFiles.find(file => file.id === id)
+  store.updateSourceFile(id, {
+    ...buildSourceFileLifecycleState({
+      status: 'loading',
+      previousState: previous,
+      preserveParsedState: true,
+    }),
+    enabled: true,
+    source: { kind: 'url', url: normalizedUrl },
+  })
 
   try {
     const isYouTube = lower.includes('youtube.com') || lower.includes('youtu.be')
     if (isYouTube) {
       const yt = await fetchYouTubeTranscriptMarkdown(normalizedUrl)
       if (!yt) {
-        store.updateSourceFile(id, { status: 'error', error: 'Request failed' })
+        store.updateSourceFile(
+          id,
+          buildSourceFileLifecycleState({
+            status: 'error',
+            error: 'Request failed',
+            previousState: previous,
+            preserveParsedState: true,
+          }),
+        )
         return
       }
       if (yt.ok === false) {
-        store.updateSourceFile(id, { status: 'error', error: yt.error })
+        store.updateSourceFile(
+          id,
+          buildSourceFileLifecycleState({
+            status: 'error',
+            error: yt.error,
+            previousState: previous,
+            preserveParsedState: true,
+          }),
+        )
         return
       }
 
@@ -505,11 +578,27 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
     if (/\.(pdf)(\?|#|$)/i.test(lower)) {
       const converted = await convertPdfUrlToMarkdown(normalizedUrl)
       if (!converted) {
-        store.updateSourceFile(id, { status: 'error', error: 'Request failed' })
+        store.updateSourceFile(
+          id,
+          buildSourceFileLifecycleState({
+            status: 'error',
+            error: 'Request failed',
+            previousState: previous,
+            preserveParsedState: true,
+          }),
+        )
         return
       }
       if (converted.ok === false) {
-        store.updateSourceFile(id, { status: 'error', error: converted.error })
+        store.updateSourceFile(
+          id,
+          buildSourceFileLifecycleState({
+            status: 'error',
+            error: converted.error,
+            previousState: previous,
+            preserveParsedState: true,
+          }),
+        )
         return
       }
       await applyImportedTextToSourceFile({
@@ -547,7 +636,15 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
     if (isSameOriginRepoFileUrl(normalizedUrl)) {
       const direct = await fetchSameOriginRepoFileText(normalizedUrl)
       if (direct.ok === false) {
-        store.updateSourceFile(id, { status: 'error', error: direct.error })
+        store.updateSourceFile(
+          id,
+          buildSourceFileLifecycleState({
+            status: 'error',
+            error: direct.error,
+            previousState: previous,
+            preserveParsedState: true,
+          }),
+        )
         return
       }
       const nextName = deriveFilenameFromUrl(normalizedUrl, 'source.txt')
@@ -575,7 +672,15 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       maxBytes: geospatialDatasetMaxBytes,
     })
     if (res.ok === false) {
-      store.updateSourceFile(id, { status: 'error', error: describeFetchRemoteTextFailure(res) })
+      store.updateSourceFile(
+        id,
+        buildSourceFileLifecycleState({
+          status: 'error',
+          error: describeFetchRemoteTextFailure(res),
+          previousState: previous,
+          preserveParsedState: true,
+        }),
+      )
       return
     }
 
@@ -587,7 +692,15 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       source: { kind: 'url', url: normalizedUrl },
     })
   } catch {
-    store.updateSourceFile(id, { status: 'error', error: 'Request failed' })
+    store.updateSourceFile(
+      id,
+      buildSourceFileLifecycleState({
+        status: 'error',
+        error: 'Request failed',
+        previousState: previous,
+        preserveParsedState: true,
+      }),
+    )
   }
 }
 

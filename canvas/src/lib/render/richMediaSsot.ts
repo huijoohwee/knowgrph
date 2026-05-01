@@ -4,6 +4,7 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
+import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { listMediaOverlayNodes, type MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import {
   type RichMediaPanelTab,
@@ -39,12 +40,35 @@ export const RICH_MEDIA_PANEL_CONNECT_VIEW_LABEL = 'Rich Media Panel (Connect me
 export const RICH_MEDIA_PANEL_KTV_VIEW_LABEL = FLOW_RICH_MEDIA_PANEL_NODE_LABEL
 export const RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL = 'Media Selector' as const
 
-export function isRichMediaPanelDisplayEnabled(renderMediaAsNodes: unknown): boolean {
-  return renderMediaAsNodes === true
+export type ResolvedRichMediaPanelTab = Exclude<RichMediaPanelTab, 'auto'>
+export type RichMediaPanelAspectSelection = '16:9' | '9:16'
+
+export type RichMediaPanelDisplayArgs = {
+  renderMediaAsNodes: unknown
+  canvas2dRenderer?: unknown
+  frontmatterModeEnabled?: unknown
+  documentSemanticMode?: unknown
 }
 
-export function readRichMediaDisplayMode(renderMediaAsNodes: unknown): RichMediaDisplayMode {
-  return isRichMediaPanelDisplayEnabled(renderMediaAsNodes) ? 'panel-only' : 'circle-only'
+function normalizeRichMediaPanelDisplayArgs(args: unknown): RichMediaPanelDisplayArgs {
+  if (args && typeof args === 'object' && !Array.isArray(args) && 'renderMediaAsNodes' in args) {
+    return args as RichMediaPanelDisplayArgs
+  }
+  return { renderMediaAsNodes: args }
+}
+
+export function isRichMediaPanelDisplayEnabled(args: unknown): boolean {
+  const normalized = normalizeRichMediaPanelDisplayArgs(args)
+  if (normalized.renderMediaAsNodes === true) return true
+  return isFlowEditorFrontmatterDocumentModeRequested({
+    canvas2dRenderer: String(normalized.canvas2dRenderer || ''),
+    frontmatterModeEnabled: normalized.frontmatterModeEnabled === true,
+    documentSemanticMode: String(normalized.documentSemanticMode || ''),
+  })
+}
+
+export function readRichMediaDisplayMode(args: unknown): RichMediaDisplayMode {
+  return isRichMediaPanelDisplayEnabled(args) ? 'panel-only' : 'circle-only'
 }
 
 export function normalizeRichMediaPanelDensity(value: unknown): RichMediaPanelDensity {
@@ -53,6 +77,118 @@ export function normalizeRichMediaPanelDensity(value: unknown): RichMediaPanelDe
 
 export function normalizeRichMediaPanelMode(value: unknown): RichMediaPanelMode {
   return value === 'embed' ? 'embed' : 'snapshot'
+}
+
+export function normalizeRichMediaPanelTab(value: unknown): RichMediaPanelTab {
+  const raw = String(value || '').trim().toLowerCase()
+  return raw === 'text' || raw === 'image' || raw === 'video' || raw === 'poi' || raw === 'auto'
+    ? raw as RichMediaPanelTab
+    : 'auto'
+}
+
+export function resolveRichMediaPanelSelectedTab(args: {
+  activeTab: unknown
+  hasText?: unknown
+  hasImage?: unknown
+  hasVideo?: unknown
+  hasPoi?: unknown
+  renderKind?: unknown
+  hasRenderableUrl?: unknown
+  hasInlineSrcDoc?: unknown
+}): ResolvedRichMediaPanelTab | null {
+  const activeTab = normalizeRichMediaPanelTab(args.activeTab)
+  if (activeTab !== 'auto') return activeTab
+  const hasText = args.hasText === true
+  const hasImage = args.hasImage === true
+  const hasVideo = args.hasVideo === true
+  const hasPoi = args.hasPoi === true
+  const renderKind = String(args.renderKind || '').trim().toLowerCase()
+  const hasRenderableUrl = args.hasRenderableUrl === true
+  const hasInlineSrcDoc = args.hasInlineSrcDoc === true
+  if (renderKind === 'video') return 'video'
+  if (renderKind === 'image' || renderKind === 'svg') return 'image'
+  if (renderKind === 'iframe' && !hasRenderableUrl && hasPoi && hasInlineSrcDoc) return 'poi'
+  if (renderKind === 'iframe' && !hasRenderableUrl) return 'text'
+  if (hasVideo) return 'video'
+  if (hasImage) return 'image'
+  if (hasPoi) return 'poi'
+  if (hasText) return 'text'
+  return null
+}
+
+export function shouldShowRichMediaFloatingToolbar(args: {
+  hasPanelState: unknown
+  hasMultiKinds?: unknown
+  selectedTab?: unknown
+  safeOpenUrl?: unknown
+}): boolean {
+  if (args.hasPanelState !== true) return false
+  const selectedTab = String(args.selectedTab || '').trim().toLowerCase()
+  const hasOpenUrl = !!String(args.safeOpenUrl || '').trim()
+  return args.hasMultiKinds === true || selectedTab === 'text' || hasOpenUrl
+}
+
+export function resolveRichMediaAspectSelection(args: {
+  width: unknown
+  height: unknown
+}): RichMediaPanelAspectSelection | null {
+  const width = typeof args.width === 'number' && Number.isFinite(args.width) ? args.width : Number(args.width)
+  const height = typeof args.height === 'number' && Number.isFinite(args.height) ? args.height : Number(args.height)
+  if (!(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return null
+  const ratio = width / height
+  const horizontal = 16 / 9
+  const vertical = 9 / 16
+  return Math.abs(ratio - horizontal) <= Math.abs(ratio - vertical) ? '16:9' : '9:16'
+}
+
+export function resolveToggledRichMediaAspectSize(args: {
+  width: unknown
+  height: unknown
+  selected?: RichMediaPanelAspectSelection | null
+  minWidthPx?: number
+  minHeightPx?: number
+  defaultWidthPx?: number
+  defaultHeightPx?: number
+}): {
+  selected: RichMediaPanelAspectSelection
+  width: number
+  height: number
+} {
+  const minWidthPx =
+    typeof args.minWidthPx === 'number' && Number.isFinite(args.minWidthPx) ? Math.max(1, Math.floor(args.minWidthPx)) : 220
+  const minHeightPx =
+    typeof args.minHeightPx === 'number' && Number.isFinite(args.minHeightPx) ? Math.max(1, Math.floor(args.minHeightPx)) : 160
+  const defaultWidthPx =
+    typeof args.defaultWidthPx === 'number' && Number.isFinite(args.defaultWidthPx)
+      ? Math.max(minWidthPx, Math.floor(args.defaultWidthPx))
+      : 280
+  const defaultHeightPx =
+    typeof args.defaultHeightPx === 'number' && Number.isFinite(args.defaultHeightPx)
+      ? Math.max(minHeightPx, Math.floor(args.defaultHeightPx))
+      : 180
+  const width0 = typeof args.width === 'number' && Number.isFinite(args.width) ? args.width : Number(args.width)
+  const height0 = typeof args.height === 'number' && Number.isFinite(args.height) ? args.height : Number(args.height)
+  const widthBase = Number.isFinite(width0) && width0 > 0 ? width0 : defaultWidthPx
+  const heightBase = Number.isFinite(height0) && height0 > 0 ? height0 : defaultHeightPx
+  const area = Math.max(minWidthPx * minHeightPx, widthBase * heightBase)
+  const selected = args.selected === '9:16' ? '9:16' : args.selected === '16:9' ? '16:9' : resolveRichMediaAspectSelection(args)
+  const next = selected === '9:16' ? '16:9' : '9:16'
+  const target = next === '16:9' ? (16 / 9) : (9 / 16)
+  let nextHeight = Math.sqrt(area / target)
+  let nextWidth = target * nextHeight
+  if (nextWidth < minWidthPx) {
+    nextWidth = minWidthPx
+    nextHeight = nextWidth / target
+  }
+  if (nextHeight < minHeightPx) {
+    nextHeight = minHeightPx
+    nextWidth = nextHeight * target
+  }
+  return {
+    selected: next,
+    width: Math.round(nextWidth),
+    height: Math.round(nextHeight),
+  }
 }
 
 export function coerceRichMediaPanelSizePx(args: {
@@ -104,29 +240,37 @@ export function resolveRichMediaPanelInteractive(args: {
   nodeInteractive: unknown
   renderMediaAsNodes: unknown
   infiniteCanvasInteractionMode: unknown
+  canvas2dRenderer?: unknown
+  frontmatterModeEnabled?: unknown
+  documentSemanticMode?: unknown
 }): boolean {
   if (String(args.infiniteCanvasInteractionMode || '').trim().toLowerCase() === 'interactive') return true
-  if (!isRichMediaPanelDisplayEnabled(args.renderMediaAsNodes)) return false
+  if (!isRichMediaPanelDisplayEnabled(args)) return false
   return args.nodeInteractive === true
 }
 
 export function listDisplayRichMediaOverlayNodes(args: {
   renderMediaAsNodes: unknown
+  canvas2dRenderer?: unknown
+  frontmatterModeEnabled?: unknown
+  documentSemanticMode?: unknown
   nodes: GraphNode[]
   poolMax: unknown
   preferredNodeIds?: readonly string[]
   excludeNodeIdSet?: Set<string>
   connectedValuesByNodeId?: ReadonlyMap<string, FlowConnectedValuesBySchemaPath>
+  nodeById?: ReadonlyMap<string, GraphNode>
 }): MediaOverlayNode[] {
   const poolMaxRaw = typeof args.poolMax === 'number' && Number.isFinite(args.poolMax) ? args.poolMax : 0
   const poolMax = poolMaxRaw > 0 ? Math.floor(poolMaxRaw) : 24
   return listMediaOverlayNodes({
-    enabled: isRichMediaPanelDisplayEnabled(args.renderMediaAsNodes),
+    enabled: isRichMediaPanelDisplayEnabled(args),
     nodes: Array.isArray(args.nodes) ? args.nodes : [],
     poolMax,
     preferredNodeIds: args.preferredNodeIds,
     excludeNodeIdSet: args.excludeNodeIdSet,
     connectedValuesByNodeId: args.connectedValuesByNodeId,
+    nodeById: args.nodeById,
   })
 }
 

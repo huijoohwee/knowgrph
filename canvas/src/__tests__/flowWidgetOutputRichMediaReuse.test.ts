@@ -389,3 +389,41 @@ export function testBuildDataflowWidgetRegistryPrefersRicherEntryForSameShapeAcr
     throw new Error('expected richer same-shape entry to replace incomplete duplicate across registry sources')
   }
 }
+
+export function testBuildDataflowWidgetRegistryReusesSemanticCacheForEquivalentInputs() {
+  const buildArgs = () => ({
+    documentWidgetRegistry: [
+      {
+        id: 'doc-openai',
+        isEnabled: true,
+        nodeTypeId: 'TextGeneration',
+        widgetTypeId: 'default',
+        formId: 'textGeneration.openai',
+        fields: [{ fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt' }],
+        ports: [{ portKey: 'text_out', direction: 'output', schemaPath: 'properties.output' }],
+        schemaMappings: [],
+        updatedAt: '2026-04-24T10:00:00.000Z',
+      },
+    ],
+    effectiveWidgetRegistry: [
+      {
+        id: 'eff-image',
+        isEnabled: true,
+        nodeTypeId: 'ImageGeneration',
+        widgetTypeId: 'default',
+        formId: 'imageGeneration.default',
+        fields: [{ fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt' }],
+        ports: [],
+        schemaMappings: [],
+        updatedAt: '2026-04-24T09:00:00.000Z',
+      },
+    ],
+    widgetRegistry: [],
+  })
+
+  const mergedA = buildDataflowWidgetRegistry(buildArgs())
+  const mergedB = buildDataflowWidgetRegistry(buildArgs())
+  if (mergedA !== mergedB) {
+    throw new Error('expected buildDataflowWidgetRegistry to reuse semantic cache for equivalent registry content')
+  }
+}

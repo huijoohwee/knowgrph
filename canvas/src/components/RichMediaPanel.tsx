@@ -1,4 +1,5 @@
 import React from 'react'
+import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
 import RichMediaIframe, { type RichMediaIframeMode } from '@/components/RichMediaIframe'
 import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
@@ -8,6 +9,10 @@ import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontm
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 import {
+  resolveRichMediaPanelSelectedTab,
+  shouldShowRichMediaFloatingToolbar,
+} from '@/lib/render/richMediaSsot'
+import {
   GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT,
   readLatestGrabMapsPoiRichMediaPreview,
 } from '@/features/geospatial/grabMapsPoiRichMedia'
@@ -15,10 +20,9 @@ import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/whee
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, resolveIframeSandbox, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { ExternalLink } from 'lucide-react'
+import { getIconSizeClass } from '@/lib/ui'
 import {
   PANEL_FRAME_BODY_STYLE,
-  PANEL_FRAME_HEADER_ACTION_STYLE,
   PANEL_FRAME_HEADER_STYLE,
   PANEL_FRAME_HEADER_TITLE_STYLE,
   PANEL_FRAME_ROOT_STYLE,
@@ -73,10 +77,22 @@ export type RichMediaPanelProps = {
   flowEditorInteractionMode?: boolean
   flowEditorFrontmatterDocumentMode?: boolean
   flowEditorSurfaceId?: string
+  showFloatingToolbar?: boolean
+  richMediaViewToggle?: {
+    visible: boolean
+    isKtvRows: boolean
+    onToggle: () => void
+  }
+  richMediaAspectToggle?: {
+    visible: boolean
+    selected: '16:9' | '9:16' | null
+    onToggle: () => void
+  }
   onPanelChange?: (next: { activeTab: RichMediaPanelTab; freezeConnectedOutput: boolean; text?: string }) => void
 }
 
 const RICH_MEDIA_SKELETON_STYLE_ID = 'kg-rich-media-skeleton-style'
+const RICH_MEDIA_FLOATING_TOOLBAR_SIDE_OFFSET_PX = 8
 
 type RichMediaPlaceholderMode = 'text' | 'image' | 'video' | 'undefined'
 
@@ -342,6 +358,9 @@ function RichMediaEmptyCardPlaceholder({
 
 const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(props, ref) {
   const rootRef = React.useRef<HTMLElement | null>(null)
+  const overlayId = props.overlayId
+  const forwardWheelTo = props.forwardWheelTo
+  const onPanelChange = props.onPanelChange
   const title = String(props.title || '').trim() || 'Media node'
   const mode: RichMediaIframeMode = props.iframeMode === 'proxy-url' ? 'proxy-url' : 'srcdoc-when-needed'
   const showHeader = props.showHeader !== false
@@ -433,21 +452,16 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     ? [panel.hasText, panel.hasImage, panel.hasVideo, panelHasPoi].filter(Boolean).length
     : 0
   const panelHasMultiKinds = panelAvailableTabCount > 1
-  const panelSelectedTab: 'text' | 'image' | 'video' | 'poi' | null =
-    panelActiveTab === 'text' || panelActiveTab === 'image' || panelActiveTab === 'video' || panelActiveTab === 'poi'
-      ? panelActiveTab
-      : panelActiveTab === 'auto'
-        ? kind === 'video'
-          ? 'video'
-          : kind === 'image' || kind === 'svg'
-            ? 'image'
-            : kind === 'iframe' && !rawUrl && panelHasPoi && effectiveInlineSrcDoc
-              ? 'poi'
-            : kind === 'iframe' && !rawUrl
-              ? 'text'
-              : null
-        : null
-  const showPanelControls = Boolean(panel && panelHasMultiKinds)
+  const panelSelectedTab = resolveRichMediaPanelSelectedTab({
+    activeTab: panelActiveTab,
+    hasText: panel?.hasText === true,
+    hasImage: panel?.hasImage === true,
+    hasVideo: panel?.hasVideo === true,
+    hasPoi: panelHasPoi,
+    renderKind: kind,
+    hasRenderableUrl: !!rawUrl,
+    hasInlineSrcDoc: !!effectiveInlineSrcDoc,
+  })
   const showTextEditor = Boolean(panel && panelSelectedTab === 'text' && panelFreezeConnectedOutput)
   const [panelDraftText, setPanelDraftText] = React.useState<string>('')
   React.useEffect(() => {
@@ -469,7 +483,10 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     const base = String(props.overlayId || title || 'rich-media-panel').trim() || 'rich-media-panel'
     return `/__rich_media_panel/${encodeURIComponent(base)}.md`
   }, [props.overlayId, title])
-  const isEmptyPanel = kind === 'iframe' && !rawUrl && !effectiveInlineSrcDoc && !showPanelMarkdownPreview
+  const hasDirectRenderableUrl = !!rawUrl
+  const isTextPanelEmpty = kind === 'iframe' && !hasDirectRenderableUrl && !effectiveInlineSrcDoc && !showPanelMarkdownPreview
+  const isStaticMediaPanelEmpty = (kind === 'image' || kind === 'svg' || kind === 'video') && !hasDirectRenderableUrl
+  const isEmptyPanel = isTextPanelEmpty || isStaticMediaPanelEmpty
 
   const forceSnapshotIframe = React.useMemo(() => {
     if (kind !== 'iframe') return false
@@ -487,6 +504,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
+  const uiIconScale = useGraphStore(s => s.uiIconScale)
+  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const isFlowEditorRenderer = useGraphStore(s => String(s.canvas2dRenderer || '') === 'flowEditor')
   const flowEditorFrontmatterDocumentModeFromStore = useGraphStore(s => isFlowEditorFrontmatterDocumentModeRequested({
     canvas2dRenderer: String(s.canvas2dRenderer || ''),
@@ -580,24 +599,96 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     if (!el) return
 
     return installWheelForwardingAndBrowserZoomGuards(el, {
-      forwardWheelTo: installWheelForwarding ? props.forwardWheelTo : undefined,
+      forwardWheelTo: installWheelForwarding ? forwardWheelTo : undefined,
       shouldForwardWheel: forwardModifierWheelZoomOnly ? e => e.ctrlKey === true || e.metaKey === true : undefined,
       stopPropagationOnForward: true,
       stopPropagationOnPreventZoom: false,
       forwardedFlagKey: '__kgForwarded',
     })
-  }, [forwardModifierWheelZoomOnly, installWheelForwarding, props.forwardWheelTo])
+  }, [forwardModifierWheelZoomOnly, forwardWheelTo, installWheelForwarding])
 
   const overlayAlreadySelected = React.useMemo(() => {
-    const overlayId = String(props.overlayId || '').trim()
-    if (!overlayId) return false
-    if (isCanonicalNodeIdEqual(selectedNodeId, overlayId)) return true
+    const canonicalOverlayId = String(overlayId || '').trim()
+    if (!canonicalOverlayId) return false
+    if (isCanonicalNodeIdEqual(selectedNodeId, canonicalOverlayId)) return true
     if (!Array.isArray(selectedNodeIds)) return false
     for (let i = 0; i < selectedNodeIds.length; i += 1) {
-      if (isCanonicalNodeIdEqual(selectedNodeIds[i], overlayId)) return true
+      if (isCanonicalNodeIdEqual(selectedNodeIds[i], canonicalOverlayId)) return true
     }
     return false
-  }, [props.overlayId, selectedNodeId, selectedNodeIds])
+  }, [overlayId, selectedNodeId, selectedNodeIds])
+  const showWidgetLikeToolbar = shouldShowRichMediaFloatingToolbar({
+    hasPanelState: !!panel,
+    hasMultiKinds: panelHasMultiKinds,
+    selectedTab: panelSelectedTab,
+    safeOpenUrl,
+  }) && props.showFloatingToolbar !== false
+  const iconSizeClass = getIconSizeClass(uiIconScale)
+  const handleToggleRichMediaTextMode = React.useCallback(() => {
+    if (!panel || panelSelectedTab !== 'text') return
+    if (panelFreezeConnectedOutput) {
+      onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: false })
+      return
+    }
+    const base = panel.connectedText || panel.text
+    onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: base })
+  }, [onPanelChange, panel, panelFreezeConnectedOutput, panelSelectedTab])
+  const floatingWidgetLikeToolbar = showWidgetLikeToolbar ? (
+    <div
+      className="absolute z-10 pointer-events-auto"
+      style={{
+        top: '50%',
+        left: '100%',
+        marginLeft: `${RICH_MEDIA_FLOATING_TOOLBAR_SIDE_OFFSET_PX}px`,
+        transform: 'translateY(-50%)',
+      }}
+    >
+      <NodeOverlayEditorActionsToolbar
+        visible={true}
+        iconSizeClass={iconSizeClass}
+        iconStrokeWidth={uiIconStrokeWidth}
+        active={true}
+        enableHandlesDisabled={true}
+        convertToLoopDisabled={true}
+        duplicateDisabled={true}
+        actionVisibility={{
+          run: false,
+          updateKvEntry: false,
+          openInSidepane: false,
+          enableHandles: false,
+          convertToLoop: false,
+          duplicate: false,
+          clearOutput: false,
+          help: false,
+          remove: false,
+        }}
+        richMediaViewToggle={showWidgetLikeToolbar ? props.richMediaViewToggle : undefined}
+        richMediaMediaSelector={showWidgetLikeToolbar ? {
+          visible: panelHasMultiKinds,
+          selectedMode: panelActiveTab,
+          onSelect: next => onPanelChange?.({ activeTab: next, freezeConnectedOutput: panelFreezeConnectedOutput }),
+        } : undefined}
+        richMediaAspectToggle={showWidgetLikeToolbar ? props.richMediaAspectToggle : undefined}
+        richMediaTextModeToggle={showWidgetLikeToolbar && panelSelectedTab === 'text' ? {
+          visible: true,
+          freezeConnectedOutput: panelFreezeConnectedOutput,
+          onToggle: handleToggleRichMediaTextMode,
+        } : undefined}
+        openExternalAction={showWidgetLikeToolbar && safeOpenUrl ? {
+          visible: true,
+          label: 'Open source',
+          onOpen: openSafeUrl,
+        } : undefined}
+        onRun={() => void 0}
+        onDuplicate={() => void 0}
+        onClearOutput={() => void 0}
+        onHelp={() => void 0}
+        onRemove={() => void 0}
+        onEnableHandlesForAllInputs={() => void 0}
+        onConvertToLoopNode={() => void 0}
+      />
+    </div>
+  ) : null
 
   const selectSelf = React.useCallback((native: PointerEvent | null) => {
     if (!flowEditorInteractionMode) return
@@ -722,27 +813,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       },
     })
   }, [installHeaderDrag, props, selectSelf])
-  const onHeaderActionPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
-    try {
-      e.stopPropagation()
-    } catch {
-      void 0
-    }
-  }, [])
-  const onHeaderActionClick = React.useCallback((e: React.MouseEvent<HTMLElement>) => {
-    try {
-      e.preventDefault()
-    } catch {
-      void 0
-    }
-    try {
-      e.stopPropagation()
-    } catch {
-      void 0
-    }
-    openSafeUrl()
-  }, [openSafeUrl])
-
   const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const native = e.nativeEvent
     selectSelf(native)
@@ -751,7 +821,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       return t instanceof Element ? t : null
     })()
     const isResizeHandleTarget = !!targetEl?.closest('[data-kg-resize-handle]')
-    const isHeaderActionTarget = !!targetEl?.closest('[data-kg-panel-action="1"]')
     const isScrollableSurfaceTarget = !!targetEl?.closest('[data-kg-media-scroll-surface="1"]')
     const isInteractiveControlTarget = !!targetEl?.closest('textarea,input,select,button,a,[contenteditable="true"]')
     const isHeaderTarget = (() => {
@@ -774,7 +843,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     })()
     const blockOverlayPanForTarget =
       isResizeHandleTarget
-      || isHeaderActionTarget
       || isScrollableSurfaceTarget
       || isInteractiveControlTarget
     if (
@@ -1204,6 +1272,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         onDoubleClickCapture={props.onDoubleClickCapture}
         onContextMenuCapture={props.onContextMenuCapture}
       >
+        {floatingWidgetLikeToolbar}
         {renderSurfaceChildren}
       </section>
     )
@@ -1233,6 +1302,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       onDoubleClickCapture={props.onDoubleClickCapture}
       onContextMenuCapture={props.onContextMenuCapture}
     >
+      {floatingWidgetLikeToolbar}
       {showHeader ? (
         <header
           data-kg-media-panel-header="1"
@@ -1245,8 +1315,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             pointerEvents: headerPassthrough ? 'none' : 'auto',
           }}
           onPointerDownCapture={e => {
-            const target = e.target
-            if (target instanceof Element && target.closest('[data-kg-panel-action="1"]')) return
             try {
               e.preventDefault()
             } catch {
@@ -1257,95 +1325,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           onPointerDown={installHeaderDrag ? onHeaderPointerDown : undefined}
         >
           <h3 className="kg-mediaTitle" style={PANEL_FRAME_HEADER_TITLE_STYLE}>{title}</h3>
-          <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Panel actions">
-            {showPanelControls && !panelControlsHidden ? (
-              <li className="list-none flex items-center gap-1" aria-label="Render mode">
-                {panel?.hasText ? (
-                  <button
-                    type="button"
-                    data-kg-panel-action="1"
-                    style={PANEL_FRAME_HEADER_ACTION_STYLE}
-                    aria-label="Show text"
-                    onPointerDownCapture={onHeaderActionPointerDownCapture}
-                    onClick={() => props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: panelFreezeConnectedOutput })}
-                  >
-                    T
-                  </button>
-                ) : null}
-                {panel?.hasImage ? (
-                  <button
-                    type="button"
-                    data-kg-panel-action="1"
-                    style={PANEL_FRAME_HEADER_ACTION_STYLE}
-                    aria-label="Show image"
-                    onPointerDownCapture={onHeaderActionPointerDownCapture}
-                    onClick={() => props.onPanelChange?.({ activeTab: 'image', freezeConnectedOutput: panelFreezeConnectedOutput })}
-                  >
-                    I
-                  </button>
-                ) : null}
-                {panel?.hasVideo ? (
-                  <button
-                    type="button"
-                    data-kg-panel-action="1"
-                    style={PANEL_FRAME_HEADER_ACTION_STYLE}
-                    aria-label="Show video"
-                    onPointerDownCapture={onHeaderActionPointerDownCapture}
-                    onClick={() => props.onPanelChange?.({ activeTab: 'video', freezeConnectedOutput: panelFreezeConnectedOutput })}
-                  >
-                    V
-                  </button>
-                ) : null}
-                {panelHasPoi ? (
-                  <button
-                    type="button"
-                    data-kg-panel-action="1"
-                    style={PANEL_FRAME_HEADER_ACTION_STYLE}
-                    aria-label="Show POI"
-                    onPointerDownCapture={onHeaderActionPointerDownCapture}
-                    onClick={() => props.onPanelChange?.({ activeTab: 'poi', freezeConnectedOutput: panelFreezeConnectedOutput })}
-                  >
-                    P
-                  </button>
-                ) : null}
-              </li>
-            ) : null}
-            {panelSelectedTab === 'text' && !panelControlsHidden ? (
-              <li className="list-none">
-                <button
-                  type="button"
-                  data-kg-panel-action="1"
-                  style={PANEL_FRAME_HEADER_ACTION_STYLE}
-                  aria-label={panelFreezeConnectedOutput ? 'View connected output' : 'Edit output'}
-                  onPointerDownCapture={onHeaderActionPointerDownCapture}
-                  onClick={() => {
-                    if (!panel) return
-                    if (panelFreezeConnectedOutput) {
-                      props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: false })
-                      return
-                    }
-                    const base = panel.connectedText || panel.text
-                    props.onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: base })
-                  }}
-                >
-                  {panelFreezeConnectedOutput ? 'View' : 'Edit'}
-                </button>
-              </li>
-            ) : null}
-            {safeOpenUrl ? (
-              <li className="list-none">
-                <button
-                  type="button"
-                  data-kg-panel-action="1"
-                  aria-label="Open source"
-                  style={PANEL_FRAME_HEADER_ACTION_STYLE}
-                  onPointerDownCapture={onHeaderActionPointerDownCapture}
-                  onClick={onHeaderActionClick}
-                >
-                  <ExternalLink size={14} aria-hidden="true" />
-                </button>
-              </li>
-            ) : null}
+          <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Panel status">
             {panelIsLoading ? (
               <li
                 className="list-none"

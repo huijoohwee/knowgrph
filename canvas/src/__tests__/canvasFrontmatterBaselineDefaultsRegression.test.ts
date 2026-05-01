@@ -84,12 +84,17 @@ export function testFrontmatterFlowDoesNotBuildSyntheticFallbackSubgraphMetadata
 
 export function testSourceFilesComposeDoesNotBlankPendingRemoteSeeds() {
   const composedSourcePath = resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts')
+  const guardPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'composedApplyGuards.ts')
   const text = readFileSync(composedSourcePath, 'utf8')
-  if (!text.includes('const hasPendingEnabledRemoteSource = layers.some(layer => {')) {
-    throw new Error('expected composed source graph runtime to detect pending enabled remote sources before clearing graph data')
+  const guardText = readFileSync(guardPath, 'utf8')
+  if (!guardText.includes('export function resolveComposedApplyDeferralReason(args:')) {
+    throw new Error('expected composed source graph runtime to centralize race-suppression decisions in a shared source-files helper')
   }
-  if (!text.includes("if (!composedHasContent && hasPendingEnabledRemoteSource) return")) {
-    throw new Error('expected composed source graph runtime to preserve live graph while pending remote seeds are still hydrating')
+  if (!guardText.includes("return 'pending-remote-source'")) {
+    throw new Error('expected composed source graph runtime guard helper to preserve live graph while pending remote seeds are still hydrating')
+  }
+  if (!text.includes('resolveComposedApplyDeferralReason({')) {
+    throw new Error('expected composed source graph runtime to reuse the shared race-suppression helper')
   }
 }
 

@@ -1,38 +1,25 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphState } from '@/hooks/store/types'
 import type { GetGraph, SetGraph } from './graphDataSliceAccess'
-import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
-import { buildSourceLayerKeys } from '@/lib/graph/sourceLayers'
+import { readSourceLayerKeysFromGraphData, updateGraphDataSourceLayerKeys } from '@/lib/graph/sourceLayers'
+import { buildUpdatedSourceFileParsedGraphState } from '@/features/source-files/sourceFileParsedState'
+import { resolvePreferredEnabledComposedSourceFileFromState } from '@/features/source-files/composedSourceSelection'
 
 type ParsedComposedId = { layerId: string; innerId: string }
 
 const COMPOSED_NODE_POSITION_KEYS = new Set(['x', 'y', 'vx', 'vy', 'fx', 'fy'])
 
-export function normalizeComposedSourcePath(raw: unknown): string {
-  const text = String(raw || '').trim().replace(/\\/g, '/')
-  if (!text) return ''
-  const withoutWorkspace = text.startsWith('workspace:') ? text.slice('workspace:'.length) : text
-  return withoutWorkspace.replace(/^\/+/, '')
-}
-
 export function resolvePreferredComposedLayerId(args: { get: GetGraph; explicitLayerId?: string | null }): string | null {
   const explicit = String(args.explicitLayerId || '').trim()
   if (explicit) return explicit
   const state = args.get()
-  const sourceFiles = state.sourceFiles || []
-  const explorerActivePath = normalizeComposedSourcePath(useMarkdownExplorerStore.getState().activePath)
-  const activeDocPath = normalizeComposedSourcePath(state.markdownDocumentName) || explorerActivePath
-  if (activeDocPath) {
-    const activeFile = sourceFiles.find(f => {
-      if (!f?.enabled) return false
-      const sourcePath = normalizeComposedSourcePath(f.source?.path || f.name || '')
-      return sourcePath === activeDocPath
-    })
-    if (activeFile?.id) return String(activeFile.id)
-  }
+  const activeFile = resolvePreferredEnabledComposedSourceFileFromState({
+    state,
+  })
+  if (activeFile?.id) return String(activeFile.id)
   const selectedLayerId = parseComposedId(state.selectedNodeId || '')?.layerId || ''
   if (selectedLayerId) return selectedLayerId
-  const fallbackLayerId = sourceFiles.find(f => f.enabled && !!f.parsedGraphData)?.id || null
+  const fallbackLayerId = (state.sourceFiles || []).find(f => f.enabled && !!f.parsedGraphData)?.id || null
   return fallbackLayerId ? String(fallbackLayerId) : null
 }
 
@@ -86,10 +73,8 @@ let composedPendingPositionWriteGraphKey = ''
 
 function readComposedPositionWriteGraphKey(graphData: GraphData | null): string {
   if (!graphData || !isComposedGraphData(graphData)) return ''
-  const meta = (graphData.metadata || {}) as Record<string, unknown>
-  const content = typeof meta.sourceLayerHash === 'string' ? meta.sourceLayerHash : ''
-  const order = typeof meta.sourceLayerOrderHash === 'string' ? meta.sourceLayerOrderHash : ''
-  return `${content}|${order}`
+  const { contentKey, orderKey } = readSourceLayerKeysFromGraphData(graphData)
+  return `${contentKey}|${orderKey}`
 }
 
 export function isPureComposedNodePositionUpdate(updates: Partial<GraphNode>): boolean {
@@ -135,8 +120,10 @@ export function flushComposedPositionWritesNow(args: { set: SetGraph; get: GetGr
     changed = true
     return {
       ...f,
-      parsedGraphData: { ...pg, nodes: nextNodes },
-      parsedGraphRevision: (f.parsedGraphRevision || 0) + 1,
+      ...buildUpdatedSourceFileParsedGraphState({
+        previousParsedState: f,
+        graphData: { ...pg, nodes: nextNodes },
+      }),
     }
   })
 
@@ -146,26 +133,17 @@ export function flushComposedPositionWritesNow(args: { set: SetGraph; get: GetGr
   if (currentGraphData && isComposedGraphData(currentGraphData)) {
     try {
       const layers = buildLayersFromSourceFiles(nextSourceFiles)
-      const { contentKey, orderKey } = buildSourceLayerKeys(layers)
-      const currentMeta = (currentGraphData.metadata && typeof currentGraphData.metadata === 'object'
-        ? (currentGraphData.metadata as Record<string, unknown>)
-        : {}) as Record<string, unknown>
-      const prevContentKey = typeof currentMeta.sourceLayerHash === 'string' ? currentMeta.sourceLayerHash : ''
-      const prevOrderKey = typeof currentMeta.sourceLayerOrderHash === 'string' ? currentMeta.sourceLayerOrderHash : ''
-      if (prevContentKey === contentKey && prevOrderKey === orderKey) {
+      const nextGraph = updateGraphDataSourceLayerKeys({
+        graphData: currentGraphData,
+        layers,
+      })
+      if (!nextGraph.changed) {
         args.set({ sourceFiles: nextSourceFiles })
         return
       }
       args.set({
         sourceFiles: nextSourceFiles,
-        graphData: {
-          ...currentGraphData,
-          metadata: {
-            ...(currentGraphData.metadata && typeof currentGraphData.metadata === 'object' ? currentGraphData.metadata : {}),
-            sourceLayerHash: contentKey,
-            sourceLayerOrderHash: orderKey,
-          } as unknown as GraphData['metadata'],
-        },
+        graphData: nextGraph.graphData,
       })
       return
     } catch {

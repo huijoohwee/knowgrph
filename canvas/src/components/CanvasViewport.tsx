@@ -15,6 +15,7 @@ import {
   resolveGrabMapsPoiRichMediaPanelNodeId,
   type GrabMapsPoiRichMediaDetail,
 } from '@/features/geospatial/grabMapsPoiRichMedia'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
@@ -203,6 +204,7 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       sourceFiles: s.sourceFiles,
     })),
   )
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
 
   const geoGraphLastRef = React.useRef<GraphData>(graphData)
   const geospatialGraphData = React.useMemo(() => {
@@ -225,6 +227,7 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
   const snapshot = React.useMemo(
     () => ({
       graphData: geospatialGraphData,
+      graphRevision: graphDataRevision,
       zoomState: gympgrphBridge.zoomState,
       canvasRenderMode: gympgrphBridge.canvasRenderMode,
       viewportControlsPreset: gympgrphBridge.viewportControlsPreset,
@@ -235,6 +238,7 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
     }),
     [
       geospatialGraphData,
+      graphDataRevision,
       gympgrphBridge.canvasRenderMode,
       gympgrphBridge.openWidgetNodeIds,
       gympgrphBridge.selectedEdgeId,
@@ -347,7 +351,7 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       return
     }
     const ids = Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0 ? selectedNodeIds : selectedNodeId ? [selectedNodeId] : []
-    const key = `${ids.length}:${ids.slice(0, 8).join(',')}:${String(selectedEdgeId || '')}`
+    const key = `${hashScopedStringArraySignature('geo-fit-selection', ids, { unique: true, sort: true })}:${String(selectedEdgeId || '')}`
     if (!ids.length) return
     if (key === lastGeoSelectionFitKeyRef.current) return
     lastGeoSelectionFitKeyRef.current = key

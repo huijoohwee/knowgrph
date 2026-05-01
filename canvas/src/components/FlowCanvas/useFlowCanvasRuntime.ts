@@ -7,6 +7,7 @@ import { computeCollisionDuringDrag } from '@/components/FlowCanvas/collisionPol
 import { __flowCanvasDebug } from '@/components/FlowCanvas/flowCanvasDebug'
 import { setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
+import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
 import {
   createFlowNativeRuntime,
   requestFlowNativeDraw,
@@ -18,9 +19,7 @@ import {
 } from '@/components/FlowCanvas/nativeRuntime'
 import { FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT } from '@/components/FlowCanvas/shared'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
-import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
@@ -170,27 +169,15 @@ export function useFlowCanvasRuntime(args: {
       setFlowAutoMinScale(runtime, null)
       return
     }
-    const mode = readLayoutMode(schema)
-    const opts = readFitAllOptions({ schema, mode, intent: 'fitToView' })
-    const activeDocumentViewMode = resolveActiveDocumentViewMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true,
-      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
-      documentSemanticMode: String(documentSemanticMode || 'document'),
-      documentStructureBaselineLock: documentStructureBaselineLock === true,
+    const opts = buildFlowFitOptions({
+      schema,
+      intent: 'fitToView',
+      frontmatterModeEnabled,
+      multiDimTableModeEnabled,
+      documentSemanticMode,
+      documentStructureBaselineLock,
+      enableDocumentStructureBounds: true,
     })
-    if (activeDocumentViewMode === 'documentStructure') {
-      opts.detectClusters = false
-      opts.includeGroupsBounds = true
-      opts.deriveGroupsOptions = { forceDocumentStructure: true }
-      opts.schema = {
-        ...schema,
-        layout: { ...(schema?.layout || {}), groups: { ...(schema?.layout?.groups || {}), enabled: true } },
-      } as GraphSchema
-    }
-    const port = schema?.behavior?.portHandles || null
-    const portEnabled = Boolean((port as { enabled?: unknown } | null)?.enabled)
-    const portSizePx = typeof (port as { size?: unknown } | null)?.size === 'number' ? Math.max(0, (port as { size: number }).size) : 4
-    const portOffsetPx = typeof (port as { offset?: unknown } | null)?.offset === 'number' ? Math.max(0, (port as { offset: number }).offset) : 2
     const fit = fitFlowEditorPinnedWidgets({
       nodes,
       fitW: Math.max(1, viewportW - flowEditorReservedW),
@@ -199,7 +186,7 @@ export function useFlowCanvasRuntime(args: {
       openWidgetNodeIds,
       pinnedById: flowWidgetPinnedByNodeId || {},
       worldPosById: flowWidgetWorldPosByNodeId || {},
-      portExtraPadScreenPx: portEnabled ? portSizePx + portOffsetPx + 8 : 0,
+      portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema),
       graphData: graphDataForZoomRequests,
       fitOpts: opts,
     })
@@ -314,8 +301,15 @@ export function useFlowCanvasRuntime(args: {
       nextViewportW: viewportW,
       nextViewportH: viewportH,
     })
-    const mode = readLayoutMode(state.schema)
-    const opts = readFitAllOptions({ schema: state.schema, mode, intent: fitToScreenMode ? 'fitToScreen' : 'initialFit' })
+    const opts = buildFlowFitOptions({
+      schema: state.schema,
+      intent: fitToScreenMode ? 'fitToScreen' : 'initialFit',
+      frontmatterModeEnabled,
+      multiDimTableModeEnabled,
+      documentSemanticMode,
+      documentStructureBaselineLock,
+      enableDocumentStructureBounds: false,
+    })
     const nodesForFit = Array.isArray(graphDataForZoomRequests?.nodes) ? graphDataForZoomRequests.nodes : []
     if (isFlowEditor && nodesForFit.length === 0) return
     const fitW = Math.max(1, viewportW - (isFlowEditor ? flowEditorReservedW : 0))
@@ -328,7 +322,7 @@ export function useFlowCanvasRuntime(args: {
           openWidgetNodeIds,
           pinnedById: flowWidgetPinnedByNodeId || {},
           worldPosById: flowWidgetWorldPosByNodeId || {},
-          portExtraPadScreenPx: 0,
+          portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(state.schema),
           graphData: graphDataForZoomRequests,
           fitOpts: opts,
         })
@@ -344,15 +338,18 @@ export function useFlowCanvasRuntime(args: {
     active,
     canvas2dRenderer,
     documentSemanticMode,
+    documentStructureBaselineLock,
     fitToScreenMode,
     flowEditorReservedW,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
+    frontmatterModeEnabled,
     graphDataForZoom,
     graphDataForZoomRequests,
     graphDataRevision,
     lastInitTransformZoomViewKeyRef,
     lastUserInteractionAtMsRef,
+    multiDimTableModeEnabled,
     openWidgetNodeIds,
     requestCommit,
     runtimeRef,

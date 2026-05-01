@@ -3,17 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { PaywallOverlay } from '@/features/payments/PaywallOverlay'
-
-const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
-  for (let i = 0; i < count; i += 1) {
-    await new Promise<void>(resolve => {
-      if (typeof raf === 'function') raf(() => resolve())
-      else setTimeout(() => resolve(), 0)
-    })
-  }
-}
 
 export async function testPaywallOverlayOpensFromPaymentsStripeToggle() {
   const storage = new MemoryStorage()
@@ -22,11 +14,7 @@ export async function testPaywallOverlayOpensFromPaymentsStripeToggle() {
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
-    anyWindow.requestAnimationFrame = (cb: (ts: number) => void) =>
-      setTimeout(() => cb(Date.now()), 0) as unknown as number
-    ;(globalThis as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame =
-      anyWindow.requestAnimationFrame
+    installDeterministicRaf(dom.window)
 
     useGraphStore.getState().resetAll()
     useGraphStore.getState().setPaymentsStripePaywallEnabled(false)
@@ -39,9 +27,9 @@ export async function testPaywallOverlayOpensFromPaymentsStripeToggle() {
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
-    await act(async () => {
-      root?.render(React.createElement(PaywallOverlay, { portalTarget: container } as never))
-      await waitForFrames(anyWindow.requestAnimationFrame, 2)
+    await mountReactRoot(root, React.createElement(PaywallOverlay, { portalTarget: container } as never), {
+      window: dom.window,
+      frames: 2,
     })
 
     const before = container.textContent || ''
@@ -51,7 +39,7 @@ export async function testPaywallOverlayOpensFromPaymentsStripeToggle() {
 
     await act(async () => {
       useGraphStore.getState().setPaymentsStripePaywallEnabled(true)
-      await waitForFrames(anyWindow.requestAnimationFrame, 3)
+      await waitForFrames(dom.window, 3)
     })
 
     const enabledButClosed = container.textContent || ''
@@ -62,7 +50,7 @@ export async function testPaywallOverlayOpensFromPaymentsStripeToggle() {
     await act(async () => {
       useGraphStore.getState().setFloatingPanelOpen(true)
       useGraphStore.getState().setFloatingPanelView('chat')
-      await waitForFrames(anyWindow.requestAnimationFrame, 3)
+      await waitForFrames(dom.window, 3)
     })
 
     const after = container.textContent || ''
@@ -74,7 +62,7 @@ export async function testPaywallOverlayOpensFromPaymentsStripeToggle() {
     }
   } finally {
     try {
-      root?.unmount()
+      if (root) await unmountReactRoot(root, { window: dom.window })
     } catch {
       void 0
     }

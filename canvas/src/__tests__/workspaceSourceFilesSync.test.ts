@@ -2,9 +2,11 @@ import type { SourceFile } from '@/hooks/store/types'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import {
+  BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   TEST_VALIDATION_SOURCE_PATH,
   WORKSPACE_README_SOURCE_PATH,
   reconcileDefaultWorkspaceSeedSourceFiles,
+  resolveWorkspaceSeedSourcePath,
 } from '@/features/source-files/workspaceSeedSourceFiles'
 
 export async function testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace() {
@@ -151,6 +153,18 @@ export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFil
   if (!demo) throw new Error('expected canonical validation demo seed to always be mirrored into Source Files')
   if (readme.enabled !== true) throw new Error('expected canonical README seed to stay enabled by default')
   if (demo.enabled !== false) throw new Error('expected canonical validation demo seed to stay disabled by default until explicitly activated')
+}
+
+export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasToCanonicalSourcePath() {
+  if (resolveWorkspaceSeedSourcePath(BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH) !== TEST_VALIDATION_SOURCE_PATH) {
+    throw new Error('expected bundled validation workspace seed alias to resolve onto the canonical validation source-file path')
+  }
+  if (resolveWorkspaceSeedSourcePath('/README.md') !== WORKSPACE_README_SOURCE_PATH) {
+    throw new Error('expected README workspace seed path to resolve onto the canonical README source-file path')
+  }
+  if (resolveWorkspaceSeedSourcePath('/notes/custom.md') !== null) {
+    throw new Error('expected non-seed workspace paths to stay outside canonical seed source-file remapping')
+  }
 }
 
 export async function testWorkspaceSeedSourceFilesReconcilePersistedDefaultFamilyToCanonicalOrder() {

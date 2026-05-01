@@ -671,6 +671,9 @@ export default function FlowCanvasMediaOverlays(args: {
               nodeInteractive: node.interactive,
               renderMediaAsNodes,
               infiniteCanvasInteractionMode,
+              canvas2dRenderer,
+              frontmatterModeEnabled,
+              documentSemanticMode,
             })}
             iframeMode="srcdoc-when-needed"
             panel={node.panel}

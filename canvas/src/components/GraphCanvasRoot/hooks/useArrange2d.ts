@@ -6,6 +6,7 @@ import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrang
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import { freezeSimulationAndPersistLayoutPositions2d } from '@/components/GraphCanvasRoot/utils/freezeAndPersistLayout2d'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 export function useArrange2d(args: {
   active: boolean
@@ -41,8 +42,12 @@ export function useArrange2d(args: {
       if (!graphDataNow) return
       const nodes = Array.isArray(graphDataNow.nodes) ? (graphDataNow.nodes as GraphNode[]) : []
       if (nodes.length === 0) return
-      const byId = new Map<string, GraphNode>()
-      for (let i = 0; i < nodes.length; i += 1) byId.set(String(nodes[i]!.id), nodes[i]!)
+      const lookup = getCachedGraphLookup({
+        cacheScope: 'graph-canvas-root-arrange-2d-scene-graph',
+        graphData: graphDataNow,
+        preferCurrentGraphDataRefs: true,
+      })
+      const byId = lookup?.nodeById || new Map<string, GraphNode>()
       const refId = (() => {
         const a = String(selectedNodeId || '').trim()
         if (a && selectedIds.includes(a)) return a

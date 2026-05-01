@@ -86,10 +86,10 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!overlayEdgesText.includes('if (workspaceOverlayOpenRef.current) cancelOverlayEdgeUpdate()')) {
     throw new Error('expected workspace overlay open transition to cancel queued overlay edge recomputation')
   }
-  if (!overlayEdgesText.includes('if (wasOpen) scheduleOverlayEdgeUpdate()')) {
+  if (!overlayEdgesText.includes('if (wasOpen) {') || !overlayEdgesText.includes('scheduleOverlayEdgeUpdate()')) {
     throw new Error('expected workspace overlay close transition to reschedule overlay edge recomputation')
   }
-  const edgeScheduleGuardIndex = overlayEdgesText.indexOf('if (workspaceOverlayOpenRef.current) return')
+  const edgeScheduleGuardIndex = overlayEdgesText.indexOf('if (workspaceOverlayOpenRef.current) {')
   const edgePathWriteIndex = overlayEdgesText.indexOf("if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)")
   if (edgeScheduleGuardIndex < 0 || edgePathWriteIndex < 0 || edgeScheduleGuardIndex > edgePathWriteIndex) {
     throw new Error('expected Flow Editor overlay edge DOM writes to be skipped while workspace overlay is open')
@@ -130,6 +130,9 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   const computedWriteIndex = computedText.indexOf('setLayoutPositionsForMode(cacheKey, packed)')
   if (computedGuardIndex < 0 || computedWriteIndex < 0 || computedGuardIndex > computedWriteIndex) {
     throw new Error('expected Flow computed positions to block layout cache writes while workspace overlay is open')
+  }
+  if (!computedText.includes("cacheScope: 'flow-canvas-computed-positions-scene-graph'") || !computedText.includes('getCachedGraphLookup({')) {
+    throw new Error('expected Flow computed positions to reuse the shared scene-graph lookup helper instead of rebuilding local Mermaid sizing maps')
   }
   const storePath = resolve(process.cwd(), 'src', 'hooks', 'useGraphStore.ts')
   const storeText = readFileSync(storePath, 'utf8')

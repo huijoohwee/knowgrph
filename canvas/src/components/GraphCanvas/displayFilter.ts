@@ -3,6 +3,8 @@ import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { DOCUMENT_CONTAINMENT_EDGE_LABELS } from '@/lib/graph/documentContainmentEdgeLabels'
 import { readGraphActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
 const coerceEndpointId = (v: unknown): string => {
   if (typeof v === 'string') return v
@@ -98,13 +100,16 @@ export const getGraphDataForDisplay = (args: { graphData: GraphData; edges?: Gra
     : Array.isArray(graphData.edges)
       ? (graphData.edges as GraphEdge[])
       : []
-  const nodeById = new Map<string, GraphNode>()
-  for (let i = 0; i < allNodes.length; i += 1) {
-    const node = allNodes[i]
-    const id = String(node?.id || '').trim()
-    if (!id) continue
-    nodeById.set(id, node)
-  }
+  const nodeLookupKey = hashScopedStringArraySignature(
+    'graph-canvas-display-filter-nodes',
+    allNodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`),
+  )
+  const nodeLookup = getCachedGraphLookup({
+    cacheScope: 'graph-canvas-display-filter',
+    graphData,
+    graphSemanticKey: nodeLookupKey,
+  })
+  const nodeById = nodeLookup?.nodeById || new Map<string, GraphNode>()
 
   const preferredNodes = allNodes.filter(n => {
     if (frontmatterMode && isParagraphOrListNode(n)) return false

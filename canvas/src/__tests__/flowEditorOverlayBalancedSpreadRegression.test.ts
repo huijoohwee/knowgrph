@@ -38,6 +38,12 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('const posSig = buildPosSignature(overlayNodeIds, st.flowWidgetPosByNodeId)')) {
     throw new Error('expected overlay collision key to include shared stored-position signatures')
   }
+  if (!hookText.includes("import { hashScopedStringArraySignature, hashSignatureParts, normalizeStringArrayForSignature } from '@/lib/hash/signature'")) {
+    throw new Error('expected overlay collision runtime to reuse shared semantic-key helpers instead of local join-based key assembly')
+  }
+  if (!hookText.includes("cacheScope: 'flow-editor-overlay-collision-graph'") || !hookText.includes('getCachedGraphLookup({')) {
+    throw new Error('expected overlay collision runtime to reuse the shared graph lookup helper instead of rebuilding local node maps inside the settle loop')
+  }
   if (!hookText.includes('const panelScaleKey = computeWidgetScaleKey(panelScale)')) {
     throw new Error('expected overlay collision key to bucket relayouts by stable floating scale')
   }
@@ -53,8 +59,11 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('const OVERLAY_POSITION_QUANTUM_PX = 1')) {
     throw new Error('expected overlay collision path to quantize persisted floating positions')
   }
-  if (!hookText.includes('const pinSig = overlayNodeIds')) {
-    throw new Error('expected overlay collision key to include pinned signature')
+  if (!hookText.includes("const overlayNodeIdsKey = hashScopedStringArraySignature('overlay-collision-node-ids', overlayNodeIds)")) {
+    throw new Error('expected overlay collision key to derive a semantic overlay-node-set signature through the shared helper')
+  }
+  if (!hookText.includes("const pinSig = hashSignatureParts([")) {
+    throw new Error('expected overlay collision key to include a semantic pinned signature instead of raw string concatenation')
   }
   if (!hookText.includes('queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)')) {
     throw new Error('expected overlay collision runtime to resolve widget roots through the shared active-surface selector')
@@ -155,7 +164,7 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!runtimeText.includes('overlayTopologyLayoutSignature,\n    zoomViewKeyRef')) {
     throw new Error('expected Flow Editor runtime scene seeding to receive semantic topology/layout signature instead of raw graph revision')
   }
-  if (!surfaceText.includes('const seedKey = `${args.overlayTopologyLayoutSignature}|${overlayEditorNodeIds.join(\',\')}|${missingIds.join(\',\')}|${defaultPinned ? 1 : 0}`')) {
+  if (!surfaceText.includes("'frontmatter-overlay-auto-pins'") || !surfaceText.includes('overlayEditorNodeIdsKey') || !surfaceText.includes("hashScopedStringArraySignature('missing-frontmatter-pins', missingIds)")) {
     throw new Error('expected Flow Editor overlay pin seeding to ignore output-only graph revisions')
   }
   if (!sceneText.includes('args.overlayTopologyLayoutSignature') || sceneText.includes('args.baseGraphDataRevision')) {

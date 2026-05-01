@@ -1,3 +1,5 @@
+import { buildConnectedNodeIdComponents } from '@/components/GraphCanvas/layout/graphConnectivity'
+
 export type PackEdge = { source: string; target: string }
 export type PackPos = { x: number; y: number }
 
@@ -86,30 +88,15 @@ export const packDisjointPositions2d = (args: {
     }
   }
 
-  const visited = new Set<string>()
+  const componentNodeIds = buildConnectedNodeIdComponents({
+    nodeIds,
+    adjacencyByNodeId: adj,
+  })
   const components: Component[] = []
-
-  for (let i = 0; i < nodeIds.length; i += 1) {
-    const start = nodeIds[i]
-    if (visited.has(start)) continue
-    visited.add(start)
-
-    const stack = [start]
-    const comp: string[] = []
-    while (stack.length) {
-      const id = stack.pop()!
-      comp.push(id)
-      const neigh = adj.get(id) || []
-      for (let j = 0; j < neigh.length; j += 1) {
-        const nid = neigh[j]
-        if (visited.has(nid)) continue
-        visited.add(nid)
-        stack.push(nid)
-      }
-    }
-
-    const bbox = computeBBox(comp, positions, nodeSize)
-    if (bbox) components.push({ nodeIds: comp, bbox })
+  for (let i = 0; i < componentNodeIds.length; i += 1) {
+    const nodeIdsForComponent = componentNodeIds[i]
+    const bbox = computeBBox(nodeIdsForComponent, positions, nodeSize)
+    if (bbox) components.push({ nodeIds: nodeIdsForComponent, bbox })
   }
 
   if (components.length <= 1) return positions

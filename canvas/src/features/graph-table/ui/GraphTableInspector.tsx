@@ -19,7 +19,7 @@ import {
   resolveWidgetRegistryEntry,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { normalizeGraphData } from '@/lib/graph/normalize'
-import { buildWidgetBundleV1, widgetBundleToJsonText } from '@/lib/graph/io/widgetBundle'
+import { buildWidgetBundleJsonText } from '@/lib/graph/io/widgetBundle'
 import { useShallow } from 'zustand/react/shallow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
@@ -149,12 +149,14 @@ export function GraphTableInspector({
       nodes: [node],
       edges,
     }
-    const bundleText = widgetBundleToJsonText(
-      buildWidgetBundleV1({ registryEntries: registryForType, graphData: graph as never }),
-    )
+    const bundleText = buildWidgetBundleJsonText({
+      registryEntries: registryForType,
+      graphData: graph as never,
+      graphRevision: graphDataRevision,
+    })
     if (codeFormat === 'markdown') return `\`\`\`json\n${bundleText}\n\`\`\``
     return bundleText
-  }, [allEdges, codeFormat, node, widgetRegistry, showWidget])
+  }, [allEdges, codeFormat, graphDataRevision, node, widgetRegistry, showWidget])
 
   const copyWidgetCode = () => {
     const text = widgetCodeText

@@ -63,6 +63,12 @@ const DEFAULT_STYLE_PROPS: readonly string[] = [
   'stop-opacity',
 ] as const
 
+const MARKDOWN_DESIGN_BLOCK_SELECTOR = '[data-md-id]'
+
+const readMarkdownDesignBlockId = (el: Element): string => {
+  return String(el.getAttribute('data-md-id') || '').trim()
+}
+
 export type SvgSnapshotOptions = {
   includeXmlDeclaration?: boolean
   paddingPx?: number
@@ -341,7 +347,7 @@ export const buildViewportSvgMarkupFromElement = (svgEl: SVGSVGElement, options?
       }
 
       const scopeEl = findScopeEl()
-      const blocks = scopeEl ? scopeEl.querySelectorAll('[data-kg-markdown-design-block]') : null
+      const blocks = scopeEl ? scopeEl.querySelectorAll(MARKDOWN_DESIGN_BLOCK_SELECTOR) : null
       if (blocks && blocks.length > 0) {
         const zoomRoot = (() => {
           const kids = Array.from(clone.children)
@@ -473,7 +479,7 @@ export const injectLiveMarkdownDesignBlocksIntoSvgMarkup = (svgMarkup: string): 
   }
 
   const scopeEl = findScopeEl()
-  const blocks = scopeEl ? scopeEl.querySelectorAll('[data-kg-markdown-design-block]') : null
+  const blocks = scopeEl ? scopeEl.querySelectorAll(MARKDOWN_DESIGN_BLOCK_SELECTOR) : null
   if (!blocks || blocks.length === 0) return raw
 
   const zoomRoot = (svg.querySelector('g') as unknown as SVGGElement | null) || null
@@ -598,7 +604,7 @@ export const injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored = (args: {
     }
   })()
 
-  const blocks = scopeEl ? scopeEl.querySelectorAll('[data-kg-markdown-design-block]') : null
+  const blocks = scopeEl ? scopeEl.querySelectorAll(MARKDOWN_DESIGN_BLOCK_SELECTOR) : null
   if (!blocks || blocks.length === 0) return raw
 
   const zoomRoot = (svg.querySelector('g') as unknown as SVGGElement | null) || null
@@ -618,7 +624,7 @@ export const injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored = (args: {
   for (let i = 0; i < blocks.length; i += 1) {
     try {
       const block = blocks[i] as HTMLElement
-      const blockId = String(block.getAttribute('data-kg-markdown-design-block') || '').trim()
+      const blockId = readMarkdownDesignBlockId(block)
       const ww = Number(block.getAttribute('data-kg-world-w'))
       const wh = Number(block.getAttribute('data-kg-world-h'))
       if (!Number.isFinite(ww) || !Number.isFinite(wh) || ww <= 0 || wh <= 0) continue

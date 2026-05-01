@@ -1,4 +1,4 @@
-import { useEffect, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
+import { useEffect, useMemo, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 import * as d3 from 'd3'
 import { useShallow } from 'zustand/react/shallow'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
@@ -9,14 +9,16 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { updateForceSimulationPresentation } from '@/components/GraphCanvas/simulation'
 import { updateGraphSceneGroupsPresentation, updateGraphSceneNodesPresentation } from '@/components/GraphCanvas/scene'
+import { buildGraphCanvasStoreActionAdapters } from '@/components/GraphCanvasRoot/utils/graphStoreActionAdapters'
 import type { NodeHalfExtents } from '@/components/GraphCanvas/layout/overlap'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 function mergeStableOverlayHalfExtents(args: {
-  nodes: GraphNode[]
+  nodeById: ReadonlyMap<string, GraphNode>
   computed: Record<string, NodeHalfExtents> | null
   panelOnlyNodeIdSet: Set<string>
   mediaOverlayNodeIdSet: Set<string>
@@ -32,16 +34,10 @@ function mergeStableOverlayHalfExtents(args: {
     if (trimmed) nodeIds.add(trimmed)
   }
   if (nodeIds.size === 0) return args.computed
-  const nodesById = new Map<string, GraphNode>()
-  for (let i = 0; i < args.nodes.length; i += 1) {
-    const node = args.nodes[i]
-    const id = String(node?.id || '').trim()
-    if (id) nodesById.set(id, node)
-  }
   const out: Record<string, NodeHalfExtents> = args.computed ? { ...args.computed } : {}
   let changed = false
   for (const id of nodeIds) {
-    const node = nodesById.get(id)
+    const node = args.nodeById.get(id)
     const props =
       node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
         ? (node.properties as Record<string, unknown>)
@@ -154,6 +150,15 @@ export function useD3PresentationUpdates2d(args: {
     setHoverInfo,
   } = args
   const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(canvas2dRenderer || '') !== 'd3Bipartite'
+  const graphStoreActions = useMemo(
+    () =>
+      buildGraphCanvasStoreActionAdapters({
+        setHoverInfo,
+        workspaceOverlayOpenRef,
+        enableNodePositionCommit: enableEditorGestures,
+      }),
+    [enableEditorGestures, setHoverInfo],
+  )
 
   const mediaOverlayNodeIdsKey = (() => {
     try {
@@ -194,6 +199,11 @@ export function useD3PresentationUpdates2d(args: {
     }
     if (!frozen) {
       const sceneNodes = Array.isArray(sceneGraphDataRef.current.nodes) ? (sceneGraphDataRef.current.nodes as GraphNode[]) : []
+      const sceneGraphLookup = getCachedGraphLookup({
+        cacheScope: 'graph-canvas-root-presentation-scene-graph',
+        graphData: sceneGraphDataRef.current,
+        preferCurrentGraphDataRefs: true,
+      })
       const computedOverlayHalfExtentsByNodeId = computeOverlayHalfExtentsByNodeId2d({
         nodes: sceneNodes,
         panelOnlyNodeIdSet,
@@ -220,7 +230,7 @@ export function useD3PresentationUpdates2d(args: {
         },
       })
       const stableOverlayHalfExtentsByNodeId = mergeStableOverlayHalfExtents({
-        nodes: sceneNodes,
+        nodeById: sceneGraphLookup?.nodeById || new Map<string, GraphNode>(),
         computed: computedOverlayHalfExtentsByNodeId,
         panelOnlyNodeIdSet,
         mediaOverlayNodeIdSet,
@@ -282,28 +292,17 @@ export function useD3PresentationUpdates2d(args: {
         mediaSelRef,
         portHandlesSelRef,
         labelsSelRef,
-        setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
-        selectNode: id => useGraphStore.getState().selectNode(id),
-        selectEdge: id => useGraphStore.getState().selectEdge(id),
-        setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
-        addEdge: e => {
-          if (workspaceOverlayOpenRef.current) return
-          useGraphStore.getState().addEdge(e)
-        },
-        updateEdge: (id, u) => {
-          if (workspaceOverlayOpenRef.current) return
-          useGraphStore.getState().updateEdge(id, u)
-        },
+        setHoverInfo: graphStoreActions.setHoverInfo,
+        selectNode: graphStoreActions.selectNode,
+        selectEdge: graphStoreActions.selectEdge,
+        setSelectionSource: graphStoreActions.setSelectionSource,
+        addEdge: graphStoreActions.addEdge,
+        updateEdge: graphStoreActions.updateEdge,
         getSelectedEdgeId: () => selectedEdgeIdRef.current,
         enableEditorGestures,
-        onCommitNodePosition:
-          enableEditorGestures
-            ? ({ id, x, y }) => {
-                useGraphStore.getState().updateNode(id, { x, y })
-              }
-            : undefined,
-        requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
-        toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
+        onCommitNodePosition: graphStoreActions.onCommitNodePosition,
+        requestZoomSelection: graphStoreActions.requestZoomSelection,
+        toggleGroupCollapsed: graphStoreActions.toggleGroupCollapsed,
       }),
     })
     nodesPresentationAppliedKeyRef.current =
@@ -313,9 +312,12 @@ export function useD3PresentationUpdates2d(args: {
     coarsePointer,
     canvas2dRenderer,
     documentSemanticMode,
+    documentStructureBaselineLock,
     edgesForSim,
     enableEditorGestures,
+    frontmatterModeEnabled,
     gRef,
+    graphStoreActions,
     groupChevronSelRef,
     labelsSelRef,
     linkDragRef,
@@ -341,6 +343,7 @@ export function useD3PresentationUpdates2d(args: {
     simulationRef,
     svgRef,
     tempLinkSelRef,
+    multiDimTableModeEnabled,
     zoomRef,
   ])
 
@@ -369,12 +372,12 @@ export function useD3PresentationUpdates2d(args: {
         beforeRenderFrameRef,
         simulationRef,
         hoverEnabled,
-        setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
-        setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
-        selectNode: id => useGraphStore.getState().selectNode(id),
-        selectGroup: id => useGraphStore.getState().selectGroup(id),
-        selectGroupExpanded: x => useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
-        toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
+        setHoverInfo: graphStoreActions.setHoverInfo,
+        setSelectionSource: graphStoreActions.setSelectionSource,
+        selectNode: graphStoreActions.selectNode,
+        selectGroup: graphStoreActions.selectGroup,
+        selectGroupExpanded: graphStoreActions.selectGroupExpanded,
+        toggleGroupCollapsed: graphStoreActions.toggleGroupCollapsed,
       }),
     })
     groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
@@ -385,10 +388,12 @@ export function useD3PresentationUpdates2d(args: {
     documentStructureBaselineLock,
     frontmatterModeEnabled,
     gRef,
+    graphStoreActions,
     groupsPresentationAppliedKeyRef,
     schemaGroupsPresentationJson,
     schemaRef,
     sceneGraphData,
+    sceneGroupsDerivation?.allGroups,
     setHoverInfo,
     simulationRef,
     multiDimTableModeEnabled,

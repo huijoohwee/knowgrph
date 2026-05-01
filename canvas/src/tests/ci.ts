@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire, Module as NodeModule } from 'node:module'
+import { sanitizeNodeTestFlags } from '@/tests/lib/sanitizeNodeTestFlags'
 
 const ensurePeerSymlinks = () => {
   try {
@@ -39,6 +40,7 @@ const ensurePeerSymlinks = () => {
       linkPeer(nodeModulesDir, 'grph-shared')
       linkPeer(nodeModulesDir, 'zustand')
       linkPeer(nodeModulesDir, 'maplibre-gl')
+      linkPeer(nodeModulesDir, 'three')
     }
 
     ensureForPackage('gympgrph')
@@ -49,47 +51,54 @@ const ensurePeerSymlinks = () => {
 
 ensurePeerSymlinks()
 
-try {
-  const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const stripFlag = (args: string[], name: string) => {
-    for (let i = args.length - 1; i >= 0; i -= 1) {
-      const cur = args[i]
-      if (cur !== name && !cur.startsWith(name + '=')) continue
-      if (cur.startsWith(name + '=')) {
-        args.splice(i, 1)
-        continue
-      }
-      const next = args[i + 1]
-      const hasValue = typeof next === 'string' && next.trim() !== '' && !next.startsWith('-')
-      args.splice(i, hasValue ? 2 : 1)
-    }
-  }
-  stripFlag(process.argv, '--localstorage-file')
-  stripFlag(process.argv, '--localstorageFile')
-  stripFlag(process.execArgv, '--localstorage-file')
-  stripFlag(process.execArgv, '--localstorageFile')
-
-  const stripFromNodeOptions = (name: string) => {
-    const v = process.env.NODE_OPTIONS
-    if (!v) return
-    const n = escapeRe(name)
-    const re = new RegExp(
-      `(?:^|\\s)${n}(?:=(?:"[^"]*"|'[^']*'|\\S+)|\\s+(?:"[^"]*"|'[^']*'|\\S+))?(?=\\s|$)`,
-      'g',
-    )
-    const next = v.replace(re, ' ').replace(/\s+/g, ' ').trim()
-    process.env.NODE_OPTIONS = next
-  }
-  stripFromNodeOptions('--localstorage-file')
-  stripFromNodeOptions('--localstorageFile')
-} catch {
-  void 0
-}
+sanitizeNodeTestFlags()
 
 if (process.env.KG_TEST_QUIET !== '0') process.env.KG_TEST_QUIET = '1'
 
 const originalConsoleError = console.error.bind(console)
 const originalConsoleWarn = console.warn.bind(console)
+const traceThreeHarness = process.env.KG_TEST_TRACE_THREE_IMPORTS === '1'
+const threeHarnessTraceEntries: Array<Record<string, unknown>> = []
+const threeHarnessTraceCounts = new Map<string, number>()
+const MAX_THREE_HARNESS_TRACE_ENTRIES = 80
+const MAX_THREE_HARNESS_TRACE_PER_KEY = 4
+const readThreeHarnessParentId = (parent: unknown): string => {
+  if (!parent || typeof parent !== 'object') return ''
+  const record = parent as { filename?: unknown; id?: unknown }
+  const filename = typeof record.filename === 'string' ? record.filename.trim() : ''
+  if (filename) return filename
+  const id = typeof record.id === 'string' ? record.id.trim() : ''
+  return id
+}
+const pushThreeHarnessTrace = (kind: string, details?: Record<string, unknown>) => {
+  if (!traceThreeHarness) return
+  const safeDetails = details || {}
+  const stackText = typeof safeDetails.stack === 'string' ? safeDetails.stack : ''
+  const stackKey = stackText
+    .split('\n')
+    .slice(0, 6)
+    .map(line => line.trim())
+    .join(' | ')
+  const traceKey = JSON.stringify({
+    kind,
+    request: safeDetails.request || '',
+    parent: safeDetails.parent || '',
+    stackKey,
+  })
+  const seen = threeHarnessTraceCounts.get(traceKey) || 0
+  if (seen >= MAX_THREE_HARNESS_TRACE_PER_KEY) return
+  threeHarnessTraceCounts.set(traceKey, seen + 1)
+  const entry = {
+    ts: Date.now(),
+    kind,
+    ...safeDetails,
+  }
+  threeHarnessTraceEntries.push(entry)
+  if (threeHarnessTraceEntries.length > MAX_THREE_HARNESS_TRACE_ENTRIES) {
+    threeHarnessTraceEntries.splice(0, threeHarnessTraceEntries.length - MAX_THREE_HARNESS_TRACE_ENTRIES)
+  }
+  console.log(`[kg-three-trace] ${JSON.stringify(entry)}`)
+}
 const ignoreLogMessage = (text: string): boolean => {
   return (
     text.includes('not wrapped in act') ||
@@ -110,6 +119,14 @@ console.warn = (...args: unknown[]) => {
   for (let i = 0; i < args.length; i += 1) {
     const v = args[i]
     if (typeof v !== 'string') continue
+    if (v.includes('WARNING: Multiple instances of Three.js being imported.')) {
+      const win = globalThis as typeof globalThis & { window?: { __THREE__?: unknown } }
+      pushThreeHarnessTrace('console.warn', {
+        message: v,
+        windowThree: win.window?.__THREE__ ?? null,
+        stack: new Error('three-warning-trace').stack || '',
+      })
+    }
     if (ignoreLogMessage(v)) return
   }
   originalConsoleWarn(...args)
@@ -178,6 +195,7 @@ const resolvedReactJsxRuntime = appRequire.resolve('react/jsx-runtime', { paths:
 const resolvedReactJsxDevRuntime = appRequire.resolve('react/jsx-dev-runtime', { paths: [process.cwd()] })
 const resolvedReactDom = appRequire.resolve('react-dom', { paths: [process.cwd()] })
 const resolvedReactDomClient = appRequire.resolve('react-dom/client', { paths: [process.cwd()] })
+const resolvedThree = appRequire.resolve('three', { paths: [process.cwd()] })
 const originalResolveFilename = (NodeModule as unknown as { _resolveFilename: unknown })._resolveFilename as (
   request: string,
   parent: unknown,
@@ -191,6 +209,12 @@ const originalResolveFilename = (NodeModule as unknown as { _resolveFilename: un
   isMain: boolean,
   options?: unknown,
 ) {
+  if (request === 'three' || request.startsWith('three/') || request === '@react-three/fiber') {
+    pushThreeHarnessTrace('resolve', {
+      request,
+      parent: readThreeHarnessParentId(parent),
+    })
+  }
   switch (request) {
     case 'react':
       return originalResolveFilename(resolvedReact, parent, isMain, options)
@@ -202,6 +226,8 @@ const originalResolveFilename = (NodeModule as unknown as { _resolveFilename: un
       return originalResolveFilename(resolvedReactDom, parent, isMain, options)
     case 'react-dom/client':
       return originalResolveFilename(resolvedReactDomClient, parent, isMain, options)
+    case 'three':
+      return originalResolveFilename(resolvedThree, parent, isMain, options)
     default:
       return originalResolveFilename(request, parent, isMain, options)
   }
@@ -230,6 +256,38 @@ if (!g.window) {
     g.window.HTMLIFrameElement = class {} as typeof HTMLIFrameElement
   }
 }
+
+const installThreeWindowProbe = () => {
+  if (!traceThreeHarness || !g.window) return
+  const probeTarget = g.window as WindowStub & { __THREE__?: unknown; __KG_THREE_TRACE_INSTALLED__?: unknown }
+  if (probeTarget.__KG_THREE_TRACE_INSTALLED__ === true) return
+  let currentThreeValue = probeTarget.__THREE__
+  try {
+    Object.defineProperty(probeTarget, '__THREE__', {
+      configurable: true,
+      enumerable: false,
+      get() {
+        pushThreeHarnessTrace('window.__THREE__.get', {
+          value: currentThreeValue ?? null,
+          stack: new Error('three-global-get').stack || '',
+        })
+        return currentThreeValue
+      },
+      set(value: unknown) {
+        currentThreeValue = value
+        pushThreeHarnessTrace('window.__THREE__.set', {
+          value: currentThreeValue ?? null,
+          stack: new Error('three-global-set').stack || '',
+        })
+      },
+    })
+    probeTarget.__KG_THREE_TRACE_INSTALLED__ = true
+  } catch {
+    void 0
+  }
+}
+
+installThreeWindowProbe()
 
 ensureLocalStorageStub()
 

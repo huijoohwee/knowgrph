@@ -1,6 +1,6 @@
 import { GraphData, type SelectionAnchorIds } from './types';
 import { exportAsJsonLdBlob, exportAsCombinedCsvBlob, exportAsRawJsonBlob, exportAsGraphMlBlob, exportAsCypherBlob } from './io/adapter';
-import { buildWidgetBundleV1, widgetBundleToJsonBlob, widgetBundleToJsonText } from './io/widgetBundle'
+import { buildWidgetBundleJsonText } from './io/widgetBundle'
 import { readExportPrefs, writeExportPrefs, saveBlobWithPicker, downloadBlob } from './save';
 import type { GraphValidationSummary } from './validation';
 export { pickTextFile, pickTextFileWithExtensions, pickTextFilesWithExtensions } from './filePicker';
@@ -514,12 +514,18 @@ export async function exportWidgetBundleAsJson(args: {
   graphData: GraphData | null
   registryEntries: unknown[]
   suggestedName?: string
+  graphRevision?: number | null
 }): Promise<void> {
   try {
     const graphData = args.graphData
     if (!graphData) return
-    const bundle = buildWidgetBundleV1({ registryEntries: args.registryEntries, graphData })
-    const blob = widgetBundleToJsonBlob(bundle)
+    const text = buildWidgetBundleJsonText({
+      registryEntries: args.registryEntries,
+      graphData,
+      graphRevision: args.graphRevision,
+    })
+    if (!text.trim()) return
+    const blob = new Blob([text], { type: 'application/json' })
     const base = String(args.suggestedName || 'flow-widget.bundle.json')
     const name = ensureExt(base, ['.json'], 'flow-widget.bundle.json')
     const saved = await saveBlobWithPicker(blob, name, { description: 'JSON Files', accept: { 'application/json': ['.json'] } })
@@ -537,12 +543,16 @@ export async function exportWidgetBundleAsJson(args: {
 export async function copyWidgetBundleJsonToClipboard(args: {
   graphData: GraphData | null
   registryEntries: unknown[]
+  graphRevision?: number | null
 }): Promise<boolean> {
   try {
     if (!args.graphData) return false
     if (typeof navigator === 'undefined' || !navigator.clipboard) return false
-    const bundle = buildWidgetBundleV1({ registryEntries: args.registryEntries, graphData: args.graphData })
-    const text = widgetBundleToJsonText(bundle)
+    const text = buildWidgetBundleJsonText({
+      registryEntries: args.registryEntries,
+      graphData: args.graphData,
+      graphRevision: args.graphRevision,
+    })
     if (!text.trim()) return false
     await navigator.clipboard.writeText(text)
     return true

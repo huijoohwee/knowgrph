@@ -10,6 +10,7 @@ import type { UiToast, UiToastKind } from '@/hooks/store/types'
 import { Z_INDEX_TOAST } from '@/lib/ui/zIndex'
 
 const TOAST_TOP_PX = 56
+const EMPTY_TOASTS: UiToast[] = []
 
 const getKindClasses = (kind: UiToastKind): string => {
   if (kind === 'success') return UI_THEME_TOKENS.status.success
@@ -98,7 +99,16 @@ export function ToastHost() {
     })),
   )
 
-  const orderedToasts = Array.isArray(toasts) ? toasts : []
+  const orderedToasts = Array.isArray(toasts) ? toasts : EMPTY_TOASTS
+  const nextExpiryAtMs = React.useMemo(() => {
+    let next: number | null = null
+    for (let i = 0; i < orderedToasts.length; i += 1) {
+      const expiresAtMs = orderedToasts[i]?.expiresAtMs
+      if (typeof expiresAtMs !== 'number' || !Number.isFinite(expiresAtMs)) continue
+      next = next == null ? expiresAtMs : Math.min(next, expiresAtMs)
+    }
+    return next
+  }, [orderedToasts])
 
   const togglePinned = React.useCallback(
     (toast: UiToast) => {
@@ -117,17 +127,19 @@ export function ToastHost() {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    const id = window.setInterval(() => {
+    if (nextExpiryAtMs == null) return
+    const delayMs = Math.max(0, Math.floor(nextExpiryAtMs - Date.now()))
+    const id = window.setTimeout(() => {
       pruneUiToasts(Date.now())
-    }, 500)
+    }, delayMs + 1)
     return () => {
       try {
-        window.clearInterval(id)
+        window.clearTimeout(id)
       } catch {
         void 0
       }
     }
-  }, [pruneUiToasts])
+  }, [nextExpiryAtMs, pruneUiToasts])
 
   if (typeof document === 'undefined') return null
   if (!orderedToasts || orderedToasts.length === 0) return null

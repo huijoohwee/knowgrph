@@ -326,6 +326,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
       label: `Shot ${shotId} · Panel (Text)`,
       pos: { x: colX.text, y: y0 + PANEL_OFFSET_Y },
       properties: {
+        richMediaActiveTab: 'text',
         media_interactive: true,
         'visual:zIndex': 1,
       },
@@ -350,6 +351,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
       label: `Shot ${shotId} · Panel (Image)`,
       pos: { x: colX.image, y: y0 + PANEL_OFFSET_Y },
       properties: {
+        richMediaActiveTab: 'image',
         media_interactive: true,
         'visual:zIndex': 1,
       },
@@ -376,6 +378,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
       label: `Shot ${shotId} · Panel (Video)`,
       pos: { x: colX.video, y: y0 + PANEL_OFFSET_Y },
       properties: {
+        richMediaActiveTab: 'video',
         media_interactive: true,
         'visual:zIndex': 1,
       },

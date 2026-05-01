@@ -2,9 +2,10 @@ import type { SourceFile } from '@/hooks/store/types'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { areSourceFileRecordsEqual, buildSourceFileRecord, readSourceFileParsedState } from '@/features/source-files/sourceFileParsedState'
 import {
   defaultEnabledForWorkspaceSourcePath,
-  isCanonicalWorkspaceSeedSourcePath,
+  resolveWorkspaceSeedSourcePath,
 } from '@/features/source-files/workspaceSeedSourceFiles'
 
 export function workspaceSourcePathKey(path: string): string {
@@ -22,36 +23,6 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
   const entries = Array.isArray(args.workspaceEntries) ? args.workspaceEntries : []
   const sourcesByPath = args.sourcesByPath || {}
   const forceInclude = new Set((Array.isArray(args.forceIncludePaths) ? args.forceIncludePaths : []).map(path => String(path || '').trim()).filter(Boolean))
-
-  const sourceEqual = (a: SourceFile['source'] | undefined, b: SourceFile['source'] | undefined): boolean => {
-    if (!a && !b) return true
-    if (!a || !b) return false
-    if (a.kind !== b.kind) return false
-    if (String(a.path || '') !== String(b.path || '')) return false
-    if (a.kind === 'url') {
-      const aa = a as { url?: unknown }
-      const bb = b as { url?: unknown }
-      return String(aa.url || '') === String(bb.url || '')
-    }
-    return true
-  }
-
-  const workspaceFileEqual = (prev: SourceFile, next: SourceFile): boolean => {
-    if (prev === next) return true
-    if (String(prev.id || '') !== String(next.id || '')) return false
-    if (String(prev.name || '') !== String(next.name || '')) return false
-    if (String(prev.text || '') !== String(next.text || '')) return false
-    if (Boolean(prev.enabled) !== Boolean(next.enabled)) return false
-    if (Boolean(prev.geoLayerEnabled) !== Boolean(next.geoLayerEnabled)) return false
-    if (String(prev.status || '') !== String(next.status || '')) return false
-    if (String(prev.error || '') !== String(next.error || '')) return false
-    if (String(prev.parsedParserId || '') !== String(next.parsedParserId || '')) return false
-    if (String(prev.parsedTextHash || '') !== String(next.parsedTextHash || '')) return false
-    if ((prev.parsedGraphRevision || 0) !== (next.parsedGraphRevision || 0)) return false
-    if (prev.parsedGraphData !== next.parsedGraphData) return false
-    if (!sourceEqual(prev.source, next.source)) return false
-    return true
-  }
 
   const nonWorkspace = existing.filter(f => {
     const path = String(f?.source?.path || '')
@@ -71,10 +42,10 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     const path = String(e.path || '').trim()
     if (!path) continue
 
-    const srcPath = workspaceSourcePathKey(path)
+    const seedSourcePath = resolveWorkspaceSeedSourcePath(path)
+    const srcPath = seedSourcePath || workspaceSourcePathKey(path)
     const prev = existingWorkspaceByPath.get(srcPath) || null
-    const isCanonicalSeed = isCanonicalWorkspaceSeedSourcePath(srcPath)
-    if (!prev && !sourcesByPath[path] && !forceInclude.has(path) && !isCanonicalSeed) continue
+    if (!prev && !sourcesByPath[path] && !forceInclude.has(path) && !seedSourcePath) continue
     const id = prev?.id || `ws:${hashStringToHex(srcPath)}`
 
     const src = sourcesByPath[path]
@@ -89,8 +60,8 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     const enabled = forceInclude.has(path)
       ? true
       : (prev?.enabled ?? defaultEnabledForWorkspaceSourcePath(srcPath, false))
-
-    const candidate: SourceFile = {
+    const parsed = readSourceFileParsedState(prev)
+    const candidate = buildSourceFileRecord({
       id,
       name: String(e.name || ''),
       text,
@@ -98,14 +69,15 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       geoLayerEnabled: prev?.geoLayerEnabled,
       status: prev?.status ?? 'idle',
       error: prev?.error,
-      parsedParserId: prev?.parsedParserId,
-      parsedTextHash: prev?.parsedTextHash,
-      parsedGraphRevision: prev?.parsedGraphRevision,
-      parsedGraphData: prev?.parsedGraphData,
+      parserId: parsed.parsedParserId,
+      textHash: parsed.parsedTextHash,
+      graphData: parsed.parsedGraphData,
+      previousState: prev,
+      preserveExistingRevision: true,
       source,
-    }
+    })
 
-    if (prev && workspaceFileEqual(prev, candidate)) {
+    if (prev && areSourceFileRecordsEqual(prev, candidate)) {
       nextWorkspace.push(prev)
     } else {
       nextWorkspace.push(candidate)

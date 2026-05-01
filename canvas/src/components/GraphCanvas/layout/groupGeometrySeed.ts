@@ -4,6 +4,9 @@ import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsType
 import { getNodeRenderRadius } from '@/lib/graph/schema'
 import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { DEFAULT_GROUP_PADDING } from '@/lib/graph/layoutDefaults'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { prepareGroupHierarchy } from '@/components/GraphCanvas/layout/groupHierarchyPrep'
 
 type SizedItem = {
   id: string
@@ -197,57 +200,25 @@ export const applyGroupGeometrySeedLayout = (args: {
   const groups = Array.isArray(args.groups) ? args.groups : []
   if (groups.length === 0) return
 
-  const nodeById = new Map<string, GraphNode>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const id = String(nodes[i]?.id || '').trim()
-    if (id) nodeById.set(id, nodes[i]!)
-  }
-
-  const groupById = new Map<string, GraphGroup>()
-  for (let i = 0; i < groups.length; i += 1) {
-    const id = String(groups[i]?.id || '').trim()
-    if (id) groupById.set(id, groups[i]!)
-  }
-
-  const childrenByGroupId = new Map<string, string[]>()
-  for (let i = 0; i < groups.length; i += 1) {
-    const g = groups[i]!
-    const pid = typeof g.parentGroupId === 'string' ? g.parentGroupId.trim() : g.parentGroupId === null ? null : null
-    if (!pid) continue
-    if (!groupById.has(pid)) continue
-    const arr = childrenByGroupId.get(pid) || []
-    arr.push(String(g.id))
-    childrenByGroupId.set(pid, arr)
-  }
-  childrenByGroupId.forEach((arr, k) => {
-    arr.sort((a, b) => a.localeCompare(b))
-    childrenByGroupId.set(k, arr)
+  const nodeLookup = getCachedGraphLookup({
+    cacheScope: 'graph-canvas-group-geometry-seed-nodes',
+    graphData: { type: 'application/json', nodes, edges: [] },
+    graphSemanticKey: hashScopedStringArraySignature(
+      'graph-canvas-group-geometry-seed-nodes',
+      nodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`),
+    ),
   })
-
-  const memberSetByGroupId = new Map<string, Set<string>>()
-  for (let i = 0; i < groups.length; i += 1) {
-    const g = groups[i]!
-    const s = new Set<string>()
-    const members = Array.isArray(g.memberNodeIds) ? g.memberNodeIds : []
-    for (let j = 0; j < members.length; j += 1) {
-      const id = String(members[j] || '').trim()
-      if (id && nodeById.has(id)) s.add(id)
-    }
-    memberSetByGroupId.set(String(g.id), s)
-  }
-
-  const directMembersByGroupId = new Map<string, string[]>()
-  for (let i = 0; i < groups.length; i += 1) {
-    const gid = String(groups[i]!.id)
-    const members = new Set(memberSetByGroupId.get(gid) || [])
-    const childIds = childrenByGroupId.get(gid) || []
-    for (let c = 0; c < childIds.length; c += 1) {
-      const childMembers = memberSetByGroupId.get(childIds[c]!)
-      if (!childMembers) continue
-      childMembers.forEach(id => members.delete(id))
-    }
-    directMembersByGroupId.set(gid, Array.from(members).sort((a, b) => a.localeCompare(b)))
-  }
+  const nodeById = nodeLookup?.nodeById || new Map<string, GraphNode>()
+  const {
+    groupById,
+    childrenByGroupId,
+    memberSetByGroupId,
+    directMembersByGroupId,
+    topLevelGroupIds,
+  } = prepareGroupHierarchy({
+    groups,
+    isValidMemberNodeId: nodeId => nodeById.has(nodeId),
+  })
 
   const groupPad =
     typeof args.schema.layout?.groups?.padding === 'number' && Number.isFinite(args.schema.layout.groups.padding)
@@ -353,11 +324,6 @@ export const applyGroupGeometrySeedLayout = (args: {
     return result
   }
 
-  const topLevelGroupIds = groups
-    .filter(g => !g.parentGroupId)
-    .map(g => String(g.id))
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b))
   if (topLevelGroupIds.length === 0) return
 
   const assignedNodes = new Set<string>()
@@ -440,4 +406,3 @@ export const applyGroupGeometrySeedLayout = (args: {
     applyGroupRec(it.id, p)
   }
 }
-

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
+import { useEffect, useMemo, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 import * as d3 from 'd3'
 import { useShallow } from 'zustand/react/shallow'
 import type { PendingLink, TempLinkSelection } from '@/features/edge-creation'
@@ -6,25 +6,17 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { SceneGroupsDerivation } from '@/lib/scene/sceneDerivation'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
-import { withD3BipartiteSceneSchema } from '@/lib/canvas/d3BipartiteSchemaOverrides'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
-import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { setupGraphScene } from '@/components/GraphCanvas/scene'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
-import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
-import { pickInitialZoomTransform } from '@/lib/zoom/viewport'
-import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { commitZoomTransformToStore } from '@/lib/canvas/zoom-commit'
-import { isD3Like2dRenderer } from '@/lib/config.render'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
-import {
-  buildLayoutPositionCacheKey,
-  buildLayoutViewKey,
-  computeLayoutDatasetKey,
-  determineLayoutPositions,
-} from '@/components/GraphCanvas/layout/positioning'
+import { capturePrevNodePositions } from '@/components/GraphCanvasRoot/utils/capturePrevNodePositions'
+import { buildD3SceneLayoutPrepContext } from '@/components/GraphCanvasRoot/utils/d3SceneLayoutPrepContext'
+import { buildD3SceneSetupContext } from '@/components/GraphCanvasRoot/utils/d3SceneSetupContext'
+import { buildGraphCanvasStoreActionAdapters } from '@/components/GraphCanvasRoot/utils/graphStoreActionAdapters'
+import { persistPrevLayoutSnapshot } from '@/components/GraphCanvasRoot/utils/persistPrevLayoutSnapshot'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import type { FlowPortHandleDatum2d } from '@/components/GraphCanvas/flowPortHandles2d'
@@ -179,6 +171,14 @@ export function useD3GraphScene2d(args: {
     selectedEdgeIdsRef,
     setHoverInfo,
   } = args
+  const graphStoreActions = useMemo(
+    () =>
+      buildGraphCanvasStoreActionAdapters({
+        setHoverInfo,
+        workspaceOverlayOpenRef,
+      }),
+    [setHoverInfo],
+  )
 
   const lastLayoutModeRef = useRef<null | 'radial' | 'block'>(null)
   const lastFrontmatterModeRef = useRef<boolean | null>(null)
@@ -233,23 +233,26 @@ export function useD3GraphScene2d(args: {
     const schemaValue = schemaRef.current
     if (!schemaValue) return
 
-    const graphKind = (() => {
-      const meta = (sceneGraphData.metadata || {}) as Record<string, unknown>
-      return typeof meta.graphKind === 'string' ? meta.graphKind : ''
-    })()
-    const isD3LikeRenderer = canvasRenderMode === '2d' && isD3Like2dRenderer((canvas2dRenderer || null) as never)
-    const isBipartite = isD3LikeRenderer && graphKind === 'bipartite'
-    const schemaForScene: GraphSchema = withD3BipartiteSceneSchema({
+    const sceneSetup = buildD3SceneSetupContext({
+      sceneGraphData,
       schema: schemaValue,
-      graphData: sceneGraphData,
       canvasRenderMode,
-      canvas2dRenderer: String(canvas2dRenderer || ''),
+      canvas2dRenderer,
+      coarsePointer,
+      sceneWidth,
+      sceneHeight,
+      schemaLayoutEngineJson,
+      effectiveFrontmatterModeEnabled,
+      documentSemanticMode,
+      renderMediaAsNodes,
+      mediaPanelDensity,
+      collapsedGroupIdsKey,
+      enableEditorGestures,
+      graphContentRevision,
+      infiniteCanvasInteractionMode,
     })
-
-    const hoverEnabled = schemaValue.behavior?.hover?.enabled !== false && !coarsePointer
-    const expansionCfg = schemaValue.behavior?.expansion || {}
-    const expansionEnabled = expansionCfg.enabled !== false
-    const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false
+    const { isBipartite, schemaForScene, hoverEnabled, zoomOnDoubleClick, graphMetaKey, buildKey, isMermaidLayout } = sceneSetup
+    const zoomCommitScheduler = zoomCommitSchedulerRef.current
     let rafId: number | null = null
     rafId = requestAnimationFrame(() => {
       if (!svgRef.current) return
@@ -265,79 +268,27 @@ export function useD3GraphScene2d(args: {
         void 0
       }
 
-      const buildKey = [
-        String(graphContentRevision || 0),
-        `${sceneWidth}x${sceneHeight}`,
-        schemaLayoutEngineJson,
-        String(effectiveFrontmatterModeEnabled ? 1 : 0),
-        String(documentSemanticMode),
-        buildGraphMetaKeyIgnoringPending(sceneGraphData),
-        `${String(sceneGraphData?.nodes?.length ?? 0)}:${String(sceneGraphData?.edges?.length ?? 0)}`,
-        String(isBipartite ? 0 : (renderMediaAsNodes ? 1 : 0)),
-        String(isBipartite ? '' : mediaPanelDensity),
-        collapsedGroupIdsKey,
-        String(enableEditorGestures ? 1 : 0),
-        String(infiniteCanvasInteractionMode),
-      ].join('|')
-
       if (sceneCleanupRef.current && sceneBuildKeyRef.current === buildKey) return
-
-      const isMermaidLayout = (() => {
-        const gd = sceneGraphData as unknown as { context?: unknown; metadata?: unknown } | null
-        if (!gd) return false
-        if (String(gd.context || '') === 'frontmatter-mermaid') return true
-        const meta = gd.metadata
-        if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
-        return String((meta as Record<string, unknown>).layoutEngine || '') === 'mermaid'
-      })()
 
       if (sceneCleanupRef.current) {
         try {
-          const prevPositions: Record<string, { x: number; y: number }> = {}
-          if (nodesSelRef.current) {
-            nodesSelRef.current.each((d: GraphNode) => {
-              if (d.id && typeof d.x === 'number' && typeof d.y === 'number' && Number.isFinite(d.x) && Number.isFinite(d.y)) {
-                prevPositions[String(d.id)] = { x: d.x, y: d.y }
-              }
-            })
-          }
-          try {
-            const sim = simulationRef.current
-            const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
-            for (let i = 0; i < simNodes.length; i += 1) {
-              const n = simNodes[i]!
-              const id = String(n?.id || '').trim()
-              if (!id) continue
-              if (prevPositions[id]) continue
-              const x = (n as unknown as { x?: unknown }).x
-              const y = (n as unknown as { y?: unknown }).y
-              if (typeof x !== 'number' || typeof y !== 'number') continue
-              if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-              prevPositions[id] = { x, y }
-            }
-          } catch {
-            void 0
-          }
+          const prevPositions = capturePrevNodePositions({
+            nodesSelection: nodesSelRef.current,
+            simulation: simulationRef.current,
+          })
           if (!isMermaidLayout && Object.keys(prevPositions).length > 0 && !workspaceOverlayOpenRef.current) {
-            const state = useGraphStore.getState()
-            const prevDatasetKey = lastDatasetKeyRef.current
-            const prevMode = lastLayoutModeRef.current
-            const prevFrontmatter = lastFrontmatterModeRef.current
-            const prevSemantic = lastSemanticModeRef.current
-            const prevViewKey = lastLayoutViewKeyRef.current
-            if (prevDatasetKey && prevMode && prevFrontmatter != null && prevSemantic) {
-              const key = buildLayoutPositionCacheKey({
-                datasetKey: prevDatasetKey,
-                mode: prevMode,
-                frontmatterMode: prevFrontmatter,
-                semanticMode: prevSemantic,
-                renderMode: (prevCanvasRenderModeRef.current || '2d') as '2d' | '3d',
-                renderVariant: prevRenderVariantRef.current || undefined,
-                layoutVariant: lastLayoutVariantRef.current || undefined,
-                viewKey: prevViewKey || undefined,
-              })
-              state.setLayoutPositionsForMode(key, prevPositions)
-            }
+            persistPrevLayoutSnapshot({
+              prevPositions,
+              prevDatasetKey: lastDatasetKeyRef.current,
+              prevMode: lastLayoutModeRef.current,
+              prevFrontmatterMode: lastFrontmatterModeRef.current,
+              prevSemanticMode: lastSemanticModeRef.current,
+              prevViewKey: lastLayoutViewKeyRef.current,
+              prevRenderMode: (prevCanvasRenderModeRef.current || '2d') as '2d' | '3d',
+              prevRenderVariant: prevRenderVariantRef.current,
+              prevLayoutVariant: lastLayoutVariantRef.current,
+              setLayoutPositionsForMode: (key, positions) => useGraphStore.getState().setLayoutPositionsForMode(key, positions),
+            })
           }
         } catch {
           void 0
@@ -355,174 +306,66 @@ export function useD3GraphScene2d(args: {
       nodesPresentationAppliedKeyRef.current = `${schemaNodesPresentationJson}|${sceneWidth}|${sceneHeight}`
       groupsPresentationAppliedKeyRef.current = schemaGroupsPresentationJson
 
-      const graphMetaKey = buildGraphMetaKeyIgnoringPending(sceneGraphData)
-      const graphMetaKeyForZoom = graphMetaKey
-      const zoomViewKey = buildZoomViewKey({
-        canvasRenderMode,
-        canvas2dRenderer,
-        schemaLayoutEngineJson,
-        frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
-        documentSemanticMode: layoutSemanticModeKey,
-        graphMetaKey: graphMetaKeyForZoom,
-        renderMediaAsNodes: renderMediaAsNodes === true,
-        mediaPanelDensity: String(mediaPanelDensity),
-        collapsedGroupIdsKey,
-      })
-      const layoutViewKey = buildLayoutViewKey({
-        schemaLayoutEngineJson,
-        frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
-        documentSemanticMode: layoutSemanticModeKey,
-        graphMetaKey,
-        renderMediaAsNodes: renderMediaAsNodes === true,
-        mediaPanelDensity: String(mediaPanelDensity),
-        collapsedGroupIdsKey,
-      })
-
-      const stateForZoom = useGraphStore.getState()
-      const layoutPositionCacheByMode = useGraphStore.getState().layoutPositionCacheByMode
-      const isPinned = useGraphStore.getState().viewPinned === true
-      const z = pickZoomStateForView({
-        zoomViewKey,
-        zoomStateByKey: stateForZoom.zoomStateByKey,
-        viewPinned: isPinned,
-        fitToScreenMode,
-        zoomToSelectionMode,
-      })
-      const mode = readLayoutMode(schemaValue)
+      const graphStoreState = useGraphStore.getState()
+      const layoutPositionCacheByMode = graphStoreState.layoutPositionCacheByMode
+      const isPinned = graphStoreState.viewPinned === true
       const prevMode = lastLayoutModeRef.current
       const prevFrontmatterMode = lastFrontmatterModeRef.current
       const prevSemanticMode = lastSemanticModeRef.current
       const prevLayoutVariant = lastLayoutVariantRef.current
       const prevDatasetKey = lastDatasetKeyRef.current
       const prevLayoutViewKey = lastLayoutViewKeyRef.current
-      const datasetKey = computeLayoutDatasetKey({
-        graphData: sceneGraphData,
-        graphDataRevision: graphContentRevision || 0,
-      })
-      const layoutVariant = isBipartite
-        ? `bipartite:v4:${layoutSemanticModeKey}:${String(effectiveFrontmatterModeEnabled ? 1 : 0)}:${String(infiniteCanvasInteractionMode)}`
-        : ''
-      const pickedInitialZoomTransform = pickInitialZoomTransform({
-        zoomState: z,
-        pinned: isPinned,
+      const layoutPrep = buildD3SceneLayoutPrepContext({
+        sceneGraphData,
+        graphContentRevision: graphContentRevision || 0,
         graphDataRevision: graphDataRevisionRef.current ?? graphDataRevision,
-        nextViewportW: sceneWidth,
-        nextViewportH: sceneHeight,
-      })
-      const initialZoomTransform =
-        pickedInitialZoomTransform || (!fitToScreenMode && !zoomToSelectionMode ? lastKnownZoomTransformRef.current : null)
-      const { layoutPositionsForMode, skipInitialLayout, cacheKey } = determineLayoutPositions({
-        datasetKey,
-        mode,
-        frontmatterMode: !!effectiveFrontmatterModeEnabled,
-        semanticMode: layoutSemanticModeKey,
-        renderMode: canvasRenderMode,
-        renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
-        layoutVariant,
-        viewKey: layoutViewKey,
-        prevViewKey: prevLayoutViewKey,
-        prevDatasetKey,
+        graphMetaKey,
+        schema: schemaValue,
+        canvasRenderMode,
+        canvas2dRenderer,
+        schemaLayoutEngineJson,
+        effectiveFrontmatterModeEnabled,
+        documentSemanticMode,
+        layoutSemanticModeKey,
+        renderMediaAsNodes,
+        mediaPanelDensity,
+        collapsedGroupIdsKey,
+        fitToScreenMode,
+        zoomToSelectionMode,
+        isBipartite,
+        infiniteCanvasInteractionMode,
+        sceneWidth,
+        sceneHeight,
+        zoomStateByKey: graphStoreState.zoomStateByKey,
+        viewPinned: isPinned,
+        layoutPositionCacheByMode,
+        lastKnownZoomTransform: lastKnownZoomTransformRef.current,
         prevMode,
         prevFrontmatterMode,
         prevSemanticMode,
+        prevLayoutVariant,
+        prevDatasetKey,
+        prevLayoutViewKey,
         prevRenderMode: prevCanvasRenderModeRef.current,
         prevRenderVariant: prevRenderVariantRef.current,
-        prevLayoutVariant,
-        nodes: Array.isArray(sceneGraphData.nodes) ? sceneGraphData.nodes : [],
-        layoutPositionCacheByMode,
       })
+      const {
+        zoomViewKey,
+        layoutViewKey,
+        mode,
+        datasetKey,
+        layoutVariant,
+        initialZoomTransform,
+        effectiveLayoutPositionsForMode,
+        baselineLayoutPositions,
+        effectiveSkipInitialLayout,
+        cacheKey,
+      } = layoutPrep
 
-      const effectiveLayoutPositionsForMode = isBipartite ? null : layoutPositionsForMode
-
-      const baselineLayoutPositions = (() => {
-        if (String(documentSemanticMode || 'document') !== 'keyword') return null
-        if (!layoutPositionCacheByMode) return null
-
-        const lookup = (key: string | null): Record<string, { x: number; y: number }> | null => {
-          if (!key) return null
-          const cached = layoutPositionCacheByMode[key] ?? null
-          return cached && Object.keys(cached).length > 0 ? cached : null
-        }
-
-        if (prevSemanticMode === 'document' && prevDatasetKey && prevLayoutViewKey) {
-          const baselineFromPrevKey = buildLayoutPositionCacheKey({
-            datasetKey: prevDatasetKey,
-            mode: prevMode ?? mode,
-            frontmatterMode: prevFrontmatterMode ?? !!effectiveFrontmatterModeEnabled,
-            semanticMode: 'document',
-            renderMode: canvasRenderMode,
-            viewKey: prevLayoutViewKey,
-            renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
-            layoutVariant: prevLayoutVariant ?? layoutVariant,
-          })
-          const found = lookup(baselineFromPrevKey)
-          if (found) return found
-        }
-
-        const baselineGraphMetaKey = (() => {
-          const meta =
-            sceneGraphData.metadata && typeof sceneGraphData.metadata === 'object' && !Array.isArray(sceneGraphData.metadata)
-              ? (sceneGraphData.metadata as Record<string, unknown>)
-              : null
-          const raw = meta && typeof meta.baselineGraphMetaKey === 'string' ? meta.baselineGraphMetaKey.trim() : ''
-          return raw || graphMetaKey
-        })()
-        const baselineLayoutViewKey = buildLayoutViewKey({
-          schemaLayoutEngineJson,
-          frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
-          documentSemanticMode: 'document',
-          graphMetaKey: baselineGraphMetaKey,
-          renderMediaAsNodes: renderMediaAsNodes === true,
-          mediaPanelDensity: String(mediaPanelDensity),
-          collapsedGroupIdsKey,
-        })
-        const baselineFromCurrentKey = buildLayoutPositionCacheKey({
-          datasetKey,
-          mode,
-          frontmatterMode: !!effectiveFrontmatterModeEnabled,
-          semanticMode: 'document',
-          renderMode: canvasRenderMode,
-          viewKey: baselineLayoutViewKey,
-          renderVariant: canvasRenderMode === '2d' ? canvas2dRenderer : '',
-          layoutVariant,
-        })
-        return lookup(baselineFromCurrentKey)
-      })()
-
-      const effectiveSkipInitialLayout = isBipartite
-        ? false
-        : String(documentSemanticMode || 'document') === 'keyword' &&
-            canvasRenderMode === '2d' &&
-            String(canvas2dRenderer || '') === 'd3' &&
-            !!baselineLayoutPositions
-          ? true
-          : skipInitialLayout
-
-      const prevPositions: Record<string, { x: number; y: number }> = {}
-      if (nodesSelRef.current) {
-        nodesSelRef.current.each((d: GraphNode) => {
-          if (d.id && typeof d.x === 'number' && typeof d.y === 'number' && Number.isFinite(d.x) && Number.isFinite(d.y)) {
-            prevPositions[String(d.id)] = { x: d.x, y: d.y }
-          }
-        })
-      }
-      try {
-        const sim = simulationRef.current
-        const simNodes = sim ? (sim.nodes() as unknown as GraphNode[]) : []
-        for (let i = 0; i < simNodes.length; i += 1) {
-          const n = simNodes[i]!
-          const id = String(n?.id || '').trim()
-          if (!id) continue
-          if (prevPositions[id]) continue
-          const x = (n as unknown as { x?: unknown }).x
-          const y = (n as unknown as { y?: unknown }).y
-          if (typeof x !== 'number' || typeof y !== 'number') continue
-          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-          prevPositions[id] = { x, y }
-        }
-      } catch {
-        void 0
-      }
+      const prevPositions = capturePrevNodePositions({
+        nodesSelection: nodesSelRef.current,
+        simulation: simulationRef.current,
+      })
 
       lastLayoutModeRef.current = mode
       lastFrontmatterModeRef.current = !!effectiveFrontmatterModeEnabled
@@ -606,33 +449,21 @@ export function useD3GraphScene2d(args: {
           selectedNodeIdRef,
           selectedNodeIdsRef,
           selectedEdgeIdsRef,
-          selectNode: id => useGraphStore.getState().selectNode(id),
-          selectEdge: id => useGraphStore.getState().selectEdge(id),
-          selectGroup: id => useGraphStore.getState().selectGroup(id),
-          selectGroupExpanded: x => useGraphStore.getState().selectGroupExpanded({ id: x.id, nodeIds: x.nodeIds, edgeIds: x.edgeIds }),
-          toggleGroupCollapsed: id => useGraphStore.getState().toggleGroupCollapsed(id),
-          setSelectionSource: src => useGraphStore.getState().setSelectionSource(src),
-          addNode: n => {
-            if (workspaceOverlayOpenRef.current) return
-            useGraphStore.getState().addNode(n)
-          },
-          updateNode: (id, u) => {
-            if (workspaceOverlayOpenRef.current) return
-            useGraphStore.getState().updateNode(id, u)
-          },
-          addEdge: e => {
-            if (workspaceOverlayOpenRef.current) return
-            useGraphStore.getState().addEdge(e)
-          },
-          updateEdge: (id, u) => {
-            if (workspaceOverlayOpenRef.current) return
-            useGraphStore.getState().updateEdge(id, u)
-          },
+          selectNode: graphStoreActions.selectNode,
+          selectEdge: graphStoreActions.selectEdge,
+          selectGroup: graphStoreActions.selectGroup,
+          selectGroupExpanded: graphStoreActions.selectGroupExpanded,
+          toggleGroupCollapsed: graphStoreActions.toggleGroupCollapsed,
+          setSelectionSource: graphStoreActions.setSelectionSource,
+          addNode: graphStoreActions.addNode,
+          updateNode: graphStoreActions.updateNode,
+          addEdge: graphStoreActions.addEdge,
+          updateEdge: graphStoreActions.updateEdge,
           enableEditorGestures,
-          setHoverInfo: updater => setHoverInfo(prev => updater(prev)),
-          setLifecycleStageRendering: () => useGraphStore.getState().setLifecycleStage('rendering'),
-          requestZoomSelection: () => useGraphStore.getState().requestZoom('selection'),
-          edgeScrollEnabled: () => useGraphStore.getState().viewPinned !== true,
+          setHoverInfo: graphStoreActions.setHoverInfo,
+          setLifecycleStageRendering: graphStoreActions.setLifecycleStageRendering,
+          requestZoomSelection: graphStoreActions.requestZoomSelection,
+          edgeScrollEnabled: graphStoreActions.edgeScrollEnabled,
           onZoomTransform: t => {
             try {
               requestOverlaySchedule()
@@ -670,36 +501,57 @@ export function useD3GraphScene2d(args: {
     })
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId)
-      zoomCommitSchedulerRef.current.cancel()
+      zoomCommitScheduler.cancel()
     }
   }, [
     active,
+    activeLayoutCacheKeyRef,
+    activeRef,
+    beforeRenderFrameRef,
+    beforeRenderFrameWrappedSourceRef,
     canvas2dRenderer,
     canvasRenderMode,
     collapsedGroupIdsKey,
     coarsePointer,
     documentSemanticMode,
+    documentStructureBaselineLock,
     edgesForSim,
     enableEditorGestures,
     effectiveFrontmatterModeEnabled,
     fitToScreenMode,
+    gRef,
+    graphStoreActions,
     graphDataRevision,
     graphContentRevision,
     graphDataRevisionRef,
+    groupChevronSelRef,
+    groupsPresentationAppliedKeyRef,
     isEmbeddedPreview,
     infiniteCanvasInteractionMode,
     layoutSemanticModeKey,
+    labelsSelRef,
+    linkDragRef,
+    linksHitSelRef,
+    linksSelRef,
     mediaOverlayNodeIdSet,
+    mediaSelRef,
     mediaPanelDensity,
+    multiDimTableModeEnabled,
+    nodesPresentationAppliedKeyRef,
+    nodesSelRef,
     overlayBaseWidthRatioDefault,
     overlayBaseWidthRatioCompact,
     overlayBaseWidthMinPxDefault,
     overlayBaseWidthMinPxCompact,
     overlayBaseWidthMaxPxDefault,
     overlayBaseWidthMaxPxCompact,
+    panelOnlyNodeIdSet,
     panelOnlyNodeIdsKey,
+    portHandlesSelRef,
     renderMediaAsNodes,
     requestOverlaySchedule,
+    sceneBuildKeyRef,
+    sceneCleanupRef,
     sceneGraphData,
     sceneGraphDataRef,
     sceneGroupsDerivation?.allGroups,
@@ -716,7 +568,11 @@ export function useD3GraphScene2d(args: {
     selectedNodeIdsRef,
     setHoverInfo,
     setLayoutPositionsForMode,
+    simulationRef,
+    svgRef,
+    tempLinkSelRef,
     viewportControlsPreset,
+    zoomRef,
     zoomToSelectionMode,
   ])
 }

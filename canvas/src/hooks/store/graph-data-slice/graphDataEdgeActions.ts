@@ -10,6 +10,7 @@ import {
   resolvePreferredComposedLayerId,
 } from './graphDataComposedSource'
 import { syncSourceFileTextFromParsedGraph, writeWorkspaceSourceTextIfPresent } from './graphDataFrontmatterFlowSync'
+import { buildUpdatedSourceFileParsedGraphState } from '@/features/source-files/sourceFileParsedState'
 
 export function createGraphDataEdgeActions(set: SetGraph, get: GetGraph) {
   return ({
@@ -58,8 +59,10 @@ export function createGraphDataEdgeActions(set: SetGraph, get: GetGraph) {
       let nextSourceFiles = sourceFiles.slice()
       nextSourceFiles[idx] = {
         ...file,
-        parsedGraphData: nextParsedGraphData,
-        parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
+        ...buildUpdatedSourceFileParsedGraphState({
+          previousParsedState: file,
+          graphData: nextParsedGraphData,
+        }),
       }
       const textSync = syncSourceFileTextFromParsedGraph({
         state: get(),
@@ -146,8 +149,10 @@ export function createGraphDataEdgeActions(set: SetGraph, get: GetGraph) {
           let nextSourceFiles = sourceFiles.slice()
           nextSourceFiles[idx] = {
             ...file,
-            parsedGraphData: nextParsedGraphData,
-            parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
+            ...buildUpdatedSourceFileParsedGraphState({
+              previousParsedState: file,
+              graphData: nextParsedGraphData,
+            }),
           }
           const textSync = syncSourceFileTextFromParsedGraph({
             state: get(),
@@ -239,8 +244,10 @@ export function createGraphDataEdgeActions(set: SetGraph, get: GetGraph) {
           let nextSourceFiles = sourceFiles.slice()
           nextSourceFiles[idx] = {
             ...file,
-            parsedGraphData: nextParsedGraphData,
-            parsedGraphRevision: (file.parsedGraphRevision || 0) + 1,
+            ...buildUpdatedSourceFileParsedGraphState({
+              previousParsedState: file,
+              graphData: nextParsedGraphData,
+            }),
           }
           const textSync = syncSourceFileTextFromParsedGraph({
             state: get(),

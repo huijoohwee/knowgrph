@@ -1,6 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { hashText } from '@/features/parsers/hash'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 const GROUP_COLLAPSE_CACHE = new WeakMap<GraphData, Map<string, GraphData>>()
 
@@ -68,12 +69,12 @@ export const deriveGraphDataWithGroupCollapse = (args: {
     collapsedGroupById.set(String(g.id), g)
   }
 
-  const nodeById = new Map<string, GraphNode>()
   const nodes = Array.isArray(args.graphData.nodes) ? (args.graphData.nodes as GraphNode[]) : []
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]!
-    nodeById.set(String(n.id), n)
-  }
+  const graphLookup = getCachedGraphLookup({
+    cacheScope: 'graph-canvas-view-derivation-group-collapse',
+    graphData: args.graphData,
+  })
+  const nodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
 
   const assignmentByNodeId = new Map<string, { groupId: string; depth: number }>()
   for (let gi = 0; gi < collapsedGroups.length; gi += 1) {

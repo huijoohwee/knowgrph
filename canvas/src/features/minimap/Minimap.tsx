@@ -35,6 +35,8 @@ import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/wi
 import { computeDefaultWidgetFloatingPos } from '@/components/FlowEditor/widgetLayout'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
 type ZoomT = { k: number; x: number; y: number };
 
@@ -218,7 +220,6 @@ function Minimap() {
   }, [
     canvas2dRenderer,
     collapsedGroupIds,
-    defaultSchema,
     documentSemanticMode,
     documentStructureBaselineLock,
     frontmatterModeEnabled,
@@ -245,12 +246,21 @@ function Minimap() {
     const k = typeof zoom.k === 'number' && Number.isFinite(zoom.k) && zoom.k > 0 ? zoom.k : 1
     const tx = typeof zoom.x === 'number' && Number.isFinite(zoom.x) ? zoom.x : 0
     const ty = typeof zoom.y === 'number' && Number.isFinite(zoom.y) ? zoom.y : 0
-    const nodeById = new Map<string, GraphNode>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      const id = String(n?.id || '').trim()
-      if (id) nodeById.set(id, n)
-    }
+    const overlayNodeLookup = getCachedGraphLookup({
+      cacheScope: 'minimap-flow-editor-overlay-subset',
+      graphData: { type: 'application/json', nodes, edges: [] },
+      graphSemanticKey: hashScopedStringArraySignature(
+        'minimap-flow-editor-overlay-subset',
+        nodes.map(node => {
+          const id = String(node?.id || '').trim()
+          const type = String(node?.type || '').trim()
+          const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : 0
+          const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : 0
+          return `${id}:${type}:${Math.round(x * 10)}:${Math.round(y * 10)}`
+        }),
+      ),
+    })
+    const nodeById = overlayNodeLookup?.nodeById || new Map<string, GraphNode>()
     const pinnedById = flowWidgetPinnedByNodeId || {}
     const posById = flowWidgetPosByNodeId || {}
     const worldById = flowWidgetWorldPosByNodeId || {}
@@ -338,7 +348,6 @@ function Minimap() {
     canvas2dRenderer,
     canvasDims.h,
     canvasDims.w,
-    defaultSchema,
     edges,
     flowWidgetPinnedByNodeId,
     flowWidgetPosByNodeId,

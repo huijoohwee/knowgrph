@@ -4,6 +4,7 @@ import { hashStringToHex } from '@/lib/hash/stringHash'
 import { findNextSourceFileIndex, normalizeParentPath } from './sourceFileNaming'
 import { parseWebkitRelativePath } from './webkitRelativePath'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
+import { buildSourceFileRecord } from '@/features/source-files/sourceFileParsedState'
 import {
   cacheMarkdownFolderFromFileInput,
   getMostRecentCachedMarkdownFolderId,
@@ -48,6 +49,23 @@ const buildLocalSourceFileId = (relativePath: string): string => {
   const key = `local-md:${String(relativePath || '').trim().toLowerCase()}`
   return `sf_local_${hashStringToHex(key)}`
 }
+
+const buildLocalMarkdownSourceFile = (args: {
+  path: string
+  previous?: SourceFile | null
+}): SourceFile =>
+  buildSourceFileRecord({
+    id: buildLocalSourceFileId(args.path),
+    name: args.path,
+    text: args.previous?.text || '',
+    enabled: args.previous ? !!args.previous.enabled : true,
+    geoLayerEnabled: args.previous?.geoLayerEnabled,
+    status: args.previous?.status ?? 'idle',
+    error: args.previous?.error,
+    previousState: args.previous,
+    preserveParsedState: true,
+    source: { kind: 'local', path: args.path },
+  })
 
 const iterDirectoryEntries = (handle: FileSystemDirectoryHandle): AsyncIterable<[string, FileSystemHandle]> => {
   const h = handle as unknown as { entries?: () => AsyncIterable<[string, FileSystemHandle]> }
@@ -245,15 +263,7 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
     }
     const nextLocal: SourceFile[] = found.map(({ path }) => {
       const prev = existingLocalByPath.get(path)
-      return {
-        ...(prev || {}),
-        id: buildLocalSourceFileId(path),
-        name: path,
-        enabled: prev ? !!prev.enabled : true,
-        status: prev?.status || 'idle',
-        text: prev?.text || '',
-        source: { kind: 'local', path },
-      }
+      return buildLocalMarkdownSourceFile({ path, previous: prev })
     })
     const nonLocal = existing.filter(f => !getLocalMarkdownPathCandidate(f))
     store.setSourceFiles([...nextLocal, ...nonLocal])
@@ -290,15 +300,7 @@ export const syncLocalMarkdownFolderToSourceFiles = async (args?: {
   }
   const nextLocal: SourceFile[] = found.map(({ path }) => {
     const prev = existingLocalByPath.get(path)
-    return {
-      ...(prev || {}),
-      id: buildLocalSourceFileId(path),
-      name: path,
-      enabled: prev ? !!prev.enabled : true,
-      status: prev?.status || 'idle',
-      text: prev?.text || '',
-      source: { kind: 'local', path },
-    }
+    return buildLocalMarkdownSourceFile({ path, previous: prev })
   })
   const nonLocal = existing.filter(f => !getLocalMarkdownPathCandidate(f))
   store.setSourceFiles([...nextLocal, ...nonLocal])

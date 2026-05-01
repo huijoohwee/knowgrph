@@ -1,5 +1,6 @@
 import { emitGeospatialModeChanged } from 'grph-shared/geospatial/events'
 import { LS_KEYS } from '../../lib/config.js'
+import { DEFAULT_GEOSPATIAL_VIEW_MODE, normalizeGeospatialViewMode } from '../../features/geospatial/basemapStyle.js'
 import type { GeospatialFitRequest, GeospatialInteractionMode, GeospatialViewMode } from './types.js'
 
 const readBool = (key: string, fallback: boolean): boolean => {
@@ -101,12 +102,7 @@ export const createDefaultGympgrphGeospatialState = (): Pick<
 > => {
   const geospatialModeEnabled = readBool(LS_KEYS.geospatialOverlayEnabled, true)
   const readPersistedViewMode = (): GeospatialViewMode => {
-    const raw = readString(LS_KEYS.geospatialViewMode, '2d-modern')
-    if (raw === '2d-modern') return '2d-modern'
-    if (raw === '3d-modern') return '3d-modern'
-    if (raw === '3d') return '3d'
-    if (raw === '2d-svg') return '2d-svg'
-    return '2d'
+    return normalizeGeospatialViewMode(readString(LS_KEYS.geospatialViewMode, DEFAULT_GEOSPATIAL_VIEW_MODE))
   }
   const geospatialViewMode = readPersistedViewMode()
   const geospatialInteractionMode = (readString(LS_KEYS.geospatialInteractionMode, 'always') as GeospatialInteractionMode) || 'always'
@@ -147,7 +143,7 @@ export const buildGympgrphGeospatialActions = (set: (updater: (prev: GympgrphGeo
   }
 
   const setGeospatialViewMode = (mode: GeospatialViewMode) => {
-    const next = mode === '3d-modern' ? '3d-modern' : mode === '3d' ? '3d' : mode === '2d-modern' ? '2d-modern' : mode === '2d-svg' ? '2d-svg' : '2d'
+    const next = normalizeGeospatialViewMode(mode)
     set(prev => {
       if (prev.geospatialViewMode === next) return prev
       writeString(LS_KEYS.geospatialViewMode, next)

@@ -5,7 +5,15 @@ import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibil
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { FORCE_SELECT_MAX_TICKS, FORCE_SELECT_TICK_MS, OVERLAY_NODE_OVERRIDE_LOCK_MS, WIDGET_DROP_DEDUPE_WINDOW_MS, resolveGraphNodeIdByCanonicalId } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+
+function readGraphDataRevision(graphData: GraphData | null | undefined): number {
+  const meta = graphData?.metadata
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return 0
+  const raw = (meta as Record<string, unknown>).graphDataRevision
+  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
+}
 
 export function useFlowEditorSelectionBookkeeping(args: {
   active: boolean
@@ -35,48 +43,131 @@ export function useFlowEditorSelectionBookkeeping(args: {
   updateOpenWidgetNodeIds: (updater: (prev: string[]) => string[]) => void
   setOverlayNodeIdOverride: React.Dispatch<React.SetStateAction<string | null>>
 }) {
-  React.useEffect(() => {
-    args.openWidgetNodeIdsRef.current = Array.isArray((useGraphStore.getState() as any).openWidgetNodeIds)
-      ? ((useGraphStore.getState() as any).openWidgetNodeIds as string[])
-      : []
-  })
+  const {
+    active,
+    editorRuntimeActive,
+    flowEditorViewActive,
+    overlayOnlyModeEnabled,
+    flowEditorFrontmatterGraphAvailable,
+    widgetRegistry,
+    draftGraphData,
+    renderGraphDataOverride,
+    selectedNodeId,
+    overlayNodeIdOverride,
+    pendingOverlayNode,
+    draftGraphDataRef,
+    widgetRegistryRef,
+    lastWidgetDropRef,
+    forceSelectRef,
+    forceSelectTimerRef,
+    pendingSelectNodeIdRef,
+    reservedNodeIdsRef,
+    pendingOpenWidgetNodeIdRef,
+    pendingOverlayNodeIdRef,
+    overlayNodeIdOverrideWasSelectedRef,
+    overlayNodeIdOverrideUntilMsRef,
+    setOpenWidgetNodeIds,
+    updateOpenWidgetNodeIds,
+    setOverlayNodeIdOverride,
+  } = args
+  const draftGraphDataRevision = React.useMemo(() => readGraphDataRevision(draftGraphData), [draftGraphData])
+  const draftGraphLookup = React.useMemo(() => {
+    const graph = draftGraphData
+    const baseLookup = getCachedGraphLookup({
+      cacheScope: 'flow-editor-selection-bookkeeping-draft-graph',
+      graphData: graph,
+      graphRevision: draftGraphDataRevision,
+    })
+    if (!baseLookup) return null
+    const nodes = baseLookup.nodes
+    const nodeIdsByInnerId = new Map<string, string[]>()
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      const id = String(node?.id || '').trim()
+      if (!id) continue
+      const innerId = splitComposedNodeId(id).inner
+      if (!innerId) continue
+      const existing = nodeIdsByInnerId.get(innerId)
+      if (existing) existing.push(id)
+      else nodeIdsByInnerId.set(innerId, [id])
+    }
+    return {
+      graph,
+      revision: draftGraphDataRevision,
+      nodes,
+      eligibleNodeIds: buildFlowWidgetEligibleNodeIdSet(nodes),
+      nodeById: baseLookup.nodeById,
+      nodeIdsByInnerId,
+    }
+  }, [draftGraphData, draftGraphDataRevision])
+
+  const resolveDraftGraphNode = React.useCallback((rawId: unknown): GraphNode | null => {
+    if (!draftGraphLookup) return null
+    const candidateIds = parseCanonicalNodeIds(rawId)
+    if (candidateIds.length === 0) return null
+    for (let i = 0; i < candidateIds.length; i += 1) {
+      const exact = draftGraphLookup.nodeById.get(candidateIds[i] || '') || null
+      if (exact) return exact
+    }
+    let resolvedInnerId = ''
+    for (let i = 0; i < candidateIds.length; i += 1) {
+      const innerId = splitComposedNodeId(candidateIds[i]).inner
+      if (!innerId) continue
+      const matches = draftGraphLookup.nodeIdsByInnerId.get(innerId) || []
+      if (matches.length === 1) {
+        resolvedInnerId = matches[0] || ''
+        break
+      }
+    }
+    return resolvedInnerId ? draftGraphLookup.nodeById.get(resolvedInnerId) || null : null
+  }, [draftGraphLookup])
 
   React.useEffect(() => {
-    if (!args.editorRuntimeActive || !args.overlayOnlyModeEnabled || !args.draftGraphData || args.flowEditorFrontmatterGraphAvailable) return
-    if (isFrontmatterFlowGraph(args.draftGraphData as GraphData)) return
-    const nodes = Array.isArray(args.draftGraphData.nodes) ? (args.draftGraphData.nodes as GraphNode[]) : []
-    const eligible = buildFlowWidgetEligibleNodeIdSet(nodes)
-    const ids = Array.from(eligible)
+    if (!editorRuntimeActive || !overlayOnlyModeEnabled || !draftGraphData || flowEditorFrontmatterGraphAvailable) return
+    if (isFrontmatterFlowGraph(draftGraphData as GraphData)) return
+    const ids = Array.from(draftGraphLookup?.eligibleNodeIds || [])
     if (ids.length === 0 || ids.length > 120) return
-    args.setOpenWidgetNodeIds(ids)
-  }, [args])
+    setOpenWidgetNodeIds(ids)
+  }, [
+    draftGraphData,
+    editorRuntimeActive,
+    flowEditorFrontmatterGraphAvailable,
+    overlayOnlyModeEnabled,
+    setOpenWidgetNodeIds,
+    draftGraphLookup,
+  ])
 
   React.useEffect(() => {
-    if (!args.editorRuntimeActive || !args.flowEditorViewActive || !args.draftGraphData) return
-    const nodes = Array.isArray(args.draftGraphData.nodes) ? args.draftGraphData.nodes : []
-    const idSet = new Set(nodes.map(n => String(n.id || '')).filter(Boolean))
-    const eligible = buildFlowWidgetEligibleNodeIdSet(nodes as any)
-    args.updateOpenWidgetNodeIds(prev => prev.filter(id => {
+    if (!editorRuntimeActive || !flowEditorViewActive || !draftGraphData) return
+    const idSet = new Set<string>(draftGraphLookup?.nodeById.keys() || [])
+    const eligible = draftGraphLookup?.eligibleNodeIds || new Set<string>()
+    updateOpenWidgetNodeIds(prev => prev.filter(id => {
       const s = String(id || '')
       return idSet.has(s) && (eligible.size === 0 || eligible.has(s))
     }))
-  }, [args])
+  }, [
+    draftGraphData,
+    editorRuntimeActive,
+    flowEditorViewActive,
+    updateOpenWidgetNodeIds,
+    draftGraphLookup,
+  ])
 
   React.useEffect(() => {
-    args.widgetRegistryRef.current = args.widgetRegistry
-  }, [args.widgetRegistry, args.widgetRegistryRef])
+    widgetRegistryRef.current = widgetRegistry
+  }, [widgetRegistry, widgetRegistryRef])
 
   React.useEffect(() => {
-    args.draftGraphDataRef.current = args.draftGraphData
-  }, [args.draftGraphData, args.draftGraphDataRef])
+    draftGraphDataRef.current = draftGraphData
+  }, [draftGraphData, draftGraphDataRef])
 
   const shouldDedupeWidgetDrop = React.useCallback((key: string): boolean => {
     const now = Date.now()
-    const last = args.lastWidgetDropRef.current
+    const last = lastWidgetDropRef.current
     if (last && last.key === key && now - last.ts <= WIDGET_DROP_DEDUPE_WINDOW_MS) return true
-    args.lastWidgetDropRef.current = { key, ts: now }
+    lastWidgetDropRef.current = { key, ts: now }
     return false
-  }, [args.lastWidgetDropRef])
+  }, [lastWidgetDropRef])
 
   const scheduleForceSelect = React.useCallback((id: string, opts?: { minHoldMs?: number }) => {
     const nodeId = String(id || '').trim()
@@ -84,20 +175,20 @@ export function useFlowEditorSelectionBookkeeping(args: {
     const now = Date.now()
     const minHoldMs = typeof opts?.minHoldMs === 'number' && Number.isFinite(opts.minHoldMs) ? Math.max(0, opts.minHoldMs) : 0
     const nextUntil = now + minHoldMs
-    const existing = args.forceSelectRef.current
+    const existing = forceSelectRef.current
     if (!existing || existing.id !== nodeId) {
-      args.forceSelectRef.current = { id: nodeId, remaining: FORCE_SELECT_MAX_TICKS, untilMs: nextUntil }
+      forceSelectRef.current = { id: nodeId, remaining: FORCE_SELECT_MAX_TICKS, untilMs: nextUntil }
     } else if (nextUntil > existing.untilMs) {
       existing.untilMs = nextUntil
     }
-    if (args.forceSelectTimerRef.current != null) return
+    if (forceSelectTimerRef.current != null) return
 
     const tick = () => {
-      args.forceSelectTimerRef.current = null
-      const cur = args.forceSelectRef.current
+      forceSelectTimerRef.current = null
+      const cur = forceSelectRef.current
       if (!cur) return
       if (cur.remaining <= 0) {
-        args.forceSelectRef.current = null
+        forceSelectRef.current = null
         return
       }
       cur.remaining -= 1
@@ -116,40 +207,39 @@ export function useFlowEditorSelectionBookkeeping(args: {
         })
       }
       if (matches && Date.now() >= cur.untilMs) {
-        args.forceSelectRef.current = null
+        forceSelectRef.current = null
         return
       }
-      args.forceSelectTimerRef.current = setTimeout(tick, FORCE_SELECT_TICK_MS) as unknown as number
+      forceSelectTimerRef.current = setTimeout(tick, FORCE_SELECT_TICK_MS) as unknown as number
     }
 
-    args.forceSelectTimerRef.current = setTimeout(tick, FORCE_SELECT_TICK_MS) as unknown as number
-  }, [args.forceSelectRef, args.forceSelectTimerRef])
+    forceSelectTimerRef.current = setTimeout(tick, FORCE_SELECT_TICK_MS) as unknown as number
+  }, [forceSelectRef, forceSelectTimerRef])
 
   React.useEffect(() => {
     return () => {
-      if (args.forceSelectTimerRef.current != null) {
+      if (forceSelectTimerRef.current != null) {
         try {
-          clearTimeout(args.forceSelectTimerRef.current)
+          clearTimeout(forceSelectTimerRef.current)
         } catch {
           void 0
         }
-        args.forceSelectTimerRef.current = null
+        forceSelectTimerRef.current = null
       }
-      args.forceSelectRef.current = null
+      forceSelectRef.current = null
     }
-  }, [args.forceSelectRef, args.forceSelectTimerRef])
+  }, [forceSelectRef, forceSelectTimerRef])
 
   React.useEffect(() => {
-    const pending = args.pendingSelectNodeIdRef.current
+    const pending = pendingSelectNodeIdRef.current
     if (!pending) return
-    const nodes = Array.isArray(args.draftGraphData?.nodes) ? args.draftGraphData.nodes : []
-    const found = nodes.find(n => String(n.id || '') === pending) || null
+    const found = draftGraphLookup?.nodeById.get(pending) || null
     if (!found) return
-    args.pendingSelectNodeIdRef.current = null
-    args.reservedNodeIdsRef.current.delete(pending)
-    args.setOverlayNodeIdOverride(pending)
-    args.overlayNodeIdOverrideWasSelectedRef.current = false
-    args.overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
+    pendingSelectNodeIdRef.current = null
+    reservedNodeIdsRef.current.delete(pending)
+    setOverlayNodeIdOverride(pending)
+    overlayNodeIdOverrideWasSelectedRef.current = false
+    overlayNodeIdOverrideUntilMsRef.current = Date.now() + OVERLAY_NODE_OVERRIDE_LOCK_MS
     useGraphStore.setState({
       selectionSource: 'canvas',
       selectedNodeId: pending,
@@ -160,36 +250,41 @@ export function useFlowEditorSelectionBookkeeping(args: {
       selectedGroupIds: [],
     })
     scheduleForceSelect(pending, { minHoldMs: 250 })
-  }, [args.draftGraphData, args.overlayNodeIdOverrideUntilMsRef, args.overlayNodeIdOverrideWasSelectedRef, args.pendingSelectNodeIdRef, args.reservedNodeIdsRef, args.setOverlayNodeIdOverride, scheduleForceSelect])
+  }, [
+    draftGraphData,
+    draftGraphLookup,
+    overlayNodeIdOverrideUntilMsRef,
+    overlayNodeIdOverrideWasSelectedRef,
+    pendingSelectNodeIdRef,
+    reservedNodeIdsRef,
+    scheduleForceSelect,
+    setOverlayNodeIdOverride,
+  ])
 
   React.useEffect(() => {
-    const pending = String(args.pendingOpenWidgetNodeIdRef.current || '').trim()
+    const pending = String(pendingOpenWidgetNodeIdRef.current || '').trim()
     if (!pending) return
-    const nodes = Array.isArray(args.renderGraphDataOverride?.nodes) ? (args.renderGraphDataOverride.nodes as GraphNode[]) : []
-    const resolvedPending = resolveGraphNodeIdByCanonicalId(args.renderGraphDataOverride as GraphData | null, pending) || pending
-    const found = nodes.find(n => {
-      const nodeId = String(n.id || '').trim()
-      return !!nodeId && (nodeId === pending || nodeId === resolvedPending)
-    }) || null
+    const resolvedPending = resolveGraphNodeIdByCanonicalId(renderGraphDataOverride as GraphData | null, pending) || pending
+    const found = resolveGraphNodeByCanonicalId(renderGraphDataOverride as GraphData | null, resolvedPending || pending)
     if (!found) return
-    args.pendingOpenWidgetNodeIdRef.current = null
+    pendingOpenWidgetNodeIdRef.current = null
     const openId = String(found.id || resolvedPending || pending).trim()
     if (!openId) return
-    args.updateOpenWidgetNodeIds(prev => (prev.includes(openId) ? prev : [...prev, openId]))
-  }, [args.pendingOpenWidgetNodeIdRef, args.renderGraphDataOverride, args.updateOpenWidgetNodeIds])
+    updateOpenWidgetNodeIds(prev => (prev.includes(openId) ? prev : [...prev, openId]))
+  }, [pendingOpenWidgetNodeIdRef, renderGraphDataOverride, updateOpenWidgetNodeIds])
 
   React.useEffect(() => {
-    const override = String(args.overlayNodeIdOverride || '').trim()
+    const override = String(overlayNodeIdOverride || '').trim()
     if (!override) return
-    const selected = String(args.selectedNodeId || '').trim()
-    if (selected && selected === override) args.overlayNodeIdOverrideWasSelectedRef.current = true
-  }, [args.overlayNodeIdOverride, args.overlayNodeIdOverrideWasSelectedRef, args.selectedNodeId])
+    const selected = String(selectedNodeId || '').trim()
+    if (selected && selected === override) overlayNodeIdOverrideWasSelectedRef.current = true
+  }, [overlayNodeIdOverride, overlayNodeIdOverrideWasSelectedRef, selectedNodeId])
 
   React.useEffect(() => {
-    if (!args.active) return
-    const override = String(args.overlayNodeIdOverride || '').trim()
-    if (!override || Date.now() > args.overlayNodeIdOverrideUntilMsRef.current) return
-    const selected = String(args.selectedNodeId || '').trim()
+    if (!active) return
+    const override = String(overlayNodeIdOverride || '').trim()
+    if (!override || Date.now() > overlayNodeIdOverrideUntilMsRef.current) return
+    const selected = String(selectedNodeId || '').trim()
     if (selected === override) return
     useGraphStore.setState({
       selectionSource: 'canvas',
@@ -200,43 +295,61 @@ export function useFlowEditorSelectionBookkeeping(args: {
       selectedEdgeIds: [],
       selectedGroupIds: [],
     })
-  }, [args.active, args.overlayNodeIdOverride, args.overlayNodeIdOverrideUntilMsRef, args.selectedNodeId])
+  }, [active, overlayNodeIdOverride, overlayNodeIdOverrideUntilMsRef, selectedNodeId])
 
   React.useEffect(() => {
-    const override = String(args.overlayNodeIdOverride || '').trim()
+    const override = String(overlayNodeIdOverride || '').trim()
     if (!override) return
     const now = Date.now()
-    const selected = String(args.selectedNodeId || '').trim()
-    if (args.overlayNodeIdOverrideWasSelectedRef.current && selected && selected !== override && now > args.overlayNodeIdOverrideUntilMsRef.current) {
-      args.setOverlayNodeIdOverride(null)
+    const selected = String(selectedNodeId || '').trim()
+    if (overlayNodeIdOverrideWasSelectedRef.current && selected && selected !== override && now > overlayNodeIdOverrideUntilMsRef.current) {
+      setOverlayNodeIdOverride(null)
       return
     }
-    if (now <= args.overlayNodeIdOverrideUntilMsRef.current) return
-    const nodes = Array.isArray(args.draftGraphData?.nodes) ? args.draftGraphData.nodes : []
-    const found = nodes.find(n => String(n.id || '') === override) || null
-    if (!found) args.setOverlayNodeIdOverride(null)
-  }, [args.draftGraphData, args.overlayNodeIdOverride, args.overlayNodeIdOverrideUntilMsRef, args.overlayNodeIdOverrideWasSelectedRef, args.selectedNodeId, args.setOverlayNodeIdOverride])
+    if (now <= overlayNodeIdOverrideUntilMsRef.current) return
+    const found = draftGraphLookup?.nodeById.get(override) || null
+    if (!found) setOverlayNodeIdOverride(null)
+  }, [
+    draftGraphData,
+    draftGraphLookup,
+    overlayNodeIdOverride,
+    overlayNodeIdOverrideUntilMsRef,
+    overlayNodeIdOverrideWasSelectedRef,
+    selectedNodeId,
+    setOverlayNodeIdOverride,
+  ])
 
   const selectedDraftNode = React.useMemo(() => {
-    if (!args.draftGraphData || !args.selectedNodeId) return null
-    return resolveGraphNodeByCanonicalId(args.draftGraphData, args.selectedNodeId)
-  }, [args.draftGraphData, args.selectedNodeId])
+    if (!draftGraphData || !selectedNodeId) return null
+    return resolveDraftGraphNode(selectedNodeId) || resolveGraphNodeByCanonicalId(draftGraphData, selectedNodeId)
+  }, [draftGraphData, selectedNodeId, resolveDraftGraphNode])
 
   const overlayDraftNode = React.useMemo(() => {
-    const override = String(args.overlayNodeIdOverride || '').trim()
+    const override = String(overlayNodeIdOverride || '').trim()
     if (!override) return selectedDraftNode
-    if (!args.draftGraphData) {
-      const pending = args.pendingOverlayNodeIdRef.current
-      if (pending && pending === override) return args.pendingOverlayNode
+    if (!draftGraphData) {
+      const pending = pendingOverlayNodeIdRef.current
+      if (pending && pending === override) return pendingOverlayNode
       return selectedDraftNode
     }
-    const foundId = resolveGraphNodeIdByCanonicalId(args.draftGraphData, override)
-    const found = foundId ? (args.draftGraphData.nodes || []).find(n => String(n.id || '').trim() === foundId) || null : null
+    const found = resolveDraftGraphNode(override)
+      || (() => {
+        const foundId = resolveGraphNodeIdByCanonicalId(draftGraphData, override)
+        return foundId ? draftGraphLookup?.nodeById.get(foundId) || null : null
+      })()
     if (found) return found
-    const pending = args.pendingOverlayNodeIdRef.current
-    if (pending && pending === override) return args.pendingOverlayNode
+    const pending = pendingOverlayNodeIdRef.current
+    if (pending && pending === override) return pendingOverlayNode
     return selectedDraftNode
-  }, [args.draftGraphData, args.overlayNodeIdOverride, args.pendingOverlayNode, args.pendingOverlayNodeIdRef, selectedDraftNode])
+  }, [
+    draftGraphLookup,
+    draftGraphData,
+    overlayNodeIdOverride,
+    pendingOverlayNode,
+    pendingOverlayNodeIdRef,
+    resolveDraftGraphNode,
+    selectedDraftNode,
+  ])
 
   return {
     overlayDraftNode,

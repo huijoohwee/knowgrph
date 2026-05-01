@@ -6,7 +6,7 @@ export async function testInjectLiveMarkdownDesignBlocksIntoSvgMarkupEmbedsForei
   document.body.appendChild(root)
 
   const block = document.createElement('article')
-  block.setAttribute('data-kg-markdown-design-block', 'b1')
+  block.setAttribute('data-md-id', 'b1')
   block.setAttribute('data-kg-world-x', '10')
   block.setAttribute('data-kg-world-y', '20')
   block.setAttribute('data-kg-world-w', '300')
@@ -28,7 +28,7 @@ export async function testInjectLiveMarkdownDesignBlocksIntoSvgMarkupEmbedsForei
   if (fo.getAttribute('y') !== '20') throw new Error('Expected y=20')
   if (fo.getAttribute('width') !== '300') throw new Error('Expected width=300')
   if (fo.getAttribute('height') !== '120') throw new Error('Expected height=120')
-  const cloned = fo.querySelector('[data-kg-markdown-design-block="b1"]')
+  const cloned = fo.querySelector('[data-md-id="b1"]')
   if (!cloned) throw new Error('Expected cloned markdown block')
 }
 
@@ -38,7 +38,7 @@ export async function testInjectLiveMarkdownDesignBlocksIntoSvgMarkupAnchoredUse
   document.body.appendChild(root)
 
   const block = document.createElement('article')
-  block.setAttribute('data-kg-markdown-design-block', 'b1')
+  block.setAttribute('data-md-id', 'b1')
   block.setAttribute('data-kg-world-x', '10')
   block.setAttribute('data-kg-world-y', '20')
   block.setAttribute('data-kg-world-w', '300')

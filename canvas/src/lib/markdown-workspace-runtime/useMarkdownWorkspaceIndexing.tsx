@@ -20,6 +20,7 @@ import {
   peekPendingWorkspaceLocalImport,
 } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
+import { buildSourceFileLifecycleState, buildSourceFileRecord } from '@/features/source-files/sourceFileParsedState'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
@@ -264,14 +265,13 @@ export function useMarkdownWorkspaceIndexing(args: {
                 const sourceRecord = url
                   ? ({ kind: 'url', url, path: workspaceSourcePath } as const)
                   : ({ kind: 'local', path: workspaceSourcePath } as const)
-                store.addSourceFile({
+                store.addSourceFile(buildSourceFileRecord({
                   id,
                   name: sourceFileName,
                   text: inlineSourceText,
                   enabled: true,
-                  status: 'idle',
                   source: sourceRecord,
-                })
+                }))
                 existingWorkspaceSourceFile = findWorkspaceSourceFileByPath(path)
                 return id
               })()
@@ -317,9 +317,14 @@ export function useMarkdownWorkspaceIndexing(args: {
                     name: sourceFileName,
                     text: inlineSourceText,
                     enabled: true,
-                    status: 'parsed',
-                    error: undefined,
-                    parsedGraphRevision: typeof existing?.parsedGraphRevision === 'number' ? existing.parsedGraphRevision : 0,
+                    ...buildSourceFileLifecycleState({
+                      status: 'parsed',
+                      parserId: existing?.parsedParserId,
+                      textHash: existing?.parsedTextHash,
+                      graphData: existing?.parsedGraphData,
+                      previousState: existing,
+                      preserveExistingRevision: true,
+                    }),
                   })
                 } catch {
                   void 0
@@ -338,8 +343,11 @@ export function useMarkdownWorkspaceIndexing(args: {
                   name: sourceFileName,
                   text: inlineSourceText,
                   enabled: true,
-                  status: 'loading',
-                  error: undefined,
+                  ...buildSourceFileLifecycleState({
+                    status: 'loading',
+                    previousState: existing,
+                    preserveParsedState: true,
+                  }),
                 })
               } catch {
                 void 0
@@ -376,12 +384,12 @@ export function useMarkdownWorkspaceIndexing(args: {
                 if (isStaleJob()) return
                 try {
                   store.updateSourceFile(fileId, {
-                    status: 'parsed',
-                    error: undefined,
-                    parsedParserId: geoGraph.context === 'geodata' ? 'geodata' : 'geojson',
-                    parsedTextHash: hash,
-                    parsedGraphRevision: 0,
-                    parsedGraphData: geoGraph,
+                    ...buildSourceFileLifecycleState({
+                      status: 'parsed',
+                      parserId: geoGraph.context === 'geodata' ? 'geodata' : 'geojson',
+                      textHash: hash,
+                      graphData: geoGraph,
+                    }),
                   })
                 } catch {
                   void 0
@@ -395,9 +403,14 @@ export function useMarkdownWorkspaceIndexing(args: {
                 if (isStaleJob()) return
                 try {
                   store.updateSourceFile(fileId, {
-                    status: 'parsed',
-                    error: undefined,
-                    parsedGraphRevision: typeof existing?.parsedGraphRevision === 'number' ? existing.parsedGraphRevision : 0,
+                    ...buildSourceFileLifecycleState({
+                      status: 'parsed',
+                      parserId: existing?.parsedParserId,
+                      textHash: existing?.parsedTextHash,
+                      graphData: existing?.parsedGraphData,
+                      previousState: existing,
+                      preserveExistingRevision: true,
+                    }),
                   })
                 } catch {
                   void 0
@@ -426,12 +439,12 @@ export function useMarkdownWorkspaceIndexing(args: {
                 if (graphData) {
                   try {
                     store.updateSourceFile(fileId, {
-                      status: 'parsed',
-                      error: undefined,
-                      parsedParserId: typeof res?.parserId === 'string' ? res.parserId : undefined,
-                      parsedTextHash: hash,
-                      parsedGraphRevision: 0,
-                      parsedGraphData: graphData,
+                      ...buildSourceFileLifecycleState({
+                        status: 'parsed',
+                        parserId: typeof res?.parserId === 'string' ? res.parserId : undefined,
+                        textHash: hash,
+                        graphData,
+                      }),
                     })
                   } catch {
                     void 0
@@ -439,7 +452,15 @@ export function useMarkdownWorkspaceIndexing(args: {
                   await applyComposedFromSourceFiles()
                 } else if (!isStaleJob()) {
                   try {
-                    store.updateSourceFile(fileId, { status: 'error', error: 'Parser returned empty graph' })
+                    store.updateSourceFile(fileId, {
+                      ...buildSourceFileLifecycleState({
+                        status: 'error',
+                        error: 'Parser returned empty graph',
+                        parserId: typeof res?.parserId === 'string' ? res.parserId : undefined,
+                        textHash: hash,
+                        graphData: undefined,
+                      }),
+                    })
                   } catch {
                     void 0
                   }

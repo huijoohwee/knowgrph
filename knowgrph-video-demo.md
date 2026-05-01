@@ -203,6 +203,7 @@ flow:
       actor: {key: actor, type: array, value: ["system", "user"]}
       handles: {key: handles, type: object, value: {target: ["output", "outputSrcDoc"], source: ["output", "outputSrcDoc"]}}
       "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "richMediaPanel"}
+      richMediaActiveTab: {key: richMediaActiveTab, type: string, value: "text"}
       output: {key: output, type: string, value: ""}
       outputSrcDoc: {key: outputSrcDoc, type: string, value: ""}
       media_interactive: {key: media_interactive, type: boolean, value: true}
@@ -234,6 +235,7 @@ flow:
       actor: {key: actor, type: array, value: ["system", "user"]}
       handles: {key: handles, type: object, value: {target: ["imageUrl", "outputSrcDoc"], source: ["imageUrl", "outputSrcDoc"]}}
       "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "richMediaPanel"}
+      richMediaActiveTab: {key: richMediaActiveTab, type: string, value: "image"}
       imageUrl: {key: imageUrl, type: string, value: ""}
       outputSrcDoc: {key: outputSrcDoc, type: string, value: ""}
       media_interactive: {key: media_interactive, type: boolean, value: true}
@@ -263,6 +265,7 @@ flow:
       actor: {key: actor, type: array, value: ["system", "user"]}
       handles: {key: handles, type: object, value: {target: ["videoUrl", "outputSrcDoc"], source: ["videoUrl", "outputSrcDoc"]}}
       "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "richMediaPanel"}
+      richMediaActiveTab: {key: richMediaActiveTab, type: string, value: "video"}
       videoUrl: {key: videoUrl, type: string, value: ""}
       outputSrcDoc: {key: outputSrcDoc, type: string, value: ""}
       media_interactive: {key: media_interactive, type: boolean, value: true}

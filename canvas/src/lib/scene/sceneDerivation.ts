@@ -9,6 +9,7 @@ import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { applySchemaGroupBoundsOverrides, readSchemaGroupBoundsOverrides } from '@/lib/canvas/groupBoundsOverrides'
 import { SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES } from '@/lib/config.render'
 import { buildDocumentSemanticViewModeKey, resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 export type SceneGroupsDerivation = {
   key: string
@@ -168,16 +169,19 @@ export const deriveSceneDisplayGraph = (args: {
   const displayNodes = Array.isArray(displayGraphData.nodes) ? (displayGraphData.nodes as GraphNode[]) : ([] as GraphNode[])
   const displayEdges = Array.isArray(displayGraphData.edges) ? (displayGraphData.edges as GraphEdge[]) : ([] as GraphEdge[])
 
+  const displayLookup = getCachedGraphLookup({
+    cacheScope: 'scene-derivation-display-graph',
+    graphData: displayGraphData,
+  })
   const displayNodeIdSet = new Set<string>()
   const nodeIndexById = new Map<string, number>()
-  const nodeById = new Map<string, GraphNode>()
+  const nodeById = displayLookup?.nodeById || new Map<string, GraphNode>()
   for (let i = 0; i < displayNodes.length; i += 1) {
     const n = displayNodes[i]
     const id = String(n?.id || '').trim()
     if (!id) continue
     displayNodeIdSet.add(id)
     if (!nodeIndexById.has(id)) nodeIndexById.set(id, i)
-    if (!nodeById.has(id)) nodeById.set(id, n)
   }
 
   const edgeIndexById = new Map<string, number>()

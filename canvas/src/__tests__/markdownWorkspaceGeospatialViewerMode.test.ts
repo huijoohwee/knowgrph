@@ -11,12 +11,9 @@ export const testMarkdownWorkspaceGeospatialViewerModeStaysSingleActiveLayout = 
     'BottomPanel',
     'markdownWorkspace',
     'main',
-    'MarkdownWorkspaceMainLegacy.tsx',
+    'MarkdownWorkspaceMain.tsx',
   )
   const text = readUtf8(mainPath)
-  if (!text.includes("if (v === 'geospatial') return 'geospatial'")) {
-    throw new Error("Expected MarkdownWorkspaceMainLegacy to restore persisted 'geospatial' viewer mode")
-  }
   if (!text.includes("if (prev === 'geospatial') return prev")) {
     throw new Error("Expected workspace editor-mode sync to preserve active geospatial viewer mode as single selected layout")
   }

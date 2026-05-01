@@ -4,6 +4,7 @@ import type { GetGraph, SetGraph } from './graphDataSliceAccess'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { containsFrontmatterMermaid, isMarkdownLikeFileName, normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 import { persistGraphDataToLocalStorage } from '@/hooks/store/graphDataPersistence'
+import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import {
   syncGraphFieldsWithGraphData,
   readGraphRagWorkflowJsonTextFromGraphData,
@@ -119,8 +120,11 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       ) {
         get().updateSourceFile(exactSourceFile.id, {
           text: nextSourceText,
-          status: 'idle',
-          error: undefined,
+          ...buildSourceFileLifecycleState({
+            status: 'idle',
+            previousState: exactSourceFile,
+            preserveParsedState: true,
+          }),
         })
       }
       const mod = (await import('@/features/source-files/sourceFilesIngestIntegration')) as typeof import('@/features/source-files/sourceFilesIngestIntegration')

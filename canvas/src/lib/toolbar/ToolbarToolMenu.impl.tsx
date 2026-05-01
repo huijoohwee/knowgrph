@@ -37,18 +37,13 @@ import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/o
 import { InfiniteCanvasInteractionPanel } from '@/features/canvas/InfiniteCanvasInteractionPanel'
 
 type FloatingPanelView = 'propsPanel' | 'interaction' | 'domTree' | 'domInspect' | 'chat' | 'geo' | 'renderer' | 'graphTraversal'
-type RequestedFloatingPanelView = FloatingPanelView | 'discovery'
+type RequestedFloatingPanelView = FloatingPanelView
 type FloatingManagedHeaderActionsView = 'renderer'
 type FloatingHeaderActions = {
   apply?: () => void
   reset?: () => void
   applyDisabled?: boolean
   resetDisabled?: boolean
-}
-
-const normalizeRequestedFloatingPanelView = (view: RequestedFloatingPanelView): FloatingPanelView => {
-  if (view === 'discovery') return 'propsPanel'
-  return view
 }
 
 type FloatingPanelDevStatusMetrics = {
@@ -387,9 +382,8 @@ export function ToolbarToolMenu({
   }, [geospatialModeEnabled])
 
   const handleSelectView = React.useCallback((view: RequestedFloatingPanelView) => {
-    const nextView = normalizeRequestedFloatingPanelView(view)
-    setFloatingPanelView(nextView)
-    if (nextView !== 'geo') return
+    setFloatingPanelView(view)
+    if (view !== 'geo') return
     void ensureGeospatialEnabled()
   }, [ensureGeospatialEnabled, setFloatingPanelView])
 
@@ -564,10 +558,9 @@ export function ToolbarToolMenu({
     if (!requestedFloatingPanelView || !requestedFloatingPanelViewSeq) return
     if (handledRequestedViewSeqRef.current === requestedFloatingPanelViewSeq) return
     handledRequestedViewSeqRef.current = requestedFloatingPanelViewSeq
-    const nextView = normalizeRequestedFloatingPanelView(requestedFloatingPanelView)
     setFloatingPanelMinimized(false)
-    setFloatingPanelView(nextView)
-    if (nextView === 'geo') {
+    setFloatingPanelView(requestedFloatingPanelView)
+    if (requestedFloatingPanelView === 'geo') {
       void ensureGeospatialEnabled()
     }
   }, [ensureGeospatialEnabled, requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])

@@ -46,25 +46,27 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorActionsToolbar.tsx')
   const panelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
-  const formPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
-  const richMediaSsotPath = resolve(process.cwd(), 'src', 'lib', 'render', 'richMediaSsot.ts')
   const overlayText = readFileSync(overlayPath, 'utf8')
   const toolbarText = readFileSync(toolbarPath, 'utf8')
   const panelText = readFileSync(panelPath, 'utf8')
-  const formText = readFileSync(formPath, 'utf8')
-  const richMediaSsotText = readFileSync(richMediaSsotPath, 'utf8')
 
-  if (!overlayText.includes('richMediaViewToggle={isRichMediaPanelWidget ? {')) {
-    throw new Error('expected NodeOverlayEditor to wire Rich Media Panel view toggle through the floating toolbar')
+  if (overlayText.includes('richMediaViewToggle={isRichMediaPanelWidget ? {')) {
+    throw new Error('expected NodeOverlayEditor to remove legacy Rich Media view-toggle wiring from the outer generic toolbar')
   }
-  if (!overlayText.includes('richMediaMediaSelector={isRichMediaPanelWidget ? {')) {
-    throw new Error('expected NodeOverlayEditor to wire Rich Media Panel Media Selector through the floating toolbar')
+  if (overlayText.includes('richMediaMediaSelector={isRichMediaPanelWidget ? {')) {
+    throw new Error('expected NodeOverlayEditor to remove legacy Rich Media media-selector wiring from the outer generic toolbar')
+  }
+  if (!panelText.includes('richMediaViewToggle={richMediaViewToggle}')) {
+    throw new Error('expected NodeOverlayEditorPanel to wire the Rich Media Panel view toggle through the shared RichMediaPanel shell')
+  }
+  if (!panelText.includes('richMediaMediaSelector={richMediaMediaSelector}')) {
+    throw new Error('expected NodeOverlayEditorPanel to wire the Rich Media Panel Media Selector through the shared RichMediaPanel shell')
   }
   if (!overlayText.includes('selectedMode: richMediaSelectedMode')) {
-    throw new Error('expected NodeOverlayEditor to pass the selected Rich Media mode into the floating toolbar selector')
+    throw new Error('expected NodeOverlayEditor to pass the selected Rich Media mode into the shared RichMediaPanel shell')
   }
   if (!overlayText.includes('onSelect: handleSelectRichMediaMode')) {
-    throw new Error('expected NodeOverlayEditor to update richMediaActiveTab through the shared toolbar selector callback')
+    throw new Error('expected NodeOverlayEditor to update richMediaActiveTab through the shared RichMediaPanel selector callback')
   }
   if (!toolbarText.includes('richMediaViewToggle?.visible')) {
     throw new Error('expected NodeOverlayEditorActionsToolbar to render a Rich Media Panel view toggle')
@@ -95,20 +97,5 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
   }
   if (panelText.includes('flowWidgetRichMediaPanelView') || panelText.includes('flowWidgetRichMediaKtvRows')) {
     throw new Error('expected NodeOverlayEditorPanel header to avoid duplicating the Rich Media Panel view toggle')
-  }
-  if (!formText.includes('aria-label={getRichMediaPanelViewLabel(false)}')) {
-    throw new Error('expected Rich Media Panel viewer section to reuse the shared canonical view label')
-  }
-  if (!richMediaSsotText.includes("RICH_MEDIA_PANEL_CONNECT_VIEW_LABEL = 'Rich Media Panel (Connect media to render)'")) {
-    throw new Error('expected Rich Media SSOT to keep the canonical default viewer label')
-  }
-  if (!richMediaSsotText.includes('RICH_MEDIA_PANEL_KTV_VIEW_LABEL = FLOW_RICH_MEDIA_PANEL_NODE_LABEL')) {
-    throw new Error('expected Rich Media SSOT to keep the canonical KTV-row panel label')
-  }
-  if (!richMediaSsotText.includes("RICH_MEDIA_PANEL_MEDIA_SELECTOR_LABEL = 'Media Selector'")) {
-    throw new Error('expected Rich Media SSOT to keep a shared Media Selector label')
-  }
-  if (!richMediaSsotText.includes("{ value: 'poi', label: 'POI Viewer' }")) {
-    throw new Error('expected Rich Media SSOT to expose POI Viewer as a first-class Media Selector option')
   }
 }

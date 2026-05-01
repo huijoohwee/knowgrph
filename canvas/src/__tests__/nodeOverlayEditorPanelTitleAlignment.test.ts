@@ -1,5 +1,5 @@
 import type { GraphNode } from '@/lib/graph/types'
-import { resolveWidgetNodeTitle } from '@/components/FlowEditor/NodeOverlayEditorPanel'
+import { resolveWidgetNodeTitle } from '@/components/FlowEditor/nodeOverlayEditorTitle'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 import { FLOW_VIDEO_GENERATION_NODE_LABEL } from '@/lib/config.flow-editor'

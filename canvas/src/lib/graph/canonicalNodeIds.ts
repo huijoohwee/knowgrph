@@ -18,6 +18,33 @@ export function parseCanonicalNodeIds(raw: unknown): string[] {
   return out
 }
 
+export function buildCanonicalNodeLookup<T>(entries: Iterable<readonly [string, T]>): Map<string, T> {
+  const lookup = new Map<string, T>()
+  for (const [rawId, value] of entries) {
+    const candidateIds = parseCanonicalNodeIds(rawId)
+    for (let i = 0; i < candidateIds.length; i += 1) {
+      const candidateId = String(candidateIds[i] || '').trim()
+      if (candidateId && !lookup.has(candidateId)) lookup.set(candidateId, value)
+    }
+  }
+  return lookup
+}
+
+export function getCanonicalNodeLookupValue<T>(
+  lookup: ReadonlyMap<string, T> | null | undefined,
+  rawId: unknown,
+): T | null {
+  if (!lookup || lookup.size === 0) return null
+  const candidateIds = parseCanonicalNodeIds(rawId)
+  for (let i = 0; i < candidateIds.length; i += 1) {
+    const candidateId = candidateIds[i]
+    if (!candidateId) continue
+    const value = lookup.get(candidateId)
+    if (value) return value
+  }
+  return null
+}
+
 export function resolveGraphNodeByCanonicalId(graph: GraphData | null | undefined, rawId: unknown): GraphNode | null {
   if (!graph || !Array.isArray(graph.nodes)) return null
   const candidateIds = parseCanonicalNodeIds(rawId)

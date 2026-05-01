@@ -31,6 +31,7 @@ import { useMarkdownWorkspaceSelection } from './useMarkdownWorkspaceSelection'
 import { useMarkdownWorkspaceViewShell } from './useMarkdownWorkspaceViewShell'
 import { useMarkdownWorkspaceWidgetMode } from './useMarkdownWorkspaceWidgetMode'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const active = props.active !== false
@@ -59,6 +60,14 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES,
   )
   const graphContentRevision = useGraphStore(s => (s.graphContentRevision || 0) as number)
+  const graphSourceLayerHash = useGraphStore(s => {
+    const metadata = ((s.graphData as GraphData | null)?.metadata || null) as Record<string, unknown> | null
+    return typeof metadata?.sourceLayerHash === 'string' ? metadata.sourceLayerHash : ''
+  })
+  const graphSourceLayerOrderHash = useGraphStore(s => {
+    const metadata = ((s.graphData as GraphData | null)?.metadata || null) as Record<string, unknown> | null
+    return typeof metadata?.sourceLayerOrderHash === 'string' ? metadata.sourceLayerOrderHash : ''
+  })
   const docLocationRevision = useGraphStore(s => (s.docLocationRevision || 0) as number)
   const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -77,6 +86,13 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
 
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const effectiveBottomPanelCollapsed = workspaceEditorOverlayOpen ? false : bottomPanelCollapsed
+  const graphSemanticKey = React.useMemo(() => {
+    return buildScopedGraphSemanticKey('workspace-graph', {
+      graphRevision: graphContentRevision,
+      sourceLayerHash: graphSourceLayerHash,
+      sourceLayerOrderHash: graphSourceLayerOrderHash,
+    })
+  }, [graphContentRevision, graphSourceLayerHash, graphSourceLayerOrderHash])
   const [entries, setEntries] = React.useState<WorkspaceEntry[]>([])
   const [sourcesByPath, setSourcesByPath] = React.useState(() => loadWorkspaceSourceIndex())
   const [loading, setLoading] = React.useState(true)
@@ -185,6 +201,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     graphNodes,
     graphEdges,
     graphContentRevision,
+    graphSemanticKey,
     widgetRegistry,
     openWidgetNodeIds,
     selectedNodeId,

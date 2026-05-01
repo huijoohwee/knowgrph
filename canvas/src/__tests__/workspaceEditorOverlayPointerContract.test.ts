@@ -225,6 +225,8 @@ export function testWorkspaceEditorOverlayGatesD3SceneLayoutWrites() {
   const sceneText = readFileSync(scenePath, 'utf8')
   const presentationPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3PresentationUpdates2d.ts')
   const presentationText = readFileSync(presentationPath, 'utf8')
+  const actionsPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'utils', 'graphStoreActionAdapters.ts')
+  const actionsText = readFileSync(actionsPath, 'utf8')
   if (!sceneText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected D3 scene hook to reuse workspace overlay-open SSOT')
   }
@@ -234,11 +236,20 @@ export function testWorkspaceEditorOverlayGatesD3SceneLayoutWrites() {
   if (!sceneText.includes('workspaceOverlayOpenRef.current = workspaceOverlayOpen')) {
     throw new Error('expected D3 scene hook to keep overlay-open state as a latest-value guard')
   }
-  if (!sceneText.includes('if (workspaceOverlayOpenRef.current) return')) {
-    throw new Error('expected D3 scene hook to block add/update writes while workspace overlay is open')
+  if (!actionsText.includes('if (args.workspaceOverlayOpenRef?.current) return')) {
+    throw new Error('expected shared GraphCanvasRoot store action adapter to block guarded writes while workspace overlay is open')
+  }
+  if (!sceneText.includes("import { buildGraphCanvasStoreActionAdapters } from '@/components/GraphCanvasRoot/utils/graphStoreActionAdapters'")) {
+    throw new Error('expected D3 scene hook to reuse the shared GraphCanvasRoot store action adapter helper')
+  }
+  if (!sceneText.includes('addNode: graphStoreActions.addNode') || !sceneText.includes('updateEdge: graphStoreActions.updateEdge')) {
+    throw new Error('expected D3 scene hook to route guarded canvas writes through the shared store action adapter')
+  }
+  if (!sceneText.includes("import { persistPrevLayoutSnapshot } from '@/components/GraphCanvasRoot/utils/persistPrevLayoutSnapshot'")) {
+    throw new Error('expected D3 scene hook to reuse the shared previous-layout snapshot persistence helper')
   }
   const sceneSnapshotGuardIndex = sceneText.indexOf('Object.keys(prevPositions).length > 0 && !workspaceOverlayOpenRef.current')
-  const sceneSnapshotWriteIndex = sceneText.indexOf('state.setLayoutPositionsForMode(key, prevPositions)')
+  const sceneSnapshotWriteIndex = sceneText.indexOf('persistPrevLayoutSnapshot({')
   if (sceneSnapshotGuardIndex < 0 || sceneSnapshotWriteIndex < 0 || sceneSnapshotGuardIndex > sceneSnapshotWriteIndex) {
     throw new Error('expected D3 scene hook to block teardown layout snapshots while workspace overlay is open')
   }
@@ -254,8 +265,11 @@ export function testWorkspaceEditorOverlayGatesD3SceneLayoutWrites() {
   if (!presentationText.includes('workspaceOverlayOpenRef.current = workspaceOverlayOpen')) {
     throw new Error('expected D3 presentation hook to keep overlay-open state as a latest-value guard')
   }
-  if (!presentationText.includes('if (workspaceOverlayOpenRef.current) return')) {
-    throw new Error('expected D3 presentation hook to block edge writes while workspace overlay is open')
+  if (!presentationText.includes("import { buildGraphCanvasStoreActionAdapters } from '@/components/GraphCanvasRoot/utils/graphStoreActionAdapters'")) {
+    throw new Error('expected D3 presentation hook to reuse the shared GraphCanvasRoot store action adapter helper')
+  }
+  if (!presentationText.includes('addEdge: graphStoreActions.addEdge') || !presentationText.includes('toggleGroupCollapsed: graphStoreActions.toggleGroupCollapsed')) {
+    throw new Error('expected D3 presentation hook to route guarded writes and shared selection actions through the shared store action adapter')
   }
   if (presentationText.includes('    workspaceOverlayOpen,\n    workspaceViewMode,')) {
     throw new Error('expected D3 presentation hook not to rerun from workspace overlay-open dependency churn')

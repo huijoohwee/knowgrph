@@ -17,7 +17,7 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
 import { pickFilesWithExtensions } from '@/lib/graph/filePicker'
 import { downloadBlob } from '@/lib/graph/save'
-import { buildWidgetBundleV1, widgetBundleToJsonBlob } from '@/lib/graph/io/widgetBundle'
+import { buildWidgetBundleJsonText } from '@/lib/graph/io/widgetBundle'
 import { normalizeWidgetRegistryEntries, validateWidgetRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
 import { tryParseWidgetImportGraphData } from '@/lib/graph/io/widgetImport'
 import { createUniqueId } from '@/lib/ids'
@@ -467,8 +467,8 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     const selectedEntry = selected
     const entries = selectedEntry ? [selectedEntry] : (widgetRegistry || [])
     if (!entries || entries.length === 0) return
-    const bundle = buildWidgetBundleV1({ registryEntries: entries, graphData: null })
-    const blob = widgetBundleToJsonBlob(bundle)
+    const bundleText = buildWidgetBundleJsonText({ registryEntries: entries, graphData: null })
+    const blob = new Blob([bundleText], { type: 'application/json' })
     const filename = selectedEntry ? `widget-${selectedEntry.nodeTypeId}.json` : 'widget-registry.json'
     downloadBlob(blob, filename)
   }, [widgetRegistry, selected])

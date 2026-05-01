@@ -1,42 +1,75 @@
 import type { WorkspaceBacklink, WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { workspaceBasename, workspaceStem } from '@/features/workspace-fs/path'
 
-export function computeBacklinks(args: { activePath: WorkspacePath; entries: WorkspaceEntry[] }): WorkspaceBacklink[] {
+type BacklinkEntryLike = Pick<WorkspaceEntry, 'path' | 'kind' | 'name' | 'text'>
+
+function collectBacklinkReferences(args: {
+  activePath?: WorkspacePath | null
+  targetDocKey?: string | null
+}): string[] {
+  const rawRefs = [
+    String(args.activePath || '').trim(),
+    String(args.targetDocKey || '').trim(),
+  ].filter(Boolean)
+  if (rawRefs.length === 0) return []
+
+  const refs = new Set<string>()
+  for (const ref of rawRefs) {
+    refs.add(ref)
+    const base = workspaceBasename(ref)
+    const stem = workspaceStem(ref)
+    if (base) refs.add(base)
+    if (stem) refs.add(stem)
+  }
+  return [...refs]
+}
+
+export function computeWorkspaceBacklinks(args: {
+  activePath?: WorkspacePath | null
+  targetDocKey?: string | null
+  entries: ReadonlyArray<BacklinkEntryLike>
+}): WorkspaceBacklink[] {
   const activePath = String(args.activePath || '').trim()
-  if (!activePath) return []
-  const base = workspaceBasename(activePath)
-  const stem = workspaceStem(activePath)
+  const targetDocKey = String(args.targetDocKey || '').trim()
+  const references = collectBacklinkReferences({ activePath, targetDocKey })
+  if (references.length === 0) return []
 
-  const mdLinkNeedle = `](${activePath})`
-  const wikiNeedles = [
-    stem ? `[[${stem}]]` : null,
-    base ? `[[${base}]]` : null,
-    activePath ? `[[${activePath}]]` : null,
-  ].filter(Boolean) as string[]
-
+  const markdownLinkNeedles = references.map(ref => `](${ref})`)
+  const wikiNeedles = references.map(ref => `[[${ref}]]`)
   const out: WorkspaceBacklink[] = []
+
   for (const entry of args.entries || []) {
     if (!entry || entry.kind !== 'file') continue
-    if (entry.path === activePath) continue
+    const entryPath = String(entry.path || '').trim()
+    const entryName = String(entry.name || '').trim()
+    if (activePath && entryPath === activePath) continue
+    if (!activePath && targetDocKey && (entryName === targetDocKey || entryPath === targetDocKey)) continue
     const text = String(entry.text ?? '')
     if (!text) continue
     const mightMatch =
-      (mdLinkNeedle && text.includes(mdLinkNeedle)) ||
-      (wikiNeedles.length > 0 && wikiNeedles.some(n => text.includes(n)))
+      markdownLinkNeedles.some(needle => text.includes(needle))
+      || wikiNeedles.some(needle => text.includes(needle))
     if (!mightMatch) continue
 
     const lines = text.split(/\r?\n/)
     for (let i = 0; i < lines.length; i += 1) {
       const lineText = lines[i]
       if (!lineText) continue
-      if (mdLinkNeedle && lineText.includes(mdLinkNeedle)) {
-        out.push({ fromPath: entry.path, line: i + 1, lineText })
+      if (markdownLinkNeedles.some(needle => lineText.includes(needle))) {
+        out.push({ fromPath: entryPath, line: i + 1, lineText })
         continue
       }
-      if (wikiNeedles.some(n => lineText.includes(n))) {
-        out.push({ fromPath: entry.path, line: i + 1, lineText })
+      if (wikiNeedles.some(needle => lineText.includes(needle))) {
+        out.push({ fromPath: entryPath, line: i + 1, lineText })
       }
     }
   }
   return out
+}
+
+export function computeBacklinks(args: { activePath: WorkspacePath; entries: WorkspaceEntry[] }): WorkspaceBacklink[] {
+  return computeWorkspaceBacklinks({
+    activePath: args.activePath,
+    entries: args.entries,
+  })
 }

@@ -5,7 +5,10 @@ import { applyForceModeSeeds } from '@/components/GraphCanvas/layout/seeding'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { postFitNodesToViewport } from '@/components/GraphCanvas/layout/postFit'
 import { applyCollectiveGraphLayout } from '@/components/GraphCanvas/layout/collectiveFit'
+import { buildNodeNeighborSetFromIncidentEdges } from '@/components/GraphCanvas/layout/graphConnectivity'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
@@ -380,6 +383,34 @@ const coerceEndpointId = (value: unknown): string | null => {
   return null
 }
 
+const getInitializationGraphLookup = (args: {
+  cacheScope: string
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}) => {
+  const { cacheScope, nodes, edges } = args
+  return getCachedGraphLookup({
+    cacheScope,
+    graphData: { type: 'application/json', nodes, edges },
+    graphSemanticKey: hashScopedStringArraySignature(
+      cacheScope,
+      [
+        ...nodes.map(node => {
+          const id = String(node?.id || '').trim()
+          const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : ''
+          const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : ''
+          return `${id}:${String(node?.type || '').trim()}:${x}:${y}`
+        }),
+        ...edges.map(edge => {
+          const sourceId = coerceEndpointId(edge?.source) || ''
+          const targetId = coerceEndpointId(edge?.target) || ''
+          return `${String(edge?.id || '').trim()}:${sourceId}:${targetId}:${String(edge?.label || '').trim()}`
+        }),
+      ],
+    ),
+  })
+}
+
 export const applyBaselineDocumentPositionsToKeywordGraph = (args: {
   nodes: GraphNode[]
   edges: GraphEdge[]
@@ -427,29 +458,18 @@ export const applyBaselineDocumentPositionsToKeywordGraph = (args: {
     }
   }
 
-  const nodeById = new Map<string, GraphNode>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    nodeById.set(String(nodes[i]!.id), nodes[i]!)
-  }
-
-  const neighborIdsByNodeId = (() => {
-    const map = new Map<string, Set<string>>()
-    const push = (a: string, b: string) => {
-      if (!a || !b) return
-      const s = map.get(a) || new Set<string>()
-      s.add(b)
-      map.set(a, s)
-    }
-    for (let i = 0; i < edges.length; i += 1) {
-      const e = edges[i]!
-      const s = coerceEndpointId((e as unknown as { source?: unknown }).source)
-      const t = coerceEndpointId((e as unknown as { target?: unknown }).target)
-      if (!s || !t) continue
-      push(s, t)
-      push(t, s)
-    }
-    return map
-  })()
+  const graphLookup = getInitializationGraphLookup({
+    cacheScope: 'graph-canvas-layout-baseline-keyword-graph',
+    nodes,
+    edges,
+  })
+  const nodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
+  const incidentEdgesByNodeId = graphLookup?.incidentEdgesByNodeId || new Map<string, GraphEdge[]>()
+  const neighborIdsByNodeId = buildNodeNeighborSetFromIncidentEdges({
+    nodes,
+    nodeById,
+    incidentEdgesByNodeId,
+  })
 
   const jitter = (id: string, mag: number) => {
     const a = hash01(`${id}:a`) * Math.PI * 2
@@ -505,13 +525,12 @@ export const seedKeywordEntityNodesFromBaselineSources = (args: {
   if (!allEdges.length) return
   if (!baseline || Object.keys(baseline).length === 0) return
 
-  const nodeById = new Map<string, GraphNode>()
-  for (let i = 0; i < allNodes.length; i += 1) {
-    const n = allNodes[i]
-    const id = String(n?.id || '').trim()
-    if (!id) continue
-    if (!nodeById.has(id)) nodeById.set(id, n)
-  }
+  const graphLookup = getInitializationGraphLookup({
+    cacheScope: 'graph-canvas-layout-keyword-source-baseline',
+    nodes: allNodes,
+    edges: allEdges,
+  })
+  const nodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
 
   for (let i = 0; i < allNodes.length; i += 1) {
     const n = allNodes[i]!

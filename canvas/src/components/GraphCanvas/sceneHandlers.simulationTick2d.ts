@@ -14,6 +14,7 @@ import { getEdgeEndpointFromPorts } from '@/components/GraphCanvas/portHandles'
 import { computeOverlayHalfExtentsWorld, normalizeOverlaySizingConfig } from '@/lib/render/overlaySizing2d'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { computeIdealSpacing2d, computeMaxSpeed2d, readPhysics2dTuning } from '@/lib/graph/physics2dTuning'
+import { buildCanonicalNodeLookup, getCanonicalNodeLookupValue } from '@/lib/graph/canonicalNodeIds'
 import { applyStrictOverlapRelax2d, type StrictOverlapState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.strictOverlap'
 import { renderLabels2d, type LabelRelaxState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.labels'
 import { buildEdgePathD, readEdgePathCurveOptions, readEffectiveEdgeTypeFor2dRenderer, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
@@ -125,27 +126,8 @@ export const attachSimulationTick = (args: {
   } = args
 
   const nodeById = args.nodeById || new Map<string, GraphNode>()
-  if (!args.nodeById) {
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      nodeById.set(String(n.id), n)
-    }
-  }
   const groupsForBboxCollide = Array.isArray(args.groupsForBboxCollide) ? args.groupsForBboxCollide : []
-  const nodeLookup = (() => {
-    const lookup = new Map<string, GraphNode>()
-    for (const [id, node] of nodeById.entries()) {
-      const key = String(id || '').trim()
-      if (!key) continue
-      lookup.set(key, node)
-      const idx = key.lastIndexOf('::')
-      if (idx > 0 && idx < key.length - 2) {
-        const short = key.slice(idx + 2)
-        if (short && !lookup.has(short)) lookup.set(short, node)
-      }
-    }
-    return lookup
-  })()
+  const nodeLookup = buildCanonicalNodeLookup(nodeById.entries())
 
   let lastOverlayHalfExtentsKey = ''
   let lastOverlayHalfExtents: { halfW: number; halfH: number } | null = null
@@ -355,19 +337,11 @@ export const attachSimulationTick = (args: {
       if (typeof maybeNode.x === 'number' && typeof maybeNode.y === 'number') return maybeNode as GraphNode
       const maybeId = (endpoint as { id?: unknown }).id
       if (typeof maybeId === 'string' || typeof maybeId === 'number') {
-        const id = String(maybeId)
-        const exact = nodeLookup.get(id)
-        if (exact) return exact
-        const idx = id.lastIndexOf('::')
-        if (idx > 0 && idx < id.length - 2) return nodeLookup.get(id.slice(idx + 2)) ?? null
+        return getCanonicalNodeLookupValue(nodeLookup, maybeId)
       }
     }
     if (typeof endpoint === 'string' || typeof endpoint === 'number') {
-      const id = String(endpoint)
-      const exact = nodeLookup.get(id)
-      if (exact) return exact
-      const idx = id.lastIndexOf('::')
-      if (idx > 0 && idx < id.length - 2) return nodeLookup.get(id.slice(idx + 2)) ?? null
+      return getCanonicalNodeLookupValue(nodeLookup, endpoint)
     }
     return null
   }

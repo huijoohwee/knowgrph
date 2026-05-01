@@ -4,6 +4,8 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { fitAllTransform, type FitAllTransformOptions } from '@/components/GraphCanvas/fit'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
 import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
 export function fitFlowEditorPinnedWidgets(args: {
   nodes: GraphNode[]
@@ -38,19 +40,22 @@ export function fitFlowEditorPinnedWidgets(args: {
     return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
   }
 
-  const nodeById = new Map<string, { left: number; top: number; w: number; h: number }>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    const id = String((n as unknown as { id?: unknown })?.id || '').trim()
-    if (!id) continue
-    const props = (n.properties || {}) as Record<string, unknown>
-    const w = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : null
-    const h = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : null
-    const x = typeof n.x === 'number' && Number.isFinite(n.x) ? n.x : null
-    const y = typeof n.y === 'number' && Number.isFinite(n.y) ? n.y : null
-    if (w == null || h == null || x == null || y == null) continue
-    nodeById.set(id, { left: x - w / 2, top: y - h / 2, w, h })
-  }
+  const nodeLookup = getCachedGraphLookup({
+    cacheScope: 'flow-canvas-fit-pinned-widgets',
+    graphData: { type: 'application/json', nodes, edges: [] },
+    graphSemanticKey: hashScopedStringArraySignature(
+      'flow-canvas-fit-pinned-widgets',
+      nodes.map(node => {
+        const props = (node?.properties || {}) as Record<string, unknown>
+        const width = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? props['visual:width'] : ''
+        const height = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? props['visual:height'] : ''
+        const x = typeof node?.x === 'number' && Number.isFinite(node.x) ? node.x : ''
+        const y = typeof node?.y === 'number' && Number.isFinite(node.y) ? node.y : ''
+        return `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}:${x}:${y}:${width}:${height}`
+      }),
+    ),
+  })
+  const nodeById = nodeLookup?.nodeById || new Map<string, GraphNode>()
   if (nodeById.size === 0) {
     return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
   }
@@ -89,8 +94,14 @@ export function fitFlowEditorPinnedWidgets(args: {
       const fallback = (() => {
         const base = nodeById.get(id)
         if (!base) return null
-        const left = base.left + DEFAULT_FLOW_NODE_WIDTH_PX + portExtraPadWorld + (16 + stackLeftPx) / Math.max(1e-6, kGuess)
-        const top = base.top + (-12 + stackTopPx) / Math.max(1e-6, kGuess)
+        const props = (base.properties || {}) as Record<string, unknown>
+        const width = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : null
+        const height = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : null
+        const x = typeof base.x === 'number' && Number.isFinite(base.x) ? base.x : null
+        const y = typeof base.y === 'number' && Number.isFinite(base.y) ? base.y : null
+        if (width == null || height == null || x == null || y == null) return null
+        const left = x - width / 2 + DEFAULT_FLOW_NODE_WIDTH_PX + portExtraPadWorld + (16 + stackLeftPx) / Math.max(1e-6, kGuess)
+        const top = y - height / 2 + (-12 + stackTopPx) / Math.max(1e-6, kGuess)
         return { left, top }
       })()
 

@@ -169,7 +169,7 @@
     pointer-events: auto;
   }
 
-  button[data-kg-kanban-icon-action="1"] {
+  .kg-panel-icon-btn {
     background: transparent !important;
     border: 0 !important;
     box-shadow: none !important;
@@ -177,27 +177,27 @@
     transition: var(--kg-transition-action);
   }
 
-  button[data-kg-kanban-icon-action="1"]:hover {
+  .kg-panel-icon-btn:hover {
     background: var(--kg-panel-action-bg-hover) !important;
   }
 
-  button[data-kg-kanban-icon-action="1"] svg {
+  .kg-panel-icon-btn svg {
     width: 16px;
     height: 16px;
   }
 
-  button[data-kg-panel-action="1"] {
+  .kg-panel-action-btn {
     background: var(--kg-panel-action-bg);
     border: 1px solid var(--kg-border);
     transition: var(--kg-transition-action);
     touch-action: manipulation;
   }
 
-  button[data-kg-panel-action="1"]:hover {
+  .kg-panel-action-btn:hover {
     background: var(--kg-panel-action-bg-hover);
   }
 
-  button[data-kg-panel-action="1"]:active {
+  .kg-panel-action-btn:active {
     transform: translateY(1px);
   }
 }

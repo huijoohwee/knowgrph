@@ -1,6 +1,7 @@
 import React from 'react'
 
 import IconButton from '@/components/IconButton'
+import RichMediaPanel from '@/components/RichMediaPanel'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { FloatingPanel } from '@/components/ui/FloatingPanel'
 import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
@@ -17,30 +18,16 @@ import { ChevronDown, ChevronUp, Pin, PinOff, CheckCircle, Minimize2, Maximize2 
 import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/components/FlowEditor/beatByBeat'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
-import { parseMarkdownSigil } from '@/features/markdown/ui/markdownSigil'
+import { resolveWidgetNodeTitle } from '@/components/FlowEditor/nodeOverlayEditorTitle'
 import {
-  FLOW_IMAGE_GENERATION_NODE_LABEL,
-  FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
-  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-  FLOW_TEXT_GENERATION_NODE_LABEL,
-  FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-  FLOW_VIDEO_GENERATION_NODE_LABEL,
-  FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
-  getFlowEditorSmartWidgetLabel,
 } from '@/lib/config.flow-editor'
-import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
-import { getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
-import { isGrabMapsDiscoveryWidgetEntry } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
-import {
-  FLOW_WIDGET_FORM_ID_KEY,
-  FLOW_WIDGET_TYPE_ID_KEY,
-} from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import {
   buildRichMediaPanelOverlayState,
+  commitRichMediaPanelChange,
   coerceRichMediaPanelSizePx,
   getRichMediaPanelNodeLabel,
-  type RichMediaPanelTab,
+  resolveRichMediaPanelSelectedTab,
   resolveRichMediaPanelRenderNode,
 } from '@/lib/render/richMediaSsot'
 
@@ -51,113 +38,22 @@ type RichMediaPreview =
   | {
       kind: 'image'
       url: string
+      openUrl?: string
+      interactive: boolean
     }
   | {
       kind: 'video'
       url: string
+      openUrl?: string
+      interactive: boolean
     }
   | {
       kind: 'iframe'
+      url: string
+      openUrl?: string
       srcDoc?: string
+      interactive: boolean
     }
-
-const normalizeWidgetLabelText = (raw: unknown): string => {
-  const source = String(raw || '').trim()
-  if (!source) return ''
-  const sigil = parseMarkdownSigil(source)
-  if (sigil && String(sigil.text || '').trim()) return String(sigil.text || '').trim()
-  const unwrapped = source.startsWith('`') && source.endsWith('`') ? source.slice(1, -1).trim() : source
-  return unwrapped
-}
-
-const readNodeData = (node: GraphNode): Record<string, unknown> => {
-  const properties = (node.properties || null) as Record<string, unknown> | null
-  const raw = properties && typeof properties.data === 'object' && properties.data !== null && !Array.isArray(properties.data)
-    ? (properties.data as Record<string, unknown>)
-    : null
-  return raw || {}
-}
-
-function resolveSpecificWidgetTitle(args: {
-  node: GraphNode
-  registryEntry?: WidgetRegistryEntry | null
-}): string | null {
-  const properties = (args.node.properties || {}) as Record<string, unknown>
-  const registryEntry = args.registryEntry || null
-  const nodeTypeId = String(registryEntry?.nodeTypeId || args.node.type || '').trim()
-  if (registryEntry && isGrabMapsDiscoveryWidgetEntry(registryEntry)) {
-    const registryLabel = getWidgetRegistryEntryLabel({
-      nodeTypeId: registryEntry.nodeTypeId,
-      widgetTypeId: registryEntry.widgetTypeId,
-      formId: registryEntry.formId,
-    })
-    if (registryLabel) return registryLabel
-  }
-  if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
-    return getTextGenerationWidgetLabel({
-      provider: properties.chatProvider,
-      widgetTypeId: registryEntry?.widgetTypeId || properties[FLOW_WIDGET_TYPE_ID_KEY],
-      formId: registryEntry?.formId || properties[FLOW_WIDGET_FORM_ID_KEY],
-    })
-  }
-  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
-    return getFlowEditorSmartWidgetLabel({
-      mode: 'image',
-      model: properties.model,
-    })
-  }
-  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
-    return getFlowEditorSmartWidgetLabel({
-      mode: 'video',
-      model: properties.model,
-    })
-  }
-  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-    return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
-  }
-  return null
-}
-
-export const resolveWidgetNodeTitle = (args: { node: GraphNode; graphMetaKind?: string | null; registryEntry?: WidgetRegistryEntry | null }): string => {
-  const node = args.node
-  const fallback = normalizeWidgetLabelText(node.label) || String(node.id || '').trim() || 'Node'
-  const specificTitle = resolveSpecificWidgetTitle(args)
-  const genericFallbacks = new Set([
-    '',
-    String(node.id || '').trim(),
-    FLOW_TEXT_GENERATION_NODE_LABEL,
-    FLOW_IMAGE_GENERATION_NODE_LABEL,
-    FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
-    FLOW_VIDEO_GENERATION_NODE_LABEL,
-  ])
-  if (String(args.graphMetaKind || '').trim() !== 'frontmatter-flow') {
-    return specificTitle && genericFallbacks.has(fallback) ? specificTitle : fallback
-  }
-  const data = readNodeData(node)
-  const type = String(node.type || '').trim().toLowerCase()
-  if (type === 'input') {
-    const dataLabel = String(data.label || '').trim().toUpperCase()
-    if (dataLabel === 'R') return 'Red'
-    if (dataLabel === 'G') return 'Green'
-    if (dataLabel === 'B') return 'Blue'
-    if (dataLabel) return dataLabel
-    return fallback
-  }
-  if (type === 'default') {
-    if (/colorpreview/i.test(fallback)) return 'RGB'
-    if (/lightness/i.test(fallback)) return 'LightDark'
-    return fallback
-  }
-  if (type === 'output') {
-    const reads = String(data.reads || '').trim().toLowerCase()
-    if (reads.includes('.light')) return 'Light'
-    if (reads.includes('.dark')) return 'Dark'
-    if (/\blight\b/i.test(fallback)) return 'Light'
-    if (/\bdark\b/i.test(fallback)) return 'Dark'
-    return fallback
-  }
-  return fallback
-}
 
 export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel(args: {
   active: boolean
@@ -188,6 +84,21 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   onValidate: () => void
   onRegistrySelectionChange?: (args: { entry: WidgetRegistryEntry | null }) => void
   onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
+  richMediaViewToggle?: {
+    visible: boolean
+    isKtvRows: boolean
+    onToggle: () => void
+  }
+  richMediaMediaSelector?: {
+    visible: boolean
+    selectedMode: 'auto' | 'text' | 'image' | 'video' | 'poi'
+    onSelect: (next: 'auto' | 'text' | 'image' | 'video' | 'poi') => void
+  }
+  richMediaAspectToggle?: {
+    visible: boolean
+    selected: '16:9' | '9:16' | null
+    onToggle: () => void
+  }
 
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 
@@ -227,6 +138,9 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     onValidate,
     onRegistrySelectionChange,
     onRenameSchemaFieldId,
+    richMediaViewToggle,
+    richMediaMediaSelector,
+    richMediaAspectToggle,
 
     connectedValuesBySchemaPath,
 
@@ -239,7 +153,6 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   } = args
 
   const iconSizeClass = getIconSizeClass(uiIconScale)
-
   const beatByBeatTitle = React.useMemo(() => {
     const kind = String(graphMetaKind || '').trim()
     if (kind !== 'frontmatter-flow') return null
@@ -258,7 +171,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
         <code className={cn(monospaceTextClass, UI_THEME_TOKENS.text.secondary)}>{ids.overlayNodeId}</code>
       </>
     )
-  }, [graphMetaKind, monospaceTextClass, node.id, (node.properties as unknown as { params?: unknown } | null)?.params])
+  }, [graphMetaKind, monospaceTextClass, node])
   const handleSchemaPortHandleClick = React.useCallback(
     (evt: { dir: 'in' | 'out'; portKey: string }) => {
       if (!active) return
@@ -317,32 +230,59 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     ))
   }, [richMediaPanelBaseSize, showRichMediaPanelBody])
 
-  const richMediaPreview = React.useMemo<RichMediaPreview | null>(() => {
+  const richMediaPanelState = React.useMemo(() => {
     if (!showRichMediaPanelBody) return null
-    const panel = buildRichMediaPanelOverlayState({
+    return buildRichMediaPanelOverlayState({
       node,
       connectedValuesBySchemaPath,
     })
+  }, [connectedValuesBySchemaPath, node, showRichMediaPanelBody])
+
+  const richMediaPreview = React.useMemo<RichMediaPreview | null>(() => {
+    if (!showRichMediaPanelBody) return null
+    const panel = richMediaPanelState
     if (!panel) return null
     const renderNode = resolveRichMediaPanelRenderNode({ node, connectedValuesBySchemaPath })
     const props = (renderNode.properties || {}) as Record<string, unknown>
     const rawImageUrl = typeof props.imageUrl === 'string' ? props.imageUrl.trim() : ''
     const rawVideoUrl = typeof props.videoUrl === 'string' ? props.videoUrl.trim() : ''
+    const rawMediaUrl = typeof props.media_url === 'string' ? props.media_url.trim() : ''
+    const rawOpenUrl = rawImageUrl || rawVideoUrl || rawMediaUrl
     const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
-    const selectedTab: RichMediaPanelTab =
-      panel.activeTab === 'image' || panel.activeTab === 'video' || panel.activeTab === 'text' || panel.activeTab === 'poi'
-        ? panel.activeTab
-        : panel.hasVideo
-          ? 'video'
-          : panel.hasImage
-            ? 'image'
-            : panel.hasPoi
-              ? 'poi'
-              : 'text'
-    if (selectedTab === 'video' && rawVideoUrl) return { kind: 'video', url: rawVideoUrl }
-    if (selectedTab === 'image' && rawImageUrl) return { kind: 'image', url: rawImageUrl }
-    return { kind: 'iframe', srcDoc: rawOutputSrcDoc || undefined }
-  }, [connectedValuesBySchemaPath, node, showRichMediaPanelBody])
+    const selectedTab = resolveRichMediaPanelSelectedTab({
+      activeTab: panel.activeTab,
+      hasText: panel.hasText,
+      hasImage: panel.hasImage,
+      hasVideo: panel.hasVideo,
+      hasPoi: panel.hasPoi,
+    }) || 'text'
+    if (selectedTab === 'video') return { kind: 'video', url: rawVideoUrl, openUrl: rawVideoUrl || rawOpenUrl, interactive: true }
+    if (selectedTab === 'image') return { kind: 'image', url: rawImageUrl, openUrl: rawImageUrl || rawOpenUrl, interactive: false }
+    return {
+      kind: 'iframe',
+      url: rawOpenUrl,
+      openUrl: rawOpenUrl,
+      srcDoc: rawOutputSrcDoc || undefined,
+      interactive: true,
+    }
+  }, [connectedValuesBySchemaPath, node, richMediaPanelState, showRichMediaPanelBody])
+
+  const handleRichMediaPanelChange = React.useCallback((next: {
+    activeTab: 'auto' | 'text' | 'image' | 'video' | 'poi'
+    freezeConnectedOutput: boolean
+    text?: string
+  }) => {
+    if (!isRichMediaPanelWidget) return
+    const nodeId = String(node.id || '').trim()
+    if (!nodeId) return
+    commitRichMediaPanelChange({
+      nodeId,
+      next,
+      updateNode: (_id, patch) => {
+        onPatchProperties(patch.properties)
+      },
+    })
+  }, [isRichMediaPanelWidget, node.id, onPatchProperties])
 
   const handleRichMediaResizeStart = React.useCallback(() => {
     richMediaPanelResizeStartRef.current = richMediaPanelViewSize
@@ -538,63 +478,27 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             height: `${richMediaPanelViewSize.height}px`,
           }}
         >
-          {richMediaPreview?.kind === 'image' && richMediaPreview.url ? (
-            <img
-              src={richMediaPreview.url}
-              alt={String(node.label || getRichMediaPanelNodeLabel())}
-              loading="lazy"
-              className="block w-full h-full object-contain"
-            />
-          ) : richMediaPreview?.kind === 'video' && richMediaPreview.url ? (
-            <video
-              src={richMediaPreview.url}
-              controls
-              playsInline
-              preload="metadata"
-              className="block w-full h-full object-contain"
-            />
-          ) : richMediaPreview?.kind === 'iframe' && richMediaPreview.srcDoc ? (
-            <iframe
-              src="about:blank"
-              srcDoc={richMediaPreview.srcDoc}
-              title={String(node.label || getRichMediaPanelNodeLabel())}
-              loading="lazy"
-              className="block w-full h-full border-0"
-            />
-          ) : null}
-          <button
-            type="button"
-            aria-label="Resize"
-            data-kg-resize-handle="se"
-            onPointerDown={handleRichMediaResizePointerDown}
-            style={{
-              position: 'absolute',
-              right: 0,
-              bottom: 0,
-              width: 22,
-              height: 22,
-              background: 'transparent',
-              cursor: 'nwse-resize',
-              pointerEvents: 'auto',
-              zIndex: 20,
-            }}
-          >
-            <span
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                right: 0,
-                bottom: 0,
-                width: 10,
-                height: 10,
-                borderRadius: 999,
-                background: 'transparent',
-                border: '2px solid rgba(59, 130, 246, 1)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-                transition: 'var(--kg-transition-group-resize-dot)',
-              }}
-            />
-          </button>
+          <RichMediaPanel
+            overlayId={String(node.id || '')}
+            title={String(node.label || getRichMediaPanelNodeLabel())}
+            url={richMediaPreview?.url || ''}
+            srcDoc={richMediaPreview?.kind === 'iframe' ? richMediaPreview.srcDoc : undefined}
+            openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
+            kind={richMediaPreview?.kind || 'iframe'}
+            interactive={richMediaPreview?.interactive !== false}
+            iframeMode="srcdoc-when-needed"
+            showHeader={false}
+            resizable={true}
+            onResizeStart={handleRichMediaResizeStart}
+            onResize={handleRichMediaResize}
+            onResizeEnd={handleRichMediaResizeEnd}
+            panel={richMediaPanelState || undefined}
+            richMediaViewToggle={richMediaViewToggle}
+            richMediaMediaSelector={richMediaMediaSelector}
+            richMediaAspectToggle={richMediaAspectToggle}
+            onPanelChange={handleRichMediaPanelChange}
+            style={{ width: '100%', height: '100%', boxShadow: 'none' }}
+          />
         </section>
       ) : !minimized && (
         <NodeOverlayEditorForm

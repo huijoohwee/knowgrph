@@ -9,10 +9,95 @@ import { normalized as normalizeText } from '@/features/panels/utils/json'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import type { RecentFileEntry } from '@/hooks/store/types'
+import type { ChatExchangeLogEntry, GraphState, RecentFileEntry, UiLogEntry } from '@/hooks/store/types'
 import { downloadBlob } from '@/lib/graph/save'
+import { useShallow } from 'zustand/react/shallow'
+import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
 
 type HistorySubTab = 'chat' | 'history' | 'log'
+type HistoryEntry = GraphState['history'][number]
+
+const EMPTY_HISTORY: HistoryEntry[] = []
+const EMPTY_RECENT_FILES: RecentFileEntry[] = []
+const EMPTY_UI_LOG_ENTRIES: UiLogEntry[] = []
+const EMPTY_CHAT_EXCHANGE_LOG_ENTRIES: ChatExchangeLogEntry[] = []
+
+function useSemanticSnapshot<T>(value: T, signature: string): T {
+  const ref = React.useRef<{ signature: string; value: T } | null>(null)
+  if (ref.current?.signature !== signature) {
+    ref.current = { signature, value }
+  }
+  return ref.current.value
+}
+
+function buildHistoryEntriesSignature(rows: readonly HistoryEntry[]): string {
+  return hashSignatureParts([
+    'history-view:history',
+    rows.length,
+    hashArrayOfObjectsSignature(
+      rows.map(row => ({
+        id: String(row?.id || ''),
+        label: String(row?.label || ''),
+        timestamp: typeof row?.timestamp === 'number' ? row.timestamp : 0,
+      })),
+      { maxItems: Math.max(48, rows.length), maxKeysPerItem: 3 },
+    ),
+  ])
+}
+
+function buildRecentFilesSignature(rows: readonly RecentFileEntry[]): string {
+  return hashSignatureParts([
+    'history-view:recent',
+    rows.length,
+    hashArrayOfObjectsSignature(
+      rows.map(row => ({
+        id: String(row?.id || ''),
+        name: String(row?.name || ''),
+        path: String(row?.path || ''),
+        url: String(row?.url || ''),
+        timestamp: typeof row?.timestamp === 'number' ? row.timestamp : 0,
+        type: String(row?.type || ''),
+      })),
+      { maxItems: Math.max(48, rows.length), maxKeysPerItem: 6 },
+    ),
+  ])
+}
+
+function buildUiLogEntriesSignature(rows: readonly UiLogEntry[]): string {
+  return hashSignatureParts([
+    'history-view:ui-log',
+    rows.length,
+    hashArrayOfObjectsSignature(
+      rows.map(row => ({
+        id: String(row?.id || ''),
+        kind: String(row?.kind || ''),
+        message: String(row?.message || ''),
+        tsMs: typeof row?.tsMs === 'number' ? row.tsMs : 0,
+        source: String(row?.source || ''),
+      })),
+      { maxItems: Math.max(80, rows.length), maxKeysPerItem: 5 },
+    ),
+  ])
+}
+
+function buildChatExchangeLogsSignature(rows: readonly ChatExchangeLogEntry[]): string {
+  return hashSignatureParts([
+    'history-view:chat-log',
+    rows.length,
+    hashArrayOfObjectsSignature(
+      rows.map(row => ({
+        id: String(row?.id || ''),
+        request: String(row?.request || ''),
+        response: String(row?.response || ''),
+        snippet: String(row?.snippet || ''),
+        tsMs: typeof row?.tsMs === 'number' ? row.tsMs : 0,
+        status: String(row?.status || ''),
+        model: String(row?.model || ''),
+      })),
+      { maxItems: Math.max(80, rows.length), maxKeysPerItem: 7 },
+    ),
+  ])
+}
 
 function getFileIcon(type: RecentFileEntry['type']) {
   switch (type) {
@@ -32,57 +117,112 @@ function getFileIcon(type: RecentFileEntry['type']) {
 
 export default function HistoryView({ searchQuery }: { searchQuery: string }) {
   const {
-    history,
+    history: historyRaw,
     historyIndex,
-    recentFiles,
+    recentFiles: recentFilesRaw,
     addHistory,
     undoHistory,
     redoHistory,
     restoreHistory,
-    uiLogEntries,
+    uiLogEntries: uiLogEntriesRaw,
     clearUiLog,
-    chatExchangeLogs,
+    chatExchangeLogs: chatExchangeLogsRaw,
     clearChatExchangeLogs,
     uiIconScale,
     uiIconStrokeWidth,
-  } = useGraphStore()
+  } = useGraphStore(
+    useShallow(s => ({
+      history: Array.isArray(s.history) ? s.history : EMPTY_HISTORY,
+      historyIndex: s.historyIndex,
+      recentFiles: Array.isArray(s.recentFiles) ? s.recentFiles : EMPTY_RECENT_FILES,
+      addHistory: s.addHistory,
+      undoHistory: s.undoHistory,
+      redoHistory: s.redoHistory,
+      restoreHistory: s.restoreHistory,
+      uiLogEntries: Array.isArray(s.uiLogEntries) ? s.uiLogEntries : EMPTY_UI_LOG_ENTRIES,
+      clearUiLog: s.clearUiLog,
+      chatExchangeLogs: Array.isArray(s.chatExchangeLogs) ? s.chatExchangeLogs : EMPTY_CHAT_EXCHANGE_LOG_ENTRIES,
+      clearChatExchangeLogs: s.clearChatExchangeLogs,
+      uiIconScale: s.uiIconScale,
+      uiIconStrokeWidth: s.uiIconStrokeWidth,
+    })),
+  )
   const [tab, setTab] = React.useState<HistorySubTab>('chat')
   const [expandedChatLogIds, setExpandedChatLogIds] = React.useState<Record<string, boolean>>({})
   const normalizedQuery = normalizeText(searchQuery).trim()
+  const historySignature = React.useMemo(() => buildHistoryEntriesSignature(historyRaw), [historyRaw])
+  const recentFilesSignature = React.useMemo(() => buildRecentFilesSignature(recentFilesRaw), [recentFilesRaw])
+  const uiLogEntriesSignature = React.useMemo(() => buildUiLogEntriesSignature(uiLogEntriesRaw), [uiLogEntriesRaw])
+  const chatExchangeLogsSignature = React.useMemo(() => buildChatExchangeLogsSignature(chatExchangeLogsRaw), [chatExchangeLogsRaw])
+  const history = useSemanticSnapshot(historyRaw, historySignature)
+  const recentFiles = useSemanticSnapshot(recentFilesRaw, recentFilesSignature)
+  const uiLogEntries = useSemanticSnapshot(uiLogEntriesRaw, uiLogEntriesSignature)
+  const chatExchangeLogs = useSemanticSnapshot(chatExchangeLogsRaw, chatExchangeLogsSignature)
+  const historyIndexById = React.useMemo(() => {
+    const byId = new Map<string, number>()
+    for (let i = 0; i < history.length; i += 1) {
+      const id = String(history[i]?.id || '').trim()
+      if (id) byId.set(id, i)
+    }
+    return byId
+  }, [history])
   const filteredHistory = React.useMemo(
     () =>
-      normalizedQuery
+      tab === 'history' && normalizedQuery
         ? history.filter(h =>
             normalizeText([h.label, String(h.timestamp)].join(' ')).includes(normalizedQuery),
           )
         : history,
-    [history, normalizedQuery],
+    [history, normalizedQuery, tab],
   )
   const filteredRecent = React.useMemo(
     () =>
-      normalizedQuery
+      tab === 'history' && normalizedQuery
         ? recentFiles.filter(f =>
             normalizeText([f.name, f.path || '', f.url || '', String(f.timestamp)].join(' ')).includes(
               normalizedQuery,
             ),
           )
         : recentFiles,
-    [recentFiles, normalizedQuery],
+    [normalizedQuery, recentFiles, tab],
   )
   const filteredLog = React.useMemo(() => {
-    const rows = Array.isArray(uiLogEntries) ? uiLogEntries : []
+    const rows = uiLogEntries
+    if (tab !== 'log') return rows
     if (!normalizedQuery) return rows
     return rows.filter(r => normalizeText([r.kind, r.message, String(r.tsMs), r.source || ''].join(' ')).includes(normalizedQuery))
-  }, [normalizedQuery, uiLogEntries])
+  }, [normalizedQuery, tab, uiLogEntries])
   const filteredChatLogs = React.useMemo(() => {
-    const rows = Array.isArray(chatExchangeLogs) ? chatExchangeLogs : []
+    const rows = chatExchangeLogs
+    if (tab !== 'chat') return rows
     if (!normalizedQuery) return rows
     return rows.filter(r =>
       normalizeText([r.request, r.response, r.snippet, String(r.tsMs), r.status, r.model || ''].join(' ')).includes(normalizedQuery),
     )
-  }, [chatExchangeLogs, normalizedQuery])
+  }, [chatExchangeLogs, normalizedQuery, tab])
 
-  const buildLogMarkdown = React.useCallback((rows: typeof filteredLog) => {
+  React.useEffect(() => {
+    const liveChatLogIds = new Set(chatExchangeLogs.map(row => String(row?.id || '').trim()).filter(Boolean))
+    setExpandedChatLogIds(prev => {
+      const next: Record<string, boolean> = {}
+      let changed = false
+      for (const [id, expanded] of Object.entries(prev)) {
+        if (expanded !== true) {
+          changed = true
+          continue
+        }
+        if (!liveChatLogIds.has(id)) {
+          changed = true
+          continue
+        }
+        next[id] = true
+      }
+      if (!changed && Object.keys(next).length === Object.keys(prev).length) return prev
+      return next
+    })
+  }, [chatExchangeLogs])
+
+  const buildLogMarkdown = React.useCallback((rows: readonly UiLogEntry[]) => {
     const esc = (raw: unknown) =>
       String(raw ?? '')
         .replace(/\r?\n/g, ' ')
@@ -229,7 +369,7 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
           ) : (
             <ul className="space-y-1">
               {filteredHistory.map((h) => {
-                const originalIndex = history.findIndex(x => x.id === h.id)
+                const originalIndex = historyIndexById.get(String(h.id || '').trim()) ?? -1
                 const isSelected = originalIndex >= 0 && originalIndex === historyIndex
                 return (
                 <li

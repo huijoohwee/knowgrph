@@ -6,6 +6,7 @@ import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibili
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
@@ -155,6 +156,7 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
     const id = String(n?.id || '').trim()
     if (!id || seen.has(id)) continue
     if (String(n?.type || '') === 'Section') continue
+    if (String(n?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
     if (!allowedFlowNodeIds.has(id)) continue
     seen.add(id)
     next.push(id)

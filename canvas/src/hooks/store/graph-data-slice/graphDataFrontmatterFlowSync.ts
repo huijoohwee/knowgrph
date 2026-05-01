@@ -2,9 +2,12 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphState } from '@/hooks/store/types'
 import { extractYamlFrontmatterBlock } from '@/lib/markdown/frontmatter'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
-import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
-import { normalizeComposedSourcePath } from './graphDataComposedSource'
+import {
+  normalizeComposedSourcePath,
+  readComposedSourceFilePath,
+  resolvePreferredComposedSourceFileFromState,
+} from '@/features/source-files/composedSourceSelection'
 
 const FLOW_YAML_PLAIN_KEY_RE = /^[A-Za-z0-9_.-]+$/
 const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey'
@@ -261,32 +264,22 @@ export function sourceFileShouldWriteFrontmatterFlow(file: GraphState['sourceFil
 }
 
 export function isActiveMarkdownSourceFile(state: GraphState, file: GraphState['sourceFiles'][number]): boolean {
-  const explorerActivePath = normalizeComposedSourcePath(useMarkdownExplorerStore.getState().activePath)
-  const activeDocPath = normalizeComposedSourcePath(state.markdownDocumentName) || explorerActivePath
-  if (!activeDocPath) return false
-  const sourcePath = normalizeComposedSourcePath(file?.source?.path || file?.name || '')
-  return !!sourcePath && sourcePath === activeDocPath
+  const preferred = resolvePreferredComposedSourceFileFromState({
+    state,
+    fallbackName: state.markdownDocumentName,
+  })
+  return preferred === file
 }
 
 export function findSourceFileForMarkdownDocument(state: GraphState, name: string): GraphState['sourceFiles'][number] | null {
-  const sourceFiles = Array.isArray(state.sourceFiles) ? state.sourceFiles : []
-  if (sourceFiles.length === 0) return null
-  const explorerActivePath = normalizeComposedSourcePath(useMarkdownExplorerStore.getState().activePath)
-  const activeDocPath = normalizeComposedSourcePath(state.markdownDocumentName) || explorerActivePath || normalizeComposedSourcePath(name)
-  if (activeDocPath) {
-    const byPath = sourceFiles.find(file => {
-      const sourcePath = normalizeComposedSourcePath(file?.source?.path || file?.name || '')
-      return !!sourcePath && sourcePath === activeDocPath
-    })
-    if (byPath) return byPath
-  }
-  const trimmedName = String(name || '').trim()
-  if (!trimmedName) return null
-  return sourceFiles.find(file => String(file?.name || '').trim() === trimmedName) || null
+  return resolvePreferredComposedSourceFileFromState({
+    state,
+    fallbackName: name,
+  })
 }
 
 export function writeWorkspaceSourceTextIfPresent(file: GraphState['sourceFiles'][number], text: string): void {
-  const workspacePath = normalizeComposedSourcePath(file?.source?.path || '')
+  const workspacePath = normalizeComposedSourcePath(readComposedSourceFilePath(file))
   if (!workspacePath) return
   void getWorkspaceFs()
     .then(fs => fs.writeFileText(workspacePath as any, text))

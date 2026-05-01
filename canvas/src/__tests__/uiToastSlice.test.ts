@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { GraphState } from '@/hooks/store/types'
 import { createUiToastSlice } from '@/hooks/store/uiToastSlice'
 
@@ -56,5 +58,22 @@ export function testUiToastUpsertMovesToastToFront() {
     if (afterUpsertId !== 'a') throw new Error('expected upserted toast to move to front')
   } finally {
     Date.now = realNow
+  }
+}
+
+export function testToastHostSchedulesPruneFromNextExpiryInsteadOfPolling() {
+  const p = resolve(process.cwd(), 'src', 'components', 'ui', 'ToastHost.tsx')
+  const text = readFileSync(p, 'utf8')
+  if (!text.includes('const nextExpiryAtMs = React.useMemo(() => {')) {
+    throw new Error('expected toast host to derive the next semantic expiry instead of polling blindly')
+  }
+  if (!text.includes("if (nextExpiryAtMs == null) return")) {
+    throw new Error('expected toast host to avoid scheduling prune work when no toast can expire')
+  }
+  if (!text.includes('window.setTimeout(() => {')) {
+    throw new Error('expected toast host to schedule a single prune timeout per next expiry')
+  }
+  if (text.includes('window.setInterval(() => {')) {
+    throw new Error('expected toast host to remove the always-on prune interval hot path')
   }
 }

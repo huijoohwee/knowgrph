@@ -243,3 +243,129 @@ export async function testMediaOverlayPoolDeduplicatesMultipleEmptyRichMediaShel
     throw new Error(`expected canonical empty rich media shell to stay iframe-backed, got ${String(out[0]?.kind || '<none>')}`)
   }
 }
+
+export async function testMediaOverlayPoolKeepsExplicitEmptyImagePanelAsImageOverlay() {
+  const nodes: any[] = [
+    {
+      id: 'panel-image-empty',
+      type: 'RichMediaPanel',
+      label: 'Shot S01 · Panel (Image)',
+      properties: {
+        richMediaActiveTab: 'image',
+      },
+    },
+    {
+      id: 'panel-text-functional',
+      type: 'RichMediaPanel',
+      label: 'Shot S01 · Panel (Text)',
+      properties: {
+        output: '## Functional text panel',
+      },
+    },
+  ]
+  const out = listMediaOverlayNodes({
+    enabled: true,
+    nodes: nodes as any,
+    poolMax: 24,
+  })
+  const imagePanel = out.find(node => node.id === 'panel-image-empty')
+  if (!imagePanel) throw new Error('expected explicit image tab panel to remain in overlay pool even before media URL exists')
+  if (imagePanel.kind !== 'image') {
+    throw new Error(`expected explicit empty image tab panel to materialize as image overlay, got ${String(imagePanel.kind || '<none>')}`)
+  }
+  if (String(imagePanel.url || '') !== '') {
+    throw new Error(`expected explicit empty image tab panel to keep blank playback url until output arrives, got ${String(imagePanel.url || '<none>')}`)
+  }
+}
+
+export async function testMediaOverlayPoolKeepsExplicitEmptyVideoPanelAsVideoOverlay() {
+  const nodes: any[] = [
+    {
+      id: 'panel-video-empty',
+      type: 'RichMediaPanel',
+      label: 'Shot S01 · Panel (Video)',
+      properties: {
+        richMediaActiveTab: 'video',
+      },
+    },
+    {
+      id: 'panel-text-functional',
+      type: 'RichMediaPanel',
+      label: 'Shot S01 · Panel (Text)',
+      properties: {
+        output: '## Functional text panel',
+      },
+    },
+  ]
+  const out = listMediaOverlayNodes({
+    enabled: true,
+    nodes: nodes as any,
+    poolMax: 24,
+  })
+  const videoPanel = out.find(node => node.id === 'panel-video-empty')
+  if (!videoPanel) throw new Error('expected explicit video tab panel to remain in overlay pool even before media URL exists')
+  if (videoPanel.kind !== 'video') {
+    throw new Error(`expected explicit empty video tab panel to materialize as video overlay, got ${String(videoPanel.kind || '<none>')}`)
+  }
+  if (String(videoPanel.url || '') !== '') {
+    throw new Error(`expected explicit empty video tab panel to keep blank playback url until output arrives, got ${String(videoPanel.url || '<none>')}`)
+  }
+}
+
+export async function testMediaOverlayPoolPreservesUntouchedRichMediaVariantsAcrossConnectedChannelOverrides() {
+  const nodes: any[] = [
+    {
+      id: 'panel-mixed',
+      type: 'RichMediaPanel',
+      label: 'Shot S01 · Panel',
+      properties: {
+        richMediaActiveTab: 'image',
+        output: '## Local script',
+        imageUrl: 'https://example.com/local-image.png',
+      },
+    },
+  ]
+  const connectedValuesByNodeId = new Map<string, any>([
+    ['panel-mixed', {
+      'properties.videoUrl': {
+        value: 'https://example.com/generated-video.mp4',
+        sources: [{ edgeId: 'edge-video', nodeId: 'video-widget', portKey: 'videoUrl' }],
+      },
+    }],
+  ])
+
+  const imageView = listMediaOverlayNodes({
+    enabled: true,
+    nodes: nodes as any,
+    poolMax: 24,
+    connectedValuesByNodeId,
+  })
+  if (imageView.length !== 1) throw new Error(`expected one mixed rich media overlay, got ${imageView.length}`)
+  if (String(imageView[0]?.kind || '') !== 'image') {
+    throw new Error(`expected image tab to keep the authored image variant, got ${String(imageView[0]?.kind || '<none>')}`)
+  }
+  if (String(imageView[0]?.url || '') !== 'https://example.com/local-image.png') {
+    throw new Error(`expected image tab to keep the authored image url, got ${String(imageView[0]?.url || '<none>')}`)
+  }
+  if (imageView[0]?.panel?.hasText !== true || imageView[0]?.panel?.hasImage !== true || imageView[0]?.panel?.hasVideo !== true) {
+    throw new Error(`expected mixed panel state to preserve text/image/video availability, got ${JSON.stringify(imageView[0]?.panel || null)}`)
+  }
+
+  nodes[0].properties.richMediaActiveTab = 'video'
+  const videoView = listMediaOverlayNodes({
+    enabled: true,
+    nodes: nodes as any,
+    poolMax: 24,
+    connectedValuesByNodeId,
+  })
+  if (videoView.length !== 1) throw new Error(`expected one mixed rich media overlay after switching to video, got ${videoView.length}`)
+  if (String(videoView[0]?.kind || '') !== 'video') {
+    throw new Error(`expected video tab to select the connected video variant, got ${String(videoView[0]?.kind || '<none>')}`)
+  }
+  if (String(videoView[0]?.url || '') !== 'https://example.com/generated-video.mp4') {
+    throw new Error(`expected video tab to use connected video url, got ${String(videoView[0]?.url || '<none>')}`)
+  }
+  if (videoView[0]?.panel?.hasText !== true || videoView[0]?.panel?.hasImage !== true || videoView[0]?.panel?.hasVideo !== true) {
+    throw new Error(`expected mixed panel state to stay multi-variant after switching to video, got ${JSON.stringify(videoView[0]?.panel || null)}`)
+  }
+}

@@ -139,8 +139,8 @@ export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView
   if (!geospatialSliceText.includes('readBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
     throw new Error('Expected geospatial startup default to keep the shared overlay state ON')
   }
-  if (!geospatialSliceText.includes("readString(LS_KEYS.geospatialViewMode, '2d-modern')")) {
-    throw new Error("Expected geospatial startup fallback view mode to prefer shared '2d-modern'")
+  if (!geospatialSliceText.includes('DEFAULT_GEOSPATIAL_VIEW_MODE') || !geospatialSliceText.includes('normalizeGeospatialViewMode')) {
+    throw new Error("Expected geospatial startup fallback view mode to prefer the shared default geospatial view-mode SSOT")
   }
   if (!toolbarContextText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
     throw new Error('Expected toolbar startup state to reuse the shared geospatial-enabled default without false-first drift')

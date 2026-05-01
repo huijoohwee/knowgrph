@@ -15,6 +15,7 @@ import {
   clampScaleToExtent,
   ZOOM_VIEWPORT_PRESET_16_9,
 } from 'grph-shared/zoom/presets'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 export const fitNodeTransform = (n: GraphNode, width: number, height: number) => {
   const s = 1.5;
@@ -301,13 +302,16 @@ export const fitAllTransform = (
       : DEFAULT_GROUP_NESTED_PADDING_STEP
     const baseFontSize = schema.labelStyles?.fontSize ?? 12
 
-    const nodeById = new Map<string, GraphNode>()
+    const graphLookup = getCachedGraphLookup({
+      cacheScope: 'graph-canvas-fit-groups',
+      graphData,
+    })
+    const nodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
     const nodesForFitIdSet = new Set<string>()
     for (let i = 0; i < nodesForFit.length; i += 1) {
       const n = nodesForFit[i]
       const id = String(n.id || '')
       if (!id) continue
-      nodeById.set(id, n)
       nodesForFitIdSet.add(id)
     }
 

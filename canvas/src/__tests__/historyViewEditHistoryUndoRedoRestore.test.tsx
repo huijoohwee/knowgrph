@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -38,12 +40,19 @@ export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
     })
     await tick()
 
+    const historyTab = Array.from(dom.window.document.querySelectorAll('button[role="tab"]'))
+      .find(button => button.textContent?.trim() === 'History') as HTMLButtonElement | undefined
+    if (!historyTab) throw new Error('expected History tab')
+    await act(async () => {
+      historyTab.click()
+      await tick()
+    })
+
     const undoBtn = dom.window.document.querySelector('button[aria-label="Undo"]') as HTMLButtonElement | null
     const redoBtn = dom.window.document.querySelector('button[aria-label="Redo"]') as HTMLButtonElement | null
-    if (!undoBtn) throw new Error('expected Undo button')
+    if (undoBtn) throw new Error('expected Undo button to stay hidden at historyIndex=0')
     if (!redoBtn) throw new Error('expected Redo button')
 
-    if (!undoBtn.disabled) throw new Error('expected Undo to be disabled at historyIndex=0')
     if (redoBtn.disabled) throw new Error('expected Redo to be enabled at historyIndex=0 with 2 entries')
 
     const restoreButtons = Array.from(dom.window.document.querySelectorAll('button[aria-label="Restore"]')) as HTMLButtonElement[]
@@ -57,9 +66,9 @@ export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
 
     const undoBtn2 = dom.window.document.querySelector('button[aria-label="Undo"]') as HTMLButtonElement | null
     const redoBtn2 = dom.window.document.querySelector('button[aria-label="Redo"]') as HTMLButtonElement | null
-    if (!undoBtn2 || !redoBtn2) throw new Error('expected Undo/Redo buttons after restore')
+    if (!undoBtn2) throw new Error('expected Undo button after restore')
+    if (redoBtn2) throw new Error('expected Redo button to stay hidden at the last history entry')
     if (undoBtn2.disabled) throw new Error('expected Undo to be enabled at historyIndex=1')
-    if (!redoBtn2.disabled) throw new Error('expected Redo to be disabled at last history entry')
   } finally {
     try {
       await act(async () => {
@@ -71,5 +80,25 @@ export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
     }
     restore()
     restoreWindow()
+  }
+}
+
+export function testHistoryViewUsesScopedStoreSelectionAndSemanticSignatures() {
+  const p = resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'HistoryView.tsx')
+  const text = readFileSync(p, 'utf8')
+  if (text.includes('} = useGraphStore()')) {
+    throw new Error('expected HistoryView to avoid subscribing to the entire graph store')
+  }
+  if (!text.includes('useGraphStore(\n    useShallow(')) {
+    throw new Error('expected HistoryView to use a shallow scoped store selector')
+  }
+  if (!text.includes('buildHistoryEntriesSignature') || !text.includes('buildUiLogEntriesSignature') || !text.includes('buildChatExchangeLogsSignature')) {
+    throw new Error('expected HistoryView to derive semantic signatures for chat, history, and log rows')
+  }
+  if (!text.includes('useSemanticSnapshot(historyRaw, historySignature)')) {
+    throw new Error('expected HistoryView to stabilize history rows by semantic signature instead of raw array identity')
+  }
+  if (!text.includes('const historyIndexById = React.useMemo(() => {')) {
+    throw new Error('expected HistoryView to precompute a history index lookup instead of rescanning history rows per render')
   }
 }

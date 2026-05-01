@@ -142,11 +142,40 @@ export function testSourceFilesBootstrapResyncsOnlyOnActivePathChanges() {
   if (!text.includes('const lastMaterializedActivePathRef = React.useRef')) {
     throw new Error('expected source files bootstrap to dedupe redundant materialization by active workspace path')
   }
-  if (!text.includes('if (lastMaterializedActivePathRef.current === activePath) return')) {
+  if (!text.includes('const activePathKey = buildMaterializedWorkspaceActivePathKey({') || !text.includes('if (lastMaterializedActivePathRef.current === activePathKey) return')) {
     throw new Error('expected source files bootstrap to skip repeated workspace-view materialization when the active path is unchanged')
   }
   if (text.includes('}\n    syncNow()\n    const unsubscribeActivePath')) {
     throw new Error('expected source files bootstrap to avoid an eager duplicate mount resync before startup bootstrap completes')
+  }
+}
+
+export function testSourceFilesBootstrapSchedulesComposeOnlyForCompositionSignatureChanges() {
+  const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const helperPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesSignatures.ts')
+  const bootstrapText = readFileSync(bootstrapPath, 'utf8')
+  const helperText = readFileSync(helperPath, 'utf8')
+
+  if (!helperText.includes('export const buildSourceFilesCompositionSignature =')) {
+    throw new Error('expected source files signature helper to export buildSourceFilesCompositionSignature')
+  }
+  if (!helperText.includes("return hashSignatureParts([\n    'source-files-compose',")) {
+    throw new Error('expected source files composition signature helper to use shared semantic signature hashing')
+  }
+  if (!bootstrapText.includes('const lastComposeSignatureRef = React.useRef')) {
+    throw new Error('expected source files bootstrap to track the last composed-graph semantic signature')
+  }
+  if (!bootstrapText.includes('const compositionSignature = buildSourceFilesCompositionSignature(next)')) {
+    throw new Error('expected source files bootstrap to derive a semantic composition signature from sourceFiles updates')
+  }
+  if (!bootstrapText.includes('if (compositionSignature !== lastComposeSignatureRef.current) {')) {
+    throw new Error('expected source files bootstrap to suppress composed-graph scheduling when the composition signature is unchanged')
+  }
+  if (!bootstrapText.includes('areSourceFilesEqualByIdAndHash') || !bootstrapText.includes('buildSourceFilesPersistenceSignature(next)')) {
+    throw new Error('expected source files bootstrap persistence path to reuse shared equality and persistence-signature helpers')
+  }
+  if (!helperText.includes('hashStringToHex(String(item?.text || \'\'))')) {
+    throw new Error('expected source files persistence hashing to stay centralized in the shared source-files signature helper')
   }
 }
 
@@ -162,6 +191,247 @@ export function testWorkspaceImportParseIdentityUsesSemanticsVersionAndName() {
   }
   if (!text.includes('name: workspaceDocumentKey(path)')) {
     throw new Error('expected workspace import parse identity to include workspace document name')
+  }
+}
+
+export function testParsedGraphStateOwnershipIsCentralized() {
+  const helperPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFileParsedState.ts')
+  const revisionHelperPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFileParsedGraphRevision.ts')
+  const ingestPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
+  const importPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'applyWorkspaceImportToCanvas.ts')
+  const indexingPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
+  const markdownApplyPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'hooks', 'useMarkdownApply.ts')
+  const runtimeIoPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntime.io.ts')
+  const documentActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataDocumentActions.ts')
+  const markdownImportPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'markdownImportAction.ts')
+  const workspaceSeedsPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'workspaceSeedSourceFiles.ts')
+  const sourceFilesSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'sourceFilesSlice.ts')
+  const workspaceSyncPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'syncToSourceFiles.ts')
+  const localMarkdownFolderPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'localMarkdownFolder.ts')
+  const composedSourcePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataComposedSource.ts')
+  const nodeActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataNodeActions.ts')
+  const edgeActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataEdgeActions.ts')
+  const signaturesPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesSignatures.ts')
+  const syncToSourceFilesPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'syncToSourceFiles.ts')
+  const sourceFilesDbPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesDb.ts')
+  const workspaceStatePath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesWorkspaceState.ts')
+  const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+
+  const helperText = readFileSync(helperPath, 'utf8')
+  const revisionHelperText = readFileSync(revisionHelperPath, 'utf8')
+  const ingestText = readFileSync(ingestPath, 'utf8')
+  const importText = readFileSync(importPath, 'utf8')
+  const indexingText = readFileSync(indexingPath, 'utf8')
+  const markdownApplyText = readFileSync(markdownApplyPath, 'utf8')
+  const runtimeIoText = readFileSync(runtimeIoPath, 'utf8')
+  const documentActionsText = readFileSync(documentActionsPath, 'utf8')
+  const markdownImportText = readFileSync(markdownImportPath, 'utf8')
+  const workspaceSeedsText = readFileSync(workspaceSeedsPath, 'utf8')
+  const sourceFilesSliceText = readFileSync(sourceFilesSlicePath, 'utf8')
+  const workspaceSyncText = readFileSync(workspaceSyncPath, 'utf8')
+  const localMarkdownFolderText = readFileSync(localMarkdownFolderPath, 'utf8')
+  const composedSourceText = readFileSync(composedSourcePath, 'utf8')
+  const nodeActionsText = readFileSync(nodeActionsPath, 'utf8')
+  const edgeActionsText = readFileSync(edgeActionsPath, 'utf8')
+  const signaturesText = readFileSync(signaturesPath, 'utf8')
+  const syncToSourceFilesText = readFileSync(syncToSourceFilesPath, 'utf8')
+  const sourceFilesDbText = readFileSync(sourceFilesDbPath, 'utf8')
+  const workspaceStateText = readFileSync(workspaceStatePath, 'utf8')
+  const bootstrapText = readFileSync(bootstrapPath, 'utf8')
+
+  if (!helperText.includes('export function buildSourceFileParsedState(args:')) {
+    throw new Error('expected parsed source-file state ownership to be centralized in a shared source-files helper')
+  }
+  if (!helperText.includes('export function buildSourceFileLifecycleState(args:')) {
+    throw new Error('expected source-file lifecycle state ownership to be centralized in a shared source-files helper')
+  }
+  if (!helperText.includes('export function buildSourceFileRecord(args:')) {
+    throw new Error('expected source-file record creation defaults to be centralized in a shared source-files helper')
+  }
+  if (!helperText.includes('export function normalizeSourceFileRecord(value:')) {
+    throw new Error('expected source-file record normalization to be centralized in a shared source-files helper')
+  }
+  if (!helperText.includes('export function normalizeSourceFiles(value:')) {
+    throw new Error('expected source-file array normalization to be centralized in a shared source-files helper')
+  }
+  if (!helperText.includes('export function areSourceFileRecordsEqual(')) {
+    throw new Error('expected source-file record equality to be centralized in a shared source-files helper')
+  }
+  if (!helperText.includes('export function readPersistedSourceFileRecord(')) {
+    throw new Error('expected source-file persistence projection to be centralized in a shared source-files helper')
+  }
+  if (!helperText.includes('export function buildUpdatedSourceFileParsedGraphState(args:')) {
+    throw new Error('expected parsed source-file state helper to expose a shared graph-update snapshot path')
+  }
+  if (!revisionHelperText.includes('export function incrementParsedGraphRevision(value: unknown): number')) {
+    throw new Error('expected parsed graph revision helper to remain the SSOT for revision bump semantics under the parsed-state helper')
+  }
+  if (!ingestText.includes('buildSourceFileLifecycleState(')) {
+    throw new Error('expected source file ingest to reuse the shared lifecycle state helper so parsed-state snapshots stay owned upstream')
+  }
+  if (!importText.includes('buildSourceFileLifecycleState(')) {
+    throw new Error('expected workspace import parsing to reuse the shared lifecycle state helper so parsed-state snapshots stay owned upstream')
+  }
+  if (!indexingText.includes('buildSourceFileLifecycleState(')) {
+    throw new Error('expected workspace indexing to reuse the shared lifecycle state helper so parsed-state snapshots stay owned upstream')
+  }
+  if (!markdownApplyText.includes('buildSourceFileLifecycleState(')) {
+    throw new Error('expected markdown apply parse path to reuse the shared lifecycle state helper so parsed-state snapshots stay owned upstream')
+  }
+  if (!runtimeIoText.includes('buildSourceFileLifecycleState(')) {
+    throw new Error('expected workspace runtime source-file reset paths to reuse the shared lifecycle state helper so parsed-state snapshots stay owned upstream')
+  }
+  if (!documentActionsText.includes('buildSourceFileLifecycleState(')) {
+    throw new Error('expected graph document markdown apply handoff to reuse the shared lifecycle state helper for transient idle resets')
+  }
+  if (!ingestText.includes('buildSourceFileRecord(')) {
+    throw new Error('expected source file ingest new-file creation to reuse the shared source-file record builder')
+  }
+  if (!indexingText.includes('buildSourceFileRecord(')) {
+    throw new Error('expected workspace indexing source-file creation to reuse the shared source-file record builder')
+  }
+  if (!markdownImportText.includes('buildSourceFileRecord(')) {
+    throw new Error('expected markdown import source-file creation to reuse the shared source-file record builder')
+  }
+  if (!workspaceSeedsText.includes('buildSourceFileRecord(')) {
+    throw new Error('expected workspace seed source-file creation to reuse the shared source-file record builder')
+  }
+  if (!workspaceSyncText.includes('buildSourceFileRecord(')) {
+    throw new Error('expected workspace source-file merge path to reuse the shared source-file record builder')
+  }
+  if (!workspaceSyncText.includes('areSourceFileRecordsEqual(prev, candidate)')) {
+    throw new Error('expected workspace source-file merge path to reuse the shared source-file record equality helper')
+  }
+  if (!localMarkdownFolderText.includes('buildSourceFileRecord(')) {
+    throw new Error('expected local markdown folder source-file materialization to reuse the shared source-file record builder')
+  }
+  if (!sourceFilesSliceText.includes('normalizeSourceFiles(files)')) {
+    throw new Error('expected source-files store slice setSourceFiles path to normalize source-file arrays through the shared helper')
+  }
+  if (!sourceFilesSliceText.includes('normalizeSourceFileRecord(file)')) {
+    throw new Error('expected source-files store slice addSourceFile path to normalize source-file records through the shared helper')
+  }
+  if (!sourceFilesSliceText.includes('normalizeSourceFileRecord({ ...f, ...updates })')) {
+    throw new Error('expected source-files store slice updateSourceFile path to normalize merged source-file records through the shared helper')
+  }
+  if (!sourceFilesSliceText.includes('normalizeSourceFileRecord({ ...f, status, error })')) {
+    throw new Error('expected source-files store slice status updates to normalize lifecycle metadata through the shared helper')
+  }
+  if (!composedSourceText.includes('buildUpdatedSourceFileParsedGraphState(')) {
+    throw new Error('expected composed source position writebacks to reuse the shared parsed graph update helper')
+  }
+  if (!nodeActionsText.includes('buildUpdatedSourceFileParsedGraphState(')) {
+    throw new Error('expected composed node actions to reuse the shared parsed graph update helper')
+  }
+  if (!edgeActionsText.includes('buildUpdatedSourceFileParsedGraphState(')) {
+    throw new Error('expected composed edge actions to reuse the shared parsed graph update helper')
+  }
+  if (!helperText.includes('export function readSourceFileParsedState(')) {
+    throw new Error('expected parsed source-file state helper to expose a normalized read path for signatures and sync equality')
+  }
+  if (!helperText.includes('export function readPersistedSourceFileParsedState(')) {
+    throw new Error('expected parsed source-file state helper to expose a persisted parsed-state projection')
+  }
+  if (!helperText.includes('export function areSourceFileParsedStatesEqual(')) {
+    throw new Error('expected parsed source-file state helper to expose canonical parsed-state equality')
+  }
+  if (!signaturesText.includes('readSourceFileParsedState(')) {
+    throw new Error('expected source file signatures to normalize parsed state via the shared parsed-state reader')
+  }
+  if (
+    !syncToSourceFilesText.includes('readSourceFileParsedState(prev)') ||
+    !syncToSourceFilesText.includes('const seedSourcePath = resolveWorkspaceSeedSourcePath(path)') ||
+    !syncToSourceFilesText.includes('const srcPath = seedSourcePath || workspaceSourcePathKey(path)') ||
+    (
+      !syncToSourceFilesText.includes('areSourceFileParsedStatesEqual(') &&
+      !syncToSourceFilesText.includes('areSourceFileRecordsEqual(prev, candidate)')
+    )
+  ) {
+    throw new Error('expected workspace source-file sync to reuse shared source-file equality, parsed-state normalization, and canonical seed source-path helpers')
+  }
+  if (
+    !sourceFilesDbText.includes('readPersistedSourceFileRecord(payload)') ||
+    !sourceFilesDbText.includes('areSourceFileRecordsEqual(existingPayload, row.payload, { includeGraphData: false, includeGraphRevision: false })')
+  ) {
+    throw new Error('expected source files DB normalization and persistence equality to reuse shared source-file persistence helpers')
+  }
+  if (!sourceFilesDbText.includes('const next = readPersistedSourceFileRecord(r.get(\'payload\') as SourceFile)')) {
+    throw new Error('expected source files DB load path to consume the shared persisted source-file record helper directly')
+  }
+  if (!sourceFilesDbText.includes('const normalized = readPersistedSourceFileRecord(payload)')) {
+    throw new Error('expected source files DB save path to consume the shared persisted source-file record helper directly')
+  }
+  if (!workspaceStateText.includes('export function normalizeSourceFilesWorkspaceState(value: unknown): SourceFilesWorkspaceState')) {
+    throw new Error('expected workspace-state persistence normalization to be centralized in a shared source-files helper')
+  }
+  if (!workspaceStateText.includes('export function areSourceFilesWorkspaceStatesEqual(')) {
+    throw new Error('expected workspace-state persistence equality to be centralized in a shared source-files helper')
+  }
+  if (!workspaceStateText.includes('export function buildSourceFilesWorkspaceStateSignature(value: unknown): string')) {
+    throw new Error('expected workspace-state persistence signatures to be centralized in a shared source-files helper')
+  }
+  if (!sourceFilesDbText.includes('return normalizeSourceFilesWorkspaceState(row.get(\'payload\'))')) {
+    throw new Error('expected source files DB workspace load path to reuse the shared workspace-state normalizer directly')
+  }
+  if (
+    !sourceFilesDbText.includes('const payload = normalizeSourceFilesWorkspaceState(state)') ||
+    !sourceFilesDbText.includes('if (areSourceFilesWorkspaceStatesEqual(existingPayload, payload)) return')
+  ) {
+    throw new Error('expected source files DB workspace persistence to reuse the shared workspace-state normalizer and equality helper')
+  }
+  if (
+    !sourceFilesDbText.includes('EMPTY_SOURCE_FILES_WORKSPACE_STATE') ||
+    !sourceFilesDbText.includes('type SourceFilesWorkspaceState')
+  ) {
+    throw new Error('expected source files DB workspace persistence boundary to reuse the shared workspace-state types and defaults')
+  }
+  if (
+    !sourceFilesDbText.includes('normalizeSourceFilesWorkspaceState(existing.get(\'payload\'))') ||
+    !sourceFilesDbText.includes('await collections.workspace.incrementalUpsert({ id: \'workspace\', payload, updatedAtMs: now })')
+  ) {
+    throw new Error('expected source files DB workspace persistence to normalize stored snapshots before comparing and writing')
+  }
+  if (
+    !sourceFilesDbText.includes('areSourceFileSourcesEqual(existingPayload.source, row.payload.source)')
+  ) {
+    throw new Error('expected source files DB source ownership persistence comparisons to reuse the shared source ownership equality helper')
+  }
+  if (
+    !bootstrapText.includes('buildSourceFilesWorkspaceStateSignature(snapshot)') ||
+    !bootstrapText.includes('normalizeSourceFilesWorkspaceState({') ||
+    !bootstrapText.includes('equalityFn: areSourceFilesWorkspaceStatesEqual')
+  ) {
+    throw new Error('expected runtime workspace persistence bootstrap to reuse the shared workspace-state normalization, equality, and signature helpers')
+  }
+  if (
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts'), 'utf8').includes('resolveSourceLayerKeyChange({') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'hooks', 'useMarkdownApply.ts'), 'utf8').includes('resolveSourceLayerKeyChange({') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'lib', 'graph', 'sourceLayers.ts'), 'utf8').includes('export function resolveSourceLayerKeyChange(args:')
+  ) {
+    throw new Error('expected composed apply callers to reuse the shared source-layer key change helper for unchanged vs order-only vs content branching')
+  }
+  if (
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts'), 'utf8').includes('resolveComposedApplyDeferralReason({') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'composedApplyGuards.ts'), 'utf8').includes('export function resolveComposedApplyDeferralReason(args:')
+  ) {
+    throw new Error('expected composed apply race suppression to reuse the shared source-files deferral helper')
+  }
+  if (
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts'), 'utf8').includes('shouldClearComposedGraphForEmptyState({') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'composedApplyGuards.ts'), 'utf8').includes('export function shouldClearComposedGraphForEmptyState(args:')
+  ) {
+    throw new Error('expected composed apply empty-state clearing to reuse the shared source-files empty-state helper')
+  }
+  if (
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'composedSourceSelection.ts'), 'utf8').includes('export function resolvePreferredComposedDocumentPathFromState(args:') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'composedSourceSelection.ts'), 'utf8').includes('export function resolvePreferredComposedSourceFileFromState(args:') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'composedSourceSelection.ts'), 'utf8').includes('export function readComposedSourceFilePath(') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'composedSourceSelection.ts'), 'utf8').includes('export function resolvePreferredComposedSourceRawTextFromState(args:') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts'), 'utf8').includes('resolvePreferredComposedSourceRawTextFromState({') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataComposedSource.ts'), 'utf8').includes('resolvePreferredEnabledComposedSourceFileFromState({') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataFrontmatterFlowSync.ts'), 'utf8').includes('resolvePreferredComposedSourceFileFromState({')
+  ) {
+    throw new Error('expected composed active-document selection and raw-text fallback ownership to stay centralized in the shared source-files helper')
   }
 }
 
@@ -221,7 +491,40 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('applyToGraph: true,')) {
     throw new Error('expected initial bootstrap materialization to opt into graph apply explicitly')
   }
-  if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false })')) {
+  if (!runtimeSharedText.includes('export function resolveMaterializedWorkspaceActivePath(args?:')) {
+    throw new Error('expected workspace bootstrap materialization to centralize active workspace path resolution in the shared runtime helper')
+  }
+  if (!runtimeSharedText.includes('export function buildMaterializedWorkspaceActivePathKey(args?:')) {
+    throw new Error('expected workspace bootstrap materialization to centralize active workspace path dedupe keys in the shared runtime helper')
+  }
+  if (!runtimeSharedText.includes('export function buildMaterializedWorkspaceForceIncludePaths(args?:')) {
+    throw new Error('expected workspace bootstrap materialization to centralize active workspace force-include path derivation in the shared runtime helper')
+  }
+  if (!runtimeSharedText.includes('export async function resolveWorkspaceMaterializationEntries(args:')) {
+    throw new Error('expected workspace bootstrap materialization to centralize workspace snapshot reuse vs relist decisions in the shared runtime helper')
+  }
+  if (!runtimeSharedText.includes('export function readReusableWorkspaceEntriesSnapshot(')) {
+    throw new Error('expected workspace bootstrap materialization to centralize reusable workspace snapshot gating in the shared runtime helper')
+  }
+  if (!runtimeSharedText.includes('export function buildInitialWorkspaceStartupSnapshot(args:')) {
+    throw new Error('expected workspace bootstrap startup snapshot branching to stay centralized in the shared runtime helper')
+  }
+  if (
+    !runtimeSharedText.includes("const withoutWorkspacePrefix = trimmed.startsWith('workspace:') ? trimmed.slice('workspace:'.length) : trimmed") ||
+    !runtimeSharedText.includes('const normalized = normalizeWorkspacePath(withoutWorkspacePrefix)')
+  ) {
+    throw new Error('expected workspace bootstrap materialization active-path helper to normalize workspace-prefixed paths instead of trimming raw strings inline')
+  }
+  if (!bootstrapText.includes('resolveMaterializedWorkspaceActivePath({')) {
+    throw new Error('expected source files bootstrap to reuse the shared active workspace path helper before rematerializing source files')
+  }
+  if (!bootstrapText.includes('buildMaterializedWorkspaceActivePathKey({')) {
+    throw new Error('expected source files bootstrap to reuse the shared active workspace path key helper before rematerialization dedupe')
+  }
+  if (!bootstrapText.includes('readReusableWorkspaceEntriesSnapshot(startup.workspaceEntries)')) {
+    throw new Error('expected source files bootstrap to reuse the shared workspace snapshot helper before deciding whether startup entries should be passed into materialization')
+  }
+  if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false })') && !bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false,') && !bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({\n        activePathOverride: activePath,')) {
     throw new Error('expected active-path rematerialization to stay hydration-only so Editor Workspace open cannot replay import graph apply')
   }
 }
@@ -269,7 +572,7 @@ export function testWorkspaceCanvasAutoApplySkipsWidgetMode() {
 }
 
 export function testWorkspaceRefreshSetSourceFilesImmediatelySchedulesComposeApply() {
-  const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const runtimePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceExplorerState.tsx')
   const text = readFileSync(runtimePath, 'utf8')
 
   if (!text.includes('const scheduleApplyComposedFromSourceFiles = React.useCallback(async () => {')) {
@@ -361,19 +664,28 @@ export function testWorkspaceManualRefreshActionsSuppressFollowUpFsEventRefresh(
 
 export function testSourceFilesDbPersistsOnlyChangedRows() {
   const dbPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesDb.ts')
+  const workspaceStatePath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesWorkspaceState.ts')
   const text = readFileSync(dbPath, 'utf8')
+  const workspaceStateText = readFileSync(workspaceStatePath, 'utf8')
 
   if (!text.includes('const existingById = new Map(existing.map(doc => [String(doc.get(\'id\') || \'\'), doc]))')) {
     throw new Error('expected source files db persistence to index existing rows by id before deciding which rows actually changed')
   }
-  if (!text.includes('if (existingOrderIndex === row.orderIndex && arePersistedSourceFilesEqual(existingPayload, row.payload)) continue')) {
+  if (
+    !text.includes('existingOrderIndex === row.orderIndex &&') ||
+    !text.includes('areSourceFileRecordsEqual(existingPayload, row.payload, { includeGraphData: false, includeGraphRevision: false })') ||
+    !text.includes('areSourceFileSourcesEqual(existingPayload.source, row.payload.source)')
+  ) {
     throw new Error('expected source files db persistence to skip incrementalUpsert for unchanged source-file rows')
   }
-  if (!text.includes('const arePersistedWorkspaceStatesEqual =')) {
-    throw new Error('expected source files db persistence to centralize workspace-state equality checks')
+  if (!workspaceStateText.includes('export function areSourceFilesWorkspaceStatesEqual(')) {
+    throw new Error('expected source files db persistence to centralize workspace-state equality checks in the shared workspace-state helper')
   }
-  if (!text.includes('if (arePersistedWorkspaceStatesEqual(existingPayload, payload)) return')) {
-    throw new Error('expected source files workspace persistence to skip writes when the normalized workspace snapshot is unchanged')
+  if (
+    !text.includes('const payload = normalizeSourceFilesWorkspaceState(state)') ||
+    !text.includes('if (areSourceFilesWorkspaceStatesEqual(existingPayload, payload)) return')
+  ) {
+    throw new Error('expected source files workspace persistence to skip writes when the normalized workspace snapshot is unchanged via the shared helper')
   }
 }
 

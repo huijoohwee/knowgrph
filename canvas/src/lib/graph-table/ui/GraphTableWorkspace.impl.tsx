@@ -50,9 +50,13 @@ import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
-import { parseGraphTableViewMode, type GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
+import { type GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
 import { applyColumnOrder, getRowTocId, mapRowDocToGridRow, reorderIds } from '@/features/graph-table/ui/graphTableWorkspaceUtils'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import {
+  toWorkspaceBackedGraphTableViewMode,
+  toWorkspaceEditorModeFromGraphTableViewMode,
+} from '@/features/workspace-table/workspaceEditorMode'
 import {
   cancelGraphTableWorkspaceViewStateSync,
   scheduleGraphTableWorkspaceViewStateSync,
@@ -123,12 +127,9 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     useGraphStore(useShallow(selector))
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
   const [activeTableId, setActiveTableId] = useState<GraphTableId>('nodes')
-  const [viewMode, setViewMode] = useState<GraphTableViewMode>(() => {
-    const mode = workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode
-    if (mode === 'kanban') return 'kanban'
-    if (mode === 'multiDimTable') return 'multiDimTable'
-    return lsJson(LS_KEYS.graphTableViewMode, 'table' as const, parseGraphTableViewMode)
-  })
+  const [viewMode, setViewMode] = useState<GraphTableViewMode>(() =>
+    toWorkspaceBackedGraphTableViewMode(workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode),
+  )
   const [graphTableGeospatialViewEnabled, setGraphTableGeospatialViewEnabled] = useState<boolean>(() =>
     lsBool(LS_KEYS.graphTableGeospatialViewEnabled, false),
   )
@@ -435,7 +436,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       setViewMode(prev => (prev === 'geospatial' ? prev : 'geospatial'))
       return
     }
-    const next = workspaceEditorMode === 'kanban' ? 'kanban' : workspaceEditorMode === 'multiDimTable' ? 'multiDimTable' : 'table'
+    const next = toWorkspaceBackedGraphTableViewMode(workspaceEditorMode)
     setViewMode(prev => (prev === next ? prev : next))
   }, [graphTableGeospatialViewEnabled, workspaceEditorMode])
 
@@ -504,21 +505,17 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       if (next === 'geospatial') {
         setGraphTableGeospatialViewEnabled(true)
         void setGeospatialModeEnabled(true).catch(() => void 0)
-        workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
+        workspaceTablePreferencesStore.setWorkspaceEditorMode(
+          toWorkspaceEditorModeFromGraphTableViewMode(next),
+        )
         return
       }
       if (graphTableGeospatialViewEnabled) {
         setGraphTableGeospatialViewEnabled(false)
       }
-      if (next === 'kanban') {
-        workspaceTablePreferencesStore.setWorkspaceEditorMode('kanban')
-        return
-      }
-      if (next === 'multiDimTable') {
-        workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')
-        return
-      }
-      workspaceTablePreferencesStore.setWorkspaceEditorMode('table')
+      workspaceTablePreferencesStore.setWorkspaceEditorMode(
+        toWorkspaceEditorModeFromGraphTableViewMode(next),
+      )
     },
     [graphTableGeospatialViewEnabled],
   )

@@ -157,9 +157,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
             <li className="list-none">
               <button
                 type="button"
-                data-kg-panel-action="1"
-                data-kg-kanban-icon-action="1"
-                className={['inline-flex items-center justify-center w-7 h-7 rounded-md', 'focus:outline-none focus:ring-2 focus:ring-blue-500/40'].join(' ')}
+                className={['kg-panel-action-btn kg-panel-icon-btn', 'inline-flex items-center justify-center w-7 h-7 rounded-md', 'focus:outline-none focus:ring-2 focus:ring-blue-500/40'].join(' ')}
                 aria-label={MARKDOWN_DATA_VIEW_COPY.expandCardLabel}
                 onClick={e => {
                   e.stopPropagation()
@@ -176,9 +174,7 @@ export const KanbanCard = React.memo(function KanbanCard(props: KanbanCardProps)
               <button
                 ref={menuTriggerRef}
                 type="button"
-                data-kg-panel-action="1"
-                data-kg-kanban-icon-action="1"
-                className={['inline-flex items-center justify-center w-7 h-7 rounded-md', 'focus:outline-none focus:ring-2 focus:ring-blue-500/40'].join(' ')}
+                className={['kg-panel-action-btn kg-panel-icon-btn', 'inline-flex items-center justify-center w-7 h-7 rounded-md', 'focus:outline-none focus:ring-2 focus:ring-blue-500/40'].join(' ')}
                 aria-label={MARKDOWN_DATA_VIEW_COPY.cardMenuLabel}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}

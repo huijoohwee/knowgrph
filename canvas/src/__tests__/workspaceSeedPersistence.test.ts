@@ -2,7 +2,15 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { readEnvString, readEnvStringFromRecord } from '@/lib/config.env'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { materializeActiveWorkspaceEntryIntoSourceFiles } from '@/features/source-files/sourceFilesRuntimeShared'
+import {
+  buildInitialWorkspaceStartupSnapshot,
+  buildMaterializedWorkspaceActivePathKey,
+  buildMaterializedWorkspaceForceIncludePaths,
+  materializeActiveWorkspaceEntryIntoSourceFiles,
+  readReusableWorkspaceEntriesSnapshot,
+  resolveMaterializedWorkspaceActivePath,
+  resolveWorkspaceMaterializationEntries,
+} from '@/features/source-files/sourceFilesRuntimeShared'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   LEGACY_WORKSPACE_README_PATH,
@@ -443,5 +451,102 @@ export async function testWorkspaceBootstrapMaterializeDoesNotApplyGraphWithoutE
     }
   } finally {
     restore()
+  }
+}
+
+export function testWorkspaceBootstrapMaterializeNormalizesActiveWorkspacePathResolution() {
+  const normalizedFromOverride = resolveMaterializedWorkspaceActivePath({
+    activePathOverride: ' workspace:/notes/demo.md/ ' as never,
+  })
+  if (normalizedFromOverride !== '/notes/demo.md') {
+    throw new Error(`expected workspace materialization active-path helper to normalize override paths, got ${String(normalizedFromOverride)}`)
+  }
+
+  const normalizedFromExplorer = resolveMaterializedWorkspaceActivePath({
+    explorerActivePath: '\\notes\\demo.md\\' as never,
+  })
+  if (normalizedFromExplorer !== '/notes/demo.md') {
+    throw new Error(`expected workspace materialization active-path helper to normalize explorer paths, got ${String(normalizedFromExplorer)}`)
+  }
+
+  const missing = resolveMaterializedWorkspaceActivePath({
+    activePathOverride: ' / ' as never,
+  })
+  if (missing !== null) {
+    throw new Error('expected workspace materialization active-path helper to treat the workspace root as a non-materializable file path')
+  }
+
+  const key = buildMaterializedWorkspaceActivePathKey({
+    explorerActivePath: 'workspace:/notes/demo.md/' as never,
+  })
+  if (key !== '/notes/demo.md') {
+    throw new Error(`expected workspace materialization active-path key helper to reuse canonical normalized path strings, got ${String(key)}`)
+  }
+
+  const forceIncludePaths = buildMaterializedWorkspaceForceIncludePaths({
+    explorerActivePath: 'workspace:/notes/demo.md/' as never,
+  })
+  if (forceIncludePaths.length !== 1 || forceIncludePaths[0] !== '/notes/demo.md') {
+    throw new Error('expected workspace materialization force-include helper to reuse the canonical normalized active workspace path')
+  }
+}
+
+export async function testWorkspaceBootstrapMaterializeSharedSnapshotHelpersCentralizeReuseRules() {
+  const baseFs = createMemoryWorkspaceFs()
+  let listEntriesCalls = 0
+  const fs: WorkspaceFs = {
+    ...baseFs,
+    listEntries: async () => {
+      listEntriesCalls += 1
+      return baseFs.listEntries()
+    },
+  }
+  await fs.ensureSeed()
+  const workspaceEntries = await fs.listEntries()
+
+  const reused = await resolveWorkspaceMaterializationEntries({
+    fs,
+    workspaceEntries,
+  })
+  if (reused !== workspaceEntries) {
+    throw new Error('expected shared workspace materialization entries helper to reuse the provided snapshot by identity')
+  }
+
+  const relisted = await resolveWorkspaceMaterializationEntries({ fs })
+  if (!Array.isArray(relisted) || relisted.length === 0) {
+    throw new Error('expected shared workspace materialization entries helper to relist workspace entries when no snapshot is provided')
+  }
+  if (listEntriesCalls !== 2) {
+    throw new Error(`expected shared workspace materialization entries helper to avoid extra relists when a snapshot is provided, got ${String(listEntriesCalls)} listEntries calls`)
+  }
+
+  const reusableSnapshot = readReusableWorkspaceEntriesSnapshot(workspaceEntries)
+  if (reusableSnapshot !== workspaceEntries) {
+    throw new Error('expected shared workspace snapshot reuse helper to keep non-empty snapshots intact')
+  }
+  if (readReusableWorkspaceEntriesSnapshot([]) !== undefined) {
+    throw new Error('expected shared workspace snapshot reuse helper to drop empty snapshots so callers can relist when needed')
+  }
+
+  const skippedSnapshot = buildInitialWorkspaceStartupSnapshot({
+    currentActivePath: '/README.md' as never,
+    desiredActivePath: '/README.md' as never,
+    workspaceEntries,
+    lastSetActivePath: true,
+    preferCustomValidationSeed: false,
+  })
+  if (skippedSnapshot.activePath !== '/README.md' || skippedSnapshot.workspaceEntries.length !== 0) {
+    throw new Error('expected shared startup snapshot helper to reuse the current active path while omitting redundant workspace relist payloads')
+  }
+
+  const changedSnapshot = buildInitialWorkspaceStartupSnapshot({
+    currentActivePath: '/README.md' as never,
+    desiredActivePath: '/notes/demo.md' as never,
+    workspaceEntries,
+    lastSetActivePath: true,
+    preferCustomValidationSeed: false,
+  })
+  if (changedSnapshot.activePath !== '/notes/demo.md' || changedSnapshot.workspaceEntries !== workspaceEntries) {
+    throw new Error('expected shared startup snapshot helper to preserve the provided snapshot when startup must materialize a different active file')
   }
 }

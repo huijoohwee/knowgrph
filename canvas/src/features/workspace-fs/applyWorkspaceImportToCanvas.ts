@@ -20,6 +20,7 @@ import { mergeWorkspaceEntriesIntoSourceFiles, workspaceSourcePathKey } from './
 import { runInIdle } from '@/features/panels/utils/idle'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
+import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 
 type ApplyWorkspaceImportToCanvasOpts = {
   applyToGraph?: boolean
@@ -218,35 +219,36 @@ export async function applyWorkspaceImportToCanvas(args: {
       ensureNext()[idx] = {
         ...base,
         text: inlineText,
-        status: 'parsed',
-        error: undefined,
-        parsedParserId: parserId,
-        parsedTextHash: textHash,
-        parsedGraphRevision: 0,
-        parsedGraphData: graphData,
+        ...buildSourceFileLifecycleState({
+          status: 'parsed',
+          parserId,
+          textHash,
+          graphData,
+        }),
       }
       parsedCount += 1
     } else if (res) {
       ensureNext()[idx] = {
         ...base,
         text: inlineText,
-        status: 'idle',
-        error: undefined,
-        parsedParserId: parserId,
-        parsedTextHash: textHash,
-        parsedGraphRevision: undefined,
-        parsedGraphData: undefined,
+        ...buildSourceFileLifecycleState({
+          status: 'idle',
+          parserId,
+          textHash,
+          graphData: undefined,
+        }),
       }
     } else {
       ensureNext()[idx] = {
         ...base,
         text: inlineText,
-        status: 'error',
-        error: 'Parse failed',
-        parsedParserId: parserId,
-        parsedTextHash: textHash,
-        parsedGraphRevision: undefined,
-        parsedGraphData: undefined,
+        ...buildSourceFileLifecycleState({
+          status: 'error',
+          error: 'Parse failed',
+          parserId,
+          textHash,
+          graphData: undefined,
+        }),
       }
     }
   }

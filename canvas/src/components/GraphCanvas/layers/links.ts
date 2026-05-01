@@ -16,6 +16,7 @@ import {
   readGlobalEdgeAnimationEnabled,
   readGlobalEdgeColor,
 } from '@/lib/graph/edgeTypes'
+import { buildCanonicalNodeLookup, getCanonicalNodeLookupValue } from '@/lib/graph/canonicalNodeIds'
 
 type GSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
@@ -91,18 +92,7 @@ function resolveNodeId(endpoint: unknown): string {
 
 function buildNodeLookup(nodeById?: Map<string, GraphNode> | null): Map<string, GraphNode> | null {
   if (!nodeById || nodeById.size === 0) return null
-  const lookup = new Map<string, GraphNode>()
-  for (const [id, node] of nodeById.entries()) {
-    const key = String(id || '').trim()
-    if (!key) continue
-    lookup.set(key, node)
-    const idx = key.lastIndexOf('::')
-    if (idx > 0 && idx < key.length - 2) {
-      const short = key.slice(idx + 2)
-      if (short && !lookup.has(short)) lookup.set(short, node)
-    }
-  }
-  return lookup
+  return buildCanonicalNodeLookup(nodeById.entries())
 }
 
 function getEndpointPosOrZero(endpoint: unknown, nodeLookup?: Map<string, GraphNode> | null): { x: number; y: number } {
@@ -111,11 +101,7 @@ function getEndpointPosOrZero(endpoint: unknown, nodeLookup?: Map<string, GraphN
   if (nodeLookup && nodeLookup.size > 0) {
     const id = resolveNodeId(endpoint)
     if (id) {
-      const node = nodeLookup.get(id) || (() => {
-        const idx = id.lastIndexOf('::')
-        if (idx > 0 && idx < id.length - 2) return nodeLookup.get(id.slice(idx + 2)) || null
-        return null
-      })()
+      const node = getCanonicalNodeLookupValue(nodeLookup, id)
       const fromNode = readEndpointPos(node)
       if (fromNode) return fromNode
     }

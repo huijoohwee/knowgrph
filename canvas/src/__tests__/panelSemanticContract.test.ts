@@ -140,7 +140,11 @@ export const testWorkflowManagerReusesWorkspaceTableSsotForMultiDimView = () => 
 export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsolidation = () => {
   const root = process.cwd()
   const filePath = path.resolve(root, 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const launcherPath = path.resolve(root, 'src', 'features', 'toolbar', 'ToolbarMenuLauncher.tsx')
+  const typesPath = path.resolve(root, 'src', 'features', 'toolbar', 'ToolbarToolMenuTypes.ts')
   const text = readUtf8(filePath)
+  const launcherText = readUtf8(launcherPath)
+  const typesText = readUtf8(typesPath)
   if (text.includes("view: 'designLayers'")) {
     throw new Error('Expected FloatingPanel to remove designLayers view after Workflow Manager consolidation')
   }
@@ -152,6 +156,15 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   }
   if (text.includes("floatingPanelView === 'discovery'")) {
     throw new Error('Expected FloatingPanel to remove dedicated discovery branch after Props Panel Discovery Widget consolidation')
+  }
+  if (text.includes('normalizeRequestedFloatingPanelView')) {
+    throw new Error('Expected FloatingPanel to remove legacy requested-view remapping after discovery consolidation')
+  }
+  if (launcherText.includes("'discovery'")) {
+    throw new Error('Expected ToolbarMenuLauncher to remove legacy discovery requested-view support')
+  }
+  if (typesText.includes("'discovery'")) {
+    throw new Error('Expected ToolbarToolMenuProps to remove legacy discovery requested-view type support')
   }
 }
 

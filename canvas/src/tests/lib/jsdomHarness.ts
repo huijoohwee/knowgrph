@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom'
+import { sanitizeNodeTestFlags } from '@/tests/lib/sanitizeNodeTestFlags'
 
 export type JsdomHarnessEnv = {
   dom: JSDOM
@@ -6,6 +7,7 @@ export type JsdomHarnessEnv = {
 }
 
 export const initJsdomHarness = (html: string = '<!doctype html><html><body></body></html>'): JsdomHarnessEnv => {
+  sanitizeNodeTestFlags()
   const dom = new JSDOM(html, {
     url: 'http://localhost/',
     contentType: 'text/html',

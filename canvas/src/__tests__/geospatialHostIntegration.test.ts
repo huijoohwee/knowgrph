@@ -172,8 +172,8 @@ export const testGympgrphDefaultViewModeIs2d = () => {
   if (!text.includes('LS_KEYS.geospatialViewMode')) {
     throw new Error('Expected geospatialViewMode persistence key usage')
   }
-  if (!text.includes("'2d'")) {
-    throw new Error("Expected geospatialViewMode default to include '2d'")
+  if (!text.includes('DEFAULT_GEOSPATIAL_VIEW_MODE') || !text.includes('normalizeGeospatialViewMode')) {
+    throw new Error('Expected geospatialViewMode default and normalization to reuse the shared geospatial basemap-style SSOT')
   }
 }
 
@@ -183,7 +183,9 @@ export const testGeospatialOverlayHostSupportsMapLibreGlobeRenderer = () => {
   if (!text.includes('useMapLibreBasemap')) throw new Error('Expected GeospatialOverlayHost to use MapLibre basemap hook')
   if (!text.includes('basemap3d')) throw new Error('Expected GeospatialOverlayHost to create dedicated 3D basemap instance')
   if (!text.includes("projectionMode: 'globe'")) throw new Error('Expected GeospatialOverlayHost 3D view to use MapLibre globe projection')
-  if (!text.includes('MAPLIBRE_GLOBE_DEFAULT_STYLE_URL')) throw new Error('Expected GeospatialOverlayHost 3D mode to default to a globe style URL')
+  if (!text.includes('resolveEffectiveGeospatialStyleUrl') || !text.includes('normalizeGeospatialViewMode')) {
+    throw new Error('Expected GeospatialOverlayHost 3D mode to route default style resolution through the shared geospatial basemap-style SSOT')
+  }
   if (!text.includes('geospatialViewMode')) throw new Error('Expected host to read geospatialViewMode')
 }
 
@@ -344,12 +346,23 @@ export const testGeospatialOverlayHostClearsStaleDataAndSeparatesClusterSources 
 
 export const testSourceFilesPersistenceUsesContentHashNotLengthOnly = () => {
   const persistencePath = path.resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const signaturesPath = path.resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesSignatures.ts')
   const text = readUtf8(persistencePath)
-  if (!text.includes('hashStringToHex')) {
-    throw new Error('Expected source-files persistence comparator to use text hashing')
+  const signaturesText = readUtf8(signaturesPath)
+  if (!text.includes("from '@/features/source-files/sourceFilesSignatures'")) {
+    throw new Error('Expected source-files persistence bootstrap to reuse the shared source-files signature helper module')
+  }
+  if (!text.includes('areSourceFilesEqualByIdAndHash') || !text.includes('buildSourceFilesPersistenceSignature')) {
+    throw new Error('Expected source-files persistence bootstrap to reuse shared persistence equality and signature helpers')
+  }
+  if (!signaturesText.includes('hashStringToHex(String(item?.text || \'\'))')) {
+    throw new Error('Expected shared source-files persistence hashing to hash canonical text content')
   }
   if (text.includes("String(x?.text || '').length !== String(y?.text || '').length")) {
     throw new Error('Source-files persistence must not compare by text length only')
+  }
+  if (signaturesText.includes("String(x?.text || '').length !== String(y?.text || '').length")) {
+    throw new Error('Shared source-files persistence helpers must not compare by text length only')
   }
 }
 

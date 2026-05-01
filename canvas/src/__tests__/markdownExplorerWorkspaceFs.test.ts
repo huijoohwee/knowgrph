@@ -1,7 +1,7 @@
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { computeMarkdownOutline } from '@/features/markdown-explorer/outline'
-import { computeBacklinks } from '@/features/markdown-explorer/backlinks'
+import { computeBacklinks, computeWorkspaceBacklinks } from '@/features/markdown-explorer/backlinks'
 
 export const testWorkspaceFsSeedAndCrud = async () => {
   const fs = await getWorkspaceFs()
@@ -36,4 +36,16 @@ export const testMarkdownOutlineAndBacklinks = () => {
     ],
   })
   if (backlinks.length !== 2) throw new Error(`Expected 2 backlinks, got ${backlinks.length}`)
+
+  const docKeyBacklinks = computeWorkspaceBacklinks({
+    targetDocKey: 'index.md',
+    entries: [
+      { path: 'index.md', kind: 'file', name: 'index.md', text: 'x' },
+      { path: 'notes-a.md', kind: 'file', name: 'notes-a.md', text: 'see [[index]]' },
+      { path: 'notes-b.md', kind: 'file', name: 'notes-b.md', text: 'see ](index.md)' },
+    ],
+  })
+  if (docKeyBacklinks.length !== 2) {
+    throw new Error(`Expected 2 doc-key backlinks, got ${docKeyBacklinks.length}`)
+  }
 }

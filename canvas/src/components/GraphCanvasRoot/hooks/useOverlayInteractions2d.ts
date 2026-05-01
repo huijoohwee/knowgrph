@@ -13,6 +13,7 @@ import { clampCanvasInteractionSpeedMultiplier, clampCanvasPanSpeedMultiplier } 
 import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/gridSnap'
 import { computeOverlayDraggedPoint2d, computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
+import { readMergedGraphNodeLookup, type MergedGraphNodeLookupCache } from '@/components/GraphCanvasRoot/utils/mergedNodeLookup'
 
 export function useOverlayInteractions2d(args: {
   activeRef: MutableRefObject<boolean>
@@ -20,10 +21,11 @@ export function useOverlayInteractions2d(args: {
   zoomRef: MutableRefObject<d3.ZoomBehavior<SVGSVGElement, unknown> | null>
   simulationRef: MutableRefObject<d3.Simulation<GraphNode, GraphEdge> | null>
   sceneGraphDataRef: MutableRefObject<GraphData | null>
+  graphDataRevision: number
   schemaRef: MutableRefObject<GraphSchema>
   requestOverlaySchedule?: () => void
 }) {
-  const { activeRef, svgRef, zoomRef, simulationRef, sceneGraphDataRef, schemaRef, requestOverlaySchedule } = args
+  const { activeRef, svgRef, zoomRef, simulationRef, sceneGraphDataRef, graphDataRevision, schemaRef, requestOverlaySchedule } = args
 
   const stopEvent = useCallback((event: React.SyntheticEvent) => {
     try {
@@ -35,6 +37,22 @@ export function useOverlayInteractions2d(args: {
 
   const headerDragRef = useRef<null | { id: string; baseX: number; baseY: number; structured: boolean; frozen: boolean; lastDx: number; lastDy: number; workspaceViewModeAtStart: 'canvas' | 'editor' }>(null)
   const overlayPanRef = useRef<null | { pointerId: number; startClientX: number; startClientY: number; startTransform: d3.ZoomTransform }>(null)
+  const overlayNodeLookupRef = useRef<MergedGraphNodeLookupCache>({
+    graphData: null,
+    rev: -1,
+    sim: null,
+    map: new Map(),
+  })
+
+  const readOverlayInteractionNodeById = useCallback(() => {
+    return readMergedGraphNodeLookup({
+      cacheRef: overlayNodeLookupRef,
+      cacheScope: 'graph-canvas-root-overlay-interactions-node-lookup',
+      graphData: sceneGraphDataRef.current,
+      graphRevision: graphDataRevision,
+      simulation: simulationRef.current,
+    })
+  }, [graphDataRevision, sceneGraphDataRef, simulationRef])
 
   const headerDragMoveSchedulerRef = useRef(
     createRafValueScheduler((args0: { dx: number; dy: number }) => {
@@ -44,16 +62,7 @@ export function useOverlayInteractions2d(args: {
       const svgEl = svgRef.current
       if (!svgEl) return
       const sim = simulationRef.current
-      const graph = sceneGraphDataRef.current
-      const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
-      let node: GraphNode | null = null
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        if (String(n?.id || '') === st.id) {
-          node = n
-          break
-        }
-      }
+      const node = readOverlayInteractionNodeById().get(st.id) || null
       if (!node) return
       st.lastDx = args0.dx
       st.lastDy = args0.dy
@@ -127,16 +136,7 @@ export function useOverlayInteractions2d(args: {
       const svgEl = svgRef.current
       if (!svgEl) return
       const sim = simulationRef.current
-      const graph = sceneGraphDataRef.current
-      const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
-      let node: GraphNode | null = null
-      for (let i = 0; i < nodes.length; i += 1) {
-        const n = nodes[i]
-        if (String(n?.id || '') === id) {
-          node = n
-          break
-        }
-      }
+      const node = readOverlayInteractionNodeById().get(id) || null
       if (!node) return
       const x0 = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : 0
       const y0 = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : 0
@@ -166,7 +166,7 @@ export function useOverlayInteractions2d(args: {
       void clientX
       void clientY
     },
-    [activeRef, schemaRef, sceneGraphDataRef, shouldStartHeaderDrag, simulationRef, svgRef],
+    [activeRef, readOverlayInteractionNodeById, schemaRef, shouldStartHeaderDrag, simulationRef, svgRef],
   )
 
   const moveHeaderDrag = useCallback(
@@ -183,16 +183,7 @@ export function useOverlayInteractions2d(args: {
     unlockGlobalUserSelect()
     const svgEl = svgRef.current
     const sim = simulationRef.current
-    const graph = sceneGraphDataRef.current
-    const nodes = sim ? (sim.nodes() as unknown as GraphNode[]) : Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
-    let node: GraphNode | null = null
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]
-      if (String(n?.id || '') === st.id) {
-        node = n
-        break
-      }
-    }
+    const node = readOverlayInteractionNodeById().get(st.id) || null
     if (node && !st.structured) {
       node.fx = null
       node.fy = null
@@ -240,7 +231,7 @@ export function useOverlayInteractions2d(args: {
         void 0
       }
     }
-  }, [schemaRef, sceneGraphDataRef, simulationRef, svgRef])
+  }, [readOverlayInteractionNodeById, schemaRef, simulationRef, svgRef])
 
   const startOverlayPan = useCallback(
     (args0: { pointerId: number; clientX: number; clientY: number }) => {

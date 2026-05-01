@@ -1,9 +1,14 @@
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { FLOW_WIDGET_BUNDLE_KIND, FLOW_WIDGET_BUNDLE_VERSION } from '@/lib/config'
+import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey, readGraphRevision } from '@/lib/graph/semanticKey'
 
 type JsonRecord = Record<string, JSONValue>
 
 type JsonLikeRecord = Record<string, unknown>
+
+const WIDGET_BUNDLE_JSON_TEXT_CACHE_LIMIT = 24
+const widgetBundleJsonTextCache = new Map<string, string>()
 
 export type WidgetBundleV1 = {
   kind: typeof FLOW_WIDGET_BUNDLE_KIND
@@ -79,6 +84,93 @@ export function buildWidgetBundleV1(args: {
     registry,
     ...(graph ? { graph } : {}),
   }
+}
+
+function buildWidgetBundleRegistrySignature(registryEntries: unknown[]): string {
+  const entries = Array.isArray(registryEntries) ? registryEntries : []
+  if (entries.length === 0) return hashSignatureParts(['widget-bundle-registry', 0])
+  const normalized = entries.map(entry => {
+    const record = entry && typeof entry === 'object' && !Array.isArray(entry)
+      ? (entry as Record<string, unknown>)
+      : {}
+    return {
+      id: String(record.id || ''),
+      isEnabled: record.isEnabled === true,
+      nodeTypeId: String(record.nodeTypeId || ''),
+      widgetTypeId: String(record.widgetTypeId || ''),
+      formId: String(record.formId || ''),
+      updatedAt: String(record.updatedAt || ''),
+    }
+  })
+  return hashSignatureParts([
+    'widget-bundle-registry',
+    hashArrayOfObjectsSignature(normalized, {
+      maxItems: Math.max(24, normalized.length),
+      maxKeysPerItem: 6,
+    }),
+  ])
+}
+
+function buildWidgetBundleGraphSignature(args: {
+  graphData?: GraphData | null
+  graphRevision?: number | null
+  graphSemanticKey?: string | null
+}): string {
+  const graphData = args.graphData || null
+  const graphRevision = readGraphRevision(args.graphRevision)
+  const graphSemanticKey = buildScopedGraphSemanticKey('widget-bundle-graph', {
+    graphData,
+    graphRevision,
+    graphSemanticKey: args.graphSemanticKey,
+  })
+  if (!graphData) return hashSignatureParts(['widget-bundle-graph', 0])
+  if (graphSemanticKey) return hashSignatureParts(['widget-bundle-graph', graphSemanticKey])
+  return hashSignatureParts(['widget-bundle-graph', 0])
+}
+
+function readCachedWidgetBundleJsonText(signature: string): string | null {
+  const cached = widgetBundleJsonTextCache.get(signature) || null
+  if (cached == null) return null
+  widgetBundleJsonTextCache.delete(signature)
+  widgetBundleJsonTextCache.set(signature, cached)
+  return cached
+}
+
+function writeCachedWidgetBundleJsonText(signature: string, text: string): string {
+  widgetBundleJsonTextCache.set(signature, text)
+  if (widgetBundleJsonTextCache.size > WIDGET_BUNDLE_JSON_TEXT_CACHE_LIMIT) {
+    const oldestKey = widgetBundleJsonTextCache.keys().next().value
+    if (typeof oldestKey === 'string') widgetBundleJsonTextCache.delete(oldestKey)
+  }
+  return text
+}
+
+export function buildWidgetBundleJsonText(args: {
+  registryEntries: unknown[]
+  graphData?: GraphData | null
+  graphRevision?: number | null
+  graphSemanticKey?: string | null
+}): string {
+  const signature = hashSignatureParts([
+    'widget-bundle-json-text',
+    buildWidgetBundleRegistrySignature(Array.isArray(args.registryEntries) ? args.registryEntries : []),
+    buildWidgetBundleGraphSignature({
+      graphData: args.graphData,
+      graphRevision: args.graphRevision,
+      graphSemanticKey: args.graphSemanticKey,
+    }),
+  ])
+  const cached = readCachedWidgetBundleJsonText(signature)
+  if (cached != null) return cached
+  return writeCachedWidgetBundleJsonText(
+    signature,
+    widgetBundleToJsonText(
+      buildWidgetBundleV1({
+        registryEntries: args.registryEntries,
+        graphData: args.graphData,
+      }),
+    ),
+  )
 }
 
 export function widgetBundleToJsonText(bundle: WidgetBundleV1): string {

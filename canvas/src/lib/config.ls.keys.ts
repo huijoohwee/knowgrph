@@ -35,7 +35,6 @@ export const LS_KEYS = {
   markdownLayoutMode: 'kg:ui:markdown:layoutMode',
   markdownViewerWidthMode: 'kg:ui:markdown:viewerWidthMode',
   markdownDerivedViewerKind: 'kg:ui:markdown:viewer:kind',
-  markdownDerivedViewerMode: 'kg:ui:markdown:viewer:mode',
   workspaceEditorMode: 'kg:ui:workspace:editorMode',
   monacoLanguageJsonEnabled: 'kg:ui:monaco:language:json:enabled',
   monacoLanguageJsonLoadMode: 'kg:ui:monaco:language:json:loadMode',

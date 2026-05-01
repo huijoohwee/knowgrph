@@ -83,9 +83,8 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
               <li className="list-none">
                 <button
                   type="button"
-                  data-kg-panel-action="1"
-                  data-kg-kanban-icon-action="1"
                   className={[
+                    'kg-panel-action-btn kg-panel-icon-btn',
                     'inline-flex items-center justify-center w-7 h-7 rounded-md',
                     'focus:outline-none focus:ring-2 focus:ring-blue-500/40',
                   ].join(' ')}
@@ -135,8 +134,8 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
               >
                 <button
                   type="button"
-                  data-kg-kanban-icon-action="1"
                   className={[
+                    'kg-panel-action-btn',
                     'w-full inline-flex items-center gap-2 text-xs px-2 py-2 rounded-md',
                     UI_THEME_TOKENS.text.secondary,
                     'hover:bg-[var(--kg-panel-action-bg-hover)]',

@@ -7,6 +7,7 @@ import type { GroupKeyOfNode } from './grouping'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import { postFitNodesToViewport } from '@/components/GraphCanvas/layout/postFit'
+import { buildConnectedNodeIdComponents } from '@/components/GraphCanvas/layout/graphConnectivity'
 import { computeRadarGalaxyPositions2d } from '@/lib/graph/radarGalaxyLayout'
 
 type RadialClusterNode = {
@@ -31,12 +32,13 @@ export const applyRadialClusterLayout = (
     const n = nodes[i]
     idToNode.set(String(n.id), n)
   }
-  const visited = new Set<string>()
-  const components: RadialClusterNode[] = []
-  const buildComponent = (rootId: string) => {
+  const buildComponent = (componentNodeIds: string[]) => {
+    const rootId = componentNodeIds[0] || ''
+    if (!rootId) return null
+    const componentNodeIdSet = new Set(componentNodeIds)
+    const visited = new Set<string>([rootId])
     const root: RadialClusterNode = { id: rootId, children: [] }
     const queue: RadialClusterNode[] = [root]
-    visited.add(rootId)
     while (queue.length > 0) {
       const current = queue.shift() as RadialClusterNode
       const neighbors = adj.get(current.id) || new Set<string>()
@@ -44,6 +46,7 @@ export const applyRadialClusterLayout = (
       neighbors.forEach(neighborId => {
         const id = String(neighborId)
         if (!id || visited.has(id)) return
+        if (!componentNodeIdSet.has(id)) return
         if (!idToNode.has(id)) return
         visited.add(id)
         const child: RadialClusterNode = { id, children: [] }
@@ -56,10 +59,14 @@ export const applyRadialClusterLayout = (
     }
     return root
   }
-  for (let i = 0; i < nodes.length; i += 1) {
-    const id = String(nodes[i].id)
-    if (!id || visited.has(id)) continue
-    components.push(buildComponent(id))
+  const componentNodeIds = buildConnectedNodeIdComponents({
+    nodeIds: nodes.map(node => String(node.id || '')),
+    adjacencyByNodeId: adj,
+  })
+  const components: RadialClusterNode[] = []
+  for (let i = 0; i < componentNodeIds.length; i += 1) {
+    const component = buildComponent(componentNodeIds[i])
+    if (component) components.push(component)
   }
   if (!components.length) return
   const treeRoot: RadialClusterNode =

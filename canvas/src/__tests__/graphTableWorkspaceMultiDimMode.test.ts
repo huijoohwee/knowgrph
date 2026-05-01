@@ -3,19 +3,24 @@ import path from 'node:path'
 
 export function testGraphTableWorkspacePreservesMultiDimWorkspaceMode() {
   const filePath = path.resolve(process.cwd(), 'src', 'lib', 'graph-table', 'ui', 'GraphTableWorkspace.impl.tsx')
+  const workspaceModePath = path.resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceEditorMode.ts')
   const text = fs.readFileSync(filePath, { encoding: 'utf8' })
+  const workspaceModeText = fs.readFileSync(workspaceModePath, { encoding: 'utf8' })
 
-  if (!text.includes("if (mode === 'multiDimTable') return 'multiDimTable'")) {
-    throw new Error("expected GraphTableWorkspace to preserve workspaceEditorMode='multiDimTable' during initial view-mode sync")
+  if (!text.includes('toWorkspaceBackedGraphTableViewMode(workspaceTablePreferencesStore.getSnapshot().workspaceEditorMode)')) {
+    throw new Error("expected GraphTableWorkspace to initialize view mode from the shared workspace->table mode mapper")
   }
-  if (!text.includes("workspaceEditorMode === 'multiDimTable' ? 'multiDimTable' : 'table'")) {
-    throw new Error("expected GraphTableWorkspace to keep multiDimTable during workspace preference updates")
+  if (!text.includes('const next = toWorkspaceBackedGraphTableViewMode(workspaceEditorMode)')) {
+    throw new Error("expected GraphTableWorkspace to reuse the shared workspace->table mode mapper during preference updates")
   }
-  if (!text.includes("if (next === 'multiDimTable')")) {
-    throw new Error("expected GraphTableWorkspace view-mode handler to branch on 'multiDimTable'")
+  if (!text.includes('toWorkspaceEditorModeFromGraphTableViewMode(next)')) {
+    throw new Error("expected GraphTableWorkspace view-mode handler to reuse the shared table->workspace mode mapper")
   }
-  if (!text.includes("workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')")) {
-    throw new Error("expected GraphTableWorkspace view-mode handler to write workspaceEditorMode='multiDimTable'")
+  if (!workspaceModeText.includes('export function toWorkspaceBackedGraphTableViewMode(')) {
+    throw new Error('expected workspace editor mode module to expose the shared workspace->table mode mapper')
+  }
+  if (!workspaceModeText.includes('export function toWorkspaceEditorModeFromGraphTableViewMode(')) {
+    throw new Error('expected workspace editor mode module to expose the shared table->workspace mode mapper')
   }
 }
 
@@ -27,8 +32,8 @@ export function testGraphTableViewModeSupportsMultiDimTableSsot() {
   const headerText = fs.readFileSync(headerPath, { encoding: 'utf8' })
   const workspaceModeText = fs.readFileSync(workspaceModePath, { encoding: 'utf8' })
 
-  if (!viewModeText.includes("export type GraphTableViewMode = 'table' | 'multiDimTable' | 'kanban'")) {
-    throw new Error("expected GraphTableViewMode to include 'multiDimTable'")
+  if (!viewModeText.includes("export type GraphTableViewMode = 'table' | 'multiDimTable' | 'kanban' | 'geospatial'")) {
+    throw new Error("expected GraphTableViewMode to keep workspace-backed modes and the geospatial overlay mode in one SSOT")
   }
   if (!viewModeText.includes("if (raw === 'table' || raw === 'multiDimTable' || raw === 'kanban') return raw")) {
     throw new Error("expected parseGraphTableViewMode to accept 'multiDimTable'")
@@ -36,10 +41,10 @@ export function testGraphTableViewModeSupportsMultiDimTableSsot() {
   if (!headerText.includes("{ value: 'multiDimTable', label: UI_COPY.markdownDataViewTitleDefault }")) {
     throw new Error("expected GraphTableWorkspaceHeader to expose a Multi-dimensional Table view option")
   }
-  if (!workspaceModeText.includes("graphTableView === 'multiDimTable' ? 'multiDimTable' : 'table'")) {
-    throw new Error("expected readWorkspaceEditorMode to preserve graphTableViewMode='multiDimTable'")
+  if (!workspaceModeText.includes('toWorkspaceEditorModeFromGraphTableViewMode(graphTableView)')) {
+    throw new Error("expected readWorkspaceEditorMode to normalize graphTableViewMode via the shared table->workspace mapper")
   }
-  if (!workspaceModeText.includes("mode === 'multiDimTable' ? 'multiDimTable' : 'table'")) {
-    throw new Error("expected writeWorkspaceEditorMode to persist graphTableViewMode='multiDimTable'")
+  if (!workspaceModeText.includes('const nextGraphTableMode = toWorkspaceBackedGraphTableViewMode(mode)')) {
+    throw new Error("expected writeWorkspaceEditorMode to persist graphTableViewMode via the shared workspace->table mapper")
   }
 }

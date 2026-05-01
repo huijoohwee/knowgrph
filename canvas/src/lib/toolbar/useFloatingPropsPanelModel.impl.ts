@@ -11,6 +11,7 @@ import { createId } from '@/lib/id'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { getZoomStateForKey } from '@/lib/canvas/zoom-effective'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 type FloatingPanelModel = {
   graphData: GraphData | null
@@ -86,6 +87,7 @@ const getCanvasCenterGraphPoint = () => {
 
 export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const graphData = useActiveGraphRenderData()
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const schema = useGraphStore(s => s.schema as GraphSchema | null)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
@@ -134,19 +136,23 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const [mediaUrl, setMediaUrl] = React.useState<string>('')
   const [mediaInteractive, setMediaInteractive] = React.useState<boolean>(false)
 
+  const graphLookup = React.useMemo(() => {
+    return getCachedGraphLookup({
+      cacheScope: 'floating-props-panel-graph',
+      graphData,
+      graphRevision: graphDataRevision,
+    })
+  }, [graphData, graphDataRevision])
+
   const nodeContextId = selectedNodeId
   const edgeContextId = selectedEdgeId
   const nodeContext = React.useMemo(() => {
-    if (!graphData || !nodeContextId) return null
-    return graphData.nodes.find(n => n.id === nodeContextId) || null
-  }, [graphData, nodeContextId])
+    if (!graphLookup || !nodeContextId) return null
+    return graphLookup.nodeById.get(nodeContextId) || null
+  }, [graphLookup, nodeContextId])
 
-  const canUseNodeContext = Boolean(
-    graphData && nodeContextId && graphData.nodes.some(n => n.id === nodeContextId),
-  )
-  const canUseEdgeContext = Boolean(
-    graphData && edgeContextId && graphData.edges.some(e => e.id === edgeContextId),
-  )
+  const canUseNodeContext = Boolean(graphLookup && nodeContextId && graphLookup.nodeById.has(nodeContextId))
+  const canUseEdgeContext = Boolean(graphLookup && edgeContextId && graphLookup.edgeById.has(edgeContextId))
 
   React.useEffect(() => {
     setNewType(resolvedDefaultType)
@@ -178,8 +184,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   }, [nodeContext])
 
   const doUpdateMedia = React.useCallback(() => {
-    if (!graphData || !nodeContextId) return
-    const current = graphData.nodes.find(n => n.id === nodeContextId)
+    if (!graphLookup || !nodeContextId) return
+    const current = graphLookup.nodeById.get(nodeContextId) || null
     if (!current) return
 
     const nextProps: GraphNode['properties'] = { ...(current.properties || {}) }
@@ -196,7 +202,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     }
 
     updateNode(nodeContextId, { properties: nextProps })
-  }, [graphData, mediaInteractive, mediaKind, mediaUrl, nodeContextId, updateNode])
+  }, [graphLookup, mediaInteractive, mediaKind, mediaUrl, nodeContextId, updateNode])
 
   const doOpenNodeSide = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
@@ -239,8 +245,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   }, [graphData, nodeContextId, setSelectionSource, setWorkspaceViewMode, selectNode])
 
   const doOpenNodeCodeTab = React.useCallback(() => {
-    if (!graphData || !nodeContextId) return
-    const node = graphData.nodes.find(n => n.id === nodeContextId)
+    if (!graphLookup || !nodeContextId) return
+    const node = graphLookup.nodeById.get(nodeContextId) || null
     setSelectionSource('toolbar')
     selectNode(nodeContextId)
     const prov = node ? resolveMarkdownProvenance(node.metadata) : null
@@ -257,7 +263,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
       void 0
     }
   }, [
-    graphData,
+    graphLookup,
     nodeContextId,
     resolveMarkdownProvenance,
     selectNode,
@@ -266,8 +272,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   ])
 
   const doShowNodeInMarkdown = React.useCallback(() => {
-    if (!graphData || !nodeContextId) return
-    const node = graphData.nodes.find(n => n.id === nodeContextId)
+    if (!graphLookup || !nodeContextId) return
+    const node = graphLookup.nodeById.get(nodeContextId) || null
     if (!node) return
     const prov = resolveMarkdownProvenance(node.metadata)
     if (!prov) return
@@ -280,10 +286,10 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     } catch {
       void 0
     }
-  }, [graphData, nodeContextId, resolveMarkdownProvenance, setSelectionSource, setWorkspaceViewMode])
+  }, [graphLookup, nodeContextId, resolveMarkdownProvenance, setSelectionSource, setWorkspaceViewMode])
 
   const doAddToChat = React.useCallback(() => {
-    if (!graphData) return
+    if (!graphData || !graphLookup) return
 
     const serializeValue = (raw: unknown): string => {
       if (raw == null) return 'null'
@@ -302,25 +308,21 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
       return JSON.stringify(String(raw))
     }
 
-    const byId = new Map<string, GraphNode>()
-    graphData.nodes.forEach(n => byId.set(String(n.id), n))
-
-    const nodeId = nodeContextId && byId.has(nodeContextId) ? nodeContextId : null
-    const edgeId = edgeContextId && graphData.edges.some(e => e.id === edgeContextId) ? edgeContextId : null
+    const nodeId = nodeContextId && graphLookup.nodeById.has(nodeContextId) ? nodeContextId : null
+    const edgeId = edgeContextId && graphLookup.edgeById.has(edgeContextId) ? edgeContextId : null
 
     let text = ''
     if (nodeId) {
-      const n = byId.get(nodeId) || null
+      const n = graphLookup.nodeById.get(nodeId) || null
       if (!n) return
       const props = (n.properties || {}) as Record<string, unknown>
       const keys = Object.keys(props).slice(0, 8)
       const propLines = keys.map(k => `- ${k}: ${serializeValue(props[k])}`)
-      const incident = graphData.edges
-        .filter(e => String(e.source) === nodeId || String(e.target) === nodeId)
+      const incident = (graphLookup.incidentEdgesByNodeId.get(nodeId) || [])
         .slice(0, 8)
         .map(e => {
-          const src = byId.get(String(e.source))
-          const tgt = byId.get(String(e.target))
+          const src = graphLookup.nodeById.get(String(e.source))
+          const tgt = graphLookup.nodeById.get(String(e.target))
           const srcLabel = String(src?.label || src?.id || e.source || '')
           const tgtLabel = String(tgt?.label || tgt?.id || e.target || '')
           return `[${srcLabel}] --[${String(e.label || 'rel')}]--> [${tgtLabel}]`
@@ -335,10 +337,10 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
         .filter(Boolean)
         .join('\n')
     } else if (edgeId) {
-      const e = graphData.edges.find(x => x.id === edgeId) || null
+      const e = graphLookup.edgeById.get(edgeId) || null
       if (!e) return
-      const src = byId.get(String(e.source))
-      const tgt = byId.get(String(e.target))
+      const src = graphLookup.nodeById.get(String(e.source))
+      const tgt = graphLookup.nodeById.get(String(e.target))
       const srcLabel = String(src?.label || src?.id || e.source || '')
       const tgtLabel = String(tgt?.label || tgt?.id || e.target || '')
       const props = (e.properties || {}) as Record<string, unknown>
@@ -359,7 +361,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     emitSidePanelOpen({ tab: 'chat', open: true })
     const wrapped = ['Selection context (from canvas):', '', '````text', text, '````'].join('\n')
     emitChatInputAppend({ text: wrapped, mode: 'append' })
-  }, [edgeContextId, graphData, nodeContextId])
+  }, [edgeContextId, graphData, graphLookup, nodeContextId])
 
   const doStartEdgeFromNode = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
@@ -369,8 +371,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   }, [graphData, nodeContextId, setSelectionSource, selectNode, requestEdgeCreation])
 
   const doCreateNodeAndEdge = React.useCallback(() => {
-    if (!graphData || !nodeContextId) return
-    const start = graphData.nodes.find(x => x.id === nodeContextId)
+    if (!graphLookup || !nodeContextId) return
+    const start = graphLookup.nodeById.get(nodeContextId) || null
     if (!start) return
     const tpl = (schema?.templates?.node || {})[newType] || {}
     const newNodeId = createId('n')
@@ -397,7 +399,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     addEdge(edge)
     setSelectionSource('toolbar')
     selectEdge(edge.id)
-  }, [addEdge, addNode, defaultEdgeLabel, graphData, newLabel, newType, nodeContextId, schema, selectEdge, setSelectionSource])
+  }, [addEdge, addNode, defaultEdgeLabel, graphLookup, newLabel, newType, nodeContextId, schema, selectEdge, setSelectionSource])
 
   const doDeleteNode = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
@@ -405,46 +407,46 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   }, [graphData, nodeContextId, removeNode])
 
   const doOpenSourceSide = React.useCallback(() => {
-    if (!graphData || !edgeContextId) return
-    const e = graphData.edges.find(x => x.id === edgeContextId)
+    if (!graphLookup || !edgeContextId) return
+    const e = graphLookup.edgeById.get(edgeContextId) || null
     if (!e) return
     const srcId = e.source
     setSelectionSource('toolbar')
     emitSidePanelOpen({ tab: 'node', open: true })
     selectNode(srcId)
-  }, [edgeContextId, graphData, selectNode, setSelectionSource])
+  }, [edgeContextId, graphLookup, selectNode, setSelectionSource])
 
   const doOpenTargetSide = React.useCallback(() => {
-    if (!graphData || !edgeContextId) return
-    const e = graphData.edges.find(x => x.id === edgeContextId)
+    if (!graphLookup || !edgeContextId) return
+    const e = graphLookup.edgeById.get(edgeContextId) || null
     if (!e) return
     const tgtId = e.target
     setSelectionSource('toolbar')
     emitSidePanelOpen({ tab: 'node', open: true })
     selectNode(tgtId)
-  }, [edgeContextId, graphData, selectNode, setSelectionSource])
+  }, [edgeContextId, graphLookup, selectNode, setSelectionSource])
 
   const doUpdateSource = React.useCallback(() => {
-    if (!graphData || !edgeContextId) return
-    const e = graphData.edges.find(x => x.id === edgeContextId)
+    if (!graphLookup || !edgeContextId) return
+    const e = graphLookup.edgeById.get(edgeContextId) || null
     if (!e) return
-    const src = graphData.nodes.find(n => n.id === e.source)
+    const src = graphLookup.nodeById.get(String(e.source)) || null
     if (!src) return
     setSelectionSource('toolbar')
     selectEdge(e.id)
     requestEdgeCreation({ type: 'update-source', fromId: src.id })
-  }, [edgeContextId, graphData, requestEdgeCreation, selectEdge, setSelectionSource])
+  }, [edgeContextId, graphLookup, requestEdgeCreation, selectEdge, setSelectionSource])
 
   const doUpdateTarget = React.useCallback(() => {
-    if (!graphData || !edgeContextId) return
-    const e = graphData.edges.find(x => x.id === edgeContextId)
+    if (!graphLookup || !edgeContextId) return
+    const e = graphLookup.edgeById.get(edgeContextId) || null
     if (!e) return
-    const tgt = graphData.nodes.find(n => n.id === e.target)
+    const tgt = graphLookup.nodeById.get(String(e.target)) || null
     if (!tgt) return
     setSelectionSource('toolbar')
     selectEdge(e.id)
     requestEdgeCreation({ type: 'update-target', fromId: tgt.id })
-  }, [edgeContextId, graphData, requestEdgeCreation, selectEdge, setSelectionSource])
+  }, [edgeContextId, graphLookup, requestEdgeCreation, selectEdge, setSelectionSource])
 
   const doOpenEdgeEdgesTab = React.useCallback(() => {
     if (!graphData || !edgeContextId) return
@@ -454,8 +456,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   }, [edgeContextId, graphData, selectEdge, setSelectionSource, setWorkspaceViewMode])
 
   const doOpenEdgeCodeTab = React.useCallback(() => {
-    if (!graphData || !edgeContextId) return
-    const edge = graphData.edges.find(e => e.id === edgeContextId)
+    if (!graphLookup || !edgeContextId) return
+    const edge = graphLookup.edgeById.get(edgeContextId) || null
     setSelectionSource('toolbar')
     selectEdge(edgeContextId)
     const prov = edge ? resolveMarkdownProvenance(edge.metadata) : null
@@ -473,7 +475,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     }
   }, [
     edgeContextId,
-    graphData,
+    graphLookup,
     resolveMarkdownProvenance,
     selectEdge,
     setSelectionSource,
@@ -481,8 +483,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   ])
 
   const doShowEdgeInMarkdown = React.useCallback(() => {
-    if (!graphData || !edgeContextId) return
-    const edge = graphData.edges.find(e => e.id === edgeContextId)
+    if (!graphLookup || !edgeContextId) return
+    const edge = graphLookup.edgeById.get(edgeContextId) || null
     if (!edge) return
     const prov = resolveMarkdownProvenance(edge.metadata)
     if (!prov) return
@@ -495,7 +497,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     } catch {
       void 0
     }
-  }, [edgeContextId, graphData, resolveMarkdownProvenance, setSelectionSource, setWorkspaceViewMode])
+  }, [edgeContextId, graphLookup, resolveMarkdownProvenance, setSelectionSource, setWorkspaceViewMode])
 
   const doAddNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}
@@ -517,8 +519,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   }, [addNode, newLabel, newType, schema, selectNode, setSelectionSource])
 
   const doAddNodePlusEdgeFromSelected = React.useCallback(() => {
-    if (!graphData || !nodeContextId) return
-    const start = graphData.nodes.find(n => n.id === nodeContextId)
+    if (!graphData || !graphLookup || !nodeContextId) return
+    const start = graphLookup.nodeById.get(nodeContextId) || null
     if (!start) return
     const tpl = (schema?.templates?.node || {})[newType] || {}
     const newNodeId = createId('n')
@@ -549,22 +551,24 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
       setSelectionSource('toolbar')
       selectEdge(newEdgeId)
     } else {
-      const dup = graphData.edges.find(e => e.source === start.id && e.target === newNodeId && e.label === resolvedEdgeLabel)
+      const dup = (graphLookup.incidentEdgesByNodeId.get(start.id) || []).find(
+        e => e.source === start.id && e.target === newNodeId && e.label === resolvedEdgeLabel,
+      )
       if (dup) {
         setSelectionSource('toolbar')
         selectEdge(dup.id)
       }
     }
-  }, [addEdge, addNode, defaultEdgeLabel, graphData, newEdgeLabel, newLabel, newType, nodeContextId, schema, selectEdge, setSelectionSource])
+  }, [addEdge, addNode, defaultEdgeLabel, graphData, graphLookup, newEdgeLabel, newLabel, newType, nodeContextId, schema, selectEdge, setSelectionSource])
 
   const doStartEdgeFromSelected = React.useCallback(() => {
-    if (!graphData || !nodeContextId) return
-    const src = graphData.nodes.find(n => n.id === nodeContextId)
+    if (!graphLookup || !nodeContextId) return
+    const src = graphLookup.nodeById.get(nodeContextId) || null
     if (!src) return
     setSelectionSource('toolbar')
     selectNode(nodeContextId)
     requestEdgeCreation({ type: 'create', fromId: src.id })
-  }, [graphData, nodeContextId, requestEdgeCreation, selectNode, setSelectionSource])
+  }, [graphLookup, nodeContextId, requestEdgeCreation, selectNode, setSelectionSource])
 
   const doAddMediaNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}

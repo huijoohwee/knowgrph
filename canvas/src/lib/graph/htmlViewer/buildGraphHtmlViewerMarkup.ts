@@ -57,6 +57,28 @@ const readNumAttr = (el: Element, name: string): number | null => {
   return Number.isFinite(n) ? n : null
 }
 
+const readMarkdownOverlayIdFromElement = (el: Element): string => {
+  return String(el.getAttribute('data-md-id') || '').trim()
+}
+
+const readMarkdownOverlayAnchorNodeIdFromElement = (el: Element): string => {
+  return String(el.getAttribute('data-kg-anchor-node-id') || '').trim()
+}
+
+const canonicalizeMarkdownOverlayElement = (el: Element, args: { id: string; anchorNodeId?: string }): void => {
+  try {
+    el.setAttribute('data-md-id', args.id)
+  } catch {
+    void 0
+  }
+  try {
+    if (args.anchorNodeId) el.setAttribute('data-kg-anchor-node-id', args.anchorNodeId)
+    else el.removeAttribute('data-kg-anchor-node-id')
+  } catch {
+    void 0
+  }
+}
+
 const inferMediaKind = (rawUrl: string): HtmlViewerMediaNode['kind'] => {
   const inferred = inferMediaKindFromUrl(rawUrl)
   if (inferred === 'image' || inferred === 'svg' || inferred === 'video') return inferred
@@ -212,6 +234,9 @@ const filterStandaloneOverlayHtml = (args: {
       const cleaned = String(tag || '').replace(new RegExp(`\\s${name}=(?:"[^"]*"|'[^']*')`, 'i'), '')
       return cleaned.replace(/>$/, ` ${name}="${value}">`)
     }
+    const stripAttr = (tag: string, name: string): string => {
+      return String(tag || '').replace(new RegExp(`\\s${name}=(?:"[^"]*"|'[^']*')`, 'ig'), '')
+    }
     const readAttr = (tag: string, name: string): string => {
       const s = String(tag || '')
       const key1 = `${name}="`
@@ -229,6 +254,13 @@ const filterStandaloneOverlayHtml = (args: {
         return end > start ? s.slice(start, end).trim() : ''
       }
       return ''
+    }
+    const canonicalizeMarkdownOverlayTag = (tag: string, id: string, anchorNodeId: string): string => {
+      let nextTag = tag
+      nextTag = stripAttr(nextTag, 'data-kg-anchor-node-id')
+      nextTag = upsertAttr(nextTag, 'data-md-id', id)
+      if (anchorNodeId) nextTag = upsertAttr(nextTag, 'data-kg-anchor-node-id', anchorNodeId)
+      return nextTag
     }
     const out: string[] = []
     let sawOverlayCandidate = false
@@ -251,26 +283,20 @@ const filterStandaloneOverlayHtml = (args: {
         mediaBestByKey.set(key, { chunk: normalized, score })
       }
     }
-    const mdRe = /<article\b[^>]*(?:data-kg-markdown-design-block|data-md-id)[^>]*>[\s\S]*?<\/article>/gi
+    const mdRe = /<article\b[^>]*data-md-id[^>]*>[\s\S]*?<\/article>/gi
     let mdm: RegExpExecArray | null = null
     while ((mdm = mdRe.exec(text))) {
       sawOverlayCandidate = true
       const chunk = mdm[0] || ''
       const tag = chunk.match(/<article\b[^>]*>/i)?.[0] || ''
-      const idRaw = readAttr(tag, 'data-kg-markdown-design-block') || readAttr(tag, 'data-md-id')
-      const anchorRaw = readAttr(tag, 'data-kg-anchor-node-id') || readAttr(tag, 'data-node-id')
+      const idRaw = readAttr(tag, 'data-md-id')
+      const anchorRaw = readAttr(tag, 'data-kg-anchor-node-id')
       const idNorm = args.resolveOverlayNodeId(idRaw)
       const anchorNorm = args.resolveOverlayNodeId(anchorRaw)
       const key = buildMarkdownOverlayKey({ idRaw, idNorm, anchorRaw, anchorNorm })
       if (!key) continue
       if (!args.shouldKeepOverlayLinkedToGraph({ nodeId: idNorm || idRaw, anchorNodeId: anchorNorm || anchorRaw })) continue
-      let nextTag = tag
-      if (idNorm) {
-        nextTag = upsertAttr(nextTag, 'data-md-id', idNorm)
-      }
-      if (anchorNorm) {
-        nextTag = upsertAttr(nextTag, 'data-kg-anchor-node-id', anchorNorm)
-      }
+      const nextTag = canonicalizeMarkdownOverlayTag(tag, idNorm || idRaw, anchorNorm || anchorRaw)
       const normalized = chunk.replace(tag, nextTag)
       const score = readStyleScore(readAttr(tag, 'style'))
       const prev = mdBestByKey.get(key)
@@ -334,11 +360,11 @@ const filterStandaloneOverlayHtml = (args: {
       if ((keep?.score ?? 0) <= -100) el.remove()
     }
     const mdBestByKey = new Map<string, { el: Element; score: number }>()
-    const mdEls = root.querySelectorAll('[data-kg-markdown-design-block],[data-md-id],[data-node-id][data-kg-md-panel]')
+    const mdEls = root.querySelectorAll('article[data-md-id]')
     for (let i = 0; i < mdEls.length; i += 1) {
       const el = mdEls[i] as Element
-      const idRaw = String(el.getAttribute('data-kg-markdown-design-block') || el.getAttribute('data-md-id') || '').trim()
-      const anchorRaw = String(el.getAttribute('data-kg-anchor-node-id') || el.getAttribute('data-node-id') || '').trim()
+      const idRaw = readMarkdownOverlayIdFromElement(el)
+      const anchorRaw = readMarkdownOverlayAnchorNodeIdFromElement(el)
       const idNorm = args.resolveOverlayNodeId(idRaw)
       const anchorNorm = args.resolveOverlayNodeId(anchorRaw)
       const key = buildMarkdownOverlayKey({ idRaw, idNorm, anchorRaw, anchorNorm })
@@ -352,26 +378,13 @@ const filterStandaloneOverlayHtml = (args: {
       if (!prev || score > prev.score) {
         mdBestByKey.set(key, { el, score })
       }
-      if (idNorm) {
-        try {
-          el.setAttribute('data-md-id', idNorm)
-        } catch {
-          void 0
-        }
-      }
-      if (anchorNorm) {
-        try {
-          el.setAttribute('data-kg-anchor-node-id', anchorNorm)
-        } catch {
-          void 0
-        }
-      }
+      canonicalizeMarkdownOverlayElement(el, { id: idNorm || idRaw, anchorNodeId: anchorNorm || anchorRaw })
     }
     for (let i = 0; i < mdEls.length; i += 1) {
       const el = mdEls[i] as Element
       if (!el || !el.isConnected) continue
-      const idRaw = String(el.getAttribute('data-kg-markdown-design-block') || el.getAttribute('data-md-id') || '').trim()
-      const anchorRaw = String(el.getAttribute('data-kg-anchor-node-id') || el.getAttribute('data-node-id') || '').trim()
+      const idRaw = readMarkdownOverlayIdFromElement(el)
+      const anchorRaw = readMarkdownOverlayAnchorNodeIdFromElement(el)
       const idNorm = args.resolveOverlayNodeId(idRaw)
       const anchorNorm = args.resolveOverlayNodeId(anchorRaw)
       const key = buildMarkdownOverlayKey({ idRaw, idNorm, anchorRaw, anchorNorm })
@@ -532,18 +545,18 @@ export async function buildGraphHtmlViewerMarkup(args: {
         })
       }
 
-      const mdTagRe = /<article\b[^>]*(?:data-kg-markdown-design-block|data-md-id)[^>]*>/gi
+      const mdTagRe = /<article\b[^>]*data-md-id[^>]*>/gi
       let mdm: RegExpExecArray | null = null
       while ((mdm = mdTagRe.exec(overlayHtmlFiltered))) {
         const tag = mdm[0] || ''
-        const id = readAttr(tag, 'data-kg-markdown-design-block') || readAttr(tag, 'data-md-id')
+        const id = readAttr(tag, 'data-md-id')
         if (!id) continue
         const x = Number(readAttr(tag, 'data-kg-world-x'))
         const y = Number(readAttr(tag, 'data-kg-world-y'))
         const w = Number(readAttr(tag, 'data-kg-world-w'))
         const h = Number(readAttr(tag, 'data-kg-world-h'))
         if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h) || !(w > 0) || !(h > 0)) continue
-        const anchorNodeId = resolveOverlayNodeId(readAttr(tag, 'data-kg-anchor-node-id') || readAttr(tag, 'data-node-id'))
+        const anchorNodeId = resolveOverlayNodeId(readAttr(tag, 'data-kg-anchor-node-id'))
         markdownBlocks.push({
           id,
           anchorNodeId: anchorNodeId || undefined,
@@ -589,7 +602,6 @@ export async function buildGraphHtmlViewerMarkup(args: {
           ? (kindAttr as HtmlViewerMediaNode['kind'])
           : inferMediaKind(url)
         const title =
-          String(el.getAttribute('data-kg-title') || '').trim() ||
           String((el.querySelector('.kg-mediaTitle') as HTMLElement | null)?.textContent || '').trim() ||
           id
         mediaNodes.push({
@@ -602,17 +614,17 @@ export async function buildGraphHtmlViewerMarkup(args: {
         })
       }
 
-      const mdEls = root.querySelectorAll('[data-kg-markdown-design-block],[data-md-id]')
+      const mdEls = root.querySelectorAll('[data-md-id]')
       for (let i = 0; i < mdEls.length; i += 1) {
         const el = mdEls[i] as Element
-        const id = String(el.getAttribute('data-kg-markdown-design-block') || el.getAttribute('data-md-id') || '').trim()
+        const id = String(el.getAttribute('data-md-id') || '').trim()
         if (!id) continue
         const x = readNumAttr(el, 'data-kg-world-x')
         const y = readNumAttr(el, 'data-kg-world-y')
         const w = readNumAttr(el, 'data-kg-world-w')
         const h = readNumAttr(el, 'data-kg-world-h')
         if (!isFiniteNum(x) || !isFiniteNum(y) || !isFiniteNum(w) || !isFiniteNum(h) || !(w > 0) || !(h > 0)) continue
-        const anchorRaw = String(el.getAttribute('data-kg-anchor-node-id') || el.getAttribute('data-node-id') || '').trim()
+        const anchorRaw = String(el.getAttribute('data-kg-anchor-node-id') || '').trim()
         const anchorNodeId = resolveOverlayNodeId(anchorRaw)
         const title =
           String((el.querySelector('.kg-mdTitle') as HTMLElement | null)?.textContent || '').trim() ||
@@ -887,6 +899,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     const graph = args.graphData
     const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
     const out: Record<string, { x: number; y: number }> = {}
+    const explicitNodePosIdSet = new Set<string>()
     for (let i = 0; i < nodes.length; i += 1) {
       const n = nodes[i]
       const id = String(n?.id || '').trim()
@@ -894,6 +907,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
       const x = (n as unknown as { x?: unknown }).x
       const y = (n as unknown as { y?: unknown }).y
       if (!isFiniteNum(x) || !isFiniteNum(y)) continue
+      explicitNodePosIdSet.add(id)
       out[id] = { x, y }
     }
     const fromSvg = extractNodePosByIdFromSvgMarkup(svgMarkupRaw)
@@ -908,9 +922,9 @@ export async function buildGraphHtmlViewerMarkup(args: {
       const cx = x + w * 0.5
       const cy = y + h * 0.5
       const bid = String(b.id || '').trim()
-      if (bid && !out[bid]) out[bid] = { x: cx, y: cy }
+      if (bid && !explicitNodePosIdSet.has(bid)) out[bid] = { x: cx, y: cy }
       const anchor = resolveOverlayNodeId(String(b.anchorNodeId || '').trim())
-      if (anchor && !out[anchor]) out[anchor] = { x: cx, y: cy }
+      if (anchor && !explicitNodePosIdSet.has(anchor)) out[anchor] = { x: cx, y: cy }
     }
     return out
   })()
@@ -1103,11 +1117,6 @@ export async function buildGraphHtmlViewerMarkup(args: {
     .kg-media{position:absolute;left:0;top:0;box-sizing:border-box;overflow:hidden;contain:layout paint;isolation:isolate;border-radius:var(--kg-media-panel-radius, 10px);border:var(--kg-media-panel-border-w, 1px) solid var(--kg-border);background:var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.92)));box-shadow:0 10px 30px rgba(0,0,0,0.18);backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:left, top, transform, width, height;display:flex;flex-direction:column;pointer-events:auto}
     .kg-mediaHeader{height:var(--kg-media-panel-header-h, 28px);min-height:var(--kg-media-panel-header-h, 28px);box-sizing:border-box;display:flex;align-items:flex-start;justify-content:space-between;gap:var(--kg-media-panel-header-gap, 6px);padding-left:var(--kg-media-panel-padding, 6px);padding-right:var(--kg-media-panel-padding, 6px);padding-top:2px;padding-bottom:2px;background:var(--kg-media-panel-header-bg, var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.96))));color:var(--kg-text-primary, var(--kg-text));font-size:var(--kg-media-panel-title-size, 12px);font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;pointer-events:auto;cursor:grab;touch-action:none}
     .kg-mediaTitle{margin:0;min-width:0;font-size:var(--kg-media-panel-title-size, 12px);font-weight:600;line-height:1.25;color:var(--kg-text-primary, var(--kg-text));white-space:nowrap;text-overflow:ellipsis;overflow:hidden;pointer-events:none}
-    .kg-mediaActions{margin:0;padding:0;list-style:none;display:flex;align-items:center;gap:4px;pointer-events:auto}
-    .kg-mediaActionBtn{width:calc(var(--kg-media-panel-header-h, 28px) - 6px);height:calc(var(--kg-media-panel-header-h, 28px) - 6px);min-width:calc(var(--kg-media-panel-header-h, 28px) - 6px);min-height:calc(var(--kg-media-panel-header-h, 28px) - 6px);border-radius:6px;color:var(--kg-text-secondary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto}
-    button[data-kg-panel-action="1"]{background:var(--kg-panel-action-bg);border:1px solid var(--kg-border);transition:var(--kg-transition-action, transform var(--kg-motion-fast, 140ms) var(--kg-motion-ease, ease), box-shadow var(--kg-motion-fast, 140ms) var(--kg-motion-ease, ease), background var(--kg-motion-fast, 140ms) var(--kg-motion-ease, ease));touch-action:manipulation}
-    button[data-kg-panel-action="1"]:hover{background:var(--kg-panel-action-bg-hover)}
-    button[data-kg-panel-action="1"]:active{transform:translateY(1px)}
     .kg-mediaBody{flex:1;padding:var(--kg-media-panel-padding, 6px);box-sizing:border-box;min-height:0;position:relative}
     .kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video{display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius) * 0.8);background:rgba(0,0,0,0.02);pointer-events:var(--kg-media-pointer-events);box-sizing:border-box}
     .kg-mediaSnap{position:absolute;inset:var(--kg-media-panel-padding, 6px);border-radius:calc(var(--kg-media-panel-radius) * 0.8);overflow:hidden;background:linear-gradient(135deg, rgba(15,23,42,0.06), rgba(148,163,184,0.10));border:1px solid rgba(0,0,0,0.06);display:flex;align-items:stretch;justify-content:stretch;pointer-events:none}
