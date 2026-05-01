@@ -10,8 +10,10 @@ export function readEnvString(key: string, defaultValue: string): string {
     if (trimmed.length > 0) return trimmed
   }
 
-  const processRaw =
-    typeof process !== 'undefined' && process.env ? process.env[key] : undefined
+  const processRaw = (() => {
+    const processLike = globalThis as { process?: { env?: Record<string, unknown> } }
+    return processLike.process?.env?.[key]
+  })()
   if (typeof processRaw === 'string') {
     const trimmed = processRaw.trim()
     if (trimmed.length > 0) return trimmed
