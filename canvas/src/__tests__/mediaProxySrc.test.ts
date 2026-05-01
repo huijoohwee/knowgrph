@@ -1,3 +1,4 @@
+import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
 import { applyMediaProxySrc, MEDIA_PROXY_ENDPOINT } from '@/lib/url'
 import { applyImageLikeProxySrc } from '@/lib/url'
 
@@ -71,4 +72,11 @@ export const testApplyImageLikeProxySkipsBinaryDownloadProxy = () => {
   const src = '/__binary_download_proxy?url=https%3A%2F%2Fexample.com%2Fdemo.png'
   const out = applyImageLikeProxySrc(src)
   if (out !== src) throw new Error('expected binary download proxy path to be preserved')
+}
+
+export const testInferMediaKindFromUrlUsesProxyUrlParameter = () => {
+  const video = inferMediaKindFromUrl('/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.mp4')
+  if (video !== 'video') throw new Error(`expected proxied generated video to infer video, got ${String(video)}`)
+  const image = inferMediaKindFromUrl('/__binary_download_proxy?url=https%3A%2F%2Fexample.com%2Fframe.webp')
+  if (image !== 'image') throw new Error(`expected proxied generated image to infer image, got ${String(image)}`)
 }

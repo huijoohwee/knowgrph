@@ -42,20 +42,20 @@ export function testWorkspaceEditorOverlayDoesNotMutateDesignCanvasLayout() {
   const text = readFileSync(p, 'utf8')
   const cleanupPath = resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useGlobalInteractionCleanup.ts')
   const cleanupText = readFileSync(cleanupPath, 'utf8')
-  if (!text.includes("const workspaceEditorOverlayMode = snapshot.workspaceViewMode === 'editor'")) {
-    throw new Error('expected DesignCanvas to derive explicit workspace editor overlay mode state')
+  if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode: snapshot.workspaceViewMode, workspaceCanvasPaneOpen: snapshot.workspaceCanvasPaneOpen })')) {
+    throw new Error('expected DesignCanvas to derive explicit workspace editor overlay-open state from the canonical SSOT')
   }
-  if (!text.includes('const interactionActive = active && !workspaceEditorOverlayMode')) {
-    throw new Error('expected DesignCanvas interactions to be gated by workspace editor overlay mode')
+  if (!text.includes('const interactionActive = active && !workspaceEditorOverlayOpen')) {
+    throw new Error('expected DesignCanvas interactions to be gated only by actual workspace editor overlay-open state')
   }
-  if (!text.includes('const workspaceEditorOverlayEnabled = workspaceEditorOverlayMode && active && !!String(snapshot.markdownDocumentText || \'\').trim()')) {
-    throw new Error('expected DesignCanvas markdown workspace overlay to enable only in workspace editor mode')
+  if (!text.includes('const workspaceEditorOverlayEnabled = workspaceEditorOverlayOpen && active && !!String(snapshot.markdownDocumentText || \'\').trim()')) {
+    throw new Error('expected DesignCanvas markdown workspace overlay to enable only while the workspace editor overlay is open')
   }
   if (!text.includes('event.stopPropagation()')) {
     throw new Error('expected DesignCanvas workspace overlay events to stop propagation before reaching the canvas underneath')
   }
-  if (!text.includes('const arrangeActionsActive = active && !workspaceEditorOverlayMode')) {
-    throw new Error('expected arrange actions to disable while workspace editor overlay is active')
+  if (!text.includes('const arrangeActionsActive = active && !workspaceEditorOverlayOpen')) {
+    throw new Error('expected arrange actions to disable only while workspace editor overlay is actually open')
   }
   if (!text.includes('arrangeActionsActive={arrangeActionsActive}')) {
     throw new Error('expected DesignCanvas to forward overlay-gated arrange action state')
@@ -94,8 +94,11 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   const uiInitialStateText = readFileSync(uiInitialStatePath, 'utf8')
   const workspaceToolbarPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')
   const workspaceToolbarText = readFileSync(workspaceToolbarPath, 'utf8')
-  if (!text.includes("const workspaceEditorOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen")) {
+  if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
     throw new Error('expected Canvas page to derive overlay-open state from canonical store state only')
+  }
+  if (!text.includes('{!workspaceEditorOverlayOpen ? (')) {
+    throw new Error('expected Canvas toolbar visibility to depend on overlay-open state, not workspace editor mode alone')
   }
   if (text.includes('effectiveWorkspaceViewMode')) {
     throw new Error('expected Canvas page not to keep stale effective workspace mode aliases after query bootstrap')

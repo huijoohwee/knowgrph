@@ -5,6 +5,7 @@ import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 import {
   GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT,
@@ -483,6 +484,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
+  const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
   const isFlowEditorRenderer = useGraphStore(s => String(s.canvas2dRenderer || '') === 'flowEditor')
@@ -495,12 +497,11 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     props.flowEditorFrontmatterDocumentMode === true || flowEditorFrontmatterDocumentModeFromStore
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
-  const flowEditorInteractionMode = props.flowEditorInteractionMode === true || flowEditorFrontmatterDocumentMode
+  const flowEditorOverlayProxyMode = props.flowEditorInteractionMode === true
+  const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode
   const panelControlsHidden = isFlowEditorRenderer !== true
-  const editorMode = workspaceViewMode === 'editor'
-  // In Flow Editor frontmatter document mode, panel content should stay scrollable/interactive
-  // like MainPanel settings surfaces instead of being blanket-disabled by workspace editor mode.
-  const allowPanelContentPointerEvents = !editorMode || flowEditorInteractionMode === true || isFlowEditorRenderer === true
+  const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
+  const allowPanelContentPointerEvents = !workspaceEditorOverlayOpen || flowEditorInteractionMode === true || isFlowEditorRenderer === true
   const allowEmbedFromStore = richMediaPanelMode === 'embed' || infiniteCanvasInteractionMode === 'interactive'
   const preferEmbed = allowEmbedFromStore && props.interactive !== false
   const installWheelForwarding =
@@ -540,6 +541,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     !!installOverlayPan
     || !!installHeaderDrag
     || typeof props.forwardWheelTo === 'function'
+  const flowEditorRichMediaOverlayRoot = flowEditorInteractionMode || canvasOverlayProxyEnabled
   const fallbackToRawSrc = React.useCallback(() => {
     if (!rawUrl || rawUrl === mediaSrc) return false
     setMediaSrc(rawUrl)
@@ -554,8 +556,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const contentInteractive =
     (preferEmbed || (props.interactive !== false && !isSnapshotIframe && !isSnapshotVideo && !isSnapshotStaticMedia))
     && (!hideUntilReady || ready)
-  const canClickToOpen = !headerPassthrough && kind !== 'video' && !contentInteractive && !!safeOpenUrl
-  const allowClickToOpenOverlay = canClickToOpen && !editorMode
+  const canClickToOpen = !headerPassthrough && kind !== 'video' && kind !== 'image' && kind !== 'svg' && !contentInteractive && !!safeOpenUrl
+  const allowClickToOpenOverlay = canClickToOpen && !workspaceEditorOverlayOpen
 
   const setRefs = React.useCallback((el: HTMLElement | null) => {
     rootRef.current = el
@@ -880,7 +882,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           background: 'var(--kg-panel-bg, rgba(255,255,255,0.92))',
         }
       : null),
-    pointerEvents: shouldHideSurfaceUntilReady ? 'none' : (headerPassthrough ? 'none' : (editorMode ? 'auto' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'))),
+    pointerEvents: shouldHideSurfaceUntilReady ? 'none' : (headerPassthrough ? 'none' : (workspaceEditorOverlayOpen ? 'auto' : ((contentInteractive || canClickToOpen) ? 'auto' : 'none'))),
     opacity: shouldHideSurfaceUntilReady ? 0 : 1,
     transition: 'opacity 180ms ease-out',
     ...(props.style || null),
@@ -902,7 +904,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
-            pointerEvents: editorMode ? 'auto' : 'auto',
+            pointerEvents: 'auto',
           }}
           onPointerDownCapture={e => {
             try {
@@ -1015,13 +1017,13 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
             markdownViewerWidthMode="wide"
           />
         </section>
-      ) : isEmptyPanel ? (
-        <RichMediaEmptyCardPlaceholder variant={expectedEmptyPlaceholderVariant} />
       ) : panelIsLoading ? (
         <RichMediaLoadingSkeleton
           label={panelLoadingLabel}
           variant={loadingSkeletonVariant}
         />
+      ) : isEmptyPanel ? (
+        <RichMediaEmptyCardPlaceholder variant={expectedEmptyPlaceholderVariant} />
       ) : kind === 'iframe' ? (
         effectiveInlineSrcDoc ? (
           <iframe
@@ -1184,7 +1186,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         data-kg-url={rawUrl}
         data-kg-open-url={openUrl}
         data-kg-rich-media-render-surface="1"
-        data-kg-rich-media-overlay={canvasOverlayProxyEnabled ? '1' : undefined}
+        data-kg-rich-media-overlay={flowEditorRichMediaOverlayRoot ? '1' : undefined}
         data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}
         data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
         data-kg-flow-editor-mode={flowEditorInteractionMode ? '1' : undefined}
@@ -1216,7 +1218,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       data-kg-kind={kind}
       data-kg-url={rawUrl}
       data-kg-open-url={openUrl}
-      data-kg-rich-media-overlay={canvasOverlayProxyEnabled ? '1' : undefined}
+      data-kg-rich-media-overlay={flowEditorRichMediaOverlayRoot ? '1' : undefined}
       data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}
       data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
       data-kg-flow-editor-mode={flowEditorInteractionMode ? '1' : undefined}

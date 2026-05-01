@@ -139,6 +139,7 @@ export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitR
   const flowEditorSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
   const flowCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
+  const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const editorText = readFileSync(editorPath, 'utf8')
   const panelText = readFileSync(panelPath, 'utf8')
   const collisionText = readFileSync(collisionPath, 'utf8')
@@ -146,6 +147,7 @@ export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitR
   const flowEditorSurfaceText = readFileSync(flowEditorSurfacePath, 'utf8')
   const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
   const flowCanvasRuntimeText = readFileSync(flowCanvasRuntimePath, 'utf8')
+  const richMediaPanelText = readFileSync(richMediaPanelPath, 'utf8')
   if (!editorText.includes('data-kg-flow-editor-mode="1"')) {
     throw new Error('expected Flow Editor widget aside roots to expose explicit Flow Editor mode')
   }
@@ -158,16 +160,37 @@ export function testRendererUiStateIsolationFlowEditorWidgetRootsExposeExplicitR
   if (!flowEditorSurfaceText.includes('data-kg-flow-editor-surface-root={props.flowEditorSurfaceId}')) {
     throw new Error('expected Flow Editor surface root to expose explicit surface identity')
   }
+  if (!richMediaPanelText.includes('const flowEditorOverlayProxyMode = props.flowEditorInteractionMode === true')) {
+    throw new Error('expected RichMediaPanel Flow Editor overlay identity to preserve parent-provided Flow Editor interaction mode')
+  }
+  if (!richMediaPanelText.includes('const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode')) {
+    throw new Error('expected RichMediaPanel Flow Editor overlay identity to include frontmatter document mode for renderer-scoped Rich Media edges')
+  }
+  if (!richMediaPanelText.includes('data-kg-flow-editor-mode={flowEditorInteractionMode ? \'1\' : undefined}')) {
+    throw new Error('expected RichMediaPanel to expose Flow Editor mode whenever it participates in Flow Editor overlay edge discovery')
+  }
   if (!flowCanvasText.includes('flowEditorSurfaceId,')) {
     throw new Error('expected FlowCanvas to thread Flow Editor surface identity into runtime children')
   }
   if (!flowCanvasRuntimeText.includes('flowEditorSurfaceId: args.flowEditorSurfaceId')) {
     throw new Error('expected FlowCanvas runtime to forward the active Flow Editor surface identity into interaction binding')
   }
-  if (!collisionText.includes('readFlowEditorOverlaySurfaceId(el) === String(args.flowEditorSurfaceId || \'\').trim()')) {
+  if (!collisionText.includes('FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR')) {
+    throw new Error('expected Flow Editor collision queries to be bounded by the active surface root')
+  }
+  if (!collisionText.includes('const queryRoot: ParentNode = surfaceRoot || document')) {
+    throw new Error('expected Flow Editor collision queries to avoid document-wide overlay seepage')
+  }
+  if (!collisionText.includes('queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)')) {
     throw new Error('expected Flow Editor collision queries to stay scoped to the active surface identity')
   }
-  if (!overlayEdgesText.includes('readFlowEditorOverlaySurfaceId(el) !== args.flowEditorSurfaceId')) {
+  if (!overlayEdgesText.includes('FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR')) {
+    throw new Error('expected Flow Editor overlay edge queries to be bounded by the active surface root')
+  }
+  if (!overlayEdgesText.includes('const queryRoot: ParentNode = surfaceRoot || root')) {
+    throw new Error('expected Flow Editor overlay edge queries to avoid document-wide overlay seepage')
+  }
+  if (!overlayEdgesText.includes('readFlowEditorOverlaySurfaceId(el) !== surfaceId')) {
     throw new Error('expected Flow Editor overlay edge queries to exclude overlays from other surfaces')
   }
 }

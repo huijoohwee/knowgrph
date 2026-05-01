@@ -130,7 +130,7 @@ export function useRichMediaOverlays2d(args: {
     const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
     const registry = Array.isArray(registryRaw) ? (registryRaw as WidgetRegistryEntry[]) : []
     const connectedValuesByNodeId = richMediaPanelNodeIds.size > 0
-      ? computeFlowConnectedValuesBySchemaPath({ graphData: sceneGraphData, registry, targetNodeIds: richMediaPanelNodeIds })
+      ? computeFlowConnectedValuesBySchemaPath({ graphData: sceneGraphData, registry, targetNodeIds: richMediaPanelNodeIds, graphRevision: graphDataRevision })
       : undefined
     const suggested = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes,
@@ -246,7 +246,7 @@ export function useRichMediaOverlays2d(args: {
       }
     }
     return out
-  }, [excludeNodeIdsKey, freezeOverlayMembership, sceneGraphData, threeIframeOverlayPoolMax])
+  }, [excludeNodeIdsKey, freezeOverlayMembership, graphDataRevision, sceneGraphData, threeIframeOverlayPoolMax])
 
   const { mediaOverlayNodeIdsKey, mediaOverlayNodeIdSet } = useMemo(() => {
     const ids = mediaOverlayNodes.map(n => n.id)

@@ -164,6 +164,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["export.htmlViewer.markdown.anchorNodeMapping","@/__tests__/graphHtmlViewer.test","testExportHtmlViewerMarkdownOverlaySupportsAnchorNodeIds"],
   ["export.htmlViewer.media.defaultsInteractive","@/__tests__/graphHtmlViewer.test","testExportHtmlViewerMediaInteractivityDefaultsOn"],
   ["export.htmlViewer.media.pointerEventsPerNode","@/__tests__/graphHtmlViewer.test","testExportHtmlViewerMediaPointerEventsRespectsNodeInteractivity"],
+  ["export.htmlViewer.richMedia.proxiedImageVideoInline","@/__tests__/graphHtmlViewer.test","testExportHtmlViewerRendersProxiedImageAndVideoInline"],
   ["export.htmlViewer.richMedia.inferKindFromUrlOverridesIframe","@/__tests__/graphHtmlViewer.test","testExportHtmlViewerTreatsIFrameKindWithImageUrlAsImage"],
   ["export.htmlViewer.runtimeScript.proxyOriginReplaced","@/__tests__/htmlViewerRuntimeScriptProxyOrigin.test","testHtmlViewerRuntimeScriptReplacesProxyOriginPlaceholder"],
   ["export.htmlViewer.overlay.pointerEvents.none","@/__tests__/graphHtmlViewerInteractionSurface.test","testGraphHtmlViewerOverlayDoesNotBlockCanvasPointerEvents"],

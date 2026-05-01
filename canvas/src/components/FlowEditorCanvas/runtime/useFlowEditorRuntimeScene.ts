@@ -25,7 +25,7 @@ export function useFlowEditorRuntimeScene(args: {
   viewportW: number
   viewportH: number
   schema: unknown
-  baseGraphDataRevision: number
+  overlayTopologyLayoutSignature: string
   zoomViewKeyRef: React.MutableRefObject<string | null>
 }) {
   const flowRuntimeRefRef = React.useRef<React.MutableRefObject<FlowNativeRuntime | null> | null>(null)
@@ -130,6 +130,11 @@ export function useFlowEditorRuntimeScene(args: {
     return { groupId: bestId, ...aabb }
   }, [args.zoomViewKeyRef, getLiveZoomTransform])
 
+  const renderGraphDataOverrideRef = React.useRef<GraphData | null>(args.renderGraphDataOverride)
+  React.useEffect(() => {
+    renderGraphDataOverrideRef.current = args.renderGraphDataOverride
+  }, [args.renderGraphDataOverride])
+
   const seededPinnedWidgetWorldPosKeyRef = React.useRef<string>('')
   const autoSeededPinnedWidgetSnapshotRef = React.useRef<{
     signature: string
@@ -139,7 +144,7 @@ export function useFlowEditorRuntimeScene(args: {
   useIsomorphicLayoutEffect(() => {
     if (!args.active) return
     const st = useGraphStore.getState()
-    const graphDataForSeeding = args.renderGraphDataOverride || st.graphData || null
+    const graphDataForSeeding = renderGraphDataOverrideRef.current || st.graphData || null
     const graphMetaKind = String((((graphDataForSeeding || null)?.metadata || {}) as Record<string, unknown>).kind || '').trim()
     const frontmatterFlowGraphActive = graphMetaKind === 'frontmatter-flow'
     const effectiveOpenIds = frontmatterFlowGraphActive
@@ -251,7 +256,7 @@ export function useFlowEditorRuntimeScene(args: {
         if (!pinned) return false
         const current = worldById[id]
         if (!current || !Number.isFinite(current.x) || !Number.isFinite(current.y)) return false
-        const currentLayoutSignature = `${args.baseGraphDataRevision}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
+        const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
         if (snapshot.signature !== '' && snapshot.signature !== currentLayoutSignature && isSameWorldPos(current, snapshot.positions[id])) {
           return true
         }
@@ -312,7 +317,7 @@ export function useFlowEditorRuntimeScene(args: {
     const pending = Array.from(new Set([...pendingRaw, ...reseedEligible, ...overlapEligible])).sort((a, b) => a.localeCompare(b))
     if (pending.length === 0) return
 
-    const currentLayoutSignature = `${args.baseGraphDataRevision}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
+    const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
     const idsByBucket = new Map<string, string[]>()
     const boundsByBucket = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()
     boundsByBucket.set(viewportBucketId, viewportBounds)
@@ -358,7 +363,7 @@ export function useFlowEditorRuntimeScene(args: {
     if (!changed) return
     if (isWorkspaceEditorOverlayOpen(st)) return
     st.setFlowWidgetWorldPosByNodeId(nextWorld)
-  }, [args.active, args.baseGraphDataRevision, args.openWidgetNodeIds, args.renderGraphDataOverride, args.schema, args.viewportH, args.viewportW, args.zoomViewKeyRef, getLiveContainmentGroupAabbForNode, getLiveZoomTransform])
+  }, [args.active, args.openWidgetNodeIds, args.overlayTopologyLayoutSignature, args.schema, args.viewportH, args.viewportW, args.zoomViewKeyRef, getLiveContainmentGroupAabbForNode, getLiveZoomTransform])
 
   const emitFlowEditorInteractionFrame = React.useCallback(() => {
     emitFlowEditorInteractionFrameEvent()

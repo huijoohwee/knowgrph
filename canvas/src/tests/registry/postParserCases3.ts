@@ -74,6 +74,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["url.applyMediaProxySrc.skipsProxyWhenNotLocalhost","@/__tests__/mediaProxySrc.test","testApplyMediaProxySkipsProxyWhenNotLocalhost"],
   ["url.applyMediaProxySrc.proxiesOpenFreeMapOnLocalhost","@/__tests__/mediaProxySrc.test","testApplyMediaProxyProxiesOpenFreeMapOnLocalhost"],
   ["url.applyMediaProxySrc.proxiesOnPrivateLanOrigin","@/__tests__/mediaProxySrc.test","testApplyMediaProxyProxiesOnPrivateLanOrigin"],
+  ["url.inferMediaKind.proxyUrlParameter","@/__tests__/mediaProxySrc.test","testInferMediaKindFromUrlUsesProxyUrlParameter"],
   ["ui.launchSpotlightPersistence","@/__tests__/launchSpotlight.test","testLaunchSpotlightStorageHelpers"],
   ["persistence.storagePrimitives","@/__tests__/persistencePrimitives.test","testPersistencePrimitives"],
   ["search.cacheVersionKey","@/__tests__/searchCache.test","testSearchCacheKeysRespectVersion"],

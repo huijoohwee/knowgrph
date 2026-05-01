@@ -16,7 +16,7 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!text.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected Flow Editor collective collision to reuse workspace overlay-open SSOT')
   }
-  if (!text.includes('return isWorkspaceEditorOverlayOpen(state)')) {
+  if (!text.includes('isWorkspaceEditorOverlayOpen(useGraphStore.getState())')) {
     throw new Error('expected Flow Editor collective collision to derive workspace overlay open state via SSOT helper')
   }
   if (!text.includes('if (workspaceOverlayOpenRef.current) return')) {
@@ -50,6 +50,8 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const runtimeText = readFileSync(runtimePath, 'utf8')
+  const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
   const worldSeedGuardIndex = runtimeText.indexOf('if (isWorkspaceEditorOverlayOpen(st)) return')
   const worldSeedWriteIndex = runtimeText.indexOf('st.setFlowWidgetWorldPosByNodeId(nextWorld)')
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
@@ -74,6 +76,23 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   const storeWorldWriteIndex = storeText.indexOf('scheduleFlowWidgetPersistence({ world: { graphKey, value: nextWorldByNodeId } })')
   if (storeWorldGuardIndex < 0 || storeWorldWriteIndex < 0 || storeWorldGuardIndex > storeWorldWriteIndex) {
     throw new Error('expected root Flow widget world-position setter to reject workspace overlay writes')
+  }
+  if (!overlayEdgesText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Flow Editor overlay edge scheduler to reuse workspace overlay-open SSOT')
+  }
+  if (!overlayEdgesText.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
+    throw new Error('expected Flow Editor overlay edge scheduler to keep workspace overlay-open state as a latest-value guard')
+  }
+  if (!overlayEdgesText.includes('if (workspaceOverlayOpenRef.current) cancelOverlayEdgeUpdate()')) {
+    throw new Error('expected workspace overlay open transition to cancel queued overlay edge recomputation')
+  }
+  if (!overlayEdgesText.includes('if (wasOpen) scheduleOverlayEdgeUpdate()')) {
+    throw new Error('expected workspace overlay close transition to reschedule overlay edge recomputation')
+  }
+  const edgeScheduleGuardIndex = overlayEdgesText.indexOf('if (workspaceOverlayOpenRef.current) return')
+  const edgePathWriteIndex = overlayEdgesText.indexOf("if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)")
+  if (edgeScheduleGuardIndex < 0 || edgePathWriteIndex < 0 || edgeScheduleGuardIndex > edgePathWriteIndex) {
+    throw new Error('expected Flow Editor overlay edge DOM writes to be skipped while workspace overlay is open')
   }
   if (text.includes('workspaceViewLayoutRefreshNonce')) {
     throw new Error('expected Flow Editor collective collision signature to avoid workspace layout refresh nonce coupling')
@@ -125,6 +144,20 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
     throw new Error('expected FlowCanvas media overlays to track workspace overlay open state without layout-key coupling')
   }
+  if (!text.includes('const [workspaceOverlayOpenKey, setWorkspaceOverlayOpenKey] = React.useState(0)')) {
+    throw new Error('expected FlowCanvas media overlays to restart passive layout only on semantic workspace overlay open/close transitions')
+  }
+  if (!text.includes('if (!active || mediaLayoutItems.length === 0 || workspaceOverlayOpenRef.current)')) {
+    throw new Error('expected Rich Media layout loop to stay stopped while workspace overlay is open')
+  }
+  if (!text.includes('const cancelMediaOverlayInteractionState = React.useCallback(() => {')) {
+    throw new Error('expected FlowCanvas media overlays to centralize cancellation of delayed interaction writes')
+  }
+  const workspaceOpenCancelIndex = text.indexOf('if (workspaceOverlayOpenRef.current) cancelMediaOverlayInteractionState()')
+  const schedulerCancelIndex = text.indexOf('mediaOverlayHeaderMoveSchedulerRef.current?.cancel()')
+  if (workspaceOpenCancelIndex < 0 || schedulerCancelIndex < 0) {
+    throw new Error('expected workspace overlay open transition to cancel queued Rich Media overlay writes before they can flush after close')
+  }
   const richMediaRuntimeGuardIndex = text.indexOf('if (!flowEditorOverlayInteractionMode || workspaceOverlayOpenRef.current) return')
   const richMediaDirtyWriteIndex = text.indexOf('positionsDirtySinceCommitRef.current = true')
   if (richMediaRuntimeGuardIndex < 0 || richMediaDirtyWriteIndex < 0 || richMediaRuntimeGuardIndex > richMediaDirtyWriteIndex) {
@@ -163,8 +196,8 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   if (!flowEditorText.includes('flowEditorSurfaceId,')) {
     throw new Error('expected Flow Editor collective layout runtime to key collision resolution off the active overlay surface identity')
   }
-  if (!flowEditorText.includes('}, [editorRuntimeActive, flowEditorSurfaceId])')) {
-    throw new Error('expected Flow Editor collective layout subscriptions to rebind when the active overlay surface identity changes')
+  if (!flowEditorText.includes('}, [editorRuntimeActive, queryActiveSurfaceOverlays])')) {
+    throw new Error('expected Flow Editor collective layout subscriptions to rebind through the active overlay surface query')
   }
 
   const mediaLoopPath = resolve(process.cwd(), 'src', 'lib', 'render', 'mediaOverlayLayoutLoop2d.ts')
@@ -174,6 +207,18 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   }
   if (!mediaLoopText.includes('collectiveCenterWarmupStartedAtMs')) {
     throw new Error('expected Rich Media collective layout loop to keep an explicit center warmup guard')
+  }
+
+  const flowEditorSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const flowEditorSurfaceText = readFileSync(flowEditorSurfacePath, 'utf8')
+  if (!flowEditorSurfaceText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Flow Editor overlay surface initialization to reuse workspace overlay-open SSOT')
+  }
+  if (!flowEditorSurfaceText.includes('if (isWorkspaceEditorOverlayOpen(st)) return')) {
+    throw new Error('expected Flow Editor overlay surface pin seeding to skip while Workspace/Indexing overlay is open')
+  }
+  if (!flowEditorSurfaceText.includes('const connectedValuesGraphRevision = args.flowEditorViewActive ? args.draftGraphDataRevision : args.baseGraphDataRevision')) {
+    throw new Error('expected Flow Editor overlay connected-values cache to use the active draft/render graph revision')
   }
 
   const flowCanvasMediaPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')

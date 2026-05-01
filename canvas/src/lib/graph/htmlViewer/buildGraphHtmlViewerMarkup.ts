@@ -1,5 +1,6 @@
 import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
 import { ensureKgTokensInstalled, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 import { safeScaleExtent } from '@/lib/zoom/scaleExtent'
 import { buildHtmlViewerRuntimeScript } from './runtimeScript'
@@ -57,16 +58,11 @@ const readNumAttr = (el: Element, name: string): number | null => {
 }
 
 const inferMediaKind = (rawUrl: string): HtmlViewerMediaNode['kind'] => {
+  const inferred = inferMediaKindFromUrl(rawUrl)
+  if (inferred === 'image' || inferred === 'svg' || inferred === 'video') return inferred
   const u = String(rawUrl || '').trim().toLowerCase()
   if (!u) return 'iframe'
-  if (u.startsWith('data:image/svg+xml') || u.endsWith('.svg')) return 'svg'
   if (
-    u.startsWith('data:image/') ||
-    u.endsWith('.png') ||
-    u.endsWith('.jpg') ||
-    u.endsWith('.jpeg') ||
-    u.endsWith('.gif') ||
-    u.endsWith('.webp') ||
     u.includes('wx_fmt=png') ||
     u.includes('wx_fmt=jpg') ||
     u.includes('wx_fmt=jpeg') ||
@@ -75,7 +71,6 @@ const inferMediaKind = (rawUrl: string): HtmlViewerMediaNode['kind'] => {
   ) {
     return 'image'
   }
-  if (u.endsWith('.mp4') || u.endsWith('.webm') || u.endsWith('.mov') || u.endsWith('.m4v')) return 'video'
   return 'iframe'
 }
 

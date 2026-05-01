@@ -2,6 +2,7 @@ import React from 'react'
 
 import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { getEffectiveZoomStateForKey, getZoomStateForKey } from '@/lib/canvas/zoom-effective'
@@ -12,9 +13,12 @@ import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWith
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
 import {
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
+  FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
+  isTransientOffscreenRichMediaOverlayRoot,
   readCanvasOverlayNodeId,
   readFlowEditorOverlaySurfaceId,
+  shouldReplaceFlowEditorOverlayRectCandidate,
 } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { worldToScreen } from '@/lib/zoom/viewport'
 import { computeCollectiveFollowPinnedScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
@@ -84,7 +88,6 @@ export function useFlowEditorOverlayCollision(args: {
   editorRuntimeActive: boolean
   overlayOnlyModeEnabled: boolean
   renderGraphDataOverride: GraphData | null
-  graphContentRevision: number
   schema: any
   selectedNodeId: string | null
   viewportW: number
@@ -114,7 +117,6 @@ export function useFlowEditorOverlayCollision(args: {
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     flowEditorSurfaceId,
-    graphContentRevision,
   } = args
   const overlayCollisionResolveRafRef = React.useRef<number | null>(null)
   const overlayCollisionResolveKeyRef = React.useRef<string>('')
@@ -131,21 +133,21 @@ export function useFlowEditorOverlayCollision(args: {
   const overlayCollisionBestUnresolvedRef = React.useRef<number>(Number.POSITIVE_INFINITY)
   const overlayCollisionRecentSigRef = React.useRef<string[]>([])
   const workspaceOverlayOpenRef = React.useRef(false)
+  const overlayTopologyLayoutSignature = React.useMemo(() => {
+    const graphDataForOverlayRuntime = draftGraphDataRef.current || renderGraphDataOverride || null
+    return buildOverlayTopologyLayoutSignature(graphDataForOverlayRuntime)
+  }, [draftGraphDataRef, renderGraphDataOverride])
 
-  React.useEffect(() => {
-    const readWorkspaceOverlayOpen = () => {
-      const state = useGraphStore.getState()
-      return isWorkspaceEditorOverlayOpen(state)
-    }
-    workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
-    const unsub = useGraphStore.subscribe(
-      s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen] as const,
-      () => {
-        workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
-      },
-    )
-    return () => unsub()
-  }, [])
+  const queryActiveSurfaceOverlays = React.useCallback((selector: string): HTMLElement[] => {
+    if (typeof document === 'undefined') return []
+    const surfaceId = String(flowEditorSurfaceId || '').trim()
+    const surfaceRoot = surfaceId
+      ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(surfaceId)}"]`)
+      : null
+    const queryRoot: ParentNode = surfaceRoot || document
+    return Array.from(queryRoot.querySelectorAll<HTMLElement>(selector))
+      .filter(el => readFlowEditorOverlaySurfaceId(el) === surfaceId)
+  }, [flowEditorSurfaceId])
 
   const resetOverlayCollisionTransientState = React.useCallback((clearRectCache = false) => {
     overlayCollisionResolveKeyRef.current = ''
@@ -161,18 +163,30 @@ export function useFlowEditorOverlayCollision(args: {
     if (clearRectCache) overlayRectCacheRef.current.clear()
   }, [])
 
+  const cancelOverlayCollisionResolve = React.useCallback((clearRectCache = false) => {
+    if (overlayCollisionResolveRafRef.current != null) {
+      try {
+        cancelAnimationFrame(overlayCollisionResolveRafRef.current)
+      } catch {
+        void 0
+      }
+      overlayCollisionResolveRafRef.current = null
+    }
+    resetOverlayCollisionTransientState(clearRectCache)
+  }, [resetOverlayCollisionTransientState])
+
   const scheduleOverlayCollisionResolve = React.useCallback(() => {
     if (!editorRuntimeActive) return
+    if (workspaceOverlayOpenRef.current) return
     if (typeof document === 'undefined' || typeof window === 'undefined') return
     if (overlayCollisionResolveRafRef.current != null) return
     if (overlayCollisionWarmupStartedAtMsRef.current == null) overlayCollisionWarmupStartedAtMsRef.current = Date.now()
 
     overlayCollisionResolveRafRef.current = window.requestAnimationFrame(() => {
       overlayCollisionResolveRafRef.current = null
-      if (!editorRuntimeActive) return
+      if (!editorRuntimeActive || workspaceOverlayOpenRef.current) return
 
-      const overlayEls = Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
-        .filter(el => readFlowEditorOverlaySurfaceId(el) === String(flowEditorSurfaceId || '').trim())
+      const overlayEls = queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
       if (overlayEls.length < 2) {
         const st = useGraphStore.getState()
         const wantsResolve = (st.openWidgetNodeIds || []).length >= 2 || overlayOnlyModeEnabled
@@ -283,6 +297,7 @@ export function useFlowEditorOverlayCollision(args: {
       const canvasOffsetLeft = Number.isFinite(canvasOffset.left) ? canvasOffset.left : 0
       const canvasOffsetTop = Number.isFinite(canvasOffset.top) ? canvasOffset.top : 0
       const rectByNodeId = new Map<string, { left: number; top: number; width: number; height: number }>()
+      const selectedRawRectByNodeId = new Map<string, { el: HTMLElement; rect: DOMRect }>()
       const unresolvedRectIdSet = new Set<string>()
       for (let i = 0; i < overlayEls.length; i += 1) {
         const el = overlayEls[i]
@@ -295,12 +310,15 @@ export function useFlowEditorOverlayCollision(args: {
         const topRaw = Number.isFinite(rect.top) ? rect.top : 0
         const left = leftRaw - canvasOffsetLeft
         const top = topRaw - canvasOffsetTop
-        if (width > 0 && height > 0) {
+        const nextRaw = { el, rect }
+        if (width > 0 && height > 0 && shouldReplaceFlowEditorOverlayRectCandidate(selectedRawRectByNodeId.get(id), nextRaw)) {
+          selectedRawRectByNodeId.set(id, nextRaw)
           const resolved = { left, top, width, height }
           overlayRectCacheRef.current.set(id, resolved)
           rectByNodeId.set(id, resolved)
           continue
         }
+        if (selectedRawRectByNodeId.has(id)) continue
         const cached = overlayRectCacheRef.current.get(id) || null
         if (cached) {
           rectByNodeId.set(id, cached)
@@ -377,17 +395,50 @@ export function useFlowEditorOverlayCollision(args: {
 
       const pinnedObstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
       if (typeof document !== 'undefined') {
-        const richMediaEls = Array.from(document.querySelectorAll<HTMLElement>(RICH_MEDIA_OVERLAY_ROOT_SELECTOR))
+        const richMediaEls = queryActiveSurfaceOverlays(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
+        const richMediaObstacleById = new Map<string, { el: HTMLElement; rect: DOMRect }>()
         for (let i = 0; i < richMediaEls.length; i += 1) {
           const el = richMediaEls[i]
-          if (readFlowEditorOverlaySurfaceId(el) !== flowEditorSurfaceId) continue
           const id = readCanvasOverlayNodeId(el)
           if (!id) continue
           const rect = el.getBoundingClientRect()
-          if (!(rect.width > 0) || !(rect.height > 0)) continue
-          pinnedObstacles.push({ id: `rich-media:${id}`, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+          if (isTransientOffscreenRichMediaOverlayRoot(el, rect)) continue
+          const nextRaw = { el, rect }
+          if (shouldReplaceFlowEditorOverlayRectCandidate(richMediaObstacleById.get(id), nextRaw)) richMediaObstacleById.set(id, nextRaw)
+        }
+        for (const [id, entry] of richMediaObstacleById) {
+          pinnedObstacles.push({ id: `rich-media:${id}`, left: entry.rect.left, top: entry.rect.top, width: entry.rect.width, height: entry.rect.height })
         }
       }
+      const storedCollectiveItems = overlayNodeIds
+        .map(rawId => {
+          const id = String(rawId || '').trim()
+          if (!id) return null
+          if (pinnedById[id] === true) return null
+          if (!shouldAutoPlaceFlowEditorWidget({
+            graphMetaKind: graphKind,
+            pinnedInCanvas: false,
+            floatingPos: posById[id],
+            nodeTypeId: nodeTypeById.get(id) || '',
+          })) return null
+          const stored = posById[id]
+          if (!stored || !Number.isFinite(stored.top) || !Number.isFinite(stored.left)) return null
+          const rect = rectByNodeId.get(id) || null
+          return {
+            id,
+            left: stored.left,
+            top: stored.top,
+            width: rect?.width ?? floatingScaled.width,
+            height: rect?.height ?? floatingScaled.height,
+          }
+        })
+        .filter((item): item is { id: string; left: number; top: number; width: number; height: number } => !!item)
+      const storedCollectiveIsResidue =
+        storedCollectiveItems.length >= 4
+        && (
+          isVerticalOverlayCluster({ items: storedCollectiveItems, gapPx })
+          || isHorizontalOverlayStrip({ items: storedCollectiveItems, gapPx })
+        )
       const items: Array<{ id: string; top: number; left: number; movable: boolean; width?: number; height?: number }> = []
       let stack = 0
       for (let i = 0; i < overlayNodeIds.length; i += 1) {
@@ -417,7 +468,7 @@ export function useFlowEditorOverlayCollision(args: {
         const fallback = centeredCell
           ? { left: centeredCell.left, top: centeredCell.top }
           : { left: dockLeft + col * cellSize.width, top: dockTop + row * cellSize.height }
-        const base = !hasStored
+        const base = !hasStored || storedCollectiveIsResidue
           ? fallback
           : (() => {
               const left = stored.left
@@ -445,10 +496,8 @@ export function useFlowEditorOverlayCollision(args: {
         .filter(id => unresolvedRectIdSet.has(id))
       const canDeferUntilMeasuredCollectiveLayout =
         unresolvedMovableIds.length > 0
-        && items.every(item => {
-          const stored = posById[item.id]
-          return !!stored && Number.isFinite(stored.top) && Number.isFinite(stored.left)
-        })
+        && (isFrontmatterFlow || items.length >= 2)
+        && items.every(item => item.width == null || item.height == null || (item.width > 0 && item.height > 0))
       if (canDeferUntilMeasuredCollectiveLayout) {
         overlayMeasurementWarmupAttemptsRef.current += 1
         if (overlayMeasurementWarmupStartedAtMsRef.current == null) {
@@ -711,11 +760,11 @@ export function useFlowEditorOverlayCollision(args: {
     canvasWindowOffsetRef,
     draftGraphDataRef,
     editorRuntimeActive,
-    flowEditorSurfaceId,
     frontmatterFlowRenderSettings,
     getLiveNodeWorldPos,
     getLiveZoomTransform,
     overlayOnlyModeEnabled,
+    queryActiveSurfaceOverlays,
     resetOverlayCollisionTransientState,
     renderGraphDataOverride,
     schema,
@@ -727,15 +776,35 @@ export function useFlowEditorOverlayCollision(args: {
   scheduleOverlayCollisionResolveRef.current = scheduleOverlayCollisionResolve
 
   React.useEffect(() => {
-    if (!editorRuntimeActive) return
+    const readWorkspaceOverlayOpen = () => isWorkspaceEditorOverlayOpen(useGraphStore.getState())
+    workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
+    if (workspaceOverlayOpenRef.current) cancelOverlayCollisionResolve(true)
+    const unsub = useGraphStore.subscribe(
+      s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen] as const,
+      () => {
+        const wasOpen = workspaceOverlayOpenRef.current
+        const isOpen = readWorkspaceOverlayOpen()
+        workspaceOverlayOpenRef.current = isOpen
+        if (isOpen) {
+          cancelOverlayCollisionResolve(true)
+          return
+        }
+        if (wasOpen) scheduleOverlayCollisionResolve()
+      },
+    )
+    return () => unsub()
+  }, [cancelOverlayCollisionResolve, scheduleOverlayCollisionResolve])
+
+  React.useEffect(() => {
+    if (!editorRuntimeActive || workspaceOverlayOpenRef.current) return
     resetOverlayCollisionTransientState()
     scheduleOverlayCollisionResolve()
   }, [
     canvasWindowOffset.left,
     canvasWindowOffset.top,
     editorRuntimeActive,
-    graphContentRevision,
     overlayOnlyModeEnabled,
+    overlayTopologyLayoutSignature,
     viewportH,
     viewportW,
     resetOverlayCollisionTransientState,
@@ -745,11 +814,9 @@ export function useFlowEditorOverlayCollision(args: {
   React.useEffect(() => {
     if (!editorRuntimeActive) return
     const unsubPos = useGraphStore.subscribe(s => s.flowWidgetPosByNodeId, () => {
+      if (workspaceOverlayOpenRef.current) return
       const state = useGraphStore.getState()
-      const overlayEls = typeof document === 'undefined'
-        ? []
-        : Array.from(document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR))
-          .filter(el => readFlowEditorOverlaySurfaceId(el) === String(flowEditorSurfaceId || '').trim())
+      const overlayEls = queryActiveSurfaceOverlays(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
       const nodeIds = normalizeOverlaySignatureIds(overlayEls.map(el => String(el?.dataset?.kgWidget || '').trim()))
       const currentSig = buildPosSignature(nodeIds, state.flowWidgetPosByNodeId)
       if (currentSig && currentSig === selfCommittedPosSignatureRef.current) {
@@ -759,11 +826,13 @@ export function useFlowEditorOverlayCollision(args: {
       scheduleOverlayCollisionResolveRef.current()
     })
     const unsubPinned = useGraphStore.subscribe(s => s.flowWidgetPinnedByNodeId, () => {
+      if (workspaceOverlayOpenRef.current) return
       scheduleOverlayCollisionResolveRef.current()
     })
     const unsubOpenWidgets = useGraphStore.subscribe(
       s => normalizeOverlaySignatureIds(Array.isArray(s.openWidgetNodeIds) ? s.openWidgetNodeIds : []).join('|'),
       () => {
+        if (workspaceOverlayOpenRef.current) return
         scheduleOverlayCollisionResolveRef.current()
       },
     )
@@ -784,7 +853,7 @@ export function useFlowEditorOverlayCollision(args: {
         void 0
       }
     }
-  }, [editorRuntimeActive, flowEditorSurfaceId])
+  }, [editorRuntimeActive, queryActiveSurfaceOverlays])
 
   React.useEffect(() => {
     return () => {

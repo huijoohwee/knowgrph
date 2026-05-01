@@ -11,7 +11,7 @@ import { applyFlowDataflowReducer, applyFlowDataflowTransform } from '@/lib/flow
 import { isFrontmatterFlowComputedEnabled } from '@/lib/graph/frontmatterFlowSettings'
 import { readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
-import { hashRecordSignature32 } from '@/lib/hash/signature'
+import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 
 export type FlowConnectedValueSource = {
   edgeId: string
@@ -27,7 +27,7 @@ export type FlowConnectedValue = {
 export type FlowConnectedValuesBySchemaPath = Record<string, FlowConnectedValue>
 
 const CONNECTED_VALUES_RESULT_CACHE_LIMIT = 64
-const connectedValuesResultCache = new WeakMap<GraphData, Map<string, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>>()
+const connectedValuesResultCache = new Map<string, Map<string, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>>()
 
 function cleanString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
@@ -72,24 +72,58 @@ function buildConnectedValuesTargetKey(targetNodeIds?: ReadonlySet<string>): str
     .join('\n')
 }
 
+function buildConnectedValuesGraphKey(graph: GraphData, graphRevision?: number): string {
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+  const edges = Array.isArray(graph.edges) ? graph.edges : []
+  const parts: Array<string | number | boolean> = [
+    'rev',
+    Number.isFinite(graphRevision) ? Number(graphRevision) : -1,
+    'nodes',
+    nodes.length,
+  ]
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i] as GraphNode
+    parts.push(
+      cleanString(node?.id),
+      cleanString(node?.type),
+      hashRecordSignature32((node?.properties || {}) as Record<string, unknown>, { maxEntries: 80, maxDepth: 3 }),
+    )
+  }
+  parts.push('edges', edges.length)
+  for (let i = 0; i < edges.length; i += 1) {
+    const edge = edges[i] as GraphEdge
+    parts.push(
+      cleanString((edge as unknown as { id?: unknown })?.id),
+      readEdgeEndpointId((edge as unknown as { source?: unknown })?.source),
+      readEdgeEndpointId((edge as unknown as { target?: unknown })?.target),
+      hashRecordSignature32((edge?.properties || {}) as Record<string, unknown>, { maxEntries: 40, maxDepth: 2 }),
+    )
+  }
+  return hashSignatureParts(parts)
+}
+
 function readConnectedValuesResultCache(args: {
-  graphData: GraphData
+  graphKey: string
   registryKey: string
   targetKey: string
 }): Map<string, FlowConnectedValuesBySchemaPath> | null {
-  return connectedValuesResultCache.get(args.graphData)?.get(args.registryKey)?.get(args.targetKey) || null
+  return connectedValuesResultCache.get(args.graphKey)?.get(args.registryKey)?.get(args.targetKey) || null
 }
 
 function writeConnectedValuesResultCache(args: {
-  graphData: GraphData
+  graphKey: string
   registryKey: string
   targetKey: string
   result: Map<string, FlowConnectedValuesBySchemaPath>
 }): void {
-  let byRegistry = connectedValuesResultCache.get(args.graphData)
+  let byRegistry = connectedValuesResultCache.get(args.graphKey)
   if (!byRegistry) {
     byRegistry = new Map<string, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>()
-    connectedValuesResultCache.set(args.graphData, byRegistry)
+    if (connectedValuesResultCache.size >= CONNECTED_VALUES_RESULT_CACHE_LIMIT) {
+      const oldestKey = connectedValuesResultCache.keys().next().value
+      if (typeof oldestKey === 'string') connectedValuesResultCache.delete(oldestKey)
+    }
+    connectedValuesResultCache.set(args.graphKey, byRegistry)
   }
   let byTarget = byRegistry.get(args.registryKey)
   if (!byTarget) {
@@ -285,13 +319,15 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
   graphData: GraphData | null
   registry: ReadonlyArray<WidgetRegistryEntry>
   targetNodeIds?: ReadonlySet<string>
+  graphRevision?: number
 }): Map<string, FlowConnectedValuesBySchemaPath> {
   const graph = args.graphData
   if (!graph) return new Map()
   const registry = Array.isArray(args.registry) ? args.registry : []
   const registryKey = registryCollectionKey(registry)
   const targetKey = buildConnectedValuesTargetKey(args.targetNodeIds)
-  const cached = readConnectedValuesResultCache({ graphData: graph, registryKey, targetKey })
+  const graphKey = buildConnectedValuesGraphKey(graph, args.graphRevision)
+  const cached = readConnectedValuesResultCache({ graphKey, registryKey, targetKey })
   if (cached) return cached
   const computeEnabled = isFrontmatterFlowComputedEnabled(graph)
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
@@ -450,6 +486,6 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
     if (requestedTargets && !requestedTargets.has(id)) continue
     out.set(id, computedByNodeId.get(id) || {})
   }
-  writeConnectedValuesResultCache({ graphData: graph, registryKey, targetKey, result: out })
+  writeConnectedValuesResultCache({ graphKey, registryKey, targetKey, result: out })
   return out
 }

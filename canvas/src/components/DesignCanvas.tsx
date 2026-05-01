@@ -21,6 +21,7 @@ import { useContainerDims } from '@/hooks/useContainerDims'
 import { readCanvasGridRenderConfigFromSchema } from '@/lib/canvas/canvasGridConfig'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { computeOverlayPanTransform2d } from '@/lib/canvas/overlayInteractions2d'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -78,10 +79,10 @@ export default function DesignCanvas({
     emptyDesignFramePosById: EMPTY_DESIGN_FRAME_POS_BY_ID,
     emptyDesignFrameSizeById: EMPTY_DESIGN_FRAME_SIZE_BY_ID,
   })
-  const workspaceEditorOverlayMode = snapshot.workspaceViewMode === 'editor'
-  const interactionActive = active && !workspaceEditorOverlayMode
-  const arrangeActionsActive = active && !workspaceEditorOverlayMode
-  const workspaceEditorOverlayEnabled = workspaceEditorOverlayMode && active && !!String(snapshot.markdownDocumentText || '').trim()
+  const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode: snapshot.workspaceViewMode, workspaceCanvasPaneOpen: snapshot.workspaceCanvasPaneOpen })
+  const interactionActive = active && !workspaceEditorOverlayOpen
+  const arrangeActionsActive = active && !workspaceEditorOverlayOpen
+  const workspaceEditorOverlayEnabled = workspaceEditorOverlayOpen && active && !!String(snapshot.markdownDocumentText || '').trim()
   const stopOverlayEvent = React.useCallback((event: React.SyntheticEvent) => {
     try {
       event.stopPropagation()

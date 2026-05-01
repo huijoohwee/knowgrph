@@ -60,6 +60,7 @@ export default function PreviewPanelView() {
     s => s.uiPanelTextFontClass || 'font-sans',
   )
   const graphData = useActiveGraphRenderData()
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
   const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry || [])
   const baseWidgetRegistry = useGraphStore(s => s.widgetRegistry || [])
@@ -448,6 +449,7 @@ export default function PreviewPanelView() {
       const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
         graphData,
         registry: dataflowRegistry,
+        graphRevision: graphDataRevision,
       })
       const effectiveNodes = graphData.nodes.map(node => {
         const nodeId = String(node?.id || '').trim()
@@ -496,7 +498,7 @@ export default function PreviewPanelView() {
     }
 
     return list
-  }, [baseWidgetRegistry, documentWidgetRegistry, graphData, markdownDocumentName, mermaidFrontmatterConfig, meta, rootThemeMode, tokens, widgetRegistry])
+  }, [baseWidgetRegistry, documentWidgetRegistry, graphData, graphDataRevision, markdownDocumentName, mermaidFrontmatterConfig, meta, rootThemeMode, tokens, widgetRegistry])
 
   const hasMermaidFocus = !!mermaidFocusCode
 

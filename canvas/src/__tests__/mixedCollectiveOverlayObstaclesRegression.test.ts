@@ -7,8 +7,8 @@ export function testFlowEditorWidgetCollisionTreatsRichMediaOverlaysAsCurrentSur
   if (!text.includes('RICH_MEDIA_OVERLAY_ROOT_SELECTOR')) {
     throw new Error('expected Flow Editor widget collective collision to inspect Rich Media overlay roots on the active surface')
   }
-  if (!text.includes('document.querySelectorAll<HTMLElement>(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)')) {
-    throw new Error('expected Flow Editor widget collective collision to query Rich Media overlay roots as mixed-collective obstacles')
+  if (!text.includes('queryActiveSurfaceOverlays(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)')) {
+    throw new Error('expected Flow Editor widget collective collision to query Rich Media overlay roots through the active-surface selector')
   }
   if (!text.includes("id: `rich-media:${id}`")) {
     throw new Error('expected Flow Editor widget collective collision to add current-surface Rich Media overlays into pinned obstacle resolution')
@@ -23,8 +23,11 @@ export function testFlowEditorRichMediaCollectiveTreatsWidgetOverlaysAsCurrentSu
   if (!overlaysText.includes('getCollisionObstacles: () => {')) {
     throw new Error('expected Flow Editor Rich Media collective layout to provide widget overlay obstacles')
   }
-  if (!overlaysText.includes('document.querySelectorAll<HTMLElement>(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)')) {
-    throw new Error('expected Flow Editor Rich Media collective layout to query widget overlay roots on the active surface')
+  if (!overlaysText.includes('queryActiveFlowEditorOverlays()')) {
+    throw new Error('expected Flow Editor Rich Media collective layout to query widget overlay roots through the active-surface selector')
+  }
+  if (!overlaysText.includes('FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR')) {
+    throw new Error('expected Flow Editor Rich Media collective obstacles to be bounded by the active surface root')
   }
   if (!loopText.includes('getCollisionObstacles?: () => Array<{ id: string; left: number; top: number; width: number; height: number }>')) {
     throw new Error('expected media overlay layout loop SSOT to support external mixed-collective collision obstacles')

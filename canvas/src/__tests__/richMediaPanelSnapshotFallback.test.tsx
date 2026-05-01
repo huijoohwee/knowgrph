@@ -101,6 +101,53 @@ export async function testRichMediaPanelClickToOpenUsesBodyNotHeader() {
   }
 }
 
+export async function testRichMediaPanelImageRendersInlineWithoutBodyClickOverlay() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    root.render(
+      React.createElement(RichMediaPanel, {
+        title: 'Generated image',
+        url: '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.webp',
+        openUrl: 'https://example.com/generated.webp',
+        kind: 'image',
+        hideUntilReady: true,
+        interactive: false,
+      }),
+    )
+
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
+    const tick = () =>
+      new Promise<void>(resolve => {
+        const raf = anyWindow.requestAnimationFrame
+        if (raf) {
+          raf(() => resolve())
+          return
+        }
+        setTimeout(() => resolve(), 0)
+      })
+
+    for (let i = 0; i < 20; i += 1) await tick()
+
+    const image = container.querySelector('img') as HTMLImageElement | null
+    if (!image) throw new Error('expected image media to render inline inside RichMediaPanel')
+    if (image.getAttribute('src') !== '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.webp') {
+      throw new Error(`expected inline image to keep proxied playback src, got ${String(image.getAttribute('src') || '')}`)
+    }
+    const bodyLink = container.querySelector('section a[href="https://example.com/generated.webp"]')
+    if (bodyLink) throw new Error('expected inline image rendering to suppress the body click-to-open overlay')
+
+    root.unmount()
+  } finally {
+    restoreDom()
+  }
+}
+
 export async function testRichMediaPanelVideoRendersInlineWithoutBodyClickOverlay() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {

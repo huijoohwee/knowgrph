@@ -25,7 +25,7 @@ export default function FlowEditorCanvasSurface(props: {
   overlayOnlyActive: boolean
   overlayOnlyHidePortHandleNodeIds?: string[]
   overlayEditorNodeIds: string[]
-  overlayEdgesSvgRef: React.RefObject<SVGSVGElement | null>
+  overlayEdgesSvgRef: React.Ref<SVGSVGElement>
   overlayEditorElements: React.ReactNode
   noGraphLoaded: boolean
   toolMode: 'select' | 'addEdge'
@@ -119,7 +119,7 @@ export default function FlowEditorCanvasSurface(props: {
         <svg
           ref={props.overlayEdgesSvgRef}
           className="absolute inset-0 pointer-events-none"
-          style={{ zIndex: 120, color: 'var(--kg-canvas-edge-stroke)', overflow: 'visible' }}
+          style={{ zIndex: 120, color: 'var(--kg-canvas-edge-stroke, #9ca3af)', overflow: 'visible', opacity: 1, visibility: 'visible' }}
           aria-hidden={true}
         />
       )}

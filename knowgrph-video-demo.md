@@ -1,8 +1,8 @@
 ---
-title: "Knowgrph · Video Demo — Five Skies (RoboDrone X1 · SEA Multiverse)"
-graphId: "md:knowgrph-video-toys-demo-v1"
+title: "Knowgrph · Video Demo — Three Skies (RoboDrone X1 · Frontier · Tempest · RoboTown)"
+graphId: "md:knowgrph-video-robodrone-demo-v1"
 doc_type: "Video Script — Director Brief"
-date: "2026-04-30"
+date: "2026-05-01"
 lang: en-US
 
 kgCanvasRenderMode: "2d"
@@ -17,24 +17,21 @@ inputs:
   byteplus_text_model: "seed-2-0-lite-260228"
   byteplus_image_model: "seedream-4-0-250828"
   byteplus_video_model: "seedance-1-0-pro-fast-251015"
-  vibe: "vivid, photorealistic, magic-realist, warm naturalistic light cross-cutting to surreal multiverse glow, 9:16 vertical, TikTok-native"
+  vibe: "vivid, photorealistic, magic-realist, warm cinematic light cross-cutting to surreal multiverse glow, 9:16 vertical, TikTok-native"
   duration_seconds: 8
   duration_label: "8s"
-  theme: "a RoboDrone X1 lifts off in five SEA landscapes — paddy field, mango farm, water market, island coast, city skyline — each world dissolving into its own surreal multiverse the moment the drone clears tree-height; parents watch proudly on the ground while children step through the portal above"
+  theme: "a RoboDrone X1 lifts off in three worlds — a Wild West frontier mesa at sunrise, a Caribbean island in a turquoise tempest, a Singapore city skyline at dusk — each world dissolving into its own surreal multiverse the moment the drone clears the horizon; a parent watches proudly from the ground while a child crosses into the world above"
   script: |
-    VN — Golden afternoon. A child launches the drone above a paddy field.
-    It clears the rice stalks. The field shimmers — a hidden spirit village glows beneath the paddies. Ancient harvest guardians rise.
-    PH — Sunset. Drone lifts from a mango grove. The ripe mangoes begin to float upward like amber lanterns. The farm peels off the earth into a floating island kingdom in the clouds.
-    TH — Morning canal. Drone weaves between longboats at the floating market. The market lifts — boats become sky-barges drifting through a neon Muay Thai arena above the clouds.
-    ID — Turquoise coastline. Drone skims the shore. A sea serpent breaks the surface. The child steers the drone through coral spine ridges in an underwater canyon battle.
-    SG — Dusk. Drone rises before Marina Bay Sands. The Merlion morphs into a 100m AI sentinel. Singapore becomes RoboTown — the child pilots the neural grid command unit.
-    Cut back: five parents, five phones, five proud faces. Five worlds. One drone.
-    Text fades in: "One brief. Five multiverses. The drone opens the portal."
+    US — Sunrise. A boy on a mesa cliff edge launches the drone into an amber sky. It clears the canyon rim. The desert below morphs — ghost herd of mustangs charges across a sky-plain above the mesas, a spectral frontier town floats inverted from the clouds, and the drone leads the stampede through canyon arches of light.
+    CARIBBEAN — Noon storm. A girl on a turquoise island beach launches into the tempest. The drone punches through a wall of rain. Below the surface — a mermaid queen rises, crown of coral, commanding the waves. The girl steers the drone as the mermaid's herald through a cathedral of lightning-lit underwater spires.
+    SG — Dusk. A girl on the Marina Bay promenade launches before Marina Bay Sands. The Merlion morphs — stone to chrome, 100 metres, AI sentinel. Singapore becomes RoboTown — sensor arrays, drone corridors, neural grid bay. The girl ascends to the command position. She pilots the city.
+    Cut back: three parents, three phones, three proud faces. Three worlds. One drone.
+    Text fades in: "One brief. Three multiverses. The drone opens the portal."
     "airvio.co/knowgrph — Write it. See it. Ship it."
   location:
-    name: "multi-locale SEA: VN paddy field → PH mango grove → TH floating water market → ID island coastline → SG Marina Bay Sands / RoboTown"
-    short_label: "5-locale-SEA"
-    label: "Five-locale SEA traversal: Vietnam paddy field · Philippines mango farm · Thailand floating water market · Indonesia island coast · Singapore MBS / RoboTown"
+    name: "US Wild West mesa → Caribbean turquoise island → Singapore Marina Bay Sands / RoboTown"
+    short_label: "3-locale-frontier-tempest-robotown"
+    label: "Three-locale traversal: US Wild West canyon mesa · Caribbean island tempest · Singapore MBS / RoboTown"
 
 spec:
   format: kgc-pipeline
@@ -114,7 +111,7 @@ runner:
 pipeline:
   - seq: W01
     node: w-text-script
-    label: "script to prompt breakdown — 5 locale variants"
+    label: "script to prompt breakdown — 3 locale variants"
     actor: ["user", "AI"]
     edge_in: "prompt_in"
     edge_out: "text_out"
@@ -197,7 +194,7 @@ flow:
       chatThinkingType: {key: chatThinkingType, type: select, value: "disabled"}
       chatReasoningEffort: {key: chatReasoningEffort, type: select, value: "minimal"}
       chatStream: {key: chatStream, type: boolean, value: true}
-      prompt: {key: prompt, type: string, value: "Generate dual-layer prompts for (1) one hero locale scene reference image and (2) the final video. Parent trust layer: safety badges, crash-proof, flight time. Child multiverse layer: locale-specific adventure scene. Use: vibe={{inputs.vibe}}, duration={{inputs.duration_label}}, location={{inputs.location.name}}, theme={{inputs.theme}}. Script: {{inputs.script}}. Output as markdown with explicit sections: Scene Image Prompt, Video Prompt."}
+      prompt: {key: prompt, type: string, value: "Generate dual-layer prompts for (1) one hero locale scene reference image and (2) the final video. Parent trust layer: safety badges, crash-proof shell, obstacle-sense, 20-min flight time. Child multiverse layer: locale-specific adventure scene. Use: vibe={{inputs.vibe}}, duration={{inputs.duration_label}}, location={{inputs.location.name}}, theme={{inputs.theme}}. Script: {{inputs.script}}. Output as markdown with explicit sections: Scene Image Prompt, Video Prompt."}
 
     - id: {key: id, type: string, value: "p-text-script"}
       type: {key: type, type: string, value: "RichMediaPanel"}
@@ -215,7 +212,7 @@ flow:
       label: {key: label, type: string, value: "Image Widget — Scene Reference"}
       "flow:widgetFormId": {key: flow:widgetFormId, type: string, value: "imageGeneration"}
       model: {key: model, type: select, value: "{{inputs.byteplus_image_model}}"}
-      prompt: {key: prompt, type: textarea, value: "{{inputs.vibe}}, {{inputs.duration_label}}; {{inputs.location.label}}; {{inputs.theme}}. Script: {{inputs.script}}. Hero frame: ID locale — child on turquoise coastline, RoboDrone X1 lifting off, sea serpent breaking surface in background, coral canyon visible below waterline, 9:16 vertical."}
+      prompt: {key: prompt, type: textarea, value: "{{inputs.vibe}}, {{inputs.duration_label}}; {{inputs.location.label}}; {{inputs.theme}}. Script: {{inputs.script}}. Hero frame: CARIBBEAN locale — girl on turquoise island beach launching RoboDrone X1 into storm, mermaid queen rising from churning sea below, coral spire cathedral lit by lightning, 9:16 vertical."}
       size: {key: size, type: select, value: "2K"}
       output_format: {key: output_format, type: select, value: "jpeg"}
       response_format: {key: response_format, type: select, value: "b64_json"}
@@ -278,134 +275,103 @@ flow:
     - {id: e-video, source: w-video-scene, sourceHandle: videoUrl, target: p-video-scene, targetHandle: videoUrl, label: "videoUrl → videoUrl", animated: true}
 
 director_brief:
-  title: "Five Skies"
+  title: "Three Skies"
   runtime: "30 seconds"
   format: "9:16 vertical · 1080p · no dialogue · no voiceover · no subtitles"
-  score: "Gamelan-inflected lo-fi (0–22s) → full swell (22–27s) → silence (27–28s) → single warm resolution chord (28–30s)"
-  score_note: "No music sync cuts — score breathes with each child's launch moment, not against it."
-  conceptual_spine: "Five children in five SEA landscapes each launch the same RoboDrone X1. The moment each drone clears tree-height, reality folds — the real landscape dissolves into its locale's unique multiverse. The parent on the ground sees the sky. The child in the sky enters another world. The recursive beat: every world was always a node on a canvas."
+  score: "Slide-guitar Americana lo-fi (0–10s) → steel-drum tempest swell (10–20s) → cold synth ascent (20–27s) → silence (27–28s) → single warm resolution chord (28–30s)"
+  score_note: "Score transitions with each world-shift — not with the drone launch. The music crosses the portal, not the child."
+  conceptual_spine: "Three children in three worlds each launch the same RoboDrone X1. The moment each drone clears its horizon — mesa rim, storm wall, city skyline — reality folds into a private multiverse. The parent on the ground sees the sky. The child in the sky enters another world. The recursive reveal: every world was always a node on a canvas. The brief was always building them."
 
   shots:
     - shot: S01
-      timecode: "00:00–00:05"
-      locale: "VN · Mekong Delta paddy field"
-      frame_label: "LIFT-OFF — The Rice Spirit Stirs"
-      description: "Golden late-afternoon. A Vietnamese child, 10, stands at the edge of a flooded paddy field. Rows of jade-green rice stalks extend to the horizon. She holds the drone controller, exhales, and launches. The RoboDrone X1 rises above the stalks — and the moment it clears the canopy, the paddy field beneath begins to shimmer. Faint bioluminescent lines pulse along each rice row. Ancient harvest-guardian silhouettes rise slow from the waterline, translucent, benevolent. The child hovers the drone over them. She is the first to see."
+      timecode: "00:00–00:10"
+      locale: "US · Wild West canyon mesa, sunrise"
+      frame_label: "LAUNCH — The Ghost Herd Rides"
+      description: "Amber sunrise. A boy, 11, stands at the edge of a sandstone mesa cliff. The canyon drops away below him — ochre walls, sage, the silence before heat. He holds the controller in both hands, squints into the light, and launches the RoboDrone X1. It clears the mesa rim. And the moment it does — the desert below transforms. A ghost herd of wild mustangs materialises on a sky-plain above the canyon, translucent and silver, charging through air. A spectral frontier town — water tower, saloon, dirt main street — hangs inverted from the clouds above, its windows glowing amber. The drone banks hard and leads the stampede through cathedral arches of canyon light, the boy leaning into every turn."
+      prompt: "Write the Text Widget output for S01. Produce a concise markdown scene brief with sections: Scene Image Prompt, Video Prompt, Parent Trust Beat, Adventure Hook, Rich Media Panel Summary. Use the US Wild West mesa details, ghost herd multiverse transformation, parent trust proof, and 9:16 vertical magic-realist style. No cultural sensitivities."
       camera:
-        shot_type: "Low Dutch Angle → Tilt-Up Follow"
-        lens: "35mm"
-        movement: "low angle on child, tilt up as drone lifts, slow follow to drone POV over field"
+        shot_type: "Wide Establishing → Low Drone POV → Tracking Follow"
+        lens: "28mm"
+        movement: "wide on child silhouetted against sunrise canyon, push in as drone launches, cut to low drone POV tracking through ghost herd stampede, banking through canyon light arches"
         aperture: "T2"
-        lighting: "golden hour backlight; warm amber fill on child face; cool teal bioluminescent bloom from field surface"
-        vfx: "bioluminescent rice-row pulse lines; spirit silhouettes rising from water surface; soft shimmer transition layer over real field"
-      image_prompt: "Vietnamese child launching small consumer drone at golden hour above flooded paddy field, Mekong Delta, rice stalks at waist height, bioluminescent teal lines pulsing along rice rows below, ancient harvest spirit silhouettes rising translucent from waterline, warm amber backlight, magic-realist, photorealistic, 9:16 vertical"
-      video_prompt: "Low angle tilt-up following child launching drone above Vietnamese paddy field at golden hour, drone clears rice canopy, field below shimmers and bioluminescent lines pulse along rows, translucent harvest guardian spirits rise slowly from water surface, warm amber light cross-cuts to cool teal glow, 9:16 vertical, cinematic, magic-realist"
-      duration: "5s"
-      locale_hook: "Bay cùng gia đình, khám phá thế giới bí ẩn!"
+        lighting: "amber sunrise backlight on mesa rim; silver-ghost translucency on mustang herd; warm gold bloom through canyon arch formations; inverted frontier town glows amber from above"
+        vfx: "ghost mustang herd — translucent silver particle mane trails; terrain-sky plane inversion for frontier town; canyon arch light beam composites; drone banking physics with motion blur; mesa rim edge horizon fold transition"
+      image_prompt: "Boy on sandstone mesa cliff edge at amber sunrise launching small consumer drone, Wild West canyon below with ochre walls, ghost herd of translucent silver wild mustangs charging across sky-plain above canyon, inverted spectral frontier town hanging from clouds with glowing amber windows, drone banking through cathedral canyon light arches, magic-realist, photorealistic, 9:16 vertical"
+      video_prompt: "Wide shot boy silhouetted on mesa cliff at sunrise, drone launches and clears rim, cut to low drone POV — translucent silver ghost mustang herd materialises charging across sky-plain above the canyon, inverted frontier town glows amber from overhead clouds, drone banks hard leading the stampede through canyon arch light beams, boy leans into controller, amber cinematic backlight, 9:16 vertical, magic-realist"
+      duration: "10s"
+      adventure_hook: "Lead the ghost herd. Own the frontier."
       parent_trust: "obstacle-sense · 20-min flight · crash-proof shell"
 
     - shot: S02
-      timecode: "00:05–00:10"
-      locale: "PH · Cebu mango grove, golden hour"
-      frame_label: "FLOAT — The Farm Becomes a Kingdom"
-      description: "Sunset. A Filipino boy, 9, stands between rows of mango trees heavy with ripe fruit. He launches the drone. It rises. The moment it clears the highest branch — the mangoes begin to detach from their stems and float upward slowly, glowing amber, like lanterns released at a festival. The entire grove peels gently off the earth. Soil, roots, trees, the child's laughter — all rising into a floating island kingdom drifting above sunset clouds. The drone leads the ascent."
+      timecode: "00:10–00:20"
+      locale: "Caribbean · turquoise island, noon tempest"
+      frame_label: "PIERCE — The Mermaid Queen Commands"
+      description: "Noon storm. A Caribbean girl, 10, stands barefoot on a white-sand beach as a wall of tropical rain sweeps in from the turquoise sea. Palm trees bend. The water churns jade and white. She launches the RoboDrone X1 directly into the storm wall — the drone punches through the curtain of rain and emerges above the tempest, bright sky above, chaos below. And in the churning water below the surface — visible through a momentary clearing in the waves — a mermaid queen rises: coral crown, bioluminescent scales, commanding. She raises one hand and the waves part. The drone descends as the queen's herald, weaving through a cathedral of lightning-lit underwater spires of coral that erupt from the seafloor, scales catching each bolt."
+      prompt: "Write the Text Widget output for S02. Produce a concise markdown scene brief with sections: Scene Image Prompt, Video Prompt, Parent Trust Beat, Adventure Hook, Rich Media Panel Summary. Use the Caribbean island tempest details, mermaid queen multiverse transformation, parent trust proof, and 9:16 vertical magic-realist style."
       camera:
-        shot_type: "Medium → Crane Pull-Back"
-        lens: "40mm"
-        movement: "medium on child between trees, crane pull-back as grove lifts, reveal floating island from below"
-        aperture: "T2.8"
-        lighting: "warm gold sunset key; amber bounce from floating mangoes; under-lit cloud layer as island clears it"
-        vfx: "mango float particle system — amber glow trail per fruit; terrain lift simulation; floating island kingdom environment; cloud layer below ascending island"
-      image_prompt: "Filipino boy launching drone in mango grove at golden hour Cebu Philippines, ripe mangoes detaching and floating upward glowing amber like lanterns, entire grove beginning to lift off earth, floating island kingdom forming above sunset clouds, drone ascending ahead of the floating farm, magic-realist, photorealistic, 9:16 vertical"
-      video_prompt: "Crane pull-back from child launching drone in mango grove, mangoes begin floating upward glowing amber at golden hour, entire grove peels off earth in slow motion, floating island kingdom rises above sunset cloud layer, drone leads ascent, camera pulls back to reveal floating island from below, 9:16 vertical, cinematic, warm magic-realist"
-      duration: "5s"
-      locale_hook: "Lumipad sa lupain ng mga mangga sa langit!"
+        shot_type: "Eye-Level Rain Wall → Drone POV Punch-Through → Subsurface Reveal"
+        lens: "35mm"
+        movement: "eye-level on girl facing storm wall, drone launches into rain, cut to drone POV punching through rain curtain into clear sky, tilt down to subsurface reveal of mermaid queen rising, tracking through coral spire cathedral"
+        aperture: "T2"
+        lighting: "flat storm-diffuse on beach; bright turquoise sky above rain wall after punch-through; deep bioluminescent blue-green below surface; lightning strobe on coral spire cathedral"
+        vfx: "rain wall particle curtain with drone punch-through dynamic; subsurface caustic shimmer; mermaid queen composite — bioluminescent scale shader; coral spire cathedral environment; lightning bolt composites with scale reflection; wave surface clearing animation"
+      image_prompt: "Caribbean girl on white sand beach launching drone into approaching tropical storm wall, turquoise sea churning jade and white, drone punching through rain curtain into clear sky above, below the storm waves a mermaid queen rises from the deep — coral crown, bioluminescent blue-green scales, commanding arms raised — cathedral of lightning-lit coral spires erupting from seafloor, magic-realist, photorealistic, 9:16 vertical"
+      video_prompt: "Eye-level shot girl launching drone into tropical storm wall on Caribbean beach, drone punches through rain curtain — bright sky above, chaos below — camera tilts down below surface to reveal mermaid queen rising from seafloor bioluminescent scales and coral crown, waves part at her command, drone descends as herald weaving through coral spire cathedral lit by lightning bolts, 9:16 vertical, cinematic, vivid magic-realist"
+      duration: "10s"
+      adventure_hook: "Fly the tempest. Serve the queen."
       parent_trust: "obstacle-sense · 20-min flight · crash-proof shell"
 
     - shot: S03
-      timecode: "00:10–00:16"
-      locale: "TH · Bangkok floating water market"
-      frame_label: "LIFT — The Market Takes Flight"
-      description: "Morning. A Thai girl, 11, sits cross-legged on the prow of a longtail boat among the canal stalls of a floating market. Vendors in wide-brim hats, lotus flowers, steaming bowls. She launches the drone. It weaves between the boat canopies — and then the entire market lifts. Boats become sky-barges. The canal surface remains but the market floats upward into a neon-lit aerial arena where Muay Thai fighters spar in slow motion on platforms suspended between the sky-barges. The girl's drone is the referee."
-      camera:
-        shot_type: "Eye-Level Float → Wide Aerial"
-        lens: "28mm"
-        movement: "eye-level on child in boat, drone lifts through market canopies, camera follows up to aerial wide as market floats"
-        aperture: "T2"
-        lighting: "soft morning diffuse on canal; neon magenta and gold as market lifts; stadium-light bloom on aerial arena"
-        vfx: "boat levitation simulation; canal surface remains static below; neon arena environment build; Muay Thai fighter composites; slow-motion particle system on impacts"
-      image_prompt: "Thai girl on longtail boat launching drone in Bangkok floating water market, canal stalls lifting off water into sky, boats becoming sky-barges drifting into neon aerial Muay Thai arena above clouds, slow-motion fighters sparring on floating platforms, soft morning light cross-cutting to neon magenta gold, magic-realist, photorealistic, 9:16 vertical"
-      video_prompt: "Eye-level shot on child launching drone in Bangkok floating water market, drone weaves through boat canopies, entire market begins lifting off canal, boats become sky-barges, camera follows up to aerial wide revealing neon Muay Thai arena in the sky with slow-motion fighters on floating platforms, 9:16 vertical, cinematic, neon magic-realist"
-      duration: "6s"
-      locale_hook: "บินสู่ตลาดน้ำในโลกอีกใบ!"
-      parent_trust: "obstacle-sense · 20-min flight · crash-proof shell"
-
-    - shot: S04
-      timecode: "00:16–00:22"
-      locale: "ID · Lombok island coastline"
-      frame_label: "DIVE — The Sea Serpent Rises"
-      description: "Turquoise water. Black volcanic sand. An Indonesian boy, 12, stands barefoot at the shoreline and launches the drone low over the water. It skims the surface. Below the waterline — visible through the impossible clarity — a vast sea serpent is coiling upward, ancient, scaled in iridescent green and gold. It breaks the surface in a slow column of white water. The drone banks hard, the boy leans into the controller, and they weave through the exposed coral spine ridges of the serpent's back as it arcs back into the deep. The battle has begun."
-      camera:
-        shot_type: "Low Drone POV → Tracking Dive"
-        lens: "24mm wide"
-        movement: "low skim over water surface following drone, tilt down to reveal serpent rising from below, tracking dive alongside serpent arc"
-        aperture: "T2"
-        lighting: "midday equatorial white overhead; turquoise caustic refraction from below waterline; iridescent green-gold bioluminescent scale glow on serpent"
-        vfx: "underwater serpent reveal — subsurface caustic light simulation; serpent surface breach with water column; coral spine ridge environment; drone banking physics simulation"
-      image_prompt: "Indonesian boy on black volcanic sand beach Lombok launching drone low over turquoise ocean, enormous sea serpent rising from below waterline iridescent green gold scales, white water column breach, drone banking toward exposed coral spine ridges on serpent's back, midday equatorial light, turquoise caustics from below, magic-realist, photorealistic, 9:16 vertical"
-      video_prompt: "Low drone-POV skim over turquoise Lombok coastline, camera tilts down to reveal massive iridescent sea serpent coiling upward from below surface, serpent breaches in slow-motion white water column, drone banks hard alongside coral spine ridges on serpent's back, boy leans into controller on volcanic sand shore, 9:16 vertical, cinematic, vivid magic-realist"
-      duration: "6s"
-      locale_hook: "Tantang naga laut dari langit!"
-      parent_trust: "obstacle-sense · 20-min flight · crash-proof shell"
-
-    - shot: S05
-      timecode: "00:22–00:27"
+      timecode: "00:20–00:27"
       locale: "SG · Marina Bay Sands / RoboTown"
       frame_label: "ASCEND — The Merlion Becomes a Sentinel"
-      description: "Dusk. Singapore. A Singaporean girl, 13, stands on the Marina Bay promenade. City lights just beginning. She launches the drone. It rises before Marina Bay Sands — the three towers, the sky park, the bay. Then: the Merlion shifts. Stone becomes chrome. It stands taller — 100 metres, articulated, AI-sentinel, scanning. The skyline morphs: towers grow sensor arrays, drone corridors appear between buildings, the bay surface becomes a neural grid of light. This is RoboTown. The girl's drone ascends to the command position at the top of the grid. She is the pilot. The city waits."
+      description: "Dusk. A Singaporean girl, 13, stands on the Marina Bay promenade. City lights just kindling. She launches the RoboDrone X1. It rises before Marina Bay Sands — the three towers, the sky park, the bay. Then: the Merlion shifts. Stone becomes chrome. It stands taller — 100 metres, articulated, AI-sentinel, eyes scanning slow arcs across the bay. The skyline morphs: towers grow sensor arrays, drone corridors materialise between buildings, the bay surface becomes a neural grid of pulsing light. This is RoboTown. The girl's drone ascends to the command position at the apex of the grid. The city's systems align to her heading. She is the pilot. The city waits."
+      prompt: "Write the Text Widget output for S03. Produce a concise markdown scene brief with sections: Scene Image Prompt, Video Prompt, Parent Trust Beat, Adventure Hook, Rich Media Panel Summary. Use the SG Marina Bay RoboTown details, Merlion AI sentinel transformation, parent trust proof, and 9:16 vertical futurist magic-realist style."
       camera:
         shot_type: "Low Angle Rise → Wide City Transform"
         lens: "35mm"
-        movement: "low angle on child with MBS behind, drone rises past child eyeline, camera cranes up to reveal full city transform"
+        movement: "low angle on girl with MBS behind, drone rises past child eyeline, camera cranes up to reveal full city transform — Merlion morph, tower arrays, neural grid bay"
         aperture: "T1.8"
-        lighting: "blue-hour Singapore dusk on real city; cold chrome-white and electric blue on RoboTown reveal; neural grid bay surface light emission"
-        vfx: "Merlion morph — stone-to-chrome particle transition; MBS tower sensor array extension; drone corridor network materialise between buildings; bay surface neural grid light animation; city scale exaggeration — towers grow 30%"
-      image_prompt: "Singaporean girl launching drone on Marina Bay promenade at dusk, Marina Bay Sands towers behind her, Merlion transforming from stone to chrome 100m AI sentinel, Singapore skyline morphing into RoboTown with sensor arrays on towers and drone corridors between buildings, Marina Bay surface becoming neural grid of light, girl's drone ascending to command position above grid, blue-hour cold chrome tones, magic-realist futurist, photorealistic, 9:16 vertical"
-      video_prompt: "Low angle crane-up following drone rising before Marina Bay Sands at blue-hour dusk, Merlion begins morphing from stone to towering chrome AI sentinel, Singapore skyline transforms into RoboTown — sensor arrays grow on towers, drone corridors materialise, bay surface becomes glowing neural grid, girl's drone ascends to command position above the city, cold chrome and electric blue tones, 9:16 vertical, cinematic, futurist magic-realist"
-      duration: "5s"
-      locale_hook: "Command the future. Your city. Your drone."
+        lighting: "blue-hour Singapore dusk on real city; cold chrome-white and electric blue on RoboTown reveal; pulsing neural grid bay surface light emission; Merlion eyes — amber scanning sweep"
+        vfx: "Merlion morph — stone-to-chrome particle transition, height exaggeration ×5; MBS tower sensor array extension composites; drone corridor network materialise between buildings; bay surface neural grid light pulse animation; city scale exaggeration — towers grow 30%; girl's drone apex glow — command position indicator"
+      image_prompt: "Singaporean girl launching drone on Marina Bay promenade at dusk, Marina Bay Sands towers behind her, Merlion transforming from stone to chrome 100m AI sentinel with amber scanning eyes, Singapore skyline morphing into RoboTown with sensor arrays on towers and drone corridors between buildings, Marina Bay surface becoming pulsing neural grid of light, girl's drone ascending to command position apex above grid, blue-hour cold chrome and electric blue tones, futurist magic-realist, photorealistic, 9:16 vertical"
+      video_prompt: "Low angle crane-up following drone rising before Marina Bay Sands at blue-hour dusk, Merlion begins morphing from stone to towering chrome AI sentinel with amber scanning eyes, Singapore skyline transforms into RoboTown — sensor arrays grow on towers, drone corridors materialise, bay surface becomes pulsing neural grid, girl's drone ascends to command apex above the city, city systems align to her heading, cold chrome and electric blue tones, 9:16 vertical, cinematic, futurist magic-realist"
+      duration: "7s"
+      adventure_hook: "Command the future. Your city. Your drone."
       parent_trust: "obstacle-sense · 20-min flight · crash-proof shell"
 
-    - shot: S06
+    - shot: S04
       timecode: "00:27–00:29"
       epoch: "The Canvas Reveal"
-      frame_label: "REVERSE ZOOM — Five Worlds, One Brief"
-      description: "From the SG drone's command position — exponential pull-back. RoboTown shrinks. Then: five locale scenes appear as nodes on a dark canvas, connected by luminous bezier threads. VN paddy field · PH mango kingdom · TH sky market · ID serpent coast · SG RoboTown — all live, all glowing. Five parents visible at the base of each node. A cursor materialises and hovers. The canvas glows."
+      frame_label: "REVERSE ZOOM — Three Worlds, One Brief"
+      description: "From the SG drone's command apex — exponential pull-back. RoboTown shrinks. Then: three locale scenes appear as glowing nodes on a dark canvas, connected by luminous bezier threads. US frontier mesa node — amber glow. Caribbean tempest node — turquoise glow. SG RoboTown node — electric blue glow. Three parents visible as silhouettes at the base of each node, phones raised. A cursor materialises above the canvas, hovers. The canvas pulses once."
+      prompt: "Write the Text Widget output for S04. Produce a concise markdown scene brief with sections: Canvas Reveal Beat, Edge/Node Summary, Video Prompt, Rich Media Panel Summary. Use the three-world reverse zoom, luminous bezier edges in locale colours amber/turquoise/electric-blue, parent silhouettes, cursor reveal, and dark canvas aesthetic."
       camera:
         shot_type: "Rapid Reverse Zoom — Practical→Digital"
         lens: "transition from 35mm to screen-space CG camera"
         movement: "exponential pull-back, 0→8m/s"
         aperture: "N/A (CG transition)"
-        lighting: "screen glow — dark canvas; five node halos in locale colours: teal · amber · magenta · turquoise · electric blue"
-        vfx: "full CG canvas environment; five locale nodes materialise; bezier edges between nodes; cursor animation; parent silhouettes at node bases"
-      image_prompt: "Extreme pull-back zoom revealing five glowing locale nodes on dark creative canvas flow graph — VN paddy field, PH mango island, TH sky market, ID serpent coast, SG RoboTown — connected by luminous bezier curves in locale colours teal amber magenta turquoise electric blue, cursor hovering above canvas, parent silhouettes at base of each node, 9:16 vertical, dark canvas aesthetic"
-      video_prompt: "Rapid exponential reverse zoom from Singapore drone command position to reveal five locale scenes as glowing nodes on dark canvas flow graph, bezier edges connecting all five nodes in locale colours, cursor materialises and hovers, five parent silhouettes glow at node bases, canvas pulses once, 9:16 vertical, cinematic, 2s"
+        lighting: "screen glow — dark canvas; three node halos: amber (US) · turquoise (Caribbean) · electric blue (SG)"
+        vfx: "full CG canvas environment; three locale nodes materialise with locale-colour halos; luminous bezier edges between nodes; cursor materialise animation; parent silhouettes at node bases; canvas pulse once"
+      image_prompt: "Extreme pull-back zoom revealing three glowing locale nodes on dark creative canvas flow graph — US Wild West mesa amber, Caribbean island turquoise, Singapore RoboTown electric blue — connected by luminous bezier curves, cursor hovering above canvas, parent silhouettes at base of each node, 9:16 vertical, dark canvas aesthetic"
+      video_prompt: "Rapid exponential reverse zoom from Singapore drone command apex to reveal three locale scenes as glowing nodes on dark canvas flow graph, luminous bezier edges in amber turquoise electric-blue, cursor materialises and hovers, three parent silhouettes glow at node bases, canvas pulses once, 9:16 vertical, cinematic, 2s"
       duration: "2s"
 
-    - shot: S07
+    - shot: S05
       timecode: "00:29–00:30"
       epoch: "CTA — Canvas Hold"
       frame_label: "HOLD — Text Materialises"
-      description: "Canvas holds. Subtle parallax drift across the five nodes. Two lines of text fade in over one second. Held for one second. Warm resolution chord sounds."
+      description: "Canvas holds. Subtle parallax drift across three nodes. Two lines of text fade in over one second. Held for one second. Warm resolution chord sounds."
+      prompt: "Write the Text Widget output for S05. Produce a concise markdown scene brief with sections: CTA Copy, Video Prompt, Canvas Hold Beat, Rich Media Panel Summary. Use the final text materialisation, warm resolution chord, three glowing locale nodes, and airvio.co/knowgrph call to action."
       camera:
         shot_type: "Static Hold (CG)"
         lens: "N/A"
         movement: "subtle parallax 0.05m/s drift"
         aperture: "N/A"
-        lighting: "canvas ambient only; five node halos maintain locale colours"
+        lighting: "canvas ambient only; three node halos maintain locale colours"
         vfx: "text fade-in; parallax depth pass; warm chord audio"
       cta:
-        line_1: "One brief. Five multiverses. The drone opens the portal."
+        line_1: "One brief. Three multiverses. The drone opens the portal."
         line_2: "airvio.co/knowgrph — Write it. See it. Ship it."
         font: "Cormorant Garamond · Light · tracked +80"
         colour: "#FFFFFF"
@@ -414,9 +380,9 @@ director_brief:
       duration: "1s"
 ---
 
-# Video Demo — Five Skies (RoboDrone X1 · SEA Multiverse)
+# Video Demo — Three Skies (RoboDrone X1 · Frontier · Tempest · RoboTown)
 
-Director brief, storyboard spec, and shot list for the 30-second five-locale multiverse reel.  
+Director brief, storyboard spec, and shot list for the 30-second three-locale multiverse reel.  
 Pipeline: `{{inputs.byteplus_text_model}}` → `{{inputs.byteplus_image_model}}` → `{{inputs.byteplus_video_model}}`
 
 ---
@@ -439,74 +405,62 @@ Script: {{inputs.script}}
 
 ## Director Brief
 
-**Title:** Five Skies  
+**Title:** Three Skies  
 **Runtime:** 30 seconds  
 **Format:** 9:16 vertical · 1080p · no dialogue · no voiceover · no subtitles  
-**Score:** Gamelan-inflected lo-fi (0–22s) → full swell (22–27s) → silence (27–28s) → warm resolution chord (28–30s)  
-**No music sync cuts** — score breathes with each child's launch moment, not against it.
+**Score:** Slide-guitar Americana lo-fi (0–10s) → steel-drum tempest swell (10–20s) → cold synth ascent (20–27s) → silence (27–28s) → warm resolution chord (28–30s)  
+**Score note:** Score transitions with each world-shift — not with the drone launch. The music crosses the portal, not the child.
 
-**Conceptual spine:** Five children in five SEA landscapes each launch the same RoboDrone X1. The moment each drone clears tree-height, reality folds — the landscape dissolves into its locale's unique multiverse. The parent on the ground sees the sky. The child in the sky enters another world. The recursive reveal: every world was always a node on a canvas. *The brief was always building them.*
+**Conceptual spine:** Three children in three worlds each launch the same RoboDrone X1. The moment each drone clears its horizon — mesa rim, storm wall, city skyline — reality folds into a private multiverse. The parent on the ground sees the sky. The child in the sky enters another world. The recursive reveal: every world was always a node on a canvas. *The brief was always building them.*
 
 ---
 
 ## Storyboard — Shot-by-Shot
 
-### S01 · 0–5s · VN · Paddy Field · LIFT-OFF — The Rice Spirit Stirs
+### S01 · 0–10s · US · Wild West Canyon Mesa · LAUNCH — The Ghost Herd Rides
 
-**Frame description:** Golden late-afternoon. Vietnamese child launches drone above flooded paddy field. Drone clears the rice canopy. The field shimmers — bioluminescent lines pulse along each rice row. Ancient harvest-guardian silhouettes rise translucent from the waterline.
+**Frame description:** Amber sunrise. Boy on sandstone mesa cliff edge. Drone launches, clears the rim. The desert transforms — ghost mustang herd charges silver across a sky-plain above the canyon. Inverted spectral frontier town hangs from clouds, windows glowing amber. Drone banks leading the stampede through canyon arch light beams.
 
-**Camera:** Low Dutch angle → tilt-up follow · 35mm · T2  
-**VFX:** Bioluminescent rice-row pulse; spirit silhouette composites; shimmer transition layer  
+**Camera:** Wide establishing → low drone POV → tracking follow · 28mm · T2  
+**Score:** Slide-guitar Americana lo-fi  
+**VFX:** Ghost mustang particle mane trails; inverted frontier town composite; canyon arch light beams; mesa rim horizon fold transition  
 **Image prompt seed:** `{{director_brief.shots[0].image_prompt}}`
 
 ---
 
-### S02 · 5–10s · PH · Mango Grove · FLOAT — The Farm Becomes a Kingdom
+### S02 · 10–20s · Caribbean · Island Tempest · PIERCE — The Mermaid Queen Commands
 
-**Frame description:** Sunset. Filipino boy launches drone above Cebu mango grove. Drone clears the highest branch. Mangoes detach and float upward — amber lanterns. The entire grove peels off the earth into a floating island kingdom above sunset clouds.
+**Frame description:** Noon tropical storm. Girl on white-sand beach launches drone into the rain wall. Drone punches through into clear sky. Below the churning surface — mermaid queen rises, coral crown, bioluminescent scales, arms raised. Waves part. Drone descends as herald through a lightning-lit cathedral of coral spires.
 
-**Camera:** Medium → crane pull-back · 40mm · T2.8  
-**VFX:** Mango float particle system; terrain lift simulation; floating island environment; cloud layer below
-
----
-
-### S03 · 10–16s · TH · Water Market · LIFT — The Market Takes Flight
-
-**Frame description:** Morning Bangkok canal. Thai girl on longtail boat launches drone. Drone weaves through canopy. The market lifts — boats become sky-barges. Neon Muay Thai arena materialises above clouds. Slow-motion fighters spar on floating platforms. The drone is the referee.
-
-**Camera:** Eye-level float → wide aerial · 28mm · T2  
-**VFX:** Boat levitation; canal static below; neon arena environment; Muay Thai composites
+**Camera:** Eye-level rain wall → drone POV punch-through → subsurface reveal · 35mm · T2  
+**Score:** Steel-drum tempest swell  
+**VFX:** Rain wall punch-through dynamic; mermaid queen bioluminescent scale shader; coral spire cathedral; lightning bolt composites with scale reflection  
+**Image prompt seed:** `{{director_brief.shots[1].image_prompt}}`
 
 ---
 
-### S04 · 16–22s · ID · Lombok Coastline · DIVE — The Sea Serpent Rises
+### S03 · 20–27s · SG · Marina Bay Sands / RoboTown · ASCEND — The Merlion Becomes a Sentinel
 
-**Frame description:** Turquoise water. Black volcanic sand. Indonesian boy launches drone low over the sea. Below the surface — a vast iridescent sea serpent coils upward. It breaches in a column of white water. The drone banks through the coral spine ridges of the serpent's back. The battle begins.
-
-**Camera:** Low drone POV → tracking dive · 24mm · T2  
-**VFX:** Subsurface caustic simulation; serpent breach water column; coral spine ridge environment; drone banking physics
-
----
-
-### S05 · 22–27s · SG · Marina Bay / RoboTown · ASCEND — The Merlion Becomes a Sentinel
-
-**Frame description:** Blue-hour Singapore. Singaporean girl launches drone before Marina Bay Sands. The Merlion morphs — stone to chrome, 100 metres, AI sentinel. The skyline transforms into RoboTown: sensor arrays, drone corridors, neural grid bay. The girl's drone ascends to the command position. She pilots the city.
+**Frame description:** Blue-hour Singapore. Girl launches before Marina Bay Sands. The Merlion morphs — stone to chrome, 100 metres, AI sentinel, amber scanning eyes. Skyline transforms into RoboTown: sensor arrays, drone corridors, neural grid bay. Girl's drone ascends to command apex. The city waits.
 
 **Camera:** Low angle rise → wide city transform · 35mm · T1.8  
-**VFX:** Merlion stone-to-chrome morph; tower sensor array extension; drone corridor network; neural grid bay animation
+**Score:** Cold synth ascent  
+**VFX:** Merlion stone-to-chrome morph; tower sensor array extension; drone corridor network; neural grid bay pulse animation; command apex glow  
+**Image prompt seed:** `{{director_brief.shots[2].image_prompt}}`
 
 ---
 
-### S06 · 27–29s · Canvas Reveal · REVERSE ZOOM — Five Worlds, One Brief
+### S04 · 27–29s · Canvas Reveal · REVERSE ZOOM — Three Worlds, One Brief
 
-**Frame description:** Exponential pull-back from SG command position. Five locale scenes appear as nodes on a dark canvas — VN · PH · TH · ID · SG — connected by luminous bezier threads in locale colours. Five parent silhouettes at each node base. Cursor materialises. Canvas glows.
+**Frame description:** Exponential pull-back from SG command apex. Three locale nodes appear on dark canvas — amber (US) · turquoise (Caribbean) · electric blue (SG) — connected by luminous bezier threads. Three parent silhouettes at node bases. Cursor materialises. Canvas pulses.
 
 **Camera:** Rapid reverse zoom · 35mm → CG · exponential 0→8m/s  
-**VFX:** Full CG canvas; five locale nodes; bezier edges in locale colours; cursor animation; parent silhouettes
+**Score:** Silence  
+**VFX:** Full CG canvas; three locale nodes with locale-colour halos; bezier edges; cursor animation; parent silhouettes; canvas pulse
 
 ---
 
-### S07 · 29–30s · CTA · HOLD — Text Materialises
+### S05 · 29–30s · CTA · HOLD — Text Materialises
 
 **Frame description:** Canvas holds. Parallax drift. Text fades in. Warm chord resolves.
 
@@ -517,7 +471,9 @@ Script: {{inputs.script}}
 
 ## Pipeline
 
-`W01` generates dual-layer structured prompts per locale (parent trust + child multiverse), `W02` creates the hero reference frame (S04 — ID sea serpent breach selected as hero frame for highest visual drama), `W03` generates the final video from that reference.
+`W01` generates dual-layer structured prompts per locale (parent trust + child multiverse adventure), `W02` creates the hero reference frame (S02 — Caribbean mermaid queen selected as hero frame for highest visual drama and colour contrast), `W03` generates the final video from that reference.
+
+The `director_brief.shots` list is the frontmatter SSOT for derived shot Text, Image, Video, Rich Media Panel, and typed Edge nodes. S01–S03 are the hero locale row for the Flow Editor Balanced 16:9 layout; S04–S05 are the canvas reveal and CTA row. Toolbar Run all writes widget outputs into existing nodes only; it must not rewrite Balanced widget positions, Rich Media Panel layout, or edge topology.
 
 ## Flow Graph
 

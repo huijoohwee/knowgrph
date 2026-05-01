@@ -2364,6 +2364,16 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirecto
   if (Math.abs(Number(pos3.y) - Number(posText.y)) > 1) {
     throw new Error('expected first three shots to spread across the same first row for 16:9 balance')
   }
+  if (!(Number(posText.x) < Number(pos2.x) && Number(pos2.x) < Number(pos3.x))) {
+    throw new Error('expected S01-S03 hero shots to preserve left-to-right first-row order')
+  }
+  const shot4 = nodeById.get('db-shot-S04-text') || null
+  if (!shot4) throw new Error('expected derived director_brief shot node db-shot-S04-text')
+  const pos4 = { x: (shot4 as unknown as { x?: unknown }).x, y: (shot4 as unknown as { y?: unknown }).y }
+  if (!(typeof pos4.y === 'number' && Number.isFinite(pos4.y))) throw new Error('expected shot S04 y position')
+  if (!(Number(pos4.y) > Number(posText.y))) {
+    throw new Error('expected canvas reveal/CTA shots to start on the row after the three hero locales')
+  }
 
   const edgeUniqs = new Set(
     g.edges

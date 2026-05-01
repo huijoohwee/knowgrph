@@ -29,6 +29,8 @@ import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
+import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
+import { hashSignatureParts } from '@/lib/hash/signature'
 
 export default function FlowEditorCanvasRuntime(
   {
@@ -62,7 +64,6 @@ export default function FlowEditorCanvasRuntime(
 
   const baseGraphData = useGraphStore(s => s.graphData)
   const baseGraphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
-  const graphContentRevision = useGraphStore(s => s.graphContentRevision || 0)
   const {
     canvasRenderMode,
     canvas2dRenderer,
@@ -256,6 +257,10 @@ export default function FlowEditorCanvasRuntime(
     selectedEdgeId,
   })
 
+  const overlayTopologyLayoutSignature = React.useMemo(() => {
+    return buildOverlayTopologyLayoutSignature(renderGraphDataOverride || flowEditorBaseGraphData || baseGraphData || null)
+  }, [baseGraphData, flowEditorBaseGraphData, renderGraphDataOverride])
+
   const {
     emitFlowEditorInteractionFrame,
     flowRuntimeRefRef,
@@ -269,7 +274,7 @@ export default function FlowEditorCanvasRuntime(
     viewportW,
     viewportH,
     schema,
-    baseGraphDataRevision,
+    overlayTopologyLayoutSignature,
     zoomViewKeyRef,
   })
 
@@ -277,11 +282,12 @@ export default function FlowEditorCanvasRuntime(
     return flowEditorViewActive
   }, [flowEditorViewActive])
 
+  const overlayEdgesEnabledRef = React.useRef(false)
+
   const { scheduleOverlayCollisionResolve } = useFlowEditorOverlayCollision({
     editorRuntimeActive,
     overlayOnlyModeEnabled,
     renderGraphDataOverride,
-    graphContentRevision,
     schema,
     selectedNodeId,
     viewportW,
@@ -296,9 +302,10 @@ export default function FlowEditorCanvasRuntime(
     flowEditorSurfaceId,
   })
 
-  const { overlayEdgesSvgRef } = useFlowEditorOverlayEdges({
+  const { overlayEdgesSvgRef, scheduleOverlayEdgeUpdate } = useFlowEditorOverlayEdges({
     active,
     overlayOnlyModeEnabled,
+    overlayEdgesEnabledRef,
     flowEditorSurfaceId,
     rootRef,
     draftGraphDataRef,
@@ -312,7 +319,6 @@ export default function FlowEditorCanvasRuntime(
     pendingEdgeSourcePortKey,
     frontmatterFlowRenderSettings,
   })
-
 
   const {
     overlayDraftNode,
@@ -397,9 +403,6 @@ export default function FlowEditorCanvasRuntime(
     upsertUiToast,
   })
 
-  if (widgetDropBridgeOnly) {
-    return <section ref={rootRef} className="absolute inset-0 pointer-events-none opacity-0" aria-hidden="true" />
-  }
   const {
     edgeMetaJson,
     edgePropsJson,
@@ -482,6 +485,7 @@ export default function FlowEditorCanvasRuntime(
     setDraftGraphData,
     updateNode,
     upsertUiToast,
+    scheduleOverlayEdgeUpdate,
   })
 
   const { inspectorElement } = useFlowEditorInspectorSurface({
@@ -542,6 +546,8 @@ export default function FlowEditorCanvasRuntime(
     geospatialWidgetPanelMode,
     renderGraphDataOverride,
     baseGraphDataRevision,
+    draftGraphDataRevision,
+    overlayTopologyLayoutSignature,
     openWidgetNodeIds,
     overlayDraftNode,
     pendingOverlayNode,
@@ -577,9 +583,21 @@ export default function FlowEditorCanvasRuntime(
     widgetRegistry,
     flowWidgetPinnedByNodeId,
   })
+  const overlayEditorNodeIdsKey = React.useMemo(() => {
+    return hashSignatureParts(['overlay-editor-node-ids', ...overlayEditorNodeIds])
+  }, [overlayEditorNodeIds])
   React.useEffect(() => {
     overlayEditorNodeIdsRef.current = overlayEditorNodeIds
   }, [overlayEditorNodeIds])
+  React.useEffect(() => {
+    overlayEdgesEnabledRef.current = overlayOnlyActive
+    if (!overlayOnlyActive) return
+    scheduleOverlayEdgeUpdate()
+  }, [overlayEditorNodeIdsKey, overlayOnlyActive, scheduleOverlayEdgeUpdate])
+
+  if (widgetDropBridgeOnly) {
+    return <section ref={rootRef} className="absolute inset-0 pointer-events-none opacity-0" aria-hidden="true" />
+  }
 
   return (
     <FlowEditorCanvasSurface

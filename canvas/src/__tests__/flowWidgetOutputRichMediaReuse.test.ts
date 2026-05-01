@@ -25,7 +25,8 @@ export function testTextWidgetOutputPatchBuildsRichMediaIframeSpec() {
 
 export function testFlowEditorCanvasTextRunUsesSharedRichMediaOutputPatch() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(workflowActionsPath, 'utf8')}`
 
   if (!text.includes('buildTextWidgetOutputPatch')) {
     throw new Error('expected FlowEditorCanvas text widget run path to reuse shared text-widget rich-media output patch helper')
@@ -40,7 +41,8 @@ export function testFlowEditorCanvasTextRunUsesSharedRichMediaOutputPatch() {
 
 export function testFlowEditorCanvasRunTargetsWritableNodeIdForComposedGraphs() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(workflowActionsPath, 'utf8')}`
 
   if (!text.includes('splitComposedNodeId')) {
     throw new Error('expected FlowEditorCanvas run path to normalize composed node ids before writeback')
@@ -51,14 +53,23 @@ export function testFlowEditorCanvasRunTargetsWritableNodeIdForComposedGraphs() 
   if (!text.includes('updateRunOutputForKnownNodeIds')) {
     throw new Error('expected FlowEditorCanvas run path to write outputs via canonical id updater')
   }
-  if (!text.includes('setDraftGraphData(prev => {')) {
-    throw new Error('expected FlowEditorCanvas run path to update live draft graph output before renderer recompute')
+  if (!text.includes('args.draftGraphDataRef.current = nextDraft')) {
+    throw new Error('expected FlowEditorCanvas run path to update live draft graph ref output before renderer recompute')
+  }
+  if (!text.includes('args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))')) {
+    throw new Error('expected FlowEditorCanvas run path to preserve live draft ref as SSOT while React state catches up')
+  }
+  if (!text.includes('function bumpDraftGraphDataRevision(graphData: GraphData): GraphData')) {
+    throw new Error('expected FlowEditorCanvas run path to bump draft graph revision for output cache invalidation')
   }
 }
 
 export function testFlowEditorCanvasUsesDraftRevisionForActiveRenderGraph() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const surfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
+  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
+  const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(runtimePath, 'utf8')}\n${readFileSync(surfacePath, 'utf8')}\n${readFileSync(renderStatePath, 'utf8')}`
 
   if (!text.includes('const draftGraphDataRevision = React.useMemo(() => {')) {
     throw new Error('expected FlowEditorCanvas to derive a render revision from the live draft graph')
@@ -66,7 +77,7 @@ export function testFlowEditorCanvasUsesDraftRevisionForActiveRenderGraph() {
   if (!text.includes("const raw = (meta as Record<string, unknown>).graphDataRevision")) {
     throw new Error('expected FlowEditorCanvas to read the draft graph revision from graph metadata')
   }
-  if (!text.includes('graphDataRevisionOverride={flowEditorViewActive ? draftGraphDataRevision : baseGraphDataRevision}')) {
+  if (!text.includes('graphDataRevisionOverride={props.flowEditorViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}')) {
     throw new Error('expected FlowCanvas to render against the live draft revision while Flow Editor is active')
   }
 }
@@ -88,7 +99,8 @@ export function testFlowEditorCanvasResolvesCanonicalSelectionIdsAcrossDraftAndO
 
 export function testFlowEditorCanvasDataflowRegistryPrefersNonEmptyDocumentThenEffectiveThenBase() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(workflowActionsPath, 'utf8')}`
 
   if (!text.includes('buildDataflowWidgetRegistry')) {
     throw new Error('expected FlowEditorCanvas to use shared dataflow registry merger')
@@ -155,7 +167,10 @@ export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() 
   if (!previewText.includes('markdownTokenStoreSync = true')) {
     throw new Error('expected MarkdownPreview to preserve existing token-store sync behavior by default')
   }
-  if (!panelText.includes('const allowPanelContentPointerEvents = !editorMode || flowEditorInteractionMode === true')) {
+  if (!panelText.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
+    throw new Error('expected RichMediaPanel to use canonical workspace overlay-open state instead of workspace editor mode alone')
+  }
+  if (!panelText.includes('const allowPanelContentPointerEvents = !workspaceEditorOverlayOpen || flowEditorInteractionMode === true || isFlowEditorRenderer === true')) {
     throw new Error('expected RichMediaPanel to keep content pointer interactions enabled in FlowEditor interaction mode for in-panel scrolling')
   }
   if (!panelText.includes('data-kg-media-scroll-surface="1"')) {
@@ -170,8 +185,8 @@ export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() 
   if (!panelText.includes("overflowX: 'hidden'")) {
     throw new Error('expected RichMediaPanel markdown preview container to keep horizontal overflow hidden like MainPanel settings bodies')
   }
-  if (!panelText.includes('const flowEditorInteractionMode = props.flowEditorInteractionMode === true || flowEditorFrontmatterDocumentMode')) {
-    throw new Error('expected RichMediaPanel selection/scroll interactivity gate to accept parent-provided FlowEditor interaction SSOT')
+  if (!panelText.includes('const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode')) {
+    throw new Error('expected RichMediaPanel selection/scroll interactivity gate to accept Flow Editor interaction and frontmatter document overlay semantics')
   }
 }
 
@@ -238,9 +253,9 @@ export function testFlowCanvasWheelProxyHonorsWheelIgnoreTargets() {
 }
 
 export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
-  if (!text.includes('const setRunLoadingStateForKnownNodeIds = (args: { loading: boolean; kind?: \'text\' | \'image\' | \'video\' }) => {')) {
+  if (!text.includes('const setRunLoadingStateForKnownNodeIds =') || !text.includes("kind?: 'text' | 'image' | 'video'")) {
     throw new Error('expected FlowEditorCanvas run path to centralize output loading state patching for run widgets')
   }
   if (!text.includes("setRunLoadingStateForKnownNodeIds({ loading: true, kind: richMediaKind })")) {
@@ -255,8 +270,11 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
   if (!text.includes('onText: (nextText) => {')) {
     throw new Error('expected TextGeneration run path to reuse streamed text callback for progressive Rich Media output updates')
   }
-  if (!text.includes('draftGraphDataRef.current || draftGraphData')) {
+  if (!text.includes('args.draftGraphDataRef.current || args.draftGraphData')) {
     throw new Error('expected run output updates to prefer latest draft graph state so loading-clear does not wipe freshly published text output')
+  }
+  if (!text.includes('scheduleWorkflowOutputEdgeRefresh()')) {
+    throw new Error('expected run output updates to refresh overlay edges after output/loading writes without forcing layout reseed')
   }
 }
 

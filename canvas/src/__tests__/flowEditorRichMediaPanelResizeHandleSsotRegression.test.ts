@@ -71,6 +71,11 @@ export function testSharedRichMediaPanelUsesNativeSkeletonLoadingSsot() {
   if (!text.includes('const shouldHideSurfaceUntilReady = hideUntilReady && !ready && !isEmptyPanel && !panelIsLoading')) {
     throw new Error('expected shared Rich Media Panel to keep loading skeletons visible even when media-ready gating is active')
   }
+  const loadingBranchIndex = text.indexOf(') : panelIsLoading ? (')
+  const emptyBranchIndex = text.indexOf(') : isEmptyPanel ? (')
+  if (loadingBranchIndex < 0 || emptyBranchIndex < 0 || loadingBranchIndex > emptyBranchIndex) {
+    throw new Error('expected shared Rich Media Panel to render loading skeleton before empty placeholder so progress remains visible')
+  }
 }
 
 export function testSharedRichMediaPanelUsesNativeEmptyCardPlaceholderSsot() {

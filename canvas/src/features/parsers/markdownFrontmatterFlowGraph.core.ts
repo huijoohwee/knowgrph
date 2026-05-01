@@ -206,10 +206,11 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
   const chooseShotGridCols = (count: number): number => {
     const n = Math.max(1, Math.floor(count))
     const targetAspect = 16 / 9
+    const minCols = n >= 3 ? 3 : 1
     const maxCols = Math.min(6, n)
-    let bestCols = 1
+    let bestCols = minCols
     let bestErr = Number.POSITIVE_INFINITY
-    for (let cols = 1; cols <= maxCols; cols += 1) {
+    for (let cols = minCols; cols <= maxCols; cols += 1) {
       const rows = Math.ceil(n / cols)
       const aspect = (cols * SHOT_CELL_WIDTH) / Math.max(1, rows * SHOT_CELL_HEIGHT)
       const err = Math.abs(Math.log(aspect / targetAspect))
@@ -292,10 +293,13 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
       fieldSpecs.push({ fieldKey: key, fieldType: guessJsonTypeLabel(v), schemaPath: `properties.${key}` })
     }
 
-    addField('shot', shotId)
+    const canonicalShotFieldKeys = ['shot', 'timecode', 'epoch', 'description', 'image_prompt', 'video_prompt']
+    for (const key of canonicalShotFieldKeys) {
+      addField(key, key === 'shot' ? shotId : (Object.prototype.hasOwnProperty.call(shot, key) ? shot[key] : ''))
+    }
     for (const [k, v] of Object.entries(shot)) {
       const key = String(k || '').trim()
-      if (!key || key === 'shot') continue
+      if (!key || canonicalShotFieldKeys.includes(key)) continue
       addField(key, v)
     }
     addField('shot_index', i + 1)

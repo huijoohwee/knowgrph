@@ -77,7 +77,7 @@ export default function CanvasPage() {
   }, [workspaceViewMode])
 
   const { workspacePreviewWidthPx, setResizeHandleEl } = useCanvasWorkspacePaneRuntime()
-  const workspaceEditorOverlayOpen = workspaceViewMode === 'editor' && workspaceCanvasPaneOpen && isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
+  const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
 
   React.useEffect(() => {
     if (!workspaceEditorOverlayOpen) return
@@ -170,7 +170,7 @@ export default function CanvasPage() {
                     className={`absolute inset-0 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]${workspaceEditorOverlayOpen ? ' pointer-events-none' : ''}`}
                     aria-label="Canvas pane"
                   >
-                    {workspaceViewMode !== 'editor' ? (
+                    {!workspaceEditorOverlayOpen ? (
                       <nav
                         className="absolute top-0 inset-x-0 z-[200] flex items-center justify-center pt-[calc(var(--kg-safe-top)+0.5rem)] pb-2 bg-transparent pointer-events-none"
                         aria-label="Canvas Toolbar"

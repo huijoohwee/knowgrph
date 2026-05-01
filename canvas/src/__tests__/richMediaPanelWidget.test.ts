@@ -488,7 +488,8 @@ export function testRichMediaPanelCanvasOverlayProxyAttrsAlignWithFlowWidget() {
   const filePath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const text = readFileSync(filePath, 'utf8')
   const requiredSnippets = [
-    `data-kg-rich-media-overlay={canvasOverlayProxyEnabled ? '1' : undefined}`,
+    `const flowEditorRichMediaOverlayRoot = flowEditorInteractionMode || canvasOverlayProxyEnabled`,
+    `data-kg-rich-media-overlay={flowEditorRichMediaOverlayRoot ? '1' : undefined}`,
     `data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}`,
     `data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}`,
     `data-kg-canvas-overlay-drag-handle={installHeaderDrag ? 'true' : undefined}`,
@@ -505,15 +506,16 @@ export function testRichMediaPanelCanvasOverlayProxyAttrsAlignWithFlowWidget() {
 
 export function testRichMediaPanelPanDragUsesFlowCanvasRafLatestScheduler() {
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
-  const flowCanvas = readFileSync(flowCanvasPath, 'utf8')
+  const mediaOverlaysPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const flowCanvas = `${readFileSync(flowCanvasPath, 'utf8')}\n${readFileSync(mediaOverlaysPath, 'utf8')}`
   const panelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const panel = readFileSync(panelPath, 'utf8')
   const requiredSnippets = [
     'createRafLatestScheduler',
     'mediaOverlayPanMoveSchedulerRef',
     'mediaOverlayHeaderMoveSchedulerRef',
-    'mediaOverlayPanMoveSchedulerRef.current.schedule(args)',
-    'mediaOverlayHeaderMoveSchedulerRef.current.schedule(next)',
+    'mediaOverlayPanMoveSchedulerRef.current.schedule(payload)',
+    'mediaOverlayHeaderMoveSchedulerRef.current.schedule(queued)',
     'mediaOverlayPanMoveSchedulerRef.current?.cancel()',
     'mediaOverlayHeaderMoveSchedulerRef.current?.cancel()',
   ]
@@ -529,19 +531,21 @@ export function testRichMediaPanelPanDragUsesFlowCanvasRafLatestScheduler() {
 
 export function testFlowCanvasRichMediaOverlayDragHandlersAreFlowEditorScoped() {
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
-  const text = readFileSync(flowCanvasPath, 'utf8')
+  const mediaOverlaysPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const text = `${readFileSync(flowCanvasPath, 'utf8')}\n${readFileSync(mediaOverlaysPath, 'utf8')}`
   const requiredSnippets = [
-    "const flowEditorOverlayInteractionMode = canvas2dRenderer === 'flowEditor'",
+    'flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}',
     "onOverlayPanStart={flowEditorOverlayInteractionMode ?",
     "onOverlayPan={flowEditorOverlayInteractionMode ?",
     "onOverlayPanEnd={flowEditorOverlayInteractionMode ?",
     "onHeaderDragStart={flowEditorOverlayInteractionMode ?",
     "onHeaderDrag={flowEditorOverlayInteractionMode ?",
     "onHeaderDragEnd={flowEditorOverlayInteractionMode ?",
-    "onResizeStart={flowEditorOverlayInteractionMode ?",
-    "onResize={flowEditorOverlayInteractionMode ?",
-    "onResizeEnd={flowEditorOverlayInteractionMode ?",
-    "if (String(st.canvas2dRenderer || '') !== 'flowEditor') return false",
+    'const resizeInteractionActive = flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested',
+    'onResizeStart={resizeInteractionActive ?',
+    'onResize={resizeInteractionActive ?',
+    'onResizeEnd={resizeInteractionActive ?',
+    "if (canvas2dRenderer === 'flowEditor') return",
   ]
   for (const snippet of requiredSnippets) {
     if (!text.includes(snippet)) {

@@ -68,6 +68,7 @@ export function GraphTableInspector({
     selectedNodeId,
     uiIconScale,
     uiIconStrokeWidth,
+    graphDataRevision,
     upsertUiToast,
     updateNode,
   } = useGraphStore(
@@ -80,6 +81,7 @@ export function GraphTableInspector({
       selectedNodeId: s.selectedNodeId,
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
+      graphDataRevision: s.graphDataRevision || 0,
       upsertUiToast: s.upsertUiToast,
       updateNode: s.updateNode,
     })),
@@ -121,9 +123,10 @@ export function GraphTableInspector({
       graphData,
       registry: Array.isArray(widgetRegistry) ? widgetRegistry : [],
       targetNodeIds: new Set([nodeId]),
+      graphRevision: graphDataRevision,
     })
     return byNodeId.get(nodeId)
-  }, [graphData, node, widgetRegistry, showWidget])
+  }, [graphData, graphDataRevision, node, widgetRegistry, showWidget])
 
   const [codeFormat, setCodeFormat] = useState<'json' | 'markdown'>('json')
   const widgetCodeText = useMemo(() => {

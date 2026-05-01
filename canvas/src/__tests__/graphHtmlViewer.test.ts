@@ -105,6 +105,37 @@ export async function testExportHtmlViewerMediaPanelHasNonZeroLayout() {
   }
 }
 
+export async function testExportHtmlViewerRendersProxiedImageAndVideoInline() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"></svg>`
+  const imageUrl = '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.webp'
+  const videoUrl = '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fgenerated.mp4'
+  const html = await buildGraphHtmlViewerMarkup({
+    title: 'T',
+    svgMarkup: svg,
+    includeRichMediaOverlays: true,
+    graphData: {
+      type: 'Graph',
+      nodes: [
+        { id: 'img1', label: 'Image', type: 'Entity', properties: { media_url: imageUrl } },
+        { id: 'vid1', label: 'Video', type: 'Entity', properties: { media_url: videoUrl } },
+      ],
+      edges: [],
+    },
+    mediaOverlayPoolMax: 4,
+  })
+  if (!html.includes(`"url":"${imageUrl}","openUrl":"${imageUrl}"`)) {
+    throw new Error('expected proxied image URL to stay in exported media payload, not become a download-only link')
+  }
+  if (!html.includes(`"url":"${videoUrl}","openUrl":"${videoUrl}"`)) {
+    throw new Error('expected proxied video URL to stay in exported media payload, not become a download-only link')
+  }
+  if (!html.includes(`"kind":"image"`)) throw new Error('expected proxied image to export as inline image')
+  if (!html.includes(`"kind":"video"`)) throw new Error('expected proxied video to export as inline video')
+  if (!html.includes('document.createElement(\'img\')')) throw new Error('expected standalone viewer to create inline image media elements')
+  if (!html.includes('document.createElement(\'video\')')) throw new Error('expected standalone viewer to create inline video media elements')
+  if (!html.includes('decodedProxyUrl')) throw new Error('expected standalone runtime to infer media kind from proxy url parameter')
+}
+
 export async function testExportHtmlViewerTreatsIFrameKindWithImageUrlAsImage() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const html = await buildGraphHtmlViewerMarkup({

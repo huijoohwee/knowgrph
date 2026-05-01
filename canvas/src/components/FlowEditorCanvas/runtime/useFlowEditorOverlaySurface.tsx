@@ -17,6 +17,8 @@ import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resol
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { hashSignatureParts } from '@/lib/hash/signature'
 
 export function useFlowEditorOverlaySurface(args: {
   flowEditorSurfaceId: string
@@ -26,6 +28,8 @@ export function useFlowEditorOverlaySurface(args: {
   geospatialWidgetPanelMode?: boolean
   renderGraphDataOverride: GraphData | null
   baseGraphDataRevision: number
+  draftGraphDataRevision: number
+  overlayTopologyLayoutSignature: string
   openWidgetNodeIds: string[]
   overlayDraftNode: GraphNode | null
   pendingOverlayNode: GraphNode | null
@@ -163,18 +167,25 @@ export function useFlowEditorOverlaySurface(args: {
     args.renderGraphDataOverride?.nodes,
   ])
 
+  const renderGraphDataOverrideRef = React.useRef<GraphData | null>(args.renderGraphDataOverride)
+  React.useEffect(() => {
+    renderGraphDataOverrideRef.current = args.renderGraphDataOverride
+  }, [args.renderGraphDataOverride])
+
   const seededFrontmatterAutoWidgetsKeyRef = React.useRef<string>('')
   React.useEffect(() => {
-    if (!args.renderGraphDataOverride) return
-    if (!isFrontmatterFlowGraph(args.renderGraphDataOverride)) return
+    const graphData = renderGraphDataOverrideRef.current
+    if (!graphData) return
+    if (!isFrontmatterFlowGraph(graphData)) return
     if (overlayEditorNodeIds.length === 0) return
 
     const st = useGraphStore.getState()
+    if (isWorkspaceEditorOverlayOpen(st)) return
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
-    const graphMetaKind = String(((args.renderGraphDataOverride.metadata || {}) as Record<string, unknown>).kind || '').trim()
+    const graphMetaKind = String(((graphData.metadata || {}) as Record<string, unknown>).kind || '').trim()
     const defaultPinned = resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
     const missingIds = overlayEditorNodeIds.filter(id => id && !Object.prototype.hasOwnProperty.call(pinnedById, id))
-    const seedKey = `${args.baseGraphDataRevision}|${overlayEditorNodeIds.join(',')}|${missingIds.join(',')}|${defaultPinned ? 1 : 0}`
+    const seedKey = `${args.overlayTopologyLayoutSignature}|${overlayEditorNodeIds.join(',')}|${missingIds.join(',')}|${defaultPinned ? 1 : 0}`
     if (seededFrontmatterAutoWidgetsKeyRef.current === seedKey) return
     seededFrontmatterAutoWidgetsKeyRef.current = seedKey
     if (missingIds.length === 0) return
@@ -190,13 +201,14 @@ export function useFlowEditorOverlaySurface(args: {
     if (!changed) return
     st.setFlowWidgetPinnedByNodeId(nextPinned)
     if (!defaultPinned) args.scheduleOverlayCollisionResolve()
-  }, [args.baseGraphDataRevision, args.renderGraphDataOverride, args.scheduleOverlayCollisionResolve, overlayEditorNodeIds])
+  }, [args.overlayTopologyLayoutSignature, args.scheduleOverlayCollisionResolve, overlayEditorNodeIds])
 
   const seededGeospatialOverlayWidgetPinsKeyRef = React.useRef<string>('')
   React.useEffect(() => {
     if (!args.geospatialWidgetPanelMode) return
     if (overlayEditorNodeIds.length === 0) return
     const st = useGraphStore.getState()
+    if (isWorkspaceEditorOverlayOpen(st)) return
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
     const missingIds = overlayEditorNodeIds.filter(id => id && !Object.prototype.hasOwnProperty.call(pinnedById, id))
     const defaultPinned = resolveDefaultFlowWidgetPinnedInCanvas({ geospatialWidgetPanelMode: true })
@@ -210,15 +222,25 @@ export function useFlowEditorOverlaySurface(args: {
     if (!defaultPinned) args.scheduleOverlayCollisionResolve()
   }, [args.geospatialWidgetPanelMode, args.scheduleOverlayCollisionResolve, overlayEditorNodeIds])
 
-  const overlayEditorNodeIdsKey = React.useMemo(() => overlayEditorNodeIds.join('\n'), [overlayEditorNodeIds])
-  const connectedValueTargetNodeIds = React.useMemo(() => new Set(overlayEditorNodeIdsKey ? overlayEditorNodeIdsKey.split('\n') : []), [overlayEditorNodeIdsKey])
+  const overlayEditorNodeIdsKey = React.useMemo(() => hashSignatureParts(['overlay', ...overlayEditorNodeIds]), [overlayEditorNodeIds])
+  const connectedValueTargetNodeIds = React.useMemo(() => {
+    const ids = overlayEditorNodeIdsKey ? overlayEditorNodeIds : []
+    const targetNodeIds = new Set<string>()
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(ids[i] || '').trim()
+      if (id) targetNodeIds.add(id)
+    }
+    return targetNodeIds
+  }, [overlayEditorNodeIds, overlayEditorNodeIdsKey])
+  const connectedValuesGraphRevision = args.flowEditorViewActive ? args.draftGraphDataRevision : args.baseGraphDataRevision
   const connectedValuesByNodeId = React.useMemo(() => {
     return computeFlowConnectedValuesBySchemaPath({
       graphData: args.renderGraphDataOverride,
       registry: Array.isArray(args.widgetRegistry) ? args.widgetRegistry : [],
       targetNodeIds: connectedValueTargetNodeIds,
+      graphRevision: connectedValuesGraphRevision,
     })
-  }, [args.widgetRegistry, connectedValueTargetNodeIds, args.renderGraphDataOverride])
+  }, [connectedValuesGraphRevision, args.widgetRegistry, connectedValueTargetNodeIds, args.renderGraphDataOverride])
 
   const handlePinnedInCanvasChange = React.useCallback(() => {
     args.scheduleOverlayCollisionResolve()

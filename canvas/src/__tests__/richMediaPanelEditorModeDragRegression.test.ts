@@ -4,14 +4,14 @@ import { resolve } from 'node:path'
 export function testRichMediaPanelEditorModeDisablesInteractiveContentForDragging() {
   const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes("workspaceViewMode") || !text.includes("editorMode")) {
-    throw new Error('expected RichMediaPanel to read workspaceViewMode to gate editor-mode drag behavior')
+  if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
+    throw new Error('expected RichMediaPanel to read canonical workspace overlay-open state for drag behavior')
   }
-  if (!text.includes("pointerEvents: editorMode ? 'none'")) {
-    throw new Error('expected RichMediaPanel to disable media element pointerEvents in editor mode')
+  if (!text.includes('const allowClickToOpenOverlay = canClickToOpen && !workspaceEditorOverlayOpen')) {
+    throw new Error('expected RichMediaPanel to gate click-to-open overlay only while the workspace overlay is actually open')
   }
-  if (!text.includes('allowClickToOpenOverlay')) {
-    throw new Error('expected RichMediaPanel to gate click-to-open overlay outside editor mode')
+  if (!text.includes('pointerEvents: shouldHideSurfaceUntilReady ? \'none\' : (headerPassthrough ? \'none\' : (workspaceEditorOverlayOpen ? \'auto\' : ((contentInteractive || canClickToOpen) ? \'auto\' : \'none\')))')) {
+    throw new Error('expected RichMediaPanel pointer-events behavior to depend on workspace overlay-open state, not editor mode alone')
   }
 }
 

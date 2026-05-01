@@ -1,5 +1,6 @@
 export const FLOW_EDITOR_OVERLAY_MODE_SELECTOR = '[data-kg-flow-editor-mode="1"]'
 export const FLOW_EDITOR_OVERLAY_SURFACE_ATTR = 'data-kg-flow-editor-surface'
+export const FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR = 'data-kg-flow-editor-surface-root'
 export const FLOW_EDITOR_OVERLAY_ROOT_SELECTOR = `[data-kg-widget]${FLOW_EDITOR_OVERLAY_MODE_SELECTOR}`
 export const RICH_MEDIA_OVERLAY_ROOT_SELECTOR = `[data-kg-rich-media-overlay="1"]${FLOW_EDITOR_OVERLAY_MODE_SELECTOR}`
 export const CANVAS_OVERLAY_PROXY_ROOT_SELECTOR = [
@@ -53,6 +54,31 @@ export function readCanvasOverlayNodeId(overlayRoot: HTMLElement | null | undefi
 export function readFlowEditorOverlaySurfaceId(overlayRoot: HTMLElement | null | undefined): string {
   if (!overlayRoot) return ''
   return String(overlayRoot.dataset.kgFlowEditorSurface || '').trim()
+}
+
+export function isTransientOffscreenRichMediaOverlayRoot(overlayRoot: HTMLElement | null | undefined, rect: DOMRect | null | undefined): boolean {
+  if (!overlayRoot || !rect) return false
+  if (String(overlayRoot.dataset.kgRichMediaOverlay || '').trim() !== '1') return false
+  const tiny = rect.width <= 2 && rect.height <= 2
+  const farOffscreen = rect.left < -10000 || rect.top < -10000
+  return tiny && farOffscreen
+}
+
+export function isUsableFlowEditorOverlayRectCandidate(overlayRoot: HTMLElement | null | undefined, rect: DOMRect | null | undefined): boolean {
+  if (!overlayRoot || !rect) return false
+  if (isTransientOffscreenRichMediaOverlayRoot(overlayRoot, rect)) return false
+  return Number.isFinite(rect.left) && Number.isFinite(rect.top) && rect.width > 0 && rect.height > 0
+}
+
+export function shouldReplaceFlowEditorOverlayRectCandidate(
+  current: { el: HTMLElement; rect: DOMRect } | null | undefined,
+  next: { el: HTMLElement; rect: DOMRect },
+): boolean {
+  if (!isUsableFlowEditorOverlayRectCandidate(next.el, next.rect)) return false
+  if (!current || !isUsableFlowEditorOverlayRectCandidate(current.el, current.rect)) return true
+  const currentArea = Math.max(0, current.rect.width) * Math.max(0, current.rect.height)
+  const nextArea = Math.max(0, next.rect.width) * Math.max(0, next.rect.height)
+  return nextArea > currentArea + 1
 }
 
 export function resolveFlowEditorOverlayProxyTarget(args: { target: unknown; canvasEl: Element; flowEditorSurfaceId?: string | null }): FlowEditorOverlayProxyTarget {

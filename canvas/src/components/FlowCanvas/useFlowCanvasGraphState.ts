@@ -136,8 +136,9 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       graphData: sceneGraphData,
       registry: dataflowRegistry,
       targetNodeIds,
+      graphRevision: graphDataRevision,
     })
-  }, [baseWidgetRegistry, documentWidgetRegistry, sceneGraphData, widgetRegistry])
+  }, [baseWidgetRegistry, documentWidgetRegistry, graphDataRevision, sceneGraphData, widgetRegistry])
 
   const mediaRenderNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []

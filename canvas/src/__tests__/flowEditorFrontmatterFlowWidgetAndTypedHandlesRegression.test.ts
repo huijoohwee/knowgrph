@@ -149,6 +149,24 @@ export function testFlowEditorOverlayEdgeSchedulerStabilizesAcrossScrollPanZoom(
   if (!text.includes('overlayEdgeAnchorCacheRef')) {
     throw new Error('expected overlay edge scheduler to cache handle anchors and avoid temporary port disconnect jitter')
   }
+  if (!text.includes('const svgViewBox = `0 0 ${svgWidth} ${svgHeight}`')) {
+    throw new Error('expected overlay edge SVG viewport to be derived from the Flow Editor root rect')
+  }
+  if (!text.includes("svg.setAttribute('width', String(svgWidth))") || !text.includes("svg.setAttribute('height', String(svgHeight))")) {
+    throw new Error('expected overlay edge SVG to set explicit width and height so paths are not clipped by intrinsic SVG sizing')
+  }
+  if (!text.includes("svg.setAttribute('viewBox', svgViewBox)") || !text.includes("svg.setAttribute('preserveAspectRatio', 'none')")) {
+    throw new Error('expected overlay edge SVG to use an explicit non-scaling viewBox for root-relative path coordinates')
+  }
+  if (!text.includes('const buildRectAnchorCacheKey = (nodeId: string, dir: \'in\' | \'out\', portKey: string, rect: DOMRect): string =>')) {
+    throw new Error('expected overlay edge anchor cache keys to include panel geometry so moved widgets cannot reuse stale absolute anchors')
+  }
+  if (!text.includes('round2(rect.left)') || !text.includes('round2(rect.top)') || !text.includes('round2(rect.width)') || !text.includes('round2(rect.height)')) {
+    throw new Error('expected overlay edge anchor cache geometry signature to track rect position and size')
+  }
+  if (!text.includes('const anchorCacheKey = buildRectAnchorCacheKey(anchorArgs.nodeId, anchorArgs.dir, portKey, rect)')) {
+    throw new Error('expected overlay edge anchors to use geometry-scoped cache keys')
+  }
   if (!text.includes('scrollLeft') || !text.includes('scrollTop')) {
     throw new Error('expected overlay edge layout signature to include overlay scroll offsets')
   }
@@ -199,6 +217,21 @@ export function testFlowEditorOverlayEdgesAnchorThroughSharedOverlayRoots() {
   if (!edgeHookText.includes('set.add(id)')) {
     throw new Error('expected overlay edge renderer to merge active overlay DOM ids into the canonical overlay edge node set')
   }
+  if (edgeHookText.includes("const stroke = style?.color || 'currentColor'")) {
+    throw new Error('expected overlay edge renderer to avoid currentColor-only fallback strokes that can become non-visible')
+  }
+  if (!edgeHookText.includes('const stroke = style?.color || getEdgeBaseStroke(rawEdges[i] as unknown as GraphEdge, schema)')) {
+    throw new Error('expected overlay edge renderer to use shared graph stroke fallback when socket style is absent')
+  }
+
+  const surfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx')
+  const surfaceText = readFileSync(surfacePath, 'utf8')
+  if (!surfaceText.includes("color: 'var(--kg-canvas-edge-stroke, #9ca3af)'")) {
+    throw new Error('expected overlay edge SVG to provide a visible CSS variable fallback color')
+  }
+  if (!surfaceText.includes('opacity: 1') || !surfaceText.includes("visibility: 'visible'")) {
+    throw new Error('expected overlay edge SVG to explicitly remain visible in overlay-only mode')
+  }
 
   const proxyPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'flow-editor-overlay-proxy.ts')
   const proxyText = readFileSync(proxyPath, 'utf8')
@@ -207,6 +240,15 @@ export function testFlowEditorOverlayEdgesAnchorThroughSharedOverlayRoots() {
   }
   if (!proxyText.includes("return String(overlayRoot.dataset.nodeId || '').trim()")) {
     throw new Error('expected shared overlay node-id reader to support Rich Media overlay roots via data-node-id')
+  }
+
+  const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
+  const richMediaPanelText = readFileSync(richMediaPanelPath, 'utf8')
+  if (!richMediaPanelText.includes('const flowEditorRichMediaOverlayRoot = flowEditorInteractionMode || canvasOverlayProxyEnabled')) {
+    throw new Error('expected Rich Media overlay root marker to include Flow Editor interaction mode, not only canvas proxy handlers')
+  }
+  if (!richMediaPanelText.includes("data-kg-rich-media-overlay={flowEditorRichMediaOverlayRoot ? '1' : undefined}")) {
+    throw new Error('expected Rich Media Panel roots to participate in Flow Editor edge endpoint discovery whenever Flow Editor interaction mode is active')
   }
 }
 
@@ -226,14 +268,95 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   if (text.includes('if (overlayRectsByNodeId.size === 0) {\n        removeAllPaths(overlayEdgePathByIdRef)')) {
     throw new Error('expected overlay edge renderer to stop clearing all paths on transient empty overlay rects during workspace toggle churn')
   }
-  if (!text.includes('if (overlayRectsByNodeId.size === 0) return')) {
+  if (!text.includes('if (overlayRectsByNodeId.size === 0) {')) {
     throw new Error('expected overlay edge renderer to preserve current edges until overlay rects recover on the next frame')
+  }
+  if (!text.includes('scheduleOverlayEdgeUpdate()')) {
+    throw new Error('expected overlay edge renderer to reschedule after transient empty overlay rects')
+  }
+  if (!text.includes("hashSignatureParts(['transient-overlay-edges'")) {
+    throw new Error('expected overlay edge renderer to key bounded retries for transient empty node/edge sets')
+  }
+  if (!text.includes("scheduleTransientOverlayEdgeRetry(['missing-graph-data'")) {
+    throw new Error('expected overlay edge renderer to preserve paths while graph data is transiently unavailable during init/workspace/run-all churn')
+  }
+  if (!text.includes("scheduleTransientOverlayEdgeRetry(['empty-overlay-node-set'")) {
+    throw new Error('expected overlay edge renderer to preserve paths while overlay ids are transiently empty during init/workspace churn')
+  }
+  if (!text.includes("scheduleTransientOverlayEdgeRetry(['empty-filtered-edge-set'")) {
+    throw new Error('expected overlay edge renderer to preserve paths while filtered edge endpoints are transiently empty during Run all refresh')
+  }
+  const proxyPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'flow-editor-overlay-proxy.ts')
+  const proxyText = readFileSync(proxyPath, 'utf8')
+  if (!proxyText.includes('export function isTransientOffscreenRichMediaOverlayRoot')) {
+    throw new Error('expected shared overlay proxy utilities to identify transient offscreen Rich Media bootstrap roots before geometry consumers use endpoint rects')
+  }
+  if (!proxyText.includes('export function shouldReplaceFlowEditorOverlayRectCandidate')) {
+    throw new Error('expected shared overlay proxy utilities to choose canonical visible overlay roots when duplicate roots exist for the same node')
+  }
+  if (!proxyText.includes('return nextArea > currentArea + 1')) {
+    throw new Error('expected duplicate overlay root selection to prefer the larger visible geometry candidate')
+  }
+  if (!proxyText.includes("String(overlayRoot.dataset.kgRichMediaOverlay || '').trim() !== '1'")) {
+    throw new Error('expected shared offscreen endpoint filtering to be scoped to Rich Media overlay roots')
+  }
+  if (!text.includes('isTransientOffscreenRichMediaOverlayRoot(el, rect)')) {
+    throw new Error('expected overlay edge renderer to reuse shared offscreen Rich Media bootstrap root filtering')
+  }
+  if (!text.includes('shouldReplaceFlowEditorOverlayRectCandidate(selectedById.get(id), next)')) {
+    throw new Error('expected overlay edge renderer to choose one canonical visible root per node before endpoint geometry use')
+  }
+  if (!text.includes("scheduleTransientOverlayEdgeRetry(['offscreen-rich-media-bootstrap'")) {
+    throw new Error('expected overlay edge renderer to retry instead of anchoring edges to offscreen Rich Media bootstrap roots')
+  }
+  if (!text.includes('if (nextCount > 12) return false')) {
+    throw new Error('expected transient empty edge recovery retries to stay bounded')
+  }
+  if (!text.includes('return { overlayEdgesSvgRef: setOverlayEdgesSvgRef, scheduleOverlayEdgeUpdate }')) {
+    throw new Error('expected overlay edge renderer to expose scheduler and callback SVG ref for workflow output-update edge recovery')
+  }
+  if (!text.includes('const overlayEdgeTransientRetryRef = React.useRef<{ key: string; count: number } | null>(null)')) {
+    throw new Error('expected overlay edge renderer to bound retries for partially missing edge anchors')
+  }
+  if (!text.includes('const overlayEdgeReadinessRetryRef = React.useRef<{ key: string; count: number } | null>(null)')) {
+    throw new Error('expected overlay edge renderer to bound readiness retries when root/SVG mounts after initialization scheduling')
+  }
+  if (!text.includes("hashSignatureParts(['overlay-edge-readiness', reason])")) {
+    throw new Error('expected overlay edge renderer to key root/SVG readiness retries semantically')
+  }
+  if (!text.includes("scheduleOverlayEdgeReadinessRetry('missing-svg')")) {
+    throw new Error('expected overlay edge renderer to retry when the SVG layer is not attached yet')
+  }
+  if (!text.includes('const setOverlayEdgesSvgRef = React.useCallback((node: SVGSVGElement | null) => {')) {
+    throw new Error('expected overlay edge SVG callback ref to schedule edge rendering as soon as the SVG attaches')
+  }
+  if (!text.includes('return { overlayEdgesSvgRef: setOverlayEdgesSvgRef, scheduleOverlayEdgeUpdate }')) {
+    throw new Error('expected overlay edge hook to expose the SVG callback ref')
+  }
+  if (!text.includes('transientMissingEdgeAnchorParts.push(`${edgeId}:${source}:${target}`)')) {
+    throw new Error('expected overlay edge renderer to detect partial endpoint readiness without dropping edge paths')
+  }
+  if (!text.includes('if (existing) keep.add(edgeId)')) {
+    throw new Error('expected overlay edge renderer to preserve existing paths while endpoint rects are transiently missing')
+  }
+  if (!text.includes("hashSignatureParts(['missing-edge-anchors'")) {
+    throw new Error('expected overlay edge renderer to use a semantic missing-anchor retry signature')
+  }
+  if (!text.includes('nextCount <= 8')) {
+    throw new Error('expected overlay edge renderer to bound transient missing-anchor retries')
+  }
+  if (!text.includes('const stroke = e.stroke') || !text.includes('const strokeWidth = e.strokeWidth')) {
+    throw new Error('expected overlay edge renderer to apply pre-resolved socket/theme edge styling when drawing paths')
+  }
+  if (!text.includes('${e.sourcePortKey}|${e.targetPortKey}:${e.stroke}:${e.strokeWidth}')) {
+    throw new Error('expected overlay edge layout signature to include pre-resolved socket/theme edge styling')
   }
 }
 
 export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const edgeHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(edgeHookPath, 'utf8')}`
 
   if (!text.includes('const overlayEditorNodeIdsRef = React.useRef<string[]>([])')) {
     throw new Error('expected FlowEditor overlay edge renderer to keep a ref of canonical overlay editor node ids')
@@ -241,10 +364,39 @@ export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
   if (!text.includes('overlayEditorNodeIdsRef.current = overlayEditorNodeIds')) {
     throw new Error('expected FlowEditor overlay edge renderer to sync the canonical overlay editor node id ref')
   }
-  if (!text.includes('Array.isArray(overlayEditorNodeIdsRef.current) && overlayEditorNodeIdsRef.current.length > 0')) {
+  if (!text.includes("hashSignatureParts(['overlay-editor-node-ids', ...overlayEditorNodeIds])")) {
+    throw new Error('expected FlowEditor overlay edge renderer to derive a semantic overlay node-id signature for initialization recovery')
+  }
+  if (!text.includes('const overlayEdgesEnabledRef = React.useRef(false)')) {
+    throw new Error('expected FlowEditor overlay edge renderer to keep SVG-mounted overlay edge enablement separate from broad Flow Editor view state')
+  }
+  if (!text.includes('overlayEdgesEnabledRef.current = overlayOnlyActive')) {
+    throw new Error('expected FlowEditor overlay edge renderer to align scheduling with the same overlayOnlyActive state that mounts the SVG layer')
+  }
+  if (!text.includes('}, [overlayEditorNodeIdsKey, overlayOnlyActive, scheduleOverlayEdgeUpdate])')) {
+    throw new Error('expected FlowEditor overlay edge renderer to refresh edges when canonical overlay ids become available and the SVG layer is active')
+  }
+  if (!text.includes('if (!args.overlayEdgesEnabledRef.current) return')) {
+    throw new Error('expected overlay edge scheduler to idle until the overlay edge SVG lifecycle is active')
+  }
+  const endpointHelperPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'edgeEndpoints.ts')
+  const endpointHelperText = readFileSync(endpointHelperPath, 'utf8')
+  if (!endpointHelperText.includes('function normalizeEdgeEndpointId(raw: string): string')) {
+    throw new Error('expected shared edge endpoint helper to normalize qualified/port-suffixed endpoint ids')
+  }
+  if (!endpointHelperText.includes('return dot > 0 ? value.slice(0, dot).trim() : value')) {
+    throw new Error('expected shared edge endpoint helper to strip qualified endpoint suffixes before overlay filtering')
+  }
+  if (text.includes('const endpointNodeId = (raw: unknown): string =>')) {
+    throw new Error('expected overlay edge renderer to reuse the shared endpoint helper instead of local endpoint parsing')
+  }
+  if (!text.includes('const source = readEdgeEndpointId(rawEdges[i]?.source)') || !text.includes('const target = readEdgeEndpointId(rawEdges[i]?.target)')) {
+    throw new Error('expected overlay edge renderer to filter candidate edges with the shared endpoint helper')
+  }
+  if (!text.includes('Array.isArray(args.overlayEditorNodeIdsRef.current) && args.overlayEditorNodeIdsRef.current.length > 0')) {
     throw new Error('expected overlay edge renderer to prefer canonical overlay editor ids over open widget ids')
   }
-  if (!text.includes('? overlayEditorNodeIdsRef.current')) {
+  if (!text.includes('? args.overlayEditorNodeIdsRef.current')) {
     throw new Error('expected overlay edge renderer to draw from canonical overlay editor ids when overlay-only mode is active')
   }
 }
@@ -512,7 +664,7 @@ export function testFrontmatterFlowContractAvoidsSyntheticHandleAndDataFallbacks
 }
 
 export function testFlowEditorOverlayEdgesUseRendererEdgeTypeSsot() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
 
   if (!text.includes('const globalEdgeType = readGlobalEdgeType(schema)')) {
@@ -673,7 +825,7 @@ export function testFlowEditorWidgetPinDescriptionsAreActionClear() {
 }
 
 export function testFlowEditorOverlayEdgesPreferRailPortAnchorsOverScrollingDotAnchors() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
   if (!text.includes('const dotBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`)')) {
     throw new Error('expected overlay edge anchor selector to read dot handle candidate explicitly')

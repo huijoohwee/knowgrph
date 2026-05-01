@@ -15,6 +15,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["design.richMedia.preview.rendersImageVideoAndIframe","@/__tests__/designRichMediaPreview.test","testDesignRichMediaPreviewRendersImageVideoAndIframe"],
   ["richMedia.panel.nonDirectIframeRendersSnapshot","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelRendersSnapshotForNonDirectIframe"],
   ["richMedia.panel.bodyClickOpensUrl","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelClickToOpenUsesBodyNotHeader"],
+  ["richMedia.panel.imageRendersInlineWithoutBodyOverlay","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelImageRendersInlineWithoutBodyClickOverlay"],
   ["richMedia.panel.videoRendersInlineWithoutBodyOverlay","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelVideoRendersInlineWithoutBodyClickOverlay"],
   ["richMedia.panel.videoHideUntilReadyRevealsOnLoadedMetadata","@/__tests__/richMediaPanelSnapshotFallback.test","testRichMediaPanelVideoBecomesVisibleOnLoadedMetadataWhenHideUntilReady"],
   ["pdf.streamDecode.respectsMaxDecodeBytes","@/__tests__/pdfStreamDecodeLimit.test","testPdfReadStreamRespectsMaxDecodeBytes"],
