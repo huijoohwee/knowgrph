@@ -173,7 +173,11 @@ export function testNodeOverlayEditorUsesMergedDataflowRegistry() {
 
 export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
   const floatingPropsPanelPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'FloatingPropsPanel.tsx')
+  const floatingPropsModelPath = resolve(process.cwd(), 'src', 'lib', 'toolbar', 'useFloatingPropsPanelModel.impl.ts')
+  const mediaSpecPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'graph-elements', 'mediaSpec.ts')
   const text = readFileSync(floatingPropsPanelPath, 'utf8')
+  const modelText = readFileSync(floatingPropsModelPath, 'utf8')
+  const mediaSpecText = readFileSync(mediaSpecPath, 'utf8')
 
   if (!text.includes('buildDataflowWidgetRegistry')) {
     throw new Error('expected FloatingPropsPanel widget palette to reuse shared merged dataflow registry')
@@ -186,6 +190,18 @@ export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
   }
   if (!text.includes('baseWidgetRegistry')) {
     throw new Error('expected FloatingPropsPanel to include base widget registry in merged palette resolution')
+  }
+  if (!text.includes('NODE_MEDIA_KINDS')) {
+    throw new Error('expected FloatingPropsPanel media kind options to reuse the shared canonical node media kind list')
+  }
+  if (!modelText.includes('DEFAULT_NODE_MEDIA_KIND')) {
+    throw new Error('expected FloatingPropsPanel model to reuse the shared default node media kind')
+  }
+  if (!mediaSpecText.includes('export function patchNodeMediaProperties')) {
+    throw new Error('expected mediaSpec SSOT to expose a shared node-media property patch helper')
+  }
+  if (!modelText.includes('patchNodeMediaProperties({')) {
+    throw new Error('expected FloatingPropsPanel model to reuse the shared node-media property patch helper for update and add-media flows')
   }
 }
 

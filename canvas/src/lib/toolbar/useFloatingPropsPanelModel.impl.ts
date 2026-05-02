@@ -3,7 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { edgeExists } from '@/lib/graph/edges'
-import { getNodeMediaSpec, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
+import { DEFAULT_NODE_MEDIA_KIND, getNodeMediaSpec, patchNodeMediaProperties, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { emitChatInputAppend, emitSidePanelOpen } from '@/features/canvas/utils'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
@@ -132,7 +132,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const [newType, setNewType] = React.useState<string>(resolvedDefaultType)
   const [newLabel, setNewLabel] = React.useState<string>(resolvedDefaultType || 'Node')
   const [newEdgeLabel, setNewEdgeLabel] = React.useState<string>(defaultEdgeLabel)
-  const [mediaKind, setMediaKind] = React.useState<NodeMediaKind>('image')
+  const [mediaKind, setMediaKind] = React.useState<NodeMediaKind>(DEFAULT_NODE_MEDIA_KIND)
   const [mediaUrl, setMediaUrl] = React.useState<string>('')
   const [mediaInteractive, setMediaInteractive] = React.useState<boolean>(false)
 
@@ -165,7 +165,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
 
   React.useEffect(() => {
     if (!nodeContext) {
-      setMediaKind('image')
+      setMediaKind(DEFAULT_NODE_MEDIA_KIND)
       setMediaUrl('')
       setMediaInteractive(false)
       return
@@ -175,7 +175,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     const rawInteractive = (props as Record<string, unknown>).media_interactive
     setMediaInteractive(rawInteractive === true)
     if (!spec) {
-      setMediaKind('image')
+      setMediaKind(DEFAULT_NODE_MEDIA_KIND)
       setMediaUrl('')
       return
     }
@@ -188,19 +188,12 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     const current = graphLookup.nodeById.get(nodeContextId) || null
     if (!current) return
 
-    const nextProps: GraphNode['properties'] = { ...(current.properties || {}) }
-    const trimmedUrl = (mediaUrl || '').trim()
-    if (trimmedUrl) {
-      nextProps.media_url = trimmedUrl
-      nextProps.media_kind = mediaKind
-      if (mediaInteractive) nextProps.media_interactive = true
-      else delete nextProps.media_interactive
-    } else {
-      delete nextProps.media_url
-      delete nextProps.media_kind
-      delete nextProps.media_interactive
-    }
-
+    const nextProps: GraphNode['properties'] = patchNodeMediaProperties({
+      properties: (current.properties || {}) as Record<string, unknown>,
+      kind: mediaKind,
+      url: mediaUrl,
+      interactive: mediaInteractive,
+    })
     updateNode(nodeContextId, { properties: nextProps })
   }, [graphLookup, mediaInteractive, mediaKind, mediaUrl, nodeContextId, updateNode])
 
@@ -557,13 +550,12 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doAddMediaNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}
     const newNodeId = createId('n')
-    const trimmedUrl = (mediaUrl || '').trim()
-    const props: GraphNode['properties'] = { ...(tpl || {}) }
-    if (trimmedUrl) {
-      props.media_url = trimmedUrl
-      props.media_kind = mediaKind
-      if (mediaInteractive) props.media_interactive = true
-    }
+    const props: GraphNode['properties'] = patchNodeMediaProperties({
+      properties: (tpl || {}) as Record<string, unknown>,
+      kind: mediaKind,
+      url: mediaUrl,
+      interactive: mediaInteractive,
+    })
     const center = getCanvasCenterGraphPoint()
     const node: GraphNode = {
       id: newNodeId,

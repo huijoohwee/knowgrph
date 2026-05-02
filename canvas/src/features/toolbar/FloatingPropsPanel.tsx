@@ -10,7 +10,7 @@ import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelM
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import type { NodeMediaKind } from '@/components/GraphCanvas/helpers'
+import { NODE_MEDIA_KINDS, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 
@@ -23,10 +23,9 @@ const FLOATING_MEDIA_DENSITY_OPTIONS = [
   { value: 'default', label: RICH_MEDIA_DISPLAY_COPY.densityDefault },
   { value: 'compact', label: RICH_MEDIA_DISPLAY_COPY.densityCompact },
 ] as const
-const FLOATING_MEDIA_KIND_OPTIONS: readonly NodeMediaKind[] = ['image', 'svg', 'video', 'iframe']
 
 function isFloatingMediaKind(value: string): value is NodeMediaKind {
-  return FLOATING_MEDIA_KIND_OPTIONS.includes(value as NodeMediaKind)
+  return NODE_MEDIA_KINDS.includes(value as NodeMediaKind)
 }
 
 export function FloatingPropsPanel() {
@@ -350,7 +349,7 @@ export function FloatingPropsPanel() {
               }}
               className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left`}
             >
-              {FLOATING_MEDIA_KIND_OPTIONS.map(option => (
+              {NODE_MEDIA_KINDS.map(option => (
                 <option key={option} value={option}>
                   {option}
                 </option>
