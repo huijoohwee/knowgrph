@@ -7,7 +7,6 @@ import type { HighlightedLineRange } from '@/components/BottomPanel/markdownWork
 import { buildDocLocationIndex } from '@/features/markdown-explorer/docLocationIndex'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import { extractEmbeddedGeoJsonGraphDataRequests } from '@/lib/markdown/embeddedGeoJson'
 import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markdownGeoDatasetIntegration'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from '@/lib/gympgrph/api'
@@ -25,6 +24,11 @@ import {
   type MarkdownWorkspaceLineOffsetCache,
 } from './markdownWorkspaceInteractionHelpers'
 import { useMarkdownWorkspaceExplorerDerivations } from './useMarkdownWorkspaceExplorerDerivations'
+import {
+  ensureMarkdownWorkspaceApplyDocumentSemanticMode,
+  registerMarkdownWorkspaceEmbeddedGeoDatasets,
+  resolveMarkdownWorkspaceApplyText,
+} from './markdownWorkspaceApply'
 
 export function useMarkdownWorkspaceInteractions(args: {
   active: boolean
@@ -291,44 +295,23 @@ export function useMarkdownWorkspaceInteractions(args: {
       current.setStatusError('No file selected')
       return
     }
-    const applyText = (() => {
-      const raw = String(current.activeText || '')
-      if (raw.trim()) return raw
-      if (current.contentMode === 'widget') return String(current.widgetEditorText || '')
-      if (current.markdownDocumentName === current.activeDocumentKey && typeof current.markdownDocumentText === 'string' && current.markdownDocumentText) {
-        return current.markdownDocumentText
-      }
-      return raw
-    })()
+    const applyText = resolveMarkdownWorkspaceApplyText({
+      activeText: current.activeText,
+      contentMode: current.contentMode,
+      widgetEditorText: current.widgetEditorText,
+      markdownDocumentName: current.markdownDocumentName,
+      activeDocumentKey: current.activeDocumentKey,
+      markdownDocumentText: current.markdownDocumentText,
+    })
     current.setStatusProgress('Applying')
     try {
-      try {
-        const state = useGraphStore.getState()
-        if (String(state.documentSemanticMode || 'document') !== 'document') state.setDocumentSemanticMode('document')
-      } catch {
-        void 0
-      }
+      ensureMarkdownWorkspaceApplyDocumentSemanticMode()
       const ok = await current.applyMarkdownDocumentToGraph(name, applyText, { force: true })
-      const geoReqs = (() => {
-        const text = String(applyText || '')
-        if (!text.includes('```')) return []
-        const extracted = extractEmbeddedGeoJsonGraphDataRequests({
-          markdownText: text,
-          sourceDocumentPath: name,
-          limit: 40,
-        })
-        if (typeof geoDatasetIntegration.isGeoJsonCodeBlock !== 'function') return extracted
-        return extracted.filter(req => {
-          try {
-            return !!geoDatasetIntegration.isGeoJsonCodeBlock?.(req as never)
-          } catch {
-            return false
-          }
-        })
-      })()
-      if (geoReqs.length > 0 && typeof geoDatasetIntegration.registerGeoJsonFeatureCollection === 'function') {
-        await Promise.all(geoReqs.map(req => geoDatasetIntegration.registerGeoJsonFeatureCollection?.(req as never)))
-      }
+      await registerMarkdownWorkspaceEmbeddedGeoDatasets({
+        markdownText: applyText,
+        sourceDocumentPath: name,
+        geoDatasetIntegration,
+      })
       current.setStatusInfo(ok ? 'Applied' : 'Skipped')
     } catch (e) {
       current.setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
