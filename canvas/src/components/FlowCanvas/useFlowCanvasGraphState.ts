@@ -25,6 +25,8 @@ import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashScopedStringArraySignature, normalizeStringArrayForSignature } from '@/lib/hash/signature'
 
+const EMPTY_STRING_ARRAY: string[] = []
+
 type UseFlowCanvasGraphStateArgs = {
   graphDataOverride: GraphData | null | undefined
   graphDataRevisionOverride?: number
@@ -177,7 +179,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       value: normalizeStringArrayForSignature(selectedNodeIds),
     }
   }
-  const selectedNodeIdsSnapshot = selectedNodeIdsSnapshotRef.current?.value || []
+  const selectedNodeIdsSnapshot = selectedNodeIdsSnapshotRef.current?.value ?? EMPTY_STRING_ARRAY
   const openWidgetNodeIdsKey = React.useMemo(
     () => hashScopedStringArraySignature('flow-open-widget-node-ids', openWidgetNodeIds),
     [openWidgetNodeIds],
@@ -189,7 +191,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       value: normalizeStringArrayForSignature(openWidgetNodeIds),
     }
   }
-  const openWidgetNodeIdsSnapshot = openWidgetNodeIdsSnapshotRef.current?.value || []
+  const openWidgetNodeIdsSnapshot = openWidgetNodeIdsSnapshotRef.current?.value ?? EMPTY_STRING_ARRAY
   const excludeRichMediaOverlayNodeIdsKey = React.useMemo(
     () => hashScopedStringArraySignature('flow-exclude-rich-media-overlay-node-ids', excludeRichMediaOverlayNodeIds),
     [excludeRichMediaOverlayNodeIds],
@@ -201,7 +203,8 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       value: normalizeStringArrayForSignature(excludeRichMediaOverlayNodeIds),
     }
   }
-  const excludeRichMediaOverlayNodeIdsSnapshot = excludeRichMediaOverlayNodeIdsSnapshotRef.current?.value || []
+  const excludeRichMediaOverlayNodeIdsSnapshot =
+    excludeRichMediaOverlayNodeIdsSnapshotRef.current?.value ?? EMPTY_STRING_ARRAY
   const selectedOverlayNodeIds = React.useMemo(() => {
     const nodeIdSet = new Set<string>(selectedNodeIdsSnapshot)
     if (selectedNodeId) nodeIdSet.add(String(selectedNodeId))
