@@ -648,7 +648,6 @@ export default function FlowCanvasMediaOverlays(args: {
               frontmatterModeEnabled,
               documentSemanticMode,
             })}
-            iframeMode="srcdoc-when-needed"
             panel={node.panel}
             onPanelChange={next => {
               if (!node.panel) return

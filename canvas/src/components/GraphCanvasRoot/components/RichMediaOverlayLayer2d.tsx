@@ -68,7 +68,6 @@ export function RichMediaOverlayLayer2d(props: {
               renderMediaAsNodes,
               infiniteCanvasInteractionMode,
             })}
-            iframeMode="srcdoc-when-needed"
             panel={n.panel}
             onPanelChange={next => {
               if (!n.panel) return

@@ -445,7 +445,6 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
             kind={richMediaPreview?.kind || 'iframe'}
             interactive={richMediaPreview?.interactive !== false}
-            iframeMode="srcdoc-when-needed"
             resizable={true}
             onResizeStart={handleRichMediaResizeStart}
             onResize={handleRichMediaResize}

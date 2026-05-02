@@ -1018,7 +1018,6 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
                   infiniteCanvasInteractionMode,
                 })}
                 hideUntilReady={false}
-                iframeMode="srcdoc-when-needed"
                 panel={n.panel}
                 onPanelChange={next => {
                   if (!n.panel) return

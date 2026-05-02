@@ -222,7 +222,6 @@ export function injectMarkdownDesignBlocksIntoSvgEl(args: {
     root.setAttribute('style', `${styleToString(PANEL_FRAME_ROOT_STYLE)};width:100%;height:100%;pointer-events:none`)
 
     const header = doc.createElement('header')
-    header.setAttribute('data-kg-media-panel-header', '1')
     header.setAttribute('style', `${styleToString(PANEL_FRAME_HEADER_STYLE)};pointer-events:none`)
     const title = doc.createElement('h3')
     title.setAttribute('style', styleToString(PANEL_FRAME_HEADER_TITLE_STYLE))

@@ -3,24 +3,19 @@ import { buildIframeSrcDocForUrl } from '@/lib/render/richMediaEmbed'
 import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
-export type RichMediaIframeMode = 'proxy-url' | 'srcdoc-when-needed'
-
 export type RichMediaIframeProps = {
   url: string
   title: string
-  mode?: RichMediaIframeMode
   className?: string
   style?: React.CSSProperties
   onLoad?: React.ReactEventHandler<HTMLIFrameElement>
 }
 
 export default function RichMediaIframe(props: RichMediaIframeProps) {
-  const mode: RichMediaIframeMode = props.mode === 'proxy-url' ? 'proxy-url' : 'srcdoc-when-needed'
   const rawUrl = String(props.url || '').trim()
   const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
   const preferEmbed = richMediaPanelMode === 'embed'
   const [forceProxy, setForceProxy] = React.useState(false)
-  const effectiveMode: RichMediaIframeMode = preferEmbed ? 'proxy-url' : mode
   const embed = React.useMemo(
     () => resolveIframeEmbed({
       url: rawUrl,
@@ -35,7 +30,7 @@ export default function RichMediaIframe(props: RichMediaIframeProps) {
   const [srcDoc, setSrcDoc] = React.useState<string>('')
 
   React.useEffect(() => {
-    if (effectiveMode !== 'srcdoc-when-needed' || direct || !rawUrl || !/^https?:\/\//i.test(rawUrl)) {
+    if (preferEmbed || direct || !rawUrl || !/^https?:\/\//i.test(rawUrl)) {
       setSrcDoc(prev => (prev ? '' : prev))
       return
     }
@@ -54,7 +49,7 @@ export default function RichMediaIframe(props: RichMediaIframeProps) {
         void 0
       }
     }
-  }, [direct, effectiveMode, rawUrl])
+  }, [direct, preferEmbed, rawUrl])
 
   return (
     <iframe

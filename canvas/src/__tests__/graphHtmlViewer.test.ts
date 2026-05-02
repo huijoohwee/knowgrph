@@ -34,6 +34,9 @@ export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelect
   if (!html.includes('.kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video') || !html.includes('data-kg-rich-media-render-surface')) {
     throw new Error('expected exported viewer to use the widget rich media render surface contract')
   }
+  if (!html.includes('[data-kg-rich-media-floating-toolbar="1"]') || !html.includes('[data-kg-rich-media-open-source="1"]')) {
+    throw new Error('expected exported viewer CSS to style the widget-like floating toolbar shell for rich media panels')
+  }
   if (!html.includes('kg-media-toggle') || !html.includes('Toggle media interaction')) {
     throw new Error('expected media interaction toggle control')
   }
@@ -306,7 +309,7 @@ export async function testExportHtmlViewerRuntimeFallsBackToRawMediaWhenProxyFai
 
 export async function testExportHtmlViewerEmbedsProvidedOverlayHtml() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
-  const overlayHtml = '<article data-kg-rich-media-panel="1" data-node-id="m1"><div>Overlay</div></article>'
+  const overlayHtml = '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><div>Overlay</div></article>'
   const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg, overlayHtml })
   if (!html) throw new Error('expected html')
   if (!html.includes(overlayHtml)) {
@@ -317,8 +320,8 @@ export async function testExportHtmlViewerEmbedsProvidedOverlayHtml() {
 export async function testExportHtmlViewerKeepsOnlyGraphLinkedOverlaySeedsInRuntimePayload() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="md-a"><circle cx="6" cy="0" r="5" fill="blue"/></g></svg>`
   const overlayHtml = [
-    '<article data-kg-rich-media-panel="1" data-node-id="m1" data-kg-kind="image" data-kg-url="https://example.com/linked.png"></article>',
-    '<article data-kg-rich-media-panel="1" data-node-id="ghost" data-kg-kind="image" data-kg-url="https://example.com/disconnected.png"></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1" data-kg-kind="image" data-kg-url="https://example.com/linked.png"></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="ghost" data-kg-kind="image" data-kg-url="https://example.com/disconnected.png"></article>',
     '<article data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"></article>',
     '<article data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"></article>',
   ].join('')
@@ -356,8 +359,8 @@ export async function testExportHtmlViewerKeepsOnlyGraphLinkedOverlaySeedsInRunt
 export async function testExportHtmlViewerKeepsOnlyGraphLinkedOverlaySeedsWhenEdgesUseSourceIdTargetId() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="md-a"><circle cx="6" cy="0" r="5" fill="blue"/></g></svg>`
   const overlayHtml = [
-    '<article data-kg-rich-media-panel="1" data-node-id="m1" data-kg-kind="image" data-kg-url="https://example.com/linked.png"></article>',
-    '<article data-kg-rich-media-panel="1" data-node-id="ghost" data-kg-kind="image" data-kg-url="https://example.com/disconnected.png"></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1" data-kg-kind="image" data-kg-url="https://example.com/linked.png"></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="ghost" data-kg-kind="image" data-kg-url="https://example.com/disconnected.png"></article>',
     '<article data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"></article>',
     '<article data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"></article>',
   ].join('')
@@ -392,8 +395,8 @@ export async function testExportHtmlViewerKeepsOnlyGraphLinkedOverlaySeedsWhenEd
 export async function testExportHtmlViewerFiltersEmbeddedOverlayHtmlByGraphConnectivity() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="md-a"><circle cx="6" cy="0" r="5" fill="blue"/></g></svg>`
   const overlayHtml = [
-    '<article data-kg-rich-media-panel="1" data-node-id="m1"><div>Connected media</div></article>',
-    '<article data-kg-rich-media-panel="1" data-node-id="ghost"><div>Disconnected media</div></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><div>Connected media</div></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="ghost"><div>Disconnected media</div></article>',
     '<article data-md-id="md-1" data-kg-world-x="0" data-kg-world-y="0" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="md-a"><div>Connected md</div></article>',
     '<article data-md-id="md-ghost" data-kg-world-x="10" data-kg-world-y="10" data-kg-world-w="180" data-kg-world-h="120" data-kg-anchor-node-id="ghost"><div>Disconnected md</div></article>',
   ].join('')
@@ -419,8 +422,8 @@ export async function testExportHtmlViewerFiltersEmbeddedOverlayHtmlByGraphConne
 export async function testExportHtmlViewerPrefersInteractiveOverlayOverFixedDuplicate() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const overlayHtml = [
-    '<article data-kg-rich-media-panel="1" data-node-id="m1" style="position:fixed;left:0;top:0"><div>Static duplicate</div></article>',
-    '<article data-kg-rich-media-panel="1" data-node-id="m1"><div>Interactive connected</div></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1" style="position:fixed;left:0;top:0"><div>Static duplicate</div></article>',
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1"><div>Interactive connected</div></article>',
   ].join('')
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
@@ -505,6 +508,15 @@ export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
   }
   if (!js.includes("el.setAttribute('data-kg-rich-media-render-surface', '1');") || !js.includes("el.setAttribute('data-kg-canvas-overlay-drag-handle', 'true');")) {
     throw new Error('expected runtime to synthesize only the widget rich media render surface')
+  }
+  if (!js.includes("toolbar.setAttribute('data-kg-rich-media-floating-toolbar', '1');") || !js.includes("openBtn.setAttribute('data-kg-rich-media-open-source', '1');")) {
+    throw new Error('expected runtime to synthesize the widget-like floating toolbar shell for rich media panels')
+  }
+  if (js.includes('kg-mediaHeader') || js.includes('kg-mediaTitle') || js.includes('data-kg-media-panel-header')) {
+    throw new Error('expected runtime template to remove legacy rich media header markers at the source')
+  }
+  if (js.includes('overlay.__kgMediaById[id] = el;') || !js.includes('overlay.appendChild(panel);') || !js.includes('overlay.__kgMediaById[id] = panel;')) {
+    throw new Error('expected runtime template to use the canonical rich media panel tail')
   }
   if (!js.includes('var inferredKind = kgInferMediaKindFromUrl2(url) || kgInferMediaKindFromUrl(url);') || !js.includes('var inferred = (typeof kgInferMediaKindFromUrl2 === \"function\" ? kgInferMediaKindFromUrl2(url0) : \"\") || kgInferMediaKindFromUrl(url0);')) {
     throw new Error('expected runtime to use extended inferred-kind normalization for both media payload creation and media element rehydration')
@@ -671,6 +683,8 @@ export async function testExportHtmlViewerOverlayExportCollectsFlowAnd3dRoots() 
     flowRoot.setAttribute('aria-label', 'Flow media overlay')
     const flowPanel = document.createElement('article')
     flowPanel.setAttribute('data-kg-rich-media-panel', '1')
+    flowPanel.setAttribute('data-kg-rich-media-render-surface', '1')
+    flowPanel.setAttribute('data-kg-canvas-overlay-drag-handle', 'true')
     flowPanel.setAttribute('data-node-id', 'flow-media-1')
     flowPanel.textContent = 'Flow'
     flowRoot.appendChild(flowPanel)
@@ -680,6 +694,8 @@ export async function testExportHtmlViewerOverlayExportCollectsFlowAnd3dRoots() 
     threeRoot.setAttribute('aria-label', '3D media overlay')
     const threePanel = document.createElement('article')
     threePanel.setAttribute('data-kg-rich-media-panel', '1')
+    threePanel.setAttribute('data-kg-rich-media-render-surface', '1')
+    threePanel.setAttribute('data-kg-canvas-overlay-drag-handle', 'true')
     threePanel.setAttribute('data-node-id', 'three-media-1')
     threePanel.textContent = 'Three'
     threeRoot.appendChild(threePanel)

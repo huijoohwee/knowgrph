@@ -46,7 +46,6 @@ export function DesignCanvasMediaOverlay(props: {
           kind={node.kind}
           interactive={node.interactive}
           hideUntilReady={true}
-          iframeMode="srcdoc-when-needed"
           panel={node.panel}
           onPanelChange={next => {
             if (!node.panel) return

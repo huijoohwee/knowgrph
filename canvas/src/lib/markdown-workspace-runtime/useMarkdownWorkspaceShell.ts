@@ -1,7 +1,5 @@
 import React from 'react'
-import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
-import { useWorkspaceStatusHelpers } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions'
 import type { WorkspaceFileActions } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/types'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { buildMarkdownWorkspaceActionBridge } from './markdownWorkspaceRuntime.composition'
@@ -16,6 +14,7 @@ export function useMarkdownWorkspaceShell(args: {
   createParentPath: WorkspacePath
   saveEnabled: boolean
   saveActiveFileNow: () => Promise<void> | void
+  setStatusWithAutoClear: (label: string, ttlMs?: number) => void
 }) {
   const {
     active,
@@ -27,13 +26,8 @@ export function useMarkdownWorkspaceShell(args: {
     createParentPath,
     saveEnabled,
     saveActiveFileNow,
+    setStatusWithAutoClear,
   } = args
-
-  const status = useWorkspaceStatusHelpers()
-  const setStatusWithAutoClear = React.useCallback(
-    (label: string, ttlMs: number = UI_TOAST_TTL_MS.statusAutoClose) => status.setStatusInfo(label, { ttlMs }),
-    [status],
-  )
 
   React.useEffect(() => {
     if (active) void refreshWorkspace()
@@ -77,7 +71,6 @@ export function useMarkdownWorkspaceShell(args: {
   }, [actionBridge])
 
   return {
-    status,
     setStatusWithAutoClear,
     toggleFullscreen,
   }

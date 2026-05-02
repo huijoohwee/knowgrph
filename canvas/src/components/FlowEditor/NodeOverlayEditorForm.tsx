@@ -662,7 +662,6 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
             kind={richMediaPreview?.kind || 'iframe'}
             interactive={richMediaPreview?.interactive !== false}
-            iframeMode="srcdoc-when-needed"
             resizable={true}
             onResizeStart={handleRichMediaResizeStart}
             onResize={handleRichMediaResize}

@@ -1,6 +1,6 @@
 import React from 'react'
 import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
-import RichMediaIframe, { type RichMediaIframeMode } from '@/components/RichMediaIframe'
+import RichMediaIframe from '@/components/RichMediaIframe'
 import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
@@ -36,7 +36,6 @@ export type RichMediaPanelProps = {
   openUrl?: string
   kind?: 'iframe' | 'image' | 'svg' | 'video'
   interactive?: boolean
-  iframeMode?: RichMediaIframeMode
   hideUntilReady?: boolean
   headerPassthrough?: boolean
   resizable?: boolean
@@ -365,7 +364,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const forwardWheelTo = props.forwardWheelTo
   const onPanelChange = props.onPanelChange
   const title = String(props.title || '').trim() || 'Media node'
-  const mode: RichMediaIframeMode = props.iframeMode === 'proxy-url' ? 'proxy-url' : 'srcdoc-when-needed'
   const kind: 'iframe' | 'image' | 'svg' | 'video' = props.kind === 'image' || props.kind === 'svg' || props.kind === 'video' ? props.kind : 'iframe'
   const rawUrl = String(props.url || '').trim()
   const openUrl = String(props.openUrl || '').trim() || rawUrl
@@ -533,7 +531,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const [ready, setReady] = React.useState<boolean>(() => !hideUntilReady)
   React.useEffect(() => {
     setReady(!hideUntilReady)
-  }, [hideUntilReady, proxiedUrl, kind, mode])
+  }, [hideUntilReady, proxiedUrl, kind])
   React.useEffect(() => {
     if (!hideUntilReady) return
     if (ready) return
@@ -543,7 +541,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     return () => {
       window.clearTimeout(t)
     }
-  }, [hideUntilReady, ready, proxiedUrl, kind, mode])
+  }, [hideUntilReady, ready, proxiedUrl, kind])
 
   React.useEffect(() => {
     if (!isEmptyPanel) return
@@ -1132,7 +1130,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           <RichMediaIframe
             title={title}
             url={proxiedUrl}
-            mode={mode}
             style={{
               display: 'block',
               width: '100%',

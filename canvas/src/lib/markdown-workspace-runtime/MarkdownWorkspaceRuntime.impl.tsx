@@ -7,8 +7,13 @@ import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/w
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { MarkdownWorkspaceExplorer } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceExplorer'
 import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
-import { isMarkdownPath } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
+import {
+  isMarkdownPath,
+  SIDEBAR_MAX_PX,
+  SIDEBAR_MIN_PX,
+} from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
 import { useWorkspaceFileActions } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions'
+import { useWorkspaceStatusHelpers } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { EMPTY_GRAPH_EDGES, EMPTY_GRAPH_NODES, EMPTY_WIDGET_REGISTRY } from './markdownWorkspaceRuntime.shared'
 import { useMarkdownWorkspaceDerivedViews } from './useMarkdownWorkspaceDerivedViews'
@@ -31,6 +36,8 @@ import {
   buildMarkdownWorkspaceSaveArgs,
   buildMarkdownWorkspaceSelectionArgs,
 } from './markdownWorkspaceRuntime.composition'
+import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
+import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 
 const EMPTY_STRING_ARRAY: string[] = []
 
@@ -158,11 +165,19 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     layoutModeRef,
   } = bootstrapState
 
+  const status = useWorkspaceStatusHelpers()
+  const setStatusInfo = status.setStatusInfo
+  const setStatusError = status.setStatusError
+  const setStatusProgress = status.setStatusProgress
+  const setStatusWithAutoClear = React.useCallback(
+    (label: string, ttlMs: number = UI_TOAST_TTL_MS.statusAutoClose) => status.setStatusInfo(label, { ttlMs }),
+    [status],
+  )
 
   const wasWorkspaceEditorOverlayOpenRef = React.useRef<boolean>(workspaceEditorOverlayOpen)
   React.useEffect(() => {
     layoutModeRef.current = layoutMode
-  }, [layoutMode])
+  }, [layoutMode, layoutModeRef])
   React.useEffect(() => {
     const wasOpen = wasWorkspaceEditorOverlayOpenRef.current
     wasWorkspaceEditorOverlayOpenRef.current = workspaceEditorOverlayOpen
@@ -170,7 +185,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setLayoutMode('split')
     setExplorerOpen(true)
     setSidebarWidthPx(resolveWorkspaceExplorerDefaultWidthPx({ minPx: SIDEBAR_MIN_PX, maxPx: SIDEBAR_MAX_PX }))
-  }, [workspaceEditorOverlayOpen])
+  }, [setExplorerOpen, setLayoutMode, setSidebarWidthPx, workspaceEditorOverlayOpen])
 
   const widgetState = useMarkdownWorkspaceWidgetMode({
     active,
@@ -373,39 +388,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       applyMarkdownDocumentToGraph,
     }),
   )
-  const shellState = useMarkdownWorkspaceShell({
-    active,
-    refreshWorkspace: explorerState.refresh,
-    highlightedLineRange,
-    setHighlightedLineRange,
-    workspaceRootRef,
-    fileActions,
-    createParentPath: selectionState.createParentPath,
-    saveEnabled: effectiveContent.saveEnabled,
-    saveActiveFileNow: saveState.saveActiveFileNow,
-  })
-  const status = shellState.status
-  const setStatusInfo = status.setStatusInfo
-  const setStatusProgress = status.setStatusProgress
-  const setStatusWithAutoClear = shellState.setStatusWithAutoClear
-  const viewShell = useMarkdownWorkspaceViewShell({
-    entries,
-    sourcesByPath,
-    folderModeContract,
-    setFolderModeContract,
-    selectionPath: selectionState.selectionPath,
-    selectionEntryKind: selectionState.selectionEntry?.kind ?? null,
-    setActivePathSafe: selectionState.setActivePathSafe,
-    setSelectionPathSafe: selectionState.setSelectionPathSafe,
-    setExpandedPaths,
-    resolveFolderContractDocPath: explorerState.resolveFolderContractDocPath,
-    pickFolderContractTargetPath: explorerState.pickFolderContractTargetPath,
-    youtubeWorkspaceMeta: derivedViews.youtubeWorkspaceMeta,
-    switchActiveYoutubeWorkspaceFormat: derivedViews.switchActiveYoutubeWorkspaceFormat,
-    revealLineInEditor: interactionState.revealLineInEditor,
-    setStatusWithAutoClear,
-  })
-
   const effectiveContent = useMarkdownWorkspaceEffectiveContent({
     activePath,
     activeDocumentKey: selectionState.activeDocumentKey,
@@ -424,6 +406,35 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     webpageWorkspaceEditorTextOverride: derivedViews.webpageWorkspaceEditorTextOverride,
     webpageWorkspaceViewerTextOverride: derivedViews.webpageWorkspaceViewerTextOverride,
     userEditedActiveTextRef,
+  })
+  const shellState = useMarkdownWorkspaceShell({
+    active,
+    refreshWorkspace: explorerState.refresh,
+    highlightedLineRange,
+    setHighlightedLineRange,
+    workspaceRootRef,
+    fileActions,
+    createParentPath: selectionState.createParentPath,
+    saveEnabled: effectiveContent.saveEnabled,
+    saveActiveFileNow: saveState.saveActiveFileNow,
+    setStatusWithAutoClear,
+  })
+  const viewShell = useMarkdownWorkspaceViewShell({
+    entries,
+    sourcesByPath,
+    folderModeContract,
+    setFolderModeContract,
+    selectionPath: selectionState.selectionPath,
+    selectionEntryKind: selectionState.selectionEntry?.kind ?? null,
+    setActivePathSafe: selectionState.setActivePathSafe,
+    setSelectionPathSafe: selectionState.setSelectionPathSafe,
+    setExpandedPaths,
+    resolveFolderContractDocPath: explorerState.resolveFolderContractDocPath,
+    pickFolderContractTargetPath: explorerState.pickFolderContractTargetPath,
+    youtubeWorkspaceMeta: derivedViews.youtubeWorkspaceMeta,
+    switchActiveYoutubeWorkspaceFormat: derivedViews.switchActiveYoutubeWorkspaceFormat,
+    revealLineInEditor: interactionState.revealLineInEditor,
+    setStatusWithAutoClear,
   })
   const saveEnabled = effectiveContent.saveEnabled
   const saveActiveFileNow = saveState.saveActiveFileNow

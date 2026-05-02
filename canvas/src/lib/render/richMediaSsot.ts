@@ -147,10 +147,10 @@ export function shouldShowRichMediaFloatingToolbar(args: {
   selectedTab?: unknown
   safeOpenUrl?: unknown
 }): boolean {
-  if (args.hasPanelState !== true) return false
+  const hasPanelState = args.hasPanelState === true
   const selectedTab = String(args.selectedTab || '').trim().toLowerCase()
   const hasOpenUrl = !!String(args.safeOpenUrl || '').trim()
-  return args.hasMultiKinds === true || selectedTab === 'text' || hasOpenUrl
+  return hasPanelState || args.hasMultiKinds === true || selectedTab === 'text' || hasOpenUrl
 }
 
 export function buildRichMediaPanelPreviewSpec(args: {

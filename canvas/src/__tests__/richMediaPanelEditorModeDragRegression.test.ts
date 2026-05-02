@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { shouldShowRichMediaFloatingToolbar } from '@/lib/render/richMediaSsot'
 
 export function testRichMediaPanelEditorModeDisablesInteractiveContentForDragging() {
   const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
@@ -116,5 +117,27 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   }
   if (!toolbarText.includes("data-kg-rich-media-open-source=\"1\"")) {
     throw new Error('expected the shared floating toolbar to expose a stable rich-media open-source hook')
+  }
+}
+
+export function testRichMediaFloatingToolbarShowsForCanonicalOpenUrlPreview() {
+  const showForOpenUrlOnly = shouldShowRichMediaFloatingToolbar({
+    hasPanelState: false,
+    hasMultiKinds: false,
+    selectedTab: 'image',
+    safeOpenUrl: 'https://example.com/source',
+  })
+  if (showForOpenUrlOnly !== true) {
+    throw new Error('expected canonical Rich Media previews with an open source URL to keep the widget-like floating toolbar')
+  }
+
+  const hideForEmptyNonPanel = shouldShowRichMediaFloatingToolbar({
+    hasPanelState: false,
+    hasMultiKinds: false,
+    selectedTab: 'image',
+    safeOpenUrl: '',
+  })
+  if (hideForEmptyNonPanel !== false) {
+    throw new Error('expected empty non-panel Rich Media surfaces to avoid mounting a ghost floating toolbar')
   }
 }
