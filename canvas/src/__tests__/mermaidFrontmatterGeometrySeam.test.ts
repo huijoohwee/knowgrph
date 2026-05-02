@@ -65,6 +65,12 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   if (!geometryText.includes('const readMermaidFrontmatterSvgGeometry = (svg: string): MermaidFrontmatterSvgGeometry => {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid SVG geometry reader helper')
   }
+  if (!geometryText.includes('const hydrateMermaidEdgeLabelGeometry = (args: {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared Mermaid edge-label hydration helper inside SVG geometry parsing')
+  }
+  if (!geometryText.includes('const readMermaidEdgeGeometry = (args: {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared Mermaid base edge geometry reader inside SVG geometry parsing')
+  }
   if (!geometryText.includes('const renderMermaidFrontmatterSvgCached = async (')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid cached SVG render helper')
   }
@@ -97,6 +103,12 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   }
   if (!geometryText.includes('geometry: readMermaidFrontmatterSvgGeometry(args.svg)')) {
     throw new Error('expected shared frontmatter Mermaid result builder to delegate SVG geometry parsing to the shared geometry reader helper')
+  }
+  if (!geometryText.includes('hydrateMermaidEdgeLabelGeometry({ edges, labelEls })')) {
+    throw new Error('expected Mermaid SVG geometry parsing to delegate edge-label hydration to the shared helper')
+  }
+  if (!geometryText.includes('const geometry = readMermaidEdgeGeometry({')) {
+    throw new Error('expected Mermaid SVG geometry parsing to delegate base edge extraction to the shared edge geometry reader helper')
   }
   if (!geometryText.includes('svg: await renderMermaidFrontmatterSvgCached(renderInput)')) {
     throw new Error('expected shared frontmatter Mermaid render-execution helper to delegate cached SVG rendering to the shared cached render helper')

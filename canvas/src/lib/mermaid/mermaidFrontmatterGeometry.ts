@@ -174,6 +174,66 @@ const extractEdgeSrcTgt = (g: Element): { source: string; target: string } | nul
   return { source: normalizeName(source), target: normalizeName(target) }
 }
 
+const hydrateMermaidEdgeLabelGeometry = (args: {
+  edges: MermaidEdgeGeometry[]
+  labelEls: Element[]
+}): void => {
+  for (let i = 0; i < args.labelEls.length; i += 1) {
+    const g = args.labelEls[i]!
+    const st = extractEdgeSrcTgt(g)
+    if (!st) continue
+    const t = parseTranslate(readAttr(g, 'transform'))
+    if (!t) continue
+    for (let j = 0; j < args.edges.length; j += 1) {
+      const e = args.edges[j]!
+      if (e.sourceName === st.source && e.targetName === st.target && e.labelX == null && e.labelY == null) {
+        e.labelX = t.x
+        e.labelY = t.y
+        break
+      }
+    }
+  }
+}
+
+const readMermaidEdgeGeometry = (args: {
+  edgeEl: Element
+  order: number
+}): MermaidEdgeGeometry | null => {
+  const st = extractEdgeSrcTgt(args.edgeEl)
+  if (!st) return null
+  const tt = parseTranslate(readAttr(args.edgeEl, 'transform'))
+  let tx = tt ? tt.x : 0
+  let ty = tt ? tt.y : 0
+  const path = args.edgeEl.querySelector('path.path, path')
+  const pathD = path ? normalizeName(readAttr(path, 'd')) : ''
+  if (!pathD) return null
+  const tMag = Math.max(Math.abs(tx), Math.abs(ty))
+  const dMag = pathMaxAbsNumber(pathD)
+  const headMag = pathFirstMoveAbsMax(pathD)
+  const shouldApplyTranslate =
+    tMag > 30 &&
+    ((headMag > 0 && headMag < Math.max(60, tMag * 0.35)) || (dMag > 0 && dMag < Math.max(200, tMag * 0.6)))
+  if (!shouldApplyTranslate) {
+    tx = 0
+    ty = 0
+  }
+  const arrow = args.edgeEl.querySelector('path.arrowheadPath')
+  const arrowD = arrow ? normalizeName(readAttr(arrow, 'd')) : ''
+  const key = `${st.source}|${st.target}|${args.order}`
+  return {
+    key,
+    sourceName: st.source,
+    targetName: st.target,
+    pathD,
+    arrowD: arrowD || null,
+    labelX: null,
+    labelY: null,
+    order: args.order,
+    tx,
+    ty,
+  }
+}
+
 const parseMermaidSvgGeometry = (svgMarkup: string): {
   nodes: MermaidNodeGeometry[]
   edges: MermaidEdgeGeometry[]
@@ -298,58 +358,16 @@ const parseMermaidSvgGeometry = (svgMarkup: string): {
   const edges: MermaidEdgeGeometry[] = []
   const edgeEls = Array.from(root.querySelectorAll('g.edgePath'))
   for (let i = 0; i < edgeEls.length; i += 1) {
-    const g = edgeEls[i]!
-    const st = extractEdgeSrcTgt(g)
-    if (!st) continue
-    const tt = parseTranslate(readAttr(g, 'transform'))
-    let tx = tt ? tt.x : 0
-    let ty = tt ? tt.y : 0
-    const path = g.querySelector('path.path, path')
-    const pathD = path ? normalizeName(readAttr(path, 'd')) : ''
-    if (!pathD) continue
-    const tMag = Math.max(Math.abs(tx), Math.abs(ty))
-    const dMag = pathMaxAbsNumber(pathD)
-    const headMag = pathFirstMoveAbsMax(pathD)
-    const shouldApplyTranslate =
-      tMag > 30 &&
-      ((headMag > 0 && headMag < Math.max(60, tMag * 0.35)) || (dMag > 0 && dMag < Math.max(200, tMag * 0.6)))
-    if (!shouldApplyTranslate) {
-      tx = 0
-      ty = 0
-    }
-    const arrow = g.querySelector('path.arrowheadPath')
-    const arrowD = arrow ? normalizeName(readAttr(arrow, 'd')) : ''
-    const key = `${st.source}|${st.target}|${i}`
-    edges.push({
-      key,
-      sourceName: st.source,
-      targetName: st.target,
-      pathD,
-      arrowD: arrowD || null,
-      labelX: null,
-      labelY: null,
+    const geometry = readMermaidEdgeGeometry({
+      edgeEl: edgeEls[i]!,
       order: i,
-      tx,
-      ty,
     })
+    if (!geometry) continue
+    edges.push(geometry)
   }
 
   const labelEls = Array.from(root.querySelectorAll('g.edgeLabel'))
-  for (let i = 0; i < labelEls.length; i += 1) {
-    const g = labelEls[i]!
-    const st = extractEdgeSrcTgt(g)
-    if (!st) continue
-    const t = parseTranslate(readAttr(g, 'transform'))
-    if (!t) continue
-    for (let j = 0; j < edges.length; j += 1) {
-      const e = edges[j]!
-      if (e.sourceName === st.source && e.targetName === st.target && e.labelX == null && e.labelY == null) {
-        e.labelX = t.x
-        e.labelY = t.y
-        break
-      }
-    }
-  }
+  hydrateMermaidEdgeLabelGeometry({ edges, labelEls })
 
   const clusters: MermaidClusterGeometry[] = []
   const clusterEls = Array.from(root.querySelectorAll('g.cluster'))
