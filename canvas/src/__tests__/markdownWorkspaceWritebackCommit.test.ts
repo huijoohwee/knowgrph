@@ -60,3 +60,25 @@ export function testMarkdownWorkspaceTextStateSyncCentralizesEditorAndDocumentRe
     throw new Error(`expected workspace text state sync helper to centralize patch, editor, and active-document refresh, got ${calls.join('|')}`)
   }
 }
+
+export function testMarkdownWorkspaceTextStateSyncRefreshesTrackedPathWithoutActiveEditorSync() {
+  const calls: string[] = []
+  const lastLoadedRef = { current: { path: '/docs/demo.md', text: 'old' } }
+
+  syncWorkspaceTextState({
+    path: '/docs/demo.md' as never,
+    text: '',
+    lastLoadedRef: lastLoadedRef as never,
+    patchWorkspaceEntryInlineText: (path, text) => {
+      calls.push(`patch:${String(path)}:${String(text)}`)
+    },
+    synchronizeActiveDocument: false,
+  })
+
+  if (lastLoadedRef.current.path !== '/docs/demo.md' || lastLoadedRef.current.text !== '') {
+    throw new Error(`expected workspace text state sync helper to keep tracked non-active path text coherent, got ${JSON.stringify(lastLoadedRef.current)}`)
+  }
+  if (calls.join('|') !== 'patch:/docs/demo.md:') {
+    throw new Error(`expected non-active workspace text state sync helper to patch entries without editor/document refresh, got ${calls.join('|')}`)
+  }
+}

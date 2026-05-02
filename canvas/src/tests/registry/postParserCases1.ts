@@ -430,6 +430,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["markdown.workspace.selectionWriteback","@/__tests__/markdownWorkspaceSelectionWriteback.test","testMarkdownWorkspaceSelectionWritebackCentralizesGraphWritebackPreconditions"],
   ["markdown.workspace.writebackCommit","@/__tests__/markdownWorkspaceWritebackCommit.test","testMarkdownWorkspaceWritebackCommitCentralizesWorkspaceAndEditorRefresh"],
   ["markdown.workspace.textStateSync","@/__tests__/markdownWorkspaceWritebackCommit.test","testMarkdownWorkspaceTextStateSyncCentralizesEditorAndDocumentRefresh"],
+  ["markdown.workspace.textStateSync.trackedPath","@/__tests__/markdownWorkspaceWritebackCommit.test","testMarkdownWorkspaceTextStateSyncRefreshesTrackedPathWithoutActiveEditorSync"],
   ["markdown.workspace.selectionSync","@/__tests__/markdownWorkspaceSelectionSync.test","testMarkdownWorkspaceSelectionSyncCentralizesHydrationAndInvalidation"],
   ["markdown.workspace.selectionCanonicalPath","@/__tests__/markdownWorkspaceSelectionCanonicalPath.test","testMarkdownWorkspaceSelectionCanonicalPathCentralizesLegacyPathUpgrade"],
   ["markdown.workspace.selectionBootstrap","@/__tests__/markdownWorkspaceSelectionBootstrap.test","testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFallbackSelection"],

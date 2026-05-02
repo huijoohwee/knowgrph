@@ -134,6 +134,8 @@ export const syncWorkspaceTextState = (args: {
   setActiveMarkdownDocument?: MarkdownWorkspaceRuntimeSetActiveDocument
 }): void => {
   const patchWorkspaceEntryInlineText = resolveWorkspaceEntryInlineTextPatch(args)
+  const shouldRefreshTrackedPathOnly =
+    args.synchronizeActiveDocument === false && args.lastLoadedRef.current?.path === args.path
   if (args.synchronizeActiveDocument !== false) {
     if (patchWorkspaceEntryInlineText) {
       commitMarkdownWorkspaceWriteback({
@@ -157,8 +159,13 @@ export const syncWorkspaceTextState = (args: {
         text: args.text,
       })
     }
-  } else if (patchWorkspaceEntryInlineText) {
-    patchWorkspaceEntryInlineText(args.path, args.text)
+  } else {
+    if (patchWorkspaceEntryInlineText) {
+      patchWorkspaceEntryInlineText(args.path, args.text)
+    }
+    if (shouldRefreshTrackedPathOnly) {
+      args.lastLoadedRef.current = { path: args.path, text: args.text }
+    }
   }
 }
 

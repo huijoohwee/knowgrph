@@ -775,8 +775,14 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   if (!mutationActionsText.includes('syncWorkspaceTextState({')) {
     throw new Error('expected workspace mutation actions to reuse the shared workspace text-state sync helper for rename remap refresh')
   }
+  if (mutationActionsText.includes("lastLoadedRef.current = { path: last.path, text: '' }")) {
+    throw new Error('expected workspace mutation actions not to keep a local non-active lastLoadedRef clear fallback once shared text-state sync owns tracked-path updates')
+  }
   if (!runtimeIoText.includes('pushWorkspaceTextToActiveMarkdownDocument({')) {
     throw new Error('expected workspace text-state sync ownership to centralize active markdown document refresh through the shared push helper')
+  }
+  if (!runtimeIoText.includes('args.lastLoadedRef.current?.path === args.path')) {
+    throw new Error('expected workspace text-state sync helper to keep tracked non-active path text coherent without a local mutation fallback')
   }
   if (!savePathText.includes('syncWorkspaceTextState({')) {
     throw new Error('expected workspace save-as flow to reuse the shared workspace text-state sync helper after file creation')

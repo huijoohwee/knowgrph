@@ -315,12 +315,6 @@ export function useWorkspaceMutationActions(args: {
           })
         }
 
-        if (!normalizedActivePath || !targetSet.has(normalizedActivePath)) {
-          const last = lastLoadedRef.current
-          if (last && targetSet.has(last.path)) {
-            lastLoadedRef.current = { path: last.path, text: '' }
-          }
-        }
         status.setStatusInfo(targets.length > 0 ? `Cleared ${targets.length} files` : 'Cleared')
       } catch (e) {
         status.setStatusError(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
