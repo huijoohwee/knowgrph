@@ -5322,6 +5322,28 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/')) return 'monaco-editor-core'
                 if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/')) return 'monaco-base'
                 if (moduleId.includes('/node_modules/monaco-editor/')) return 'monaco'
+                if (moduleId.includes('/node_modules/katex/')) return 'katex'
+                if (moduleId.includes('/node_modules/highlight.js/')) return 'highlightjs'
+                if (
+                  moduleId.includes('/node_modules/markdown-it/') ||
+                  moduleId.includes('/node_modules/markdown-it-anchor/') ||
+                  moduleId.includes('/node_modules/markdown-it-footnote/') ||
+                  moduleId.includes('/node_modules/markdown-it-mark/') ||
+                  moduleId.includes('/node_modules/markdown-it-sub/') ||
+                  moduleId.includes('/node_modules/markdown-it-sup/')
+                ) {
+                  return 'markdown-it'
+                }
+                if (
+                  moduleId.includes('/node_modules/unified/') ||
+                  moduleId.includes('/node_modules/remark-gfm/') ||
+                  moduleId.includes('/node_modules/remark-stringify/') ||
+                  moduleId.includes('/node_modules/rehype-parse/') ||
+                  moduleId.includes('/node_modules/rehype-remark/') ||
+                  moduleId.includes('/node_modules/hast-util-to-html/')
+                ) {
+                  return 'markdown-ast'
+                }
                 // Let Mermaid and layout-elk keep their own internal lazy split points
                 // instead of collapsing the whole runtime into one oversized vendor chunk.
                 if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/chunks/mermaid-layout-elk.esm.min/render-')) return 'mermaid-elk-render'
@@ -5376,6 +5398,31 @@ export default defineConfig(({ command }) => ({
                   return 'flow-canvas'
                 }
                 if (moduleId.includes('/src/components/DesignCanvas') || moduleId.includes('/src/lib/markdown-edgeless/')) return 'design-canvas'
+                if (
+                  moduleId.includes('/src/lib/three/ThreeGraph.impl.tsx') ||
+                  moduleId.includes('/src/features/three/ThreeGraph.tsx')
+                ) {
+                  return 'canvas-3d-shell'
+                }
+                if (
+                  moduleId.includes('/src/lib/three/Scene.impl.tsx') ||
+                  moduleId.includes('/src/features/three/Scene.tsx') ||
+                  moduleId.includes('/src/features/three/Controls.tsx') ||
+                  moduleId.includes('/src/features/three/camera.ts') ||
+                  moduleId.includes('/src/features/three/raycast.ts')
+                ) {
+                  return 'canvas-3d-scene'
+                }
+                if (
+                  moduleId.includes('/src/features/three/visuals.tsx') ||
+                  moduleId.includes('/src/features/three/NodeMesh.tsx') ||
+                  moduleId.includes('/src/features/three/GroupOverlays.tsx') ||
+                  moduleId.includes('/src/features/three/Voxel') ||
+                  moduleId.includes('/src/features/three/GlobeEffects.tsx') ||
+                  moduleId.includes('/src/features/three/Starfield.tsx')
+                ) {
+                  return 'canvas-3d-visuals'
+                }
                 if (moduleId.includes('/src/features/three/') || moduleId.includes('/src/lib/three/')) return 'canvas-3d'
                 if (
                   moduleId.includes('/src/features/geospatial/') ||
@@ -5387,12 +5434,9 @@ export default defineConfig(({ command }) => ({
                 if (
                   moduleId.includes('/src/features/panels/views/SettingsView') ||
                   moduleId.includes('/src/features/panels/views/useSettingsView') ||
-                  moduleId.includes('/src/features/settings/') ||
-                  moduleId.includes('/src/lib/settings/') ||
-                  moduleId.includes('/src/features/schema/') ||
-                  moduleId.includes('/src/features/schema-editor/')
+                  moduleId.includes('/src/features/settings/ui/')
                 ) {
-                  return 'settings'
+                  return 'settings-view'
                 }
                 if (moduleId.includes('/src/features/panels/views/PreviewPanelView') || moduleId.includes('/src/lib/panels/views/preview-panel/')) {
                   return 'panel-preview'
@@ -5418,12 +5462,31 @@ export default defineConfig(({ command }) => ({
                 ) {
                   return 'panels'
                 }
+                if (moduleId.includes('/src/features/settings/registry')) return 'settings-registry'
+                if (moduleId.includes('/src/features/settings/') || moduleId.includes('/src/lib/settings/')) return 'settings'
+                if (moduleId.includes('/src/features/schema-editor/')) return 'schema-editor'
+                if (moduleId.includes('/src/features/schema/ui/')) return 'schema-ui'
+                if (moduleId.includes('/src/features/schema/')) return 'schema'
                 if (moduleId.includes('/src/features/source-files/')) return 'workspace-source-files'
                 if (moduleId.includes('/src/features/workspace-fs/') || moduleId.includes('/src/features/workspace-table/')) return 'workspace-fs'
                 if (moduleId.includes('/src/lib/markdown-workspace-runtime/')) return 'workspace-runtime'
                 if (moduleId.includes('/src/components/BottomPanel/markdownWorkspace/main/')) return 'workspace-main'
                 if (moduleId.includes('/src/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/')) return 'workspace-actions'
                 if (moduleId.includes('/src/components/BottomPanel/markdownWorkspace/')) return 'workspace-ui'
+                if (moduleId.includes('/src/features/markdown/ui/codeblock/')) return 'markdown-code'
+                if (
+                  moduleId.includes('/src/features/markdown/ui/MarkdownPreview') ||
+                  moduleId.includes('/src/lib/markdown-core/ui/')
+                ) {
+                  return 'markdown-preview'
+                }
+                if (
+                  moduleId.includes('/src/features/markdown/markdownIt.ts') ||
+                  moduleId.includes('/src/features/markdown/ui/useMarkdownPreviewTokens') ||
+                  moduleId.includes('/src/features/markdown/ui/markdownPreviewLex')
+                ) {
+                  return 'markdown-parser'
+                }
                 if (moduleId.includes('/src/lib/markdown-core/') || moduleId.includes('/src/features/markdown/')) return 'markdown'
                 if (
                   moduleId.includes('/src/components/BottomPanel/') ||
@@ -5433,6 +5496,20 @@ export default defineConfig(({ command }) => ({
                 }
                 if (moduleId.includes('/src/features/toolbar/LaunchDropdown') || moduleId.includes('/src/lib/toolbar/LaunchDropdown')) return 'toolbar-launch'
                 if (moduleId.includes('/src/features/toolbar/ToolbarMenuLauncher') || moduleId.includes('/src/features/toolbar/ToolbarToolMenu')) return 'toolbar-menu'
+                if (
+                  moduleId.includes('/src/features/toolbar/import') ||
+                  moduleId.includes('/src/features/toolbar/pdfImportAction') ||
+                  moduleId.includes('/src/features/toolbar/jsonImportAction') ||
+                  moduleId.includes('/src/features/toolbar/htmlImportAction') ||
+                  moduleId.includes('/src/features/toolbar/markdownImportAction') ||
+                  moduleId.includes('/src/features/toolbar/youtubeImportAction') ||
+                  moduleId.includes('/src/features/toolbar/launchDropdownFallbacks') ||
+                  moduleId.includes('/src/features/toolbar/exportHtmlFallback')
+                ) {
+                  return 'toolbar-imports'
+                }
+                if (moduleId.includes('/src/features/toolbar/ui/')) return 'toolbar-ui'
+                if (moduleId.includes('/src/features/spotlight/')) return 'spotlight'
                 if (
                   moduleId.includes('/src/components/Toolbar') ||
                   moduleId.includes('/src/lib/toolbar/') ||
