@@ -6,9 +6,9 @@ import {
   resolveBytePlusTextWidgetChatApiRowKey,
 } from '@/features/integrations/byteplusChatApiSsot'
 
-export const BYTEPLUS_CHAT_API_DOC_AREA = 'BytePlus Shared + Text API'
+export const BYTEPLUS_SHARED_TEXT_API_DOC_AREA = 'BytePlus Shared + Text API'
 
-export function getBytePlusChatApiRowAnchorId(rowKey: string): string {
+export function getBytePlusSharedTextApiRowAnchorId(rowKey: string): string {
   const normalized = String(rowKey || '')
     .trim()
     .toLowerCase()
@@ -53,7 +53,7 @@ const toBaseType = (typeLabel: string): SettingMeta['type'] => {
   return normalized.includes('object') || normalized.includes('map') || normalized.includes('[]') ? 'json' : 'string'
 }
 
-export const BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntry> =
+export const BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntry> =
   BYTEPLUS_CHAT_API_DOC_ROWS.map(row => ({
     meta: {
       key: getBytePlusChatEntryKey(row.key),
@@ -87,7 +87,7 @@ export const BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSetting
       ...(row.searchHints || []),
     ],
     details: {
-      area: BYTEPLUS_CHAT_API_DOC_AREA,
+      area: BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
       responsibility: row.responsibility,
       notes: row.notes || '',
       modules: row.modules || ['POST /api/v3/chat/completions'],

@@ -55,7 +55,7 @@ import {
   parseIntegrationConfigsJson,
   stringifyIntegrationConfigs,
 } from '@/features/integrations/config'
-import { BYTEPLUS_CHAT_API_DOC_AREA } from './byteplusChatApiDocs'
+import { BYTEPLUS_SHARED_TEXT_API_DOC_AREA } from './byteplusChatApiDocs'
 import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
 import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } from './mapsApiDocs'
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'
@@ -87,7 +87,7 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
     panelLabel: 'Open FloatingPanel Chat UI',
     openPanel: () => emitSidePanelOpen({ tab: 'chat', open: true }),
   },
-  [BYTEPLUS_CHAT_API_DOC_AREA]: {
+  [BYTEPLUS_SHARED_TEXT_API_DOC_AREA]: {
     docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1494384',
     docsLabel: 'Open BytePlus Text API Docs',
     panelLabel: 'Open FloatingPanel Props Panel Text Widget',

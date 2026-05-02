@@ -1,8 +1,8 @@
-import { BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES } from '@/features/panels/views/byteplusChatApiDocs'
+import { BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES } from '@/features/panels/views/byteplusChatApiDocs'
 import { buildSettingsKeyTooltip, buildSettingsValueTooltip } from '@/lib/config-copy/tooltips'
 
 export function testBytePlusEntriesExposeStructuredTooltipMetadata() {
-  const missing = BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES
+  const missing = BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES
     .filter(entry => entry.valueKey)
     .filter(entry => !entry.tooltipRole || !Array.isArray(entry.tooltipActions) || entry.tooltipActions.length === 0)
     .map(entry => entry.meta.key)
@@ -12,7 +12,7 @@ export function testBytePlusEntriesExposeStructuredTooltipMetadata() {
 }
 
 export function testBytePlusMessagesRoleTooltipUsesRoleActionsOutcomeCopy() {
-  const entry = BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES.find(item => item.meta.key === 'byteplusApi.messages.role')
+  const entry = BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES.find(item => item.meta.key === 'byteplusApi.messages.role')
   if (!entry) throw new Error('expected BytePlus messages.role entry')
   const tooltip = buildSettingsKeyTooltip({
     area: entry.details.area || '',
@@ -29,7 +29,7 @@ export function testBytePlusMessagesRoleTooltipUsesRoleActionsOutcomeCopy() {
 }
 
 export function testBytePlusTopPTooltipUsesDefaultMinMaxIntervalStyle() {
-  const entry = BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES.find(item => item.meta.key === 'byteplusApi.top_p')
+  const entry = BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES.find(item => item.meta.key === 'byteplusApi.top_p')
   if (!entry) throw new Error('expected BytePlus top_p entry')
   const tooltip = buildSettingsValueTooltip({
     type: entry.typeLabel,
@@ -50,7 +50,7 @@ export function testBytePlusTopPTooltipUsesDefaultMinMaxIntervalStyle() {
 }
 
 export function testBytePlusToolSchemaTooltipUsesMultilineJsonCopy() {
-  const entry = BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES.find(item => item.meta.key === 'byteplusApi.tools.function.parameters')
+  const entry = BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES.find(item => item.meta.key === 'byteplusApi.tools.function.parameters')
   if (!entry) throw new Error('expected BytePlus tools.function.parameters entry')
   const tooltip = buildSettingsValueTooltip({
     type: entry.typeLabel,

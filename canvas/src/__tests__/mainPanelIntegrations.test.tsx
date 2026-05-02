@@ -21,7 +21,7 @@ import {
 } from '@/lib/chatEndpoint'
 import { MAIN_PANEL_TABS } from '@/features/panels/mainPanelTabs'
 import { getIntegrationVirtualSettingStorageKey } from '@/features/integrations/integrationVirtualSettings'
-import { getBytePlusChatApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
+import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
 
 const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
   void raf
@@ -1243,7 +1243,7 @@ export async function testMainPanelRequestedIntegrationsAnchorScrollsExactBytePl
     const container = doc.createElement('div')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    const anchorId = getBytePlusChatApiRowAnchorId('byteplus.auth_mode')
+    const anchorId = getBytePlusSharedTextApiRowAnchorId('byteplus.auth_mode')
     await renderAndFlush(
       root,
       React.createElement(MainPanel, {

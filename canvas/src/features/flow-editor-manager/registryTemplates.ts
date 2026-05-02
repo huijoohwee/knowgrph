@@ -63,7 +63,7 @@ import {
   getOpenAiApiDocRowByRowKey,
   resolveOpenAiTextWidgetChatApiRowKey,
 } from '@/features/integrations/openaiResponsesSsot'
-import { getBytePlusChatApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
+import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
 import { getOpenAiChatApiRowAnchorId } from '@/features/panels/views/openaiChatApiDocs'
 
 export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'zai'
@@ -256,7 +256,7 @@ export function resolveWidgetRegistryMainPanelLink(args: {
       searchQuery: apiDocRef.rowKey,
       anchorId: providerFamily === 'openai'
         ? getOpenAiChatApiRowAnchorId(apiDocRef.rowKey)
-        : getBytePlusChatApiRowAnchorId(apiDocRef.rowKey),
+        : getBytePlusSharedTextApiRowAnchorId(apiDocRef.rowKey),
     }
   }
 

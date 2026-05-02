@@ -18,9 +18,9 @@ import {
 } from '@/lib/chatEndpoint'
 import { normalizeTextGenerationWidgetPropertiesForProviderFamily } from '@/features/flow-editor-manager/registryTemplates'
 import {
-  BYTEPLUS_CHAT_API_DOC_AREA,
-  BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES,
-  getBytePlusChatApiRowAnchorId,
+  BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
+  BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES,
+  getBytePlusSharedTextApiRowAnchorId,
 } from './byteplusChatApiDocs'
 import {
   OPENAI_CHAT_API_DOC_AREA,
@@ -77,7 +77,7 @@ const SETTINGS_AREA_ORDER: readonly string[] = [
   'Graph Data Table',
   'Import / Export',
   'Integrations',
-  BYTEPLUS_CHAT_API_DOC_AREA,
+  BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
   BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA,
   BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA,
   OPENAI_CHAT_API_DOC_AREA,
@@ -109,7 +109,7 @@ function isIntegrationsOwnedSetting(key: string, areaRaw: string): boolean {
   if (
     area === 'Chat'
     || area === 'Integrations'
-    || area === BYTEPLUS_CHAT_API_DOC_AREA
+    || area === BYTEPLUS_SHARED_TEXT_API_DOC_AREA
     || area === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA
     || area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
     || area === OPENAI_CHAT_API_DOC_AREA
@@ -204,7 +204,7 @@ const getSettingsSearchHints = (key: string): string[] => {
 }
 
 const INTEGRATION_API_DOC_ENTRIES = [
-  ...BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES,
+  ...BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES,
   ...BYTEPLUS_IMAGE_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...BYTEPLUS_VIDEO_GENERATION_API_REQUEST_DOC_ENTRIES,
   ...OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,
@@ -743,14 +743,14 @@ export function useSettingsView({
       const { resolvedMeta, stateKey: displayKey, usesMappedDisplayValue } = resolveIntegrationEntryStateKey(entry)
       const area = normalizeSettingsAreaLabel(entry.details.area)
       const normalizedDisplayValues =
-        area === BYTEPLUS_CHAT_API_DOC_AREA
+        area === BYTEPLUS_SHARED_TEXT_API_DOC_AREA
           ? normalizedBytePlusValues
           : area === OPENAI_CHAT_API_DOC_AREA
             ? normalizedOpenAiValues
             : values
       const anchorId =
-        area === BYTEPLUS_CHAT_API_DOC_AREA
-          ? getBytePlusChatApiRowAnchorId(entry.meta.key)
+        area === BYTEPLUS_SHARED_TEXT_API_DOC_AREA
+          ? getBytePlusSharedTextApiRowAnchorId(entry.meta.key)
           : area === BYTEPLUS_IMAGE_GENERATION_API_DOC_AREA
             ? getBytePlusImageGenerationApiRowAnchorId(entry.meta.key)
           : area === BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA
@@ -1007,9 +1007,9 @@ export function useSettingsView({
           },
         },
         {
-          title: BYTEPLUS_CHAT_API_DOC_AREA,
+          title: BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
           searchIndex: normalizeText('BytePlus Shared + Text API BytePlus Chat API ModelArk FloatingPanel Props Panel Text Widget text generation shared auth api key endpoint'),
-          match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_CHAT_API_DOC_AREA,
+          match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
         },
         {
           title: OPENAI_CHAT_API_DOC_AREA,
