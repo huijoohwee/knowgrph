@@ -204,7 +204,7 @@ export function GraphStoreRuntime() {
       (next, prev) => {
         if (next.docKey === prev?.docKey) return
         if (next.documentStructureBaselineLock === true) return
-        const saved = readPerDocumentUiState({ documentKey: next.docKey })
+        const saved = readPerDocumentUiState({ documentKey: next.docKey, documentRef: next.docRef })
         if (!saved) return
 
         const api = useGraphStore.getState()

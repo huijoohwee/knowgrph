@@ -4,6 +4,7 @@ import { hashStringToHex } from '@/lib/hash/stringHash'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import { isCanvas2dRendererId } from '@/lib/config.render'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
+import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 
 export type PerDocumentUiState = {
   documentRef?: string
@@ -261,13 +262,21 @@ export function buildDocumentKey(args: { name: string | null; sourceUrl: string 
   return `doc:${hashStringToHex(normalized)}`
 }
 
+export function shouldPersistPerDocumentUiStateDocumentRef(documentRef: string | null | undefined): boolean {
+  const ref = typeof documentRef === 'string' ? documentRef.trim() : ''
+  if (!ref) return true
+  return !isInitializationWorkspacePath(ref)
+}
+
 export function readPerDocumentUiState(args: {
   storage?: Storage | null
   documentKey: string
+  documentRef?: string | null
 }): PerDocumentUiState | null {
   const storage = args.storage === undefined ? getLocalStorage() : args.storage
   const key = String(args.documentKey || '').trim()
   if (!key) return null
+  if (!shouldPersistPerDocumentUiStateDocumentRef(args.documentRef)) return null
   const order = readPerDocumentUiStateOrderCached(storage)
   if (order.length > 0) return readPerDocumentUiStateEntryCached(storage, key)
   const map = readPerDocumentUiStateMapCached(storage)
@@ -283,6 +292,7 @@ export function writePerDocumentUiState(args: {
   const storage = args.storage === undefined ? getLocalStorage() : args.storage
   const documentKey = String(args.documentKey || '').trim()
   if (!documentKey) return
+  if (!shouldPersistPerDocumentUiStateDocumentRef(args.documentRef)) return
   const now = Date.now()
   const map = readPersistedPerDocumentUiState(storage)
 

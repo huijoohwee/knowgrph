@@ -1,6 +1,11 @@
 import { LS_KEYS } from '@/lib/config'
 import { createMemoryStorage } from '@/tests/lib/memoryStorage'
-import { buildDocumentKey, readPerDocumentUiState, writePerDocumentUiState } from '@/lib/persistence/perDocumentUiState'
+import {
+  buildDocumentKey,
+  readPerDocumentUiState,
+  shouldPersistPerDocumentUiStateDocumentRef,
+  writePerDocumentUiState,
+} from '@/lib/persistence/perDocumentUiState'
 
 export function testPerDocumentUiStateReadWriteAndLruTrim() {
   const storage = createMemoryStorage()
@@ -52,5 +57,34 @@ export function testPerDocumentUiStateReadWriteAndLruTrim() {
   const latestRaw = storage.getItem(`${LS_KEYS.perDocumentUiStateMap}:${latestKey}`)
   if (!latestRaw) {
     throw new Error('Expected latest document UI state to persist under its own shard key')
+  }
+}
+
+export function testPerDocumentUiStateSkipsInitializationWorkspaceDocs() {
+  const storage = createMemoryStorage()
+  if (shouldPersistPerDocumentUiStateDocumentRef('/README.md') !== false) {
+    throw new Error('Expected README seed doc UI state persistence to be disabled')
+  }
+  if (shouldPersistPerDocumentUiStateDocumentRef('/knowgrph-video-demo.md') !== false) {
+    throw new Error('Expected video-demo seed doc UI state persistence to be disabled')
+  }
+  if (shouldPersistPerDocumentUiStateDocumentRef('/notes/custom.md') !== true) {
+    throw new Error('Expected custom doc UI state persistence to remain enabled')
+  }
+
+  const key = buildDocumentKey({ name: '/README.md', sourceUrl: null })
+  writePerDocumentUiState({
+    storage,
+    documentKey: key,
+    documentRef: '/README.md',
+    state: { canvasRenderMode: '2d', canvas2dRenderer: 'flowEditor', selectedNodeId: 'seed-node' },
+  })
+
+  const restored = readPerDocumentUiState({ storage, documentKey: key, documentRef: '/README.md' })
+  if (restored != null) {
+    throw new Error('Expected initialization workspace doc UI state restore to stay disabled')
+  }
+  if (storage.getItem(`${LS_KEYS.perDocumentUiStateMap}:order`) != null) {
+    throw new Error('Expected initialization workspace doc UI state to avoid persistence writes entirely')
   }
 }
