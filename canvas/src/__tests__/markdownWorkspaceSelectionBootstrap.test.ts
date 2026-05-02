@@ -25,11 +25,10 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     activePath: null,
     lastSetActivePath: null,
     lastRequestedActivePath: null,
-    canvas2dRenderer: 'flowEditor',
     nowMs: 10_000,
   })
-  if (startup !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
-    throw new Error(`expected bootstrap helper to honor startup seed preference, got ${String(startup)}`)
+  if (startup !== WORKSPACE_README_SEED_PATH) {
+    throw new Error(`expected bootstrap helper to keep README as the stable default seed, got ${String(startup)}`)
   }
 
   const preserveValidActivePath = resolveMarkdownWorkspaceBootstrapActivePath({
@@ -37,7 +36,6 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     activePath: '/docs/b.md' as never,
     lastSetActivePath: { path: '/docs/b.md' as never, atMs: 8_000 },
     lastRequestedActivePath: null,
-    canvas2dRenderer: 'd3',
     nowMs: 10_000,
   })
   if (preserveValidActivePath !== null) {
@@ -49,7 +47,6 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     activePath: '/docs/missing.md' as never,
     lastSetActivePath: null,
     lastRequestedActivePath: { path: '/docs/missing.md' as never, atMs: 9_500 },
-    canvas2dRenderer: 'd3',
     nowMs: 10_000,
   })
   if (preserveRecentMissingRequest !== null) {
@@ -61,7 +58,6 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     activePath: '/docs/missing.md' as never,
     lastSetActivePath: { path: '/docs/missing.md' as never, atMs: 1_000 },
     lastRequestedActivePath: null,
-    canvas2dRenderer: 'd3',
     nowMs: 10_000,
   })
   if (fallback !== '/docs/first.md') {

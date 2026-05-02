@@ -13,7 +13,6 @@ export function resolveMarkdownWorkspaceBootstrapActivePath(args: {
   activePath: WorkspacePath | null
   lastSetActivePath: MarkdownWorkspaceActivePathRequest
   lastRequestedActivePath: MarkdownWorkspaceActivePathRequest
-  canvas2dRenderer: string
   nowMs?: number
 }): WorkspacePath | null {
   if (!args.entries.length) return null
@@ -22,7 +21,6 @@ export function resolveMarkdownWorkspaceBootstrapActivePath(args: {
     .filter((entry): entry is WorkspaceEntry & { kind: 'file' } => entry.kind === 'file')
     .map(entry => entry.path)
 
-  const preferValidationSeedForRenderer = args.canvas2dRenderer === 'flowEditor'
   const preferCustomValidationSeed =
     CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
     TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
@@ -31,7 +29,7 @@ export function resolveMarkdownWorkspaceBootstrapActivePath(args: {
     const startupPath = resolveWorkspaceStartupActivePath({
       workspaceFilePaths,
       activePath: args.activePath,
-      preferValidationSeedForDefaultFamily: preferCustomValidationSeed || preferValidationSeedForRenderer,
+      preferValidationSeedForDefaultFamily: preferCustomValidationSeed,
       forceValidationSeedIfPresent: preferCustomValidationSeed,
     })
     if (startupPath && startupPath !== args.activePath) return startupPath

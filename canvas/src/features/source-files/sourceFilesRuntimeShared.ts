@@ -132,8 +132,6 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
   workspaceEntries: WorkspaceEntry[]
 }> {
   const explorer = useMarkdownExplorerStore.getState()
-  const store = useGraphStore.getState()
-  const preferValidationSeedForRenderer = store.canvas2dRenderer === 'flowEditor'
   const preferCustomValidationSeed =
     CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
     TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
@@ -146,7 +144,7 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
   const desiredActivePath = resolveWorkspaceStartupActivePath({
     workspaceFilePaths,
     activePath: resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath }),
-    preferValidationSeedForDefaultFamily: preferCustomValidationSeed || preferValidationSeedForRenderer,
+    preferValidationSeedForDefaultFamily: preferCustomValidationSeed,
     forceValidationSeedIfPresent: preferCustomValidationSeed,
   })
   const currentActivePath = resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath })

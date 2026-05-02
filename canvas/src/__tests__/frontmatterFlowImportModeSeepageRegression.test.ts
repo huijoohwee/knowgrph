@@ -153,6 +153,45 @@ export function testCanvasFrontmatterPresetDisablesGeospatialOverlayFor2dDocumen
   }
 }
 
+export async function testActiveMarkdownDocumentSwitchReappliesExplicitFrontmatterPreset() {
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setDocumentStructureBaselineLock(true)
+  useGraphStore.getState().setCanvasRenderMode('2d')
+  useGraphStore.getState().setCanvas2dRenderer('d3')
+  useGraphStore.getState().setDocumentSemanticMode('keyword')
+  useGraphStore.getState().setFrontmatterModeEnabled(false)
+  useGraphStore.getState().setMultiDimTableModeEnabled(true)
+
+  const text = [
+    '---',
+    'title: "Video Demo"',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "flowEditor"',
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+    'kgDocumentStructureBaselineLock: false',
+    '---',
+    '',
+    '# Video Demo',
+  ].join('\n')
+
+  const ok = await useGraphStore.getState().setActiveMarkdownDocument({
+    name: '/knowgrph-video-demo.md',
+    text,
+    normalizeMermaidMmd: false,
+    autoEnableFrontmatter: false,
+  })
+  if (ok !== true) throw new Error('expected active markdown document switch to complete')
+
+  const st = useGraphStore.getState()
+  if (st.canvasRenderMode !== '2d') throw new Error(`expected active doc switch to preserve 2d canvas render mode, got ${String(st.canvasRenderMode)}`)
+  if (st.canvas2dRenderer !== 'flowEditor') throw new Error(`expected active doc switch to reapply flowEditor renderer, got ${String(st.canvas2dRenderer)}`)
+  if (st.documentSemanticMode !== 'document') throw new Error(`expected active doc switch to reapply document semantic mode, got ${String(st.documentSemanticMode)}`)
+  if (st.frontmatterModeEnabled !== true) throw new Error('expected active doc switch to re-enable frontmatter mode')
+  if (st.documentStructureBaselineLock !== false) throw new Error('expected active doc switch to reapply unlocked baseline setting')
+  if (st.multiDimTableModeEnabled !== false) throw new Error('expected active doc switch to disable multi-dimensional table mode when preset reapplies')
+}
+
 export function testPerDocumentUiRestorePrefersFrontmatterFlowLandingContract() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'GraphStoreRuntime.tsx')
   const text = fs.readFileSync(runtimePath, 'utf8')

@@ -244,13 +244,11 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
       activePath: args.activePath,
       lastSetActivePath: args.lastSetActivePath,
       lastRequestedActivePath: args.lastRequestedActivePathRef.current,
-      canvas2dRenderer: args.canvas2dRenderer,
     })
     if (!nextActivePath || nextActivePath === args.activePath) return
     setActivePathSafe(nextActivePath)
   }, [
     args.activePath,
-    args.canvas2dRenderer,
     args.entries,
     args.lastRequestedActivePathRef,
     args.lastSetActivePath,

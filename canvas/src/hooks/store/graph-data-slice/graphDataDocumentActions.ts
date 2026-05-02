@@ -61,6 +61,21 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
 
     get().setMarkdownDocument(name, text, { autoEnableFrontmatter: args?.autoEnableFrontmatter })
 
+    if (text.trim()) {
+      try {
+        const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
+        const presetApplied = applyCanvasFrontmatterPreset({
+          graphData: get().graphData,
+          rawText: text,
+        })
+        if (presetApplied && get().multiDimTableModeEnabled !== false) {
+          get().setMultiDimTableModeEnabled(false)
+        }
+      } catch {
+        void 0
+      }
+    }
+
     if ('sourceUrl' in (args as Record<string, unknown>)) {
       get().setMarkdownDocumentSourceUrl(typeof args.sourceUrl === 'string' ? args.sourceUrl : null)
     }
