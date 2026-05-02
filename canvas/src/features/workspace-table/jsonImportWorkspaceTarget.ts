@@ -3,7 +3,7 @@ import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { openWorkspaceEditorPane, openWorkspaceTable } from '@/features/workspace-table/workspaceTableSsot'
 import { writeWorkspaceEditorMode } from '@/features/workspace-table/workspaceEditorMode'
-import { WORKSPACE_TABLE_PREFS_EVENT } from '@/features/workspace-table/workspaceTablePreferencesEvents'
+import { emitWorkspaceTablePreferencesChanged } from '@/features/workspace-table/workspaceTablePreferencesEvents'
 
 export type JsonImportWorkspaceTarget = 'editor' | 'multiDimTable' | 'canvas'
 
@@ -54,13 +54,7 @@ export function applyJsonImportWorkspaceTarget(args?: { preferFlowEditor?: boole
     return
   }
   writeWorkspaceEditorMode('multiDimTable')
-  if (typeof window !== 'undefined') {
-    try {
-      window.dispatchEvent(new Event(WORKSPACE_TABLE_PREFS_EVENT))
-    } catch {
-      void 0
-    }
-  }
+  emitWorkspaceTablePreferencesChanged()
   openWorkspaceTable({
     workspaceViewMode: store.workspaceViewMode,
     editorWorkspacePane: store.editorWorkspacePane,

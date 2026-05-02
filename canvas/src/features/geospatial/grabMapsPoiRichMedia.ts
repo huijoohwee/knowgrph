@@ -98,7 +98,8 @@ export function publishGrabMapsPoiRichMediaPreview(payload: GrabMapsPoiRichMedia
   latestGrabMapsPoiRichMediaPreviewPayload = payload
   if (typeof window === 'undefined') return
   try {
-    window.dispatchEvent(new CustomEvent(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT, { detail: payload }))
+    const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
+    window.dispatchEvent(new CustomEventCtor(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT, { detail: payload }))
   } catch {
     void 0
   }
@@ -106,4 +107,33 @@ export function publishGrabMapsPoiRichMediaPreview(payload: GrabMapsPoiRichMedia
 
 export function readLatestGrabMapsPoiRichMediaPreview(): GrabMapsPoiRichMediaPreviewPayload | null {
   return latestGrabMapsPoiRichMediaPreviewPayload
+}
+
+export function readGrabMapsPoiRichMediaPreviewEventDetail(
+  event: Event | null | undefined,
+): GrabMapsPoiRichMediaPreviewPayload | null {
+  if (!event || typeof event !== 'object' || !('detail' in event)) return null
+  const detail = (event as CustomEvent<unknown>).detail
+  if (!detail || typeof detail !== 'object') return null
+  const payload = detail as Partial<GrabMapsPoiRichMediaPreviewPayload>
+  return {
+    targetNodeId: String(payload.targetNodeId || '').trim(),
+    srcDoc: typeof payload.srcDoc === 'string' ? payload.srcDoc.trim() : '',
+    label: String(payload.label || '').trim(),
+  }
+}
+
+export function subscribeGrabMapsPoiRichMediaPreview(
+  listener: (payload: GrabMapsPoiRichMediaPreviewPayload) => void,
+): () => void {
+  if (typeof window === 'undefined') return () => void 0
+  const handle = (event: Event) => {
+    const payload = readGrabMapsPoiRichMediaPreviewEventDetail(event)
+    if (!payload) return
+    listener(payload)
+  }
+  window.addEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT, handle as EventListener)
+  return () => {
+    window.removeEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT, handle as EventListener)
+  }
 }

@@ -6,6 +6,7 @@ import { sortWorkspaceEntriesForExplorer } from '@/features/workspace-fs/workspa
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { subscribePointerDownDismiss, subscribeWindowEscapeDismiss } from '@/lib/browser/dismissEvents'
 import { buildMarkdownFileTreeContextMenuItems } from './markdownWorkspace/markdownFileTreeContextMenuItems'
 import { MarkdownFileTreeRowButton } from './MarkdownFileTreeRowButton'
 
@@ -72,15 +73,14 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
 
   React.useEffect(() => {
     if (!contextMenu) return
-    const onPointerDown = () => closeContextMenu()
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeContextMenu()
-    }
-    window.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('keydown', onEscape)
+    const unsubscribePointerDown = subscribePointerDownDismiss({
+      listener: closeContextMenu,
+      target: 'window',
+    })
+    const unsubscribeEscape = subscribeWindowEscapeDismiss(closeContextMenu)
     return () => {
-      window.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('keydown', onEscape)
+      unsubscribePointerDown()
+      unsubscribeEscape()
     }
   }, [closeContextMenu, contextMenu])
 

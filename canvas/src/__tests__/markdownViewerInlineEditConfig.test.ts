@@ -18,6 +18,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   const blockDraftCommitPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.draftCommit.ts')
   const blockEditInitializationPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.editInitialization.ts')
   const blockEditorEventsPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.editorEvents.ts')
+  const blockParityProbePath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownEditParityProbe.ts')
   const blockSelectionToolbarSyncPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.selectionToolbarSync.ts')
   const blockMarkdownFormattingPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.markdownFormatting.ts')
   const blockHtmlFormattingPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'markdownBlockContainerCore.htmlFormatting.ts')
@@ -38,6 +39,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
     fs.existsSync(blockDraftCommitPath) ? readUtf8(blockDraftCommitPath) : '',
     fs.existsSync(blockEditInitializationPath) ? readUtf8(blockEditInitializationPath) : '',
     fs.existsSync(blockEditorEventsPath) ? readUtf8(blockEditorEventsPath) : '',
+    fs.existsSync(blockParityProbePath) ? readUtf8(blockParityProbePath) : '',
     fs.existsSync(blockSelectionToolbarSyncPath) ? readUtf8(blockSelectionToolbarSyncPath) : '',
     fs.existsSync(blockMarkdownFormattingPath) ? readUtf8(blockMarkdownFormattingPath) : '',
     fs.existsSync(blockHtmlFormattingPath) ? readUtf8(blockHtmlFormattingPath) : '',
@@ -134,6 +136,9 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   }
   if (!blockText.includes('__KG_EDIT_PARITY_LAST_PAYLOAD__') || !blockText.includes('kg-edit-parity-probe-json')) {
     throw new Error('expected runtime parity probe to expose visible payload via window global and json console line')
+  }
+  if (!blockText.includes('reportMarkdownEditParityProbe(payload)')) {
+    throw new Error('expected markdown block editor to delegate runtime parity probe reporting to the shared helper')
   }
   if (!blockText.includes('buildMarkdownSigil') || !blockText.includes('parseMarkdownSigil')) {
     throw new Error('expected inline highlight/text color actions to reuse markdown sigil SSOT helpers')

@@ -34,8 +34,7 @@ import {
 import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFinalizeAssistantSuccess'
 import { useSidePanelChatSubmit } from '@/features/chat/sidePanelChat/useSidePanelChatSubmit'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
-
-const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-request'
+import { emitMarkdownLayoutRequest } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.shared'
 
 export default function SidePanelChat() {
   const graphData = useGraphStore(s => s.graphData)
@@ -184,13 +183,7 @@ export default function SidePanelChat() {
     openMarkdownWorkspaceEditorPane(useGraphStore.getState())
     useMarkdownExplorerStore.getState().setActivePath(normalized)
     lsSetJson<'split' | 'editor' | 'viewer'>(LS_KEYS.markdownLayoutMode, 'editor')
-    if (typeof window !== 'undefined') {
-      try {
-        window.dispatchEvent(new CustomEvent(MARKDOWN_LAYOUT_REQUEST_EVENT, { detail: { mode: 'editor' } }))
-      } catch {
-        void 0
-      }
-    }
+    emitMarkdownLayoutRequest('editor')
   }, [])
 
   const followWorkspaceMarkdownPath = React.useCallback((path: string) => {
@@ -205,13 +198,7 @@ export default function SidePanelChat() {
     const activePath = String(explorer.activePath || '').trim()
     if (!samePath || activePath !== normalized) explorer.setActivePath(normalized)
     lsSetJson<'split' | 'editor' | 'viewer'>(LS_KEYS.markdownLayoutMode, 'editor')
-    if (typeof window !== 'undefined') {
-      try {
-        window.dispatchEvent(new CustomEvent(MARKDOWN_LAYOUT_REQUEST_EVENT, { detail: { mode: 'editor' } }))
-      } catch {
-        void 0
-      }
-    }
+    emitMarkdownLayoutRequest('editor')
     if (!samePath || nowMs - prevFollow.atMs >= 180) {
       streamRevealSeqRef.current = (streamRevealSeqRef.current + 1) % 2
       const tailLine = Number.MAX_SAFE_INTEGER - streamRevealSeqRef.current

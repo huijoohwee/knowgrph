@@ -14,7 +14,8 @@ import type { WorkspaceRefreshSnapshot } from '@/components/BottomPanel/markdown
 
 export type FolderModeContract = 'sitemap' | 'user-journey'
 
-export const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-request'
+export const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-request' as const
+export type MarkdownLayoutRequestMode = 'split' | 'editor'
 export const WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS = 180
 export const WORKSPACE_TOC_PARSE_MAX_CHARS = 320_000
 
@@ -27,6 +28,43 @@ export const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
   const out = raw.map(v => String(v || '').trim()).filter(Boolean)
   return out
+}
+
+export function emitMarkdownLayoutRequest(mode: MarkdownLayoutRequestMode): void {
+  const normalizedMode = mode === 'split' ? 'split' : 'editor'
+  if (typeof window === 'undefined') return
+  try {
+    const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
+    window.dispatchEvent(new CustomEventCtor(MARKDOWN_LAYOUT_REQUEST_EVENT, { detail: { mode: normalizedMode } }))
+  } catch {
+    void 0
+  }
+}
+
+export function readMarkdownLayoutRequestEventDetail(
+  event: Event | null | undefined,
+): { mode: MarkdownLayoutRequestMode } | null {
+  if (!event || typeof event !== 'object' || !('detail' in event)) return null
+  const detail = (event as CustomEvent<unknown>).detail
+  if (!detail || typeof detail !== 'object') return null
+  const mode = String((detail as { mode?: unknown }).mode || '').trim().toLowerCase()
+  if (mode !== 'split' && mode !== 'editor') return null
+  return { mode }
+}
+
+export function subscribeMarkdownLayoutRequest(
+  listener: (detail: { mode: MarkdownLayoutRequestMode }) => void,
+): () => void {
+  if (typeof window === 'undefined') return () => void 0
+  const handle = (event: Event) => {
+    const detail = readMarkdownLayoutRequestEventDetail(event)
+    if (!detail) return
+    listener(detail)
+  }
+  window.addEventListener(MARKDOWN_LAYOUT_REQUEST_EVENT, handle as EventListener)
+  return () => {
+    window.removeEventListener(MARKDOWN_LAYOUT_REQUEST_EVENT, handle as EventListener)
+  }
 }
 
 export function findWorkspaceSourceFileByPath(path: WorkspacePath) {

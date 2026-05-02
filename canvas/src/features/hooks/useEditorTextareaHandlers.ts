@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { UI_COPY } from '@/lib/config'
+import { emitTextSelectionEvent } from '@/features/hooks/textSelectionEvents'
 
 export type EditorHandlersOptions = {
   codeText: string
@@ -80,7 +81,7 @@ export const useEditorTextareaHandlers = (o: EditorHandlersOptions) => {
   const onKeyUp = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const el = e.target as HTMLTextAreaElement
     if (enableSelection !== false) {
-      el.dispatchEvent(new Event('select', { bubbles: true }))
+      emitTextSelectionEvent(el)
     }
   }, [enableSelection])
 
@@ -95,7 +96,7 @@ export const useEditorTextareaHandlers = (o: EditorHandlersOptions) => {
         smoothScrollTextareaToCenter(el, line)
       }
     }
-    el.dispatchEvent(new Event('select', { bubbles: true }))
+    emitTextSelectionEvent(el)
   }, [codeText, countLinesUpTo, smoothScrollTextareaToCenter, stickyBlockRef])
 
   const onBlur = useCallback((e: React.FocusEvent<HTMLTextAreaElement>) => {

@@ -1,5 +1,6 @@
 import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { subscribeGlobalCancelIntervalWatchdog } from '@/lib/browser/globalCancelEvents'
 
 type FrameDragState = {
   ids: string[]
@@ -109,36 +110,17 @@ export function useGlobalInteractionCleanup(args: UseGlobalInteractionCleanupArg
       cancelAll()
     }
 
-    const onVisibility = () => {
-      try {
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') onAnyEnd()
-      } catch {
-        void 0
-      }
-    }
-
-    window.addEventListener('pointerup', onAnyEnd, { capture: true })
-    window.addEventListener('pointercancel', onAnyEnd, { capture: true })
-    window.addEventListener('lostpointercapture', onAnyEnd, { capture: true } as AddEventListenerOptions)
-    window.addEventListener('pointerdown', onAnyEnd, { capture: true })
-    window.addEventListener('blur', onAnyEnd)
-    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
-    const watchdog = window.setInterval(() => {
-      onAnyEnd()
-    }, 12000) as unknown as number
+    const unsubscribeGlobalCleanup = subscribeGlobalCancelIntervalWatchdog({
+      listener: onAnyEnd,
+      capture: true,
+      includePointerDown: true,
+      includeLostPointerCapture: true,
+      visibilityBehavior: 'hidden-only',
+      intervalMs: 12000,
+    })
 
     return () => {
-      window.removeEventListener('pointerup', onAnyEnd, { capture: true } as AddEventListenerOptions)
-      window.removeEventListener('pointercancel', onAnyEnd, { capture: true } as AddEventListenerOptions)
-      window.removeEventListener('lostpointercapture', onAnyEnd, { capture: true } as AddEventListenerOptions)
-      window.removeEventListener('pointerdown', onAnyEnd, { capture: true } as AddEventListenerOptions)
-      window.removeEventListener('blur', onAnyEnd)
-      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
-      try {
-        window.clearInterval(watchdog)
-      } catch {
-        void 0
-      }
+      unsubscribeGlobalCleanup()
       cancelAll()
     }
   }, [cancelAll, designMediaHeaderDragRef, frameDragRef, groupResizeRef, marqueeRef, resizeRef])

@@ -10,7 +10,11 @@ import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { buildMaterializedWorkspaceForceIncludePaths } from '@/features/source-files/sourceFilesRuntimeShared'
+import { persistMarkdownExplorerChromeState } from '@/features/markdown/ui/markdownExplorerChromePersistence'
+import { persistMarkdownExplorerModePreferences } from '@/features/markdown/ui/markdownExplorerModePreferencesPersistence'
 import { persistMarkdownSourceFolderPaths } from '@/features/markdown/ui/markdownSourceFilesPersistence'
+import { persistMarkdownExplorerViewPreferences } from '@/features/markdown/ui/markdownExplorerViewPreferencesPersistence'
+import { persistMarkdownExplorerSectionCollapseState } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
@@ -213,15 +217,30 @@ export function useMarkdownWorkspaceExplorerState(args: {
     scheduleMarkdownWorkspacePrefsSync(() => {
       const pending = persistWorkspacePrefsPendingRef.current
       if (!pending) return
-      lsSetInt(LS_KEYS.markdownSidebarWidthPx, pending.sidebarWidthPx, { min: SIDEBAR_MIN_PX, max: SIDEBAR_MAX_PX })
-      lsSetBool(LS_KEYS.markdownSidebarOpen, pending.explorerOpen)
-      lsSetBool(LS_KEYS.markdownExplorerSourceFilesCollapsed, pending.sourceFilesCollapsed)
-      lsSetBool(LS_KEYS.markdownExplorerOutlineCollapsed, pending.tocCollapsed)
-      lsSetBool(LS_KEYS.markdownExplorerBacklinksCollapsed, pending.backlinksCollapsed)
-      lsSetBool(LS_KEYS.markdownWordWrap, pending.markdownWordWrap)
-      lsSetBool(LS_KEYS.markdownTextHighlight, pending.markdownTextHighlight)
-      lsSetJson<FolderModeContract>(LS_KEYS.markdownExplorerFolderModeContract, pending.folderModeContract)
-      lsSetJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, pending.layoutMode)
+      persistMarkdownExplorerChromeState(
+        {
+          sidebarWidthPx: pending.sidebarWidthPx,
+          explorerOpen: pending.explorerOpen,
+        },
+        {
+          minWidthPx: SIDEBAR_MIN_PX,
+          maxWidthPx: SIDEBAR_MAX_PX,
+          defaultWidthPx: pending.sidebarWidthPx,
+        },
+      )
+      persistMarkdownExplorerSectionCollapseState({
+        sourceFilesCollapsed: pending.sourceFilesCollapsed,
+        outlineCollapsed: pending.tocCollapsed,
+        backlinksCollapsed: pending.backlinksCollapsed,
+      })
+      persistMarkdownExplorerViewPreferences({
+        markdownWordWrap: pending.markdownWordWrap,
+        markdownTextHighlight: pending.markdownTextHighlight,
+      })
+      persistMarkdownExplorerModePreferences({
+        folderModeContract: pending.folderModeContract,
+        layoutMode: pending.layoutMode,
+      })
       persistMarkdownSourceFolderPaths(pending.expandedPaths)
     }, {
       sidebarWidthPx: args.sidebarWidthPx,

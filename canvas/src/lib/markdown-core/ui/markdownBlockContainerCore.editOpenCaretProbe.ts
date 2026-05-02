@@ -1,5 +1,6 @@
 import React from 'react'
 import { ensureWordSelectionInRoot, expandSelectionSegmentAt, findFirstSelectableSegment } from './markdownBlockContainerCore.interaction'
+import { reportMarkdownEditParityProbe } from './markdownEditParityProbe'
 
 export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
   editable: boolean
@@ -249,19 +250,7 @@ export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
         endLine: args.editEndLine,
         mismatches,
       }
-      const w = window as unknown as {
-        __KG_EDIT_PARITY_LAST_MISMATCH__?: unknown
-        __KG_EDIT_PARITY_LAST_PAYLOAD__?: unknown
-        __KG_EDIT_PARITY_MISMATCH_COUNT__?: number
-      }
-      w.__KG_EDIT_PARITY_LAST_PAYLOAD__ = payload
-      if (mismatches.length > 0) {
-        w.__KG_EDIT_PARITY_LAST_MISMATCH__ = payload
-        w.__KG_EDIT_PARITY_MISMATCH_COUNT__ = Number(w.__KG_EDIT_PARITY_MISMATCH_COUNT__ || 0) + 1
-      }
-      window.dispatchEvent(new CustomEvent('kg-edit-parity-probe', { detail: payload }))
-      if (mismatches.length > 0) console.warn('kg-edit-parity-probe', payload)
-      console.warn(`kg-edit-parity-probe-json ${JSON.stringify(payload)}`)
+      reportMarkdownEditParityProbe(payload)
     } catch {
       void 0
     }

@@ -4,6 +4,8 @@ import path from 'node:path'
 const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
 const markdownWorkspaceRuntimePath = () =>
   path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+const markdownWorkspaceSelectionPath = () =>
+  path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSelection.ts')
 const markdownWorkspaceEffectiveContentPath = () =>
   path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceEffectiveContent.ts')
 const markdownWorkspaceInteractionsPath = () =>
@@ -116,13 +118,12 @@ export const testMarkdownWorkspaceRuntimeFlowEditorDirectApplyUsesIncomingGraphI
 }
 
 export const testMarkdownWorkspaceRuntimeGraphWritebackRefreshesActiveEditorTextSafely = () => {
-  const runtimePath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
-  const text = readUtf8(runtimePath)
-  const effectStart = text.indexOf("  React.useEffect(() => {\n    const docKey = String(activeDocumentKey || '').trim()")
-  const effectEnd = text.indexOf('  React.useEffect(() => {\n    const path = activePath', effectStart)
+  const text = readUtf8(markdownWorkspaceSelectionPath())
+  const effectStart = text.indexOf("  React.useEffect(() => {\n    const writebackSync = resolveMarkdownWorkspaceSelectionWritebackSync({")
+  const effectEnd = text.indexOf('  React.useEffect(() => {\n    const path = args.activePath', effectStart)
   const effectSection = effectStart >= 0 && effectEnd > effectStart ? text.slice(effectStart, effectEnd) : ''
-  if (!effectSection.includes('if (!matchesMarkdownDocumentPath(docKey, markdownName)) return')) {
-    throw new Error('Expected markdown workspace runtime graph writeback sync to reuse shared markdown document path matching')
+  if (!effectSection.includes('if (!writebackSync) return')) {
+    throw new Error('Expected markdown workspace runtime graph writeback sync to reuse the shared writeback precondition helper')
   }
   if (effectSection.includes("if (contentMode === 'widget') return")) {
     throw new Error('Expected markdown workspace runtime graph writeback sync to refresh hidden markdown editor state even while widget mode is active')
@@ -130,11 +131,8 @@ export const testMarkdownWorkspaceRuntimeGraphWritebackRefreshesActiveEditorText
   if (!effectSection.includes('const hasUnsavedUserEdit = !!(')) {
     throw new Error('Expected markdown workspace runtime graph writeback sync to guard against unsaved user edits')
   }
-  if (!effectSection.includes('patchWorkspaceEntryInlineText(activePath, nextText)')) {
-    throw new Error('Expected markdown workspace runtime graph writeback sync to refresh workspace entry inline text')
-  }
-  if (!effectSection.includes('setActiveTextProgrammatic(nextText)')) {
-    throw new Error('Expected markdown workspace runtime graph writeback sync to refresh active editor text programmatically')
+  if (!effectSection.includes('commitMarkdownWorkspaceWriteback({')) {
+    throw new Error('Expected markdown workspace runtime graph writeback sync to reuse the shared writeback commit helper')
   }
 }
 

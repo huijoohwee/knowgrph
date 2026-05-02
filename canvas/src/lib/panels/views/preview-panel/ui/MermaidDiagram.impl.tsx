@@ -7,6 +7,7 @@ import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOver
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { emitHashChange } from '@/lib/browser/hashChangeEvents'
 import { cleanupMermaidRenderArtifacts, ensureMermaidInitialized } from '@/lib/mermaid/mermaidRuntime'
 const MERMAID_TOAST_DEDUPE_MS = 1500
 const mermaidErrorToastSeenAt = new Map<string, number>()
@@ -346,11 +347,7 @@ export function MermaidDiagram({
             void 0
           }
           if (shouldDispatchHashChange) {
-            try {
-              window.dispatchEvent(new Event('hashchange'))
-            } catch {
-              void 0
-            }
+            emitHashChange()
           }
           return
         }
@@ -647,11 +644,7 @@ export function MermaidDiagram({
                     void 0
                   }
                   if (shouldDispatchHashChange) {
-                    try {
-                      window.dispatchEvent(new Event('hashchange'))
-                    } catch {
-                      void 0
-                    }
+                    emitHashChange()
                   }
                 } catch {
                   void 0

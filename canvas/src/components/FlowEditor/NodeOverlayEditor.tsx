@@ -31,6 +31,7 @@ import { Z_INDEX_GRAPH_OVERLAY_BASE, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/li
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
+import { subscribeGlobalCancelEvents } from '@/lib/browser/globalCancelEvents'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { emitFlowEditorInteractionFrame, FLOW_EDITOR_INTERACTION_FRAME_EVENT } from '@/lib/canvas/flow-editor-overlay-proxy'
 import {
@@ -1325,25 +1326,24 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           if (!isInteractiveControl) {
             if (!spacePanUserSelectUnlockRef.current) {
               lockGlobalUserSelect()
+              let unsubscribeGlobalUnlock = () => void 0
               const unlock = () => {
                 if (!spacePanUserSelectUnlockRef.current) return
                 spacePanUserSelectUnlockRef.current = null
                 unlockGlobalUserSelect()
                 try {
-                  window.removeEventListener('pointerup', unlock, true)
-                  window.removeEventListener('pointercancel', unlock, true)
-                  window.removeEventListener('blur', unlock, true)
-                  document.removeEventListener('visibilitychange', unlock, true)
+                  unsubscribeGlobalUnlock()
                 } catch {
                   void 0
                 }
               }
-              spacePanUserSelectUnlockRef.current = unlock
               try {
-                window.addEventListener('pointerup', unlock, true)
-                window.addEventListener('pointercancel', unlock, true)
-                window.addEventListener('blur', unlock, true)
-                document.addEventListener('visibilitychange', unlock, true)
+                unsubscribeGlobalUnlock = subscribeGlobalCancelEvents({
+                  listener: unlock,
+                  capture: true,
+                  visibilityBehavior: 'any',
+                })
+                spacePanUserSelectUnlockRef.current = unlock
               } catch {
                 unlock()
               }

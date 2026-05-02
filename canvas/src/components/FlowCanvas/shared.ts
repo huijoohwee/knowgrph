@@ -11,6 +11,27 @@ export const EMPTY_BOOL_RECORD: Record<string, boolean> = {}
 export const EMPTY_POS_RECORD: Record<string, { x: number; y: number }> = {}
 export const FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT = 'kg:flow:resetZoomFloorCache'
 
+export function emitFlowResetZoomFloorCache(): void {
+  if (typeof window === 'undefined') return
+  try {
+    const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
+    window.dispatchEvent(new CustomEventCtor(FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT))
+  } catch {
+    void 0
+  }
+}
+
+export function subscribeFlowResetZoomFloorCache(listener: () => void): () => void {
+  if (typeof window === 'undefined') return () => void 0
+  const handle = () => {
+    listener()
+  }
+  window.addEventListener(FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT, handle as EventListener)
+  return () => {
+    window.removeEventListener(FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT, handle as EventListener)
+  }
+}
+
 export type FlowCanvasProps = {
   active?: boolean
   graphDataOverride?: GraphData | null

@@ -24,7 +24,10 @@ import {
   writeWorkspaceCellSelectPanelPlacement,
 } from '@/features/workspace-table/cellSelectPanelPlacement'
 
-import { WORKSPACE_TABLE_PREFS_EVENT } from '@/features/workspace-table/workspaceTablePreferencesEvents'
+import {
+  emitWorkspaceTablePreferencesChanged,
+  subscribeWorkspaceTablePreferencesChanged,
+} from '@/features/workspace-table/workspaceTablePreferencesEvents'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
   WORKSPACE_SYNC_SCOPE_WORKSPACE_TABLE_PREFS_RUNTIME_PERSISTENCE,
@@ -82,11 +85,6 @@ const readSnapshot = (): WorkspaceTablePreferencesSnapshot => {
   return next
 }
 
-const emitWorkspaceTablePreferencesChanged = () => {
-  if (typeof window === 'undefined') return
-  window.dispatchEvent(new Event(WORKSPACE_TABLE_PREFS_EVENT))
-}
-
 const isWorkspacePreferenceStorageKey = (storageKey: string | null): boolean =>
   storageKey === LS_KEYS.workspaceEditorMode ||
   storageKey === LS_KEYS.graphTableViewMode ||
@@ -125,13 +123,13 @@ const ensureListenersAttached = (): void => {
     if (!isWorkspacePreferenceStorageKey(event.key)) return
     notifySubscribersCoalesced()
   }
-  window.addEventListener(WORKSPACE_TABLE_PREFS_EVENT, handleChanged)
+  const unsubscribeChanged = subscribeWorkspaceTablePreferencesChanged(handleChanged)
   window.addEventListener('storage', handleStorage)
   listenersAttached = true
 
   detachListeners = () => {
     try {
-      window.removeEventListener(WORKSPACE_TABLE_PREFS_EVENT, handleChanged)
+      unsubscribeChanged()
       window.removeEventListener('storage', handleStorage)
     } catch {
       void 0

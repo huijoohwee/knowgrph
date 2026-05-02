@@ -3,10 +3,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import type { TokenWithLines } from './markdownPreviewLex'
 import { slugify } from 'grph-shared/markdown/slugify'
-import { LS_KEYS } from '@/lib/config'
-import { lsInt, lsSetInt } from '@/lib/persistence'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
 import type {
   MarkdownSourceFilesPanelIntegration,
   MarkdownSourceFileListItem,
@@ -17,6 +14,11 @@ import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparat
 import { MarkdownSourceFilesSidebarSection } from './MarkdownSourceFilesSidebarSection'
 import { MarkdownBacklinksSidebarSection } from './MarkdownBacklinksSidebarSection'
 import { MarkdownOutlineSidebarSection } from './MarkdownOutlineSidebarSection'
+import { useMarkdownExplorerSectionCollapseState } from './useMarkdownExplorerSectionCollapseState'
+import { persistMarkdownExplorerChromeState, readMarkdownExplorerChromeState } from './markdownExplorerChromePersistence'
+
+const SIDEBAR_MIN_PX = 160
+const SIDEBAR_MAX_PX = 560
 
 export type MarkdownPanelLayoutProps = {
   children: React.ReactNode
@@ -106,14 +108,11 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
   }, [sourceFiles])
 
   const [sidebarWidthPx, setSidebarWidthPx] = React.useState(() => {
-    const fallback = 256
-    try {
-      const n = lsInt(LS_KEYS.markdownSidebarWidthPx, fallback)
-      if (!Number.isFinite(n)) return fallback
-      return Math.max(160, Math.min(560, Math.floor(n)))
-    } catch {
-      return fallback
-    }
+    return readMarkdownExplorerChromeState({
+      minWidthPx: SIDEBAR_MIN_PX,
+      maxWidthPx: SIDEBAR_MAX_PX,
+      defaultWidthPx: 256,
+    }).sidebarWidthPx
   })
 
   const handleSidebarResizePointerDown = React.useCallback(
@@ -121,7 +120,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
       if (!showSidebar) return
       if (e.button !== 0) return
 
-      const startWidth = Math.max(160, Math.min(560, Math.floor(sidebarWidthPx)))
+      const startWidth = Math.max(SIDEBAR_MIN_PX, Math.min(SIDEBAR_MAX_PX, Math.floor(sidebarWidthPx)))
       const startX = e.clientX
       let raf = 0
       let pendingWidth = startWidth
@@ -149,7 +148,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
         onMove: mv => {
           const delta = mv.clientX - startX
           const signedDelta = sidebarPosition === 'right' ? -delta : delta
-          const next = Math.max(160, Math.min(560, Math.floor(startWidth + signedDelta)))
+          const next = Math.max(SIDEBAR_MIN_PX, Math.min(SIDEBAR_MAX_PX, Math.floor(startWidth + signedDelta)))
           pendingWidth = next
           if (raf) return
           raf = rafFn(() => {
@@ -165,11 +164,10 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
           }
           lastWidth = pendingWidth
           setSidebarWidthPx(prev => (prev === pendingWidth ? prev : pendingWidth))
-          try {
-            lsSetInt(LS_KEYS.markdownSidebarWidthPx, lastWidth, { min: 160, max: 560 })
-          } catch {
-            void 0
-          }
+          persistMarkdownExplorerChromeState(
+            { sidebarWidthPx: lastWidth },
+            { minWidthPx: SIDEBAR_MIN_PX, maxWidthPx: SIDEBAR_MAX_PX, defaultWidthPx: 256 },
+          )
         },
         onCancel: () => {
           if (raf) {
@@ -190,18 +188,14 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
     textColorClassName: UI_THEME_TOKENS.text.tertiary,
   })
 
-  const [sourceFilesSectionCollapsed, setSourceFilesSectionCollapsed] = usePersistedBoolean(
-    LS_KEYS.markdownExplorerSourceFilesCollapsed,
-    false,
-  )
-  const [outlineSectionCollapsed, setOutlineSectionCollapsed] = usePersistedBoolean(
-    LS_KEYS.markdownExplorerOutlineCollapsed,
-    false,
-  )
-  const [backlinksSectionCollapsed, setBacklinksSectionCollapsed] = usePersistedBoolean(
-    LS_KEYS.markdownExplorerBacklinksCollapsed,
-    false,
-  )
+  const {
+    sourceFilesCollapsed: sourceFilesSectionCollapsed,
+    outlineCollapsed: outlineSectionCollapsed,
+    backlinksCollapsed: backlinksSectionCollapsed,
+    toggleSourceFilesCollapsed,
+    toggleOutlineCollapsed,
+    toggleBacklinksCollapsed,
+  } = useMarkdownExplorerSectionCollapseState()
 
   const renderAside = (
     <MarkdownSidebarFrame
@@ -209,7 +203,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
       className={`relative z-10 flex-shrink-0 flex flex-col h-full ${sidebarBorderClass} ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} transition-all duration-300 ${
         showSidebar ? '' : 'w-0 overflow-hidden'
       }`}
-      style={showSidebar ? { width: `${Math.max(160, Math.min(560, sidebarWidthPx))}px` } : undefined}
+      style={showSidebar ? { width: `${Math.max(SIDEBAR_MIN_PX, Math.min(SIDEBAR_MAX_PX, sidebarWidthPx))}px` } : undefined}
       hideHeader={hideSidebarHeader}
       title={UI_COPY.markdownExplorerLabel || 'Explorer'}
       titleClassName={sidebarFrameTitleClassName}
@@ -229,7 +223,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
                 onSourceFileSelect={onSourceFileSelect}
                 integration={sourceFilesPanelIntegration}
                 collapsed={sourceFilesSectionCollapsed}
-                onToggleCollapsed={() => setSourceFilesSectionCollapsed(!sourceFilesSectionCollapsed)}
+                onToggleCollapsed={toggleSourceFilesCollapsed}
               />
             ) : null}
 
@@ -246,7 +240,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
                 collapsedIds={collapsedIds}
                 onToggleCollapse={onToggleCollapse}
                 collapsed={outlineSectionCollapsed}
-                onToggleCollapsed={() => setOutlineSectionCollapsed(!outlineSectionCollapsed)}
+                onToggleCollapsed={toggleOutlineCollapsed}
               />
             ) : null}
 
@@ -259,7 +253,7 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
                 sourceFiles={sourceFiles}
                 onSourceFileSelect={onSourceFileSelect}
                 collapsed={backlinksSectionCollapsed}
-                onToggleCollapsed={() => setBacklinksSectionCollapsed(!backlinksSectionCollapsed)}
+                onToggleCollapsed={toggleBacklinksCollapsed}
               />
             ) : null}
 

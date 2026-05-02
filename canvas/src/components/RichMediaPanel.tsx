@@ -13,8 +13,8 @@ import {
   shouldShowRichMediaFloatingToolbar,
 } from '@/lib/render/richMediaSsot'
 import {
-  GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT,
   readLatestGrabMapsPoiRichMediaPreview,
+  subscribeGrabMapsPoiRichMediaPreview,
 } from '@/features/geospatial/grabMapsPoiRichMedia'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
@@ -438,15 +438,9 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       setGrabMapsPoiPreviewLabel(label)
     }
     applyPayload(readLatestGrabMapsPoiRichMediaPreview())
-    if (typeof window === 'undefined') return
-    const handle = (event: Event) => {
-      const detail = event instanceof CustomEvent ? event.detail : null
-      applyPayload(detail)
-    }
-    window.addEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT, handle as EventListener)
-    return () => {
-      window.removeEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT, handle as EventListener)
-    }
+    return subscribeGrabMapsPoiRichMediaPreview(payload => {
+      applyPayload(payload)
+    })
   }, [props.overlayId])
   const effectiveInlineSrcDoc = inlineSrcDoc || grabMapsPoiPreviewSrcDoc
 

@@ -28,6 +28,7 @@ import {
 } from '@/lib/render/markdownPanelOverlayPool'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { useOverlayInteractions2d } from '@/components/GraphCanvasRoot/hooks/useOverlayInteractions2d'
+import { subscribeGlobalCancelWatchdog } from '@/lib/browser/globalCancelEvents'
 import { resetGlobalUserSelectLock } from '@/lib/canvas/interaction-user-select'
 import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
@@ -795,31 +796,13 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
   React.useEffect(() => {
     if (!overlayInteractionActive) return
     const end = () => setOverlayInteractionActive(false)
-    const onVisibility = () => {
-      try {
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') end()
-      } catch {
-        void 0
-      }
-    }
-    window.addEventListener('pointerup', end, { capture: true })
-    window.addEventListener('pointercancel', end, { capture: true })
-    window.addEventListener('blur', end)
-    window.addEventListener('pointerdown', end, { capture: true })
-    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
-    const watchdog = window.setTimeout(end, 12000) as unknown as number
-    return () => {
-      window.removeEventListener('pointerup', end, { capture: true } as AddEventListenerOptions)
-      window.removeEventListener('pointercancel', end, { capture: true } as AddEventListenerOptions)
-      window.removeEventListener('blur', end)
-      window.removeEventListener('pointerdown', end, { capture: true } as AddEventListenerOptions)
-      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
-      try {
-        window.clearTimeout(watchdog)
-      } catch {
-        void 0
-      }
-    }
+    return subscribeGlobalCancelWatchdog({
+      listener: end,
+      capture: true,
+      includePointerDown: true,
+      visibilityBehavior: 'hidden-only',
+      timeoutMs: 12000,
+    })
   }, [overlayInteractionActive])
 
   const richMedia = useRichMediaOverlays2d({

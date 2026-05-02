@@ -2,22 +2,23 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownEditorSsotSync } from '@/components/BottomPanel/markdownWorkspace/useMarkdownEditorSsotSync'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import {
-  CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
-  DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
-  resolveWorkspaceStartupActivePath,
-  TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
-} from '@/features/workspace-fs/workspaceFs'
-import {
-  normalizeWorkspacePath,
-  workspaceDocumentKey,
-  WORKSPACE_ROOT_PATH,
-} from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
-import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
-import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
+import { resolveWorkspaceDirtyState } from './markdownWorkspaceRuntime.shared'
+import { resolveMarkdownWorkspaceSelectionCollapseTransition } from './markdownWorkspaceSelectionCollapseTransition'
+import { resolveMarkdownWorkspaceBootstrapActivePath } from './markdownWorkspaceSelectionBootstrap'
+import { resolveMarkdownWorkspaceCanonicalSelection } from './markdownWorkspaceSelectionCanonicalPath'
+import { deriveMarkdownWorkspaceSelectionState } from './markdownWorkspaceSelectionDerived'
+import { normalizeMarkdownWorkspaceSelectionPath } from './markdownWorkspaceSelectionPath'
+import { resolveMarkdownWorkspaceSelectionRestoreApply } from './markdownWorkspaceSelectionRestoreApply'
+import { readMarkdownWorkspaceRestoreTextForPath } from './markdownWorkspaceSelectionRestore'
+import { resolveMarkdownWorkspaceSelectionWritebackSync } from './markdownWorkspaceSelectionWriteback'
+import { commitMarkdownWorkspaceWriteback } from './markdownWorkspaceWritebackCommit'
+import {
+  resolveInitialMarkdownWorkspaceSelectionPath,
+  resolveInvalidatedMarkdownWorkspaceSelectionPath,
+} from './markdownWorkspaceSelectionSync'
 
 export function useMarkdownWorkspaceSelection(args: {
   activePath: WorkspacePath | null
@@ -48,7 +49,8 @@ export function useMarkdownWorkspaceSelection(args: {
 }) {
   const setActivePathSafe = React.useCallback(
     (path: WorkspacePath) => {
-      const normalized = toCanonicalKgcWorkspacePath(normalizeWorkspacePath(path))
+      const normalized = normalizeMarkdownWorkspaceSelectionPath(path)
+      if (!normalized) return
       args.lastRequestedActivePathRef.current = { path: normalized, atMs: Date.now() }
       args.setActivePath(normalized)
     },
@@ -60,51 +62,47 @@ export function useMarkdownWorkspaceSelection(args: {
   selectionPathRef.current = selectionPath
 
   const setSelectionPathSafe = React.useCallback((path: WorkspacePath) => {
-    setSelectionPath(toCanonicalKgcWorkspacePath(normalizeWorkspacePath(path)))
+    setSelectionPath(normalizeMarkdownWorkspaceSelectionPath(path))
   }, [])
 
   React.useEffect(() => {
-    if (!selectionPathRef.current && args.activePath) {
-      setSelectionPath(args.activePath)
-    }
+    const nextSelectionPath = resolveInitialMarkdownWorkspaceSelectionPath({
+      selectionPath: selectionPathRef.current,
+      activePath: args.activePath,
+    })
+    if (!nextSelectionPath) return
+    setSelectionPath(nextSelectionPath)
   }, [args.activePath])
 
   React.useEffect(() => {
-    if (!selectionPath) return
-    if (args.loading) return
-    if (args.entries.some(entry => entry.path === selectionPath)) return
-    if (args.activePath && args.entries.some(entry => entry.path === args.activePath)) {
-      setSelectionPath(args.activePath)
-      return
-    }
-    setSelectionPath(null)
+    const nextSelectionPath = resolveInvalidatedMarkdownWorkspaceSelectionPath({
+      selectionPath,
+      activePath: args.activePath,
+      entries: args.entries,
+      loading: args.loading,
+    })
+    if (typeof nextSelectionPath === 'undefined') return
+    setSelectionPath(nextSelectionPath)
   }, [args.activePath, args.entries, args.loading, selectionPath])
 
-  const activeEntry = React.useMemo(() => {
-    if (!args.activePath) return null
-    return args.entries.find(entry => entry.path === args.activePath) || null
-  }, [args.activePath, args.entries])
-
-  const selectionEntry = React.useMemo(() => {
-    if (!selectionPath) return null
-    return args.entries.find(entry => entry.path === selectionPath) || null
-  }, [args.entries, selectionPath])
-
-  const activeEntryKind = activeEntry ? activeEntry.kind : null
-  const activeEntryText = activeEntry && activeEntry.kind === 'file' ? activeEntry.text : undefined
-  const activeDocumentKey = React.useMemo(() => {
-    if (!args.activePath) return ''
-    if (activeEntry && activeEntry.kind !== 'file') return ''
-    return workspaceDocumentKey(args.activePath)
-  }, [activeEntry, args.activePath])
-
-  const activeDocumentSourceUrl = React.useMemo(() => {
-    const path = args.activePath
-    if (!path) return null
-    const source = args.sourcesByPath[path]
-    const url = source && source.kind === 'url' ? String(source.url || '').trim() : ''
-    return url ? url : null
-  }, [args.activePath, args.sourcesByPath])
+  const {
+    activeEntry,
+    selectionEntry,
+    activeEntryKind,
+    activeEntryText,
+    activeDocumentKey,
+    activeDocumentSourceUrl,
+    createParentPath,
+  } = React.useMemo(
+    () =>
+      deriveMarkdownWorkspaceSelectionState({
+        activePath: args.activePath,
+        selectionPath,
+        entries: args.entries,
+        sourcesByPath: args.sourcesByPath,
+      }),
+    [args.activePath, args.entries, args.sourcesByPath, selectionPath],
+  )
 
   useMarkdownEditorSsotSync({
     activeDocumentKey,
@@ -115,26 +113,36 @@ export function useMarkdownWorkspaceSelection(args: {
   })
 
   React.useEffect(() => {
-    const docKey = String(activeDocumentKey || '').trim()
-    const markdownName = String(args.markdownDocumentName || '').trim()
-    const nextText = typeof args.markdownDocumentText === 'string' ? args.markdownDocumentText : ''
-    if (!docKey || !markdownName || !nextText) return
-    if (!matchesMarkdownDocumentPath(docKey, markdownName)) return
+    const writebackSync = resolveMarkdownWorkspaceSelectionWritebackSync({
+      activeDocumentKey,
+      markdownDocumentName: args.markdownDocumentName,
+      markdownDocumentText: args.markdownDocumentText,
+    })
+    if (!writebackSync) return
+    const nextText = writebackSync.nextText
     const active = String(args.activeTextRef.current || '')
     if (active === nextText) return
-    const last = args.lastLoadedRef.current
     const hasUnsavedUserEdit = !!(
-      args.userEditedActiveTextRef.current &&
-      last &&
-      last.path === args.activePath &&
-      last.text !== active
+      args.activePath &&
+      resolveWorkspaceDirtyState({
+        path: args.activePath,
+        lastLoadedRef: args.lastLoadedRef,
+        activeTextRef: args.activeTextRef,
+        userEditedActiveTextRef: args.userEditedActiveTextRef,
+      })
     )
     if (hasUnsavedUserEdit) return
     if (args.activePath) {
-      args.lastLoadedRef.current = { path: args.activePath, text: nextText }
-      args.patchWorkspaceEntryInlineText(args.activePath, nextText)
+      commitMarkdownWorkspaceWriteback({
+        path: args.activePath,
+        text: nextText,
+        lastLoadedRef: args.lastLoadedRef,
+        patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
+        setActiveTextProgrammatic: args.setActiveTextProgrammatic,
+      })
+    } else {
+      args.setActiveTextProgrammatic(nextText)
     }
-    args.setActiveTextProgrammatic(nextText)
   }, [
     activeDocumentKey,
     args.activePath,
@@ -152,55 +160,35 @@ export function useMarkdownWorkspaceSelection(args: {
     if (!path) return
 
     const prev = args.prevCollapsedRef.current
+    const transition = resolveMarkdownWorkspaceSelectionCollapseTransition({
+      path,
+      prevCollapsed: prev,
+      collapsed: args.effectiveBottomPanelCollapsed,
+      activeText: args.activeText,
+      collapsedSnapshot: args.collapsedSnapshotRef.current,
+      lastLoaded: args.lastLoadedRef.current,
+    })
     if (prev !== args.effectiveBottomPanelCollapsed) {
       args.prevCollapsedRef.current = args.effectiveBottomPanelCollapsed
-      if (args.effectiveBottomPanelCollapsed) {
-        args.collapsedSnapshotRef.current = { path, text: args.activeText }
-        return
-      }
+    }
 
-      const snap = args.collapsedSnapshotRef.current
-      const candidate =
-        snap && snap.path === path && String(snap.text || '').trim()
-          ? snap.text
-          : (() => {
-              const last = args.lastLoadedRef.current
-              if (!last || last.path !== path) return ''
-              return last.text
-            })()
+    if (transition.kind === 'capture-transition' || transition.kind === 'capture-collapsed') {
+      args.collapsedSnapshotRef.current = transition.snapshot
+      return
+    }
 
-      if (String(args.activeText || '').trim() || !String(candidate || '').trim()) return
-      args.setActiveText(candidate)
-      if (activeDocumentKey) {
+    if (transition.kind !== 'restore-transition' && transition.kind !== 'restore-collapsed') return
+    const restoredSelection = resolveMarkdownWorkspaceSelectionRestoreApply({
+      text: transition.text,
+      activeDocumentKey,
+      activeDocumentSourceUrl,
+    })
+    args.setActiveText(restoredSelection.text)
+    if (restoredSelection.restoredActiveDocumentArgs) {
         void applyActiveMarkdownDocumentPayload({
           setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-          name: activeDocumentKey,
-          text: candidate,
-          sourceUrl: activeDocumentSourceUrl,
-          autoEnableFrontmatter: false,
-          normalizeWebpageFrontmatterToMarkdown: true,
+          ...restoredSelection.restoredActiveDocumentArgs,
         })
-      }
-      return
-    }
-
-    if (!args.effectiveBottomPanelCollapsed) return
-    if (String(args.activeText || '').trim()) {
-      args.collapsedSnapshotRef.current = { path, text: args.activeText }
-      return
-    }
-    const snap = args.collapsedSnapshotRef.current
-    if (!snap || snap.path !== path || !String(snap.text || '').trim()) return
-    args.setActiveText(snap.text)
-    if (activeDocumentKey) {
-      void applyActiveMarkdownDocumentPayload({
-        setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-        name: activeDocumentKey,
-        text: snap.text,
-        sourceUrl: activeDocumentSourceUrl,
-        autoEnableFrontmatter: false,
-        normalizeWebpageFrontmatterToMarkdown: true,
-      })
     }
   }, [
     activeDocumentKey,
@@ -220,18 +208,19 @@ export function useMarkdownWorkspaceSelection(args: {
     const path = args.activePath
     if (!path || String(args.activeText || '').trim()) return
 
-    const last = args.lastLoadedRef.current
-    if (last && last.path === path && String(last.text || '').trim()) {
-      args.setActiveText(last.text)
-      if (activeDocumentKey) {
-        void applyActiveMarkdownDocumentPayload({
-          setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-          name: activeDocumentKey,
-          text: last.text,
-          sourceUrl: activeDocumentSourceUrl,
-          autoEnableFrontmatter: false,
-          normalizeWebpageFrontmatterToMarkdown: true,
-        })
+    const lastText = readMarkdownWorkspaceRestoreTextForPath(args.lastLoadedRef.current, path)
+    if (lastText) {
+      const restoredSelection = resolveMarkdownWorkspaceSelectionRestoreApply({
+        text: lastText,
+        activeDocumentKey,
+        activeDocumentSourceUrl,
+      })
+      args.setActiveText(restoredSelection.text)
+      if (restoredSelection.restoredActiveDocumentArgs) {
+          void applyActiveMarkdownDocumentPayload({
+            setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+            ...restoredSelection.restoredActiveDocumentArgs,
+          })
       }
       return
     }
@@ -246,46 +235,17 @@ export function useMarkdownWorkspaceSelection(args: {
     args.setActiveText,
   ])
 
-  const createParentPath = React.useMemo<WorkspacePath>(() => {
-    if (!selectionEntry) return WORKSPACE_ROOT_PATH
-    if (selectionEntry.kind === 'folder') return selectionEntry.path
-    if (selectionEntry.parentPath) return selectionEntry.parentPath
-    return WORKSPACE_ROOT_PATH
-  }, [selectionEntry])
-
   React.useEffect(() => {
     if (!args.entries.length || args.loading) return
-    const preferValidationSeedForRenderer = args.canvas2dRenderer === 'flowEditor'
-    const preferCustomValidationSeed =
-      CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
-      TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
-
-    // Keep the renderer-based validation seed preference limited to startup. Once the
-    // user explicitly switches files, preserve that selection instead of snapping back.
-    if (!args.lastSetActivePath || preferCustomValidationSeed) {
-      const startupPath = resolveWorkspaceStartupActivePath({
-        workspaceFilePaths: args.entries.filter((entry): entry is WorkspaceEntry & { kind: 'file' } => entry.kind === 'file').map(entry => entry.path),
-        activePath: args.activePath,
-        preferValidationSeedForDefaultFamily: preferCustomValidationSeed || preferValidationSeedForRenderer,
-        forceValidationSeedIfPresent: preferCustomValidationSeed,
-      })
-      if (startupPath && startupPath !== args.activePath) {
-        setActivePathSafe(startupPath)
-        return
-      }
-    }
-
-    if (args.activePath && args.entries.some(entry => entry.path === args.activePath)) return
-
-    const recent = args.lastRequestedActivePathRef.current
-    const storeRecent = args.lastSetActivePath
-    const isRecentlyRequested = (req: { path: WorkspacePath; atMs: number } | null) =>
-      !!(args.activePath && req?.path === args.activePath && Date.now() - req.atMs < 2000)
-    if (isRecentlyRequested(recent) || isRecentlyRequested(storeRecent)) return
-
-    const firstFile = args.entries.find(entry => entry.kind === 'file')
-    if (!firstFile) return
-    setActivePathSafe(firstFile.path)
+    const nextActivePath = resolveMarkdownWorkspaceBootstrapActivePath({
+      entries: args.entries,
+      activePath: args.activePath,
+      lastSetActivePath: args.lastSetActivePath,
+      lastRequestedActivePath: args.lastRequestedActivePathRef.current,
+      canvas2dRenderer: args.canvas2dRenderer,
+    })
+    if (!nextActivePath || nextActivePath === args.activePath) return
+    setActivePathSafe(nextActivePath)
   }, [
     args.activePath,
     args.canvas2dRenderer,
@@ -297,13 +257,14 @@ export function useMarkdownWorkspaceSelection(args: {
   ])
 
   React.useEffect(() => {
-    const path = String(args.activePath || '').trim()
-    if (!path) return
-    const canonicalPath = toCanonicalKgcWorkspacePath(path)
-    if (!canonicalPath || canonicalPath === path) return
-    if (!args.entries.some(entry => entry.kind === 'file' && entry.path === canonicalPath)) return
-    setActivePathSafe(canonicalPath)
-    if (selectionPath === path) setSelectionPathSafe(canonicalPath)
+    const canonicalSelection = resolveMarkdownWorkspaceCanonicalSelection({
+      activePath: args.activePath,
+      selectionPath,
+      entries: args.entries,
+    })
+    if (!canonicalSelection) return
+    setActivePathSafe(canonicalSelection.activePath)
+    if (canonicalSelection.selectionPath) setSelectionPathSafe(canonicalSelection.selectionPath)
   }, [args.activePath, args.entries, selectionPath, setActivePathSafe, setSelectionPathSafe])
 
   React.useEffect(() => {

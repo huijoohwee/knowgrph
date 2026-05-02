@@ -1,6 +1,7 @@
 import React from 'react'
 import IconButton from '@/components/IconButton'
 import { DropdownPanel } from '@/lib/ui/overlay'
+import { emitToolbarDropdownOpen, subscribeToolbarDropdownOpen } from '@/components/toolbar/dropdownOpenEvents'
 import { uiPrimaryChipActiveClassName, uiPrimaryIconActiveClassName, uiPrimaryIconInactiveClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
@@ -56,14 +57,11 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
     setOpenSubmenuId(null)
   }, [])
   React.useEffect(() => {
-    const handleDropdownOpen = (event: Event) => {
-      const customEvent = event as CustomEvent<{ sourceId?: string }>
-      if (customEvent.detail?.sourceId === dropdownIdRef.current) return
+    return subscribeToolbarDropdownOpen(detail => {
+      if (detail.sourceId === dropdownIdRef.current) return
       setOpen(false)
       setOpenSubmenuId(null)
-    }
-    window.addEventListener('kg:toolbar-dropdown-open', handleDropdownOpen as EventListener)
-    return () => window.removeEventListener('kg:toolbar-dropdown-open', handleDropdownOpen as EventListener)
+    })
   }, [])
   if (!activeOption) return null
 
@@ -84,23 +82,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
           }
           const next = !open
           if (next) {
-            try {
-              const anyWindow = window as unknown as { CustomEvent?: unknown; Event?: unknown }
-              const WindowCustomEvent = anyWindow.CustomEvent as
-                | (new (type: string, init?: CustomEventInit<{ sourceId?: string }>) => Event)
-                | undefined
-              if (typeof WindowCustomEvent === 'function') {
-                window.dispatchEvent(new WindowCustomEvent('kg:toolbar-dropdown-open', { detail: { sourceId: dropdownIdRef.current } }))
-              } else {
-                const WindowEvent = anyWindow.Event as (new (type: string) => Event) | undefined
-                const EventCtor = typeof WindowEvent === 'function' ? WindowEvent : Event
-                const ev = new EventCtor('kg:toolbar-dropdown-open') as unknown as { detail?: unknown }
-                ev.detail = { sourceId: dropdownIdRef.current }
-                window.dispatchEvent(ev as unknown as Event)
-              }
-            } catch {
-              void 0
-            }
+            emitToolbarDropdownOpen(dropdownIdRef.current)
           } else {
             setOpenSubmenuId(null)
           }

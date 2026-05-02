@@ -17,7 +17,7 @@ import {
   type FlowNativeDrawArgs,
   type FlowNativeRuntime,
 } from '@/components/FlowCanvas/nativeRuntime'
-import { FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT } from '@/components/FlowCanvas/shared'
+import { subscribeFlowResetZoomFloorCache } from '@/components/FlowCanvas/shared'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -148,12 +148,10 @@ export function useFlowCanvasRuntime(args: {
 
   React.useEffect(() => {
     if (!active) return
-    const onResetZoomFloor = () => {
+    return subscribeFlowResetZoomFloorCache(() => {
       const runtime = runtimeRef.current
       if (runtime) setFlowAutoMinScale(runtime, null)
-    }
-    window.addEventListener(FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT, onResetZoomFloor as EventListener)
-    return () => window.removeEventListener(FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT, onResetZoomFloor as EventListener)
+    })
   }, [active, runtimeRef])
 
   React.useEffect(() => {

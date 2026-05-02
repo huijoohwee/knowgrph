@@ -9,7 +9,11 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { parseMarkdownWorkspaceLayoutMode, type MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
+import { readMarkdownExplorerChromeState } from '@/features/markdown/ui/markdownExplorerChromePersistence'
+import { readMarkdownExplorerModePreferences } from '@/features/markdown/ui/markdownExplorerModePreferencesPersistence'
 import { readPersistedMarkdownSourceFolderPaths } from '@/features/markdown/ui/markdownSourceFilesPersistence'
+import { readMarkdownExplorerViewPreferences } from '@/features/markdown/ui/markdownExplorerViewPreferencesPersistence'
+import { readMarkdownExplorerSectionCollapseState } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { MarkdownWorkspaceExplorer } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceExplorer'
@@ -102,33 +106,36 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const [loading, setLoading] = React.useState(true)
   const [loadError, setLoadError] = React.useState('')
   const [search, setSearch] = React.useState('')
-  const [sidebarWidthPx, setSidebarWidthPx] = React.useState(() =>
-    lsInt(
-      LS_KEYS.markdownSidebarWidthPx,
-      resolveWorkspaceExplorerDefaultWidthPx({ minPx: SIDEBAR_MIN_PX, maxPx: SIDEBAR_MAX_PX }),
-    ),
+  const initialExplorerChromeState = React.useMemo(
+    () =>
+      readMarkdownExplorerChromeState({
+        minWidthPx: SIDEBAR_MIN_PX,
+        maxWidthPx: SIDEBAR_MAX_PX,
+        defaultWidthPx: resolveWorkspaceExplorerDefaultWidthPx({ minPx: SIDEBAR_MIN_PX, maxPx: SIDEBAR_MAX_PX }),
+      }),
+    [],
   )
-  const [explorerOpen, setExplorerOpen] = React.useState(() => lsBool(LS_KEYS.markdownSidebarOpen, true))
-  const [sourceFilesCollapsed, setSourceFilesCollapsed] = React.useState(() =>
-    lsBool(LS_KEYS.markdownExplorerSourceFilesCollapsed, false),
+  const [sidebarWidthPx, setSidebarWidthPx] = React.useState(() => initialExplorerChromeState.sidebarWidthPx)
+  const [explorerOpen, setExplorerOpen] = React.useState(() => initialExplorerChromeState.explorerOpen)
+  const initialExplorerSectionCollapseState = React.useMemo(() => readMarkdownExplorerSectionCollapseState(), [])
+  const [sourceFilesCollapsed, setSourceFilesCollapsed] = React.useState(
+    () => initialExplorerSectionCollapseState.sourceFilesCollapsed,
   )
-  const [tocCollapsed, setTocCollapsed] = React.useState(() => lsBool(LS_KEYS.markdownExplorerOutlineCollapsed, false))
-  const [backlinksCollapsed, setBacklinksCollapsed] = React.useState(() =>
-    lsBool(LS_KEYS.markdownExplorerBacklinksCollapsed, false),
+  const [tocCollapsed, setTocCollapsed] = React.useState(() => initialExplorerSectionCollapseState.outlineCollapsed)
+  const [backlinksCollapsed, setBacklinksCollapsed] = React.useState(
+    () => initialExplorerSectionCollapseState.backlinksCollapsed,
   )
-  const [markdownWordWrap, setMarkdownWordWrap] = React.useState(() => lsBool(LS_KEYS.markdownWordWrap, true))
-  const [markdownTextHighlight, setMarkdownTextHighlight] = React.useState(() =>
-    lsBool(LS_KEYS.markdownTextHighlight, false),
+  const initialExplorerViewPreferences = React.useMemo(() => readMarkdownExplorerViewPreferences(), [])
+  const [markdownWordWrap, setMarkdownWordWrap] = React.useState(() => initialExplorerViewPreferences.markdownWordWrap)
+  const [markdownTextHighlight, setMarkdownTextHighlight] = React.useState(
+    () => initialExplorerViewPreferences.markdownTextHighlight,
   )
-  const [folderModeContract, setFolderModeContract] = React.useState<FolderModeContract>(() =>
-    lsJson<FolderModeContract>(
-      LS_KEYS.markdownExplorerFolderModeContract,
-      'sitemap',
-      raw => (raw === 'user-journey' ? 'user-journey' : 'sitemap'),
-    ),
+  const initialExplorerModePreferences = React.useMemo(() => readMarkdownExplorerModePreferences(), [])
+  const [folderModeContract, setFolderModeContract] = React.useState<FolderModeContract>(
+    () => initialExplorerModePreferences.folderModeContract,
   )
-  const [layoutMode, setLayoutMode] = React.useState<MarkdownWorkspaceLayoutMode>(() =>
-    lsJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, 'split', parseMarkdownWorkspaceLayoutMode),
+  const [layoutMode, setLayoutMode] = React.useState<MarkdownWorkspaceLayoutMode>(
+    () => initialExplorerModePreferences.layoutMode,
   )
   const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(() => {
     const arr = readPersistedMarkdownSourceFolderPaths()

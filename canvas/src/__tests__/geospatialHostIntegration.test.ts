@@ -330,8 +330,11 @@ export const testGeospatialPoiClicksRenderIntoRichMediaPanelInsteadOfMapLibrePop
   if (basemapText.includes('new PopupConstructor') || basemapText.includes('.setText(label).addTo(map)')) {
     throw new Error('Expected MapLibre basemap POI clicks to avoid mutating popup DOM and instead defer to Rich Media Panel SSOT')
   }
-  if (!richMediaPanelText.includes('GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT')) {
-    throw new Error('Expected RichMediaPanel to subscribe to the shared GrabMaps POI preview event')
+  if (!richMediaPanelText.includes('subscribeGrabMapsPoiRichMediaPreview')) {
+    throw new Error('Expected RichMediaPanel to subscribe via the shared GrabMaps POI preview helper')
+  }
+  if (richMediaPanelText.includes('addEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT')) {
+    throw new Error('Expected RichMediaPanel to avoid raw GrabMaps POI preview listener wiring')
   }
   if (!richMediaPanelText.includes('const effectiveInlineSrcDoc = inlineSrcDoc || grabMapsPoiPreviewSrcDoc')) {
     throw new Error('Expected empty RichMediaPanel surfaces to reuse the latest GrabMaps POI preview srcdoc')

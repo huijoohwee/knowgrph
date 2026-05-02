@@ -15,6 +15,7 @@ import {
   resolveGrabMapsPoiRichMediaPanelNodeId,
   type GrabMapsPoiRichMediaDetail,
 } from '@/features/geospatial/grabMapsPoiRichMedia'
+import { subscribeMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
@@ -101,12 +102,7 @@ function MarkdownMetricsDevOverlay(props: { layout: 'full' | 'pane' }) {
   React.useEffect(() => {
     const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
     if (!anyImportMeta.env?.DEV) return
-    if (typeof window === 'undefined') return
-    const handler = (ev: Event) => {
-      const e = ev as CustomEvent<{ event?: string } & Record<string, unknown>>
-      const detail = e.detail || {}
-      const name = typeof detail.event === 'string' ? detail.event : null
-      if (!name) return
+    return subscribeMarkdownPanelMetric(detail => {
       const payloadEntries = Object.entries(detail).filter(([k]) => k !== 'event')
       const payload: Record<string, unknown> = {}
       for (const [k, v] of payloadEntries) {
@@ -114,7 +110,7 @@ function MarkdownMetricsDevOverlay(props: { layout: 'full' | 'pane' }) {
       }
       const sample: MarkdownMetricSample = {
         ts: Date.now(),
-        event: name,
+        event: detail.event,
         payload,
       }
       setSamples(prev => {
@@ -122,11 +118,7 @@ function MarkdownMetricsDevOverlay(props: { layout: 'full' | 'pane' }) {
         if (next.length > 50) next.length = 50
         return next
       })
-    }
-    window.addEventListener('kg:markdownPanelMetric', handler as EventListener)
-    return () => {
-      window.removeEventListener('kg:markdownPanelMetric', handler as EventListener)
-    }
+    })
   }, [])
 
   const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }

@@ -1,6 +1,7 @@
 import React from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { subscribePointerDownDismiss, subscribeWindowEscapeDismiss } from '@/lib/browser/dismissEvents'
 import type { SelectionActionItem } from './selectionActionItems'
 import { ExplorerToolbarIconButton } from './ExplorerToolbarIconButton'
 
@@ -23,24 +24,21 @@ export function SelectionActionsMenu(props: SelectionActionsMenuProps) {
 
   React.useEffect(() => {
     if (!selectionMenuOpen) return
-    const onKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') setSelectionMenuOpen(false)
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return subscribeWindowEscapeDismiss(() => {
+      setSelectionMenuOpen(false)
+    })
   }, [selectionMenuOpen])
 
   React.useEffect(() => {
     if (!selectionMenuOpen) return
-    const onDown = (ev: PointerEvent) => {
-      const root = selectionMenuRootRef.current
-      const target = ev.target as Node | null
-      if (!root || !target) return
-      if (root.contains(target)) return
-      setSelectionMenuOpen(false)
-    }
-    document.addEventListener('pointerdown', onDown, true)
-    return () => document.removeEventListener('pointerdown', onDown, true)
+    return subscribePointerDownDismiss({
+      listener: () => {
+        setSelectionMenuOpen(false)
+      },
+      root: selectionMenuRootRef.current,
+      target: 'document',
+      capture: true,
+    })
   }, [selectionMenuOpen])
 
   if (!hasSelectionActions) return null

@@ -16,7 +16,11 @@ import { createMarkdownGeoDatasetIntegration } from '@/features/geospatial/markd
 import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from '@/lib/gympgrph/api'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { MARKDOWN_LAYOUT_REQUEST_EVENT, WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS, WORKSPACE_TOC_PARSE_MAX_CHARS } from './markdownWorkspaceRuntime.shared'
+import {
+  subscribeMarkdownLayoutRequest,
+  WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS,
+  WORKSPACE_TOC_PARSE_MAX_CHARS,
+} from './markdownWorkspaceRuntime.shared'
 
 export function useMarkdownWorkspaceInteractions(args: {
   active: boolean
@@ -192,17 +196,9 @@ export function useMarkdownWorkspaceInteractions(args: {
   }, [activeText, editorRef, requestRevealLine, requestedRevealLine])
 
   React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    const onLayoutRequest = (ev: Event) => {
-      const event = ev as CustomEvent<{ mode?: unknown } | undefined>
-      const mode = String(event.detail?.mode || '').trim().toLowerCase()
-      if (mode !== 'split' && mode !== 'editor') return
+    return subscribeMarkdownLayoutRequest(({ mode }) => {
       setLayoutMode(prev => (prev === mode ? prev : mode))
-    }
-    window.addEventListener(MARKDOWN_LAYOUT_REQUEST_EVENT, onLayoutRequest as EventListener)
-    return () => {
-      window.removeEventListener(MARKDOWN_LAYOUT_REQUEST_EVENT, onLayoutRequest as EventListener)
-    }
+    })
   }, [setLayoutMode])
 
   const showInViewer = React.useCallback(

@@ -19,6 +19,7 @@ import { workspaceDocumentKey } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { inferYoutubeVideoIdFromPath, parseYoutubeWorkspaceFrontmatter } from './markdownWorkspaceRuntime.shared'
 import { resolveAuthoritativeWorkspaceText } from './markdownWorkspaceRuntime.io'
+import { commitMarkdownWorkspaceWriteback } from './markdownWorkspaceWritebackCommit'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
 export function useMarkdownWorkspaceDerivedViews(args: {
@@ -280,9 +281,13 @@ export function useMarkdownWorkspaceDerivedViews(args: {
 
         const fs = await args.getFs()
         await fs.writeFileText(args.activePath, nextText)
-        args.lastLoadedRef.current = { path: args.activePath, text: nextText }
-        args.patchWorkspaceEntryInlineText(args.activePath, nextText)
-        args.setActiveTextProgrammatic(nextText)
+        commitMarkdownWorkspaceWriteback({
+          path: args.activePath,
+          text: nextText,
+          lastLoadedRef: args.lastLoadedRef,
+          patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
+          setActiveTextProgrammatic: args.setActiveTextProgrammatic,
+        })
         const docKey = workspaceDocumentKey(args.activePath)
         if (docKey) {
           const source = args.sourcesByPath[args.activePath]
@@ -372,9 +377,13 @@ export function useMarkdownWorkspaceDerivedViews(args: {
         })()
 
         await fs.writeFileText(args.activePath, nextText)
-        args.lastLoadedRef.current = { path: args.activePath, text: nextText }
-        args.patchWorkspaceEntryInlineText(args.activePath, nextText)
-        args.setActiveTextProgrammatic(nextText)
+        commitMarkdownWorkspaceWriteback({
+          path: args.activePath,
+          text: nextText,
+          lastLoadedRef: args.lastLoadedRef,
+          patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
+          setActiveTextProgrammatic: args.setActiveTextProgrammatic,
+        })
         ticker.stop(100)
         args.setStatusWithAutoClear('Updated', UI_TOAST_TTL_MS.statusAutoCloseFast)
       } catch (e) {
@@ -410,9 +419,13 @@ export function useMarkdownWorkspaceDerivedViews(args: {
           fidelityLevel: patch.fidelityLevel,
         })
         await fs.writeFileText(args.activePath, nextText)
-        args.lastLoadedRef.current = { path: args.activePath, text: nextText }
-        args.patchWorkspaceEntryInlineText(args.activePath, nextText)
-        args.setActiveTextProgrammatic(nextText)
+        commitMarkdownWorkspaceWriteback({
+          path: args.activePath,
+          text: nextText,
+          lastLoadedRef: args.lastLoadedRef,
+          patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
+          setActiveTextProgrammatic: args.setActiveTextProgrammatic,
+        })
         args.setStatusWithAutoClear('Updated', UI_TOAST_TTL_MS.statusAutoCloseFast)
       } catch (e) {
         args.setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)

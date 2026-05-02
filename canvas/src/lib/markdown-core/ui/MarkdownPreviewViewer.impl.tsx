@@ -19,6 +19,7 @@ import {
 import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/markdownSourceFilesPanelTypes'
 import { useMarkdownExplorerControls } from '@/features/markdown/ui/useMarkdownExplorerControls'
 import { encodeUtf8ToBase64 } from '@/features/markdown/markdownRoundTrip'
+import { subscribeHashChange } from '@/lib/browser/hashChangeEvents'
 import {
   buildMarkdownVariableSsotAnchorId,
   collectMarkdownVariableSsotEntries,
@@ -316,9 +317,9 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
 
     tryScrollToHash()
 
-    const onHashChange = () => tryScrollToHash()
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
+    return subscribeHashChange(() => {
+      tryScrollToHash()
+    })
   }, [activeDocumentPath])
 
   React.useEffect(() => {

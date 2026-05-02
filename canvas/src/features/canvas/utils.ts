@@ -26,50 +26,45 @@ export type WorkflowRunAllEventDetail = {
   source?: 'propsPanel' | 'toolbar' | 'inspector' | 'unknown'
 }
 
-export function emitPropsPanelOpen(detail?: PropsPanelOpenEventDetail): void {
+function emitCanvasCustomEvent<TDetail>(eventName: string, detail?: TDetail): void {
   if (typeof window === 'undefined') return
   try {
-    window.dispatchEvent(new CustomEvent<PropsPanelOpenEventDetail>(PROPS_PANEL_OPEN_EVENT, { detail }))
+    const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
+    window.dispatchEvent(new CustomEventCtor(eventName, { detail }))
   } catch {
     void 0
   }
+}
+
+function emitCanvasEvent(eventName: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    const EventCtor = typeof window.Event === 'function' ? window.Event : Event
+    window.dispatchEvent(new EventCtor(eventName))
+  } catch {
+    void 0
+  }
+}
+
+export function emitPropsPanelOpen(detail?: PropsPanelOpenEventDetail): void {
+  emitCanvasCustomEvent<PropsPanelOpenEventDetail>(PROPS_PANEL_OPEN_EVENT, detail)
 }
 
 export function emitSidePanelOpen(detail?: SidePanelOpenEventDetail): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.dispatchEvent(new CustomEvent<SidePanelOpenEventDetail>(SIDE_PANEL_OPEN_EVENT, { detail }))
-  } catch {
-    void 0
-  }
+  emitCanvasCustomEvent<SidePanelOpenEventDetail>(SIDE_PANEL_OPEN_EVENT, detail)
 }
 
 export function emitChatInputAppend(detail?: ChatInputAppendEventDetail): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.dispatchEvent(new CustomEvent<ChatInputAppendEventDetail>(CHAT_INPUT_APPEND_EVENT, { detail }))
-  } catch {
-    void 0
-  }
+  emitCanvasCustomEvent<ChatInputAppendEventDetail>(CHAT_INPUT_APPEND_EVENT, detail)
 }
 
 export function emitWorkflowRunAll(detail?: WorkflowRunAllEventDetail): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.dispatchEvent(new CustomEvent<WorkflowRunAllEventDetail>(WORKFLOW_RUN_ALL_EVENT, { detail }))
-  } catch {
-    void 0
-  }
+  emitCanvasCustomEvent<WorkflowRunAllEventDetail>(WORKFLOW_RUN_ALL_EVENT, detail)
 }
 
 export function emitRendererPanelOpen(): void {
-  if (typeof window === 'undefined') return
-  try {
-    window.dispatchEvent(new Event(RENDERER_PANEL_OPEN_EVENT))
-    window.dispatchEvent(new Event(RENDERER_FLOATING_PANEL_OPEN_EVENT))
-  } catch {
-    void 0
-  }
+  emitCanvasEvent(RENDERER_PANEL_OPEN_EVENT)
+  emitCanvasEvent(RENDERER_FLOATING_PANEL_OPEN_EVENT)
 }
 
 export function calcMouseGraphPosition(svgRef: React.RefObject<SVGSVGElement>, ev: { offsetX: number; offsetY: number }): [number, number] {

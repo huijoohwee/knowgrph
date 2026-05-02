@@ -7,6 +7,7 @@ import { getSpotlightCardStyle } from '@/features/spotlight/positioning'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import SchemaSummary from '@/features/panels/ui/SchemaSummary'
 import { UI_LABELS } from '@/lib/config'
+import { emitFlowResetZoomFloorCache } from '@/components/FlowCanvas/shared'
 import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
 import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
 import { formatSignedPx, formatZoomPercent } from '@/lib/canvas/viewport-format'
@@ -22,7 +23,6 @@ type FlowWidgetTraceEntry = {
 }
 
 const FLOW_QE_TRACE_LS_KEY = 'kg:debug:flowEditorWidgetTrace'
-const FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT = 'kg:flow:resetZoomFloorCache'
 const EMPTY_STRING_ARRAY: string[] = []
 
 type LaunchSpotlightStatusCardProps = {
@@ -240,7 +240,7 @@ export function LaunchSpotlightStatusCard({
   const handleResetZoomFloorCache = React.useCallback(() => {
     if (typeof window === 'undefined') return
     try {
-      window.dispatchEvent(new CustomEvent(FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT))
+      emitFlowResetZoomFloorCache()
       console.info('[FlowEditor][ZoomFloorCache] reset requested')
     } catch {
       void 0
