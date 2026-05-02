@@ -20,6 +20,7 @@ import {
   MermaidParserContext,
 } from '@/features/parsers/markdownJsonLdMermaidParser'
 import { MarkdownGraphBuilder } from '@/features/parsers/markdownJsonLdBuilder'
+import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import * as wikiLinks from 'grph-shared/markdown/wikiLinks'
 import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
 import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
@@ -49,6 +50,20 @@ const buildMarkdownPipeTable = (args: { header?: string[]; rows?: string[][] }):
 
   const render = (cells: string[]) => `| ${cells.map(c => String(c || '').trim()).join(' | ')} |`
   return [render(headerRow), render(divider), ...body.map(render)].join('\n')
+}
+
+const buildAliasedImageMediaProperties = (
+  properties: Record<string, unknown> | null | undefined,
+  url: string,
+): Record<string, unknown> => {
+  const next = patchNodeMediaProperties({
+    properties,
+    kind: 'image',
+    url,
+  })
+  next.media = url
+  next.image = url
+  return next
 }
 
 export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<string, unknown> => {
@@ -867,8 +882,21 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
             ...(srcdoc ? { 'dom:attrs:srcdoc': srcdoc } : {}),
             ...(title ? { 'dom:attrs:title': title } : {}),
             ...(style ? { 'dom:attrs:style': style } : {}),
-            media_kind: 'iframe',
-            media_interactive: true,
+            ...(src
+              ? (() => {
+                  const next = patchNodeMediaProperties({
+                    kind: 'iframe',
+                    url: src,
+                    interactive: true,
+                  })
+                  next.media = src
+                  next.iframe_url = src
+                  return next
+                })()
+              : {
+                  media_kind: 'iframe',
+                  media_interactive: true,
+                }),
           }
           builder.createWebpageElementNode({
             id: iframeId,
@@ -1301,12 +1329,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       if (!url) continue
       const propsRaw = node.properties
       if (!propsRaw || typeof propsRaw !== 'object' || Array.isArray(propsRaw)) {
-        node.properties = {
-          media_kind: 'image',
-          media_url: url,
-          media: url,
-          image: url,
-        }
+        node.properties = buildAliasedImageMediaProperties(undefined, url)
         continue
       }
       const props = propsRaw as Record<string, unknown>
@@ -1321,10 +1344,7 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
                 ? props.mediaUrl.trim()
                 : ''
       if (existing) continue
-      props.media_kind = 'image'
-      props.media_url = url
-      props.media = url
-      props.image = url
+      node.properties = buildAliasedImageMediaProperties(props, url)
     }
   }
 

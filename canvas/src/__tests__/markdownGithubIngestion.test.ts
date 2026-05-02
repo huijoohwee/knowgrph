@@ -137,6 +137,10 @@ export async function testMarkdownHtmlIframeIngestionProducesMediaNodes() {
     return kind === 'iframe' && /ycombinator\.com\/library\/8d/i.test(url)
   })
   if (iframeNodes.length === 0) throw new Error('expected iframe media node from html iframe tag')
+  const iframeProps = (iframeNodes[0]?.properties || {}) as Record<string, unknown>
+  if (!String(iframeProps.media_url || '').includes('ycombinator.com/library/8d')) throw new Error('expected html iframe media_url alias')
+  if (!String(iframeProps.media || '').includes('ycombinator.com/library/8d')) throw new Error('expected html iframe generic media alias')
+  if (iframeProps.media_interactive !== true) throw new Error('expected html iframe to stay interactive')
   await Promise.resolve()
 }
 
@@ -202,7 +206,13 @@ export async function testMarkdownStandaloneLinkWebpageIngestionProducesIframeNo
 
   const hasAljazeeraIframe = nodes.some(n => {
     const props = (n.properties || {}) as Record<string, unknown>
-    return String(props.media_kind || '') === 'iframe' && String(props.iframe_url || '').includes('aljazeera.com/news/2026/2/19/')
+    return (
+      String(props.media_kind || '') === 'iframe'
+      && String(props.iframe_url || '').includes('aljazeera.com/news/2026/2/19/')
+      && String(props.media_url || '').includes('aljazeera.com/news/2026/2/19/')
+      && String(props.media || '').includes('aljazeera.com/news/2026/2/19/')
+      && props.media_interactive === true
+    )
   })
   if (!hasAljazeeraIframe) throw new Error('expected standalone webpage link to ingest as iframe media node')
 
@@ -264,6 +274,8 @@ export async function testMarkdownInlineImageLinkIngestionProducesImageMediaNode
     return (
       String(props.media_kind || '') === 'image'
       && String(props.media_url || '').includes('mmbiz.qpic.cn/mmbiz_png/test/640')
+      && String(props.image || '').includes('mmbiz.qpic.cn/mmbiz_png/test/640')
+      && String(props.media || '').includes('mmbiz.qpic.cn/mmbiz_png/test/640')
     )
   })
   if (!hasMediaImageLink) throw new Error('expected markdown []() image link to ingest as image media node')
@@ -295,5 +307,9 @@ export async function testMarkdownHtmlVideoIngestionProducesMediaNodes() {
     return kind === 'video' && /demo\.mp4/i.test(url)
   })
   if (videoNodes.length === 0) throw new Error('expected video media node from html video tag')
+  const videoProps = (videoNodes[0]?.properties || {}) as Record<string, unknown>
+  if (!String(videoProps.media_url || '').includes('demo.mp4')) throw new Error('expected html video media_url alias')
+  if (!String(videoProps.media || '').includes('demo.mp4')) throw new Error('expected html video generic media alias')
+  if (videoProps.media_interactive !== true) throw new Error('expected html video to stay interactive')
   await Promise.resolve()
 }

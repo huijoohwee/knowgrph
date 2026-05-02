@@ -1,6 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { getKgThemeFromDom } from '@/lib/ui/tokens-ssot'
 import { renderMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
+import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 
 type MermaidTheme = 'light' | 'dark'
 
@@ -887,12 +888,19 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
     p['visual:zIndexMode'] = 'absolute'
     if (g.shape === 'circle' && g.radius != null) p['visual:radius'] = g.radius
     if (g.imageUrl) {
-      p.media_url = g.imageUrl
-      p.media_kind = (() => {
+      const mediaKind = (() => {
         const lower = g.imageUrl.toLowerCase()
         if (lower.endsWith('.svg')) return 'svg'
         return 'image'
       })()
+      const nextMediaProps = patchNodeMediaProperties({
+        properties: p,
+        kind: mediaKind,
+        url: g.imageUrl,
+      })
+      Object.assign(p, nextMediaProps)
+      p.media = g.imageUrl
+      p.image = g.imageUrl
     }
     updatedNodes[idx] = {
       ...n,

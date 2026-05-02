@@ -1396,16 +1396,101 @@ export function testWebpageLayoutToGraphAddsMediaProps() {
           opacity: '1',
         },
       },
+      {
+        id: 'video1',
+        pid: '',
+        tag: 'VIDEO',
+        rect: { x: 220, y: 0, w: 200, h: 120 },
+        text: '',
+        attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: 'https://example.invalid/demo.mp4', alt: '' },
+        style: {
+          display: 'block',
+          position: 'static',
+          zIndex: 'auto',
+          backgroundColor: 'rgba(0,0,0,0)',
+          color: 'rgb(0,0,0)',
+          borderRadius: '0px',
+          borderColor: 'rgb(0,0,0)',
+          borderWidth: '0px',
+          padding: '0px',
+          margin: '0px',
+          gap: '0px',
+          justifyContent: 'normal',
+          alignItems: 'normal',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          fontSize: '12px',
+          fontWeight: '400',
+          fontFamily: 'Inter',
+          lineHeight: '16px',
+          letterSpacing: '0px',
+          textTransform: 'none',
+          textAlign: 'start',
+          boxShadow: 'none',
+          opacity: '1',
+        },
+      },
+      {
+        id: 'iframe1',
+        pid: '',
+        tag: 'IFRAME',
+        rect: { x: 440, y: 0, w: 240, h: 160 },
+        text: '',
+        attrs: { id: '', class: '', role: '', ariaLabel: '', placeholder: '', href: '', src: 'https://example.invalid/embed', alt: '' },
+        style: {
+          display: 'block',
+          position: 'static',
+          zIndex: 'auto',
+          backgroundColor: 'rgba(0,0,0,0)',
+          color: 'rgb(0,0,0)',
+          borderRadius: '0px',
+          borderColor: 'rgb(0,0,0)',
+          borderWidth: '0px',
+          padding: '0px',
+          margin: '0px',
+          gap: '0px',
+          justifyContent: 'normal',
+          alignItems: 'normal',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          fontSize: '12px',
+          fontWeight: '400',
+          fontFamily: 'Inter',
+          lineHeight: '16px',
+          letterSpacing: '0px',
+          textTransform: 'none',
+          textAlign: 'start',
+          boxShadow: 'none',
+          opacity: '1',
+        },
+      },
     ],
   }
   const g = convertWebpageLayoutToGraphData(snap, { maxNodes: 50, minAreaPx: 1, fidelityLevel: 3 })
   const nodes = (g.nodes || []) as GraphNode[]
   const img = nodes.find(n => String(n.id) === 'img1')
+  const video = nodes.find(n => String(n.id) === 'video1')
+  const iframe = nodes.find(n => String(n.id) === 'iframe1')
   if (!img) throw new Error('missing img node')
+  if (!video) throw new Error('missing video node')
+  if (!iframe) throw new Error('missing iframe node')
   const props = (img.properties || {}) as Record<string, JSONValue>
+  const videoProps = (video.properties || {}) as Record<string, JSONValue>
+  const iframeProps = (iframe.properties || {}) as Record<string, JSONValue>
   if (String(props.media_kind || '') !== 'image') throw new Error('expected media_kind=image')
   if (!String(props.media_url || '').includes('mmbiz.qpic.cn')) throw new Error('expected media_url')
   if (!String(props.image || '').includes('mmbiz.qpic.cn')) throw new Error('expected image url')
+  if (!String(props.media || '').includes('mmbiz.qpic.cn')) throw new Error('expected generic media alias for image url')
+  if (String(videoProps.media_kind || '') !== 'video') throw new Error('expected media_kind=video')
+  if (String(videoProps.media_interactive || '') !== 'true') throw new Error('expected video media to stay interactive')
+  if (!String(videoProps.media_url || '').includes('demo.mp4')) throw new Error('expected video media_url')
+  if (!String(videoProps.video || '').includes('demo.mp4')) throw new Error('expected video alias')
+  if (!String(videoProps.media || '').includes('demo.mp4')) throw new Error('expected generic media alias for video url')
+  if (String(iframeProps.media_kind || '') !== 'iframe') throw new Error('expected media_kind=iframe')
+  if (String(iframeProps.media_interactive || '') !== 'true') throw new Error('expected iframe media to stay interactive')
+  if (!String(iframeProps.media_url || '').includes('/embed')) throw new Error('expected iframe media_url')
+  if (!String(iframeProps.iframe_url || '').includes('/embed')) throw new Error('expected iframe alias')
+  if (!String(iframeProps.media || '').includes('/embed')) throw new Error('expected generic media alias for iframe url')
 }
 
 export function testWebpageLayoutToGraphWrapperSingleChildPrune() {

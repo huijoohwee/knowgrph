@@ -1,8 +1,31 @@
 import { isLikelyImageUrl } from '@/lib/url'
+import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import { extractHtmlAttr, extractScriptEmbedAnchorHref } from 'grph-shared/markdown/mediaHtml'
 import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
 
 export { slugify } from 'grph-shared/markdown/slugify'
+
+const buildAliasedMediaProperties = (args: {
+  kind: 'image' | 'video' | 'iframe'
+  url: string
+  interactive?: boolean
+  extra?: Record<string, unknown>
+}): Record<string, unknown> => {
+  const url = String(args.url || '').trim()
+  const next = patchNodeMediaProperties({
+    kind: args.kind,
+    url,
+    interactive: args.interactive === true,
+  })
+  next.media = url
+  if (args.kind === 'video') next.video = url
+  else if (args.kind === 'iframe') next.iframe_url = url
+  else next.image = url
+  return {
+    ...next,
+    ...(args.extra || {}),
+  }
+}
 
 export const resolveUrl = (baseUrl: string | undefined, value: string): string => {
   const raw = String(value || '').trim()
@@ -255,11 +278,12 @@ export const classifyMediaFromAltAndUrl = (
       props: {
         url,
         alt,
-        media_url: embed,
-        media: embed,
-        'visual:shape': 'rect',
-        media_kind: 'iframe',
-        iframe_url: embed,
+        ...buildAliasedMediaProperties({
+          kind: 'iframe',
+          url: embed,
+          interactive: true,
+          extra: { 'visual:shape': 'rect' },
+        }),
         original_url: url,
       },
     }
@@ -323,19 +347,12 @@ export const classifyMediaFromAltAndUrl = (
   const mediaProps: Record<string, unknown> = {
     url,
     alt,
-    media_url: url,
-    media: url,
-    'visual:shape': 'rect',
-  }
-  if (type === 'IFrame') {
-    mediaProps.media_kind = 'iframe'
-    mediaProps.iframe_url = url
-  } else if (type === 'Video') {
-    mediaProps.media_kind = 'video'
-    mediaProps.video = url
-  } else {
-    mediaProps.media_kind = 'image'
-    mediaProps.image = url
+    ...buildAliasedMediaProperties({
+      kind: type === 'IFrame' ? 'iframe' : type === 'Video' ? 'video' : 'image',
+      url,
+      interactive: type === 'IFrame' || type === 'Video',
+      extra: { 'visual:shape': 'rect' },
+    }),
   }
   return { type, props: mediaProps }
 }

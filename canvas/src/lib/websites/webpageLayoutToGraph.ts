@@ -1,4 +1,5 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 
 import { buildWebpageAssetPathProxyUrl, isWeChatHotlinkProtectedAssetUrl } from '@/lib/url'
 
@@ -41,6 +42,25 @@ const isTransparentColor = (c: string): boolean => {
 }
 
 const safeStr = (v: unknown): string => String(v ?? '').trim()
+
+const applyAliasedMediaProperties = (args: {
+  properties: Record<string, JSONValue>
+  kind: 'image' | 'video' | 'iframe'
+  url: string
+  interactive?: boolean
+}): void => {
+  const next = patchNodeMediaProperties({
+    properties: args.properties as Record<string, unknown>,
+    kind: args.kind,
+    url: args.url,
+    interactive: args.interactive === true,
+  }) as Record<string, JSONValue>
+  Object.assign(args.properties, next)
+  args.properties.media = args.url as unknown as JSONValue
+  if (args.kind === 'video') args.properties.video = args.url as unknown as JSONValue
+  else if (args.kind === 'iframe') args.properties.iframe_url = args.url as unknown as JSONValue
+  else args.properties.image = args.url as unknown as JSONValue
+}
 
 const basenameFromUrl = (raw: string): string => {
   const s = String(raw || '').trim()
@@ -1457,22 +1477,11 @@ export function convertWebpageLayoutToGraphData(
     const normalizedSrc0 = src.startsWith('//') ? `https:${src}` : src
     const normalizedSrc = isWeChatHotlinkProtectedAssetUrl(normalizedSrc0) ? buildWebpageAssetPathProxyUrl(normalizedSrc0) : normalizedSrc0
     if (tag === 'IMG' && normalizedSrc) {
-      properties.media_kind = 'image' as unknown as JSONValue
-      properties.image = normalizedSrc as unknown as JSONValue
-      properties.media_url = normalizedSrc as unknown as JSONValue
-      properties.media = normalizedSrc as unknown as JSONValue
+      applyAliasedMediaProperties({ properties, kind: 'image', url: normalizedSrc })
     } else if (tag === 'VIDEO' && normalizedSrc) {
-      properties.media_kind = 'video' as unknown as JSONValue
-      properties.video = normalizedSrc as unknown as JSONValue
-      properties.media_url = normalizedSrc as unknown as JSONValue
-      properties.media = normalizedSrc as unknown as JSONValue
-      properties.media_interactive = true as unknown as JSONValue
+      applyAliasedMediaProperties({ properties, kind: 'video', url: normalizedSrc, interactive: true })
     } else if (tag === 'IFRAME' && normalizedSrc) {
-      properties.media_kind = 'iframe' as unknown as JSONValue
-      properties.iframe_url = normalizedSrc as unknown as JSONValue
-      properties.media_url = normalizedSrc as unknown as JSONValue
-      properties.media = normalizedSrc as unknown as JSONValue
-      properties.media_interactive = true as unknown as JSONValue
+      applyAliasedMediaProperties({ properties, kind: 'iframe', url: normalizedSrc, interactive: true })
     }
     if (text) properties['dom:textPreview'] = truncateForPreview(text, 360) as unknown as JSONValue
     const kind = isMediaTag(tag) ? 'media' : isInteractiveTag(tag) ? 'interactive' : isContainerTag(tag) ? 'container' : 'element'

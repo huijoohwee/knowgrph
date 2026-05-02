@@ -133,6 +133,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["preview.panel.graphMediaSelection.opensMarkdownPanel","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelGraphMediaSelectionOpensMarkdownPanel"],
   ["preview.panel.graphMediaSelection.deduplicatesBytePlusVideoToCanonicalRichMediaPanel","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetToCanonicalRichMediaPanel"],
   ["preview.panel.standaloneLinks.webpageAndTweetSelectable","@/__tests__/previewPanelViewMediaSelection.test","testPreviewPanelStandaloneLinkWebpageAndTweetSelectable"],
+  ["parser.mediaWriteback.reusesSharedPatchHelper","@/__tests__/parserMediaWritebackReuse.test","testParserMediaWritebackReusesSharedMediaPatchHelper"],
   ["markdown.ingest.githubBlob.producesMediaNodes","@/__tests__/markdownGithubIngestion.test","testMarkdownGithubBlobIngestionProducesMediaNodes"],
   ["markdown.ingest.htmlImg.producesMediaNodes","@/__tests__/markdownGithubIngestion.test","testMarkdownHtmlImgIngestionProducesMediaNodes"],
   ["markdown.ingest.autolinkImage.producesMediaNodes","@/__tests__/markdownGithubIngestion.test","testMarkdownAutolinkImageIngestionProducesMediaNodes"],

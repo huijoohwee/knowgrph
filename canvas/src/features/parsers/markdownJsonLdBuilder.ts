@@ -1,6 +1,26 @@
 import { slugify } from './markdownJsonLdUtils'
 import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
+import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
+
+function buildAliasedMediaProperties(args: {
+  kind: 'image' | 'svg' | 'video' | 'iframe'
+  url: string
+  interactive?: boolean
+}): Record<string, unknown> {
+  const url = String(args.url || '').trim()
+  if (!url) return {}
+  const next = patchNodeMediaProperties({
+    kind: args.kind,
+    url,
+    interactive: args.interactive === true,
+  })
+  next.media = url
+  if (args.kind === 'video') next.video = url
+  else if (args.kind === 'iframe') next.iframe_url = url
+  else next.image = url
+  return next
+}
 
 export interface BuilderContext {
   gid: string
@@ -170,11 +190,7 @@ export class MarkdownGraphBuilder {
           buildBilibiliEmbedUrl(url)
         if (!embed) return null
         return {
-          media_kind: 'iframe',
-          iframe_url: embed,
-          media_url: embed,
-          media: embed,
-          media_interactive: true,
+          ...buildAliasedMediaProperties({ kind: 'iframe', url: embed, interactive: true }),
           'visual:shape': 'rect',
         }
       })()
@@ -184,30 +200,19 @@ export class MarkdownGraphBuilder {
         const kind = inferMediaKindFromResourceUrl(raw)
         if (kind === 'image' || kind === 'svg') {
           return {
-            media_kind: kind,
-            media_url: raw,
-            media: raw,
-            image: raw,
+            ...buildAliasedMediaProperties({ kind, url: raw }),
             'visual:shape': 'rect',
           }
         }
         if (kind === 'video') {
           return {
-            media_kind: 'video',
-            media_url: raw,
-            media: raw,
-            video: raw,
-            media_interactive: true,
+            ...buildAliasedMediaProperties({ kind: 'video', url: raw, interactive: true }),
             'visual:shape': 'rect',
           }
         }
         if (kind === 'iframe') {
           return {
-            media_kind: 'iframe',
-            iframe_url: raw,
-            media_url: raw,
-            media: raw,
-            media_interactive: true,
+            ...buildAliasedMediaProperties({ kind: 'iframe', url: raw, interactive: true }),
             'visual:shape': 'rect',
           }
         }
@@ -219,11 +224,7 @@ export class MarkdownGraphBuilder {
         if (!/^https?:\/\//i.test(raw) && !/^\/__repo_file\//i.test(raw)) return null
         if (inlineLinkMediaProps) return null
         return {
-          media_kind: 'iframe',
-          iframe_url: raw,
-          media_url: raw,
-          media: raw,
-          media_interactive: true,
+          ...buildAliasedMediaProperties({ kind: 'iframe', url: raw, interactive: true }),
           'visual:shape': 'rect',
         }
       })()
