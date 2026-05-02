@@ -9,9 +9,6 @@ import {
   persistSourceFilesWorkspace,
 } from '@/features/source-files/sourceFilesDb'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
-import { hydratePendingUrlSourceFiles, refreshPersistedSourceFilesForCurrentParseIdentity } from '@/features/source-files/sourceFilesIngestIntegration'
-import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sourceIndex'
-import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
   WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE,
@@ -20,12 +17,16 @@ import {
 } from '@/lib/async/workspaceSyncKeys'
 import {
   buildMaterializedWorkspaceActivePathKey,
-  buildMaterializedWorkspaceForceIncludePaths,
   materializeActiveWorkspaceEntryIntoSourceFiles,
-  readReusableWorkspaceEntriesSnapshot,
   resolveMaterializedWorkspaceActivePath,
-  resolveInitialWorkspaceStartupState,
 } from '@/features/source-files/sourceFilesRuntimeShared'
+import {
+  materializeBootstrapWorkspaceSourceFiles,
+  restoreBootstrapPersistedSourceFiles,
+  restoreBootstrapWorkspaceState,
+  runBootstrapSourceFileHydration,
+  scheduleBootstrapComposedGraphSync,
+} from '@/features/source-files/sourceFilesBootstrapStartup'
 import {
   areSourceFilesEqualByIdAndHash,
   buildSourceFilesCompositionSignature,
@@ -37,6 +38,58 @@ import {
   normalizeSourceFilesWorkspaceState,
   type SourceFilesWorkspaceState,
 } from '@/features/source-files/sourceFilesWorkspaceState'
+
+const SOURCE_FILES_PERSIST_DELAY_MS = 600
+
+function schedulePersistedSnapshotIfChanged<Snapshot>(args: {
+  taskKey: string
+  scopeKey: string
+  signature: string
+  lastPersistedRef: React.MutableRefObject<Snapshot | null>
+  equalityFn: (left: Snapshot | null, right: Snapshot | null) => boolean
+  readSnapshot: () => Snapshot
+  persist: (snapshot: Snapshot) => Promise<void>
+}): void {
+  scheduleWorkspaceSyncTask(args.taskKey, () => {
+    const nextSnapshot = args.readSnapshot()
+    const prevSnapshot = args.lastPersistedRef.current
+    if (args.equalityFn(prevSnapshot, nextSnapshot)) return
+    args.lastPersistedRef.current = nextSnapshot
+    void args.persist(nextSnapshot)
+  }, SOURCE_FILES_PERSIST_DELAY_MS, { signature: args.signature, scopeKey: args.scopeKey })
+}
+
+function subscribeCoalescedStorePersistence<Snapshot>(args: {
+  taskKey: string
+  scopeKey: string
+  hydratedRef: React.MutableRefObject<boolean>
+  lastPersistedRef: React.MutableRefObject<Snapshot | null>
+  selector: (state: ReturnType<typeof useGraphStore.getState>) => Snapshot
+  equalityFn: (left: Snapshot | null, right: Snapshot | null) => boolean
+  buildSignature: (snapshot: Snapshot) => string
+  persist: (snapshot: Snapshot) => Promise<void>
+  onSnapshot?: (snapshot: Snapshot) => void
+}): () => void {
+  return useGraphStore.subscribe(
+    args.selector,
+    snapshot => {
+      if (!args.hydratedRef.current) return
+      const prevSnapshot = args.lastPersistedRef.current
+      if (args.equalityFn(prevSnapshot, snapshot)) return
+      args.onSnapshot?.(snapshot)
+      schedulePersistedSnapshotIfChanged({
+        taskKey: args.taskKey,
+        scopeKey: args.scopeKey,
+        signature: args.buildSignature(snapshot),
+        lastPersistedRef: args.lastPersistedRef,
+        equalityFn: args.equalityFn,
+        readSnapshot: () => args.selector(useGraphStore.getState()),
+        persist: args.persist,
+      })
+    },
+    { equalityFn: args.equalityFn },
+  )
+}
 
 function stripPersistedWorkspaceBackedSourceFiles(value: unknown) {
   const items = Array.isArray(value) ? value : []
@@ -71,80 +124,23 @@ export function SourceFilesPersistenceBootstrap() {
         ])
         const persisted = stripPersistedWorkspaceBackedSourceFiles(persistedRaw)
         if (cancelled) return
-        const current = useGraphStore.getState().sourceFiles
-        if (Array.isArray(current) && current.length > 0) {
-          hydratedRef.current = true
-          lastPersistedRef.current = current
-        } else {
-          if (persisted.length > 0) {
-            useGraphStore.getState().setSourceFiles(persisted)
-            lastPersistedRef.current = persisted
-          }
-          hydratedRef.current = true
-        }
+        lastPersistedRef.current = restoreBootstrapPersistedSourceFiles({
+          persistedSourceFiles: persisted,
+        })
+        hydratedRef.current = true
 
         try {
-          __canvasStartupDebug.sourceBootstrapHydrateRuns += 1
-          await refreshPersistedSourceFilesForCurrentParseIdentity()
-          await hydratePendingUrlSourceFiles()
-          __canvasStartupDebug.sourceBootstrapLastHydrateFinishedAtMs = Date.now()
+          await runBootstrapSourceFileHydration()
         } catch {
           void 0
         }
         try {
-          const startup = await resolveInitialWorkspaceStartupState()
-          const startupActivePath = resolveMaterializedWorkspaceActivePath({
-            activePathOverride: startup.activePath,
-          })
-          const startupSourcesByPath = resolveWorkspaceSourceIndexSnapshot(undefined)
-          const store = useGraphStore.getState()
-          const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
-          const merged = mergeWorkspaceEntriesIntoSourceFiles({
-            existing,
-            workspaceEntries: startup.workspaceEntries,
-            sourcesByPath: startupSourcesByPath,
-            forceIncludePaths: buildMaterializedWorkspaceForceIncludePaths({
-              activePathOverride: startupActivePath,
-            }),
-          })
-          if (merged !== existing) {
-            store.setSourceFiles(merged)
-          }
-          await materializeActiveWorkspaceEntryIntoSourceFiles({
-            activePathOverride: startupActivePath,
-            workspaceEntries: readReusableWorkspaceEntriesSnapshot(startup.workspaceEntries),
-            sourcesByPath: startupSourcesByPath,
-            applyToGraph: true,
-          })
-          lastMaterializedActivePathRef.current = buildMaterializedWorkspaceActivePathKey({
-            activePathOverride: startupActivePath,
-          })
+          lastMaterializedActivePathRef.current = await materializeBootstrapWorkspaceSourceFiles()
         } catch {
           void 0
         }
-        lastComposeSignatureRef.current = buildSourceFilesCompositionSignature(useGraphStore.getState().sourceFiles)
-        try {
-          scheduleApplyComposedGraphFromSourceFiles()
-        } catch {
-          void 0
-        }
-
-        const store = useGraphStore.getState()
-        const hasLiveFolderAccess = !!store.localMarkdownFolderHandle || !!store.localMarkdownFolderCacheId
-        if (!hasLiveFolderAccess) {
-          if (!store.localMarkdownFolderCacheId && persistedWorkspace.folderCacheId) {
-            store.setLocalMarkdownFolderCacheId(persistedWorkspace.folderCacheId, persistedWorkspace.folderName)
-          }
-          if (!store.localMarkdownFolderName && persistedWorkspace.folderName) {
-            store.setLocalMarkdownFolderCachedMetadata({
-              name: persistedWorkspace.folderName,
-              accessMode: persistedWorkspace.accessMode,
-            })
-          }
-        }
-        if (!store.localMarkdownSelectedFolderPath && persistedWorkspace.selectedFolderPath) {
-          store.setLocalMarkdownSelectedFolderPath(persistedWorkspace.selectedFolderPath)
-        }
+        lastComposeSignatureRef.current = scheduleBootstrapComposedGraphSync()
+        restoreBootstrapWorkspaceState(persistedWorkspace)
         workspaceHydratedRef.current = true
         lastWorkspacePersistedRef.current = persistedWorkspace
       } catch {
@@ -186,12 +182,16 @@ export function SourceFilesPersistenceBootstrap() {
 
   React.useEffect(() => {
     const taskKey = WORKSPACE_SYNC_TASK_SOURCE_FILES_PERSIST
-    const unsubscribe = useGraphStore.subscribe(
-      s => s.sourceFiles,
-      next => {
-        if (!hydratedRef.current) return
-        if (areSourceFilesEqualByIdAndHash(next, lastPersistedRef.current)) return
-
+    const unsubscribe = subscribeCoalescedStorePersistence({
+      taskKey,
+      scopeKey: runtimePersistenceScopeKey,
+      hydratedRef,
+      lastPersistedRef: lastPersistedRef as React.MutableRefObject<unknown[] | null>,
+      selector: s => s.sourceFiles,
+      equalityFn: areSourceFilesEqualByIdAndHash,
+      buildSignature: next => buildSourceFilesPersistenceSignature(next),
+      persist: next => persistSourceFiles(next as never),
+      onSnapshot: next => {
         const compositionSignature = buildSourceFilesCompositionSignature(next)
         if (compositionSignature !== lastComposeSignatureRef.current) {
           lastComposeSignatureRef.current = compositionSignature
@@ -201,69 +201,37 @@ export function SourceFilesPersistenceBootstrap() {
             void 0
           }
         }
-
-        const signature = buildSourceFilesPersistenceSignature(next)
-        scheduleWorkspaceSyncTask(taskKey, () => {
-          const snapshot = useGraphStore.getState().sourceFiles
-          if (areSourceFilesEqualByIdAndHash(snapshot, lastPersistedRef.current)) return
-          lastPersistedRef.current = snapshot
-          void persistSourceFiles(snapshot)
-        }, 600, { signature, scopeKey: runtimePersistenceScopeKey })
       },
-      { equalityFn: areSourceFilesEqualByIdAndHash },
-    )
+    })
     return () => {
       cancelWorkspaceSyncTask(taskKey)
       unsubscribe()
     }
   }, [runtimePersistenceScopeKey])
 
-  const getWorkspaceSnapshot = React.useCallback((): SourceFilesWorkspaceState => {
-    const s = useGraphStore.getState()
-    return normalizeSourceFilesWorkspaceState({
-      folderName: s.localMarkdownFolderName,
-      accessMode: s.localMarkdownFolderAccessMode,
-      folderCacheId: s.localMarkdownFolderCacheId,
-      selectedFolderPath: s.localMarkdownSelectedFolderPath,
-    })
-  }, [])
-
   React.useEffect(() => {
     const taskKey = WORKSPACE_SYNC_TASK_SOURCE_FILES_WORKSPACE
-    const unsubscribe = useGraphStore.subscribe(
-      s =>
+    const unsubscribe = subscribeCoalescedStorePersistence({
+      taskKey,
+      scopeKey: runtimePersistenceScopeKey,
+      hydratedRef: workspaceHydratedRef,
+      lastPersistedRef: lastWorkspacePersistedRef as React.MutableRefObject<SourceFilesWorkspaceState | null>,
+      selector: s =>
         normalizeSourceFilesWorkspaceState({
           folderName: s.localMarkdownFolderName,
           accessMode: s.localMarkdownFolderAccessMode,
           folderCacheId: s.localMarkdownFolderCacheId,
           selectedFolderPath: s.localMarkdownSelectedFolderPath,
         }),
-      snapshot => {
-        if (!workspaceHydratedRef.current) return
-        const prev = lastWorkspacePersistedRef.current as SourceFilesWorkspaceState | null
-        if (prev && areSourceFilesWorkspaceStatesEqual(prev, snapshot)) {
-          return
-        }
-        const signature = buildSourceFilesWorkspaceStateSignature(snapshot)
-        scheduleWorkspaceSyncTask(taskKey, () => {
-          const nextSnapshot = getWorkspaceSnapshot()
-          const prevSnapshot = lastWorkspacePersistedRef.current as SourceFilesWorkspaceState | null
-          if (prevSnapshot && areSourceFilesWorkspaceStatesEqual(prevSnapshot, nextSnapshot)) {
-            return
-          }
-          lastWorkspacePersistedRef.current = nextSnapshot
-          void persistSourceFilesWorkspace(nextSnapshot)
-        }, 600, { signature, scopeKey: runtimePersistenceScopeKey })
-      },
-      {
-        equalityFn: areSourceFilesWorkspaceStatesEqual,
-      },
-    )
+      equalityFn: areSourceFilesWorkspaceStatesEqual,
+      buildSignature: snapshot => buildSourceFilesWorkspaceStateSignature(snapshot),
+      persist: nextSnapshot => persistSourceFilesWorkspace(nextSnapshot),
+    })
     return () => {
       cancelWorkspaceSyncTask(taskKey)
       unsubscribe()
     }
-  }, [getWorkspaceSnapshot, runtimePersistenceScopeKey])
+  }, [runtimePersistenceScopeKey])
 
   return null
 }

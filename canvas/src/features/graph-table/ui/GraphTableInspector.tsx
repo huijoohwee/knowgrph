@@ -18,8 +18,9 @@ import {
   resolveWidgetRegistryEntry,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildWidgetBundleJsonText } from '@/lib/graph/io/widgetBundle'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { useShallow } from 'zustand/react/shallow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
@@ -94,25 +95,42 @@ export function GraphTableInspector({
     if (!Array.isArray(edgesRaw)) return []
     return edgesRaw as GraphEdge[]
   }, [edgesRaw])
+  const graphSemanticKey = useMemo(
+    () => buildScopedGraphSemanticKey('graph-table-inspector', { graphData: graphData ?? null, graphRevision: graphDataRevision }),
+    [graphData, graphDataRevision],
+  )
+  const graphLookup = useMemo(
+    () => getCachedGraphLookup({
+      cacheScope: 'graph-table-inspector',
+      graphData: graphData ?? null,
+      graphRevision: graphDataRevision,
+      graphSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    }),
+    [graphData, graphDataRevision, graphSemanticKey],
+  )
+  const graphNodeById = graphLookup?.nodeById || null
+  const graphEdgesByNodeId = graphLookup?.incidentEdgesByNodeId || null
   const node: GraphNode | null = useMemo(() => {
     if (!row || row.tableId !== 'nodes') return null
     const id = String(row.rowId || '').trim()
-    if (!id || !Array.isArray(graphData?.nodes)) return null
-    return (graphData?.nodes as GraphNode[]).find(n => String(n.id || '') === id) || null
-  }, [graphData?.nodes, row])
+    if (!id || !graphNodeById) return null
+    return graphNodeById.get(id) || null
+  }, [graphNodeById, row])
   const registryEntry = useMemo(
     () => (node ? resolveWidgetRegistryEntry({ node, registry: widgetRegistry }) : null),
     [node, widgetRegistry],
   )
+  const openWidgetNodeIdSet = useMemo(() => new Set(openWidgetNodeIds), [openWidgetNodeIds])
   const showWidget = useMemo(() => {
     if (!node) return false
     const id = String(node.id || '').trim()
     if (!id) return false
     const isSelected = id === String(selectedNodeId || '')
-    const isPinned = openWidgetNodeIds.includes(id)
+    const isPinned = openWidgetNodeIdSet.has(id)
     const isWidgetNode = isWidgetCandidateNode({ node, registry: widgetRegistry })
     return isWidgetNode && (isSelected || isPinned)
-  }, [node, openWidgetNodeIds, selectedNodeId, widgetRegistry])
+  }, [node, openWidgetNodeIdSet, selectedNodeId, widgetRegistry])
 
   const connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | undefined = useMemo(() => {
     if (!node || !showWidget) return undefined
@@ -128,6 +146,14 @@ export function GraphTableInspector({
   }, [graphData, graphDataRevision, node, widgetRegistry, showWidget])
 
   const [codeFormat, setCodeFormat] = useState<'json' | 'markdown'>('json')
+  const widgetBundleGraphSemanticKey = useMemo(() => {
+    const nodeId = String(node?.id || '').trim()
+    if (!nodeId) return ''
+    return buildScopedGraphSemanticKey('graph-table-inspector-widget-bundle', {
+      graphRevision: graphDataRevision,
+      graphSemanticKey: `${graphSemanticKey}:${nodeId}`,
+    })
+  }, [graphDataRevision, graphSemanticKey, node])
   const widgetCodeText = useMemo(() => {
     if (!node || !showWidget) return ''
     const nodeId = String(node.id || '').trim()
@@ -141,7 +167,7 @@ export function GraphTableInspector({
       return String(rec.nodeTypeId || '').trim() === safeType
     })
 
-    const edges = (allEdges || []).filter(e => String(e.source || '') === nodeId || String(e.target || '') === nodeId)
+    const edges = graphEdgesByNodeId?.get(nodeId) || []
     const graph = {
       context: '',
       type: 'Graph',
@@ -152,10 +178,11 @@ export function GraphTableInspector({
       registryEntries: registryForType,
       graphData: graph as never,
       graphRevision: graphDataRevision,
+      graphSemanticKey: widgetBundleGraphSemanticKey,
     })
     if (codeFormat === 'markdown') return `\`\`\`json\n${bundleText}\n\`\`\``
     return bundleText
-  }, [allEdges, codeFormat, graphDataRevision, node, widgetRegistry, showWidget])
+  }, [codeFormat, graphDataRevision, graphEdgesByNodeId, node, showWidget, widgetBundleGraphSemanticKey, widgetRegistry])
 
   const copyWidgetCode = () => {
     const text = widgetCodeText
@@ -186,6 +213,16 @@ export function GraphTableInspector({
         view: WebpageViewMode
       }
   >(null)
+  const sourceFilesById = useMemo(() => {
+    const byId = new Map<string, (typeof sourceFiles)[number]>()
+    for (let i = 0; i < sourceFiles.length; i += 1) {
+      const item = sourceFiles[i]
+      const id = String(item?.id || '').trim()
+      if (!id) continue
+      byId.set(id, item)
+    }
+    return byId
+  }, [sourceFiles])
 
   useEffect(() => {
     if (!node) {
@@ -198,7 +235,7 @@ export function GraphTableInspector({
       setWebpageDoc(null)
       return
     }
-    const src = (sourceFiles || []).find(f => String(f?.id || '') === sourceLayerId) || null
+    const src = sourceFilesById.get(sourceLayerId) || null
     const srcPath = String(src?.source?.path || '').trim()
     if (!srcPath.startsWith('workspace:')) {
       setWebpageDoc(null)
@@ -223,7 +260,7 @@ export function GraphTableInspector({
     return () => {
       cancelled = true
     }
-  }, [node, sourceFiles])
+  }, [node, sourceFilesById])
 
   const switchWebpageView = async (next: WebpageViewMode) => {
     const doc = webpageDoc

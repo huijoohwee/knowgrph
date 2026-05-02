@@ -175,6 +175,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   const [columnOrderByTableId, setColumnOrderByTableId] = useState<GraphTableColumnOrderByTableId>(() =>
     lsJson(LS_KEYS.graphTableColumnOrderByTableId, {}, parseColumnOrderByTableId),
   )
+  const openWidgetNodeIdSet = useMemo(() => new Set(openWidgetNodeIds), [openWidgetNodeIds])
   const inspectorWidthPxRef = useRef(inspectorWidthPx)
   inspectorWidthPxRef.current = inspectorWidthPx
   const [inspectorDragHandleEl, setInspectorDragHandleEl] = useState<HTMLHRElement | null>(null)
@@ -391,6 +392,19 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
     }
   }, [active, activeTableId, canvasWorkspaceSyncMode, collapsedGroupIdsKey, graphSyncRevision, syncGraphData])
 
+  const rowById = useMemo(() => {
+    const cached = rowCacheRef.current.get(activeTableId)?.rowById || null
+    if (cached && cached.size >= rows.length) return cached
+    const next = new Map<string, GraphTableGridRow>()
+    for (let i = 0; i < rows.length; i += 1) {
+      const row = rows[i]
+      const id = String(row?.id || '').trim()
+      if (!id) continue
+      next.set(id, row)
+    }
+    return next
+  }, [activeTableId, rows])
+
   useEffect(() => {
     if (selectionSource === 'toolbar') return
     if (selectedNodeId) {
@@ -410,10 +424,10 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
   useEffect(() => {
     const id = typeof selectedNodeId === 'string' ? selectedNodeId : ''
     if (!id) return
-    if (!openWidgetNodeIds.includes(id)) return
+    if (!openWidgetNodeIdSet.has(id)) return
     if (inspectorOpen) return
     setInspectorOpen(true)
-  }, [inspectorOpen, openWidgetNodeIds, selectedNodeId])
+  }, [inspectorOpen, openWidgetNodeIdSet, selectedNodeId])
 
   useEffect(() => {
     lsSetBool(LS_KEYS.graphTableInspectorOpen, inspectorOpen)
@@ -559,7 +573,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
 
   const selectedRow = useMemo<GraphTableInspectorRow | null>(() => {
     if (!inspectorRowId) return null
-    const row = rows.find(r => r.id === inspectorRowId)
+    const row = rowById.get(inspectorRowId) || null
     if (!row) return null
     const { __order: order, ...rest } = row
     return {
@@ -568,12 +582,12 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       order: order ?? 0,
       data: rest as unknown as Record<string, unknown>,
     }
-  }, [activeTableId, inspectorRowId, rows])
+  }, [activeTableId, inspectorRowId, rowById])
 
   const handleCellValueChanged = useCallback(
     (rowId: string, columnId: string, next: unknown) => {
       void (async () => {
-        const currentRow = rows.find(r => r.id === rowId)
+        const currentRow = rowById.get(rowId) || null
         if (currentRow) {
           const prevRaw = (currentRow as unknown as Record<string, unknown>)[columnId]
           const normPrev = typeof prevRaw === 'string' && !prevRaw.trim() ? null : prevRaw
@@ -589,7 +603,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         applyCellUpdateToGraphStore(activeTableId, rowId, columnId, next, columnKind)
       })()
     },
-    [activeTableId, columns, infiniteCanvasInteractionMode, noteGraphWrite, rows, tableToGraphRenderingEnabled],
+    [activeTableId, columns, infiniteCanvasInteractionMode, noteGraphWrite, rowById, tableToGraphRenderingEnabled],
   )
 
   const handleColumnKindChanged = useCallback(
@@ -680,7 +694,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       }
 
       if (activeTableId === 'nodes') {
-        const row = rows.find(r => r.id === rowId) || null
+        const row = rowById.get(rowId) || null
         const tocId = getRowTocId(row)
         if (tocId) {
           try {
@@ -691,7 +705,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         }
       }
     },
-    [activeTableId, rows],
+    [activeTableId, rowById],
   )
 
   const handleRequestReorderColumn = useCallback(

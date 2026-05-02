@@ -46,8 +46,10 @@ export function testSourceFilesIngestDedupesPendingParsesForSameTextHash() {
 export function testSourceFilesIngestHydratesPendingUrlSourcesOnBootstrap() {
   const ingestPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
   const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const bootstrapStartupPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesBootstrapStartup.ts')
   const ingestText = readFileSync(ingestPath, 'utf8')
   const bootstrapText = readFileSync(bootstrapPath, 'utf8')
+  const bootstrapStartupText = readFileSync(bootstrapStartupPath, 'utf8')
 
   if (!ingestText.includes('export async function hydratePendingUrlSourceFiles(): Promise<void>')) {
     throw new Error('expected source file ingest integration to expose bootstrap hydration for pending url sources')
@@ -61,8 +63,11 @@ export function testSourceFilesIngestHydratesPendingUrlSourcesOnBootstrap() {
   if (!ingestText.includes("await importUrlIntoActive({ fileId: file.id, url, format: 'markdown' })")) {
     throw new Error('expected pending url hydration to reuse upstream url import flow')
   }
-  if (!bootstrapText.includes('await hydratePendingUrlSourceFiles()')) {
-    throw new Error('expected source files bootstrap to hydrate pending url sources before composing graph data')
+  if (!bootstrapText.includes('runBootstrapSourceFileHydration')) {
+    throw new Error('expected source files bootstrap to delegate startup ingest hydration through the shared bootstrap startup helper')
+  }
+  if (!bootstrapStartupText.includes('await hydratePendingUrlSourceFiles()')) {
+    throw new Error('expected shared bootstrap startup helper to hydrate pending url sources before composing graph data')
   }
 }
 

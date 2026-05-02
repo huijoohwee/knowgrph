@@ -85,6 +85,14 @@ const readSnapshot = (): WorkspaceTablePreferencesSnapshot => {
   return next
 }
 
+const writePreferenceAndNotify = <T>(writer: () => T): T => {
+  const before = readSnapshot()
+  const written = writer()
+  const after = readSnapshot()
+  if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
+  return written
+}
+
 const isWorkspacePreferenceStorageKey = (storageKey: string | null): boolean =>
   storageKey === LS_KEYS.workspaceEditorMode ||
   storageKey === LS_KEYS.graphTableViewMode ||
@@ -160,45 +168,21 @@ export const workspaceTablePreferencesStore = {
   getSnapshot: readSnapshot,
   getServerSnapshot: readSnapshot,
   setWorkspaceEditorMode(next: WorkspaceEditorMode): WorkspaceEditorMode {
-    const before = readSnapshot()
-    const written = writeWorkspaceEditorMode(next)
-    const after = readSnapshot()
-    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
-    return written
+    return writePreferenceAndNotify(() => writeWorkspaceEditorMode(next))
   },
   setJsonImportTarget(next: JsonImportWorkspaceTarget): JsonImportWorkspaceTarget {
-    const before = readSnapshot()
-    const written = writeJsonImportWorkspaceTarget(next)
-    const after = readSnapshot()
-    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
-    return written
+    return writePreferenceAndNotify(() => writeJsonImportWorkspaceTarget(next))
   },
   setJsonMarkdownMode(next: JsonToMarkdownMode): JsonToMarkdownMode {
-    const before = readSnapshot()
-    const written = writeJsonMarkdownMode(next)
-    const after = readSnapshot()
-    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
-    return written
+    return writePreferenceAndNotify(() => writeJsonMarkdownMode(next))
   },
   setJsonTableMaxRows(next: unknown): number {
-    const before = readSnapshot()
-    const written = writeJsonMarkdownTableMaxRows(next)
-    const after = readSnapshot()
-    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
-    return written
+    return writePreferenceAndNotify(() => writeJsonMarkdownTableMaxRows(next))
   },
   setJsonTableMaxColumns(next: unknown): number {
-    const before = readSnapshot()
-    const written = writeJsonMarkdownTableMaxColumns(next)
-    const after = readSnapshot()
-    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
-    return written
+    return writePreferenceAndNotify(() => writeJsonMarkdownTableMaxColumns(next))
   },
   setWorkspaceCellSelectPanelPlacement(next: WorkspaceCellSelectPanelPlacement): WorkspaceCellSelectPanelPlacement {
-    const before = readSnapshot()
-    const written = writeWorkspaceCellSelectPanelPlacement(next)
-    const after = readSnapshot()
-    if (!isSameSnapshot(before, after)) emitWorkspaceTablePreferencesChanged()
-    return written
+    return writePreferenceAndNotify(() => writeWorkspaceCellSelectPanelPlacement(next))
   },
 }

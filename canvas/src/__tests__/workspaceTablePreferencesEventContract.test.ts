@@ -58,14 +58,17 @@ export const testWorkspaceTablePreferencesCallsitesUseSharedContract = () => {
   if (!storeText.includes('subscribeWorkspaceTablePreferencesChanged(handleChanged)')) {
     throw new Error('expected workspaceTablePreferencesStore to subscribe via the shared helper')
   }
-  if (!jsonImportText.includes('emitWorkspaceTablePreferencesChanged()')) {
-    throw new Error('expected applyJsonImportWorkspaceTarget to emit via the shared helper')
+  if (!jsonImportText.includes("workspaceTablePreferencesStore.setWorkspaceEditorMode('multiDimTable')")) {
+    throw new Error('expected applyJsonImportWorkspaceTarget to route workspace mode persistence through the shared workspace-table preference store')
   }
   if (storeText.includes('window.addEventListener(WORKSPACE_TABLE_PREFS_EVENT')) {
     throw new Error('expected workspaceTablePreferencesStore to avoid raw workspace prefs listener wiring')
   }
   if (storeText.includes('window.dispatchEvent(new Event(WORKSPACE_TABLE_PREFS_EVENT))')) {
     throw new Error('expected workspaceTablePreferencesStore to avoid inline workspace prefs event dispatch')
+  }
+  if (jsonImportText.includes('emitWorkspaceTablePreferencesChanged()')) {
+    throw new Error('expected applyJsonImportWorkspaceTarget to stop bypassing the shared workspace-table preference store emitter path')
   }
   if (jsonImportText.includes('window.dispatchEvent(new Event(WORKSPACE_TABLE_PREFS_EVENT))')) {
     throw new Error('expected applyJsonImportWorkspaceTarget to avoid inline workspace prefs event dispatch')
