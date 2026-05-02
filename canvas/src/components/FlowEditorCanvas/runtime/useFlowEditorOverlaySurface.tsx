@@ -386,7 +386,7 @@ export function useFlowEditorOverlaySurface(args: {
       extraNodeIds: overlayEditorNodeIdsSnapshot,
     })
   }, [frontmatterOverlayCoverageActive, frontmatterVisibleGraphNodes, overlayEditorNodeIdsSnapshot])
-  const connectedValuesGraphRevision = flowEditorViewActive ? draftGraphDataRevision : baseGraphDataRevision
+  const connectedValuesGraphRevision = args.flowEditorViewActive ? args.draftGraphDataRevision : args.baseGraphDataRevision
   const connectedValuesByNodeId = React.useMemo(() => {
     if (connectedValueTargetNodeIds.size === 0) return new Map<string, FlowConnectedValuesBySchemaPath>()
     return computeFlowConnectedValuesBySchemaPath({

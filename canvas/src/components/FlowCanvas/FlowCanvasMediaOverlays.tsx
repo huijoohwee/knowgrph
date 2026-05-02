@@ -187,9 +187,9 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaOverlayPanelSizeOverrideRef.current.clear()
     mediaOverlayPanelSizeTargetWorldRef.current.clear()
   }, [])
-  const clearMediaOverlayInteractionState = React.useCallback(() => {
+  const resetMediaOverlayInteractionState = React.useCallback((options?: { clearLastKnownWorldSize?: boolean }) => {
     cancelMediaOverlayInteractionState()
-    mediaOverlayPanelLastKnownWorldSizeRef.current.clear()
+    if (options?.clearLastKnownWorldSize === true) mediaOverlayPanelLastKnownWorldSizeRef.current.clear()
   }, [cancelMediaOverlayInteractionState])
 
   React.useEffect(() => {
@@ -606,8 +606,8 @@ export default function FlowCanvasMediaOverlays(args: {
   ])
 
   React.useEffect(() => {
-    return () => clearMediaOverlayInteractionState()
-  }, [clearMediaOverlayInteractionState])
+    return () => resetMediaOverlayInteractionState({ clearLastKnownWorldSize: true })
+  }, [resetMediaOverlayInteractionState])
 
   if (!(active && mediaNodes.length > 0)) return null
   return (
