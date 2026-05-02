@@ -25,6 +25,7 @@ import {
   pickDefaultFlowPortKey,
   readFlowEdgePortKey,
 } from '@/lib/graph/flowPorts'
+import { canonicalNodeIdSetHas, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphEdge } from '@/lib/graph/types'
 import {
@@ -52,7 +53,7 @@ function buildOverlayNodeHandleSignature(
   if (!Array.isArray(nodes) || nodes.length === 0) return ''
   const parts = nodes
     .map(node => {
-      const id = String(node?.id || '').trim()
+      const id = readCanonicalOverlayIdentity(node?.id)
       if (!id) return ''
       return [
         id,
@@ -63,6 +64,12 @@ function buildOverlayNodeHandleSignature(
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b))
   return hashSignatureParts(['overlay-node-handle-signature', ...parts])
+}
+
+function readCanonicalOverlayIdentity(rawId: unknown): string {
+  const id = String(rawId || '').trim()
+  if (!id) return ''
+  return splitComposedNodeId(id).inner || id
 }
 
 function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>) {
@@ -393,7 +400,6 @@ export function useFlowEditorOverlayEdges(args: {
       svgViewBox: node.getAttribute('viewBox') || '',
       restoredFrozenPathCount,
     })
-    if (workspaceOverlayOpenRef.current) return
     scheduleOverlayEdgeUpdateRef.current()
   }, [args.overlayEdgesEnabledRef, pushOverlayEdgeTrace, restoreFrozenOverlayEdgePaths])
 
@@ -410,25 +416,10 @@ export function useFlowEditorOverlayEdges(args: {
       })
       return
     }
-    if (workspaceOverlayOpenRef.current) {
-      const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(overlayEdgesSvgRef.current)
-      pushOverlayEdgeTrace('schedule-skip-workspace-open', {
-        overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
-        restoredFrozenPathCount,
-      })
-      return
-    }
     if (overlayEdgeRafRef.current != null) return
     overlayEdgeRafRef.current = requestAnimationFrame(() => {
       overlayEdgeRafRef.current = null
-      if (workspaceOverlayOpenRef.current) {
-        const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(overlayEdgesSvgRef.current)
-        pushOverlayEdgeTrace('raf-skip-workspace-open', {
-          overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
-          restoredFrozenPathCount,
-        })
-        return
-      }
+      const workspaceOverlayOpen = workspaceOverlayOpenRef.current
       const root = args.rootRef.current
       if (!root) {
         pushOverlayEdgeTrace('missing-root', {
@@ -456,17 +447,37 @@ export function useFlowEditorOverlayEdges(args: {
       const stableGraphEdgeCount = Array.isArray(stableGraph?.edges) ? stableGraph.edges.length : 0
       const withinWorkspaceCloseRecoveryWindow = now <= overlayEdgeWorkspaceCloseRecoveryUntilRef.current
       const shouldReuseStableGraph =
-        withinWorkspaceCloseRecoveryWindow
-        && !!stableGraph
+        !!stableGraph
         && stableGraphNodeCount > 0
         && stableGraphEdgeCount > 0
         && (
-          !liveGraph
+          workspaceOverlayOpen
+          || withinWorkspaceCloseRecoveryWindow
+        )
+        && (
+          workspaceOverlayOpen
+          || !liveGraph
           || liveGraph === stableGraph
           || liveGraphNodeCount === 0
           || liveGraphEdgeCount === 0
         )
       const graph = shouldReuseStableGraph ? stableGraph : liveGraph
+      if (workspaceOverlayOpen && shouldReuseStableGraph) {
+        pushOverlayEdgeTrace('schedule-workspace-open-live-geometry', {
+          overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
+          stableGraphNodeCount,
+          stableGraphEdgeCount,
+          liveGraphNodeCount,
+          liveGraphEdgeCount,
+        })
+      } else if (workspaceOverlayOpen) {
+        const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(overlayEdgesSvgRef.current)
+        pushOverlayEdgeTrace('schedule-skip-workspace-open', {
+          overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
+          restoredFrozenPathCount,
+        })
+        return
+      }
       if (!graph) {
         pushOverlayEdgeTrace('missing-graph-data', {
           withinWorkspaceCloseRecoveryWindow: withinWorkspaceCloseRecoveryWindow ? 1 : 0,
@@ -495,7 +506,7 @@ export function useFlowEditorOverlayEdges(args: {
       const rawEdges = Array.isArray(graph.edges)
         ? (graph.edges as Array<{ id?: unknown; source?: unknown; target?: unknown; type?: unknown; properties?: unknown }>)
         : []
-      if (rawNodes.length > 0 && rawEdges.length > 0) {
+      if (!workspaceOverlayOpen && rawNodes.length > 0 && rawEdges.length > 0) {
         lastStableOverlayEdgeGraphRef.current = graph
       }
 
@@ -533,7 +544,7 @@ export function useFlowEditorOverlayEdges(args: {
         for (let i = 0; i < els.length; i += 1) {
           const el = els[i]
           if (readFlowEditorOverlaySurfaceId(el) !== surfaceId) continue
-          const id = readCanvasOverlayNodeId(el)
+          const id = readCanonicalOverlayIdentity(readCanvasOverlayNodeId(el))
           if (!id) continue
           entries.push({ id, el })
         }
@@ -547,17 +558,17 @@ export function useFlowEditorOverlayEdges(args: {
         const sel = String(args.pendingOverlayNodeIdRef.current || '').trim()
         const set = new Set<string>()
         for (let i = 0; i < liveIds.length; i += 1) {
-          const id = String(liveIds[i] || '').trim()
+          const id = readCanonicalOverlayIdentity(liveIds[i])
           if (id) set.add(id)
         }
         for (let i = 0; i < domOverlayRootEntries.length; i += 1) {
-          const id = String(domOverlayRootEntries[i]?.id || '').trim()
+          const id = readCanonicalOverlayIdentity(domOverlayRootEntries[i]?.id)
           if (id) set.add(id)
         }
-        if (sel) set.add(sel)
+        if (sel) set.add(readCanonicalOverlayIdentity(sel))
         const liveSetSize = set.size
         const stableIds = lastStableOverlayEdgeNodeIdsRef.current
-          .map(id => String(id || '').trim())
+          .map(id => readCanonicalOverlayIdentity(id))
           .filter(Boolean)
         const stableSetSize = stableIds.length
         if (
@@ -646,8 +657,8 @@ export function useFlowEditorOverlayEdges(args: {
         const nodeIds = new Set<string>()
         const nodes: Array<{ id: unknown; type?: unknown; properties?: unknown }> = []
         for (let i = 0; i < rawNodes.length; i += 1) {
-          const id = String(rawNodes[i]?.id || '').trim()
-          if (!id || !overlayIdSet.has(id)) continue
+          const id = readCanonicalOverlayIdentity(rawNodes[i]?.id)
+          if (!id || !canonicalNodeIdSetHas(overlayIdSet, rawNodes[i]?.id)) continue
           nodeIds.add(id)
           nodes.push({ id, type: rawNodes[i]?.type, properties: rawNodes[i]?.properties })
         }
@@ -671,9 +682,11 @@ export function useFlowEditorOverlayEdges(args: {
         }> = []
         for (let i = 0; i < rawEdges.length; i += 1) {
           const id = String(rawEdges[i]?.id || '').trim()
-          const { src: source, tgt: target } = readGraphEdgeEndpoints(rawEdges[i])
+          const { src: sourceRaw, tgt: targetRaw } = readGraphEdgeEndpoints(rawEdges[i])
+          const source = readCanonicalOverlayIdentity(sourceRaw)
+          const target = readCanonicalOverlayIdentity(targetRaw)
           if (!id || !source || !target) continue
-          if (!overlayIdSet.has(source) || !overlayIdSet.has(target)) continue
+          if (!canonicalNodeIdSetHas(overlayIdSet, sourceRaw) || !canonicalNodeIdSetHas(overlayIdSet, targetRaw)) continue
           const props = rawEdges[i]?.properties
           const edgeWithProps = { properties: props as GraphEdge['properties'] } as Pick<GraphEdge, 'properties'>
           const sourcePortKey =
@@ -885,7 +898,7 @@ export function useFlowEditorOverlayEdges(args: {
           pending.toolMode === 'addEdge' && pending.sourceId && cursor
             ? `${pending.toolMode}:${pending.sourceId}:${String(pending.sourcePortKey || '')}:${round2(cursor.x)}:${round2(cursor.y)}`
             : ''
-        return `${round2(rootRect.left)}:${round2(rootRect.top)}:${round2(rootRect.width)}:${round2(rootRect.height)}|${nodeParts.join(',')}|${edgeParts.join(',')}|${pendingSig}`
+        return `${workspaceOverlayOpen ? 'workspace-open' : 'workspace-closed'}:${round2(rootRect.left)}:${round2(rootRect.top)}:${round2(rootRect.width)}:${round2(rootRect.height)}|${nodeParts.join(',')}|${edgeParts.join(',')}|${pendingSig}`
       })()
       if (overlayEdgeLayoutSigRef.current === layoutSig) return
       overlayEdgeLayoutSigRef.current = layoutSig
@@ -965,7 +978,7 @@ export function useFlowEditorOverlayEdges(args: {
           overlayPendingEdgePathRef.current = null
         }
       } else {
-        const sourceId = String(pending.sourceId || '').trim()
+        const sourceId = readCanonicalOverlayIdentity(pending.sourceId)
         const sRect = sourceId ? overlayRectsByNodeId.get(sourceId) : null
         if (sRect && cursor) {
           const handleKey = String(
@@ -1160,7 +1173,7 @@ export function useFlowEditorOverlayEdges(args: {
   React.useEffect(() => {
     const readWorkspaceOverlayOpen = () => isWorkspaceGraphMutationBlocked(useGraphStore.getState())
     workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
-    if (workspaceOverlayOpenRef.current) cancelOverlayEdgeUpdate()
+    if (workspaceOverlayOpenRef.current) scheduleOverlayEdgeUpdate()
     const unsub = useGraphStore.subscribe(
       s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen, s.markdownWorkspaceIndexingInFlight] as const,
       () => {
@@ -1168,7 +1181,9 @@ export function useFlowEditorOverlayEdges(args: {
         const isOpen = readWorkspaceOverlayOpen()
         workspaceOverlayOpenRef.current = isOpen
         if (isOpen) {
-          cancelOverlayEdgeUpdate()
+          overlayEdgeLayoutSigRef.current = ''
+          overlayEdgeAnchorCacheRef.current.clear()
+          scheduleOverlayEdgeUpdate()
           return
         }
         if (wasOpen) {

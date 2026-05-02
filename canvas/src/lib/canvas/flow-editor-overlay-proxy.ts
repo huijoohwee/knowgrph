@@ -81,6 +81,16 @@ export function shouldReplaceFlowEditorOverlayRectCandidate(
   return nextArea > currentArea + 1
 }
 
+function readOverlayRectCandidateRank(el: HTMLElement): number {
+  const surfaceId = readFlowEditorOverlaySurfaceId(el)
+  const hasWidgetShellId = String(el.dataset.kgWidget || '').trim().length > 0
+  const isRichMediaOverlay = String(el.dataset.kgRichMediaOverlay || '').trim() === '1'
+  if (surfaceId && hasWidgetShellId) return 3
+  if (surfaceId) return 2
+  if (isRichMediaOverlay) return 1
+  return 0
+}
+
 export function collectCanonicalFlowEditorOverlayRectEntries(
   overlayRoots: Iterable<HTMLElement>,
 ): Array<{ id: string; el: HTMLElement; rect: DOMRect }> {
@@ -90,7 +100,15 @@ export function collectCanonicalFlowEditorOverlayRectEntries(
     if (!id) continue
     const rect = el.getBoundingClientRect()
     const next = { el, rect }
-    if (shouldReplaceFlowEditorOverlayRectCandidate(selectedById.get(id), next)) selectedById.set(id, next)
+    const current = selectedById.get(id)
+    const nextRank = readOverlayRectCandidateRank(el)
+    const currentRank = current ? readOverlayRectCandidateRank(current.el) : -1
+    if (nextRank > currentRank) {
+      selectedById.set(id, next)
+      continue
+    }
+    if (nextRank < currentRank) continue
+    if (shouldReplaceFlowEditorOverlayRectCandidate(current, next)) selectedById.set(id, next)
   }
   return Array.from(selectedById.entries())
     .map(([id, entry]) => ({ id, el: entry.el, rect: entry.rect }))

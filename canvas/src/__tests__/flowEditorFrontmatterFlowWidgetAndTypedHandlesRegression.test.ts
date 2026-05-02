@@ -213,6 +213,9 @@ export function testFlowEditorOverlayEdgeSchedulerStabilizesAcrossScrollPanZoom(
 export function testFlowEditorOverlayEdgesAnchorThroughSharedOverlayRoots() {
   const edgeHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const edgeHookText = readFileSync(edgeHookPath, 'utf8')
+  if (!edgeHookText.includes("import { canonicalNodeIdSetHas, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")) {
+    throw new Error('expected overlay edge renderer to reuse shared canonical overlay identity helpers for workspace-composed graph ids')
+  }
   if (!edgeHookText.includes('CANVAS_OVERLAY_PROXY_ROOT_SELECTOR')) {
     throw new Error('expected overlay edge renderer to resolve anchors through the shared Flow Editor overlay surface')
   }
@@ -231,8 +234,14 @@ export function testFlowEditorOverlayEdgesAnchorThroughSharedOverlayRoots() {
   if (!edgeHookText.includes('for (let i = 0; i < domOverlayRootEntries.length; i += 1) {')) {
     throw new Error('expected overlay edge renderer to reuse active overlay-root entries for both node-set and rect collection')
   }
-  if (!edgeHookText.includes('set.add(id)')) {
-    throw new Error('expected overlay edge renderer to merge active overlay DOM ids into the canonical overlay edge node set')
+  if (!edgeHookText.includes('const id = readCanonicalOverlayIdentity(domOverlayRootEntries[i]?.id)')) {
+    throw new Error('expected overlay edge renderer to canonicalize active overlay DOM ids before merging them into the edge node set')
+  }
+  if (!edgeHookText.includes('canonicalNodeIdSetHas(overlayIdSet, rawNodes[i]?.id)')) {
+    throw new Error('expected overlay edge renderer to match live graph nodes against the canonical overlay id set during workspace-composed id churn')
+  }
+  if (!edgeHookText.includes('canonicalNodeIdSetHas(overlayIdSet, sourceRaw)') || !edgeHookText.includes('canonicalNodeIdSetHas(overlayIdSet, targetRaw)')) {
+    throw new Error('expected overlay edge renderer to match edge endpoints through canonical overlay identities during workspace-composed id churn')
   }
   if (edgeHookText.includes("const stroke = style?.color || 'currentColor'")) {
     throw new Error('expected overlay edge renderer to avoid currentColor-only fallback strokes that can become non-visible')
@@ -351,6 +360,9 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   if (!text.includes('function buildOverlayNodeHandleSignature(')) {
     throw new Error('expected overlay edge renderer to derive a semantic node-handle signature for cache invalidation when node port semantics change')
   }
+  if (!text.includes('const id = readCanonicalOverlayIdentity(node?.id)')) {
+    throw new Error('expected overlay edge node-handle signature to canonicalize workspace-composed overlay node ids before hashing')
+  }
   if (!text.includes('const nodeHandleSemanticKey = buildOverlayNodeHandleSignature(rawNodes)')) {
     throw new Error('expected overlay edge renderer to compute handle cache invalidation from live node semantics before filtering overlay edges')
   }
@@ -377,8 +389,17 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   if (!proxyText.includes('export function shouldReplaceFlowEditorOverlayRectCandidate')) {
     throw new Error('expected shared overlay proxy utilities to choose canonical visible overlay roots when duplicate roots exist for the same node')
   }
+  if (!proxyText.includes('function readOverlayRectCandidateRank(el: HTMLElement): number')) {
+    throw new Error('expected shared overlay proxy utilities to rank duplicate overlay root families before falling back to geometry size heuristics')
+  }
+  if (!proxyText.includes("const hasWidgetShellId = String(el.dataset.kgWidget || '').trim().length > 0")) {
+    throw new Error('expected duplicate overlay root ranking to prefer Flow Editor widget shells with explicit widget identities')
+  }
+  if (!proxyText.includes('if (nextRank > currentRank) {')) {
+    throw new Error('expected canonical overlay rect collection to prefer higher-ranked Flow Editor surface candidates before comparing duplicate rect sizes')
+  }
   if (!proxyText.includes('return nextArea > currentArea + 1')) {
-    throw new Error('expected duplicate overlay root selection to prefer the larger visible geometry candidate')
+    throw new Error('expected duplicate overlay root selection to retain the larger visible geometry fallback within a shared overlay family')
   }
   if (!proxyText.includes("String(overlayRoot.dataset.kgRichMediaOverlay || '').trim() !== '1'")) {
     throw new Error('expected shared offscreen endpoint filtering to be scoped to Rich Media overlay roots')
@@ -511,10 +532,13 @@ export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
   }
   if (
     !text.includes('readGraphEdgeEndpoints')
-    || !text.includes('const { src: source, tgt: target } = readGraphEdgeEndpoints(rawEdges[i])')
+    || !text.includes('const { src: sourceRaw, tgt: targetRaw } = readGraphEdgeEndpoints(rawEdges[i])')
     || !text.includes('const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(e)')
   ) {
     throw new Error('expected overlay edge renderer to filter candidate edges with the shared endpoint helper')
+  }
+  if (!text.includes('const source = readCanonicalOverlayIdentity(sourceRaw)') || !text.includes('const target = readCanonicalOverlayIdentity(targetRaw)')) {
+    throw new Error('expected overlay edge renderer to canonicalize shared edge endpoints before filtering workspace-composed overlay edges')
   }
   if (!text.includes('Array.isArray(args.overlayEditorNodeIdsRef.current) && args.overlayEditorNodeIdsRef.current.length > 0')) {
     throw new Error('expected overlay edge renderer to prefer canonical overlay editor ids over open widget ids')

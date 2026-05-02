@@ -121,8 +121,8 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!overlayEdgesText.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
     throw new Error('expected Flow Editor overlay edge scheduler to keep workspace overlay-open state as a latest-value guard')
   }
-  if (!overlayEdgesText.includes('if (workspaceOverlayOpenRef.current) cancelOverlayEdgeUpdate()')) {
-    throw new Error('expected workspace overlay open transition to cancel queued overlay edge recomputation')
+  if (!overlayEdgesText.includes('if (workspaceOverlayOpenRef.current) scheduleOverlayEdgeUpdate()')) {
+    throw new Error('expected workspace overlay open initialization to redraw stable edge geometry instead of only cancelling queued recomputation')
   }
   if (!overlayEdgesText.includes("const FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'")) {
     throw new Error('expected Flow Editor overlay edges to mark a canonical DOM edge identity for frozen-workspace reuse')
@@ -139,10 +139,10 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!overlayEdgesText.includes('if (wasOpen) {') || !overlayEdgesText.includes('scheduleOverlayEdgeUpdate()')) {
     throw new Error('expected workspace overlay close transition to reschedule overlay edge recomputation')
   }
-  const edgeScheduleGuardIndex = overlayEdgesText.indexOf('if (workspaceOverlayOpenRef.current) {')
+  const edgeScheduleGuardIndex = overlayEdgesText.indexOf('const workspaceOverlayOpen = workspaceOverlayOpenRef.current')
   const edgePathWriteIndex = overlayEdgesText.indexOf("if (pathEl.getAttribute('d') !== d) pathEl.setAttribute('d', d)")
   if (edgeScheduleGuardIndex < 0 || edgePathWriteIndex < 0 || edgeScheduleGuardIndex > edgePathWriteIndex) {
-    throw new Error('expected Flow Editor overlay edge DOM writes to be skipped while workspace overlay is open')
+    throw new Error('expected Flow Editor overlay edge DOM writes to remain driven by the workspace-open guard and stable graph branch')
   }
   if (text.includes('workspaceViewLayoutRefreshNonce')) {
     throw new Error('expected Flow Editor collective collision signature to avoid workspace layout refresh nonce coupling')
@@ -170,10 +170,10 @@ export function testWorkspaceViewUpdatePreservesFrozenOverlayEdgesWhileIndexingT
   if (!text.includes("pathEl.setAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR, edgeId)")) {
     throw new Error('expected overlay edge writes to stamp canonical DOM edge ids onto live paths')
   }
-  const workspaceSkipIndex = text.indexOf('const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(overlayEdgesSvgRef.current)')
-  const workspaceSkipTraceIndex = text.indexOf("pushOverlayEdgeTrace('schedule-skip-workspace-open', {")
-  if (workspaceSkipIndex < 0 || workspaceSkipTraceIndex < 0 || workspaceSkipIndex > workspaceSkipTraceIndex) {
-    throw new Error('expected workspace-open edge scheduling to restore frozen paths before tracing and returning')
+  const workspaceStableGeometryIndex = text.indexOf("pushOverlayEdgeTrace('schedule-workspace-open-live-geometry', {")
+  const workspaceStableGraphIndex = text.indexOf('const graph = shouldReuseStableGraph ? stableGraph : liveGraph')
+  if (workspaceStableGeometryIndex < 0 || workspaceStableGraphIndex < 0 || workspaceStableGraphIndex > workspaceStableGeometryIndex) {
+    throw new Error('expected workspace-open edge scheduling to reuse the last stable graph while redrawing against current live overlay geometry')
   }
   const svgAttachedRestoreIndex = text.indexOf('const restoredFrozenPathCount = workspaceOverlayOpenRef.current ? restoreFrozenOverlayEdgePaths(node) : 0')
   const svgAttachedTraceIndex = text.indexOf("pushOverlayEdgeTrace('svg-attached', {")
