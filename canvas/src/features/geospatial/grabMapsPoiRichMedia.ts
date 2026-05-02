@@ -1,5 +1,5 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { resolvePreferredRichMediaPanelNodeId } from '@/lib/render/richMediaSsot'
+import { resolvePreferredRichMediaPanelNodeId } from '@/lib/render/richMediaPanelNode'
 
 export type GrabMapsPoiRichMediaDetail = {
   label: string

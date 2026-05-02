@@ -1,5 +1,5 @@
 import type { Feature, FeatureCollection, Point } from 'geojson'
-import { LRUCache } from '@/lib/cache/LRUCache'
+import { SimpleTtlLruCache } from '@/lib/cache/SimpleTtlLruCache'
 import { hashText } from '@/features/parsers/hash'
 import { parseMarkdownBlocks, parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { deriveSgAdministrativeAreasFromAddress } from 'grph-shared/geospatial/sgpAdministrativeAreas'
@@ -11,7 +11,7 @@ type GrabMapsPoiFeatureCollectionExtraction = {
   matchedRows: number
 }
 
-const extractionCache = new LRUCache<string, GrabMapsPoiFeatureCollectionExtraction>(80, 15 * 60 * 1000)
+const extractionCache = new SimpleTtlLruCache<string, GrabMapsPoiFeatureCollectionExtraction>(80, 15 * 60 * 1000)
 
 const normalizeHeader = (value: string): string => {
   return String(value || '')

@@ -1,7 +1,7 @@
 import { extractFencedCodeBlocks } from './extractFencedCodeBlocks'
 import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 import { hashText } from '@/features/parsers/hash'
-import { LRUCache } from '@/lib/cache/LRUCache'
+import { SimpleTtlLruCache } from '@/lib/cache/SimpleTtlLruCache'
 
 export type EmbeddedGeoJsonBlock = {
   geojsonText: string
@@ -19,7 +19,7 @@ export type EmbeddedGeoJsonGraphDataRequest = {
   }
 }
 
-const embeddedGeoExtractionCache = new LRUCache<string, EmbeddedGeoJsonBlock[]>(120, 20 * 60 * 1000)
+const embeddedGeoExtractionCache = new SimpleTtlLruCache<string, EmbeddedGeoJsonBlock[]>(120, 20 * 60 * 1000)
 
 const cloneBlocks = (blocks: EmbeddedGeoJsonBlock[]): EmbeddedGeoJsonBlock[] => blocks.map(b => ({ ...b }))
 

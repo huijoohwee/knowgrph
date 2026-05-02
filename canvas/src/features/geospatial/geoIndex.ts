@@ -1,5 +1,5 @@
 import type { FeatureCollection, Point } from 'geojson'
-import { LRUCache } from '../../lib/cache/LRUCache'
+import { SimpleTtlLruCache } from '../../lib/cache/SimpleTtlLruCache'
 
 export type GeoIndexHit = {
   datasetKey: string
@@ -14,7 +14,7 @@ const GEO_INDEX_MAX_TOKENS = 50_000
 const GEO_INDEX_TTL_MS = 30 * 60 * 1000
 const GEO_INDEX_MAX_FEATURES_PER_DATASET = 30_000
 
-const tokenToHit = new LRUCache<string, GeoIndexHit>(GEO_INDEX_MAX_TOKENS, GEO_INDEX_TTL_MS)
+const tokenToHit = new SimpleTtlLruCache<string, GeoIndexHit>(GEO_INDEX_MAX_TOKENS, GEO_INDEX_TTL_MS)
 
 const normalizeCodeToken = (raw: string): string => {
   const s = String(raw || '').trim().toUpperCase()

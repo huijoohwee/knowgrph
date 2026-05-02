@@ -1,7 +1,7 @@
 import React from 'react'
 import { InlineMarkdownGeoJsonLayerMap } from '@/features/geospatial/InlineMarkdownGeoJsonLayerMap'
 import { maybeAutoEnableGeospatialModeForGraphData } from '@/features/geospatial/autoEnable'
-import { LRUCache } from '@/lib/cache/LRUCache'
+import { SimpleTtlLruCache } from '@/lib/cache/SimpleTtlLruCache'
 import { hashText } from '@/features/parsers/hash'
 import type { GraphData } from '@/lib/graph/types'
 import { buildGraphDataFromFeatureCollection } from '@/lib/graph/io/geojsonToGraphData'
@@ -30,8 +30,8 @@ type MarkdownGeoDatasetIntegration = {
 
 type GeoUploadCacheValue = { ok: true; url: string; name: string } | { ok: false; error: string }
 
-const uploadCache = new LRUCache<string, GeoUploadCacheValue>(120, 30 * 60 * 1000)
-const addUrlOnceCache = new LRUCache<string, { ok: true }>(800, 45 * 60 * 1000)
+const uploadCache = new SimpleTtlLruCache<string, GeoUploadCacheValue>(120, 30 * 60 * 1000)
+const addUrlOnceCache = new SimpleTtlLruCache<string, { ok: true }>(800, 45 * 60 * 1000)
 
 const basenameFromDocPath = (raw: string): string => {
   const s = String(raw || '').trim().replace(/\\/g, '/')

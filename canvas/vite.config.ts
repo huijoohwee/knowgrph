@@ -5373,11 +5373,11 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/maplibre-gl/src/gl/')) return 'maplibre-gl'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/style-spec/')) return 'maplibre-style-spec'
                 if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'
+                if (moduleId.includes('/src/')) return undefined
                 if (moduleId.includes('/src/pages/Canvas.tsx') || moduleId.includes('/src/components/CanvasViewport.tsx')) return 'canvas-shell'
                 if (moduleId.includes('/src/features/canvas/') || moduleId.includes('/src/lib/canvas/')) return 'canvas-runtime'
                 if (moduleId.includes('/src/components/GraphCanvasRoot/')) return 'graph-canvas-root'
                 if (moduleId.includes('/src/components/GraphCanvas/')) return 'graph-canvas'
-                if (moduleId.includes('/src/lib/zoom/') || moduleId.includes('/src/features/zoom/')) return 'canvas-zoom'
                 if (
                   moduleId.includes('/src/features/node-creation/') ||
                   moduleId.includes('/src/features/edge-creation/')
@@ -5420,10 +5420,10 @@ export default defineConfig(({ command }) => ({
                   return 'canvas-3d-visuals'
                 }
                 if (moduleId.includes('/src/features/three/') || moduleId.includes('/src/lib/three/')) return 'canvas-3d'
+                if (moduleId.includes('/src/lib/render/richMedia')) return 'rich-media'
                 if (
                   moduleId.includes('/src/features/geospatial/') ||
-                  moduleId.includes('/src/lib/graph/io/grabmaps') ||
-                  moduleId.includes('/src/lib/render/richMedia')
+                  moduleId.includes('/src/lib/graph/io/grabmaps')
                 ) {
                   return 'geospatial'
                 }

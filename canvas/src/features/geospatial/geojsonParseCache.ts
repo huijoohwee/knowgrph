@@ -1,5 +1,5 @@
 import type { FeatureCollection } from 'geojson'
-import { LRUCache } from '@/lib/cache/LRUCache'
+import { SimpleTtlLruCache } from '@/lib/cache/SimpleTtlLruCache'
 import { hashText } from '@/features/parsers/hash'
 import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText } from '@/lib/gympgrph/api'
 
@@ -7,7 +7,7 @@ type CacheValue =
   | { ok: true; featureCollection: FeatureCollection }
   | { ok: false }
 
-const parseCache = new LRUCache<string, CacheValue>(500, 20 * 60 * 1000)
+const parseCache = new SimpleTtlLruCache<string, CacheValue>(500, 20 * 60 * 1000)
 
 export function parseGeoJsonFeatureCollectionFromText(text: string): FeatureCollection | null {
   const trimmed = String(text || '').trim()

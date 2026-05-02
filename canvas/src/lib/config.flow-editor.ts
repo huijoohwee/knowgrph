@@ -4,6 +4,12 @@ import {
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
   CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS,
 } from '@/lib/chatEndpoint'
+export {
+  FLOW_RICH_MEDIA_PANEL_FORM_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+} from '@/lib/flowEditor/richMediaPanelConfig'
 
 export type FlowEditorSmartNodeModel = string
 
@@ -18,10 +24,6 @@ export const FLOW_WIDGET_DRAG_MIME = 'application/x-kg-flow-widget' as const
 
 export const FLOW_IMAGE_GENERATION_NODE_TYPE_ID = 'ImageGeneration' as const
 export const FLOW_IMAGE_GENERATION_NODE_LABEL = 'BytePlus Image Widget' as const
-export const FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID = 'RichMediaPanel' as const
-export const FLOW_RICH_MEDIA_PANEL_NODE_LABEL = 'Rich Media Panel' as const
-export const FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID = 'default' as const
-export const FLOW_RICH_MEDIA_PANEL_FORM_ID = 'richMediaPanel' as const
 
 export const FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID = 'VideoTranscriber' as const
 export const FLOW_VIDEO_TRANSCRIBER_NODE_LABEL = 'Video Transcriber Widget' as const
