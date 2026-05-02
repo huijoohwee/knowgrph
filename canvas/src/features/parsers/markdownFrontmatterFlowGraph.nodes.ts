@@ -50,6 +50,71 @@ function canonicalWidgetFormIdForNodeType(nodeTypeId: string): string | null {
   return null
 }
 
+function readFirstStringPropertyValue(
+  properties: Record<string, JSONValue>,
+  keys: readonly string[],
+): string {
+  for (let i = 0; i < keys.length; i += 1) {
+    const key = keys[i]
+    const value = properties[key]
+    if (typeof value !== 'string') continue
+    const trimmed = value.trim()
+    if (trimmed) return trimmed
+  }
+  return ''
+}
+
+function canonicalizeLegacyRichMediaNodeSeed(args: {
+  type: string
+  properties: Record<string, JSONValue>
+}): {
+  type: string
+  properties: Record<string, JSONValue>
+} {
+  const type = String(args.type || '').trim()
+  const typeNorm = type.toLowerCase()
+  if (typeNorm !== 'image' && typeNorm !== 'video' && typeNorm !== 'iframe') {
+    return { type, properties: args.properties }
+  }
+
+  const properties = { ...args.properties }
+  const mediaUrl = readFirstStringPropertyValue(properties, [
+    'imageUrl',
+    'image',
+    'videoUrl',
+    'video',
+    'iframe_url',
+    'media_url',
+    'mediaUrl',
+    'media',
+    'url',
+    'src',
+  ])
+
+  if (typeNorm === 'image') {
+    if (typeof properties.richMediaActiveTab !== 'string') properties.richMediaActiveTab = 'image'
+    if (typeof properties.imageUrl !== 'string' && mediaUrl) properties.imageUrl = mediaUrl
+    if (typeof properties.media_interactive === 'undefined') properties.media_interactive = false
+  } else if (typeNorm === 'video') {
+    if (typeof properties.richMediaActiveTab !== 'string') properties.richMediaActiveTab = 'video'
+    if (typeof properties.videoUrl !== 'string' && mediaUrl) properties.videoUrl = mediaUrl
+    if (typeof properties.media_interactive === 'undefined') properties.media_interactive = true
+  } else {
+    const hasInlineText =
+      (typeof properties.output === 'string' && properties.output.trim().length > 0)
+      || (typeof properties.outputSrcDoc === 'string' && properties.outputSrcDoc.trim().length > 0)
+    if (typeof properties.richMediaActiveTab !== 'string') {
+      properties.richMediaActiveTab = hasInlineText ? 'text' : 'auto'
+    }
+    if (typeof properties.media_interactive === 'undefined') properties.media_interactive = true
+  }
+
+  return {
+    type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    properties,
+  }
+}
+
 function spreadMissingNodePositions(nodes: GraphNode[]): GraphNode[] {
   if (!Array.isArray(nodes) || nodes.length === 0) return nodes
   const unresolvedIndexes: number[] = []
@@ -380,7 +445,6 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     if (!id) continue
     if (seenIds.has(id)) continue
     seenIds.add(id)
-    const type = asString(row.type) || 'Node'
     const label = asString(row.label) || id
     const pos = isRecord(row.pos) ? row.pos : null
     const x = pos ? asFiniteNumber(pos.x) : asFiniteNumber((row as Record<string, unknown>).pos_x)
@@ -389,11 +453,18 @@ export function normalizeNodes(meta: Record<string, unknown>): { nodes: GraphNod
     const layer = categoryLayerIndex(category)
     const ports = normalizeRegistryPorts({ inputs: row.inputs, outputs: row.outputs })
     const portTypes = normalizeFlowPortTypes({ inputs: row.inputs, outputs: row.outputs })
+    const rawType = asString(row.type) || 'Node'
+    const propsFromRowBase = isRecord(row.properties) ? (row.properties as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
+    const canonicalizedSeed = canonicalizeLegacyRichMediaNodeSeed({
+      type: rawType,
+      properties: propsFromRowBase,
+    })
+    const type = canonicalizedSeed.type
+    const propsFromRow = canonicalizedSeed.properties
     const canonicalWidgetDraft = buildCanonicalWidgetRegistryDraft({ nodeTypeId: type })
     const canonicalWidgetFormId = String(canonicalWidgetDraft?.formId || canonicalWidgetFormIdForNodeType(type) || '').trim()
     const canonicalWidgetTypeId = String(canonicalWidgetDraft?.widgetTypeId || 'default').trim() || 'default'
     const formIdFallback = canonicalWidgetFormId || `fm:${id}`
-    const propsFromRow = isRecord(row.properties) ? (row.properties as Record<string, JSONValue>) : ({} as Record<string, JSONValue>)
     const explicitFormId = typeof propsFromRow[FLOW_WIDGET_FORM_ID_KEY] === 'string'
       ? String(propsFromRow[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
       : ''

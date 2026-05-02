@@ -55,6 +55,11 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
     "testMarkdownFlowBlockPreservesFlowWidgetNodeTypesAndFormIds",
   ],
   [
+    "markdown.frontmatterFlowGraph.normalize.legacyRichMediaNodesCanonicalizeToPanelWidgets",
+    "@/__tests__/frontmatterFlowNodeNormalize.test",
+    "testNormalizeNodesCanonicalizesLegacyRichMediaNodes",
+  ],
+  [
     "markdown.frontmatterFlowGraph.fidelity.knowgrphRichMediaGenerationDemo",
     "@/__tests__/markdownFrontmatterFlowGraphImport.test",
     "testMarkdownFrontmatterFlowGraphFidelityKnowgrphRichMediaGenerationDemo",

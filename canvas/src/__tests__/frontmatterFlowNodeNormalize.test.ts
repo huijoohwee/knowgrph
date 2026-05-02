@@ -41,6 +41,39 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
 }
 
+export function testNormalizeNodesCanonicalizesLegacyRichMediaNodes(): void {
+  const meta = {
+    nodes: [
+      { id: 'legacy-image', type: 'Image', label: 'Legacy Image', properties: { image: 'https://cdn.example.com/frame.png' } },
+      { id: 'legacy-video', type: 'Video', label: 'Legacy Video', properties: { video: 'https://cdn.example.com/clip.mp4' } },
+      { id: 'legacy-iframe', type: 'IFrame', label: 'Legacy IFrame', properties: { iframe_url: 'https://example.com/embed' } },
+    ],
+  } as Record<string, unknown>
+  const out = normalizeNodes(meta)
+  expect(out).toBeTruthy()
+  const byId = new Map((out?.nodes || []).map(node => [String(node.id || ''), node] as const))
+
+  const imageNode = byId.get('legacy-image')
+  const videoNode = byId.get('legacy-video')
+  const iframeNode = byId.get('legacy-iframe')
+  expect(String(imageNode?.type || '')).toBe('RichMediaPanel')
+  expect(String(videoNode?.type || '')).toBe('RichMediaPanel')
+  expect(String(iframeNode?.type || '')).toBe('RichMediaPanel')
+
+  const imageProps = (imageNode?.properties || {}) as Record<string, unknown>
+  const videoProps = (videoNode?.properties || {}) as Record<string, unknown>
+  const iframeProps = (iframeNode?.properties || {}) as Record<string, unknown>
+  expect(String(imageProps['flow:widgetFormId'] || '')).toBe('richMediaPanel')
+  expect(String(videoProps['flow:widgetFormId'] || '')).toBe('richMediaPanel')
+  expect(String(iframeProps['flow:widgetFormId'] || '')).toBe('richMediaPanel')
+  expect(String(imageProps.richMediaActiveTab || '')).toBe('image')
+  expect(String(videoProps.richMediaActiveTab || '')).toBe('video')
+  expect(String(iframeProps.richMediaActiveTab || '')).toBe('auto')
+  expect(String(imageProps.imageUrl || '')).toBe('https://cdn.example.com/frame.png')
+  expect(String(videoProps.videoUrl || '')).toBe('https://cdn.example.com/clip.mp4')
+  expect(iframeProps.media_interactive).toBe(true)
+}
+
 describe('normalizeNodes frontmatter flow defaults', () => {
   it('assigns spread positions when x/y are missing', () => {
     const meta = {
@@ -87,6 +120,10 @@ describe('normalizeNodes frontmatter flow defaults', () => {
     expect(String(byId.get('w-video')?.['flow:widgetFormId'] || '')).toBe('videoGeneration')
     expect(String(byId.get('p-media')?.['flow:widgetFormId'] || '')).toBe('richMediaPanel')
     expect(String(byId.get('n-custom')?.['flow:widgetFormId'] || '')).toBe('fm:n-custom')
+  })
+
+  it('canonicalizes legacy frontmatter image video iframe nodes to rich media panels', () => {
+    testNormalizeNodesCanonicalizesLegacyRichMediaNodes()
   })
 
   it('assigns topology-spread positions for flow block nodes so edges remain readable', () => {
