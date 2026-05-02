@@ -12,9 +12,7 @@ import { fetchWorkspaceUrlContent } from '../workspaceImport'
 import { loadWorkspaceSourceIndex, removeWorkspaceEntrySourcesForPrefix, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 import type { UseWorkspaceFileActionsArgs } from './types'
-import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
-import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
-import { buildMarkdownWorkspaceRestoredActiveDocumentArgs } from '@/lib/markdown-workspace-runtime/markdownWorkspaceActiveDocumentRestore'
+import { syncWorkspaceTextState, writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 
 export function useWorkspaceMutationActions(args: {
   core: { status: ReturnType<typeof import('./core').useWorkspaceStatusHelpers> }
@@ -227,19 +225,15 @@ export function useWorkspaceMutationActions(args: {
         if (remappedOpenedPath) {
           setActivePathSafe(remappedOpenedPath)
           const latestText = String((await fs.readFileText(remappedOpenedPath)) || '')
-          lastLoadedRef.current = { path: remappedOpenedPath, text: latestText }
-          setActiveText(latestText)
-          const restoredActiveDocumentArgs = buildMarkdownWorkspaceRestoredActiveDocumentArgs({
-            activeDocumentKey: workspaceDocumentKey(remappedOpenedPath) || activeDocumentKey,
+          syncWorkspaceTextState({
+            path: remappedOpenedPath,
             text: latestText,
+            lastLoadedRef,
+            setActiveText,
+            activeDocumentKey: workspaceDocumentKey(remappedOpenedPath) || activeDocumentKey,
             activeDocumentSourceUrl: null,
+            setActiveMarkdownDocument,
           })
-          if (restoredActiveDocumentArgs) {
-            void applyActiveMarkdownDocumentPayload({
-              setActiveMarkdownDocument,
-              ...restoredActiveDocumentArgs,
-            })
-          }
         }
 
         await refresh()
@@ -304,36 +298,28 @@ export function useWorkspaceMutationActions(args: {
           .map(e => normalizeWorkspacePath(e.path))
           .filter(p => p.startsWith(prefix))
         const targetSet = new Set(targets)
-
+        const normalizedActivePath = openedPath ? normalizeWorkspacePath(openedPath) : null
         for (const p of targets) {
-          await fs.writeFileText(p, '')
+          await writeWorkspaceFileAndSync({
+            path: p as WorkspacePath,
+            text: '',
+            getFs: async () => fs,
+            lastLoadedRef,
+            setEntries,
+            synchronizeActiveDocument: p === normalizedActivePath,
+            setActiveText,
+            activeDocumentKey,
+            activeDocumentSourceUrl: null,
+            setActiveMarkdownDocument,
+            resetParsedState: true,
+          })
         }
 
-        const normalizedActivePath = openedPath ? normalizeWorkspacePath(openedPath) : null
-        const shouldClearActive = !!(normalizedActivePath && targetSet.has(normalizedActivePath))
-        if (shouldClearActive) {
-          lastLoadedRef.current = { path: normalizedActivePath as WorkspacePath, text: '' }
-          setActiveText('')
-          const restoredActiveDocumentArgs = buildMarkdownWorkspaceRestoredActiveDocumentArgs({
-            activeDocumentKey,
-            text: '',
-            activeDocumentSourceUrl: null,
-          })
-          if (restoredActiveDocumentArgs) {
-            void applyActiveMarkdownDocumentPayload({
-              setActiveMarkdownDocument,
-              ...restoredActiveDocumentArgs,
-            })
-          }
-        } else {
+        if (!normalizedActivePath || !targetSet.has(normalizedActivePath)) {
           const last = lastLoadedRef.current
           if (last && targetSet.has(last.path)) {
             lastLoadedRef.current = { path: last.path, text: '' }
           }
-        }
-
-        if (targets.length > 0) {
-          setEntries(prev => prev.map(e => (targetSet.has(e.path) ? { ...e, text: '', updatedAtMs: Date.now() } : e)))
         }
         status.setStatusInfo(targets.length > 0 ? `Cleared ${targets.length} files` : 'Cleared')
       } catch (e) {

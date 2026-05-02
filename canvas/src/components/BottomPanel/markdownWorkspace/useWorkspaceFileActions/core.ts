@@ -12,8 +12,7 @@ import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
-import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
-import { buildMarkdownWorkspaceRestoredActiveDocumentArgs } from '@/lib/markdown-workspace-runtime/markdownWorkspaceActiveDocumentRestore'
+import { syncWorkspaceTextState } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 import type { StatusHelpers, UseWorkspaceFileActionsArgs } from './types'
 import type { MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
 import { formatMarkdownWorkspaceStatusLabel } from '../markdownWorkspaceStatusUi'
@@ -248,37 +247,40 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
     [applyMarkdownDocumentToGraph, status],
   )
 
+  const revealWorkspacePath = React.useCallback(
+    (path: WorkspacePath, opts?: { activate?: boolean }) => {
+      setSelectionPathSafe(path)
+      if (opts?.activate !== false) setActivePathSafe(path)
+      setExpandedPaths(prev => {
+        const next = new Set(prev)
+        for (const ancestor of ancestorPathsForWorkspacePath(path)) next.add(ancestor)
+        return next
+      })
+    },
+    [setActivePathSafe, setExpandedPaths, setSelectionPathSafe],
+  )
+
   const focusAfterImport = React.useCallback(
     async (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => {
       if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
-      setActivePathSafe(createdPath)
-      setSelectionPathSafe(createdPath)
-      setExpandedPaths(prev => {
-        const next = new Set(prev)
-        for (const ancestor of ancestorPathsForWorkspacePath(createdPath)) next.add(ancestor)
-        return next
-      })
+      revealWorkspacePath(createdPath, { activate: true })
       try {
         const fs = await getFs()
         const text = await fs.readFileText(createdPath)
         if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
         const docKey = workspaceDocumentKey(createdPath)
         const content = String(text || '')
-        lastLoadedRef.current = { path: createdPath, text: content }
-        setActiveText(content)
-        const restoredActiveDocumentArgs = buildMarkdownWorkspaceRestoredActiveDocumentArgs({
-          activeDocumentKey: docKey,
+        syncWorkspaceTextState({
+          path: createdPath,
           text: content,
+          lastLoadedRef,
+          setActiveText,
+          activeDocumentKey: content.trim() ? docKey : undefined,
           activeDocumentSourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
+          setActiveMarkdownDocument: content.trim() ? setActiveMarkdownDocument : undefined,
         })
-        if (restoredActiveDocumentArgs && content.trim()) {
-          void applyActiveMarkdownDocumentPayload({
-            setActiveMarkdownDocument,
-            ...restoredActiveDocumentArgs,
-          })
-          if (opts?.applyToGraph) {
-            await applyImportedTextToGraph({ nameForParse: restoredActiveDocumentArgs.name, text: content })
-          }
+        if (docKey && content.trim() && opts?.applyToGraph) {
+          await applyImportedTextToGraph({ nameForParse: docKey, text: content })
         }
       } catch (e) {
         if (opts?.applyToGraph) {
@@ -293,11 +295,9 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
       applyImportedTextToGraph,
       getFs,
       lastLoadedRef,
+      revealWorkspacePath,
       setActiveMarkdownDocument,
-      setActivePathSafe,
       setActiveText,
-      setExpandedPaths,
-      setSelectionPathSafe,
       status,
     ],
   )
@@ -314,14 +314,13 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         })
         setWorkspaceEntrySource(path, { kind: 'local', originalName: null })
         await refresh()
-        setActivePathSafe(path)
-        setSelectionPathSafe(path)
+        await focusAfterImport(path, { applyToGraph: false })
         status.setStatusInfo('Created')
       } catch (e) {
         status.setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [getFs, refresh, setActivePathSafe, setSelectionPathSafe, status],
+    [focusAfterImport, getFs, refresh, status],
   )
 
   const createNewFolder = React.useCallback(
@@ -334,15 +333,14 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
           suppressNextWorkspaceFsChangedEvent()
           return await fs.createFolder({ parentPath, name: 'folder' })
         })
-        setExpandedPaths(prev => new Set(prev).add(path))
         await refresh()
-        setSelectionPathSafe(path)
+        revealWorkspacePath(path, { activate: false })
         status.setStatusInfo('Created')
       } catch (e) {
         status.setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [getFs, refresh, setExpandedPaths, setSelectionPathSafe, status],
+    [getFs, refresh, revealWorkspacePath, status],
   )
 
   return { importJobRef, status, focusAfterImport, createNewFile, createNewFolder }

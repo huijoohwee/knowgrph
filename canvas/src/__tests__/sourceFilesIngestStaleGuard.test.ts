@@ -716,6 +716,7 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   const mutationActionsPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'mutationActions.ts')
   const selectionPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSelection.ts')
   const indexingPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
+  const savePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSave.ts')
   const corePath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'core.ts')
   const importEffectsPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'importSideEffects.ts')
 
@@ -725,17 +726,24 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   const mutationActionsText = readFileSync(mutationActionsPath, 'utf8')
   const selectionText = readFileSync(selectionPath, 'utf8')
   const indexingText = readFileSync(indexingPath, 'utf8')
+  const savePathText = readFileSync(savePath, 'utf8')
   const coreText = readFileSync(corePath, 'utf8')
   const importEffectsText = readFileSync(importEffectsPath, 'utf8')
 
   if (!runtimeIoText.includes('export const writeWorkspaceFileAndSync = async (args:')) {
     throw new Error('expected markdown workspace runtime IO to remain the shared write-through owner')
   }
+  if (!runtimeIoText.includes('export const syncWorkspaceTextState = (args:')) {
+    throw new Error('expected markdown workspace runtime IO to centralize in-memory workspace text sync ownership')
+  }
   if (!importActionsText.includes('await writeWorkspaceFileAndSync({')) {
     throw new Error('expected workspace import actions to reuse the shared write-through owner after external content writes')
   }
   if (!mutationActionsText.includes('await writeWorkspaceFileAndSync({')) {
     throw new Error('expected workspace mutation actions to reuse the shared write-through owner after refresh and clear writes')
+  }
+  if (mutationActionsText.includes("await fs.writeFileText(p, '')")) {
+    throw new Error('expected workspace mutation actions not to keep a raw batch clear write path outside the shared write-through owner')
   }
   if (!indexingText.includes('await writeWorkspaceFileAndSync({')) {
     throw new Error('expected markdown workspace indexing sanitize writes to reuse the shared write-through owner')
@@ -752,14 +760,26 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   if (!selectionText.includes('applyActiveMarkdownDocumentPayload({')) {
     throw new Error('expected markdown workspace selection restore paths to reuse the shared active markdown document helper')
   }
-  if (!coreText.includes('buildMarkdownWorkspaceRestoredActiveDocumentArgs({')) {
-    throw new Error('expected workspace import focus to reuse the shared active-document restore args helper')
+  if (!coreText.includes('syncWorkspaceTextState({')) {
+    throw new Error('expected workspace import focus to reuse the shared workspace text-state sync helper')
   }
-  if (!coreText.includes('applyActiveMarkdownDocumentPayload({')) {
-    throw new Error('expected workspace import focus to reuse the shared active markdown document helper')
+  if (!coreText.includes('const revealWorkspacePath = React.useCallback(')) {
+    throw new Error('expected workspace file actions core to centralize path reveal/selection shell behind a shared helper')
   }
-  if (!mutationActionsText.includes('buildMarkdownWorkspaceRestoredActiveDocumentArgs({')) {
-    throw new Error('expected workspace mutation actions to reuse the shared active-document restore args helper for rename and clear sync')
+  if (!coreText.includes("await focusAfterImport(path, { applyToGraph: false })")) {
+    throw new Error('expected createNewFile to reuse the canonical focus/open path instead of locally duplicating file-open state sync')
+  }
+  if (!coreText.includes('revealWorkspacePath(path, { activate: false })')) {
+    throw new Error('expected createNewFolder to reuse the shared reveal shell instead of locally duplicating folder selection expansion state')
+  }
+  if (!mutationActionsText.includes('syncWorkspaceTextState({')) {
+    throw new Error('expected workspace mutation actions to reuse the shared workspace text-state sync helper for rename remap refresh')
+  }
+  if (!runtimeIoText.includes('pushWorkspaceTextToActiveMarkdownDocument({')) {
+    throw new Error('expected workspace text-state sync ownership to centralize active markdown document refresh through the shared push helper')
+  }
+  if (!savePathText.includes('syncWorkspaceTextState({')) {
+    throw new Error('expected workspace save-as flow to reuse the shared workspace text-state sync helper after file creation')
   }
   if (!importEffectsText.includes('buildActiveMarkdownDocumentPayload({') || !importEffectsText.includes('applyActiveMarkdownDocumentPayload({')) {
     throw new Error('expected toolbar import side effects to reuse the shared active markdown document payload helper')

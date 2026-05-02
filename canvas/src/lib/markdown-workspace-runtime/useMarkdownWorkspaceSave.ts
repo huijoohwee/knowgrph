@@ -8,7 +8,7 @@ import {
   cancelMarkdownWorkspaceAutosaveSync,
   scheduleMarkdownWorkspaceAutosaveSync,
 } from './markdownWorkspaceRuntime.stateSync'
-import { writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
+import { syncWorkspaceTextState, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
 export function useMarkdownWorkspaceSave(args: {
@@ -117,8 +117,12 @@ export function useMarkdownWorkspaceSave(args: {
       const createdPath = await fs.createFile({ parentPath, name: finalName, text: args.activeText })
       setWorkspaceEntrySource(createdPath, { kind: 'local', originalName: null })
       await args.refresh()
-      args.lastLoadedRef.current = { path: createdPath, text: args.activeText }
-      args.setActiveTextProgrammatic(args.activeText)
+      syncWorkspaceTextState({
+        path: createdPath,
+        text: args.activeText,
+        lastLoadedRef: args.lastLoadedRef,
+        setActiveText: args.setActiveTextProgrammatic,
+      })
       args.setActivePathSafe(createdPath)
       args.setSelectionPathSafe(createdPath)
       args.setStatusWithAutoClear('Saved as')

@@ -1,4 +1,5 @@
 import { commitMarkdownWorkspaceWriteback } from '@/lib/markdown-workspace-runtime/markdownWorkspaceWritebackCommit'
+import { syncWorkspaceTextState } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 
 export function testMarkdownWorkspaceWritebackCommitCentralizesWorkspaceAndEditorRefresh() {
   const calls: string[] = []
@@ -24,5 +25,38 @@ export function testMarkdownWorkspaceWritebackCommitCentralizesWorkspaceAndEdito
   }
   if (calls.join('|') !== 'patch:/docs/demo.md:# Demo|editor:# Demo') {
     throw new Error(`expected writeback commit helper to patch workspace text before refreshing the editor, got ${calls.join('|')}`)
+  }
+}
+
+export function testMarkdownWorkspaceTextStateSyncCentralizesEditorAndDocumentRefresh() {
+  const calls: string[] = []
+  const lastLoadedRef = { current: null as { path: string; text: string } | null }
+
+  syncWorkspaceTextState({
+    path: '/docs/demo.md' as never,
+    text: '# Demo',
+    lastLoadedRef: lastLoadedRef as never,
+    patchWorkspaceEntryInlineText: (path, text) => {
+      calls.push(`patch:${String(path)}:${String(text)}`)
+    },
+    setActiveText: text => {
+      calls.push(`editor:${String(text)}`)
+    },
+    activeDocumentKey: 'docs/demo.md',
+    activeDocumentSourceUrl: 'https://example.com/demo',
+    setActiveMarkdownDocument: async payload => {
+      calls.push(`document:${String(payload.name)}:${String(payload.sourceUrl || '')}:${String(payload.text)}`)
+      return true
+    },
+  })
+
+  if (!lastLoadedRef.current) {
+    throw new Error('expected workspace text state sync helper to refresh lastLoadedRef')
+  }
+  if (lastLoadedRef.current.path !== '/docs/demo.md' || lastLoadedRef.current.text !== '# Demo') {
+    throw new Error(`expected workspace text state sync helper to persist the active path/text pair, got ${JSON.stringify(lastLoadedRef.current)}`)
+  }
+  if (calls.join('|') !== 'patch:/docs/demo.md:# Demo|editor:# Demo|document:docs/demo.md:https://example.com/demo:# Demo') {
+    throw new Error(`expected workspace text state sync helper to centralize patch, editor, and active-document refresh, got ${calls.join('|')}`)
   }
 }

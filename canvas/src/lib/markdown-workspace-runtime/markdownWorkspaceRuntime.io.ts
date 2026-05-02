@@ -100,38 +100,40 @@ export const applyWorkspaceSpecialFileEffects = (args: {
   }
 }
 
-export const writeWorkspaceFileAndSync = async (args: {
+function resolveWorkspaceEntryInlineTextPatch(args: {
+  path: WorkspacePath
+  patchWorkspaceEntryInlineText?: (path: WorkspacePath, text: string) => void
+  setEntries?: Dispatch<SetStateAction<WorkspaceEntry[]>>
+  createEntryIfMissing?: boolean
+}): ((path: WorkspacePath, text: string) => void) | null {
+  if (typeof args.patchWorkspaceEntryInlineText === 'function') return args.patchWorkspaceEntryInlineText
+  if (!args.setEntries) return null
+  return (path: WorkspacePath, text: string) => {
+    args.setEntries?.(prev =>
+      upsertWorkspaceEntryInlineText({
+        entries: prev,
+        path,
+        text,
+        createIfMissing: args.createEntryIfMissing === true,
+      }),
+    )
+  }
+}
+
+export const syncWorkspaceTextState = (args: {
   path: WorkspacePath
   text: string
-  getFs: MarkdownWorkspaceRuntimeGetFs
   lastLoadedRef: MutableRefObject<{ path: WorkspacePath; text: string } | null>
   patchWorkspaceEntryInlineText?: (path: WorkspacePath, text: string) => void
   setEntries?: Dispatch<SetStateAction<WorkspaceEntry[]>>
   createEntryIfMissing?: boolean
-  synchronizeActiveDocument?: boolean
   setActiveText?: (text: string) => void
+  synchronizeActiveDocument?: boolean
   activeDocumentKey?: string
   activeDocumentSourceUrl?: string | null
   setActiveMarkdownDocument?: MarkdownWorkspaceRuntimeSetActiveDocument
-  setGraphRagWorkflowJsonText?: (text: string) => void
-  resetParsedState: boolean
-}): Promise<void> => {
-  const fs = await args.getFs()
-  await fs.writeFileText(args.path, args.text)
-  const patchWorkspaceEntryInlineText = typeof args.patchWorkspaceEntryInlineText === 'function'
-    ? args.patchWorkspaceEntryInlineText
-    : args.setEntries
-      ? ((path: WorkspacePath, text: string) => {
-          args.setEntries?.(prev =>
-            upsertWorkspaceEntryInlineText({
-              entries: prev,
-              path,
-              text,
-              createIfMissing: args.createEntryIfMissing === true,
-            }),
-          )
-        })
-      : null
+}): void => {
+  const patchWorkspaceEntryInlineText = resolveWorkspaceEntryInlineTextPatch(args)
   if (args.synchronizeActiveDocument !== false) {
     if (patchWorkspaceEntryInlineText) {
       commitMarkdownWorkspaceWriteback({
@@ -158,6 +160,27 @@ export const writeWorkspaceFileAndSync = async (args: {
   } else if (patchWorkspaceEntryInlineText) {
     patchWorkspaceEntryInlineText(args.path, args.text)
   }
+}
+
+export const writeWorkspaceFileAndSync = async (args: {
+  path: WorkspacePath
+  text: string
+  getFs: MarkdownWorkspaceRuntimeGetFs
+  lastLoadedRef: MutableRefObject<{ path: WorkspacePath; text: string } | null>
+  patchWorkspaceEntryInlineText?: (path: WorkspacePath, text: string) => void
+  setEntries?: Dispatch<SetStateAction<WorkspaceEntry[]>>
+  createEntryIfMissing?: boolean
+  synchronizeActiveDocument?: boolean
+  setActiveText?: (text: string) => void
+  activeDocumentKey?: string
+  activeDocumentSourceUrl?: string | null
+  setActiveMarkdownDocument?: MarkdownWorkspaceRuntimeSetActiveDocument
+  setGraphRagWorkflowJsonText?: (text: string) => void
+  resetParsedState: boolean
+}): Promise<void> => {
+  const fs = await args.getFs()
+  await fs.writeFileText(args.path, args.text)
+  syncWorkspaceTextState(args)
   updateExistingWorkspaceSourceFile({
     path: args.path,
     text: args.text,
