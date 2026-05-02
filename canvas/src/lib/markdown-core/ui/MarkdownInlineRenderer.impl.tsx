@@ -1,5 +1,4 @@
 import React from 'react'
-import katex from 'katex'
 import type {
   Token,
   TokensGeneric,
@@ -40,6 +39,55 @@ import {
 import { renderInlineHtmlToken } from './markdownInlineHtmlToken'
 
 const SVG_DATA_URI_BASE64_PREFIX = 'data:image/svg+xml;base64,'
+type KatexModule = typeof import('katex')
+let katexModulePromise: Promise<KatexModule> | null = null
+
+const loadKatexModule = async (): Promise<KatexModule> => {
+  if (!katexModulePromise) {
+    katexModulePromise = import('katex')
+      .then(mod => mod)
+      .catch(err => {
+        katexModulePromise = null
+        throw err
+      })
+  }
+  return katexModulePromise
+}
+
+function InlineMathRenderer({ tex, display }: { tex: string; display: boolean }) {
+  const [html, setHtml] = React.useState<string>(display ? tex : tex)
+
+  React.useEffect(() => {
+    let cancelled = false
+    void loadKatexModule()
+      .then(katex => {
+        if (cancelled) return
+        let nextHtml = ''
+        try {
+          nextHtml = katex.renderToString(tex, {
+            throwOnError: false,
+            displayMode: display,
+            strict: 'warn',
+          })
+        } catch {
+          nextHtml = tex
+        }
+        setHtml(nextHtml)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setHtml(tex)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [display, tex])
+
+  if (display) {
+    return <span className="block my-3 overflow-x-auto" dangerouslySetInnerHTML={{ __html: html }} />
+  }
+  return <span className="inline-block" dangerouslySetInnerHTML={{ __html: html }} />
+}
 
 const padBase64 = (raw: string): string => {
   const s = String(raw || '').trim()
@@ -378,32 +426,7 @@ export const renderInlineTokens = (tokens: Token[] | undefined, opts: InlineRend
     }
     if (tt.type === 'math') {
       const m = t as unknown as TokensMath
-      let html = ''
-      try {
-        html = katex.renderToString(m.tex, {
-          throwOnError: false,
-          displayMode: !!m.display,
-          strict: 'warn',
-        })
-      } catch {
-        html = m.tex
-      }
-      if (m.display) {
-        return (
-          <span
-            key={key}
-            className="block my-3 overflow-x-auto"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        )
-      }
-      return (
-        <span
-          key={key}
-          className="inline-block"
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-      )
+      return <InlineMathRenderer key={key} tex={m.tex} display={!!m.display} />
     }
     if (tt.type === 'html') {
       return renderInlineHtmlToken({

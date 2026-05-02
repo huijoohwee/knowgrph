@@ -2,7 +2,6 @@ import React from 'react'
 import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
 import RichMediaIframe, { type RichMediaIframeMode } from '@/components/RichMediaIframe'
 import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
-import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
@@ -27,6 +26,7 @@ import {
 } from '@/lib/ui/panelFrame'
 
 const EMPTY_STRING_ARRAY: string[] = []
+const MarkdownPreviewLazy = React.lazy(() => import('@/features/markdown/ui/MarkdownPreview'))
 
 export type RichMediaPanelProps = {
   overlayId?: string
@@ -1059,22 +1059,24 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           }}
           data-kg-media-scroll-surface="1"
         >
-          <MarkdownPreview
-            markdownText={panelDisplayText}
-            activeDocumentPath={panelMarkdownDocumentPath}
-            markdownTokenStoreSync={false}
-            highlightedLineRange={null}
-            markdownWordWrap
-            markdownPresentationMode={false}
-            markdownTextHighlight={false}
-            uiPanelTextFontClass={uiPanelTextFontClass}
-            uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
-            previewOverlayScope="container"
-            previewOverlayPortalTarget={null}
-            previewScrollable
-            showSidebar={false}
-            markdownViewerWidthMode="wide"
-          />
+          <React.Suspense fallback={<RichMediaLoadingSkeleton label="Rendering markdown..." variant="text" />}>
+            <MarkdownPreviewLazy
+              markdownText={panelDisplayText}
+              activeDocumentPath={panelMarkdownDocumentPath}
+              markdownTokenStoreSync={false}
+              highlightedLineRange={null}
+              markdownWordWrap
+              markdownPresentationMode={false}
+              markdownTextHighlight={false}
+              uiPanelTextFontClass={uiPanelTextFontClass}
+              uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
+              previewOverlayScope="container"
+              previewOverlayPortalTarget={null}
+              previewScrollable
+              showSidebar={false}
+              markdownViewerWidthMode="wide"
+            />
+          </React.Suspense>
         </section>
       ) : panelIsLoading ? (
         <RichMediaLoadingSkeleton
