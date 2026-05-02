@@ -1,5 +1,6 @@
 import React from 'react'
 
+import RichMediaPanel from '@/components/RichMediaPanel'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
@@ -42,6 +43,16 @@ import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/Node
 import type { GraphEdge } from '@/lib/graph/types'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
+import {
+  buildRichMediaPanelOverlayState,
+  buildRichMediaPanelPreviewSpec,
+  commitRichMediaPanelChange,
+  coerceRichMediaPanelSizePx,
+  getRichMediaPanelNodeLabel,
+} from '@/lib/render/richMediaSsot'
+
+const RICH_MEDIA_PANEL_MIN_WIDTH = 220
+const RICH_MEDIA_PANEL_MIN_HEIGHT = 160
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
@@ -114,8 +125,105 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
+  const showRichMediaPanelViewer = isRichMediaPanelWidget && !hideFields
   const showRichMediaPanelKtvRows = isRichMediaPanelWidget && hideFields && !isFrontmatterFlow
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
+  const richMediaPanelStoredWidth =
+    typeof node.properties?.['visual:width'] === 'number' && Number.isFinite(node.properties['visual:width'])
+      ? Math.max(RICH_MEDIA_PANEL_MIN_WIDTH, Math.round(node.properties['visual:width'] as number))
+      : 280
+  const richMediaPanelStoredHeight =
+    typeof node.properties?.['visual:height'] === 'number' && Number.isFinite(node.properties['visual:height'])
+      ? Math.max(RICH_MEDIA_PANEL_MIN_HEIGHT, Math.round(node.properties['visual:height'] as number))
+      : 180
+  const richMediaPanelBaseSize = React.useMemo(() => {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : null
+    const vh = typeof window !== 'undefined' ? window.innerHeight : null
+    const coerced = coerceRichMediaPanelSizePx({
+      width: richMediaPanelStoredWidth,
+      height: richMediaPanelStoredHeight,
+      viewportW: vw,
+      viewportH: vh,
+      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
+      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
+    })
+    return { width: coerced.width, height: coerced.height }
+  }, [richMediaPanelStoredHeight, richMediaPanelStoredWidth])
+  const [richMediaPanelViewSize, setRichMediaPanelViewSize] = React.useState(richMediaPanelBaseSize)
+  const richMediaPanelResizeStartRef = React.useRef(richMediaPanelBaseSize)
+
+  React.useEffect(() => {
+    if (!showRichMediaPanelViewer) return
+    setRichMediaPanelViewSize(prev => (
+      prev.width === richMediaPanelBaseSize.width && prev.height === richMediaPanelBaseSize.height
+        ? prev
+        : richMediaPanelBaseSize
+    ))
+  }, [richMediaPanelBaseSize, showRichMediaPanelViewer])
+
+  const richMediaPanelState = React.useMemo(() => {
+    if (!showRichMediaPanelViewer) return null
+    return buildRichMediaPanelOverlayState({
+      node,
+      connectedValuesBySchemaPath,
+    })
+  }, [connectedValuesBySchemaPath, node, showRichMediaPanelViewer])
+  const richMediaPreview = React.useMemo(() => {
+    if (!showRichMediaPanelViewer) return null
+    return buildRichMediaPanelPreviewSpec({
+      node,
+      connectedValuesBySchemaPath,
+      panel: richMediaPanelState,
+    })
+  }, [connectedValuesBySchemaPath, node, richMediaPanelState, showRichMediaPanelViewer])
+  const handleRichMediaPanelChange = React.useCallback((next: {
+    activeTab: 'auto' | 'text' | 'image' | 'video' | 'poi'
+    freezeConnectedOutput: boolean
+    text?: string
+  }) => {
+    if (!showRichMediaPanelViewer) return
+    const nodeId = String(node.id || '').trim()
+    if (!nodeId) return
+    commitRichMediaPanelChange({
+      nodeId,
+      next,
+      updateNode: (_id, patch) => {
+        onPatchProperties(patch.properties)
+      },
+    })
+  }, [node.id, onPatchProperties, showRichMediaPanelViewer])
+  const handleRichMediaResizeStart = React.useCallback(() => {
+    richMediaPanelResizeStartRef.current = richMediaPanelViewSize
+  }, [richMediaPanelViewSize])
+  const handleRichMediaResize = React.useCallback((args: { dx: number; dy: number }) => {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : null
+    const vh = typeof window !== 'undefined' ? window.innerHeight : null
+    const coerced = coerceRichMediaPanelSizePx({
+      width: Math.round(richMediaPanelResizeStartRef.current.width + args.dx),
+      height: Math.round(richMediaPanelResizeStartRef.current.height + args.dy),
+      viewportW: vw,
+      viewportH: vh,
+      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
+      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
+    })
+    setRichMediaPanelViewSize({ width: coerced.width, height: coerced.height })
+  }, [])
+  const handleRichMediaResizeEnd = React.useCallback(() => {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : null
+    const vh = typeof window !== 'undefined' ? window.innerHeight : null
+    const coerced = coerceRichMediaPanelSizePx({
+      width: richMediaPanelViewSize.width,
+      height: richMediaPanelViewSize.height,
+      viewportW: vw,
+      viewportH: vh,
+      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
+      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
+    })
+    onPatchProperties({
+      'visual:width': coerced.width,
+      'visual:height': coerced.height,
+    })
+  }, [onPatchProperties, richMediaPanelViewSize.height, richMediaPanelViewSize.width])
 
   const flowEnvelopeValueBoxClass = React.useMemo(() => {
     return cn(
@@ -534,6 +642,37 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           ]}
         />
       </section>
+
+      {showRichMediaPanelViewer && (
+        <section
+          data-kg-widget-body="1"
+          data-kg-rich-media-render-surface="1"
+          className="relative min-h-0 mt-4 overflow-hidden"
+          style={{
+            width: `${richMediaPanelViewSize.width}px`,
+            maxWidth: '100%',
+            height: `${richMediaPanelViewSize.height}px`,
+          }}
+        >
+          <RichMediaPanel
+            overlayId={String(node.id || '')}
+            title={String(node.label || getRichMediaPanelNodeLabel())}
+            url={richMediaPreview?.url || ''}
+            srcDoc={richMediaPreview?.kind === 'iframe' ? richMediaPreview.srcDoc : undefined}
+            openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
+            kind={richMediaPreview?.kind || 'iframe'}
+            interactive={richMediaPreview?.interactive !== false}
+            iframeMode="srcdoc-when-needed"
+            resizable={true}
+            onResizeStart={handleRichMediaResizeStart}
+            onResize={handleRichMediaResize}
+            onResizeEnd={handleRichMediaResizeEnd}
+            panel={richMediaPanelState || undefined}
+            onPanelChange={handleRichMediaPanelChange}
+            style={{ width: '100%', height: '100%', boxShadow: 'none' }}
+          />
+        </section>
+      )}
 
       {compactPreview && compactPreviewView && (
         <section className="min-w-0 mt-4" aria-label={compactPreviewView.sectionAriaLabel}>

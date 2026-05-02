@@ -11,6 +11,7 @@ const RICH_MEDIA_RENDER_SCHEMA_PATHS = new Set([
   'properties.imageUrl',
   'properties.videoUrl',
 ])
+export const RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY = '__kg:richMediaConnectedRenderPaths' as const
 
 function hasRenderableConnectedValue(value: unknown): boolean {
   if (typeof value === 'undefined' || value === null) return false
@@ -52,6 +53,10 @@ function clearRichMediaRenderChannel(args: {
   }
   if (args.renderPath === 'properties.output' || args.renderPath === 'properties.outputSrcDoc') {
     if (args.preserveOutput === true) return next
+    delete next.image
+    delete next.imageUrl
+    delete next.video
+    delete next.videoUrl
     delete next.output
     delete next.outputSrcDoc
     return next
@@ -148,6 +153,7 @@ export function applyConnectedValuesToNodeForRender(args: {
   const connectedPaths = Object.keys(connectedValuesBySchemaPath)
     .map(path => String(path || '').trim())
     .filter(Boolean)
+  const connectedRenderPathsForSpec = new Set<string>()
   const freezeConnectedOutput =
     String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     && Boolean(((args.node.properties || {}) as Record<string, unknown>).freezeConnectedOutput)
@@ -188,6 +194,9 @@ export function applyConnectedValuesToNodeForRender(args: {
         : normalizedPath
     if (!renderPath) continue
     if (freezeConnectedOutputActive && (renderPath === 'properties.output' || renderPath === 'properties.outputSrcDoc')) continue
+    if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && hasRenderableConnectedValue(connected.value)) {
+      connectedRenderPathsForSpec.add(renderPath)
+    }
     if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
       next = {
         ...next,
@@ -200,6 +209,33 @@ export function applyConnectedValuesToNodeForRender(args: {
     }
     next = setObjectPath(next as unknown as Record<string, unknown>, renderPath, connected.value) as unknown as GraphNode
     changed = true
+  }
+  if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+    const connectedRenderPathsSig = Array.from(connectedRenderPathsForSpec).sort().join('|')
+    const props = (next.properties || {}) as Record<string, unknown>
+    const prevSig = typeof props[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY] === 'string'
+      ? String(props[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY] || '')
+      : ''
+    if (connectedRenderPathsSig) {
+      if (prevSig !== connectedRenderPathsSig) {
+        next = {
+          ...next,
+          properties: {
+            ...props,
+            [RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY]: connectedRenderPathsSig,
+          },
+        } as GraphNode
+        changed = true
+      }
+    } else if (prevSig) {
+      const nextProps = { ...props }
+      delete nextProps[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY]
+      next = {
+        ...next,
+        properties: nextProps,
+      } as GraphNode
+      changed = true
+    }
   }
 
   const renderedNode = changed ? next : args.node

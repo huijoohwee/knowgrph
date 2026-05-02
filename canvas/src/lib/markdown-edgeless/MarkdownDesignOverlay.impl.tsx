@@ -494,7 +494,6 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               url=""
               kind="iframe"
               interactive={allowEmbeddedContentInteraction}
-              showHeader={true}
               resizable={false}
               forwardWheelTo={() => svgRef.current}
               forwardPointerTo={() => svgRef.current}

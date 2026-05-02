@@ -205,6 +205,8 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["markdown.preview.mermaid.clickLegacy.compactsSpacing","@/__tests__/mermaidNormalizeRegression.test","testMermaidNormalizerCanonicalizesLegacyClickSpacing"],
   ["markdown.preview.mermaid.error.cleanupOrphanContainers","@/__tests__/mermaidErrorToastRegression.test","testMermaidCleansUpOrphanRenderContainerOnFailure"],
   ["markdown.preview.mermaid.error.dedupeRapidSwitching","@/__tests__/mermaidErrorToastRegression.test","testMermaidSuppressesDuplicateToastsAcrossRapidSwitching"],
+  ["markdown.preview.mermaid.runtimeCleanup.reusesSharedHelpers","@/__tests__/mermaidRuntimeCleanupSsot.test","testMermaidRuntimeCleanupReusesSharedHelpers"],
+  ["frontmatter.mermaid.geometry.reusesSharedRenderSeam","@/__tests__/mermaidFrontmatterGeometrySeam.test","testMermaidFrontmatterGeometryReusesSharedRenderSeam"],
   ["mermaidFidelity.runtimeSafe","@/__tests__/mermaidFidelityRuntimeSafe.test","testMermaidFidelityRendererIsRuntimeSafeInNode"],
   ["importRenderPipeline.layout.radialForces2d","@/__tests__/importRenderPipelineModesLayouts.test","testImportRenderPipelineRadialLayoutForces2d"],
   ["importRenderPipeline.three.fibSphereStable","@/__tests__/importRenderPipelineModesLayouts.test","testImportRenderPipelineThreeFibSphereStable"],

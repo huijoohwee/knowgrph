@@ -11,6 +11,8 @@ export type MermaidRuntimeApi = {
   registerLayoutLoaders?: (loaders: unknown) => void
 }
 
+type MermaidRenderInitStrategy = 'auto' | 'standard'
+
 type MermaidRuntimeBranch = 'standard' | 'elk'
 
 const isMermaidApi = (val: unknown): val is MermaidRuntimeApi => {
@@ -122,4 +124,30 @@ export const ensureMermaidInitialized = async (config: MermaidInitConfig, code =
   return resolveMermaidRuntimeBranch(config, code) === 'elk'
     ? ensureElkMermaidInitialized(config)
     : ensureStandardMermaidInitialized(config)
+}
+
+export const renderMermaidWithRuntime = async (args: {
+  renderId: string
+  code: string
+  config: MermaidInitConfig
+  initStrategy?: MermaidRenderInitStrategy
+}): Promise<MermaidRuntimeRenderResult> => {
+  const renderId = String(args.renderId || '').trim()
+  const code = String(args.code || '')
+  const config = args.config
+  const initStrategy = args.initStrategy === 'standard' ? 'standard' : 'auto'
+  const mermaid = initStrategy === 'standard'
+    ? await ensureStandardMermaidInitialized(config)
+    : await ensureMermaidInitialized(config, code)
+  cleanupMermaidRenderArtifacts(renderId)
+  try {
+    const out = await mermaid.render(renderId, code)
+    if (typeof out === 'string') return { svg: out }
+    return {
+      svg: String(out.svg || ''),
+      ...(typeof out.bindFunctions === 'function' ? { bindFunctions: out.bindFunctions } : {}),
+    }
+  } finally {
+    cleanupMermaidRenderArtifacts(renderId)
+  }
 }

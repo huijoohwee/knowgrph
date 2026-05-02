@@ -102,7 +102,6 @@ export function DesignRichMediaPreview(props: {
           kind={kind}
           interactive={interactive}
           iframeMode="srcdoc-when-needed"
-          showHeader={false}
           panel={panel}
           forwardWheelTo={forwardWheelTo}
           onOverlayPanStart={onOverlayPanStart}

@@ -42,11 +42,11 @@ export function testSharedRichMediaPanelUsesBodySectionAsResizeSurfaceSsot() {
   if (!(renderSurfaceStart < resizeHandle)) {
     throw new Error('expected shared Rich Media Panel resize handle to live inside the shared body render-surface fragment')
   }
-  if (!text.includes("if (!showHeader) {")) {
-    throw new Error('expected shared Rich Media Panel to flatten the headerless path into a single body render surface')
+  if (text.includes('showHeader?: boolean') || text.includes('data-kg-media-panel-header="1"')) {
+    throw new Error('expected shared Rich Media Panel to remove the legacy headered variant and keep only the widget-style body surface')
   }
   if (!text.includes("className={['kg-media', 'kg-mediaBody', props.className].filter(Boolean).join(' ')}")) {
-    throw new Error('expected headerless Rich Media Panel path to reuse the body section as the root render surface')
+    throw new Error('expected shared Rich Media Panel root to reuse the widget-style body section as the only render surface')
   }
 }
 

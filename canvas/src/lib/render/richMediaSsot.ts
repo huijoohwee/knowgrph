@@ -26,6 +26,28 @@ export type RichMediaPanelChange = {
   freezeConnectedOutput: boolean
   text?: string
 }
+export type RichMediaPanelPreviewSpec =
+  | {
+      kind: 'image'
+      url: string
+      openUrl?: string
+      srcDoc?: undefined
+      interactive: boolean
+    }
+  | {
+      kind: 'video'
+      url: string
+      openUrl?: string
+      srcDoc?: undefined
+      interactive: boolean
+    }
+  | {
+      kind: 'iframe'
+      url: string
+      openUrl?: string
+      srcDoc?: string
+      interactive: boolean
+    }
 
 export const RICH_MEDIA_DISPLAY_COPY = {
   toggleTitle: 'Rich Media',
@@ -129,6 +151,59 @@ export function shouldShowRichMediaFloatingToolbar(args: {
   const selectedTab = String(args.selectedTab || '').trim().toLowerCase()
   const hasOpenUrl = !!String(args.safeOpenUrl || '').trim()
   return args.hasMultiKinds === true || selectedTab === 'text' || hasOpenUrl
+}
+
+export function buildRichMediaPanelPreviewSpec(args: {
+  node: GraphNode
+  connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
+  panel?: RichMediaPanelOverlayState | null
+}): RichMediaPanelPreviewSpec | null {
+  const panel = args.panel
+  if (!panel) return null
+  const renderNode = resolveRichMediaPanelRenderNode({
+    node: args.node,
+    connectedValuesBySchemaPath: args.connectedValuesBySchemaPath,
+  })
+  const props = (renderNode.properties || {}) as Record<string, unknown>
+  const rawImageUrl = typeof props.imageUrl === 'string' ? props.imageUrl.trim() : ''
+  const rawVideoUrl = typeof props.videoUrl === 'string' ? props.videoUrl.trim() : ''
+  const rawMediaUrl = typeof props.media_url === 'string' ? props.media_url.trim() : ''
+  const rawOpenUrl = rawImageUrl || rawVideoUrl || rawMediaUrl
+  const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
+  const renderSpec = getNodeMediaSpec(renderNode)
+  const selectedTab = resolveRichMediaPanelSelectedTab({
+    activeTab: panel.activeTab,
+    hasText: panel.hasText,
+    hasImage: panel.hasImage,
+    hasVideo: panel.hasVideo,
+    hasPoi: panel.hasPoi,
+    renderKind: renderSpec?.kind,
+    hasRenderableUrl: !!String(renderSpec?.url || '').trim(),
+    hasInlineSrcDoc: !!String(renderSpec?.srcDoc || rawOutputSrcDoc || '').trim(),
+  }) || 'text'
+  if (selectedTab === 'video') {
+    return {
+      kind: 'video',
+      url: rawVideoUrl || String(renderSpec?.url || ''),
+      openUrl: rawVideoUrl || rawOpenUrl || String(renderSpec?.url || ''),
+      interactive: renderSpec?.interactive !== false,
+    }
+  }
+  if (selectedTab === 'image') {
+    return {
+      kind: 'image',
+      url: rawImageUrl || String(renderSpec?.url || ''),
+      openUrl: rawImageUrl || rawOpenUrl || String(renderSpec?.url || ''),
+      interactive: renderSpec?.interactive === true,
+    }
+  }
+  return {
+    kind: 'iframe',
+    url: rawOpenUrl || String(renderSpec?.url || ''),
+    openUrl: rawOpenUrl || String(renderSpec?.url || ''),
+    srcDoc: rawOutputSrcDoc || String(renderSpec?.srcDoc || '') || undefined,
+    interactive: renderSpec?.interactive !== false,
+  }
 }
 
 export function resolveRichMediaAspectSelection(args: {

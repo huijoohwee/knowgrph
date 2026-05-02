@@ -8,46 +8,10 @@ import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanVie
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitHashChange } from '@/lib/browser/hashChangeEvents'
-import { cleanupMermaidRenderArtifacts, ensureMermaidInitialized } from '@/lib/mermaid/mermaidRuntime'
+import { renderMermaidWithRuntime } from '@/lib/mermaid/mermaidRuntime'
+import { postprocessMermaidSvg } from '@/lib/mermaid/mermaidSvg'
 const MERMAID_TOAST_DEDUPE_MS = 1500
 const mermaidErrorToastSeenAt = new Map<string, number>()
-
-const sanitizeMermaidSvg = (raw: string): string => {
-  const input = String(raw || '').trim()
-  if (!input) return ''
-  try {
-    const doc = new window.DOMParser().parseFromString(input, 'image/svg+xml')
-    const root = doc.documentElement
-    if (!root || root.nodeName.toLowerCase() !== 'svg') return input
-
-    const all = root.querySelectorAll('*')
-    for (const el of Array.from(all)) {
-      const tag = el.tagName.toLowerCase()
-      if (tag === 'script') {
-        el.remove()
-        continue
-      }
-      const names = el.getAttributeNames()
-      for (const name of names) {
-        if (name.toLowerCase().startsWith('on')) {
-          el.removeAttribute(name)
-        }
-      }
-      if (tag === 'a') {
-        const href = String(el.getAttribute('href') || el.getAttribute('xlink:href') || '').trim()
-        if (href && href.startsWith('#')) continue
-        el.removeAttribute('href')
-        el.removeAttribute('xlink:href')
-        el.removeAttribute('target')
-        el.removeAttribute('rel')
-      }
-    }
-
-    return new window.XMLSerializer().serializeToString(root)
-  } catch {
-    return input
-  }
-}
 
 const buildMermaidConfig = (opts: {
   rootThemeMode: 'light' | 'dark'
@@ -74,21 +38,6 @@ const buildMermaidConfig = (opts: {
   }
 }
 
-const extractMermaidErrorFromSvg = (svg: string): string | null => {
-  const raw = String(svg || '')
-  if (!raw.trim()) return null
-  const hasErrorRole = /aria-roledescription\s*=\s*"error"/i.test(raw)
-  const hasErrorTextClass = /class\s*=\s*"[^"]*\berror-text\b[^"]*"/i.test(raw)
-  if (!hasErrorRole && !hasErrorTextClass) return null
-  const textMatches = Array.from(raw.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/gi))
-  for (let i = 0; i < textMatches.length; i += 1) {
-    const message = String(textMatches[i]?.[1] || '').replace(/\s+/g, ' ').trim()
-    if (!message) continue
-    if (/^mermaid version\s+/i.test(message)) continue
-    return message
-  }
-  return 'Mermaid syntax error'
-}
 
 export function MermaidDiagram({
   code,
@@ -372,17 +321,16 @@ export function MermaidDiagram({
           return
         }
         const normalizedCode = normalizeMermaidCodeForRuntime(trimmedCode)
-        const mermaid = await ensureMermaidInitialized(config, normalizedCode)
+        const out = await renderMermaidWithRuntime({
+          renderId,
+          code: normalizedCode,
+          config,
+        })
         if (cancelled) return
-        cleanupMermaidRenderArtifacts(renderId)
-        const out = await mermaid.render(renderId, normalizedCode)
-        cleanupMermaidRenderArtifacts(renderId)
-        if (cancelled) return
-        const renderedSvg = typeof out === 'string' ? out : String(out.svg || '')
-        const nextSvg = sanitizeMermaidSvg(renderedSvg)
-        const renderError = extractMermaidErrorFromSvg(nextSvg)
+        const processed = postprocessMermaidSvg(out.svg)
+        const nextSvg = processed.svg
+        const renderError = processed.error
         if (renderError) {
-          cleanupMermaidRenderArtifacts(renderId)
           setError(renderError)
           return
         }
@@ -453,7 +401,6 @@ export function MermaidDiagram({
           }
         }
       } catch (e) {
-        cleanupMermaidRenderArtifacts(renderId)
         if (cancelled) return
         const msg = e instanceof Error ? e.message : String(e)
         setError(msg || 'Mermaid render failed')

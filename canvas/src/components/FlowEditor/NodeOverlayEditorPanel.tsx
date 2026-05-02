@@ -24,36 +24,14 @@ import {
 } from '@/lib/config.flow-editor'
 import {
   buildRichMediaPanelOverlayState,
+  buildRichMediaPanelPreviewSpec,
   commitRichMediaPanelChange,
   coerceRichMediaPanelSizePx,
   getRichMediaPanelNodeLabel,
-  resolveRichMediaPanelSelectedTab,
-  resolveRichMediaPanelRenderNode,
 } from '@/lib/render/richMediaSsot'
 
 const RICH_MEDIA_PANEL_MIN_WIDTH = 220
 const RICH_MEDIA_PANEL_MIN_HEIGHT = 160
-
-type RichMediaPreview =
-  | {
-      kind: 'image'
-      url: string
-      openUrl?: string
-      interactive: boolean
-    }
-  | {
-      kind: 'video'
-      url: string
-      openUrl?: string
-      interactive: boolean
-    }
-  | {
-      kind: 'iframe'
-      url: string
-      openUrl?: string
-      srcDoc?: string
-      interactive: boolean
-    }
 
 export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel(args: {
   active: boolean
@@ -238,33 +216,13 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     })
   }, [connectedValuesBySchemaPath, node, showRichMediaPanelBody])
 
-  const richMediaPreview = React.useMemo<RichMediaPreview | null>(() => {
+  const richMediaPreview = React.useMemo(() => {
     if (!showRichMediaPanelBody) return null
-    const panel = richMediaPanelState
-    if (!panel) return null
-    const renderNode = resolveRichMediaPanelRenderNode({ node, connectedValuesBySchemaPath })
-    const props = (renderNode.properties || {}) as Record<string, unknown>
-    const rawImageUrl = typeof props.imageUrl === 'string' ? props.imageUrl.trim() : ''
-    const rawVideoUrl = typeof props.videoUrl === 'string' ? props.videoUrl.trim() : ''
-    const rawMediaUrl = typeof props.media_url === 'string' ? props.media_url.trim() : ''
-    const rawOpenUrl = rawImageUrl || rawVideoUrl || rawMediaUrl
-    const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
-    const selectedTab = resolveRichMediaPanelSelectedTab({
-      activeTab: panel.activeTab,
-      hasText: panel.hasText,
-      hasImage: panel.hasImage,
-      hasVideo: panel.hasVideo,
-      hasPoi: panel.hasPoi,
-    }) || 'text'
-    if (selectedTab === 'video') return { kind: 'video', url: rawVideoUrl, openUrl: rawVideoUrl || rawOpenUrl, interactive: true }
-    if (selectedTab === 'image') return { kind: 'image', url: rawImageUrl, openUrl: rawImageUrl || rawOpenUrl, interactive: false }
-    return {
-      kind: 'iframe',
-      url: rawOpenUrl,
-      openUrl: rawOpenUrl,
-      srcDoc: rawOutputSrcDoc || undefined,
-      interactive: true,
-    }
+    return buildRichMediaPanelPreviewSpec({
+      node,
+      connectedValuesBySchemaPath,
+      panel: richMediaPanelState,
+    })
   }, [connectedValuesBySchemaPath, node, richMediaPanelState, showRichMediaPanelBody])
 
   const handleRichMediaPanelChange = React.useCallback((next: {
@@ -478,6 +436,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             height: `${richMediaPanelViewSize.height}px`,
           }}
         >
+          {/* Shared RichMediaPanel body owns the canonical resize handle: data-kg-resize-handle="se". */}
           <RichMediaPanel
             overlayId={String(node.id || '')}
             title={String(node.label || getRichMediaPanelNodeLabel())}
@@ -487,7 +446,6 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             kind={richMediaPreview?.kind || 'iframe'}
             interactive={richMediaPreview?.interactive !== false}
             iframeMode="srcdoc-when-needed"
-            showHeader={false}
             resizable={true}
             onResizeStart={handleRichMediaResizeStart}
             onResize={handleRichMediaResize}

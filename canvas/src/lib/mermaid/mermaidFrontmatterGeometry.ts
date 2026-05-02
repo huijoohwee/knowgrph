@@ -53,6 +53,34 @@ type MermaidClusterGeometry = {
   order: number
 }
 
+export type MermaidFrontmatterSvgGeometry = {
+  nodes: MermaidNodeGeometry[]
+  edges: MermaidEdgeGeometry[]
+  clusters: MermaidClusterGeometry[]
+}
+
+export type MermaidFrontmatterRenderResult = {
+  code: string
+  theme: MermaidTheme
+  svg: string
+  geometry: MermaidFrontmatterSvgGeometry
+}
+
+type MermaidFrontmatterGraphBindings = {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  nodeIndexById: Map<string, number>
+  edgeIndexById: Map<string, number>
+  nodePropsById: Map<string, Record<string, unknown>>
+  mermaidNodeIdByName: Map<string, string>
+  mermaidSubgraphIdByName: Map<string, string>
+  edgeBuckets: Map<string, GraphEdge[]>
+}
+
+type MermaidEdgeVisualMatchResult = {
+  unmatched: MermaidEdgeGeometry[]
+}
+
 const parseTranslate = (raw: string | null): { x: number; y: number } | null => {
   const s = String(raw || '').trim()
   if (!s) return null
@@ -139,7 +167,6 @@ const extractEdgeSrcTgt = (g: Element): { source: string; target: string } | nul
   const source = parts.slice(0, parts.length - 1).join('-')
   if (!source || !target) return null
   return { source: normalizeName(source), target: normalizeName(target) }
-  return null
 }
 
 const parseMermaidSvgGeometry = (svgMarkup: string): {
@@ -803,28 +830,35 @@ const readFrontmatterMermaidCode = (graphData: GraphData): string => {
   return ''
 }
 
-export async function applyMermaidFrontmatterGeometryToGraphData(
-  graphData: GraphData,
-  args?: { theme?: MermaidTheme; codeOverride?: string },
-): Promise<GraphData> {
-  const code = (args?.codeOverride || readFrontmatterMermaidCode(graphData)).trim()
-  if (!code) return graphData
-  if (typeof window === 'undefined' || typeof document === 'undefined') return graphData
-
-  const theme = args?.theme === 'dark' || args?.theme === 'light' ? args.theme : (getKgThemeFromDom() as MermaidTheme)
+export async function renderMermaidFrontmatterGeometry(args: {
+  graphData: GraphData
+  theme?: MermaidTheme
+  codeOverride?: string
+}): Promise<MermaidFrontmatterRenderResult | null> {
+  const code = String(args.codeOverride || readFrontmatterMermaidCode(args.graphData) || '').trim()
+  if (!code) return null
+  if (typeof window === 'undefined' || typeof document === 'undefined') return null
+  const theme = args.theme === 'dark' || args.theme === 'light' ? args.theme : (getKgThemeFromDom() as MermaidTheme)
   const rendered = await renderMermaidSvgCached({ code, theme: theme === 'dark' ? 'dark' : 'light' })
-  const geom = parseMermaidSvgGeometry(rendered.svg)
-  if (geom.nodes.length === 0 && geom.edges.length === 0 && geom.clusters.length === 0) return graphData
+  const geometry = parseMermaidSvgGeometry(rendered.svg)
+  return {
+    code,
+    theme,
+    svg: rendered.svg,
+    geometry,
+  }
+}
 
-  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-  const edges = Array.isArray(graphData.edges) ? graphData.edges : []
+const prepareMermaidFrontmatterGraphBindings = (graphData: GraphData): MermaidFrontmatterGraphBindings => {
+  const sourceNodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
+  const sourceEdges = Array.isArray(graphData.edges) ? graphData.edges : []
 
+  const nodePropsById = new Map<string, Record<string, unknown>>()
   const mermaidNodeIdByName = new Map<string, string>()
   const mermaidSubgraphIdByName = new Map<string, string>()
-  const nodePropsById = new Map<string, Record<string, unknown>>()
 
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]!
+  for (let i = 0; i < sourceNodes.length; i += 1) {
+    const n = sourceNodes[i]!
     const id = String(n.id || '')
     const props = readRecordProps(n)
     if (props) nodePropsById.set(id, props)
@@ -839,8 +873,8 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
   }
 
   const edgeBuckets = new Map<string, GraphEdge[]>()
-  for (let i = 0; i < edges.length; i += 1) {
-    const e = edges[i]!
+  for (let i = 0; i < sourceEdges.length; i += 1) {
+    const e = sourceEdges[i]!
     if (String(e.label || '') !== 'pointsTo') continue
     const srcId = String(e.source || '')
     const tgtId = String(e.target || '')
@@ -850,13 +884,13 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
     const srcName = typeof srcProps?.nodeName === 'string' ? String(srcProps.nodeName || '').trim() : ''
     const tgtName = typeof tgtProps?.nodeName === 'string' ? String(tgtProps.nodeName || '').trim() : ''
     if (!srcName || !tgtName) continue
-    const k = `${srcName}|${tgtName}`
-    const arr = edgeBuckets.get(k)
-    if (arr) arr.push(e)
-    else edgeBuckets.set(k, [e])
+    const bucketKey = `${srcName}|${tgtName}`
+    const bucket = edgeBuckets.get(bucketKey)
+    if (bucket) bucket.push(e)
+    else edgeBuckets.set(bucketKey, [e])
   }
 
-  const updatedNodes: GraphNode[] = nodes.map(n => {
+  const nodes: GraphNode[] = sourceNodes.map(n => {
     const id = String(n.id || '')
     const props = readRecordProps(n)
     if (!id || !props) return n
@@ -864,14 +898,199 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
     return { ...n, properties: { ...props } as never }
   })
 
-  const updatedEdges: GraphEdge[] = edges.map(e => {
+  const edges: GraphEdge[] = sourceEdges.map(e => {
     const props = (e as unknown as { properties?: unknown }).properties
     if (!props || typeof props !== 'object' || Array.isArray(props)) return e
     return { ...e, properties: { ...(props as Record<string, unknown>) } as never }
   })
 
   const nodeIndexById = new Map<string, number>()
-  for (let i = 0; i < updatedNodes.length; i += 1) nodeIndexById.set(String(updatedNodes[i]!.id || ''), i)
+  for (let i = 0; i < nodes.length; i += 1) nodeIndexById.set(String(nodes[i]!.id || ''), i)
+  const edgeIndexById = new Map<string, number>()
+  for (let i = 0; i < edges.length; i += 1) edgeIndexById.set(String(edges[i]!.id || ''), i)
+
+  return {
+    nodes,
+    edges,
+    nodeIndexById,
+    edgeIndexById,
+    nodePropsById,
+    mermaidNodeIdByName,
+    mermaidSubgraphIdByName,
+    edgeBuckets,
+  }
+}
+
+const resolveMermaidImageMediaKind = (imageUrl: string): 'image' | 'svg' => {
+  const lower = String(imageUrl || '').toLowerCase()
+  return lower.endsWith('.svg') ? 'svg' : 'image'
+}
+
+const applyMermaidNodeGeometry = (args: {
+  nodes: GraphNode[]
+  nodeIdx: number
+  geometry: MermaidNodeGeometry
+}): void => {
+  const node = args.nodes[args.nodeIdx]!
+  const properties = readRecordProps(node) as Record<string, unknown>
+  properties['visual:width'] = args.geometry.width
+  properties['visual:height'] = args.geometry.height
+  properties['visual:shape'] = args.geometry.shape
+  properties['visual:zIndex'] = args.geometry.order
+  properties['visual:zIndexMode'] = 'absolute'
+  if (args.geometry.shape === 'circle' && args.geometry.radius != null) properties['visual:radius'] = args.geometry.radius
+  if (args.geometry.imageUrl) {
+    const nextMediaProps = patchNodeMediaProperties({
+      properties,
+      kind: resolveMermaidImageMediaKind(args.geometry.imageUrl),
+      url: args.geometry.imageUrl,
+    })
+    Object.assign(properties, nextMediaProps)
+    properties.media = args.geometry.imageUrl
+    properties.image = args.geometry.imageUrl
+  }
+  args.nodes[args.nodeIdx] = {
+    ...node,
+    x: args.geometry.cx,
+    y: args.geometry.cy,
+    fx: args.geometry.cx,
+    fy: args.geometry.cy,
+    properties: properties as never,
+  }
+}
+
+const applyMermaidSubgraphGeometry = (args: {
+  nodes: GraphNode[]
+  nodeIdx: number
+  geometry: MermaidClusterGeometry
+}): void => {
+  const node = args.nodes[args.nodeIdx]!
+  const properties = readRecordProps(node) as Record<string, unknown>
+  const inset = 2
+  const x = args.geometry.x + inset
+  const y = args.geometry.y + inset
+  const width = Math.max(0, args.geometry.width - inset * 2)
+  const height = Math.max(0, args.geometry.height - inset * 2)
+  properties['visual:bounds'] = {
+    x,
+    y,
+    width,
+    height,
+    ...(args.geometry.labelX != null && args.geometry.labelY != null
+      ? { labelX: args.geometry.labelX, labelY: args.geometry.labelY }
+      : {}),
+  }
+  args.nodes[args.nodeIdx] = { ...node, properties: properties as never }
+}
+
+const applyMermaidEdgeVisual = (args: {
+  edges: GraphEdge[]
+  edgeIdx: number
+  geometry: MermaidEdgeGeometry
+}): void => {
+  const current = args.edges[args.edgeIdx] as unknown as { properties?: Record<string, unknown> }
+  const properties =
+    current.properties && typeof current.properties === 'object' && !Array.isArray(current.properties)
+      ? current.properties
+      : {}
+  properties['visual:pathD'] = args.geometry.pathD
+  if (args.geometry.arrowD) properties['visual:arrowD'] = args.geometry.arrowD
+  properties['visual:zIndex'] = args.geometry.order
+  if (args.geometry.tx || args.geometry.ty) {
+    properties['visual:pathTx'] = args.geometry.tx
+    properties['visual:pathTy'] = args.geometry.ty
+  }
+  if (args.geometry.labelX != null && args.geometry.labelY != null) {
+    properties['visual:labelX'] = args.geometry.labelX
+    properties['visual:labelY'] = args.geometry.labelY
+  }
+  args.edges[args.edgeIdx] = { ...args.edges[args.edgeIdx], properties: properties as never }
+}
+
+const matchMermaidEdgeGeometry = (args: {
+  geometryEdges: MermaidEdgeGeometry[]
+  edgeBuckets: Map<string, GraphEdge[]>
+  edgeIndexById: Map<string, number>
+  edges: GraphEdge[]
+}): MermaidEdgeVisualMatchResult => {
+  const unmatched: MermaidEdgeGeometry[] = []
+  for (let i = 0; i < args.geometryEdges.length; i += 1) {
+    const geometry = args.geometryEdges[i]!
+    const bucketKey = `${geometry.sourceName}|${geometry.targetName}`
+    const bucket = args.edgeBuckets.get(bucketKey)
+    if (!bucket || bucket.length === 0) {
+      unmatched.push(geometry)
+      continue
+    }
+    const edge = bucket.shift()!
+    const edgeId = String(edge.id || '')
+    if (!edgeId) {
+      unmatched.push(geometry)
+      continue
+    }
+    const edgeIdx = args.edgeIndexById.get(edgeId)
+    if (edgeIdx == null) {
+      unmatched.push(geometry)
+      continue
+    }
+    applyMermaidEdgeVisual({
+      edges: args.edges,
+      edgeIdx,
+      geometry,
+    })
+  }
+  return { unmatched }
+}
+
+const assignFallbackMermaidEdgeGeometry = (args: {
+  unmatched: MermaidEdgeGeometry[]
+  edges: GraphEdge[]
+}): void => {
+  if (args.unmatched.length === 0) return
+  const candidateEdgeIdxs: number[] = []
+  for (let i = 0; i < args.edges.length; i += 1) {
+    const edge = args.edges[i]!
+    if (String(edge.label || '') !== 'pointsTo') continue
+    const properties = (edge as unknown as { properties?: unknown }).properties
+    const hasPath =
+      properties
+      && typeof properties === 'object'
+      && !Array.isArray(properties)
+      && typeof (properties as Record<string, unknown>)['visual:pathD'] === 'string'
+      && String((properties as Record<string, unknown>)['visual:pathD'] || '').trim().length > 0
+    if (hasPath) continue
+    candidateEdgeIdxs.push(i)
+  }
+  for (let i = 0; i < args.unmatched.length && i < candidateEdgeIdxs.length; i += 1) {
+    applyMermaidEdgeVisual({
+      edges: args.edges,
+      edgeIdx: candidateEdgeIdxs[i]!,
+      geometry: args.unmatched[i]!,
+    })
+  }
+}
+
+export async function applyMermaidFrontmatterGeometryToGraphData(
+  graphData: GraphData,
+  args?: { theme?: MermaidTheme; codeOverride?: string },
+): Promise<GraphData> {
+  const rendered = await renderMermaidFrontmatterGeometry({
+    graphData,
+    theme: args?.theme,
+    codeOverride: args?.codeOverride,
+  })
+  if (!rendered) return graphData
+  const geom = rendered.geometry
+  if (geom.nodes.length === 0 && geom.edges.length === 0 && geom.clusters.length === 0) return graphData
+  const {
+    nodes: updatedNodes,
+    edges: updatedEdges,
+    nodeIndexById,
+    edgeIndexById,
+    mermaidNodeIdByName,
+    mermaidSubgraphIdByName,
+    edgeBuckets,
+  } = prepareMermaidFrontmatterGraphBindings(graphData)
 
   for (let i = 0; i < geom.nodes.length; i += 1) {
     const g = geom.nodes[i]!
@@ -879,37 +1098,11 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
     if (!id) continue
     const idx = nodeIndexById.get(id)
     if (idx == null) continue
-    const n = updatedNodes[idx]!
-    const p = readRecordProps(n) as Record<string, unknown>
-    p['visual:width'] = g.width
-    p['visual:height'] = g.height
-    p['visual:shape'] = g.shape
-    p['visual:zIndex'] = g.order
-    p['visual:zIndexMode'] = 'absolute'
-    if (g.shape === 'circle' && g.radius != null) p['visual:radius'] = g.radius
-    if (g.imageUrl) {
-      const mediaKind = (() => {
-        const lower = g.imageUrl.toLowerCase()
-        if (lower.endsWith('.svg')) return 'svg'
-        return 'image'
-      })()
-      const nextMediaProps = patchNodeMediaProperties({
-        properties: p,
-        kind: mediaKind,
-        url: g.imageUrl,
-      })
-      Object.assign(p, nextMediaProps)
-      p.media = g.imageUrl
-      p.image = g.imageUrl
-    }
-    updatedNodes[idx] = {
-      ...n,
-      x: g.cx,
-      y: g.cy,
-      fx: g.cx,
-      fy: g.cy,
-      properties: p as never,
-    }
+    applyMermaidNodeGeometry({
+      nodes: updatedNodes,
+      nodeIdx: idx,
+      geometry: g,
+    })
   }
 
   for (let i = 0; i < geom.clusters.length; i += 1) {
@@ -918,80 +1111,22 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
     if (!id) continue
     const idx = nodeIndexById.get(id)
     if (idx == null) continue
-    const n = updatedNodes[idx]!
-    const p = readRecordProps(n) as Record<string, unknown>
-    const inset = 2
-    const x = c.x + inset
-    const y = c.y + inset
-    const w = Math.max(0, c.width - inset * 2)
-    const h = Math.max(0, c.height - inset * 2)
-    p['visual:bounds'] = {
-      x,
-      y,
-      width: w,
-      height: h,
-      ...(c.labelX != null && c.labelY != null ? { labelX: c.labelX, labelY: c.labelY } : {}),
-    }
-    updatedNodes[idx] = { ...n, properties: p as never }
+    applyMermaidSubgraphGeometry({
+      nodes: updatedNodes,
+      nodeIdx: idx,
+      geometry: c,
+    })
   }
-
-  const setEdgeVisual = (edgeIdx: number, eg: MermaidEdgeGeometry) => {
-    const cur = updatedEdges[edgeIdx] as unknown as { properties?: Record<string, unknown> }
-    const props = cur.properties && typeof cur.properties === 'object' && !Array.isArray(cur.properties) ? cur.properties : {}
-    props['visual:pathD'] = eg.pathD
-    if (eg.arrowD) props['visual:arrowD'] = eg.arrowD
-    props['visual:zIndex'] = eg.order
-    if (eg.tx || eg.ty) {
-      props['visual:pathTx'] = eg.tx
-      props['visual:pathTy'] = eg.ty
-    }
-    if (eg.labelX != null && eg.labelY != null) {
-      props['visual:labelX'] = eg.labelX
-      props['visual:labelY'] = eg.labelY
-    }
-    updatedEdges[edgeIdx] = { ...updatedEdges[edgeIdx], properties: props as never }
-  }
-
-  const unmatchedGeomEdges: MermaidEdgeGeometry[] = []
-  for (let i = 0; i < geom.edges.length; i += 1) {
-    const eg = geom.edges[i]!
-    const bucketKey = `${eg.sourceName}|${eg.targetName}`
-    const bucket = edgeBuckets.get(bucketKey)
-    if (!bucket || bucket.length === 0) {
-      unmatchedGeomEdges.push(eg)
-      continue
-    }
-    const e = bucket.shift()!
-    const edgeId = String(e.id || '')
-    if (!edgeId) {
-      unmatchedGeomEdges.push(eg)
-      continue
-    }
-    const edgeIdx = updatedEdges.findIndex(x => String(x.id || '') === edgeId)
-    if (edgeIdx < 0) {
-      unmatchedGeomEdges.push(eg)
-      continue
-    }
-    setEdgeVisual(edgeIdx, eg)
-  }
-
-  if (unmatchedGeomEdges.length > 0) {
-    const candidateEdgeIdxs: number[] = []
-    for (let i = 0; i < updatedEdges.length; i += 1) {
-      const e = updatedEdges[i]!
-      if (String(e.label || '') !== 'pointsTo') continue
-      const props = (e as unknown as { properties?: unknown }).properties
-      const hasPath =
-        props && typeof props === 'object' && !Array.isArray(props) && typeof (props as Record<string, unknown>)['visual:pathD'] === 'string' && String((props as any)['visual:pathD'] || '').trim()
-          ? true
-          : false
-      if (hasPath) continue
-      candidateEdgeIdxs.push(i)
-    }
-    for (let i = 0; i < unmatchedGeomEdges.length && i < candidateEdgeIdxs.length; i += 1) {
-      setEdgeVisual(candidateEdgeIdxs[i]!, unmatchedGeomEdges[i]!)
-    }
-  }
+  const matchedEdgeGeometry = matchMermaidEdgeGeometry({
+    geometryEdges: geom.edges,
+    edgeBuckets,
+    edgeIndexById,
+    edges: updatedEdges,
+  })
+  assignFallbackMermaidEdgeGeometry({
+    unmatched: matchedEdgeGeometry.unmatched,
+    edges: updatedEdges,
+  })
 
   const graphWithGeom = {
     ...graphData,

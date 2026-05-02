@@ -23,8 +23,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import {
   PANEL_FRAME_BODY_STYLE,
-  PANEL_FRAME_HEADER_STYLE,
-  PANEL_FRAME_HEADER_TITLE_STYLE,
   PANEL_FRAME_ROOT_STYLE,
 } from '@/lib/ui/panelFrame'
 
@@ -39,7 +37,6 @@ export type RichMediaPanelProps = {
   kind?: 'iframe' | 'image' | 'svg' | 'video'
   interactive?: boolean
   iframeMode?: RichMediaIframeMode
-  showHeader?: boolean
   hideUntilReady?: boolean
   headerPassthrough?: boolean
   resizable?: boolean
@@ -369,7 +366,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const onPanelChange = props.onPanelChange
   const title = String(props.title || '').trim() || 'Media node'
   const mode: RichMediaIframeMode = props.iframeMode === 'proxy-url' ? 'proxy-url' : 'srcdoc-when-needed'
-  const showHeader = props.showHeader !== false
   const kind: 'iframe' | 'image' | 'svg' | 'video' = props.kind === 'image' || props.kind === 'svg' || props.kind === 'video' ? props.kind : 'iframe'
   const rawUrl = String(props.url || '').trim()
   const openUrl = String(props.openUrl || '').trim() || rawUrl
@@ -663,13 +659,12 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           remove: false,
         }}
         richMediaViewToggle={showWidgetLikeToolbar ? props.richMediaViewToggle : undefined}
-        richMediaMediaSelector={showWidgetLikeToolbar
-          ? (props.richMediaMediaSelector || {
-              visible: panelHasMultiKinds,
-              selectedMode: panelActiveTab,
-              onSelect: next => onPanelChange?.({ activeTab: next, freezeConnectedOutput: panelFreezeConnectedOutput }),
-            })
-          : undefined}
+        richMediaMediaSelector={showWidgetLikeToolbar ? {
+          visible: props.richMediaMediaSelector?.visible ?? panelHasMultiKinds,
+          selectedMode: props.richMediaMediaSelector?.selectedMode ?? panelActiveTab,
+          onSelect: props.richMediaMediaSelector?.onSelect
+            || (next => onPanelChange?.({ activeTab: next, freezeConnectedOutput: panelFreezeConnectedOutput })),
+        } : undefined}
         richMediaAspectToggle={showWidgetLikeToolbar ? props.richMediaAspectToggle : undefined}
         richMediaTextModeToggle={showWidgetLikeToolbar && panelSelectedTab === 'text' ? {
           visible: true,
@@ -763,15 +758,14 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     })
   }, [installResize, props, selectSelf])
 
-  const onHeaderPointerDown = React.useCallback((e: React.PointerEvent<HTMLElement>) => {
-    if (!installHeaderDrag) return
-    const native = e.nativeEvent
+  const startHeaderDrag = React.useCallback((native: PointerEvent) => {
+    if (!installHeaderDrag) return false
     selectSelf(native)
     if (native && typeof props.shouldStartHeaderDrag === 'function') {
       try {
-        if (props.shouldStartHeaderDrag(native) !== true) return
+        if (props.shouldStartHeaderDrag(native) !== true) return false
       } catch {
-        return
+        return false
       }
     }
     const pointerId = native.pointerId
@@ -814,6 +808,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         }
       },
     })
+    return true
   }, [installHeaderDrag, props, selectSelf])
   const onRootPointerDownCapture = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const native = e.nativeEvent
@@ -847,6 +842,15 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       isResizeHandleTarget
       || isScrollableSurfaceTarget
       || isInteractiveControlTarget
+    if (!blockOverlayPanForTarget && !isHeaderTarget && startHeaderDrag(native)) {
+      try {
+        e.preventDefault()
+        e.stopPropagation()
+      } catch {
+        void 0
+      }
+      return
+    }
     if (
       overlayAlreadySelected
       && !blockOverlayPanForTarget
@@ -924,7 +928,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         void 0
       }
     }
-  }, [installHeaderDrag, installOverlayPan, overlayAlreadySelected, props, selectSelf])
+  }, [installHeaderDrag, installOverlayPan, overlayAlreadySelected, props, selectSelf, startHeaderDrag])
   const panelIsLoading = panel?.isLoading === true
   const panelLoadingLabel = String(panel?.loadingLabel || '').trim() || 'Generating output...'
   const loadingSkeletonVariant: RichMediaSkeletonVariant =
@@ -1245,50 +1249,16 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     </>
   )
 
-  if (!showHeader) {
-    return (
-      <section
-        ref={setRefs}
-        className={['kg-media', 'kg-mediaBody', props.className].filter(Boolean).join(' ')}
-        data-kg-rich-media-panel="1"
-        data-node-id={props.overlayId}
-        data-kg-kind={kind}
-        data-kg-url={rawUrl}
-        data-kg-open-url={openUrl}
-        data-kg-rich-media-render-surface="1"
-        data-kg-rich-media-overlay={flowEditorRichMediaOverlayRoot ? '1' : undefined}
-        data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}
-        data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
-        data-kg-flow-editor-mode={flowEditorInteractionMode ? '1' : undefined}
-        data-kg-flow-editor-surface={flowEditorInteractionMode ? (props.flowEditorSurfaceId || undefined) : undefined}
-        data-kg-frontmatter-document-mode={flowEditorFrontmatterDocumentMode ? '1' : undefined}
-        data-kg-resize-enabled={installResize ? '1' : undefined}
-        style={{
-          ...rootStyle,
-          ...bodySurfaceStyle,
-        }}
-        onPointerDownCapture={onRootPointerDownCapture}
-        onPointerUpCapture={props.onPointerUpCapture}
-        onWheelCapture={props.onWheelCapture}
-        onClickCapture={props.onClickCapture}
-        onDoubleClickCapture={props.onDoubleClickCapture}
-        onContextMenuCapture={props.onContextMenuCapture}
-      >
-        {floatingWidgetLikeToolbar}
-        {renderSurfaceChildren}
-      </section>
-    )
-  }
-
   return (
-    <article
+    <section
       ref={setRefs}
-      className={['kg-media', props.className].filter(Boolean).join(' ')}
+      className={['kg-media', 'kg-mediaBody', props.className].filter(Boolean).join(' ')}
       data-kg-rich-media-panel="1"
       data-node-id={props.overlayId}
       data-kg-kind={kind}
       data-kg-url={rawUrl}
       data-kg-open-url={openUrl}
+      data-kg-rich-media-render-surface="1"
       data-kg-rich-media-overlay={flowEditorRichMediaOverlayRoot ? '1' : undefined}
       data-kg-canvas-overlay-pinned={canvasOverlayProxyEnabled ? '1' : undefined}
       data-kg-canvas-wheel-ignore={canvasOverlayProxyEnabled ? 'true' : undefined}
@@ -1296,7 +1266,11 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       data-kg-flow-editor-surface={flowEditorInteractionMode ? (props.flowEditorSurfaceId || undefined) : undefined}
       data-kg-frontmatter-document-mode={flowEditorFrontmatterDocumentMode ? '1' : undefined}
       data-kg-resize-enabled={installResize ? '1' : undefined}
-      style={rootStyle}
+      data-kg-canvas-overlay-drag-handle={installHeaderDrag ? 'true' : undefined}
+      style={{
+        ...rootStyle,
+        ...bodySurfaceStyle,
+      }}
       onPointerDownCapture={onRootPointerDownCapture}
       onPointerUpCapture={props.onPointerUpCapture}
       onWheelCapture={props.onWheelCapture}
@@ -1305,58 +1279,8 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       onContextMenuCapture={props.onContextMenuCapture}
     >
       {floatingWidgetLikeToolbar}
-      {showHeader ? (
-        <header
-          data-kg-media-panel-header="1"
-          data-kg-canvas-overlay-drag-handle={installHeaderDrag ? 'true' : undefined}
-          className="kg-mediaHeader"
-          style={{
-            ...PANEL_FRAME_HEADER_STYLE,
-            borderBottom: 'var(--kg-media-panel-border-w, 1px) solid var(--kg-border)',
-            cursor: installHeaderDrag ? 'grab' : undefined,
-            pointerEvents: headerPassthrough ? 'none' : 'auto',
-          }}
-          onPointerDownCapture={e => {
-            try {
-              e.preventDefault()
-            } catch {
-              void 0
-            }
-          }}
-          title={title}
-          onPointerDown={installHeaderDrag ? onHeaderPointerDown : undefined}
-        >
-          <h3 className="kg-mediaTitle" style={PANEL_FRAME_HEADER_TITLE_STYLE}>{title}</h3>
-          <menu className="m-0 p-0 list-none flex items-center gap-1" aria-label="Panel status">
-            {panelIsLoading ? (
-              <li
-                className="list-none"
-                aria-live="polite"
-                style={{
-                  fontSize: 11,
-                  lineHeight: 1.2,
-                  color: 'var(--kg-muted-foreground, rgba(0,0,0,0.6))',
-                  paddingInline: 6,
-                  paddingBlock: 3,
-                  borderRadius: 999,
-                  border: '1px solid var(--kg-border)',
-                  background: 'rgba(59, 130, 246, 0.08)',
-                }}
-              >
-                {panelLoadingLabel}
-              </li>
-            ) : null}
-          </menu>
-        </header>
-      ) : null}
-      <section
-        className="kg-mediaBody"
-        data-kg-rich-media-render-surface="1"
-        style={bodySurfaceStyle}
-      >
-        {renderSurfaceChildren}
-      </section>
-    </article>
+      {renderSurfaceChildren}
+    </section>
   )
 })
 

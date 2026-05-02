@@ -9,6 +9,7 @@ import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildY
 import { coerceMarkdownParenUrl, extractMarkdownInlineRefs } from '@/features/parsers/markdownJsonLdUtils'
 import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
+import { RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY } from '@/lib/render/effectiveMediaNode'
 
 export const NODE_MEDIA_KINDS = ['image', 'svg', 'video', 'iframe'] as const
 export type NodeMediaKind = typeof NODE_MEDIA_KINDS[number]
@@ -270,6 +271,7 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     props.media_interactive,
     props.outputSrcDoc,
     props.output,
+    props[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY],
     props.text,
     props.markdown,
     props.richMediaActiveTab,
@@ -307,6 +309,12 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   })()
 
   const isRichMediaPanel = isRichMediaPanelNode(node)
+  const connectedRenderPathSig = isRichMediaPanel
+    ? String((props as Record<string, unknown>)[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY] || '').trim()
+    : ''
+  const connectedRenderPathSet = connectedRenderPathSig
+    ? new Set(connectedRenderPathSig.split('|').map(path => path.trim()).filter(Boolean))
+    : null
   const richMediaActiveTab = (() => {
     if (!isRichMediaPanel) return ''
     return String((props as Record<string, unknown>).richMediaActiveTab || '').trim().toLowerCase()
@@ -379,6 +387,14 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     const selected = richMediaActiveTab === 'video' || richMediaActiveTab === 'image' || richMediaActiveTab === 'text' || richMediaActiveTab === 'poi'
       ? richMediaActiveTab
       : ''
+    if (!selected && connectedRenderPathSet?.has('properties.videoUrl')) {
+      const chosen = videoUrl || videoUrlCamel
+      if (chosen) return { kind: 'video', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
+    }
+    if (!selected && connectedRenderPathSet?.has('properties.imageUrl')) {
+      const chosen = imageUrl || imageUrlCamel
+      if (chosen) return { kind: 'image', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : false }
+    }
     if (selected === 'video') {
       const chosen = videoUrl || videoUrlCamel
       if (chosen) return { kind: 'video', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
@@ -388,6 +404,16 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       if (chosen) return { kind: 'image', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : false }
     }
     if (selected === 'text' || selected === 'poi') {
+      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
+    }
+    if (
+      !selected
+      && connectedRenderPathSet?.has('properties.output')
+      && !(connectedRenderPathSet.has('properties.videoUrl') || connectedRenderPathSet.has('properties.imageUrl'))
+    ) {
+      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
+    }
+    if (!selected && (outputSrcDoc || outputText.trim()) && !(videoUrl || videoUrlCamel || imageUrl || imageUrlCamel || getMarkdownMediaOnce()?.url)) {
       return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
     }
     if (selected === 'video') return { kind: 'video', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }

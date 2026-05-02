@@ -1,47 +1,6 @@
 import React from 'react'
-import { renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
+import { postprocessMermaidSvg, renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
-
-const sanitizeMermaidSvg = (raw: string): string => {
-  const input = String(raw || '').trim()
-  if (!input) return ''
-  try {
-    const doc = new window.DOMParser().parseFromString(input, 'image/svg+xml')
-    const root = doc.documentElement
-    if (!root || root.nodeName.toLowerCase() !== 'svg') return input
-    const all = root.querySelectorAll('*')
-    for (const el of Array.from(all)) {
-      const tag = el.tagName.toLowerCase()
-      if (tag === 'script') {
-        el.remove()
-        continue
-      }
-      const names = el.getAttributeNames()
-      for (const name of names) {
-        if (name.toLowerCase().startsWith('on')) el.removeAttribute(name)
-      }
-    }
-    return new window.XMLSerializer().serializeToString(root)
-  } catch {
-    return input
-  }
-}
-
-const extractMermaidErrorFromSvg = (svg: string): string | null => {
-  const raw = String(svg || '')
-  if (!raw.trim()) return null
-  const hasErrorRole = /aria-roledescription\s*=\s*"error"/i.test(raw)
-  const hasErrorTextClass = /class\s*=\s*"[^"]*\berror-text\b[^"]*"/i.test(raw)
-  if (!hasErrorRole && !hasErrorTextClass) return null
-  const textMatches = Array.from(raw.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/gi))
-  for (let i = 0; i < textMatches.length; i += 1) {
-    const message = String(textMatches[i]?.[1] || '').replace(/\s+/g, ' ').trim()
-    if (!message) continue
-    if (/^mermaid version\s+/i.test(message)) continue
-    return message
-  }
-  return 'Mermaid syntax error'
-}
 
 export function PlainMermaidDiagram({
   code,
@@ -67,8 +26,9 @@ export function PlainMermaidDiagram({
           theme: rootThemeMode === 'dark' ? 'dark' : 'light',
         })
         if (cancelled) return
-        const nextSvg = sanitizeMermaidSvg(out.svg)
-        const renderError = extractMermaidErrorFromSvg(nextSvg)
+        const processed = postprocessMermaidSvg(out.svg)
+        const nextSvg = processed.svg
+        const renderError = processed.error
         if (renderError) {
           setError(renderError)
           setSvg('')

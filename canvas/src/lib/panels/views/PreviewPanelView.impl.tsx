@@ -648,7 +648,6 @@ export default function PreviewPanelView() {
                 kind={richMediaKind}
                 interactive={richMediaKind !== 'image'}
                 iframeMode="srcdoc-when-needed"
-                showHeader={true}
                 panel={previewPanelState || undefined}
                 onPanelChange={next => {
                   if (!activeMedia?.nodeId || !activeMedia.panel) return
