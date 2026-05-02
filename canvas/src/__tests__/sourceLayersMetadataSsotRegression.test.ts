@@ -5,8 +5,11 @@ export function testSourceLayersMetadataHandlingStaysCentralized() {
   const helperPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'sourceLayers.ts')
   const helperText = readFileSync(helperPath, 'utf8')
 
-  if (!helperText.includes('function readSourceLayerGraphMetadata(')) {
-    throw new Error('expected sourceLayers helper to centralize graph metadata coercion upstream')
+  if (!helperText.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected sourceLayers helper to reuse the shared document metadata coercion helper upstream')
+  }
+  if (!helperText.includes('return toMetadataRecord(graphData?.metadata)')) {
+    throw new Error('expected sourceLayers helper to delegate graph metadata coercion to the shared document metadata helper')
   }
   if (!helperText.includes('const metadata = readSourceLayerGraphMetadata(graphData)')) {
     throw new Error('expected source-layer key reads to reuse the shared metadata coercion helper')

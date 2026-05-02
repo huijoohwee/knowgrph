@@ -11,6 +11,7 @@ import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { getGraphCapabilities } from '@/lib/graph/helpers'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { LAUNCH_SPOTLIGHT_TOUR_TOOLTIP } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 
@@ -159,14 +160,14 @@ export function LaunchSpotlightTourCard({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 hover:bg-gray-100`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={handleDismiss}
               >
                 Dismiss
               </button>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-blue-600 text-blue-600 hover:bg-blue-50`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-blue-600 text-blue-600 ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={handleReopen}
               >
                 Reopen
@@ -196,7 +197,7 @@ export function LaunchSpotlightTourCard({
               </div>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 hover:bg-gray-100`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={handleMinimize}
               >
                 Minimize
@@ -207,7 +208,7 @@ export function LaunchSpotlightTourCard({
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50`}
+                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-gray-300 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={() => {
                     try {
                       useGraphStore.getState().setWorkspaceViewMode('canvas')
@@ -247,7 +248,7 @@ export function LaunchSpotlightTourCard({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent text-gray-500 hover:bg-gray-100`}
+                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={handleBack}
                   disabled={clampedIndex === 0}
                 >
@@ -255,7 +256,7 @@ export function LaunchSpotlightTourCard({
                 </button>
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent text-gray-600 hover:bg-gray-100`}
+                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={handleDismiss}
                 >
                   Dismiss
@@ -264,7 +265,7 @@ export function LaunchSpotlightTourCard({
                   type="button"
                   className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border ${
                     canAdvance
-                      ? 'border-blue-600 text-blue-600 hover:bg-blue-50'
+                      ? `border-blue-600 text-blue-600 ${UI_THEME_TOKENS.button.hoverBg}`
                       : 'border-gray-300 text-gray-400 cursor-not-allowed'
                   }`}
                   onClick={handleNext}

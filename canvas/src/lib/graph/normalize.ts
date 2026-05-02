@@ -1,17 +1,16 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from './types'
-
-const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
+import { isPlainObject } from '@/lib/graph/value'
 
 const coerceJsonValueRecord = (v: unknown): Record<string, JSONValue> => {
-  if (!isRecord(v)) return {}
-  return v as Record<string, JSONValue>
+  return isPlainObject(v) ? (v as Record<string, JSONValue>) : {}
 }
 
 const coerceJsonMetadataRecord = (v: unknown): Record<string, JSONValue> | undefined => {
-  if (!isRecord(v)) return undefined
-  const keys = Object.keys(v)
+  const meta = toMetadataRecord(v) as Record<string, JSONValue>
+  const keys = Object.keys(meta)
   if (keys.length === 0) return undefined
-  return v as Record<string, JSONValue>
+  return meta
 }
 
 const coerceString = (v: unknown): string => String(v ?? '').trim()
@@ -171,4 +170,3 @@ export function normalizeGraphData(input: GraphData): GraphData {
   if (baseMetadata) next.metadata = baseMetadata
   return next
 }
-

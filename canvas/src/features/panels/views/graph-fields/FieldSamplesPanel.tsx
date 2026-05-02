@@ -201,7 +201,7 @@ export default function FieldSamplesPanel({
                 <button
                   key={sample.value}
                   type="button"
-                  className={`w-full flex items-center justify-between gap-2 rounded px-1 py-1 text-left ${selected ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverAmber}`}
+                  className={`w-full flex items-center justify-between gap-2 rounded px-1 py-1 text-left ${selected ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverHighlight}`}
                   onClick={() => onToggleValue(sample.value)}
                 >
                   <span className="min-w-0 flex-1 inline-flex items-center gap-2">

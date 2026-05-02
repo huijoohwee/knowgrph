@@ -2,6 +2,7 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import {
   normalizeWidgetRegistryEntries,
   ensureDefaultWidgetRegistryEntries,
+  readValidatedWidgetRegistryMetadataEntries,
   readWidgetRegistryFromStorage,
   validateWidgetRegistryEntry,
   writeWidgetRegistryToStorage,
@@ -85,6 +86,33 @@ export function testFlowEditorManagerRegistryValidatesAndNormalizes() {
   ])
   if (normalized.length !== 2) throw new Error('expected two entries after normalization')
   if (normalized[0].nodeTypeId !== 'A') throw new Error('expected normalization to sort by nodeTypeId')
+
+  const validatedFromMetadata = readValidatedWidgetRegistryMetadataEntries({
+    'flow:widgetRegistry': [
+      {
+        id: 'meta-valid',
+        isEnabled: true,
+        nodeTypeId: 'Schema',
+        widgetTypeId: 'Widget',
+        formId: 'metadata',
+        fields: [{ fieldKey: 'label', fieldType: 'text', schemaPath: 'label' }],
+        ports: [],
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: '',
+        isEnabled: true,
+        nodeTypeId: 'Broken',
+        widgetTypeId: 'Widget',
+        formId: 'broken',
+        fields: [],
+        ports: [],
+        updatedAt: new Date().toISOString(),
+      },
+    ],
+  })
+  if (validatedFromMetadata.length !== 1) throw new Error('expected validated metadata reader to keep only valid widget registry entries')
+  if (validatedFromMetadata[0]?.id !== 'meta-valid') throw new Error('expected validated metadata reader to preserve the valid widget registry entry')
 }
 
 export function testFlowEditorManagerRegistryStorageRoundTrip() {

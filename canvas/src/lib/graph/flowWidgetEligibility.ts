@@ -7,6 +7,9 @@ import {
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
+import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { isPlainObject } from '@/lib/graph/value'
 
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
@@ -18,18 +21,15 @@ const FLOW_WIDGET_NODE_TYPE_IDS = new Set<string>([
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
 ])
 
-const isRecord = (v: unknown): v is Record<string, unknown> => Boolean(v) && typeof v === 'object' && !Array.isArray(v)
-
 export function isFlowWidgetEligibleNode(node: Pick<GraphNode, 'properties' | 'type'> | null | undefined): boolean {
   const nodeTypeId = typeof node?.type === 'string' ? node.type.trim() : ''
   if (nodeTypeId && FLOW_WIDGET_NODE_TYPE_IDS.has(nodeTypeId)) return true
-  const props = node?.properties
-  if (!isRecord(props)) return false
+  const props = readNodeProperties(node)
   const raw = props[FLOW_WIDGET_FORM_ID_KEY]
   const formId = typeof raw === 'string' ? raw.trim() : ''
   if (formId) return true
   const portTypes = props[FLOW_PORT_TYPES_KEY]
-  if (isRecord(portTypes)) return true
+  if (isPlainObject(portTypes)) return true
   return false
 }
 
@@ -45,25 +45,6 @@ export function buildFlowWidgetEligibleNodeIdSet(nodes: Array<Pick<GraphNode, 'i
   return out
 }
 
-function readEndpointId(v: unknown): string {
-  if (!v) return ''
-  if (typeof v === 'string') return v.trim()
-  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
-  if (typeof v === 'object' && !Array.isArray(v) && 'id' in (v as Record<string, unknown>)) {
-    const id = (v as Record<string, unknown>).id
-    if (typeof id === 'string') return id.trim()
-    if (typeof id === 'number') return Number.isFinite(id) ? String(id) : ''
-  }
-  return ''
-}
-
-function normalizeEndpointNodeId(raw: string): string {
-  const s = String(raw || '').trim()
-  if (!s) return ''
-  const dot = s.indexOf('.')
-  return dot > 0 ? s.slice(0, dot).trim() : s
-}
-
 export function filterGraphToFlowWidgetEligible(data: GraphData): GraphData {
   const allNodes = Array.isArray(data.nodes) ? (data.nodes as GraphNode[]) : []
   const allEdges = Array.isArray(data.edges) ? (data.edges as GraphEdge[]) : []
@@ -72,8 +53,8 @@ export function filterGraphToFlowWidgetEligible(data: GraphData): GraphData {
 
   const nodes = allNodes.filter(n => eligible.has(String(n?.id || '').trim()))
   const edges = allEdges.filter(e => {
-    const src = normalizeEndpointNodeId(readEndpointId((e as { source?: unknown }).source))
-    const tgt = normalizeEndpointNodeId(readEndpointId((e as { target?: unknown }).target))
+    const src = readEdgeEndpointId((e as { source?: unknown }).source)
+    const tgt = readEdgeEndpointId((e as { target?: unknown }).target)
     return Boolean(src && tgt && eligible.has(src) && eligible.has(tgt))
   })
 

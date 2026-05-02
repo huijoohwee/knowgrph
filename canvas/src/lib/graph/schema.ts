@@ -1,5 +1,7 @@
 import type { GraphNode } from './types';
 import type { GraphSchema, ThreeConfig, ThreeSelectionConfig, RendererPalette } from './schemaTypes';
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
+import { isPlainObject } from '@/lib/graph/value'
 import {
   DEFAULT_ALPHA_DECAY,
   DEFAULT_BBOX_COLLIDE_ITERATIONS,
@@ -64,7 +66,7 @@ export function getThreeSelectionConfig(schema: GraphSchema | null | undefined):
 
 export const MVP_COLOR_PALETTE = {
   nodes: {
-    idea: '#007BFF',
+    idea: 'var(--kg-canvas-accent)',
     hypothesis: '#FFC107',
     execution: '#28A745',
     pivot: '#FD7E14',
@@ -106,14 +108,11 @@ export function getAgenticRagTagColor(node: GraphNode, schema: GraphSchema): str
 export function getRendererPalette(schema: GraphSchema | null | undefined): RendererPalette {
   const baseNodes = MVP_COLOR_PALETTE.nodes;
   const baseEdges = MVP_COLOR_PALETTE.edges;
-  const meta =
-    schema && schema.metadata && typeof schema.metadata === 'object' && !Array.isArray(schema.metadata)
-      ? (schema.metadata as Record<string, unknown>)
-      : null;
-  const raw = meta && Object.prototype.hasOwnProperty.call(meta, 'renderer:palette')
+  const meta = toMetadataRecord(schema?.metadata)
+  const raw = Object.prototype.hasOwnProperty.call(meta, 'renderer:palette')
     ? (meta['renderer:palette'] as unknown)
     : undefined;
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+  if (isPlainObject(raw)) {
     const obj = raw as { nodes?: Record<string, string>; edges?: Record<string, string> };
     return {
       nodes: { ...baseNodes, ...(obj.nodes || {}) },

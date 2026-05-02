@@ -43,3 +43,22 @@ export const testAirportsJsonGeodataParsingUsesSampling = () => {
   }
 }
 
+export const testGeodataJsonReusesSharedPlainObjectGuard = () => {
+  const filePath = path.resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'geodataJson.ts')
+  const text = fs.readFileSync(filePath, 'utf8')
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected geodata json parser to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const readPlainObject = (value: unknown): Record<string, unknown> | null => {')) {
+    throw new Error('expected geodata json parser to centralize plain-object coercion in one local helper')
+  }
+  if (!text.includes('const record = readPlainObject(value)')) {
+    throw new Error('expected geodata json sampling to reuse the shared local plain-object helper')
+  }
+  if (!text.includes('...(readPlainObject(record.geo) || {}),')) {
+    throw new Error('expected geodata json geo merge to reuse the shared local plain-object helper')
+  }
+  if (text.includes("const isRecord = (v: unknown): v is Record<string, unknown> =>")) {
+    throw new Error('expected geodata json parser to stop defining a local record guard')
+  }
+}

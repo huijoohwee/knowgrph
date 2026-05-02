@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { GraphData } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import {
   startEdgeFromNode,
   startUpdateEdgeEndpoint,
@@ -27,7 +29,19 @@ export function useEdgeCreationEffect({
         const state = useGraphStore.getState()
         const graphData = state.graphData as GraphData | null
         if (!edgeCreationRequest || !graphData) return
-        const n = graphData.nodes.find(x => x.id === edgeCreationRequest.fromId)
+        const graphSemanticKey = buildScopedGraphSemanticKey('graph-canvas-edge-creation-effect-graph', {
+          graphData,
+          graphRevision: state.graphDataRevision || 0,
+        })
+        const graphLookup = getCachedGraphLookup({
+          cacheScope: 'graph-canvas-edge-creation-effect-graph',
+          graphData,
+          graphRevision: state.graphDataRevision || 0,
+          graphSemanticKey,
+          preferCurrentGraphDataRefs: true,
+        })
+        const fromId = String(edgeCreationRequest.fromId || '').trim()
+        const n = fromId ? graphLookup?.nodeById.get(fromId) || null : null
         if (!n) {
           state.clearEdgeCreationRequest()
           return
@@ -38,7 +52,8 @@ export function useEdgeCreationEffect({
           return
         }
         const selectedEdgeId = state.selectedEdgeId
-        const sel = selectedEdgeId ? graphData.edges.find(e => e.id === selectedEdgeId) : null
+        const selectedEdgeKey = String(selectedEdgeId || '').trim()
+        const sel = selectedEdgeKey ? graphLookup?.edgeById.get(selectedEdgeKey) || null : null
         if (sel) {
           startUpdateEdgeEndpoint(
             sel,

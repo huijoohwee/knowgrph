@@ -133,3 +133,17 @@ export function testDesignCanvasMarkdownPanelGroupsUsesSharedMarkdownPanelLookup
     throw new Error('expected DesignCanvas markdown panel groups to remove duplicated lineStart scans')
   }
 }
+
+export function testMarkdownPanelOverlayPoolReusesSharedMetadataReaderForLineStarts() {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'render', 'markdownPanelOverlayPool.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected markdownPanelOverlayPool to reuse the shared document metadata coercion helper upstream')
+  }
+  if (!text.includes('const raw = toMetadataRecord(n.metadata).lineStart')) {
+    throw new Error('expected markdownPanelOverlayPool lineStart reads to reuse the shared document metadata coercion helper')
+  }
+  if (text.includes("n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata)")) {
+    throw new Error('expected markdownPanelOverlayPool to stop coercing node metadata inline when reading lineStart values')
+  }
+}

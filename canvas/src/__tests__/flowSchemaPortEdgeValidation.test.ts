@@ -1,4 +1,6 @@
 import type { GraphData, GraphEdge } from '@/lib/graph/types'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { defaultSchema } from '@/lib/graph/schema'
 import { canAddEdge } from '@/features/schema/validation'
 import { buildFlowEdgeDisplayLabelFromPorts } from '@/lib/graph/flowPorts'
@@ -159,4 +161,27 @@ export const testFlowTypedPortsInfluenceEdgeValidation = () => {
     properties: { 'flow:sourcePortKey': 'out_1', 'flow:targetPortKey': 'in_1' },
   }
   if (canAddEdge(schema, data, badEdge)) throw new Error('expected VIDEO_CLIP→AUDIO_CLIP edge to be denied')
+}
+
+export const testFlowSocketTypeHelpersReuseSharedReaders = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'flowSocketTypes.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected flowSocketTypes to reuse the shared document metadata reader upstream')
+  }
+  if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected flowSocketTypes to reuse the shared node property reader upstream')
+  }
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected flowSocketTypes to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const props = readNodeProperties(node)')) {
+    throw new Error('expected flowSocketTypes node property reads to reuse the shared node property reader')
+  }
+  if (!text.includes('const meta = toMetadataRecord(graphData?.metadata)')) {
+    throw new Error('expected flowSocketTypes metadata reads to reuse the shared document metadata reader')
+  }
+  if (text.includes('function isRecord(')) {
+    throw new Error('expected flowSocketTypes to stop defining a local record guard')
+  }
 }

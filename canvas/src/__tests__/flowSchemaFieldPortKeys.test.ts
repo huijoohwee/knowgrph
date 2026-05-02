@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { pickDefaultFlowPortKey, pickDefaultTypedFlowPortKey } from '@/lib/graph/flowPorts'
 
@@ -57,4 +59,21 @@ export const testFlowDefaultPortKeyPrefersTypedWidgetPortsByDirection = () => {
 
   const resolvedIn = pickDefaultFlowPortKey(node as never, 'in')
   if (resolvedIn !== 'output') throw new Error(`expected default in flow port output, got ${String(resolvedIn || '')}`)
+}
+
+export const testFlowPortHelpersReuseSharedNodePropertyReader = () => {
+  const flowPortsPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'flowPorts.ts')
+  const flowPortsText = readFileSync(flowPortsPath, 'utf8')
+  if (!flowPortsText.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected flowPorts to reuse the shared node property reader upstream')
+  }
+  if (!flowPortsText.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected flowPorts to reuse the shared plain-object guard upstream')
+  }
+  if (!flowPortsText.includes('const props = readNodeProperties(node)')) {
+    throw new Error('expected flowPorts node property reads to reuse the shared node property reader')
+  }
+  if (flowPortsText.includes('function isRecord(')) {
+    throw new Error('expected flowPorts to stop defining a local record guard')
+  }
 }

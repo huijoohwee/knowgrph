@@ -2,6 +2,7 @@ import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { FLOW_WIDGET_BUNDLE_KIND, FLOW_WIDGET_BUNDLE_VERSION } from '@/lib/config'
 import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey, readGraphRevision } from '@/lib/graph/semanticKey'
+import { isPlainObject } from '@/lib/graph/value'
 
 type JsonRecord = Record<string, JSONValue>
 
@@ -17,12 +18,8 @@ export type WidgetBundleV1 = {
   graph?: GraphData
 }
 
-function isJsonRecord(v: unknown): v is JsonRecord {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
-
-function isUnknownRecord(v: unknown): v is JsonLikeRecord {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
+function readPlainObject(v: unknown): JsonLikeRecord | null {
+  return isPlainObject(v) ? (v as JsonLikeRecord) : null
 }
 
 function escapeMarkdownTableCell(raw: unknown): string {
@@ -54,9 +51,10 @@ function toJsonValueOrNull(v: unknown): JSONValue | null {
     }
     return out
   }
-  if (isJsonRecord(v)) {
+  const record = readPlainObject(v) as JsonRecord | null
+  if (record) {
     const out: JsonRecord = {}
-    for (const [k, val] of Object.entries(v)) {
+    for (const [k, val] of Object.entries(record)) {
       const next = toJsonValueOrNull(val)
       if (next === null) out[k] = null
       else out[k] = next
@@ -90,9 +88,7 @@ function buildWidgetBundleRegistrySignature(registryEntries: unknown[]): string 
   const entries = Array.isArray(registryEntries) ? registryEntries : []
   if (entries.length === 0) return hashSignatureParts(['widget-bundle-registry', 0])
   const normalized = entries.map(entry => {
-    const record = entry && typeof entry === 'object' && !Array.isArray(entry)
-      ? (entry as Record<string, unknown>)
-      : {}
+    const record = readPlainObject(entry) || {}
     return {
       id: String(record.id || ''),
       isEnabled: record.isEnabled === true,
@@ -186,14 +182,20 @@ export function tryBuildWidgetBundleMarkdownFromJsonText(text: string): string |
   if (!trimmed.startsWith('{')) return null
   try {
     const parsed = JSON.parse(trimmed) as unknown
-    if (!isUnknownRecord(parsed)) return null
+    if (!readPlainObject(parsed)) return null
     if (parsed.kind !== FLOW_WIDGET_BUNDLE_KIND) return null
     if (parsed.version !== FLOW_WIDGET_BUNDLE_VERSION) return null
 
-    const registry = Array.isArray(parsed.registry) ? parsed.registry.filter(isUnknownRecord) : []
-    const graph = isUnknownRecord(parsed.graph) ? parsed.graph : null
-    const nodes = Array.isArray(graph?.nodes) ? graph.nodes.filter(isUnknownRecord) : []
-    const edges = Array.isArray(graph?.edges) ? graph.edges.filter(isUnknownRecord) : []
+    const registry = Array.isArray(parsed.registry)
+      ? parsed.registry.map(readPlainObject).filter((entry): entry is JsonLikeRecord => entry != null)
+      : []
+    const graph = readPlainObject(parsed.graph)
+    const nodes = Array.isArray(graph?.nodes)
+      ? graph.nodes.map(readPlainObject).filter((node): node is JsonLikeRecord => node != null)
+      : []
+    const edges = Array.isArray(graph?.edges)
+      ? graph.edges.map(readPlainObject).filter((edge): edge is JsonLikeRecord => edge != null)
+      : []
 
     const lines: string[] = ['# Widget Bundle', '']
     lines.push(`- Registry entries: ${registry.length}`)

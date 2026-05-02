@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { readDesignWireframeSettings } from '@/lib/render/designWireframeSettings'
 
 export function testDesignWireframeSettingsDefaultsAndClamp() {
@@ -59,4 +61,21 @@ export function testDesignWireframeSettingsDefaultsAndClamp() {
   if (ok.avoidLabelCollisions !== false) throw new Error('expected avoidLabelCollisions false')
   if (ok.maxEdges !== 120) throw new Error('expected maxEdges 120')
   if (ok.maxLabelChars !== 32) throw new Error('expected maxLabelChars 32')
+}
+
+export function testDesignWireframeSettingsReusesSharedMetadataReader() {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'render', 'designWireframeSettings.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected designWireframeSettings to reuse the shared document metadata coercion helper upstream')
+  }
+  if (!text.includes('const schemaMeta = toMetadataRecord(schema?.metadata)')) {
+    throw new Error('expected designWireframeSettings to reuse the shared document metadata reader for schema metadata')
+  }
+  if (!text.includes('const graphMeta = graphMetadata ? (toMetadataRecord(graphMetadata) as Record<string, JSONValue>) : null')) {
+    throw new Error('expected designWireframeSettings to reuse the shared document metadata reader for graph metadata overrides')
+  }
+  if (text.includes("schema?.metadata && typeof schema.metadata === 'object' && !Array.isArray(schema.metadata)")) {
+    throw new Error('expected designWireframeSettings to stop coercing schema metadata inline')
+  }
 }

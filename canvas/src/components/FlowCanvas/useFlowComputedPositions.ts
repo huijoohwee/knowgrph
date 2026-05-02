@@ -137,12 +137,12 @@ export function useFlowComputedPositions(args: {
     const g = sceneGraphData
     const nodeList = Array.isArray(g?.nodes) ? g?.nodes : []
     const edgeList = Array.isArray(g?.edges) ? g?.edges : []
-    const rev = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
+    const semanticGraphKey = buildGraphMetaKeyIgnoringPending(g)
     const sourceSeedHash = hashPositions(
       extractNodePositions(nodeList as ReadonlyArray<{ id?: unknown; x?: unknown; y?: unknown }>),
       nodeList.map(n => String(n?.id || '')).filter(Boolean),
     )
-    const graphKey = `rev:${rev}:${nodeList.length}:${edgeList.length}:${buildGraphMetaKeyIgnoringPending(g)}:${layoutVariant}:${sourceSeedHash}`
+    const graphKey = `graph:${semanticGraphKey}:${nodeList.length}:${edgeList.length}:${layoutVariant}:${sourceSeedHash}`
     if (graphKey === lastLayoutGraphKeyRef.current && computedPositionsRef.current) return
     lastLayoutGraphKeyRef.current = graphKey
 

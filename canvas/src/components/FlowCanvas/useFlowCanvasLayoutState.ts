@@ -28,6 +28,7 @@ import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
 type UseFlowCanvasLayoutStateArgs = {
   active: boolean
+  resolvedThemeMode: 'light' | 'dark'
   graphDataRevision: number
   sceneGraphData: GraphData | null
   filteredGraphDataForRenderer: GraphData | null
@@ -56,6 +57,7 @@ type UseFlowCanvasLayoutStateArgs = {
 export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
   const {
     active,
+    resolvedThemeMode,
     graphDataRevision,
     sceneGraphData,
     filteredGraphDataForRenderer,
@@ -170,8 +172,10 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
       frontmatterModeEnabled: !!effectiveFrontmatter,
       multiDimTableModeEnabled: multiDimTableModeEnabled === true,
       documentStructureBaselineLock: documentStructureBaselineLock === true,
+      resolvedThemeMode,
     })
   }, [
+    resolvedThemeMode,
     documentSemanticMode,
     documentStructureBaselineLock,
     effectiveFrontmatter,

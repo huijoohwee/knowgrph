@@ -26,6 +26,7 @@ type UseGraphCanvasStylesProps = {
   documentSemanticMode?: 'document' | 'keyword'
   paused?: boolean;
   graphDataRevision?: number;
+  themeSignal?: string;
 };
 
 const readEdgeVisualOpacity = (edge: GraphEdge): number => {
@@ -194,6 +195,7 @@ export function useGraphCanvasStyles({
   documentSemanticMode,
   paused,
   graphDataRevision,
+  themeSignal,
 }: UseGraphCanvasStylesProps) {
   useEffect(() => {
     if (paused) return;
@@ -205,5 +207,5 @@ export function useGraphCanvasStyles({
       schema,
       documentSemanticMode,
     });
-  }, [paused, gRef, nodesSelRef, linksSelRef, labelsSelRef, schema, documentSemanticMode, graphDataRevision]);
+  }, [paused, gRef, nodesSelRef, linksSelRef, labelsSelRef, schema, documentSemanticMode, graphDataRevision, themeSignal]);
 }

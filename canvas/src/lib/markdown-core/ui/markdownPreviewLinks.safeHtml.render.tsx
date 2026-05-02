@@ -1,5 +1,6 @@
 import React from 'react'
 import { parseAsciiBoxTable } from '@/features/markdown/ui/codeblock/asciiBoxTable'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { parseHtmlFragmentCached } from './markdownHtmlParseCache'
 
 type RenderOpts = {
@@ -291,7 +292,7 @@ export const renderSafeHtmlBlockImpl = (
             <section key={key} className="mt-4 mb-4 overflow-auto max-h-[80vh] rounded-lg border border-gray-200 shadow-sm">
               <table className={['min-w-full border-collapse table-auto text-xs', safeClass].filter(Boolean).join(' ') || undefined}>
                 {asciiTable.header ? <thead className="bg-gray-50 text-gray-900"><tr>{asciiTable.header.map((cell, j) => <th key={`${key}-h-${j}`} className="px-3 py-2 text-left font-semibold border-b border-gray-200 align-top sticky top-0 z-10 bg-gray-50">{cell}</th>)}</tr></thead> : null}
-                <tbody className="text-gray-900">{asciiTable.rows.map((row, rIdx) => <tr key={`${key}-r-${rIdx}`} className="odd:bg-white even:bg-gray-50 hover:bg-amber-50 transition-colors">{row.map((cell, cIdx) => <td key={`${key}-c-${rIdx}-${cIdx}`} className="px-3 py-2 border-b border-gray-200 align-top">{cell}</td>)}</tr>)}</tbody>
+                <tbody className="text-gray-900">{asciiTable.rows.map((row, rIdx) => <tr key={`${key}-r-${rIdx}`} className={`odd:bg-white even:bg-gray-50 ${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`}>{row.map((cell, cIdx) => <td key={`${key}-c-${rIdx}-${cIdx}`} className="px-3 py-2 border-b border-gray-200 align-top">{cell}</td>)}</tr>)}</tbody>
               </table>
             </section>
           )
@@ -314,7 +315,7 @@ export const renderSafeHtmlBlockImpl = (
       if (tag === 'thead') return <thead key={key} className={['bg-gray-50 text-gray-900', safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</thead>
       if (tag === 'tbody') return <tbody key={key} className={['text-gray-900', safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tbody>
       if (tag === 'tfoot') return <tfoot key={key} className={['bg-gray-50 text-gray-900', safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tfoot>
-      if (tag === 'tr') return <tr key={key} className={['odd:bg-white even:bg-gray-50 hover:bg-amber-50 transition-colors', safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tr>
+      if (tag === 'tr') return <tr key={key} className={[`odd:bg-white even:bg-gray-50 ${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`, safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tr>
       if (tag === 'colgroup') return <colgroup key={key} className={safeClass || undefined} style={safeStyle}>{children}</colgroup>
       if (tag === 'col') {
         const spanN = Number(el.getAttribute('span') || '')

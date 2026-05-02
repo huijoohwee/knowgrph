@@ -1,3 +1,5 @@
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
+
 export type ActiveDocumentViewMode = 'documentStructure' | 'keyword' | 'frontmatter' | 'multiDimTable'
 export const ACTIVE_DOCUMENT_VIEW_MODE_META_KEY = 'kg:activeDocumentViewMode' as const
 export const DEFAULT_MARKDOWN_PANEL_ALLOWED_KINDS = ['table', 'code', 'blockquote', 'callout', 'html'] as const
@@ -46,11 +48,7 @@ export function readDocumentViewModeContext(args: DocumentViewModeArgs): {
 
 const readDocumentViewModeMetadata = (
   graphData: { metadata?: unknown } | null | undefined,
-): Record<string, unknown> | null => {
-  return graphData?.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
-    ? (graphData.metadata as Record<string, unknown>)
-    : null
-}
+): Record<string, unknown> => toMetadataRecord(graphData?.metadata)
 
 export function readGraphActiveDocumentViewMode(graphData: { context?: unknown; metadata?: unknown } | null | undefined): ActiveDocumentViewMode | null {
   if (!graphData || typeof graphData !== 'object') return null
@@ -69,7 +67,7 @@ export function readGraphActiveDocumentViewMode(graphData: { context?: unknown; 
 export function withActiveDocumentViewMode<T extends { metadata?: unknown }>(graphData: T, mode: ActiveDocumentViewMode): T {
   const current = readGraphActiveDocumentViewMode(graphData as { context?: unknown; metadata?: unknown })
   if (current === mode) return graphData
-  const meta = readDocumentViewModeMetadata(graphData) || {}
+  const meta = readDocumentViewModeMetadata(graphData)
   return {
     ...graphData,
     metadata: {

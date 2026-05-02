@@ -262,7 +262,7 @@ export function DateCellEditor(props: {
                       <td key={day.toISOString()} className="p-0" aria-label={ymd(day)}>
                         <button
                           type="button"
-                          className={`w-full py-1 text-xs rounded ${bg} ${selected ? '' : baseText} hover:bg-blue-50 dark:hover:bg-blue-900/20`}
+                          className={`w-full py-1 text-xs rounded ${bg} ${selected ? '' : baseText} ${UI_THEME_TOKENS.button.hoverBg}`}
                           onClick={() => {
                             if (commitLockRef.current) return
                             const next = ymd(day)

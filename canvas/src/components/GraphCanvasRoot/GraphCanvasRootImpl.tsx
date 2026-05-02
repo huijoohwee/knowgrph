@@ -70,6 +70,7 @@ const EMPTY_STRING_ARRAY: string[] = []
 export default function GraphCanvas({ active = true }: { active?: boolean }) {
   const containerRef = useRef<HTMLElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
+  const resolvedThemeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const coarsePointer = useMediaQuery('(pointer: coarse)')
   const isEmbeddedPreview = useMemo(() => {
     try {
@@ -333,6 +334,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         frontmatterModeEnabled: !!effectiveFrontmatterModeEnabled,
         multiDimTableModeEnabled: multiDimTableModeEnabled === true,
         documentStructureBaselineLock: documentStructureBaselineLock === true,
+        resolvedThemeMode,
       }),
     })
   }, [
@@ -342,6 +344,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     effectiveFrontmatterModeEnabled,
     graphContentRevision,
     multiDimTableModeEnabled,
+    resolvedThemeMode,
     schema,
   ])
 
@@ -975,7 +978,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     setHoverInfo,
   })
 
-  useSelectionHighlight({ paused: !active, nodesSelRef, mediaSelRef, labelsSelRef, linksSelRef })
+  useSelectionHighlight({ paused: !active, nodesSelRef, mediaSelRef, labelsSelRef, linksSelRef, themeSignal: resolvedThemeMode })
   useGroupSelectionHighlight({ gRef, paused: !active })
   useSelectionRerenderSubscription2d({ active, beforeRenderFrameRef })
   useZoomScaleReapplySubscription2d({ active, svgRef, zoomRef })
@@ -995,6 +998,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     documentSemanticMode: documentSemanticMode ?? undefined,
     paused: !active,
     graphDataRevision: graphDataRevisionRef.current ?? 0,
+    themeSignal: resolvedThemeMode,
   })
 
   const arrange = useArrange2d({
@@ -1055,6 +1059,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         dpr={dpr}
         getTransform={getZoomTransform}
         getEventTarget={getZoomEventTarget}
+        themeSignal={resolvedThemeMode}
       />
       <svg
         ref={svgRef}

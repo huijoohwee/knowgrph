@@ -102,6 +102,14 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modPmfVoxelImport()
     await mod.testPmfVoxelResolversPreferImportedLayerMetadata()
   })
+  await execTest(results, 'io.pmfVoxel.adapter.reusesSharedPlainObjectGuard', async () => {
+    const mod = await modPmfVoxelImport()
+    await mod.testGraphIoAdapterReusesSharedPlainObjectGuardForPmfDetection()
+  })
+  await execTest(results, 'io.pmfVoxel.parser.reusesSharedPlainObjectGuard', async () => {
+    const mod = await modPmfVoxelImport()
+    await mod.testPmfVoxelParserReusesSharedPlainObjectGuard()
+  })
   await execTest(results, 'io.pmfVoxel.parseRoute', async () => {
     const mod = await modPmfVoxelVisibility()
     await mod.testPmfJsonRoutesToPmfVoxelParser()

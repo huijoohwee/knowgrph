@@ -1,4 +1,5 @@
 import type { GraphData } from '@/lib/graph/types'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 
 const isHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value)
 
@@ -18,17 +19,13 @@ export function tryExtractDesignDocumentUrl(graphData: GraphData | null): string
     return u
   }
   const acceptFromMeta = (m: unknown): string | null => {
-    if (!m || typeof m !== 'object' || Array.isArray(m)) return null
-    const mm = m as Record<string, unknown>
+    const mm = toMetadataRecord(m)
     return accept(mm.documentUrl) || accept(mm.documentPath) || null
   }
-  const meta =
-    graphData?.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
-      ? (graphData.metadata as Record<string, unknown>)
-      : null
-  const direct = accept(meta?.documentUrl)
+  const meta = toMetadataRecord(graphData?.metadata)
+  const direct = accept(meta.documentUrl)
   if (direct) return direct
-  const layers = meta?.sourceLayers
+  const layers = meta.sourceLayers
   if (Array.isArray(layers)) {
     for (let i = 0; i < layers.length; i += 1) {
       const layer = layers[i] as Record<string, unknown> | null

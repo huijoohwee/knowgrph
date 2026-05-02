@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { tryBuildWidgetBundleMarkdownFromJsonText } from '@/lib/graph/io/widgetBundle'
 import { FLOW_WIDGET_BUNDLE_KIND, FLOW_WIDGET_BUNDLE_VERSION } from '@/lib/config'
 
@@ -36,5 +38,25 @@ export function testWidgetBundleMarkdownIncludesRegistryAndGraphTables() {
   if (!markdown.includes('## Graph Edges')) throw new Error('expected widget bundle markdown to include graph edges section')
   if (!markdown.includes('| e1 | n1 | n6 | linksTo | Edge |')) {
     throw new Error('expected widget bundle markdown graph edges table to include e1 row')
+  }
+}
+
+export function testWidgetBundleMarkdownReusesSharedPlainObjectGuard() {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'widgetBundle.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected widget bundle helpers to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('function readPlainObject(v: unknown): JsonLikeRecord | null {')) {
+    throw new Error('expected widget bundle helpers to centralize plain-object coercion in one local helper')
+  }
+  if (!text.includes('const record = readPlainObject(entry) || {}')) {
+    throw new Error('expected widget bundle registry signature shaping to reuse the shared local plain-object helper')
+  }
+  if (!text.includes('const graph = readPlainObject(parsed.graph)')) {
+    throw new Error('expected widget bundle markdown parsing to reuse the shared local plain-object helper')
+  }
+  if (text.includes('function isJsonRecord(') || text.includes('function isUnknownRecord(')) {
+    throw new Error('expected widget bundle helpers to stop defining duplicate local record guards')
   }
 }

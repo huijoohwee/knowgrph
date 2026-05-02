@@ -47,3 +47,9 @@ export const getDocumentPathFromMetadata = (metadata: unknown): string | null =>
   }
   return null
 }
+
+export const readGraphDataRevision = (graphData: { metadata?: unknown } | null | undefined): number => {
+  const record = toMetadataRecord(graphData?.metadata)
+  const raw = record.graphDataRevision
+  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
+}

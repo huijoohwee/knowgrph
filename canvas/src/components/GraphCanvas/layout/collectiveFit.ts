@@ -4,6 +4,11 @@ import { GraphSchema } from '@/lib/graph/schema'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import {
+  computeBalancedSpreadLayout,
+  computeBalancedSpreadSpacingPx,
+  computeBalancedSpreadViewportMargins,
+} from '@/lib/ui/overlayBalancedSpread'
 import { buildNodeAdjacencyFromIncidentEdges, deriveConnectivityComponents } from '@/components/GraphCanvas/layout/graphConnectivity'
 
 export const applyCollectiveGraphLayout = (args: {
@@ -62,81 +67,69 @@ export const applyCollectiveGraphLayout = (args: {
 
   components.sort((a, b) => b.bbox.height - a.bbox.height)
 
-  const viewportAspect = width / Math.max(1, height)
-  const totalArea = components.reduce((sum, c) => sum + (c.bbox.width + padding) * (c.bbox.height + padding), 0)
-  const targetWidth = Math.max(width, Math.sqrt(totalArea * viewportAspect))
-  
-  let currentX = 0
-  let currentY = 0
-  let rowHeight = 0
-  
-  const placements: { compIndex: number, x: number, y: number }[] = []
-  
-  for (let i = 0; i < components.length; i++) {
-    const comp = components[i]
-    
-    if (currentX + comp.bbox.width > targetWidth && currentX > 0) {
-      // New row
-      currentX = 0
-      currentY += rowHeight + padding
-      rowHeight = 0
-    }
-    
-    placements.push({
-      compIndex: i,
-      x: currentX, // Top-left of component in arrangement
-      y: currentY
-    })
-    
-    rowHeight = Math.max(rowHeight, comp.bbox.height)
-    currentX += comp.bbox.width + padding
+  let maxComponentWidth = 1
+  let maxComponentHeight = 1
+  for (let i = 0; i < components.length; i += 1) {
+    const comp = components[i]!
+    if (comp.bbox.width > maxComponentWidth) maxComponentWidth = comp.bbox.width
+    if (comp.bbox.height > maxComponentHeight) maxComponentHeight = comp.bbox.height
   }
 
-  // Calculate total bounds of the arrangement
-  let arrMinX = Infinity, arrMaxX = -Infinity, arrMinY = Infinity, arrMaxY = -Infinity
-  
-  placements.forEach(p => {
-    const comp = components[p.compIndex]
-    arrMinX = Math.min(arrMinX, p.x)
-    arrMaxX = Math.max(arrMaxX, p.x + comp.bbox.width)
-    arrMinY = Math.min(arrMinY, p.y)
-    arrMaxY = Math.max(arrMaxY, p.y + comp.bbox.height)
+  const gapPx = computeBalancedSpreadSpacingPx({
+    baseGapPx: padding,
+    zoomK: 1,
+    count: components.length,
   })
-  
-  const arrW = arrMaxX - arrMinX
-  const arrH = arrMaxY - arrMinY
-  const arrCX = arrMinX + arrW / 2
-  const arrCY = arrMinY + arrH / 2
-  
-  const targetCX = width / 2
-  const targetCY = height / 2
+  const spreadMargins = computeBalancedSpreadViewportMargins({
+    viewportW: width,
+    viewportH: height,
+    preset: 'widgetCanvas',
+    minLeftPx: Math.max(20, Math.floor(padding * 0.25)),
+    minRightPx: Math.max(20, Math.floor(padding * 0.25)),
+    minTopPx: Math.max(24, Math.floor(padding * 0.3)),
+    minBottomPx: Math.max(20, Math.floor(padding * 0.25)),
+  })
+  const usableW = Math.max(1, width - spreadMargins.left - spreadMargins.right)
+  const usableH = Math.max(1, height - spreadMargins.top - spreadMargins.bottom)
+  const slotWidth = Math.max(1, maxComponentWidth)
+  const slotHeight = Math.max(1, maxComponentHeight)
+  const balancedLayout = computeBalancedSpreadLayout({
+    count: components.length,
+    viewportW: width,
+    viewportH: height,
+    cellW: slotWidth + gapPx,
+    cellH: slotHeight + gapPx,
+    gapPx,
+    zoomK: 1,
+    marginLeftPx: spreadMargins.left,
+    marginRightPx: spreadMargins.right,
+    marginTopPx: spreadMargins.top,
+    marginBottomPx: spreadMargins.bottom,
+    snapPx: 1,
+  })
+  const usableCenterX = spreadMargins.left + usableW / 2
+  const usableCenterY = spreadMargins.top + usableH / 2
+  const centeredCells = [...balancedLayout.cells].sort((left, right) => {
+    const leftCenterX = left.left + slotWidth / 2
+    const leftCenterY = left.top + slotHeight / 2
+    const rightCenterX = right.left + slotWidth / 2
+    const rightCenterY = right.top + slotHeight / 2
+    const leftDistance = Math.hypot(leftCenterX - usableCenterX, leftCenterY - usableCenterY)
+    const rightDistance = Math.hypot(rightCenterX - usableCenterX, rightCenterY - usableCenterY)
+    if (Math.abs(leftDistance - rightDistance) > 0.001) return leftDistance - rightDistance
+    if (left.row !== right.row) return left.row - right.row
+    return left.col - right.col
+  })
 
-  for (const p of placements) {
-    const comp = components[p.compIndex]
-    
-    // Shift needed to move component to its placed position relative to arrangement origin
-    // p.x, p.y is the top-left of where we want the component's bbox to be
-    
-    // Current component position:
-    // Its nodes are relative to comp.bbox.minX, comp.bbox.minY
-    
-    // We want to move (comp.bbox.minX, comp.bbox.minY) to (p.x, p.y)
-    // AND then shift the whole arrangement to be centered in viewport
-    
-    // Target position for component top-left:
-    // targetX = p.x + (targetCX - arrCX)
-    // targetY = p.y + (targetCY - arrCY)
-    
-    // Delta for nodes:
-    // dx = targetX - comp.bbox.minX
-    // dy = targetY - comp.bbox.minY
-    
-    const globalShiftX = targetCX - arrCX
-    const globalShiftY = targetCY - arrCY
-    
-    const dx = (p.x + globalShiftX) - comp.bbox.minX
-    const dy = (p.y + globalShiftY) - comp.bbox.minY
-    
+  for (let i = 0; i < components.length; i += 1) {
+    const comp = components[i]!
+    const cell = centeredCells[i] || centeredCells[centeredCells.length - 1]
+    if (!cell) continue
+    const targetX = cell.left + Math.max(0, (slotWidth - comp.bbox.width) / 2)
+    const targetY = cell.top + Math.max(0, (slotHeight - comp.bbox.height) / 2)
+    const dx = targetX - comp.bbox.minX
+    const dy = targetY - comp.bbox.minY
+
     for (const n of comp.nodes) {
       if (typeof n.x === 'number' && Number.isFinite(n.x)) n.x += dx
       if (typeof n.y === 'number' && Number.isFinite(n.y)) n.y += dy

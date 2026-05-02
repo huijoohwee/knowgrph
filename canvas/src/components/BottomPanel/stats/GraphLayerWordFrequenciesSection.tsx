@@ -5,6 +5,7 @@ import IconButton from '@/components/IconButton'
 import { SlidersHorizontal } from 'lucide-react'
 import { emitRendererPanelOpen } from '@/features/canvas/utils'
 import { UI_COPY } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { SelectionSnapshot, StatsUiClasses, TokenCount, TokensByGraphLayerRow } from '@/components/BottomPanel/stats/types'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
@@ -154,7 +155,7 @@ export default function GraphLayerWordFrequenciesSection({
                       'px-2 py-[2px]',
                       statsFilterMode === 'exclude'
                         ? 'bg-gray-100 text-gray-800'
-                        : 'bg-white text-gray-500 hover:bg-gray-50',
+                        : `bg-white text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`,
                     ].join(' ')}
                     onClick={() => setStatsFilterMode('exclude')}
                   >
@@ -168,7 +169,7 @@ export default function GraphLayerWordFrequenciesSection({
                       'px-2 py-[2px] border-l border-gray-200',
                       statsFilterMode === 'include'
                         ? 'bg-gray-100 text-gray-800'
-                        : 'bg-white text-gray-500 hover:bg-gray-50',
+                        : `bg-white text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`,
                     ].join(' ')}
                     onClick={() => setStatsFilterMode('include')}
                   >

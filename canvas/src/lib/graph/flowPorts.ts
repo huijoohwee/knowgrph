@@ -1,4 +1,6 @@
 import type { GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { isPlainObject } from '@/lib/graph/value'
 
 export const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey' as const
 export const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey' as const
@@ -26,7 +28,7 @@ export function readFlowEdgePortKey(edge: Pick<GraphEdge, 'properties'> | null |
   | string
   | null {
   const props = edge?.properties
-  if (!props || typeof props !== 'object' || Array.isArray(props)) return null
+  if (!isPlainObject(props)) return null
   const key = side === 'source' ? FLOW_EDGE_SOURCE_PORT_KEY : FLOW_EDGE_TARGET_PORT_KEY
   const raw = (props as Record<string, JSONValue | undefined>)[key]
   if (typeof raw !== 'string') return null
@@ -37,8 +39,7 @@ export function readFlowEdgePortKey(edge: Pick<GraphEdge, 'properties'> | null |
 export type SchemaFieldSpec = { id: string; label: string; type?: string }
 
 export function readSchemaFieldSpecs(node: Pick<GraphNode, 'properties'> | null | undefined): SchemaFieldSpec[] {
-  const props = node?.properties
-  if (!props || typeof props !== 'object' || Array.isArray(props)) return []
+  const props = readNodeProperties(node)
   const raw = (props as Record<string, JSONValue | undefined>)[FLOW_SCHEMA_FIELDS_PROPERTY_KEY]
   if (!Array.isArray(raw)) return []
   const out: SchemaFieldSpec[] = []
@@ -51,7 +52,7 @@ export function readSchemaFieldSpecs(node: Pick<GraphNode, 'properties'> | null 
       out.push({ id, label: id })
       continue
     }
-    if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+    if (!isPlainObject(item)) continue
     const rec = item as Record<string, JSONValue>
     const id = typeof rec.id === 'string' ? rec.id.trim() : typeof rec.title === 'string' ? rec.title.trim() : ''
     if (!id) continue
@@ -62,21 +63,15 @@ export function readSchemaFieldSpecs(node: Pick<GraphNode, 'properties'> | null 
 
   return out
 }
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
-
 function readTypedFlowPortKeys(
   node: Pick<GraphNode, 'properties'> | null | undefined,
   dir: 'in' | 'out',
 ): string[] {
-  const props = node?.properties
-  if (!props || typeof props !== 'object' || Array.isArray(props)) return []
+  const props = readNodeProperties(node)
   const rawPortTypes = (props as Record<string, JSONValue | undefined>)[FLOW_PORT_TYPES_KEY]
-  if (!isRecord(rawPortTypes)) return []
+  if (!isPlainObject(rawPortTypes)) return []
   const bucket = rawPortTypes[dir]
-  if (!isRecord(bucket)) return []
+  if (!isPlainObject(bucket)) return []
   return Object.keys(bucket)
     .map(key => String(key || '').trim())
     .filter(Boolean)
@@ -113,7 +108,7 @@ export function pickDefaultSchemaFieldPortKey(node: Pick<GraphNode, 'properties'
 
 export function readFlowEdgeDisplayLabel(edge: Pick<GraphEdge, 'properties'> | null | undefined): string | null {
   const props = edge?.properties
-  if (!props || typeof props !== 'object' || Array.isArray(props)) return null
+  if (!isPlainObject(props)) return null
   const raw = (props as Record<string, JSONValue | undefined>)[FLOW_EDGE_DISPLAY_LABEL_KEY]
   if (typeof raw !== 'string') return null
   const trimmed = raw.trim()

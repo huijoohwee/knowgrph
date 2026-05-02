@@ -245,7 +245,10 @@ export function testSelectionNormalizationReuseAdoptsSharedHookAcrossPanelConsum
   }
 
   if (
-    !edgeEndpointsText.includes('export function readGraphEdgeEndpoints(')
+    !edgeEndpointsText.includes("import { isPlainObject } from '@/lib/graph/value'")
+    || !edgeEndpointsText.includes('if (isPlainObject(raw)) {')
+    || !edgeEndpointsText.includes('export function readEdgeEndpointId(raw: unknown): string')
+    || !edgeEndpointsText.includes('export function readGraphEdgeEndpoints(')
     || !edgeEndpointsText.includes('export function buildSelectedEdgeEndpointNodeIdSet(')
     || !edgeEndpointsText.includes('export function readSelectedEdgeEndpointsById<')
   ) {

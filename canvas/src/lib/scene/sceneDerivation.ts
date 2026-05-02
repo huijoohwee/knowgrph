@@ -8,8 +8,10 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { applySchemaGroupBoundsOverrides, readSchemaGroupBoundsOverrides } from '@/lib/canvas/groupBoundsOverrides'
 import { SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES } from '@/lib/config.render'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { isPlainObject } from '@/lib/graph/value'
 
 export type SceneGroupsDerivation = {
   key: string
@@ -33,8 +35,6 @@ const cache = new LRUCache<string, SceneGroupsDerivation>(128)
 
 const EMPTY_EDGES: GraphEdge[] = []
 
-const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
-
 const displayGraphCache = new WeakMap<object, WeakMap<GraphEdge[], SceneDisplayGraphDerivation>>()
 
 const buildKey = (args: {
@@ -45,23 +45,21 @@ const buildKey = (args: {
   frontmatterModeEnabled: boolean
   multiDimTableModeEnabled?: boolean
   documentStructureBaselineLock?: boolean
+  resolvedThemeMode?: 'light' | 'dark'
 }): string => {
   const g = args.graphData
   const nodesLen = Array.isArray(g.nodes) ? g.nodes.length : 0
   const edgesLen = Array.isArray(g.edges) ? g.edges.length : 0
   const metaKey = buildGraphMetaKey(g)
-  const meta = g.metadata && typeof g.metadata === 'object' && !Array.isArray(g.metadata)
-    ? (g.metadata as Record<string, unknown>)
-    : null
-  const layerHash = typeof meta?.sourceLayerHash === 'string' ? meta.sourceLayerHash.trim() : ''
+  const meta = toMetadataRecord(g.metadata)
+  const layerHash = typeof meta.sourceLayerHash === 'string' ? meta.sourceLayerHash.trim() : ''
   const revKey = `rev:${String(args.graphDataRevision || 0)}`
   const layerKey = layerHash ? `h:${layerHash}` : ''
   const schemaGroupsKey = JSON.stringify(args.schema?.layout?.groups || null)
   const boundsOverridesKey = (() => {
-    const metaRaw = (args.schema as unknown as { metadata?: unknown })?.metadata
-    if (!isRecord(metaRaw)) return ''
-    const raw = (metaRaw as Record<string, unknown>)[SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES]
-    if (!raw) return ''
+    const schemaMeta = toMetadataRecord((args.schema as unknown as { metadata?: unknown })?.metadata)
+    const raw = schemaMeta[SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES]
+    if (!isPlainObject(raw)) return ''
     try {
       return JSON.stringify(raw)
     } catch {
@@ -82,6 +80,7 @@ const buildKey = (args: {
     `n:${String(nodesLen)}`,
     `e:${String(edgesLen)}`,
     `view:${semanticViewModeKey}`,
+    `theme:${String(args.resolvedThemeMode || '')}`,
     `groups:${schemaGroupsKey}`,
     boundsOverridesKey ? `groupBounds:${boundsOverridesKey}` : '',
   ].filter(Boolean).join('|')
@@ -95,6 +94,7 @@ export const deriveSceneGroups = (args: {
   frontmatterModeEnabled: boolean
   multiDimTableModeEnabled?: boolean
   documentStructureBaselineLock?: boolean
+  resolvedThemeMode?: 'light' | 'dark'
 }): SceneGroupsDerivation | null => {
   const g = args.graphData
   if (!g) return null
@@ -106,6 +106,7 @@ export const deriveSceneGroups = (args: {
     frontmatterModeEnabled: args.frontmatterModeEnabled,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled,
     documentStructureBaselineLock: args.documentStructureBaselineLock,
+    resolvedThemeMode: args.resolvedThemeMode,
   })
   const cached = cache.get(key)
   if (cached) return cached
@@ -119,6 +120,7 @@ export const deriveSceneGroups = (args: {
   const boundsById = readSchemaGroupBoundsOverrides(args.schema)
   const allGroupsBase = deriveGraphGroups(g, {
     forceDocumentStructure: documentViewMode.forceDocumentStructureGroups,
+    themeMode: args.resolvedThemeMode,
   })
   const allGroups = applySchemaGroupBoundsOverrides(allGroupsBase, boundsById)
   const layoutGroupsBase = selectLayoutGroups({ graphData: g, schema: args.schema, groups: allGroups })

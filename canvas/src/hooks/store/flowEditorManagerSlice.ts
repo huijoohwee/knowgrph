@@ -31,6 +31,7 @@ import {
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
   FLOW_VIDEO_SCRIPT_FORM_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+  readWidgetRegistryMetadataEntries,
 } from '@/lib/config.flow-editor'
 import type {
   WidgetRegistryEntry,
@@ -157,6 +158,12 @@ export function validateWidgetRegistryEntry(raw: unknown): WidgetRegistryEntry |
     ...(schemaMappings ? { schemaMappings } : {}),
     updatedAt: updatedAt || new Date().toISOString(),
   }
+}
+
+export function readValidatedWidgetRegistryMetadataEntries(metadata: unknown): WidgetRegistryEntry[] {
+  return readWidgetRegistryMetadataEntries(metadata)
+    .map(item => validateWidgetRegistryEntry(item))
+    .filter((entry): entry is WidgetRegistryEntry => !!entry)
 }
 
 export function readWidgetRegistryFromStorage(storage: Storage | null): WidgetRegistryEntry[] {

@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { applyZoomRequestNative } from '@/components/FlowCanvas/applyZoomRequestNative'
 import { EMPTY_STRING_ARRAY, type FlowCanvasInteractionRuntimeProps } from '@/components/FlowCanvas/shared'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
@@ -175,6 +176,11 @@ export default React.memo(function FlowCanvasInteractionRuntime(
     if (!active) return
     const runtime = runtimeRef.current
     if (!runtime || !zoomRequest) return
+    const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())
+    if (workspaceMutationBlocked && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')) {
+      useGraphStore.getState().clearZoomRequest()
+      return
+    }
     const isFlowEditor = canvas2dRenderer === 'flowEditor'
     const widthEffective =
       isFlowEditor && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')

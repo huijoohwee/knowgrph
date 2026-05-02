@@ -160,8 +160,14 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!topologySignatureText.includes("import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'")) {
     throw new Error('expected shared overlay topology/layout signature to reuse graph edge endpoint normalization')
   }
+  if (!topologySignatureText.includes("import { splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")) {
+    throw new Error('expected shared overlay topology/layout signature to canonicalize composed workspace node identities through the shared helper')
+  }
   if (!topologySignatureText.includes("import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'")) {
     throw new Error('expected shared overlay topology/layout signature to reuse shared flow edge port readers')
+  }
+  if (!topologySignatureText.includes("return splitComposedNodeId(id).inner || id")) {
+    throw new Error('expected shared overlay topology/layout signature to normalize workspace-prefixed overlay ids to their canonical inner identity')
   }
   if (!topologySignatureText.includes('const { src, tgt } = readGraphEdgeEndpoints(edge)')) {
     throw new Error('expected shared overlay topology/layout signature to normalize edge endpoints through the shared pair helper')

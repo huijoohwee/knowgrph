@@ -51,6 +51,7 @@ export function buildD3SceneSetupContext(args: {
   const expansionEnabled = expansionCfg.enabled !== false
   const zoomOnDoubleClick = expansionEnabled && expansionCfg.zoomOnDoubleClick !== false
   const graphMetaKey = buildGraphMetaKeyIgnoringPending(args.sceneGraphData)
+  // Keep scene rebuilds semantic-only so panel/workspace gesture toggles do not drift layout.
   const buildKey = [
     String(args.graphContentRevision || 0),
     `${args.sceneWidth}x${args.sceneHeight}`,
@@ -62,7 +63,6 @@ export function buildD3SceneSetupContext(args: {
     String(isBipartite ? 0 : (args.renderMediaAsNodes ? 1 : 0)),
     String(isBipartite ? '' : args.mediaPanelDensity),
     args.collapsedGroupIdsKey,
-    String(args.enableEditorGestures ? 1 : 0),
     String(args.infiniteCanvasInteractionMode),
   ].join('|')
   const isMermaidLayout = (() => {

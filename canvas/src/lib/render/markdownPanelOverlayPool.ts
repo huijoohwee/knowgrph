@@ -3,6 +3,7 @@ import type { MarkdownDesignLayout } from '@/features/markdown-edgeless/markdown
 import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 
 export type MarkdownPanelLineRanges = {
   table: ReadonlySet<number>
@@ -12,8 +13,7 @@ export type MarkdownPanelLineRanges = {
 }
 
 function readLineStart(n: GraphNode): number | null {
-  const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
-  const raw = meta ? meta.lineStart : null
+  const raw = toMetadataRecord(n.metadata).lineStart
   const v = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN
   if (!Number.isFinite(v)) return null
   return Math.max(1, Math.floor(v))
@@ -56,11 +56,8 @@ export function computeMarkdownAnchorNodeIdByBlockId(args: {
     const id = String(n?.id || '').trim()
     if (!id) continue
 
-    const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
-    const lineStartRaw = meta ? meta.lineStart : null
-    const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
-    if (!Number.isFinite(lineStart)) continue
-    const start = Math.max(1, Math.floor(lineStart))
+    const start = readLineStart(n)
+    if (start == null) continue
 
     const typeLower = String(n.type || '').trim().toLowerCase()
     if (typeLower === 'table' && !tableByStart.has(start)) tableByStart.set(start, id)

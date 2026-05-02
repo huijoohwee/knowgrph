@@ -1,16 +1,13 @@
 import type { GraphNode } from '@/lib/graph/types'
+import { isPlainObject } from '@/lib/graph/value'
 
 const EMPTY_NODE_PROPERTIES: Record<string, unknown> = Object.freeze({})
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 export function readNodeProperties(
   node: Pick<GraphNode, 'properties'> | null | undefined,
 ): Record<string, unknown> {
   const props = node?.properties
-  return isRecord(props) ? (props as Record<string, unknown>) : EMPTY_NODE_PROPERTIES
+  return isPlainObject(props) ? (props as Record<string, unknown>) : EMPTY_NODE_PROPERTIES
 }
 
 export function readRecordPathValue(root: Record<string, unknown>, pathRaw: string): unknown {
@@ -22,7 +19,7 @@ export function readRecordPathValue(root: Record<string, unknown>, pathRaw: stri
   if (parts.length === 0) return undefined
   let current: unknown = root
   for (let i = 0; i < parts.length; i += 1) {
-    if (!isRecord(current)) return undefined
+    if (!isPlainObject(current)) return undefined
     current = current[parts[i]]
   }
   return current

@@ -37,6 +37,7 @@ import {
   readGlobalEdgeType,
 } from '@/lib/graph/edgeTypes'
 import { readEdgeEndpointId, readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import {
@@ -44,13 +45,6 @@ import {
   isFlowEditorQeTraceEnabled,
   pushFlowEditorQeTrace,
 } from '@/lib/flowEditor/flowEditorQeTrace'
-
-function readGraphDataRevision(graph: GraphData | null | undefined): number {
-  const meta = graph?.metadata
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return 0
-  const raw = (meta as Record<string, unknown>).graphDataRevision
-  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
-}
 
 function buildOverlayNodeHandleSignature(
   nodes: ReadonlyArray<{ id?: unknown; type?: unknown; properties?: unknown }>,
@@ -82,9 +76,19 @@ function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>
   ref.current.clear()
 }
 
+type FrozenOverlayEdgePathSnapshot = {
+  id: string
+  attrs: Record<string, string>
+  animation: string
+}
+
+const frozenOverlayEdgePathsBySurfaceId = new Map<string, FrozenOverlayEdgePathSnapshot[]>()
+const FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'
+
 export function useFlowEditorOverlayEdges(args: {
   active: boolean
   overlayOnlyModeEnabled: boolean
+  resolvedThemeMode: 'light' | 'dark'
   overlayEdgesEnabledRef: React.MutableRefObject<boolean>
   flowEditorSurfaceId: string
   rootRef: React.RefObject<HTMLElement | null>
@@ -162,6 +166,87 @@ export function useFlowEditorOverlayEdges(args: {
     overlayEdgeReadinessRetryRef.current = null
     overlayGraphLookupCacheRef.current = null
   }, [])
+
+  const cacheFrozenOverlayEdgePaths = React.useCallback(() => {
+    const surfaceId = String(args.flowEditorSurfaceId || '').trim()
+    if (!surfaceId) return
+    const snapshots: FrozenOverlayEdgePathSnapshot[] = []
+    for (const [id, pathEl] of overlayEdgePathByIdRef.current.entries()) {
+      if (!pathEl) continue
+      const attrs = {
+        d: pathEl.getAttribute('d') || '',
+        [FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR]: pathEl.getAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR) || id,
+        fill: pathEl.getAttribute('fill') || 'none',
+        stroke: pathEl.getAttribute('stroke') || '',
+        'stroke-width': pathEl.getAttribute('stroke-width') || '',
+        'stroke-linejoin': pathEl.getAttribute('stroke-linejoin') || '',
+        'stroke-linecap': pathEl.getAttribute('stroke-linecap') || '',
+        'stroke-dasharray': pathEl.getAttribute('stroke-dasharray') || '',
+        opacity: pathEl.getAttribute('opacity') || '',
+        'pointer-events': pathEl.getAttribute('pointer-events') || '',
+      }
+      snapshots.push({ id, attrs, animation: pathEl.style.animation || '' })
+    }
+    if (snapshots.length > 0) frozenOverlayEdgePathsBySurfaceId.set(surfaceId, snapshots)
+  }, [args.flowEditorSurfaceId])
+
+  const restoreFrozenOverlayEdgePaths = React.useCallback((svg: SVGSVGElement | null): number => {
+    if (!svg) return 0
+    let restored = 0
+    const existingDomPaths = Array.from(svg.querySelectorAll(`path[${FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR}]`))
+    if (existingDomPaths.length > 0) {
+      overlayEdgePathByIdRef.current.clear()
+      for (let i = 0; i < existingDomPaths.length; i += 1) {
+        const pathEl = existingDomPaths[i]
+        const edgeId = String(pathEl.getAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR) || '').trim()
+        if (!edgeId) continue
+        overlayEdgePathByIdRef.current.set(edgeId, pathEl)
+      }
+      return 0
+    }
+    for (const pathEl of overlayEdgePathByIdRef.current.values()) {
+      if (!pathEl) continue
+      if (pathEl.parentNode !== svg) {
+        try {
+          svg.appendChild(pathEl)
+          restored += 1
+        } catch {
+          void 0
+        }
+      }
+    }
+    if (restored === 0) {
+      const surfaceId = String(args.flowEditorSurfaceId || '').trim()
+      const snapshots = surfaceId ? frozenOverlayEdgePathsBySurfaceId.get(surfaceId) || [] : []
+      for (let i = 0; i < snapshots.length; i += 1) {
+        const snapshot = snapshots[i]
+        if (!snapshot?.id) continue
+        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        const attrs = snapshot.attrs || {}
+        for (const [name, value] of Object.entries(attrs)) {
+          if (value) pathEl.setAttribute(name, value)
+        }
+        if (snapshot.animation) pathEl.style.animation = snapshot.animation
+        try {
+          svg.appendChild(pathEl)
+          overlayEdgePathByIdRef.current.set(snapshot.id, pathEl)
+          restored += 1
+        } catch {
+          void 0
+        }
+      }
+    }
+    const pendingPathEl = overlayPendingEdgePathRef.current
+    if (pendingPathEl && pendingPathEl.parentNode !== svg) {
+      try {
+        svg.appendChild(pendingPathEl)
+        restored += 1
+      } catch {
+        void 0
+      }
+    }
+    return restored
+  }, [args.flowEditorSurfaceId])
 
   const pushOverlayEdgeTrace = React.useCallback((phase: string, details?: Record<string, unknown>) => {
     if (typeof window === 'undefined') return
@@ -300,14 +385,17 @@ export function useFlowEditorOverlayEdges(args: {
     }
     overlayEdgeReadinessRetryRef.current = null
     overlayEdgeLayoutSigRef.current = ''
+    const restoredFrozenPathCount = workspaceOverlayOpenRef.current ? restoreFrozenOverlayEdgePaths(node) : 0
     pushOverlayEdgeTrace('svg-attached', {
       overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
       svgWidthAttr: node.getAttribute('width') || '',
       svgHeightAttr: node.getAttribute('height') || '',
       svgViewBox: node.getAttribute('viewBox') || '',
+      restoredFrozenPathCount,
     })
+    if (workspaceOverlayOpenRef.current) return
     scheduleOverlayEdgeUpdateRef.current()
-  }, [args.overlayEdgesEnabledRef, pushOverlayEdgeTrace])
+  }, [args.overlayEdgesEnabledRef, pushOverlayEdgeTrace, restoreFrozenOverlayEdgePaths])
 
   const scheduleOverlayEdgeUpdate = React.useCallback(() => {
     if (!args.active) {
@@ -323,8 +411,10 @@ export function useFlowEditorOverlayEdges(args: {
       return
     }
     if (workspaceOverlayOpenRef.current) {
+      const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(overlayEdgesSvgRef.current)
       pushOverlayEdgeTrace('schedule-skip-workspace-open', {
         overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
+        restoredFrozenPathCount,
       })
       return
     }
@@ -332,8 +422,10 @@ export function useFlowEditorOverlayEdges(args: {
     overlayEdgeRafRef.current = requestAnimationFrame(() => {
       overlayEdgeRafRef.current = null
       if (workspaceOverlayOpenRef.current) {
+        const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(overlayEdgesSvgRef.current)
         pushOverlayEdgeTrace('raf-skip-workspace-open', {
           overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
+          restoredFrozenPathCount,
         })
         return
       }
@@ -967,6 +1059,7 @@ export function useFlowEditorOverlayEdges(args: {
         const stroke = e.stroke
         const strokeWidth = e.strokeWidth
         if (!existing) {
+          pathEl.setAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR, edgeId)
           pathEl.setAttribute('fill', 'none')
           pathEl.setAttribute('stroke', stroke)
           pathEl.setAttribute('stroke-width', strokeWidth)
@@ -977,6 +1070,7 @@ export function useFlowEditorOverlayEdges(args: {
           svg.appendChild(pathEl)
           overlayEdgePathByIdRef.current.set(edgeId, pathEl)
         }
+        if (pathEl.getAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR) !== edgeId) pathEl.setAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR, edgeId)
         if (pathEl.getAttribute('stroke') !== stroke) pathEl.setAttribute('stroke', stroke)
         if (pathEl.getAttribute('stroke-width') !== strokeWidth) pathEl.setAttribute('stroke-width', strokeWidth)
         const edgeDash = edgeAnimated ? '7 5' : ''
@@ -994,6 +1088,7 @@ export function useFlowEditorOverlayEdges(args: {
         }
         overlayEdgePathByIdRef.current.delete(id)
       }
+      cacheFrozenOverlayEdgePaths()
       if (transientMissingEdgeAnchorParts.length > 0) {
         const retryKey = hashScopedStringArraySignature('missing-edge-anchors', transientMissingEdgeAnchorParts, {
           sort: true,
@@ -1031,7 +1126,7 @@ export function useFlowEditorOverlayEdges(args: {
       })
       if (keep.size === 0) overlayEdgeLayoutSigRef.current = ''
     })
-  }, [args.active, args.draftGraphDataRef, args.flowEditorSurfaceId, args.openWidgetNodeIdsRef, args.overlayEdgesEnabledRef, args.overlayEditorNodeIdsRef, args.pendingOverlayNodeIdRef, args.renderGraphDataOverride, args.rootRef, args.widgetRegistryRef, pushOverlayEdgeTrace, rankdir, scheduleOverlayEdgeReadinessRetry, scheduleTransientOverlayEdgeRetry, schema])
+  }, [args.active, args.draftGraphDataRef, args.flowEditorSurfaceId, args.openWidgetNodeIdsRef, args.overlayEdgesEnabledRef, args.overlayEditorNodeIdsRef, args.pendingOverlayNodeIdRef, args.renderGraphDataOverride, args.rootRef, args.widgetRegistryRef, cacheFrozenOverlayEdgePaths, pushOverlayEdgeTrace, rankdir, restoreFrozenOverlayEdgePaths, scheduleOverlayEdgeReadinessRetry, scheduleTransientOverlayEdgeRetry, schema])
   scheduleOverlayEdgeUpdateRef.current = scheduleOverlayEdgeUpdate
 
   React.useEffect(() => {
@@ -1084,6 +1179,15 @@ export function useFlowEditorOverlayEdges(args: {
     )
     return () => unsub()
   }, [cancelOverlayEdgeUpdate, scheduleOverlayEdgeUpdate])
+
+  React.useEffect(() => {
+    if (!args.active) return
+    if (!args.overlayOnlyModeEnabled) return
+    overlayEdgeLayoutSigRef.current = ''
+    overlayEdgeAnchorCacheRef.current.clear()
+    pushOverlayEdgeTrace('theme-change', { resolvedThemeMode: args.resolvedThemeMode })
+    scheduleOverlayEdgeUpdate()
+  }, [args.active, args.overlayOnlyModeEnabled, args.resolvedThemeMode, pushOverlayEdgeTrace, scheduleOverlayEdgeUpdate])
 
   React.useEffect(() => {
     if (!args.active) return

@@ -115,7 +115,7 @@ export default function FlowMappingRowsTable({
             <tr
               key={r.id}
               className={[
-                UI_THEME_TOKENS.table.rowHoverAmber,
+                UI_THEME_TOKENS.table.rowHoverHighlight,
                 isDragOver ? ['ring-1', UI_RING_PRIMARY_BLUE_INDICATOR].join(' ') : '',
                 !visible ? 'opacity-60' : '',
               ]

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { computeLayoutDatasetKey } from '@/lib/canvas/layoutPositioning'
 
 export const testLayoutDatasetKeyStableAcrossRevision = () => {
@@ -19,3 +21,25 @@ export const testLayoutDatasetKeyStableAcrossRevision = () => {
   if (k3 === k2) throw new Error('expected datasetKey to change when graph shape changes')
 }
 
+export const testLayoutDatasetKeyReusesSharedReaders = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'layoutPositioning.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected layout dataset key helper to reuse the shared document metadata reader upstream')
+  }
+  if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected layout dataset key helper to reuse the shared node properties reader upstream')
+  }
+  if (!text.includes('const meta = toMetadataRecord(graphData?.metadata)')) {
+    throw new Error('expected layout dataset key graph metadata reads to reuse the shared document metadata reader')
+  }
+  if (!text.includes('const props = readNodeProperties(n as { properties?: unknown } | null | undefined)')) {
+    throw new Error('expected layout dataset key document node property reads to reuse the shared node properties reader')
+  }
+  if (!text.includes('const nMeta = toMetadataRecord(n?.metadata)')) {
+    throw new Error('expected layout dataset key document node metadata reads to reuse the shared document metadata reader')
+  }
+  if (text.includes('function isRecord(v: unknown): v is Record<string, unknown> {')) {
+    throw new Error('expected layout dataset key helper to stop defining a local record guard')
+  }
+}

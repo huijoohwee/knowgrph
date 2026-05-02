@@ -1,3 +1,6 @@
+import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { isPlainObject } from '@/lib/graph/value'
 import { GraphData } from './types';
 
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
@@ -7,9 +10,7 @@ const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey' as const
 
 const isFrontmatterMermaidNode = (n: { properties?: unknown } | null | undefined): boolean => {
   if (!n) return false
-  const props = (n as { properties?: unknown }).properties
-  if (!props || typeof props !== 'object' || Array.isArray(props)) return false
-  const p = props as Record<string, unknown>
+  const p = readNodeProperties(n)
   return p.isMermaidFrontmatter === true || p.mermaidScope === 'frontmatter'
 }
 
@@ -37,19 +38,6 @@ export const filterGraphToFrontmatterMermaid = (data: GraphData): GraphData => {
 
   const nodeById = new Map(allNodes.map(n => [String(n.id), n]))
 
-  const normalizeEndpointId = (v: unknown): string => {
-    if (!v) return ''
-    if (typeof v === 'string') return v
-    if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
-    if (typeof v === 'object' && !Array.isArray(v) && 'id' in (v as Record<string, unknown>)) {
-      const id = (v as Record<string, unknown>).id
-      if (typeof id === 'string') return id
-      if (typeof id === 'number') return Number.isFinite(id) ? String(id) : ''
-      return ''
-    }
-    return ''
-  }
-
   const included = new Set<string>()
   const addId = (id: string) => {
     const nid = String(id || '').trim()
@@ -69,52 +57,52 @@ export const filterGraphToFrontmatterMermaid = (data: GraphData): GraphData => {
     parentQi += 1
     const n = nodeById.get(id)
     if (!n) continue
-    const props = (n.properties || {}) as Record<string, unknown>
+    const props = readNodeProperties(n)
     const parentId = typeof props['visual:parentId'] === 'string' ? String(props['visual:parentId'] || '').trim() : ''
     const topParentId = typeof props['visual:topParentId'] === 'string' ? String(props['visual:topParentId'] || '').trim() : ''
     if (parentId && addId(parentId)) parentQueue.push(parentId)
     if (topParentId && addId(topParentId)) parentQueue.push(topParentId)
   }
 
+  const reachableQueue = Array.from(included)
+  let reachableQi = 0
+  while (reachableQi < reachableQueue.length) {
+    const currentId = reachableQueue[reachableQi] as string
+    reachableQi += 1
+    for (let i = 0; i < allEdges.length; i += 1) {
+      const edge = allEdges[i]
+      const src = readEdgeEndpointId(edge?.source)
+      const tgt = readEdgeEndpointId(edge?.target)
+      if (!src || !tgt) continue
+      if (src === currentId && addId(tgt)) reachableQueue.push(tgt)
+      if (tgt === currentId && addId(src)) reachableQueue.push(src)
+    }
+  }
+
   const nodes = allNodes.filter(n => included.has(String(n.id)))
   const edges = allEdges.filter(e => {
-    const src = normalizeEndpointId(e.source)
-    const tgt = normalizeEndpointId(e.target)
+    const src = readEdgeEndpointId(e.source)
+    const tgt = readEdgeEndpointId(e.target)
     return src && tgt && included.has(String(src)) && included.has(String(tgt))
   })
 
   return { ...data, nodes, edges }
 };
 
-const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
-
-function readEndpointId(v: unknown): string {
-  if (!v) return ''
-  if (typeof v === 'string') return v
-  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
-  if (typeof v === 'object' && !Array.isArray(v) && 'id' in (v as Record<string, unknown>)) {
-    const id = (v as Record<string, unknown>).id
-    if (typeof id === 'string') return id
-    if (typeof id === 'number') return Number.isFinite(id) ? String(id) : ''
-  }
-  return ''
-}
-
 function isFlowNode(n: unknown): boolean {
   if (!n || typeof n !== 'object' || Array.isArray(n)) return false
-  const props = (n as { properties?: unknown }).properties
-  if (!isRecord(props)) return false
+  const props = readNodeProperties(n as { properties?: unknown })
   const form = props[FLOW_WIDGET_FORM_ID_KEY]
   if (typeof form === 'string' && form.trim()) return true
   const portTypes = props[FLOW_PORT_TYPES_KEY]
-  if (isRecord(portTypes)) return true
+  if (isPlainObject(portTypes)) return true
   return false
 }
 
 function isFlowEdge(e: unknown): boolean {
   if (!e || typeof e !== 'object' || Array.isArray(e)) return false
   const props = (e as { properties?: unknown }).properties
-  if (!isRecord(props)) return false
+  if (!isPlainObject(props)) return false
   const s = props[FLOW_EDGE_SOURCE_PORT_KEY]
   const t = props[FLOW_EDGE_TARGET_PORT_KEY]
   return (typeof s === 'string' && s.trim().length > 0) || (typeof t === 'string' && t.trim().length > 0)
@@ -135,8 +123,8 @@ export const filterGraphToFrontmatterFlow = (data: GraphData): GraphData => {
   for (let i = 0; i < allEdges.length; i += 1) {
     const e = allEdges[i]
     if (!isFlowEdge(e)) continue
-    const src = readEndpointId((e as { source?: unknown }).source)
-    const tgt = readEndpointId((e as { target?: unknown }).target)
+    const src = readEdgeEndpointId((e as { source?: unknown }).source)
+    const tgt = readEdgeEndpointId((e as { target?: unknown }).target)
     if (src) included.add(src)
     if (tgt) included.add(tgt)
   }
@@ -145,8 +133,8 @@ export const filterGraphToFrontmatterFlow = (data: GraphData): GraphData => {
 
   const nodes = allNodes.filter(n => included.has(String((n as { id?: unknown })?.id || '').trim()))
   const edges = allEdges.filter(e => {
-    const src = readEndpointId((e as { source?: unknown }).source)
-    const tgt = readEndpointId((e as { target?: unknown }).target)
+    const src = readEdgeEndpointId((e as { source?: unknown }).source)
+    const tgt = readEdgeEndpointId((e as { target?: unknown }).target)
     return src && tgt && included.has(src) && included.has(tgt)
   })
 

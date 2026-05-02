@@ -21,6 +21,7 @@ import { subscribeFlowResetZoomFloorCache } from '@/components/FlowCanvas/shared
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import type { ZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
@@ -86,7 +87,6 @@ export function useFlowCanvasRuntime(args: {
   fitToScreenMode: boolean
   zoomToSelectionMode: boolean
   viewPinned: boolean
-  workspaceOverlayOpen: boolean
 }) {
   const {
     active,
@@ -145,11 +145,7 @@ export function useFlowCanvasRuntime(args: {
     fitToScreenMode,
     zoomToSelectionMode,
     viewPinned,
-    workspaceOverlayOpen,
   } = args
-
-  const workspaceOverlayOpenRef = React.useRef<boolean>(workspaceOverlayOpen)
-  const frozenWorkspaceOverlayTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)
 
   React.useEffect(() => {
     if (!active) return
@@ -158,37 +154,6 @@ export function useFlowCanvasRuntime(args: {
       if (runtime) setFlowAutoMinScale(runtime, null)
     })
   }, [active, runtimeRef])
-
-  React.useEffect(() => {
-    const wasOpen = workspaceOverlayOpenRef.current
-    workspaceOverlayOpenRef.current = workspaceOverlayOpen
-    if (!active) {
-      if (!workspaceOverlayOpen) frozenWorkspaceOverlayTransformRef.current = null
-      return
-    }
-    const runtime = runtimeRef.current
-    if (!runtime) return
-    if (!wasOpen && workspaceOverlayOpen) {
-      const current = runtime.transform || d3.zoomIdentity
-      frozenWorkspaceOverlayTransformRef.current = { k: current.k, x: current.x, y: current.y }
-      return
-    }
-    if (!wasOpen || workspaceOverlayOpen) return
-    const frozen = frozenWorkspaceOverlayTransformRef.current
-    frozenWorkspaceOverlayTransformRef.current = null
-    if (!frozen) return
-    const current = runtime.transform || d3.zoomIdentity
-    if (
-      Math.abs(current.k - frozen.k) <= 1e-9
-      && Math.abs(current.x - frozen.x) <= 1e-6
-      && Math.abs(current.y - frozen.y) <= 1e-6
-    ) {
-      return
-    }
-    setFlowNativeTransform(runtime, d3.zoomIdentity.translate(frozen.x, frozen.y).scale(frozen.k))
-    scheduleFlowDraw()
-    requestCommit()
-  }, [active, requestCommit, runtimeRef, scheduleFlowDraw, workspaceOverlayOpen])
 
   React.useEffect(() => {
     if (!active) return
@@ -304,6 +269,33 @@ export function useFlowCanvasRuntime(args: {
   }, [zoomViewKey])
 
   React.useEffect(() => {
+    const runtime = runtimeRef.current
+    const transform = runtime?.transform || null
+    __flowCanvasDebug.lastRuntimeTransform =
+      transform && Number.isFinite(transform.k) && Number.isFinite(transform.x) && Number.isFinite(transform.y)
+        ? { k: transform.k, x: transform.x, y: transform.y }
+        : null
+    const trackedSceneWorldById: Record<string, { x: number; y: number }> = {}
+    const trackedStoredWorldById: Record<string, { x: number; y: number }> = {}
+    const sceneNodeById = runtime?.scene?.nodeById || null
+    const openIds = Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds : []
+    for (let i = 0; i < openIds.length; i += 1) {
+      const id = String(openIds[i] || '').trim()
+      if (!id) continue
+      const sceneNode = sceneNodeById?.get(id) || null
+      if (sceneNode && Number.isFinite(sceneNode.x) && Number.isFinite(sceneNode.y)) {
+        trackedSceneWorldById[id] = { x: sceneNode.x, y: sceneNode.y }
+      }
+      const stored = flowWidgetWorldPosByNodeId?.[id]
+      if (stored && Number.isFinite(stored.x) && Number.isFinite(stored.y)) {
+        trackedStoredWorldById[id] = { x: stored.x, y: stored.y }
+      }
+    }
+    __flowCanvasDebug.trackedOpenWidgetSceneWorldById = trackedSceneWorldById
+    __flowCanvasDebug.trackedOpenWidgetStoredWorldById = trackedStoredWorldById
+  }, [flowWidgetWorldPosByNodeId, openWidgetNodeIds, runtimeRef, viewportH, viewportW, zoomViewKey])
+
+  React.useEffect(() => {
     if (!active) return
     const runtime = runtimeRef.current
     if (!runtime || !graphDataForZoom) return
@@ -335,6 +327,16 @@ export function useFlowCanvasRuntime(args: {
       nextViewportW: viewportW,
       nextViewportH: viewportH,
     })
+    const lateFlowEditorInitAfterSceneBuild =
+      isFlowEditor &&
+      !alreadyInitializedForKey &&
+      !hasNonIdentityTransform &&
+      initial == null &&
+      lastBuiltGraphKeyRef.current.length > 0
+    if (lateFlowEditorInitAfterSceneBuild) {
+      lastInitTransformZoomViewKeyRef.current = initKey
+      return
+    }
     const opts = buildFlowFitOptions({
       schema: state.schema,
       intent: fitToScreenMode ? 'fitToScreen' : 'initialFit',
@@ -381,6 +383,7 @@ export function useFlowCanvasRuntime(args: {
     graphDataForZoom,
     graphDataForZoomRequests,
     graphDataRevision,
+    lastBuiltGraphKeyRef,
     lastInitTransformZoomViewKeyRef,
     lastUserInteractionAtMsRef,
     multiDimTableModeEnabled,
@@ -399,7 +402,7 @@ export function useFlowCanvasRuntime(args: {
     if (!active) return
     const runtime = runtimeRef.current
     if (!runtime) return
-    const graphKey = `${graphDataRevision}:${sceneGraphData?.nodes?.length || 0}:${sceneGraphData?.edges?.length || 0}:${layoutVariant}`
+    const graphKey = `${buildGraphMetaKeyIgnoringPending(sceneGraphData)}:${sceneGraphData?.nodes?.length || 0}:${sceneGraphData?.edges?.length || 0}:${layoutVariant}`
     if (graphKey === lastBuiltGraphKeyRef.current && (runtime.scene?.nodes.length || 0) > 0) return
     lastBuiltGraphKeyRef.current = graphKey
     __flowCanvasDebug.lastBuiltSceneKey = graphKey

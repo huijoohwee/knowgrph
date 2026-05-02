@@ -7,6 +7,7 @@ import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { stripFrontmatterAutoManagedWidgetScreenPositions } from '@/lib/flowEditor/widgetPlacementAuthority'
+import { buildCanonicalNodeLookup, parseCanonicalNodeIds, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import {
   applyLayoutAutosuggestFromMetadata,
   applyWidgetRegistryFromMetadata,
@@ -22,30 +23,75 @@ import {
 } from '@/features/graph-data-table/graphDataTable'
 import { resetComposedPositionWrites } from './graphDataComposedSource'
 
+function readCanonicalGraphIdentity(raw: unknown): string {
+  const id = String(raw || '').trim()
+  if (!id) return ''
+  return splitComposedNodeId(id).inner || id
+}
+
+function getCanonicalLookupValue<T>(lookup: ReadonlyMap<string, T>, rawId: unknown): T | undefined {
+  const candidateIds = parseCanonicalNodeIds(rawId)
+  for (let i = 0; i < candidateIds.length; i += 1) {
+    const candidateId = String(candidateIds[i] || '').trim()
+    if (!candidateId || !lookup.has(candidateId)) continue
+    return lookup.get(candidateId)
+  }
+  return undefined
+}
+
+function remapNodeKeyedRecordByCanonicalNodeId<T>(
+  graphData: GraphData | null | undefined,
+  valueByNodeId: Record<string, T>,
+): Record<string, T> {
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const entries = Object.entries(valueByNodeId || {}).filter(([rawId]) => String(rawId || '').trim().length > 0)
+  if (nodes.length === 0 || entries.length === 0) return valueByNodeId
+  const lookup = buildCanonicalNodeLookup(entries.map(([rawId, value]) => [rawId, value] as const))
+  const next: Record<string, T> = {}
+  for (let i = 0; i < nodes.length; i += 1) {
+    const rawId = String(nodes[i]?.id || '').trim()
+    if (!rawId) continue
+    const value = getCanonicalLookupValue(lookup, rawId)
+    if (typeof value === 'undefined') continue
+    next[rawId] = value
+  }
+  const prevKeys = Object.keys(valueByNodeId || {})
+  const nextKeys = Object.keys(next)
+  if (prevKeys.length === nextKeys.length) {
+    let unchanged = true
+    for (let i = 0; i < nextKeys.length; i += 1) {
+      const key = nextKeys[i]
+      if (!(key in (valueByNodeId || {})) || valueByNodeId[key] !== next[key]) {
+        unchanged = false
+        break
+      }
+    }
+    if (unchanged) return valueByNodeId
+  }
+  return next
+}
+
 function hasStableSameSourceTopology(current: GraphData | null, next: GraphData | null): boolean {
   if (!current || !next) return false
   const currentMeta = (current.metadata || {}) as Record<string, unknown>
   const nextMeta = (next.metadata || {}) as Record<string, unknown>
-  const currentSource = typeof currentMeta.source === 'string' ? currentMeta.source.trim() : ''
-  const nextSource = typeof nextMeta.source === 'string' ? nextMeta.source.trim() : ''
-  if (!currentSource || !nextSource || currentSource !== nextSource) return false
   const currentKind = String(currentMeta.kind || '').trim()
   const nextKind = String(nextMeta.kind || '').trim()
   if (currentKind !== nextKind) return false
 
-  const currentNodeIds = (current.nodes || []).map(n => String(n?.id || '').trim()).filter(Boolean).sort()
-  const nextNodeIds = (next.nodes || []).map(n => String(n?.id || '').trim()).filter(Boolean).sort()
+  const currentNodeIds = (current.nodes || []).map(n => readCanonicalGraphIdentity(n?.id)).filter(Boolean).sort()
+  const nextNodeIds = (next.nodes || []).map(n => readCanonicalGraphIdentity(n?.id)).filter(Boolean).sort()
   if (currentNodeIds.length !== nextNodeIds.length) return false
   for (let i = 0; i < currentNodeIds.length; i += 1) {
     if (currentNodeIds[i] !== nextNodeIds[i]) return false
   }
 
   const currentEdgeSig = (current.edges || [])
-    .map(e => `${String(e?.id || '').trim()}|${String(e?.source || '').trim()}|${String(e?.target || '').trim()}`)
+    .map(e => `${readCanonicalGraphIdentity(e?.id)}|${readCanonicalGraphIdentity(e?.source)}|${readCanonicalGraphIdentity(e?.target)}`)
     .filter(Boolean)
     .sort()
   const nextEdgeSig = (next.edges || [])
-    .map(e => `${String(e?.id || '').trim()}|${String(e?.source || '').trim()}|${String(e?.target || '').trim()}`)
+    .map(e => `${readCanonicalGraphIdentity(e?.id)}|${readCanonicalGraphIdentity(e?.source)}|${readCanonicalGraphIdentity(e?.target)}`)
     .filter(Boolean)
     .sort()
   if (currentEdgeSig.length !== nextEdgeSig.length) return false
@@ -61,8 +107,9 @@ function hasStableSameSourceNodeLayout(current: GraphData | null, next: GraphDat
   const currentById = new Map<string, { x: number | null; y: number | null }>()
   for (let i = 0; i < (current.nodes || []).length; i += 1) {
     const node = current.nodes[i]
-    const id = String(node?.id || '').trim()
+    const id = readCanonicalGraphIdentity(node?.id)
     if (!id) continue
+    if (currentById.has(id)) return false
     currentById.set(id, {
       x: typeof node?.x === 'number' && Number.isFinite(node.x) ? Math.round(node.x) : null,
       y: typeof node?.y === 'number' && Number.isFinite(node.y) ? Math.round(node.y) : null,
@@ -70,7 +117,7 @@ function hasStableSameSourceNodeLayout(current: GraphData | null, next: GraphDat
   }
   for (let i = 0; i < (next.nodes || []).length; i += 1) {
     const node = next.nodes[i]
-    const id = String(node?.id || '').trim()
+    const id = readCanonicalGraphIdentity(node?.id)
     if (!id) continue
     const cur = currentById.get(id)
     if (!cur) return false
@@ -193,11 +240,11 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       const worldKeyMissing = collapsedKey ? !Object.prototype.hasOwnProperty.call(worldByKey, collapsedKey) : false
       const nextPinned =
         collapsedKey && carryForwardSameSourceWidgetOverlayState && pinnedKeyMissing
-          ? { ...(s.flowWidgetPinnedByNodeId || {}) }
+          ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetPinnedByNodeId || {}) })
           : collapsedKey ? (pinnedByKey[collapsedKey] || {}) : s.flowWidgetPinnedByNodeId
       const nextPosRaw =
         collapsedKey && carryForwardSameSourceWidgetOverlayState && posKeyMissing
-          ? { ...(s.flowWidgetPosByNodeId || {}) }
+          ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetPosByNodeId || {}) })
           : collapsedKey ? (posByKey[collapsedKey] || {}) : s.flowWidgetPosByNodeId
       const nextPos = resolveCommittedFlowWidgetScreenPositions({
         graphData: nextGraphData,
@@ -206,7 +253,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       })
       const nextWorld =
         collapsedKey && carryForwardSameSourceWidgetOverlayState && worldKeyMissing
-          ? { ...(s.flowWidgetWorldPosByNodeId || {}) }
+          ? remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetWorldPosByNodeId || {}) })
           : collapsedKey ? (worldByKey[collapsedKey] || {}) : s.flowWidgetWorldPosByNodeId
       const nextCollapsedByKey =
         collapsedKey && carryForwardSameSourceUiState && collapsedKeyMissing

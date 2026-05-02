@@ -23,11 +23,17 @@ export function testDocumentViewModeGraphMetadataHelpersStayUpstream() {
     'utf8',
   )
 
+  if (!documentViewModeText.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected documentViewMode to reuse the shared document metadata coercion helper upstream')
+  }
   if (!documentViewModeText.includes('const readDocumentViewModeMetadata =')) {
-    throw new Error('expected documentViewMode to centralize graph metadata coercion in one upstream helper')
+    throw new Error('expected documentViewMode to keep one upstream graph metadata reader for document view mode helpers')
   }
   if (!frontmatterModeText.includes('export function readFlowchartFrontmatterGraphSource')) {
     throw new Error('expected frontmatterMode to centralize flowchart frontmatter graph source selection upstream')
+  }
+  if (!frontmatterModeText.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected frontmatterMode to reuse the shared document metadata coercion helper upstream')
   }
   if (!frontmatterModeText.includes('const readNormalizedDocumentSemanticMode =')) {
     throw new Error('expected frontmatterMode to centralize document semantic mode normalization upstream')
@@ -41,10 +47,22 @@ export function testDocumentViewModeGraphMetadataHelpersStayUpstream() {
   if (!frontmatterModeText.includes('const metadata = readFrontmatterGraphMetadata(graphData)')) {
     throw new Error('expected frontmatterMode frontmatter-flow detection to reuse the shared metadata coercion helper')
   }
+  if (!frontmatterModeText.includes('): Record<string, unknown> => toMetadataRecord(graphData?.metadata)')) {
+    throw new Error('expected frontmatterMode metadata reader to delegate to the shared document metadata helper')
+  }
   if (!documentViewModeText.includes('const meta = readDocumentViewModeMetadata(graphData)')) {
     throw new Error('expected documentViewMode graph metadata readers to reuse the shared metadata coercion helper')
   }
-  if (!documentViewModeText.includes('const meta = readDocumentViewModeMetadata(graphData) || {}')) {
+  if (!documentViewModeText.includes('): Record<string, unknown> => toMetadataRecord(graphData?.metadata)')) {
+    throw new Error('expected documentViewMode metadata reader to delegate to the shared document metadata helper')
+  }
+  if (!documentViewModeText.includes('const meta = readDocumentViewModeMetadata(graphData)')) {
+    throw new Error('expected documentViewMode graph metadata writers to reuse the shared metadata coercion helper')
+  }
+  if (documentViewModeText.includes('const meta = readDocumentViewModeMetadata(graphData) || {}')) {
+    throw new Error('expected documentViewMode graph metadata writers to stop layering local fallback records on top of the shared helper')
+  }
+  if (!documentViewModeText.includes('metadata: {')) {
     throw new Error('expected documentViewMode graph metadata writers to reuse the shared metadata coercion helper')
   }
 

@@ -1,6 +1,7 @@
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { isJsonValue } from '@/lib/graph/jsonValue'
+import { isPlainObject } from '@/lib/graph/value'
 
 type GeoJsonGeometry = { type?: unknown; coordinates?: unknown }
 
@@ -16,7 +17,9 @@ type GeoJsonFeatureCollection = {
   features?: unknown
 }
 
-const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
 
 const collectCoordinatePoints = (coords: unknown, out: Array<[number, number]>): void => {
   if (!coords) return
@@ -32,8 +35,8 @@ const collectCoordinatePoints = (coords: unknown, out: Array<[number, number]>):
 }
 
 const computeLngLatFromGeometry = (geom: unknown): { lng: number; lat: number } | null => {
-  if (!geom || typeof geom !== 'object') return null
-  const g = geom as GeoJsonGeometry
+  const g = readPlainObject(geom) as GeoJsonGeometry | null
+  if (!g) return null
   const points: Array<[number, number]> = []
   collectCoordinatePoints(g.coordinates, points)
   if (points.length === 0) return null
@@ -73,7 +76,7 @@ export function buildGraphDataFromFeatureCollection(args: {
   sourceHash: string
 }): GraphData | null {
   const fcRaw = args.featureCollection
-  if (!isRecord(fcRaw)) return null
+  if (!readPlainObject(fcRaw)) return null
   const fc = fcRaw as GeoJsonFeatureCollection
   if (String(fc.type || '') !== 'FeatureCollection') return null
   const featuresRaw = fc.features
@@ -81,11 +84,10 @@ export function buildGraphDataFromFeatureCollection(args: {
 
   const nodes: GraphNode[] = []
   for (let i = 0; i < featuresRaw.length; i += 1) {
-    const fRaw = featuresRaw[i]
-    if (!fRaw || typeof fRaw !== 'object') continue
-    const f = fRaw as GeoJsonFeature
+    const f = readPlainObject(featuresRaw[i]) as GeoJsonFeature | null
+    if (!f) continue
     if (String(f.type || 'Feature') !== 'Feature') continue
-    const props = isRecord(f.properties) ? (f.properties as Record<string, unknown>) : {}
+    const props = readPlainObject(f.properties) || {}
     const geom = f.geometry
     const lngLat = computeLngLatFromGeometry(geom)
 
@@ -103,11 +105,9 @@ export function buildGraphDataFromFeatureCollection(args: {
 
     const nextProps: Record<string, JSONValue> = toJsonProps(props)
     if (lngLat) {
-      const geoRaw = nextProps.geo
-      const existingGeo =
-        geoRaw && typeof geoRaw === 'object' && !Array.isArray(geoRaw) ? (geoRaw as Record<string, JSONValue>) : {}
+      const existingGeo = readPlainObject(nextProps.geo) as Record<string, JSONValue> | null
       nextProps.geo = {
-        ...existingGeo,
+        ...(existingGeo || {}),
         lng: lngLat.lng,
         lat: lngLat.lat,
       }

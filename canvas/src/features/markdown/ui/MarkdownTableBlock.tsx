@@ -150,7 +150,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
               {tbl.rows.map((row, rIdx) => (
                 <tr
                   key={rIdx}
-                  className={`odd:${UI_THEME_TOKENS.table.rowBg} even:${UI_THEME_TOKENS.table.rowBgAlt} ${UI_THEME_TOKENS.table.rowHoverAmber} transition-colors`}
+                  className={`odd:${UI_THEME_TOKENS.table.rowBg} even:${UI_THEME_TOKENS.table.rowBgAlt} ${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`}
                 >
                   {row.map((cell, cIdx) => (
                     <td key={cIdx} className={`px-4 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>
@@ -262,7 +262,7 @@ export const MarkdownTableBlock = React.memo(function MarkdownTableBlock({
               {tbl.rows.map((row, rIdx) => (
                 <tr
                   key={rIdx}
-                  className={`odd:${UI_THEME_TOKENS.table.rowBg} even:${UI_THEME_TOKENS.table.rowBgAlt} ${UI_THEME_TOKENS.table.rowHoverAmber} transition-colors`}
+                  className={`odd:${UI_THEME_TOKENS.table.rowBg} even:${UI_THEME_TOKENS.table.rowBgAlt} ${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`}
                 >
                   {row.map((cell, cIdx) => (
                     <td key={cIdx} className={`px-4 py-2 border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`}>

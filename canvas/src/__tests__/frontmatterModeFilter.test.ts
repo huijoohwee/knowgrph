@@ -1,4 +1,6 @@
 import { readMarkdownSlideDemo, resolveMarkdownSlideDemoPath } from '@/tests/lib/markdownSlideDemo'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
@@ -47,5 +49,40 @@ export const testFrontmatterModeFiltersToFrontmatterMermaidOnly = () => {
 
   if (!sawFrontmatterMermaid) {
     throw new Error('expected at least one Mermaid node/subgraph/diagram in filtered graph')
+  }
+}
+
+export const testLayerDerivationReusesSharedPropertyAndEndpointReaders = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'layerDerivation.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'")) {
+    throw new Error('expected layerDerivation to reuse the shared edge endpoint reader upstream')
+  }
+  if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected layerDerivation to reuse the shared node property reader upstream')
+  }
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected layerDerivation to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const p = readNodeProperties(n)')) {
+    throw new Error('expected frontmatter Mermaid node detection to reuse the shared node property reader')
+  }
+  if (!text.includes('const props = readNodeProperties(n)')) {
+    throw new Error('expected layerDerivation parent and flow node reads to reuse the shared node property reader')
+  }
+  if (!text.includes('const src = readEdgeEndpointId(e.source)')) {
+    throw new Error('expected frontmatter Mermaid edge filtering to reuse the shared edge endpoint reader')
+  }
+  if (!text.includes('const src = readEdgeEndpointId((e as { source?: unknown }).source)')) {
+    throw new Error('expected frontmatter Flow edge filtering to reuse the shared edge endpoint reader')
+  }
+  if (text.includes('const normalizeEndpointId = (v: unknown): string => {')) {
+    throw new Error('expected layerDerivation to stop defining a local endpoint normalization helper')
+  }
+  if (text.includes('function readEndpointId(v: unknown): string {')) {
+    throw new Error('expected layerDerivation to stop defining a duplicate endpoint reader helper')
+  }
+  if (text.includes('const isRecord = (v: unknown): v is Record<string, unknown>')) {
+    throw new Error('expected layerDerivation to stop defining a local plain-object guard')
   }
 }

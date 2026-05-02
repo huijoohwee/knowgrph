@@ -49,7 +49,7 @@ export function MarkdownSourceFilesTreeRow(props: MarkdownSourceFilesTreeRowProp
   const rowClassName = [
     `border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0 px-2 py-1`,
     'flex items-center gap-2 border-l-2',
-    node.active ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverAmber,
+    node.active ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverHighlight,
     dragOverSourceFileId === node.fileId ? UI_THEME_TOKENS.table.rowSelectedBorder : '',
     isSelectedFolder ? UI_THEME_TOKENS.table.rowSelected : '',
     'min-w-0 overflow-hidden cursor-pointer select-none',

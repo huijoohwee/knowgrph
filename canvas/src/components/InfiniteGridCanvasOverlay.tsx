@@ -33,6 +33,7 @@ export function InfiniteGridCanvasOverlay(props: {
   dpr: number
   getTransform: () => unknown
   getEventTarget?: () => EventTarget | null
+  themeSignal?: string
   className?: string
 }) {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
@@ -53,6 +54,7 @@ export function InfiniteGridCanvasOverlay(props: {
   const minorStrokeOverride = props.minorStroke
   const majorStrokeOverride = props.majorStroke
   const getTransform = props.getTransform
+  const getEventTarget = props.getEventTarget
 
   const viewportW = Math.max(1, Math.floor(props.width || 1))
   const viewportH = Math.max(1, Math.floor(props.height || 1))
@@ -127,11 +129,11 @@ export function InfiniteGridCanvasOverlay(props: {
 
   React.useEffect(() => {
     scheduleDraw()
-  }, [scheduleDraw, props.enabled, props.gridSize, viewportW, viewportH, dpr])
+  }, [scheduleDraw, props.enabled, props.gridSize, props.themeSignal, viewportW, viewportH, dpr])
 
   React.useEffect(() => {
-    if (!props.enabled) return
-    const target = props.getEventTarget ? props.getEventTarget() : null
+    if (!enabled) return
+    const target = getEventTarget ? getEventTarget() : null
     if (!target || typeof (target as any).addEventListener !== 'function') return
 
     const handler = () => scheduleDraw()
@@ -151,9 +153,9 @@ export function InfiniteGridCanvasOverlay(props: {
       try { (target as any).removeEventListener('touchmove', handler) } catch { void 0 }
       try { (target as any).removeEventListener('touchend', handler) } catch { void 0 }
     }
-  }, [props.enabled, props.getEventTarget, scheduleDraw])
+  }, [enabled, getEventTarget, scheduleDraw])
 
-  if (!props.enabled) return null
+  if (!enabled) return null
 
   return (
     <canvas

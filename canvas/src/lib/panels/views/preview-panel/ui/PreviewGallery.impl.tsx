@@ -303,7 +303,7 @@ export default function PreviewGallery({
                         ? uiSecondaryToggleActiveClassName
                         : isSelected
                           ? `${UI_THEME_TOKENS.table.rowSelected}`
-                          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHoverAmber}`,
+                          : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.table.rowHoverHighlight}`,
                   isDragOver ? ['ring-1', UI_RING_PRIMARY_BLUE_INDICATOR].join(' ') : '',
                 ].filter(Boolean).join(' ')}
                 draggable

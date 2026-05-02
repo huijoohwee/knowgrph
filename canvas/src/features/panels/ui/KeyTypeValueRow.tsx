@@ -68,7 +68,7 @@ export function KeyTypeValueRow({
   const densityClass =
     density === 'compact' ? uiPanelRowDensityCompactClass : uiPanelRowDensityDefaultClass
   const cursorClass = onClick ? 'cursor-pointer' : ''
-  const activeClass = isActive ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverAmber
+  const activeClass = isActive ? UI_THEME_TOKENS.table.rowSelected : UI_THEME_TOKENS.table.rowHoverHighlight
 
   if (layout === 'keyIconSliderInput') {
     const rootClassName = [

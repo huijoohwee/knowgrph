@@ -36,6 +36,13 @@ export const renderSettingInput = (
     typeof rawPanelInputClass === 'string' && rawPanelInputClass.trim().length > 0
       ? rawPanelInputClass
       : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`
+  const uiPanelKeyValueTextareaClass = [
+    ...uiPanelKeyValueInputClass.split(/\s+/).filter(token => token && token !== 'h-6' && token !== 'text-right'),
+    'py-1',
+    'text-left',
+    'font-mono',
+    'text-xs',
+  ].join(' ')
   const iconSizeClass = getIconSizeClass(values.uiIconScale === 'compact' ? 'compact' : 'default')
   const iconStrokeWidth =
     typeof values.uiIconStrokeWidth === 'number' && Number.isFinite(values.uiIconStrokeWidth)
@@ -478,7 +485,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`${minHeightClass} px-2 py-1 text-left font-mono text-xs`}
+        className={`${uiPanelKeyValueTextareaClass} ${minHeightClass}`}
       />
     )
   }
@@ -494,7 +501,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className="min-h-24 px-2 py-1 text-left font-mono text-xs"
+        className={`${uiPanelKeyValueTextareaClass} min-h-24`}
       />
     )
   }

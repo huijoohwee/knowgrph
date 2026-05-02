@@ -10,6 +10,7 @@ import { UI_LABELS } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
 import { emitFlowResetZoomFloorCache } from '@/components/FlowCanvas/shared'
 import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
 import { formatSignedPx, formatZoomPercent } from '@/lib/canvas/viewport-format'
 
@@ -285,14 +286,14 @@ export function LaunchSpotlightStatusCard({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 hover:bg-gray-100`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={handleClose}
               >
                 Close
               </button>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-blue-600 text-blue-600 hover:bg-blue-50`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-blue-600 text-blue-600 ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={handleReopenStatus}
               >
                 Reopen
@@ -308,7 +309,7 @@ export function LaunchSpotlightStatusCard({
               </div>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 hover:bg-gray-100`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={handleMinimizeStatus}
               >
                 Minimize
@@ -358,14 +359,14 @@ export function LaunchSpotlightStatusCard({
                     <div className="mt-1">
                       <button
                         type="button"
-                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 mr-1`}
+                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-gray-300 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg} mr-1`}
                         onClick={handleResetZoomFloorCache}
                       >
                         Reset Zoom Floor (dev)
                       </button>
                       <button
                         type="button"
-                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100`}
+                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-gray-300 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`}
                         onClick={handleSummarizeWidgetTrace}
                       >
                         QE Trace Summary (dev)
@@ -420,7 +421,7 @@ export function LaunchSpotlightStatusCard({
             <div className="mt-3 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100`}
+                className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-gray-300 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`}
                 onClick={handleClose}
               >
                 Close

@@ -8,8 +8,11 @@ import { compareGroupsForZOrder } from '@/lib/canvas/groupZOrder'
 import { getKgThemeFromDom, resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
 import { deriveNestedGroups } from '@/lib/graph/groupNesting'
 
-export const deriveGraphGroups = (data: GraphData, options?: { forceDocumentStructure?: boolean }): GraphGroup[] => {
-  const theme = getKgThemeFromDom()
+export const deriveGraphGroups = (
+  data: GraphData,
+  options?: { forceDocumentStructure?: boolean; themeMode?: 'light' | 'dark' },
+): GraphGroup[] => {
+  const theme = options?.themeMode || getKgThemeFromDom()
   const edgeStrokeToken = resolveCssVarWithKgFallback('--kg-canvas-edge-stroke', theme)
   const accentToken = resolveCssVarWithKgFallback('--kg-canvas-accent', theme)
   const meta = (data.metadata || {}) as Record<string, unknown>

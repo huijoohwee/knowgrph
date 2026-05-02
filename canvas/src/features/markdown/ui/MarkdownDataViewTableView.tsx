@@ -273,7 +273,7 @@ export const MarkdownDataViewTableView = React.memo(function MarkdownDataViewTab
           {view.rows.map(r => (
             <tr
               key={r.id}
-              className={[`${UI_THEME_TOKENS.table.rowHoverAmber} transition-colors`, onActivateRow ? 'cursor-pointer' : ''].join(' ')}
+              className={[`${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`, onActivateRow ? 'cursor-pointer' : ''].join(' ')}
               onClick={
                 onActivateRow
                   ? (e) => {

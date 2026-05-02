@@ -8,8 +8,7 @@ import {
   type GraphDataTableColumnKey,
   type GraphDataTableColumnVisibilityByKey,
 } from '@/features/graph-data-table/graphDataTable'
-import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
-import { validateWidgetRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
+import { readValidatedWidgetRegistryMetadataEntries } from '@/hooks/store/flowEditorManagerSlice'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
@@ -176,11 +175,7 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
 }
 
 export function applyWidgetRegistryFromMetadata(get: GetGraph, metadata: unknown, graphData?: GraphData | null) {
-  const rawArr = readWidgetRegistryMetadataEntries(metadata)
-
-  const validatedRaw = rawArr
-    .map(item => validateWidgetRegistryEntry(item))
-    .filter((e): e is NonNullable<typeof e> => !!e)
+  const validatedRaw = readValidatedWidgetRegistryMetadataEntries(metadata)
   const validated = (() => {
     const graph = graphData || null
     if (!graph) return validatedRaw

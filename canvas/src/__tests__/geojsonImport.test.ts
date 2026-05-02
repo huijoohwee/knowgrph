@@ -1,4 +1,6 @@
 import { parseGraph } from '@/lib/graph/io/adapter'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 export const testGeoJsonImport = () => {
   const geoJsonText = JSON.stringify({
@@ -65,4 +67,55 @@ export const testGeoJsonImportWithForeignMembers = () => {
     return !!geo && Number.isFinite(geo.lat as number) && Number.isFinite(geo.lng as number)
   })
   if (!hasGeo) throw new Error('Expected all nodes to include properties.geo.{lat,lng}')
+}
+
+export const testGraphIoAdapterReusesSharedPlainObjectGuardForGeoJsonRoots = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'adapter.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes('const jsonRecord = readPlainObject(json)')) {
+    throw new Error('expected graph io adapter to reuse the shared local plain-object helper for json roots')
+  }
+  if (!text.includes("if (t === 'FeatureCollection' || t === 'Feature')")) {
+    throw new Error('expected geojson root detection to stay centralized in the adapter parse funnel')
+  }
+  if (!text.includes('const t = jsonRecord.type')) {
+    throw new Error('expected geojson type reads to flow through the shared local plain-object helper')
+  }
+  if (text.includes("const t = (json as Record<string, unknown>).type")) {
+    throw new Error('expected geojson type reads to stop coercing the json root inline')
+  }
+}
+
+export const testGeoJsonBuilderReusesSharedPlainObjectGuard = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'geojsonToGraphData.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected geojson graph builder to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const readPlainObject = (value: unknown): Record<string, unknown> | null => {')) {
+    throw new Error('expected geojson graph builder to centralize plain-object coercion in one local helper')
+  }
+  if (!text.includes('const g = readPlainObject(geom) as GeoJsonGeometry | null')) {
+    throw new Error('expected geojson geometry reads to reuse the shared local plain-object helper')
+  }
+  if (!text.includes('const f = readPlainObject(featuresRaw[i]) as GeoJsonFeature | null')) {
+    throw new Error('expected geojson feature reads to reuse the shared local plain-object helper')
+  }
+  if (text.includes('const isRecord = (v: unknown): v is Record<string, unknown> =>')) {
+    throw new Error('expected geojson graph builder to stop defining a local record guard')
+  }
+}
+
+export const testGeoJsonExporterReusesSharedPlainObjectGuard = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'geojson.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected geojson exporter to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('if (!isPlainObject(geoRaw)) return null')) {
+    throw new Error('expected geojson exporter geo point reads to reuse the shared plain-object guard')
+  }
+  if (text.includes("if (!geoRaw || typeof geoRaw !== 'object' || Array.isArray(geoRaw)) return null")) {
+    throw new Error('expected geojson exporter to stop coercing geo objects inline')
+  }
 }

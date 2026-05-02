@@ -52,7 +52,7 @@ export const createUiInitialState = (
 
     isEditMode: false,
 
-    floatingPanelOpen: true,
+    floatingPanelOpen: false,
     setFloatingPanelOpen: (open: boolean) =>
       set(state => {
         const next = open === true
@@ -241,8 +241,13 @@ export const createUiInitialState = (
     ),
     uiIconHoverBgClass: lsJson<string>(
       LS_KEYS.iconHoverBgClass,
-      'hover:bg-gray-100',
-      value => (typeof value === 'string' ? value : 'hover:bg-gray-100'),
+      'hover:bg-[var(--kg-panel-action-bg-hover)]',
+      value => {
+        if (typeof value !== 'string') return 'hover:bg-[var(--kg-panel-action-bg-hover)]'
+        const normalized = value.trim()
+        if (!normalized || normalized === 'hover:bg-gray-100') return 'hover:bg-[var(--kg-panel-action-bg-hover)]'
+        return normalized
+      },
     ),
     uiIconButtonPaddingClass: lsJson<string>(
       LS_KEYS.iconButtonPadding,

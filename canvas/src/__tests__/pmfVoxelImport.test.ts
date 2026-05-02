@@ -1,5 +1,7 @@
 import { pmfVoxelToGraphData } from '@/lib/graph/io/pmfVoxel'
 import { resolveVoxelClusterColor, resolveVoxelClusterKey } from '@/features/three/voxelStyle'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 export const testPmfVoxelImportFromSiblingRepoIfPresent = () => {
   const fixture = {
@@ -97,5 +99,42 @@ export const testPmfVoxelResolversPreferImportedLayerMetadata = () => {
   const color = resolveVoxelClusterColor(node)
   if (color !== '#D85A30') {
     throw new Error(`Expected voxel cluster color to prefer imported layer color, got ${String(color)}`)
+  }
+}
+
+export const testGraphIoAdapterReusesSharedPlainObjectGuardForPmfDetection = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'adapter.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected graph io adapter to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const readPlainObject = (value: unknown): Record<string, unknown> | null => {')) {
+    throw new Error('expected graph io adapter to centralize plain-object coercion in one local helper')
+  }
+  if (!text.includes('const obj = readPlainObject(json)')) {
+    throw new Error('expected PMF payload detection to reuse the shared local plain-object helper')
+  }
+  if (text.includes("if (!json || typeof json !== 'object' || Array.isArray(json)) return false")) {
+    throw new Error('expected PMF payload detection to stop coercing JSON roots inline')
+  }
+}
+
+export const testPmfVoxelParserReusesSharedPlainObjectGuard = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'pmfVoxel.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected pmf voxel parser to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const readPlainObject = (value: unknown): Record<string, unknown> | null => {')) {
+    throw new Error('expected pmf voxel parser to centralize plain-object coercion in one local helper')
+  }
+  if (!text.includes('const obj = readPlainObject(input) as PmfPayload | null')) {
+    throw new Error('expected pmf voxel parser root payload coercion to reuse the shared local plain-object helper')
+  }
+  if (!text.includes('const scoresObj = readPlainObject(n.scores)')) {
+    throw new Error('expected pmf voxel parser score coercion to reuse the shared local plain-object helper')
+  }
+  if (text.includes("(input && typeof input === 'object' && !Array.isArray(input))")) {
+    throw new Error('expected pmf voxel parser to stop coercing payload roots inline')
   }
 }

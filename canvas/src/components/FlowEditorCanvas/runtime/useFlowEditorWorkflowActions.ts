@@ -9,6 +9,7 @@ import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLan
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { UI_COPY, FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
 import { parseCanonicalNodeIds, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
+import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { buildSelectionSubgraph, exportWidgetBundleAsJson } from '@/lib/graph/file'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { FLOW_RUN_ALL_PHASES, buildFlowRunAllNodeSequence } from '@/lib/flowEditor/runAllSequenceSsot'
@@ -32,14 +33,8 @@ function areRecordValuesEqual(a: Record<string, unknown>, b: Record<string, unkn
 
 function bumpDraftGraphDataRevision(graphData: GraphData): GraphData {
   const metadata = (graphData.metadata || {}) as Record<string, unknown>
-  const current = typeof metadata.graphDataRevision === 'number' && Number.isFinite(metadata.graphDataRevision) ? Math.floor(metadata.graphDataRevision) : 0
+  const current = readGraphDataRevision(graphData)
   return { ...graphData, metadata: { ...metadata, graphDataRevision: current + 1 } }
-}
-
-function readGraphDataRevision(graphData: GraphData | null | undefined): number {
-  const metadata = (graphData?.metadata || {}) as Record<string, unknown>
-  const raw = metadata.graphDataRevision
-  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
 }
 
 export function useFlowEditorWorkflowActions(args: {

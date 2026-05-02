@@ -1,3 +1,5 @@
+import { isPlainObject } from '@/lib/graph/value'
+
 function normalizeEdgeEndpointId(raw: string): string {
   const value = raw.trim()
   if (!value) return ''
@@ -8,7 +10,7 @@ function normalizeEdgeEndpointId(raw: string): string {
 export function readEdgeEndpointId(raw: unknown): string {
   if (typeof raw === 'string') return normalizeEdgeEndpointId(raw)
   if (typeof raw === 'number') return Number.isFinite(raw) ? String(raw) : ''
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+  if (isPlainObject(raw)) {
     const id = (raw as { id?: unknown }).id
     if (typeof id === 'string') return normalizeEdgeEndpointId(id)
     if (typeof id === 'number') return Number.isFinite(id) ? String(id) : ''

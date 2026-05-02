@@ -67,6 +67,7 @@ export default function FlowEditorCanvasRuntime(
 
   const baseGraphData = useGraphStore(s => s.graphData)
   const baseGraphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
+  const resolvedThemeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const {
     canvasRenderMode,
     canvas2dRenderer,
@@ -144,8 +145,6 @@ export default function FlowEditorCanvasRuntime(
   const { canvasWindowOffset, canvasWindowOffsetRef, inspectorPortalHost, setCanvasWindowOffsetFromRect } = useFlowEditorSurfaceAnchors({
     active,
     editorRuntimeActive,
-    containerLeft,
-    containerTop,
     rootRef,
   })
   const collapsedGroupIdsKey = React.useMemo(() => buildCollapsedGroupIdsKey(collapsedGroupIds), [collapsedGroupIds])
@@ -308,6 +307,7 @@ export default function FlowEditorCanvasRuntime(
   const { overlayEdgesSvgRef, scheduleOverlayEdgeUpdate } = useFlowEditorOverlayEdges({
     active,
     overlayOnlyModeEnabled,
+    resolvedThemeMode,
     overlayEdgesEnabledRef,
     flowEditorSurfaceId,
     rootRef,

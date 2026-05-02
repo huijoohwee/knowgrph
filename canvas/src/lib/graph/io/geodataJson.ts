@@ -1,9 +1,12 @@
 import type { GraphData, JSONValue } from '@/lib/graph/types'
+import { isPlainObject } from '@/lib/graph/value'
 
 type LngLat = { lng: number; lat: number }
 type GeodataRecordSample = { key: string; record: Record<string, unknown> }
 
-const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
 
 const coerceNumber = (v: unknown): number | null => {
   if (typeof v === 'number' && Number.isFinite(v)) return v
@@ -15,8 +18,7 @@ const coerceNumber = (v: unknown): number | null => {
 }
 
 const getNestedRecord = (obj: Record<string, unknown>, key: string): Record<string, unknown> | null => {
-  const v = obj[key]
-  return isRecord(v) ? v : null
+  return readPlainObject(obj[key])
 }
 
 const getNumber = (obj: Record<string, unknown>, key: string): number | null => {
@@ -191,7 +193,8 @@ export function sampleGeodataRecordsFromJsonText(
       const rawValue = s.slice(i, end)
       try {
         const value = JSON.parse(rawValue) as unknown
-        if (isRecord(value)) out.push({ key: k.value, record: value })
+        const record = readPlainObject(value)
+        if (record) out.push({ key: k.value, record })
       } catch {
         void 0
       }
@@ -212,7 +215,8 @@ export function sampleGeodataRecordsFromJsonText(
       const rawValue = s.slice(i, end)
       try {
         const value = JSON.parse(rawValue) as unknown
-        if (isRecord(value)) out.push({ key: String(idx), record: value })
+        const record = readPlainObject(value)
+        if (record) out.push({ key: String(idx), record })
       } catch {
         void 0
       }
@@ -257,7 +261,7 @@ function collectGeodataRecordsFromJsonValue(args: {
   const visit = (node: unknown, path: string, depth: number) => {
     if (out.length >= maxRecords || depth > 6) return
     if (Array.isArray(node)) {
-      const recordItems = node.filter(isRecord)
+      const recordItems = node.map(readPlainObject).filter((item): item is Record<string, unknown> => item != null)
       if (recordItems.length > 0) {
         for (let i = 0; i < recordItems.length && out.length < maxRecords; i += 1) {
           pushRecord(path ? `${path}[${i}]` : String(i), recordItems[i]!)
@@ -269,11 +273,12 @@ function collectGeodataRecordsFromJsonValue(args: {
       }
       return
     }
-    if (!isRecord(node)) return
-    if (seen.has(node)) return
-    seen.add(node)
+    const record = readPlainObject(node)
+    if (!record) return
+    if (seen.has(record)) return
+    seen.add(record)
 
-    const entries = Object.entries(node)
+    const entries = Object.entries(record)
     for (let i = 0; i < entries.length && out.length < maxRecords; i += 1) {
       const [key, child] = entries[i]!
       if (!preferred.has(key)) continue
@@ -318,7 +323,7 @@ function buildGeodataGraphData(args: {
       id: idBase,
       label,
       geo: {
-        ...(isRecord(record.geo) ? record.geo : {}),
+        ...(readPlainObject(record.geo) || {}),
         lat: geo.lat,
         lng: geo.lng,
       },

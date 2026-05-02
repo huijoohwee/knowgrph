@@ -44,7 +44,7 @@ export const KG_TOKEN_DEFS: readonly KgTokenDef[] = [
   { cssVar: '--kg-kanban-card-shadow', light: '0 1px 2px rgba(0,0,0,0.06)', dark: '0 1px 2px rgba(0,0,0,0.35)' },
   { cssVar: '--kg-kanban-card-shadow-hover', light: '0 10px 24px rgba(0,0,0,0.10)', dark: '0 12px 30px rgba(0,0,0,0.50)' },
   { cssVar: '--kg-panel-action-bg', light: 'rgba(0,0,0,0.04)', dark: 'rgba(255,255,255,0.06)' },
-  { cssVar: '--kg-panel-action-bg-hover', light: 'rgba(0,0,0,0.07)', dark: 'rgba(255,255,255,0.10)' },
+  { cssVar: '--kg-panel-action-bg-hover', light: '#fffbeb', dark: 'var(--kg-canvas-accent, #60a5fa)' },
 ] as const
 
 export const getKgThemeFromDom = (): KgTheme => {

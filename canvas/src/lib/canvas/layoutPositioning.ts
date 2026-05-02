@@ -1,4 +1,6 @@
 import { hashStringToHex } from '@/lib/hash/stringHash'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
 
 type LayoutDatasetGraph = {
   metadata?: unknown
@@ -6,14 +8,10 @@ type LayoutDatasetGraph = {
   edges?: Array<{ source?: unknown; target?: unknown; label?: unknown; id?: unknown }>
 } | null
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
-
 export const computeLayoutDatasetKey = (args: { graphData: LayoutDatasetGraph; graphDataRevision: number }): string => {
   const rev = Number.isFinite(args.graphDataRevision) ? Math.floor(args.graphDataRevision) : 0
   const graphData = args.graphData
-  const meta = isRecord(graphData?.metadata) ? (graphData!.metadata as Record<string, unknown>) : {}
+  const meta = toMetadataRecord(graphData?.metadata)
 
   const kind = typeof meta.kind === 'string' ? meta.kind.trim() : ''
   if (kind === 'keyword') {
@@ -37,10 +35,10 @@ export const computeLayoutDatasetKey = (args: { graphData: LayoutDatasetGraph; g
     const n = nodes[i]
     const t = typeof n?.type === 'string' ? n.type.trim() : ''
     if (t !== 'Document') continue
-    const props = isRecord(n?.properties) ? (n!.properties as Record<string, unknown>) : {}
+    const props = readNodeProperties(n as { properties?: unknown } | null | undefined)
     const path = typeof props.path === 'string' ? props.path.trim() : ''
     if (path) return `path:${path}`
-    const nMeta = isRecord(n?.metadata) ? (n!.metadata as Record<string, unknown>) : {}
+    const nMeta = toMetadataRecord(n?.metadata)
     const docPath = typeof nMeta.documentPath === 'string' ? nMeta.documentPath.trim() : ''
     if (docPath) return `doc:${docPath}`
     break

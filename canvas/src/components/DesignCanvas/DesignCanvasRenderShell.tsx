@@ -59,6 +59,7 @@ export type DesignCanvasRenderShellProps = {
     minorStroke?: string
     majorStroke?: string
   } | null
+  themeSignal?: string
   dims: { width: number; height: number; dpr: number }
   getZoomTransform: () => unknown
   getZoomEventTarget: () => SVGSVGElement | null
@@ -139,6 +140,7 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
     arrangeActionsActive,
     onArrangeAction,
     canvasGrid,
+    themeSignal,
     dims,
     getZoomTransform,
     getZoomEventTarget,
@@ -233,6 +235,7 @@ export function DesignCanvasRenderShell(props: DesignCanvasRenderShellProps) {
         dpr={dims.dpr}
         getTransform={getZoomTransform}
         getEventTarget={getZoomEventTarget}
+        themeSignal={themeSignal}
       />
       <svg
         ref={svgRef}

@@ -57,6 +57,44 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
     throw new Error('expected pinned widget auto-seed world-position persistence to be blocked while Workspace/Indexing mutation guard is active')
   }
+  if (runtimeText.includes('const reseedEligible = effectiveOpenIds')) {
+    throw new Error('expected pinned widget auto-seed to avoid reseeding already-placed world positions on layout-signature churn')
+  }
+  if (!runtimeText.includes('const pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))')) {
+    throw new Error('expected pinned widget auto-seed to only seed missing or overlapping world positions')
+  }
+
+  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
+  const renderStateText = readFileSync(renderStatePath, 'utf8')
+  if (!renderStateText.includes('const preserveStableGraphAcrossFlowViewClose =')) {
+    throw new Error('expected Flow Editor render state to name the stable graph reuse contract for workspace close explicitly')
+  }
+  if (!renderStateText.includes('prev.topologyLayoutSignature === nextTopologyLayoutSignature')) {
+    throw new Error('expected Flow Editor render state to preserve the stable overlay graph only when semantic overlay topology still matches')
+  }
+  if (!renderStateText.includes('if (preserveStableGraphAcrossFlowViewClose) return stableGraph')) {
+    throw new Error('expected Flow Editor render state to reuse the last stable overlay graph during workspace close when topology is unchanged')
+  }
+  const graphDataSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataCommitActions.ts')
+  const graphDataSliceText = readFileSync(graphDataSlicePath, 'utf8')
+  if (!graphDataSliceText.includes("import { buildCanonicalNodeLookup, parseCanonicalNodeIds, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")) {
+    throw new Error('expected graph commit carry-forward path to reuse shared canonical node identity helpers for workspace-prefixed graph clones')
+  }
+  if (!graphDataSliceText.includes('function remapNodeKeyedRecordByCanonicalNodeId<T>(')) {
+    throw new Error('expected graph commit carry-forward path to centralize canonical remapping for node-keyed overlay state')
+  }
+  if (!graphDataSliceText.includes('readCanonicalGraphIdentity(n?.id)')) {
+    throw new Error('expected same-source graph topology checks to compare canonical node ids instead of raw workspace-prefixed ids')
+  }
+  if (!graphDataSliceText.includes("`${readCanonicalGraphIdentity(e?.id)}|${readCanonicalGraphIdentity(e?.source)}|${readCanonicalGraphIdentity(e?.target)}`")) {
+    throw new Error('expected same-source graph topology checks to compare canonical edge identities instead of raw workspace-prefixed ids')
+  }
+  if (!graphDataSliceText.includes('remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetPosByNodeId || {}) })')) {
+    throw new Error('expected graph commit carry-forward path to remap stored Flow widget screen positions onto canonical next-graph ids')
+  }
+  if (!graphDataSliceText.includes('remapNodeKeyedRecordByCanonicalNodeId(nextGraphData, { ...(s.flowWidgetWorldPosByNodeId || {}) })')) {
+    throw new Error('expected graph commit carry-forward path to remap stored Flow widget world positions onto canonical next-graph ids')
+  }
   const storePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graphViewSlice.ts')
   const storeText = readFileSync(storePath, 'utf8')
   if (!storeText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
@@ -86,6 +124,18 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!overlayEdgesText.includes('if (workspaceOverlayOpenRef.current) cancelOverlayEdgeUpdate()')) {
     throw new Error('expected workspace overlay open transition to cancel queued overlay edge recomputation')
   }
+  if (!overlayEdgesText.includes("const FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'")) {
+    throw new Error('expected Flow Editor overlay edges to mark a canonical DOM edge identity for frozen-workspace reuse')
+  }
+  if (!overlayEdgesText.includes('const frozenOverlayEdgePathsBySurfaceId = new Map<string, FrozenOverlayEdgePathSnapshot[]>()')) {
+    throw new Error('expected Flow Editor overlay edges to cache the last stable edge render by surface id')
+  }
+  if (!overlayEdgesText.includes('const cacheFrozenOverlayEdgePaths = React.useCallback(() => {')) {
+    throw new Error('expected Flow Editor overlay edges to snapshot the last stable edge DOM before workspace-open freezes')
+  }
+  if (!overlayEdgesText.includes('const restoreFrozenOverlayEdgePaths = React.useCallback((svg: SVGSVGElement | null): number => {')) {
+    throw new Error('expected Flow Editor overlay edges to restore frozen edge DOM while workspace-open recomputation is blocked')
+  }
   if (!overlayEdgesText.includes('if (wasOpen) {') || !overlayEdgesText.includes('scheduleOverlayEdgeUpdate()')) {
     throw new Error('expected workspace overlay close transition to reschedule overlay edge recomputation')
   }
@@ -99,15 +149,48 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
 }
 
+export function testWorkspaceViewUpdatePreservesFrozenOverlayEdgesWhileIndexingToastIsVisible() {
+  const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const text = readFileSync(overlayEdgesPath, 'utf8')
+  if (!text.includes("const FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR = 'data-kg-overlay-edge-id'")) {
+    throw new Error('expected overlay edge freeze preservation to use a canonical DOM edge identity')
+  }
+  if (!text.includes('const frozenOverlayEdgePathsBySurfaceId = new Map<string, FrozenOverlayEdgePathSnapshot[]>()')) {
+    throw new Error('expected overlay edge freeze preservation to cache stable paths per surface')
+  }
+  if (!text.includes('const existingDomPaths = Array.from(svg.querySelectorAll(`path[${FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR}]`))')) {
+    throw new Error('expected overlay edge restoration to rehydrate from already-mounted DOM paths before snapshot replay')
+  }
+  if (!text.includes('overlayEdgePathByIdRef.current.clear()')) {
+    throw new Error('expected overlay edge restoration to rebuild the in-memory edge map from canonical DOM paths')
+  }
+  if (!text.includes("const snapshots = surfaceId ? frozenOverlayEdgePathsBySurfaceId.get(surfaceId) || [] : []")) {
+    throw new Error('expected overlay edge restoration to fall back to the last stable per-surface snapshot')
+  }
+  if (!text.includes("pathEl.setAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR, edgeId)")) {
+    throw new Error('expected overlay edge writes to stamp canonical DOM edge ids onto live paths')
+  }
+  const workspaceSkipIndex = text.indexOf('const restoredFrozenPathCount = restoreFrozenOverlayEdgePaths(overlayEdgesSvgRef.current)')
+  const workspaceSkipTraceIndex = text.indexOf("pushOverlayEdgeTrace('schedule-skip-workspace-open', {")
+  if (workspaceSkipIndex < 0 || workspaceSkipTraceIndex < 0 || workspaceSkipIndex > workspaceSkipTraceIndex) {
+    throw new Error('expected workspace-open edge scheduling to restore frozen paths before tracing and returning')
+  }
+  const svgAttachedRestoreIndex = text.indexOf('const restoredFrozenPathCount = workspaceOverlayOpenRef.current ? restoreFrozenOverlayEdgePaths(node) : 0')
+  const svgAttachedTraceIndex = text.indexOf("pushOverlayEdgeTrace('svg-attached', {")
+  if (svgAttachedRestoreIndex < 0 || svgAttachedTraceIndex < 0 || svgAttachedRestoreIndex > svgAttachedTraceIndex) {
+    throw new Error('expected overlay svg attachment to restore frozen paths before reporting attachment state')
+  }
+}
+
 export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRefresh() {
   const p = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const text = readFileSync(p, 'utf8')
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
+  const runtimeText = readFileSync(runtimePath, 'utf8')
   const commitPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowRequestCommit.ts')
   const commitText = readFileSync(commitPath, 'utf8')
   const computedPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedText = readFileSync(computedPath, 'utf8')
-  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
-  const runtimeText = readFileSync(runtimePath, 'utf8')
   if (text.includes('const workspaceViewSig =')) {
     throw new Error('expected FlowCanvas media overlays to avoid deriving workspace view signature')
   }
@@ -122,6 +205,34 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   }
   if (!text.includes('flowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas media overlay loop dependencies to include frontmatter document mode')
+  }
+  const flowZoomCommitGuardIndex = commitText.indexOf('if (workspaceMutationBlocked) return')
+  const flowZoomCommitWriteIndex = commitText.indexOf('commitZoomTransformToStore({')
+  if (flowZoomCommitGuardIndex < 0 || flowZoomCommitWriteIndex < 0 || flowZoomCommitGuardIndex > flowZoomCommitWriteIndex) {
+    throw new Error('expected Flow request commit to block zoom persistence while Workspace/Indexing mutation guard is active')
+  }
+  if (!runtimeText.includes('const lateFlowEditorInitAfterSceneBuild =')) {
+    throw new Error('expected Flow runtime to name the late Flow Editor init guard explicitly')
+  }
+  if (!runtimeText.includes('lastBuiltGraphKeyRef.current.length > 0')) {
+    throw new Error('expected Flow runtime late init guard to suppress re-fit after an earlier scene build')
+  }
+  if (runtimeText.includes('const graphKey = `${graphDataRevision}:')) {
+    throw new Error('expected Flow runtime scene rebuild key to avoid raw graphDataRevision churn')
+  }
+  if (!runtimeText.includes('const graphKey = `${buildGraphMetaKeyIgnoringPending(sceneGraphData)}:')) {
+    throw new Error('expected Flow runtime scene rebuild key to reuse semantic graph identity')
+  }
+  const computedPositionsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
+  const computedPositionsText = readFileSync(computedPositionsPath, 'utf8')
+  if (computedPositionsText.includes('const rev = typeof graphDataRevision')) {
+    throw new Error('expected Flow computed positions graph key to avoid raw graphDataRevision churn')
+  }
+  if (!computedPositionsText.includes('const semanticGraphKey = buildGraphMetaKeyIgnoringPending(g)')) {
+    throw new Error('expected Flow computed positions graph key to reuse semantic graph meta identity')
+  }
+  if (!computedPositionsText.includes('const graphKey = `graph:${semanticGraphKey}:')) {
+    throw new Error('expected Flow computed positions graph key to be based on semantic graph identity')
   }
   const flowCommitGuardIndex = commitText.indexOf('if (workspaceMutationBlocked) return')
   const flowCommitWriteIndex = commitText.indexOf('if (changed) setLayoutPositionsForMode(cacheKey, nextPositions)')
@@ -142,17 +253,6 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   const rootLayoutWriteIndex = storeText.indexOf('set({ layoutPositionCacheByMode: { ...prev, [key]: positions } })')
   if (rootLayoutGuardIndex < 0 || rootLayoutWriteIndex < 0 || rootLayoutGuardIndex > rootLayoutWriteIndex) {
     throw new Error('expected root layout cache setter to reject Workspace/Indexing mutation writes')
-  }
-  if (!runtimeText.includes('const workspaceOverlayOpenRef = React.useRef<boolean>(workspaceOverlayOpen)')) {
-    throw new Error('expected Flow canvas runtime to track workspace overlay open state for zoom restoration without key churn')
-  }
-  if (!runtimeText.includes('const frozenWorkspaceOverlayTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)')) {
-    throw new Error('expected Flow canvas runtime to capture the pre-workspace zoom transform upstream')
-  }
-  const zoomCaptureIndex = runtimeText.indexOf('if (!wasOpen && workspaceOverlayOpen) {')
-  const zoomRestoreIndex = runtimeText.indexOf('setFlowNativeTransform(runtime, d3.zoomIdentity.translate(frozen.x, frozen.y).scale(frozen.k))')
-  if (zoomCaptureIndex < 0 || zoomRestoreIndex < 0 || zoomCaptureIndex > zoomRestoreIndex) {
-    throw new Error('expected Flow canvas runtime to restore the captured zoom transform after workspace overlay close')
   }
   if (!text.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected FlowCanvas media overlays to reuse the shared workspace/indexing mutation guard')
@@ -256,5 +356,64 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
   }
   if (!graphDataSliceText.includes('resolveCommittedFlowWidgetScreenPositions')) {
     throw new Error('expected graph commit path to centralize collective screen-position carry/cleanup decisions')
+  }
+
+  const interactionRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasInteractionRuntime.tsx')
+  const interactionRuntimeText = readFileSync(interactionRuntimePath, 'utf8')
+  const interactionGuardIndex = interactionRuntimeText.indexOf("if (workspaceMutationBlocked && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')) {")
+  const interactionClearIndex = interactionRuntimeText.indexOf('useGraphStore.getState().clearZoomRequest()')
+  const interactionApplyIndex = interactionRuntimeText.indexOf('applyZoomRequestNative({')
+  if (
+    interactionGuardIndex < 0
+    || interactionClearIndex < 0
+    || interactionApplyIndex < 0
+    || interactionGuardIndex > interactionClearIndex
+    || interactionClearIndex > interactionApplyIndex
+  ) {
+    throw new Error('expected FlowCanvas interaction runtime to consume workspace-triggered fit/reset zoom requests before native zoom application')
+  }
+
+  const uiModeActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSettingsSliceModeActions.ts')
+  const uiModeActionsText = readFileSync(uiModeActionsPath, 'utf8')
+  const flowEditorRequestGuardCount = (uiModeActionsText.match(/nextEnabled && state\.canvasRenderMode === '2d' && state\.canvas2dRenderer !== 'flowEditor'/g) || []).length
+  if (flowEditorRequestGuardCount < 2) {
+    throw new Error('expected workspace mode actions to avoid emitting fit-to-view zoom requests when Flow Editor is the active 2D renderer')
+  }
+
+  const anchorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSurfaceAnchors.ts')
+  const anchorText = readFileSync(anchorPath, 'utf8')
+  if (!anchorText.includes("const viewportRoot = self.closest('[data-kg-canvas-viewport-root=\"1\"]')")) {
+    throw new Error('expected Flow Editor surface anchors to resolve canvas window offset from the canonical canvas viewport root')
+  }
+  if (!anchorText.includes('const el = resolveCanvasWindowAnchorElement()')) {
+    throw new Error('expected Flow Editor surface anchors to measure window offset through the shared canonical anchor resolver')
+  }
+  if (anchorText.includes('const left = Number.isFinite(args.containerLeft) ? args.containerLeft : 0')) {
+    throw new Error('expected Flow Editor surface anchors to avoid overriding canonical window offset from transient containerLeft coordinates')
+  }
+  if (anchorText.includes('const top = Number.isFinite(args.containerTop) ? args.containerTop : 0')) {
+    throw new Error('expected Flow Editor surface anchors to avoid overriding canonical window offset from transient containerTop coordinates')
+  }
+  if (anchorText.includes('const el = args.rootRef.current')) {
+    throw new Error('expected Flow Editor surface anchors to avoid measuring raw rootRef coordinates directly during workspace toggles')
+  }
+}
+
+export function testD3SceneBuildKeyIgnoresWorkspaceGestureOverlayToggles() {
+  const helperPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'utils', 'd3SceneSetupContext.ts')
+  const helperText = readFileSync(helperPath, 'utf8')
+  if (!helperText.includes('const buildKey = [')) {
+    throw new Error('expected D3 scene setup helper to centralize the D3 scene build key')
+  }
+  if (helperText.includes('String(args.enableEditorGestures ? 1 : 0)')) {
+    throw new Error('expected D3 scene build key to ignore workspace/panel gesture gating so layout does not rebuild on overlay toggles')
+  }
+  if (!helperText.includes('String(args.infiniteCanvasInteractionMode)')) {
+    throw new Error('expected D3 scene build key to keep interaction-mode semantics while excluding overlay gesture toggles')
+  }
+  const hookPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3GraphScene2d.ts')
+  const hookText = readFileSync(hookPath, 'utf8')
+  if (!hookText.includes('const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === \'editor\'')) {
+    throw new Error('expected D3 scene hook to keep workspace overlay gating local to gesture handling')
   }
 }

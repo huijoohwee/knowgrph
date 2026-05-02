@@ -13,6 +13,7 @@ import { cancelPendingRefreeze, scheduleSimulationRefreezeAfterDrag } from '@/co
 import { beginDragForceTuning } from '@/components/GraphCanvas/dragForceTuning'
 import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { buildCanonicalNodeLookup, getCanonicalNodeLookupValue } from '@/lib/graph/canonicalNodeIds'
 
 export const nodeDragBehavior = (
   simulation: d3.Simulation<GraphNode, GraphEdge>,
@@ -264,8 +265,13 @@ export const nodeDragBehavior = (
     });
   })()
 
-export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>, schema: GraphSchema) =>
+export const edgeDragBehavior = (
+  simulation: d3.Simulation<GraphNode, GraphEdge>,
+  schema: GraphSchema,
+  nodeById?: ReadonlyMap<string, GraphNode> | null,
+) =>
   (() => {
+    const canonicalNodeLookup = nodeById && nodeById.size > 0 ? buildCanonicalNodeLookup(nodeById.entries()) : null
     let locked = false
     let sourceNode: GraphNode | undefined
     let targetNode: GraphNode | undefined
@@ -382,11 +388,10 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
           window.addEventListener('pointerdown', onGlobalRelease, { capture: true, once: true })
         }
 
-        // Find source and target nodes
-        const nodes = simulation.nodes()
+        // Reuse the caller-owned display lookup instead of rescanning live simulation nodes.
         const { src: sId, tgt: tId } = readGraphEdgeEndpoints(d)
-        sourceNode = nodes.find(n => String(n.id) === String(sId))
-        targetNode = nodes.find(n => String(n.id) === String(tId))
+        sourceNode = sId ? getCanonicalNodeLookupValue(canonicalNodeLookup, sId) || undefined : undefined
+        targetNode = tId ? getCanonicalNodeLookupValue(canonicalNodeLookup, tId) || undefined : undefined
         
         if (!sourceNode || !targetNode) return
 

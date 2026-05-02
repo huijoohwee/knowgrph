@@ -5,8 +5,6 @@ import { FLOW_EDITOR_INSPECTOR_PORTAL_SLOT_ID } from '@/lib/config'
 export function useFlowEditorSurfaceAnchors(args: {
   active: boolean
   editorRuntimeActive: boolean
-  containerLeft: number
-  containerTop: number
   rootRef: React.RefObject<HTMLElement | null>
 }) {
   const [canvasWindowOffset, setCanvasWindowOffset] = React.useState<{ left: number; top: number }>({ left: 0, top: 0 })
@@ -25,20 +23,18 @@ export function useFlowEditorSurfaceAnchors(args: {
     setCanvasWindowOffset({ left, top })
   }, [])
 
-  React.useEffect(() => {
-    if (!args.editorRuntimeActive) return
-    const left = Number.isFinite(args.containerLeft) ? args.containerLeft : 0
-    const top = Number.isFinite(args.containerTop) ? args.containerTop : 0
-    const prev = canvasWindowOffsetRef.current
-    if (prev.left === left && prev.top === top) return
-    setCanvasWindowOffset({ left, top })
-  }, [args.containerLeft, args.containerTop, args.editorRuntimeActive])
+  const resolveCanvasWindowAnchorElement = React.useCallback((): HTMLElement | null => {
+    const self = args.rootRef.current
+    if (!self) return null
+    const viewportRoot = self.closest('[data-kg-canvas-viewport-root="1"]')
+    return viewportRoot instanceof HTMLElement ? viewportRoot : self
+  }, [args.rootRef])
 
   React.useEffect(() => {
     if (!args.editorRuntimeActive) return
     if (typeof window === 'undefined') return
     const measure = () => {
-      const el = args.rootRef.current
+      const el = resolveCanvasWindowAnchorElement()
       if (!el) return
       const rect = el.getBoundingClientRect()
       const left = Number.isFinite(rect.left) ? rect.left : 0
@@ -57,7 +53,7 @@ export function useFlowEditorSurfaceAnchors(args: {
       window.removeEventListener('scroll', onAny, true)
       window.removeEventListener('resize', onAny)
     }
-  }, [args.editorRuntimeActive, args.rootRef])
+  }, [args.editorRuntimeActive, resolveCanvasWindowAnchorElement])
 
   const resolveInspectorPortalHost = React.useCallback(() => {
     if (!args.active) return null

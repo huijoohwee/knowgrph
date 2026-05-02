@@ -1,4 +1,5 @@
 import type { GraphData } from '@/lib/graph/types'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { hasFrontmatterMermaidSeeds } from '@/lib/graph/layerDerivation'
 import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 
@@ -8,18 +9,14 @@ const readNormalizedDocumentSemanticMode = (raw: string): string => {
 
 const readFrontmatterGraphMetadata = (
   graphData: { metadata?: unknown } | null | undefined,
-): Record<string, unknown> | null => {
-  return graphData?.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
-    ? (graphData.metadata as Record<string, unknown>)
-    : null
-}
+): Record<string, unknown> => toMetadataRecord(graphData?.metadata)
 
 export function isFrontmatterFlowGraph(graphData: GraphData | null | undefined): boolean {
   if (!graphData || typeof graphData !== 'object') return false
   const context = String(graphData.context || '').trim().toLowerCase()
   if (context === 'frontmatter-flow') return true
   const metadata = readFrontmatterGraphMetadata(graphData)
-  const kind = String(metadata?.kind || '').trim().toLowerCase()
+  const kind = String(metadata.kind || '').trim().toLowerCase()
   if (kind === 'frontmatter-flow') return true
   return false
 }

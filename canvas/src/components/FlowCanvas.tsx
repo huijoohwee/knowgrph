@@ -24,7 +24,6 @@ import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 export { pickGraphDataForFlowRenderer }
 
@@ -50,6 +49,7 @@ export default function FlowCanvas({
   const containerRef = React.useRef<HTMLElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const runtimeRef = React.useRef<FlowNativeRuntime | null>(null)
+  const resolvedThemeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
   const lastCommittedPositionsRef = React.useRef<Record<string, { x: number; y: number }> | null>(null)
   const positionsDirtySinceCommitRef = React.useRef(false)
   const selectedNodeIdsRef = React.useRef<string[]>([])
@@ -179,6 +179,7 @@ export default function FlowCanvas({
     flowEditorReservedW,
   } = useFlowCanvasLayoutState({
     active,
+    resolvedThemeMode,
     graphDataRevision,
     sceneGraphData,
     filteredGraphDataForRenderer,
@@ -266,6 +267,14 @@ export default function FlowCanvas({
     }
   }, [])
 
+  React.useEffect(() => {
+    if (!active) return
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    runtime.dirty = true
+    scheduleFlowDraw()
+  }, [active, resolvedThemeMode, scheduleFlowDraw])
+
   const updateOverlayHiddenDrawArgs = React.useCallback(() => {
     const overlayIds = plannedOverlayNodeIds.filter(Boolean)
     const baseNodeIds = Array.from(new Set([...(hideNodeIds || []).map(String), ...overlayIds]))
@@ -322,7 +331,6 @@ export default function FlowCanvas({
     && canvas2dRenderer === 'flowEditor'
     && frontmatterModeEnabled
     && documentSemanticMode === 'document'
-  const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
 
   useAutoZoomModes2d({ viewportW, viewportH, paused: !active || suppressAutoZoomModes })
 
@@ -412,7 +420,6 @@ export default function FlowCanvas({
     fitToScreenMode,
     zoomToSelectionMode,
     viewPinned,
-    workspaceOverlayOpen,
   })
 
   return (

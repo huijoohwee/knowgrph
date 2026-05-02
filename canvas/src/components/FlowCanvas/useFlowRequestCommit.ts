@@ -63,6 +63,7 @@ export function useFlowRequestCommit(args: {
       const t = runtime.transform || d3.zoomIdentity
       const current = useGraphStore.getState()
       const workspaceMutationBlocked = isWorkspaceGraphMutationBlocked(current)
+      if (workspaceMutationBlocked) return
       commitZoomTransformToStore({
         state: {
           viewPinned: current.viewPinned,
@@ -78,7 +79,6 @@ export function useFlowRequestCommit(args: {
         graphDataRevision,
       })
       if (!cacheKey || typeof setLayoutPositionsForMode !== 'function') return
-      if (workspaceMutationBlocked) return
       if (!positionsDirtySinceCommitRef.current) return
       const scene = runtime.scene
       if (!scene) return

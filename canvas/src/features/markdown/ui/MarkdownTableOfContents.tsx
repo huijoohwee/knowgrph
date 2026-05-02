@@ -71,7 +71,7 @@ function TocItemRenderer({
       <section
         className={[
           'group flex items-center gap-1 py-0.5 pr-1.5 rounded cursor-pointer select-none transition-colors relative',
-          isDragging ? `${UI_THEME_TOKENS.button.activeBg} opacity-50` : `${UI_THEME_TOKENS.table.rowHoverAmber} ${UI_THEME_TOKENS.table.rowHover}`,
+          isDragging ? `${UI_THEME_TOKENS.button.activeBg} opacity-50` : `${UI_THEME_TOKENS.table.rowHoverHighlight} ${UI_THEME_TOKENS.table.rowHover}`,
           uiPanelTextFontClass,
           uiPanelKeyValueTextSizeClass || 'text-sm',
           'leading-5',

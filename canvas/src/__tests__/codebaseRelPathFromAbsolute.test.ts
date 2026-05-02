@@ -1,6 +1,7 @@
 import { coerceCodebaseRelPath } from '@/lib/codebase/relPath'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { getDocumentPathFromMetadata } from '@/lib/graph/documentMetadata'
+import { getDocumentPathFromMetadata, readGraphDataRevision } from '@/lib/graph/documentMetadata'
 
 export const testCodebaseRelPathCoercionFromAbsoluteUnderRoot = () => {
   const prev = process.env.VITE_CODEBASE_ROOT
@@ -25,3 +26,17 @@ export const testCodebaseRelPathCoercionFromAbsoluteUnderRoot = () => {
   }
 }
 
+export const testGraphDataRevisionMetadataReaderNormalizesFiniteNonNegativeIntegers = () => {
+  if (readGraphDataRevision(null) !== 0) {
+    throw new Error('expected null graph data to resolve to graphDataRevision 0')
+  }
+  if (readGraphDataRevision({ metadata: { graphDataRevision: 4.9 } }) !== 4) {
+    throw new Error('expected graphDataRevision reader to floor finite numeric metadata values')
+  }
+  if (readGraphDataRevision({ metadata: { graphDataRevision: -7 } }) !== 0) {
+    throw new Error('expected graphDataRevision reader to clamp negative metadata values to 0')
+  }
+  if (readGraphDataRevision({ metadata: { graphDataRevision: 'bad' } }) !== 0) {
+    throw new Error('expected graphDataRevision reader to ignore non-numeric metadata values')
+  }
+}

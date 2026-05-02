@@ -17,5 +17,10 @@ export const TEST_CASES_PRE_PARSER: TestCaseTuple[] = [
     '../__tests__/codebaseRelPathFromAbsolute.test',
     'testCodebaseRelPathCoercionFromAbsoluteUnderRoot',
   ],
+  [
+    'graphMetadata.readGraphDataRevision.normalizesFiniteNonNegativeIntegers',
+    '../__tests__/codebaseRelPathFromAbsolute.test',
+    'testGraphDataRevisionMetadataReaderNormalizesFiniteNonNegativeIntegers',
+  ],
   ['routing.basePath.resolveRouterBasename', '../__tests__/routingBasePath.test', 'testResolveRouterBasenameFromBaseUrl'],
 ]

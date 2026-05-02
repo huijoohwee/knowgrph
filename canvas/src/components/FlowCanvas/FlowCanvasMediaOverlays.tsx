@@ -14,6 +14,7 @@ import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontm
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
+import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { Z_INDEX_GRAPH_MEDIA_LAYER, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
 import {
@@ -83,13 +84,6 @@ function readMediaLayoutNodePropsSignature(
   }
   parts.sort((a, b) => a.localeCompare(b))
   return hashSignatureParts(['flow-canvas-media-layout-props', ids.length, ...parts])
-}
-
-function readGraphDataRevision(graphData: GraphData | null | undefined): number {
-  const meta = graphData?.metadata
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return 0
-  const raw = (meta as Record<string, unknown>).graphDataRevision
-  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
 }
 
 export default function FlowCanvasMediaOverlays(args: {

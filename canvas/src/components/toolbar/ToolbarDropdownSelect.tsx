@@ -123,7 +123,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                   >
                     <button
                       type="button"
-                      className={`w-full min-h-[var(--kg-touch-target)] flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? uiPrimaryChipActiveClassName : ''}`}
+                      className={`w-full min-h-[var(--kg-touch-target)] flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? uiPrimaryChipActiveClassName : ''}`}
                       disabled={option.disabled}
                       onClick={() => {
                         if (option.disabled) return
@@ -167,7 +167,7 @@ export function ToolbarDropdownSelect<T extends ToolbarDropdownOptionBase>({
                             <li key={child.id} className="list-none">
                               <button
                                 type="button"
-                                className={`w-full min-h-[var(--kg-touch-target)] flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed ${isChildActive ? uiPrimaryChipActiveClassName : ''}`}
+                                className={`w-full min-h-[var(--kg-touch-target)] flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50 disabled:cursor-not-allowed ${isChildActive ? uiPrimaryChipActiveClassName : ''}`}
                                 disabled={child.disabled}
                                 onClick={() => {
                                   if (child.disabled) return

@@ -1,7 +1,9 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
 import { getKgThemeFromDom } from '@/lib/ui/tokens-ssot'
 import { renderMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 
 type MermaidTheme = 'light' | 'dark'
 
@@ -417,10 +419,10 @@ const parseMermaidSvgGeometry = (svgMarkup: string): {
   return { nodes, edges, clusters }
 }
 
-const readRecordProps = (n: GraphNode): Record<string, unknown> | null => {
-  const p = (n as unknown as { properties?: unknown }).properties
-  if (!p || typeof p !== 'object' || Array.isArray(p)) return null
-  return p as Record<string, unknown>
+const readEdgeProperties = (edge: Pick<GraphEdge, 'properties'> | null | undefined): Record<string, unknown> | null => {
+  const properties = edge?.properties
+  if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return null
+  return properties as Record<string, unknown>
 }
 
 const isFrontmatterMermaidDiagramProps = (props: Record<string, unknown> | null): boolean => {
@@ -431,7 +433,7 @@ const isFrontmatterMermaidDiagramProps = (props: Record<string, unknown> | null)
 
 const isFrontmatterMermaidDiagram = (n: GraphNode): boolean => {
   if (String(n.type || '') !== 'MermaidDiagram') return false
-  return isFrontmatterMermaidDiagramProps(readRecordProps(n))
+  return isFrontmatterMermaidDiagramProps(readNodeProperties(n))
 }
 
 export function applyMermaidFrontmatterContextLayoutToGraphData(graphData: GraphData): GraphData {
@@ -857,7 +859,7 @@ const findFrontmatterMermaidDiagramNode = (graphData: GraphData): GraphNode | nu
 const readFrontmatterMermaidDiagramProps = (graphData: GraphData): Record<string, unknown> | null => {
   const node = findFrontmatterMermaidDiagramNode(graphData)
   if (!node) return null
-  return readRecordProps(node)
+  return readNodeProperties(node)
 }
 
 const readFrontmatterMermaidCodeFromProps = (props: Record<string, unknown> | null): string => {
@@ -954,8 +956,8 @@ const prepareMermaidFrontmatterGraphBindings = (graphData: GraphData): MermaidFr
   for (let i = 0; i < sourceNodes.length; i += 1) {
     const n = sourceNodes[i]!
     const id = String(n.id || '')
-    const props = readRecordProps(n)
-    if (props) nodePropsById.set(id, props)
+    const props = readNodeProperties(n)
+    nodePropsById.set(id, props)
     if (String(n.type || '') === 'MermaidNode') {
       const name = typeof props?.nodeName === 'string' ? String(props.nodeName || '').trim() : ''
       if (name) mermaidNodeIdByName.set(name, id)
@@ -986,16 +988,16 @@ const prepareMermaidFrontmatterGraphBindings = (graphData: GraphData): MermaidFr
 
   const nodes: GraphNode[] = sourceNodes.map(n => {
     const id = String(n.id || '')
-    const props = readRecordProps(n)
-    if (!id || !props) return n
+    const props = readNodeProperties(n)
+    if (!id) return n
     if (String(n.type || '') !== 'MermaidNode' && String(n.type || '') !== 'MermaidSubgraph') return n
     return { ...n, properties: { ...props } as never }
   })
 
   const edges: GraphEdge[] = sourceEdges.map(e => {
-    const props = (e as unknown as { properties?: unknown }).properties
-    if (!props || typeof props !== 'object' || Array.isArray(props)) return e
-    return { ...e, properties: { ...(props as Record<string, unknown>) } as never }
+    const props = readEdgeProperties(e)
+    if (!props) return e
+    return { ...e, properties: { ...props } as never }
   })
 
   const nodeIndexById = new Map<string, number>()
@@ -1026,7 +1028,7 @@ const applyMermaidNodeGeometry = (args: {
   geometry: MermaidNodeGeometry
 }): void => {
   const node = args.nodes[args.nodeIdx]!
-  const properties = readRecordProps(node) as Record<string, unknown>
+  const properties = readNodeProperties(node)
   properties['visual:width'] = args.geometry.width
   properties['visual:height'] = args.geometry.height
   properties['visual:shape'] = args.geometry.shape
@@ -1059,7 +1061,7 @@ const applyMermaidSubgraphGeometry = (args: {
   geometry: MermaidClusterGeometry
 }): void => {
   const node = args.nodes[args.nodeIdx]!
-  const properties = readRecordProps(node) as Record<string, unknown>
+  const properties = readNodeProperties(node)
   const inset = 2
   const x = args.geometry.x + inset
   const y = args.geometry.y + inset
@@ -1082,11 +1084,8 @@ const applyMermaidEdgeVisual = (args: {
   edgeIdx: number
   geometry: MermaidEdgeGeometry
 }): void => {
-  const current = args.edges[args.edgeIdx] as unknown as { properties?: Record<string, unknown> }
-  const properties =
-    current.properties && typeof current.properties === 'object' && !Array.isArray(current.properties)
-      ? current.properties
-      : {}
+  const current = args.edges[args.edgeIdx]!
+  const properties = readEdgeProperties(current) || {}
   properties['visual:pathD'] = args.geometry.pathD
   if (args.geometry.arrowD) properties['visual:arrowD'] = args.geometry.arrowD
   properties['visual:zIndex'] = args.geometry.order
@@ -1145,13 +1144,10 @@ const assignFallbackMermaidEdgeGeometry = (args: {
   for (let i = 0; i < args.edges.length; i += 1) {
     const edge = args.edges[i]!
     if (String(edge.label || '') !== 'pointsTo') continue
-    const properties = (edge as unknown as { properties?: unknown }).properties
+    const properties = readEdgeProperties(edge)
     const hasPath =
-      properties
-      && typeof properties === 'object'
-      && !Array.isArray(properties)
-      && typeof (properties as Record<string, unknown>)['visual:pathD'] === 'string'
-      && String((properties as Record<string, unknown>)['visual:pathD'] || '').trim().length > 0
+      typeof properties?.['visual:pathD'] === 'string'
+      && String(properties['visual:pathD'] || '').trim().length > 0
     if (hasPath) continue
     candidateEdgeIdxs.push(i)
   }
@@ -1175,9 +1171,7 @@ const finalizeMermaidFrontmatterGraph = (args: {
     nodes: args.nodes,
     edges: args.edges,
     metadata: {
-      ...(args.graphData.metadata && typeof args.graphData.metadata === 'object' && !Array.isArray(args.graphData.metadata)
-        ? args.graphData.metadata
-        : {}),
+      ...toMetadataRecord(args.graphData.metadata),
       layoutEngine: 'mermaid',
     } as never,
   }

@@ -1,7 +1,6 @@
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-
-const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+import { isPlainObject } from '@/lib/graph/value'
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
 
@@ -97,12 +96,12 @@ export function tryBuildGrabMapsGraphDataFromJson(args: {
   json: unknown
 }): { graphData: GraphData; warnings: string[] } | null {
   const json = args.json
-  if (!isRecord(json)) return null
+  if (!isPlainObject(json)) return null
 
   const routesRaw = (json as Record<string, unknown>).routes
   if (!Array.isArray(routesRaw) || routesRaw.length === 0) return null
   const r0 = routesRaw[0]
-  if (!isRecord(r0)) return null
+  if (!isPlainObject(r0)) return null
 
   const geometry = String((r0 as Record<string, unknown>).geometry || '').trim()
   if (!geometry) return null
@@ -175,4 +174,3 @@ export function tryBuildGrabMapsGraphDataFromJson(args: {
 
   return { graphData, warnings: [] }
 }
-

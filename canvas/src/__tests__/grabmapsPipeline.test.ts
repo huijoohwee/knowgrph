@@ -57,6 +57,23 @@ export const testGrabMapsParserPreservesDirectionsPolylineImport = () => {
   }
 }
 
+export const testGrabMapsParserReusesSharedPlainObjectGuard = () => {
+  const filePath = path.resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'grabmaps.ts')
+  const text = readUtf8(filePath)
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected GrabMaps parser to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('if (!isPlainObject(json)) return null')) {
+    throw new Error('expected GrabMaps parser root payload detection to reuse the shared plain-object guard')
+  }
+  if (!text.includes('if (!isPlainObject(r0)) return null')) {
+    throw new Error('expected GrabMaps parser route record detection to reuse the shared plain-object guard')
+  }
+  if (text.includes('const isRecord = (v: unknown): v is Record<string, unknown> =>')) {
+    throw new Error('expected GrabMaps parser to stop defining a local record guard')
+  }
+}
+
 export const testGrabMapsPresetUsesPreferredStyleSetting = () => {
   const panelPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'GeospatialPanelHost.tsx')
   const text = readUtf8(panelPath)
@@ -127,8 +144,8 @@ export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView
   if (!uiSettingsSliceText.includes("documentSemanticMode: 'document'")) {
     throw new Error('Expected startup document mode to default to document semantics at the shared UI settings slice')
   }
-  if (!uiSliceText.includes('floatingPanelOpen: true')) {
-    throw new Error('Expected startup floating panel open state to default ON at the shared UI slice')
+  if (!uiSliceText.includes('floatingPanelOpen: false')) {
+    throw new Error('Expected startup floating panel open state to default OFF at the shared UI slice')
   }
   if (!uiSliceText.includes("floatingPanelView: 'geo'")) {
     throw new Error("Expected startup floating panel view to default to 'geo' at the shared UI slice")

@@ -1,4 +1,6 @@
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
+import { isPlainObject } from '@/lib/graph/value'
 import {
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
   CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT,
@@ -39,10 +41,6 @@ type RegistryEntryLike = {
   updatedAt: string
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
-
 function cleanIdPart(v: unknown): string {
   return String(typeof v === 'string' ? v : '').trim().replace(/[^a-zA-Z0-9_-]/g, '_')
 }
@@ -76,7 +74,7 @@ function asJsonTextOrEmpty(v: unknown): string {
 }
 
 function looksLikeGraphData(v: unknown): v is GraphData {
-  if (!isRecord(v)) return false
+  if (!isPlainObject(v)) return false
   if (!Array.isArray(v.nodes) || !Array.isArray(v.edges)) return false
   return typeof v.type === 'string'
 }
@@ -139,13 +137,13 @@ function normalizeImportedSmartMediaModel(args: {
 }
 
 function withRegistryMetadata(graphData: GraphData, entries: RegistryEntryLike[], warnings: string[]): { graphData: GraphData; warnings: string[] } {
-  const baseMeta = isRecord(graphData.metadata) ? graphData.metadata : {}
+  const baseMeta = toMetadataRecord(graphData.metadata)
   const nextMeta = writeWidgetRegistryMetadata(baseMeta as Record<string, JSONValue>, entries as unknown as JSONValue[])
   return { graphData: { ...graphData, metadata: nextMeta }, warnings }
 }
 
 function parseWidgetBundle(json: unknown): { graphData: GraphData; warnings: string[] } | null {
-  if (!isRecord(json)) return null
+  if (!isPlainObject(json)) return null
   const kind = asString(json.kind).trim()
   const version = typeof json.version === 'number' ? json.version : asNumberOrNull(json.version)
   if (kind !== FLOW_WIDGET_BUNDLE_KIND) return null
@@ -153,7 +151,7 @@ function parseWidgetBundle(json: unknown): { graphData: GraphData; warnings: str
 
   const warnings: string[] = []
   const registryRaw = Array.isArray(json.registry) ? json.registry : []
-  const registry = registryRaw.filter(isRecord) as unknown as RegistryEntryLike[]
+  const registry = registryRaw.filter(isPlainObject) as unknown as RegistryEntryLike[]
 
   const graphRaw = json.graph
   const graphData: GraphData = looksLikeGraphData(graphRaw)
@@ -171,7 +169,7 @@ function parseWidgetBundle(json: unknown): { graphData: GraphData; warnings: str
 function parseAiFlowProcessorList(json: unknown): { graphData: GraphData; warnings: string[] } | null {
   if (!Array.isArray(json) || json.length === 0) return null
   const first = json[0]
-  if (!isRecord(first)) return null
+  if (!isPlainObject(first)) return null
   const processorType = asString(first.processorType).trim()
   if (!processorType) return null
 
@@ -181,7 +179,7 @@ function parseAiFlowProcessorList(json: unknown): { graphData: GraphData; warnin
 
   for (let i = 0; i < json.length; i += 1) {
     const item = json[i]
-    if (!isRecord(item)) continue
+    if (!isPlainObject(item)) continue
     const model = asString(item.model).trim()
     const inferredNodeTypeId =
       model === 'generate_image'
@@ -215,14 +213,14 @@ function parseAiFlowProcessorList(json: unknown): { graphData: GraphData; warnin
     }
     nodes.push(node)
 
-    const cfg = isRecord(item.config) ? item.config : null
+    const cfg = isPlainObject(item.config) ? item.config : null
     const fieldsRaw = cfg && Array.isArray(cfg.fields) ? cfg.fields : []
     const fields: RegistryFieldLike[] = []
     const ports: RegistryPortLike[] = []
 
     for (let fIdx = 0; fIdx < fieldsRaw.length; fIdx += 1) {
       const f = fieldsRaw[fIdx]
-      if (!isRecord(f)) continue
+      if (!isPlainObject(f)) continue
       const fieldKey = asString(f.name).trim()
       const fieldType = asString(f.type).trim() || 'text'
       if (!fieldKey) continue
@@ -272,7 +270,7 @@ function parseAiFlowProcessorList(json: unknown): { graphData: GraphData; warnin
 }
 
 function parseComfyUiWorkflow(json: unknown): { graphData: GraphData; warnings: string[] } | null {
-  if (!isRecord(json)) return null
+  if (!isPlainObject(json)) return null
   if (!Array.isArray(json.nodes)) return null
   const nodesRaw = json.nodes
   if (nodesRaw.length === 0) return null
@@ -282,12 +280,12 @@ function parseComfyUiWorkflow(json: unknown): { graphData: GraphData; warnings: 
 
   for (let i = 0; i < nodesRaw.length; i += 1) {
     const n = nodesRaw[i]
-    if (!isRecord(n)) continue
+    if (!isPlainObject(n)) continue
     const type = asString(n.type).trim()
     if (!type) continue
 
-    const hasVideoOut = Array.isArray(n.outputs) && n.outputs.some(o => isRecord(o) && asString(o.type).toUpperCase() === 'VIDEO')
-    const hasImageIn = Array.isArray(n.inputs) && n.inputs.some(inp => isRecord(inp) && asString(inp.type).toUpperCase() === 'IMAGE')
+    const hasVideoOut = Array.isArray(n.outputs) && n.outputs.some(o => isPlainObject(o) && asString(o.type).toUpperCase() === 'VIDEO')
+    const hasImageIn = Array.isArray(n.inputs) && n.inputs.some(inp => isPlainObject(inp) && asString(inp.type).toUpperCase() === 'IMAGE')
     if (!hasVideoOut) continue
     if (!hasImageIn) continue
 

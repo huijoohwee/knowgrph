@@ -13,6 +13,7 @@ interface UseSelectionHighlightProps {
   mediaSelRef: React.MutableRefObject<d3.Selection<SVGGraphicsElement, GraphNode, SVGGElement, unknown> | null>
   labelsSelRef: React.MutableRefObject<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>
   linksSelRef: React.MutableRefObject<d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown> | null>
+  themeSignal?: string
 }
 
 export function useSelectionHighlight({
@@ -21,6 +22,7 @@ export function useSelectionHighlight({
   mediaSelRef,
   labelsSelRef,
   linksSelRef,
+  themeSignal,
 }: UseSelectionHighlightProps) {
   useEffect(() => {
     if (paused) return
@@ -98,5 +100,5 @@ export function useSelectionHighlight({
       unsub()
       if (rafId != null) cancelAnimationFrame(rafId)
     }
-  }, [paused, nodesSelRef, mediaSelRef, labelsSelRef, linksSelRef])
+  }, [paused, nodesSelRef, mediaSelRef, labelsSelRef, linksSelRef, themeSignal])
 }

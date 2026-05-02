@@ -1,6 +1,8 @@
 import { parseGraph } from '@/lib/graph/io/adapter'
 import { applyWidgetRegistryFromMetadata } from '@/hooks/store/graphDataSliceUtils'
 import { CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT } from '@/lib/chatEndpoint'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   FLOW_WIDGET_BUNDLE_KIND,
   FLOW_WIDGET_BUNDLE_VERSION,
@@ -135,4 +137,24 @@ export function testWidgetComfyUiImportBuildsGraphAndRegistry() {
   const raw = meta[FLOW_WIDGET_REGISTRY_METADATA_KEY]
   if (!Array.isArray(raw)) throw new Error('expected registry metadata array')
   if (raw.length !== 1) throw new Error('expected one registry entry')
+}
+
+export function testWidgetImportReusesSharedRecordReaders() {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'widgetImport.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected widgetImport to reuse the shared document metadata reader upstream')
+  }
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected widgetImport to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const baseMeta = toMetadataRecord(graphData.metadata)')) {
+    throw new Error('expected widgetImport registry metadata writes to reuse the shared document metadata reader')
+  }
+  if (!text.includes('const registry = registryRaw.filter(isPlainObject)')) {
+    throw new Error('expected widgetImport registry parsing to reuse the shared plain-object guard')
+  }
+  if (text.includes('function isRecord(')) {
+    throw new Error('expected widgetImport to stop defining a local record guard')
+  }
 }

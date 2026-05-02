@@ -1,5 +1,6 @@
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 
 export type DesignWireframeSettings = {
   showEdges: boolean
@@ -31,14 +32,8 @@ export function readDesignWireframeSettings(
   schema: GraphSchema | null | undefined,
   graphMetadata?: Record<string, JSONValue> | null,
 ): DesignWireframeSettings {
-  const schemaMeta =
-    schema?.metadata && typeof schema.metadata === 'object' && !Array.isArray(schema.metadata)
-      ? (schema.metadata as Record<string, JSONValue>)
-      : ({} as Record<string, JSONValue>)
-  const graphMeta =
-    graphMetadata && typeof graphMetadata === 'object' && !Array.isArray(graphMetadata)
-      ? (graphMetadata as Record<string, JSONValue>)
-      : null
+  const schemaMeta = toMetadataRecord(schema?.metadata) as Record<string, JSONValue>
+  const graphMeta = graphMetadata ? (toMetadataRecord(graphMetadata) as Record<string, JSONValue>) : null
   const schemaRaw = Object.prototype.hasOwnProperty.call(schemaMeta, DESIGN_WIREFRAME_META_KEY)
     ? (schemaMeta[DESIGN_WIREFRAME_META_KEY] as unknown)
     : undefined

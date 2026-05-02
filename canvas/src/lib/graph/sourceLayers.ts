@@ -2,6 +2,7 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import { readWidgetRegistryMetadataEntries, writeWidgetRegistryMetadata } from '@/lib/config.flow-editor'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { readParsedGraphRevisionOrInitial } from '@/features/source-files/sourceFileParsedGraphRevision'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 export type SourceLayerInput = {
@@ -40,12 +41,8 @@ function computeTextHash(layer: SourceLayerInput): string {
   return hashStringToHexCached(`source-layer:${String(layer.id || '').trim() || 'unknown'}`, text)
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
-
 function readSourceLayerGraphMetadata(graphData: { metadata?: unknown } | null | undefined): Record<string, unknown> {
-  return isRecord(graphData?.metadata) ? (graphData.metadata as Record<string, unknown>) : {}
+  return toMetadataRecord(graphData?.metadata)
 }
 
 const PARSED_GRAPH_SEMANTIC_KEY_CACHE = new WeakMap<object, string>()
@@ -119,7 +116,7 @@ function mergeWidgetRegistryMetadata(layers: SourceLayerInput[]): JSONValue[] | 
     const raw = readWidgetRegistryMetadataEntries(metadata)
     for (let j = 0; j < raw.length; j += 1) {
       const entry = raw[j]
-      if (!isRecord(entry)) continue
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
       const nodeTypeId = typeof entry.nodeTypeId === 'string' ? entry.nodeTypeId.trim() : ''
       const formId = typeof entry.formId === 'string' ? entry.formId.trim() : ''
       const widgetTypeId = typeof entry.widgetTypeId === 'string' ? entry.widgetTypeId.trim() : ''

@@ -5,6 +5,7 @@ import { toSchemaImportFileName } from '@/features/schema-editor/utils'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { emitHelpScrollToAnchor } from '@/features/panels/utils/helpPanelEvents'
 import { UI_ANCHORS } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { uiPrimaryLinkButtonClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 interface SchemaSummaryProps {
@@ -224,7 +225,7 @@ export default function SchemaSummary({
       >
         <button
           type="button"
-          className="inline-flex items-center px-1.5 py-0.5 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 cursor-pointer"
+          className={`inline-flex items-center px-1.5 py-0.5 rounded-full border border-gray-300 bg-gray-50 ${UI_THEME_TOKENS.button.hoverBg} text-gray-700 cursor-pointer`}
           onClick={() => {
             try {
               emitMainPanelOpen({ tab: 'help' as const })

@@ -2,18 +2,12 @@ import React from 'react'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
+import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { FORCE_SELECT_MAX_TICKS, FORCE_SELECT_TICK_MS, OVERLAY_NODE_OVERRIDE_LOCK_MS, WIDGET_DROP_DEDUPE_WINDOW_MS, resolveGraphNodeIdByCanonicalId } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-
-function readGraphDataRevision(graphData: GraphData | null | undefined): number {
-  const meta = graphData?.metadata
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return 0
-  const raw = (meta as Record<string, unknown>).graphDataRevision
-  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
-}
 
 export function useFlowEditorSelectionBookkeeping(args: {
   active: boolean

@@ -11,6 +11,7 @@ import { getDefaultFaviconUrlForWebpageUrl, getKnownHostIconUrlForWebpageUrl } f
 import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { UI_COPY } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { RenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { getIconSizeClass } from '@/lib/ui'
 import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
@@ -273,7 +274,7 @@ export const MediaIframe = React.memo(function MediaIframe({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="text-xs px-3 py-2 rounded border border-gray-300 bg-white hover:bg-gray-50"
+              className={`text-xs px-3 py-2 rounded border border-gray-300 bg-white ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={() => setLoaded(true)}
             >
               {UI_COPY.markdownMediaLoadEmbedLabel}

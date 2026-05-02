@@ -1,4 +1,5 @@
 import { GraphData } from '@/lib/graph/types'
+import { isPlainObject } from '@/lib/graph/value'
 import { parseCsvToGraph, graphToCombinedCsv } from '@/lib/graph/csv'
 import { rawToGraphData } from '@/lib/graph/rawToGraph'
 import { parseJsonLd, toJsonLd } from '@/lib/graph/jsonld/index'
@@ -16,6 +17,10 @@ export type ParseDiagnostics = {
   warnings: string[]
 }
 
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
+
 export const parseGraphFromJson = (
   name: string,
   json: unknown,
@@ -26,15 +31,15 @@ export const parseGraphFromJson = (
 ): { data: GraphData; diag: ParseDiagnostics } => {
   const attemptedFastGeo = opts?.attemptedFastGeo === true
   const isPmfVoxelPayload = (() => {
-    if (!json || typeof json !== 'object' || Array.isArray(json)) return false
-    const obj = json as Record<string, unknown>
+    const obj = readPlainObject(json)
+    if (!obj) return false
     const layers = obj.layers
     if (!Array.isArray(layers) || layers.length === 0) return false
     let hasLayerNodes = false
     for (let i = 0; i < layers.length; i += 1) {
-      const layer = layers[i]
-      if (!layer || typeof layer !== 'object' || Array.isArray(layer)) continue
-      const nodes = (layer as Record<string, unknown>).nodes
+      const layer = readPlainObject(layers[i])
+      if (!layer) continue
+      const nodes = layer.nodes
       if (Array.isArray(nodes) && nodes.length > 0) {
         hasLayerNodes = true
         break
@@ -42,7 +47,7 @@ export const parseGraphFromJson = (
     }
     if (!hasLayerNodes) return false
     const meta = obj.meta
-    return !!(meta && typeof meta === 'object' && !Array.isArray(meta))
+    return !!readPlainObject(meta)
   })()
   if (isPmfVoxelPayload) {
     const data = pmfVoxelToGraphData(json)
@@ -54,10 +59,11 @@ export const parseGraphFromJson = (
     return { data: widget.graphData, diag: { format: 'json', warnings: widget.warnings } }
   }
 
-  if (json && typeof json === 'object' && !Array.isArray(json) && Array.isArray((json as any).nodes) && Array.isArray((json as any).edges)) {
-    const n0 = (json as any).nodes[0] || {}
-    const e0 = (json as any).edges[0] || {}
-    if ((n0 && typeof (n0 as any).properties === 'object') || typeof (e0 as any).label === 'string') {
+  const jsonRecord = readPlainObject(json)
+  if (jsonRecord && Array.isArray(jsonRecord.nodes) && Array.isArray(jsonRecord.edges)) {
+    const n0 = readPlainObject(jsonRecord.nodes[0]) || {}
+    const e0 = readPlainObject(jsonRecord.edges[0]) || {}
+    if (readPlainObject(n0.properties) || typeof e0.label === 'string') {
       return { data: json as GraphData, diag: { format: 'json', warnings: [] } }
     }
     const data = rawToGraphData(json)
@@ -73,8 +79,8 @@ export const parseGraphFromJson = (
     return { data: graphData, diag: { format: 'json', warnings } }
   }
 
-  if (json && typeof json === 'object' && !Array.isArray(json)) {
-    const t = (json as { type?: unknown }).type
+  if (jsonRecord) {
+    const t = jsonRecord.type
     if (t === 'FeatureCollection' || t === 'Feature') {
       const directGeoGraph = buildGraphDataFromFeatureCollection({
         featureCollection: json,

@@ -242,26 +242,6 @@ export function useFlowEditorRuntimeScene(args: {
       })
       .join('|')
 
-    const snapshot = autoSeededPinnedWidgetSnapshotRef.current
-    const isSameWorldPos = (a: { x: number; y: number } | null | undefined, b: { x: number; y: number } | null | undefined) => {
-      if (!a || !b) return false
-      return Math.abs(a.x - b.x) <= 0.0001 && Math.abs(a.y - b.y) <= 0.0001
-    }
-    const reseedEligible = effectiveOpenIds
-      .map(id => String(id || '').trim())
-      .filter(Boolean)
-      .filter(id => {
-        const v = pinnedById[id]
-        const pinned = typeof v === 'boolean' ? v : defaultPinnedInCanvas
-        if (!pinned) return false
-        const current = worldById[id]
-        if (!current || !Number.isFinite(current.x) || !Number.isFinite(current.y)) return false
-        const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`
-        if (snapshot.signature !== '' && snapshot.signature !== currentLayoutSignature && isSameWorldPos(current, snapshot.positions[id])) {
-          return true
-        }
-        return false
-      })
     const overlapEligible = (() => {
       const idsByBucket = new Map<string, string[]>()
       for (let i = 0; i < pinnedOpenIds.length; i += 1) {
@@ -314,7 +294,7 @@ export function useFlowEditorRuntimeScene(args: {
       }
       return Array.from(overlappingIds)
     })()
-    const pending = Array.from(new Set([...pendingRaw, ...reseedEligible, ...overlapEligible])).sort((a, b) => a.localeCompare(b))
+    const pending = Array.from(new Set([...pendingRaw, ...overlapEligible])).sort((a, b) => a.localeCompare(b))
     if (pending.length === 0) return
 
     const currentLayoutSignature = `${args.overlayTopologyLayoutSignature}|${args.zoomViewKeyRef.current || ''}|${args.viewportW}x${args.viewportH}|${bucketSignature}`

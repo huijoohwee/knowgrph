@@ -176,7 +176,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
       set({
         uiIconHoverBgClass: lsSetJson(
           LS_KEYS.iconHoverBgClass,
-          String(className || '').trim() || 'hover:bg-gray-100',
+          String(className || '').trim() || 'hover:bg-[var(--kg-panel-action-bg-hover)]',
         ),
       }),
     setUiIconButtonPaddingClass: (className: string) =>

@@ -337,7 +337,7 @@ export function GraphDataTableRows({
   return (
     <tr
       key={`row:${itemIndex}:${row.id}`}
-      className={`cursor-default ${borderClass} ${UI_THEME_TOKENS.table.rowHoverAmber} ${selectionClassName} ${outlineClassName}`}
+      className={`cursor-default ${borderClass} ${UI_THEME_TOKENS.table.rowHoverHighlight} ${selectionClassName} ${outlineClassName}`}
       style={{
         ...(mediaNodeOpacity < 1 ? { opacity: mediaNodeOpacity } : undefined),
         ...(flashStyle || {}),

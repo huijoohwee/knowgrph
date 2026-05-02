@@ -231,7 +231,7 @@ export const createLinksHitLayer = (args: {
   })
 
   if (schema.behavior?.allowNodeDrag !== false) {
-    const drag = edgeDragBehavior(simulation, schema);
+    const drag = edgeDragBehavior(simulation, schema, nodeById);
     (link as d3.Selection<SVGElement, GraphEdge, SVGGElement, unknown>)
       .call(drag as unknown as d3.DragBehavior<SVGElement, GraphEdge, unknown>)
   }

@@ -200,7 +200,7 @@ export function EditorWorkspaceSelect({ iconSizeClass, iconStrokeWidth, ensureBa
           <li className="list-none">
             <button
               type="button"
-              className={`w-full flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} hover:bg-gray-100 dark:hover:bg-gray-800`}
+              className={`w-full flex items-center gap-2 rounded px-2 py-1 text-sm ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={toggleWorkspaceSyncMode}
               title={
                 canvasWorkspaceSyncMode === 'realtime'

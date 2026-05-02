@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { GraphData } from '@/lib/graph/types'
 import { graphToCombinedCsv, parseCsvToGraph } from '@/lib/graph/csv'
+import { normalizeGraphData } from '@/lib/graph/normalize'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { graphToGraphML, graphToCypher, parseGraph } from '@/lib/graph/io/adapter'
 import { computeDerivedFields } from '@/features/graph-fields/graphFields'
@@ -146,5 +149,48 @@ export function testGraphFieldsDerivedFromPlainEdgesCsv() {
   const fields = computeDerivedFields(g)
   if (!fields.some(f => f.id === 'edge:weight')) {
     throw new Error('plain edges csv graph fields missing edge:weight')
+  }
+}
+
+export function testNormalizeGraphDataReusesSharedReaders() {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'normalize.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected graph normalization to reuse the shared document metadata reader upstream')
+  }
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected graph normalization to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('return isPlainObject(v) ? (v as Record<string, JSONValue>) : {}')) {
+    throw new Error('expected graph normalization property coercion to reuse the shared plain-object guard')
+  }
+  if (!text.includes('const meta = toMetadataRecord(v) as Record<string, JSONValue>')) {
+    throw new Error('expected graph normalization metadata coercion to reuse the shared document metadata reader')
+  }
+  if (text.includes('const isRecord = (v: unknown): v is Record<string, unknown> =>')) {
+    throw new Error('expected graph normalization to stop defining a local record guard')
+  }
+}
+
+export function testNormalizeGraphDataTrimsIdsAndNormalizesMetadata() {
+  const normalized = normalizeGraphData({
+    type: ' Graph ',
+    context: 'test',
+    metadata: { a: 1 },
+    nodes: [
+      { id: ' n1 ', label: ' A ', type: ' Node ', properties: { foo: 1 }, metadata: {} },
+      null as never,
+    ],
+    edges: [
+      { id: '', source: ' n1 ', target: ' n1 ', label: ' self ', properties: { weight: 2 }, metadata: {} },
+    ],
+  } as GraphData)
+  if (normalized.type !== 'Graph') throw new Error('expected graph type to be trimmed')
+  if (!normalized.metadata || normalized.metadata.a !== 1) throw new Error('expected graph metadata to be preserved')
+  if (normalized.nodes.length !== 1 || normalized.nodes[0]?.id !== 'n1') {
+    throw new Error('expected graph normalization to trim node ids and drop null nodes')
+  }
+  if (!normalized.edges[0]?.id || normalized.edges[0]?.source !== 'n1' || normalized.edges[0]?.target !== 'n1') {
+    throw new Error('expected graph normalization to normalize edge ids and endpoints')
   }
 }

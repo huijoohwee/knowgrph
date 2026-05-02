@@ -12,13 +12,12 @@ import {
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config'
-import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
 import { pickFilesWithExtensions } from '@/lib/graph/filePicker'
 import { downloadBlob } from '@/lib/graph/save'
 import { buildWidgetBundleJsonText } from '@/lib/graph/io/widgetBundle'
-import { normalizeWidgetRegistryEntries, validateWidgetRegistryEntry } from '@/hooks/store/flowEditorManagerSlice'
+import { normalizeWidgetRegistryEntries, readValidatedWidgetRegistryMetadataEntries } from '@/hooks/store/flowEditorManagerSlice'
 import { tryParseWidgetImportGraphData } from '@/lib/graph/io/widgetImport'
 import { createUniqueId } from '@/lib/ids'
 import {
@@ -457,9 +456,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     }
     const parsed = tryParseWidgetImportGraphData(json)
     const meta = parsed?.graphData?.metadata
-    const imported = readWidgetRegistryMetadataEntries(meta)
-      .map(item => validateWidgetRegistryEntry(item))
-      .filter((e): e is WidgetRegistryEntry => !!e)
+    const imported = readValidatedWidgetRegistryMetadataEntries(meta)
     if (imported.length === 0) return
     const merged = normalizeWidgetRegistryEntries([...(widgetRegistry || []), ...imported])
     setWidgetRegistry(merged)

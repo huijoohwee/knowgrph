@@ -38,6 +38,12 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   if (!geometryText.includes('const finalizeMermaidFrontmatterGraph = (args: {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared finalizeMermaidFrontmatterGraph helper')
   }
+  if (!geometryText.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected mermaidFrontmatterGeometry to reuse the shared node property reader upstream')
+  }
+  if (!geometryText.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected mermaidFrontmatterGeometry to reuse the shared document metadata coercion helper upstream')
+  }
   if (!geometryText.includes('const resolveMermaidFrontmatterRenderInput = (args: {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared resolveMermaidFrontmatterRenderInput helper')
   }
@@ -80,11 +86,11 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   if (!geometryText.includes('const isFrontmatterMermaidDiagramProps = (props: Record<string, unknown> | null): boolean => {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid diagram-property classification helper')
   }
-  if (!geometryText.includes('return isFrontmatterMermaidDiagramProps(readRecordProps(n))')) {
-    throw new Error('expected frontmatter Mermaid diagram classifier to delegate property gating to the shared frontmatter-property helper')
+  if (!geometryText.includes('return isFrontmatterMermaidDiagramProps(readNodeProperties(n))')) {
+    throw new Error('expected frontmatter Mermaid diagram classifier to delegate property gating to the shared node property helper')
   }
-  if (!geometryText.includes('return readRecordProps(node)')) {
-    throw new Error('expected frontmatter Mermaid diagram-property reader to reuse shared record-property extraction')
+  if (!geometryText.includes('return readNodeProperties(node)')) {
+    throw new Error('expected frontmatter Mermaid diagram-property reader to reuse the shared node property helper')
   }
   if (!geometryText.includes('return readFrontmatterMermaidCodeFromProps(readFrontmatterMermaidDiagramProps(graphData))')) {
     throw new Error('expected frontmatter Mermaid code reader to compose shared diagram-property and code reader helpers')
@@ -125,6 +131,15 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   if (!geometryText.includes('applyMermaidEdgeVisual({')) {
     throw new Error('expected frontmatter Mermaid edge matching and fallback helpers to reuse shared edge-visual mutation helper')
   }
+  if (!geometryText.includes("const readEdgeProperties = (edge: Pick<GraphEdge, 'properties'> | null | undefined): Record<string, unknown> | null => {")) {
+    throw new Error('expected mermaidFrontmatterGeometry to centralize edge property coercion in one local helper')
+  }
+  if (!geometryText.includes('const properties = readEdgeProperties(current) || {}')) {
+    throw new Error('expected Mermaid edge-visual writes to reuse the shared local edge property helper instead of coercing inline')
+  }
+  if (!geometryText.includes('const properties = readEdgeProperties(edge)')) {
+    throw new Error('expected Mermaid fallback edge matching to reuse the shared local edge property helper instead of coercing inline')
+  }
   if (!geometryText.includes('applyMermaidNodeGeometry({')) {
     throw new Error('expected frontmatter Mermaid geometry applier to reuse shared node geometry mutation helper')
   }
@@ -136,6 +151,9 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   }
   if (!geometryText.includes("layoutEngine: 'mermaid'")) {
     throw new Error('expected shared graph finalization helper to preserve Mermaid layout engine metadata')
+  }
+  if (!geometryText.includes('...toMetadataRecord(args.graphData.metadata),')) {
+    throw new Error('expected shared graph finalization helper to reuse the shared document metadata coercion helper before writing Mermaid layout metadata')
   }
   if (!geometryText.includes('const renderInput = resolveMermaidFrontmatterRenderInput(args)')) {
     throw new Error('expected Mermaid frontmatter renderer to reuse shared render input resolution helper')

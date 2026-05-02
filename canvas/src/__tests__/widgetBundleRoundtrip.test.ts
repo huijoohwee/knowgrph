@@ -107,8 +107,8 @@ export function testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths() 
   if (!flowEditorMappingTabText.includes('const bundleText = buildWidgetBundleJsonText({ registryEntries: entries, graphData: null })')) {
     throw new Error('expected FlowEditorMappingTab JSON export path to reuse the shared widget bundle JSON helper')
   }
-  if (!flowEditorMappingTabText.includes('readWidgetRegistryMetadataEntries(meta)')) {
-    throw new Error('expected FlowEditorMappingTab JSON import path to reuse the shared widget-registry metadata reader')
+  if (!flowEditorMappingTabText.includes('readValidatedWidgetRegistryMetadataEntries(meta)')) {
+    throw new Error('expected FlowEditorMappingTab JSON import path to reuse the shared validated widget-registry metadata reader')
   }
   if (flowEditorMappingTabText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
     throw new Error('expected FlowEditorMappingTab JSON import path to stop parsing the widget registry metadata key inline')

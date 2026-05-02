@@ -1,4 +1,5 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import { isPlainObject } from '@/lib/graph/value'
 
 type PmfNode = {
   id: string
@@ -42,16 +43,20 @@ const asNumber = (v: unknown): number | null => {
 
 const asString = (v: unknown): string => (typeof v === 'string' ? v : String(v ?? ''))
 
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
+
 export function pmfVoxelToGraphData(input: unknown): GraphData {
-  const obj = (input && typeof input === 'object' && !Array.isArray(input)) ? (input as PmfPayload) : null
+  const obj = readPlainObject(input) as PmfPayload | null
   const layers = Array.isArray(obj?.layers) ? obj!.layers! : []
   const edges = Array.isArray(obj?.edges) ? obj!.edges! : []
   const nodesOut: GraphNode[] = []
   const seenNodeIds = new Set<string>()
 
   for (let li = 0; li < layers.length; li += 1) {
-    const layer = layers[li]
-    if (!layer || typeof layer !== 'object') continue
+    const layer = readPlainObject(layers[li]) as PmfLayer | null
+    if (!layer) continue
     const layerId = String(layer.id || '').trim()
     const layerLabel = String(layer.label || layerId || `layer-${li}`).trim()
     const level = asNumber(layer.level) ?? li
@@ -67,7 +72,7 @@ export function pmfVoxelToGraphData(input: unknown): GraphData {
       if (!id || seenNodeIds.has(id)) continue
       seenNodeIds.add(id)
       const label = String(n.label || id).trim()
-      const scoresObj = (n.scores && typeof n.scores === 'object' && !Array.isArray(n.scores)) ? (n.scores as Record<string, unknown>) : null
+      const scoresObj = readPlainObject(n.scores)
       const scores: Record<string, JSONValue> | undefined = scoresObj
         ? ({
           money: (asNumber(scoresObj.money) ?? 0) as JSONValue,
@@ -136,7 +141,7 @@ export function pmfVoxelToGraphData(input: unknown): GraphData {
     } as GraphEdge)
   }
 
-  const meta = (obj?.meta && typeof obj.meta === 'object' && !Array.isArray(obj.meta)) ? obj.meta : {}
+  const meta = readPlainObject(obj?.meta) || {}
   const metadata: Record<string, JSONValue> = {
     kind: 'pmfVoxel',
     title: typeof meta.title === 'string' ? meta.title : 'PMF Voxel',

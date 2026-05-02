@@ -109,7 +109,7 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
         <button
           type="button"
           onClick={onClickFrontmatterHint}
-          className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline px-1 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-transparent hover:border-blue-200 dark:hover:border-blue-700 transition-colors"
+          className={`text-[10px] text-blue-600 dark:text-blue-400 hover:underline px-1 py-0.5 rounded ${UI_THEME_TOKENS.button.hoverBg} border border-transparent hover:border-blue-200 dark:hover:border-blue-700 transition-colors`}
           title="Frontmatter Mermaid diagram is available. Click to view."
         >
           Mermaid

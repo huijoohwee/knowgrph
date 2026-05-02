@@ -1,4 +1,5 @@
 import type { GraphData, JSONValue } from '@/lib/graph/types'
+import { isPlainObject } from '@/lib/graph/value'
 
 type GeoJsonFeatureCollection = {
   type: 'FeatureCollection'
@@ -17,7 +18,7 @@ const toFiniteNumber = (value: unknown): number | null => {
 
 const readGeoPoint = (properties: Record<string, JSONValue>): { lat: number; lng: number } | null => {
   const geoRaw = properties.geo
-  if (!geoRaw || typeof geoRaw !== 'object' || Array.isArray(geoRaw)) return null
+  if (!isPlainObject(geoRaw)) return null
   const geo = geoRaw as Record<string, unknown>
   const lat = toFiniteNumber(geo.lat)
   const lng = toFiniteNumber(geo.lng)
@@ -51,4 +52,3 @@ export const exportAsGeoJsonBlob = (data: GraphData): Blob => {
   const fc = graphToGeoJsonFeatureCollection(data)
   return new Blob([JSON.stringify(fc, null, 2)], { type: 'application/geo+json' })
 }
-

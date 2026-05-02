@@ -53,7 +53,7 @@ export function MarkdownBacklinksPanel(props: MarkdownBacklinksPanelProps) {
               const rowClassName = [
                 `border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0 px-2 py-1`,
                 'flex items-center gap-2 min-w-0 overflow-hidden cursor-pointer select-none',
-                UI_THEME_TOKENS.table.rowHoverAmber,
+                UI_THEME_TOKENS.table.rowHoverHighlight,
               ]
                 .filter(Boolean)
                 .join(' ')

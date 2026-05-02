@@ -53,7 +53,7 @@ export function resolveThemeColors(): ThemeColors {
 export const UI_THEME_TOKENS = {
   button: {
     text: 'text-[color:var(--kg-text-secondary)]',
-    hoverBg: 'hover:bg-black/5 dark:hover:bg-white/5',
+    hoverBg: 'hover:bg-[var(--kg-panel-action-bg-hover)]',
     ring: 'ring-blue-500 dark:ring-blue-400',
     padding: 'p-2',
     square: 'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] p-0 flex items-center justify-center',
@@ -100,7 +100,7 @@ export const UI_THEME_TOKENS = {
   table: {
     headerBg: 'bg-gray-50 dark:bg-gray-800',
     rowHover: 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
-    rowHoverAmber: 'hover:bg-amber-50 dark:hover:bg-amber-900/20',
+    rowHoverHighlight: 'hover:!bg-[var(--kg-panel-action-bg-hover)]',
     cellBorder: 'border-[color:var(--kg-border)]',
     text: 'text-[color:var(--kg-text-primary)]',
     textSecondary: 'text-[color:var(--kg-text-secondary)]',

@@ -1,10 +1,9 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { isPlainObject } from '@/lib/graph/value'
 
 export const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
@@ -14,22 +13,22 @@ export function readNodeFlowPortSocketType(node: GraphNode | null, dir: 'in' | '
   if (!node) return ''
   const pk = pickString(portKey)
   if (!pk) return ''
-  const props = (node.properties || {}) as Record<string, unknown>
+  const props = readNodeProperties(node)
   const portTypes = props[FLOW_PORT_TYPES_KEY]
-  if (!isRecord(portTypes)) return ''
+  if (!isPlainObject(portTypes)) return ''
   const bucket = portTypes[dir]
-  if (!isRecord(bucket)) return ''
+  if (!isPlainObject(bucket)) return ''
   return pickString(bucket[pk])
 }
 
 function readSocketTypeAccepts(graphData: GraphData | null, typeId: string): Set<string> | null {
   const t = pickString(typeId)
   if (!t) return null
-  const meta = (graphData?.metadata || {}) as Record<string, unknown>
+  const meta = toMetadataRecord(graphData?.metadata)
   const socketTypes = meta.socketTypes
-  if (!isRecord(socketTypes)) return null
+  if (!isPlainObject(socketTypes)) return null
   const spec = socketTypes[t]
-  if (!isRecord(spec)) return null
+  if (!isPlainObject(spec)) return null
   const accepts = spec.accepts
   if (!Array.isArray(accepts)) return null
   const out = new Set<string>()
@@ -63,4 +62,3 @@ export function resolveFlowSocketTypesForEdge(args: {
   const ok = isFlowSocketCompatible(args.graphData, outType, inType)
   return { outType, inType, ok, edgeType: outType || '' }
 }
-

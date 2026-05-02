@@ -99,7 +99,7 @@ export const createUiSettingsModeActions = (
           : state.zoomStateByKey
 
       const zoomRequest: ZoomRequest | null =
-        nextEnabled && state.canvasRenderMode === '2d'
+        nextEnabled && state.canvasRenderMode === '2d' && state.canvas2dRenderer !== 'flowEditor'
           ? { type: 'fit', intent: 'fitToView', at: Date.now() }
           : null
 
@@ -155,7 +155,7 @@ export const createUiSettingsModeActions = (
           : state.zoomStateByKey
 
       const zoomRequest: ZoomRequest | null =
-        nextEnabled && state.canvasRenderMode === '2d'
+        nextEnabled && state.canvasRenderMode === '2d' && state.canvas2dRenderer !== 'flowEditor'
           ? { type: 'fit', intent: 'fitToView', at: Date.now() }
           : null
 

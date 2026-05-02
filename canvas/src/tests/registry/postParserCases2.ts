@@ -192,6 +192,8 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["export.cypher","@/__tests__/roundtrip.test","testCypherExport"],
   ["graphFields.derivedFromCsvJsonJsonLd","@/__tests__/roundtrip.test","testGraphFieldsDerivedFromCsvJsonJsonLd"],
   ["graphFields.derivedFromPlainEdgesCsv","@/__tests__/roundtrip.test","testGraphFieldsDerivedFromPlainEdgesCsv"],
+  ["graph.normalize.reusesSharedReaders","@/__tests__/roundtrip.test","testNormalizeGraphDataReusesSharedReaders"],
+  ["graph.normalize.trimsIdsAndNormalizesMetadata","@/__tests__/roundtrip.test","testNormalizeGraphDataTrimsIdsAndNormalizesMetadata"],
   ["graphrag.traversal.happyPath","@/__tests__/graphRagTraversal.test","testGraphRagTraversalHappyPath"],
   ["graphrag.traversal.ignoresInvalidShapes","@/__tests__/graphRagTraversal.test","testGraphRagTraversalIgnoresInvalidShapes"],
   ["graphrag.traversal.missingOwner","@/__tests__/graphRagTraversal.test","testGraphRagTraversalHandlesMissingOwner"],

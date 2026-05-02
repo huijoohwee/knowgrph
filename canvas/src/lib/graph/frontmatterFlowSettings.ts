@@ -1,22 +1,19 @@
 import type { GraphData } from '@/lib/graph/types'
 import type { GlobalEdgeType } from '@/lib/graph/edgeTypes'
 import { normalizeGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 
 export type FrontmatterFlowRenderSettings = {
   rankdir: 'LR' | 'TB'
   edgeType: GlobalEdgeType
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 function readFrontmatterFlowSettingsRecord(graphData: Pick<GraphData, 'metadata'> | null | undefined): Record<string, unknown> | null {
-  const meta = isRecord(graphData?.metadata) ? (graphData?.metadata as Record<string, unknown>) : null
-  if (!meta) return null
+  const meta = toMetadataRecord(graphData?.metadata)
   if (String(meta.kind || '').trim() !== 'frontmatter-flow') return null
-  const settings = isRecord(meta.frontmatterFlowSettings) ? (meta.frontmatterFlowSettings as Record<string, unknown>) : null
-  return settings
+  const rawSettings = meta.frontmatterFlowSettings
+  const settings = toMetadataRecord(rawSettings)
+  return rawSettings && typeof rawSettings === 'object' && !Array.isArray(rawSettings) ? settings : null
 }
 
 export function readFrontmatterFlowRenderSettings(

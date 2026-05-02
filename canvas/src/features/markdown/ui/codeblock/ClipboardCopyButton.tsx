@@ -27,7 +27,7 @@ export function ClipboardCopyButton({ text, disabled = false }: { text: string; 
   return (
     <button
       aria-label="Copy code to clipboard"
-      className={`p-1.5 rounded-md transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200 dark:hover:bg-gray-700'} ${UI_THEME_TOKENS.text.secondary}`}
+      className={`p-1.5 rounded-md transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary}`}
       onClick={handleCopy}
       type="button"
       disabled={disabled}

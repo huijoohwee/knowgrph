@@ -10,6 +10,7 @@ import {
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
+import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
@@ -35,13 +36,6 @@ const EMPTY_GRAPH_NODES: GraphNode[] = []
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
 const EMPTY_GRAPH_NODE_BY_ID = new Map<string, GraphNode>()
 const EMPTY_GRAPH_ELIGIBLE_NODE_IDS = new Set<string>()
-
-function readGraphDataRevision(graphData: GraphData | null | undefined): number {
-  const meta = graphData?.metadata
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return 0
-  const raw = (meta as Record<string, unknown>).graphDataRevision
-  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
-}
 
 export function useFlowEditorOverlaySurface(args: {
   flowEditorSurfaceId: string

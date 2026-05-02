@@ -3,6 +3,7 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { isRecord } from '@/lib/graph/jsonld/utils'
 import type { JSONValue } from '@/lib/graph/types'
 import { runGraphRagTextPipeline } from '@/lib/graph/graphragTextPipeline'
@@ -187,7 +188,7 @@ export default function GraphRagTextPipelineSection() {
                 'px-2 py-1 rounded border text-xs transition-colors',
                 step === i
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50',
+                  : `bg-white border-gray-200 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`,
               ].join(' ')}
             >
               {i + 1}. {s.name}
@@ -216,7 +217,7 @@ export default function GraphRagTextPipelineSection() {
             </label>
             <button
               type="button"
-              className="px-2 py-0.5 rounded border border-gray-200 text-gray-700 hover:bg-gray-50"
+              className={`px-2 py-0.5 rounded border border-gray-200 text-gray-700 ${UI_THEME_TOKENS.button.hoverBg}`}
               onClick={reset}
             >
               Reset
@@ -226,7 +227,7 @@ export default function GraphRagTextPipelineSection() {
               disabled={!canRecompute}
               className={[
                 'px-2 py-0.5 rounded border border-gray-200',
-                canRecompute ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-400',
+                canRecompute ? `text-gray-700 ${UI_THEME_TOKENS.button.hoverBg}` : 'text-gray-400',
               ].join(' ')}
               onClick={() => {
                 if (!canRecompute) return

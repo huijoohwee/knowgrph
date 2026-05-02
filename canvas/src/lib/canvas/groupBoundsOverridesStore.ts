@@ -2,11 +2,10 @@ import type { GraphNode } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GroupBoundsOverride } from '@/lib/canvas/groupBoundsOverrides'
 import { withSchemaGroupBoundsOverride, withoutSchemaGroupBoundsOverride } from '@/lib/canvas/groupBoundsOverrides'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
 
 const readProps = (node: GraphNode | null): Record<string, unknown> => {
-  if (!node) return {}
-  const props = (node as unknown as { properties?: unknown }).properties
-  return props && typeof props === 'object' && !Array.isArray(props) ? (props as Record<string, unknown>) : {}
+  return readNodeProperties(node as Pick<GraphNode, 'properties'> | null)
 }
 
 const findNodeById = (nodes: ReadonlyArray<GraphNode>, id: string): GraphNode | null => {
@@ -101,4 +100,3 @@ export const resetGroupBoundsOverrideInStore = (groupId: string): boolean => {
     return false
   }
 }
-

@@ -1,5 +1,6 @@
 import { hashSignatureParts } from '@/lib/hash/signature'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
 
@@ -13,12 +14,18 @@ function readVisualLayoutKey(props: Record<string, unknown>, key: string): strin
   return raw == null ? '' : measuredLayoutKey(raw)
 }
 
+function readCanonicalOverlayIdentity(rawId: unknown): string {
+  const id = String(rawId || '').trim()
+  if (!id) return ''
+  return splitComposedNodeId(id).inner || id
+}
+
 export function buildOverlayTopologyLayoutSignature(graphData: GraphData | null | undefined): string {
   const nodes = Array.isArray(graphData?.nodes) ? (graphData!.nodes as GraphNode[]) : []
   const edges = Array.isArray(graphData?.edges) ? (graphData!.edges as GraphEdge[]) : []
   const nodeParts = nodes
     .map(node => {
-      const id = String(node?.id || '').trim()
+      const id = readCanonicalOverlayIdentity(node?.id)
       if (!id) return ''
       const props = (node.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)) ? node.properties as Record<string, unknown> : {}
       return [
@@ -40,9 +47,9 @@ export function buildOverlayTopologyLayoutSignature(graphData: GraphData | null 
       const sourcePortKey = readFlowEdgePortKey(edge, 'source') || ''
       const targetPortKey = readFlowEdgePortKey(edge, 'target') || ''
       return [
-        String(edge.id || '').trim(),
-        src || '',
-        tgt || '',
+        readCanonicalOverlayIdentity(edge.id),
+        readCanonicalOverlayIdentity(src),
+        readCanonicalOverlayIdentity(tgt),
         String(edge.label || '').trim(),
         sourcePortKey,
         targetPortKey,

@@ -1,4 +1,6 @@
-import { defaultSchema } from '@/lib/graph/schema'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { defaultSchema, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { validateSchema } from '@/features/schema/validation'
 import { parseSchemaText } from '@/features/schema/io'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -87,6 +89,41 @@ export const testSchemaTabEnterText = () => {
   if (!computed) throw new Error('schema tab enter should return schema json')
   const parsed = JSON.parse(computed) as typeof defaultSchema
   if (parsed.nodeStyles.Investor?.color !== '#ff2600') throw new Error('schema tab enter did not use provided schema')
+}
+
+export const testRendererPaletteReusesSharedMetadataAndObjectReaders = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'schema.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { toMetadataRecord } from '@/lib/graph/documentMetadata'")) {
+    throw new Error('expected schema renderer palette helper to reuse the shared document metadata reader upstream')
+  }
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected schema renderer palette helper to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const meta = toMetadataRecord(schema?.metadata)')) {
+    throw new Error('expected schema renderer palette helper to reuse the shared document metadata reader')
+  }
+  if (!text.includes('if (isPlainObject(raw)) {')) {
+    throw new Error('expected schema renderer palette helper to reuse the shared plain-object guard')
+  }
+  if (text.includes("schema && schema.metadata && typeof schema.metadata === 'object' && !Array.isArray(schema.metadata)")) {
+    throw new Error('expected schema renderer palette helper to stop coercing schema metadata inline')
+  }
+
+  const palette = getRendererPalette({
+    ...defaultSchema,
+    metadata: {
+      'renderer:palette': {
+        nodes: { idea: '#111111' },
+        edges: { critical: '#222222' },
+      },
+    },
+  })
+  if (palette.nodes.idea !== '#111111') throw new Error('expected renderer palette helper to honor custom node palette metadata')
+  if (palette.edges.critical !== '#222222') throw new Error('expected renderer palette helper to honor custom edge palette metadata')
+  if (palette.nodes.hypothesis !== MVP_COLOR_PALETTE.nodes.hypothesis) {
+    throw new Error('expected renderer palette helper to preserve default node palette entries')
+  }
 }
 
 export const testSchemaPersistenceWrites = () => {
