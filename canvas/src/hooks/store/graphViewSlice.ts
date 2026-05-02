@@ -10,7 +10,7 @@ import {
   WORKSPACE_SYNC_TASK_FLOW_WIDGET_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
-import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
@@ -55,10 +55,7 @@ const normalizeOpenWidgetNodeIds = (ids: string[], graphData: GraphState['graphD
     return validNodeIds.filter(id => eligible.has(id))
   }
 
-  const metadata = ((graphData.metadata || {}) as Record<string, unknown>)
-
-  const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
-  const registry = Array.isArray(registryRaw) ? registryRaw : []
+  const registry = readWidgetRegistryMetadataEntries(graphData.metadata)
   const allowedFormIds = new Set<string>()
   for (let i = 0; i < registry.length; i += 1) {
     const entry = registry[i] as Record<string, unknown> | null

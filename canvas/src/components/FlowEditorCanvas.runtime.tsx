@@ -485,6 +485,7 @@ export default function FlowEditorCanvasRuntime(
     renderGraphDataOverride,
     markdownDocumentName,
     markdownDocumentSourceUrl,
+    widgetRegistry,
     appendDraftNode,
     setDraftGraphData,
     updateNode,

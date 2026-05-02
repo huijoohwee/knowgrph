@@ -2,7 +2,7 @@ import type { WidgetRegistryField, WidgetRegistryFieldOption } from '@/features/
 
 import { CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS } from '@/lib/chatEndpoint'
 
-export type BytePlusApiDocRow = {
+export type BytePlusSharedTextApiDocRow = {
   key: string
   typeLabel: string
   value: string
@@ -153,7 +153,7 @@ function normalizePortKey(raw: string | undefined): string {
   return trimmed
 }
 
-function row(input: Omit<BytePlusApiDocRow, 'modules' | 'classes' | 'functions'> & Partial<CodebaseLocation>): BytePlusApiDocRow {
+function row(input: Omit<BytePlusSharedTextApiDocRow, 'modules' | 'classes' | 'functions'> & Partial<CodebaseLocation>): BytePlusSharedTextApiDocRow {
   const location = (input.valueKey ? BYTEPLUS_CODEBASE_LOCATION_BY_VALUE_KEY[input.valueKey] : undefined) || undefined
   return {
     ...input,
@@ -163,7 +163,7 @@ function row(input: Omit<BytePlusApiDocRow, 'modules' | 'classes' | 'functions'>
   }
 }
 
-export function resolveBytePlusTextWidgetChatApiRowKey(args: {
+export function resolveBytePlusTextWidgetSharedTextApiRowKey(args: {
   schemaPath?: string
   fieldKey?: string
   portKey?: string
@@ -196,7 +196,7 @@ export function buildBytePlusTextGenerationFields(): WidgetRegistryField[] {
   ]
 }
 
-export const BYTEPLUS_CHAT_API_DOC_ROWS: ReadonlyArray<BytePlusApiDocRow> = [
+export const BYTEPLUS_SHARED_TEXT_API_DOC_ROWS: ReadonlyArray<BytePlusSharedTextApiDocRow> = [
   row({ key: 'provider', typeLabel: 'string', value: 'Integration setting. Default byteplus-modelark.', valueKey: 'chatProvider', responsibility: 'Orchestrator -> pin BytePlus provider routing -> keep Integrations, Workflow Manager, and BytePlus Text Widget on the same provider family.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatProvider provider profile modelark byteplus'] }),
   row({ key: 'auth_mode', typeLabel: 'string', value: 'Integration setting. serverManaged | byok.', valueKey: 'chatAuthMode', responsibility: 'Orchestrator -> choose server-managed or BYOK credential flow -> keep auth policy aligned across Integrations and widget runs.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatAuthMode auth byok serverManaged api key'] }),
   row({ key: 'endpoint_url', typeLabel: 'string', value: 'Integration setting. Base URL by region: ap-southeast-1 or eu-west-1.', valueKey: 'chatEndpointUrl', responsibility: 'Transport -> route BytePlus requests to the correct regional ModelArk base URL -> keep defaults, normalization, and widget execution on one endpoint SSOT.', notes: 'Integration transport setting reused by the BytePlus Text Widget.', searchHints: ['chatEndpointUrl base url region ap-southeast-1 eu-west-1'] }),
@@ -262,11 +262,11 @@ export const BYTEPLUS_CHAT_API_DOC_ROWS: ReadonlyArray<BytePlusApiDocRow> = [
   row({ key: 'tool_choice.function.name', typeLabel: 'string', value: 'Required.', valueKey: 'chatToolChoiceJson', responsibility: 'Tool planner -> name the explicitly selected function tool -> keep forced tool execution deterministic.' }),
 ]
 
-const BYTEPLUS_DOC_ROW_MAP: ReadonlyMap<string, BytePlusApiDocRow> = new Map(
-  BYTEPLUS_CHAT_API_DOC_ROWS.map(row => [String(row.key || '').trim(), row] as const),
+const BYTEPLUS_DOC_ROW_MAP: ReadonlyMap<string, BytePlusSharedTextApiDocRow> = new Map(
+  BYTEPLUS_SHARED_TEXT_API_DOC_ROWS.map(row => [String(row.key || '').trim(), row] as const),
 )
 
-export function getBytePlusApiDocRowByRowKey(rowKey: string): BytePlusApiDocRow | null {
+export function getBytePlusSharedTextApiDocRowByRowKey(rowKey: string): BytePlusSharedTextApiDocRow | null {
   const normalized = String(rowKey || '').trim()
   if (!normalized) return null
   const key = normalized.startsWith(BYTEPLUS_TEXT_API_PREFIX)

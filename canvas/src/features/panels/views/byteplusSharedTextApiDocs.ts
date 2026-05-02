@@ -1,9 +1,9 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import {
-  BYTEPLUS_CHAT_API_DOC_ROWS,
+  BYTEPLUS_SHARED_TEXT_API_DOC_ROWS,
   BYTEPLUS_KEY_ACTIONS_BY_VALUE_KEY,
   BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY,
-  resolveBytePlusTextWidgetChatApiRowKey,
+  resolveBytePlusTextWidgetSharedTextApiRowKey,
 } from '@/features/integrations/byteplusChatApiSsot'
 
 export const BYTEPLUS_SHARED_TEXT_API_DOC_AREA = 'BytePlus Shared + Text API'
@@ -17,7 +17,7 @@ export function getBytePlusSharedTextApiRowAnchorId(rowKey: string): string {
   return `byteplus-chat-api-row-${normalized || 'entry'}`
 }
 
-export { resolveBytePlusTextWidgetChatApiRowKey }
+export { resolveBytePlusTextWidgetSharedTextApiRowKey }
 
 export type VirtualSettingsEntry = {
   meta: SettingMeta
@@ -54,7 +54,7 @@ const toBaseType = (typeLabel: string): SettingMeta['type'] => {
 }
 
 export const BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntry> =
-  BYTEPLUS_CHAT_API_DOC_ROWS.map(row => ({
+  BYTEPLUS_SHARED_TEXT_API_DOC_ROWS.map(row => ({
     meta: {
       key: getBytePlusChatEntryKey(row.key),
       type: toBaseType(row.typeLabel),

@@ -19,7 +19,7 @@ import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { buildNodeMediaInventory, getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config.flow-editor'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -143,8 +143,7 @@ export function useRichMediaOverlays2d(args: {
       if (id) richMediaPanelNodeIds.add(id)
     }
     const metadata = (sceneGraphData?.metadata || {}) as Record<string, unknown>
-    const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
-    const registry = Array.isArray(registryRaw) ? (registryRaw as WidgetRegistryEntry[]) : []
+    const registry = readWidgetRegistryMetadataEntries<WidgetRegistryEntry>(metadata)
     const connectedValuesByNodeId = richMediaPanelNodeIds.size > 0
       ? computeFlowConnectedValuesBySchemaPath({
         graphData: sceneGraphData,

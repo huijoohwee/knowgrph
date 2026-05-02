@@ -2,9 +2,9 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  BYTEPLUS_CHAT_API_DOC_ROWS,
+  BYTEPLUS_SHARED_TEXT_API_DOC_ROWS,
   BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY,
-  type BytePlusApiDocRow,
+  type BytePlusSharedTextApiDocRow,
 } from '../features/integrations/byteplusChatApiSsot'
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -39,7 +39,7 @@ function formatList(values: string[] | undefined): string {
   return (values || []).map(value => `\`${value}\``).join('; ')
 }
 
-function buildValueDescription(row: BytePlusApiDocRow): string {
+function buildValueDescription(row: BytePlusSharedTextApiDocRow): string {
   const tooltip = BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY[row.key] || {}
   const parts: string[] = []
   const defaultValue = typeof row.tooltipDefaultValue !== 'undefined' ? row.tooltipDefaultValue : tooltip.defaultValue
@@ -60,14 +60,14 @@ function buildValueDescription(row: BytePlusApiDocRow): string {
   return parts.join('; ')
 }
 
-function buildSsotCell(row: BytePlusApiDocRow): string {
+function buildSsotCell(row: BytePlusSharedTextApiDocRow): string {
   const refs = [`\`canvas/src/features/integrations/byteplusChatApiSsot.rows.ts :: byteplusApi.${row.key}\``]
   if (row.key === 'endpoint_url') refs.push(`\`${RAW_SSOT_PATH} :: Base URL by region\``)
   else if (!['provider', 'auth_mode', 'api_key'].includes(row.key)) refs.push(`\`${RAW_SSOT_PATH} :: Request parameters > Request body\``)
   return refs.join('; ')
 }
 
-function buildRow(row: BytePlusApiDocRow): string {
+function buildRow(row: BytePlusSharedTextApiDocRow): string {
   const cells = [
     row.key,
     row.typeLabel,
@@ -82,8 +82,8 @@ function buildRow(row: BytePlusApiDocRow): string {
   return `| ${cells.join(' | ')} |`
 }
 
-function getSortedRows(): BytePlusApiDocRow[] {
-  return [...BYTEPLUS_CHAT_API_DOC_ROWS].sort((left, right) => left.key.localeCompare(right.key))
+function getSortedRows(): BytePlusSharedTextApiDocRow[] {
+  return [...BYTEPLUS_SHARED_TEXT_API_DOC_ROWS].sort((left, right) => left.key.localeCompare(right.key))
 }
 
 function buildMarkdown(): string {

@@ -3,9 +3,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
-  BYTEPLUS_CHAT_API_DOC_ROWS,
+  BYTEPLUS_SHARED_TEXT_API_DOC_ROWS,
   BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY,
-  type BytePlusApiDocRow,
+  type BytePlusSharedTextApiDocRow,
 } from '../features/integrations/byteplusChatApiSsot'
 import { CHAT_BYTEPLUS_COMPLETIONS_PATH } from '../lib/chatEndpoint'
 
@@ -43,7 +43,7 @@ function trimTrailingSentencePunctuation(value: string): string {
   return String(value || '').trim().replace(/[.;\s]+$/g, '')
 }
 
-function buildValueDescription(row: BytePlusApiDocRow): string {
+function buildValueDescription(row: BytePlusSharedTextApiDocRow): string {
   const tooltip = BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY[row.key] || {}
   const parts: string[] = []
   const defaultValue = typeof row.tooltipDefaultValue !== 'undefined'
@@ -80,7 +80,7 @@ function formatList(values: string[] | undefined): string {
   return (values || []).map(value => String(value || '').trim()).filter(Boolean).join('; ')
 }
 
-function buildRow(row: BytePlusApiDocRow): string {
+function buildRow(row: BytePlusSharedTextApiDocRow): string {
   const isConfig = CONFIG_KEYS.has(row.key)
   const endpoint = isConfig ? 'ALL' : `POST ${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
   const kind = isConfig ? 'config' : 'param'
@@ -122,7 +122,7 @@ function buildMarkdown(): string {
     '',
     '| endpoint | kind | key | type | value | required | direction | actor | seq-note | location | scope | pattern | key-description | value-description | module | class | function |',
     '|----------|------|-----|------|-------|----------|-----------|-------|----------|----------|-------|---------|-----------------|-------------------|--------|-------|----------|',
-    ...BYTEPLUS_CHAT_API_DOC_ROWS.map(buildRow),
+    ...BYTEPLUS_SHARED_TEXT_API_DOC_ROWS.map(buildRow),
     '',
   ]
   return lines.join('\n')

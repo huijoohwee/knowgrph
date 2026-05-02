@@ -38,8 +38,8 @@ import {
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
   buildBytePlusTextGenerationFields,
-  getBytePlusApiDocRowByRowKey,
-  resolveBytePlusTextWidgetChatApiRowKey,
+  getBytePlusSharedTextApiDocRowByRowKey,
+  resolveBytePlusTextWidgetSharedTextApiRowKey,
 } from '@/features/integrations/byteplusChatApiSsot'
 import {
   buildBytePlusImageGenerationFields,
@@ -198,11 +198,11 @@ export function resolveWidgetRegistryApiDocRef(args: {
     })
     const rowKey = providerFamily === 'openai'
       ? resolveOpenAiTextWidgetChatApiRowKey({ schemaPath, fieldKey, portKey })
-      : resolveBytePlusTextWidgetChatApiRowKey({ schemaPath, fieldKey, portKey })
+      : resolveBytePlusTextWidgetSharedTextApiRowKey({ schemaPath, fieldKey, portKey })
     if (!rowKey) return null
     const row = providerFamily === 'openai'
       ? getOpenAiApiDocRowByRowKey(rowKey)
-      : getBytePlusApiDocRowByRowKey(rowKey)
+      : getBytePlusSharedTextApiDocRowByRowKey(rowKey)
     const apiKey = String(row?.key || '').trim()
     return apiKey ? { rowKey, apiKey } : null
   }

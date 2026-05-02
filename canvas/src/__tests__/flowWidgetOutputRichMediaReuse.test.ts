@@ -178,21 +178,40 @@ export function testDeriveOpenWidgetOverlayNodeIdsNormalizesCanonicalIdsAndFilte
 }
 
 export function testFlowEditorCanvasDataflowRegistryPrefersNonEmptyDocumentThenEffectiveThenBase() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const flowEditorCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
-  const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(workflowActionsPath, 'utf8')}`
+  const runtimeText = readFileSync(flowEditorCanvasRuntimePath, 'utf8')
+  const workflowActionsText = readFileSync(workflowActionsPath, 'utf8')
 
-  if (!text.includes('buildDataflowWidgetRegistry')) {
-    throw new Error('expected FlowEditorCanvas to use shared dataflow registry merger')
+  if (!runtimeText.includes('buildDataflowWidgetRegistry')) {
+    throw new Error('expected FlowEditorCanvas runtime to derive one upstream merged dataflow widget registry')
   }
-  if (!text.includes('documentWidgetRegistry: Array.isArray(store.documentWidgetRegistry)')) {
-    throw new Error('expected FlowEditorCanvas run path to include document widget registry in merged dataflow registry')
+  if (!runtimeText.includes('() => buildDataflowWidgetRegistry({ documentWidgetRegistry, effectiveWidgetRegistry, widgetRegistry: baseWidgetRegistry })')) {
+    throw new Error('expected FlowEditorCanvas runtime to merge document, effective, and base widget registries through the shared dataflow registry SSOT')
   }
-  if (!text.includes('effectiveWidgetRegistry: Array.isArray(store.effectiveWidgetRegistry)')) {
-    throw new Error('expected FlowEditorCanvas run path to include effective widget registry in merged dataflow registry')
+  if (!runtimeText.includes('widgetRegistry,')) {
+    throw new Error('expected FlowEditorCanvas runtime to pass the upstream merged widget registry into workflow actions')
   }
-  if (!text.includes('widgetRegistry: Array.isArray(store.widgetRegistry)')) {
-    throw new Error('expected FlowEditorCanvas run path to include base widget registry in merged dataflow registry')
+  if (!workflowActionsText.includes('widgetRegistry: WidgetRegistryEntry[]')) {
+    throw new Error('expected FlowEditor workflow actions to accept the upstream merged widget registry instead of rebuilding it locally')
+  }
+  if (!workflowActionsText.includes('registry: args.widgetRegistry,')) {
+    throw new Error('expected FlowEditor workflow rich-media runs to reuse the upstream merged widget registry for connected-value resolution')
+  }
+  if (!workflowActionsText.includes('resolveWidgetRegistryEntry({ node, registry: args.widgetRegistry, graphMetaKind: args.baseGraphKind })')) {
+    throw new Error('expected FlowEditor workflow text runs to reuse the upstream merged widget registry for registry resolution')
+  }
+  if (!workflowActionsText.includes('const registry = args.widgetRegistry')) {
+    throw new Error('expected FlowEditor workflow widget-bundle export path to reuse the upstream merged widget registry when filtering bundle entries')
+  }
+  if (!workflowActionsText.includes('registryEntries: args.widgetRegistry,')) {
+    throw new Error('expected FlowEditor workflow bundle export path to reuse the upstream merged widget registry for full-bundle export')
+  }
+  if (workflowActionsText.includes('buildDataflowWidgetRegistry({')) {
+    throw new Error('expected FlowEditor workflow actions to stop rebuilding a local merged dataflow widget registry')
+  }
+  if (workflowActionsText.includes('Array.isArray(store.widgetRegistry)')) {
+    throw new Error('expected FlowEditor workflow actions to stop reading base widget registry directly from store state')
   }
 }
 

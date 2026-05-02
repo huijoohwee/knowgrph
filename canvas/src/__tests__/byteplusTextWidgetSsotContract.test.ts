@@ -1,7 +1,7 @@
 import {
   buildBytePlusTextGenerationFields,
-  getBytePlusApiDocRowByRowKey,
-  resolveBytePlusTextWidgetChatApiRowKey,
+  getBytePlusSharedTextApiDocRowByRowKey,
+  resolveBytePlusTextWidgetSharedTextApiRowKey,
 } from '@/features/integrations/byteplusChatApiSsot'
 import { resolveOpenAiTextWidgetChatApiRowKey } from '@/features/integrations/openaiResponsesSsot'
 
@@ -15,7 +15,7 @@ export function testBytePlusTextWidgetKtvRowsStayBytePlus() {
   ]
 
   for (const schemaPath of schemaPaths) {
-    const bytePlus = resolveBytePlusTextWidgetChatApiRowKey({ schemaPath })
+    const bytePlus = resolveBytePlusTextWidgetSharedTextApiRowKey({ schemaPath })
     if (!bytePlus || !bytePlus.startsWith('byteplusApi.')) {
       throw new Error(`Expected BytePlus resolver for ${schemaPath}, got ${String(bytePlus)}`)
     }
@@ -25,7 +25,7 @@ export function testBytePlusTextWidgetKtvRowsStayBytePlus() {
     }
   }
 
-  const row = getBytePlusApiDocRowByRowKey('byteplusApi.model')
+  const row = getBytePlusSharedTextApiDocRowByRowKey('byteplusApi.model')
   if (!row || String(row.key || '').trim() !== 'model') {
     throw new Error('Expected BytePlus doc-row lookup for byteplusApi.model')
   }

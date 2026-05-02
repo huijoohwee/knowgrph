@@ -21,8 +21,8 @@ export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
   if (!overlaySurfaceText.includes('if (isFrontmatterFlow && nodes.length > 0)')) {
     throw new Error('expected overlay node derivation to always include all frontmatter-flow nodes')
   }
-  if (!sharedText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
-    throw new Error('expected shared frontmatter-flow overlay derivation to read flow widget registry metadata key')
+  if (!sharedText.includes('readWidgetRegistryMetadataEntries')) {
+    throw new Error('expected shared frontmatter-flow overlay derivation to reuse the shared widget-registry metadata reader SSOT')
   }
   if (!sharedText.includes('if (allowedFlowNodeIds.size === 0) return []')) {
     throw new Error('expected shared frontmatter-flow overlay derivation to avoid synthetic fallback when registry ids are missing')

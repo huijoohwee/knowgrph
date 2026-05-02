@@ -10,7 +10,6 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { UI_COPY, FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
 import { parseCanonicalNodeIds, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import { buildSelectionSubgraph, exportWidgetBundleAsJson } from '@/lib/graph/file'
-import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { FLOW_RUN_ALL_PHASES, buildFlowRunAllNodeSequence } from '@/lib/flowEditor/runAllSequenceSsot'
 import { WORKFLOW_RUN_ALL_EVENT } from '@/features/canvas/utils'
@@ -52,6 +51,7 @@ export function useFlowEditorWorkflowActions(args: {
   renderGraphDataOverride: GraphData | null
   markdownDocumentName: string | null
   markdownDocumentSourceUrl: string | null
+  widgetRegistry: WidgetRegistryEntry[]
   appendDraftNode: (args: { id?: string | null; type: string; label?: string | null; x: number; y: number; properties?: Record<string, unknown> }) => string
   setDraftGraphData: React.Dispatch<React.SetStateAction<GraphData | null>>
   updateNode: (id: string, patch: Partial<GraphNode>) => void
@@ -232,12 +232,6 @@ export function useFlowEditorWorkflowActions(args: {
         }))
       }
 
-      const dataflowRegistry = buildDataflowWidgetRegistry({
-        documentWidgetRegistry: Array.isArray(store.documentWidgetRegistry) ? (store.documentWidgetRegistry as WidgetRegistryEntry[]) : [],
-        effectiveWidgetRegistry: Array.isArray(store.effectiveWidgetRegistry) ? (store.effectiveWidgetRegistry as WidgetRegistryEntry[]) : [],
-        widgetRegistry: Array.isArray(store.widgetRegistry) ? (store.widgetRegistry as WidgetRegistryEntry[]) : [],
-      })
-
       const resolveRichMediaPanelTargetNodeId = (): string | null => {
         const graphs: GraphData[] = [
           readLiveDraftGraphData(),
@@ -364,7 +358,7 @@ export function useFlowEditorWorkflowActions(args: {
         try {
           const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
             graphData: (args.renderGraphDataOverride as GraphData | null) || graphForRun,
-            registry: dataflowRegistry,
+            registry: args.widgetRegistry,
             targetNodeIds: new Set([writableNodeId]),
           })
           const normalizedProvider = normalizeChatProviderId(store.chatProvider)
@@ -396,7 +390,7 @@ export function useFlowEditorWorkflowActions(args: {
       }
 
       if (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
-        const resolvedTextRegistryEntry = resolveWidgetRegistryEntry({ node, registry: dataflowRegistry, graphMetaKind: args.baseGraphKind })
+        const resolvedTextRegistryEntry = resolveWidgetRegistryEntry({ node, registry: args.widgetRegistry, graphMetaKind: args.baseGraphKind })
         const rawProperties = (node.properties || {}) as Record<string, unknown>
         const providerFamily = inferTextGenerationProviderFamily({
           provider: rawProperties.chatProvider,
@@ -508,7 +502,7 @@ export function useFlowEditorWorkflowActions(args: {
       }
 
       const subgraph = buildSelectionSubgraph(graphForRun, writableNodeId, null) || { ...graphForRun, nodes: [node], edges: [] }
-      const registry = Array.isArray(store.widgetRegistry) ? store.widgetRegistry : []
+      const registry = args.widgetRegistry
       const nodeTypeIds = new Set((subgraph.nodes || []).map(n => String(n.type || '').trim()).filter(Boolean))
       const registryEntries = registry.filter(e => e && e.isEnabled && nodeTypeIds.has(String(e.nodeTypeId || '').trim()))
       const fallbackResolved = resolveWidgetRegistryEntry({ node, registry, graphMetaKind: args.baseGraphKind })
@@ -575,11 +569,9 @@ export function useFlowEditorWorkflowActions(args: {
         args.upsertUiToast({ id: 'flow-editor-export-bundle', kind: 'neutral', message: UI_COPY.flowEditorNoDraftGraphToast, ttlMs: 2400 })
         return
       }
-      const store = useGraphStore.getState()
-      const registry = Array.isArray(store.widgetRegistry) ? store.widgetRegistry : []
       await exportWidgetBundleAsJson({
         graphData: draft,
-        registryEntries: registry,
+        registryEntries: args.widgetRegistry,
         suggestedName: 'flow-workflow.widget.bundle.json',
         graphRevision: readGraphDataRevision(draft),
       })

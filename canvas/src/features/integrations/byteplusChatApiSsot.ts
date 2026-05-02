@@ -1,9 +1,9 @@
 export {
-  BYTEPLUS_CHAT_API_DOC_ROWS,
+  BYTEPLUS_SHARED_TEXT_API_DOC_ROWS,
   buildBytePlusTextGenerationFields,
-  getBytePlusApiDocRowByRowKey,
-  resolveBytePlusTextWidgetChatApiRowKey,
-  type BytePlusApiDocRow,
+  getBytePlusSharedTextApiDocRowByRowKey,
+  resolveBytePlusTextWidgetSharedTextApiRowKey,
+  type BytePlusSharedTextApiDocRow,
 } from './byteplusChatApiSsot.rows'
 export { BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY } from './byteplusChatApiSsot.tooltips'
 

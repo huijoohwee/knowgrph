@@ -6,8 +6,7 @@ import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibili
 import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
-import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
-import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
@@ -127,8 +126,7 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
     return aId.localeCompare(bId)
   }
 
-  const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
-  const registry = Array.isArray(registryRaw) ? (registryRaw as Array<Record<string, unknown>>) : []
+  const registry = readWidgetRegistryMetadataEntries(metadata)
   const allowedFlowNodeIds = new Set<string>()
   for (let i = 0; i < registry.length; i += 1) {
     const entry = registry[i]

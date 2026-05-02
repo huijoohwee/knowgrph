@@ -70,7 +70,7 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   if (!registry.includes('resolveWidgetRegistryMainPanelLink({')) {
     throw new Error('Expected Widget registry section to delegate port deep-link resolution to the shared registry helper')
   }
-  if (registry.includes('resolveOpenAiTextWidgetChatApiRowKey(') || registry.includes('resolveBytePlusTextWidgetChatApiRowKey(')) {
+  if (registry.includes('resolveOpenAiTextWidgetChatApiRowKey(') || registry.includes('resolveBytePlusTextWidgetSharedTextApiRowKey(')) {
     throw new Error('Expected Widget registry section to stop importing provider-specific text widget API resolvers directly')
   }
 

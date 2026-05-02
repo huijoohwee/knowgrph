@@ -18,6 +18,19 @@ export const FLOW_WIDGET_BUNDLE_VERSION = 1 as const
 
 export const FLOW_WIDGET_REGISTRY_METADATA_KEY = 'flow:widgetRegistry' as const
 
+function isMetadataRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function readWidgetRegistryMetadataEntries<T extends Record<string, unknown> = Record<string, unknown>>(
+  metadata: unknown,
+): T[] {
+  if (!isMetadataRecord(metadata)) return []
+  const raw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  if (!Array.isArray(raw)) return []
+  return raw.filter((entry): entry is T => isMetadataRecord(entry))
+}
+
 export const FLOW_WIDGET_DRAG_KIND = 'kg:flow:widgetDrag' as const
 export const FLOW_WIDGET_DRAG_VERSION = 1 as const
 export const FLOW_WIDGET_DRAG_MIME = 'application/x-kg-flow-widget' as const
