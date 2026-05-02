@@ -233,6 +233,12 @@ function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[n
       read: () => 'openai',
     }
   }
+  if (String(entry.meta.key || '').trim() === 'byteplusApi.provider') {
+    return {
+      ...entry.meta,
+      read: () => CHAT_PROVIDER_BYTEPLUS,
+    }
+  }
   if (String(entry.meta.key || '').trim() === 'byteplusApi.model') {
     const mapped = SETTINGS_REGISTRY_BY_KEY.get('chatModel')
     if (mapped) return mapped
@@ -645,7 +651,7 @@ export function useSettingsView({
       void checkBytePlusHealth()
     }
     void checkBytePlusVideoModelPreview()
-  }, [checkChatHealth, checkBytePlusHealth, mode, values.chatProvider])
+  }, [checkBytePlusVideoModelPreview, checkChatHealth, checkBytePlusHealth, mode, values.chatProvider])
 
   const didAutoCheckGrabMapsHealthRef = React.useRef(false)
   React.useEffect(() => {

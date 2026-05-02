@@ -86,6 +86,7 @@ export function useFlowCanvasRuntime(args: {
   fitToScreenMode: boolean
   zoomToSelectionMode: boolean
   viewPinned: boolean
+  workspaceOverlayOpen: boolean
 }) {
   const {
     active,
@@ -144,7 +145,11 @@ export function useFlowCanvasRuntime(args: {
     fitToScreenMode,
     zoomToSelectionMode,
     viewPinned,
+    workspaceOverlayOpen,
   } = args
+
+  const workspaceOverlayOpenRef = React.useRef<boolean>(workspaceOverlayOpen)
+  const frozenWorkspaceOverlayTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)
 
   React.useEffect(() => {
     if (!active) return
@@ -153,6 +158,37 @@ export function useFlowCanvasRuntime(args: {
       if (runtime) setFlowAutoMinScale(runtime, null)
     })
   }, [active, runtimeRef])
+
+  React.useEffect(() => {
+    const wasOpen = workspaceOverlayOpenRef.current
+    workspaceOverlayOpenRef.current = workspaceOverlayOpen
+    if (!active) {
+      if (!workspaceOverlayOpen) frozenWorkspaceOverlayTransformRef.current = null
+      return
+    }
+    const runtime = runtimeRef.current
+    if (!runtime) return
+    if (!wasOpen && workspaceOverlayOpen) {
+      const current = runtime.transform || d3.zoomIdentity
+      frozenWorkspaceOverlayTransformRef.current = { k: current.k, x: current.x, y: current.y }
+      return
+    }
+    if (!wasOpen || workspaceOverlayOpen) return
+    const frozen = frozenWorkspaceOverlayTransformRef.current
+    frozenWorkspaceOverlayTransformRef.current = null
+    if (!frozen) return
+    const current = runtime.transform || d3.zoomIdentity
+    if (
+      Math.abs(current.k - frozen.k) <= 1e-9
+      && Math.abs(current.x - frozen.x) <= 1e-6
+      && Math.abs(current.y - frozen.y) <= 1e-6
+    ) {
+      return
+    }
+    setFlowNativeTransform(runtime, d3.zoomIdentity.translate(frozen.x, frozen.y).scale(frozen.k))
+    scheduleFlowDraw()
+    requestCommit()
+  }, [active, requestCommit, runtimeRef, scheduleFlowDraw, workspaceOverlayOpen])
 
   React.useEffect(() => {
     if (!active) return

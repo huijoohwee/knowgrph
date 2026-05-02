@@ -7,8 +7,8 @@ import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_WIDGET_BUNDLE_KIND,
   FLOW_WIDGET_BUNDLE_VERSION,
-  FLOW_WIDGET_REGISTRY_METADATA_KEY,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+  writeWidgetRegistryMetadata,
 } from '@/lib/config.flow-editor'
 import { buildCanonicalWidgetRegistryDraft } from '@/features/flow-editor-manager/registryTemplates'
 
@@ -140,8 +140,7 @@ function normalizeImportedSmartMediaModel(args: {
 
 function withRegistryMetadata(graphData: GraphData, entries: RegistryEntryLike[], warnings: string[]): { graphData: GraphData; warnings: string[] } {
   const baseMeta = isRecord(graphData.metadata) ? graphData.metadata : {}
-  const nextMeta: Record<string, JSONValue> = { ...baseMeta }
-  nextMeta[FLOW_WIDGET_REGISTRY_METADATA_KEY] = entries as unknown as JSONValue
+  const nextMeta = writeWidgetRegistryMetadata(baseMeta as Record<string, JSONValue>, entries as unknown as JSONValue[])
   return { graphData: { ...graphData, metadata: nextMeta }, warnings }
 }
 

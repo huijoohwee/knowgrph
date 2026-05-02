@@ -24,6 +24,7 @@ import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import { ensureSpacePanKeyListenerInstalled } from '@/lib/canvas/space-pan'
 import { createZoomWheelGuardState } from '@/lib/canvas/zoom-wheel-guard'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 
 export { pickGraphDataForFlowRenderer }
 
@@ -321,6 +322,7 @@ export default function FlowCanvas({
     && canvas2dRenderer === 'flowEditor'
     && frontmatterModeEnabled
     && documentSemanticMode === 'document'
+  const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
 
   useAutoZoomModes2d({ viewportW, viewportH, paused: !active || suppressAutoZoomModes })
 
@@ -410,6 +412,7 @@ export default function FlowCanvas({
     fitToScreenMode,
     zoomToSelectionMode,
     viewPinned,
+    workspaceOverlayOpen,
   })
 
   return (

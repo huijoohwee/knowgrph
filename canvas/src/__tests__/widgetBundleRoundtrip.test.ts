@@ -107,6 +107,12 @@ export function testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths() 
   if (!flowEditorMappingTabText.includes('const bundleText = buildWidgetBundleJsonText({ registryEntries: entries, graphData: null })')) {
     throw new Error('expected FlowEditorMappingTab JSON export path to reuse the shared widget bundle JSON helper')
   }
+  if (!flowEditorMappingTabText.includes('readWidgetRegistryMetadataEntries(meta)')) {
+    throw new Error('expected FlowEditorMappingTab JSON import path to reuse the shared widget-registry metadata reader')
+  }
+  if (flowEditorMappingTabText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
+    throw new Error('expected FlowEditorMappingTab JSON import path to stop parsing the widget registry metadata key inline')
+  }
 
   const graphFilePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'file.ts')
   const graphFileText = readFileSync(graphFilePath, 'utf8')
@@ -124,5 +130,14 @@ export function testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths() 
   }
   if (!workflowActionsText.includes('graphRevision: readGraphDataRevision(draft)')) {
     throw new Error('expected workflow bundle export path to pass graph revision metadata into shared widget bundle export')
+  }
+
+  const widgetImportPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'io', 'widgetImport.ts')
+  const widgetImportText = readFileSync(widgetImportPath, 'utf8')
+  if (!widgetImportText.includes('writeWidgetRegistryMetadata(')) {
+    throw new Error('expected widget bundle import path to reuse the shared widget-registry metadata writer')
+  }
+  if (widgetImportText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
+    throw new Error('expected widget bundle import path to stop attaching widget-registry metadata inline')
   }
 }

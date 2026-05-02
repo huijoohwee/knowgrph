@@ -1,4 +1,5 @@
-import { FLOW_WIDGET_REGISTRY_METADATA_KEY, UI_COPY } from '@/lib/config'
+import { UI_COPY } from '@/lib/config'
+import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { normalizeImportName, promptForUrl } from './ingestUtils'
 import { fetchRemoteText } from '@/lib/net/fetchRemoteText'
@@ -51,9 +52,7 @@ export async function performJsonImport(type: JsonImportType, format: JsonImport
         const baseName = rawName.trim() || (format === 'jsonld' ? 'graph.jsonld' : 'graph.json')
         const hasWidgetRegistry = (() => {
           const meta = res.graphData?.metadata
-          if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return false
-          const raw = (meta as Record<string, unknown>)[FLOW_WIDGET_REGISTRY_METADATA_KEY]
-          return Array.isArray(raw) && raw.length > 0
+          return readWidgetRegistryMetadataEntries(meta).length > 0
         })()
 
         applyImportedJsonToStore({

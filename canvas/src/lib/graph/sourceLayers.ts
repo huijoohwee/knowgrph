@@ -1,5 +1,5 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
-import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { readWidgetRegistryMetadataEntries, writeWidgetRegistryMetadata } from '@/lib/config.flow-editor'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { readParsedGraphRevisionOrInitial } from '@/features/source-files/sourceFileParsedGraphRevision'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -116,7 +116,7 @@ function mergeWidgetRegistryMetadata(layers: SourceLayerInput[]): JSONValue[] | 
   for (let i = 0; i < layers.length; i += 1) {
     const graph = layers[i]?.parsedGraphData
     const metadata = readSourceLayerGraphMetadata(graph)
-    const raw = Array.isArray(metadata?.[FLOW_WIDGET_REGISTRY_METADATA_KEY]) ? (metadata?.[FLOW_WIDGET_REGISTRY_METADATA_KEY] as unknown[]) : []
+    const raw = readWidgetRegistryMetadataEntries(metadata)
     for (let j = 0; j < raw.length; j += 1) {
       const entry = raw[j]
       if (!isRecord(entry)) continue
@@ -291,11 +291,14 @@ export function composeGraphFromSourceLayers(args: {
     sourceLayerOrderHash: orderKey as unknown as JSONValue,
   }
   const mergedWidgetRegistry = mergeWidgetRegistryMetadata(enabledParsed)
-  if (mergedWidgetRegistry) nextMetadata[FLOW_WIDGET_REGISTRY_METADATA_KEY] = mergedWidgetRegistry
+  const nextMetadataWithWidgetRegistry = writeWidgetRegistryMetadata(
+    nextMetadata,
+    (mergedWidgetRegistry || []) as JSONValue[],
+  )
 
   const graphData: GraphData = {
     context: baseContext,
-    metadata: nextMetadata,
+    metadata: nextMetadataWithWidgetRegistry,
     type: baseType,
     nodes,
     edges,

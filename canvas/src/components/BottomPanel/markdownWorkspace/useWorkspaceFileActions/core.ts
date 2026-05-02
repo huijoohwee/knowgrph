@@ -6,7 +6,8 @@ import {
   normalizeWorkspacePath,
   workspaceDocumentKey,
 } from '@/features/workspace-fs/path'
-import { FLOW_WIDGET_REGISTRY_METADATA_KEY, UI_COPY } from '@/lib/config'
+import { UI_COPY } from '@/lib/config'
+import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
@@ -222,10 +223,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         store.setDocumentSemanticMode('document')
       }
 
-      const meta = (graphData?.metadata || {}) as Record<string, unknown>
-      const hasWidgetRegistry = Array.isArray(meta[FLOW_WIDGET_REGISTRY_METADATA_KEY])
-        ? (meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] as unknown[]).length > 0
-        : false
+      const hasWidgetRegistry = readWidgetRegistryMetadataEntries(graphData?.metadata).length > 0
 
       if (hasWidgetRegistry) {
         if (baselineLocked) {

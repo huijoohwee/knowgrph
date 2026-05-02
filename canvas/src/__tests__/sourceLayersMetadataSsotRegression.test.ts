@@ -14,6 +14,12 @@ export function testSourceLayersMetadataHandlingStaysCentralized() {
   if (!helperText.includes('const metadata = readSourceLayerGraphMetadata(graph)')) {
     throw new Error('expected source-layer widget registry metadata reads to reuse the shared metadata coercion helper')
   }
+  if (!helperText.includes('const raw = readWidgetRegistryMetadataEntries(metadata)')) {
+    throw new Error('expected source-layer widget registry merging to reuse the shared widget-registry metadata reader SSOT')
+  }
+  if (!helperText.includes('const nextMetadataWithWidgetRegistry = writeWidgetRegistryMetadata(')) {
+    throw new Error('expected source-layer graph composition to reuse the shared widget-registry metadata writer SSOT')
+  }
   if (!helperText.includes('...readSourceLayerGraphMetadata(args.graphData),')) {
     throw new Error('expected source-layer key writeback to reuse the shared metadata coercion helper')
   }

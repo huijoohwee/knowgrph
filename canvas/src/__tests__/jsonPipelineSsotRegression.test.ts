@@ -28,4 +28,10 @@ export function testJsonImportActionSupportsGeojsonLocalExtension() {
   if (!text.includes("['.json', '.jsonld', '.geojson']")) {
     throw new Error('expected local JSON import picker to include .geojson extension')
   }
+  if (!text.includes('readWidgetRegistryMetadataEntries(meta).length > 0')) {
+    throw new Error('expected JSON import action to reuse the shared widget-registry metadata reader when deciding Flow Editor preference')
+  }
+  if (text.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
+    throw new Error('expected JSON import action to stop parsing the widget registry metadata key inline')
+  }
 }

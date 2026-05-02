@@ -10,6 +10,7 @@ export {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
 } from '@/lib/flowEditor/richMediaPanelConfig'
+import type { JSONValue } from '@/lib/graph/types'
 
 export type FlowEditorSmartNodeModel = string
 
@@ -29,6 +30,19 @@ export function readWidgetRegistryMetadataEntries<T extends Record<string, unkno
   const raw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
   if (!Array.isArray(raw)) return []
   return raw.filter((entry): entry is T => isMetadataRecord(entry))
+}
+
+export function writeWidgetRegistryMetadata(
+  metadata: Record<string, JSONValue> | null | undefined,
+  entries: ReadonlyArray<JSONValue>,
+): Record<string, JSONValue> {
+  const next = isMetadataRecord(metadata) ? { ...metadata } : {}
+  if (entries.length > 0) {
+    next[FLOW_WIDGET_REGISTRY_METADATA_KEY] = entries as unknown as JSONValue
+    return next as Record<string, JSONValue>
+  }
+  delete next[FLOW_WIDGET_REGISTRY_METADATA_KEY]
+  return next as Record<string, JSONValue>
 }
 
 export const FLOW_WIDGET_DRAG_KIND = 'kg:flow:widgetDrag' as const

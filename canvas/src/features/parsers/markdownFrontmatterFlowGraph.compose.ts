@@ -1,6 +1,6 @@
 import type { GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
-import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { writeWidgetRegistryMetadata } from '@/lib/config.flow-editor'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 
 const FRONTMATTER_ANNOTATION_WIRING_KEY = 'frontmatterAnnotationWiring' as const
@@ -162,7 +162,7 @@ export function buildFrontmatterFlowMetadata(args: {
   registry: unknown[]
   subgraphs: Array<{ id: string; label: string; memberNodeIds: string[]; parentId?: string | null; kind?: 'subgraph' | 'cluster' }>
 }): Record<string, JSONValue> {
-  return {
+  const metadata: Record<string, JSONValue> = {
     kind: 'frontmatter-flow',
     sourceLayerHash: args.sourceLayerHash,
     ...(args.frontmatterMeta ? ({ frontmatterMeta: args.frontmatterMeta as unknown as JSONValue } as unknown as Record<string, JSONValue>) : {}),
@@ -178,11 +178,12 @@ export function buildFrontmatterFlowMetadata(args: {
           } as unknown as JSONValue,
         } as unknown as Record<string, JSONValue>)
       : {}),
-    ...(args.registry.length > 0
-      ? ({ [FLOW_WIDGET_REGISTRY_METADATA_KEY]: args.registry as unknown as JSONValue } as unknown as Record<string, JSONValue>)
-      : {}),
     ...(args.subgraphs && args.subgraphs.length > 0 ? ({ [KG_SUBGRAPHS_KEY]: args.subgraphs as unknown as JSONValue } as unknown as Record<string, JSONValue>) : {}),
   }
+  return writeWidgetRegistryMetadata(
+    metadata,
+    args.registry as unknown as JSONValue[],
+  )
 }
 
 export function readSocketTypes(metaRecord: Record<string, unknown>): Record<string, unknown> | null {

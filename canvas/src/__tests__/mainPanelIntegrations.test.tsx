@@ -437,6 +437,58 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
   }
 }
 
+export async function testMainPanelRequestedIntegrationsSearchKeepsBytePlusProviderReadonly() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    const api = useGraphStore.getState()
+    api.resetAll()
+    api.setChatProvider('openai')
+
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await renderAndFlush(
+      root,
+      React.createElement(MainPanel, {
+        requestedTab: 'integrations',
+        requestedSearchQuery: 'byteplusApi.provider',
+      } as never),
+      anyWindow.requestAnimationFrame,
+      6,
+    )
+
+    const text = container.textContent || ''
+    ;['BytePlus Shared + Text API', 'byteplusApi.provider', 'byteplus-modelark'].forEach(token => {
+      if (!text.includes(token)) {
+        throw new Error(`expected BytePlus provider row search to include ${JSON.stringify(token)}, got ${JSON.stringify(text)}`)
+      }
+    })
+    const select = container.querySelector('select')
+    if (select) {
+      throw new Error('expected BytePlus provider row to stop reusing the global chatProvider dropdown')
+    }
+    if (text.includes('openai') && !text.includes('byteplus-modelark')) {
+      throw new Error('expected BytePlus provider row to avoid leaking the active global provider value')
+    }
+  } finally {
+    try {
+      await unmountAndFlush(root)
+    } catch {
+      void 0
+    }
+    restoreDom()
+    restoreWindow()
+  }
+}
+
 export async function testMainPanelRequestedIntegrationsSearchBytePlusImageFieldUsesConfigurableValueSlot() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })

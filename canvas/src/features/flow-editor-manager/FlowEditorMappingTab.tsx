@@ -9,10 +9,10 @@ import {
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-  FLOW_WIDGET_REGISTRY_METADATA_KEY,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config'
+import { readWidgetRegistryMetadataEntries } from '@/lib/config.flow-editor'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
 import { pickFilesWithExtensions } from '@/lib/graph/filePicker'
@@ -457,9 +457,7 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     }
     const parsed = tryParseWidgetImportGraphData(json)
     const meta = parsed?.graphData?.metadata
-    const rawRegistry = isRecord(meta) ? meta[FLOW_WIDGET_REGISTRY_METADATA_KEY] : null
-    if (!Array.isArray(rawRegistry) || rawRegistry.length === 0) return
-    const imported = rawRegistry
+    const imported = readWidgetRegistryMetadataEntries(meta)
       .map(item => validateWidgetRegistryEntry(item))
       .filter((e): e is WidgetRegistryEntry => !!e)
     if (imported.length === 0) return

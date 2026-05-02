@@ -1,7 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { splitMarkdownLines, parseMarkdownFrontmatter, parseMarkdownBlocks } from '@/lib/markdown'
 import { hashText } from '@/features/parsers/hash'
-import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
+import { writeWidgetRegistryMetadata } from '@/lib/config.flow-editor'
 import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import { FLOW_EDGE_DISPLAY_LABEL_KEY, FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { KG_SUBGRAPHS_KEY } from '@/lib/graph/subgraphs'
@@ -359,13 +359,12 @@ export function tryParseMarkdownPanelFlowGraph(
       }))
   })()
 
-  const metadata: Record<string, JSONValue> = {
+  const metadata = writeWidgetRegistryMetadata({
     kind: 'markdown-panel-flow',
     sourceLayerHash: hashText(`markdown-panel-flow|${String(name || '')}`),
     socketTypes: buildSocketTypesMetadata() as unknown as JSONValue,
-    ...(registry.length > 0 ? ({ [FLOW_WIDGET_REGISTRY_METADATA_KEY]: registry as unknown as JSONValue } as Record<string, JSONValue>) : {}),
     ...(subgraphs.length > 0 ? ({ [KG_SUBGRAPHS_KEY]: subgraphs as unknown as JSONValue } as Record<string, JSONValue>) : {}),
-  }
+  }, registry as unknown as JSONValue[])
 
   const graphData: GraphData = {
     type: 'Graph',

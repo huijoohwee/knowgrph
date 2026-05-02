@@ -768,6 +768,12 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   if (!coreText.includes('syncWorkspaceTextState({')) {
     throw new Error('expected workspace import focus to reuse the shared workspace text-state sync helper')
   }
+  if (!coreText.includes('readWidgetRegistryMetadataEntries(graphData?.metadata).length > 0')) {
+    throw new Error('expected workspace file actions core to reuse the shared widget-registry metadata reader before switching into Flow Editor import mode')
+  }
+  if (coreText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
+    throw new Error('expected workspace file actions core to stop parsing the widget registry metadata key inline')
+  }
   if (!coreText.includes('const revealWorkspacePath = React.useCallback(')) {
     throw new Error('expected workspace file actions core to centralize path reveal/selection shell behind a shared helper')
   }

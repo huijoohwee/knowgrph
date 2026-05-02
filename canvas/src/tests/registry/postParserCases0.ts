@@ -153,6 +153,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["json.import.localPicker.supportsGeojson","@/__tests__/jsonPipelineSsotRegression.test","testJsonImportActionSupportsGeojsonLocalExtension"],
   ["ui.graphCanvas.userInteractedFlag.helpers","@/__tests__/graphCanvasUserInteractionFlag.test","testGraphCanvasUserInteractionFlagHelpers"],
   ["ui.canvas.viewport.initialMeasure.avoidsFallbackBootstrap","@/__tests__/useContainerDimsInitialMeasureRegression.test","testUseContainerDimsMeasuresMountedRectBeforeResizeObserverTicks"],
+  ["ui.canvas.viewport.stableResolver.ignoresFreshOptionsWrapper","@/__tests__/useContainerDimsInitialMeasureRegression.test","testUseContainerDimsIgnoresFreshOptionsWrapperWhenResolverIsStable"],
   ["ui.graphCanvas.simPresentation.noChurn","@/__tests__/forceSimulationPresentationChurn.test","testUpdateForceSimulationPresentationDoesNotReheatOrReplaceForces"],
   ["ui.graphCanvas.indexAnchor.separatesIndexedNodes","@/__tests__/indexAnchorForce2d.test","testIndexAnchorForceSeparatesIndexedNodes"],
   ["ui.graphCanvas.indexAnchor.presentationKeepsForcesStable","@/__tests__/indexAnchorForce2d.test","testUpdateForceSimulationPresentationKeepsIndexForcesStable"],

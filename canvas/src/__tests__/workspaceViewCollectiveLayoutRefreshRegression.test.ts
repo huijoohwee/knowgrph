@@ -106,6 +106,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   const commitText = readFileSync(commitPath, 'utf8')
   const computedPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowComputedPositions.ts')
   const computedText = readFileSync(computedPath, 'utf8')
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
+  const runtimeText = readFileSync(runtimePath, 'utf8')
   if (text.includes('const workspaceViewSig =')) {
     throw new Error('expected FlowCanvas media overlays to avoid deriving workspace view signature')
   }
@@ -140,6 +142,17 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   const rootLayoutWriteIndex = storeText.indexOf('set({ layoutPositionCacheByMode: { ...prev, [key]: positions } })')
   if (rootLayoutGuardIndex < 0 || rootLayoutWriteIndex < 0 || rootLayoutGuardIndex > rootLayoutWriteIndex) {
     throw new Error('expected root layout cache setter to reject Workspace/Indexing mutation writes')
+  }
+  if (!runtimeText.includes('const workspaceOverlayOpenRef = React.useRef<boolean>(workspaceOverlayOpen)')) {
+    throw new Error('expected Flow canvas runtime to track workspace overlay open state for zoom restoration without key churn')
+  }
+  if (!runtimeText.includes('const frozenWorkspaceOverlayTransformRef = React.useRef<{ k: number; x: number; y: number } | null>(null)')) {
+    throw new Error('expected Flow canvas runtime to capture the pre-workspace zoom transform upstream')
+  }
+  const zoomCaptureIndex = runtimeText.indexOf('if (!wasOpen && workspaceOverlayOpen) {')
+  const zoomRestoreIndex = runtimeText.indexOf('setFlowNativeTransform(runtime, d3.zoomIdentity.translate(frozen.x, frozen.y).scale(frozen.k))')
+  if (zoomCaptureIndex < 0 || zoomRestoreIndex < 0 || zoomCaptureIndex > zoomRestoreIndex) {
+    throw new Error('expected Flow canvas runtime to restore the captured zoom transform after workspace overlay close')
   }
   if (!text.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected FlowCanvas media overlays to reuse the shared workspace/indexing mutation guard')

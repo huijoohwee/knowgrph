@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect';
 
@@ -49,18 +49,23 @@ function resolveMeasureElement(
 }
 
 export function useContainerDims(ref: React.RefObject<HTMLElement | null>, options?: UseContainerDimsOptions): ContainerDims {
-  const [dims, setDims] = useState<ContainerDims>(() => readContainerDims(resolveMeasureElement(ref, options)));
+  const resolveMeasureElementOption = options?.resolveMeasureElement
+  const readMeasureTarget = useCallback(
+    () => resolveMeasureElement(ref, { resolveMeasureElement: resolveMeasureElementOption }),
+    [ref, resolveMeasureElementOption],
+  )
+  const [dims, setDims] = useState<ContainerDims>(() => readContainerDims(readMeasureTarget()));
 
   useIsomorphicLayoutEffect(() => {
     if (!ref.current) return;
-    const next = readContainerDims(resolveMeasureElement(ref, options));
+    const next = readContainerDims(readMeasureTarget());
     setDims(prev => (isSameDims(prev, next) ? prev : next));
-  }, [options, ref]);
+  }, [readMeasureTarget, ref]);
 
   useEffect(() => {
     if (!ref.current) return;
     const sync = () => {
-      const el = resolveMeasureElement(ref, options);
+      const el = readMeasureTarget();
       if (!el) return;
       const next = readContainerDims(el);
       setDims(prev => (isSameDims(prev, next) ? prev : next));
@@ -70,7 +75,7 @@ export function useContainerDims(ref: React.RefObject<HTMLElement | null>, optio
       sync();
     });
     const self = ref.current;
-    const target = resolveMeasureElement(ref, options);
+    const target = readMeasureTarget();
     if (self) ro.observe(self);
     if (target && target !== self) ro.observe(target);
     if (typeof window !== 'undefined') window.addEventListener('resize', sync);
@@ -78,7 +83,7 @@ export function useContainerDims(ref: React.RefObject<HTMLElement | null>, optio
       ro.disconnect();
       if (typeof window !== 'undefined') window.removeEventListener('resize', sync);
     };
-  }, [options, ref]);
+  }, [readMeasureTarget, ref]);
 
   return dims;
 }

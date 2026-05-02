@@ -219,6 +219,8 @@ export default function SettingsView({
   const kgcLocalImportInputRef = React.useRef<HTMLInputElement | null>(null)
   const localImportInputRef = React.useRef<HTMLInputElement | null>(null)
   const bridge = getMarkdownWorkspaceActionBridge()
+  const bridgeImportLocalFiles = bridge.importLocalFiles
+  const bridgeImportUrl = bridge.importUrl
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
@@ -353,6 +355,7 @@ export default function SettingsView({
   }, [
     dirtyRef,
     setValues,
+    values,
     values.byteplusImageGuidanceScale,
     values.byteplusImageModel,
     values.byteplusImageOutputFormat,
@@ -393,6 +396,7 @@ export default function SettingsView({
   }, [
     dirtyRef,
     setValues,
+    values,
     values.byteplusVideoCameraFixed,
     values.byteplusVideoContentJson,
     values.byteplusVideoDraft,
@@ -455,7 +459,7 @@ export default function SettingsView({
     }
   }, [openWorkspaceFile, patchChatValues, values.chatLocalStorageRootPath])
 
-  const useActiveWorkspaceFileAsKnowgrph = React.useCallback(() => {
+  const applyActiveWorkspaceFileAsKnowgrph = React.useCallback(() => {
     setKnowgrphPathStatus(null)
     const active = useMarkdownExplorerStore.getState().activePath
     const normalized = active ? normalizeWorkspacePath(active) : null
@@ -472,7 +476,7 @@ export default function SettingsView({
     setKnowgrphPathStatus(normalized)
   }, [openWorkspaceFile, patchChatValues])
 
-  const useActiveWorkspaceFileAsChatHistory = React.useCallback(() => {
+  const applyActiveWorkspaceFileAsChatHistory = React.useCallback(() => {
     setChatHistoryPathStatus(null)
     const active = useMarkdownExplorerStore.getState().activePath
     const normalized = active ? normalizeWorkspacePath(active) : null
@@ -544,10 +548,10 @@ export default function SettingsView({
     if (snapshot.length === 0) return
     setChatHistoryPathStatus('Importing local files...')
     patchChatValues({ chatHistoryStorageMode: 'local', chatHistoryCloudUrl: '' })
-    if (typeof bridge.importLocalFiles === 'function') bridge.importLocalFiles(files)
+    if (typeof bridgeImportLocalFiles === 'function') bridgeImportLocalFiles(files)
     else void importLocalFilesFallback({ files, pushUiToast })
     syncChatHistoryPathFromActiveFile(0)
-  }, [bridge.importLocalFiles, patchChatValues, pushUiToast, syncChatHistoryPathFromActiveFile])
+  }, [bridgeImportLocalFiles, patchChatValues, pushUiToast, syncChatHistoryPathFromActiveFile])
 
   const importCloudUrlForChatHistory = React.useCallback(() => {
     const next = String(values.chatHistoryCloudUrl || '').trim()
@@ -557,19 +561,19 @@ export default function SettingsView({
     }
     patchChatValues({ chatHistoryStorageMode: 'cloud', chatHistoryCloudUrl: next })
     setChatHistoryPathStatus(`Importing URL: ${next}`)
-    if (typeof bridge.importUrl === 'function') bridge.importUrl(next)
+    if (typeof bridgeImportUrl === 'function') bridgeImportUrl(next)
     else void importUrlFallback({ urlRaw: next, pushUiToast })
-  }, [bridge.importUrl, patchChatValues, pushUiToast, values.chatHistoryCloudUrl])
+  }, [bridgeImportUrl, patchChatValues, pushUiToast, values.chatHistoryCloudUrl])
 
   const importLocalFilesForKnowgrph = React.useCallback((files: FileList | null) => {
     const snapshot = files ? Array.from(files) : []
     if (snapshot.length === 0) return
     setKnowgrphPathStatus('Importing local files...')
     patchChatValues({ chatKnowgrphStorageMode: 'local', chatKnowgrphCloudUrl: '' })
-    if (typeof bridge.importLocalFiles === 'function') bridge.importLocalFiles(files)
+    if (typeof bridgeImportLocalFiles === 'function') bridgeImportLocalFiles(files)
     else void importLocalFilesFallback({ files, pushUiToast })
     syncKnowgrphPathFromActiveFile(0)
-  }, [bridge.importLocalFiles, patchChatValues, pushUiToast, syncKnowgrphPathFromActiveFile])
+  }, [bridgeImportLocalFiles, patchChatValues, pushUiToast, syncKnowgrphPathFromActiveFile])
 
   const importCloudUrlForKnowgrph = React.useCallback(() => {
     const next = String(values.chatKnowgrphCloudUrl || '').trim()
@@ -579,9 +583,9 @@ export default function SettingsView({
     }
     patchChatValues({ chatKnowgrphStorageMode: 'cloud', chatKnowgrphCloudUrl: next })
     setKnowgrphPathStatus(`Importing URL: ${next}`)
-    if (typeof bridge.importUrl === 'function') bridge.importUrl(next)
+    if (typeof bridgeImportUrl === 'function') bridgeImportUrl(next)
     else void importUrlFallback({ urlRaw: next, pushUiToast })
-  }, [bridge.importUrl, patchChatValues, pushUiToast, values.chatKnowgrphCloudUrl])
+  }, [bridgeImportUrl, patchChatValues, pushUiToast, values.chatKnowgrphCloudUrl])
 
   const patchIntegrationJson = React.useCallback((updater: (current: ReturnType<typeof parseIntegrationConfigsJson>) => ReturnType<typeof parseIntegrationConfigsJson>) => {
     const current = parseIntegrationConfigsJson(
@@ -1464,7 +1468,7 @@ export default function SettingsView({
                                       type="button"
                                       onClick={e => {
                                         e.stopPropagation()
-                                        useActiveWorkspaceFileAsChatHistory()
+                                        applyActiveWorkspaceFileAsChatHistory()
                                       }}
                                       className={pillButtonClassName}
                                     >
@@ -1527,7 +1531,7 @@ export default function SettingsView({
                                       type="button"
                                       onClick={e => {
                                         e.stopPropagation()
-                                        useActiveWorkspaceFileAsKnowgrph()
+                                        applyActiveWorkspaceFileAsKnowgrph()
                                       }}
                                       className={pillButtonClassName}
                                     >
