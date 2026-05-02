@@ -55,7 +55,7 @@ import {
   parseIntegrationConfigsJson,
   stringifyIntegrationConfigs,
 } from '@/features/integrations/config'
-import { BYTEPLUS_SHARED_TEXT_API_DOC_AREA } from './byteplusChatApiDocs'
+import { BYTEPLUS_SHARED_TEXT_API_DOC_AREA } from './byteplusSharedTextApiDocs'
 import { OPENAI_CHAT_API_DOC_AREA } from './openaiChatApiDocs'
 import { MAPS_GEO_DOC_AREA, MAPS_MAPLIBRE_DOC_AREA, MAPS_GRABMAPS_DOC_AREA } from './mapsApiDocs'
 import { MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA } from './grabmapsDirectionsApiDocs'

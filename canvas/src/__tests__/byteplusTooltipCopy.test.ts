@@ -1,4 +1,4 @@
-import { BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES } from '@/features/panels/views/byteplusChatApiDocs'
+import { BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES } from '@/features/panels/views/byteplusSharedTextApiDocs'
 import { buildSettingsKeyTooltip, buildSettingsValueTooltip } from '@/lib/config-copy/tooltips'
 
 export function testBytePlusEntriesExposeStructuredTooltipMetadata() {

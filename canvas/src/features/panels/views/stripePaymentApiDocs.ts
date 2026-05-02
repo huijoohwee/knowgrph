@@ -1,5 +1,5 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
-import type { VirtualSettingsEntry } from './byteplusChatApiDocs'
+import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
 
 export const STRIPE_PAYMENT_API_DOC_AREA = 'Stripe Payment API'
 

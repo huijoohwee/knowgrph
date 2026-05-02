@@ -63,7 +63,7 @@ import {
   getOpenAiApiDocRowByRowKey,
   resolveOpenAiTextWidgetChatApiRowKey,
 } from '@/features/integrations/openaiResponsesSsot'
-import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
+import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusSharedTextApiDocs'
 import { getOpenAiChatApiRowAnchorId } from '@/features/panels/views/openaiChatApiDocs'
 
 export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'zai'

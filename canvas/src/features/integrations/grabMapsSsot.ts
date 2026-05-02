@@ -1,6 +1,6 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { WidgetRegistryField, WidgetRegistryFieldOption } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import type { VirtualSettingsEntry } from '@/features/panels/views/byteplusChatApiDocs'
+import type { VirtualSettingsEntry } from '@/features/panels/views/byteplusSharedTextApiDocs'
 import {
   GRABMAPS_DOC_ROWS,
   MAPS_GEO_DOC_AREA,

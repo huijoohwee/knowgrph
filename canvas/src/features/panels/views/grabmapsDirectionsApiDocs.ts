@@ -1,5 +1,5 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
-import type { VirtualSettingsEntry } from './byteplusChatApiDocs'
+import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
 import { GRABMAPS_DEFAULT_DIRECTIONS_URL } from 'grph-shared/geospatial/grabMapsSsot'
 
 export const MAPS_GRABMAPS_DIRECTIONS_REQUEST_DOC_AREA = 'GrabMaps Directions Request'

@@ -21,7 +21,7 @@ import {
 } from '@/lib/chatEndpoint'
 import { MAIN_PANEL_TABS } from '@/features/panels/mainPanelTabs'
 import { getIntegrationVirtualSettingStorageKey } from '@/features/integrations/integrationVirtualSettings'
-import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
+import { getBytePlusSharedTextApiRowAnchorId } from '@/features/panels/views/byteplusSharedTextApiDocs'
 
 const waitForFrames = async (raf: ((cb: (ts: number) => void) => number) | undefined, count = 3) => {
   void raf

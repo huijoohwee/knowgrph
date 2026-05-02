@@ -1,5 +1,5 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
-import type { VirtualSettingsEntry } from './byteplusChatApiDocs'
+import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
 
 export const MAPS_GRABMAPS_MCP_DOC_AREA = 'GrabMaps MCP Configuration'
 

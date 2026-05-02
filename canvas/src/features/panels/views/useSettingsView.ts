@@ -21,7 +21,7 @@ import {
   BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
   BYTEPLUS_SHARED_TEXT_API_REQUEST_DOC_ENTRIES,
   getBytePlusSharedTextApiRowAnchorId,
-} from './byteplusChatApiDocs'
+} from './byteplusSharedTextApiDocs'
 import {
   OPENAI_CHAT_API_DOC_AREA,
   OPENAI_CHAT_API_REQUEST_DOC_ENTRIES,

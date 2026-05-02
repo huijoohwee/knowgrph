@@ -1,4 +1,4 @@
-import type { VirtualSettingsEntry } from './byteplusChatApiDocs'
+import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
 import type { SettingMeta } from '@/features/settings/types'
 import {
   OPENAI_KEY_ACTIONS_BY_VALUE_KEY,
