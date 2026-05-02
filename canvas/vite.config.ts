@@ -5285,7 +5285,11 @@ export default defineConfig(({ command }) => ({
       resolveDependencies: (_filename: string, deps: string[]) =>
         deps.filter(dep => !/(^|\/|\.\/)(?:assets\/)?mermaid-[^/]+\.(?:js|css)$/.test(String(dep || ''))),
     },
-    chunkSizeWarningLimit: 500,
+    // The remaining large bundles are lazy feature runtimes or vendor payloads
+    // (ELK worker, MapLibre, Markdown, 3D scene) that stay isolated from the
+    // initial route. Keep the warning limit aligned to that post-split ceiling
+    // so new regressions still surface without flagging expected lazy chunks.
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
         ...(process.env.KG_LOW_MEM_BUILD === '1'
@@ -5318,10 +5322,16 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/monaco-editor/esm/vs/editor/')) return 'monaco-editor-core'
                 if (moduleId.includes('/node_modules/monaco-editor/esm/vs/base/')) return 'monaco-base'
                 if (moduleId.includes('/node_modules/monaco-editor/')) return 'monaco'
-                if (moduleId.includes('/node_modules/mermaid/')) return 'mermaid'
+                // Let Mermaid and layout-elk keep their own internal lazy split points
+                // instead of collapsing the whole runtime into one oversized vendor chunk.
                 if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/chunks/mermaid-layout-elk.esm.min/render-')) return 'mermaid-elk-render'
-                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/')) return 'mermaid-elk-core'
-                if (moduleId.includes('/node_modules/elkjs/')) return 'elk'
+                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/chunks/mermaid-layout-elk.core/')) return 'mermaid-elk-runtime'
+                if (moduleId.includes('/node_modules/@mermaid-js/layout-elk/dist/mermaid-layout-elk.core.mjs')) return 'mermaid-elk-entry'
+                if (moduleId.includes('/node_modules/elkjs/lib/elk-worker.min.js')) return 'elk-worker'
+                if (moduleId.includes('/node_modules/elkjs/lib/elk-worker.js')) return 'elk-worker'
+                if (moduleId.includes('/node_modules/elkjs/lib/elk-api.js')) return 'elk-api'
+                if (moduleId.includes('/node_modules/elkjs/lib/main.js')) return 'elk-main'
+                if (moduleId.includes('/node_modules/elkjs/lib/elk.bundled.js')) return 'elk-bundled'
                 if (moduleId.includes('/node_modules/three/examples/')) return 'three-examples'
                 if (moduleId.includes('/node_modules/@react-three/fiber/')) return 'three-fiber'
                 if (moduleId.includes('/node_modules/three/src/renderers/')) return 'three-renderers'
@@ -5342,7 +5352,95 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/node_modules/maplibre-gl/src/render/')) return 'maplibre-render'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/source/')) return 'maplibre-source'
                 if (moduleId.includes('/node_modules/maplibre-gl/src/shaders/')) return 'maplibre-shaders'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/gl/')) return 'maplibre-gl'
+                if (moduleId.includes('/node_modules/maplibre-gl/src/style-spec/')) return 'maplibre-style-spec'
                 if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'
+                if (moduleId.includes('/src/pages/Canvas.tsx') || moduleId.includes('/src/components/CanvasViewport.tsx')) return 'canvas-shell'
+                if (moduleId.includes('/src/features/canvas/') || moduleId.includes('/src/lib/canvas/')) return 'canvas-runtime'
+                if (moduleId.includes('/src/components/GraphCanvasRoot/')) return 'graph-canvas-root'
+                if (moduleId.includes('/src/components/GraphCanvas/')) return 'graph-canvas'
+                if (moduleId.includes('/src/lib/zoom/') || moduleId.includes('/src/features/zoom/')) return 'canvas-zoom'
+                if (
+                  moduleId.includes('/src/features/node-creation/') ||
+                  moduleId.includes('/src/features/edge-creation/')
+                ) {
+                  return 'canvas-2d'
+                }
+                if (moduleId.includes('/src/components/FlowEditorCanvas')) return 'flow-editor-canvas'
+                if (moduleId.includes('/src/components/FlowEditor/')) return 'flow-editor-ui'
+                if (moduleId.includes('/src/components/FlowCanvas/')) return 'flow-canvas-core'
+                if (
+                  moduleId.includes('/src/components/FlowCanvas.tsx') ||
+                  moduleId.includes('/src/components/FlowEditorCanvas.runtime.tsx')
+                ) {
+                  return 'flow-canvas'
+                }
+                if (moduleId.includes('/src/components/DesignCanvas') || moduleId.includes('/src/lib/markdown-edgeless/')) return 'design-canvas'
+                if (moduleId.includes('/src/features/three/') || moduleId.includes('/src/lib/three/')) return 'canvas-3d'
+                if (
+                  moduleId.includes('/src/features/geospatial/') ||
+                  moduleId.includes('/src/lib/graph/io/grabmaps') ||
+                  moduleId.includes('/src/lib/render/richMedia')
+                ) {
+                  return 'geospatial'
+                }
+                if (
+                  moduleId.includes('/src/features/panels/views/SettingsView') ||
+                  moduleId.includes('/src/features/panels/views/useSettingsView') ||
+                  moduleId.includes('/src/features/settings/') ||
+                  moduleId.includes('/src/lib/settings/') ||
+                  moduleId.includes('/src/features/schema/') ||
+                  moduleId.includes('/src/features/schema-editor/')
+                ) {
+                  return 'settings'
+                }
+                if (moduleId.includes('/src/features/panels/views/PreviewPanelView') || moduleId.includes('/src/lib/panels/views/preview-panel/')) {
+                  return 'panel-preview'
+                }
+                if (moduleId.includes('/src/features/panels/views/HistoryView')) return 'panel-history'
+                if (moduleId.includes('/src/features/panels/views/Help')) return 'panel-help'
+                if (moduleId.includes('/src/features/panels/views/FlowEditorManagerView')) return 'panel-flow-editor'
+                if (moduleId.includes('/src/features/panels/views/DashboardView')) return 'panel-dashboard'
+                if (
+                  moduleId.includes('/src/features/panels/views/IntegrationsHubView') ||
+                  moduleId.includes('/src/features/panels/views/MapsHubView') ||
+                  moduleId.includes('/src/features/panels/views/McpHubView') ||
+                  moduleId.includes('/src/features/panels/views/PaymentsHubView')
+                ) {
+                  return 'panel-hubs'
+                }
+                if (moduleId.includes('/src/features/panels/views/graph-fields/') || moduleId.includes('/src/features/schema/ui/')) {
+                  return 'panel-graph-fields'
+                }
+                if (
+                  moduleId.includes('/src/features/panels/') ||
+                  moduleId.includes('/src/lib/panels/')
+                ) {
+                  return 'panels'
+                }
+                if (moduleId.includes('/src/features/source-files/')) return 'workspace-source-files'
+                if (moduleId.includes('/src/features/workspace-fs/') || moduleId.includes('/src/features/workspace-table/')) return 'workspace-fs'
+                if (moduleId.includes('/src/lib/markdown-workspace-runtime/')) return 'workspace-runtime'
+                if (moduleId.includes('/src/components/BottomPanel/markdownWorkspace/main/')) return 'workspace-main'
+                if (moduleId.includes('/src/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/')) return 'workspace-actions'
+                if (moduleId.includes('/src/components/BottomPanel/markdownWorkspace/')) return 'workspace-ui'
+                if (moduleId.includes('/src/lib/markdown-core/') || moduleId.includes('/src/features/markdown/')) return 'markdown'
+                if (
+                  moduleId.includes('/src/components/BottomPanel/') ||
+                  moduleId.includes('/src/features/workspace-')
+                ) {
+                  return 'workspace'
+                }
+                if (moduleId.includes('/src/features/toolbar/LaunchDropdown') || moduleId.includes('/src/lib/toolbar/LaunchDropdown')) return 'toolbar-launch'
+                if (moduleId.includes('/src/features/toolbar/ToolbarMenuLauncher') || moduleId.includes('/src/features/toolbar/ToolbarToolMenu')) return 'toolbar-menu'
+                if (
+                  moduleId.includes('/src/components/Toolbar') ||
+                  moduleId.includes('/src/lib/toolbar/') ||
+                  moduleId.includes('/src/features/toolbar/') ||
+                  moduleId.includes('/src/features/spotlight/')
+                ) {
+                  return 'toolbar'
+                }
                 return undefined
               },
             }),
