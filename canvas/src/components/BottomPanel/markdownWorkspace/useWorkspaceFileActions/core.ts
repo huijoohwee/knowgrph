@@ -13,6 +13,7 @@ import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
+import { buildMarkdownWorkspaceRestoredActiveDocumentArgs } from '@/lib/markdown-workspace-runtime/markdownWorkspaceActiveDocumentRestore'
 import type { StatusHelpers, UseWorkspaceFileActionsArgs } from './types'
 import type { MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
 import { formatMarkdownWorkspaceStatusLabel } from '../markdownWorkspaceStatusUi'
@@ -265,15 +266,18 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         const content = String(text || '')
         lastLoadedRef.current = { path: createdPath, text: content }
         setActiveText(content)
-        if (docKey && content.trim()) {
+        const restoredActiveDocumentArgs = buildMarkdownWorkspaceRestoredActiveDocumentArgs({
+          activeDocumentKey: docKey,
+          text: content,
+          activeDocumentSourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
+        })
+        if (restoredActiveDocumentArgs && content.trim()) {
           void applyActiveMarkdownDocumentPayload({
             setActiveMarkdownDocument,
-            name: docKey,
-            text: content,
-            sourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
+            ...restoredActiveDocumentArgs,
           })
           if (opts?.applyToGraph) {
-            await applyImportedTextToGraph({ nameForParse: docKey, text: content })
+            await applyImportedTextToGraph({ nameForParse: restoredActiveDocumentArgs.name, text: content })
           }
         }
       } catch (e) {

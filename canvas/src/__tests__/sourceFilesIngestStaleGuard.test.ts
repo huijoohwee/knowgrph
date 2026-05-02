@@ -715,6 +715,7 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   const importActionsPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'importActions.ts')
   const mutationActionsPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'mutationActions.ts')
   const selectionPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSelection.ts')
+  const indexingPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
   const corePath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'core.ts')
   const importEffectsPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'importSideEffects.ts')
 
@@ -723,6 +724,7 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   const importActionsText = readFileSync(importActionsPath, 'utf8')
   const mutationActionsText = readFileSync(mutationActionsPath, 'utf8')
   const selectionText = readFileSync(selectionPath, 'utf8')
+  const indexingText = readFileSync(indexingPath, 'utf8')
   const coreText = readFileSync(corePath, 'utf8')
   const importEffectsText = readFileSync(importEffectsPath, 'utf8')
 
@@ -735,6 +737,12 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   if (!mutationActionsText.includes('await writeWorkspaceFileAndSync({')) {
     throw new Error('expected workspace mutation actions to reuse the shared write-through owner after refresh and clear writes')
   }
+  if (!indexingText.includes('await writeWorkspaceFileAndSync({')) {
+    throw new Error('expected markdown workspace indexing sanitize writes to reuse the shared write-through owner')
+  }
+  if (indexingText.includes('await fs.writeFileText(path, sanitized)')) {
+    throw new Error('expected markdown workspace indexing not to keep a duplicate raw sanitize writeback path outside the shared write-through owner')
+  }
   if (!activeDocText.includes('export function buildActiveMarkdownDocumentPayload(args:')) {
     throw new Error('expected active markdown document sync ownership to be centralized in a shared markdown helper')
   }
@@ -744,8 +752,14 @@ export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized(
   if (!selectionText.includes('applyActiveMarkdownDocumentPayload({')) {
     throw new Error('expected markdown workspace selection restore paths to reuse the shared active markdown document helper')
   }
+  if (!coreText.includes('buildMarkdownWorkspaceRestoredActiveDocumentArgs({')) {
+    throw new Error('expected workspace import focus to reuse the shared active-document restore args helper')
+  }
   if (!coreText.includes('applyActiveMarkdownDocumentPayload({')) {
     throw new Error('expected workspace import focus to reuse the shared active markdown document helper')
+  }
+  if (!mutationActionsText.includes('buildMarkdownWorkspaceRestoredActiveDocumentArgs({')) {
+    throw new Error('expected workspace mutation actions to reuse the shared active-document restore args helper for rename and clear sync')
   }
   if (!importEffectsText.includes('buildActiveMarkdownDocumentPayload({') || !importEffectsText.includes('applyActiveMarkdownDocumentPayload({')) {
     throw new Error('expected toolbar import side effects to reuse the shared active markdown document payload helper')

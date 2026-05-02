@@ -14,6 +14,7 @@ import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from 
 import type { UseWorkspaceFileActionsArgs } from './types'
 import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
+import { buildMarkdownWorkspaceRestoredActiveDocumentArgs } from '@/lib/markdown-workspace-runtime/markdownWorkspaceActiveDocumentRestore'
 
 export function useWorkspaceMutationActions(args: {
   core: { status: ReturnType<typeof import('./core').useWorkspaceStatusHelpers> }
@@ -228,13 +229,15 @@ export function useWorkspaceMutationActions(args: {
           const latestText = String((await fs.readFileText(remappedOpenedPath)) || '')
           lastLoadedRef.current = { path: remappedOpenedPath, text: latestText }
           setActiveText(latestText)
-          const nextDocumentKey = workspaceDocumentKey(remappedOpenedPath)
-          if (nextDocumentKey || activeDocumentKey) {
+          const restoredActiveDocumentArgs = buildMarkdownWorkspaceRestoredActiveDocumentArgs({
+            activeDocumentKey: workspaceDocumentKey(remappedOpenedPath) || activeDocumentKey,
+            text: latestText,
+            activeDocumentSourceUrl: null,
+          })
+          if (restoredActiveDocumentArgs) {
             void applyActiveMarkdownDocumentPayload({
               setActiveMarkdownDocument,
-              name: nextDocumentKey || activeDocumentKey,
-              text: latestText,
-              sourceUrl: null,
+              ...restoredActiveDocumentArgs,
             })
           }
         }
@@ -311,12 +314,15 @@ export function useWorkspaceMutationActions(args: {
         if (shouldClearActive) {
           lastLoadedRef.current = { path: normalizedActivePath as WorkspacePath, text: '' }
           setActiveText('')
-          if (activeDocumentKey) {
+          const restoredActiveDocumentArgs = buildMarkdownWorkspaceRestoredActiveDocumentArgs({
+            activeDocumentKey,
+            text: '',
+            activeDocumentSourceUrl: null,
+          })
+          if (restoredActiveDocumentArgs) {
             void applyActiveMarkdownDocumentPayload({
               setActiveMarkdownDocument,
-              name: activeDocumentKey,
-              text: '',
-              sourceUrl: null,
+              ...restoredActiveDocumentArgs,
             })
           }
         } else {

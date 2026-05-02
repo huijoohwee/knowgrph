@@ -107,6 +107,7 @@ export const writeWorkspaceFileAndSync = async (args: {
   lastLoadedRef: MutableRefObject<{ path: WorkspacePath; text: string } | null>
   patchWorkspaceEntryInlineText?: (path: WorkspacePath, text: string) => void
   setEntries?: Dispatch<SetStateAction<WorkspaceEntry[]>>
+  createEntryIfMissing?: boolean
   synchronizeActiveDocument?: boolean
   setActiveText?: (text: string) => void
   activeDocumentKey?: string
@@ -126,6 +127,7 @@ export const writeWorkspaceFileAndSync = async (args: {
               entries: prev,
               path,
               text,
+              createIfMissing: args.createEntryIfMissing === true,
             }),
           )
         })

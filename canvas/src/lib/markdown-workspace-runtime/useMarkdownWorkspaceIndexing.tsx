@@ -34,7 +34,10 @@ import {
   findWorkspaceSourceFileByPath,
   resolveWorkspaceDirtyState,
 } from './markdownWorkspaceRuntime.shared'
-import { pushWorkspaceTextToActiveMarkdownDocument } from './markdownWorkspaceRuntime.io'
+import {
+  pushWorkspaceTextToActiveMarkdownDocument,
+  writeWorkspaceFileAndSync,
+} from './markdownWorkspaceRuntime.io'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import {
   resolveWorkspaceSourceFileInlineText,
@@ -168,32 +171,42 @@ export function useMarkdownWorkspaceIndexing(args: {
           const nextText = sanitized ?? rawNext
           if (sanitized) {
             try {
-              const fs = await args.getFs()
-              await fs.writeFileText(path, sanitized)
+              await writeWorkspaceFileAndSync({
+                path,
+                text: sanitized,
+                getFs: args.getFs,
+                lastLoadedRef: args.lastLoadedRef,
+                setEntries: args.setEntries,
+                createEntryIfMissing: !canUseCachedText,
+                setActiveText: args.setActiveTextProgrammatic,
+                activeDocumentKey: args.activeDocumentKey,
+                activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
+                setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+                resetParsedState: true,
+              })
             } catch {
               void 0
             }
+          } else {
+            args.lastLoadedRef.current = { path, text: nextText }
+            args.setActiveTextProgrammatic(nextText)
+            if (!canUseCachedText) {
+              args.setEntries(prev =>
+                upsertWorkspaceEntryInlineText({
+                  entries: prev,
+                  path,
+                  text: nextText,
+                  createIfMissing: true,
+                }),
+              )
+            }
+            pushWorkspaceTextToActiveMarkdownDocument({
+              activeDocumentKey: args.activeDocumentKey,
+              activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
+              setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+              text: nextText,
+            })
           }
-
-          args.lastLoadedRef.current = { path, text: nextText }
-          args.setActiveTextProgrammatic(nextText)
-          if (sanitized && canUseCachedText) args.patchWorkspaceEntryInlineText(path, nextText)
-          if (!canUseCachedText) {
-            args.setEntries(prev =>
-              upsertWorkspaceEntryInlineText({
-                entries: prev,
-                path,
-                text: nextText,
-                createIfMissing: true,
-              }),
-            )
-          }
-          pushWorkspaceTextToActiveMarkdownDocument({
-            activeDocumentKey: args.activeDocumentKey,
-            activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
-            setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-            text: nextText,
-          })
 
           const wasIndexedForPath = (candidatePath: WorkspacePath, textHash: string): boolean => {
             const existing = args.lastIndexedByPathRef.current.get(candidatePath)
