@@ -2,7 +2,13 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
-import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
+import {
+  getDocumentLocationFromMetadata,
+  resolveMarkdownNavigationMetadata,
+} from '@/lib/graph/markdownMetadata'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { StatusHelpers } from './useWorkspaceFileActions/types'
 
@@ -49,86 +55,6 @@ const findWorkspacePathForDocumentKey = (entries: WorkspaceEntry[], docKey: stri
   return exact || suffix
 }
 
-const resolveNavigationMetadata = (
-  args: {
-    node: GraphNode | null
-    edge: GraphEdge | null
-    nodes: GraphNode[]
-    edges: GraphEdge[]
-  },
-): Record<string, unknown> | null => {
-  const { node, edge, nodes, edges } = args
-  if (!node && edge) return (edge.metadata as Record<string, unknown>) || null
-  if (!node) return null
-
-  const base = (node.metadata as Record<string, unknown>) || null
-  const type = String(node.type || '')
-  if (type !== 'MermaidNode' && type !== 'InternalLink') return base
-
-  const nodeId = String(node.id || '')
-  if (!nodeId) return base
-
-  const nodeById = new Map<string, GraphNode>()
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]
-    const id = String(n?.id || '')
-    if (id && !nodeById.has(id)) nodeById.set(id, n)
-  }
-
-  const pointsToTargets: GraphNode[] = []
-  for (let i = 0; i < edges.length; i += 1) {
-    const e = edges[i]
-    if (!e) continue
-    if (String(e.label || '') !== 'pointsTo') continue
-    if (String(e.source || '') !== nodeId) continue
-    const targetId = String(e.target || '')
-    if (!targetId) continue
-    const t = nodeById.get(targetId)
-    if (t) pointsToTargets.push(t)
-  }
-
-  if (pointsToTargets.length === 0) return base
-
-  const pickTargetMeta = (t: GraphNode | null): Record<string, unknown> | null => {
-    if (!t) return null
-    const meta = (t.metadata as Record<string, unknown>) || null
-    return meta
-  }
-
-  for (let i = 0; i < pointsToTargets.length; i += 1) {
-    const t = pointsToTargets[i]
-    if (String(t.type || '') !== 'Anchor') continue
-    const meta = pickTargetMeta(t)
-    if (meta) return meta
-  }
-  for (let i = 0; i < pointsToTargets.length; i += 1) {
-    const t = pointsToTargets[i]
-    if (String(t.type || '') !== 'InternalLink') continue
-    const tid = String(t.id || '')
-    if (!tid) continue
-    for (let j = 0; j < edges.length; j += 1) {
-      const e = edges[j]
-      if (!e) continue
-      if (String(e.label || '') !== 'pointsTo') continue
-      if (String(e.source || '') !== tid) continue
-      const targetId = String(e.target || '')
-      if (!targetId) continue
-      const tt = nodeById.get(targetId)
-      if (!tt || String(tt.type || '') !== 'Anchor') continue
-      const meta = pickTargetMeta(tt)
-      if (meta) return meta
-    }
-  }
-  for (let i = 0; i < pointsToTargets.length; i += 1) {
-    const t = pointsToTargets[i]
-    if (String(t.type || '') !== 'Section') continue
-    const meta = pickTargetMeta(t)
-    if (meta) return meta
-  }
-
-  return base
-}
-
 export function useCanvasMarkdownSync(args: {
   active: boolean
   entries: WorkspaceEntry[]
@@ -153,16 +79,43 @@ export function useCanvasMarkdownSync(args: {
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const graphNodes = useGraphStore(s => ((s.graphData as GraphData | null)?.nodes as GraphNode[] | undefined) || EMPTY_GRAPH_NODES)
   const graphEdges = useGraphStore(s => ((s.graphData as GraphData | null)?.edges as GraphEdge[] | undefined) || EMPTY_GRAPH_EDGES)
+  const graphDataRevision = useGraphStore(s => (s.graphDataRevision || 0) as number)
   const docLocationRevision = useGraphStore(s => (s.docLocationRevision || 0) as number)
 
-  const graphNodesRef = React.useRef<GraphNode[]>(graphNodes)
+  const graphLookupSemanticKey = React.useMemo(() => {
+    const nodeIdsKey = hashScopedStringArraySignature(
+      'canvas-markdown-sync-node-ids',
+      graphNodes.map(node => String(node?.id || '').trim()).filter(Boolean),
+    )
+    const edgeIdsKey = hashScopedStringArraySignature(
+      'canvas-markdown-sync-edge-ids',
+      graphEdges.map(edge => String(edge?.id || '').trim()).filter(Boolean),
+    )
+    return buildScopedGraphSemanticKey('canvas-markdown-sync-graph', {
+      graphRevision: graphDataRevision,
+      graphSemanticKey: hashSignatureParts([nodeIdsKey, edgeIdsKey]),
+    })
+  }, [graphDataRevision, graphEdges, graphNodes])
+
+  const graphLookup = React.useMemo(() => {
+    if (graphNodes.length === 0 && graphEdges.length === 0) return null
+    return getCachedGraphLookup({
+      cacheScope: 'canvas-markdown-sync-graph',
+      graphData: {
+        type: 'Graph',
+        nodes: graphNodes,
+        edges: graphEdges,
+      } as GraphData,
+      graphRevision: graphDataRevision,
+      graphSemanticKey: graphLookupSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    })
+  }, [graphDataRevision, graphEdges, graphLookupSemanticKey, graphNodes])
+
+  const graphLookupRef = React.useRef(graphLookup)
   React.useEffect(() => {
-    graphNodesRef.current = graphNodes
-  }, [graphNodes])
-  const graphEdgesRef = React.useRef<GraphEdge[]>(graphEdges)
-  React.useEffect(() => {
-    graphEdgesRef.current = graphEdges
-  }, [graphEdges])
+    graphLookupRef.current = graphLookup
+  }, [graphLookup])
 
   const lastCanvasSyncSigRef = React.useRef<string>('')
 
@@ -177,11 +130,14 @@ export function useCanvasMarkdownSync(args: {
     if (lastCanvasSyncSigRef.current === sig) return
     lastCanvasSyncSigRef.current = sig
 
-    const nodes = Array.isArray(graphNodesRef.current) ? graphNodesRef.current : []
-    const edges = Array.isArray(graphEdgesRef.current) ? graphEdgesRef.current : []
-    const node = nodeId ? nodes.find(n => String(n.id || '') === nodeId) : null
-    const edge = !node && edgeId ? edges.find(e => String(e.id || '') === edgeId) : null
-    const meta = resolveNavigationMetadata({ node, edge, nodes, edges })
+    const lookup = graphLookupRef.current
+    const node = nodeId ? lookup?.nodeById.get(nodeId) || null : null
+    const edge = !node && edgeId ? lookup?.edgeById.get(edgeId) || null : null
+    const meta = resolveMarkdownNavigationMetadata({
+      node,
+      edge,
+      graphLookup: lookup,
+    })
     const location = getDocumentLocationFromMetadata(meta)
     if (!location) {
       return

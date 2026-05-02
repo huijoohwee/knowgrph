@@ -66,6 +66,7 @@ export function useMarkdownWorkspaceInteractions(args: {
   markdownDocumentName: string
   markdownDocumentText: string
   workspaceCanvasPaneOpen: boolean
+  indexingInFlight: boolean
   canvasWorkspaceSyncMode: string
   contentMode: 'document' | 'widget'
   widgetEditorText: string
@@ -105,6 +106,7 @@ export function useMarkdownWorkspaceInteractions(args: {
     markdownDocumentName,
     markdownDocumentText,
     workspaceCanvasPaneOpen,
+    indexingInFlight,
     canvasWorkspaceSyncMode,
     contentMode,
     widgetEditorText,
@@ -287,7 +289,7 @@ export function useMarkdownWorkspaceInteractions(args: {
 
   const lastAutoApplySigRef = React.useRef<string | null>(null)
   const lastRealtimeApplySigRef = React.useRef<string | null>(null)
-  const workspaceApplyEffectsEnabled = active && workspaceCanvasPaneOpen === true
+  const workspaceApplyEffectsEnabled = active && workspaceCanvasPaneOpen === true && indexingInFlight !== true
   const handleApply = React.useCallback(async () => {
     const current = argsRef.current
     const name = String(current.activeDocumentKey || '').trim()

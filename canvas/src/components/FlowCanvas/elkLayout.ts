@@ -1,6 +1,6 @@
 import type { GraphData } from '@/lib/graph/types'
 import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
-import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { FlowConfig } from './config'
 import { buildFlowHandleId, computeFlowHandlesByNode } from './handles'
 
@@ -116,8 +116,7 @@ export async function buildElkLayout(args: {
   const elkEdges: ElkEdge[] = edgeList
     .map(e => {
       const id = String(e?.id || '').trim()
-      const source = readEdgeEndpointId((e as { source?: unknown })?.source)
-      const target = readEdgeEndpointId((e as { target?: unknown })?.target)
+      const { src: source, tgt: target } = readGraphEdgeEndpoints(e)
       if (!id || !source || !target) return null
       if (!nodeById.has(source) || !nodeById.has(target)) return null
       const sourcePortKey = readFlowEdgePortKey(e as never, 'source') || id

@@ -1,5 +1,6 @@
 import { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
 
 export type ConnectivityComponentBBox = {
@@ -67,14 +68,9 @@ function readIncidentNeighborId(
   nodeId: string,
   nodeById: ReadonlyMap<string, GraphNode>,
 ): string {
-  const sourceId =
-    typeof edge?.source === 'object'
-      ? String((edge.source as { id?: unknown })?.id || '').trim()
-      : String(edge?.source || '').trim()
-  const targetId =
-    typeof edge?.target === 'object'
-      ? String((edge.target as { id?: unknown })?.id || '').trim()
-      : String(edge?.target || '').trim()
+  const { src, tgt } = readGraphEdgeEndpoints(edge)
+  const sourceId = src || ''
+  const targetId = tgt || ''
   const neighborId = sourceId === nodeId ? targetId : targetId === nodeId ? sourceId : ''
   if (!neighborId || !nodeById.has(neighborId)) return ''
   return neighborId

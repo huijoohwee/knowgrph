@@ -106,6 +106,12 @@ export function testRichMediaRenderPathsReuseSemanticGraphKeysForConnectedValueC
   if (!flowCanvasStateText.includes('graphSemanticKey: sceneGraphSemanticKey,')) {
     throw new Error('expected FlowCanvas rich media connected-value path to reuse the scene graph semantic key')
   }
+  if (!flowCanvasStateText.includes('const dataflowWidgetRegistry = React.useMemo(() => {')) {
+    throw new Error('expected FlowCanvas rich media connected-value path to derive one upstream merged dataflow registry memo')
+  }
+  if (!flowCanvasStateText.includes('registry: dataflowWidgetRegistry,')) {
+    throw new Error('expected FlowCanvas rich media connected-value path to reuse the upstream merged dataflow registry memo')
+  }
   if (!overlays2dText.includes('graphSemanticKey: sceneGraphSemanticKey,')) {
     throw new Error('expected D3 rich media overlay path to reuse the scene graph semantic key for connected-value caching')
   }
@@ -367,6 +373,9 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
   if (!text.includes("setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })")) {
     throw new Error('expected TextGeneration run path to publish loading state before generation')
   }
+  if (!text.includes("lastRunAt: loadingArgs.loading === true ? new Date().toISOString() : nodeProps.lastRunAt")) {
+    throw new Error('expected run-scoped Rich Media loading state to stamp lastRunAt so initialization does not masquerade as an active run')
+  }
   if (!text.includes('const publishTextRunOutput = (outputText: string, loading: boolean) => {')) {
     throw new Error('expected TextGeneration run path to centralize streamed/final output publishing in one SSOT helper')
   }
@@ -397,6 +406,9 @@ export function testRichMediaOverlayPoolIncludesLoadingStateFromNodeAndConnected
   }
   if (!text.includes('readLoadingStateFromNode')) {
     throw new Error('expected shared rich media panel state helper to reuse node loading state helper for panel loading SSOT')
+  }
+  if (!text.includes("const runSignal = typeof props.lastRunAt === 'string' ? props.lastRunAt.trim() : ''")) {
+    throw new Error('expected Rich Media loading SSOT to require a run-scoped lastRunAt signal before showing animated loading state')
   }
   if (!overlayText.includes('buildRichMediaPanelOverlayState({')) {
     throw new Error('expected media overlay pool to reuse the shared Rich Media panel state builder')

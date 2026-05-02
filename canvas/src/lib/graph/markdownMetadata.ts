@@ -3,6 +3,11 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getDocumentPathFromMetadata, toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { getEdgeBaseStroke, getNodeBaseFill } from '@/lib/graph/visualStyles'
 
+type MarkdownNavigationGraphLookup = {
+  nodeById?: ReadonlyMap<string, GraphNode> | null
+  incidentEdgesByNodeId?: ReadonlyMap<string, GraphEdge[]> | null
+}
+
 export const parseLineNumber = (raw: unknown): number | null => {
   if (typeof raw === 'number') return Number.isFinite(raw) ? Math.floor(raw) : null
   if (typeof raw === 'string') {
@@ -76,6 +81,83 @@ export const getDocumentLocationFromMetadata = (
     lineStart: range.start,
     lineEnd: range.end,
   }
+}
+
+export const resolveMarkdownNavigationMetadata = (
+  args: {
+    node: GraphNode | null
+    edge: GraphEdge | null
+    graphLookup?: MarkdownNavigationGraphLookup | null
+  },
+): Record<string, unknown> | null => {
+  const { node, edge, graphLookup } = args
+  if (!node && edge) return (edge.metadata as Record<string, unknown>) || null
+  if (!node) return null
+
+  const base = (node.metadata as Record<string, unknown>) || null
+  const type = String(node.type || '')
+  if (type !== 'MermaidNode' && type !== 'InternalLink') return base
+
+  const nodeId = String(node.id || '').trim()
+  if (!nodeId) return base
+
+  const nodeById = graphLookup?.nodeById || null
+  const incidentEdgesByNodeId = graphLookup?.incidentEdgesByNodeId || null
+  if (!nodeById || !incidentEdgesByNodeId) return base
+
+  const resolvePointsToTargets = (sourceNodeId: string): GraphNode[] => {
+    const incidentEdges = incidentEdgesByNodeId.get(sourceNodeId) || []
+    const targets: GraphNode[] = []
+    for (let i = 0; i < incidentEdges.length; i += 1) {
+      const edge = incidentEdges[i]
+      if (!edge) continue
+      if (String(edge.label || '') !== 'pointsTo') continue
+      if (String(edge.source || '').trim() !== sourceNodeId) continue
+      const targetId = String(edge.target || '').trim()
+      if (!targetId) continue
+      const target = nodeById.get(targetId)
+      if (target) targets.push(target)
+    }
+    return targets
+  }
+
+  const pointsToTargets = resolvePointsToTargets(nodeId)
+  if (pointsToTargets.length === 0) return base
+
+  const pickTargetMeta = (target: GraphNode | null): Record<string, unknown> | null => {
+    if (!target) return null
+    return (target.metadata as Record<string, unknown>) || null
+  }
+
+  for (let i = 0; i < pointsToTargets.length; i += 1) {
+    const target = pointsToTargets[i]
+    if (String(target.type || '') !== 'Anchor') continue
+    const meta = pickTargetMeta(target)
+    if (meta) return meta
+  }
+
+  for (let i = 0; i < pointsToTargets.length; i += 1) {
+    const target = pointsToTargets[i]
+    if (String(target.type || '') !== 'InternalLink') continue
+    const targetId = String(target.id || '').trim()
+    if (!targetId) continue
+    const secondHopTargets = resolvePointsToTargets(targetId)
+    for (let j = 0; j < secondHopTargets.length; j += 1) {
+      const secondHopTarget = secondHopTargets[j]
+      if (String(secondHopTarget.type || '') !== 'Anchor') continue
+      const meta = pickTargetMeta(secondHopTarget)
+      if (meta) return meta
+    }
+  }
+
+  for (let i = 0; i < pointsToTargets.length; i += 1) {
+    const target = pointsToTargets[i]
+    if (String(target.type || '') !== 'Section') continue
+    const meta = pickTargetMeta(target)
+    if (meta) return meta
+  }
+
+  return base
 }
 
 export const computeHighlightedRangeFromLines = (

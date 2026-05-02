@@ -6,7 +6,7 @@ import {
   resolveBytePlusTextWidgetChatApiRowKey,
 } from '@/features/integrations/byteplusChatApiSsot'
 
-export const BYTEPLUS_CHAT_API_DOC_AREA = 'BytePlus Chat API'
+export const BYTEPLUS_CHAT_API_DOC_AREA = 'BytePlus Shared + Text API'
 
 export function getBytePlusChatApiRowAnchorId(rowKey: string): string {
   const normalized = String(rowKey || '')
@@ -37,7 +37,14 @@ export type VirtualSettingsEntry = {
   tooltipImpact?: string
 }
 
-const BYTEPLUS_TOOLTIP_ROLE = 'BytePlus Chat API'
+const BYTEPLUS_TOOLTIP_ROLE = 'BytePlus Shared + Text API'
+
+function getBytePlusChatEntryKey(rowKey: string): string {
+  if (rowKey === 'auth_mode' || rowKey === 'api_key' || rowKey === 'endpoint_url') {
+    return `byteplus.${rowKey}`
+  }
+  return `byteplusApi.${rowKey}`
+}
 
 const toBaseType = (typeLabel: string): SettingMeta['type'] => {
   const normalized = String(typeLabel || '').trim().toLowerCase()
@@ -49,7 +56,7 @@ const toBaseType = (typeLabel: string): SettingMeta['type'] => {
 export const BYTEPLUS_CHAT_API_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntry> =
   BYTEPLUS_CHAT_API_DOC_ROWS.map(row => ({
     meta: {
-      key: `byteplusApi.${row.key}`,
+      key: getBytePlusChatEntryKey(row.key),
       type: toBaseType(row.typeLabel),
       source: 'backendEnv',
       read: () => row.value,

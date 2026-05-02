@@ -87,6 +87,9 @@ export function testSharedRichMediaPanelUsesNativeEmptyCardPlaceholderSsot() {
   if (!text.includes('data-kg-rich-media-empty-card-placeholder="1"')) {
     throw new Error('expected shared Rich Media Panel empty state to expose a dedicated card placeholder marker')
   }
+  if (!text.includes('data-kg-rich-media-empty-card-static="1"')) {
+    throw new Error('expected shared Rich Media Panel empty state to expose a static placeholder marker distinct from active loading')
+  }
   if (!text.includes('data-kg-rich-media-empty-card-variant={variant}')) {
     throw new Error('expected shared Rich Media Panel empty card placeholder to expose its expected target-mode variant')
   }

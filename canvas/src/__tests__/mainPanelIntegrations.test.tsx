@@ -90,12 +90,12 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'chatModel',
       'chatContextScope',
       'integrationConfigsJson',
-      'BytePlus Chat API',
+      'BytePlus Shared + Text API',
       'Open FloatingPanel Props Panel Text Widget',
       'byteplusApi.provider',
-      'byteplusApi.auth_mode',
-      'byteplusApi.endpoint_url',
-      'byteplusApi.api_key',
+      'byteplus.auth_mode',
+      'byteplus.endpoint_url',
+      'byteplus.api_key',
       'byteplusApi.model',
       'byteplusApi.messages',
       'byteplusApi.response_format.type',
@@ -401,6 +401,7 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
     const text = container.textContent || ''
     ;[
       'BytePlus Image Generation API',
+      'Uses shared BytePlus auth_mode and api_key from BytePlus Shared + Text API.',
       'byteplusImageApi.size',
       'byteplusImageApi.output_format',
       'byteplusImageApi.response_format',
@@ -411,7 +412,6 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
       'byteplusImageApi.seed',
       'byteplusImageApi.guidance_scale',
       'Open FloatingPanel BytePlus Image Widget',
-      'Server-managed Key',
       'seedream-4-0-250828',
       'seedream-4-5-251128',
       'seedream-5-0-260128',
@@ -422,6 +422,9 @@ export async function testMainPanelRequestedIntegrationsSearchShowsBytePlusImage
     })
     if (text.includes('seedream-5-0-lite-250817')) {
       throw new Error('expected stale Seedream 5.0 Lite image model id to be removed from integrations image API rows')
+    }
+    if (text.includes('byteplusImageApi.auth_mode') || text.includes('byteplusImageApi.api_key')) {
+      throw new Error('expected BytePlus image integrations search to reuse shared BytePlus auth rows instead of image-owned auth/api-key rows')
     }
   } finally {
     try {
@@ -1240,12 +1243,12 @@ export async function testMainPanelRequestedIntegrationsAnchorScrollsExactBytePl
     const container = doc.createElement('div')
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    const anchorId = getBytePlusChatApiRowAnchorId('byteplusApi.auth_mode')
+    const anchorId = getBytePlusChatApiRowAnchorId('byteplus.auth_mode')
     await renderAndFlush(
       root,
       React.createElement(MainPanel, {
         requestedTab: 'integrations',
-        requestedSearchQuery: 'byteplusApi.auth_mode',
+        requestedSearchQuery: 'byteplus.auth_mode',
         requestedAnchorId: anchorId,
         requestedAnchorSeq: 1,
       } as never),

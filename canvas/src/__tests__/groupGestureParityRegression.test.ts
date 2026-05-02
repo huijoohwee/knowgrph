@@ -18,7 +18,11 @@ export function testGroupDragBehaviorReusesSharedIntentThresholds() {
 
 export function testGroupLabelClickRespectsPreventedDragClicks() {
   const groupsText = readUtf8(resolve(process.cwd(), 'src/components/GraphCanvas/layers/groups.ts'))
-  if (!groupsText.includes(".on('click', (event: MouseEvent, d: GroupDatum) => {\n      if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return")) {
+  if (
+    !groupsText.includes('const queueGroupSelectOrToggle = (event: MouseEvent, d: GroupDatum) => {')
+    || !groupsText.includes('if ((event as unknown as { defaultPrevented?: unknown }).defaultPrevented) return')
+    || !groupsText.includes(".on('click', queueGroupSelectOrToggle)")
+  ) {
     throw new Error('expected group label click handling to ignore prevented click events after drag gestures')
   }
 }

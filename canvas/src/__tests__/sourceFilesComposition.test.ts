@@ -1,6 +1,6 @@
 import type { GraphData } from '@/lib/graph/types'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
-import { composeGraphFromSourceLayers, resolveSourceLayerKeyChange } from '@/lib/graph/sourceLayers'
+import { buildSourceLayerKeys, composeGraphFromSourceLayers, resolveSourceLayerKeyChange } from '@/lib/graph/sourceLayers'
 import {
   areSourceFilesEqualByIdAndHash,
   buildSourceFilesCompositionSignature,
@@ -204,6 +204,79 @@ export function testSourceFilesCompositionSignatureIgnoresStatusOnlyChurn() {
   }
 }
 
+export function testSourceLayerKeysIgnoreParsedGraphRevisionOnlyChurnWhenGraphSemanticsMatch() {
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'n1', label: 'A', type: 'Thing', properties: { stage: 'draft' } }],
+    edges: [{ id: 'e1', source: 'n1', target: 'n1', label: 'self', properties: {} }],
+    metadata: {
+      kind: 'frontmatter-flow',
+      graphDataRevision: 1,
+      hash: 'rev:1',
+    },
+  }
+  const sameSemanticGraph: GraphData = {
+    ...baseGraph,
+    nodes: baseGraph.nodes.map(node => ({ ...node, properties: { ...(node.properties || {}) } })),
+    edges: baseGraph.edges.map(edge => ({ ...edge, properties: { ...(edge.properties || {}) } })),
+    metadata: {
+      kind: 'frontmatter-flow',
+      graphDataRevision: 99,
+      hash: 'rev:99',
+    },
+  }
+  const changedSemanticGraph: GraphData = {
+    ...sameSemanticGraph,
+    nodes: sameSemanticGraph.nodes.map(node => (
+      node.id === 'n1' ? { ...node, label: 'A changed' } : node
+    )),
+  }
+
+  const baseKeys = buildSourceLayerKeys([
+    {
+      id: 'sf-1',
+      name: 'demo.md',
+      text: '# Demo',
+      enabled: true,
+      parsedTextHash: 'parsed-demo',
+      parsedGraphRevision: 1,
+      parsedGraphData: baseGraph,
+      source: { kind: 'local', path: 'demo.md' },
+    },
+  ])
+  const sameSemanticKeys = buildSourceLayerKeys([
+    {
+      id: 'sf-1',
+      name: 'demo.md',
+      text: '# Demo',
+      enabled: true,
+      parsedTextHash: 'parsed-demo',
+      parsedGraphRevision: 99,
+      parsedGraphData: sameSemanticGraph,
+      source: { kind: 'local', path: 'demo.md' },
+    },
+  ])
+  const changedSemanticKeys = buildSourceLayerKeys([
+    {
+      id: 'sf-1',
+      name: 'demo.md',
+      text: '# Demo',
+      enabled: true,
+      parsedTextHash: 'parsed-demo',
+      parsedGraphRevision: 100,
+      parsedGraphData: changedSemanticGraph,
+      source: { kind: 'local', path: 'demo.md' },
+    },
+  ])
+
+  if (sameSemanticKeys.contentKey !== baseKeys.contentKey || sameSemanticKeys.orderKey !== baseKeys.orderKey) {
+    throw new Error('expected source-layer keys to ignore parsed graph revision churn when the parsed graph semantics stay unchanged')
+  }
+  if (changedSemanticKeys.contentKey === baseKeys.contentKey || changedSemanticKeys.orderKey === baseKeys.orderKey) {
+    throw new Error('expected source-layer keys to change when parsed graph semantics change')
+  }
+}
+
 export function testSourceFilesPersistenceSignatureHashesContentNotLengthOnly() {
   const left = [
     {
@@ -320,6 +393,17 @@ export function testComposedApplyDeferralHelperCentralizesRaceSuppression() {
     }) !== 'pending-text-without-parsed'
   ) {
     throw new Error('expected composed apply deferral helper to preserve the current graph while enabled text waits for its first parsed graph')
+  }
+
+  if (
+    resolveComposedApplyDeferralReason({
+      previousGraphData: previousNodeBearingGraph,
+      composedGraphData: previousNodeBearingGraph,
+      layers: [{ enabled: true, status: 'parsed', text: '# parsed text', parsedGraphData: previousNodeBearingGraph }],
+      workspaceEditorOverlayOpen: true,
+    }) !== 'workspace-editor-overlay-open'
+  ) {
+    throw new Error('expected composed apply deferral helper to preserve graph layout while the workspace/indexing overlay is open')
   }
 
   if (

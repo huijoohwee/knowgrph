@@ -1,4 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import {
   buildSourceLayerKeys,
   composeGraphFromSourceLayers,
@@ -14,6 +15,24 @@ import {
 import { resolvePreferredComposedSourceRawTextFromState } from '@/features/source-files/composedSourceSelection'
 
 let pendingComposeRaf: number | null = null
+let pendingComposeAfterWorkspaceOverlayClose = false
+let workspaceOverlayComposeRetryUnsubscribe: (() => void) | null = null
+
+function ensureWorkspaceOverlayComposeRetrySubscription() {
+  if (workspaceOverlayComposeRetryUnsubscribe) return
+  workspaceOverlayComposeRetryUnsubscribe = useGraphStore.subscribe(
+    s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen] as const,
+    ([workspaceViewMode, workspaceCanvasPaneOpen], previous) => {
+      const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
+      const previousOverlayOpen = Array.isArray(previous)
+        ? isWorkspaceEditorOverlayOpen({ workspaceViewMode: previous[0], workspaceCanvasPaneOpen: previous[1] })
+        : workspaceOverlayOpen
+      if (!pendingComposeAfterWorkspaceOverlayClose || workspaceOverlayOpen || !previousOverlayOpen) return
+      pendingComposeAfterWorkspaceOverlayClose = false
+      scheduleApplyComposedGraphFromSourceFiles()
+    },
+  )
+}
 
 function applyComposedSourceImportModes(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
   try {
@@ -35,6 +54,7 @@ function applyComposedSourceImportModes(graphData: ReturnType<typeof composeGrap
 }
 
 export function scheduleApplyComposedGraphFromSourceFiles() {
+  ensureWorkspaceOverlayComposeRetrySubscription()
   if (pendingComposeRaf != null) return
   const w = typeof window !== 'undefined' ? window : null
   if (!w || typeof w.requestAnimationFrame !== 'function') {
@@ -49,6 +69,7 @@ export function scheduleApplyComposedGraphFromSourceFiles() {
 
 export function applyComposedGraphFromSourceFiles() {
   const store = useGraphStore.getState()
+  const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(store)
   const hasEnabledSourceFiles = (store.sourceFiles || []).some(f => Boolean(f?.enabled))
   if (!hasEnabledSourceFiles) {
     if (
@@ -106,8 +127,14 @@ export function applyComposedGraphFromSourceFiles() {
       layers,
       composedGraphData: graphData,
       previousGraphData: store.graphData,
+      workspaceEditorOverlayOpen,
     })
-  ) return
+  ) {
+    if (workspaceEditorOverlayOpen) pendingComposeAfterWorkspaceOverlayClose = true
+    return
+  }
+
+  pendingComposeAfterWorkspaceOverlayClose = false
 
   if (change === 'order-only') {
     store.setGraphDataPreservingLayout(graphData)

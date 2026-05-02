@@ -86,6 +86,7 @@ export const createUiInitialState = (
     ),
 
     workspaceCanvasPaneOpen: initialWorkspaceCanvasPaneOpen,
+    markdownWorkspaceIndexingInFlight: false,
     setWorkspaceCanvasPaneOpen: (open: boolean) =>
       set(state => {
         const rawNext = open === false ? false : true
@@ -93,6 +94,12 @@ export const createUiInitialState = (
         if (state.workspaceCanvasPaneOpen === next) return {}
         lsSetBool(LS_KEYS.workspaceCanvasPaneOpen, next)
         return { workspaceCanvasPaneOpen: next } as Partial<GraphState>
+      }),
+    setMarkdownWorkspaceIndexingInFlight: (inFlight: boolean) =>
+      set(state => {
+        const next = inFlight === true
+        if (state.markdownWorkspaceIndexingInFlight === next) return {}
+        return { markdownWorkspaceIndexingInFlight: next } as Partial<GraphState>
       }),
 
     paymentsStripePaywallEnabled: lsBool(LS_KEYS.paymentsStripePaywallEnabled, false),

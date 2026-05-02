@@ -228,6 +228,7 @@ export function useFlowEditorWorkflowActions(args: {
           ...nodeProps,
           outputLoading: loadingArgs.loading === true ? true : undefined,
           outputLoadingKind: loadingArgs.loading === true ? (loadingArgs.kind || undefined) : undefined,
+          lastRunAt: loadingArgs.loading === true ? new Date().toISOString() : nodeProps.lastRunAt,
         }))
       }
 
@@ -308,6 +309,7 @@ export function useFlowEditorWorkflowActions(args: {
           richMediaActiveTab: 'text',
           outputLoading: panelArgs.loading === true ? true : undefined,
           outputLoadingKind: panelArgs.loading === true ? 'text' : undefined,
+          lastRunAt: panelArgs.loading === true ? new Date().toISOString() : undefined,
           outputSourceUrl: typeof panelArgs.sourceUrl === 'string' && panelArgs.sourceUrl.trim() ? panelArgs.sourceUrl.trim() : undefined,
         }
         updatePanelInDraft(panelNodeId, patch)
@@ -439,13 +441,13 @@ export function useFlowEditorWorkflowActions(args: {
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
         const mirrorTextOutputToRichMediaPanel = isFlowVideoScriptFormId(resolvedTextRegistryEntry?.formId) || providerFamily === 'byteplus'
         if (mirrorTextOutputToRichMediaPanel) {
-          updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: true, outputLoadingKind: 'text' }))
+          updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: true, outputLoadingKind: 'text', lastRunAt: new Date().toISOString() }))
         }
         let lastPublishedText = ''
         const publishTextRunOutput = (outputText: string, loading: boolean) => {
           const nextOutput = String(outputText || '')
           if (mirrorTextOutputToRichMediaPanel) {
-            updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: loading === true ? true : undefined, outputLoadingKind: loading === true ? 'text' : undefined }))
+            updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: loading === true ? true : undefined, outputLoadingKind: loading === true ? 'text' : undefined, lastRunAt: loading === true ? new Date().toISOString() : undefined }))
             publishTextRunOutputToRichMediaPanel({ anchorNode: node, outputText: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || useGraphStore.getState().chatModel, loading })
             return
           }

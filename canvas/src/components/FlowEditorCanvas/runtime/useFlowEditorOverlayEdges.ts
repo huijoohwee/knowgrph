@@ -36,9 +36,9 @@ import {
   readGlobalEdgeThicknessPx,
   readGlobalEdgeType,
 } from '@/lib/graph/edgeTypes'
-import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { readEdgeEndpointId, readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getEdgeBaseStroke, getEdgeStrokeWidth } from '@/components/GraphCanvas/helpers'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import {
   type FlowEditorQeTraceWindow,
   isFlowEditorQeTraceEnabled,
@@ -579,8 +579,7 @@ export function useFlowEditorOverlayEdges(args: {
         }> = []
         for (let i = 0; i < rawEdges.length; i += 1) {
           const id = String(rawEdges[i]?.id || '').trim()
-          const source = readEdgeEndpointId(rawEdges[i]?.source)
-          const target = readEdgeEndpointId(rawEdges[i]?.target)
+          const { src: source, tgt: target } = readGraphEdgeEndpoints(rawEdges[i])
           if (!id || !source || !target) continue
           if (!overlayIdSet.has(source) || !overlayIdSet.has(target)) continue
           const props = rawEdges[i]?.properties
@@ -692,8 +691,7 @@ export function useFlowEditorOverlayEdges(args: {
         const overlayEdgeKeyParts: string[] = []
         for (let i = 0; i < edges.length; i += 1) {
           const e = edges[i]
-          const sourceId = readEdgeEndpointId(e.source)
-          const targetId = readEdgeEndpointId(e.target)
+          const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(e)
           overlayEdgeKeyParts.push(`${e.id}:${sourceId}->${targetId}:${e.sourcePortKey}|${e.targetPortKey}`)
         }
         const overlayEdgeKey = hashScopedStringArraySignature('topPct-overlay-edges', overlayEdgeKeyParts, {
@@ -785,8 +783,7 @@ export function useFlowEditorOverlayEdges(args: {
         }
         const edgeParts = edges
           .map(e => {
-            const sourceId = readEdgeEndpointId(e.source)
-            const targetId = readEdgeEndpointId(e.target)
+            const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(e)
             return `${e.id}:${sourceId}->${targetId}:${e.sourcePortKey}|${e.targetPortKey}:${e.stroke}:${e.strokeWidth}`
           })
           .sort((a, b) => a.localeCompare(b))
@@ -1066,11 +1063,11 @@ export function useFlowEditorOverlayEdges(args: {
   }, [args.flowEditorSurfaceId, pushOverlayEdgeTrace, readOverlayEdgeHarnessSnapshot, scheduleOverlayEdgeUpdate])
 
   React.useEffect(() => {
-    const readWorkspaceOverlayOpen = () => isWorkspaceEditorOverlayOpen(useGraphStore.getState())
+    const readWorkspaceOverlayOpen = () => isWorkspaceGraphMutationBlocked(useGraphStore.getState())
     workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
     if (workspaceOverlayOpenRef.current) cancelOverlayEdgeUpdate()
     const unsub = useGraphStore.subscribe(
-      s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen] as const,
+      s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen, s.markdownWorkspaceIndexingInFlight] as const,
       () => {
         const wasOpen = workspaceOverlayOpenRef.current
         const isOpen = readWorkspaceOverlayOpen()

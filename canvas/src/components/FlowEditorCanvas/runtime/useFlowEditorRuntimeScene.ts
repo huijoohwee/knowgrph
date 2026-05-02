@@ -9,7 +9,7 @@ import {
   shouldAutoPlaceFlowEditorWidget,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { emitFlowEditorInteractionFrame as emitFlowEditorInteractionFrameEvent } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
@@ -361,7 +361,7 @@ export function useFlowEditorRuntimeScene(args: {
     }
     latestAutoSeedWorldPosByNodeIdRef.current = nextAutoSeedPositions
     if (!changed) return
-    if (isWorkspaceEditorOverlayOpen(st)) return
+    if (isWorkspaceGraphMutationBlocked(st)) return
     st.setFlowWidgetWorldPosByNodeId(nextWorld)
   }, [args.active, args.openWidgetNodeIds, args.overlayTopologyLayoutSignature, args.schema, args.viewportH, args.viewportW, args.zoomViewKeyRef, getLiveContainmentGroupAabbForNode, getLiveZoomTransform])
 

@@ -12,6 +12,7 @@ import { markGraphCanvasUserInteracted } from '@/components/GraphCanvas/userInte
 import { cancelPendingRefreeze, scheduleSimulationRefreezeAfterDrag } from '@/components/GraphCanvas/dragRefreeze'
 import { beginDragForceTuning } from '@/components/GraphCanvas/dragForceTuning'
 import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 
 export const nodeDragBehavior = (
   simulation: d3.Simulation<GraphNode, GraphEdge>,
@@ -383,8 +384,7 @@ export const edgeDragBehavior = (simulation: d3.Simulation<GraphNode, GraphEdge>
 
         // Find source and target nodes
         const nodes = simulation.nodes()
-        const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source
-        const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target
+        const { src: sId, tgt: tId } = readGraphEdgeEndpoints(d)
         sourceNode = nodes.find(n => String(n.id) === String(sId))
         targetNode = nodes.find(n => String(n.id) === String(tId))
         

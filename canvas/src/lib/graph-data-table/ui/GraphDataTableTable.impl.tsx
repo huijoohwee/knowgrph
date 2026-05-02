@@ -15,7 +15,8 @@ import {
   type UnifiedRow,
 } from '@/features/graph-data-table/graphDataTable'
 import type { GraphFieldSettingsResolved } from '@/features/graph-fields/graphFields'
-import { computeNeighborIds, normalizeSelectionIds, type SelectionHighlightParams } from '@/components/GraphCanvas/highlight'
+import { computeNeighborIds, type SelectionHighlightParams } from '@/components/GraphCanvas/highlight'
+import { buildSelectionAnchorIdSets } from '@/lib/selection/anchorIds'
 import { selectionPerfStart, selectionPerfEnd } from '@/lib/selectionPerf'
 import {
   useGraphDataTableWindowing,
@@ -31,6 +32,8 @@ import { MarkdownDataViewSingleSelect } from '@/features/markdown/ui/MarkdownDat
 import { MarkdownDataViewMultiTagSelect } from '@/features/markdown/ui/MarkdownDataViewMultiTagSelect'
 import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
 import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 function reorderColumnKeys(
   baseOrder: GraphDataTableColumnKey[],
@@ -210,16 +213,12 @@ function createSelectionSets(
   selectedNodeIds: string[],
   selectedEdgeIds: string[],
 ) {
-  const { selectionNodeIds, selectionEdgeIds } = normalizeSelectionIds({
+  return buildSelectionAnchorIdSets({
     selectedNodeId,
     selectedEdgeId,
     selectedNodeIds,
     selectedEdgeIds,
   })
-  return {
-    selectedNodeIdSet: new Set<string>(selectionNodeIds.map(String)),
-    selectedEdgeIdSet: new Set<string>(selectionEdgeIds.map(String)),
-  }
 }
 
 export const GraphDataTable = React.memo(function GraphDataTable({
@@ -284,6 +283,20 @@ export const GraphDataTable = React.memo(function GraphDataTable({
     stableGraphContentRevisionRef.current = graphContentRevision
   }, [graphContentRevision, graphDataRaw])
   const graphData = infiniteCanvasInteractionMode === 'interactive' ? graphDataRaw : stableGraphDataRef.current
+  const graphSemanticKey = React.useMemo(
+    () => buildScopedGraphSemanticKey('graph-data-table-root-graph', { graphData, graphRevision: graphContentRevision }),
+    [graphContentRevision, graphData],
+  )
+  const graphLookup = React.useMemo(
+    () => getCachedGraphLookup({
+      cacheScope: 'graph-data-table-root-graph',
+      graphData,
+      graphRevision: graphContentRevision,
+      graphSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    }),
+    [graphContentRevision, graphData, graphSemanticKey],
+  )
   const schema = useGraphStore(s => s.schema) as GraphSchema | null
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const columnWidths = useGraphStore(s => s.graphDataTableColumnWidths)
@@ -703,28 +716,22 @@ export const GraphDataTable = React.memo(function GraphDataTable({
 
   const incidentEdgeIds = React.useMemo(() => {
     const ids = new Set<string>()
-    if (!graphData || selectionSets.selectedNodeIdSet.size === 0) return ids
-    for (let i = 0; i < graphData.edges.length; i += 1) {
-      const e = graphData.edges[i]
-      const src = String(e.source)
-      const tgt = String(e.target)
-      if (selectionSets.selectedNodeIdSet.has(src) || selectionSets.selectedNodeIdSet.has(tgt)) {
-        ids.add(e.id)
+    if (!graphLookup || selectionSets.selectedNodeIdSet.size === 0) return ids
+    for (const nodeId of selectionSets.selectedNodeIdSet) {
+      const incidentEdges = graphLookup.incidentEdgesByNodeId.get(nodeId) || []
+      for (let i = 0; i < incidentEdges.length; i += 1) {
+        const edgeId = String(incidentEdges[i]?.id || '').trim()
+        if (edgeId) ids.add(edgeId)
       }
     }
     return ids
-  }, [graphData, selectionSets.selectedNodeIdSet])
+  }, [graphLookup, selectionSets.selectedNodeIdSet])
 
   const edgeEndpointNodeIds = React.useMemo(() => {
     const ids = new Set<string>()
-    if (!graphData || selectionSets.selectedEdgeIdSet.size === 0) return ids
-    const edgeById = new Map<string, (typeof graphData.edges)[number]>()
-    for (let i = 0; i < graphData.edges.length; i += 1) {
-      const edge = graphData.edges[i]
-      edgeById.set(edge.id, edge)
-    }
+    if (!graphLookup || selectionSets.selectedEdgeIdSet.size === 0) return ids
     for (const eid of selectionSets.selectedEdgeIdSet) {
-      const edge = edgeById.get(eid)
+      const edge = graphLookup.edgeById.get(eid)
       if (!edge) continue
       const src = String(edge.source)
       const tgt = String(edge.target)
@@ -732,7 +739,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
       if (tgt) ids.add(tgt)
     }
     return ids
-  }, [graphData, selectionSets.selectedEdgeIdSet])
+  }, [graphLookup, selectionSets.selectedEdgeIdSet])
 
   const [flashSelectionId, setFlashSelectionId] = React.useState<string | null>(null)
 

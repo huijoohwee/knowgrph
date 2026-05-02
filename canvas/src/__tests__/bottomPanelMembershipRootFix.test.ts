@@ -76,6 +76,17 @@ export function testBottomPanelVisibleRowsReuseSharedMembershipHelpers() {
     ),
     'utf8',
   )
+  const selectionNeighborhoodText = readFileSync(
+    resolve(
+      process.cwd(),
+      'src',
+      'components',
+      'BottomPanel',
+      'hooks',
+      'useBottomPanelCuratorSelectionNeighborhood.ts',
+    ),
+    'utf8',
+  )
 
   if (
     !graphFileText.includes('const selectionSubgraphMembershipCache = new Map<string, SelectionSubgraphMembership | null>()')
@@ -97,24 +108,27 @@ export function testBottomPanelVisibleRowsReuseSharedMembershipHelpers() {
   }
 
   if (
-    !visibleRowsText.includes('readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)')
+    !selectionNeighborhoodText.includes('readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)')
+    || !selectionNeighborhoodText.includes("const graphData = React.useMemo<GraphData>(() => ({ type: 'Graph', nodes, edges }), [edges, nodes])")
+    || !selectionNeighborhoodText.includes("const sampleGraphData = selectionNeighborhoodMembership?.subgraph ?? graphData")
+    || !visibleRowsText.includes('useBottomPanelCuratorSelectionNeighborhood({')
     || !visibleRowsText.includes('readTraversalSummaryMembership(graphData, lastTraversalSummary, {')
     || !visibleRowsText.includes('graphRevision: graphDataRevision')
-    || !visibleRowsText.includes("const graphData = React.useMemo<GraphData>(() => ({ type: 'Graph', nodes, edges }), [edges, nodes])")
-    || !visibleRowsText.includes("'bottom-panel-curator-visible-rows-graph'")
+    || !visibleRowsText.includes('selectionNeighborhoodMembership,')
     || visibleRowsText.includes('selectionSubgraph.nodes.map(')
     || visibleRowsText.includes('selectionSubgraph.edges.map(')
     || visibleRowsText.includes('for (const edge of edges)')
   ) {
-    throw new Error('expected bottom-panel visible rows to consume shared membership helpers and a memoized root graph wrapper instead of rebuilding local membership sets')
+    throw new Error('expected bottom-panel visible rows to consume the shared selection-neighborhood helper and traversal membership helpers with a memoized root graph wrapper instead of rebuilding local membership state')
   }
 
   if (
-    !fieldAggregatesText.includes('readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)')
-    || !fieldAggregatesText.includes('const sampleGraphData = selectionMembership?.subgraph ?? graphData')
+    !fieldAggregatesText.includes('useBottomPanelCuratorSelectionNeighborhood({')
+    || !fieldAggregatesText.includes('sampleGraphData,')
+    || !fieldAggregatesText.includes('sampleGraphSemanticKey,')
     || fieldAggregatesText.includes('buildSelectionSubgraphForAnchorIds(')
-    || fieldAggregatesText.includes("value: { type: 'Graph', nodes: sampleNodes, edges: sampleEdges }")
+    || fieldAggregatesText.includes('readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)')
   ) {
-    throw new Error('expected bottom-panel field aggregates to reuse the shared selection membership subgraph instead of rebuilding a local sample graph')
+    throw new Error('expected bottom-panel field aggregates to reuse the shared selection-neighborhood helper instead of rebuilding a local sample graph')
   }
 }

@@ -14,10 +14,13 @@ export function testGeospatialOverlayGraphDataUsesSemanticCache() {
     !geospatialOverlayText.includes('const geospatialOverlayGraphCache = new Map<string, GraphData>()')
     || !geospatialOverlayText.includes("buildScopedGraphSemanticKey('geospatial-overlay-base-graph'")
     || !geospatialOverlayText.includes('buildSourceFilesSemanticSignature')
+    || !geospatialOverlayText.includes('const resolvedOverlayContext = resolveGeospatialOverlayContext(args)')
+    || !geospatialOverlayText.includes('const resolveGeospatialOverlayContext = (args: {')
     || !geospatialOverlayText.includes('const cacheKey = buildGeospatialOverlayGraphCacheKey(args)')
     || !geospatialOverlayText.includes('const cached = readCachedGeospatialOverlayGraphData(cacheKey)')
+    || geospatialOverlayText.includes('const markdownContext = resolveMarkdownContext(args)')
   ) {
-    throw new Error('expected geospatial overlay graph data helper to cache by semantic graph and source-file signatures instead of rebuilding every render')
+    throw new Error('expected geospatial overlay graph data helper to cache by semantic graph and source-file signatures and resolve source context in a single pass')
   }
 
   if (!canvasViewportText.includes('graphRevision: graphDataRevision')) {

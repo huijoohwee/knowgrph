@@ -13,7 +13,7 @@ import {
 } from '@/lib/graph/layoutDefaults'
 import { useOutsideClose } from '@/hooks/useOutsideClose'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import {
@@ -436,7 +436,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     (pos: { top: number; left: number }) => {
       if (!nodeId) return
       const state = useGraphStore.getState()
-      if (isWorkspaceEditorOverlayOpen(state)) return
+      if (isWorkspaceGraphMutationBlocked(state)) return
       const current = state.flowWidgetPosByNodeId || {}
       const prev = current[nodeId]
       if (prev && prev.top === pos.top && prev.left === pos.left) return
@@ -452,9 +452,10 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       const state = useGraphStore.getState() as {
         workspaceViewMode: 'canvas' | 'editor'
         workspaceCanvasPaneOpen: boolean
+        markdownWorkspaceIndexingInFlight?: boolean
         flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
       }
-      if (isWorkspaceEditorOverlayOpen(state)) return
+      if (isWorkspaceGraphMutationBlocked(state)) return
       const current = state.flowWidgetWorldPosByNodeId || {}
       const prev = current[nodeId]
       if (prev && Math.abs(prev.x - pos.x) <= 0.0001 && Math.abs(prev.y - pos.y) <= 0.0001) return

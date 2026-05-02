@@ -29,11 +29,13 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const scenePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const surfacePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const topologySignaturePath = path.resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'overlayTopologyLayoutSignature.ts')
   const presentationPath = path.resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3PresentationUpdates2d.ts')
   const hookText = readUtf8(hookPath)
   const runtimeText = readUtf8(runtimePath)
   const sceneText = readUtf8(scenePath)
   const surfaceText = readUtf8(surfacePath)
+  const topologySignatureText = readUtf8(topologySignaturePath)
   const presentationText = readUtf8(presentationPath)
   if (!hookText.includes('const posSig = buildPosSignature(overlayNodeIds, st.flowWidgetPosByNodeId)')) {
     throw new Error('expected overlay collision key to include shared stored-position signatures')
@@ -154,6 +156,24 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   }
   if (!hookText.includes("return buildOverlayTopologyLayoutSignature(graphDataForOverlayRuntime)")) {
     throw new Error('expected overlay collision topology/layout signature to be derived from the resolved graph source')
+  }
+  if (!topologySignatureText.includes("import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'")) {
+    throw new Error('expected shared overlay topology/layout signature to reuse graph edge endpoint normalization')
+  }
+  if (!topologySignatureText.includes("import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'")) {
+    throw new Error('expected shared overlay topology/layout signature to reuse shared flow edge port readers')
+  }
+  if (!topologySignatureText.includes('const { src, tgt } = readGraphEdgeEndpoints(edge)')) {
+    throw new Error('expected shared overlay topology/layout signature to normalize edge endpoints through the shared pair helper')
+  }
+  if (!topologySignatureText.includes("const sourcePortKey = readFlowEdgePortKey(edge, 'source') || ''")) {
+    throw new Error('expected shared overlay topology/layout signature to derive source port keys through the shared flow-port helper')
+  }
+  if (!topologySignatureText.includes("const targetPortKey = readFlowEdgePortKey(edge, 'target') || ''")) {
+    throw new Error('expected shared overlay topology/layout signature to derive target port keys through the shared flow-port helper')
+  }
+  if (topologySignatureText.includes("String(edge.source || '').trim()") || topologySignatureText.includes("String(props.sourcePort || props['flow:sourcePort'] || '').trim()")) {
+    throw new Error('expected shared overlay topology/layout signature to avoid raw endpoint and legacy port alias reads')
   }
   if (!hookText.includes('overlayTopologyLayoutSignature,') || hookText.includes('graphContentRevision,\n    overlayOnlyModeEnabled')) {
     throw new Error('expected run-output graph content revisions to avoid resetting Balanced overlay collision layout')

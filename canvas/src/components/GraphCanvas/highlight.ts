@@ -6,10 +6,12 @@ import { getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas
 import { getEdgeBaseStroke, getLayerOpacity, getVisualOpacity, getNodeBaseFill, getEdgeStrokeWidth, hasNodeMedia } from '@/components/GraphCanvas/helpers';
 import { UI_THEME_COLORS_CSS, type ThemeColors } from '@/lib/ui/theme-tokens';
 import {
+  buildSelectionAnchorIdSets,
   normalizeSelectionAnchorIds,
   useSelectionAnchorIds,
   type SelectionIdParams,
 } from '@/lib/selection/anchorIds'
+import { buildSelectedEdgeEndpointNodeIdSet } from '@/lib/graph/edgeEndpoints'
 
 export type SelectionHighlightParams = {
   data: GraphData
@@ -50,24 +52,19 @@ function deriveSelectionSets(params: SelectionHighlightParams): {
   selectedEdgeEndpointNodeIdSet: Set<string>
 } {
   const { data, selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds } = params
-  const { selectionNodeIds, selectionEdgeIds } = normalizeSelectionIds({
+  const { selectionNodeIds } = normalizeSelectionIds({
     selectedNodeId,
     selectedEdgeId,
     selectedNodeIds,
     selectedEdgeIds,
   })
-  const selectedNodeIdSet = new Set<string>(selectionNodeIds.map(String))
-  const selectedEdgeIdSet = new Set<string>(selectionEdgeIds.map(String))
-  const selectedEdgeEndpointNodeIdSet = new Set<string>()
-  if (selectedEdgeIdSet.size > 0) {
-    for (let i = 0; i < data.edges.length; i += 1) {
-      const e = data.edges[i]
-      if (!selectedEdgeIdSet.has(String(e.id))) continue
-      const { src, tgt } = getEdgeEndpoints(e as EdgeWithRuntime)
-      if (src) selectedEdgeEndpointNodeIdSet.add(src)
-      if (tgt) selectedEdgeEndpointNodeIdSet.add(tgt)
-    }
-  }
+  const { selectedNodeIdSet, selectedEdgeIdSet } = buildSelectionAnchorIdSets({
+    selectedNodeId,
+    selectedEdgeId,
+    selectedNodeIds,
+    selectedEdgeIds,
+  })
+  const selectedEdgeEndpointNodeIdSet = buildSelectedEdgeEndpointNodeIdSet(data.edges, selectedEdgeIdSet)
   return { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet }
 }
 

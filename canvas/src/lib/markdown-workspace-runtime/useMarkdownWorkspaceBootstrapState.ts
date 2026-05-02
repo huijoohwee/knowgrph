@@ -3,6 +3,7 @@ import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { readMarkdownExplorerChromeState } from '@/features/markdown/ui/markdownExplorerChromePersistence'
@@ -20,6 +21,7 @@ export function useMarkdownWorkspaceBootstrapState(args: {
   activePath: WorkspacePath | null
   effectiveBottomPanelCollapsed: boolean
 }) {
+  const setMarkdownWorkspaceIndexingInFlight = useGraphStore(s => s.setMarkdownWorkspaceIndexingInFlight)
   const [entries, setEntries] = React.useState<WorkspaceEntry[]>([])
   const [sourcesByPath, setSourcesByPath] = React.useState(() => loadWorkspaceSourceIndex())
   const [loading, setLoading] = React.useState(true)
@@ -87,6 +89,25 @@ export function useMarkdownWorkspaceBootstrapState(args: {
   const repairedMissingWorkspaceFilesRef = React.useRef<Set<WorkspacePath>>(new Set())
   const lastIndexedByPathRef = React.useRef<Map<WorkspacePath, string>>(new Map())
   const indexJobRef = React.useRef(0)
+  const [indexingInFlight, setIndexingInFlightState] = React.useState(false)
+  const setIndexingInFlight = React.useCallback<React.Dispatch<React.SetStateAction<boolean>>>(
+    next => {
+      setIndexingInFlightState(prev => {
+        const resolved = typeof next === 'function' ? next(prev) : next
+        const normalized = resolved === true
+        setMarkdownWorkspaceIndexingInFlight(normalized)
+        return normalized
+      })
+    },
+    [setMarkdownWorkspaceIndexingInFlight],
+  )
+  const indexingInFlightRef = React.useRef(false)
+  indexingInFlightRef.current = indexingInFlight
+  React.useEffect(() => {
+    return () => {
+      setMarkdownWorkspaceIndexingInFlight(false)
+    }
+  }, [setMarkdownWorkspaceIndexingInFlight])
   const collapsedSnapshotRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const prevCollapsedRef = React.useRef<boolean>(args.effectiveBottomPanelCollapsed)
   const lastRequestedActivePathRef = React.useRef<{ path: WorkspacePath; atMs: number } | null>(null)
@@ -147,6 +168,9 @@ export function useMarkdownWorkspaceBootstrapState(args: {
     repairedMissingWorkspaceFilesRef,
     lastIndexedByPathRef,
     indexJobRef,
+    indexingInFlight,
+    setIndexingInFlight,
+    indexingInFlightRef,
     collapsedSnapshotRef,
     prevCollapsedRef,
     lastRequestedActivePathRef,

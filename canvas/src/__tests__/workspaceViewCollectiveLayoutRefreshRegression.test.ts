@@ -13,11 +13,11 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   if (!text.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
     throw new Error('expected Flow Editor collective collision to track workspace overlay open state without key coupling')
   }
-  if (!text.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected Flow Editor collective collision to reuse workspace overlay-open SSOT')
+  if (!text.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Flow Editor collective collision to reuse the shared workspace/indexing mutation guard')
   }
-  if (!text.includes('isWorkspaceEditorOverlayOpen(useGraphStore.getState())')) {
-    throw new Error('expected Flow Editor collective collision to derive workspace overlay open state via SSOT helper')
+  if (!text.includes('isWorkspaceGraphMutationBlocked(useGraphStore.getState())')) {
+    throw new Error('expected Flow Editor collective collision to derive Workspace/Indexing mutation state via the shared guard')
   }
   if (!text.includes('if (workspaceOverlayOpenRef.current) return')) {
     throw new Error('expected workspace overlay open state to block persisted Flow Editor widget position mutation')
@@ -35,50 +35,50 @@ export function testWorkspaceViewUpdateSchedulesFlowEditorCollectiveCollisionRef
   }
   const editorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const editorText = readFileSync(editorPath, 'utf8')
-  if (!editorText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected direct Flow Editor widget persistence to reuse workspace overlay-open SSOT')
+  if (!editorText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected direct Flow Editor widget persistence to reuse the shared workspace/indexing mutation guard')
   }
-  const directScreenGuardIndex = editorText.indexOf('if (isWorkspaceEditorOverlayOpen(state)) return')
+  const directScreenGuardIndex = editorText.indexOf('if (isWorkspaceGraphMutationBlocked(state)) return')
   const directScreenWritebackIndex = editorText.indexOf('state.setFlowWidgetPosByNodeId(next)')
   if (directScreenGuardIndex < 0 || directScreenWritebackIndex < 0 || directScreenGuardIndex > directScreenWritebackIndex) {
-    throw new Error('expected workspace overlay mutation guard before direct Flow Editor screen-position writeback')
+    throw new Error('expected Workspace/Indexing mutation guard before direct Flow Editor screen-position writeback')
   }
-  const directWorldGuardIndex = editorText.indexOf('flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>\n      }\n      if (isWorkspaceEditorOverlayOpen(state)) return')
+  const directWorldGuardIndex = editorText.indexOf('markdownWorkspaceIndexingInFlight?: boolean\n        flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>\n      }\n      if (isWorkspaceGraphMutationBlocked(state)) return')
   const directWorldWritebackIndex = editorText.indexOf('setFlowWidgetWorldPosByNodeId(next)')
   if (directWorldGuardIndex < 0 || directWorldWritebackIndex < 0 || directWorldGuardIndex > directWorldWritebackIndex) {
-    throw new Error('expected workspace overlay mutation guard before direct Flow Editor world-position writeback')
+    throw new Error('expected Workspace/Indexing mutation guard before direct Flow Editor world-position writeback')
   }
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const runtimeText = readFileSync(runtimePath, 'utf8')
   const overlayEdgesPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
   const overlayEdgesText = readFileSync(overlayEdgesPath, 'utf8')
-  const worldSeedGuardIndex = runtimeText.indexOf('if (isWorkspaceEditorOverlayOpen(st)) return')
+  const worldSeedGuardIndex = runtimeText.indexOf('if (isWorkspaceGraphMutationBlocked(st)) return')
   const worldSeedWriteIndex = runtimeText.indexOf('st.setFlowWidgetWorldPosByNodeId(nextWorld)')
   if (worldSeedGuardIndex < 0 || worldSeedWriteIndex < 0 || worldSeedGuardIndex > worldSeedWriteIndex) {
-    throw new Error('expected pinned widget auto-seed world-position persistence to be blocked while workspace overlay is open')
+    throw new Error('expected pinned widget auto-seed world-position persistence to be blocked while Workspace/Indexing mutation guard is active')
   }
   const storePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graphViewSlice.ts')
   const storeText = readFileSync(storePath, 'utf8')
-  if (!storeText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected Flow widget store setters to reuse workspace overlay-open SSOT')
+  if (!storeText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Flow widget store setters to reuse the shared workspace/indexing mutation guard')
   }
-  const storePinnedGuardIndex = storeText.indexOf('if (isWorkspaceEditorOverlayOpen(state)) return')
+  const storePinnedGuardIndex = storeText.indexOf('if (isWorkspaceGraphMutationBlocked(state)) return')
   const storePinnedWriteIndex = storeText.indexOf('scheduleFlowWidgetPersistence({ pinned: { graphKey, value: nextPinnedById } })')
   if (storePinnedGuardIndex < 0 || storePinnedWriteIndex < 0 || storePinnedGuardIndex > storePinnedWriteIndex) {
-    throw new Error('expected root Flow widget pinned-state setter to reject workspace overlay writes')
+    throw new Error('expected root Flow widget pinned-state setter to reject Workspace/Indexing mutation writes')
   }
-  const storeScreenGuardIndex = storeText.indexOf('if (isWorkspaceEditorOverlayOpen(state)) return', storePinnedGuardIndex + 1)
+  const storeScreenGuardIndex = storeText.indexOf('if (isWorkspaceGraphMutationBlocked(state)) return', storePinnedGuardIndex + 1)
   const storeScreenWriteIndex = storeText.indexOf('scheduleFlowWidgetPersistence({ pos: { graphKey, value: nextPosByNodeId } })')
   if (storeScreenGuardIndex < 0 || storeScreenWriteIndex < 0 || storeScreenGuardIndex > storeScreenWriteIndex) {
-    throw new Error('expected root Flow widget screen-position setter to reject workspace overlay writes')
+    throw new Error('expected root Flow widget screen-position setter to reject Workspace/Indexing mutation writes')
   }
-  const storeWorldGuardIndex = storeText.indexOf('if (isWorkspaceEditorOverlayOpen(state)) return', storeScreenGuardIndex + 1)
+  const storeWorldGuardIndex = storeText.indexOf('if (isWorkspaceGraphMutationBlocked(state)) return', storeScreenGuardIndex + 1)
   const storeWorldWriteIndex = storeText.indexOf('scheduleFlowWidgetPersistence({ world: { graphKey, value: nextWorldByNodeId } })')
   if (storeWorldGuardIndex < 0 || storeWorldWriteIndex < 0 || storeWorldGuardIndex > storeWorldWriteIndex) {
-    throw new Error('expected root Flow widget world-position setter to reject workspace overlay writes')
+    throw new Error('expected root Flow widget world-position setter to reject Workspace/Indexing mutation writes')
   }
-  if (!overlayEdgesText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected Flow Editor overlay edge scheduler to reuse workspace overlay-open SSOT')
+  if (!overlayEdgesText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Flow Editor overlay edge scheduler to reuse the shared workspace/indexing mutation guard')
   }
   if (!overlayEdgesText.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
     throw new Error('expected Flow Editor overlay edge scheduler to keep workspace overlay-open state as a latest-value guard')
@@ -121,28 +121,28 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('flowEditorFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas media overlay loop dependencies to include frontmatter document mode')
   }
-  const flowCommitGuardIndex = commitText.indexOf('if (workspaceOverlayOpen) return')
+  const flowCommitGuardIndex = commitText.indexOf('if (workspaceMutationBlocked) return')
   const flowCommitWriteIndex = commitText.indexOf('if (changed) setLayoutPositionsForMode(cacheKey, nextPositions)')
   if (flowCommitGuardIndex < 0 || flowCommitWriteIndex < 0 || flowCommitGuardIndex > flowCommitWriteIndex) {
-    throw new Error('expected Flow request commit to block layout persistence while workspace overlay is open')
+    throw new Error('expected Flow request commit to block layout persistence while Workspace/Indexing mutation guard is active')
   }
-  const computedGuardIndex = computedText.indexOf('!isWorkspaceEditorOverlayOpen(useGraphStore.getState())')
+  const computedGuardIndex = computedText.indexOf('!isWorkspaceGraphMutationBlocked(workspaceState)')
   const computedWriteIndex = computedText.indexOf('setLayoutPositionsForMode(cacheKey, packed)')
   if (computedGuardIndex < 0 || computedWriteIndex < 0 || computedGuardIndex > computedWriteIndex) {
-    throw new Error('expected Flow computed positions to block layout cache writes while workspace overlay is open')
+    throw new Error('expected Flow computed positions to block layout cache writes while Workspace/Indexing mutation guard is active')
   }
   if (!computedText.includes("cacheScope: 'flow-canvas-computed-positions-scene-graph'") || !computedText.includes('getCachedGraphLookup({')) {
     throw new Error('expected Flow computed positions to reuse the shared scene-graph lookup helper instead of rebuilding local Mermaid sizing maps')
   }
   const storePath = resolve(process.cwd(), 'src', 'hooks', 'useGraphStore.ts')
   const storeText = readFileSync(storePath, 'utf8')
-  const rootLayoutGuardIndex = storeText.indexOf('if (isWorkspaceEditorOverlayOpen(get())) return')
+  const rootLayoutGuardIndex = storeText.indexOf('if (isWorkspaceGraphMutationBlocked(get())) return')
   const rootLayoutWriteIndex = storeText.indexOf('set({ layoutPositionCacheByMode: { ...prev, [key]: positions } })')
   if (rootLayoutGuardIndex < 0 || rootLayoutWriteIndex < 0 || rootLayoutGuardIndex > rootLayoutWriteIndex) {
-    throw new Error('expected root layout cache setter to reject workspace overlay writes')
+    throw new Error('expected root layout cache setter to reject Workspace/Indexing mutation writes')
   }
-  if (!text.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected FlowCanvas media overlays to reuse workspace overlay-open SSOT')
+  if (!text.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected FlowCanvas media overlays to reuse the shared workspace/indexing mutation guard')
   }
   if (!text.includes('const workspaceOverlayOpenRef = React.useRef(false)')) {
     throw new Error('expected FlowCanvas media overlays to track workspace overlay open state without layout-key coupling')
@@ -214,10 +214,10 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
 
   const flowEditorSurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const flowEditorSurfaceText = readFileSync(flowEditorSurfacePath, 'utf8')
-  if (!flowEditorSurfaceText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
-    throw new Error('expected Flow Editor overlay surface initialization to reuse workspace overlay-open SSOT')
+  if (!flowEditorSurfaceText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected Flow Editor overlay surface initialization to reuse the shared workspace/indexing mutation guard')
   }
-  if (!flowEditorSurfaceText.includes('if (isWorkspaceEditorOverlayOpen(st)) return')) {
+  if (!flowEditorSurfaceText.includes('if (isWorkspaceGraphMutationBlocked(st)) return')) {
     throw new Error('expected Flow Editor overlay surface pin seeding to skip while Workspace/Indexing overlay is open')
   }
   if (!flowEditorSurfaceText.includes('const connectedValuesGraphRevision = args.flowEditorViewActive ? args.draftGraphDataRevision : args.baseGraphDataRevision')) {

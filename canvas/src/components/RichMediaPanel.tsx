@@ -266,7 +266,6 @@ function RichMediaEmptyCardPlaceholder({
 }: {
   variant: RichMediaPlaceholderMode
 }) {
-  useRichMediaSkeletonStyles()
   const blocks = getRichMediaEmptyCardBlocks(variant)
   const statusLabel = getRichMediaEmptyCardStatusLabel(variant)
 
@@ -276,6 +275,7 @@ function RichMediaEmptyCardPlaceholder({
       role="status"
       className="w-full h-full"
       data-kg-rich-media-empty-card-placeholder="1"
+      data-kg-rich-media-empty-card-static="1"
       data-kg-rich-media-empty-card-variant={variant}
       style={{
         display: 'flex',
@@ -308,7 +308,6 @@ function RichMediaEmptyCardPlaceholder({
         {blocks.map((block, index) => (
           <span
             key={`${variant}-${index}`}
-            className="kg-rich-media-skeleton-block"
             style={{
               display: 'block',
               width: block.width,
@@ -316,6 +315,9 @@ function RichMediaEmptyCardPlaceholder({
               minHeight: block.minHeight,
               flex: block.flex,
               borderRadius: block.radius,
+              background: index === 0
+                ? 'rgba(148, 163, 184, 0.18)'
+                : 'rgba(148, 163, 184, 0.12)',
             }}
           />
         ))}

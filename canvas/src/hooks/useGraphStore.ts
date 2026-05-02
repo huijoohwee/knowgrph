@@ -23,7 +23,7 @@ import type { GraphState, NodePosition2d } from '@/hooks/store/types';
 import type { GraphSchema } from '@/lib/graph/schema'
 import { DEFAULT_BBOX_COLLIDE_PADDING, DEFAULT_FIT_PADDING, DEFAULT_GROUP_BBOX_COLLIDE_PADDING } from '@/lib/graph/layoutDefaults'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 
 const positionsMatch = (
   a: Record<string, NodePosition2d> | null | undefined,
@@ -161,7 +161,7 @@ export const useGraphStore = create<GraphState>()(
     })
   },
   setLayoutPositionsForMode: (key: string, positions: Record<string, NodePosition2d> | null) => {
-    if (isWorkspaceEditorOverlayOpen(get())) return
+    if (isWorkspaceGraphMutationBlocked(get())) return
     const prev = get().layoutPositionCacheByMode || {}
     const prevEntry = prev[key] || null
     if (!positions || Object.keys(positions).length === 0) {

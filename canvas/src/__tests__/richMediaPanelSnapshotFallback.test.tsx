@@ -246,6 +246,9 @@ export async function testRichMediaPanelEmptyImageRendersPlaceholderInsteadOfBla
 
     const placeholder = container.querySelector('[data-kg-rich-media-empty-card-placeholder="1"]') as HTMLElement | null
     if (!placeholder) throw new Error('expected empty image panel to render the shared empty-state placeholder')
+    if (placeholder.getAttribute('data-kg-rich-media-empty-card-static') !== '1') {
+      throw new Error('expected empty image placeholder to render as a static indicator instead of a loading shimmer')
+    }
     if (!/Waiting for image content/i.test(placeholder.textContent || '')) {
       throw new Error(`expected image placeholder copy, got ${String(placeholder.textContent || '')}`)
     }
@@ -278,6 +281,9 @@ export async function testRichMediaPanelEmptyVideoRendersPlaceholderInsteadOfBla
 
     const placeholder = container.querySelector('[data-kg-rich-media-empty-card-placeholder="1"]') as HTMLElement | null
     if (!placeholder) throw new Error('expected empty video panel to render the shared empty-state placeholder')
+    if (placeholder.getAttribute('data-kg-rich-media-empty-card-static') !== '1') {
+      throw new Error('expected empty video placeholder to render as a static indicator instead of a loading shimmer')
+    }
     if (!/Waiting for video content/i.test(placeholder.textContent || '')) {
       throw new Error(`expected video placeholder copy, got ${String(placeholder.textContent || '')}`)
     }

@@ -97,7 +97,9 @@ export interface GraphStateStructure {
   editorWorkspacePane: EditorWorkspacePane
   setEditorWorkspacePane: (pane: EditorWorkspacePane) => void
   workspaceCanvasPaneOpen: boolean
+  markdownWorkspaceIndexingInFlight: boolean
   setWorkspaceCanvasPaneOpen: (open: boolean) => void
+  setMarkdownWorkspaceIndexingInFlight: (inFlight: boolean) => void
   setWorkspaceViewState: (next: { mode: WorkspaceViewMode; paneOpen?: boolean }) => void
   documentStructureBaselineLock: boolean;
   documentStructureBaselineSnapshot: DocumentStructureBaselineSnapshot | null

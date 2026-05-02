@@ -220,6 +220,12 @@ const INTEGRATION_JSON_OWNER_ROW_KEYS_BY_VALUE_KEY: Readonly<Record<string, Read
   chatStreamOptionsJson: new Set(['byteplusApi.stream_options']),
 }
 
+const SHARED_BYTEPLUS_CREDENTIAL_VALUE_KEYS = [
+  'chatAuthMode',
+  'chatApiKey',
+  'chatEndpointUrl',
+] as const
+
 function resolveIntegrationEntryMeta(entry: typeof INTEGRATION_API_DOC_ENTRIES[number]) {
   if (String(entry.meta.key || '').trim() === 'openaiApi.provider') {
     return {
@@ -917,6 +923,7 @@ export function useSettingsView({
 
     const hiddenConcreteIntegrationKeys = mode === 'integrations'
       ? new Set<string>([
+          ...SHARED_BYTEPLUS_CREDENTIAL_VALUE_KEYS,
           ...BYTEPLUS_IMAGE_GENERATION_MAPPED_VALUE_KEYS,
           ...BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS,
         ])
@@ -1001,7 +1008,7 @@ export function useSettingsView({
         },
         {
           title: BYTEPLUS_CHAT_API_DOC_AREA,
-          searchIndex: normalizeText('BytePlus Chat API ModelArk FloatingPanel Props Panel Text Widget text generation'),
+          searchIndex: normalizeText('BytePlus Shared + Text API BytePlus Chat API ModelArk FloatingPanel Props Panel Text Widget text generation shared auth api key endpoint'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_CHAT_API_DOC_AREA,
         },
         {

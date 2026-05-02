@@ -17,7 +17,7 @@ import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resol
 import { resolveNodeWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import {
   hashScopedStringArraySignature,
   hashSignatureParts,
@@ -282,7 +282,7 @@ export function useFlowEditorOverlaySurface(args: {
     if (overlayEditorNodeIds.length === 0) return
 
     const st = useGraphStore.getState()
-    if (isWorkspaceEditorOverlayOpen(st)) return
+    if (isWorkspaceGraphMutationBlocked(st)) return
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
     const graphMetaKind = String(((graphData.metadata || {}) as Record<string, unknown>).kind || '').trim()
     const defaultPinned = resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
@@ -329,7 +329,7 @@ export function useFlowEditorOverlaySurface(args: {
     if (!geospatialWidgetPanelMode) return
     if (overlayEditorNodeIds.length === 0) return
     const st = useGraphStore.getState()
-    if (isWorkspaceEditorOverlayOpen(st)) return
+    if (isWorkspaceGraphMutationBlocked(st)) return
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
     const missingIds = overlayEditorNodeIds.filter(id => id && !Object.prototype.hasOwnProperty.call(pinnedById, id))
     const defaultPinned = resolveDefaultFlowWidgetPinnedInCanvas({ geospatialWidgetPanelMode: true })

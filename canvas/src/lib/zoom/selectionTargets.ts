@@ -3,12 +3,11 @@ import { resolveGraphNodeIdsByCanonicalIds } from '@/lib/graph/canonicalNodeIds'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-
-type SelectionAnchorIds = {
-  selectionNodeIds: string[]
-  selectionEdgeIds: string[]
-  selectionGroupIds: string[]
-}
+import { readGraphEdgeEndpoints, readSelectedEdgeEndpointsById } from '@/lib/graph/edgeEndpoints'
+import {
+  normalizeSelectionAnchorIdsWithGroups,
+  resolveSelectionAnchorNodeIds,
+} from '@/lib/selection/anchorIds'
 
 type ZoomSelectionLogicParams = {
   graphData: GraphData
@@ -18,49 +17,6 @@ type ZoomSelectionLogicParams = {
   selectedNodeIds?: string[]
   selectedEdgeIds?: string[]
   selectedGroupIds?: string[]
-}
-
-type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined
-
-const coerceEndpointId = (value: EdgeEndpointLike): string | null => {
-  if (typeof value === 'string') return value
-  if (value && typeof value === 'object' && typeof (value as { id?: unknown }).id === 'string') {
-    return (value as { id: string }).id
-  }
-  return null
-}
-
-const getEdgeEndpoints = (edge: GraphEdge): { src: string | null; tgt: string | null } => ({
-  src: coerceEndpointId(edge.source ?? null),
-  tgt: coerceEndpointId(edge.target ?? null),
-})
-
-const normalizeSelectionIds = (params: Pick<ZoomSelectionLogicParams, 'selectedNodeId' | 'selectedEdgeId' | 'selectedGroupId' | 'selectedNodeIds' | 'selectedEdgeIds' | 'selectedGroupIds'>): SelectionAnchorIds => {
-  const { selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds } = params
-  const selectionNodeIds =
-    Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0
-      ? selectedNodeIds
-      : selectedNodeId
-        ? [selectedNodeId]
-        : []
-  const selectionEdgeIds =
-    Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0
-      ? selectedEdgeIds
-      : selectedEdgeId
-        ? [selectedEdgeId]
-        : []
-  const selectionGroupIds =
-    Array.isArray(selectedGroupIds) && selectedGroupIds.length > 0
-      ? selectedGroupIds
-      : selectedGroupId
-        ? [selectedGroupId]
-        : []
-  return { selectionNodeIds, selectionEdgeIds, selectionGroupIds }
-}
-
-const resolveSelectionNodeIds = (graphData: GraphData, rawIds: ReadonlyArray<string>): string[] => {
-  const resolved = resolveGraphNodeIdsByCanonicalIds(graphData, rawIds)
-  return resolved.length > 0 ? resolved : rawIds.map(id => String(id || '').trim()).filter(Boolean)
 }
 
 const ADJ_CACHE_LIMIT = 32
@@ -92,7 +48,7 @@ const getAdjacencyMap = (data: GraphData): Map<string, Set<string>> => {
       if (!sourceId) return
       const neighbors = map.get(sourceId) || new Set<string>()
       for (let i = 0; i < edges.length; i += 1) {
-        const endpoints = getEdgeEndpoints(edges[i]!)
+        const endpoints = readGraphEdgeEndpoints(edges[i]!)
         const neighborId = endpoints.src === sourceId ? endpoints.tgt : endpoints.src
         const targetId = String(neighborId || '').trim()
         if (targetId) neighbors.add(targetId)
@@ -101,7 +57,7 @@ const getAdjacencyMap = (data: GraphData): Map<string, Set<string>> => {
     })
   } else {
     for (const edge of data.edges || []) {
-      const { src, tgt } = getEdgeEndpoints(edge)
+      const { src, tgt } = readGraphEdgeEndpoints(edge)
       const s = src ?? ''
       const t = tgt ?? ''
       if (!s || !t) continue
@@ -131,7 +87,7 @@ export const computeZoomTargetNodeIds = ({
   selectedGroupIds,
 }: ZoomSelectionLogicParams): Set<string> => {
   const ids = new Set<string>()
-  const { selectionNodeIds, selectionEdgeIds, selectionGroupIds } = normalizeSelectionIds({
+  const { selectionNodeIds, selectionEdgeIds, selectionGroupIds } = normalizeSelectionAnchorIdsWithGroups({
     selectedNodeId,
     selectedEdgeId,
     selectedGroupId,
@@ -144,8 +100,14 @@ export const computeZoomTargetNodeIds = ({
   }
 
   const anchorCount = selectionNodeIds.length + selectionEdgeIds.length + selectionGroupIds.length
-  const resolvedSelectionNodeIds = resolveSelectionNodeIds(graphData, selectionNodeIds)
+  const resolvedSelectionNodeIds = resolveSelectionAnchorNodeIds(graphData, selectionNodeIds)
   const adj = getAdjacencyMap(graphData)
+  const graphLookup = getCachedGraphLookup({
+    cacheScope: 'selection-zoom-targets',
+    graphData,
+    graphSemanticKey: buildScopedGraphSemanticKey('selection-zoom-targets', { graphData }),
+    preferCurrentGraphDataRefs: true,
+  })
 
   if (selectionGroupIds.length > 0) {
     const groups = deriveGraphGroups(graphData)
@@ -173,19 +135,11 @@ export const computeZoomTargetNodeIds = ({
       if (neighbors) neighbors.forEach(n => ids.add(n))
     }
   }
-  const edges = Array.isArray(graphData.edges) ? graphData.edges : []
-
   const expandEdgeNeighbors =
     anchorCount === 1 && selectionEdgeIds.length === 1 && selectionNodeIds.length === 0 && selectionGroupIds.length === 0
-  for (const rawEdgeId of selectionEdgeIds) {
-    const edgeId = String(rawEdgeId || '')
-    if (!edgeId) continue
-    const edge = edges.find(e => String(e.id) === edgeId)
-    if (!edge) continue
-    const endpoints = getEdgeEndpoints(edge)
-    const sId = endpoints.src
-    const tId = endpoints.tgt
-    if (!sId || !tId) continue
+  const selectedEdgeEndpoints = readSelectedEdgeEndpointsById(graphLookup?.edgeById, selectionEdgeIds)
+  for (let i = 0; i < selectedEdgeEndpoints.length; i += 1) {
+    const { src: sId, tgt: tId } = selectedEdgeEndpoints[i]!
     ids.add(sId)
     ids.add(tId)
     if (!expandEdgeNeighbors) continue
@@ -199,7 +153,10 @@ export const computeZoomTargetNodeIds = ({
 
 
 export const computeZoomSubset = (params: ZoomSelectionLogicParams): GraphNode[] => {
-  const resolvedSelectionNodeIds = resolveSelectionNodeIds(params.graphData, normalizeSelectionIds(params).selectionNodeIds)
+  const resolvedSelectionNodeIds = resolveSelectionAnchorNodeIds(
+    params.graphData,
+    normalizeSelectionAnchorIdsWithGroups(params).selectionNodeIds,
+  )
   const ids = computeZoomTargetNodeIds({
     ...params,
     selectedNodeId: resolvedSelectionNodeIds.length === 1 ? resolvedSelectionNodeIds[0] || null : params.selectedNodeId,

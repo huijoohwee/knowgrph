@@ -58,6 +58,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["overlay.widget.frontmatterStableSameSourceFloatingLayoutCarry","@/__tests__/flowWidgetUiStateScopedByGraphMetaKey.test","testFrontmatterBuiltInFloatingScreenLayoutCarriesAcrossStableSameSourceRecompose"],
   ["overlay.widget.frontmatterStableSameSourcePartialCoverageClears","@/__tests__/flowWidgetUiStateScopedByGraphMetaKey.test","testFrontmatterBuiltInFloatingPartialCoverageDoesNotCarryAcrossStableSameSourceRecompose"],
   ["ui.flowWidget.shrinksOnZoomOutAndCapsOnZoomIn","@/__tests__/widgetZoom.test","testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn"],
+  ["ui.flowWidget.balancedSpread.prefersWide16x9CollectiveLayout","@/__tests__/widgetZoom.test","testBalancedSpreadPrefersWide16x9CollectiveLayout"],
   ["zoom.ssot.fit.cachedAcrossRequests","@/__tests__/zoomActionsSsot.test","testZoomActionsFitTransformIsCachedAcrossRequests"],
   ["zoom.ssot.out.autoMinScaleTracksFitToView","@/__tests__/zoomActionsSsot.test","testZoomActionsZoomOutAutoMinScaleTracksFitToView"],
   ["zoom.pick.reusesAcrossPresentationChanges","@/__tests__/zoomStatePick.test","testPickInitialZoomTransformReusesZoomAcrossPresentationChanges"],

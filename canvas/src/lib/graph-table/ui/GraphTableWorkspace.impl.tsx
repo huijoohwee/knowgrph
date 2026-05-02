@@ -233,23 +233,6 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
 
   useEffect(() => {
     if (!active) return
-    if (canvasWorkspaceSyncMode !== 'manual') return
-    if (!syncGraphData) return
-    if (columns.length > 0 || rows.length > 0) return
-    const seedKey = `${activeTableId}|${graphSyncRevision}|${collapsedGroupIdsKey}`
-    if (didAutoSeedForKeyRef.current.has(seedKey)) return
-    didAutoSeedForKeyRef.current.add(seedKey)
-    void (async () => {
-      try {
-        await syncGraphDataToGraphTableDb(syncGraphData)
-      } catch {
-        void 0
-      }
-    })()
-  }, [active, activeTableId, canvasWorkspaceSyncMode, collapsedGroupIdsKey, columns.length, graphSyncRevision, rows.length, syncGraphData])
-
-  useEffect(() => {
-    if (!active) return
     let sub: Subscription | null = null
     let rowSub: Subscription | null = null
     let colMap = new Map<string, GraphColumnDoc>()

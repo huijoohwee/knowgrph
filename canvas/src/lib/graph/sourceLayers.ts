@@ -48,8 +48,49 @@ function readSourceLayerGraphMetadata(graphData: { metadata?: unknown } | null |
   return isRecord(graphData?.metadata) ? (graphData.metadata as Record<string, unknown>) : {}
 }
 
+const PARSED_GRAPH_SEMANTIC_KEY_CACHE = new WeakMap<object, string>()
 const COMPOSED_GRAPH_CACHE_LIMIT = 24
 const composedGraphCache = new Map<string, GraphData>()
+
+function stripVolatileGraphMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...metadata }
+  delete next.hash
+  delete next.graphDataRevision
+  delete next.updatedAt
+  delete next.modifiedAt
+  delete next.lastUpdated
+  delete next.pending
+  delete next.sourceLayerHash
+  delete next.sourceLayerOrderHash
+  return next
+}
+
+function buildParsedGraphSemanticKey(graphData: GraphData | null | undefined, fallbackRevision?: unknown): string {
+  if (!graphData || typeof graphData !== 'object') return ''
+  const cached = PARSED_GRAPH_SEMANTIC_KEY_CACHE.get(graphData as object)
+  if (cached) return cached
+  const metadata = stripVolatileGraphMetadata(readSourceLayerGraphMetadata(graphData))
+  const payload = JSON.stringify({
+    type: typeof graphData.type === 'string' ? graphData.type : '',
+    context: typeof graphData.context === 'string' ? graphData.context : '',
+    metadata,
+    nodes: Array.isArray(graphData.nodes) ? graphData.nodes : [],
+    edges: Array.isArray(graphData.edges) ? graphData.edges : [],
+  })
+  const semanticHash = hashStringToHexCached(
+    `source-layer-graph:${String(graphData.type || '')}:${String(graphData.context || '')}`,
+    payload,
+  )
+  const next =
+    buildScopedGraphSemanticKey('source-layer-parsed-graph', {
+      graphData,
+      graphSemanticKey: semanticHash || `rev:${readParsedGraphRevisionOrInitial(fallbackRevision)}`,
+    })
+    || semanticHash
+    || `rev:${readParsedGraphRevisionOrInitial(fallbackRevision)}`
+  PARSED_GRAPH_SEMANTIC_KEY_CACHE.set(graphData as object, next)
+  return next
+}
 
 function readComposedGraphCache(key: string): GraphData | null {
   if (!key) return null
@@ -97,14 +138,14 @@ export function buildSourceLayerKeys(layers: SourceLayerInput[]): { contentKey: 
     id: String(l.id || '').trim(),
     included: Boolean(l.enabled && l.parsedGraphData),
     hash: computeTextHash(l),
-    rev: readParsedGraphRevisionOrInitial(l.parsedGraphRevision),
+    graphKey: buildParsedGraphSemanticKey(l.parsedGraphData, l.parsedGraphRevision),
   }))
   const contentKey = normalized
     .slice()
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map(l => `${l.id}:${l.included ? '1' : '0'}:${l.hash}:r${l.rev}`)
+    .map(l => `${l.id}:${l.included ? '1' : '0'}:${l.hash}:g${l.graphKey}`)
     .join('|')
-  const orderKey = normalized.map(l => `${l.id}:${l.included ? '1' : '0'}:${l.hash}:r${l.rev}`).join('|')
+  const orderKey = normalized.map(l => `${l.id}:${l.included ? '1' : '0'}:${l.hash}:g${l.graphKey}`).join('|')
   return { contentKey, orderKey }
 }
 

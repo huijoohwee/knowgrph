@@ -31,6 +31,17 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
   if (!indexingText.includes('await maybeAutoEnableGeospatialModeForGraphData') || !indexingText.includes('if (isStaleJob()) return')) {
     throw new Error('Expected geospatial auto-enable path to be protected by stale-job guard')
   }
+  const bootstrapPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceBootstrapState.ts')
+  const bootstrapText = readUtf8(bootstrapPath)
+  if (!bootstrapText.includes("const setMarkdownWorkspaceIndexingInFlight = useGraphStore(s => s.setMarkdownWorkspaceIndexingInFlight)")) {
+    throw new Error('Expected markdown workspace bootstrap state to publish indexing status into the shared graph store')
+  }
+  if (!bootstrapText.includes('setMarkdownWorkspaceIndexingInFlight(normalized)')) {
+    throw new Error('Expected markdown workspace indexing setter wrapper to mirror local in-flight state into the shared graph store')
+  }
+  if (!bootstrapText.includes('setMarkdownWorkspaceIndexingInFlight(false)')) {
+    throw new Error('Expected markdown workspace bootstrap cleanup to clear shared indexing status on unmount')
+  }
 }
 
 export const testMarkdownWorkspaceRuntimeWidgetAutoRestoreDoesNotMarkUserForcedDocument = () => {
@@ -167,8 +178,8 @@ export const testMarkdownWorkspaceRealtimeSyncAppliesEditorChangesBackToGraph = 
   if (!interactionsText.includes("argsRef.current = args")) {
     throw new Error('Expected markdown workspace interactions to keep current inputs behind a ref for stable apply callbacks')
   }
-  if (!interactionsText.includes('const workspaceApplyEffectsEnabled = active && workspaceCanvasPaneOpen === true')) {
-    throw new Error('Expected markdown workspace apply effects to be gated by active runtime and workspace pane visibility')
+  if (!interactionsText.includes('const workspaceApplyEffectsEnabled = active && workspaceCanvasPaneOpen === true && indexingInFlight !== true')) {
+    throw new Error('Expected markdown workspace apply effects to stay disabled while indexing is still mutating workspace-backed source state')
   }
   if (!interactionsText.includes("if (!workspaceApplyEffectsEnabled || canvasWorkspaceSyncMode !== 'realtime' || contentMode === 'widget') return")) {
     throw new Error('Expected realtime editor->graph sync to explicitly gate by workspace apply effect state, realtime mode, and widget mode')

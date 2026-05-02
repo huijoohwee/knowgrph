@@ -4,7 +4,7 @@ import {
   buildSchemaFieldPortKey,
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
-import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import {
@@ -113,10 +113,11 @@ function buildFlowHandlesByNodeSignature(args: {
         edge && typeof edge === 'object' && !Array.isArray(edge)
           ? ((edge as { properties?: unknown }).properties as Record<string, unknown> | null | undefined)
           : null
+      const { src: source, tgt: target } = readGraphEdgeEndpoints(edge)
       return {
         id: String(edge?.id ?? '').trim(),
-        source: readEdgeEndpointId(edge?.source),
-        target: readEdgeEndpointId(edge?.target),
+        source,
+        target,
         sourcePortKey:
           props && typeof props[FLOW_EDGE_SOURCE_PORT_KEY] === 'string'
             ? String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
@@ -216,8 +217,7 @@ export function computeFlowHandlesByNode(args: {
   for (let i = 0; i < edges.length; i += 1) {
     const e = edges[i]
     const edgeId = String(e?.id ?? '').trim()
-    const source = readEdgeEndpointId((e as { source?: unknown })?.source)
-    const target = readEdgeEndpointId((e as { target?: unknown })?.target)
+    const { src: source, tgt: target } = readGraphEdgeEndpoints(e)
     if (!edgeId || !source || !target) continue
 
     const props = (e as unknown as { properties?: unknown }).properties

@@ -34,6 +34,8 @@ import { intersectRayWithZPlane } from '@/features/three/raycast'
 import { listVoxelLayers, resolveVoxelLayerKey } from '@/features/three/voxelLayers'
 import { VoxelDistricts, VoxelDistrictAmbientField } from '@/features/three/VoxelDistricts'
 import { VoxelBridgeTubes } from '@/features/three/VoxelBridgeTubes'
+import { buildSelectionAnchorIdSets } from '@/lib/selection/anchorIds'
+import { buildSelectedEdgeEndpointNodeIdSet } from '@/lib/graph/edgeEndpoints'
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -231,31 +233,13 @@ export function Scene({
   const threeEdgeRenderer = useGraphStore(s => s.threeEdgeRenderer)
   const threeShaderLineWidthPx = useGraphStore(s => s.threeShaderLineWidthPx)
   const selectionSets = React.useMemo(() => {
-    const nodeIds =
-      Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0
-        ? selectedNodeIds
-        : selectedNodeId
-          ? [selectedNodeId]
-          : []
-    const edgeIds =
-      Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0
-        ? selectedEdgeIds
-        : selectedEdgeId
-          ? [selectedEdgeId]
-          : []
-    const selectedNodeIdSet = new Set<string>(nodeIds.map(String))
-    const selectedEdgeIdSet = new Set<string>(edgeIds.map(String))
-    const selectedEdgeEndpointNodeIdSet = new Set<string>()
-    if (selectedEdgeIdSet.size > 0) {
-      for (let i = 0; i < data.edges.length; i += 1) {
-        const e = data.edges[i]
-        if (!selectedEdgeIdSet.has(String(e.id))) continue
-        const src = String(e.source)
-        const tgt = String(e.target)
-        if (src) selectedEdgeEndpointNodeIdSet.add(src)
-        if (tgt) selectedEdgeEndpointNodeIdSet.add(tgt)
-      }
-    }
+    const { selectedNodeIdSet, selectedEdgeIdSet } = buildSelectionAnchorIdSets({
+      selectedNodeId,
+      selectedEdgeId,
+      selectedNodeIds,
+      selectedEdgeIds,
+    })
+    const selectedEdgeEndpointNodeIdSet = buildSelectedEdgeEndpointNodeIdSet(data.edges, selectedEdgeIdSet)
     return { selectedNodeIdSet, selectedEdgeIdSet, selectedEdgeEndpointNodeIdSet }
   }, [data.edges, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
   const neighborIds = React.useMemo(

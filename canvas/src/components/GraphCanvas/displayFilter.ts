@@ -1,21 +1,11 @@
-import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 import { DOCUMENT_CONTAINMENT_EDGE_LABELS } from '@/lib/graph/documentContainmentEdgeLabels'
 import { readGraphActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
-
-const coerceEndpointId = (v: unknown): string => {
-  if (typeof v === 'string') return v
-  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
-  if (v && typeof v === 'object') {
-    const id = (v as { id?: unknown }).id
-    if (typeof id === 'string') return id
-    if (typeof id === 'number') return Number.isFinite(id) ? String(id) : ''
-  }
-  return ''
-}
 
 const isFrontmatterDisplayGraph = (graphData: GraphData): boolean => {
   if (String(graphData.context || '') === 'frontmatter-flow') return true
@@ -74,10 +64,9 @@ export const getDisplayNodes = (graphData: GraphData): GraphNode[] => {
 export const getDisplayEdges = (args: { edges: GraphEdge[]; displayNodeIdSet: Set<string> }): GraphEdge[] => {
   const edges = Array.isArray(args.edges) ? args.edges : []
   const base = edges.filter(e => {
-    const s = coerceEndpointId(e.source)
-    const t = coerceEndpointId(e.target)
-    if (!s || !t) return false
-    if (!args.displayNodeIdSet.has(s) || !args.displayNodeIdSet.has(t)) return false
+    const { src, tgt } = readGraphEdgeEndpoints(e)
+    if (!src || !tgt) return false
+    if (!args.displayNodeIdSet.has(src) || !args.displayNodeIdSet.has(tgt)) return false
     return true
   })
 
@@ -122,8 +111,7 @@ export const getGraphDataForDisplay = (args: { graphData: GraphData; edges?: Gra
     ? edgesSource.filter(e => {
         const label = String(e.label || '').trim()
         if (NON_STRUCTURE_HIDDEN_EDGE_LABELS.has(label)) return false
-        const srcId = coerceEndpointId(e.source)
-        const tgtId = coerceEndpointId(e.target)
+        const { src: srcId, tgt: tgtId } = readGraphEdgeEndpoints(e)
         if (!srcId || !tgtId) return false
         if (label === 'pointsTo') {
           if (isDocumentStructureScaffoldNode(nodeById.get(srcId)) || isDocumentStructureScaffoldNode(nodeById.get(tgtId))) return false
@@ -137,10 +125,9 @@ export const getGraphDataForDisplay = (args: { graphData: GraphData; edges?: Gra
     const required = new Set<string>(baseNodeIdSet)
     for (let i = 0; i < filteredEdgesSource.length; i += 1) {
       const e = filteredEdgesSource[i]
-      const s = coerceEndpointId(e.source)
-      const t = coerceEndpointId(e.target)
-      if (s) required.add(s)
-      if (t) required.add(t)
+      const { src, tgt } = readGraphEdgeEndpoints(e)
+      if (src) required.add(src)
+      if (tgt) required.add(tgt)
     }
     const connectedNodes = allNodes.filter(n => {
       const id = String(n.id)

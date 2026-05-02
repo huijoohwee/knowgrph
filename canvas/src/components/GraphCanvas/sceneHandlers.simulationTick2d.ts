@@ -18,6 +18,7 @@ import { buildCanonicalNodeLookup, getCanonicalNodeLookupValue } from '@/lib/gra
 import { applyStrictOverlapRelax2d, type StrictOverlapState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.strictOverlap'
 import { renderLabels2d, type LabelRelaxState2d } from '@/components/GraphCanvas/sceneHandlers.simulationTick2d.labels'
 import { buildEdgePathD, readEdgePathCurveOptions, readEffectiveEdgeTypeFor2dRenderer, type GlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { readRadarForceConfig } from '@/lib/graph/radarForces'
 
 type OrbitMode = 'flat' | 'solar' | 'atomic'
@@ -183,8 +184,7 @@ export const attachSimulationTick = (args: {
       const e = edges[i]
       const label = String(e.label || '').trim()
       const props = ((e as unknown as { properties?: unknown }).properties || {}) as Record<string, unknown>
-      const sourceId = typeof e.source === 'object' ? String((e.source as { id?: unknown }).id || '') : String(e.source || '')
-      const targetId = typeof e.target === 'object' ? String((e.target as { id?: unknown }).id || '') : String(e.target || '')
+      const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(e)
       if (!sourceId || !targetId || sourceId === targetId) continue
       if (label === 'spokeTo' || props['kg:radarSpoke'] === true || props['bipartite:spoke'] === true) {
         const sourceNode = nodeMap.get(sourceId)

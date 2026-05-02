@@ -6,7 +6,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
-import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -45,8 +45,7 @@ function coerceEdgeEndpoints(raw: ReadonlyArray<GraphEdge>): Array<{ id: string;
   for (let i = 0; i < raw.length; i += 1) {
     const e = raw[i] as unknown as { id?: unknown; source?: unknown; target?: unknown; properties?: unknown }
     const id = String(e?.id || '').trim()
-    const source = readEdgeEndpointId(e?.source)
-    const target = readEdgeEndpointId(e?.target)
+    const { src: source, tgt: target } = readGraphEdgeEndpoints(e)
     if (!id || !source || !target) continue
     out.push({ id, source, target, properties: e.properties })
   }
@@ -74,10 +73,11 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
           e && typeof e === 'object' && !Array.isArray(e)
             ? ((e as { properties?: unknown }).properties as Record<string, unknown> | null | undefined)
             : null
+        const { src: source, tgt: target } = readGraphEdgeEndpoints(e)
         return {
           id: String((e as { id?: unknown })?.id || '').trim(),
-          source: readEdgeEndpointId(e?.source),
-          target: readEdgeEndpointId(e?.target),
+          source,
+          target,
           sourcePortKey:
             typeof props?.[FLOW_EDGE_SOURCE_PORT_KEY] === 'string'
               ? String(props?.[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()

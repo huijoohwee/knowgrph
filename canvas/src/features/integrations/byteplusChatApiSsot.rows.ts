@@ -50,11 +50,14 @@ type CodebaseLocation = {
   functions: string[]
 }
 
+const BYTEPLUS_SHARED_OWNER_PREFIX = 'byteplus.'
+const BYTEPLUS_TEXT_API_PREFIX = 'byteplusApi.'
+
 const BYTEPLUS_TEXT_WIDGET_ROW_KEY_BY_PROPERTY_KEY: Readonly<Record<string, string>> = {
   chatProvider: 'byteplusApi.provider',
-  chatAuthMode: 'byteplusApi.auth_mode',
-  chatEndpointUrl: 'byteplusApi.endpoint_url',
-  chatApiKey: 'byteplusApi.api_key',
+  chatAuthMode: 'byteplus.auth_mode',
+  chatEndpointUrl: 'byteplus.endpoint_url',
+  chatApiKey: 'byteplus.api_key',
   chatModel: 'byteplusApi.model',
   chatTemperature: 'byteplusApi.temperature',
   chatMaxCompletionTokens: 'byteplusApi.max_completion_tokens',
@@ -82,8 +85,8 @@ const BYTEPLUS_TEXT_WIDGET_ROW_KEY_BY_PROPERTY_KEY: Readonly<Record<string, stri
 
 const BYTEPLUS_TEXT_WIDGET_FIELD_BINDINGS: ReadonlyArray<WidgetRowBinding> = [
   { rowKey: 'byteplusApi.provider', field: { fieldKey: 'chatProvider', fieldType: 'readonly', schemaPath: 'properties.chatProvider', required: true, label: 'Provider' } },
-  { rowKey: 'byteplusApi.auth_mode', field: { fieldKey: 'chatAuthMode', fieldType: 'text', schemaPath: 'properties.chatAuthMode', required: true, label: 'Auth mode' } },
-  { rowKey: 'byteplusApi.endpoint_url', field: { fieldKey: 'chatEndpointUrl', fieldType: 'text', schemaPath: 'properties.chatEndpointUrl', required: true, label: 'Endpoint URL' } },
+  { rowKey: 'byteplus.auth_mode', field: { fieldKey: 'chatAuthMode', fieldType: 'text', schemaPath: 'properties.chatAuthMode', required: true, label: 'Auth mode' } },
+  { rowKey: 'byteplus.endpoint_url', field: { fieldKey: 'chatEndpointUrl', fieldType: 'text', schemaPath: 'properties.chatEndpointUrl', required: true, label: 'Endpoint URL' } },
   { rowKey: 'byteplusApi.model', field: { fieldKey: 'chatModel', fieldType: 'select', schemaPath: 'properties.chatModel', required: true, label: 'Model', options: BYTEPLUS_TEXT_WIDGET_MODEL_OPTIONS } },
   { rowKey: 'byteplusApi.messages.content.text', field: { fieldKey: 'prompt', fieldType: 'textarea', schemaPath: 'properties.prompt', required: true, label: 'Prompt' } },
   { rowKey: 'byteplusApi.messages', field: { fieldKey: 'chatMessagesJson', fieldType: 'json', schemaPath: 'properties.chatMessagesJson', label: 'Messages' } },
@@ -266,6 +269,10 @@ const BYTEPLUS_DOC_ROW_MAP: ReadonlyMap<string, BytePlusApiDocRow> = new Map(
 export function getBytePlusApiDocRowByRowKey(rowKey: string): BytePlusApiDocRow | null {
   const normalized = String(rowKey || '').trim()
   if (!normalized) return null
-  const key = normalized.startsWith('byteplusApi.') ? normalized.slice('byteplusApi.'.length) : normalized
+  const key = normalized.startsWith(BYTEPLUS_TEXT_API_PREFIX)
+    ? normalized.slice(BYTEPLUS_TEXT_API_PREFIX.length)
+    : normalized.startsWith(BYTEPLUS_SHARED_OWNER_PREFIX)
+      ? normalized.slice(BYTEPLUS_SHARED_OWNER_PREFIX.length)
+      : normalized
   return BYTEPLUS_DOC_ROW_MAP.get(key) || null
 }

@@ -509,7 +509,11 @@ export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
   if (text.includes('const endpointNodeId = (raw: unknown): string =>')) {
     throw new Error('expected overlay edge renderer to reuse the shared endpoint helper instead of local endpoint parsing')
   }
-  if (!text.includes('const source = readEdgeEndpointId(rawEdges[i]?.source)') || !text.includes('const target = readEdgeEndpointId(rawEdges[i]?.target)')) {
+  if (
+    !text.includes('readGraphEdgeEndpoints')
+    || !text.includes('const { src: source, tgt: target } = readGraphEdgeEndpoints(rawEdges[i])')
+    || !text.includes('const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(e)')
+  ) {
     throw new Error('expected overlay edge renderer to filter candidate edges with the shared endpoint helper')
   }
   if (!text.includes('Array.isArray(args.overlayEditorNodeIdsRef.current) && args.overlayEditorNodeIdsRef.current.length > 0')) {
@@ -782,6 +786,15 @@ export function testFrontmatterFlowWidgetRegistryOptionsAreScopedToCurrentFormId
   if (!text.includes('buildFrontmatterWidgetContractModel({')) {
     throw new Error('expected node overlay editor form to reuse the shared frontmatter contract model helper')
   }
+  if (!text.includes('const nodeHelperSignature = React.useMemo(() => {')) {
+    throw new Error('expected node overlay editor form to derive a semantic node helper signature before reusing registry and contract helpers')
+  }
+  if (!text.includes('const registryEntriesSignature = React.useMemo(')) {
+    throw new Error('expected node overlay editor form to derive semantic registry-entry list signatures before scoping widget mappings')
+  }
+  if (!text.includes('const registryEntriesSnapshotRef = React.useRef<{ key: string; value: ReadonlyArray<WidgetRegistryEntry> } | null>(null)')) {
+    throw new Error('expected node overlay editor form to snapshot scoped registry inputs by semantic signature')
+  }
 }
 
 export function testWidgetRegistryMetadataMissingClearsDocumentRegistryToAvoidStaleFallbacks() {
@@ -1010,22 +1023,30 @@ export function testFlowEditorPortHandleEdgeConnectivityUsesEndpointIdResolver()
   const handlesText = readFileSync(handlesPath, 'utf8')
   const buildNativeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'buildNativeScene.ts')
   const buildNativeSceneText = readFileSync(buildNativeScenePath, 'utf8')
+  const elkLayoutPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'elkLayout.ts')
+  const elkLayoutText = readFileSync(elkLayoutPath, 'utf8')
   const flowDataflowPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
   const flowDataflowText = readFileSync(flowDataflowPath, 'utf8')
+  const draftActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorNodeDraftActions.ts')
+  const draftActionsText = readFileSync(draftActionsPath, 'utf8')
   const endpointHelperPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'edgeEndpoints.ts')
   const endpointHelperText = readFileSync(endpointHelperPath, 'utf8')
 
   if (!endpointHelperText.includes('export function readEdgeEndpointId')) {
     throw new Error('expected shared edge endpoint id resolver helper for object/string edge endpoint compatibility')
   }
-  if (!portHandlesText.includes('readEdgeEndpointId(e?.source)') || !portHandlesText.includes('readEdgeEndpointId(e?.target)')) {
-    throw new Error('expected widget port handle edge coercion to resolve object-form edge endpoints via shared helper')
+  if (
+    !portHandlesText.includes("import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'")
+    || !portHandlesText.includes('const { src: source, tgt: target } = readGraphEdgeEndpoints(e)')
+  ) {
+    throw new Error('expected widget port handle edge coercion to resolve object-form edge endpoints via shared pair helper')
   }
-  if (!handlesText.includes('readEdgeEndpointId((e as { source?: unknown })?.source)')) {
-    throw new Error('expected flow handle computation to resolve source endpoint ids via shared helper')
-  }
-  if (!handlesText.includes('readEdgeEndpointId((e as { target?: unknown })?.target)')) {
-    throw new Error('expected flow handle computation to resolve target endpoint ids via shared helper')
+  if (
+    !handlesText.includes("import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'")
+    || !handlesText.includes('const { src: source, tgt: target } = readGraphEdgeEndpoints(edge)')
+    || !handlesText.includes('const { src: source, tgt: target } = readGraphEdgeEndpoints(e)')
+  ) {
+    throw new Error('expected flow handle computation to resolve edge endpoints via shared pair helper')
   }
   if (!handlesText.includes('const cacheKey = buildFlowHandlesByNodeSignature(args)')) {
     throw new Error('expected flow handle computation to derive a semantic cache key before rebuilding node handles')
@@ -1042,17 +1063,30 @@ export function testFlowEditorPortHandleEdgeConnectivityUsesEndpointIdResolver()
   if (!portHandlesText.includes('const nodePropertiesSignature = React.useMemo(() => {')) {
     throw new Error('expected widget port handle overlay to derive semantic node property signatures before recomputing handles')
   }
-  if (!buildNativeSceneText.includes('const source = readEdgeEndpointId(e?.source)')) {
-    throw new Error('expected flow native scene edge construction to resolve source endpoint ids via shared helper')
+  if (
+    !buildNativeSceneText.includes("import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'")
+    || !buildNativeSceneText.includes('const { src: source, tgt: target } = readGraphEdgeEndpoints(e)')
+  ) {
+    throw new Error('expected flow native scene edge construction to resolve endpoint ids via shared edge endpoint helper')
   }
-  if (!buildNativeSceneText.includes('const target = readEdgeEndpointId(e?.target)')) {
-    throw new Error('expected flow native scene edge construction to resolve target endpoint ids via shared helper')
+  if (
+    !elkLayoutText.includes("import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'")
+    || !elkLayoutText.includes('const { src: source, tgt: target } = readGraphEdgeEndpoints(e)')
+  ) {
+    throw new Error('expected flow ELK layout edge shaping to resolve endpoint ids via shared edge endpoint helper')
   }
-  if (!flowDataflowText.includes('readEdgeEndpointId((e as unknown as { source?: unknown })?.source)')) {
-    throw new Error('expected flow dataflow connected-value pipeline to resolve source endpoint ids via shared helper')
+  if (
+    !flowDataflowText.includes("import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'")
+    || !flowDataflowText.includes('const { src, tgt } = readGraphEdgeEndpoints(edge)')
+    || !flowDataflowText.includes('const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(e)')
+  ) {
+    throw new Error('expected flow dataflow connected-value pipeline to resolve edge endpoints via shared pair helper')
   }
-  if (!flowDataflowText.includes('readEdgeEndpointId((e as unknown as { target?: unknown })?.target)')) {
-    throw new Error('expected flow dataflow connected-value pipeline to resolve target endpoint ids via shared helper')
+  if (
+    !draftActionsText.includes("import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'")
+    || !draftActionsText.includes('const { src, tgt } = readGraphEdgeEndpoints(e)')
+  ) {
+    throw new Error('expected flow editor draft actions to resolve incident edge endpoints via shared pair helper')
   }
 }
 

@@ -3,7 +3,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import {
-  normalizeSettingsForField,
   type GraphField,
   type GraphFieldId,
   type GraphFieldSettings,
@@ -131,12 +130,11 @@ export default function GraphFieldsListPanel({
 
   const updateGraphFieldSettings = React.useCallback(
     (fieldId: GraphFieldId, patch: Partial<GraphFieldSettingsResolved>) => {
-      const field = fieldById.get(fieldId)
-      if (!field) return
-      const current = normalizeSettingsForField(field, settingsById[fieldId])
+      const current = resolvedSettingsById.get(fieldId)
+      if (!current) return
       patchGraphFieldSetting(fieldId, { ...current, ...patch })
     },
-    [fieldById, patchGraphFieldSetting, settingsById],
+    [patchGraphFieldSetting, resolvedSettingsById],
   )
 
   const schemaDefinedFieldIds = React.useMemo(

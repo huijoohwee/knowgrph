@@ -4,8 +4,8 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { MonacoTextEditorProps } from '@/features/monaco/MonacoTextEditor'
 import {
   GRAPH_FIELD_TYPES,
+  getCachedResolvedFieldSettingsById,
   inferFieldTypeFromGraphData,
-  normalizeSettingsForField,
   type GraphField,
   type GraphFieldSettingsById,
   type GraphFieldSettings,
@@ -69,10 +69,18 @@ export default function FieldSettingsPanel({
   onResync,
   onStatusChange,
 }: FieldSettingsPanelProps) {
+  const selectedFieldResolvedSettingsById = React.useMemo(() => {
+    if (!selectedField) return null
+    return getCachedResolvedFieldSettingsById({
+      fields: [selectedField],
+      settingsById,
+    })
+  }, [selectedField, settingsById])
+
   const selectedSettings = React.useMemo<GraphFieldSettingsResolved | null>(() => {
     if (!selectedField) return null
-    return normalizeSettingsForField(selectedField, settingsById[selectedField.id])
-  }, [selectedField, settingsById])
+    return selectedFieldResolvedSettingsById?.get(selectedField.id) || null
+  }, [selectedField, selectedFieldResolvedSettingsById])
   const suggestedFieldType = React.useMemo(
     () => inferFieldTypeFromGraphData(graphData, selectedField),
     [graphData, selectedField],

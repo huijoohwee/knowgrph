@@ -89,7 +89,7 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   },
   [BYTEPLUS_CHAT_API_DOC_AREA]: {
     docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1494384',
-    docsLabel: 'Open BytePlus Chat API Docs',
+    docsLabel: 'Open BytePlus Text API Docs',
     panelLabel: 'Open FloatingPanel Props Panel Text Widget',
     openPanel: () => emitPropsPanelOpen(),
   },
@@ -103,12 +103,14 @@ const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
     docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/Video_Generation_API',
     docsLabel: 'Open BytePlus Video Generation API Docs',
     panelLabel: `Open FloatingPanel ${FLOW_VIDEO_GENERATION_NODE_LABEL}`,
+    note: 'Uses shared BytePlus auth_mode and api_key from BytePlus Shared + Text API.',
     openPanel: () => emitPropsPanelOpen(),
   },
   'BytePlus Image Generation API': {
     docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1666945',
     docsLabel: 'Open BytePlus Image Generation API Docs',
     panelLabel: `Open FloatingPanel ${FLOW_IMAGE_GENERATION_NODE_LABEL}`,
+    note: 'Uses shared BytePlus auth_mode and api_key from BytePlus Shared + Text API.',
     openPanel: () => emitPropsPanelOpen(),
   },
 }

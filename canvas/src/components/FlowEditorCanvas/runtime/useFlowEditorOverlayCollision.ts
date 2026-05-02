@@ -3,7 +3,7 @@ import React from 'react'
 import { buildNodeZKeyById, compareNodeZKey } from '@/lib/canvas/groupZOrder'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { hashScopedStringArraySignature, hashSignatureParts, normalizeStringArrayForSignature } from '@/lib/hash/signature'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { getEffectiveZoomStateForKey, getZoomStateForKey } from '@/lib/canvas/zoom-effective'
@@ -786,11 +786,11 @@ export function useFlowEditorOverlayCollision(args: {
   scheduleOverlayCollisionResolveRef.current = scheduleOverlayCollisionResolve
 
   React.useEffect(() => {
-    const readWorkspaceOverlayOpen = () => isWorkspaceEditorOverlayOpen(useGraphStore.getState())
+    const readWorkspaceOverlayOpen = () => isWorkspaceGraphMutationBlocked(useGraphStore.getState())
     workspaceOverlayOpenRef.current = readWorkspaceOverlayOpen()
     if (workspaceOverlayOpenRef.current) cancelOverlayCollisionResolve(true)
     const unsub = useGraphStore.subscribe(
-      s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen] as const,
+      s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen, s.markdownWorkspaceIndexingInFlight] as const,
       () => {
         const wasOpen = workspaceOverlayOpenRef.current
         const isOpen = readWorkspaceOverlayOpen()

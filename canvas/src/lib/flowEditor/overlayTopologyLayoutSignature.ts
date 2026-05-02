@@ -1,5 +1,7 @@
 import { hashSignatureParts } from '@/lib/hash/signature'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
 
 function measuredLayoutKey(value: unknown): string {
   const n = typeof value === 'number' ? value : Number(value)
@@ -34,14 +36,16 @@ export function buildOverlayTopologyLayoutSignature(graphData: GraphData | null 
     .sort()
   const edgeParts = edges
     .map(edge => {
-      const props = (edge.properties && typeof edge.properties === 'object' && !Array.isArray(edge.properties)) ? edge.properties as Record<string, unknown> : {}
+      const { src, tgt } = readGraphEdgeEndpoints(edge)
+      const sourcePortKey = readFlowEdgePortKey(edge, 'source') || ''
+      const targetPortKey = readFlowEdgePortKey(edge, 'target') || ''
       return [
         String(edge.id || '').trim(),
-        String(edge.source || '').trim(),
-        String(edge.target || '').trim(),
+        src || '',
+        tgt || '',
         String(edge.label || '').trim(),
-        String(props.sourcePort || props['flow:sourcePort'] || '').trim(),
-        String(props.targetPort || props['flow:targetPort'] || '').trim(),
+        sourcePortKey,
+        targetPortKey,
       ].join(':')
     })
     .filter(part => part.replace(/:/g, '').trim())

@@ -173,22 +173,53 @@ const resolveBestSourceFile = (args: {
   return bestScore >= 0 ? best : null
 }
 
-const resolveMarkdownContext = (args: {
+const resolveGeospatialOverlayContext = (args: {
   graphData: GraphData
   markdownText?: string | null
   sourceDocumentPath?: string | null
   sourceFiles?: SourceFile[] | null
-}): { markdownText: string; sourceDocumentPath: string } | null => {
+}): {
+  bestSourceFile: SourceFile | null
+  sourceGraph: GraphData | null
+  markdownContext: { markdownText: string; sourceDocumentPath: string } | null
+  resolvedFrom: GeospatialOverlayGraphDebugInfo['resolvedFrom']
+} => {
+  const bestSourceFile = resolveBestSourceFile(args)
+  const sourceGraph = bestSourceFile?.parsedGraphData || null
   const directText = String(args.markdownText || '')
   const directPath = String(args.sourceDocumentPath || '').trim()
-  if (directText.trim() && directPath) return { markdownText: directText, sourceDocumentPath: directPath }
-
-  const best = resolveBestSourceFile(args)
-  if (!best) return null
-  const fallbackPath = normalizeWorkspaceDocLike(String(best.source?.path || best.name || best.id || directPath || '').trim())
-  const fallbackText = String(best.text || '')
-  if (!fallbackPath || !fallbackText.trim()) return null
-  return { markdownText: fallbackText, sourceDocumentPath: fallbackPath }
+  if (directText.trim() && directPath) {
+    return {
+      bestSourceFile,
+      sourceGraph,
+      markdownContext: { markdownText: directText, sourceDocumentPath: directPath },
+      resolvedFrom: 'direct',
+    }
+  }
+  if (!bestSourceFile) {
+    return {
+      bestSourceFile: null,
+      sourceGraph: null,
+      markdownContext: null,
+      resolvedFrom: 'none',
+    }
+  }
+  const fallbackPath = normalizeWorkspaceDocLike(String(bestSourceFile.source?.path || bestSourceFile.name || bestSourceFile.id || directPath || '').trim())
+  const fallbackText = String(bestSourceFile.text || '')
+  if (!fallbackPath || !fallbackText.trim()) {
+    return {
+      bestSourceFile,
+      sourceGraph,
+      markdownContext: null,
+      resolvedFrom: 'none',
+    }
+  }
+  return {
+    bestSourceFile,
+    sourceGraph,
+    markdownContext: { markdownText: fallbackText, sourceDocumentPath: fallbackPath },
+    resolvedFrom: 'sourceFiles',
+  }
 }
 
 const attachOverlayDebugInfo = (graphData: GraphData, info: GeospatialOverlayGraphDebugInfo): GraphData => ({
@@ -220,8 +251,8 @@ export function buildGeospatialOverlayGraphData(args: {
       sourceFilesCount: Array.isArray(args.sourceFiles) ? args.sourceFiles.length : 0,
     }))
   }
-  const bestSourceFile = resolveBestSourceFile(args)
-  const sourceGraph = bestSourceFile?.parsedGraphData || null
+  const resolvedOverlayContext = resolveGeospatialOverlayContext(args)
+  const { bestSourceFile, sourceGraph, markdownContext } = resolvedOverlayContext
   if (sourceGraph && hasGeoCoordinates(sourceGraph)) {
     const merged = mergeGraphDataUnique(graphData, sourceGraph)
     return writeCachedGeospatialOverlayGraphData(cacheKey, attachOverlayDebugInfo(merged, {
@@ -232,7 +263,6 @@ export function buildGeospatialOverlayGraphData(args: {
       sourceFilesCount: Array.isArray(args.sourceFiles) ? args.sourceFiles.length : 0,
     }))
   }
-  const markdownContext = resolveMarkdownContext(args)
   if (!markdownContext) {
     return writeCachedGeospatialOverlayGraphData(cacheKey, attachOverlayDebugInfo(graphData, {
       resolvedFrom: 'none',
@@ -243,8 +273,7 @@ export function buildGeospatialOverlayGraphData(args: {
     }))
   }
   const { markdownText, sourceDocumentPath } = markdownContext
-  const resolvedFrom: GeospatialOverlayGraphDebugInfo['resolvedFrom'] =
-    String(args.markdownText || '').trim() && String(args.sourceDocumentPath || '').trim() ? 'direct' : 'sourceFiles'
+  const resolvedFrom = resolvedOverlayContext.resolvedFrom === 'direct' ? 'direct' : 'sourceFiles'
 
   const reqs = extractEmbeddedGeoJsonGraphDataRequests({
     markdownText,

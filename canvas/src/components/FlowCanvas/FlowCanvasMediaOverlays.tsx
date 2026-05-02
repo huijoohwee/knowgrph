@@ -32,7 +32,7 @@ import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
-import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { hashSignatureParts } from '@/lib/hash/signature'
 
 function readMediaLayoutMeasureKey(value: unknown): string {
@@ -193,13 +193,13 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [cancelMediaOverlayInteractionState])
 
   React.useEffect(() => {
-    const readWorkspaceOverlayOpen = () => isWorkspaceEditorOverlayOpen(useGraphStore.getState())
+    const readWorkspaceOverlayOpen = () => isWorkspaceGraphMutationBlocked(useGraphStore.getState())
     const initialOpen = readWorkspaceOverlayOpen()
     if (workspaceOverlayOpenRef.current !== initialOpen) setWorkspaceOverlayOpenKey(key => key + 1)
     workspaceOverlayOpenRef.current = initialOpen
     if (workspaceOverlayOpenRef.current) cancelMediaOverlayInteractionState()
     const unsub = useGraphStore.subscribe(
-      s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen] as const,
+      s => [s.workspaceViewMode, s.workspaceCanvasPaneOpen, s.markdownWorkspaceIndexingInFlight] as const,
       () => {
         const nextOpen = readWorkspaceOverlayOpen()
         const changed = workspaceOverlayOpenRef.current !== nextOpen

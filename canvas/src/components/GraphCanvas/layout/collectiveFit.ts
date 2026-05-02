@@ -1,6 +1,7 @@
 
 import { GraphNode, GraphEdge } from '@/lib/graph/types'
 import { GraphSchema } from '@/lib/graph/schema'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 import { buildNodeAdjacencyFromIncidentEdges, deriveConnectivityComponents } from '@/components/GraphCanvas/layout/graphConnectivity'
@@ -24,8 +25,7 @@ export const applyCollectiveGraphLayout = (args: {
       [
         ...nodes.map(node => `${String(node?.id || '').trim()}:${String(node?.type || '').trim()}`),
         ...edges.map(edge => {
-          const sourceId = typeof edge?.source === 'object' ? String((edge.source as { id?: unknown })?.id || '').trim() : String(edge?.source || '').trim()
-          const targetId = typeof edge?.target === 'object' ? String((edge.target as { id?: unknown })?.id || '').trim() : String(edge?.target || '').trim()
+          const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(edge)
           return `${String(edge?.id || '').trim()}:${sourceId}:${targetId}`
         }),
       ],

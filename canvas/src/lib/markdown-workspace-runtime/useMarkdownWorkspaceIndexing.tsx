@@ -64,7 +64,9 @@ export type MarkdownWorkspaceIndexingArgs = {
   repairedMissingWorkspaceFilesRef: React.MutableRefObject<Set<WorkspacePath>>
   lastIndexedByPathRef: React.MutableRefObject<Map<WorkspacePath, string>>
   indexJobRef: React.MutableRefObject<number>
+  indexingInFlightRef: React.MutableRefObject<boolean>
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
+  setIndexingInFlight: React.Dispatch<React.SetStateAction<boolean>>
   setActiveTextProgrammatic: (text: string) => void
   setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   setEntries: React.Dispatch<React.SetStateAction<WorkspaceEntry[]>>
@@ -119,6 +121,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
       void (async () => {
         let loadingLabelTimer: number | null = null
         try {
+          if (!args.indexingInFlightRef.current) args.setIndexingInFlight(true)
           try {
             loadingLabelTimer = window.setTimeout(() => {
               if (bytesTotalHint && bytesTotalHint > 0) {
@@ -476,6 +479,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             args.setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
           }
         } finally {
+          if (args.indexingInFlightRef.current) args.setIndexingInFlight(false)
           if (loadingLabelTimer != null) window.clearTimeout(loadingLabelTimer)
         }
       })()
@@ -497,8 +501,10 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
     args.activePath,
     args.contentMode,
     args.getFs,
+    args.indexingInFlightRef,
     args.patchWorkspaceEntryInlineText,
     args.setActiveMarkdownDocument,
+    args.setIndexingInFlight,
     args.setActiveTextProgrammatic,
     args.setEntries,
     args.setStatusError,

@@ -1,5 +1,5 @@
 import React from 'react'
-import type { GraphData, GraphNode, GraphEdge, SelectionAnchorIds } from '@/lib/graph/types'
+import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import {
   applyGraphDataTableFilters,
   filterRows,
@@ -13,14 +13,13 @@ import {
   type GraphDataTableScope,
 } from '../BottomPanelCuratorModels'
 import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
-import { useSelectionAnchorIds } from '@/components/GraphCanvas/highlight'
-import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import {
   readTraversalSummaryMembership,
   type TraversalSummary,
   type TraversalSummaryMembership,
 } from '@/features/panels/utils/orchestratorTraversal'
+import { useBottomPanelCuratorSelectionNeighborhood } from './useBottomPanelCuratorSelectionNeighborhood'
 
 interface UseBottomPanelCuratorVisibleRowsParams {
   nodes: GraphNode[]
@@ -112,70 +111,15 @@ export function useBottomPanelCuratorVisibleRows({
   graphDataTableSortRules,
   lastTraversalSummary,
 }: UseBottomPanelCuratorVisibleRowsParams): UnifiedRow[] {
-  const selectionSemanticKey = React.useMemo(() => {
-    return hashSignatureParts([
-      'bottom-panel-curator-visible-rows-selection',
-      graphDataTableViewMode,
-      selectedNodeId || '',
-      selectedEdgeId || '',
-      hashScopedStringArraySignature('selected-node-ids', selectedNodeIds),
-      hashScopedStringArraySignature('selected-edge-ids', selectedEdgeIds),
-    ])
-  }, [
-    graphDataTableViewMode,
-    selectedEdgeId,
-    selectedEdgeIds,
-    selectedNodeId,
-    selectedNodeIds,
-  ])
-
-  const traversalSummarySemanticKey = React.useMemo(() => {
-    return hashSignatureParts([
-      'bottom-panel-curator-visible-rows-traversal',
-      lastTraversalSummary?.mode || '',
-      hashScopedStringArraySignature(
-        'bottom-panel-curator-visible-rows-traversal-edge-ids',
-        lastTraversalSummary?.edgeIds || [],
-      ),
-    ])
-  }, [lastTraversalSummary?.edgeIds, lastTraversalSummary?.mode])
-
-  const fallbackGraphIdentityKey = React.useMemo(() => {
-    if (graphDataRevision > 0) return ''
-    return hashSignatureParts([
-      'bottom-panel-curator-visible-rows-fallback-graph',
-      hashScopedStringArraySignature(
-        'bottom-panel-curator-visible-rows-node-ids',
-        nodes.map(node => String(node.id || '')),
-      ),
-      hashScopedStringArraySignature(
-        'bottom-panel-curator-visible-rows-edge-ids',
-        edges.map(edge => String(edge.id || '')),
-      ),
-    ])
-  }, [edges, graphDataRevision, nodes])
-
-  const graphDataSemanticKey = React.useMemo(() => {
-    return hashSignatureParts([
-      'bottom-panel-curator-visible-rows-graph',
-      graphDataRevision,
-      selectionSemanticKey,
-      traversalSummarySemanticKey,
-      nodes.length,
-      edges.length,
-      fallbackGraphIdentityKey,
-    ])
-  }, [
-    edges.length,
-    fallbackGraphIdentityKey,
+  const {
+    graphData,
+    graphDataSemanticKey,
+    selectionNeighborhoodMembership,
+  } = useBottomPanelCuratorSelectionNeighborhood({
+    nodes,
+    edges,
     graphDataRevision,
-    nodes.length,
-    selectionSemanticKey,
-    traversalSummarySemanticKey,
-  ])
-
-  const graphData = React.useMemo<GraphData>(() => ({ type: 'Graph', nodes, edges }), [edges, nodes])
-  const selectionAnchorIds = useSelectionAnchorIds({
+    graphDataTableViewMode,
     selectedNodeId,
     selectedEdgeId,
     selectedNodeIds,
@@ -188,21 +132,6 @@ export function useBottomPanelCuratorVisibleRows({
       graphSemanticKey: graphDataSemanticKey,
     })
   }, [graphData, graphDataRevision, graphDataSemanticKey])
-
-  const selectionNeighborhoodMembership = React.useMemo(() => {
-    if (graphDataTableViewMode !== 'selectionNeighborhood') return null
-    if (
-      selectionAnchorIds.selectionNodeIds.length === 0
-      && selectionAnchorIds.selectionEdgeIds.length === 0
-    ) {
-      return null
-    }
-    return readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)
-  }, [
-    graphData,
-    graphDataTableViewMode,
-    selectionAnchorIds,
-  ])
 
   const traversalMembership = React.useMemo(() => {
     return readTraversalSummaryMembership(graphData, lastTraversalSummary, {

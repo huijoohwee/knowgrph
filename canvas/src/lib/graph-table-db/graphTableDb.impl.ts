@@ -282,17 +282,16 @@ export const warmGraphTableDb = async (): Promise<void> => {
 const pkOfColumn = (tableId: GraphTableId, columnId: string): string => `${tableId}:${columnId}`
 const pkOfRow = (tableId: GraphTableId, rowId: string): string => `${tableId}:${rowId}`
 
-export const ensureGraphTableSeed = async (): Promise<void> => {
+const ensureGraphTableSeedUnlocked = async (): Promise<void> => {
   const { collections } = await getGraphTableDb()
   const now = Date.now()
-  const existing = await collections.tables.find().exec()
-  const existingIds = new Set(existing.map(d => d.get('id')))
   const seeds: GraphTableDoc[] = [
     { id: 'nodes', name: 'Nodes', order: 1, createdAtMs: now, updatedAtMs: now },
     { id: 'edges', name: 'Edges', order: 2, createdAtMs: now, updatedAtMs: now },
   ]
   for (const t of seeds) {
-    if (existingIds.has(t.id)) continue
+    const exists = await collections.tables.findOne(t.id).exec()
+    if (exists) continue
     await collections.tables.insert(t)
   }
 
@@ -322,6 +321,12 @@ export const ensureGraphTableSeed = async (): Promise<void> => {
       updatedAtMs: now,
     })
   }
+}
+
+export const ensureGraphTableSeed = async (): Promise<void> => {
+  await withGraphTableDbWrite(async () => {
+    await ensureGraphTableSeedUnlocked()
+  })
 }
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -553,7 +558,7 @@ const ensureColumnsForRowData = async (tableId: GraphTableId, rows: Array<Record
 
 export const syncGraphDataToGraphTableDb = async (graph: GraphData | null): Promise<void> => {
   await withGraphTableDbWrite(async () => {
-    await ensureGraphTableSeed()
+    await ensureGraphTableSeedUnlocked()
     if (!graph) return
     const { collections } = await getGraphTableDb()
     const now = Date.now()

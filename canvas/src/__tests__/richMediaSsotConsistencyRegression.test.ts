@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
+  buildRichMediaPanelOverlayState,
   buildStaticRichMediaPanelOverlayState,
   listDisplayRichMediaOverlayNodes,
   normalizeRichMediaPanelDensity,
@@ -95,6 +96,31 @@ export function testRichMediaSsotConsistencyRegression() {
   if (staticTextPanel.activeTab !== 'text' || staticTextPanel.hasText !== true || staticTextPanel.loadingLabel !== '') {
     throw new Error('expected static Rich Media panel builder to derive canonical text state with stable defaults')
   }
+  const idlePanelNode = {
+    id: 'panel-idle',
+    type: 'RichMediaPanel',
+    properties: {
+      outputLoading: true,
+      outputLoadingKind: 'text',
+    },
+  } as any
+  const idlePanel = buildRichMediaPanelOverlayState({ node: idlePanelNode })
+  if (!idlePanel || idlePanel.isLoading !== false) {
+    throw new Error('expected Rich Media panel loading SSOT to keep initialization-only loading flags out of the animated loading state')
+  }
+  const runningPanelNode = {
+    id: 'panel-running',
+    type: 'RichMediaPanel',
+    properties: {
+      outputLoading: true,
+      outputLoadingKind: 'text',
+      lastRunAt: '2026-05-02T00:00:00.000Z',
+    },
+  } as any
+  const runningPanel = buildRichMediaPanelOverlayState({ node: runningPanelNode })
+  if (!runningPanel || runningPanel.isLoading !== true) {
+    throw new Error('expected Rich Media panel loading SSOT to show animated loading only for run-scoped output loading states')
+  }
 
   const imageNode = {
     id: 'img-1',
@@ -169,8 +195,11 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!flowCanvasGraphStateText.includes('nodeById: sceneGraphNodeById || undefined')) {
     throw new Error('expected FlowCanvas overlay pool to pass the shared scene-graph lookup through the Rich Media SSOT wrapper')
   }
-  if (!flowCanvasGraphStateText.includes('...(Array.isArray(excludeRichMediaOverlayNodeIds) ? excludeRichMediaOverlayNodeIds : [])')) {
-    throw new Error('expected FlowCanvas duplicate exclusion to include Flow Editor overlay node ids')
+  if (!flowCanvasGraphStateText.includes("hashScopedStringArraySignature('flow-exclude-rich-media-overlay-node-ids', excludeRichMediaOverlayNodeIds)")) {
+    throw new Error('expected FlowCanvas duplicate exclusion ids to be keyed by a semantic signature instead of raw array identity')
+  }
+  if (!flowCanvasGraphStateText.includes('...excludeRichMediaOverlayNodeIdsSnapshot,')) {
+    throw new Error('expected FlowCanvas duplicate exclusion to include Flow Editor overlay node ids via the normalized semantic snapshot')
   }
   if (!flowCanvasGraphStateText.includes('const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode')) {
     throw new Error('expected FlowCanvas Flow Editor exclusion to relax blanket Rich Media panel suppression in frontmatter document mode')

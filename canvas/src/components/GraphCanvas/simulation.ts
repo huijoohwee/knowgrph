@@ -36,36 +36,21 @@ import {
 import { isRadarFlowEdge, isRadarGraph as detectRadarGraph, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
 import { readBipartiteGridSizePx, readBipartiteLaneSeparationPx } from '@/lib/canvas/bipartiteGrid'
 import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
-
-type EdgeEndpointLike = GraphEdge['source'] | { id?: string | number } | null | undefined;
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 
 export type EdgeWithRuntime = GraphEdge & {
-  source?: EdgeEndpointLike;
-  target?: EdgeEndpointLike;
-};
+  source?: GraphEdge['source'];
+  target?: GraphEdge['target'];
+}
 
-const coerceEndpointId = (value: EdgeEndpointLike): string | null => {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null;
-  if (value && typeof value === 'object') {
-    const id = (value as { id?: unknown }).id;
-    if (typeof id === 'string') return id;
-    if (typeof id === 'number') return Number.isFinite(id) ? String(id) : null;
-  }
-  return null;
-};
-
-export const getEdgeEndpoints = (edge: EdgeWithRuntime): { src: string | null; tgt: string | null } => ({
-  src: coerceEndpointId(edge.source ?? null),
-  tgt: coerceEndpointId(edge.target ?? null),
-});
+export const getEdgeEndpoints = (edge: EdgeWithRuntime): { src: string | null; tgt: string | null } =>
+  readGraphEdgeEndpoints(edge)
 
 export const normalizeEdgesForSim = (nodes: GraphNode[], edges: GraphEdge[]): GraphEdge[] => {
   const nodeIds = new Set<string>((nodes || []).map(n => String(n.id)));
   const out: GraphEdge[] = [];
   for (const e of edges || []) {
-    const source = coerceEndpointId(e.source);
-    const target = coerceEndpointId(e.target);
+    const { src: source, tgt: target } = readGraphEdgeEndpoints(e)
     if (!source || !target) continue;
     if (!nodeIds.has(source) || !nodeIds.has(target)) continue;
     out.push({ ...e, source, target });
@@ -392,8 +377,7 @@ export const buildSimulation = (
       outDegree.set(String(n.id), 0)
     })
     es.forEach(e => {
-      const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
-      const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
+      const { src: s, tgt: t } = readGraphEdgeEndpoints(e)
       if (s && outDegree.has(String(s))) outDegree.set(String(s), (outDegree.get(String(s)) || 0) + 1)
       if (t && inDegree.has(String(t))) inDegree.set(String(t), (inDegree.get(String(t)) || 0) + 1)
     })
@@ -598,8 +582,7 @@ export const buildSimulation = (
     const topologyEdges = hasMermaidNodes
       ? edgesForSim.filter(e => {
           if (String(e.label || '') !== 'pointsTo') return false
-          const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
-          const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
+          const { src: s, tgt: t } = readGraphEdgeEndpoints(e)
           return !!s && !!t && topologyNodeIds?.has(String(s)) && topologyNodeIds?.has(String(t))
         })
       : edgesForSim
@@ -828,8 +811,7 @@ export const updateForceSimulationPresentation = (args: {
       outDegree.set(String(n.id), 0)
     })
     es.forEach(e => {
-      const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
-      const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
+      const { src: s, tgt: t } = readGraphEdgeEndpoints(e)
       if (s && outDegree.has(String(s))) outDegree.set(String(s), (outDegree.get(String(s)) || 0) + 1)
       if (t && inDegree.has(String(t))) inDegree.set(String(t), (inDegree.get(String(t)) || 0) + 1)
     })
@@ -847,8 +829,7 @@ export const updateForceSimulationPresentation = (args: {
   const topologyEdges = hasMermaidNodes
     ? edges.filter(e => {
         if (String(e.label || '') !== 'pointsTo') return false
-        const s = typeof e.source === 'object' ? (e.source as { id: string }).id : e.source
-        const t = typeof e.target === 'object' ? (e.target as { id: string }).id : e.target
+        const { src: s, tgt: t } = readGraphEdgeEndpoints(e)
         return !!s && !!t && topologyNodeIds?.has(String(s)) && topologyNodeIds?.has(String(t))
       })
     : edges

@@ -185,13 +185,7 @@ export default function MainPanel({
     ]),
     [lastTraversalSummary?.edgeIds, lastTraversalSummary?.mode],
   )
-  const traversalSummarySnapshotRef = React.useRef<{ key: string; value: typeof lastTraversalSummary } | null>(null)
-  if (traversalSummarySnapshotRef.current?.key !== traversalSummarySignature) {
-    traversalSummarySnapshotRef.current = {
-      key: traversalSummarySignature,
-      value: lastTraversalSummary,
-    }
-  }
+  const traversalSummary = React.useMemo(() => lastTraversalSummary, [traversalSummarySignature])
   const activeTabMeta = getMainPanelTabMeta(tab)
   const activeSharedActions = isSharedMainPanelTabKey(tab) ? sharedActionsByTab[tab] : null
   const searchVisible = searchOpen && mainPanelTabSupportsSearch(tab)
@@ -199,7 +193,7 @@ export default function MainPanel({
   const footerLabel = activeTabMeta.footerLabel
 
   const traversalChip = React.useMemo(() => {
-    const summary = traversalSummarySnapshotRef.current?.value || null
+    const summary = traversalSummary
     if (!summary || !summary.edgeIds || summary.edgeIds.length === 0) return null
     const edgesCount = summary.edgeIds.length
     let nodesCount: number | null = null
@@ -222,7 +216,7 @@ export default function MainPanel({
       edgesLabel,
       nodesLabel,
     }
-  }, [traversalEdgeById, traversalSummarySignature])
+  }, [traversalEdgeById, traversalSummary])
 
   React.useEffect(() => {
     if (!requestedTab) return

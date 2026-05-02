@@ -30,6 +30,8 @@ function readLoadingStateFromNode(node: GraphNode | null | undefined): { loading
   const props = (node.properties || {}) as Record<string, unknown>
   const loading = Boolean(props.outputLoading)
   if (!loading) return { loading: false, kind: '' }
+  const runSignal = typeof props.lastRunAt === 'string' ? props.lastRunAt.trim() : ''
+  if (!runSignal) return { loading: false, kind: '' }
   const kindRaw = String(props.outputLoadingKind || '').trim().toLowerCase()
   const kind = kindRaw === 'text' || kindRaw === 'image' || kindRaw === 'video' ? kindRaw : ''
   return { loading: true, kind }

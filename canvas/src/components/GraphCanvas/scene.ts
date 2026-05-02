@@ -659,7 +659,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
         g,
         svgRef,
         getSchema,
-        nodes: graphDataForDisplay.nodes,
+        nodeById: displayNodeById,
         getSelectedNodeId: () => selectedNodeIdRef.current,
         hiddenNodeIdSet: (() => {
           if (!panelOnlyNodeIdSet && !mediaOverlayNodeIdSet) return null

@@ -7,6 +7,7 @@ import {
   getGraphTableDb,
   syncGraphDataToGraphTableDb,
   updateGraphTableCell,
+  warmGraphTableDb,
 } from '@/features/graph-table-db/graphTableDb'
 import { collapsedGroupNodeIdFor, deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
 
@@ -98,6 +99,21 @@ export async function testGraphTableDbConcurrentSyncDoesNotConflict() {
   const { collections } = await getGraphTableDb()
   const col = await collections.columns.findOne('nodes:isMermaidFrontmatter').exec()
   if (!col) throw new Error('expected concurrent sync to create column without conflicts')
+}
+
+export async function testGraphTableDbWarmAndSyncDoNotConflict() {
+  await resetGraphTableDb()
+  const graph: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'n1', type: 'Entity', label: 'Node', properties: { widgetMode: 'active' } }],
+    edges: [],
+  }
+  await Promise.all([warmGraphTableDb(), syncGraphDataToGraphTableDb(graph)])
+  const { collections } = await getGraphTableDb()
+  const table = await collections.tables.findOne('nodes').exec()
+  if (!table) throw new Error('expected nodes table to exist after concurrent warm and sync')
+  const row = await collections.rows.findOne('nodes:n1').exec()
+  if (!row) throw new Error('expected nodes:n1 row to exist after concurrent warm and sync')
 }
 
 export async function testGraphTableDbNoopSyncDoesNotRewriteRows() {

@@ -59,10 +59,15 @@ export function resolveComposedApplyDeferralReason(args: {
   layers: ReadonlyArray<ComposedApplyGuardLayer>
   composedGraphData: GraphData | null | undefined
   previousGraphData: GraphData | null | undefined
-}): 'pending-remote-source' | 'pending-parse-edge-only' | 'pending-text-without-parsed' | null {
+  workspaceEditorOverlayOpen?: boolean
+}): 'pending-remote-source' | 'pending-parse-edge-only' | 'pending-text-without-parsed' | 'workspace-editor-overlay-open' | null {
   const { layers } = args
   const composed = countGraphContent(args.composedGraphData)
   const previous = countGraphContent(args.previousGraphData)
+
+  if (args.workspaceEditorOverlayOpen === true) {
+    return 'workspace-editor-overlay-open'
+  }
 
   if (!composed.hasContent && hasPendingEnabledRemoteSource(layers)) {
     return 'pending-remote-source'

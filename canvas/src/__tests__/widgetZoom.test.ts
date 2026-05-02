@@ -155,6 +155,30 @@ export function testBalancedSpreadPrefersWide16x9CollectiveLayout() {
     throw new Error(`expected 6-up 16:9 collective layout to prefer 4x2, got ${sixUp.cols}x${sixUp.rows}`)
   }
 
+  const elevenUp = computeBalancedSpreadGrid({
+    count: 11,
+    viewportW: 1920,
+    viewportH: 1080,
+    cellW: 360,
+    cellH: 420,
+    zoomK: 1,
+  })
+  if (!(elevenUp.cols === 5 && elevenUp.rows === 3)) {
+    throw new Error(`expected dense 11-up 16:9 collective layout to prefer a wide 5x3 fallback, got ${elevenUp.cols}x${elevenUp.rows}`)
+  }
+
+  const twelveUp = computeBalancedSpreadGrid({
+    count: 12,
+    viewportW: 1920,
+    viewportH: 1080,
+    cellW: 360,
+    cellH: 420,
+    zoomK: 1,
+  })
+  if (!(twelveUp.cols === 5 && twelveUp.rows === 3)) {
+    throw new Error(`expected dense 12-up 16:9 collective layout to prefer a wide 5x3 fallback, got ${twelveUp.cols}x${twelveUp.rows}`)
+  }
+
   const mediaMargins = computeBalancedSpreadViewportMargins({
     viewportW: 1920,
     viewportH: 1080,

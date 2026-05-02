@@ -11,9 +11,12 @@ import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import {
+  FLOW_EDGE_SOURCE_PORT_KEY,
+  FLOW_EDGE_TARGET_PORT_KEY,
   FLOW_SCHEMA_FIELDS_PROPERTY_KEY,
   readSchemaFieldSpecs,
 } from '@/lib/graph/flowPorts'
+import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import { readNodeProperties } from '@/lib/graph/nodeProperties'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import {
@@ -44,9 +47,105 @@ import type { GraphEdge } from '@/lib/graph/types'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 import type { RichMediaWidgetPreviewState } from '@/components/FlowEditor/useRichMediaWidgetPreview'
+import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import {
   getRichMediaPanelNodeLabel,
 } from '@/lib/render/richMediaSsot'
+
+const EMPTY_GRAPH_EDGES: ReadonlyArray<GraphEdge> = []
+
+function buildWidgetRegistryEntrySemanticSignature(entry: WidgetRegistryEntry | null | undefined): string {
+  if (!entry) return hashSignatureParts(['widget-registry-entry', 0])
+  return hashSignatureParts([
+    'widget-registry-entry',
+    String(entry.id || '').trim(),
+    String(entry.nodeTypeId || '').trim(),
+    String(entry.widgetTypeId || '').trim(),
+    String(entry.formId || '').trim(),
+    String(entry.updatedAt || '').trim(),
+    hashArrayOfObjectsSignature(entry.fields ?? [], {
+      maxItems: Math.max(16, Array.isArray(entry.fields) ? entry.fields.length : 0),
+      maxKeysPerItem: 8,
+    }),
+    hashArrayOfObjectsSignature(entry.ports ?? [], {
+      maxItems: Math.max(16, Array.isArray(entry.ports) ? entry.ports.length : 0),
+      maxKeysPerItem: 8,
+    }),
+  ])
+}
+
+function buildWidgetRegistryEntriesSemanticSignature(
+  registryEntries: ReadonlyArray<WidgetRegistryEntry> | null | undefined,
+): string {
+  const entries = Array.isArray(registryEntries) ? registryEntries : []
+  return hashArrayOfObjectsSignature(
+    entries.map(entry => ({
+      id: String(entry?.id || '').trim(),
+      nodeTypeId: String(entry?.nodeTypeId || '').trim(),
+      widgetTypeId: String(entry?.widgetTypeId || '').trim(),
+      formId: String(entry?.formId || '').trim(),
+      updatedAt: String(entry?.updatedAt || '').trim(),
+      entrySignature: buildWidgetRegistryEntrySemanticSignature(entry),
+    })),
+    { maxItems: Math.max(24, entries.length), maxKeysPerItem: 6 },
+  )
+}
+
+function buildGraphEdgesSemanticSignature(edges: ReadonlyArray<GraphEdge> | null | undefined): string {
+  const edgeList = Array.isArray(edges) ? edges : []
+  return hashArrayOfObjectsSignature(
+    edgeList.map(edge => {
+      const props =
+        edge && typeof edge === 'object' && !Array.isArray(edge)
+          ? ((edge as { properties?: unknown }).properties as Record<string, unknown> | null | undefined)
+          : null
+      return {
+        id: String((edge as { id?: unknown })?.id || '').trim(),
+        source: readEdgeEndpointId(edge?.source),
+        target: readEdgeEndpointId(edge?.target),
+        sourcePortKey:
+          typeof props?.[FLOW_EDGE_SOURCE_PORT_KEY] === 'string'
+            ? String(props?.[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
+            : '',
+        targetPortKey:
+          typeof props?.[FLOW_EDGE_TARGET_PORT_KEY] === 'string'
+            ? String(props?.[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
+            : '',
+      }
+    }),
+    { maxItems: Math.max(24, edgeList.length), maxKeysPerItem: 5 },
+  )
+}
+
+function buildConnectedValuesSemanticSignature(
+  connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | null | undefined,
+): string {
+  const record =
+    connectedValuesBySchemaPath && typeof connectedValuesBySchemaPath === 'object' && !Array.isArray(connectedValuesBySchemaPath)
+      ? (connectedValuesBySchemaPath as Record<string, unknown>)
+      : {}
+  const keys = Object.keys(record).sort()
+  return hashArrayOfObjectsSignature(
+    keys.map(path => {
+      const entry = record[path] as Record<string, unknown> | null | undefined
+      const value = entry?.value
+      return {
+        path,
+        valueType: typeof value,
+        valueText:
+          typeof value === 'string'
+            ? value
+            : typeof value === 'number' && Number.isFinite(value)
+              ? String(value)
+              : typeof value === 'boolean'
+                ? (value ? '1' : '0')
+                : '',
+        valueSignature: hashRecordSignature32(value, { maxEntries: 60, maxDepth: 2 }),
+      }
+    }),
+    { maxItems: Math.max(24, keys.length), maxKeysPerItem: 4 },
+  )
+}
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
@@ -101,12 +200,97 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   void onSetType
   void onValidate
   const properties = readNodeProperties(node)
+  const propertiesSignature = React.useMemo(() => {
+    return hashRecordSignature32(properties, { maxEntries: 80, maxDepth: 2 })
+  }, [properties])
+  const propertiesSnapshotRef = React.useRef<{ key: number; value: Record<string, unknown> } | null>(null)
+  if (propertiesSnapshotRef.current?.key !== propertiesSignature) {
+    propertiesSnapshotRef.current = {
+      key: propertiesSignature,
+      value: properties,
+    }
+  }
+  const propertiesSnapshot = propertiesSnapshotRef.current.value
   const nodeTypeId = pickString(node.type).trim()
+  const nodeHelperSignature = React.useMemo(() => {
+    return hashSignatureParts([
+      'node-overlay-editor-form-node',
+      String(node.id || '').trim(),
+      nodeTypeId,
+      String(node.label || '').trim(),
+      propertiesSignature,
+    ])
+  }, [node.id, node.label, nodeTypeId, propertiesSignature])
+  const nodeHelperSnapshotRef = React.useRef<{
+    key: string
+    value: Pick<GraphNode, 'id' | 'type' | 'label' | 'properties'>
+  } | null>(null)
+  if (nodeHelperSnapshotRef.current?.key !== nodeHelperSignature) {
+    nodeHelperSnapshotRef.current = {
+      key: nodeHelperSignature,
+      value: {
+        id: node.id,
+        type: node.type,
+        label: node.label,
+        properties: propertiesSnapshot,
+      },
+    }
+  }
+  const nodeHelperSnapshot = nodeHelperSnapshotRef.current.value
+  const safeEdges = edges || EMPTY_GRAPH_EDGES
+  const edgesSignature = React.useMemo(() => buildGraphEdgesSemanticSignature(safeEdges), [safeEdges])
+  const edgesSnapshotRef = React.useRef<{ key: string; value: ReadonlyArray<GraphEdge> } | null>(null)
+  if (edgesSnapshotRef.current?.key !== edgesSignature) {
+    edgesSnapshotRef.current = {
+      key: edgesSignature,
+      value: safeEdges,
+    }
+  }
+  const edgesSnapshot = edgesSnapshotRef.current.value
+  const registryEntrySignature = React.useMemo(
+    () => buildWidgetRegistryEntrySemanticSignature(registryEntry),
+    [registryEntry],
+  )
+  const registryEntrySnapshotRef = React.useRef<{ key: string; value: WidgetRegistryEntry | null } | null>(null)
+  if (registryEntrySnapshotRef.current?.key !== registryEntrySignature) {
+    registryEntrySnapshotRef.current = {
+      key: registryEntrySignature,
+      value: registryEntry ?? null,
+    }
+  }
+  const registryEntrySnapshot = registryEntrySnapshotRef.current.value
+  const registryEntriesSignature = React.useMemo(
+    () => buildWidgetRegistryEntriesSemanticSignature(registryEntries),
+    [registryEntries],
+  )
+  const registryEntriesSnapshotRef = React.useRef<{ key: string; value: ReadonlyArray<WidgetRegistryEntry> } | null>(null)
+  if (registryEntriesSnapshotRef.current?.key !== registryEntriesSignature) {
+    registryEntriesSnapshotRef.current = {
+      key: registryEntriesSignature,
+      value: registryEntries,
+    }
+  }
+  const registryEntriesSnapshot = registryEntriesSnapshotRef.current.value
+  const connectedValuesSignature = React.useMemo(
+    () => buildConnectedValuesSemanticSignature(connectedValuesBySchemaPath),
+    [connectedValuesBySchemaPath],
+  )
+  const connectedValuesSnapshotRef = React.useRef<{
+    key: string
+    value: FlowConnectedValuesBySchemaPath | undefined
+  } | null>(null)
+  if (connectedValuesSnapshotRef.current?.key !== connectedValuesSignature) {
+    connectedValuesSnapshotRef.current = {
+      key: connectedValuesSignature,
+      value: connectedValuesBySchemaPath,
+    }
+  }
+  const connectedValuesSnapshot = connectedValuesSnapshotRef.current.value?.value
   const isRichMediaPanelWidget = nodeTypeId === 'RichMediaPanel'
   const idBase = React.useMemo(() => {
-    const nodeId = cleanDomIdPart(node.id) || 'node'
+    const nodeId = cleanDomIdPart(nodeHelperSnapshot.id) || 'node'
     return `flow-node-quick-${nodeId}`
-  }, [node.id])
+  }, [nodeHelperSnapshot.id])
 
   const ids = React.useMemo(() => {
     return {
@@ -119,7 +303,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
     }
   }, [idBase])
 
-  const schemaFields = React.useMemo(() => readSchemaFieldSpecs(node), [node])
+  const schemaFields = React.useMemo(() => readSchemaFieldSpecs(nodeHelperSnapshot), [nodeHelperSnapshot])
   const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'
   const showRichMediaPanelViewer = isRichMediaPanelWidget && !hideFields
   const showRichMediaPanelKtvRows = isRichMediaPanelWidget && hideFields && !isFrontmatterFlow
@@ -151,11 +335,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   }, [])
   const frontmatterContract = React.useMemo(() => {
     return buildFrontmatterWidgetContractModel({
-      node,
-      edges,
-      registryEntry,
+      node: nodeHelperSnapshot,
+      edges: edgesSnapshot,
+      registryEntry: registryEntrySnapshot,
     })
-  }, [edges, node, registryEntry])
+  }, [edgesSnapshot, nodeHelperSnapshot, registryEntrySnapshot])
   const flowCompute = frontmatterContract.flowCompute
   const frontmatterContractRowSpecs = React.useMemo(() => {
     return buildFrontmatterWidgetContractRowSpecs(frontmatterContract)
@@ -212,11 +396,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
 
   const frontmatterWidgetRegistrySection = React.useMemo(
     () => resolveFrontmatterWidgetRegistrySectionState({
-      node,
-      registryEntry,
+      node: nodeHelperSnapshot,
+      registryEntry: registryEntrySnapshot,
       graphMetaKind,
     }),
-    [graphMetaKind, node, registryEntry],
+    [graphMetaKind, nodeHelperSnapshot, registryEntrySnapshot],
   )
   const showFrontmatterWidgetRegistrySection = frontmatterWidgetRegistrySection.visible
   const hideFrontmatterFlowContractRows = frontmatterWidgetRegistrySection.hideFlowContractRows
@@ -225,12 +409,12 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const registryOptions = React.useMemo(
     () => {
       return listScopedWidgetRegistryEntries({
-        node,
-        registry: registryEntries,
+        node: nodeHelperSnapshot,
+        registry: registryEntriesSnapshot,
         graphMetaKind,
       })
     },
-    [graphMetaKind, node, registryEntries],
+    [graphMetaKind, nodeHelperSnapshot, registryEntriesSnapshot],
   )
   const registrySelectionId = registryEntry?.id || ''
   const hasRegistryOptions = registryOptions.length > 0
@@ -283,17 +467,17 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const compactPreview = React.useMemo(() => {
     if (!hideFields || isRichMediaPanelWidget) return null
     return resolveWidgetCompactPreview({
-      node,
-      registryEntry,
-      connectedValuesBySchemaPath,
+      node: nodeHelperSnapshot as GraphNode,
+      registryEntry: registryEntrySnapshot,
+      connectedValuesBySchemaPath: connectedValuesSnapshot,
     })
-  }, [connectedValuesBySchemaPath, hideFields, isRichMediaPanelWidget, node, registryEntry])
+  }, [connectedValuesSnapshot, hideFields, isRichMediaPanelWidget, nodeHelperSnapshot, registryEntrySnapshot])
   const compactPreviewView = React.useMemo(() => {
     return buildWidgetCompactPreviewViewModel({
       preview: compactPreview,
-      node,
+      node: nodeHelperSnapshot,
     })
-  }, [compactPreview, node])
+  }, [compactPreview, nodeHelperSnapshot])
 
   const compactPreviewEditorClass = React.useMemo(() => {
     return cn(
@@ -540,7 +724,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
                     UI_THEME_TOKENS.input.border,
                     UI_THEME_TOKENS.input.text,
                   )}
-                  value={String(node.label || '')}
+                  value={String(nodeHelperSnapshot.label || '')}
                   onChange={e => onSetLabel(e.target.value)}
                   disabled={!active}
                 />
@@ -562,8 +746,8 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           }}
         >
           <RichMediaPanel
-            overlayId={String(node.id || '')}
-            title={String(node.label || getRichMediaPanelNodeLabel())}
+            overlayId={String(nodeHelperSnapshot.id || '')}
+            title={String(nodeHelperSnapshot.label || getRichMediaPanelNodeLabel())}
             url={richMediaPreview?.url || ''}
             srcDoc={richMediaPreview?.kind === 'iframe' ? richMediaPreview.srcDoc : undefined}
             openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
@@ -694,18 +878,18 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         <NodeOverlayEditorBeatByBeatSection
           node={node}
           graphMetaKind={graphMetaKind}
-          edges={edges || []}
+          edges={edgesSnapshot}
           microLabelClass={microLabelClass}
           monospaceTextClass={monospaceTextClass}
           compact={hideFields}
         />
       )}
 
-      {showRichMediaPanelKtvRows && registryEntry && (
+      {showRichMediaPanelKtvRows && registryEntrySnapshot && (
         <NodeOverlayEditorRegistrySection
           active={active}
-          properties={properties}
-          registryEntry={registryEntry}
+          properties={propertiesSnapshot}
+          registryEntry={registryEntrySnapshot}
           microLabelClass={microLabelClass}
           monospaceTextClass={monospaceTextClass}
           textSizeClass={textSizeClass}
@@ -715,7 +899,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
           portHandlesEnabled={portHandlesEnabled}
-          connectedValuesBySchemaPath={connectedValuesBySchemaPath}
+          connectedValuesBySchemaPath={connectedValuesSnapshot}
           onSetProperties={onSetProperties}
           onSchemaPortHandleClick={onSchemaPortHandleClick}
           showFieldRows
@@ -724,7 +908,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {showFrontmatterWidgetRegistrySection && registryEntry && (
+      {showFrontmatterWidgetRegistrySection && registryEntrySnapshot && (
         <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidget}>
           <NodeOverlayEditorKvTable
             ariaLabel={UI_LABELS.flowWidget}
@@ -764,11 +948,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         </section>
       )}
 
-      {showFrontmatterWidgetRegistrySection && registryEntry && (
+      {showFrontmatterWidgetRegistrySection && registryEntrySnapshot && (
         <NodeOverlayEditorRegistrySection
           active={active}
-          properties={properties}
-          registryEntry={registryEntry}
+          properties={propertiesSnapshot}
+          registryEntry={registryEntrySnapshot}
           microLabelClass={microLabelClass}
           monospaceTextClass={monospaceTextClass}
           textSizeClass={textSizeClass}
@@ -778,7 +962,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
           portHandlesEnabled={portHandlesEnabled}
-          connectedValuesBySchemaPath={connectedValuesBySchemaPath}
+          connectedValuesBySchemaPath={connectedValuesSnapshot}
           onSetProperties={onSetProperties}
           onSchemaPortHandleClick={onSchemaPortHandleClick}
           showFieldRows
@@ -786,11 +970,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {!isRichMediaPanelWidget && !isFrontmatterFlow && hideFields && registryEntry && (
+      {!isRichMediaPanelWidget && !isFrontmatterFlow && hideFields && registryEntrySnapshot && (
         <NodeOverlayEditorRegistrySection
           active={active}
-          properties={properties}
-          registryEntry={registryEntry}
+          properties={propertiesSnapshot}
+          registryEntry={registryEntrySnapshot}
           microLabelClass={microLabelClass}
           monospaceTextClass={monospaceTextClass}
           textSizeClass={textSizeClass}
@@ -800,7 +984,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
           portHandlesEnabled={portHandlesEnabled}
-          connectedValuesBySchemaPath={connectedValuesBySchemaPath}
+          connectedValuesBySchemaPath={connectedValuesSnapshot}
           onSetProperties={onSetProperties}
           onSchemaPortHandleClick={onSchemaPortHandleClick}
           showFieldRows={false}
@@ -808,11 +992,11 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {!isRichMediaPanelWidget && !isFrontmatterFlow && !hideFields && registryEntry && (
+      {!isRichMediaPanelWidget && !isFrontmatterFlow && !hideFields && registryEntrySnapshot && (
         <NodeOverlayEditorRegistrySection
           active={active}
-          properties={properties}
-          registryEntry={registryEntry}
+          properties={propertiesSnapshot}
+          registryEntry={registryEntrySnapshot}
           microLabelClass={microLabelClass}
           monospaceTextClass={monospaceTextClass}
           textSizeClass={textSizeClass}
@@ -822,7 +1006,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
           portHandlesEnabled={portHandlesEnabled}
-          connectedValuesBySchemaPath={connectedValuesBySchemaPath}
+          connectedValuesBySchemaPath={connectedValuesSnapshot}
           onSetProperties={onSetProperties}
           onSchemaPortHandleClick={onSchemaPortHandleClick}
           showPortRows={!isFrontmatterFlow}
@@ -845,7 +1029,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         />
       )}
 
-      {!isRichMediaPanelWidget && !isFrontmatterFlow && (schemaFields.length > 0 || (registryEntry?.widgetTypeId || '').toLowerCase().includes('schema')) && (
+      {!isRichMediaPanelWidget && !isFrontmatterFlow && (schemaFields.length > 0 || (registryEntrySnapshot?.widgetTypeId || '').toLowerCase().includes('schema')) && (
         <section className="min-w-0 mt-4" aria-label={UI_LABELS.flowWidgetSchemaLegend}>
           <NodeOverlayEditorSchemaTable
             active={active}

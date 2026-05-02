@@ -1,12 +1,11 @@
 import React from 'react'
-import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
+import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import {
   type GraphDataTableColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
 import {
   getCachedDerivedFields,
   getCachedResolvedFieldSettingsById,
-  normalizeSettingsForField,
   type GraphField,
   type GraphFieldId,
   type GraphFieldSettingsById,
@@ -15,9 +14,7 @@ import {
   getCachedNumericSampleStatsByFieldId,
   type NumericSampleStats,
 } from '../BottomPanelCuratorModels'
-import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
-import { useSelectionAnchorIds } from '@/components/GraphCanvas/highlight'
-import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
+import { useBottomPanelCuratorSelectionNeighborhood } from './useBottomPanelCuratorSelectionNeighborhood'
 
 interface UseBottomPanelCuratorFieldAggregatesParams {
   nodes: GraphNode[]
@@ -72,51 +69,21 @@ export function useBottomPanelCuratorFieldAggregates({
   selectedEdgeIds,
   setGraphDataTableAggregateKeysState,
 }: UseBottomPanelCuratorFieldAggregatesParams): BottomPanelCuratorFieldAggregatesResult {
-  const graphData = React.useMemo<GraphData>(() => ({ type: 'Graph', nodes, edges }), [edges, nodes])
-
-  const selectionAnchorIds = useSelectionAnchorIds({
+  const {
+    sampleGraphData,
+    sampleNodes,
+    sampleEdges,
+    sampleGraphSemanticKey,
+  } = useBottomPanelCuratorSelectionNeighborhood({
+    nodes,
+    edges,
+    graphDataRevision,
+    graphDataTableViewMode,
     selectedNodeId,
     selectedEdgeId,
     selectedNodeIds,
     selectedEdgeIds,
   })
-
-  const selectionMembership = React.useMemo(() => {
-    if (graphDataTableViewMode !== 'selectionNeighborhood') return null
-    if (
-      selectionAnchorIds.selectionNodeIds.length === 0
-      && selectionAnchorIds.selectionEdgeIds.length === 0
-    ) {
-      return null
-    }
-    return readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)
-  }, [graphData, graphDataTableViewMode, selectionAnchorIds])
-
-  const sampleGraphData = selectionMembership?.subgraph ?? graphData
-  const sampleNodes = sampleGraphData.nodes
-  const sampleEdges = sampleGraphData.edges
-
-  const selectionSemanticKey = React.useMemo(() => {
-    return hashSignatureParts([
-      'bottom-panel-curator-selection',
-      graphDataTableViewMode,
-      hashScopedStringArraySignature('selected-nodes', selectionAnchorIds.selectionNodeIds),
-      hashScopedStringArraySignature('selected-edges', selectionAnchorIds.selectionEdgeIds),
-    ])
-  }, [
-    graphDataTableViewMode,
-    selectionAnchorIds,
-  ])
-
-  const sampleGraphSemanticKey = React.useMemo(() => {
-    return hashSignatureParts([
-      'bottom-panel-curator-fields',
-      graphDataRevision,
-      selectionSemanticKey,
-      sampleNodes.length,
-      sampleEdges.length,
-    ])
-  }, [graphDataRevision, sampleEdges.length, sampleNodes.length, selectionSemanticKey])
 
   const derivedGraphFields = React.useMemo(() => {
     return getCachedDerivedFields({
@@ -167,7 +134,8 @@ export function useBottomPanelCuratorFieldAggregates({
       graphDataTablePanel === 'group' || graphDataTableAggregateKeys.length > 0 || graphDataTableGroupKey !== ''
     if (shouldIncludeFieldAggregates) {
       for (const field of derivedGraphFields) {
-        const settings = resolvedSettingsById.get(field.id) || normalizeSettingsForField(field, graphFieldSettingsById[field.id])
+        const settings = resolvedSettingsById.get(field.id)
+        if (!settings) continue
         const fieldType = settings.fieldType
         const isNumericKind = field.kind === 'number'
         const isMixedKind = field.kind === 'mixed'
@@ -201,7 +169,6 @@ export function useBottomPanelCuratorFieldAggregates({
     graphDataTableAggregateKeys.length,
     graphDataTableGroupKey,
     graphDataTablePanel,
-    graphFieldSettingsById,
     includeIdAsNumeric,
     includeMixedNumericFields,
     includeSourceAsNumeric,

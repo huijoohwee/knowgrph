@@ -28,6 +28,12 @@ export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
   if (!text.includes('return resolveWidgetCompactPreview({')) {
     throw new Error('expected NodeOverlayEditorForm to delegate compact preview derivation to the shared helper')
   }
+  if (!text.includes('const connectedValuesSignature = React.useMemo(')) {
+    throw new Error('expected NodeOverlayEditorForm to derive semantic connected-value signatures before compact preview resolution')
+  }
+  if (!text.includes('const connectedValuesSnapshotRef = React.useRef<{')) {
+    throw new Error('expected NodeOverlayEditorForm to snapshot connected preview inputs by semantic signature')
+  }
   if (!compactPreviewText.includes('const widgetIdentity = resolveNodeWidgetIdentity({ node: args.node, registryEntry: args.registryEntry })')) {
     throw new Error('expected shared compact preview helper to reuse shared widget identity resolution')
   }

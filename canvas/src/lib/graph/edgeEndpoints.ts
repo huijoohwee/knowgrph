@@ -16,3 +16,63 @@ export function readEdgeEndpointId(raw: unknown): string {
   return ''
 }
 
+export function readGraphEdgeEndpoints(edge: {
+  source?: unknown
+  target?: unknown
+} | null | undefined): {
+  src: string | null
+  tgt: string | null
+} {
+  const src = readEdgeEndpointId(edge?.source)
+  const tgt = readEdgeEndpointId(edge?.target)
+  return {
+    src: src || null,
+    tgt: tgt || null,
+  }
+}
+
+export function buildSelectedEdgeEndpointNodeIdSet(
+  edges: ReadonlyArray<{
+    id?: unknown
+    source?: unknown
+    target?: unknown
+  }>,
+  selectedEdgeIds: ReadonlySet<string>,
+): Set<string> {
+  const endpointNodeIds = new Set<string>()
+  if (selectedEdgeIds.size === 0) return endpointNodeIds
+  for (let i = 0; i < edges.length; i += 1) {
+    const edge = edges[i]
+    const edgeId = String(edge?.id || '').trim()
+    if (!edgeId || !selectedEdgeIds.has(edgeId)) continue
+    const { src, tgt } = readGraphEdgeEndpoints(edge)
+    if (src) endpointNodeIds.add(src)
+    if (tgt) endpointNodeIds.add(tgt)
+  }
+  return endpointNodeIds
+}
+
+export function readSelectedEdgeEndpointsById<
+  TEdge extends {
+    source?: unknown
+    target?: unknown
+  },
+>(
+  edgeById: ReadonlyMap<string, TEdge> | null | undefined,
+  selectedEdgeIds: ReadonlyArray<string>,
+): Array<{ edgeId: string; src: string; tgt: string }> {
+  const endpoints: Array<{ edgeId: string; src: string; tgt: string }> = []
+  if (!edgeById || selectedEdgeIds.length === 0) return endpoints
+  const seen = new Set<string>()
+  for (let i = 0; i < selectedEdgeIds.length; i += 1) {
+    const edgeId = String(selectedEdgeIds[i] || '').trim()
+    if (!edgeId || seen.has(edgeId)) continue
+    seen.add(edgeId)
+    const edge = edgeById.get(edgeId)
+    if (!edge) continue
+    const { src, tgt } = readGraphEdgeEndpoints(edge)
+    if (!src || !tgt) continue
+    endpoints.push({ edgeId, src, tgt })
+  }
+  return endpoints
+}

@@ -7,6 +7,7 @@ import { postFitNodesToViewport } from '@/components/GraphCanvas/layout/postFit'
 import { applyCollectiveGraphLayout } from '@/components/GraphCanvas/layout/collectiveFit'
 import { buildNodeNeighborSetFromIncidentEdges } from '@/components/GraphCanvas/layout/graphConnectivity'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
@@ -374,15 +375,6 @@ export const initializeGraphLayout = (args: {
   }
 }
 
-const coerceEndpointId = (value: unknown): string | null => {
-  if (typeof value === 'string') return value
-  if (value && typeof value === 'object') {
-    const id = (value as { id?: unknown }).id
-    if (typeof id === 'string') return id
-  }
-  return null
-}
-
 const getInitializationGraphLookup = (args: {
   cacheScope: string
   nodes: GraphNode[]
@@ -402,8 +394,7 @@ const getInitializationGraphLookup = (args: {
           return `${id}:${String(node?.type || '').trim()}:${x}:${y}`
         }),
         ...edges.map(edge => {
-          const sourceId = coerceEndpointId(edge?.source) || ''
-          const targetId = coerceEndpointId(edge?.target) || ''
+          const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(edge)
           return `${String(edge?.id || '').trim()}:${sourceId}:${targetId}:${String(edge?.label || '').trim()}`
         }),
       ],
@@ -564,8 +555,7 @@ export const seedKeywordEntityNodesFromBaselineSources = (args: {
       const e = allEdges[i] as unknown as { label?: unknown; source?: unknown; target?: unknown; properties?: unknown }
       if (!e) continue
       if (String(e.label || '') !== 'mentions') continue
-      const s = coerceEndpointId(e.source)
-      const t = coerceEndpointId(e.target)
+      const { src: s, tgt: t } = readGraphEdgeEndpoints(e)
       if (!s || !t) continue
       if (!s.startsWith('doc:')) continue
       if (!t.startsWith('kw:')) continue

@@ -22,7 +22,7 @@ export function testBytePlusMessagesRoleTooltipUsesRoleActionsOutcomeCopy() {
     actions: entry.tooltipActions,
     outcome: entry.details.responsibility,
   })
-  const expected = 'BytePlus Chat API → compose message payload → serialize multimodal turns → Defines the sender role for each message object.'
+  const expected = 'BytePlus Shared + Text API → compose message payload → serialize multimodal turns → Message orchestrator -> assign the sender role for each message object -> keep dialogue state and tool handoffs interpretable.'
   if (tooltip !== expected) {
     throw new Error(`expected BytePlus messages.role key tooltip ${JSON.stringify(expected)}, got ${JSON.stringify(tooltip)}`)
   }

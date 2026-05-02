@@ -65,8 +65,6 @@ export function getBytePlusVideoGenerationApiRowAnchorId(rowKey: string): string
 }
 
 export const BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS = [
-  'chatAuthMode',
-  'chatApiKey',
   'byteplusVideoModel',
   'byteplusVideoContentJson',
   'byteplusVideoResolution',
@@ -79,8 +77,6 @@ export const BYTEPLUS_VIDEO_GENERATION_MAPPED_VALUE_KEYS = [
 ] as const
 
 export const BYTEPLUS_VIDEO_KEY_ACTIONS_BY_VALUE_KEY: Readonly<Record<string, string[]>> = {
-  chatAuthMode: ['select auth mode', 'choose credential flow'],
-  chatApiKey: ['store BYOK secret', 'authorize direct BytePlus video calls'],
   byteplusVideoModel: ['select video model', 'pin video default'],
   byteplusVideoContentJson: ['edit content override', 'pin multimodal request payload'],
   byteplusVideoResolution: ['select resolution', 'pin output clarity'],
@@ -127,42 +123,6 @@ function buildFieldOptionLabels(options: ReadonlyArray<{ value: string | number;
 }
 
 export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiDocRow> = [
-  {
-    key: 'api_key',
-    typeLabel: 'string',
-    value: 'Integration setting. Required for BYOK authentication.',
-    keyDescription: 'Credential bridge -> supply the caller-managed BytePlus secret -> authorize direct BytePlus video requests when BYOK is enabled.',
-    valueDescription: 'Default: empty; BYOK keys expand direct caller-managed execution; leaving it empty narrows video runs to server-managed credentials.',
-    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Authentication`,
-    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/panels/views/byteplusVideoGenerationApiDocs.ts'],
-    className: ['SettingsRegistryItem'],
-    functionName: ['setChatApiKey'],
-    valueKey: 'chatApiKey',
-    responsibility: 'Supplies the caller-managed BytePlus API key when auth mode is BYOK.',
-    searchHints: ['api key authentication bearer x-kg-chat-api-key video generation'],
-    tooltipDefaultValue: '',
-    tooltipExpansionNote: 'A valid BYOK secret expands direct BytePlus video execution.',
-    tooltipContractionNote: 'No key narrows video execution to server-managed credentials.',
-    notes: 'Never paste production keys into shared workspaces; prefer server-managed auth when possible.',
-  },
-  {
-    key: 'auth_mode',
-    typeLabel: 'string',
-    value: 'Integration setting. serverManaged | byok.',
-    keyDescription: 'Credential router -> choose server-managed or BYOK auth -> decide which trust boundary owns BytePlus video requests.',
-    valueDescription: 'Default: serverManaged; Switching to byok expands caller-owned routing; keeping serverManaged narrows auth handling to the shared backend path.',
-    ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Authentication`,
-    module: ['canvas/src/features/settings/registry-ui.ui.ts', 'canvas/src/features/panels/views/byteplusVideoGenerationApiDocs.ts'],
-    className: ['SettingsRegistryItem'],
-    functionName: ['setChatAuthMode'],
-    valueKey: 'chatAuthMode',
-    responsibility: 'Selects server-managed credentials or direct BYOK authentication for BytePlus video generation.',
-    searchHints: ['auth byok serverManaged api key video generation'],
-    tooltipDefaultValue: 'serverManaged',
-    tooltipExpansionNote: 'BYOK expands per-user credential control.',
-    tooltipContractionNote: 'Server-managed narrows credential handling to the shared backend.',
-    notes: 'Video generation uses BytePlus routing regardless of the global chat provider.',
-  },
   {
     key: 'content',
     typeLabel: 'object[]',

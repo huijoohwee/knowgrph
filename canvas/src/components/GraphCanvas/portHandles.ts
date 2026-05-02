@@ -1,6 +1,7 @@
 import type { GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { getNodeHalfExtents2d } from '@/components/GraphCanvas/nodeSizing2d'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getPortHandlesConfig, computeDynamicNodePortHandlePx, readNodePortHandleVisualMetrics, shouldRenderNodePortHandleAsDot, type PortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
 
 export { getPortHandlesConfig, computeDynamicNodePortHandlePx, readNodePortHandleVisualMetrics, shouldRenderNodePortHandleAsDot, type PortHandlesConfig } from '@/components/GraphCanvas/portHandlesConfig'
@@ -37,11 +38,11 @@ export function listPortHandlesForNodes(nodes: GraphNode[], edges?: GraphEdge[])
   
   if (edges) {
     for (let i = 0; i < edges.length; i++) {
-        const e = edges[i]
-        const s = String(typeof e.source === 'object' ? (e.source as {id: string}).id : e.source)
-        const t = String(typeof e.target === 'object' ? (e.target as {id: string}).id : e.target)
-        outDeg.set(s, (outDeg.get(s) || 0) + 1)
-        inDeg.set(t, (inDeg.get(t) || 0) + 1)
+      const e = edges[i]
+      const { src, tgt } = readGraphEdgeEndpoints(e)
+      if (!src || !tgt) continue
+      outDeg.set(src, (outDeg.get(src) || 0) + 1)
+      inDeg.set(tgt, (inDeg.get(tgt) || 0) + 1)
     }
   }
 

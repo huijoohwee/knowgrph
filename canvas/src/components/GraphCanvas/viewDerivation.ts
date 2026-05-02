@@ -1,6 +1,7 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { hashText } from '@/features/parsers/hash'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
@@ -177,8 +178,9 @@ export const deriveGraphDataWithGroupCollapse = (args: {
   const edges = Array.isArray(args.graphData.edges) ? (args.graphData.edges as GraphEdge[]) : []
   for (let i = 0; i < edges.length; i += 1) {
     const e = edges[i]!
-    const rawS = String((e.source && typeof e.source === 'object' ? (e.source as { id?: unknown }).id : e.source) || '').trim()
-    const rawT = String((e.target && typeof e.target === 'object' ? (e.target as { id?: unknown }).id : e.target) || '').trim()
+    const { src, tgt } = readGraphEdgeEndpoints(e)
+    const rawS = src || ''
+    const rawT = tgt || ''
     if (!rawS || !rawT) continue
 
     const sGroupId = assignmentByNodeId.get(rawS)?.groupId || null

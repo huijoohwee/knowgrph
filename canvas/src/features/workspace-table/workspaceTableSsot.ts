@@ -18,6 +18,14 @@ export function isWorkspaceEditorOverlayOpen(args: {
   return args.workspaceViewMode === 'editor' && args.workspaceCanvasPaneOpen === true
 }
 
+export function isWorkspaceGraphMutationBlocked(args: {
+  workspaceViewMode: WorkspaceViewMode
+  workspaceCanvasPaneOpen: boolean
+  markdownWorkspaceIndexingInFlight?: boolean
+}): boolean {
+  return isWorkspaceEditorOverlayOpen(args) || args.markdownWorkspaceIndexingInFlight === true
+}
+
 type OpenWorkspaceEditorPaneArgs = {
   workspaceViewMode: WorkspaceViewMode
   editorWorkspacePane: EditorWorkspacePane

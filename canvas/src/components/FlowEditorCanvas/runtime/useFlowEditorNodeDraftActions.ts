@@ -4,7 +4,7 @@ import { coerceJsonObject, tryParseJson } from '@/components/FlowEditor/flowEdit
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
-import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import {
   FLOW_EDGE_DISPLAY_LABEL_KEY,
   FLOW_EDGE_SOURCE_PORT_KEY,
@@ -55,8 +55,7 @@ export function useFlowEditorNodeDraftActions(args: {
     const nodeIdSet = new Set([id])
     const nextNodes = (args.draftGraphData.nodes || []).filter(n => !nodeIdSet.has(String(n.id || '')))
     const nextEdges = (args.draftGraphData.edges || []).filter(e => {
-      const src = readEdgeEndpointId(e.source)
-      const tgt = readEdgeEndpointId(e.target)
+      const { src, tgt } = readGraphEdgeEndpoints(e)
       return !!src && !!tgt && !nodeIdSet.has(src) && !nodeIdSet.has(tgt)
     })
     args.setGraphDataPreservingLayout(normalizeGraphData({ ...args.draftGraphData, nodes: nextNodes, edges: nextEdges }))

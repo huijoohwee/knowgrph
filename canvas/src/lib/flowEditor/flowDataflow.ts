@@ -3,7 +3,7 @@ import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
 } from '@/lib/graph/flowPorts'
-import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort, WidgetRegistrySchemaMapping } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
@@ -105,10 +105,11 @@ function buildConnectedValuesGraphKey(args: {
   parts.push('edges', edges.length)
   for (let i = 0; i < edges.length; i += 1) {
     const edge = edges[i] as GraphEdge
+    const { src, tgt } = readGraphEdgeEndpoints(edge)
     parts.push(
       cleanString((edge as unknown as { id?: unknown })?.id),
-      readEdgeEndpointId((edge as unknown as { source?: unknown })?.source),
-      readEdgeEndpointId((edge as unknown as { target?: unknown })?.target),
+      src || '',
+      tgt || '',
       hashRecordSignature32((edge?.properties || {}) as Record<string, unknown>, { maxEntries: 40, maxDepth: 2 }),
     )
   }
@@ -224,8 +225,7 @@ function collectConnections(edges: ReadonlyArray<GraphEdge>): EdgeConnection[] {
   const out: EdgeConnection[] = []
   for (const e of edges) {
     const edgeId = cleanString((e as unknown as { id?: unknown })?.id)
-    const sourceId = readEdgeEndpointId((e as unknown as { source?: unknown })?.source)
-    const targetId = readEdgeEndpointId((e as unknown as { target?: unknown })?.target)
+    const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(e)
     if (!edgeId || !sourceId || !targetId) continue
     const sourcePortKey = readFlowEdgePortKey(e, FLOW_EDGE_SOURCE_PORT_KEY)
     const targetPortKey = readFlowEdgePortKey(e, FLOW_EDGE_TARGET_PORT_KEY)

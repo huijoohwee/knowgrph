@@ -23,20 +23,22 @@ export function computeBalancedSpreadGridForTargetAspect(args: {
   const maxRows = Math.max(1, Math.min(n, Math.floor(Number(args.maxRows) || n)))
   const minCols = Math.max(1, Math.min(maxCols, Math.floor(Number(args.minCols) || 1)))
   const softRowsCap = Math.max(3, Math.min(maxRows, Math.ceil(Math.sqrt(n) * 1.8)))
-  let best: { cols: number; rows: number; score: number } | null = null
-  for (let cols = minCols; cols <= maxCols; cols += 1) {
-    const rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
-    if (rows > maxRows) continue
-    const gridAspect = (cols * cellW) / Math.max(1, rows * cellH)
+  const scoreGrid = (cols: number, rows: number, options?: { allowOverflow?: boolean }): number => {
+    const safeCols = Math.max(1, Math.floor(cols))
+    const safeRows = Math.max(1, Math.floor(rows))
+    const gridAspect = (safeCols * cellW) / Math.max(1, safeRows * cellH)
     const aspectScore = Math.abs(Math.log(Math.max(0.2, gridAspect) / Math.max(0.2, targetAspect)))
-    const emptySlots = cols * rows - n
+    const emptySlots = safeCols * safeRows - n
     const emptyPenalty = (emptySlots / Math.max(1, n)) * 0.24
-    const verticalPenalty = rows > cols ? (rows - cols) * 0.16 : 0
-    const widePenalty = cols > rows + 2 ? (cols - rows - 2) * 0.05 : 0
-    const tallPenalty = rows > softRowsCap ? (rows - softRowsCap) * 0.2 : 0
-    const singleRowPenalty = rows === 1 && n >= 5 ? 0.24 : 0
-    const singleColPenalty = cols === 1 && n >= 3 ? 0.35 : 0
-    const score =
+    const verticalPenalty = safeRows > safeCols ? (safeRows - safeCols) * 0.16 : 0
+    const widePenalty = safeCols > safeRows + 2 ? (safeCols - safeRows - 2) * 0.05 : 0
+    const tallPenalty = safeRows > softRowsCap ? (safeRows - softRowsCap) * 0.2 : 0
+    const singleRowPenalty = safeRows === 1 && n >= 5 ? 0.24 : 0
+    const singleColPenalty = safeCols === 1 && n >= 3 ? 0.35 : 0
+    const overflowPenalty = options?.allowOverflow === true
+      ? Math.max(0, safeRows - maxRows) * 0.22 + Math.max(0, safeCols - maxCols) * 0.3
+      : 0
+    return (
       aspectScore
       + emptyPenalty
       + verticalPenalty
@@ -44,11 +46,35 @@ export function computeBalancedSpreadGridForTargetAspect(args: {
       + tallPenalty
       + singleRowPenalty
       + singleColPenalty
+      + overflowPenalty
+    )
+  }
+  let best: { cols: number; rows: number; score: number } | null = null
+  for (let cols = minCols; cols <= maxCols; cols += 1) {
+    const rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
+    if (rows > maxRows) continue
+    const score = scoreGrid(cols, rows)
     if (!best || score < best.score - 1e-9 || (Math.abs(score - best.score) <= 1e-9 && cols > best.cols)) {
       best = { cols, rows, score }
     }
   }
-  return best ? { cols: best.cols, rows: best.rows } : { cols: minCols, rows: Math.max(1, Math.ceil(n / Math.max(1, minCols))) }
+  if (best) return { cols: best.cols, rows: best.rows }
+
+  let overflowBest: { cols: number; rows: number; score: number } | null = null
+  for (let cols = minCols; cols <= maxCols; cols += 1) {
+    const rows = Math.max(1, Math.ceil(n / Math.max(1, cols)))
+    const score = scoreGrid(cols, rows, { allowOverflow: true })
+    if (
+      !overflowBest
+      || score < overflowBest.score - 1e-9
+      || (Math.abs(score - overflowBest.score) <= 1e-9 && cols > overflowBest.cols)
+    ) {
+      overflowBest = { cols, rows, score }
+    }
+  }
+  return overflowBest
+    ? { cols: overflowBest.cols, rows: overflowBest.rows }
+    : { cols: minCols, rows: Math.max(1, Math.ceil(n / Math.max(1, minCols))) }
 }
 
 export function computeBalancedSpreadGrid(args: {

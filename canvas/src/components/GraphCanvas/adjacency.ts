@@ -1,27 +1,48 @@
-import type { GraphNode, GraphEdge } from '@/lib/graph/types'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 
 type GraphLike = { nodes: GraphNode[]; edges: GraphEdge[] }
+const ADJACENCY_CACHE_LIMIT = 16
+const adjacencyCache = new Map<string, Map<string, Set<string>>>()
 
-type EdgeEndpointLike = GraphEdge['source'] | { id?: string } | null | undefined
-
-const coerceEndpointId = (value: EdgeEndpointLike): string | null => {
-  if (typeof value === 'string') return value
-  if (value && typeof value === 'object' && typeof (value as { id?: unknown }).id === 'string') {
-    return (value as { id: string }).id
-  }
-  return null
+function asGraphData(data: GraphLike): GraphData {
+  return data as GraphData
 }
 
-const getEdgeEndpoints = (edge: GraphEdge): { src: string | null; tgt: string | null } => ({
-  src: coerceEndpointId(edge.source ?? null),
-  tgt: coerceEndpointId(edge.target ?? null),
-})
+function buildAdjacencyCacheKey(data: GraphLike): string {
+  return buildScopedGraphSemanticKey('graph-canvas-adjacency', {
+    graphData: asGraphData(data),
+  })
+}
+
+function readCachedAdjacencyMap(cacheKey: string): Map<string, Set<string>> | null {
+  if (!cacheKey) return null
+  const cached = adjacencyCache.get(cacheKey) || null
+  if (!cached) return null
+  adjacencyCache.delete(cacheKey)
+  adjacencyCache.set(cacheKey, cached)
+  return cached
+}
+
+function writeCachedAdjacencyMap(
+  cacheKey: string,
+  adjacencyByNodeId: Map<string, Set<string>>,
+): Map<string, Set<string>> {
+  if (!cacheKey) return adjacencyByNodeId
+  adjacencyCache.set(cacheKey, adjacencyByNodeId)
+  if (adjacencyCache.size > ADJACENCY_CACHE_LIMIT) {
+    const oldestKey = adjacencyCache.keys().next().value
+    if (typeof oldestKey === 'string') adjacencyCache.delete(oldestKey)
+  }
+  return adjacencyByNodeId
+}
 
 export const buildAdjacencyMap = (data: GraphLike) => {
   const map = new Map<string, Set<string>>()
   data.nodes.forEach(n => map.set(n.id, new Set<string>()))
   data.edges.forEach(e => {
-    const { src, tgt } = getEdgeEndpoints(e)
+    const { src, tgt } = readGraphEdgeEndpoints(e)
     const s = src ?? ''
     const t = tgt ?? ''
     if (!s || !t) return
@@ -33,16 +54,16 @@ export const buildAdjacencyMap = (data: GraphLike) => {
   return map
 }
 
-const adjCache = new WeakMap<GraphLike, Map<string, Set<string>>>()
-
 export const getAdjacencyMap = (data: GraphLike) => {
-  const cached = adjCache.get(data)
+  const cacheKey = buildAdjacencyCacheKey(data)
+  const cached = readCachedAdjacencyMap(cacheKey)
   if (cached) return cached
   const built = buildAdjacencyMap(data)
-  adjCache.set(data, built)
-  return built
+  return writeCachedAdjacencyMap(cacheKey, built)
 }
 
 export const clearAdjacencyCacheFor = (data: GraphLike) => {
-  try { adjCache.delete(data) } catch { void 0 }
+  const cacheKey = buildAdjacencyCacheKey(data)
+  if (!cacheKey) return
+  adjacencyCache.delete(cacheKey)
 }

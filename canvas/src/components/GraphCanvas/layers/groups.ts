@@ -30,6 +30,7 @@ import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
 import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 type GroupDatum = GraphGroup
@@ -471,8 +472,7 @@ export const createGroupsLayer = (args: {
     const out: string[] = []
     for (let i = 0; i < edgesForDisplay.length; i += 1) {
       const e = edgesForDisplay[i]
-      const s = String((typeof e.source === 'object' ? (e.source as { id?: unknown }).id : e.source) || '')
-      const t = String((typeof e.target === 'object' ? (e.target as { id?: unknown }).id : e.target) || '')
+      const { src: s, tgt: t } = readGraphEdgeEndpoints(e)
       if (!s || !t) continue
       if (!memberSet.has(s) || !memberSet.has(t)) continue
       out.push(String(e.id))

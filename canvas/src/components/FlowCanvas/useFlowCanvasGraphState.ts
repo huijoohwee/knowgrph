@@ -116,6 +116,14 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     return set.size > 0 ? set : null
   }, [sceneGraphData])
 
+  const dataflowWidgetRegistry = React.useMemo(() => {
+    return buildDataflowWidgetRegistry({
+      documentWidgetRegistry,
+      effectiveWidgetRegistry: widgetRegistry,
+      widgetRegistry: baseWidgetRegistry,
+    })
+  }, [baseWidgetRegistry, documentWidgetRegistry, widgetRegistry])
+
   const mediaRenderConnectedValuesByNodeId = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
     if (nodes.length === 0) return new Map()
@@ -124,19 +132,14 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       includeMediaSpecNodes: true,
     })
     if (targetNodeIds.size === 0) return new Map()
-    const dataflowRegistry = buildDataflowWidgetRegistry({
-      documentWidgetRegistry,
-      effectiveWidgetRegistry: widgetRegistry,
-      widgetRegistry: baseWidgetRegistry,
-    })
     return computeFlowConnectedValuesBySchemaPath({
       graphData: sceneGraphData,
-      registry: dataflowRegistry,
+      registry: dataflowWidgetRegistry,
       targetNodeIds,
       graphRevision: graphDataRevision,
       graphSemanticKey: sceneGraphSemanticKey,
     })
-  }, [baseWidgetRegistry, documentWidgetRegistry, graphDataRevision, sceneGraphData, sceneGraphSemanticKey, widgetRegistry])
+  }, [dataflowWidgetRegistry, graphDataRevision, sceneGraphData, sceneGraphSemanticKey])
 
   const mediaRenderNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
