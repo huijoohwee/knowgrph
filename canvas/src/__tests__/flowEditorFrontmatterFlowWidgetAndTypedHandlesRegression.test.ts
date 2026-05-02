@@ -2,47 +2,51 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export function testFlowEditorFrontmatterUsesFlowFilterForWidgetOverlays() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const flowEditorRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const flowEditorSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const runtimeText = readFileSync(flowEditorRuntimePath, 'utf8')
+  const sharedText = readFileSync(flowEditorSharedPath, 'utf8')
+  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
 
-  if (!text.includes('filterGraphToFlowWidgetEligible')) {
-    throw new Error('expected FlowEditorCanvas to filter view graph using flow widget eligibility filtering')
+  if (!sharedText.includes('filterGraphToFlowWidgetEligible')) {
+    throw new Error('expected FlowEditorCanvas shared graph derivation to filter view graph using flow widget eligibility filtering')
   }
-  if (text.includes('filterGraphToFrontmatterMermaid')) {
-    throw new Error('expected FlowEditorCanvas to avoid frontmatter-mermaid filtering for frontmatter-flow widget overlays')
+  if (sharedText.includes('filterGraphToFrontmatterMermaid')) {
+    throw new Error('expected shared frontmatter-flow widget derivation to avoid frontmatter-mermaid filtering')
   }
-  if (!text.includes('isFrontmatterFlowGraph')) {
-    throw new Error('expected FlowEditorCanvas to use shared frontmatter-flow graph detection helper')
+  if (!sharedText.includes('isFrontmatterFlowGraph')) {
+    throw new Error('expected shared flow editor helpers to use frontmatter-flow graph detection')
   }
-  if (!text.includes('if (isFrontmatterFlow && nodes.length > 0)')) {
-    throw new Error('expected frontmatter-flow widget derivation to always include all flow nodes')
+  if (!overlaySurfaceText.includes('if (isFrontmatterFlow && nodes.length > 0)')) {
+    throw new Error('expected overlay node derivation to always include all frontmatter-flow nodes')
   }
-  if (!text.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
-    throw new Error('expected frontmatter-flow widget derivation to read flow widget registry metadata key')
+  if (!sharedText.includes('FLOW_WIDGET_REGISTRY_METADATA_KEY')) {
+    throw new Error('expected shared frontmatter-flow overlay derivation to read flow widget registry metadata key')
   }
-  if (!text.includes('if (allowedFlowNodeIds.size === 0) return []')) {
-    throw new Error('expected frontmatter-flow widget derivation to avoid synthetic fallback when registry ids are missing')
+  if (!sharedText.includes('if (allowedFlowNodeIds.size === 0) return []')) {
+    throw new Error('expected shared frontmatter-flow overlay derivation to avoid synthetic fallback when registry ids are missing')
   }
-  if (!text.includes('for (const id of eligibleIds) allowedFlowNodeIds.add(id)')) {
-    throw new Error('expected frontmatter-flow widget derivation to fall back to eligible node ids')
+  if (!sharedText.includes('for (const id of eligibleIds) allowedFlowNodeIds.add(id)')) {
+    throw new Error('expected shared frontmatter-flow overlay derivation to fall back to eligible node ids')
   }
-  if (!text.includes("if (!allowedFlowNodeIds.has(id)) continue")) {
-    throw new Error('expected frontmatter-flow widget derivation to exclude non-flow ids from overlay editors')
+  if (!sharedText.includes("if (!allowedFlowNodeIds.has(id)) continue")) {
+    throw new Error('expected shared frontmatter-flow overlay derivation to exclude non-flow ids from overlay editors')
   }
-  if (!text.includes('if (flowEditorFrontmatterGraphAvailable) return []')) {
+  if (!overlaySurfaceText.includes('if (flowEditorFrontmatterGraphAvailable) return []')) {
     throw new Error('expected frontmatter-flow availability to suppress non-frontmatter widget fallback ids')
   }
-  if (!text.includes('if (!flowEditorViewActive) return []')) {
+  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) return []')) {
     throw new Error('expected flow editor widget id derivation to avoid fallback ids whenever flow editor view is inactive')
   }
-  if (!text.includes('return nodes.length > 0 ? lastStableOverlayEditorNodeIdsRef.current : []')) {
+  if (!overlaySurfaceText.includes('return nodes.length > 0 ? lastStableOverlayEditorNodeIdsRef.current : []')) {
     throw new Error('expected frontmatter-flow widget overlay fallback ids to clear when the graph is transiently empty instead of replaying stale ids')
   }
-  if (!text.includes('forceFrontmatterFlow: frontmatterOnlyPolicyActive')) {
-    throw new Error('expected Flow Editor to force flow-only graph-family derivation under frontmatter-only policy')
+  if (!runtimeText.includes('forceFrontmatterFlow: frontmatterOnlyPolicyActive')) {
+    throw new Error('expected Flow Editor runtime to force flow-only graph-family derivation under frontmatter-only policy')
   }
-  if (text.includes('MAX_AUTO') || text.includes('MAX_VIEW')) {
-    throw new Error('expected frontmatter-flow widget derivation to avoid capped auto-open/viewport limits')
+  if (sharedText.includes('MAX_AUTO') || sharedText.includes('MAX_VIEW') || overlaySurfaceText.includes('MAX_AUTO') || overlaySurfaceText.includes('MAX_VIEW')) {
+    throw new Error('expected frontmatter-flow widget derivation to avoid capped auto-open or viewport limits')
   }
 }
 
@@ -99,34 +103,38 @@ export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCo
 
 export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartMediaWhenConfigured() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const registryHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'resolveWidgetRegistry.ts')
+  const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'frontmatterWidgetContract.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
+  const helperText = readFileSync(registryHelperPath, 'utf8')
+  const contractHelperText = readFileSync(contractHelperPath, 'utf8')
 
   if (!text.includes("const isFrontmatterFlow = String(graphMetaKind || '').trim() === 'frontmatter-flow'")) {
     throw new Error('expected widget form to detect frontmatter-flow mode')
   }
-  if (!text.includes('isSmartMediaRegistryEntry')) {
-    throw new Error('expected widget form to detect smart-media registry configuration')
+  if (!helperText.includes('export function isFrontmatterWidgetRegistryNode(')) {
+    throw new Error('expected shared widget registry helpers to expose frontmatter widget-node classification')
   }
-  if (!text.includes('const showSmartMediaFields = !hideFields && (!isFrontmatterFlow || hasSmartMediaSelection)')) {
-    throw new Error('expected smart media field visibility to be gated by frontmatter-flow + user setup selection')
+  if (!helperText.includes('export function isNodeOwnedFrontmatterWidgetRegistryEntry(')) {
+    throw new Error('expected shared widget registry helpers to expose frontmatter node/entry ownership checks')
   }
   if (!text.includes('!hideFields && isFrontmatterFlow')) {
     throw new Error('expected dedicated frontmatter flow contract section rendering')
   }
-  if (!text.includes("rowKey: 'flow-handles-target'")) {
-    throw new Error('expected frontmatter flow contract section to include target handle row')
+  if (!contractHelperText.includes("rowKey: 'flow-handles-target'")) {
+    throw new Error('expected shared frontmatter contract helper to include target handle row descriptors')
   }
-  if (!text.includes("rowKey: 'flow-handles-source'")) {
-    throw new Error('expected frontmatter flow contract section to include source handle row')
+  if (!contractHelperText.includes("rowKey: args.dir === 'in' ? 'flow-handles-target' : 'flow-handles-source'")) {
+    throw new Error('expected shared frontmatter contract helper to derive source handle row descriptors from the shared direction mapping')
   }
-  if (!text.includes('flow:compute')) {
-    throw new Error('expected frontmatter flow contract section to bind flow:compute')
+  if (!contractHelperText.includes("const flowCompute = pickString(properties['flow:compute'])")) {
+    throw new Error('expected shared frontmatter contract helper to bind flow:compute')
   }
-  if (!text.includes('FRONTMATTER_FLOW_WIDGET_FIELDS_KEY')) {
-    throw new Error('expected frontmatter flow contract section to read declared widget envelope fields metadata')
+  if (!contractHelperText.includes('FRONTMATTER_FLOW_WIDGET_FIELDS_KEY')) {
+    throw new Error('expected shared frontmatter contract helper to read declared widget envelope fields metadata')
   }
-  if (!text.includes('readObjectPathValue(properties as Record<string, unknown>, schemaPath)')) {
-    throw new Error('expected frontmatter flow contract section to render declared envelope field values by schema path')
+  if (!contractHelperText.includes('const rawValue = readRecordPathValue(properties, schemaPath)')) {
+    throw new Error('expected shared frontmatter contract helper to resolve declared envelope field values by schema path')
   }
   if (!text.includes('onPatchProperties({ data: parsed })')) {
     throw new Error('expected frontmatter flow contract section to parse and persist data json')
@@ -592,21 +600,26 @@ export function testWidgetPortHandleTooltipUsesDirectionalHandlePath() {
 
 export function testFrontmatterFlowContractFormatsHandlesAsKeyValuePathEntries() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'frontmatterWidgetContract.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
-  if (!text.includes('formatFlowHandleValueList')) {
-    throw new Error('expected frontmatter flow contract to reuse shared handle value formatter')
+  const helperText = readFileSync(contractHelperPath, 'utf8')
+  if (!helperText.includes('formatFlowHandleValueList')) {
+    throw new Error('expected shared frontmatter contract helper to reuse the normalized handle value formatter')
   }
-  if (!text.includes("value={formatFlowHandlePathValue(flowPortTypes.target)}")) {
-    throw new Error('expected handles.target row value to render port key list in value column')
+  if (!helperText.includes('flowHandleKeys: FrontmatterFlowHandleKeySet')) {
+    throw new Error('expected shared frontmatter contract helper to expose normalized handle keys')
   }
-  if (!text.includes("value={formatFlowHandlePathValue(flowPortTypes.source)}")) {
-    throw new Error('expected handles.source row value to render port key list in value column')
+  if (!helperText.includes('valueText: formatFlowHandleValueList(args.resolvedHandleKeys)')) {
+    throw new Error('expected handle row specs to carry normalized handle key lists in the shared helper')
   }
-  if (!text.includes('{readFlowHandlePath(\'out\')}')) {
-    throw new Error('expected handles.source key column to reuse shared directional path helper')
+  if (!text.includes('value={rowSpec.valueText}')) {
+    throw new Error('expected NodeOverlayEditorForm to render handle row values from shared row specs')
   }
-  if (!text.includes('readFlowHandleTypeLabel(\'out\')')) {
-    throw new Error('expected handles.source type column to render out direction label')
+  if (!helperText.includes("label: readFlowHandlePath(args.dir)")) {
+    throw new Error('expected shared handle row specs to reuse directional path labels')
+  }
+  if (!helperText.includes("typeLabel: readFlowHandleTypeLabel(args.dir)")) {
+    throw new Error('expected shared handle row specs to reuse directional type labels')
   }
 }
 
@@ -675,15 +688,20 @@ export function testWidgetRegistryPortsUseDirectionalHandlePathKeyValue() {
 
 export function testFrontmatterFlowContractPrefersRegistryHandlesWhenPortTypesAreUntyped() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'frontmatterWidgetContract.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
-  if (!text.includes('const flowRegistryHandles = React.useMemo(() => {')) {
-    throw new Error('expected widget flow contract to derive handles from registry ports')
+  const helperText = readFileSync(contractHelperPath, 'utf8')
+  if (!helperText.includes('const flowRegistryHandles: FrontmatterFlowHandleKeySet = (() => {')) {
+    throw new Error('expected shared frontmatter contract helper to derive handles from registry ports')
   }
-  if (!text.includes('const target = connectedFlowHandles.target.length > 0')) {
-    throw new Error('expected target handle rows to prefer connected edge handles before registry/typed fallbacks')
+  if (!helperText.includes('target: connectedFlowHandles.target.length > 0')) {
+    throw new Error('expected shared frontmatter contract helper to prefer connected target handles before registry/typed fallbacks')
   }
-  if (!text.includes('const source = connectedFlowHandles.source.length > 0')) {
-    throw new Error('expected source handle rows to prefer connected edge handles before registry/typed fallbacks')
+  if (!helperText.includes('source: connectedFlowHandles.source.length > 0')) {
+    throw new Error('expected shared frontmatter contract helper to prefer connected source handles before registry/typed fallbacks')
+  }
+  if (!text.includes('const frontmatterContract = React.useMemo(() => {')) {
+    throw new Error('expected node overlay editor form to reuse the shared frontmatter contract helper')
   }
   if (!text.includes('value={formatFlowHandlePathValue(flowHandleKeys.source)}')) {
     throw new Error('expected handles.source value row to render unified flowHandleKeys source set')
@@ -692,12 +710,20 @@ export function testFrontmatterFlowContractPrefersRegistryHandlesWhenPortTypesAr
 
 export function testFrontmatterFlowContractMakesSourceEditableAndTargetReadOnly() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const registryHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'resolveWidgetRegistry.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
-  if (!text.includes('const hideFrontmatterFlowContractRows = showFrontmatterWidgetRegistrySection')) {
-    throw new Error('expected built-in frontmatter widgets to collapse duplicate flow-contract rows into the shared registry surface')
+  const helperText = readFileSync(registryHelperPath, 'utf8')
+  if (!helperText.includes('export function resolveFrontmatterWidgetRegistrySectionState(')) {
+    throw new Error('expected shared widget registry helpers to expose frontmatter registry-section state resolution')
   }
-  if (!text.includes('const frontmatterWidgetIdentityLabel = React.useMemo(() => {')) {
-    throw new Error('expected built-in frontmatter widgets to derive a canonical Widget identity row from shared registry label helpers')
+  if (!text.includes('const frontmatterWidgetRegistrySection = React.useMemo(')) {
+    throw new Error('expected built-in frontmatter widgets to reuse the shared frontmatter registry-section state helper')
+  }
+  if (!text.includes('const hideFrontmatterFlowContractRows = frontmatterWidgetRegistrySection.hideFlowContractRows')) {
+    throw new Error('expected built-in frontmatter widgets to collapse duplicate flow-contract rows through shared section state')
+  }
+  if (!text.includes('const frontmatterWidgetIdentityLabel = frontmatterWidgetRegistrySection.identityLabel')) {
+    throw new Error('expected built-in frontmatter widgets to derive the canonical Widget identity row from shared section state')
   }
   if (!text.includes('ariaLabel={UI_LABELS.flowWidget}')) {
     throw new Error('expected built-in frontmatter widgets to render the canonical Widget identity row')
@@ -709,40 +735,48 @@ export function testFrontmatterFlowContractMakesSourceEditableAndTargetReadOnly(
 
 export function testFrontmatterFlowContractKeepsTwoDotColumnsAlignedForHandleRows() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'frontmatterWidgetContract.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
-  const targetStart = text.indexOf("rowKey: 'flow-handles-target'")
-  const sourceStart = text.indexOf("rowKey: 'flow-handles-source'")
-  if (targetStart < 0 || sourceStart < 0) {
-    throw new Error('expected frontmatter flow contract handle rows to be present')
+  const helperText = readFileSync(contractHelperPath, 'utf8')
+  if (!text.includes('const frontmatterPortRows = React.useMemo(() => {')) {
+    throw new Error('expected frontmatter flow contract handle rows to be rendered from shared row specs')
   }
-  const targetBlock = text.slice(targetStart, Math.min(text.length, sourceStart))
-  const sourceEnd = text.indexOf("...(hasFlowCompute ? [{", sourceStart)
-  const sourceBlock = text.slice(sourceStart, sourceEnd > sourceStart ? sourceEnd : Math.min(text.length, sourceStart + 1200))
-  if (!text.includes('inPortNode: renderFlowContractDot({') || !text.includes('outPortNode: renderFlowContractDot({')) {
+  if (!helperText.includes("rowKey: args.dir === 'in' ? 'flow-handles-target' : 'flow-handles-source'")) {
+    throw new Error('expected shared frontmatter contract helper to derive directional handle row keys')
+  }
+  if (!text.includes("inPortNode: rowSpec.dir === 'in' ? portButtons : undefined") || !text.includes("outPortNode: rowSpec.dir === 'out' ? portButtons : undefined")) {
+    throw new Error('expected flow contract handle rows to render explicit directional port nodes from shared specs')
+  }
+  if (!text.includes("renderFlowContractDot({ dir: rowSpec.dir, linked: false, portKey: '' })")) {
     throw new Error('expected flow contract handle rows to render explicit linked-state dot nodes')
   }
-  if (targetBlock.includes('showOutPortDot: false') || sourceBlock.includes('showInPortDot: false')) {
+  if (text.includes('showOutPortDot: false') || text.includes('showInPortDot: false')) {
     throw new Error('expected flow contract handle rows to keep opposite-side fallback dots for consistent | dot | key | type | value | dot | alignment')
   }
 }
 
 export function testFrontmatterFlowWidgetRegistryOptionsAreScopedToCurrentFormId() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const registryHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'resolveWidgetRegistry.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
-  if (!text.includes('const flowRegistryFormId = String(properties[FLOW_WIDGET_FORM_ID_KEY] || \'\').trim()')) {
-    throw new Error('expected frontmatter widget registry scoping to read current node formId SSOT')
+  const helperText = readFileSync(registryHelperPath, 'utf8')
+  if (!helperText.includes('export function resolveExpectedFrontmatterWidgetFormId(')) {
+    throw new Error('expected shared widget registry helpers to expose frontmatter expected form-id resolution')
   }
-  if (!text.includes('const flowRegistryFormIdExpected = flowRegistryFormId || `fm:${String(node.id || \'\').trim()}`')) {
-    throw new Error('expected frontmatter widget registry scoping to use node-id form fallback when explicit formId is absent')
+  if (!helperText.includes("return nodeId ? `fm:${nodeId}` : ''")) {
+    throw new Error('expected frontmatter expected form-id helper to fall back to fm:<nodeId> when explicit formId is absent')
   }
-  if (!text.includes('if (!isFrontmatterFlow) return all')) {
-    throw new Error('expected non-frontmatter behavior to keep existing nodeType-scoped registry options')
+  if (!helperText.includes('export function listScopedWidgetRegistryEntries(')) {
+    throw new Error('expected shared widget registry helpers to expose scoped entry filtering')
   }
-  if (!text.includes('if (!expected) return []')) {
-    throw new Error('expected frontmatter widget registry options to avoid broad fallback when no resolvable form id exists')
+  if (!text.includes('return listScopedWidgetRegistryEntries({')) {
+    throw new Error('expected node overlay editor form to reuse the shared scoped widget registry helper')
   }
-  if (!text.includes('return all.filter(entry => String(entry.formId || \'\').trim() === expected)')) {
-    throw new Error('expected frontmatter widget registry options to restrict to current node formId only')
+  if (!text.includes('resolveFrontmatterWidgetRegistrySectionState({')) {
+    throw new Error('expected node overlay editor form to reuse the shared frontmatter registry-section state helper')
+  }
+  if (!text.includes('buildFrontmatterWidgetContractModel({')) {
+    throw new Error('expected node overlay editor form to reuse the shared frontmatter contract model helper')
   }
 }
 
@@ -759,15 +793,17 @@ export function testWidgetRegistryMetadataMissingClearsDocumentRegistryToAvoidSt
 
 export function testFrontmatterFlowContractAvoidsSyntheticHandleAndDataFallbacks() {
   const nodeOverlayEditorFormPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
+  const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'frontmatterWidgetContract.ts')
   const text = readFileSync(nodeOverlayEditorFormPath, 'utf8')
-  if (!text.includes('const hasFlowTargetHandles = flowPortTypes.target.length > 0')) {
-    throw new Error('expected frontmatter flow contract to gate handles.target row by actual declared handles')
+  const helperText = readFileSync(contractHelperPath, 'utf8')
+  if (!helperText.includes('hasFlowTargetHandles: flowHandleKeys.target.length > 0')) {
+    throw new Error('expected shared frontmatter contract helper to gate handles.target row by actual derived handles')
   }
-  if (!text.includes('const hasFlowSourceHandles = flowPortTypes.source.length > 0')) {
-    throw new Error('expected frontmatter flow contract to gate handles.source row by actual declared handles')
+  if (!helperText.includes('hasFlowSourceHandles: flowHandleKeys.source.length > 0')) {
+    throw new Error('expected shared frontmatter contract helper to gate handles.source row by actual derived handles')
   }
-  if (!text.includes("if (typeof raw === 'undefined') return ''")) {
-    throw new Error('expected frontmatter flow data renderer to avoid synthetic {} fallback when data key is absent')
+  if (!helperText.includes("if (typeof raw === 'undefined') return ''")) {
+    throw new Error('expected shared frontmatter contract helper to avoid synthetic {} fallback when data key is absent')
   }
   if (!text.includes('onPatchProperties({ data: undefined })')) {
     throw new Error('expected frontmatter flow data editor clear action to remove data key instead of writing synthetic {}')
@@ -825,10 +861,10 @@ export function testFlowEditorRenderGraphUsesBaseGraphWhenNotEditableForZoomMini
   if (!renderStateText.includes('graphData: graphDataForRender')) {
     throw new Error('expected FlowEditor render graph derivation to use unified graphDataForRender source')
   }
-  if (!overlaySurfaceText.includes('if (!args.flowEditorViewActive) return []')) {
+  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) return []')) {
     throw new Error('expected widget overlays to remain view-scoped instead of edit-lock scoped to avoid View Lock-induced renderer mutation')
   }
-  if (!overlaySurfaceText.includes('visible={args.flowEditorViewActive}') || !overlaySurfaceText.includes('active={args.canEdit}')) {
+  if (!overlaySurfaceText.includes('visible={flowEditorViewActive}') || !overlaySurfaceText.includes('active={canEdit}')) {
     throw new Error('expected widget overlays to stay visible in Flow Editor view while becoming read-only under View Lock')
   }
   if (runtimeText.includes('frontmatterDocumentModeActive') || renderStateText.includes('frontmatterDocumentModeActive')) {
@@ -837,19 +873,24 @@ export function testFlowEditorRenderGraphUsesBaseGraphWhenNotEditableForZoomMini
 }
 
 export function testFlowEditorInactiveWarmMountDoesNotMutateWidgetsAcrossRenderers() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
-  if (!text.includes('if (!active) return')) {
-    throw new Error('expected FlowEditor widget pruning effect to guard inactive warm mounts')
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
+  const runtimeText = readFileSync(runtimePath, 'utf8')
+  const selectionBookkeepingText = readFileSync(selectionBookkeepingPath, 'utf8')
+  if (!selectionBookkeepingText.includes('if (!active) return')) {
+    throw new Error('expected FlowEditor selection bookkeeping to guard inactive warm mounts')
   }
-  if (!text.includes('if (!flowEditorViewActive) return')) {
-    throw new Error('expected FlowEditor widget pruning effect to guard non-flow-editor view states')
+  if (!selectionBookkeepingText.includes('if (!editorRuntimeActive || !flowEditorViewActive || !draftGraphData) return')) {
+    throw new Error('expected FlowEditor widget pruning effect to guard non-flow-editor or draftless states')
   }
-  if (!text.includes('updateOpenWidgetNodeIds(prev => prev.filter')) {
-    throw new Error('expected FlowEditor widget pruning effect to stay scoped to active Flow Editor view')
+  if (!selectionBookkeepingText.includes('updateOpenWidgetNodeIds(prev => prev.filter')) {
+    throw new Error('expected FlowEditor widget pruning effect to stay scoped to active Flow Editor bookkeeping')
   }
-  if (!text.includes('idSet.has(s)')) {
+  if (!selectionBookkeepingText.includes('idSet.has(s)')) {
     throw new Error('expected FlowEditor widget pruning effect to filter ids to current graph nodes')
+  }
+  if (!runtimeText.includes('const flowEditorViewActive = editorRuntimeActive')) {
+    throw new Error('expected FlowEditor runtime to keep flow-editor view activation renderer-scoped during warm mounts')
   }
 }
 
@@ -999,13 +1040,18 @@ export function testFlowEditorPortHandleEdgeConnectivityUsesEndpointIdResolver()
 export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow() {
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
+  const placementAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetPlacementAuthority.ts')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
+  const placementAuthorityText = readFileSync(placementAuthorityPath, 'utf8')
   if (overlaySurfaceText.includes('forcePinnedToCanvas')) {
     throw new Error('expected FlowEditor overlay widgets to avoid legacy force-pinned canvas mode')
   }
-  if (!runtimeSceneText.includes("return typeof v === 'boolean' ? v : false")) {
-    throw new Error('expected zoom-follow pinned buckets to treat undefined pin state as floating by default')
+  if (!placementAuthorityText.includes('export function resolveDefaultFlowWidgetPinnedInCanvas')) {
+    throw new Error('expected FlowEditor widget placement authority to expose shared default pinning rules')
+  }
+  if (!runtimeSceneText.includes("return typeof v === 'boolean' ? v : defaultPinnedInCanvas")) {
+    throw new Error('expected zoom-follow pinned buckets to defer undefined pin state to shared default pinning rules')
   }
 }
 
@@ -1019,7 +1065,7 @@ export function testFlowEditorPinnedWidgetForbidsAccidentalDuplicateCopy() {
   if (!toolbarText.includes('duplicateDisabled: boolean')) {
     throw new Error('expected widget actions toolbar to accept duplicateDisabled guard for accidental copy prevention')
   }
-  if (!toolbarText.includes('{!duplicateDisabled ? (')) {
+  if (!toolbarText.includes('{showDuplicateAction && !duplicateDisabled ? (')) {
     throw new Error('expected duplicate action to be removed when accidental-copy guard is active')
   }
   if (!overlayText.includes('duplicateDisabled={pinnedInCanvas}')) {

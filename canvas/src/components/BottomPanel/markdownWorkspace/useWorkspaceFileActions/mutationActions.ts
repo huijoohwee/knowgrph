@@ -4,16 +4,16 @@ import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceDocumentKey } fro
 import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 import {
   extractYamlFrontmatterBlock,
-  normalizeWebpageFrontmatterView,
   parseWebpageFrontmatterMeta,
   readYamlFrontmatterValue,
   upsertWebpageFrontmatterMeta,
 } from '@/lib/markdown/frontmatter'
-import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { fetchWorkspaceUrlContent } from '../workspaceImport'
 import { loadWorkspaceSourceIndex, removeWorkspaceEntrySourcesForPrefix, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 import type { UseWorkspaceFileActionsArgs } from './types'
+import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
+import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
 
 export function useWorkspaceMutationActions(args: {
   core: { status: ReturnType<typeof import('./core').useWorkspaceStatusHelpers> }
@@ -90,16 +90,19 @@ export function useWorkspaceMutationActions(args: {
           }
         }
 
-        await fs.writeFileText(normalized, nextText)
-        const inlineText = nextText.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextText : undefined
-        setEntries(prev => prev.map(e => (e.path === normalized ? { ...e, text: inlineText, updatedAtMs: Date.now() } : e)))
-        if (openedPath === normalized) {
-          lastLoadedRef.current = { path: normalized, text: nextText }
-          setActiveText(nextText)
-          if (activeDocumentKey) {
-            void setActiveMarkdownDocument({ name: activeDocumentKey, text: nextText, normalizeMermaidMmd: false, sourceUrl: fetched.normalizedUrl })
-          }
-        }
+        await writeWorkspaceFileAndSync({
+          path: normalized,
+          text: nextText,
+          getFs,
+          lastLoadedRef,
+          setEntries,
+          synchronizeActiveDocument: openedPath === normalized,
+          setActiveText,
+          activeDocumentKey,
+          activeDocumentSourceUrl: fetched.normalizedUrl,
+          setActiveMarkdownDocument,
+          resetParsedState: true,
+        })
         status.setStatusInfo('Refreshed')
       } catch (e) {
         status.setStatusError(`Refresh failed: ${String((e as { message?: unknown })?.message ?? e)}`)
@@ -227,10 +230,10 @@ export function useWorkspaceMutationActions(args: {
           setActiveText(latestText)
           const nextDocumentKey = workspaceDocumentKey(remappedOpenedPath)
           if (nextDocumentKey || activeDocumentKey) {
-            void setActiveMarkdownDocument({
+            void applyActiveMarkdownDocumentPayload({
+              setActiveMarkdownDocument,
               name: nextDocumentKey || activeDocumentKey,
               text: latestText,
-              normalizeMermaidMmd: false,
               sourceUrl: null,
             })
           }
@@ -263,15 +266,19 @@ export function useWorkspaceMutationActions(args: {
       status.setStatusProgress('Clearing')
       try {
         const fs = await getFs()
-        await fs.writeFileText(normalized, '')
-        lastLoadedRef.current = { path: normalized, text: '' }
-        setEntries(prev => prev.map(e => (e.path === normalized ? { ...e, text: '', updatedAtMs: Date.now() } : e)))
-        if (openedPath === normalized) {
-          setActiveText('')
-          if (activeDocumentKey) {
-            void setActiveMarkdownDocument({ name: activeDocumentKey, text: '', normalizeMermaidMmd: false, sourceUrl: null })
-          }
-        }
+        await writeWorkspaceFileAndSync({
+          path: normalized,
+          text: '',
+          getFs,
+          lastLoadedRef,
+          setEntries,
+          synchronizeActiveDocument: openedPath === normalized,
+          setActiveText,
+          activeDocumentKey,
+          activeDocumentSourceUrl: null,
+          setActiveMarkdownDocument,
+          resetParsedState: true,
+        })
         status.setStatusInfo('Cleared')
       } catch (e) {
         status.setStatusError(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
@@ -305,7 +312,12 @@ export function useWorkspaceMutationActions(args: {
           lastLoadedRef.current = { path: normalizedActivePath as WorkspacePath, text: '' }
           setActiveText('')
           if (activeDocumentKey) {
-            void setActiveMarkdownDocument({ name: activeDocumentKey, text: '', normalizeMermaidMmd: false, sourceUrl: null })
+            void applyActiveMarkdownDocumentPayload({
+              setActiveMarkdownDocument,
+              name: activeDocumentKey,
+              text: '',
+              sourceUrl: null,
+            })
           }
         } else {
           const last = lastLoadedRef.current

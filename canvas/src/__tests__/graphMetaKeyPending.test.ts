@@ -1,5 +1,5 @@
 import type { GraphData } from '@/lib/graph/types'
-import { buildGraphMetaKey, buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphMetaKey, buildGraphMetaKeyIgnoringPending, readBaselineGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { defaultSchema } from '@/lib/graph/schema'
 
@@ -65,3 +65,30 @@ export function testActive2dZoomViewKeyIgnoresPendingFlag() {
   if (k1 !== k2) throw new Error(`expected zoom view key to ignore pending flag, got ${JSON.stringify({ k1, k2 })}`)
 }
 
+export function testBaselineGraphMetaKeyUsesMetadataOverrideBeforeFallback() {
+  const graph: GraphData = {
+    type: 'Graph',
+    context: 't',
+    metadata: { baselineGraphMetaKey: ' baseline:doc:1 ' },
+    nodes: [],
+    edges: [],
+  }
+  const key = readBaselineGraphMetaKey(graph, 'fallback:key')
+  if (key !== 'baseline:doc:1') {
+    throw new Error(`expected baseline graph meta key override to trim and win over fallback, got ${JSON.stringify({ key })}`)
+  }
+}
+
+export function testBaselineGraphMetaKeyFallsBackWhenOverrideMissing() {
+  const graph: GraphData = {
+    type: 'Graph',
+    context: 't',
+    metadata: { kind: 'keyword' },
+    nodes: [],
+    edges: [],
+  }
+  const key = readBaselineGraphMetaKey(graph, 'fallback:key')
+  if (key !== 'fallback:key') {
+    throw new Error(`expected baseline graph meta key to fall back when override is missing, got ${JSON.stringify({ key })}`)
+  }
+}

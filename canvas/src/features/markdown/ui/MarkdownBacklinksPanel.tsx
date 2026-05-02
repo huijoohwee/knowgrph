@@ -1,7 +1,7 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
-import { computeWorkspaceBacklinks } from '@/features/markdown-explorer/backlinks'
+import { computeWorkspaceBacklinks, summarizeWorkspaceBacklinksBySource } from '@/features/markdown-explorer/backlinks'
 
 export type MarkdownBacklinksPanelProps = {
   uiPanelTextFontClass: string
@@ -21,7 +21,7 @@ export function MarkdownBacklinksPanel(props: MarkdownBacklinksPanelProps) {
   const backlinks = React.useMemo(() => {
     const target = String(activeDocumentKey || '').trim()
     if (!target) return []
-    const matches = computeWorkspaceBacklinks({
+    return summarizeWorkspaceBacklinksBySource(computeWorkspaceBacklinks({
       targetDocKey: target,
       entries: (sourceFiles || []).map(file => ({
         path: String(file.name || ''),
@@ -29,26 +29,7 @@ export function MarkdownBacklinksPanel(props: MarkdownBacklinksPanelProps) {
         kind: 'file' as const,
         text: file.text ?? '',
       })),
-    })
-    const countsBySource = new Map<string, { sourceDocKey: string; sourceLabel: string; count: number }>()
-    for (const match of matches) {
-      const sourceDocKey = String(match.fromPath || '').trim()
-      if (!sourceDocKey) continue
-      const existing = countsBySource.get(sourceDocKey)
-      if (existing) {
-        existing.count += 1
-        continue
-      }
-      countsBySource.set(sourceDocKey, {
-        sourceDocKey,
-        sourceLabel: sourceDocKey,
-        count: 1,
-      })
-    }
-    return [...countsBySource.values()].sort((left, right) => {
-      if (right.count !== left.count) return right.count - left.count
-      return left.sourceLabel.localeCompare(right.sourceLabel)
-    })
+    }))
   }, [activeDocumentKey, sourceFiles])
 
   const backlinkByName = React.useMemo(() => {

@@ -6,20 +6,28 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { buildNodeMediaInventory } from '@/components/GraphCanvas/helpers'
 import { getGraphDataForDisplay } from '@/components/GraphCanvas/displayFilter'
 
 import { applyGraphCanvasStyles2d } from '@/components/GraphCanvas/useGraphCanvasStyles'
 import type { MarkdownDesignBlock } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/markdownDesignSvgOverlay'
-import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
-import { DEFAULT_OVERLAY_SIZING_CONFIG } from '@/lib/render/overlaySizing2d'
+import { type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { withD3BipartiteSceneSchema } from '@/lib/canvas/d3BipartiteSchemaOverrides'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
-import { determineLayoutPositions, buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { buildGraphMetaKeyIgnoringPending, readBaselineGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import {
+  determineLayoutPositions,
+  readBaselineDocumentLayoutRuntimeContext,
+  readCurrentLayoutHistoryContext,
+  readCurrentLayoutPrepContext,
+  readCurrentLayoutResolutionContext,
+  readCurrentLayoutSeedContext,
+  buildLayoutPositionCacheKey,
+} from '@/components/GraphCanvas/layout/positioning'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
+import { buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
 
 export async function renderGraphCanvasSvgForHtmlExport(args: {
   graphData: GraphData
@@ -39,12 +47,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   collapsedGroupIds?: unknown
   layoutPositionCacheByMode?: Record<string, Record<string, { x: number; y: number }>> | null
   canvas2dRenderer?: string
-  overlayBaseWidthRatioDefault?: number
-  overlayBaseWidthRatioCompact?: number
-  overlayBaseWidthMinPxDefault?: number
-  overlayBaseWidthMinPxCompact?: number
-  overlayBaseWidthMaxPxDefault?: number
-  overlayBaseWidthMaxPxCompact?: number
+  overlaySizing?: OverlayDensitySizingConfigInput | null
   layoutSemanticModeKey?: string
 }): Promise<string> {
   if (typeof document === 'undefined') return ''
@@ -66,12 +69,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     collapsedGroupIds,
     layoutPositionCacheByMode,
     canvas2dRenderer,
-    overlayBaseWidthRatioDefault,
-    overlayBaseWidthRatioCompact,
-    overlayBaseWidthMinPxDefault,
-    overlayBaseWidthMinPxCompact,
-    overlayBaseWidthMaxPxDefault,
-    overlayBaseWidthMaxPxCompact,
+    overlaySizing,
     layoutSemanticModeKey,
   } = args
 
@@ -86,85 +84,70 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(collapsedGroupIds)
   const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schemaForScene)
   const graphMetaKey = buildGraphMetaKeyIgnoringPending(graphDataForDisplay)
-  const datasetKey = computeLayoutDatasetKey({
-    graphData: graphDataForDisplay,
-    graphDataRevision: typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0,
-  })
   const effectiveGraphDataRevision = typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? Math.floor(graphDataRevision) : 0
-  const layoutMode = readLayoutMode(schemaForScene)
-  const semanticModeKey = String(layoutSemanticModeKey || documentSemanticMode || 'document')
-  const layoutViewKey = buildLayoutViewKey({
+  const currentLayoutPrep = readCurrentLayoutPrepContext({
+    graphData: graphDataForDisplay,
+    graphDataRevision: effectiveGraphDataRevision,
     schemaLayoutEngineJson,
     frontmatterModeEnabled,
-    documentSemanticMode: semanticModeKey,
+    documentSemanticMode: String(layoutSemanticModeKey || documentSemanticMode || 'document'),
     graphMetaKey,
     renderMediaAsNodes,
     mediaPanelDensity: String(mediaPanelDensity),
     collapsedGroupIdsKey,
   })
+  const datasetKey = currentLayoutPrep.datasetKey
+  const layoutResolutionContext = readCurrentLayoutResolutionContext({
+    schema: schemaForScene,
+    semanticMode: String(layoutSemanticModeKey || documentSemanticMode || 'document'),
+    renderMode: '2d',
+    canvas2dRenderer,
+    default2dRenderVariant: 'd3',
+  })
+  const layoutMode = layoutResolutionContext.mode
+  const semanticModeKey = layoutResolutionContext.semanticMode
+  const layoutViewKey = currentLayoutPrep.layoutViewKey
 
   const layoutVariant = ''
-  const renderVariant = String(canvas2dRenderer || 'd3')
-  const pickedLayoutSeed = determineLayoutPositions({
+  const renderVariant = layoutResolutionContext.renderVariant
+  const currentLayoutSeed = readCurrentLayoutSeedContext({
     datasetKey,
     mode: layoutMode,
-    frontmatterMode: frontmatterModeEnabled,
+    frontmatterModeEnabled,
     semanticMode: semanticModeKey,
     renderMode: '2d',
     renderVariant,
-    layoutVariant,
-    viewKey: layoutViewKey,
-    prevViewKey: null,
-    prevDatasetKey: null,
-    prevMode: null,
-    prevFrontmatterMode: null,
-    prevSemanticMode: null,
-    prevRenderMode: null,
-    prevRenderVariant: null,
-    prevLayoutVariant: null,
+    layoutViewKey,
     nodes: Array.isArray(graphDataForDisplay.nodes) ? graphDataForDisplay.nodes : [],
-    layoutPositionCacheByMode: layoutPositionCacheByMode ?? null,
+    layoutPositionCacheByMode,
+  })
+  const currentLayoutHistory = readCurrentLayoutHistoryContext({})
+  const pickedLayoutSeed = determineLayoutPositions({
+    ...currentLayoutSeed,
+    layoutVariant,
+    ...currentLayoutHistory,
   })
 
-  const baselineLayoutPositions = (() => {
-    if (String(documentSemanticMode || 'document') !== 'keyword') return null
-    const cache = layoutPositionCacheByMode
-    if (!cache) return null
-
-    const baselineGraphMetaKey = (() => {
-      const meta = graphDataForDisplay.metadata && typeof graphDataForDisplay.metadata === 'object' && !Array.isArray(graphDataForDisplay.metadata)
-        ? (graphDataForDisplay.metadata as Record<string, unknown>)
-        : null
-      const raw = meta && typeof meta.baselineGraphMetaKey === 'string' ? meta.baselineGraphMetaKey.trim() : ''
-      return raw || graphMetaKey
-    })()
-
-    const baselineLayoutViewKey = buildLayoutViewKey({
-      schemaLayoutEngineJson,
-      frontmatterModeEnabled,
-      documentSemanticMode: 'document',
-      graphMetaKey: baselineGraphMetaKey,
-      renderMediaAsNodes,
-      mediaPanelDensity: String(mediaPanelDensity),
-      collapsedGroupIdsKey,
-    })
-    const baselineKey = buildLayoutPositionCacheKey({
-      datasetKey,
-      mode: layoutMode,
-      frontmatterMode: frontmatterModeEnabled,
-      semanticMode: 'document',
-      renderMode: '2d',
-      viewKey: baselineLayoutViewKey,
-      renderVariant,
-      layoutVariant,
-    })
-    const found = cache[baselineKey] ?? null
-    if (!found) return null
-    return Object.keys(found).length > 0 ? found : null
-  })()
-
-  const effectiveSkipInitialLayout =
-    String(documentSemanticMode || 'document') === 'keyword' && !!baselineLayoutPositions ? true : pickedLayoutSeed.skipInitialLayout
+  const baselineLayoutRuntime = readBaselineDocumentLayoutRuntimeContext({
+    documentSemanticMode,
+    graphData: graphDataForDisplay,
+    fallbackGraphMetaKey: graphMetaKey,
+    schemaLayoutEngineJson,
+    frontmatterModeEnabled,
+    renderMediaAsNodes,
+    mediaPanelDensity: String(mediaPanelDensity),
+    collapsedGroupIdsKey,
+    datasetKey,
+    mode: layoutMode,
+    renderMode: '2d',
+    renderVariant,
+    layoutVariant,
+    layoutPositionCacheByMode,
+  })
+  const baselineLayoutPositions = baselineLayoutRuntime.baselineLayoutPositions
+  const effectiveSkipInitialLayout = baselineLayoutRuntime.shouldSkipInitialLayoutFromBaselineDocumentPositions
+    ? true
+    : pickedLayoutSeed.skipInitialLayout
 
   const hasStablePositions = (() => {
     if (effectiveSkipInitialLayout && pickedLayoutSeed.layoutPositionsForMode) return true
@@ -183,62 +166,23 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   const panelOnlyNodeIdSet = (() => {
     const nodes = Array.isArray(graphDataForDisplay.nodes) ? graphDataForDisplay.nodes : []
     if (nodes.length === 0) return undefined
-    const ids: string[] = []
-
+    const ids = buildPanelOnlyNodeIdSetFromGraphNodes(nodes as never)
     const extra = Array.isArray(panelOnlyNodeIds) ? panelOnlyNodeIds : []
     for (let i = 0; i < extra.length; i += 1) {
       const id = String(extra[i] || '').trim()
-      if (id) ids.push(id)
+      if (id) ids.add(id)
     }
-
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i] as any
-      const id = String(n?.id || '').trim()
-      if (!id) continue
-      const type = String(n?.type || '').trim()
-
-      if (type === 'Table' || type === 'CodeBlock') {
-        ids.push(id)
-        continue
-      }
-
-      if (type === 'Paragraph') {
-        const propsObj = n?.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
-        const text = propsObj && typeof propsObj.text === 'string' ? String(propsObj.text || '').trim() : ''
-        const isCallout = propsObj && propsObj.calloutType === true
-        if (isCallout) {
-          ids.push(id)
-          continue
-        }
-        if (text.startsWith('>')) {
-          ids.push(id)
-          continue
-        }
-        if (text && /<\s*iframe\b/i.test(text) && text.toLowerCase().startsWith('<iframe') && looksLikeSingleTagBlock(text, 'iframe')) {
-          ids.push(id)
-          continue
-        }
-      }
-    }
-    const unique = Array.from(new Set(ids))
-    return unique.length ? new Set(unique) : undefined
+    return ids.size > 0 ? ids : undefined
   })()
 
   const mediaOverlayNodeIdSet = (() => {
     const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-    const ids: string[] = []
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i] as any
-      const id = String(n?.id || '').trim()
-      if (!id) continue
-      const spec = getNodeMediaSpec(n)
-      if (!spec) continue
-      if (spec.kind === 'iframe' || spec.kind === 'image' || spec.kind === 'svg' || spec.kind === 'video') ids.push(id)
-    }
-    const unique = Array.from(new Set(ids))
-    return unique.length ? new Set(unique) : undefined
+    const inventory = buildNodeMediaInventory(nodes as never)
+    if (inventory.rows.length <= 0) return undefined
+    const ids = new Set<string>()
+    for (const row of inventory.rows) ids.add(row.id)
+    return ids.size > 0 ? ids : undefined
   })()
-
   const container = document.createElement('div')
   container.style.position = 'fixed'
   container.style.left = '-100000px'
@@ -307,12 +251,12 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   const displayNodes = (graphDataForDisplay.nodes ?? []) as any
   const displayEdges = (graphDataForDisplay.edges ?? []) as any
   const edgesForSim = normalizeEdgesForSim(displayNodes, displayEdges)
-  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+  const forceDocumentStructure = readDocumentViewModeContext({
     frontmatterModeEnabled: frontmatterModeEnabled === true,
     multiDimTableModeEnabled: multiDimTableModeEnabled === true,
     documentSemanticMode: String(documentSemanticMode || 'document'),
     documentStructureBaselineLock: documentStructureBaselineLock === true,
-  })
+  }).forceDocumentStructureGroups
 
   const groupsDerivation = deriveSceneGroups({
     graphData: graphDataForDisplay,
@@ -333,7 +277,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
         centerMode: 'centroid',
         schema: schemaForScene,
         graphData: graphDataForDisplay,
-        deriveGroupsOptions: { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' },
+        deriveGroupsOptions: { forceDocumentStructure },
       }
       const t = fitAllTransform((graphDataForDisplay.nodes ?? []) as any, Math.max(1, widthPx), Math.max(1, Math.floor(heightPx)), opts as any)
       if (!t || !(typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0)) return { k: 1, x: 0, y: 0 }
@@ -379,30 +323,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
     mediaOverlayNodeIdSet,
     panelOnlyNodeIdSet,
     mediaPanelDensity,
-    overlayBaseWidthRatioDefault:
-      typeof overlayBaseWidthRatioDefault === 'number' && Number.isFinite(overlayBaseWidthRatioDefault)
-        ? Math.max(0.001, overlayBaseWidthRatioDefault)
-        : DEFAULT_OVERLAY_SIZING_CONFIG.widthRatio,
-    overlayBaseWidthRatioCompact:
-      typeof overlayBaseWidthRatioCompact === 'number' && Number.isFinite(overlayBaseWidthRatioCompact)
-        ? Math.max(0.001, overlayBaseWidthRatioCompact)
-        : DEFAULT_OVERLAY_SIZING_CONFIG.widthRatio,
-    overlayBaseWidthMinPxDefault:
-      typeof overlayBaseWidthMinPxDefault === 'number' && Number.isFinite(overlayBaseWidthMinPxDefault)
-        ? Math.max(1, Math.floor(overlayBaseWidthMinPxDefault))
-        : DEFAULT_OVERLAY_SIZING_CONFIG.widthMinPx,
-    overlayBaseWidthMinPxCompact:
-      typeof overlayBaseWidthMinPxCompact === 'number' && Number.isFinite(overlayBaseWidthMinPxCompact)
-        ? Math.max(1, Math.floor(overlayBaseWidthMinPxCompact))
-        : DEFAULT_OVERLAY_SIZING_CONFIG.widthMinPx,
-    overlayBaseWidthMaxPxDefault:
-      typeof overlayBaseWidthMaxPxDefault === 'number' && Number.isFinite(overlayBaseWidthMaxPxDefault)
-        ? Math.max(1, Math.floor(overlayBaseWidthMaxPxDefault))
-        : DEFAULT_OVERLAY_SIZING_CONFIG.widthMaxPx,
-    overlayBaseWidthMaxPxCompact:
-      typeof overlayBaseWidthMaxPxCompact === 'number' && Number.isFinite(overlayBaseWidthMaxPxCompact)
-        ? Math.max(1, Math.floor(overlayBaseWidthMaxPxCompact))
-        : DEFAULT_OVERLAY_SIZING_CONFIG.widthMaxPx,
+    overlaySizing,
     enableTightInitialLayout: (() => {
       const nodesCount = Array.isArray(graphDataForDisplay?.nodes) ? graphDataForDisplay.nodes.length : 0
       const edgesCount = Array.isArray(graphDataForDisplay?.edges) ? graphDataForDisplay.edges.length : 0

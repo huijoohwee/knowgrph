@@ -1,12 +1,13 @@
 import React from 'react'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
-import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { isFrontmatterOnlyDoc, normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import { bulkSetWorkspaceEntrySources, type WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
-import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
+import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 import {
   fetchWorkspaceUrlContent,
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -70,6 +71,33 @@ export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportRes
   return { createdPaths, sources, skipped, failed }
 }
 
+export async function applyWorkspaceImportToCanvasBestEffort(args: {
+  fs: WorkspaceFs
+  createdPaths: string[]
+  opts?: {
+    applyToGraph?: boolean
+    workspaceEntries?: WorkspaceEntry[]
+    sourcesByPath?: Record<string, WorkspaceEntrySource | undefined> | null
+  } | null
+}): Promise<void> {
+  const createdPaths = Array.isArray(args.createdPaths)
+    ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
+    : []
+  if (createdPaths.length === 0) return
+  try {
+    const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
+      '@/features/workspace-fs/applyWorkspaceImportToCanvas'
+    )
+    await applyWorkspaceImportToCanvas({
+      fs: args.fs,
+      createdPaths,
+      ...(args.opts ? { opts: args.opts } : {}),
+    })
+  } catch {
+    void 0
+  }
+}
+
 export async function pickFirstCreatedFilePathForImportFocus(fs: WorkspaceFs, createdPaths: string[]): Promise<string | null> {
   const normalized = Array.isArray(createdPaths) ? createdPaths.map(path => String(path || '').trim()).filter(Boolean) : []
   if (normalized.length === 0) return null
@@ -86,6 +114,62 @@ export async function pickFirstCreatedFilePathForImportFocus(fs: WorkspaceFs, cr
   const fileLike = normalized.find(path => /\/[^/]+\.[^/]+$/.test(path))
   if (fileLike) return fileLike
   return normalized[0] || null
+}
+
+export async function activateFirstImportedWorkspaceFile(args: {
+  fs: WorkspaceFs
+  createdPaths: string[]
+}): Promise<void> {
+  const createdPaths = Array.isArray(args.createdPaths)
+    ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
+    : []
+  if (createdPaths.length === 0) return
+  try {
+    const [
+      { workspaceBasename, workspaceDocumentKey },
+      { normalizeMermaidMmdToMarkdown },
+      { hydrateWorkspaceFileFromPendingLocalImport },
+    ] = await Promise.all([
+      import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
+      import('grph-shared/markdown/mermaidInput') as Promise<typeof import('grph-shared/markdown/mermaidInput')>,
+      import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<
+        typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')
+      >,
+    ])
+
+    const firstPath = (await pickFirstCreatedFilePathForImportFocus(args.fs, createdPaths)) || ''
+    if (!firstPath) return
+
+    const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path: firstPath }).catch(() => null)
+    const text = String((hydrated?.text || (await args.fs.readFileText(firstPath).catch(() => ''))) || '')
+    const docKey = workspaceDocumentKey(firstPath)
+    const name = docKey || workspaceBasename(firstPath) || firstPath
+    const state = useGraphStore.getState()
+    const normalizedPath = firstPath as WorkspacePath
+    try {
+      useMarkdownExplorerStore.getState().setActivePath(normalizedPath)
+    } catch {
+      try {
+        useMarkdownExplorerStore.setState({
+          activePath: normalizedPath,
+          lastSetActivePath: { path: normalizedPath, atMs: Date.now() },
+        })
+      } catch {
+        void 0
+      }
+    }
+
+    await state.setActiveMarkdownDocument({
+      name,
+      text: normalizeMermaidMmdToMarkdown(name, text),
+      normalizeMermaidMmd: false,
+      sourceUrl: null,
+      jsonSourceText: null,
+      applyToGraph: false,
+    })
+  } catch {
+    void 0
+  }
 }
 
 function looksLikeJsShellText(text: string): boolean {
@@ -145,21 +229,14 @@ export function useWorkspaceImportActions(args: {
         bulkSetWorkspaceEntrySources(res.sources)
         await hydratePendingImportedPaths(fs, res.createdPaths)
         const refreshed = await refresh()
-        try {
-          const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
-            '@/features/workspace-fs/applyWorkspaceImportToCanvas'
-          )
-          await applyWorkspaceImportToCanvas({
-            fs,
-            createdPaths: res.createdPaths,
-            opts: {
-              workspaceEntries: refreshed.entries,
-              sourcesByPath: refreshed.sourcesByPath,
-            },
-          })
-        } catch {
-          void 0
-        }
+        await applyWorkspaceImportToCanvasBestEffort({
+          fs,
+          createdPaths: res.createdPaths,
+          opts: {
+            workspaceEntries: refreshed.entries,
+            sourcesByPath: refreshed.sourcesByPath,
+          },
+        })
         const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
           await focusAfterImport(createdPath, { applyToGraph: false, jobId })
@@ -201,21 +278,14 @@ export function useWorkspaceImportActions(args: {
         bulkSetWorkspaceEntrySources(res.sources)
         await hydratePendingImportedPaths(fs, res.createdPaths)
         const refreshed = await refresh()
-        try {
-          const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
-            '@/features/workspace-fs/applyWorkspaceImportToCanvas'
-          )
-          await applyWorkspaceImportToCanvas({
-            fs,
-            createdPaths: res.createdPaths,
-            opts: {
-              workspaceEntries: refreshed.entries,
-              sourcesByPath: refreshed.sourcesByPath,
-            },
-          })
-        } catch {
-          void 0
-        }
+        await applyWorkspaceImportToCanvasBestEffort({
+          fs,
+          createdPaths: res.createdPaths,
+          opts: {
+            workspaceEntries: refreshed.entries,
+            sourcesByPath: refreshed.sourcesByPath,
+          },
+        })
         const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
           await focusAfterImport(createdPath, { applyToGraph: false, jobId })
@@ -310,22 +380,15 @@ export function useWorkspaceImportActions(args: {
 
         const shouldApplyToGraph = true
 
-        try {
-          const { applyWorkspaceImportToCanvas } = (await import('@/features/workspace-fs/applyWorkspaceImportToCanvas')) as typeof import(
-            '@/features/workspace-fs/applyWorkspaceImportToCanvas'
-          )
-          await applyWorkspaceImportToCanvas({
-            fs,
-            createdPaths: res.createdPaths,
-            opts: {
-              applyToGraph: shouldApplyToGraph,
-              workspaceEntries: refreshed.entries,
-              sourcesByPath: refreshed.sourcesByPath,
-            },
-          })
-        } catch {
-          void 0
-        }
+        await applyWorkspaceImportToCanvasBestEffort({
+          fs,
+          createdPaths: res.createdPaths,
+          opts: {
+            applyToGraph: shouldApplyToGraph,
+            workspaceEntries: refreshed.entries,
+            sourcesByPath: refreshed.sourcesByPath,
+          },
+        })
 
         if (createdPath) {
           await focusAfterImport(createdPath, { sourceUrl, applyToGraph: false, jobId })
@@ -370,27 +433,19 @@ export function useWorkspaceImportActions(args: {
             }
 
             status.setStatusProgress('Writing')
-            const fs = await getFs()
-            await fs.writeFileText(createdPath, nextText)
-            const inlineText = nextText.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextText : undefined
-            setEntries(prev => {
-              let changed = false
-              const next = prev.map(e => {
-                if (e.path !== createdPath) return e
-                if (e.text === inlineText) return e
-                changed = true
-                return { ...e, text: inlineText, updatedAtMs: Date.now() }
-              })
-              return changed ? next : prev
+            await writeWorkspaceFileAndSync({
+              path: createdPath,
+              text: nextText,
+              getFs,
+              lastLoadedRef,
+              setEntries,
+              synchronizeActiveDocument: openedPath === createdPath,
+              setActiveText,
+              activeDocumentKey,
+              activeDocumentSourceUrl: fetched.normalizedUrl,
+              setActiveMarkdownDocument,
+              resetParsedState: true,
             })
-
-            if (openedPath === createdPath) {
-              lastLoadedRef.current = { path: createdPath, text: nextText }
-              setActiveText(nextText)
-              if (activeDocumentKey) {
-                void setActiveMarkdownDocument({ name: activeDocumentKey, text: nextText, normalizeMermaidMmd: false, sourceUrl: fetched.normalizedUrl })
-              }
-            }
 
             status.setStatusInfo('Webpage content loaded', { ttlMs: UI_TOAST_TTL_MS.warningExtended, dismissible: true })
           } catch {

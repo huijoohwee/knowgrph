@@ -1,4 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { TOC_FOCUS_EVENT } from '@/features/markdown/ui/tocFocusEvents'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export async function testSelectionDispatchesTocFocusInSplitViews() {
@@ -33,7 +34,7 @@ export async function testSelectionDispatchesTocFocusInSplitViews() {
     store.setSelectionSource('canvas')
     store.selectNode('n1')
 
-    const ev = events.find(e => e && e.type === 'kg:tocFocus') || null
+    const ev = events.find(e => e && e.type === TOC_FOCUS_EVENT) || null
     if (!ev) throw new Error('expected tocFocus event to be dispatched on node selection')
     if (!ev.detail || ev.detail.id !== 'h-hello') {
       throw new Error(`expected tocFocus id to be h-hello, got ${String(ev?.detail?.id)}`)

@@ -1,4 +1,6 @@
 import { GraphNode } from '@/lib/graph/types'
+import { readBaselineGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/lib/canvas/layoutPositioning'
 import { pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
@@ -31,6 +33,207 @@ export interface LayoutPositionResult {
 }
 
 type PositionMap = Record<string, { x: number; y: number }>
+
+const readCachedPositionMap = (
+  cache: Record<string, PositionMap> | null | undefined,
+  key: string | null | undefined,
+): PositionMap | null => {
+  if (!cache || !key) return null
+  const found = cache[key] ?? null
+  return found && Object.keys(found).length > 0 ? found : null
+}
+
+export function readCurrentLayoutPrepContext(args: {
+  graphData: { nodes?: unknown[]; edges?: unknown[] } | null | undefined
+  graphDataRevision: number
+  schemaLayoutEngineJson: string
+  frontmatterModeEnabled: boolean
+  documentSemanticMode: string
+  graphMetaKey: string
+  renderMediaAsNodes: boolean
+  mediaPanelDensity: string
+  collapsedGroupIdsKey: string
+}): {
+  datasetKey: string
+  layoutViewKey: string
+} {
+  const datasetKey = computeLayoutDatasetKey({
+    graphData: args.graphData ?? null,
+    graphDataRevision: typeof args.graphDataRevision === 'number' && Number.isFinite(args.graphDataRevision)
+      ? Math.floor(args.graphDataRevision)
+      : 0,
+  })
+  const layoutViewKey = buildLayoutViewKey({
+    schemaLayoutEngineJson: args.schemaLayoutEngineJson,
+    frontmatterModeEnabled: args.frontmatterModeEnabled,
+    documentSemanticMode: args.documentSemanticMode,
+    graphMetaKey: args.graphMetaKey,
+    renderMediaAsNodes: args.renderMediaAsNodes,
+    mediaPanelDensity: String(args.mediaPanelDensity),
+    collapsedGroupIdsKey: args.collapsedGroupIdsKey,
+  })
+  return { datasetKey, layoutViewKey }
+}
+
+export function readCurrentLayoutResolutionContext(args: {
+  schema: unknown
+  semanticMode: string | null | undefined
+  renderMode: '2d' | '3d'
+  canvas2dRenderer?: string | null | undefined
+  default2dRenderVariant?: string | null | undefined
+}): {
+  mode: string
+  semanticMode: string
+  renderVariant: string
+} {
+  return {
+    mode: readLayoutMode(args.schema),
+    semanticMode: String(args.semanticMode || 'document'),
+    renderVariant: args.renderMode === '2d'
+      ? String(args.canvas2dRenderer || args.default2dRenderVariant || '')
+      : '',
+  }
+}
+
+export function readCurrentLayoutSeedContext(args: {
+  datasetKey: string
+  mode: string
+  frontmatterModeEnabled: boolean
+  semanticMode: string
+  renderMode: '2d' | '3d'
+  renderVariant: string
+  layoutViewKey: string
+  nodes: GraphNode[]
+  layoutPositionCacheByMode: Record<string, PositionMap> | null | undefined
+}): Pick<
+  LayoutPositionConfig,
+  'datasetKey'
+  | 'mode'
+  | 'frontmatterMode'
+  | 'semanticMode'
+  | 'renderMode'
+  | 'renderVariant'
+  | 'viewKey'
+  | 'nodes'
+  | 'layoutPositionCacheByMode'
+> {
+  return {
+    datasetKey: args.datasetKey,
+    mode: args.mode,
+    frontmatterMode: args.frontmatterModeEnabled,
+    semanticMode: args.semanticMode,
+    renderMode: args.renderMode,
+    renderVariant: args.renderVariant,
+    viewKey: args.layoutViewKey,
+    nodes: args.nodes,
+    layoutPositionCacheByMode: args.layoutPositionCacheByMode ?? null,
+  }
+}
+
+export function readCurrentLayoutHistoryContext(args: {
+  prevViewKey?: string | null | undefined
+  prevDatasetKey?: string | null | undefined
+  prevMode?: string | null | undefined
+  prevFrontmatterMode?: boolean | null | undefined
+  prevSemanticMode?: string | null | undefined
+  prevRenderMode?: '2d' | '3d' | null | undefined
+  prevRenderVariant?: string | null | undefined
+  prevLayoutVariant?: string | null | undefined
+}): Pick<
+  LayoutPositionConfig,
+  | 'prevViewKey'
+  | 'prevDatasetKey'
+  | 'prevMode'
+  | 'prevFrontmatterMode'
+  | 'prevSemanticMode'
+  | 'prevRenderMode'
+  | 'prevRenderVariant'
+  | 'prevLayoutVariant'
+> {
+  return {
+    prevViewKey: args.prevViewKey ?? null,
+    prevDatasetKey: args.prevDatasetKey ?? null,
+    prevMode: args.prevMode ?? null,
+    prevFrontmatterMode: args.prevFrontmatterMode ?? null,
+    prevSemanticMode: args.prevSemanticMode ?? null,
+    prevRenderMode: args.prevRenderMode ?? null,
+    prevRenderVariant: args.prevRenderVariant ?? null,
+    prevLayoutVariant: args.prevLayoutVariant ?? null,
+  }
+}
+
+export function readBaselineDocumentLayoutRuntimeContext(args: {
+  documentSemanticMode: string | null | undefined
+  graphData: { metadata?: unknown } | null | undefined
+  fallbackGraphMetaKey: string
+  schemaLayoutEngineJson: string
+  frontmatterModeEnabled: boolean
+  renderMediaAsNodes: boolean
+  mediaPanelDensity: string
+  collapsedGroupIdsKey: string
+  datasetKey: string
+  mode: string
+  renderMode: '2d' | '3d'
+  renderVariant?: string
+  layoutVariant?: string
+  layoutPositionCacheByMode: Record<string, PositionMap> | null | undefined
+  prevSemanticMode?: string | null | undefined
+  prevDatasetKey?: string | null | undefined
+  prevLayoutViewKey?: string | null | undefined
+  prevMode?: string | null | undefined
+  prevFrontmatterMode?: boolean | null | undefined
+  prevLayoutVariant?: string | null | undefined
+}): {
+  baselineLayoutPositions: PositionMap | null
+  shouldSkipInitialLayoutFromBaselineDocumentPositions: boolean
+} {
+  const baselineLayoutPositions = (() => {
+    if (String(args.documentSemanticMode || 'document') !== 'keyword') return null
+    if (!args.layoutPositionCacheByMode) return null
+    const baselineFromPrevKey = (() => {
+      if (args.prevSemanticMode !== 'document') return null
+      if (!args.prevDatasetKey || !args.prevLayoutViewKey) return null
+      const key = buildLayoutPositionCacheKey({
+        datasetKey: args.prevDatasetKey,
+        mode: args.prevMode ?? args.mode,
+        frontmatterMode: args.prevFrontmatterMode ?? args.frontmatterModeEnabled,
+        semanticMode: 'document',
+        renderMode: args.renderMode,
+        viewKey: args.prevLayoutViewKey,
+        renderVariant: args.renderVariant,
+        layoutVariant: args.prevLayoutVariant ?? args.layoutVariant,
+      })
+      return readCachedPositionMap(args.layoutPositionCacheByMode, key)
+    })()
+    if (baselineFromPrevKey) return baselineFromPrevKey
+    const baselineGraphMetaKey = readBaselineGraphMetaKey(args.graphData, args.fallbackGraphMetaKey)
+    const baselineLayoutViewKey = buildLayoutViewKey({
+      schemaLayoutEngineJson: args.schemaLayoutEngineJson,
+      frontmatterModeEnabled: args.frontmatterModeEnabled,
+      documentSemanticMode: 'document',
+      graphMetaKey: baselineGraphMetaKey,
+      renderMediaAsNodes: args.renderMediaAsNodes,
+      mediaPanelDensity: String(args.mediaPanelDensity),
+      collapsedGroupIdsKey: args.collapsedGroupIdsKey,
+    })
+    const baselineKey = buildLayoutPositionCacheKey({
+      datasetKey: args.datasetKey,
+      mode: args.mode,
+      frontmatterMode: args.frontmatterModeEnabled,
+      semanticMode: 'document',
+      renderMode: args.renderMode,
+      viewKey: baselineLayoutViewKey,
+      renderVariant: args.renderVariant,
+      layoutVariant: args.layoutVariant,
+    })
+    return readCachedPositionMap(args.layoutPositionCacheByMode, baselineKey)
+  })()
+  return {
+    baselineLayoutPositions,
+    shouldSkipInitialLayoutFromBaselineDocumentPositions:
+      String(args.documentSemanticMode || 'document') === 'keyword' && !!baselineLayoutPositions,
+  }
+}
 
 function computePositionBBox(nodes: GraphNode[], positions: PositionMap | null): null | {
   valid: number

@@ -1,32 +1,18 @@
 import React from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import type { SelectionActionItem } from './selectionActionItems'
+import { ExplorerToolbarIconButton } from './ExplorerToolbarIconButton'
 
 type SelectionActionsMenuProps = {
   textSizeClass: string
   activeEntryName: string
-  clearLabel: string
-  canClearActiveSelection: boolean
-  onClearActiveSelection: () => void
-  canRefreshActiveFromSource: boolean
-  onRefreshActiveFromSource: () => void
-  canDeleteActive: boolean
-  onDeleteActive: () => void
+  actionItems: SelectionActionItem[]
 }
 
 export function SelectionActionsMenu(props: SelectionActionsMenuProps) {
-  const {
-    textSizeClass,
-    activeEntryName,
-    clearLabel,
-    canClearActiveSelection,
-    onClearActiveSelection,
-    canRefreshActiveFromSource,
-    onRefreshActiveFromSource,
-    canDeleteActive,
-    onDeleteActive,
-  } = props
-  const hasSelectionActions = canClearActiveSelection || canRefreshActiveFromSource || canDeleteActive
+  const { textSizeClass, activeEntryName, actionItems } = props
+  const hasSelectionActions = actionItems.length > 0
   const [selectionMenuOpen, setSelectionMenuOpen] = React.useState(false)
   const selectionMenuRootRef = React.useRef<HTMLElement | null>(null)
 
@@ -61,17 +47,16 @@ export function SelectionActionsMenu(props: SelectionActionsMenuProps) {
 
   return (
     <li className="list-none relative" ref={el => (selectionMenuRootRef.current = el)}>
-      <button
-        type="button"
-        className={`kg-toolbar-btn shrink-0 inline-flex items-center justify-center rounded cursor-pointer ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-        aria-label={activeEntryName ? `Actions for ${activeEntryName}` : 'Selection actions'}
-        aria-haspopup="menu"
-        aria-expanded={selectionMenuOpen}
+      <ExplorerToolbarIconButton
+        ariaLabel={activeEntryName ? `Actions for ${activeEntryName}` : 'Selection actions'}
+        ariaHaspopup="menu"
+        ariaExpanded={selectionMenuOpen}
         title="Selection actions"
         onClick={() => setSelectionMenuOpen(v => !v)}
+        className="cursor-pointer"
       >
         <MoreHorizontal className="w-4 h-4" />
-      </button>
+      </ExplorerToolbarIconButton>
       {selectionMenuOpen ? (
         <section
           className={`absolute right-0 mt-1 min-w-40 ${UI_THEME_TOKENS.panel.bg} border ${UI_THEME_TOKENS.panel.border} rounded shadow-md ${textSizeClass} ${UI_THEME_TOKENS.text.primary} p-1 z-50`}
@@ -79,52 +64,22 @@ export function SelectionActionsMenu(props: SelectionActionsMenuProps) {
           aria-label="Selection actions menu"
         >
           <ul className="list-none m-0 p-0">
-            {canRefreshActiveFromSource ? (
-              <li className="list-none">
+            {actionItems.map(item => (
+              <li key={item.key} className="list-none">
                 <button
                   type="button"
                   className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                  aria-label={activeEntryName ? `Refresh ${activeEntryName}` : 'Refresh from URL'}
+                  aria-label={item.ariaLabel}
                   role="menuitem"
                   onClick={() => {
                     setSelectionMenuOpen(false)
-                    onRefreshActiveFromSource()
+                    item.onSelect()
                   }}
                 >
-                  Refresh from URL
+                  {item.label}
                 </button>
               </li>
-            ) : null}
-            {canClearActiveSelection ? (
-              <li className="list-none">
-                <button
-                  type="button"
-                  className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                  role="menuitem"
-                  onClick={() => {
-                    setSelectionMenuOpen(false)
-                    onClearActiveSelection()
-                  }}
-                >
-                  {clearLabel}
-                </button>
-              </li>
-            ) : null}
-            {canDeleteActive ? (
-              <li className="list-none">
-                <button
-                  type="button"
-                  className={`w-full text-left rounded px-2 py-1 ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                  role="menuitem"
-                  onClick={() => {
-                    setSelectionMenuOpen(false)
-                    onDeleteActive()
-                  }}
-                >
-                  Delete
-                </button>
-              </li>
-            ) : null}
+            ))}
           </ul>
         </section>
       ) : null}

@@ -34,7 +34,8 @@ import { extractNodePosByIdFromSvgMarkup } from '@/lib/graph/svgNodePos'
 import { pickLayoutSeedPositions2dForExport } from '@/lib/graph/exportLayoutSeed2d'
 import { ensureSvgHasEdgeGeometry } from '@/lib/graph/svgEdgeGeometry'
 import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/markdownDesignSvgOverlay'
-import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
+import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 
 type UseSnapshotExportHandlersParams = {
   captureCanvasSvgSnapshot: (mode?: '2d' | '3d') => Promise<string | null>
@@ -252,12 +253,12 @@ export function useSnapshotExportHandlers({
           documentSemanticMode: store.documentSemanticMode,
           graphData,
         })
-        const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+        const layoutSemanticModeKey = readDocumentViewModeContext({
           frontmatterModeEnabled: frontmatterModeEnabled === true,
           multiDimTableModeEnabled,
           documentSemanticMode,
           documentStructureBaselineLock: store.documentStructureBaselineLock === true,
-        })
+        }).documentSemanticModeKey
         const wants3dExport =
           store.canvasRenderMode === '3d' ||
           (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
@@ -335,12 +336,7 @@ export function useSnapshotExportHandlers({
             collapsedGroupIds: store.collapsedGroupIds,
             layoutPositionCacheByMode: store.layoutPositionCacheByMode,
             canvas2dRenderer: store.canvas2dRenderer,
-            overlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
-            overlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,
-            overlayBaseWidthMinPxDefault: store.threeIframeOverlayBaseWidthMinPxDefault,
-            overlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
-            overlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
-            overlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
+            overlaySizing: readOverlaySizingInputFromStoreState(store),
             layoutSemanticModeKey,
           })
         })()
@@ -475,12 +471,7 @@ export function useSnapshotExportHandlers({
               : 0,
           ),
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
-          threeIframeOverlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
-          threeIframeOverlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,
-          threeIframeOverlayBaseWidthMinPxDefault: store.threeIframeOverlayBaseWidthMinPxDefault,
-          threeIframeOverlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
-          threeIframeOverlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
-          threeIframeOverlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
+          overlaySizing: readOverlaySizingInputFromStoreState(store),
           zoomMinK: readZoomScaleExtent(store.schema || defaultSchema)[0],
           zoomMaxK: readZoomScaleExtent(store.schema || defaultSchema)[1],
           wheelBehavior: readWheelBehavior(store.schema || defaultSchema),
@@ -538,12 +529,12 @@ export function useSnapshotExportHandlers({
           documentSemanticMode: store.documentSemanticMode,
           graphData,
         })
-        const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+        const layoutSemanticModeKey = readDocumentViewModeContext({
           frontmatterModeEnabled: frontmatterModeEnabled === true,
           multiDimTableModeEnabled,
           documentSemanticMode,
           documentStructureBaselineLock: store.documentStructureBaselineLock === true,
-        })
+        }).documentSemanticModeKey
         const wants3dExport =
           store.canvasRenderMode === '3d' ||
           (store.canvasRenderModeIsAuto === true && store.canvasRenderModeLastFree === '3d')
@@ -617,12 +608,7 @@ export function useSnapshotExportHandlers({
             collapsedGroupIds: store.collapsedGroupIds,
             layoutPositionCacheByMode: store.layoutPositionCacheByMode,
             canvas2dRenderer: store.canvas2dRenderer,
-            overlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
-            overlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,
-            overlayBaseWidthMinPxDefault: store.threeIframeOverlayBaseWidthMinPxDefault,
-            overlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
-            overlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
-            overlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
+            overlaySizing: readOverlaySizingInputFromStoreState(store),
             layoutSemanticModeKey,
           })
         })()
@@ -755,12 +741,7 @@ export function useSnapshotExportHandlers({
               : 0,
           ),
           mediaPanelDensity: store.mediaPanelDensity === 'compact' ? 'compact' : 'default',
-          threeIframeOverlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
-          threeIframeOverlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,
-          threeIframeOverlayBaseWidthMinPxDefault: store.threeIframeOverlayBaseWidthMinPxDefault,
-          threeIframeOverlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
-          threeIframeOverlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
-          threeIframeOverlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
+          overlaySizing: readOverlaySizingInputFromStoreState(store),
           zoomMinK: readZoomScaleExtent(store.schema || defaultSchema)[0],
           zoomMaxK: readZoomScaleExtent(store.schema || defaultSchema)[1],
           wheelBehavior: readWheelBehavior(store.schema || defaultSchema),

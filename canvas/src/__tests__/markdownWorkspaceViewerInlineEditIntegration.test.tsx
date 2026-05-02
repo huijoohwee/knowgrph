@@ -109,6 +109,9 @@ export function testMarkdownWorkspaceWidgetModeUsesSemanticCacheAndLazyBundleBui
   if (!text.includes('openWidgetNodeIdsSnapshotRef') || !text.includes('widgetRegistrySnapshotRef') || !text.includes('getCachedGraphLookup({')) {
     throw new Error('expected widget mode to cache hot-path snapshots by semantic keys instead of raw array identity')
   }
+  if (!text.includes('deriveWidgetCandidateNodeIds({')) {
+    throw new Error('expected widget mode to reuse the shared widget candidate node-id resolver instead of local open-widget filtering')
+  }
   if (!text.includes('const widgetBundleBuildActive = active && contentMode === \'widget\' && widgetAvailable')) {
     throw new Error('expected widget mode to gate large bundle generation behind active widget mode')
   }

@@ -15,8 +15,7 @@ import {
 import { getTextGenerationWidgetLabel, getWidgetRegistryEntryLabel } from '@/features/flow-editor-manager/registryTemplates'
 import { isGrabMapsDiscoveryWidgetEntry } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
 import {
-  FLOW_WIDGET_FORM_ID_KEY,
-  FLOW_WIDGET_TYPE_ID_KEY,
+  resolveNodeWidgetIdentity,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 
 const normalizeWidgetLabelText = (raw: unknown): string => {
@@ -42,6 +41,7 @@ function resolveSpecificWidgetTitle(args: {
 }): string | null {
   const properties = (args.node.properties || {}) as Record<string, unknown>
   const registryEntry = args.registryEntry || null
+  const widgetIdentity = resolveNodeWidgetIdentity({ node: args.node, registryEntry })
   const nodeTypeId = String(registryEntry?.nodeTypeId || args.node.type || '').trim()
   if (registryEntry && isGrabMapsDiscoveryWidgetEntry(registryEntry)) {
     const registryLabel = getWidgetRegistryEntryLabel({
@@ -54,8 +54,8 @@ function resolveSpecificWidgetTitle(args: {
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
     return getTextGenerationWidgetLabel({
       provider: properties.chatProvider,
-      widgetTypeId: registryEntry?.widgetTypeId || properties[FLOW_WIDGET_TYPE_ID_KEY],
-      formId: registryEntry?.formId || properties[FLOW_WIDGET_FORM_ID_KEY],
+      widgetTypeId: widgetIdentity.widgetTypeId,
+      formId: widgetIdentity.formId,
     })
   }
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {

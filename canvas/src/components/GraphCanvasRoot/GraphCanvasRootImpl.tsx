@@ -20,13 +20,18 @@ import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverToolti
 import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout, MARKDOWN_DESIGN_LAYOUT, type MarkdownDesignBlock, type MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
-import { buildPanelOnlyNodeIdSetFromGraphNodes, computeMarkdownAnchorNodeIdByBlockId } from '@/lib/render/markdownPanelOverlayPool'
+import {
+  buildMarkdownIframeNodeIdSetFromGraphNodes,
+  buildMarkdownMatchedBlockNodeIdSetFromGraphNodes,
+  buildPanelOnlyNodeIdSetFromGraphNodes,
+  computeMarkdownAnchorNodeIdByBlockId,
+} from '@/lib/render/markdownPanelOverlayPool'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { useOverlayInteractions2d } from '@/components/GraphCanvasRoot/hooks/useOverlayInteractions2d'
 import { resetGlobalUserSelectLock } from '@/lib/canvas/interaction-user-select'
 import { InfiniteGridCanvasOverlay } from '@/components/InfiniteGridCanvasOverlay'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { buildDocumentSemanticViewModeKey, resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { CANVAS_INTERACTIVE_CLASS, CANVAS_SURFACE_CLASS } from '@/lib/canvas/surface'
@@ -57,8 +62,7 @@ import { useMarqueeSelection2d } from '@/components/GraphCanvasRoot/hooks/useMar
 import { MarqueeBoxOverlay } from '@/components/GraphCanvasRoot/components/MarqueeBoxOverlay'
 import { readMergedGraphNodeLookup } from '@/components/GraphCanvasRoot/utils/mergedNodeLookup'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
-
-const MARKDOWN_PANEL_ALLOWED_KINDS = ['table', 'code', 'blockquote', 'callout', 'html'] as const
+import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 
 const EMPTY_STRING_ARRAY: string[] = []
 
@@ -115,12 +119,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     renderMediaAsNodes,
     mediaPanelDensity,
     threeIframeOverlayPoolMax,
-    threeIframeOverlayBaseWidthRatioDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMaxPxCompact,
+    overlaySizing,
     setLayoutPositionsForMode,
     frontmatterModeEnabled,
     multiDimTableModeEnabled,
@@ -153,12 +152,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
           renderMediaAsNodes: false,
           mediaPanelDensity: 'default' as const,
           threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
-          threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
-          threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
-          threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
-          threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
-          threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
-          threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+          overlaySizing: readOverlaySizingInputFromStoreState(s),
           setLayoutPositionsForMode: s.setLayoutPositionsForMode,
           frontmatterModeEnabled: false,
           multiDimTableModeEnabled: false,
@@ -190,12 +184,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         renderMediaAsNodes: s.renderMediaAsNodes,
         mediaPanelDensity: s.mediaPanelDensity,
         threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
-        threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
-        threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
-        threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
-        threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
-        threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
-        threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+        overlaySizing: readOverlaySizingInputFromStoreState(s),
         setLayoutPositionsForMode: s.setLayoutPositionsForMode,
         frontmatterModeEnabled: s.frontmatterModeEnabled || false,
         multiDimTableModeEnabled: (s as unknown as { multiDimTableModeEnabled?: unknown }).multiDimTableModeEnabled === true,
@@ -203,7 +192,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         canvasRenderMode: s.canvasRenderMode,
         canvas2dRenderer: s.canvas2dRenderer,
         viewportControlsPreset: s.viewportControlsPreset,
-        collapsedGroupIds: s.collapsedGroupIds || [],
+        collapsedGroupIds: s.collapsedGroupIds ?? EMPTY_STRING_ARRAY,
         viewPinned: s.viewPinned === true,
         zoomState: s.zoomState || null,
         fitToScreenMode: s.fitToScreenMode === true,
@@ -220,23 +209,16 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     }),
   )
 
-  const layoutSemanticModeKey = useMemo(() => buildDocumentSemanticViewModeKey({
-    frontmatterModeEnabled: frontmatterModeEnabled === true,
-    multiDimTableModeEnabled: multiDimTableModeEnabled === true,
-    documentSemanticMode: String(documentSemanticMode || 'document'),
-    documentStructureBaselineLock: documentStructureBaselineLock === true,
-  }), [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, multiDimTableModeEnabled])
-
-  const markdownPanelAllowedKinds = useMemo(() => {
-    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+  const documentViewMode = useMemo(() => {
+    return readDocumentViewModeContext({
       frontmatterModeEnabled: frontmatterModeEnabled === true,
       multiDimTableModeEnabled: multiDimTableModeEnabled === true,
       documentSemanticMode: String(documentSemanticMode || 'document'),
       documentStructureBaselineLock: documentStructureBaselineLock === true,
     })
-    if (activeDocumentViewMode === 'multiDimTable') return ['code', 'blockquote', 'callout', 'html'] as const
-    return MARKDOWN_PANEL_ALLOWED_KINDS
   }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, multiDimTableModeEnabled])
+  const layoutSemanticModeKey = documentViewMode.documentSemanticViewModeKey
+  const markdownPanelAllowedKinds = documentViewMode.markdownPanelAllowedKinds
 
   const registerCanvasSnapshotFns = useGraphStore(s => s.registerCanvasSnapshotFns)
   const selectedNodeIdRef = useGraphStoreKeyRef('selectedNodeId')
@@ -726,24 +708,14 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
 
   const { markdownIframeNodeIdsKey, markdownIframeNodeIdSet } = useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
-    const ids: string[] = []
     const iframeRanges = markdownPanelLineRanges?.iframe || null
     if (!iframeRanges || iframeRanges.size === 0) return { markdownIframeNodeIdsKey: '', markdownIframeNodeIdSet: new Set<string>() }
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]!
-      const id = String(n?.id || '').trim()
-      if (!id) continue
-      const spec = getNodeMediaSpec(n)
-      if (spec?.kind !== 'iframe') continue
-      const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
-      const lineStartRaw = meta ? meta.lineStart : null
-      const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
-      if (!Number.isFinite(lineStart)) continue
-      const start = Math.max(1, Math.floor(lineStart))
-      if (!iframeRanges.has(start)) continue
-      ids.push(id)
-    }
-    const sorted = Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
+    const sorted = Array.from(
+      buildMarkdownIframeNodeIdSetFromGraphNodes({
+        nodes,
+        iframeLineStarts: iframeRanges,
+      }),
+    ).sort((a, b) => a.localeCompare(b))
     return { markdownIframeNodeIdsKey: sorted.join('|'), markdownIframeNodeIdSet: new Set(sorted) }
   }, [markdownPanelLineRanges, sceneGraphData])
 
@@ -764,7 +736,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
       return { panelOnlyNodeIdsKey: graphBlockPanel.panelOnlyNodeIdsKey, panelOnlyNodeIdSet: graphBlockPanel.panelOnlyNodeIdSet }
     }
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
-    const idsSet = new Set<string>()
+    const idsSet = buildPanelOnlyNodeIdSetFromGraphNodes(nodes)
     if (markdownAnchorNodeIdByBlockId) {
       const anchorIds = Object.values(markdownAnchorNodeIdByBlockId)
       for (let i = 0; i < anchorIds.length; i += 1) {
@@ -773,39 +745,15 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
         idsSet.add(id)
       }
     }
-    for (let i = 0; i < nodes.length; i += 1) {
-      const n = nodes[i]!
-      const id = String(n?.id || '').trim()
-      if (!id) continue
-
-      const nodeType = String(n.type || '').trim()
-      const typeLower = nodeType.toLowerCase()
-      if (typeLower === 'table' || typeLower === 'codeblock') idsSet.add(id)
-
-      if (panelIframeNodeIdSet.has(id)) idsSet.add(id)
-
-      if (typeLower === 'paragraph') {
-        const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
-        const text = propsObj && typeof propsObj.text === 'string' ? String(propsObj.text || '').trim() : ''
-        if (propsObj && propsObj.calloutType === true) idsSet.add(id)
-        else if (text.startsWith('>')) idsSet.add(id)
-        if (text && /<\s*iframe\b/i.test(text) && text.toLowerCase().startsWith('<iframe') && looksLikeSingleTagBlock(text, 'iframe')) {
-          idsSet.add(id)
-        }
-      }
-
-      if (!markdownPanelLineRanges) continue
-      if (!id.startsWith('blk:')) continue
-      const type = nodeType
-      if (typeLower !== 'table' && typeLower !== 'codeblock' && typeLower !== 'paragraph') continue
-      const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
-      const lineStartRaw = meta ? meta.lineStart : null
-      const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
-      if (!Number.isFinite(lineStart)) continue
-      const start = Math.max(1, Math.floor(lineStart))
-      if (typeLower === 'table' && markdownPanelLineRanges.table.has(start)) idsSet.add(id)
-      else if (typeLower === 'codeblock' && markdownPanelLineRanges.code.has(start)) idsSet.add(id)
-      else if (typeLower === 'paragraph' && markdownPanelLineRanges.blockquote.has(start)) idsSet.add(id)
+    for (const id of panelIframeNodeIdSet) idsSet.add(id)
+    if (markdownPanelLineRanges) {
+      const matchedNodeIds = buildMarkdownMatchedBlockNodeIdSetFromGraphNodes({
+        nodes,
+        lineRanges: markdownPanelLineRanges,
+        includeIframeRanges: false,
+        requireBlockNodeIds: true,
+      })
+      for (const id of matchedNodeIds) idsSet.add(id)
     }
     const sorted = Array.from(idsSet).sort((a, b) => a.localeCompare(b))
     return { panelOnlyNodeIdsKey: sorted.join('|'), panelOnlyNodeIdSet: new Set(sorted) }
@@ -889,12 +837,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     excludeNodeIdsKey: panelOnlyNodeIdsKeyForScene,
     excludeNodeIdSet: panelOnlyNodeIdSetForScene || undefined,
     threeIframeOverlayPoolMax,
-    threeIframeOverlayBaseWidthRatioDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMaxPxCompact,
+    overlaySizing,
     sceneWidth,
     sceneHeight,
     freezeOverlayMembership: overlayInteractionActive,
@@ -999,12 +942,7 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     mediaOverlayNodeIdSet: richMedia.mediaOverlayNodeIdSet,
     panelOnlyNodeIdsKey: panelOnlyNodeIdsKeyForScene,
     panelOnlyNodeIdSet: panelOnlyNodeIdSetForScene,
-    overlayBaseWidthRatioDefault: threeIframeOverlayBaseWidthRatioDefault,
-    overlayBaseWidthRatioCompact: threeIframeOverlayBaseWidthRatioCompact,
-    overlayBaseWidthMinPxDefault: threeIframeOverlayBaseWidthMinPxDefault,
-    overlayBaseWidthMinPxCompact: threeIframeOverlayBaseWidthMinPxCompact,
-    overlayBaseWidthMaxPxDefault: threeIframeOverlayBaseWidthMaxPxDefault,
-    overlayBaseWidthMaxPxCompact: threeIframeOverlayBaseWidthMaxPxCompact,
+    overlaySizing,
     requestOverlaySchedule,
     setLayoutPositionsForMode,
     selectedEdgeIdRef,

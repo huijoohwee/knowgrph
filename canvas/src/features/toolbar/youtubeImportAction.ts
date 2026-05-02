@@ -108,6 +108,7 @@ function buildYouTubeTranscriptGraphData(transcript: Record<string, JSONValue>):
   const sourceUrl = typeof transcript.source_url === 'string' ? transcript.source_url.trim() : ''
   const title = typeof transcript.title === 'string' ? transcript.title.trim() : ''
   const thumbnail_url = typeof transcript.thumbnail_url === 'string' ? transcript.thumbnail_url.trim() : ''
+  const { thumbnail_url: _legacyThumbnailUrl, ...transcriptProperties } = transcript
 
   const id = (() => {
     if (videoId) return `youtube:${videoId}`
@@ -120,8 +121,9 @@ function buildYouTubeTranscriptGraphData(transcript: Record<string, JSONValue>):
     label: title || (videoId ? `YouTube Transcript: ${videoId}` : 'YouTube Transcript'),
     type: 'YouTubeTranscript',
     properties: {
-      ...transcript,
+      ...transcriptProperties,
       image: thumbnail_url || undefined,
+      imageUrl: thumbnail_url || undefined,
     },
   }
 

@@ -37,6 +37,8 @@ export interface AgenticRagGeo {
   lng: number;
 }
 
+export type AgenticRagMediaKind = 'image' | 'svg' | 'video' | 'iframe';
+
 export type AgenticRagMediaUrl = Brand<string, 'AgenticRagMediaUrl'>;
 
 export interface AgenticRagNodeProvenance {
@@ -69,6 +71,7 @@ export interface AgenticRagNodeView {
   chunkText?: AgenticRagChunkText;
   embedding?: AgenticRagEmbedding;
   geo?: AgenticRagGeo;
+  mediaKind?: AgenticRagMediaKind;
   mediaUrl?: AgenticRagMediaUrl;
   provenance?: AgenticRagNodeProvenance;
   graphRAGPath?: AgenticGraphRagPathValue;

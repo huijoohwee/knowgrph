@@ -6,6 +6,8 @@ import { sortWorkspaceEntriesForExplorer } from '@/features/workspace-fs/workspa
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
+import { buildMarkdownFileTreeContextMenuItems } from './markdownWorkspace/markdownFileTreeContextMenuItems'
+import { MarkdownFileTreeRowButton } from './MarkdownFileTreeRowButton'
 
 type Node = {
   entry: WorkspaceEntry
@@ -95,6 +97,20 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     }
     return false
   }, [])
+  const contextMenuItems = React.useMemo(
+    () =>
+      contextMenu
+        ? buildMarkdownFileTreeContextMenuItems({
+            entry: contextMenu.entry,
+            copyToClipboard,
+            onRevealInFinder,
+            onRenameEntry,
+            onDeleteEntry,
+            closeContextMenu,
+          })
+        : [],
+    [closeContextMenu, contextMenu, copyToClipboard, onDeleteEntry, onRenameEntry, onRevealInFinder],
+  )
 
   const renderNode = (node: Node, depth: number) => {
     const entry = node.entry
@@ -131,12 +147,11 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     return (
       <li key={entry.path} className="list-none">
         <section className="group flex items-center" aria-label={isFolder ? `Folder ${entry.name}` : `File ${entry.name}`}>
-          <button
-            type="button"
-            className={`flex-1 min-w-0 flex items-center gap-1 rounded px-1 py-[2px] ${panelTypography.panelTextClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} ${
-              isActive ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : ''
-            }`}
-            style={{ paddingLeft: 6 + indent }}
+          <MarkdownFileTreeRowButton
+            ariaLabel={isFolder ? `Folder ${entry.name}` : `File ${entry.name}`}
+            indent={indent}
+            isActive={isActive}
+            textClassName={panelTypography.panelTextClass}
             onClick={() => {
               if (isFolder) {
                 if (onSelectFolder) onSelectFolder(entry.path)
@@ -164,7 +179,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
             {isFolder ? <Folder className="w-3 h-3 shrink-0" /> : <FileText className="w-3 h-3 shrink-0" />}
             <span className="truncate">{entry.name || (isFolder ? 'folder' : 'file')}</span>
             {isUrlSource ? <LinkIcon className="w-3 h-3 shrink-0 opacity-70" aria-label="Imported from URL" /> : null}
-          </button>
+          </MarkdownFileTreeRowButton>
           {renderFileRight ? (
             <span className="shrink-0" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
               {renderFileRight({ entry, isActive })}
@@ -188,77 +203,19 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
           onPointerDown={event => event.stopPropagation()}
         >
           <ul className="list-none m-0 p-1">
-            <li className="list-none">
-              <button
-                type="button"
-                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={() => {
-                  onRevealInFinder?.(contextMenu.entry.path)
-                  closeContextMenu()
-                }}
-              >
-                Reveal in Finder
-              </button>
-            </li>
-            <li className="list-none">
-              <button
-                type="button"
-                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={() => {
-                  void copyToClipboard(contextMenu.entry.path)
-                  closeContextMenu()
-                }}
-              >
-                Copy Path
-              </button>
-            </li>
-            <li className="list-none">
-              <button
-                type="button"
-                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={() => {
-                  const relative = String(contextMenu.entry.path || '').replace(/^\/+/, '')
-                  void copyToClipboard(relative)
-                  closeContextMenu()
-                }}
-              >
-                Copy Relative Path
-              </button>
-            </li>
-            <li className="list-none">
-              <button
-                type="button"
-                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={() => {
-                  const current = String(contextMenu.entry.name || '').trim()
-                  const next = window.prompt('Rename', current)
-                  if (!next || String(next).trim() === current) {
-                    closeContextMenu()
-                    return
-                  }
-                  onRenameEntry?.(contextMenu.entry.path, String(next).trim())
-                  closeContextMenu()
-                }}
-              >
-                Rename
-              </button>
-            </li>
-            <li className="list-none">
-              <button
-                type="button"
-                className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.status.error} ${UI_THEME_TOKENS.button.hoverBg}`}
-                onClick={() => {
-                  if (!window.confirm(`Delete ${contextMenu.entry.path}?`)) {
-                    closeContextMenu()
-                    return
-                  }
-                  onDeleteEntry?.(contextMenu.entry.path)
-                  closeContextMenu()
-                }}
-              >
-                Delete
-              </button>
-            </li>
+            {contextMenuItems.map(item => (
+              <li key={item.key} className="list-none">
+                <button
+                  type="button"
+                  className={`w-full text-left rounded px-2 py-1 ${panelTypography.textSizeClass} ${
+                    item.tone === 'danger' ? UI_THEME_TOKENS.status.error : UI_THEME_TOKENS.button.text
+                  } ${UI_THEME_TOKENS.button.hoverBg}`}
+                  onClick={item.onSelect}
+                >
+                  {item.label}
+                </button>
+              </li>
+            ))}
           </ul>
         </section>
       ) : null}

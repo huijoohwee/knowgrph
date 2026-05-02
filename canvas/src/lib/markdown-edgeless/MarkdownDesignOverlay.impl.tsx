@@ -17,6 +17,7 @@ import {
   type MarkdownDesignLayout,
 } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { startMarkdownPanelOverlayLoop2d } from '@/features/markdown-edgeless/markdownPanelOverlayLoop2d'
+import { readOverlaySizingConfigForDensity } from '@/lib/render/overlaySizing2d'
 
 type MarkdownDesignOverlayProps = {
   enabled: boolean
@@ -345,14 +346,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
     const getSizingConfig = () => {
       const st = useGraphStore.getState()
       const density = st.mediaPanelDensity === 'compact' ? 'compact' : 'default'
-      const widthRatioRaw = density === 'compact' ? st.threeIframeOverlayBaseWidthRatioCompact : st.threeIframeOverlayBaseWidthRatioDefault
-      const widthMinRaw = density === 'compact' ? st.threeIframeOverlayBaseWidthMinPxCompact : st.threeIframeOverlayBaseWidthMinPxDefault
-      const widthMaxRaw = density === 'compact' ? st.threeIframeOverlayBaseWidthMaxPxCompact : st.threeIframeOverlayBaseWidthMaxPxDefault
-      return {
-        widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
-        widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,
-        widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360,
-      }
+      return readOverlaySizingConfigForDensity({ density, sizing: st })
     }
 
     const loop = startMarkdownPanelOverlayLoop2d({

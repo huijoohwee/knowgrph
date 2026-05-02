@@ -1,11 +1,12 @@
 import React from 'react'
-import { ChevronRight, ChevronDown, GripVertical } from 'lucide-react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { TokenWithLines } from './markdownPreviewLex'
-import { buildTocTree, type TocItem } from './markdownSectionUtils'
-import { computeMarkdownTocReorder } from 'grph-shared/markdown/toc'
+import type { TocItem } from './markdownSectionUtils'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
+import { useMarkdownTocDragAndDrop } from './useMarkdownTocDragAndDrop'
+import { useMarkdownTocTreeState } from './useMarkdownTocTreeState'
+import { MarkdownTocDropMarkers, MarkdownTocExpandGlyph, MarkdownTocReorderHandle } from './MarkdownTocChrome'
 
 export type MarkdownTableOfContentsProps = {
   tokens: TokenWithLines[]
@@ -27,7 +28,7 @@ type TocItemRendererProps = {
   item: TocItem
   onSelect?: (id: string) => void
   onDoubleClick?: (id: string) => void
-  onReorder?: (parentId: string | null, fromIndex: number, toIndex: number) => void
+  onReorderItem?: (sourceId: string, targetId: string, position: 'before' | 'after') => void
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass?: string
   depth: number
@@ -36,14 +37,13 @@ type TocItemRendererProps = {
   allCollapsed?: boolean
   collapsedIds?: Set<string>
   onToggleCollapse?: (id: string) => void
-  rootItems: TocItem[]
 }
 
 function TocItemRenderer({
   item,
   onSelect,
   onDoubleClick,
-  onReorder,
+  onReorderItem,
   uiPanelTextFontClass,
   uiPanelKeyValueTextSizeClass,
   depth,
@@ -52,89 +52,22 @@ function TocItemRenderer({
   allCollapsed,
   collapsedIds,
   onToggleCollapse,
-  rootItems,
 }: TocItemRendererProps) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const iconSizeClass = getIconSizeClass(uiIconScale)
-
-  const [dragState, setDragState] = React.useState<'none' | 'top' | 'bottom'>('none')
-  const [isDragging, setIsDragging] = React.useState(false)
-  const isCollapsed = collapsedIds ? collapsedIds.has(item.id) : (allCollapsed && item.children.length > 0)
-  
-  const hasChildren = item.children.length > 0
-
-  const handleDragStart = (e: React.DragEvent) => {
-    if (!onReorder) return
-    setIsDragging(true)
-    e.dataTransfer.setData('text/plain', item.id)
-    e.dataTransfer.effectAllowed = 'move'
-  }
-
-  const handleDragEnd = () => {
-    setIsDragging(false)
-    setDragState('none')
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    if (!onReorder) return
-    e.dataTransfer.dropEffect = 'move'
-    
-    // Calculate if we are in top or bottom half
-    const rect = e.currentTarget.getBoundingClientRect()
-    const midY = rect.top + rect.height / 2
-    if (e.clientY < midY) {
-      setDragState('top')
-    } else {
-      setDragState('bottom')
-    }
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
-    setDragState('none')
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragState('none')
-    if (!onReorder) return
-
-    const sourceId = e.dataTransfer.getData('text/plain')
-    if (sourceId === item.id) return
-
-    const move = computeMarkdownTocReorder({
-      root: rootItems,
-      sourceId,
-      targetId: item.id,
-      position: dragState === 'bottom' ? 'after' : 'before',
+  const { dragState, isDragging, handleDragStart, handleDragEnd, handleDragOver, handleDragLeave, handleDrop } =
+    useMarkdownTocDragAndDrop({
+      itemId: item.id,
+      enabled: !!onReorderItem,
+      onReorder: onReorderItem,
     })
-    if (!move) return
-    onReorder(move.parentId, move.fromIndex, move.toIndex)
-  }
+  const isCollapsed = collapsedIds ? collapsedIds.has(item.id) : (allCollapsed && item.children.length > 0)
+  const hasChildren = item.children.length > 0
 
   return (
     <li className="relative">
-      {dragState === 'top' && (
-        <span
-          className={`absolute left-0 right-0 -top-1 h-2 ${UI_THEME_TOKENS.button.activeBg} border-t-2 ${UI_THEME_TOKENS.button.activeBorder} z-10 pointer-events-none`}
-        >
-          <span
-            className={`absolute left-0 -top-1 w-0 h-0 border-l-4 border-r-4 border-b-4 ${UI_THEME_TOKENS.button.activeBorder} border-l-transparent border-r-transparent`}
-          />
-        </span>
-      )}
-      {dragState === 'bottom' && (
-        <span
-          className={`absolute left-0 right-0 -bottom-1 h-2 ${UI_THEME_TOKENS.button.activeBg} border-b-2 ${UI_THEME_TOKENS.button.activeBorder} z-10 pointer-events-none`}
-        >
-          <span
-            className={`absolute left-0 -bottom-1 w-0 h-0 border-l-4 border-r-4 border-t-4 ${UI_THEME_TOKENS.button.activeBorder} border-l-transparent border-r-transparent`}
-          />
-        </span>
-      )}
+      <MarkdownTocDropMarkers dragState={dragState} showArrow />
       <section
         className={[
           'group flex items-center gap-1 py-0.5 pr-1.5 rounded cursor-pointer select-none transition-colors relative',
@@ -162,20 +95,16 @@ function TocItemRenderer({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {onReorder && (
-          <button
-            type="button"
+        {onReorderItem && (
+          <MarkdownTocReorderHandle
+            ariaLabel="Reorder section"
+            title="Reorder section"
             className={`opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing w-4 h-4 flex items-center justify-center ${UI_THEME_TOKENS.text.tertiary} hover:text-gray-600 dark:hover:text-gray-400`}
-            draggable
+            iconClassName={iconSizeClass}
+            strokeWidth={uiIconStrokeWidth}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => e.stopPropagation()}
-            aria-label="Reorder section"
-            title="Reorder section"
-          >
-            <GripVertical className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-          </button>
+          />
         )}
 
         <span className={`truncate flex-1 ${UI_THEME_TOKENS.text.primary}`}>
@@ -191,11 +120,7 @@ function TocItemRenderer({
             }}
             className={`p-0.5 rounded shrink-0 ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.tertiary}`}
           >
-            {isCollapsed ? (
-              <ChevronRight className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-            ) : (
-              <ChevronDown className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
-            )}
+            <MarkdownTocExpandGlyph isExpanded={!isCollapsed} className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
           </button>
         ) : (
           <span className="w-4 shrink-0" aria-hidden="true" />
@@ -210,7 +135,7 @@ function TocItemRenderer({
               item={child}
               onSelect={onSelect}
               onDoubleClick={onDoubleClick}
-              onReorder={onReorder}
+              onReorderItem={onReorderItem}
               uiPanelTextFontClass={uiPanelTextFontClass}
               uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
               depth={depth + 1}
@@ -219,7 +144,6 @@ function TocItemRenderer({
               allCollapsed={allCollapsed}
               collapsedIds={collapsedIds}
               onToggleCollapse={onToggleCollapse}
-              rootItems={rootItems}
             />
           ))}
         </ul>
@@ -243,7 +167,10 @@ export function MarkdownTableOfContents({
   collapsedIds,
   onToggleCollapse,
 }: MarkdownTableOfContentsProps) {
-  const rootItems = React.useMemo(() => buildTocTree(tokens), [tokens])
+  const { items: rootItems, onReorderByIds: onReorderItem } = useMarkdownTocTreeState({
+    tokens,
+    onReorder,
+  })
 
   if (rootItems.length === 0) return null
 
@@ -256,7 +183,7 @@ export function MarkdownTableOfContents({
             item={item}
             onSelect={onSelect}
             onDoubleClick={onDoubleClick}
-            onReorder={onReorder}
+            onReorderItem={onReorderItem}
             uiPanelTextFontClass={uiPanelTextFontClass}
             uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
             depth={1}
@@ -265,7 +192,6 @@ export function MarkdownTableOfContents({
             allCollapsed={allCollapsed}
             collapsedIds={collapsedIds}
             onToggleCollapse={onToggleCollapse}
-            rootItems={rootItems}
           />
         ))}
       </ul>

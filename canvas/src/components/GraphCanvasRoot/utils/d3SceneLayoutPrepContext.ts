@@ -1,9 +1,11 @@
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import {
-  buildLayoutPositionCacheKey,
-  buildLayoutViewKey,
-  computeLayoutDatasetKey,
   determineLayoutPositions,
+  readBaselineDocumentLayoutRuntimeContext,
+  readCurrentLayoutHistoryContext,
+  readCurrentLayoutPrepContext,
+  readCurrentLayoutResolutionContext,
+  readCurrentLayoutSeedContext,
 } from '@/components/GraphCanvas/layout/positioning'
 import { pickZoomStateForView } from '@/lib/canvas/zoom-effective'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
@@ -70,7 +72,9 @@ export function buildD3SceneLayoutPrepContext(args: {
     mediaPanelDensity: String(args.mediaPanelDensity),
     collapsedGroupIdsKey: args.collapsedGroupIdsKey,
   })
-  const layoutViewKey = buildLayoutViewKey({
+  const currentLayoutPrep = readCurrentLayoutPrepContext({
+    graphData: args.sceneGraphData,
+    graphDataRevision: args.graphContentRevision || 0,
     schemaLayoutEngineJson: args.schemaLayoutEngineJson,
     frontmatterModeEnabled: !!args.effectiveFrontmatterModeEnabled,
     documentSemanticMode: args.layoutSemanticModeKey,
@@ -79,6 +83,7 @@ export function buildD3SceneLayoutPrepContext(args: {
     mediaPanelDensity: String(args.mediaPanelDensity),
     collapsedGroupIdsKey: args.collapsedGroupIdsKey,
   })
+  const layoutViewKey = currentLayoutPrep.layoutViewKey
   const zoomState = pickZoomStateForView({
     zoomViewKey,
     zoomStateByKey: args.zoomStateByKey,
@@ -86,14 +91,38 @@ export function buildD3SceneLayoutPrepContext(args: {
     fitToScreenMode: args.fitToScreenMode,
     zoomToSelectionMode: args.zoomToSelectionMode,
   })
-  const mode = readLayoutMode(args.schema)
-  const datasetKey = computeLayoutDatasetKey({
-    graphData: args.sceneGraphData,
-    graphDataRevision: args.graphContentRevision || 0,
+  const layoutResolutionContext = readCurrentLayoutResolutionContext({
+    schema: args.schema,
+    semanticMode: args.layoutSemanticModeKey,
+    renderMode: args.canvasRenderMode,
+    canvas2dRenderer: args.canvas2dRenderer,
   })
+  const mode = layoutResolutionContext.mode
+  const datasetKey = currentLayoutPrep.datasetKey
   const layoutVariant = args.isBipartite
-    ? `bipartite:v4:${args.layoutSemanticModeKey}:${String(args.effectiveFrontmatterModeEnabled ? 1 : 0)}:${String(args.infiniteCanvasInteractionMode)}`
+    ? `bipartite:v4:${layoutResolutionContext.semanticMode}:${String(args.effectiveFrontmatterModeEnabled ? 1 : 0)}:${String(args.infiniteCanvasInteractionMode)}`
     : ''
+  const currentLayoutSeed = readCurrentLayoutSeedContext({
+    datasetKey,
+    mode,
+    frontmatterModeEnabled: !!args.effectiveFrontmatterModeEnabled,
+    semanticMode: layoutResolutionContext.semanticMode,
+    renderMode: args.canvasRenderMode,
+    renderVariant: layoutResolutionContext.renderVariant,
+    layoutViewKey,
+    nodes: Array.isArray(args.sceneGraphData.nodes) ? args.sceneGraphData.nodes : [],
+    layoutPositionCacheByMode: args.layoutPositionCacheByMode,
+  })
+  const currentLayoutHistory = readCurrentLayoutHistoryContext({
+    prevViewKey: args.prevLayoutViewKey,
+    prevDatasetKey: args.prevDatasetKey,
+    prevMode: args.prevMode,
+    prevFrontmatterMode: args.prevFrontmatterMode,
+    prevSemanticMode: args.prevSemanticMode,
+    prevRenderMode: args.prevRenderMode,
+    prevRenderVariant: args.prevRenderVariant,
+    prevLayoutVariant: args.prevLayoutVariant,
+  })
   const pickedInitialZoomTransform = pickInitialZoomTransform({
     zoomState,
     pinned: args.viewPinned,
@@ -104,88 +133,41 @@ export function buildD3SceneLayoutPrepContext(args: {
   const initialZoomTransform =
     pickedInitialZoomTransform || (!args.fitToScreenMode && !args.zoomToSelectionMode ? args.lastKnownZoomTransform : null)
   const { layoutPositionsForMode, skipInitialLayout, cacheKey } = determineLayoutPositions({
-    datasetKey,
-    mode,
-    frontmatterMode: !!args.effectiveFrontmatterModeEnabled,
-    semanticMode: args.layoutSemanticModeKey,
-    renderMode: args.canvasRenderMode,
-    renderVariant: args.canvasRenderMode === '2d' ? args.canvas2dRenderer : '',
+    ...currentLayoutSeed,
     layoutVariant,
-    viewKey: layoutViewKey,
-    prevViewKey: args.prevLayoutViewKey,
-    prevDatasetKey: args.prevDatasetKey,
-    prevMode: args.prevMode,
-    prevFrontmatterMode: args.prevFrontmatterMode,
-    prevSemanticMode: args.prevSemanticMode,
-    prevRenderMode: args.prevRenderMode,
-    prevRenderVariant: args.prevRenderVariant,
-    prevLayoutVariant: args.prevLayoutVariant,
-    nodes: Array.isArray(args.sceneGraphData.nodes) ? args.sceneGraphData.nodes : [],
-    layoutPositionCacheByMode: args.layoutPositionCacheByMode,
+    ...currentLayoutHistory,
   })
   const effectiveLayoutPositionsForMode = args.isBipartite ? null : layoutPositionsForMode
 
-  const baselineLayoutPositions = (() => {
-    if (String(args.documentSemanticMode || 'document') !== 'keyword') return null
-    if (!args.layoutPositionCacheByMode) return null
-
-    const lookup = (key: string | null): Record<string, { x: number; y: number }> | null => {
-      if (!key) return null
-      const cached = args.layoutPositionCacheByMode[key] ?? null
-      return cached && Object.keys(cached).length > 0 ? cached : null
-    }
-
-    if (args.prevSemanticMode === 'document' && args.prevDatasetKey && args.prevLayoutViewKey) {
-      const baselineFromPrevKey = buildLayoutPositionCacheKey({
-        datasetKey: args.prevDatasetKey,
-        mode: args.prevMode ?? mode,
-        frontmatterMode: args.prevFrontmatterMode ?? !!args.effectiveFrontmatterModeEnabled,
-        semanticMode: 'document',
-        renderMode: args.canvasRenderMode,
-        viewKey: args.prevLayoutViewKey,
-        renderVariant: args.canvasRenderMode === '2d' ? args.canvas2dRenderer : '',
-        layoutVariant: args.prevLayoutVariant ?? layoutVariant,
-      })
-      const found = lookup(baselineFromPrevKey)
-      if (found) return found
-    }
-
-    const baselineGraphMetaKey = (() => {
-      const metadata =
-        args.sceneGraphData.metadata && typeof args.sceneGraphData.metadata === 'object' && !Array.isArray(args.sceneGraphData.metadata)
-          ? (args.sceneGraphData.metadata as Record<string, unknown>)
-          : null
-      const raw = metadata && typeof metadata.baselineGraphMetaKey === 'string' ? metadata.baselineGraphMetaKey.trim() : ''
-      return raw || args.graphMetaKey
-    })()
-    const baselineLayoutViewKey = buildLayoutViewKey({
-      schemaLayoutEngineJson: args.schemaLayoutEngineJson,
-      frontmatterModeEnabled: !!args.effectiveFrontmatterModeEnabled,
-      documentSemanticMode: 'document',
-      graphMetaKey: baselineGraphMetaKey,
-      renderMediaAsNodes: args.renderMediaAsNodes === true,
-      mediaPanelDensity: String(args.mediaPanelDensity),
-      collapsedGroupIdsKey: args.collapsedGroupIdsKey,
-    })
-    const baselineFromCurrentKey = buildLayoutPositionCacheKey({
-      datasetKey,
-      mode,
-      frontmatterMode: !!args.effectiveFrontmatterModeEnabled,
-      semanticMode: 'document',
-      renderMode: args.canvasRenderMode,
-      viewKey: baselineLayoutViewKey,
-      renderVariant: args.canvasRenderMode === '2d' ? args.canvas2dRenderer : '',
-      layoutVariant,
-    })
-    return lookup(baselineFromCurrentKey)
-  })()
+  const baselineLayoutRuntime = readBaselineDocumentLayoutRuntimeContext({
+    documentSemanticMode: args.documentSemanticMode,
+    graphData: args.sceneGraphData,
+    fallbackGraphMetaKey: args.graphMetaKey,
+    schemaLayoutEngineJson: args.schemaLayoutEngineJson,
+    frontmatterModeEnabled: !!args.effectiveFrontmatterModeEnabled,
+    renderMediaAsNodes: args.renderMediaAsNodes === true,
+    mediaPanelDensity: String(args.mediaPanelDensity),
+    collapsedGroupIdsKey: args.collapsedGroupIdsKey,
+    datasetKey,
+    mode,
+    renderMode: args.canvasRenderMode,
+    renderVariant: layoutResolutionContext.renderVariant,
+    layoutVariant,
+    layoutPositionCacheByMode: args.layoutPositionCacheByMode,
+    prevSemanticMode: args.prevSemanticMode,
+    prevDatasetKey: args.prevDatasetKey,
+    prevLayoutViewKey: args.prevLayoutViewKey,
+    prevMode: args.prevMode,
+    prevFrontmatterMode: args.prevFrontmatterMode,
+    prevLayoutVariant: args.prevLayoutVariant,
+  })
+  const baselineLayoutPositions = baselineLayoutRuntime.baselineLayoutPositions
 
   const effectiveSkipInitialLayout = args.isBipartite
     ? false
-    : String(args.documentSemanticMode || 'document') === 'keyword'
+    : baselineLayoutRuntime.shouldSkipInitialLayoutFromBaselineDocumentPositions
         && args.canvasRenderMode === '2d'
         && String(args.canvas2dRenderer || '') === 'd3'
-        && !!baselineLayoutPositions
       ? true
       : skipInitialLayout
 

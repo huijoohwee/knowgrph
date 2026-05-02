@@ -1,5 +1,6 @@
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 export type GraphFieldScope = 'node' | 'edge'
 export type GraphFieldKind = 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array' | 'mixed' | 'unknown'
@@ -145,6 +146,34 @@ function toGraphFieldKindBase(value: JSONValue): GraphFieldKindBase {
 
 const DERIVED_FIELD_NESTED_MAX_DEPTH = 4
 const DERIVED_FIELD_NESTED_SCAN_LIMIT = 20_000
+const DERIVED_FIELDS_CACHE_LIMIT = 12
+const derivedFieldsCache = new Map<string, ReadonlyArray<GraphField>>()
+
+export type GetCachedDerivedFieldsArgs = {
+  graphData?: GraphData | null
+  graphRevision?: number | null
+  graphSemanticKey?: string | null
+}
+
+function readCachedDerivedFields(cacheKey: string): ReadonlyArray<GraphField> | null {
+  const cached = derivedFieldsCache.get(cacheKey) || null
+  if (!cached) return null
+  derivedFieldsCache.delete(cacheKey)
+  derivedFieldsCache.set(cacheKey, cached)
+  return cached
+}
+
+function writeCachedDerivedFields(
+  cacheKey: string,
+  fields: ReadonlyArray<GraphField>,
+): ReadonlyArray<GraphField> {
+  derivedFieldsCache.set(cacheKey, fields)
+  if (derivedFieldsCache.size > DERIVED_FIELDS_CACHE_LIMIT) {
+    const oldestKey = derivedFieldsCache.keys().next().value
+    if (typeof oldestKey === 'string') derivedFieldsCache.delete(oldestKey)
+  }
+  return fields
+}
 
 export function computeDerivedFields(graphData: GraphData): ReadonlyArray<GraphField> {
   type Accumulator = {
@@ -246,6 +275,20 @@ export function computeDerivedFields(graphData: GraphData): ReadonlyArray<GraphF
   })
 
   return fields
+}
+
+export function getCachedDerivedFields(args: GetCachedDerivedFieldsArgs): ReadonlyArray<GraphField> {
+  const graphData = args.graphData || null
+  if (!graphData) return []
+  const cacheKey = buildScopedGraphSemanticKey('graph-fields-derived', {
+    graphData,
+    graphRevision: args.graphRevision,
+    graphSemanticKey: args.graphSemanticKey,
+  })
+  if (!cacheKey) return computeDerivedFields(graphData)
+  const cached = readCachedDerivedFields(cacheKey)
+  if (cached) return cached
+  return writeCachedDerivedFields(cacheKey, computeDerivedFields(graphData))
 }
 
 export function defaultSettingsForField(field: GraphField): GraphFieldSettingsResolved {

@@ -4,6 +4,10 @@ import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput
 import { applyJsonImportWorkspaceTarget } from '@/features/workspace-table/jsonImportWorkspaceTarget'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { tryBuildJsonMarkdownDocumentFromText } from '@/features/markdown/jsonToMarkdownDocument'
+import {
+  applyActiveMarkdownDocumentPayload,
+  buildActiveMarkdownDocumentPayload,
+} from '@/features/markdown/activeMarkdownDocument'
 
 export function applyImportedMarkdownToStore(args: {
   name: string
@@ -32,10 +36,10 @@ export function applyImportedMarkdownToStore(args: {
       void 0
     }
   }
-  void state.setActiveMarkdownDocument({
+  void applyActiveMarkdownDocumentPayload({
+    setActiveMarkdownDocument: state.setActiveMarkdownDocument,
     name,
     text,
-    normalizeMermaidMmd: false,
     sourceUrl,
     jsonSourceText: null,
     recent: args.recent,
@@ -83,16 +87,15 @@ export function applyImportedJsonToStore(args: {
   const applyToGraph = args.applyToGraph !== false
   if (!trimmed) {
     void state
-      .setActiveMarkdownDocument({
-      name,
-      text: rawText,
-      normalizeMermaidMmd: false,
-      sourceUrl: args.sourceUrl,
-      jsonSourceText: null,
-      recent: args.recent,
-      applyToGraph,
-      forceApplyToGraph: applyToGraph,
-    })
+      .setActiveMarkdownDocument(buildActiveMarkdownDocumentPayload({
+        name,
+        text: rawText,
+        sourceUrl: args.sourceUrl,
+        jsonSourceText: null,
+        recent: args.recent,
+        applyToGraph,
+        forceApplyToGraph: applyToGraph,
+      }))
       .finally(applyWorkspaceTarget)
     return
   }
@@ -110,15 +113,14 @@ export function applyImportedJsonToStore(args: {
   }
 
   void state
-    .setActiveMarkdownDocument({
-    name,
-    text: markdown,
-    normalizeMermaidMmd: false,
-    sourceUrl: args.sourceUrl,
-    jsonSourceText,
-    recent: args.recent,
-    applyToGraph,
-    forceApplyToGraph: applyToGraph,
-  })
+    .setActiveMarkdownDocument(buildActiveMarkdownDocumentPayload({
+      name,
+      text: markdown,
+      sourceUrl: args.sourceUrl,
+      jsonSourceText,
+      recent: args.recent,
+      applyToGraph,
+      forceApplyToGraph: applyToGraph,
+    }))
     .finally(applyWorkspaceTarget)
 }

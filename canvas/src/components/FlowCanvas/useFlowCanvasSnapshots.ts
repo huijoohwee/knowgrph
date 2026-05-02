@@ -4,10 +4,11 @@ import { renderGraphCanvasSvgForHtmlExport } from '@/lib/graph/htmlCanvasSvgExpo
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData } from '@/lib/graph/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 import type { FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 
 export function useFlowCanvasSnapshots(args: {
@@ -64,12 +65,12 @@ export function useFlowCanvasSnapshots(args: {
           documentSemanticMode: store.documentSemanticMode,
           graphData,
         })
-        const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+        const layoutSemanticModeKey = readDocumentViewModeContext({
           frontmatterModeEnabled,
           multiDimTableModeEnabled: store.multiDimTableModeEnabled === true,
           documentSemanticMode,
           documentStructureBaselineLock: store.documentStructureBaselineLock === true,
-        })
+        }).documentSemanticModeKey
 
         const markdownDesignBlocks = (() => {
           try {
@@ -84,6 +85,7 @@ export function useFlowCanvasSnapshots(args: {
             return []
           }
         })()
+        const overlaySizing = readOverlaySizingInputFromStoreState(store)
 
         const svg = await renderGraphCanvasSvgForHtmlExport({
           graphData,
@@ -102,12 +104,7 @@ export function useFlowCanvasSnapshots(args: {
           collapsedGroupIds: store.collapsedGroupIds,
           layoutPositionCacheByMode: store.layoutPositionCacheByMode,
           canvas2dRenderer: store.canvas2dRenderer,
-          overlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
-          overlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
-          overlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,
-          overlayBaseWidthMinPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMinPxCompact?: number }).threeIframeOverlayBaseWidthMinPxCompact,
-          overlayBaseWidthMaxPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMaxPxDefault?: number }).threeIframeOverlayBaseWidthMaxPxDefault,
-          overlayBaseWidthMaxPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMaxPxCompact?: number }).threeIframeOverlayBaseWidthMaxPxCompact,
+          overlaySizing,
           layoutSemanticModeKey,
         })
         const trimmed = String(svg || '').trim()

@@ -134,6 +134,9 @@ export async function testExportHtmlViewerRendersProxiedImageAndVideoInline() {
   if (!html.includes('document.createElement(\'img\')')) throw new Error('expected standalone viewer to create inline image media elements')
   if (!html.includes('document.createElement(\'video\')')) throw new Error('expected standalone viewer to create inline video media elements')
   if (!html.includes('decodedProxyUrl')) throw new Error('expected standalone runtime to infer media kind from proxy url parameter')
+  if (!html.includes('var kgGetProxyOrigin = function(){') || !html.includes('var kgMaybeProbeProxyOrigin = function(){') || !html.includes('var kgBuildWebpageMetaProxyUrl = function(absUrl){')) {
+    throw new Error('expected standalone runtime to include the canonical proxy helper subsystem from the template')
+  }
 }
 
 export async function testExportHtmlViewerTreatsIFrameKindWithImageUrlAsImage() {
@@ -220,6 +223,18 @@ export async function testExportHtmlViewerRuntimeSupportsCentroidFitAndTouchDrag
   if (!html.includes('getContentCentroid') || !html.includes('moveNodeDrag(-1')) {
     throw new Error('expected exported html viewer runtime to support centroid fit and touch node dragging')
   }
+  if (!html.includes('startGroupDrag(gid, -1') || !html.includes('moveGroupDrag(-1') || !html.includes('moveHeaderDrag(-1')) {
+    throw new Error('expected exported html viewer runtime to support touch group and header dragging from the canonical template')
+  }
+  if (!html.includes("if (!touches || touches.length === 0) {\n          try { endDrag(); } catch (e0) {}\n          touchDrag = null;\n        }")) {
+    throw new Error('expected exported html viewer runtime to end active drag state when touch interaction fully ends')
+  }
+  if (!html.includes('function __kgUpdateGroupRectsForNodeId(nodeId){') || !html.includes('try { __kgUpdateGroupRectsForNodeId(nodeDrag.id); } catch (err0) {}')) {
+    throw new Error('expected exported html viewer runtime to include canonical group-rect upkeep for node drags')
+  }
+  if (!html.includes("var linksRoot = svg.querySelector('[data-kg-layer=\"links\"]');") || !html.includes("if (linksRoot && !linksRoot.querySelector('[data-edge-id]')) {")) {
+    throw new Error('expected exported html viewer runtime to include canonical late edge bootstrap when svg edge elements are missing')
+  }
   if (!html.includes('state.k * baseSx0') || !html.includes('state.k * baseSy0')) {
     throw new Error('expected markdown drag conversion to account for base svg scaling to keep edges connected')
   }
@@ -234,6 +249,9 @@ export async function testExportHtmlViewerRuntimeSupportsCentroidFitAndTouchDrag
   }
   if (!html.includes("__kgResolveNodeId(String(edgeEl.getAttribute('data-source-id') || edgeEl.getAttribute('data-source') || '').trim())")) {
     throw new Error('expected runtime to normalize edge endpoint ids before geometry sync')
+  }
+  if (!html.includes('if (overlayFollowAnimation && svg && svg.__kgNodeOffsetById) {') || !html.includes('if (oa && isFinite(oa.x) && isFinite(oa.y)) { x1 += Number(oa.x); y1 += Number(oa.y); }')) {
+    throw new Error('expected runtime to apply overlay-follow endpoint offsets inside canonical edge geometry updates')
   }
   if (!html.includes("__kgResolveNodeId(String(ee.getAttribute('data-source-id') || ee.getAttribute('data-source') || '').trim())")) {
     throw new Error('expected runtime to normalize edge index ids for edgeRefsByNodeId')
@@ -461,6 +479,15 @@ export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
   if (!js.includes('var markdownBlocks =')) {
     throw new Error('expected runtime script to declare markdownBlocks payload before overlay logic')
   }
+  if (!js.includes('var mediaNodes =') || js.indexOf('var markdownBlocks =') < js.indexOf('var mediaNodes =')) {
+    throw new Error('expected runtime script to declare markdownBlocks directly after mediaNodes from the canonical template')
+  }
+  if (!js.includes("var richBtn = document.getElementById('kg-rich-toggle');") || !js.includes("var frontmatterBtn = document.getElementById('kg-frontmatter-toggle');") || !js.includes("var mode3dBtn = document.getElementById('kg-3d-toggle');")) {
+    throw new Error('expected runtime script to declare the HUD toggle button handles in the canonical template')
+  }
+  if (!js.includes("window.addEventListener('keydown', function(e){") || !js.includes("if (k !== 'i') return;")) {
+    throw new Error('expected runtime to own the keyboard media-toggle shortcut in the canonical template')
+  }
   if (!js.includes('__kgMediaBoxById') || !js.includes('__kgMdBoxById')) {
     throw new Error('expected runtime to track overlay boxes for edge-to-panel anchoring')
   }
@@ -473,14 +500,26 @@ export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
   if (!js.includes("mediaNodes.push({ id: mid0, title: mid0, url: '', openUrl: '', interactive: true, kind: 'iframe' });")) {
     throw new Error('expected runtime to synthesize media node entries for overlay pan/zoom sync fallback')
   }
-  if (!js.includes('[data-node-id][data-kg-panel-box]')) {
-    throw new Error('expected runtime to index existing markdown-like overlay panels by node id for pan/zoom sync')
+  if (!js.includes("var openUrl = String((n && n.openUrl) || '');") || !js.includes("el.setAttribute('data-kg-open-url', openUrl);")) {
+    throw new Error('expected runtime to normalize openUrl into canonical media payload attributes from the template')
+  }
+  if (!js.includes('var inferredKind = kgInferMediaKindFromUrl2(url) || kgInferMediaKindFromUrl(url);') || !js.includes('var inferred = (typeof kgInferMediaKindFromUrl2 === \"function\" ? kgInferMediaKindFromUrl2(url0) : \"\") || kgInferMediaKindFromUrl(url0);')) {
+    throw new Error('expected runtime to use extended inferred-kind normalization for both media payload creation and media element rehydration')
+  }
+  if (!js.includes('imgEl.src = kgResolveMediaSrc(url, kind);') || !js.includes('vid.src = kgResolveMediaSrc(url, kind);') || !js.includes("iframe.setAttribute('sandbox', kgResolveIframeSandbox(url));")) {
+    throw new Error('expected runtime to own canonical media element source setup and iframe sandboxing from the template')
+  }
+  if (!js.includes("el.addEventListener('click', function(ev){") || !js.includes("window.open(open, '_blank', 'noopener,noreferrer');")) {
+    throw new Error('expected runtime to own canonical media click-through handling from the template')
   }
   if (!js.includes('overlay.__kgMdById[id] || (anchorId0 && overlay.__kgMdById[anchorId0])')) {
     throw new Error('expected runtime to avoid duplicate markdown panel dom when existing overlay panel is present')
   }
   if (!js.includes("if (anchorId0) overlay.__kgMdById[anchorId0] = el;")) {
     throw new Error('expected runtime to index generated markdown panel dom by anchor node id for edge sync')
+  }
+  if (!js.includes('var __kgMdDrag = null;') || !js.includes('function installMarkdownBlockInteractions(){') || !js.includes('try { installMarkdownBlockInteractions(); } catch (e0) {}')) {
+    throw new Error('expected runtime to own markdown block interaction install logic in the canonical template')
   }
   try {
     new Function(js)

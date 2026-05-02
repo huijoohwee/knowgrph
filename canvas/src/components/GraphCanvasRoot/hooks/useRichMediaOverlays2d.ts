@@ -14,8 +14,9 @@ import { applyPanelBox } from '@/lib/render/mediaPanelLayout'
 import { listDisplayRichMediaOverlayNodes, normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
+import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { emitMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
-import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { buildNodeMediaInventory, getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { createRafOnceScheduler } from '@/lib/react/rafOnceScheduler'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config.flow-editor'
@@ -38,12 +39,7 @@ export function useRichMediaOverlays2d(args: {
   excludeNodeIdSet?: Set<string>
   mediaPanelDensity: unknown
   threeIframeOverlayPoolMax: unknown
-  threeIframeOverlayBaseWidthRatioDefault: unknown
-  threeIframeOverlayBaseWidthRatioCompact: unknown
-  threeIframeOverlayBaseWidthMinPxDefault: unknown
-  threeIframeOverlayBaseWidthMinPxCompact: unknown
-  threeIframeOverlayBaseWidthMaxPxDefault: unknown
-  threeIframeOverlayBaseWidthMaxPxCompact: unknown
+  overlaySizing?: OverlayDensitySizingConfigInput | null
   sceneWidth: number
   sceneHeight: number
   freezeOverlayMembership?: boolean
@@ -63,12 +59,7 @@ export function useRichMediaOverlays2d(args: {
     excludeNodeIdSet,
     mediaPanelDensity,
     threeIframeOverlayPoolMax,
-    threeIframeOverlayBaseWidthRatioDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMaxPxCompact,
+    overlaySizing,
     sceneWidth,
     sceneHeight,
     freezeOverlayMembership,
@@ -287,28 +278,15 @@ export function useRichMediaOverlays2d(args: {
     if (!anyImportMeta.env?.DEV) return
     if (!active) return
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData!.nodes as GraphNode[]) : []
-    let specCount = 0
-    let iframeCount = 0
-    let imageCount = 0
-    let videoCount = 0
-    let svgCount = 0
-    for (let i = 0; i < nodes.length; i += 1) {
-      const spec = getNodeMediaSpec(nodes[i]!)
-      if (!spec) continue
-      specCount += 1
-      if (spec.kind === 'iframe') iframeCount += 1
-      else if (spec.kind === 'image') imageCount += 1
-      else if (spec.kind === 'video') videoCount += 1
-      else if (spec.kind === 'svg') svgCount += 1
-    }
+    const inventory = buildNodeMediaInventory(nodes)
     emitMarkdownPanelMetric('canvas.2d.d3.richMedia.pool', {
       enabled: renderMediaAsNodes === true,
       nodes: nodes.length,
-      mediaSpecCount: specCount,
-      iframeCount,
-      imageCount,
-      videoCount,
-      svgCount,
+      mediaSpecCount: inventory.totalCount,
+      iframeCount: inventory.iframeCount,
+      imageCount: inventory.imageCount,
+      videoCount: inventory.videoCount,
+      svgCount: inventory.svgCount,
       overlayPoolSize: mediaOverlayNodes.length,
       overlayIds: mediaOverlayNodes.slice(0, 6).map(n => n.id),
       poolMaxRaw: threeIframeOverlayPoolMax,
@@ -385,9 +363,10 @@ export function useRichMediaOverlays2d(args: {
     if (!active) return
     if (mediaOverlayNodes.length === 0) return
     const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
-    const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
-    const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
-    const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+    const sizingConfig = readOverlaySizingConfigForDensity({
+      density,
+      sizing: overlaySizing || null,
+    })
 
     const loop = startMediaOverlayLayoutLoop2d({
       enabled: true,
@@ -418,11 +397,7 @@ export function useRichMediaOverlays2d(args: {
         const n = nodeById.get(id) || null
         return readNodeCenterWorld2d(n, { coords: 'center' })
       },
-      sizingConfig: {
-        widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
-        widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(Number(widthMinRaw))) : 210,
-        widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(Number(widthMaxRaw))) : 360,
-      },
+      sizingConfig,
       clampToViewport: { margin: 12 },
     })
 
@@ -451,12 +426,7 @@ export function useRichMediaOverlays2d(args: {
     schemaRef,
     simulationRef,
     svgRef,
-    threeIframeOverlayBaseWidthMaxPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthRatioDefault,
+    overlaySizing,
   ])
 
   return {

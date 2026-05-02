@@ -10,10 +10,24 @@ import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelM
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
+const FLOATING_MEDIA_VIEW_OPTIONS = [
+  { value: false, label: RICH_MEDIA_DISPLAY_COPY.circleOnly },
+  { value: true, label: RICH_MEDIA_DISPLAY_COPY.panelOnly },
+] as const
+const FLOATING_MEDIA_DENSITY_OPTIONS = [
+  { value: 'default', label: RICH_MEDIA_DISPLAY_COPY.densityDefault },
+  { value: 'compact', label: RICH_MEDIA_DISPLAY_COPY.densityCompact },
+] as const
+const FLOATING_MEDIA_KIND_OPTIONS: readonly NodeMediaKind[] = ['image', 'svg', 'video', 'iframe']
+
+function isFloatingMediaKind(value: string): value is NodeMediaKind {
+  return FLOATING_MEDIA_KIND_OPTIONS.includes(value as NodeMediaKind)
+}
 
 export function FloatingPropsPanel() {
   const uiPanelKeyValueTextSizeClass = useGraphStore(
@@ -266,20 +280,19 @@ export function FloatingPropsPanel() {
                 {RICH_MEDIA_DISPLAY_COPY.viewLabel}
               </span>
               <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
-                <button
-                  type="button"
-                  onClick={() => setRenderMediaAsNodes(false)}
-                  className={`px-2 py-1 text-[11px] ${uiPanelTextFontClass} ${richMediaDisplayMode === 'panel-only' ? `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}` : `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}`}`}
-                >
-                  {RICH_MEDIA_DISPLAY_COPY.circleOnly}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRenderMediaAsNodes(true)}
-                  className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${richMediaDisplayMode === 'panel-only' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
-                >
-                  {RICH_MEDIA_DISPLAY_COPY.panelOnly}
-                </button>
+                {FLOATING_MEDIA_VIEW_OPTIONS.map((option, index) => {
+                  const selected = richMediaDisplayMode === 'panel-only' ? option.value === true : option.value === false
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => setRenderMediaAsNodes(option.value)}
+                      className={`px-2 py-1 ${index === 0 ? 'text-[11px]' : uiPanelMicroLabelTextSizeClass} ${index > 0 ? `border-l ${UI_THEME_TOKENS.panel.border}` : ''} ${uiPanelTextFontClass} ${selected ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div className="flex flex-col gap-1">
@@ -287,20 +300,16 @@ export function FloatingPropsPanel() {
                 {RICH_MEDIA_DISPLAY_COPY.densityLabel}
               </span>
               <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.headerBg}`}>
-                <button
-                  type="button"
-                  onClick={() => setMediaPanelDensity('default')}
-                  className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} ${uiPanelTextFontClass} ${mediaPanelDensity === 'default' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
-                >
-                  {RICH_MEDIA_DISPLAY_COPY.densityDefault}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMediaPanelDensity('compact')}
-                  className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} border-l ${UI_THEME_TOKENS.panel.border} ${uiPanelTextFontClass} ${mediaPanelDensity === 'compact' ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
-                >
-                  {RICH_MEDIA_DISPLAY_COPY.densityCompact}
-                </button>
+                {FLOATING_MEDIA_DENSITY_OPTIONS.map((option, index) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setMediaPanelDensity(option.value)}
+                    className={`px-2 py-1 ${uiPanelMicroLabelTextSizeClass} ${index > 0 ? `border-l ${UI_THEME_TOKENS.panel.border}` : ''} ${uiPanelTextFontClass} ${mediaPanelDensity === option.value ? `${UI_THEME_TOKENS.button.activeBg} ${UI_THEME_TOKENS.button.activeText}` : `${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.secondary}`}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -337,14 +346,15 @@ export function FloatingPropsPanel() {
               value={mediaKind}
               onChange={e => {
                 const v = e.target.value
-                if (v === 'image' || v === 'svg' || v === 'video' || v === 'iframe') setMediaKind(v)
+                if (isFloatingMediaKind(v)) setMediaKind(v)
               }}
               className={`${uiPanelKeyValueInputClass} ${uiPanelTextFontClass} ${uiPanelKeyValueTextSizeClass} w-[70%] text-left`}
             >
-              <option value="image">image</option>
-              <option value="svg">svg</option>
-              <option value="video">video</option>
-              <option value="iframe">iframe</option>
+              {FLOATING_MEDIA_KIND_OPTIONS.map(option => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
             </select>
           </div>
           <div className="mb-2 flex items-center gap-2">

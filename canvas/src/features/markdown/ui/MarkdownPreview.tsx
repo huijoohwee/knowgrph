@@ -22,7 +22,7 @@ import { useMarkdownPreviewLexedMarkdown } from '@/features/markdown/ui/useMarkd
 import { useSelectionFlash } from '@/features/markdown/ui/useSelectionFlash'
 import { useMarkdownPreviewEvents } from '@/features/markdown/ui/useMarkdownPreviewEvents'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
-import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/MarkdownSourceFilesPanel'
+import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/markdownSourceFilesPanelTypes'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type MarkdownPreviewPresentationApi = {

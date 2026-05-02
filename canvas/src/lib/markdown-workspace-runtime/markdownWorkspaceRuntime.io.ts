@@ -1,16 +1,19 @@
-import type { MutableRefObject } from 'react'
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { workspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
-import type { WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
-import { normalizeWebpageFrontmatterView } from '@/lib/markdown/frontmatter'
 import { ORCHESTRATOR_WORKFLOW_WORKSPACE_PATH } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { PARSER_SCRIPT_WORKSPACE_PATH } from '@/features/panels/utils/parserWorkspaceFiles'
 import { SCHEMA_CONFIG_WORKSPACE_PATH } from '@/features/panels/utils/schemaWorkspaceFiles'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
-import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
+import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
+import {
+  resolveWorkspaceSourceFileInlineText,
+  upsertWorkspaceEntryInlineText,
+} from '@/features/workspace-fs/workspaceInlineText'
 
 
 export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
@@ -19,13 +22,13 @@ export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
   setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   text: string
 }): void => {
-  if (!args.activeDocumentKey) return
-  void args.setActiveMarkdownDocument({
+  void applyActiveMarkdownDocumentPayload({
+    setActiveMarkdownDocument: args.setActiveMarkdownDocument,
     name: args.activeDocumentKey,
-    text: normalizeWebpageFrontmatterView(args.text, 'markdown'),
-    normalizeMermaidMmd: false,
-    autoEnableFrontmatter: false,
+    text: args.text,
     sourceUrl: args.activeDocumentSourceUrl,
+    autoEnableFrontmatter: false,
+    normalizeWebpageFrontmatterToMarkdown: true,
   })
 }
 
@@ -47,9 +50,8 @@ export const updateExistingWorkspaceSourceFile = (args: {
       })
       return
     }
-    const inlineText = args.text.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? args.text : undefined
     store.updateSourceFile(existing.id, {
-      text: inlineText ?? '',
+      text: resolveWorkspaceSourceFileInlineText(args.text),
       ...buildSourceFileLifecycleState({
         status: 'idle',
         previousState: existing,
@@ -102,33 +104,53 @@ export const writeWorkspaceFileAndSync = async (args: {
   text: string
   getFs: MarkdownWorkspaceRuntimeGetFs
   lastLoadedRef: MutableRefObject<{ path: WorkspacePath; text: string } | null>
-  patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
-  activeDocumentKey: string
-  activeDocumentSourceUrl: string | null
-  setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
-  setGraphRagWorkflowJsonText: (text: string) => void
+  patchWorkspaceEntryInlineText?: (path: WorkspacePath, text: string) => void
+  setEntries?: Dispatch<SetStateAction<WorkspaceEntry[]>>
+  synchronizeActiveDocument?: boolean
+  setActiveText?: (text: string) => void
+  activeDocumentKey?: string
+  activeDocumentSourceUrl?: string | null
+  setActiveMarkdownDocument?: MarkdownWorkspaceRuntimeSetActiveDocument
+  setGraphRagWorkflowJsonText?: (text: string) => void
   resetParsedState: boolean
 }): Promise<void> => {
   const fs = await args.getFs()
   await fs.writeFileText(args.path, args.text)
-  args.lastLoadedRef.current = { path: args.path, text: args.text }
-  args.patchWorkspaceEntryInlineText(args.path, args.text)
-  pushWorkspaceTextToActiveMarkdownDocument({
-    activeDocumentKey: args.activeDocumentKey,
-    activeDocumentSourceUrl: args.activeDocumentSourceUrl,
-    setActiveMarkdownDocument: args.setActiveMarkdownDocument,
-    text: args.text,
-  })
+  if (typeof args.patchWorkspaceEntryInlineText === 'function') {
+    args.patchWorkspaceEntryInlineText(args.path, args.text)
+  } else if (args.setEntries) {
+    args.setEntries(prev =>
+      upsertWorkspaceEntryInlineText({
+        entries: prev,
+        path: args.path,
+        text: args.text,
+      }),
+    )
+  }
+  if (args.synchronizeActiveDocument !== false) {
+    args.lastLoadedRef.current = { path: args.path, text: args.text }
+    if (typeof args.setActiveText === 'function') args.setActiveText(args.text)
+    if (args.activeDocumentKey && args.setActiveMarkdownDocument) {
+      pushWorkspaceTextToActiveMarkdownDocument({
+        activeDocumentKey: args.activeDocumentKey,
+        activeDocumentSourceUrl: args.activeDocumentSourceUrl ?? null,
+        setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+        text: args.text,
+      })
+    }
+  }
   updateExistingWorkspaceSourceFile({
     path: args.path,
     text: args.text,
     resetParsedState: args.resetParsedState,
   })
-  applyWorkspaceSpecialFileEffects({
-    path: args.path,
-    text: args.text,
-    setGraphRagWorkflowJsonText: args.setGraphRagWorkflowJsonText,
-  })
+  if (typeof args.setGraphRagWorkflowJsonText === 'function') {
+    applyWorkspaceSpecialFileEffects({
+      path: args.path,
+      text: args.text,
+      setGraphRagWorkflowJsonText: args.setGraphRagWorkflowJsonText,
+    })
+  }
 }
 
 export const resolveAuthoritativeWorkspaceText = async (args: {

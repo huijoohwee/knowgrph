@@ -25,6 +25,9 @@ import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.rend
 import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
 import { PaywallOverlay } from '@/features/payments/PaywallOverlay'
 
+const EMPTY_STRING_ARRAY: string[] = []
+const EMPTY_OPEN_WIDGETS_BY_RENDERER: Record<string, string[]> = {}
+
 type GeospatialOverlayHostProps = {
   active?: boolean
   snapshot?: unknown
@@ -176,8 +179,8 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
       selectedNodeId: s.selectedNodeId,
       selectedNodeIds: s.selectedNodeIds,
       selectedEdgeId: s.selectedEdgeId,
-      openWidgetNodeIds: s.openWidgetNodeIds || [],
-      openWidgetNodeIdsByRenderer: s.openWidgetNodeIdsByRenderer || {},
+      openWidgetNodeIds: s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY,
+      openWidgetNodeIdsByRenderer: s.openWidgetNodeIdsByRenderer ?? EMPTY_OPEN_WIDGETS_BY_RENDERER,
       updateOpenWidgetNodeIds: s.updateOpenWidgetNodeIds,
       selectNode: s.selectNode,
       selectEdge: s.selectEdge,
@@ -283,13 +286,7 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
     return true
   }, [
     graphData,
-    gympgrphBridge.openWidgetNodeIds,
-    gympgrphBridge.openWidgetNodeIdsByRenderer,
-    gympgrphBridge.selectNode,
-    gympgrphBridge.selectedNodeId,
-    gympgrphBridge.selectedNodeIds,
-    gympgrphBridge.updateNode,
-    gympgrphBridge.updateOpenWidgetNodeIds,
+    gympgrphBridge,
   ])
 
   const handlers = React.useMemo(

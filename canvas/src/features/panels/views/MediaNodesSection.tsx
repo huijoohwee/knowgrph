@@ -2,19 +2,12 @@ import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { getNodeMediaSpec, hasNodeMedia, type NodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { buildNodeMediaInventory, type NodeMediaInventoryRow } from '@/components/GraphCanvas/helpers'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
-
-type MediaNodeRow = {
-  id: string
-  label: string
-  type: string
-  media: NodeMediaSpec
-}
 
 export default function MediaNodesSection({
   toolbarAligned = false,
@@ -48,29 +41,19 @@ export default function MediaNodesSection({
   })
   const copy = RENDER_PANEL_SECTION_COPY.mediaNodes
 
-  const rows = React.useMemo<MediaNodeRow[]>(() => {
-    if (!graph || !Array.isArray(graph.nodes) || graph.nodes.length === 0) return []
-    const list: MediaNodeRow[] = []
-    for (let i = 0; i < graph.nodes.length; i += 1) {
-      const n = graph.nodes[i] as GraphNode
-      if (!hasNodeMedia(n)) continue
-      const spec = getNodeMediaSpec(n)
-      if (!spec) continue
-      list.push({
-        id: String(n.id),
-        label: String(n.label || n.id || ''),
-        type: String(n.type || ''),
-        media: spec,
-      })
-      if (list.length >= 200) break
-    }
-    return list
+  const inventory = React.useMemo(() => {
+    const nodes = Array.isArray(graph?.nodes) ? (graph!.nodes as GraphNode[]) : []
+    return buildNodeMediaInventory(nodes, {
+      maxRows: 200,
+      limitStatsToRows: true,
+    })
   }, [graph])
 
-  const totalCount = rows.length
-  const imageCount = rows.filter(r => r.media.kind === 'image' || r.media.kind === 'svg').length
-  const videoCount = rows.filter(r => r.media.kind === 'video').length
-  const iframeCount = rows.filter(r => r.media.kind === 'iframe').length
+  const rows = inventory.rows as ReadonlyArray<NodeMediaInventoryRow>
+  const totalCount = inventory.totalCount
+  const imageCount = inventory.imageLikeCount
+  const videoCount = inventory.videoCount
+  const iframeCount = inventory.iframeCount
 
   const iframeHostsRaw = String(IFRAME_ALLOWED_HOSTS || '').trim()
   const iframeHostList = iframeHostsRaw

@@ -3,6 +3,12 @@ import { workspaceBasename, workspaceStem } from '@/features/workspace-fs/path'
 
 type BacklinkEntryLike = Pick<WorkspaceEntry, 'path' | 'kind' | 'name' | 'text'>
 
+export type WorkspaceBacklinkSourceSummary = {
+  sourceDocKey: string
+  sourceLabel: string
+  count: number
+}
+
 function collectBacklinkReferences(args: {
   activePath?: WorkspacePath | null
   targetDocKey?: string | null
@@ -65,6 +71,28 @@ export function computeWorkspaceBacklinks(args: {
     }
   }
   return out
+}
+
+export function summarizeWorkspaceBacklinksBySource(backlinks: ReadonlyArray<WorkspaceBacklink>): WorkspaceBacklinkSourceSummary[] {
+  const countsBySource = new Map<string, WorkspaceBacklinkSourceSummary>()
+  for (const backlink of backlinks || []) {
+    const sourceDocKey = String(backlink.fromPath || '').trim()
+    if (!sourceDocKey) continue
+    const existing = countsBySource.get(sourceDocKey)
+    if (existing) {
+      existing.count += 1
+      continue
+    }
+    countsBySource.set(sourceDocKey, {
+      sourceDocKey,
+      sourceLabel: sourceDocKey,
+      count: 1,
+    })
+  }
+  return [...countsBySource.values()].sort((left, right) => {
+    if (right.count !== left.count) return right.count - left.count
+    return left.sourceLabel.localeCompare(right.sourceLabel)
+  })
 }
 
 export function computeBacklinks(args: { activePath: WorkspacePath; entries: WorkspaceEntry[] }): WorkspaceBacklink[] {

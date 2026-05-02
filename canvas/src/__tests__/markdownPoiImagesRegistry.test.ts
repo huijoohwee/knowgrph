@@ -40,14 +40,14 @@ export async function testMarkdownPoiImagesRegistryEnrichesMatchingNodes() {
 
   const withImage = matches.find(n => {
     const props = (n.properties || {}) as Record<string, unknown>
-    const url = typeof props.image_url === 'string' ? props.image_url.trim() : ''
+    const url = typeof props.image === 'string' ? props.image.trim() : ''
     return url === expectedUrl
   })
   if (!withImage) {
     const sample = matches.slice(0, 3).map(n => {
       const props = (n.properties || {}) as Record<string, unknown>
-      return { label: n.label, image_url: typeof props.image_url === 'string' ? props.image_url : null }
+      return { label: n.label, image: typeof props.image === 'string' ? props.image : null }
     })
-    throw new Error(`Expected at least one matching node to include image_url=${expectedUrl}. Sample: ${JSON.stringify(sample)}`)
+    throw new Error(`Expected at least one matching node to include image=${expectedUrl}. Sample: ${JSON.stringify(sample)}`)
   }
 }

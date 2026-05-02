@@ -1,7 +1,7 @@
 import React from 'react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { MarkdownWorkspaceToolbar } from '../../../MarkdownWorkspaceToolbar'
-import type { MarkdownWorkspacePaneVisibility } from '../types'
+import { resolveMarkdownWorkspacePaneVisibility, type MarkdownWorkspacePaneVisibility } from '../types'
 
 export function MarkdownWorkspaceLayout(props: {
   toolbarProps: React.ComponentProps<typeof MarkdownWorkspaceToolbar>
@@ -13,19 +13,22 @@ export function MarkdownWorkspaceLayout(props: {
   presentation: React.ReactNode
   slidesGallery: React.ReactNode
 }) {
-  const editorMarkdownPaneVisible = props.layoutMode === 'editor' ? true : props.splitPaneVisibility.markdown
+  const paneVisibility = resolveMarkdownWorkspacePaneVisibility({
+    layoutMode: props.layoutMode,
+    splitPaneVisibility: props.splitPaneVisibility,
+  })
   const splitPanes = [
-    props.splitPaneVisibility.json ? (
+    paneVisibility.json ? (
       <section key="json" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="JSON Editor">
         {props.renderJsonEditor()}
       </section>
     ) : null,
-    props.splitPaneVisibility.markdown ? (
+    paneVisibility.markdown ? (
       <section key="markdown" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor">
         {props.renderMarkdownEditor()}
       </section>
     ) : null,
-    props.splitPaneVisibility.viewer ? (
+    paneVisibility.viewer ? (
       <section key="viewer" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Viewer">
         {props.viewer}
       </section>
@@ -45,13 +48,13 @@ export function MarkdownWorkspaceLayout(props: {
 
       {props.layoutMode === 'editor' ? (
         <section className="flex-1 min-h-0 flex" aria-label="Monaco editors">
-          {props.splitPaneVisibility.json ? (
+          {paneVisibility.json ? (
             <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="JSON Editor">
               {props.renderJsonEditor()}
             </section>
           ) : null}
-          {props.splitPaneVisibility.json && editorMarkdownPaneVisible ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" /> : null}
-          {editorMarkdownPaneVisible ? (
+          {paneVisibility.json && paneVisibility.markdown ? <hr className="w-px self-stretch bg-[color:var(--kg-border)] border-0" aria-hidden="true" /> : null}
+          {paneVisibility.markdown ? (
             <section className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Markdown Editor">
               {props.renderMarkdownEditor()}
             </section>

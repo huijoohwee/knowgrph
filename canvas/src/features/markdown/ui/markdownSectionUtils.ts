@@ -79,7 +79,6 @@ export function buildTocTree(tokens: TokenWithLines[]): TocItem[] {
   const headings: MarkdownHeadingInfo[] = []
   tokens.forEach((t, i) => {
     if (t.type !== 'heading') return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const h = t as any
     const text = h.text || ''
     if (!text) return
@@ -94,6 +93,119 @@ export function buildTocTree(tokens: TokenWithLines[]): TocItem[] {
     })
   })
   return buildMarkdownTocTree(headings)
+}
+
+export type MarkdownTocMetadata = {
+  parentById: Map<string, string | null>
+  lineById: Map<string, number>
+  headingNumberById: Map<string, string>
+  baseDepth: number
+}
+
+export type MarkdownTocModel = {
+  items: TocItem[]
+  metadata: MarkdownTocMetadata
+}
+
+export function buildVisibleMarkdownTocModel(args: {
+  tokens: TokenWithLines[]
+  collapsed?: boolean
+}): MarkdownTocModel {
+  if (args.collapsed || args.tokens.length === 0) {
+    return {
+      items: [],
+      metadata: buildMarkdownTocMetadata([]),
+    }
+  }
+  const items = buildTocTree(args.tokens)
+  return {
+    items,
+    metadata: buildMarkdownTocMetadata(items),
+  }
+}
+
+export function filterVisibleMarkdownTokensByCollapsedHeadings(args: {
+  tokens: TokenWithLines[]
+  collapsedHeadingIds: ReadonlySet<string>
+}): TokenWithLines[] {
+  if (args.tokens.length === 0 || args.collapsedHeadingIds.size === 0) {
+    return args.tokens
+  }
+
+  const result: TokenWithLines[] = []
+  let skipUntilDepth: number | null = null
+
+  for (const token of args.tokens) {
+    if (token.type === 'heading') {
+      const depth = token.depth || 1
+      const id = token.id || slugify(token.text || '')
+
+      if (skipUntilDepth !== null && depth <= skipUntilDepth) {
+        skipUntilDepth = null
+      }
+
+      if (skipUntilDepth === null) {
+        result.push(token)
+        if (args.collapsedHeadingIds.has(id)) {
+          skipUntilDepth = depth
+        }
+      }
+      continue
+    }
+
+    if (skipUntilDepth === null) {
+      result.push(token)
+    }
+  }
+
+  return result
+}
+
+export function buildMarkdownTocMetadata(rootItems: TocItem[]): MarkdownTocMetadata {
+  const parentById = new Map<string, string | null>()
+  const lineById = new Map<string, number>()
+  const headingNumberById = new Map<string, string>()
+  let minDepth = Infinity
+
+  const walk = (items: TocItem[], parentId: string | null, path: number[]) => {
+    for (let i = 0; i < items.length; i += 1) {
+      const item = items[i]!
+      const id = String(item.id || '').trim()
+      const depth = typeof item.depth === 'number' && Number.isFinite(item.depth) ? item.depth : 1
+      minDepth = Math.min(minDepth, Math.max(1, Math.min(6, depth)))
+      const nextPath = path.concat([i + 1])
+      if (id) {
+        parentById.set(id, parentId)
+        lineById.set(id, Math.max(1, Math.floor(item.startLine || 1)))
+        headingNumberById.set(id, nextPath.join('.'))
+      }
+      if (item.children.length > 0) walk(item.children, id || parentId, nextPath)
+    }
+  }
+  walk(rootItems, null, [])
+
+  return {
+    parentById,
+    lineById,
+    headingNumberById,
+    baseDepth: Number.isFinite(minDepth) ? minDepth : 1,
+  }
+}
+
+export function buildTocParentById(rootItems: TocItem[]): Map<string, string | null> {
+  return buildMarkdownTocMetadata(rootItems).parentById
+}
+
+export function buildTocLineById(rootItems: TocItem[]): Map<string, number> {
+  return buildMarkdownTocMetadata(rootItems).lineById
+}
+
+export function buildTocHeadingNumberById(rootItems: TocItem[]): Map<string, string> {
+  return buildMarkdownTocMetadata(rootItems).headingNumberById
+}
+
+export function resolveTocBaseDepth(rootItems: TocItem[]): number {
+  return buildMarkdownTocMetadata(rootItems).baseDepth
 }
 
 export function reorderMarkdownHeadings(
@@ -128,7 +240,6 @@ export function reorderMarkdownHeadings(
     for (let i = item.index + 1; i < tokens.length; i++) {
       const t = tokens[i]
       if (t.type === 'heading') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const h = t as any
         if (h.depth <= item.depth) {
           return h.startLine - 1

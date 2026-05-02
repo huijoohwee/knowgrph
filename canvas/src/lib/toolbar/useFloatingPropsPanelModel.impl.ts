@@ -237,6 +237,18 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     [],
   )
 
+  const openMarkdownProvenanceInEditor = React.useCallback((documentPath: string, startLine: number): boolean => {
+    try {
+      setWorkspaceViewMode('editor')
+      const path = normalizeWorkspacePath(documentPath)
+      useMarkdownExplorerStore.getState().setActivePath(path)
+      useMarkdownExplorerStore.getState().requestRevealLine(startLine)
+      return true
+    } catch {
+      return false
+    }
+  }, [setWorkspaceViewMode])
+
   const doOpenNodeNodesTab = React.useCallback(() => {
     if (!graphData || !nodeContextId) return
     setSelectionSource('toolbar')
@@ -250,21 +262,14 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     setSelectionSource('toolbar')
     selectNode(nodeContextId)
     const prov = node ? resolveMarkdownProvenance(node.metadata) : null
-    if (!prov) {
+    if (!prov || !openMarkdownProvenanceInEditor(prov.documentPath, prov.startLine)) {
       setWorkspaceViewMode('canvas')
       return
-    }
-    try {
-      setWorkspaceViewMode('editor')
-      const path = normalizeWorkspacePath(prov.documentPath)
-      useMarkdownExplorerStore.getState().setActivePath(path)
-      useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
-    } catch {
-      void 0
     }
   }, [
     graphLookup,
     nodeContextId,
+    openMarkdownProvenanceInEditor,
     resolveMarkdownProvenance,
     selectNode,
     setSelectionSource,
@@ -278,15 +283,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     const prov = resolveMarkdownProvenance(node.metadata)
     if (!prov) return
     setSelectionSource('toolbar')
-    try {
-      setWorkspaceViewMode('editor')
-      const path = normalizeWorkspacePath(prov.documentPath)
-      useMarkdownExplorerStore.getState().setActivePath(path)
-      useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
-    } catch {
-      void 0
-    }
-  }, [graphLookup, nodeContextId, resolveMarkdownProvenance, setSelectionSource, setWorkspaceViewMode])
+    openMarkdownProvenanceInEditor(prov.documentPath, prov.startLine)
+  }, [graphLookup, nodeContextId, openMarkdownProvenanceInEditor, resolveMarkdownProvenance, setSelectionSource])
 
   const doAddToChat = React.useCallback(() => {
     if (!graphData || !graphLookup) return
@@ -461,21 +459,14 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     setSelectionSource('toolbar')
     selectEdge(edgeContextId)
     const prov = edge ? resolveMarkdownProvenance(edge.metadata) : null
-    if (!prov) {
+    if (!prov || !openMarkdownProvenanceInEditor(prov.documentPath, prov.startLine)) {
       setWorkspaceViewMode('canvas')
       return
-    }
-    try {
-      setWorkspaceViewMode('editor')
-      const path = normalizeWorkspacePath(prov.documentPath)
-      useMarkdownExplorerStore.getState().setActivePath(path)
-      useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
-    } catch {
-      void 0
     }
   }, [
     edgeContextId,
     graphLookup,
+    openMarkdownProvenanceInEditor,
     resolveMarkdownProvenance,
     selectEdge,
     setSelectionSource,
@@ -489,15 +480,8 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     const prov = resolveMarkdownProvenance(edge.metadata)
     if (!prov) return
     setSelectionSource('toolbar')
-    try {
-      setWorkspaceViewMode('editor')
-      const path = normalizeWorkspacePath(prov.documentPath)
-      useMarkdownExplorerStore.getState().setActivePath(path)
-      useMarkdownExplorerStore.getState().requestRevealLine(prov.startLine)
-    } catch {
-      void 0
-    }
-  }, [edgeContextId, graphLookup, resolveMarkdownProvenance, setSelectionSource, setWorkspaceViewMode])
+    openMarkdownProvenanceInEditor(prov.documentPath, prov.startLine)
+  }, [edgeContextId, graphLookup, openMarkdownProvenanceInEditor, resolveMarkdownProvenance, setSelectionSource])
 
   const doAddNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}

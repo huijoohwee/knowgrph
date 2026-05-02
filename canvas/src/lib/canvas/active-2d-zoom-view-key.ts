@@ -6,7 +6,7 @@ import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
-import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 
 export function buildActive2dZoomViewKey(args: {
   canvasRenderMode: unknown
@@ -48,13 +48,13 @@ export function buildActive2dZoomViewKey(args: {
 
   const schemaLayoutEngineJson = buildSchemaLayoutEngineJson2d(schema)
 
-  const semanticKey = buildDocumentSemanticModeKey({
+  const semanticKey = readDocumentViewModeContext({
     frontmatterModeEnabled: effectiveFrontmatter,
     multiDimTableModeEnabled,
     documentSemanticMode,
     documentStructureBaselineLock: args.documentStructureBaselineLock === true,
     flowEditorStandalone,
-  })
+  }).documentSemanticModeKey
 
   const base = buildZoomViewKey({
     canvasRenderMode,

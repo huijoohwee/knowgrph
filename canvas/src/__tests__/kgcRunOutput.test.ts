@@ -98,6 +98,24 @@ export function testResolveKgcRunOutputPreferenceReadsOutputNodeFormat() {
   }
 }
 
+export function testResolveKgcRunOutputPreferenceReadsCanonicalMediaKeys() {
+  const imagePref = resolveKgcRunOutputPreference({
+    canonicalPath: '/sandbox/chat-log/kgc_20260420231505.md',
+    canonicalText: buildKgcFixture('image: "https://example.com/output.png"'),
+  })
+  if (imagePref.kind !== 'png' || imagePref.extension !== 'png') {
+    throw new Error(`expected png output preference from canonical image key, got ${imagePref.kind}.${imagePref.extension}`)
+  }
+
+  const videoPref = resolveKgcRunOutputPreference({
+    canonicalPath: '/sandbox/chat-log/kgc_20260420231505.md',
+    canonicalText: buildKgcFixture('videoUrl: "https://example.com/output.mp4"'),
+  })
+  if (videoPref.kind !== 'video' || videoPref.extension !== 'mp4') {
+    throw new Error(`expected video output preference from canonical videoUrl key, got ${videoPref.kind}.${videoPref.extension}`)
+  }
+}
+
 export async function testEmitKgcRunOutputWritesMarkdownCompanionBody() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })

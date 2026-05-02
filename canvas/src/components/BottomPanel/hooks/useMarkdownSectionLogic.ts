@@ -8,7 +8,7 @@ import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionU
 import { insertMarkdownLineAfter, replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 import { splitMarkdownLines } from '@/lib/markdown'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { findSelectionTarget } from '@/features/markdown/ui/markdownPreviewSelection'
 import type { GraphData } from '@/lib/graph/types'
 import { scrollToLineInViewer } from '../markdownScrollUtils'
@@ -204,11 +204,7 @@ export function useMarkdownSectionLogic(props: UseMarkdownSectionLogicProps) {
       void 0
     }
     try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'preview' as const } }),
-        )
-      }
+      emitMainPanelOpen({ tab: 'preview' as const })
     } catch {
       void 0
     }

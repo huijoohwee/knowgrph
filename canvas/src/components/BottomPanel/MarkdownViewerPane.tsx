@@ -8,7 +8,7 @@ import { UI_COPY } from '@/lib/config'
 import type { MarkdownSelectionInfo } from './BottomPanelMarkdownSectionModel'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
-import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/MarkdownSourceFilesPanel'
+import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/markdownSourceFilesPanelTypes'
 
 type MarkdownViewerPaneProps = {
   viewerRef: React.RefObject<HTMLDivElement>

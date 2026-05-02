@@ -1,15 +1,16 @@
 import React from 'react'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { LS_KEYS, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
-import { lsSetBool, lsSetInt, lsSetJson } from '@/lib/persistence'
+import { LS_KEYS } from '@/lib/config'
+import { lsSetBool, lsSetInt } from '@/lib/persistence'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
-import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { buildMaterializedWorkspaceForceIncludePaths } from '@/features/source-files/sourceFilesRuntimeShared'
+import { persistMarkdownSourceFolderPaths } from '@/features/markdown/ui/markdownSourceFilesPersistence'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
@@ -20,7 +21,14 @@ import {
   scheduleMarkdownWorkspacePrefsSync,
   scheduleMarkdownWorkspaceRefreshSync,
 } from './markdownWorkspaceRuntime.stateSync'
-import { areWorkspaceEntriesEqual, areWorkspaceSourcesEqual, type FolderModeContract } from './markdownWorkspaceRuntime.shared'
+import {
+  areWorkspaceEntriesEqual,
+  areWorkspaceSourcesEqual,
+  buildFailedWorkspaceRefreshSnapshot,
+  buildWorkspaceRefreshSnapshot,
+  pruneWorkspaceEntriesForInlineSnapshot,
+  type FolderModeContract,
+} from './markdownWorkspaceRuntime.shared'
 
 export function useMarkdownWorkspaceExplorerState(args: {
   active: boolean
@@ -91,15 +99,9 @@ export function useMarkdownWorkspaceExplorerState(args: {
       const fs = await getFs()
       await fs.ensureSeed()
       const list = await fs.listEntries()
-      const maxInline = WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS
-      const pruned = list.map((entry: WorkspaceEntry) => {
-        if (!entry || entry.kind !== 'file') return entry
-        if (typeof entry.text !== 'string') return entry
-        if (entry.text.length <= maxInline) return entry
-        return { ...entry, text: undefined }
-      })
+      const pruned = pruneWorkspaceEntriesForInlineSnapshot(list)
       runtime.setEntries(prev => (areWorkspaceEntriesEqual(prev, pruned) ? prev : pruned))
-      const sources = loadWorkspaceSourceIndex()
+      const sources = resolveWorkspaceSourceIndexSnapshot(undefined)
       runtime.setSourcesByPath(prev => (areWorkspaceSourcesEqual(prev, sources) ? prev : sources))
       try {
         const store = useGraphStore.getState()
@@ -120,23 +122,30 @@ export function useMarkdownWorkspaceExplorerState(args: {
       }
       runtime.setLoading(false)
       runtime.setStatusInfo('Ready')
-      return { entries: pruned, sourcesByPath: sources }
+      return buildWorkspaceRefreshSnapshot({
+        entries: pruned,
+        sourcesByPath: sources,
+      })
     } catch (e) {
       const currentRuntime = runtimeRef.current
       currentRuntime.setLoading(false)
       currentRuntime.setLoadError(String((e as { message?: unknown })?.message ?? e))
       currentRuntime.setStatusError('Refresh failed')
-      return { entries: [] as WorkspaceEntry[], sourcesByPath: loadWorkspaceSourceIndex() }
+      return buildFailedWorkspaceRefreshSnapshot()
     }
   }, [getFs, scheduleApplyComposedFromSourceFiles])
 
   const refresh = React.useCallback(async (): Promise<WorkspaceRefreshSnapshot> => {
     if (refreshInFlightRef.current) {
       refreshQueuedRef.current = true
-      return { entries: runtimeRef.current.entries, sourcesByPath: loadWorkspaceSourceIndex() }
+      return buildWorkspaceRefreshSnapshot({
+        entries: runtimeRef.current.entries,
+      })
     }
     refreshInFlightRef.current = true
-    let snapshot: WorkspaceRefreshSnapshot = { entries: runtimeRef.current.entries, sourcesByPath: loadWorkspaceSourceIndex() }
+    let snapshot: WorkspaceRefreshSnapshot = buildWorkspaceRefreshSnapshot({
+      entries: runtimeRef.current.entries,
+    })
     try {
       do {
         refreshQueuedRef.current = false
@@ -213,7 +222,7 @@ export function useMarkdownWorkspaceExplorerState(args: {
       lsSetBool(LS_KEYS.markdownTextHighlight, pending.markdownTextHighlight)
       lsSetJson<FolderModeContract>(LS_KEYS.markdownExplorerFolderModeContract, pending.folderModeContract)
       lsSetJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, pending.layoutMode)
-      lsSetJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, pending.expandedPaths)
+      persistMarkdownSourceFolderPaths(pending.expandedPaths)
     }, {
       sidebarWidthPx: args.sidebarWidthPx,
       explorerOpen: args.explorerOpen,

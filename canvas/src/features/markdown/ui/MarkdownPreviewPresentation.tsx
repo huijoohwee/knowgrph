@@ -21,7 +21,7 @@ import {
 import { findLineRangeFromTarget } from '@/features/markdown/ui/markdownPreviewContextMenuUtils'
 import { MarkdownPresentationViewport } from './MarkdownPresentationViewport'
 import { SlidesSidebar } from './SlidesSidebar'
-import type { MarkdownSourceFilesPanelIntegration } from './MarkdownSourceFilesPanel'
+import type { MarkdownSourceFilesPanelIntegration } from './markdownSourceFilesPanelTypes'
 
 import { usePresentationEffects } from './usePresentationEffects'
 

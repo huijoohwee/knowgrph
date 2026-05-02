@@ -22,6 +22,8 @@ import {
   DatasetPolygonViz,
 } from '@/features/panels/views/DatasetInspectorMiniViz'
 
+const EMPTY_STRING_ARRAY: string[] = []
+
 interface DatasetStats {
   nodeCount: number
   edgeCount: number
@@ -60,8 +62,8 @@ export default function DatasetInspectorSection({
   )
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
-  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds ?? EMPTY_STRING_ARRAY)
+  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds ?? EMPTY_STRING_ARRAY)
   const copy = RENDER_PANEL_SECTION_COPY.datasetInspector
   const graph = useActiveGraphRenderData()
 

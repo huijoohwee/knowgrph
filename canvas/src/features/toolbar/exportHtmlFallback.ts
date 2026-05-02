@@ -8,7 +8,7 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
 import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
-import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { readViewportControlsPresetFromLocalStorage } from '@/lib/graph/htmlViewer/exportViewportControls'
 import { captureLiveOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
 import { rewriteSvgMarkupForStandaloneHtmlExport } from '@/lib/graph/htmlViewer/rewriteSvgMarkupForStandaloneHtmlExport'
@@ -21,6 +21,7 @@ import { deriveMarkdownDesignLayout, deriveMarkdownDesignLayoutFromGraphBlocks }
 import { computeMarkdownAnchorNodeIdByBlockId } from '@/lib/render/markdownPanelOverlayPool'
 import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/markdownDesignSvgOverlay'
 import { normalizeWorkspacePath, workspaceStem } from '@/features/workspace-fs/path'
+import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 
 function normalizeCapturedSvgForHtmlEmbed(raw: string): string {
   const s = String(raw || '').trim()
@@ -152,12 +153,12 @@ export async function exportHtmlViewerFallback(args: { pushUiToast: (toast: UiTo
       documentSemanticMode: store.documentSemanticMode,
       graphData: baseGraphData,
     })
-    const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+    const layoutSemanticModeKey = readDocumentViewModeContext({
       frontmatterModeEnabled: frontmatterModeEnabled === true,
       multiDimTableModeEnabled,
       documentSemanticMode,
       documentStructureBaselineLock: store.documentStructureBaselineLock === true,
-    })
+    }).documentSemanticModeKey
 
     const graphData = deriveGraphDataForActiveView({
       graphData: baseGraphData,
@@ -287,12 +288,7 @@ export async function exportHtmlViewerFallback(args: { pushUiToast: (toast: UiTo
       initialFrontmatterEnabled: frontmatterModeEnabled,
       preferWebgl3d: wants3dExport,
       initialView: initialView || undefined,
-      threeIframeOverlayBaseWidthRatioDefault: store.threeIframeOverlayBaseWidthRatioDefault,
-      threeIframeOverlayBaseWidthRatioCompact: store.threeIframeOverlayBaseWidthRatioCompact,
-      threeIframeOverlayBaseWidthMinPxDefault: store.threeIframeOverlayBaseWidthMinPxDefault,
-      threeIframeOverlayBaseWidthMinPxCompact: store.threeIframeOverlayBaseWidthMinPxCompact,
-      threeIframeOverlayBaseWidthMaxPxDefault: store.threeIframeOverlayBaseWidthMaxPxDefault,
-      threeIframeOverlayBaseWidthMaxPxCompact: store.threeIframeOverlayBaseWidthMaxPxCompact,
+      overlaySizing: readOverlaySizingInputFromStoreState(store),
       zoomMinK: readZoomScaleExtent(store.schema || defaultSchema)[0],
       zoomMaxK: readZoomScaleExtent(store.schema || defaultSchema)[1],
       wheelBehavior: readWheelBehavior(store.schema || defaultSchema),

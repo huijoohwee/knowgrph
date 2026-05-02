@@ -17,7 +17,7 @@ import { WebpageViewerPane } from './webpage/WebpageViewerPane'
 import { deriveWebpageFrontmatterMetaFromBlock, deriveWebsiteImportFrontmatterMetaFromBlock, shouldRenderWebpageIframe } from './webpage/webpageMeta'
 import { useWebpageIframeView } from './webpage/useWebpageIframeView'
 import { MarkdownEditorPane } from './editor/MarkdownEditorPane'
-import { DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY } from './types'
+import { DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY, resolveMarkdownWorkspacePaneVisibility } from './types'
 import { MarkdownWorkspaceLayout } from './layout/MarkdownWorkspaceLayout'
 import { useWorkspaceScrollSync } from './scroll/useWorkspaceScrollSync'
 import { MarkdownWorkspaceDerivedViewer, type MarkdownWorkspaceDerivedViewerKind, type MarkdownWorkspaceDerivedViewerMode } from './viewer/MarkdownWorkspaceDerivedViewer'
@@ -233,9 +233,13 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     [editorUri],
   )
 
-  const jsonPaneVisible = (layoutMode === 'editor' || layoutMode === 'split') && splitPaneVisibility.json
-  const markdownPaneVisible = layoutMode === 'editor' ? true : layoutMode === 'split' && splitPaneVisibility.markdown
-  const viewerPaneVisible = layoutMode === 'viewer' || (layoutMode === 'split' && splitPaneVisibility.viewer) || (layoutMode === 'editor' && splitPaneVisibility.viewer)
+  const paneVisibility = React.useMemo(
+    () => resolveMarkdownWorkspacePaneVisibility({ layoutMode, splitPaneVisibility }),
+    [layoutMode, splitPaneVisibility],
+  )
+  const jsonPaneVisible = paneVisibility.json
+  const markdownPaneVisible = paneVisibility.markdown
+  const viewerPaneVisible = paneVisibility.viewer
 
   React.useEffect(() => {
     if (viewerKind === 'markdown' || viewerKind === 'json') return

@@ -4,32 +4,31 @@ import type { HighlightedLineRange, MarkdownGeoDatasetIntegration, RenderOpts } 
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { MarkdownPanelLayout } from '@/features/markdown/ui/MarkdownPanelLayout'
 import {
-  buildTocTree,
   computeStickyHeadingScrollPaddingTopPx,
+  filterVisibleMarkdownTokensByCollapsedHeadings,
   getDefaultStickyHeadingTopPx,
   getMarkdownViewerWidthWrapperClassName,
 } from '@/features/markdown/ui/markdownSectionUtils'
-import { slugify } from 'grph-shared/markdown/slugify'
-import { MarkdownCodeBlock } from '@/features/markdown/ui/MarkdownCodeBlock'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
-import { computeMarkdownTocMove } from 'grph-shared/markdown/toc'
-import { computeMarkdownTocReorder } from 'grph-shared/markdown/toc'
 import {
   normalizeLooseKey,
   parseMarkdownWikiHref,
 } from 'grph-shared/markdown/wikiLinks'
-import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/MarkdownSourceFilesPanel'
+import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/markdownSourceFilesPanelTypes'
 import { useMarkdownExplorerControls } from '@/features/markdown/ui/useMarkdownExplorerControls'
 import { encodeUtf8ToBase64 } from '@/features/markdown/markdownRoundTrip'
-import { MarkdownDataViewTableView } from '@/features/markdown/ui/MarkdownDataViewTableView'
-import type { MarkdownDataView } from '@/features/markdown/ui/markdownDataViewModel'
 import {
   buildMarkdownVariableSsotAnchorId,
   collectMarkdownVariableSsotEntries,
 } from '@/features/markdown/ui/markdownVariableReferences'
 import { resetGlobalUserSelectLock } from '@/lib/canvas/interaction-user-select'
+import { useMarkdownTocTreeState } from '@/features/markdown/ui/useMarkdownTocTreeState'
+import {
+  buildMarkdownFrontmatterPreviewRenderOpts,
+} from '@/features/markdown/ui/markdownFrontmatterPreview'
+import { MarkdownFrontmatterPreviewBlocks } from '@/features/markdown/ui/MarkdownFrontmatterPreviewBlocks'
 
 export type MarkdownPreviewViewerProps = {
   rootRef: (el: HTMLDivElement | null) => void
@@ -441,58 +440,18 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
   )
 
   const visibleTokens = React.useMemo(() => {
-    if (explorerControls.collapsedHeadingIds.size === 0) {
-      return tokens
-    }
-
-    const result: TokenWithLines[] = []
-    let skipUntilDepth: number | null = null
-
-    for (const t of tokens) {
-      if (t.type === 'heading') {
-        const depth = t.depth || 1
-        const id = t.id || slugify(t.text || '')
-
-        if (skipUntilDepth !== null && depth <= skipUntilDepth) {
-          skipUntilDepth = null
-        }
-
-        if (skipUntilDepth === null) {
-          result.push(t)
-          if (explorerControls.collapsedHeadingIds.has(id)) {
-            skipUntilDepth = depth
-          }
-        }
-      } else {
-        if (skipUntilDepth === null) {
-          result.push(t)
-        }
-      }
-    }
-    return result
+    return filterVisibleMarkdownTokensByCollapsedHeadings({
+      tokens,
+      collapsedHeadingIds: explorerControls.collapsedHeadingIds,
+    })
   }, [tokens, explorerControls.collapsedHeadingIds])
-
-  const handleMoveHeadingSection = React.useCallback(
-    (id: string, direction: 'up' | 'down') => {
-      if (!onTocReorder) return
-      const toc = buildTocTree(tokens)
-      const move = computeMarkdownTocMove({ root: toc, id, direction })
-      if (!move) return
-      onTocReorder(move.parentId, move.fromIndex, move.toIndex)
-    },
-    [onTocReorder, tokens],
-  )
-
-  const handleReorderHeadingSection = React.useCallback(
-    (sourceId: string, targetId: string, position: 'before' | 'after') => {
-      if (!onTocReorder) return
-      const toc = buildTocTree(tokens)
-      const move = computeMarkdownTocReorder({ root: toc, sourceId, targetId, position })
-      if (!move) return
-      onTocReorder(move.parentId, move.fromIndex, move.toIndex)
-    },
-    [onTocReorder, tokens],
-  )
+  const {
+    onMoveItem: handleMoveHeadingSection,
+    onReorderByIds: handleReorderHeadingSection,
+  } = useMarkdownTocTreeState({
+    tokens,
+    onReorder: onTocReorder,
+  })
 
   const providedStickyHeadingTopPx = React.useMemo(
     () => getDefaultStickyHeadingTopPx(stickyHeadingTopPx),
@@ -578,7 +537,6 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       onTocReorder,
       markdownForcePlainTables,
       flashLine,
-      sourceMarkdownText,
       markdownSourceLines,
       webpageLayoutWireframeAscii,
       forbidCopy,
@@ -586,21 +544,12 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
     ],
   )
 
-  const frontmatterBlocks = React.useMemo(() => {
+  const frontmatterPreviewOpts = React.useMemo(() => {
     if (!frontmatterModeEnabled) return null
-    const yaml = String(frontmatterRawText || '').trim()
-    const mermaid = String(frontmatterMermaidCode || '').trim()
-    if (!yaml && !mermaid) return null
-
-    const wrapClass = markdownWordWrap ? 'whitespace-pre-wrap break-words' : ''
-    const widthWrapperClassName =
-      contentClassName || getMarkdownViewerWidthWrapperClassName(markdownViewerWidthMode || 'standard')
-
-    const opts: RenderOpts = {
+    return buildMarkdownFrontmatterPreviewRenderOpts({
       activeDocumentPath,
       highlightedLineRange,
       markdownWordWrap,
-      markdownPresentationMode: false,
       uiPanelTextFontClass,
       uiPanelMonospaceTextClass,
       stickyHeadingTopClass,
@@ -614,144 +563,25 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
       onToggleCollapse: explorerControls.onToggleCollapse,
       geoDatasetIntegration,
       forbidCopy,
-    }
-
-    const mkCodeToken = (args: { lang: string; text: string; startLine: number }): TokenWithLines => {
-      const lines = String(args.text || '').split('\n').length
-      return {
-        type: 'code',
-        raw: args.text,
-        text: args.text,
-        lang: args.lang,
-        info: args.lang,
-        startLine: args.startLine,
-        endLine: Math.max(args.startLine, args.startLine + Math.max(0, lines - 1)),
-      } as unknown as TokenWithLines
-    }
-
-    const blocks: React.ReactNode[] = []
-
-    if (yaml) {
-      const stringifyValue = (value: unknown): string => {
-        if (typeof value === 'string') return value
-        if (typeof value === 'number' || typeof value === 'boolean') return String(value)
-        if (Array.isArray(value)) {
-          try {
-            return `\`${JSON.stringify(value)}\``
-          } catch {
-            return ''
-          }
-        }
-        if (value == null) return '—'
-        if (value && typeof value === 'object') {
-          try {
-            return `\`${JSON.stringify(value)}\``
-          } catch {
-            return ''
-          }
-        }
-        return ''
-      }
-      const frontmatterRows = (() => {
-        const fromSsot = variableSsotEntries.filter(entry => entry.source === 'frontmatter')
-        const filteredSsot = fromSsot.filter(entry => String(entry.key || '').trim().toLowerCase() !== 'mermaid')
-        if (filteredSsot.length > 0) return filteredSsot
-        return Object.keys(frontmatterMeta)
-          .filter((key) => String(key || '').trim().toLowerCase() !== 'mermaid')
-          .map((key) => ({ key, line: 1, source: 'frontmatter' as const }))
-      })()
-      const frontmatterTableView: MarkdownDataView = {
-        columns: [
-          { id: 'frontmatter-key', name: 'key', kind: 'text' },
-          { id: 'frontmatter-value', name: 'Value', kind: 'text' },
-        ],
-        rows: frontmatterRows.map((entry, idx) => {
-          const key = entry.key
-          const value = stringifyValue(frontmatterMeta[key])
-          return {
-            id: `frontmatter-row:${idx}:${key}`,
-            cells: [key, value || ''],
-          }
-        }),
-        titleColumnId: 'frontmatter-key',
-        groupByColumnId: null,
-      }
-      const lineByKey = new Map<string, number>()
-      for (let i = 0; i < frontmatterRows.length; i += 1) {
-        const row = frontmatterRows[i]
-        if (!row) continue
-        lineByKey.set(row.key.toLowerCase(), row.line)
-      }
-      if (frontmatterTableView.rows.length > 0) {
-        blocks.push(
-          <section key="frontmatter:yaml" data-kg-frontmatter-properties className="mb-4">
-            <div
-              onClickCapture={(event) => {
-                const target = event.target as HTMLElement | null
-                if (!target) return
-                const row = target.closest('tr')
-                const firstCell = row?.querySelector('td')
-                const keyText = String(firstCell?.textContent || '').trim()
-                if (!keyText || typeof onShowInEditor !== 'function') return
-                const line = lineByKey.get(keyText.toLowerCase()) || 0
-                if (line > 0) onShowInEditor(line)
-              }}
-            >
-              <MarkdownDataViewTableView
-                view={frontmatterTableView}
-                columnTypesById={{ 'frontmatter-key': 'text', 'frontmatter-value': 'text' }}
-                canMutate={false}
-                canConfigure={false}
-                onUpdateCell={() => {}}
-              />
-            </div>
-          </section>,
-        )
-      }
-    }
-
-    if (mermaid) {
-      blocks.push(
-        <MarkdownCodeBlock
-          key="frontmatter:mermaid"
-          token={mkCodeToken({ lang: 'mermaid', text: mermaid, startLine: 1 })}
-          annotateDisplayMode={annotateDisplayMode}
-          highlightClass=""
-          opts={opts}
-          wrapClass={wrapClass}
-        />,
-      )
-    }
-
-    return <section className={`${widthWrapperClassName} mb-8`}>{blocks}</section>
+    })
   }, [
     activeDocumentPath,
-    annotateDisplayMode,
     codeAnnotations,
-    contentClassName,
     forbidCopy,
     explorerControls.collapsedHeadingIds,
     effectiveStickyHeadingTopPx,
-    frontmatterMermaidCode,
     frontmatterModeEnabled,
-    frontmatterRawText,
-    frontmatterMeta,
     geoDatasetIntegration,
     explorerControls.onToggleCollapse,
     highlightedLineRange,
-    markdownViewerWidthMode,
     markdownWordWrap,
     mermaidFrontmatterConfig,
-    onShowInEditor,
     previewOverlayPortalTarget,
     previewOverlayScope,
     rootThemeMode,
     stickyHeadingTopClass,
-    uiPanelKeyValueTextSizeClass,
-    uiPanelMicroLabelTextSizeClass,
     uiPanelMonospaceTextClass,
     uiPanelTextFontClass,
-    variableSsotEntries,
   ])
 
   return (
@@ -829,7 +659,20 @@ export function MarkdownPreviewViewer(props: MarkdownPreviewViewerProps) {
             ))}
           </section>
         ) : null}
-        {frontmatterBlocks}
+        {frontmatterPreviewOpts ? (
+          <MarkdownFrontmatterPreviewBlocks
+            yaml={frontmatterRawText}
+            mermaid={frontmatterMermaidCode}
+            frontmatterMeta={frontmatterMeta}
+            variableSsotEntries={variableSsotEntries}
+            onShowInEditor={onShowInEditor}
+            annotateDisplayMode={annotateDisplayMode}
+            opts={frontmatterPreviewOpts}
+            markdownWordWrap={markdownWordWrap}
+            contentClassName={contentClassName}
+            markdownViewerWidthMode={markdownViewerWidthMode}
+          />
+        ) : null}
         <article
           ref={handleArticleRef}
           className={

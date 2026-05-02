@@ -1,5 +1,5 @@
 import React from 'react'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyMediaProxySrc, buildMarkdownPreviewMediaKey } from '@/features/markdown/ui/markdownPreviewLinks'
 import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
@@ -90,9 +90,7 @@ export const MediaWrapper = ({
       void 0
     }
     try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'preview' as const } }))
-      }
+      emitMainPanelOpen({ tab: 'preview' as const })
     } catch {
       void 0
     }

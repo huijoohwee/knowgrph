@@ -3,6 +3,7 @@ import {
   AgenticRagChunkText,
   AgenticRagEmbedding,
   AgenticRagGeo,
+  AgenticRagMediaKind,
   AgenticRagMediaUrl,
   AgenticRagNodeId,
   AgenticRagNodeProvenance,
@@ -15,6 +16,7 @@ import {
   ParsedAgenticGraphRagTraversePath,
 } from '../types'
 import { isPlainObject } from '@/lib/graph/value'
+import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import {
   isGraphRagPathValue,
   toParsedExamplePath,
@@ -261,10 +263,11 @@ export function agenticRagNodeFromGraphNode(node: GraphNode): AgenticRagNodeView
       ? (embeddingRaw as number[] as AgenticRagEmbedding)
       : undefined
 
-  const mediaRaw = props.media_url
+  const mediaSpec = getNodeMediaSpec(node)
+  const mediaKind = mediaSpec?.kind as AgenticRagMediaKind | undefined
   const mediaUrl =
-    typeof mediaRaw === 'string'
-      ? (mediaRaw as AgenticRagMediaUrl)
+    mediaSpec && typeof mediaSpec.url === 'string' && mediaSpec.url.trim().length > 0
+      ? (mediaSpec.url as AgenticRagMediaUrl)
       : undefined
 
   const provenanceRaw = typeof meta === 'object' && !Array.isArray(meta) ? meta : {}
@@ -291,6 +294,7 @@ export function agenticRagNodeFromGraphNode(node: GraphNode): AgenticRagNodeView
     chunkText,
     embedding,
     geo,
+    mediaKind,
     mediaUrl,
     provenance,
     graphRAGPath: graphRagPath,

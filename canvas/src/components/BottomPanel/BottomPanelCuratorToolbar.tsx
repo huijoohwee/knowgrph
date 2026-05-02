@@ -2,7 +2,7 @@ import React from 'react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { ArrowUpDown, BarChart3, ChevronDown, Filter, Group, Plus, SlidersHorizontal, Eraser } from 'lucide-react'
 import { UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import type { GraphDataTablePanel } from '@/features/graph-data-table/ui/GraphDataTablePanelOverlay'
 import type { GraphDataTableRowDensity } from '@/features/graph-data-table/graphDataTable'
 import { graphDataTableToolbarButtonClassName, GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS, uiPrimaryChipActiveClassName } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
@@ -212,9 +212,7 @@ export function BottomPanelCuratorToolbar({
             onClick={() => {
               setGraphDataTablePanel('none')
               try {
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflowManager' } }))
-                }
+                emitMainPanelOpen({ tab: 'workflowManager' })
               } catch {
                 void 0
               }

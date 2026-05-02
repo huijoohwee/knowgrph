@@ -1,7 +1,7 @@
 import type { GetGraph } from '@/hooks/store/graph-data-slice/graphDataSliceAccess'
 import type { GraphData } from '@/lib/graph/types'
 import { parseLayoutMode } from './graphDataSliceParsers'
-import { computeDerivedFields, parseGraphFieldId } from '@/features/graph-fields/graphFields'
+import { getCachedDerivedFields, parseGraphFieldId } from '@/features/graph-fields/graphFields'
 import {
   buildDefaultVisibleColumns,
   isGraphDataTablePropertyColumnKey,
@@ -15,7 +15,6 @@ import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
-const FLOW_WIDGET_FORM_ID_KEY_LEGACY = 'flow:widgetFormId' as const
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -202,9 +201,7 @@ export function applyWidgetRegistryFromMetadata(get: GetGraph, metadata: unknown
       const explicitFormId =
         typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string'
           ? String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
-          : typeof props[FLOW_WIDGET_FORM_ID_KEY_LEGACY] === 'string'
-            ? String(props[FLOW_WIDGET_FORM_ID_KEY_LEGACY] || '').trim()
-            : ''
+          : ''
       const expectedFormId = explicitFormId || `fm:${nodeId}`
       if (!expectedFormId) continue
       expectedByFormId.set(expectedFormId, String(node?.type || 'Node') || 'Node')
@@ -253,7 +250,10 @@ export function syncGraphFieldsWithGraphData(
   graphData: GraphData,
   options?: { resetVisibleColumns?: boolean },
 ) {
-  const derived = computeDerivedFields(graphData)
+  const derived = getCachedDerivedFields({
+    graphData,
+    graphRevision: get().graphDataRevision || 0,
+  })
   const derivedFieldIds = new Set<string>(derived.map(f => f.id))
   const derivedPropColumnKeys = new Set<string>(derived.map(f => `prop:${f.scope}:${f.key}`))
 

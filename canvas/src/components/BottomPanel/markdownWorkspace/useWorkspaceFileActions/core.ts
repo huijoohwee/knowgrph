@@ -12,6 +12,7 @@ import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
 import type { StatusHelpers, UseWorkspaceFileActionsArgs } from './types'
 import type { MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
 import { formatMarkdownWorkspaceStatusLabel } from '../markdownWorkspaceStatusUi'
@@ -265,10 +266,10 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
         lastLoadedRef.current = { path: createdPath, text: content }
         setActiveText(content)
         if (docKey && content.trim()) {
-          void setActiveMarkdownDocument({
+          void applyActiveMarkdownDocumentPayload({
+            setActiveMarkdownDocument,
             name: docKey,
             text: content,
-            normalizeMermaidMmd: false,
             sourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
           })
           if (opts?.applyToGraph) {

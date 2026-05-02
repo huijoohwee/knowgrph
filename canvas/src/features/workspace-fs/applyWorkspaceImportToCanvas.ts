@@ -2,7 +2,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import type { SourceFile } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import {
-  WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS,
   WORKSPACE_IMPORT_AUTO_APPLY_ENABLED,
   WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILES,
   WORKSPACE_IMPORT_AUTO_PARSE_MAX_FILE_CHARS,
@@ -15,12 +14,16 @@ import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatt
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { normalizeWorkspacePath, workspaceDocumentKey } from './path'
-import { loadWorkspaceSourceIndex, type WorkspaceSourceIndex } from './sourceIndex'
+import {
+  resolveWorkspaceSourceIndexSnapshot,
+  type WorkspaceSourceIndex,
+} from './sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles, workspaceSourcePathKey } from './syncToSourceFiles'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
+import { resolveWorkspaceSourceFileInlineText } from './workspaceInlineText'
 
 type ApplyWorkspaceImportToCanvasOpts = {
   applyToGraph?: boolean
@@ -112,7 +115,7 @@ export async function applyWorkspaceImportToCanvas(args: {
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
   const fs = args.fs
   const workspaceEntries = Array.isArray(args.opts?.workspaceEntries) ? args.opts.workspaceEntries : await fs.listEntries()
-  const sourcesByPath = args.opts?.sourcesByPath || loadWorkspaceSourceIndex()
+  const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(args.opts?.sourcesByPath)
   const merged = mergeWorkspaceEntriesIntoSourceFiles({ existing, workspaceEntries, sourcesByPath })
 
   const indexByWorkspaceSourcePath = new Map<string, number>()
@@ -200,7 +203,7 @@ export async function applyWorkspaceImportToCanvas(args: {
     }
     const graphData = res?.graphData || null
     const parserId = typeof res?.parserId === 'string' ? res.parserId : undefined
-    const inlineText = text.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? text : ''
+    const inlineText = resolveWorkspaceSourceFileInlineText(text)
     if (!preferredInteractiveImportGraphData && graphData && isFrontmatterFlowGraph(graphData)) {
       preferredInteractiveImportGraphData = graphData
       preferredInteractiveImportRawText = text

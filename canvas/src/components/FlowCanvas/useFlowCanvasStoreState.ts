@@ -9,6 +9,7 @@ import {
   EMPTY_STRING_ARRAY,
   EMPTY_WIDGET_REGISTRY,
 } from '@/components/FlowCanvas/shared'
+import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 
 export function useFlowCanvasStoreState(args: {
   active: boolean
@@ -35,12 +36,7 @@ export function useFlowCanvasStoreState(args: {
           renderMediaAsNodes: false,
           mediaPanelDensity: 'default' as const,
           threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
-          threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
-          threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
-          threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
-          threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
-          threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
-          threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+          overlaySizing: readOverlaySizingInputFromStoreState(s),
           canvasRenderMode: '2d' as const,
           canvas2dRenderer: 'flow' as const,
           infiniteCanvasInteractionMode: 'static' as const,
@@ -70,16 +66,11 @@ export function useFlowCanvasStoreState(args: {
         documentSemanticMode: (s.documentSemanticMode || 'document') as 'document' | 'keyword',
         multiDimTableModeEnabled: (s as unknown as { multiDimTableModeEnabled?: unknown }).multiDimTableModeEnabled === true,
         documentStructureBaselineLock: s.documentStructureBaselineLock === true,
-        collapsedGroupIds: s.collapsedGroupIds || [],
+        collapsedGroupIds: s.collapsedGroupIds ?? EMPTY_STRING_ARRAY,
         renderMediaAsNodes: s.renderMediaAsNodes,
         mediaPanelDensity: s.mediaPanelDensity,
         threeIframeOverlayPoolMax: s.threeIframeOverlayPoolMax,
-        threeIframeOverlayBaseWidthRatioDefault: s.threeIframeOverlayBaseWidthRatioDefault,
-        threeIframeOverlayBaseWidthRatioCompact: s.threeIframeOverlayBaseWidthRatioCompact,
-        threeIframeOverlayBaseWidthMinPxDefault: s.threeIframeOverlayBaseWidthMinPxDefault,
-        threeIframeOverlayBaseWidthMinPxCompact: s.threeIframeOverlayBaseWidthMinPxCompact,
-        threeIframeOverlayBaseWidthMaxPxDefault: s.threeIframeOverlayBaseWidthMaxPxDefault,
-        threeIframeOverlayBaseWidthMaxPxCompact: s.threeIframeOverlayBaseWidthMaxPxCompact,
+        overlaySizing: readOverlaySizingInputFromStoreState(s),
         canvasRenderMode: s.canvasRenderMode,
         canvas2dRenderer: s.canvas2dRenderer,
         infiniteCanvasInteractionMode: (s.infiniteCanvasInteractionMode || 'static') as 'static' | 'interactive',
@@ -95,9 +86,11 @@ export function useFlowCanvasStoreState(args: {
         widgetRegistry: s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY,
         baseWidgetRegistry: s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY,
         documentWidgetRegistry: s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY,
-        openWidgetNodeIds: s.openWidgetNodeIds || [],
-        flowWidgetPinnedByNodeId: s.flowWidgetPinnedByNodeId || {},
-        flowWidgetWorldPosByNodeId: (s as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId || {},
+        openWidgetNodeIds: s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY,
+        flowWidgetPinnedByNodeId: s.flowWidgetPinnedByNodeId ?? EMPTY_BOOL_RECORD,
+        flowWidgetWorldPosByNodeId:
+          (s as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> }).flowWidgetWorldPosByNodeId
+          ?? EMPTY_POS_RECORD,
         flowWidgetPosByNodeId: s.flowWidgetPosByNodeId || {},
         markdownDocumentName: (s as unknown as { markdownDocumentName?: unknown }).markdownDocumentName,
         markdownDocumentText: (s as unknown as { markdownDocumentText?: unknown }).markdownDocumentText,

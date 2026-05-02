@@ -20,6 +20,25 @@ import {
   resolveWorkspaceStartupActivePath,
   sortWorkspaceEntriesForExplorer,
 } from '@/features/workspace-fs/workspaceFs'
+import {
+  resolveWorkspaceSourceIndexSnapshot,
+  readReusableWorkspaceSourceIndexSnapshot,
+  setWorkspaceEntrySource,
+} from '@/features/workspace-fs/sourceIndex'
+import {
+  buildFailedWorkspaceRefreshSnapshot,
+  pruneWorkspaceEntriesForInlineSnapshot,
+  buildWorkspaceRefreshSnapshot,
+} from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.shared'
+import {
+  resolveWorkspaceEntryInlineText,
+  resolveWorkspaceSourceFileInlineText,
+  upsertWorkspaceEntryInlineText,
+} from '@/features/workspace-fs/workspaceInlineText'
+import {
+  applyActiveMarkdownDocumentPayload,
+  buildActiveMarkdownDocumentPayload,
+} from '@/features/markdown/activeMarkdownDocument'
 
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
   const { restore } = initJsdomHarness()
@@ -548,5 +567,149 @@ export async function testWorkspaceBootstrapMaterializeSharedSnapshotHelpersCent
   })
   if (changedSnapshot.activePath !== '/notes/demo.md' || changedSnapshot.workspaceEntries !== workspaceEntries) {
     throw new Error('expected shared startup snapshot helper to preserve the provided snapshot when startup must materialize a different active file')
+  }
+}
+
+export function testWorkspaceSourceIndexSnapshotHelpersCentralizeReuseRules() {
+  const provided: Record<string, { kind: 'local'; originalName?: string | null }> = {
+    '/notes/demo.md': { kind: 'local', originalName: 'demo.md' },
+  }
+  if (readReusableWorkspaceSourceIndexSnapshot(provided as never) !== (provided as never)) {
+    throw new Error('expected shared workspace source-index snapshot helper to preserve provided snapshots by identity')
+  }
+
+  if (readReusableWorkspaceSourceIndexSnapshot(null) !== undefined) {
+    throw new Error('expected shared workspace source-index snapshot helper to ignore missing snapshots')
+  }
+
+  if (resolveWorkspaceSourceIndexSnapshot(provided as never) !== (provided as never)) {
+    throw new Error('expected shared workspace source-index resolver to reuse provided snapshots without reloading the cached source index')
+  }
+
+  const cached = setWorkspaceEntrySource('/notes/cached.md' as never, { kind: 'url', url: 'https://example.com/cached.md' })
+  const resolved = resolveWorkspaceSourceIndexSnapshot(undefined)
+  if (resolved !== cached) {
+    throw new Error('expected shared workspace source-index resolver to fall back to the canonical cached source index when no snapshot is provided')
+  }
+}
+
+export function testWorkspaceRefreshSnapshotHelpersCentralizeFallbackState() {
+  const providedSources = {
+    '/notes/demo.md': { kind: 'local', originalName: 'demo.md' },
+  } as const
+  const providedEntries = [
+    { path: '/notes/demo.md', parentPath: '/notes', kind: 'file', name: 'demo.md', updatedAtMs: 1 },
+  ] as unknown as import('@/features/workspace-fs/types').WorkspaceEntry[]
+
+  const built = buildWorkspaceRefreshSnapshot({
+    entries: providedEntries,
+    sourcesByPath: providedSources as never,
+  })
+  if (built.entries !== providedEntries || built.sourcesByPath !== (providedSources as never)) {
+    throw new Error('expected shared workspace refresh snapshot helper to preserve provided entries and source-index snapshots by identity')
+  }
+
+  const failed = buildFailedWorkspaceRefreshSnapshot()
+  if (!Array.isArray(failed.entries) || failed.entries.length !== 0) {
+    throw new Error('expected shared workspace refresh failure snapshot helper to return empty entries')
+  }
+
+  const cached = setWorkspaceEntrySource('/notes/refresh-cached.md' as never, { kind: 'url', url: 'https://example.com/refresh-cached.md' })
+  const fallback = buildWorkspaceRefreshSnapshot({
+    entries: providedEntries,
+  })
+  if (fallback.sourcesByPath !== cached) {
+    throw new Error('expected shared workspace refresh snapshot helper to reuse the canonical cached source index when no snapshot is provided')
+  }
+}
+
+export function testWorkspaceRefreshPruningHelperCentralizesOversizedInlineTextRule() {
+  const safeEntries = [
+    { path: '/notes/a.md', parentPath: '/notes', kind: 'file', name: 'a.md', text: 'short', updatedAtMs: 1 },
+    { path: '/notes', parentPath: '/', kind: 'folder', name: 'notes', updatedAtMs: 1 },
+  ] as unknown as import('@/features/workspace-fs/types').WorkspaceEntry[]
+  const safeResult = pruneWorkspaceEntriesForInlineSnapshot(safeEntries, 10)
+  if (safeResult !== safeEntries) {
+    throw new Error('expected shared workspace refresh pruning helper to preserve entry-array identity when no oversized inline text needs pruning')
+  }
+
+  const oversizedEntries = [
+    { path: '/notes/large.md', parentPath: '/notes', kind: 'file', name: 'large.md', text: '0123456789ABC', updatedAtMs: 1 },
+    { path: '/notes/small.md', parentPath: '/notes', kind: 'file', name: 'small.md', text: 'small', updatedAtMs: 1 },
+  ] as unknown as import('@/features/workspace-fs/types').WorkspaceEntry[]
+  const pruned = pruneWorkspaceEntriesForInlineSnapshot(oversizedEntries, 10)
+  if (pruned === oversizedEntries) {
+    throw new Error('expected shared workspace refresh pruning helper to create a new snapshot when oversized inline text must be dropped')
+  }
+  if (typeof pruned[0]?.text !== 'undefined') {
+    throw new Error('expected shared workspace refresh pruning helper to drop oversized inline file text')
+  }
+  if (pruned[1] !== oversizedEntries[1]) {
+    throw new Error('expected shared workspace refresh pruning helper to preserve identity for entries that do not need pruning')
+  }
+}
+
+export function testWorkspaceInlineTextHelpersCentralizeEntryAndSourceFileRules() {
+  if (resolveWorkspaceEntryInlineText('012345', 5) !== undefined) {
+    throw new Error('expected workspace entry inline-text helper to drop oversized entry text')
+  }
+  if (resolveWorkspaceEntryInlineText('short', 5) !== 'short') {
+    throw new Error('expected workspace entry inline-text helper to preserve bounded entry text')
+  }
+  if (resolveWorkspaceSourceFileInlineText('012345', 5) !== '') {
+    throw new Error('expected workspace source-file inline-text helper to convert oversized text into an empty source-file payload')
+  }
+
+  const entries = [
+    { path: '/notes/demo.md', parentPath: '/notes', kind: 'file', name: 'demo.md', text: 'old', updatedAtMs: 1 },
+  ] as unknown as import('@/features/workspace-fs/types').WorkspaceEntry[]
+  const unchanged = upsertWorkspaceEntryInlineText({
+    entries,
+    path: '/notes/demo.md' as never,
+    text: 'old',
+    updatedAtMs: 2,
+  })
+  if (unchanged !== entries) {
+    throw new Error('expected workspace entry inline-text helper to preserve entry-array identity when inline text is unchanged')
+  }
+
+  const inserted = upsertWorkspaceEntryInlineText({
+    entries: [],
+    path: '/notes/added.md' as never,
+    text: 'fresh',
+    createIfMissing: true,
+    updatedAtMs: 3,
+  })
+  if (inserted.length !== 1 || inserted[0]?.path !== '/notes/added.md' || inserted[0]?.text !== 'fresh') {
+    throw new Error('expected workspace entry inline-text helper to centralize missing-entry creation with normalized inline text')
+  }
+}
+
+export async function testActiveMarkdownDocumentHelpersCentralizePayloadDefaults() {
+  const calls: Array<ReturnType<typeof buildActiveMarkdownDocumentPayload>> = []
+  const base = buildActiveMarkdownDocumentPayload({
+    name: 'demo.md',
+    text: 'body',
+    sourceUrl: 'https://example.com/demo',
+    applyToGraph: true,
+    forceApplyToGraph: true,
+  })
+  if (base.normalizeMermaidMmd !== false || base.sourceUrl !== 'https://example.com/demo') {
+    throw new Error('expected active markdown document payload helper to centralize normalizeMermaidMmd and source-url defaults')
+  }
+
+  await applyActiveMarkdownDocumentPayload({
+    setActiveMarkdownDocument: async payload => {
+      calls.push(payload)
+      return true
+    },
+    name: 'demo.md',
+    text: ['---', 'kgWebpageUrl: https://example.com/demo', '---', '# Demo'].join('\n'),
+    sourceUrl: 'https://example.com/demo',
+    autoEnableFrontmatter: false,
+    normalizeWebpageFrontmatterToMarkdown: true,
+  })
+  if (calls.length !== 1 || calls[0]?.normalizeMermaidMmd !== false || calls[0]?.autoEnableFrontmatter !== false) {
+    throw new Error('expected active markdown document apply helper to preserve shared payload defaults across runtime/import callers')
   }
 }

@@ -19,7 +19,25 @@ export type NodeMediaSpec = {
   interactive: boolean
 }
 
+export type NodeMediaInventoryRow = {
+  id: string
+  label: string
+  type: string
+  media: NodeMediaSpec
+}
+
+export type NodeMediaInventory = {
+  rows: ReadonlyArray<NodeMediaInventoryRow>
+  totalCount: number
+  imageCount: number
+  imageLikeCount: number
+  videoCount: number
+  iframeCount: number
+  svgCount: number
+}
+
 const mediaSpecCache = new WeakMap<GraphNode, { cacheKey: string; spec: NodeMediaSpec | null }>()
+const RICH_MEDIA_PANEL_TEXT_FALLBACK_TITLE = 'Rich Media Panel'
 
 function normalizeExternalUrl(u: string): string {
   const trimmed = String(u || '').trim()
@@ -96,6 +114,111 @@ function extractMarkdownMediaUrl(text: string): { kind: NodeMediaKind; url: stri
   return null
 }
 
+function isImagePreviewKind(kind: NodeMediaKind | null | undefined): boolean {
+  return kind === 'image' || kind === 'svg'
+}
+
+function pushUniqueImagePreviewUrl(
+  value: unknown,
+  out: string[],
+  seen: Set<string>,
+): void {
+  const url = coerceMediaUrl(value)
+  if (!url) return
+  if (seen.has(url)) return
+  seen.add(url)
+  out.push(url)
+}
+
+function appendMarkdownImagePreviewUrls(
+  value: unknown,
+  out: string[],
+  seen: Set<string>,
+  limit: number,
+): void {
+  const raw = typeof value === 'string' ? value : ''
+  if (!raw.trim() || out.length >= limit) return
+  const normalized = fixBrokenMarkdownImageSyntax(raw).text
+  const refs = extractMarkdownInlineRefs(normalized)
+  for (const ref of refs.images) {
+    const altNorm = String(ref.alt || '').trim().toLowerCase()
+    if (altNorm.startsWith('iframe') || altNorm.startsWith('video') || altNorm.startsWith('audio')) continue
+    pushUniqueImagePreviewUrl(normalizeExternalUrl(ref.url), out, seen)
+    if (out.length >= limit) return
+  }
+}
+
+function appendRecordImagePreviewUrls(
+  record: Record<string, unknown> | null | undefined,
+  out: string[],
+  seen: Set<string>,
+  limit: number,
+): void {
+  if (!record || out.length >= limit) return
+
+  pushUniqueImagePreviewUrl(record.image, out, seen)
+  if (out.length >= limit) return
+  pushUniqueImagePreviewUrl(record.imageUrl, out, seen)
+  if (out.length >= limit) return
+
+  const kindRaw =
+    typeof record.media_kind === 'string'
+      ? record.media_kind.trim().toLowerCase()
+      : typeof record.mediaKind === 'string'
+        ? record.mediaKind.trim().toLowerCase()
+        : ''
+  const genericCandidates = [record.media_url, record.mediaUrl, record.media]
+  for (const candidate of genericCandidates) {
+    const url = coerceMediaUrl(candidate)
+    if (!url) continue
+    const inferredKind = inferMediaKindFromResourceUrl(url) || inferMediaKindFromUrl(url)
+    if (!isImagePreviewKind(kindRaw as NodeMediaKind) && !isImagePreviewKind(inferredKind as NodeMediaKind)) continue
+    pushUniqueImagePreviewUrl(url, out, seen)
+    if (out.length >= limit) return
+  }
+
+  const markdownCandidates = [
+    record.text,
+    record.markdown,
+    record.output,
+    record.description,
+    record.summary,
+    record.mdSectionMarkdown,
+    record.sectionMarkdown,
+  ]
+  for (const candidate of markdownCandidates) {
+    appendMarkdownImagePreviewUrls(candidate, out, seen, limit)
+    if (out.length >= limit) return
+  }
+}
+
+function isRichMediaPanelNode(node: GraphNode): boolean {
+  return String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+}
+
+function buildRichMediaPanelTextualIframeSpec(args: {
+  node: GraphNode
+  outputText: string
+  outputSrcDoc: string
+}): NodeMediaSpec {
+  if (args.outputSrcDoc) {
+    return { kind: 'iframe', url: '', srcDoc: args.outputSrcDoc, interactive: false }
+  }
+  const trimmed = args.outputText.trim()
+  if (trimmed) {
+    return {
+      kind: 'iframe',
+      url: '',
+      srcDoc: buildTextWidgetOutputSrcDoc({
+        title: String(args.node.label || args.node.id || '').trim() || RICH_MEDIA_PANEL_TEXT_FALLBACK_TITLE,
+        text: args.outputText,
+      }),
+      interactive: false,
+    }
+  }
+  return { kind: 'iframe', url: '', interactive: false }
+}
+
 function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
   return [
     node.id,
@@ -106,13 +229,10 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     props.media_url,
     props.mediaUrl,
     props.iframe_url,
-    props.iframeUrl,
     props.image,
     props.imageUrl,
-    props.image_url,
     props.video,
     props.videoUrl,
-    props.video_url,
     props.media,
     props.url,
     props.src,
@@ -143,15 +263,12 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     kindRaw === 'iframe' || kindRaw === 'video' || kindRaw === 'image' || kindRaw === 'svg' ? (kindRaw as NodeMediaKind) : null
 
   const iframeUrl = coerceMediaUrl((props as Record<string, unknown>).iframe_url)
-  const iframeUrlCamel = coerceMediaUrl((props as Record<string, unknown>).iframeUrl)
   const mediaUrl = coerceMediaUrl((props as Record<string, unknown>).media_url)
   const mediaUrlCamel = coerceMediaUrl((props as Record<string, unknown>).mediaUrl)
   const imageUrl = coerceMediaUrl((props as Record<string, unknown>).image)
   const imageUrlCamel = coerceMediaUrl((props as Record<string, unknown>).imageUrl)
-  const imageUrlLegacy = coerceMediaUrl((props as Record<string, unknown>).image_url)
   const videoUrl = coerceMediaUrl((props as Record<string, unknown>).video)
   const videoUrlCamel = coerceMediaUrl((props as Record<string, unknown>).videoUrl)
-  const videoUrlLegacy = coerceMediaUrl((props as Record<string, unknown>).video_url)
   const generic = coerceMediaUrl((props as Record<string, unknown>).media)
   const srcUrl = coerceMediaUrl((props as Record<string, unknown>).src)
   const linkUrl = coerceMediaUrl((props as Record<string, unknown>).url)
@@ -162,8 +279,9 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     return typeof s === 'string' ? s : ''
   })()
 
+  const isRichMediaPanel = isRichMediaPanelNode(node)
   const richMediaActiveTab = (() => {
-    if (String(node.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return ''
+    if (!isRichMediaPanel) return ''
     return String((props as Record<string, unknown>).richMediaActiveTab || '').trim().toLowerCase()
   })()
   let markdownMedia: { kind: NodeMediaKind; url: string } | null = null
@@ -195,15 +313,12 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const inferLinkAsIframe = inferredLinkKind == null && prefersIframeFromLinkContext({ label: linkLabel, url: linkUrl || undefined })
   let url =
     iframeUrl
-    || iframeUrlCamel
     || mediaUrl
     || mediaUrlCamel
     || imageUrl
     || imageUrlCamel
-    || imageUrlLegacy
     || videoUrl
     || videoUrlCamel
-    || videoUrlLegacy
     || generic
     || srcUrl
     || (inferredLinkKind || inferLinkAsIframe ? linkUrl : null)
@@ -233,36 +348,23 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const rawInteractive = (props as Record<string, unknown>).media_interactive
   const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
 
-  if (String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+  if (isRichMediaPanel) {
     const selected = richMediaActiveTab === 'video' || richMediaActiveTab === 'image' || richMediaActiveTab === 'text' || richMediaActiveTab === 'poi'
       ? richMediaActiveTab
       : ''
     if (selected === 'video') {
-      const chosen = videoUrl || videoUrlCamel || videoUrlLegacy
+      const chosen = videoUrl || videoUrlCamel
       if (chosen) return { kind: 'video', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
     }
     if (selected === 'image') {
-      const chosen = imageUrl || imageUrlCamel || imageUrlLegacy
+      const chosen = imageUrl || imageUrlCamel
       if (chosen) return { kind: 'image', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : false }
     }
     if (selected === 'text' || selected === 'poi') {
-      if (outputSrcDoc) return { kind: 'iframe', url: '', srcDoc: outputSrcDoc, interactive: false }
-      const trimmed = outputText.trim()
-      if (trimmed) {
-        return {
-          kind: 'iframe',
-          url: '',
-          srcDoc: buildTextWidgetOutputSrcDoc({
-            title: String(node.label || node.id || '').trim() || 'Rich Media Panel',
-            text: outputText,
-          }),
-          interactive: false,
-        }
-      }
+      return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
     }
     if (selected === 'video') return { kind: 'video', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
     if (selected === 'image') return { kind: 'image', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
-    if (selected === 'text' || selected === 'poi') return { kind: 'iframe', url: '', interactive: false }
   }
   const domMediaUrl = (() => {
     if (!domTag) return ''
@@ -283,23 +385,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
   const resolvedUrl = url || (domMediaUrl ? coerceMediaUrl(domMediaUrl) : null)
   if (!resolvedUrl) {
-    if (outputSrcDoc && String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-      return { kind: 'iframe', url: '', srcDoc: outputSrcDoc, interactive: false }
-    }
-    if (outputText.trim() && String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-      return {
-        kind: 'iframe',
-        url: '',
-        srcDoc: buildTextWidgetOutputSrcDoc({
-          title: String(node.label || node.id || '').trim() || 'Rich Media Panel',
-          text: outputText,
-        }),
-        interactive: false,
-      }
-    }
-    if (String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
-      return { kind: 'iframe', url: '', interactive: false }
-    }
+    if (isRichMediaPanel) return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc })
     if (domTag === 'IFRAME' && domSrcDoc) {
       if (/<\s*script\b/i.test(domSrcDoc)) return null
       if (/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i.test(domSrcDoc)) return null
@@ -312,9 +398,8 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const kind: NodeMediaKind = kindForced
     ? kindForced
     : iframeUrl
-      || iframeUrlCamel
       ? 'iframe'
-      : (videoUrl || videoUrlCamel || videoUrlLegacy)
+      : (videoUrl || videoUrlCamel)
         ? 'video'
         : domKindForced
           ? domKindForced
@@ -353,4 +438,97 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
 export function hasNodeMedia(node: GraphNode): boolean {
   return getNodeMediaSpec(node) != null
+}
+
+export function getNodeImagePreviewUrls(node: GraphNode, limit = 8): string[] {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 8
+  const out: string[] = []
+  const seen = new Set<string>()
+  const spec = getNodeMediaSpec(node)
+  if (spec && isImagePreviewKind(spec.kind)) {
+    pushUniqueImagePreviewUrl(spec.url, out, seen)
+  }
+  appendRecordImagePreviewUrls((node.properties || {}) as Record<string, unknown>, out, seen, safeLimit)
+  if (out.length < safeLimit) {
+    appendRecordImagePreviewUrls((node.metadata || {}) as Record<string, unknown>, out, seen, safeLimit)
+  }
+  return out.slice(0, safeLimit)
+}
+
+export function buildNodeMediaInventory(
+  nodes: ReadonlyArray<GraphNode> | null | undefined,
+  options?: { maxRows?: number; limitStatsToRows?: boolean },
+): NodeMediaInventory {
+  if (!Array.isArray(nodes) || nodes.length <= 0) {
+    return {
+      rows: [],
+      totalCount: 0,
+      imageCount: 0,
+      imageLikeCount: 0,
+      videoCount: 0,
+      iframeCount: 0,
+      svgCount: 0,
+    }
+  }
+
+  const maxRowsRaw = options?.maxRows
+  const maxRows =
+    typeof maxRowsRaw === 'number' && Number.isFinite(maxRowsRaw)
+      ? Math.max(0, Math.floor(maxRowsRaw))
+      : Number.POSITIVE_INFINITY
+  const limitStatsToRows = options?.limitStatsToRows === true
+  const rows: NodeMediaInventoryRow[] = []
+  let totalCount = 0
+  let imageCount = 0
+  let imageLikeCount = 0
+  let videoCount = 0
+  let iframeCount = 0
+  let svgCount = 0
+
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    if (!node) continue
+    const spec = getNodeMediaSpec(node)
+    if (!spec) continue
+
+    const shouldList = rows.length < maxRows
+    if (shouldList) {
+      rows.push({
+        id: String(node.id),
+        label: String(node.label || node.id || ''),
+        type: String(node.type || ''),
+        media: spec,
+      })
+    }
+    if (limitStatsToRows && !shouldList) continue
+
+    totalCount += 1
+    if (spec.kind === 'iframe') {
+      iframeCount += 1
+      continue
+    }
+    if (spec.kind === 'video') {
+      videoCount += 1
+      continue
+    }
+    if (spec.kind === 'svg') {
+      svgCount += 1
+      imageLikeCount += 1
+      continue
+    }
+    if (spec.kind === 'image') {
+      imageCount += 1
+      imageLikeCount += 1
+    }
+  }
+
+  return {
+    rows,
+    totalCount,
+    imageCount,
+    imageLikeCount,
+    videoCount,
+    iframeCount,
+    svgCount,
+  }
 }

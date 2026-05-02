@@ -20,6 +20,7 @@ import { persistPrevLayoutSnapshot } from '@/components/GraphCanvasRoot/utils/pe
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import type { FlowPortHandleDatum2d } from '@/components/GraphCanvas/flowPortHandles2d'
+import type { OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 
 export function useD3GraphScene2d(args: {
   active: boolean
@@ -77,12 +78,7 @@ export function useD3GraphScene2d(args: {
   mediaOverlayNodeIdSet: Set<string>
   panelOnlyNodeIdsKey: string
   panelOnlyNodeIdSet: Set<string>
-  overlayBaseWidthRatioDefault: number
-  overlayBaseWidthRatioCompact: number
-  overlayBaseWidthMinPxDefault: number
-  overlayBaseWidthMinPxCompact: number
-  overlayBaseWidthMaxPxDefault: number
-  overlayBaseWidthMaxPxCompact: number
+  overlaySizing?: OverlayDensitySizingConfigInput | null
   requestOverlaySchedule: () => void
   setLayoutPositionsForMode: (key: string, positions: Record<string, { x: number; y: number }>) => void
   selectedEdgeIdRef: MutableRefObject<string | null>
@@ -157,12 +153,7 @@ export function useD3GraphScene2d(args: {
     mediaOverlayNodeIdSet,
     panelOnlyNodeIdsKey,
     panelOnlyNodeIdSet,
-    overlayBaseWidthRatioDefault,
-    overlayBaseWidthRatioCompact,
-    overlayBaseWidthMinPxDefault,
-    overlayBaseWidthMinPxCompact,
-    overlayBaseWidthMaxPxDefault,
-    overlayBaseWidthMaxPxCompact,
+    overlaySizing,
     requestOverlaySchedule,
     setLayoutPositionsForMode,
     selectedEdgeIdRef,
@@ -406,12 +397,7 @@ export function useD3GraphScene2d(args: {
           mediaOverlayNodeIdSet,
           panelOnlyNodeIdSet,
           mediaPanelDensity,
-          overlayBaseWidthRatioDefault,
-          overlayBaseWidthRatioCompact,
-          overlayBaseWidthMinPxDefault,
-          overlayBaseWidthMinPxCompact,
-          overlayBaseWidthMaxPxDefault,
-          overlayBaseWidthMaxPxCompact,
+          overlaySizing,
           enableTightInitialLayout: (() => {
             if (isEmbeddedPreview) return false
             const nodesCount = Array.isArray(sceneGraphData?.nodes) ? sceneGraphData.nodes.length : 0
@@ -539,12 +525,7 @@ export function useD3GraphScene2d(args: {
     multiDimTableModeEnabled,
     nodesPresentationAppliedKeyRef,
     nodesSelRef,
-    overlayBaseWidthRatioDefault,
-    overlayBaseWidthRatioCompact,
-    overlayBaseWidthMinPxDefault,
-    overlayBaseWidthMinPxCompact,
-    overlayBaseWidthMaxPxDefault,
-    overlayBaseWidthMaxPxCompact,
+    overlaySizing,
     panelOnlyNodeIdSet,
     panelOnlyNodeIdsKey,
     portHandlesSelRef,

@@ -5,7 +5,7 @@ import type { MermaidInitConfig } from '@/features/panels/views/preview-panel/ui
 import { LS_KEYS } from '@/lib/config'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { cleanupMermaidRenderArtifacts, ensureMermaidInitialized } from '@/lib/mermaid/mermaidRuntime'
 const MERMAID_TOAST_DEDUPE_MS = 1500
@@ -551,11 +551,7 @@ export function MermaidDiagram({
       void 0
     }
     try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'preview' as const } }),
-        )
-      }
+      emitMainPanelOpen({ tab: 'preview' as const })
     } catch {
       void 0
     }

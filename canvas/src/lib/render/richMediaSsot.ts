@@ -1,9 +1,10 @@
-import type { GraphNode } from '@/lib/graph/types'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import {
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { listMediaOverlayNodes, type MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import {
@@ -12,6 +13,7 @@ import {
   buildRichMediaPanelOverlayState,
   resolveRichMediaPanelRenderNode,
 } from '@/lib/render/richMediaPanelState'
+import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 export { buildRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 export type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 
@@ -316,6 +318,118 @@ export function getRichMediaPanelViewTitle(hideFields: boolean): string {
 
 export function isRichMediaPanelNode(node: GraphNode | null | undefined): boolean {
   return String(node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+}
+
+export function isRichMediaConnectedValueTargetNode(args: {
+  node: GraphNode | null | undefined
+  includeMediaSpecNodes?: boolean
+}): boolean {
+  const node = args.node
+  if (!node) return false
+  if (isRichMediaPanelNode(node)) return true
+  return args.includeMediaSpecNodes === true && !!getNodeMediaSpec(node)
+}
+
+export function buildRichMediaConnectedValueTargetNodeIdSet(args: {
+  nodes: ReadonlyArray<GraphNode> | null | undefined
+  extraNodeIds?: ReadonlyArray<string> | ReadonlySet<string> | null | undefined
+  includeMediaSpecNodes?: boolean
+}): Set<string> {
+  const out = new Set<string>()
+  const extraNodeIds = args.extraNodeIds
+  if (Array.isArray(extraNodeIds)) {
+    for (let i = 0; i < extraNodeIds.length; i += 1) {
+      const id = String(extraNodeIds[i] || '').trim()
+      if (id) out.add(id)
+    }
+  } else if (extraNodeIds instanceof Set) {
+    for (const rawId of extraNodeIds) {
+      const id = String(rawId || '').trim()
+      if (id) out.add(id)
+    }
+  }
+
+  const nodes = Array.isArray(args.nodes) ? args.nodes : []
+  const includeMediaSpecNodes = args.includeMediaSpecNodes === true
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    const id = String(node?.id || '').trim()
+    if (!id) continue
+    if (isRichMediaConnectedValueTargetNode({ node, includeMediaSpecNodes })) out.add(id)
+  }
+  return out
+}
+
+export function buildRichMediaPanelOverlayExcludeNodeIdSet(args: {
+  graphData: GraphData | null | undefined
+  nodeById?: ReadonlyMap<string, GraphNode> | null | undefined
+  candidateRawIds?: ReadonlyArray<string> | null | undefined
+  excludeAllRichMediaPanelNodes?: boolean
+}): Set<string> {
+  const out = new Set<string>()
+  const nodes = Array.isArray(args.graphData?.nodes) ? args.graphData.nodes : []
+  if (args.excludeAllRichMediaPanelNodes === true) {
+    for (let i = 0; i < nodes.length; i += 1) {
+      const node = nodes[i]
+      const id = String(node?.id || '').trim()
+      if (!id || !isRichMediaPanelNode(node)) continue
+      out.add(id)
+    }
+  }
+
+  const candidateRawIds = Array.isArray(args.candidateRawIds) ? args.candidateRawIds : []
+  const nodeById = args.nodeById || null
+  for (let i = 0; i < candidateRawIds.length; i += 1) {
+    const rawId = candidateRawIds[i]
+    const id = String(resolveGraphNodeByCanonicalId(args.graphData, rawId)?.id || rawId || '').trim()
+    if (!id || !isRichMediaPanelNode(nodeById?.get(id))) continue
+    out.add(id)
+  }
+  return out
+}
+
+export function resolvePreferredRichMediaPanelNodeId(args: {
+  graphData: GraphData | null | undefined
+  selectedNodeId?: string | null
+  selectedNodeIds?: readonly string[]
+  openWidgetNodeIds?: readonly string[]
+  flowEditorOpenWidgetNodeIds?: readonly string[]
+  nodeById?: ReadonlyMap<string, GraphNode> | null | undefined
+}): string {
+  const graphData = args.graphData
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  if (nodes.length === 0) return ''
+  const nodeById = args.nodeById || new Map(nodes.map(node => [String(node?.id || '').trim(), node] as const))
+
+  const pickFromIds = (ids: readonly string[] | null | undefined): string => {
+    if (!Array.isArray(ids) || ids.length === 0) return ''
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = String(resolveGraphNodeByCanonicalId(graphData, ids[i])?.id || ids[i] || '').trim()
+      if (!id) continue
+      if (isRichMediaPanelNode(nodeById.get(id))) return id
+    }
+    return ''
+  }
+
+  const selectedPrimary = String(resolveGraphNodeByCanonicalId(graphData, args.selectedNodeId)?.id || args.selectedNodeId || '').trim()
+  if (selectedPrimary && isRichMediaPanelNode(nodeById.get(selectedPrimary))) return selectedPrimary
+
+  const selectedMulti = pickFromIds(args.selectedNodeIds)
+  if (selectedMulti) return selectedMulti
+
+  const flowEditorOpenWidget = pickFromIds(args.flowEditorOpenWidgetNodeIds)
+  if (flowEditorOpenWidget) return flowEditorOpenWidget
+
+  const openWidget = pickFromIds(args.openWidgetNodeIds)
+  if (openWidget) return openWidget
+
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]
+    if (!isRichMediaPanelNode(node)) continue
+    const id = String(node?.id || '').trim()
+    if (id) return id
+  }
+  return ''
 }
 
 export function getRichMediaPanelNodeLabel(): string {

@@ -154,10 +154,20 @@ export function AgenticRagNodeInspectorSection({
                 </span>
               </SimpleKeyValueRow>
             )}
+            {selectedAgenticNode.mediaKind && (
+              <SimpleKeyValueRow
+                density="compact"
+                label={<span className="text-gray-600">media.kind</span>}
+              >
+                <span className={`${uiPanelMonospaceTextClass} break-words`}>
+                  {selectedAgenticNode.mediaKind}
+                </span>
+              </SimpleKeyValueRow>
+            )}
             {selectedAgenticNode.mediaUrl && (
               <SimpleKeyValueRow
                 density="compact"
-                label={<span className="text-gray-600">media_url</span>}
+                label={<span className="text-gray-600">media.url</span>}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-all`}>
                   {selectedAgenticNode.mediaUrl}

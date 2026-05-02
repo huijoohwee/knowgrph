@@ -1,5 +1,11 @@
 import type { GraphData } from '@/lib/graph/types'
-import { computeEffectiveFrontmatterMode, isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import {
+  computeEffectiveFrontmatterMode,
+  isFlowEditorFrontmatterDocumentModeRequested,
+  isFrontmatterDocumentModeRequested,
+  isFrontmatterFlowGraph,
+  readFlowchartFrontmatterGraphSource,
+} from '@/lib/graph/frontmatterMode'
 import { filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 
 export function testFrontmatterModeEffectiveNoopWhenNoSeeds() {
@@ -76,5 +82,74 @@ export function testFrontmatterFlowGraphDetectionDoesNotUseWidgetPropertyHeurist
 export function testFrontmatterFlowGraphDetectionReturnsFalseForNullGraphData() {
   if (isFrontmatterFlowGraph(null as unknown as GraphData) !== false) {
     throw new Error('expected frontmatter-flow detection to return false for null graphData during early document restore')
+  }
+}
+
+export function testFlowchartFrontmatterGraphSourceSelectionRespectsMarkdownAndGraphSignals() {
+  const mermaidGraph: GraphData = {
+    type: 'graph',
+    metadata: {},
+    nodes: [
+      { id: 'm1', type: 'MermaidNode', label: 'm1', properties: { mermaidScope: 'frontmatter' } },
+      { id: 'n1', type: 'Entity', label: 'n1', properties: {} },
+    ],
+    edges: [{ id: 'e1', source: 'm1', target: 'n1', label: 'pointsTo', properties: {} }],
+  }
+  const markdownWithFrontmatterMermaid = [
+    '---',
+    'title: Test',
+    'mermaid: true',
+    '---',
+    '',
+    '# Hello',
+  ].join('\n')
+  if (readFlowchartFrontmatterGraphSource({ graphData: mermaidGraph, markdownText: markdownWithFrontmatterMermaid }) !== mermaidGraph) {
+    throw new Error('expected flowchart frontmatter graph source helper to reuse the source graph when markdown and mermaid seeds both exist')
+  }
+  if (readFlowchartFrontmatterGraphSource({ graphData: mermaidGraph, markdownText: '# plain markdown' }) !== null) {
+    throw new Error('expected flowchart frontmatter graph source helper to return null without frontmatter mermaid markdown')
+  }
+
+  const flowGraph: GraphData = {
+    type: 'graph',
+    context: 'frontmatter-flow',
+    metadata: { kind: 'frontmatter-flow' },
+    nodes: [{ id: 'n-flow', type: 'default', label: 'flow node', properties: {} }],
+    edges: [],
+  }
+  if (readFlowchartFrontmatterGraphSource({ graphData: flowGraph, markdownText: markdownWithFrontmatterMermaid }) !== flowGraph) {
+    throw new Error('expected flowchart frontmatter graph source helper to preserve frontmatter-flow graphs directly')
+  }
+}
+
+export function testFrontmatterSemanticRequestNormalizationKeepsExplicitAndImplicitContractsDistinct() {
+  const graphData: GraphData = {
+    type: 'graph',
+    metadata: {},
+    nodes: [{ id: 'm1', type: 'MermaidNode', label: 'm1', properties: { mermaidScope: 'frontmatter' } }],
+    edges: [],
+  }
+  const effectiveImplicitDocument = computeEffectiveFrontmatterMode({
+    frontmatterModeEnabled: true,
+    documentSemanticMode: ' ',
+    graphData,
+  })
+  if (effectiveImplicitDocument !== true) {
+    throw new Error('expected effective frontmatter mode to treat blank semantic mode as document-compatible')
+  }
+  if (isFrontmatterDocumentModeRequested({ frontmatterModeEnabled: true, documentSemanticMode: ' ' }) !== false) {
+    throw new Error('expected explicit frontmatter document-mode request helper to require an explicit document semantic mode')
+  }
+  if (isFrontmatterDocumentModeRequested({ frontmatterModeEnabled: true, documentSemanticMode: ' Document ' }) !== true) {
+    throw new Error('expected frontmatter document-mode request helper to normalize whitespace and casing for document semantic mode')
+  }
+  if (
+    isFlowEditorFrontmatterDocumentModeRequested({
+      canvas2dRenderer: 'flowEditor',
+      frontmatterModeEnabled: true,
+      documentSemanticMode: ' Document ',
+    }) !== true
+  ) {
+    throw new Error('expected flow editor frontmatter document-mode request helper to reuse the shared semantic normalization contract')
   }
 }

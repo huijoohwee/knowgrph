@@ -98,12 +98,7 @@ export default function FlowCanvas({
     renderMediaAsNodes,
     mediaPanelDensity,
     threeIframeOverlayPoolMax,
-    threeIframeOverlayBaseWidthRatioDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMaxPxCompact,
+    overlaySizing,
     canvasRenderMode,
     canvas2dRenderer,
     infiniteCanvasInteractionMode,
@@ -200,12 +195,7 @@ export default function FlowCanvas({
     schema,
     widgetRegistry,
     setLayoutPositionsForMode,
-    threeIframeOverlayBaseWidthRatioDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMaxPxCompact,
+    overlaySizing,
     openWidgetNodeIds,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
@@ -469,12 +459,7 @@ export default function FlowCanvas({
         infiniteCanvasInteractionMode={infiniteCanvasInteractionMode}
         viewportW={viewportW}
         viewportH={viewportH}
-        threeIframeOverlayBaseWidthRatioDefault={threeIframeOverlayBaseWidthRatioDefault}
-        threeIframeOverlayBaseWidthRatioCompact={threeIframeOverlayBaseWidthRatioCompact}
-        threeIframeOverlayBaseWidthMinPxDefault={threeIframeOverlayBaseWidthMinPxDefault}
-        threeIframeOverlayBaseWidthMinPxCompact={threeIframeOverlayBaseWidthMinPxCompact}
-        threeIframeOverlayBaseWidthMaxPxDefault={threeIframeOverlayBaseWidthMaxPxDefault}
-        threeIframeOverlayBaseWidthMaxPxCompact={threeIframeOverlayBaseWidthMaxPxCompact}
+        overlaySizing={overlaySizing}
         flowEditorSurfaceId={flowEditorSurfaceId}
         onPlannedOverlayNodeIdsChange={handlePlannedOverlayNodeIdsChange}
       />

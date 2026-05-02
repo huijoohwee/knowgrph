@@ -96,6 +96,22 @@ export function testWidgetTitleAlignsWithComputingFlowRfSample() {
   })
   if (openAiText !== 'OpenAI Text Widget') throw new Error(`expected OpenAI Text Widget, got ${openAiText}`)
 
+  const openAiTextFromPropsOnly = resolveWidgetNodeTitle({
+    node: makeNode({
+      id: 'text-2b',
+      type: 'TextGeneration',
+      label: 'Text Widget',
+      properties: {
+        chatProvider: 'openai',
+        'flow:widgetTypeId': 'default',
+        'flow:widgetFormId': 'textGeneration.openai',
+      },
+    }),
+  })
+  if (openAiTextFromPropsOnly !== 'OpenAI Text Widget') {
+    throw new Error(`expected OpenAI Text Widget from node widget identity fallback, got ${openAiTextFromPropsOnly}`)
+  }
+
   const seedreamImage = resolveWidgetNodeTitle({
     node: makeNode({ id: 'image-1', type: 'ImageGeneration', label: 'BytePlus Image Widget', properties: { model: 'seedream-4-0-250828' } }),
     registryEntry: {

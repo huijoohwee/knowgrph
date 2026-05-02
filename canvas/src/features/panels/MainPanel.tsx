@@ -29,6 +29,65 @@ const HistoryViewLazy = React.lazy(() => import('@/features/panels/views/History
 const HelpViewLazy = React.lazy(() => import('@/features/panels/views/HelpView'))
 const DashboardViewLazy = React.lazy(() => import('@/features/panels/views/DashboardView'))
 
+type MainPanelSharedActions = {
+  apply?: () => void
+  reset?: () => void
+  globalReset?: () => void
+  collapseAll?: () => void
+  expandAll?: () => void
+  allCollapsed?: boolean
+}
+
+type SharedMainPanelTabKey = 'integrations' | 'mcp' | 'maps' | 'payments' | 'settings'
+
+type SharedMainPanelViewProps = {
+  searchQuery: string
+  requestedAnchorId?: string
+  requestedAnchorSeq?: number
+  onRegisterActions: (next: MainPanelSharedActions) => void
+}
+
+const SHARED_MAIN_PANEL_TABS: SharedMainPanelTabKey[] = ['integrations', 'mcp', 'maps', 'payments', 'settings']
+const DEFAULT_MAIN_PANEL_SHARED_ACTIONS: MainPanelSharedActions = { allCollapsed: true }
+const MAIN_PANEL_SHARED_VIEW_BY_TAB: Record<
+  SharedMainPanelTabKey,
+  React.LazyExoticComponent<React.ComponentType<SharedMainPanelViewProps>>
+> = {
+  integrations: IntegrationsHubViewLazy,
+  mcp: McpHubViewLazy,
+  maps: MapsHubViewLazy,
+  payments: PaymentsHubViewLazy,
+  settings: SettingsViewLazy,
+}
+
+function createMainPanelSharedActionsState(): Record<SharedMainPanelTabKey, MainPanelSharedActions> {
+  return {
+    integrations: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
+    mcp: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
+    maps: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
+    payments: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
+    settings: { ...DEFAULT_MAIN_PANEL_SHARED_ACTIONS },
+  }
+}
+
+function areMainPanelSharedActionsEqual(
+  left: MainPanelSharedActions,
+  right: MainPanelSharedActions,
+): boolean {
+  return (
+    left.apply === right.apply &&
+    left.reset === right.reset &&
+    left.globalReset === right.globalReset &&
+    left.collapseAll === right.collapseAll &&
+    left.expandAll === right.expandAll &&
+    left.allCollapsed === right.allCollapsed
+  )
+}
+
+function isSharedMainPanelTabKey(tab: MainPanelTabKey): tab is SharedMainPanelTabKey {
+  return SHARED_MAIN_PANEL_TABS.includes(tab as SharedMainPanelTabKey)
+}
+
 export default function MainPanel({
   onClose,
   onHeaderDragStart,
@@ -59,46 +118,9 @@ export default function MainPanel({
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
   const [tab, setTab] = React.useState<MainPanelTabKey>('help')
-  const [settingsActions, setSettingsActions] = React.useState<{
-    apply?: () => void
-    reset?: () => void
-    globalReset?: () => void
-    collapseAll?: () => void
-    expandAll?: () => void
-    allCollapsed?: boolean
-  }>({ allCollapsed: true })
-  const [integrationsActions, setIntegrationsActions] = React.useState<{
-    apply?: () => void
-    reset?: () => void
-    globalReset?: () => void
-    collapseAll?: () => void
-    expandAll?: () => void
-    allCollapsed?: boolean
-  }>({ allCollapsed: true })
-  const [mcpActions, setMcpActions] = React.useState<{
-    apply?: () => void
-    reset?: () => void
-    globalReset?: () => void
-    collapseAll?: () => void
-    expandAll?: () => void
-    allCollapsed?: boolean
-  }>({ allCollapsed: true })
-  const [mapsActions, setMapsActions] = React.useState<{
-    apply?: () => void
-    reset?: () => void
-    globalReset?: () => void
-    collapseAll?: () => void
-    expandAll?: () => void
-    allCollapsed?: boolean
-  }>({ allCollapsed: true })
-  const [paymentsActions, setPaymentsActions] = React.useState<{
-    apply?: () => void
-    reset?: () => void
-    globalReset?: () => void
-    collapseAll?: () => void
-    expandAll?: () => void
-    allCollapsed?: boolean
-  }>({ allCollapsed: true })
+  const [sharedActionsByTab, setSharedActionsByTab] = React.useState<Record<SharedMainPanelTabKey, MainPanelSharedActions>>(
+    () => createMainPanelSharedActionsState(),
+  )
 
   const [workflowManagerActions, setWorkflowManagerActions] = React.useState<{
     apply?: () => void
@@ -123,11 +145,22 @@ export default function MainPanel({
       return same ? prev : next
     })
   }, [])
+  const setSharedActionsStable = React.useCallback(
+    (tabKey: SharedMainPanelTabKey, next: MainPanelSharedActions) => {
+      setSharedActionsByTab(prev => {
+        const current = prev[tabKey]
+        if (areMainPanelSharedActionsEqual(current, next)) return prev
+        return { ...prev, [tabKey]: next }
+      })
+    },
+    [],
+  )
   const { lastTraversalSummary } = useGraphStore(
     useShallow(s => ({ lastTraversalSummary: s.lastTraversalSummary })),
   )
   const graphData = useActiveGraphData()
   const activeTabMeta = getMainPanelTabMeta(tab)
+  const activeSharedActions = isSharedMainPanelTabKey(tab) ? sharedActionsByTab[tab] : null
   const searchVisible = searchOpen && mainPanelTabSupportsSearch(tab)
   const searchPlaceholder = activeTabMeta.searchPlaceholder || UI_LABELS.search
   const footerLabel = activeTabMeta.footerLabel
@@ -215,65 +248,25 @@ export default function MainPanel({
               : undefined
           }
           onApply={
-            tab === 'settings'
-              ? settingsActions.apply
-              : tab === 'integrations'
-                ? integrationsActions.apply
-                : tab === 'mcp'
-                  ? mcpActions.apply
-                : tab === 'maps'
-                  ? mapsActions.apply
-                : tab === 'payments'
-                  ? paymentsActions.apply
-              : tab === 'workflowManager'
+            tab === 'workflowManager'
                 ? workflowManagerActions.apply
-                : undefined
+                : activeSharedActions?.apply
           }
           onReset={
-            tab === 'settings'
-              ? settingsActions.reset
-              : tab === 'integrations'
-                ? integrationsActions.reset
-                : tab === 'mcp'
-                  ? mcpActions.reset
-                : tab === 'maps'
-                  ? mapsActions.reset
-                : tab === 'payments'
-                  ? paymentsActions.reset
-              : tab === 'workflowManager'
+            tab === 'workflowManager'
                 ? workflowManagerActions.reset
-                : undefined
+                : activeSharedActions?.reset
           }
           onClose={onClose}
           applyDisabled={
-            tab === 'settings'
-              ? !settingsActions.apply
-              : tab === 'integrations'
-                ? !integrationsActions.apply
-                : tab === 'mcp'
-                  ? !mcpActions.apply
-                : tab === 'maps'
-                  ? !mapsActions.apply
-                : tab === 'payments'
-                  ? !paymentsActions.apply
-              : tab === 'workflowManager'
+            tab === 'workflowManager'
                 ? workflowManagerActions.applyDisabled
-                : true
+                : !activeSharedActions?.apply
           }
           resetDisabled={
-            tab === 'settings'
-              ? !settingsActions.reset
-              : tab === 'integrations'
-                ? !integrationsActions.reset
-                : tab === 'mcp'
-                  ? !mcpActions.reset
-                : tab === 'maps'
-                  ? !mapsActions.reset
-                : tab === 'payments'
-                  ? !paymentsActions.reset
-              : tab === 'workflowManager'
+            tab === 'workflowManager'
                 ? workflowManagerActions.resetDisabled
-                : true
+                : !activeSharedActions?.reset
           }
         />
       }
@@ -305,82 +298,37 @@ export default function MainPanel({
             </React.Suspense>
           )}
         </section>
-        <section className="h-full min-h-0" role="tabpanel" id="main-panel-integrations-panel" aria-labelledby="main-panel-integrations-tab" hidden={tab !== 'integrations'}>
-          {tab === 'integrations' && (
-            <MainPanelBody header={null}>
-              <section
-                className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
-                data-kg-anchor={UI_ANCHORS.settingsPanel}
-              >
-                <React.Suspense fallback={null}>
-                  <IntegrationsHubViewLazy
-                    searchQuery={search}
-                    requestedAnchorId={requestedAnchorId}
-                    requestedAnchorSeq={requestedAnchorSeq}
-                    onRegisterActions={setIntegrationsActions}
-                  />
-                </React.Suspense>
-              </section>
-            </MainPanelBody>
-          )}
-        </section>
-        <section className="h-full min-h-0" role="tabpanel" id="main-panel-mcp-panel" aria-labelledby="main-panel-mcp-tab" hidden={tab !== 'mcp'}>
-          {tab === 'mcp' && (
-            <MainPanelBody header={null}>
-              <section
-                className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
-                data-kg-anchor={UI_ANCHORS.settingsPanel}
-              >
-                <React.Suspense fallback={null}>
-                  <McpHubViewLazy
-                    searchQuery={search}
-                    requestedAnchorId={requestedAnchorId}
-                    requestedAnchorSeq={requestedAnchorSeq}
-                    onRegisterActions={setMcpActions}
-                  />
-                </React.Suspense>
-              </section>
-            </MainPanelBody>
-          )}
-        </section>
-        <section className="h-full min-h-0" role="tabpanel" id="main-panel-maps-panel" aria-labelledby="main-panel-maps-tab" hidden={tab !== 'maps'}>
-          {tab === 'maps' && (
-            <MainPanelBody header={null}>
-              <section
-                className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
-                data-kg-anchor={UI_ANCHORS.settingsPanel}
-              >
-                <React.Suspense fallback={null}>
-                  <MapsHubViewLazy
-                    searchQuery={search}
-                    requestedAnchorId={requestedAnchorId}
-                    requestedAnchorSeq={requestedAnchorSeq}
-                    onRegisterActions={setMapsActions}
-                  />
-                </React.Suspense>
-              </section>
-            </MainPanelBody>
-          )}
-        </section>
-        <section className="h-full min-h-0" role="tabpanel" id="main-panel-payments-panel" aria-labelledby="main-panel-payments-tab" hidden={tab !== 'payments'}>
-          {tab === 'payments' && (
-            <MainPanelBody header={null}>
-              <section
-                className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
-                data-kg-anchor={UI_ANCHORS.settingsPanel}
-              >
-                <React.Suspense fallback={null}>
-                  <PaymentsHubViewLazy
-                    searchQuery={search}
-                    requestedAnchorId={requestedAnchorId}
-                    requestedAnchorSeq={requestedAnchorSeq}
-                    onRegisterActions={setPaymentsActions}
-                  />
-                </React.Suspense>
-              </section>
-            </MainPanelBody>
-          )}
-        </section>
+        {SHARED_MAIN_PANEL_TABS.map(tabKey => {
+          const SharedView = MAIN_PANEL_SHARED_VIEW_BY_TAB[tabKey]
+          return (
+            <section
+              key={tabKey}
+              className="h-full min-h-0"
+              role="tabpanel"
+              id={`main-panel-${tabKey}-panel`}
+              aria-labelledby={`main-panel-${tabKey}-tab`}
+              hidden={tab !== tabKey}
+            >
+              {tab === tabKey && (
+                <MainPanelBody header={null}>
+                  <section
+                    className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
+                    data-kg-anchor={UI_ANCHORS.settingsPanel}
+                  >
+                    <React.Suspense fallback={null}>
+                      <SharedView
+                        searchQuery={search}
+                        requestedAnchorId={requestedAnchorId}
+                        requestedAnchorSeq={requestedAnchorSeq}
+                        onRegisterActions={next => setSharedActionsStable(tabKey, next)}
+                      />
+                    </React.Suspense>
+                  </section>
+                </MainPanelBody>
+              )}
+            </section>
+          )
+        })}
         <section
           className="h-full min-h-0"
           role="tabpanel"
@@ -410,25 +358,6 @@ export default function MainPanel({
             <React.Suspense fallback={null}>
               <PreviewPanelViewLazy />
             </React.Suspense>
-          )}
-        </section>
-        <section className="h-full min-h-0" role="tabpanel" id="main-panel-settings-panel" aria-labelledby="main-panel-settings-tab" hidden={tab !== 'settings'}>
-          {tab === 'settings' && (
-            <MainPanelBody header={null}>
-              <section
-                className={`h-full min-h-0 py-2 ${UI_THEME_TOKENS.text.secondary} ${panelTypography.panelTextClass}`}
-                data-kg-anchor={UI_ANCHORS.settingsPanel}
-              >
-                <React.Suspense fallback={null}>
-                  <SettingsViewLazy
-                    searchQuery={search}
-                    requestedAnchorId={requestedAnchorId}
-                    requestedAnchorSeq={requestedAnchorSeq}
-                    onRegisterActions={setSettingsActions}
-                  />
-                </React.Suspense>
-              </section>
-            </MainPanelBody>
           )}
         </section>
         <section className="h-full min-h-0" role="tabpanel" id="main-panel-history-panel" aria-labelledby="main-panel-history-tab" hidden={tab !== 'history'}>

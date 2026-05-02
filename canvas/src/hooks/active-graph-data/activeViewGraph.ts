@@ -1,10 +1,10 @@
 import type { GraphData } from '@/lib/graph/types'
 import { filterGraphToFrontmatterFlow, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
-import { computeEffectiveFrontmatterMode, isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { computeEffectiveFrontmatterMode, isFrontmatterFlowGraph, readFlowchartFrontmatterGraphSource } from '@/lib/graph/frontmatterMode'
 import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
 import { normalizeCollapsedGroupIds } from '@/lib/canvas/collapsedGroupIdsKey'
-import { buildDocumentSemanticViewModeKey, resolveActiveDocumentViewMode, withActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext, withActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 
 const activeViewGraphCache = new WeakMap<object, Map<string, GraphData>>()
 
@@ -26,6 +26,22 @@ const getCachedDerivedActiveViewGraph = (args: {
   return derived
 }
 
+export function deriveFrontmatterActiveViewGraph(graphData: GraphData): GraphData {
+  const frontmatterGraph = isFrontmatterFlowGraph(graphData)
+    ? filterGraphToFrontmatterFlow(graphData)
+    : filterGraphToFrontmatterMermaid(graphData)
+  return withActiveDocumentViewMode(frontmatterGraph, 'frontmatter')
+}
+
+export function deriveFlowchartFrontmatterActiveViewGraph(args: {
+  graphData: GraphData | null | undefined
+  markdownText: string | null | undefined
+}): GraphData | null {
+  const source = readFlowchartFrontmatterGraphSource(args)
+  if (!source) return null
+  return isFrontmatterFlowGraph(source) ? source : deriveFrontmatterActiveViewGraph(source)
+}
+
 export function deriveGraphDataForActiveView(args: {
   graphData: GraphData
   frontmatterModeEnabled: boolean
@@ -34,19 +50,15 @@ export function deriveGraphDataForActiveView(args: {
   documentStructureBaselineLock: boolean
   collapsedGroupIds: string[]
 }): GraphData {
-  const mode = resolveActiveDocumentViewMode({
+  const documentViewMode = readDocumentViewModeContext({
     frontmatterModeEnabled: args.frontmatterModeEnabled,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled,
     documentSemanticMode: args.documentSemanticMode,
     documentStructureBaselineLock: args.documentStructureBaselineLock,
   })
+  const mode = documentViewMode.activeDocumentViewMode
   const normalizedCollapsedGroupIds = normalizeCollapsedGroupIds(args.collapsedGroupIds)
-  const semanticViewModeKey = buildDocumentSemanticViewModeKey({
-    frontmatterModeEnabled: args.frontmatterModeEnabled,
-    multiDimTableModeEnabled: args.multiDimTableModeEnabled,
-    documentSemanticMode: args.documentSemanticMode,
-    documentStructureBaselineLock: args.documentStructureBaselineLock,
-  })
+  const semanticViewModeKey = documentViewMode.documentSemanticViewModeKey
   const cacheKey = `${semanticViewModeKey}|collapsed:${normalizedCollapsedGroupIds.join('|')}`
   return getCachedDerivedActiveViewGraph({
     graphData: args.graphData,
@@ -64,9 +76,7 @@ export function deriveGraphDataForActiveView(args: {
             graphData: args.graphData,
           })
           if (!effective) return args.graphData
-          return isFrontmatterFlowGraph(args.graphData)
-            ? filterGraphToFrontmatterFlow(args.graphData)
-            : filterGraphToFrontmatterMermaid(args.graphData)
+          return deriveFrontmatterActiveViewGraph(args.graphData)
         }
         return args.graphData
       })()

@@ -40,6 +40,9 @@ import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+
+const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
@@ -62,9 +65,9 @@ export default function PreviewPanelView() {
   const graphData = useActiveGraphRenderData()
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
-  const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry || [])
-  const baseWidgetRegistry = useGraphStore(s => s.widgetRegistry || [])
-  const documentWidgetRegistry = useGraphStore(s => s.documentWidgetRegistry || [])
+  const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
+  const baseWidgetRegistry = useGraphStore(s => s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY)
+  const documentWidgetRegistry = useGraphStore(s => s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
   const rootThemeMode = useRootThemeMode()
 
   const hasMarkdown = !!(markdownText && markdownText.trim())

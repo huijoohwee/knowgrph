@@ -18,7 +18,7 @@ import { useMarkdownSectionLogic } from './hooks/useMarkdownSectionLogic'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
 import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/MarkdownSourceFilesPanel'
+import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/markdownSourceFilesPanelTypes'
 import type { MarkdownSourceFilesIngestIntegration } from '@/features/markdown/ui/MarkdownSourceFilesIngestIntegration'
 
 type JsonMarkdownMode = JsonToMarkdownMode

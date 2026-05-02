@@ -14,6 +14,21 @@ export const DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY: MarkdownWorkspacePaneVi
   viewer: true,
 }
 
+export function resolveMarkdownWorkspacePaneVisibility(args: {
+  layoutMode: MarkdownWorkspaceLayoutMode
+  splitPaneVisibility: MarkdownWorkspacePaneVisibility
+}): MarkdownWorkspacePaneVisibility {
+  const isEditor = args.layoutMode === 'editor'
+  const isSplit = args.layoutMode === 'split'
+  const isViewer = args.layoutMode === 'viewer'
+
+  return {
+    json: (isEditor || isSplit) && args.splitPaneVisibility.json,
+    markdown: isEditor || (isSplit && args.splitPaneVisibility.markdown),
+    viewer: isViewer || (isSplit && args.splitPaneVisibility.viewer) || (isEditor && args.splitPaneVisibility.viewer),
+  }
+}
+
 export type MarkdownWorkspaceMainProps = {
   themeMode: 'light' | 'dark'
   uiPanelTextFontClass: string

@@ -160,16 +160,12 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
     typeof props.media_url === 'string' ||
     typeof props.mediaUrl === 'string' ||
     typeof props.iframe_url === 'string' ||
-    typeof props.iframeUrl === 'string' ||
     typeof props.image === 'string' ||
     typeof props.imageUrl === 'string' ||
     typeof props.video === 'string' ||
     typeof props.videoUrl === 'string' ||
     typeof props.media === 'string'
   if (hasExplicit) score += 100
-
-  const hasLegacy = typeof props.image_url === 'string' || typeof props.video_url === 'string'
-  if (hasLegacy) score += 50
 
   const typeRaw = String(node.type || '').toLowerCase()
   // Keep Rich Media Panel as canonical renderer when media URLs collide with source widgets.

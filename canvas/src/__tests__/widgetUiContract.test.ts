@@ -10,6 +10,8 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   const panelPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorPanel.tsx')
   const formPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorForm.tsx')
   const registryPath = path.resolve(root, 'src', 'components', 'FlowEditor', 'NodeOverlayEditorRegistrySection.tsx')
+  const fieldMutationPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'widgetFieldMutation.ts')
+  const registryTemplatesPath = path.resolve(root, 'src', 'features', 'flow-editor-manager', 'registryTemplates.ts')
 
   const panel = readUtf8(panelPath)
   if (panel.includes('<p')) {
@@ -41,8 +43,8 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   if (form.includes('{entry.widgetTypeId}') || form.includes('{entry.formId}') || form.includes('· {entry.formId}')) {
     throw new Error('Expected Widget Type and Form ID to be hidden from Widget UI labels')
   }
-  if (!form.includes("px-3 py-0")) {
-    throw new Error('Expected Widget form to have zero top/bottom padding')
+  if (!form.includes("'py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden'") || !form.includes("'px-3'")) {
+    throw new Error('Expected Widget form to keep zero top/bottom padding while retaining horizontal gutter padding')
   }
 
   if (form.includes("rowKey: 'smart-")) {
@@ -55,5 +57,33 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   const registry = readUtf8(registryPath)
   if (registry.includes('MAIN_PANEL_OPEN_EVENT')) {
     throw new Error('Expected Widget props panel to forbid opening MainPanel Integrations')
+  }
+  if (!registry.includes('applyConnectedWidgetFieldsToEmptyValues({')) {
+    throw new Error('Expected Widget registry section to delegate connected-field autofill to the shared mutation helper')
+  }
+  if (!registry.includes('applyWidgetFieldValueUpdate({')) {
+    throw new Error('Expected Widget registry section to delegate schema-path field updates to the shared mutation helper')
+  }
+  if (!registry.includes('resolveWidgetRegistryApiDocRef({')) {
+    throw new Error('Expected Widget registry section to delegate API doc resolution to the shared registry helper')
+  }
+  if (!registry.includes('resolveWidgetRegistryMainPanelLink({')) {
+    throw new Error('Expected Widget registry section to delegate port deep-link resolution to the shared registry helper')
+  }
+  if (registry.includes('resolveOpenAiTextWidgetChatApiRowKey(') || registry.includes('resolveBytePlusTextWidgetChatApiRowKey(')) {
+    throw new Error('Expected Widget registry section to stop importing provider-specific text widget API resolvers directly')
+  }
+
+  const fieldMutation = readUtf8(fieldMutationPath)
+  if (!fieldMutation.includes('export function normalizeWidgetFieldSchemaPath')) {
+    throw new Error('Expected widget field schema-path normalization to live in the shared mutation helper')
+  }
+
+  const registryTemplates = readUtf8(registryTemplatesPath)
+  if (!registryTemplates.includes('export function resolveWidgetRegistryApiDocRef')) {
+    throw new Error('Expected registry API doc resolution to live in the shared registry helper module')
+  }
+  if (!registryTemplates.includes('export function resolveWidgetRegistryMainPanelLink')) {
+    throw new Error('Expected registry main-panel deep-link resolution to live in the shared registry helper module')
   }
 }

@@ -8,7 +8,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { applySchemaGroupBoundsOverrides, readSchemaGroupBoundsOverrides } from '@/lib/canvas/groupBoundsOverrides'
 import { SCHEMA_META_KEY_GROUP_BOUNDS_OVERRIDES } from '@/lib/config.render'
-import { buildDocumentSemanticViewModeKey, resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
 export type SceneGroupsDerivation = {
@@ -68,12 +68,13 @@ const buildKey = (args: {
       return ''
     }
   })()
-  const semanticViewModeKey = buildDocumentSemanticViewModeKey({
+  const documentViewMode = readDocumentViewModeContext({
     frontmatterModeEnabled: args.frontmatterModeEnabled === true,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
     documentSemanticMode: String(args.documentSemanticMode || 'document'),
     documentStructureBaselineLock: args.documentStructureBaselineLock === true,
   })
+  const semanticViewModeKey = documentViewMode.documentSemanticViewModeKey
   return [
     revKey,
     layerKey,
@@ -109,14 +110,16 @@ export const deriveSceneGroups = (args: {
   const cached = cache.get(key)
   if (cached) return cached
 
-  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+  const documentViewMode = readDocumentViewModeContext({
     frontmatterModeEnabled: args.frontmatterModeEnabled === true,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
     documentSemanticMode: String(args.documentSemanticMode || 'document'),
     documentStructureBaselineLock: args.documentStructureBaselineLock === true,
   })
   const boundsById = readSchemaGroupBoundsOverrides(args.schema)
-  const allGroupsBase = deriveGraphGroups(g, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
+  const allGroupsBase = deriveGraphGroups(g, {
+    forceDocumentStructure: documentViewMode.forceDocumentStructureGroups,
+  })
   const allGroups = applySchemaGroupBoundsOverrides(allGroupsBase, boundsById)
   const layoutGroupsBase = selectLayoutGroups({ graphData: g, schema: args.schema, groups: allGroups })
   const layoutGroups = applySchemaGroupBoundsOverrides(layoutGroupsBase, boundsById)

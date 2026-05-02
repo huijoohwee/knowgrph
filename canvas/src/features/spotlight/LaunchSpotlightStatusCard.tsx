@@ -23,6 +23,7 @@ type FlowWidgetTraceEntry = {
 
 const FLOW_QE_TRACE_LS_KEY = 'kg:debug:flowEditorWidgetTrace'
 const FLOW_RESET_ZOOM_FLOOR_CACHE_EVENT = 'kg:flow:resetZoomFloorCache'
+const EMPTY_STRING_ARRAY: string[] = []
 
 type LaunchSpotlightStatusCardProps = {
   dismissed: boolean
@@ -40,9 +41,9 @@ export function LaunchSpotlightStatusCard({
   const enableSpotlight = useGraphStore(s => s.enableLaunchSpotlight)
   const graphData = useGraphStore(s => s.graphData)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
-  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])
-  const selectedGroupIds = useGraphStore(s => s.selectedGroupIds || [])
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds ?? EMPTY_STRING_ARRAY)
+  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds ?? EMPTY_STRING_ARRAY)
+  const selectedGroupIds = useGraphStore(s => s.selectedGroupIds ?? EMPTY_STRING_ARRAY)
   const zoomState = useGraphStore(s => s.zoomState)
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
@@ -147,8 +148,7 @@ export function LaunchSpotlightStatusCard({
     ready,
     selector: null,
   })
-
-  if (!enableSpotlight || dismissed || !ready) return null
+  const shouldRender = enableSpotlight && !dismissed && ready
 
   const selectedLabel = (() => {
     if (!graphData || !Array.isArray(graphData.nodes) || !selectedNodeId) return 'None'
@@ -264,7 +264,9 @@ export function LaunchSpotlightStatusCard({
     const last = rows.length > 0 ? rows[rows.length - 1] : null
     const lastOverlayCount = typeof last?.overlayCount === 'number' ? last.overlayCount : 0
     return { drops, spikes, samples: rows.length, lastOverlayCount }
-  }, [devTraceEnabled, graphData?.nodes, graphData?.edges, selectedNodeId, zoomState?.k])
+  }, [devTraceEnabled])
+
+  if (!shouldRender) return null
 
   return (
     <div className="fixed inset-0 z-[2000] pointer-events-none">

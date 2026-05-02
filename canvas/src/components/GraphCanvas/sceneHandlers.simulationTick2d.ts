@@ -11,7 +11,7 @@ import { getNodeRectDimensions2d, getNodeRenderShape2d } from '@/components/Grap
 import { buildNodeShapePathD } from '@/components/GraphCanvas/shapePaths2d'
 import { buildChevronPathD } from '@/components/GraphCanvas/layers/svgChevron'
 import { getEdgeEndpointFromPorts } from '@/components/GraphCanvas/portHandles'
-import { computeOverlayHalfExtentsWorld, normalizeOverlaySizingConfig } from '@/lib/render/overlaySizing2d'
+import { computeOverlayHalfExtentsWorld, readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
 import { computeIdealSpacing2d, computeMaxSpeed2d, readPhysics2dTuning } from '@/lib/graph/physics2dTuning'
 import { buildCanonicalNodeLookup, getCanonicalNodeLookupValue } from '@/lib/graph/canonicalNodeIds'
@@ -87,12 +87,7 @@ export const attachSimulationTick = (args: {
   panelOnlyNodeIdSet?: Set<string> | null
   mediaOverlayNodeIdSet?: Set<string> | null
   mediaPanelDensity?: 'default' | 'compact'
-  overlayBaseWidthRatioDefault?: number
-  overlayBaseWidthRatioCompact?: number
-  overlayBaseWidthMinPxDefault?: number
-  overlayBaseWidthMinPxCompact?: number
-  overlayBaseWidthMaxPxDefault?: number
-  overlayBaseWidthMaxPxCompact?: number
+  overlaySizing?: OverlayDensitySizingConfigInput | null
   beforeRenderFrameRef?: MutableRefObject<(() => void) | null>
   afterRenderFrame?: (args: { alpha: number; tick: number }) => void
 }) => {
@@ -115,12 +110,7 @@ export const attachSimulationTick = (args: {
     panelOnlyNodeIdSet,
     mediaOverlayNodeIdSet,
     mediaPanelDensity,
-    overlayBaseWidthRatioDefault,
-    overlayBaseWidthRatioCompact,
-    overlayBaseWidthMinPxDefault,
-    overlayBaseWidthMinPxCompact,
-    overlayBaseWidthMaxPxDefault,
-    overlayBaseWidthMaxPxCompact,
+    overlaySizing,
     beforeRenderFrameRef,
     afterRenderFrame,
   } = args
@@ -411,14 +401,7 @@ export const attachSimulationTick = (args: {
         (panelOnlyNodeIdSet && panelOnlyNodeIdSet.size > 0) || (mediaOverlayNodeIdSet && mediaOverlayNodeIdSet.size > 0)
       if (!hasSets) return null
       const density: 'default' | 'compact' = mediaPanelDensity === 'compact' ? 'compact' : 'default'
-      const ratio = density === 'compact' ? overlayBaseWidthRatioCompact : overlayBaseWidthRatioDefault
-      const minPx = density === 'compact' ? overlayBaseWidthMinPxCompact : overlayBaseWidthMinPxDefault
-      const maxPx = density === 'compact' ? overlayBaseWidthMaxPxCompact : overlayBaseWidthMaxPxDefault
-      const cfg = normalizeOverlaySizingConfig({
-        widthRatio: Number(ratio),
-        widthMinPx: Number(minPx),
-        widthMaxPx: Number(maxPx),
-      })
+      const cfg = readOverlaySizingConfigForDensity({ density, sizing: overlaySizing || null })
       const key = `${density}|${width}|${height}|${zoomK}|${cfg.widthRatio}|${cfg.widthMinPx}|${cfg.widthMaxPx}`
       if (key === lastOverlayHalfExtentsKey) return lastOverlayHalfExtents
       const out = computeOverlayHalfExtentsWorld({ density, viewportW: width, viewportH: height, zoomK, config: cfg })

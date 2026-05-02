@@ -1301,13 +1301,30 @@ export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<
       if (!url) continue
       const propsRaw = node.properties
       if (!propsRaw || typeof propsRaw !== 'object' || Array.isArray(propsRaw)) {
-        node.properties = { image_url: url }
+        node.properties = {
+          media_kind: 'image',
+          media_url: url,
+          media: url,
+          image: url,
+        }
         continue
       }
       const props = propsRaw as Record<string, unknown>
-      const existing = typeof props.image_url === 'string' ? props.image_url.trim() : typeof props.image === 'string' ? props.image.trim() : ''
+      const existing =
+        typeof props.image === 'string'
+          ? props.image.trim()
+          : typeof props.imageUrl === 'string'
+            ? props.imageUrl.trim()
+            : typeof props.media_url === 'string'
+              ? props.media_url.trim()
+              : typeof props.mediaUrl === 'string'
+                ? props.mediaUrl.trim()
+                : ''
       if (existing) continue
-      props.image_url = url
+      props.media_kind = 'image'
+      props.media_url = url
+      props.media = url
+      props.image = url
     }
   }
 

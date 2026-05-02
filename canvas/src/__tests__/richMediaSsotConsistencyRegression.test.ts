@@ -116,6 +116,7 @@ export function testRichMediaSsotConsistencyRegression() {
   const flowCanvasMediaOverlayText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
   const flowEditorCanvasText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx'), 'utf8')
   const flowEditorCanvasSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'FlowEditorCanvasSurface.tsx'), 'utf8')
+  const flowEditorOverlaySurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx'), 'utf8')
   const d3HookText = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useRichMediaOverlays2d.ts'), 'utf8')
   const d3LayerText = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx'), 'utf8')
   const graphCanvasSceneText = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvas', 'scene.ts'), 'utf8')
@@ -137,14 +138,20 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!flowCanvasGraphStateText.includes("cacheScope: 'flow-canvas-scene-graph'") || !flowCanvasGraphStateText.includes('getCachedGraphLookup({')) {
     throw new Error('expected FlowCanvas graph state to reuse the shared scene-graph lookup helper instead of rebuilding local node maps for Rich Media overlay decisions')
   }
-  if (!flowCanvasGraphStateText.includes("resolveGraphNodeByCanonicalId(sceneGraphData, rawId)?.id")) {
-    throw new Error('expected FlowCanvas to resolve canonical Rich Media widget ids before excluding duplicate overlay panels')
+  if (!flowCanvasGraphStateText.includes('buildRichMediaPanelOverlayExcludeNodeIdSet({')) {
+    throw new Error('expected FlowCanvas to reuse the upstream Rich Media panel overlay exclusion helper')
   }
   if (!flowCanvasGraphStateText.includes('excludeRichMediaOverlayNodeIds?: string[]')) {
     throw new Error('expected FlowCanvas to accept explicit Rich Media overlay exclusion ids from Flow Editor')
   }
   if (!flowCanvasGraphStateText.includes('excludeNodeIdSet: flowEditorRichMediaPanelOverlayExcludeNodeIdSet')) {
     throw new Error('expected FlowCanvas overlay pool to exclude Flow Editor Rich Media panel nodes from duplicate overlay panels')
+  }
+  if (!flowCanvasGraphStateText.includes('buildRichMediaConnectedValueTargetNodeIdSet({')) {
+    throw new Error('expected FlowCanvas graph state to reuse the upstream Rich Media connected-value target helper')
+  }
+  if (!flowCanvasGraphStateText.includes('isRichMediaConnectedValueTargetNode({ node, includeMediaSpecNodes: true })')) {
+    throw new Error('expected FlowCanvas sticky Rich Media overlay validation to reuse the upstream node-level eligibility helper')
   }
   if (!flowCanvasGraphStateText.includes('nodeById: sceneGraphNodeById || undefined')) {
     throw new Error('expected FlowCanvas overlay pool to pass the shared scene-graph lookup through the Rich Media SSOT wrapper')
@@ -155,14 +162,17 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!flowCanvasGraphStateText.includes('const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode')) {
     throw new Error('expected FlowCanvas Flow Editor exclusion to relax blanket Rich Media panel suppression in frontmatter document mode')
   }
-  if (!flowCanvasGraphStateText.includes('if (excludeAllRichMediaPanelNodes && isRichMediaPanelNode(node)) out.add(id)')) {
-    throw new Error('expected FlowCanvas Flow Editor exclusion to keep blanket Rich Media panel suppression only outside frontmatter document mode')
+  if (!flowCanvasGraphStateText.includes('excludeAllRichMediaPanelNodes,')) {
+    throw new Error('expected FlowCanvas Flow Editor exclusion to pass blanket panel suppression through the shared Rich Media exclusion helper')
   }
   if (
     !flowEditorCanvasText.includes('overlayEditorNodeIds')
     || !flowEditorCanvasSurfaceText.includes('excludeRichMediaOverlayNodeIds={props.overlayEditorNodeIds}')
   ) {
     throw new Error('expected FlowEditorCanvas runtime to pass overlay editor node ids through the surface into FlowCanvas Rich Media duplicate exclusion')
+  }
+  if (!flowEditorOverlaySurfaceText.includes('buildRichMediaConnectedValueTargetNodeIdSet({')) {
+    throw new Error('expected FlowEditor overlay surface to reuse the upstream Rich Media connected-value target helper')
   }
   if (!flowCanvasGraphStateText.includes('const useStickyOverlayPool = !flowEditorOverlayInteractionMode && !flowEditorFrontmatterInteractionMode')) {
     throw new Error('expected FlowCanvas Rich Media overlay pool to disable sticky carryover in Flow Editor/frontmatter collective modes')

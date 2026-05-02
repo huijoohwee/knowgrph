@@ -2,10 +2,10 @@ import React from 'react'
 
 import {
   deriveFrontmatterFlowOverlayNodeIds,
+  deriveOpenWidgetOverlayNodeIds,
   FlowEditorWidgetOverlay,
   isCanonicalFrontmatterBuiltInWidgetNode,
   resolveDefaultFlowWidgetPinnedInCanvas,
-  resolveGraphNodeIdByCanonicalId,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
@@ -14,9 +14,9 @@ import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { resolveNodeWidgetIdentity } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import {
   hashScopedStringArraySignature,
@@ -25,7 +25,10 @@ import {
 } from '@/lib/hash/signature'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { isFlowEditorQeTraceEnabled, pushFlowEditorQeTrace } from '@/lib/flowEditor/flowEditorQeTrace'
-import { isRichMediaPanelNode, listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
+import {
+  buildRichMediaConnectedValueTargetNodeIdSet,
+  listDisplayRichMediaOverlayNodes,
+} from '@/lib/render/richMediaSsot'
 
 const EMPTY_GRAPH_NODES: GraphNode[] = []
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
@@ -196,27 +199,13 @@ export function useFlowEditorOverlaySurface(args: {
       return nodes.length > 0 ? lastStableOverlayEditorNodeIdsRef.current : []
     }
     if (flowEditorFrontmatterGraphAvailable) return []
-    const next: string[] = []
-    const seen = new Set<string>()
-    for (let i = 0; i < openWidgetNodeIdsSnapshot.length; i += 1) {
-      const rawId = openWidgetNodeIdsSnapshot[i]
-      const resolvedId = resolveGraphNodeIdByCanonicalId(renderGraphDataOverride, rawId)
-      const s = resolvedId || String(rawId || '').trim()
-      if (!s || seen.has(s)) continue
-      if (renderGraphEligibleNodeIds.size > 0 && !renderGraphEligibleNodeIds.has(s)) continue
-      if (String(nodeById.get(s)?.type || '') === 'Section') continue
-      seen.add(s)
-      next.push(s)
-    }
-    const sel = String(overlayDraftNode?.id || '').trim()
-    if (
-      sel
-      && !seen.has(sel)
-      && (renderGraphEligibleNodeIds.size === 0 || renderGraphEligibleNodeIds.has(sel))
-      && String(nodeById.get(sel)?.type || '') !== 'Section'
-    ) {
-      next.push(sel)
-    }
+    const next = deriveOpenWidgetOverlayNodeIds({
+      graphData: renderGraphDataOverride,
+      openWidgetNodeIds: openWidgetNodeIdsSnapshot,
+      eligibleNodeIds: renderGraphEligibleNodeIds,
+      nodeById,
+      selectedNodeId: overlayDraftNode?.id || null,
+    })
     if (next.length > 0) lastStableOverlayEditorNodeIdsRef.current = next
     return next
   }, [
@@ -369,18 +358,10 @@ export function useFlowEditorOverlaySurface(args: {
     return renderGraphNodes
   }, [frontmatterVisibleSceneDisplay, renderGraphNodes])
   const connectedValueTargetNodeIds = React.useMemo(() => {
-    const targetNodeIds = new Set<string>()
-    for (let i = 0; i < overlayEditorNodeIdsSnapshot.length; i += 1) {
-      const id = overlayEditorNodeIdsSnapshot[i]
-      if (id) targetNodeIds.add(id)
-    }
-    for (let i = 0; i < frontmatterVisibleGraphNodes.length; i += 1) {
-      const node = frontmatterVisibleGraphNodes[i]
-      if (!isRichMediaPanelNode(node)) continue
-      const id = String(node?.id || '').trim()
-      if (id) targetNodeIds.add(id)
-    }
-    return targetNodeIds
+    return buildRichMediaConnectedValueTargetNodeIdSet({
+      nodes: frontmatterVisibleGraphNodes,
+      extraNodeIds: overlayEditorNodeIdsSnapshot,
+    })
   }, [frontmatterVisibleGraphNodes, overlayEditorNodeIdsSnapshot])
   const connectedValuesGraphRevision = flowEditorViewActive ? draftGraphDataRevision : baseGraphDataRevision
   const connectedValuesByNodeId = React.useMemo(() => {
@@ -498,26 +479,18 @@ export function useFlowEditorOverlaySurface(args: {
                 registry: widgetRegistry,
                 graphMetaKind,
               })
-              const widgetTypeId = typeof node.properties?.[FLOW_WIDGET_TYPE_ID_KEY] === 'string'
-                ? String(node.properties[FLOW_WIDGET_TYPE_ID_KEY] || '').trim()
-                : ''
-              const formId = typeof node.properties?.[FLOW_WIDGET_FORM_ID_KEY] === 'string'
-                ? String(node.properties[FLOW_WIDGET_FORM_ID_KEY] || '').trim()
-                : ''
+              const widgetIdentity = resolveNodeWidgetIdentity({ node, registryEntry: resolvedWidgetRegistryEntry })
               const searchQuery = [
                 String(resolvedWidgetRegistryEntry?.id || '').trim(),
                 String(node.type || '').trim(),
-                widgetTypeId,
-                formId,
+                widgetIdentity.widgetTypeId,
+                widgetIdentity.formId,
               ].filter(Boolean).join(' ')
-              const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
-              window.dispatchEvent(new CustomEventCtor(MAIN_PANEL_OPEN_EVENT, {
-                detail: {
-                  tab: 'workflowManager' as const,
-                  workflowManagerTab: 'mapping' as const,
-                  searchQuery,
-                },
-              }))
+              emitMainPanelOpen({
+                tab: 'workflowManager' as const,
+                workflowManagerTab: 'mapping' as const,
+                searchQuery,
+              })
             }}
             onPinnedInCanvasChange={handlePinnedInCanvasChange}
             onRenameSchemaFieldId={({ prevId, nextId }) => renameSchemaFieldIdByNodeId(id, prevId, nextId)}

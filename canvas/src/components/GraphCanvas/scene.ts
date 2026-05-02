@@ -31,12 +31,13 @@ import { pickLayoutPositionsSource } from '@/components/GraphCanvas/layout/posit
 import { applyCollectiveGraphLayout } from '@/components/GraphCanvas/layout/collectiveFit'
 import { detectKeywordGraph } from '@/components/GraphCanvas/layout/graphKind'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { readFitPadding } from '@/lib/graph/layoutDefaults'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 import { createUniqueId } from '@/lib/ids'
+import type { OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import {
   clearGraphCanvasUserInteracted,
   hasGraphCanvasUserInteracted,
@@ -67,12 +68,7 @@ type SetupGraphSceneArgs = {
   mediaOverlayNodeIdSet?: Set<string>
   panelOnlyNodeIdSet?: Set<string>
   mediaPanelDensity: 'default' | 'compact'
-  overlayBaseWidthRatioDefault: number
-  overlayBaseWidthRatioCompact: number
-  overlayBaseWidthMinPxDefault: number
-  overlayBaseWidthMinPxCompact: number
-  overlayBaseWidthMaxPxDefault: number
-  overlayBaseWidthMaxPxCompact: number
+  overlaySizing?: OverlayDensitySizingConfigInput | null
   enableTightInitialLayout?: boolean
   fitToScreenMode?: boolean
   viewportControlsPreset: ViewportControlsPreset
@@ -143,12 +139,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     mediaOverlayNodeIdSet,
     panelOnlyNodeIdSet,
     mediaPanelDensity,
-    overlayBaseWidthRatioDefault,
-    overlayBaseWidthRatioCompact,
-    overlayBaseWidthMinPxDefault,
-    overlayBaseWidthMinPxCompact,
-    overlayBaseWidthMaxPxDefault,
-    overlayBaseWidthMaxPxCompact,
+    overlaySizing,
     fitToScreenMode,
     viewportControlsPreset,
     initialZoomTransform,
@@ -211,12 +202,12 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     preferCurrentGraphDataRefs: true,
   })
   const displayNodeById = display?.nodeById || displayGraphLookup?.nodeById || null
-  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+  const forceDocumentStructure = readDocumentViewModeContext({
     frontmatterModeEnabled: args.frontmatterModeEnabled === true,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
     documentSemanticMode: String(args.documentSemanticMode || 'document'),
     documentStructureBaselineLock: args.documentStructureBaselineLock === true,
-  })
+  }).forceDocumentStructureGroups
   sceneGraphDataRef.current = graphDataForDisplay
   const displayNodes = Array.isArray(graphDataForDisplay.nodes) ? (graphDataForDisplay.nodes as GraphNode[]) : []
   const edgesForDisplayUnsorted = Array.isArray(graphDataForDisplay.edges) ? (graphDataForDisplay.edges as GraphEdge[]) : []
@@ -332,7 +323,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
       ...baseOpts,
       centerMode: 'centroid' as const,
       graphData: graphDataForDisplay,
-      deriveGroupsOptions: { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' },
+      deriveGroupsOptions: { forceDocumentStructure },
     }
     const t = fitAllTransform(nodes, Math.max(1, width), Math.max(1, Math.floor(height)), opts)
     const k = typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : 1
@@ -436,14 +427,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     viewportW: Math.max(1, Math.floor(width)),
     zoomK: typeof initialZoomTransform?.k === 'number' && Number.isFinite(initialZoomTransform.k) ? Math.max(0.001, initialZoomTransform.k) : 1,
     mediaPanelDensity,
-    overlaySizing: {
-      overlayBaseWidthRatioDefault,
-      overlayBaseWidthRatioCompact,
-      overlayBaseWidthMinPxDefault,
-      overlayBaseWidthMinPxCompact,
-      overlayBaseWidthMaxPxDefault,
-      overlayBaseWidthMaxPxCompact,
-    },
+    overlaySizing: overlaySizing || null,
   })
 
   const effectiveSkipInitialLayout = (() => {
@@ -579,7 +563,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     svg.attr('data-kg-layout-frozen', '1')
   }
 
-  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
+  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure })
   const nodeZKeyById = buildNodeZKeyById({ nodes: displayNodes, groups: allGroupsForZOrder })
 
   const groupsLayer = createGroupsLayer({
@@ -793,12 +777,7 @@ export const setupGraphScene = (args: SetupGraphSceneArgs) => {
     panelOnlyNodeIdSet: panelOnlyNodeIdSet || null,
     mediaOverlayNodeIdSet: mediaOverlayNodeIdSet || null,
     mediaPanelDensity,
-    overlayBaseWidthRatioDefault,
-    overlayBaseWidthRatioCompact,
-    overlayBaseWidthMinPxDefault,
-    overlayBaseWidthMinPxCompact,
-    overlayBaseWidthMaxPxDefault,
-    overlayBaseWidthMaxPxCompact,
+    overlaySizing: overlaySizing || null,
     beforeRenderFrameRef,
     afterRenderFrame: ({ alpha, tick }) => {
       if (isMermaidLayout) return
@@ -950,13 +929,13 @@ export const updateGraphSceneNodesPresentation = (args: {
   const graphData = args.sceneGraphDataRef.current
   if (!g || !sim || !graphData) return
 
-  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+  const forceDocumentStructure = readDocumentViewModeContext({
     frontmatterModeEnabled: args.frontmatterModeEnabled === true,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
     documentSemanticMode: String(args.documentSemanticMode || 'document'),
     documentStructureBaselineLock: args.documentStructureBaselineLock === true,
-  })
-  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
+  }).forceDocumentStructureGroups
+  const allGroupsForZOrder = deriveGraphGroups(graphData, { forceDocumentStructure })
   const nodeZKeyById = buildNodeZKeyById({ nodes: Array.isArray(graphData.nodes) ? (graphData.nodes as GraphNode[]) : [], groups: allGroupsForZOrder })
 
   const zoom = args.zoomRef.current
@@ -1063,13 +1042,13 @@ export const updateGraphSceneGroupsPresentation = (args: {
   const edgesForDisplay = display ? display.displayEdges : ([] as GraphEdge[])
 
   const sim = args.simulationRef.current
-  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+  const forceDocumentStructure = readDocumentViewModeContext({
     frontmatterModeEnabled: args.frontmatterModeEnabled === true,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
     documentSemanticMode: String(args.documentSemanticMode || 'document'),
     documentStructureBaselineLock: args.documentStructureBaselineLock === true,
-  })
-  const allGroupsForZOrder = deriveGraphGroups(args.graphData, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
+  }).forceDocumentStructureGroups
+  const allGroupsForZOrder = deriveGraphGroups(args.graphData, { forceDocumentStructure })
   const groupsLayer = createGroupsLayer({
     g,
     graphData: args.graphData,

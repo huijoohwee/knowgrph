@@ -39,7 +39,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { MarkdownFormatAction } from 'grph-shared/markdown/formatting'
-import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/MarkdownSourceFilesPanel'
+import type { MarkdownSourceFilesPanelIntegration } from '@/features/markdown/ui/markdownSourceFilesPanelTypes'
 import type { MarkdownSourceFilesIngestIntegration } from '@/features/markdown/ui/MarkdownSourceFilesIngestIntegration'
 import { CollapsibleToolbar } from '@/components/ui/CollapsibleToolbar'
 

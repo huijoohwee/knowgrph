@@ -1,6 +1,5 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import {
@@ -37,6 +36,10 @@ import {
 } from './markdownWorkspaceRuntime.shared'
 import { pushWorkspaceTextToActiveMarkdownDocument } from './markdownWorkspaceRuntime.io'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
+import {
+  resolveWorkspaceSourceFileInlineText,
+  upsertWorkspaceEntryInlineText,
+} from '@/features/workspace-fs/workspaceInlineText'
 
 export function useMarkdownWorkspaceIndexing(args: {
   active: boolean
@@ -176,32 +179,14 @@ export function useMarkdownWorkspaceIndexing(args: {
           args.setActiveTextProgrammatic(nextText)
           if (sanitized && canUseCachedText) args.patchWorkspaceEntryInlineText(path, nextText)
           if (!canUseCachedText) {
-            const inlineText = nextText.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextText : undefined
-            args.setEntries(prev => {
-              const idx = prev.findIndex(entry => entry.path === path)
-              if (idx >= 0) {
-                const current = prev[idx]
-                if (current.kind !== 'file' || current.text === inlineText) return prev
-                const nextEntries = prev.slice()
-                nextEntries[idx] = { ...current, text: inlineText }
-                return nextEntries
-              }
-              const normalized = normalizeWorkspacePath(path)
-              const parts = normalized.replace(/^\/+/, '').split('/').filter(Boolean)
-              const name = parts[parts.length - 1] || ''
-              const parent = parts.length <= 1 ? WORKSPACE_ROOT_PATH : normalizeWorkspacePath(parts.slice(0, -1).join('/'))
-              const nextEntries = prev.slice()
-              nextEntries.push({
-                path: normalized,
-                parentPath: parent,
-                kind: 'file',
-                name,
-                text: inlineText,
-                updatedAtMs: Date.now(),
-              } satisfies WorkspaceEntry)
-              nextEntries.sort((a, b) => a.path.localeCompare(b.path))
-              return nextEntries
-            })
+            args.setEntries(prev =>
+              upsertWorkspaceEntryInlineText({
+                entries: prev,
+                path,
+                text: nextText,
+                createIfMissing: true,
+              }),
+            )
           }
           pushWorkspaceTextToActiveMarkdownDocument({
             activeDocumentKey: args.activeDocumentKey,
@@ -256,7 +241,7 @@ export function useMarkdownWorkspaceIndexing(args: {
 
               const store = useGraphStore.getState()
               const workspaceSourcePath = `workspace:${path}`
-              const inlineSourceText = nextText.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? nextText : ''
+              const inlineSourceText = resolveWorkspaceSourceFileInlineText(nextText)
               let existingWorkspaceSourceFile = findWorkspaceSourceFileByPath(path)
               const fileId = (() => {
                 if (existingWorkspaceSourceFile) return existingWorkspaceSourceFile.id

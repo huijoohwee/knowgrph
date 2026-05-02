@@ -1,7 +1,7 @@
 import React from 'react'
 
 import Tooltip from '@/features/panels/ui/Tooltip'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { parseIntegrationConfigsJson } from '@/features/integrations/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
@@ -43,15 +43,10 @@ export default function MainPanelFlowEditorManagerHeader(props: {
     [chatEndpointUrl, chatProvider],
   )
   const openChatSettings = React.useCallback(() => {
-    if (typeof window === 'undefined') return
-    window.dispatchEvent(
-      new CustomEvent(MAIN_PANEL_OPEN_EVENT, {
-        detail: {
-          tab: 'settings' as const,
-          searchQuery: 'chat',
-        },
-      }),
-    )
+    emitMainPanelOpen({
+      tab: 'settings' as const,
+      searchQuery: 'chat',
+    })
   }, [])
 
   const tabLabel = workflowMode

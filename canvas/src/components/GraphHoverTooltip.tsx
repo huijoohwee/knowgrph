@@ -18,6 +18,7 @@ import { getNodeLabelFullText2d } from '@/components/GraphCanvas/labelLayout2d'
 import { getEdgeLabelForDisplay } from '@/components/GraphCanvas/edgeDisplay'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
+import { getNodeImagePreviewUrls } from '@/components/GraphCanvas/helpers'
 import { Pin, PinOff, X as CloseIcon } from 'lucide-react'
 import { extractVoxelScores, VOXEL_SCORE_DIMENSIONS } from '@/features/three/voxelStyle'
 
@@ -86,58 +87,6 @@ function firstString(obj: Record<string, unknown> | null | undefined, keys: stri
   return null
 }
 
-function collectImageUrls(obj: Record<string, unknown> | null | undefined): string[] {
-  if (!obj) return []
-  const seen = new Set<string>()
-  const out: string[] = []
-  const rec = obj as Record<string, unknown>
-  const push = (v: unknown) => {
-    const s = typeof v === 'string' ? v.trim() : ''
-    if (!s) return
-    if (seen.has(s)) return
-    seen.add(s)
-    out.push(s)
-  }
-
-  const mdImages = rec.mdImagesJson
-  if (typeof mdImages === 'string' && mdImages.trim()) {
-    try {
-      const parsed = JSON.parse(mdImages) as unknown
-      if (Array.isArray(parsed)) {
-        for (const v of parsed) push(v)
-      }
-    } catch {
-      void 0
-    }
-  } else if (Array.isArray(mdImages)) {
-    for (const v of mdImages) push(v)
-  }
-
-  const arrays = [
-    rec.images,
-    rec.imageUrls,
-    rec.image_urls,
-    rec.media,
-    rec.mediaUrls,
-    rec.thumbnails,
-  ]
-  for (const arr of arrays) {
-    if (!Array.isArray(arr)) continue
-    for (const v of arr) push(v)
-  }
-
-  const singles = [
-    rec.image,
-    rec.image_url,
-    rec.media_url,
-    rec.thumbnail,
-    rec.thumbnail_url,
-    rec.hero_image,
-  ]
-  for (const v of singles) push(v)
-  return out
-}
-
 function buildHoverDescription(node: GraphNode): string {
   const props = (node.properties || {}) as unknown as Record<string, unknown>
   const meta = (node.metadata || {}) as unknown as Record<string, unknown>
@@ -149,9 +98,7 @@ function buildHoverDescription(node: GraphNode): string {
 }
 
 function buildHoverImageInfo(node: GraphNode): { imageSrc: string | null; imageCount: number } {
-  const props = (node.properties || {}) as unknown as Record<string, unknown>
-  const meta = (node.metadata || {}) as unknown as Record<string, unknown>
-  const urls = [...collectImageUrls(props), ...collectImageUrls(meta)].filter(Boolean).slice(0, 8)
+  const urls = getNodeImagePreviewUrls(node)
   return { imageSrc: urls.length > 0 ? urls[0] : null, imageCount: urls.length }
 }
 
@@ -260,7 +207,7 @@ function buildNodeContent(
       {showProps && sorted.length > 0 && (
         <div className="mt-1 space-y-0.5">
           {sorted.slice(0, 4).map(([k, v]) => {
-            if (k === 'description' || k === 'chunk_text' || k === 'mdSectionMarkdown' || k === 'mdImagesJson') return null
+            if (k === 'description' || k === 'chunk_text' || k === 'mdSectionMarkdown') return null
             const spec = getNodePropSpec(schema, node.type, k)
             const description = spec && typeof spec.description === 'string' ? spec.description.trim() : ''
             const badges = summarizePropertySpec(spec)

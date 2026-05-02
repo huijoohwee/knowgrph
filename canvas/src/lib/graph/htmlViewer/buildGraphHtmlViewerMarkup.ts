@@ -11,7 +11,9 @@ import { extractNodePosByIdFromSvgMarkup } from '@/lib/graph/svgNodePos'
 import { ensureSvgHasEdgeGeometry } from '@/lib/graph/svgEdgeGeometry'
 import { deriveMarkdownDesignLayoutFromGraphBlocks } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { computeMarkdownAnchorNodeIdByBlockId } from '@/lib/render/markdownPanelOverlayPool'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
+import type { OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
+import { readOverlaySizingConfigForDensity } from '@/lib/render/overlaySizing2d'
 import {
   decodeRepoFileUrlToRelPath,
   inlineRepoFileUrlToDataUrl,
@@ -413,12 +415,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
   viewportHeightPx?: number
   viewportScaleToFit?: boolean
   enableDecorativeAnimation?: boolean
-  threeIframeOverlayBaseWidthRatioDefault?: number
-  threeIframeOverlayBaseWidthRatioCompact?: number
-  threeIframeOverlayBaseWidthMinPxDefault?: number
-  threeIframeOverlayBaseWidthMinPxCompact?: number
-  threeIframeOverlayBaseWidthMaxPxDefault?: number
-  threeIframeOverlayBaseWidthMaxPxCompact?: number
+  overlaySizing?: OverlayDensitySizingConfigInput | null
   zoomMinK?: number
   zoomMaxK?: number
   wheelBehavior?: 'pan' | 'zoom' | 'preset'
@@ -722,24 +719,14 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const mediaPanelPadding = density === 'compact' ? 6 : 8
   const mediaPanelTitleSize = density === 'compact' ? 11 : 12
   const mediaPanelHeaderGap = 8
-  const widthRatioDefault = isFiniteNum(args.threeIframeOverlayBaseWidthRatioDefault)
-    ? Math.max(0.001, args.threeIframeOverlayBaseWidthRatioDefault)
-    : 0.2
-  const widthRatioCompact = isFiniteNum(args.threeIframeOverlayBaseWidthRatioCompact)
-    ? Math.max(0.001, args.threeIframeOverlayBaseWidthRatioCompact)
-    : 0.2
-  const widthMinDefault = isFiniteNum(args.threeIframeOverlayBaseWidthMinPxDefault)
-    ? Math.max(1, Math.floor(args.threeIframeOverlayBaseWidthMinPxDefault))
-    : 210
-  const widthMinCompact = isFiniteNum(args.threeIframeOverlayBaseWidthMinPxCompact)
-    ? Math.max(1, Math.floor(args.threeIframeOverlayBaseWidthMinPxCompact))
-    : 210
-  const widthMaxDefault = isFiniteNum(args.threeIframeOverlayBaseWidthMaxPxDefault)
-    ? Math.max(1, Math.floor(args.threeIframeOverlayBaseWidthMaxPxDefault))
-    : 360
-  const widthMaxCompact = isFiniteNum(args.threeIframeOverlayBaseWidthMaxPxCompact)
-    ? Math.max(1, Math.floor(args.threeIframeOverlayBaseWidthMaxPxCompact))
-    : 360
+  const overlaySizingDefault = readOverlaySizingConfigForDensity({ density: 'default', sizing: args.overlaySizing || null })
+  const overlaySizingCompact = readOverlaySizingConfigForDensity({ density: 'compact', sizing: args.overlaySizing || null })
+  const widthRatioDefault = overlaySizingDefault.widthRatio
+  const widthRatioCompact = overlaySizingCompact.widthRatio
+  const widthMinDefault = overlaySizingDefault.widthMinPx
+  const widthMinCompact = overlaySizingCompact.widthMinPx
+  const widthMaxDefault = overlaySizingDefault.widthMaxPx
+  const widthMaxCompact = overlaySizingCompact.widthMaxPx
 
   const mediaNodesBase = (() => {
     if (args.includeRichMediaOverlays !== true) return []
@@ -867,17 +854,17 @@ export async function buildGraphHtmlViewerMarkup(args: {
     }
     const meta = (graph.metadata || {}) as Record<string, unknown>
     const isKeywordGraph = meta.kind === 'keyword'
-    const activeDocumentViewMode = resolveActiveDocumentViewMode({
+    const forceDocumentStructure = readDocumentViewModeContext({
       frontmatterModeEnabled: false,
       multiDimTableModeEnabled: false,
       documentSemanticMode: isKeywordGraph ? 'keyword' : 'document',
       documentStructureBaselineLock: false,
-    })
+    }).forceDocumentStructureGroups
     const view = meta['kg:view'] && typeof meta['kg:view'] === 'object' && !Array.isArray(meta['kg:view']) ? (meta['kg:view'] as Record<string, unknown>) : null
     const collapsedIds = view && Array.isArray(view.collapsedGroupIds) ? (view.collapsedGroupIds as unknown[]) : []
     const collapsedSet = new Set<string>(collapsedIds.map(x => String(x || '').trim()).filter(Boolean))
     const groups = filterGroupsByCollapsedAncestors({
-      groups: deriveGraphGroups(graph, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' }),
+      groups: deriveGraphGroups(graph, { forceDocumentStructure }),
       collapsedGroupIdSet: collapsedSet,
     })
     const out: Record<string, string[]> = {}

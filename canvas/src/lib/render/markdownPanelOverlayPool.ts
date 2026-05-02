@@ -4,6 +4,13 @@ import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 
+export type MarkdownPanelLineRanges = {
+  table: ReadonlySet<number>
+  code: ReadonlySet<number>
+  blockquote: ReadonlySet<number>
+  iframe: ReadonlySet<number>
+}
+
 function readLineStart(n: GraphNode): number | null {
   const meta = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata) ? (n.metadata as Record<string, unknown>) : null
   const raw = meta ? meta.lineStart : null
@@ -106,5 +113,68 @@ export function buildPanelOnlyNodeIdSetFromGraphNodes(nodes: GraphNode[]): Set<s
     }
     if (isPanelOnlyParagraphNode(n)) out.add(id)
   }
+  return out
+}
+
+export function buildMarkdownIframeNodeIdSetFromGraphNodes(args: {
+  nodes: GraphNode[]
+  iframeLineStarts: ReadonlySet<number> | null | undefined
+}): Set<string> {
+  const out = new Set<string>()
+  const nodes = Array.isArray(args.nodes) ? args.nodes : []
+  const iframeLineStarts = args.iframeLineStarts || null
+  if (nodes.length === 0 || !iframeLineStarts || iframeLineStarts.size === 0) return out
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]!
+    const id = String(node?.id || '').trim()
+    if (!id) continue
+    const lineStart = readLineStart(node)
+    if (lineStart == null || !iframeLineStarts.has(lineStart)) continue
+    const spec = getNodeMediaSpec(node)
+    if (spec?.kind === 'iframe') out.add(id)
+  }
+  return out
+}
+
+export function buildMarkdownMatchedBlockNodeIdSetFromGraphNodes(args: {
+  nodes: GraphNode[]
+  lineRanges: MarkdownPanelLineRanges | null | undefined
+  includeIframeRanges?: boolean
+  requireBlockNodeIds?: boolean
+}): Set<string> {
+  const out = new Set<string>()
+  const nodes = Array.isArray(args.nodes) ? args.nodes : []
+  const lineRanges = args.lineRanges || null
+  if (nodes.length === 0 || !lineRanges) return out
+  const includeIframeRanges = args.includeIframeRanges !== false
+  const requireBlockNodeIds = args.requireBlockNodeIds === true
+
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]!
+    const id = String(node?.id || '').trim()
+    if (!id) continue
+    if (requireBlockNodeIds && !id.startsWith('blk:')) continue
+
+    const lineStart = readLineStart(node)
+    if (lineStart == null) continue
+
+    const typeLower = String(node.type || '').trim().toLowerCase()
+    if (typeLower === 'table' && lineRanges.table.has(lineStart)) {
+      out.add(id)
+      continue
+    }
+    if (typeLower === 'codeblock' && lineRanges.code.has(lineStart)) {
+      out.add(id)
+      continue
+    }
+    if (typeLower === 'paragraph' && lineRanges.blockquote.has(lineStart)) {
+      out.add(id)
+      continue
+    }
+    if (!includeIframeRanges || !lineRanges.iframe.has(lineStart)) continue
+    const spec = getNodeMediaSpec(node)
+    if (spec?.kind === 'iframe') out.add(id)
+  }
+
   return out
 }

@@ -2,7 +2,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import { loadWorkspaceSourceIndex, type WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import {
+  resolveWorkspaceSourceIndexSnapshot,
+  type WorkspaceSourceIndex,
+} from '@/features/workspace-fs/sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
@@ -96,7 +99,7 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
     fs,
     workspaceEntries: args?.workspaceEntries,
   })
-  const sourcesByPath = args?.sourcesByPath || loadWorkspaceSourceIndex()
+  const sourcesByPath = resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath)
   const store = useGraphStore.getState()
   const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
   const merged = mergeWorkspaceEntriesIntoSourceFiles({

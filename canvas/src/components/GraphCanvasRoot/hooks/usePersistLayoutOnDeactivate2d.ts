@@ -6,7 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildLayoutPositionCacheKey, buildLayoutViewKey, computeLayoutDatasetKey } from '@/components/GraphCanvas/layout/positioning'
-import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
@@ -51,12 +51,12 @@ export function usePersistLayoutOnDeactivate2d(args: {
       documentSemanticMode: semanticModeBase as 'document' | 'keyword',
       graphData: graphDataForView,
     })
-    const semanticModeKey = buildDocumentSemanticModeKey({
+    const semanticModeKey = readDocumentViewModeContext({
       frontmatterModeEnabled: frontmatter,
       multiDimTableModeEnabled: state.multiDimTableModeEnabled === true,
       documentSemanticMode: semanticModeBase,
       documentStructureBaselineLock: state.documentStructureBaselineLock === true,
-    })
+    }).documentSemanticModeKey
     const datasetKey = computeLayoutDatasetKey({
       graphData: graphDataForView as unknown as { metadata?: unknown; nodes?: Array<{ type?: unknown; properties?: unknown; metadata?: unknown }> } | null,
       graphDataRevision: state.graphDataRevision || 0,

@@ -12,7 +12,16 @@ import {
 } from '@/lib/graph/visualStyles'
 import { readGlobalEdgeThicknessPx } from '@/lib/graph/edgeTypes'
 import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
-export { getNodeMediaSpec, hasNodeMedia, type NodeMediaKind, type NodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
+export {
+  buildNodeMediaInventory,
+  getNodeImagePreviewUrls,
+  getNodeMediaSpec,
+  hasNodeMedia,
+  type NodeMediaInventory,
+  type NodeMediaInventoryRow,
+  type NodeMediaKind,
+  type NodeMediaSpec,
+} from '@/lib/canvas/graph-elements/mediaSpec'
 
 export function create2dSvgSnapshotFns(
   svgRef: RefObject<SVGSVGElement | null>,

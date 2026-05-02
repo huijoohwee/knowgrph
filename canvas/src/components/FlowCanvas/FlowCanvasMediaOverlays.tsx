@@ -31,6 +31,7 @@ import {
 import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
+import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { hashSignatureParts } from '@/lib/hash/signature'
 
@@ -114,12 +115,7 @@ export default function FlowCanvasMediaOverlays(args: {
   infiniteCanvasInteractionMode: 'static' | 'interactive'
   viewportW: number
   viewportH: number
-  threeIframeOverlayBaseWidthRatioDefault?: number
-  threeIframeOverlayBaseWidthRatioCompact?: number
-  threeIframeOverlayBaseWidthMinPxDefault?: number
-  threeIframeOverlayBaseWidthMinPxCompact?: number
-  threeIframeOverlayBaseWidthMaxPxDefault?: number
-  threeIframeOverlayBaseWidthMaxPxCompact?: number
+  overlaySizing?: OverlayDensitySizingConfigInput | null
   flowEditorSurfaceId?: string
   onPlannedOverlayNodeIdsChange: (ids: string[]) => void
 }) {
@@ -146,12 +142,7 @@ export default function FlowCanvasMediaOverlays(args: {
     infiniteCanvasInteractionMode,
     viewportW,
     viewportH,
-    threeIframeOverlayBaseWidthRatioDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMaxPxCompact,
+    overlaySizing,
     flowEditorSurfaceId,
     onPlannedOverlayNodeIdsChange,
   } = args
@@ -295,7 +286,7 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaLayoutItemsKey = React.useMemo(() => mediaLayoutItems.map(item => item.id).join('|'), [mediaLayoutItems])
   const mediaLayoutPropsSignature = React.useMemo(
     () => readMediaLayoutNodePropsSignature(mediaLayoutItemIds, sceneGraphData),
-    [mediaLayoutItemIdsKey, mediaLayoutItemIds, sceneGraphData],
+    [mediaLayoutItemIds, sceneGraphData],
   )
   const sceneGraphDataRevision = React.useMemo(() => readGraphDataRevision(sceneGraphData), [sceneGraphData])
 
@@ -444,12 +435,7 @@ export default function FlowCanvasMediaOverlays(args: {
       return headerRect && Number.isFinite(headerRect.height) ? headerRect.height : 0
     })()
     const headerWorldH = Math.max(0, headerPx / Math.max(0.001, scale))
-    const store = useGraphStore.getState() as { graphData?: { nodes?: Array<{ id?: unknown; properties?: unknown }> } }
-    const node = store.graphData?.nodes?.find(entry => String(entry?.id || '') === id) || null
-    const baseProps =
-      node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
-        ? (node.properties as Record<string, unknown>)
-        : {}
+    const baseProps = sceneNodePropsByIdRef.current.get(id) || {}
     const storedW = Number(baseProps['visual:width'])
     const storedH = Number(baseProps['visual:height'])
     const startW = Number.isFinite(storedW) && storedW > 0 ? Math.max(24, Math.round(storedW)) : Math.max(24, Math.round(measuredW / Math.max(0.001, scale)))
@@ -503,7 +489,7 @@ export default function FlowCanvasMediaOverlays(args: {
       }
     }
     if (changed) mediaOverlayLayoutScheduleRef.current?.()
-  }, [flowEditorOverlayInteractionMode, mediaLayoutPropsSignature, sceneGraphDataRevision])
+  }, [flowEditorOverlayInteractionMode, mediaLayoutPropsSignature, sceneGraphData?.nodes, sceneGraphDataRevision])
 
   React.useEffect(() => {
     if (!active) return
@@ -528,9 +514,7 @@ export default function FlowCanvasMediaOverlays(args: {
     }
     const stableMediaLayoutItems = mediaLayoutItemsKey ? mediaLayoutItemsKey.split('|').filter(Boolean).map(id => ({ id })) : []
     const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
-    const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
-    const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
-    const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+    const sizingConfig = readOverlaySizingConfigForDensity({ density, sizing: overlaySizing || null })
     const loop = startMediaOverlayLayoutLoop2d({
       enabled: true,
       loop: 'onDemand',
@@ -594,9 +578,9 @@ export default function FlowCanvasMediaOverlays(args: {
           }
         : { enabled: true },
       sizingConfig: {
-        widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
-        widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,
-        widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360,
+        widthRatio: sizingConfig.widthRatio,
+        widthMinPx: sizingConfig.widthMinPx,
+        widthMaxPx: sizingConfig.widthMaxPx,
         quantizeStepPx: flowEditorFrontmatterDocumentModeRequested ? 1 : 16,
       },
       clampToViewport: { margin: 16 },
@@ -619,12 +603,7 @@ export default function FlowCanvasMediaOverlays(args: {
     queryActiveFlowEditorOverlays,
     runtimeRef,
     schema,
-    threeIframeOverlayBaseWidthMaxPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthRatioDefault,
+    overlaySizing,
     viewportH,
     viewportW,
   ])
@@ -742,12 +721,8 @@ export default function FlowCanvasMediaOverlays(args: {
               mediaOverlayResizeRef.current = null
               if (!workspaceOverlayOpenRef.current) {
                 try {
-                  const store = useGraphStore.getState() as { graphData?: { nodes?: Array<{ id?: unknown; properties?: unknown }> }; updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void }
-                  const currentNode = store.graphData?.nodes?.find(entry => String(entry?.id || '') === node.id) || null
-                  const baseProps =
-                    currentNode?.properties && typeof currentNode.properties === 'object' && !Array.isArray(currentNode.properties)
-                      ? (currentNode.properties as Record<string, unknown>)
-                      : {}
+                  const store = useGraphStore.getState() as { updateNode?: (id: string, updates: { properties: Record<string, unknown> }) => void }
+                  const baseProps = sceneNodePropsByIdRef.current.get(node.id) || {}
                   store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })
                 } catch {
                   void 0

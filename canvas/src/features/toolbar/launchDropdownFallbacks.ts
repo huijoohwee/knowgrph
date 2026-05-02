@@ -1,81 +1,18 @@
 import type { UiToastInput } from '@/hooks/store/types'
-import type { WorkspaceImportResult } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/types'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
-import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
-
 type PushUiToast = (toast: UiToastInput) => void
-
-async function applyWorkspaceImportToCanvasIfAvailable(args: {
-  fs: WorkspaceFs
-  createdPaths: string[]
-}): Promise<void> {
-  try {
-    const { applyWorkspaceImportToCanvas } = (await import(
-      '@/features/workspace-fs/applyWorkspaceImportToCanvas'
-    )) as typeof import('@/features/workspace-fs/applyWorkspaceImportToCanvas')
-    await applyWorkspaceImportToCanvas(args)
-  } catch {
-    void 0
-  }
-}
 
 async function focusFirstImportedWorkspaceFile(args: {
   fs: WorkspaceFs
   createdPaths: string[]
 }): Promise<void> {
-  const createdPaths = Array.isArray(args.createdPaths) ? args.createdPaths.map(p => String(p || '').trim()).filter(Boolean) : []
-  if (createdPaths.length === 0) return
   try {
-    const [
-      { workspaceBasename, workspaceDocumentKey },
-      { normalizeMermaidMmdToMarkdown },
-      { pickFirstCreatedFilePathForImportFocus },
-      { hydrateWorkspaceFileFromPendingLocalImport },
-    ] = await Promise.all([
-      import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
-      import('grph-shared/markdown/mermaidInput') as Promise<typeof import('grph-shared/markdown/mermaidInput')>,
-      import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions') as Promise<
-        typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
-      >,
-      import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<
-        typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')
-      >,
-    ])
-
-    const firstPath = (await pickFirstCreatedFilePathForImportFocus(args.fs as unknown as any, createdPaths)) || ''
-    if (!firstPath) return
-
-    const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path: firstPath }).catch(() => null)
-    const text = String((hydrated?.text || (await args.fs.readFileText(firstPath).catch(() => ''))) || '')
-    const docKey = workspaceDocumentKey(firstPath)
-    const name = docKey || workspaceBasename(firstPath) || firstPath
-    const state = useGraphStore.getState()
-    const normalizedPath = firstPath as WorkspacePath
-    try {
-      useMarkdownExplorerStore.getState().setActivePath(normalizedPath)
-    } catch {
-      try {
-        useMarkdownExplorerStore.setState({
-          activePath: normalizedPath,
-          lastSetActivePath: { path: normalizedPath, atMs: Date.now() },
-        })
-      } catch {
-        void 0
-      }
-    }
-
-    await state.setActiveMarkdownDocument({
-      name,
-      text: normalizeMermaidMmdToMarkdown(name, text),
-      normalizeMermaidMmd: false,
-      sourceUrl: null,
-      jsonSourceText: null,
-      applyToGraph: false,
-    })
-
+    const { activateFirstImportedWorkspaceFile } = (await import(
+      '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions'
+    )) as typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
+    await activateFirstImportedWorkspaceFile(args)
   } catch {
     void 0
   }
@@ -101,7 +38,7 @@ export async function importLocalFilesFallback(args: {
       { runWorkspaceFsChangedBatch },
       { bulkSetWorkspaceEntrySources },
       { importWorkspaceLocalFiles },
-      { normalizeWorkspaceImportResult },
+      { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult },
     ] =
       await Promise.all([
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
@@ -125,7 +62,7 @@ export async function importLocalFilesFallback(args: {
       }),
     ))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
-    await applyWorkspaceImportToCanvasIfAvailable({ fs, createdPaths: res.createdPaths })
+    await applyWorkspaceImportToCanvasBestEffort({ fs, createdPaths: res.createdPaths })
     await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
     args.pushUiToast({
       id: 'launch:import:localFiles',
@@ -158,7 +95,7 @@ export async function importLocalFolderFallback(args: {
       { runWorkspaceFsChangedBatch },
       { bulkSetWorkspaceEntrySources },
       { importWorkspaceLocalFolder },
-      { normalizeWorkspaceImportResult },
+      { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult },
     ] =
       await Promise.all([
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
@@ -175,7 +112,7 @@ export async function importLocalFolderFallback(args: {
     await fs.ensureSeed()
     const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot })))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
-    await applyWorkspaceImportToCanvasIfAvailable({ fs, createdPaths: res.createdPaths })
+    await applyWorkspaceImportToCanvasBestEffort({ fs, createdPaths: res.createdPaths })
     await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
     args.pushUiToast({
       id: 'launch:import:folder',
@@ -210,7 +147,7 @@ export async function importUrlFallback(args: {
       { runWorkspaceFsChangedBatch },
       { bulkSetWorkspaceEntrySources },
       { importWorkspaceUrl },
-      { normalizeWorkspaceImportResult },
+      { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult },
     ] =
       await Promise.all([
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
@@ -238,7 +175,7 @@ export async function importUrlFallback(args: {
       }),
     ))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
-    await applyWorkspaceImportToCanvasIfAvailable({ fs, createdPaths: res.createdPaths })
+    await applyWorkspaceImportToCanvasBestEffort({ fs, createdPaths: res.createdPaths })
     await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
     args.pushUiToast({
       id: toastId,

@@ -64,6 +64,18 @@ export function loadWorkspaceSourceIndex(): WorkspaceSourceIndex {
   return loaded
 }
 
+export function readReusableWorkspaceSourceIndexSnapshot(
+  sourcesByPath: WorkspaceSourceIndex | null | undefined,
+): WorkspaceSourceIndex | undefined {
+  return sourcesByPath && typeof sourcesByPath === 'object' ? sourcesByPath : undefined
+}
+
+export function resolveWorkspaceSourceIndexSnapshot(
+  sourcesByPath: WorkspaceSourceIndex | null | undefined,
+): WorkspaceSourceIndex {
+  return readReusableWorkspaceSourceIndexSnapshot(sourcesByPath) || loadWorkspaceSourceIndex()
+}
+
 export function setWorkspaceEntrySource(path: WorkspacePath, source: WorkspaceEntrySource | null): WorkspaceSourceIndex {
   const key = normalizeWorkspacePath(path)
   if (!key) return loadWorkspaceSourceIndex()

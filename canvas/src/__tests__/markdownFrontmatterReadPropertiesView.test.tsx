@@ -1,11 +1,13 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 const tick = async () => {
-  await new Promise<void>(resolve => setTimeout(resolve, 0))
+  await act(async () => {
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+  })
 }
 
 export async function testMarkdownFrontmatterReadRendersClickablePropertyChips() {
@@ -33,22 +35,25 @@ export async function testMarkdownFrontmatterReadRendersClickablePropertyChips()
       '',
       'Meeting at {{venue}}',
     ].join('\n')
-    root.render(
-      <MarkdownPreview
-        markdownText={markdownText}
-        activeDocumentPath="docs/frontmatter.md"
-        highlightedLineRange={null}
-        markdownWordWrap
-        markdownPresentationMode={false}
-        markdownTextHighlight={false}
-        uiPanelTextFontClass="font-sans text-xs"
-        uiPanelMonospaceTextClass="font-mono text-xs"
-        previewOverlayScope="container"
-        previewOverlayPortalTarget={null}
-        previewScrollable
-        onShowInEditor={(line) => calls.push(line)}
-      />,
-    )
+    await act(async () => {
+      root.render(
+        <MarkdownPreview
+          markdownText={markdownText}
+          activeDocumentPath="docs/frontmatter.md"
+          highlightedLineRange={null}
+          markdownWordWrap
+          markdownPresentationMode={false}
+          markdownTextHighlight={false}
+          uiPanelTextFontClass="font-sans text-xs"
+          uiPanelMonospaceTextClass="font-mono text-xs"
+          previewOverlayScope="container"
+          previewOverlayPortalTarget={null}
+          previewScrollable
+          onShowInEditor={(line) => calls.push(line)}
+        />,
+      )
+      await new Promise<void>(resolve => setTimeout(resolve, 0))
+    })
     await tick()
     await tick()
     const propertiesPanel = dom.window.document.querySelector('[data-kg-frontmatter-properties]') as HTMLElement | null
@@ -72,14 +77,27 @@ export async function testMarkdownFrontmatterReadRendersClickablePropertyChips()
       const allCellTexts = Array.from(propertiesPanel.querySelectorAll('td')).map(el => String(el.textContent || '').trim())
       throw new Error(`expected authors array to follow multi-dimensional table backtick JSON array convention; cells=${JSON.stringify(allCellTexts)}`)
     }
-    venueCell.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+    await act(async () => {
+      venueCell.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      await new Promise<void>(resolve => setTimeout(resolve, 0))
+    })
     await tick()
     if (calls[0] !== 6) throw new Error(`expected venue row click to reveal frontmatter line 6, got ${JSON.stringify(calls)}`)
-    const mermaidDiagram = dom.window.document.querySelector('[aria-label="Mermaid diagram"]') as HTMLElement | null
-    if (!mermaidDiagram) throw new Error('expected mermaid frontmatter to keep using mermaid code block renderer')
+    let mermaidDiagram = dom.window.document.querySelector('[aria-label="Mermaid diagram"]') as HTMLElement | null
+    let mermaidGate = dom.window.document.querySelector('[data-kg-mermaid-visibility-gate]') as HTMLElement | null
+    for (let i = 0; i < 8 && !mermaidDiagram && !mermaidGate; i += 1) {
+      await tick()
+      mermaidDiagram = dom.window.document.querySelector('[aria-label="Mermaid diagram"]') as HTMLElement | null
+      mermaidGate = dom.window.document.querySelector('[data-kg-mermaid-visibility-gate]') as HTMLElement | null
+    }
+    if (!mermaidDiagram && !mermaidGate) {
+      throw new Error('expected mermaid frontmatter to keep using mermaid code block renderer')
+    }
   } finally {
     try {
-      root?.unmount()
+      await act(async () => {
+        root?.unmount()
+      })
     } catch {
       void 0
     }

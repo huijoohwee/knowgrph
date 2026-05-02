@@ -2,10 +2,15 @@ import type { MutableRefObject } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { workspaceSourcePathKey } from '@/features/workspace-fs/syncToSourceFiles'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import {
+  resolveWorkspaceSourceIndexSnapshot,
+  type WorkspaceSourceIndex,
+} from '@/features/workspace-fs/sourceIndex'
+import { resolveWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WorkspaceRefreshSnapshot } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/types'
 
 export type FolderModeContract = 'sitemap' | 'user-journey'
 
@@ -92,6 +97,37 @@ export const areWorkspaceSourcesEqual = (a: WorkspaceSourceIndex, b: WorkspaceSo
     }
   }
   return true
+}
+
+export function buildWorkspaceRefreshSnapshot(args: {
+  entries: WorkspaceEntry[]
+  sourcesByPath?: WorkspaceSourceIndex | null
+}): WorkspaceRefreshSnapshot {
+  return {
+    entries: args.entries,
+    sourcesByPath: resolveWorkspaceSourceIndexSnapshot(args.sourcesByPath),
+  }
+}
+
+export function buildFailedWorkspaceRefreshSnapshot(): WorkspaceRefreshSnapshot {
+  return buildWorkspaceRefreshSnapshot({
+    entries: [],
+  })
+}
+
+export function pruneWorkspaceEntriesForInlineSnapshot(
+  entries: WorkspaceEntry[],
+  maxInlineChars?: number,
+): WorkspaceEntry[] {
+  let changed = false
+  const next = entries.map(entry => {
+    if (!entry || entry.kind !== 'file') return entry
+    if (typeof entry.text !== 'string') return entry
+    if (typeof resolveWorkspaceEntryInlineText(entry.text, maxInlineChars) === 'string') return entry
+    changed = true
+    return { ...entry, text: undefined }
+  })
+  return changed ? next : entries
 }
 
 export const resolveWorkspaceDirtyState = (args: {

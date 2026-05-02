@@ -12,7 +12,7 @@ import { getGraphCapabilities } from '@/lib/graph/helpers'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { LAUNCH_SPOTLIGHT_TOUR_TOOLTIP } from '@/lib/config'
 import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 
 type LaunchSpotlightTourCardProps = {
   dismissed: boolean
@@ -56,7 +56,7 @@ export function LaunchSpotlightTourCard({
     const currentStep = steps[idx]
     if (currentStep.id === 1) {
       try {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflowManager' } }))
+        emitMainPanelOpen({ tab: 'workflowManager' })
       } catch {
         void 0
       }
@@ -68,7 +68,7 @@ export function LaunchSpotlightTourCard({
       }
     } else if (currentStep.id === 3) {
       try {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflowManager' } }))
+        emitMainPanelOpen({ tab: 'workflowManager' })
       } catch {
         void 0
       }

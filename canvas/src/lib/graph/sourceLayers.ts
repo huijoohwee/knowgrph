@@ -43,6 +43,10 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
+function readSourceLayerGraphMetadata(graphData: { metadata?: unknown } | null | undefined): Record<string, unknown> {
+  return isRecord(graphData?.metadata) ? (graphData.metadata as Record<string, unknown>) : {}
+}
+
 const composedGraphCacheByFirstGraph = new WeakMap<GraphData, Map<string, GraphData>>()
 const COMPOSED_GRAPH_CACHE_LIMIT = 24
 
@@ -70,7 +74,7 @@ function mergeWidgetRegistryMetadata(layers: SourceLayerInput[]): JSONValue[] | 
   const seen = new Set<string>()
   for (let i = 0; i < layers.length; i += 1) {
     const graph = layers[i]?.parsedGraphData
-    const metadata = isRecord(graph?.metadata) ? (graph!.metadata as Record<string, unknown>) : null
+    const metadata = readSourceLayerGraphMetadata(graph)
     const raw = Array.isArray(metadata?.[FLOW_WIDGET_REGISTRY_METADATA_KEY]) ? (metadata?.[FLOW_WIDGET_REGISTRY_METADATA_KEY] as unknown[]) : []
     for (let j = 0; j < raw.length; j += 1) {
       const entry = raw[j]
@@ -108,10 +112,7 @@ export function readSourceLayerKeysFromGraphData(graphData: GraphData | null | u
   contentKey: string
   orderKey: string
 } {
-  const metadata =
-    graphData?.metadata && typeof graphData.metadata === 'object'
-      ? (graphData.metadata as Record<string, unknown>)
-      : {}
+  const metadata = readSourceLayerGraphMetadata(graphData)
   return {
     contentKey: typeof metadata.sourceLayerHash === 'string' ? metadata.sourceLayerHash : '',
     orderKey: typeof metadata.sourceLayerOrderHash === 'string' ? metadata.sourceLayerOrderHash : '',
@@ -156,7 +157,7 @@ export function updateGraphDataSourceLayerKeys(args: {
     graphData: {
       ...args.graphData,
       metadata: {
-        ...(args.graphData.metadata && typeof args.graphData.metadata === 'object' ? args.graphData.metadata : {}),
+        ...readSourceLayerGraphMetadata(args.graphData),
         sourceLayerHash: contentKey as unknown as JSONValue,
         sourceLayerOrderHash: orderKey as unknown as JSONValue,
       },
@@ -182,7 +183,7 @@ export function composeGraphFromSourceLayers(args: {
   if (cachedGraphData) return { graphData: cachedGraphData, contentKey, orderKey }
   const baseType = base?.type || args.fallbackType || 'Graph'
   const baseContext = typeof base?.context === 'undefined' ? 'sourceLayers' : (base?.context as JSONValue)
-  const baseMetadata = base?.metadata && typeof base.metadata === 'object' ? (base.metadata as Record<string, JSONValue>) : {}
+  const baseMetadata = readSourceLayerGraphMetadata(base) as Record<string, JSONValue>
 
   const sourceLayersMeta = layers.map(l => {
     const sourceUrl = l.source?.kind === 'url' ? String(l.source?.url || '').trim() : ''

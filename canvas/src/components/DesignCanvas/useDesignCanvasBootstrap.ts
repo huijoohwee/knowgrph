@@ -4,6 +4,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildViewportSvgMarkupFromElement } from '@/lib/graph/svgSnapshot'
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { DesignLayerState } from '@/features/design/designLayersState'
+import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 
 type UseDesignCanvasBootstrapArgs = {
   active: boolean
@@ -96,12 +97,7 @@ export function useDesignCanvasBootstrap(args: UseDesignCanvasBootstrapArgs) {
           renderMediaAsNodes: false,
           mediaPanelDensity: 'default' as const,
           threeIframeOverlayPoolMax: state.threeIframeOverlayPoolMax,
-          threeIframeOverlayBaseWidthRatioDefault: state.threeIframeOverlayBaseWidthRatioDefault,
-          threeIframeOverlayBaseWidthRatioCompact: state.threeIframeOverlayBaseWidthRatioCompact,
-          threeIframeOverlayBaseWidthMinPxDefault: state.threeIframeOverlayBaseWidthMinPxDefault,
-          threeIframeOverlayBaseWidthMinPxCompact: state.threeIframeOverlayBaseWidthMinPxCompact,
-          threeIframeOverlayBaseWidthMaxPxDefault: state.threeIframeOverlayBaseWidthMaxPxDefault,
-          threeIframeOverlayBaseWidthMaxPxCompact: state.threeIframeOverlayBaseWidthMaxPxCompact,
+          overlaySizing: readOverlaySizingInputFromStoreState(state),
           collapsedGroupIds: emptyStringArray,
           selectedNodeId: null,
           selectedNodeIds: emptyStringArray,
@@ -136,12 +132,7 @@ export function useDesignCanvasBootstrap(args: UseDesignCanvasBootstrapArgs) {
         renderMediaAsNodes: state.renderMediaAsNodes,
         mediaPanelDensity: state.mediaPanelDensity,
         threeIframeOverlayPoolMax: state.threeIframeOverlayPoolMax,
-        threeIframeOverlayBaseWidthRatioDefault: state.threeIframeOverlayBaseWidthRatioDefault,
-        threeIframeOverlayBaseWidthRatioCompact: state.threeIframeOverlayBaseWidthRatioCompact,
-        threeIframeOverlayBaseWidthMinPxDefault: state.threeIframeOverlayBaseWidthMinPxDefault,
-        threeIframeOverlayBaseWidthMinPxCompact: state.threeIframeOverlayBaseWidthMinPxCompact,
-        threeIframeOverlayBaseWidthMaxPxDefault: state.threeIframeOverlayBaseWidthMaxPxDefault,
-        threeIframeOverlayBaseWidthMaxPxCompact: state.threeIframeOverlayBaseWidthMaxPxCompact,
+        overlaySizing: readOverlaySizingInputFromStoreState(state),
         collapsedGroupIds: state.collapsedGroupIds,
         selectedNodeId: state.selectedNodeId,
         selectedNodeIds: state.selectedNodeIds,

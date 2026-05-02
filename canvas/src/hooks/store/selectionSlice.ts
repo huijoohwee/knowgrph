@@ -1,6 +1,7 @@
 import type { GraphState } from '@/hooks/store/types'
 import type { StoreApi } from 'zustand'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import { emitTocFocus } from '@/features/markdown/ui/tocFocusEvents'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -19,20 +20,6 @@ const readTocIdFromNode = (node: unknown): string | null => {
   const id = typeof n?.id === 'string' ? n.id.trim() : ''
   if (id) return id
   return null
-}
-
-const tryDispatchTocFocus = (id: string): void => {
-  const safeId = String(id || '').trim()
-  if (!safeId) return
-  const w = typeof window !== 'undefined' ? window : null
-  if (!w || typeof w.dispatchEvent !== 'function') return
-  const CE = (globalThis as unknown as { CustomEvent?: unknown }).CustomEvent
-  if (typeof CE !== 'function') return
-  try {
-    w.dispatchEvent(new (CE as unknown as { new (type: string, init?: unknown): Event })('kg:tocFocus', { detail: { id: safeId } }))
-  } catch {
-    void 0
-  }
 }
 
 export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
@@ -118,7 +105,7 @@ export const createSelectionSlice = (set: SetGraph, get: GetGraph) => ({
         const graphData = get().graphData
         const node = (graphData?.nodes || []).find(n => String(n.id || '') === id) || null
         const tocId = readTocIdFromNode(node)
-        if (tocId) tryDispatchTocFocus(tocId)
+        if (tocId) emitTocFocus(tocId)
       } catch {
         void 0
       }

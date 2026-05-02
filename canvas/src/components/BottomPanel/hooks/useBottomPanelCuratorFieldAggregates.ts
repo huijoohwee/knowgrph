@@ -4,7 +4,7 @@ import {
   type GraphDataTableColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
 import {
-  computeDerivedFields,
+  getCachedDerivedFields,
   normalizeSettingsForField,
   type GraphField,
   type GraphFieldId,
@@ -16,6 +16,7 @@ import {
 } from '../BottomPanelCuratorModels'
 import { buildSelectionSubgraphForAnchorIds } from '@/lib/graph/file'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
+import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 
 interface UseBottomPanelCuratorFieldAggregatesParams {
   nodes: GraphNode[]
@@ -99,11 +100,49 @@ export function useBottomPanelCuratorFieldAggregates({
     }
   }, [edges, graphDataTableViewMode, nodes, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
 
+  const selectionSemanticKey = React.useMemo(() => {
+    return hashSignatureParts([
+      'bottom-panel-curator-selection',
+      graphDataTableViewMode,
+      selectedNodeId || '',
+      selectedEdgeId || '',
+      hashScopedStringArraySignature('selected-nodes', selectedNodeIds),
+      hashScopedStringArraySignature('selected-edges', selectedEdgeIds),
+    ])
+  }, [
+    graphDataTableViewMode,
+    selectedEdgeId,
+    selectedEdgeIds,
+    selectedNodeId,
+    selectedNodeIds,
+  ])
+
+  const sampleGraphSemanticKey = React.useMemo(() => {
+    return hashSignatureParts([
+      'bottom-panel-curator-fields',
+      graphDataRevision,
+      selectionSemanticKey,
+      sampleNodes.length,
+      sampleEdges.length,
+    ])
+  }, [graphDataRevision, sampleEdges.length, sampleNodes.length, selectionSemanticKey])
+
+  const sampleGraphRef = React.useRef<{ key: string; value: GraphData } | null>(null)
+  if (sampleGraphRef.current?.key !== sampleGraphSemanticKey) {
+    sampleGraphRef.current = {
+      key: sampleGraphSemanticKey,
+      value: { type: 'Graph', nodes: sampleNodes, edges: sampleEdges },
+    }
+  }
+  const sampleGraphData = sampleGraphRef.current.value
+
   const derivedGraphFields = React.useMemo(() => {
-    void graphDataRevision
-    const data: GraphData = { type: 'Graph', nodes: sampleNodes, edges: sampleEdges }
-    return computeDerivedFields(data)
-  }, [graphDataRevision, sampleEdges, sampleNodes])
+    return getCachedDerivedFields({
+      graphData: sampleGraphData,
+      graphRevision: graphDataRevision,
+      graphSemanticKey: sampleGraphSemanticKey,
+    })
+  }, [graphDataRevision, sampleGraphData, sampleGraphSemanticKey])
 
   const propertyColumnKeysFromGraphFields = React.useMemo(() => {
     return derivedGraphFields.map(f => `prop:${f.scope}:${f.key}` as GraphDataTableColumnKey)

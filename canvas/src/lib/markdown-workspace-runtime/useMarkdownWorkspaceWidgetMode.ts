@@ -1,9 +1,7 @@
 import React from 'react'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import {
-  FLOW_WIDGET_FORM_ID_KEY,
-  FLOW_WIDGET_TYPE_ID_KEY,
-  resolveWidgetRegistryEntry,
+  deriveWidgetCandidateNodeIds,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildWidgetBundleJsonText } from '@/lib/graph/io/widgetBundle'
@@ -85,15 +83,10 @@ export function useMarkdownWorkspaceWidgetMode(args: {
   const widgetGraphSemanticKey = React.useMemo(() => {
     if (!widgetLookupActive) return ''
     return buildScopedGraphSemanticKey('widget-graph', {
-      graphData: {
-        type: 'application/json',
-        nodes: args.graphNodes,
-        edges: args.graphEdges,
-      },
       graphRevision: args.graphContentRevision,
       graphSemanticKey: args.graphSemanticKey,
     })
-  }, [args.graphContentRevision, args.graphEdges, args.graphNodes, args.graphSemanticKey, widgetLookupActive])
+  }, [args.graphContentRevision, args.graphSemanticKey, widgetLookupActive])
 
   const widgetRegistryKey = React.useMemo(() => {
     if (!widgetLookupActive) return hashSignatureParts(['registry', 0])
@@ -119,14 +112,29 @@ export function useMarkdownWorkspaceWidgetMode(args: {
   }
   const widgetRegistrySnapshot = widgetRegistrySnapshotRef.current.value
 
-  const widgetGraphData = React.useMemo<GraphData | null>(() => {
-    if (!widgetLookupActive) return null
-    return {
-      type: 'application/json',
-      nodes: Array.isArray(args.graphNodes) ? args.graphNodes : [],
-      edges: Array.isArray(args.graphEdges) ? args.graphEdges : [],
+  const widgetGraphSnapshotKey = React.useMemo(() => {
+    if (!widgetLookupActive || !widgetGraphSemanticKey) return ''
+    return hashSignatureParts([
+      'widget-graph-snapshot',
+      widgetGraphSemanticKey,
+      args.graphNodes.length,
+      args.graphEdges.length,
+    ])
+  }, [args.graphEdges.length, args.graphNodes.length, widgetGraphSemanticKey, widgetLookupActive])
+  const widgetGraphDataRef = React.useRef<{ key: string; value: GraphData | null } | null>(null)
+  if (widgetGraphDataRef.current?.key !== widgetGraphSnapshotKey) {
+    widgetGraphDataRef.current = {
+      key: widgetGraphSnapshotKey,
+      value: widgetGraphSnapshotKey
+        ? {
+            type: 'application/json',
+            nodes: Array.isArray(args.graphNodes) ? args.graphNodes : [],
+            edges: Array.isArray(args.graphEdges) ? args.graphEdges : [],
+          }
+        : null,
     }
-  }, [args.graphEdges, args.graphNodes, widgetLookupActive])
+  }
+  const widgetGraphData = widgetGraphDataRef.current?.value || null
   const widgetNodeLookup = React.useMemo(
     () => getCachedGraphLookup({
       cacheScope: 'markdown-workspace-widget-node-lookup',
@@ -140,47 +148,12 @@ export function useMarkdownWorkspaceWidgetMode(args: {
 
   const resolvedWidgetNodeIds = React.useMemo(() => {
     if (!widgetLookupActive || !graphLookupById) return []
-    const byId = graphLookupById
-    const collected: string[] = []
-    const seen = new Set<string>()
-
-    const isHeadingSectionNode = (node: { type?: unknown; properties?: unknown } | null): boolean => {
-      if (!node || String(node.type || '') !== 'Section') return false
-      const props =
-        node.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
-          ? (node.properties as Record<string, unknown>)
-          : null
-      return typeof props?.level === 'number' && Number.isFinite(props.level)
-    }
-
-    const selectedId = typeof args.selectedNodeId === 'string' ? args.selectedNodeId.trim() : ''
-    if (selectedId) {
-      const node = byId.get(selectedId) || null
-      if (!isHeadingSectionNode(node)) {
-        const reg = node ? resolveWidgetRegistryEntry({ node: node as never, registry: widgetRegistrySnapshot }) : null
-        const props =
-          node && typeof node === 'object'
-            ? ((node as { properties?: unknown }).properties as Record<string, unknown> | undefined)
-            : undefined
-        const hasHint =
-          !!(typeof props?.[FLOW_WIDGET_TYPE_ID_KEY] === 'string' && String(props?.[FLOW_WIDGET_TYPE_ID_KEY] || '').trim()) ||
-          !!(typeof props?.[FLOW_WIDGET_FORM_ID_KEY] === 'string' && String(props?.[FLOW_WIDGET_FORM_ID_KEY] || '').trim())
-        if ((reg || hasHint) && !seen.has(selectedId)) {
-          seen.add(selectedId)
-          collected.push(selectedId)
-        }
-      }
-    }
-
-    for (let i = openWidgetNodeIdsSnapshot.length - 1; i >= 0; i -= 1) {
-      const id = openWidgetNodeIdsSnapshot[i]
-      if (!id || seen.has(id)) continue
-      const node = byId.get(id) || null
-      if (!node || isHeadingSectionNode(node)) continue
-      seen.add(id)
-      collected.push(id)
-    }
-    return collected.reverse()
+    return deriveWidgetCandidateNodeIds({
+      nodeById: graphLookupById,
+      openWidgetNodeIds: openWidgetNodeIdsSnapshot,
+      selectedNodeId: args.selectedNodeId,
+      registry: widgetRegistrySnapshot,
+    })
   }, [args.selectedNodeId, graphLookupById, openWidgetNodeIdsSnapshot, widgetLookupActive, widgetRegistrySnapshot])
 
   const widgetNodeIdsKey = React.useMemo(

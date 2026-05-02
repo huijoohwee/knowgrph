@@ -524,6 +524,12 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('readReusableWorkspaceEntriesSnapshot(startup.workspaceEntries)')) {
     throw new Error('expected source files bootstrap to reuse the shared workspace snapshot helper before deciding whether startup entries should be passed into materialization')
   }
+  if (!runtimeSharedText.includes('resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath)')) {
+    throw new Error('expected workspace bootstrap materialization to centralize source-index snapshot reuse vs reload decisions in the shared source-index helper')
+  }
+  if (!bootstrapText.includes('resolveWorkspaceSourceIndexSnapshot(undefined)')) {
+    throw new Error('expected source files bootstrap startup hydration to reuse the shared source-index snapshot helper')
+  }
   if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false })') && !bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false,') && !bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({\n        activePathOverride: activePath,')) {
     throw new Error('expected active-path rematerialization to stay hydration-only so Editor Workspace open cannot replay import graph apply')
   }
@@ -591,8 +597,17 @@ export function testWorkspaceRefreshSetSourceFilesImmediatelySchedulesComposeApp
   if (!text.includes('setEntries(prev => (areWorkspaceEntriesEqual(prev, pruned) ? prev : pruned))')) {
     throw new Error('expected markdown workspace runtime refresh to skip no-op workspace entry state writes')
   }
+  if (!text.includes('const pruned = pruneWorkspaceEntriesForInlineSnapshot(list)')) {
+    throw new Error('expected markdown workspace runtime refresh to centralize oversized inline workspace-entry pruning in the shared runtime helper')
+  }
   if (!text.includes('setSourcesByPath(prev => (areWorkspaceSourcesEqual(prev, sources) ? prev : sources))')) {
     throw new Error('expected markdown workspace runtime refresh to skip no-op source-index state writes')
+  }
+  if (!text.includes('return buildWorkspaceRefreshSnapshot({')) {
+    throw new Error('expected markdown workspace runtime refresh to centralize fallback refresh snapshot construction in the shared runtime helper')
+  }
+  if (!text.includes('return buildFailedWorkspaceRefreshSnapshot()')) {
+    throw new Error('expected markdown workspace runtime refresh failure path to reuse the shared failed refresh snapshot helper')
   }
 
   const setIdx = text.indexOf('store.setSourceFiles(merged)')
@@ -659,6 +674,81 @@ export function testWorkspaceManualRefreshActionsSuppressFollowUpFsEventRefresh(
   }
   if (!websiteText.includes('runWorkspaceFsChangedBatch(async () => {') || !websiteText.includes('suppressNextWorkspaceFsChangedEvent()')) {
     throw new Error('expected website import action to suppress duplicate follow-up fs refresh when it manually refreshes workspace state')
+  }
+}
+
+export function testWorkspaceInlineTextOwnershipIsCentralized() {
+  const helperPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceInlineText.ts')
+  const runtimeIoPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntime.io.ts')
+  const runtimeImplPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx')
+  const indexingPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
+  const importApplyPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'applyWorkspaceImportToCanvas.ts')
+  const helperText = readFileSync(helperPath, 'utf8')
+  const runtimeIoText = readFileSync(runtimeIoPath, 'utf8')
+  const runtimeImplText = readFileSync(runtimeImplPath, 'utf8')
+  const indexingText = readFileSync(indexingPath, 'utf8')
+  const importApplyText = readFileSync(importApplyPath, 'utf8')
+
+  if (!helperText.includes('export function upsertWorkspaceEntryInlineText(args:')) {
+    throw new Error('expected workspace inline-text ownership to centralize workspace-entry text patching in the shared workspace helper')
+  }
+  if (!helperText.includes('export function resolveWorkspaceSourceFileInlineText(')) {
+    throw new Error('expected workspace inline-text ownership to centralize source-file inline text fallback in the shared workspace helper')
+  }
+  if (!runtimeImplText.includes('upsertWorkspaceEntryInlineText({')) {
+    throw new Error('expected markdown workspace runtime entry patching to reuse the shared workspace inline-text helper')
+  }
+  if (!indexingText.includes('upsertWorkspaceEntryInlineText({')) {
+    throw new Error('expected markdown workspace indexing to reuse the shared workspace inline-text helper for cached entry upserts')
+  }
+  if (!runtimeIoText.includes('resolveWorkspaceSourceFileInlineText(args.text)')) {
+    throw new Error('expected markdown workspace runtime source-file writeback to reuse the shared workspace inline-text helper')
+  }
+  if (!importApplyText.includes('resolveWorkspaceSourceFileInlineText(text)')) {
+    throw new Error('expected workspace import apply to reuse the shared workspace inline-text helper for source-file payload sizing')
+  }
+}
+
+export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized() {
+  const runtimeIoPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntime.io.ts')
+  const activeDocPath = resolve(process.cwd(), 'src', 'features', 'markdown', 'activeMarkdownDocument.ts')
+  const importActionsPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'importActions.ts')
+  const mutationActionsPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'mutationActions.ts')
+  const selectionPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSelection.ts')
+  const corePath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'core.ts')
+  const importEffectsPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'importSideEffects.ts')
+
+  const runtimeIoText = readFileSync(runtimeIoPath, 'utf8')
+  const activeDocText = readFileSync(activeDocPath, 'utf8')
+  const importActionsText = readFileSync(importActionsPath, 'utf8')
+  const mutationActionsText = readFileSync(mutationActionsPath, 'utf8')
+  const selectionText = readFileSync(selectionPath, 'utf8')
+  const coreText = readFileSync(corePath, 'utf8')
+  const importEffectsText = readFileSync(importEffectsPath, 'utf8')
+
+  if (!runtimeIoText.includes('export const writeWorkspaceFileAndSync = async (args:')) {
+    throw new Error('expected markdown workspace runtime IO to remain the shared write-through owner')
+  }
+  if (!importActionsText.includes('await writeWorkspaceFileAndSync({')) {
+    throw new Error('expected workspace import actions to reuse the shared write-through owner after external content writes')
+  }
+  if (!mutationActionsText.includes('await writeWorkspaceFileAndSync({')) {
+    throw new Error('expected workspace mutation actions to reuse the shared write-through owner after refresh and clear writes')
+  }
+  if (!activeDocText.includes('export function buildActiveMarkdownDocumentPayload(args:')) {
+    throw new Error('expected active markdown document sync ownership to be centralized in a shared markdown helper')
+  }
+  if (!activeDocText.includes('export function applyActiveMarkdownDocumentPayload(args:')) {
+    throw new Error('expected active markdown document apply ownership to be centralized in a shared markdown helper')
+  }
+  if (!selectionText.includes('applyActiveMarkdownDocumentPayload({')) {
+    throw new Error('expected markdown workspace selection restore paths to reuse the shared active markdown document helper')
+  }
+  if (!coreText.includes('applyActiveMarkdownDocumentPayload({')) {
+    throw new Error('expected workspace import focus to reuse the shared active markdown document helper')
+  }
+  if (!importEffectsText.includes('buildActiveMarkdownDocumentPayload({') || !importEffectsText.includes('applyActiveMarkdownDocumentPayload({')) {
+    throw new Error('expected toolbar import side effects to reuse the shared active markdown document payload helper')
   }
 }
 

@@ -1,4 +1,4 @@
-import type { WidgetRegistryEntry, WidgetRegistryField } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
@@ -36,12 +36,48 @@ import {
   getGrabMapsDiscoveryWidgetLabel,
   isGrabMapsDiscoveryWidgetEntry,
 } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
-import { buildBytePlusTextGenerationFields } from '@/features/integrations/byteplusChatApiSsot'
-import { buildBytePlusImageGenerationFields } from '@/features/integrations/byteplusImageGenerationSsot'
-import { buildBytePlusVideoGenerationFields } from '@/features/integrations/byteplusVideoGenerationSsot'
-import { buildOpenAiCompatibleTextGenerationFields } from '@/features/integrations/openaiResponsesSsot'
+import {
+  buildBytePlusTextGenerationFields,
+  getBytePlusApiDocRowByRowKey,
+  resolveBytePlusTextWidgetChatApiRowKey,
+} from '@/features/integrations/byteplusChatApiSsot'
+import {
+  buildBytePlusImageGenerationFields,
+  getBytePlusImageGenerationApiRowAnchorId,
+  getBytePlusImageApiDocRowByRowKey,
+  resolveBytePlusImageWidgetApiRowKey,
+} from '@/features/integrations/byteplusImageGenerationSsot'
+import {
+  buildBytePlusVideoGenerationFields,
+  getBytePlusVideoGenerationApiRowAnchorId,
+  getBytePlusVideoApiDocRowByRowKey,
+  resolveBytePlusVideoWidgetApiRowKey,
+} from '@/features/integrations/byteplusVideoGenerationSsot'
+import {
+  getMapsApiDocRowByRowKey,
+  getMapsApiRowAnchorId,
+  resolveGrabMapsDiscoveryWidgetApiRowKey,
+} from '@/features/integrations/grabMapsSsot'
+import {
+  buildOpenAiCompatibleTextGenerationFields,
+  getOpenAiApiDocRowByRowKey,
+  resolveOpenAiTextWidgetChatApiRowKey,
+} from '@/features/integrations/openaiResponsesSsot'
+import { getBytePlusChatApiRowAnchorId } from '@/features/panels/views/byteplusChatApiDocs'
+import { getOpenAiChatApiRowAnchorId } from '@/features/panels/views/openaiChatApiDocs'
 
 export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'zai'
+
+export type WidgetRegistryApiDocRef = {
+  rowKey: string
+  apiKey: string
+}
+
+export type WidgetRegistryMainPanelLink = {
+  tab: 'integrations' | 'maps'
+  searchQuery: string
+  anchorId: string
+}
 
 type TextGenerationProviderProfile = {
   providerId: string
@@ -111,6 +147,144 @@ export function getTextGenerationWidgetLabel(args: {
   formId?: unknown
 }): string {
   return getTextGenerationProviderProfile(inferTextGenerationProviderFamily(args)).widgetLabel
+}
+
+export function listVisibleWidgetRegistryPortsForPropsEditor(args: {
+  registryEntry?: Pick<WidgetRegistryEntry, 'nodeTypeId' | 'widgetTypeId' | 'formId' | 'ports'> | null | undefined
+  properties?: Record<string, unknown> | null | undefined
+}): WidgetRegistryPort[] {
+  const ports = Array.isArray(args.registryEntry?.ports) ? args.registryEntry!.ports : []
+  if (ports.length === 0) return []
+  const nodeTypeId = String(args.registryEntry?.nodeTypeId || '').trim()
+  const providerFamily = nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+    ? inferTextGenerationProviderFamily({
+        provider: args.properties?.chatProvider,
+        widgetTypeId: args.registryEntry?.widgetTypeId,
+        formId: args.registryEntry?.formId,
+      })
+    : null
+  const out: WidgetRegistryPort[] = []
+  for (let i = 0; i < ports.length; i += 1) {
+    const port = ports[i]
+    if (!port || port.isHidden === true) continue
+    const portKey = String(port.portKey || '').trim()
+    const direction = port.direction
+    if (!portKey) continue
+    if (direction !== 'input' && direction !== 'output') continue
+    if (providerFamily === 'byteplus' && direction === 'input') continue
+    out.push(port)
+  }
+  return out
+}
+
+export function resolveWidgetRegistryApiDocRef(args: {
+  registryEntry?: Pick<WidgetRegistryEntry, 'nodeTypeId' | 'widgetTypeId' | 'formId'> | null | undefined
+  properties?: Record<string, unknown> | null | undefined
+  schemaPath?: unknown
+  fieldKey?: unknown
+  portKey?: unknown
+}): WidgetRegistryApiDocRef | null {
+  const nodeTypeId = String(args.registryEntry?.nodeTypeId || '').trim()
+  const schemaPath = String(args.schemaPath || '').trim()
+  const fieldKey = String(args.fieldKey || '').trim()
+  const portKey = String(args.portKey || '').trim()
+  if (!nodeTypeId || (!schemaPath && !fieldKey && !portKey)) return null
+
+  if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+    const providerFamily = inferTextGenerationProviderFamily({
+      provider: args.properties?.chatProvider,
+      widgetTypeId: args.registryEntry?.widgetTypeId,
+      formId: args.registryEntry?.formId,
+    })
+    const rowKey = providerFamily === 'openai'
+      ? resolveOpenAiTextWidgetChatApiRowKey({ schemaPath, fieldKey, portKey })
+      : resolveBytePlusTextWidgetChatApiRowKey({ schemaPath, fieldKey, portKey })
+    if (!rowKey) return null
+    const row = providerFamily === 'openai'
+      ? getOpenAiApiDocRowByRowKey(rowKey)
+      : getBytePlusApiDocRowByRowKey(rowKey)
+    const apiKey = String(row?.key || '').trim()
+    return apiKey ? { rowKey, apiKey } : null
+  }
+
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
+    const rowKey = resolveBytePlusImageWidgetApiRowKey({ schemaPath, fieldKey, portKey })
+    if (!rowKey) return null
+    const row = getBytePlusImageApiDocRowByRowKey(rowKey)
+    const apiKey = String(row?.key || '').trim()
+    return apiKey ? { rowKey, apiKey } : null
+  }
+
+  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
+    const rowKey = resolveBytePlusVideoWidgetApiRowKey({ schemaPath, fieldKey, portKey })
+    if (!rowKey) return null
+    const row = getBytePlusVideoApiDocRowByRowKey(rowKey)
+    const apiKey = String(row?.key || '').trim()
+    return apiKey ? { rowKey, apiKey } : null
+  }
+
+  if (isGrabMapsDiscoveryWidgetEntry(args.registryEntry)) {
+    const rowKey = resolveGrabMapsDiscoveryWidgetApiRowKey({ schemaPath, fieldKey, portKey })
+    if (!rowKey) return null
+    const row = getMapsApiDocRowByRowKey(rowKey)
+    const apiKey = String(row?.key || '').trim()
+    return apiKey ? { rowKey, apiKey } : null
+  }
+
+  return null
+}
+
+export function resolveWidgetRegistryMainPanelLink(args: {
+  registryEntry?: Pick<WidgetRegistryEntry, 'nodeTypeId' | 'widgetTypeId' | 'formId'> | null | undefined
+  properties?: Record<string, unknown> | null | undefined
+  schemaPath?: unknown
+  fieldKey?: unknown
+  portKey?: unknown
+}): WidgetRegistryMainPanelLink | null {
+  const nodeTypeId = String(args.registryEntry?.nodeTypeId || '').trim()
+  const apiDocRef = resolveWidgetRegistryApiDocRef(args)
+  if (!nodeTypeId || !apiDocRef) return null
+
+  if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
+    const providerFamily = inferTextGenerationProviderFamily({
+      provider: args.properties?.chatProvider,
+      widgetTypeId: args.registryEntry?.widgetTypeId,
+      formId: args.registryEntry?.formId,
+    })
+    return {
+      tab: 'integrations',
+      searchQuery: apiDocRef.rowKey,
+      anchorId: providerFamily === 'openai'
+        ? getOpenAiChatApiRowAnchorId(apiDocRef.rowKey)
+        : getBytePlusChatApiRowAnchorId(apiDocRef.rowKey),
+    }
+  }
+
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
+    return {
+      tab: 'integrations',
+      searchQuery: apiDocRef.rowKey,
+      anchorId: getBytePlusImageGenerationApiRowAnchorId(apiDocRef.rowKey),
+    }
+  }
+
+  if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
+    return {
+      tab: 'integrations',
+      searchQuery: apiDocRef.rowKey,
+      anchorId: getBytePlusVideoGenerationApiRowAnchorId(apiDocRef.rowKey),
+    }
+  }
+
+  if (isGrabMapsDiscoveryWidgetEntry(args.registryEntry)) {
+    return {
+      tab: 'maps',
+      searchQuery: apiDocRef.rowKey,
+      anchorId: getMapsApiRowAnchorId(apiDocRef.rowKey),
+    }
+  }
+
+  return null
 }
 
 export function getWidgetRegistryEntryLabel(args: {

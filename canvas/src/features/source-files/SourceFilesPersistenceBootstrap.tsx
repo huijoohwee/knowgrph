@@ -10,7 +10,7 @@ import {
 } from '@/features/source-files/sourceFilesDb'
 import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import { hydratePendingUrlSourceFiles, refreshPersistedSourceFilesForCurrentParseIdentity } from '@/features/source-files/sourceFilesIngestIntegration'
-import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sourceIndex'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
@@ -96,7 +96,7 @@ export function SourceFilesPersistenceBootstrap() {
           const startupActivePath = resolveMaterializedWorkspaceActivePath({
             activePathOverride: startup.activePath,
           })
-          const startupSourcesByPath = loadWorkspaceSourceIndex()
+          const startupSourcesByPath = resolveWorkspaceSourceIndexSnapshot(undefined)
           const store = useGraphStore.getState()
           const existing = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
           const merged = mergeWorkspaceEntriesIntoSourceFiles({

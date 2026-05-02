@@ -5,8 +5,8 @@ import MainPanelBody from '@/features/panels/ui/MainPanelBody'
 import MainPanelGraphFieldsHeader from '@/features/panels/ui/MainPanelGraphFieldsHeader'
 import {
   AGENTIC_RAG_FIELD_KIND_META,
-  computeDerivedFields,
   getAgenticRagFieldKind,
+  getCachedDerivedFields,
   parseGraphFieldId,
   type GraphField,
   type GraphFieldId,
@@ -67,8 +67,11 @@ export default function GraphFieldsView({
 
   const derivedFields = React.useMemo<ReadonlyArray<GraphField>>(() => {
     if (!graphData) return []
-    return computeDerivedFields(graphData)
-  }, [graphData])
+    return getCachedDerivedFields({
+      graphData,
+      graphRevision: graphDataRevision,
+    })
+  }, [graphData, graphDataRevision])
 
   const fields = React.useMemo<ReadonlyArray<GraphField>>(() => {
     if (!graphData) return []

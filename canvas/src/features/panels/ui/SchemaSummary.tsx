@@ -2,7 +2,8 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import Tooltip from '@/features/panels/ui/Tooltip'
 import { getBottomTabLabel } from '@/features/panels/config'
 import { toSchemaImportFileName } from '@/features/schema-editor/utils'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
+import { emitHelpScrollToAnchor } from '@/features/panels/utils/helpPanelEvents'
 import { UI_ANCHORS } from '@/lib/config'
 import { uiPrimaryLinkButtonClassName } from '@/features/toolbar/ui/toolbarStyles'
 
@@ -226,16 +227,8 @@ export default function SchemaSummary({
           className="inline-flex items-center px-1.5 py-0.5 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 cursor-pointer"
           onClick={() => {
             try {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(
-                  new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'help' as const } }),
-                )
-                window.dispatchEvent(
-                  new CustomEvent('kg:helpScrollToAnchor', {
-                    detail: { anchor: UI_ANCHORS.helpGraphLayers },
-                  }),
-                )
-              }
+              emitMainPanelOpen({ tab: 'help' as const })
+              emitHelpScrollToAnchor(UI_ANCHORS.helpGraphLayers)
             } catch {
               void 0
             }

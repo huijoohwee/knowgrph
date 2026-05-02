@@ -1,6 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { LS_KEYS, WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS } from '@/lib/config'
+import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsInt, lsJson } from '@/lib/persistence'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
@@ -9,6 +9,7 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { parseMarkdownWorkspaceLayoutMode, type MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
+import { readPersistedMarkdownSourceFolderPaths } from '@/features/markdown/ui/markdownSourceFilesPersistence'
 import type { HighlightedLineRange, MarkdownPresentationApi } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { MarkdownWorkspaceExplorer } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceExplorer'
@@ -20,7 +21,8 @@ import { useWorkspaceFileActions, useWorkspaceStatusHelpers } from '@/components
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
-import { EMPTY_GRAPH_EDGES, EMPTY_GRAPH_NODES, EMPTY_WIDGET_REGISTRY, parseStringArray, type FolderModeContract } from './markdownWorkspaceRuntime.shared'
+import { upsertWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
+import { EMPTY_GRAPH_EDGES, EMPTY_GRAPH_NODES, EMPTY_WIDGET_REGISTRY, type FolderModeContract } from './markdownWorkspaceRuntime.shared'
 import { useMarkdownWorkspaceDerivedViews } from './useMarkdownWorkspaceDerivedViews'
 import { useMarkdownWorkspaceEffectiveContent } from './useMarkdownWorkspaceEffectiveContent'
 import { useMarkdownWorkspaceExplorerState } from './useMarkdownWorkspaceExplorerState'
@@ -32,6 +34,8 @@ import { useMarkdownWorkspaceViewShell } from './useMarkdownWorkspaceViewShell'
 import { useMarkdownWorkspaceWidgetMode } from './useMarkdownWorkspaceWidgetMode'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+
+const EMPTY_STRING_ARRAY: string[] = []
 
 export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const active = props.active !== false
@@ -76,7 +80,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
-  const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds || [])
+  const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY)
 
   const activePath = useMarkdownExplorerStore(s => s.activePath)
   const setActivePath = useMarkdownExplorerStore(s => s.setActivePath)
@@ -127,22 +131,15 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     lsJson<MarkdownWorkspaceLayoutMode>(LS_KEYS.markdownLayoutMode, 'split', parseMarkdownWorkspaceLayoutMode),
   )
   const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(() => {
-    const arr = lsJson(LS_KEYS.markdownExplorerSourceFilesExpandedPaths, [] as string[], parseStringArray)
+    const arr = readPersistedMarkdownSourceFolderPaths()
     return new Set((arr || []).map(path => normalizeWorkspacePath(path)))
   })
   const patchWorkspaceEntryInlineText = React.useCallback((path: WorkspacePath, text: string) => {
-    const inlineText = text.length <= WORKSPACE_ENTRY_INLINE_TEXT_MAX_CHARS ? text : undefined
-    const updatedAtMs = Date.now()
-    setEntries(prev => {
-      let changed = false
-      const next = prev.map(entry => {
-        if (entry.path !== path || entry.kind !== 'file') return entry
-        if (entry.text === inlineText) return entry
-        changed = true
-        return { ...entry, text: inlineText, updatedAtMs }
-      })
-      return changed ? next : prev
-    })
+    setEntries(prev => upsertWorkspaceEntryInlineText({
+      entries: prev,
+      path,
+      text,
+    }))
   }, [])
 
   const editorRef = React.useRef<MonacoTextEditorHandle | null>(null)

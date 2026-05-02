@@ -16,6 +16,8 @@ import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableD
 import { hashRecordSignature32 } from '@/lib/hash/signature'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 
+const EMPTY_STRING_ARRAY: string[] = []
+
 const toInspectorRow = (tableId: GraphTableId, doc: GraphRowDoc): GraphTableInspectorRow => ({
   tableId,
   rowId: doc.rowId,
@@ -70,13 +72,13 @@ export default function GraphTableSelectionInspector() {
   const editorWorkspacePane = useGraphStore(s => s.editorWorkspacePane)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds || [])
+  const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY)
   const graphContentRevision = useGraphStore(s => s.graphContentRevision)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
   const canvasWorkspaceSyncMode = useGraphStore(s => s.canvasWorkspaceSyncMode)
   const baseGraphData = useGraphStore(s => s.graphData)
-  const collapsedGroupIds = useGraphStore(s => (s.collapsedGroupIds || []) as string[])
+  const collapsedGroupIds = useGraphStore(s => (s.collapsedGroupIds ?? EMPTY_STRING_ARRAY) as string[])
 
   const collapsedGroupIdsKey = useMemo(() => {
     return buildCollapsedGroupIdsKey(collapsedGroupIds)

@@ -3,7 +3,7 @@ import React from 'react'
 import { AnchoredPopover } from '@/components/ui/AnchoredPopover'
 import IconButton from '@/components/IconButton'
 import { emitSidePanelOpen } from '@/features/canvas/utils'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import {
   getRichMediaPanelMediaSelectorOptions,
@@ -260,13 +260,10 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
             tooltipContent="Update KV entry"
             showTooltip
             onClick={onUpdateKvEntry || (() => {
-              if (typeof window === 'undefined') return
-              window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, {
-                detail: {
-                  tab: 'workflowManager' as const,
-                  workflowManagerTab: 'mapping' as const,
-                },
-              }))
+              emitMainPanelOpen({
+                tab: 'workflowManager' as const,
+                workflowManagerTab: 'mapping' as const,
+              })
             })}
             className="App-toolbar__btn"
           >

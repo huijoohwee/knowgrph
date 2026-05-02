@@ -3,15 +3,12 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import type { GraphData } from '@/lib/graph/types'
 import type { GraphState } from '@/hooks/useGraphStore'
-import { hasFrontmatterMermaidSeeds, filterGraphToFrontmatterMermaid } from '@/lib/graph/layerDerivation'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import type { Canvas2dRendererId } from '@/lib/config'
-import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
-import { withActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
 import { useActiveGraphData } from './useActiveGraphData.impl'
-import { deriveGraphDataForActiveView } from './activeViewGraph'
+import { deriveFlowchartFrontmatterActiveViewGraph, deriveGraphDataForActiveView } from './activeViewGraph'
 
 let mermaidFrontmatterGeometryModulePromise: Promise<typeof import('@/lib/mermaid/mermaidFrontmatterGeometry')> | null = null
 
@@ -20,16 +17,6 @@ const loadMermaidFrontmatterGeometryModule = async () => {
     mermaidFrontmatterGeometryModulePromise = import('@/lib/mermaid/mermaidFrontmatterGeometry')
   }
   return mermaidFrontmatterGeometryModulePromise
-}
-
-function isFrontmatterFlowGraphData(graphData: GraphData | null | undefined): boolean {
-  if (!graphData) return false
-  if (String(graphData.context || '').trim() === 'frontmatter-flow') return true
-  const meta =
-    graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
-      ? (graphData.metadata as Record<string, unknown>)
-      : null
-  return String(meta?.kind || '').trim() === 'frontmatter-flow'
 }
 
 const INACTIVE_RENDER_SLICE = {
@@ -43,6 +30,8 @@ const INACTIVE_RENDER_SLICE = {
   canvas2dRenderer: 'd3' as Canvas2dRendererId,
 } as const
 
+const EMPTY_STRING_ARRAY: string[] = []
+
 export function useActiveGraphRenderData(enabled: boolean = true): GraphData | null {
   const graphData = useActiveGraphData(enabled)
 
@@ -55,7 +44,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
             documentSemanticMode: String(s.documentSemanticMode || 'document'),
             documentStructureBaselineLock: s.documentStructureBaselineLock === true,
             markdownText: s.markdownDocumentText || null,
-            collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
+            collapsedGroupIds: (s.collapsedGroupIds ?? EMPTY_STRING_ARRAY) as string[],
             canvasRenderMode: (s.canvasRenderMode || '2d') as '2d' | '3d',
             canvas2dRenderer: (s.canvas2dRenderer || 'd3') as Canvas2dRendererId,
           })
@@ -132,12 +121,10 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
     if (!graphData) return null
     const flowchartMode = canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
     if (flowchartMode) {
-      const hasYamlFrontmatterMermaid = containsFrontmatterMermaid(String(markdownText || ''))
-      if (!hasYamlFrontmatterMermaid) return null
-      if (isFrontmatterFlowGraphData(graphData)) return graphData
-      const source = hasFrontmatterMermaidSeeds(graphData) ? graphData : null
-      if (!source) return null
-      return withActiveDocumentViewMode(filterGraphToFrontmatterMermaid(source), 'frontmatter')
+      return deriveFlowchartFrontmatterActiveViewGraph({
+        graphData,
+        markdownText,
+      })
     }
     return deriveGraphDataForActiveView({
       graphData,

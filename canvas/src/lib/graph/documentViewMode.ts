@@ -1,56 +1,60 @@
 export type ActiveDocumentViewMode = 'documentStructure' | 'keyword' | 'frontmatter' | 'multiDimTable'
 export const ACTIVE_DOCUMENT_VIEW_MODE_META_KEY = 'kg:activeDocumentViewMode' as const
-
-export function normalizeDocumentSemanticMode(raw: string): 'document' | 'keyword' {
-  return String(raw || '').trim().toLowerCase() === 'keyword' ? 'keyword' : 'document'
-}
-
-export function resolveActiveDocumentViewMode(args: {
-  frontmatterModeEnabled: boolean
-  multiDimTableModeEnabled: boolean
-  documentSemanticMode: string
-  documentStructureBaselineLock: boolean
-}): ActiveDocumentViewMode {
-  if (args.documentStructureBaselineLock === true) return 'documentStructure'
-  const semanticMode = normalizeDocumentSemanticMode(args.documentSemanticMode)
-  if (semanticMode === 'keyword') return 'keyword'
-  if (args.frontmatterModeEnabled === true) return 'frontmatter'
-  if (args.multiDimTableModeEnabled === true) return 'multiDimTable'
-  return 'documentStructure'
-}
-
-export function buildDocumentSemanticModeKey(args: {
+export const DEFAULT_MARKDOWN_PANEL_ALLOWED_KINDS = ['table', 'code', 'blockquote', 'callout', 'html'] as const
+export const MULTI_DIM_TABLE_MARKDOWN_PANEL_ALLOWED_KINDS = ['code', 'blockquote', 'callout', 'html'] as const
+export type DocumentViewModeArgs = {
   frontmatterModeEnabled: boolean
   multiDimTableModeEnabled: boolean
   documentSemanticMode: string
   documentStructureBaselineLock: boolean
   flowEditorStandalone?: boolean
-}): string {
-  if (args.flowEditorStandalone === true) return 'flowEditor'
-  const activeDocumentViewMode = resolveActiveDocumentViewMode(args)
-  if (activeDocumentViewMode === 'keyword') return 'keyword'
-  if (activeDocumentViewMode === 'multiDimTable') return 'document:mdtbl'
-  return 'document'
 }
 
-export function buildDocumentSemanticViewModeKey(args: {
-  frontmatterModeEnabled: boolean
-  multiDimTableModeEnabled: boolean
-  documentSemanticMode: string
-  documentStructureBaselineLock: boolean
-  flowEditorStandalone?: boolean
-}): string {
-  const activeDocumentViewMode = args.flowEditorStandalone === true
-    ? 'documentStructure'
-    : resolveActiveDocumentViewMode(args)
-  return `${buildDocumentSemanticModeKey(args)}|mode:${activeDocumentViewMode}`
+export function readDocumentViewModeContext(args: DocumentViewModeArgs): {
+  activeDocumentViewMode: ActiveDocumentViewMode
+  documentSemanticModeKey: string
+  documentSemanticViewModeKey: string
+  markdownPanelAllowedKinds: typeof DEFAULT_MARKDOWN_PANEL_ALLOWED_KINDS | typeof MULTI_DIM_TABLE_MARKDOWN_PANEL_ALLOWED_KINDS
+  forceDocumentStructureGroups: boolean
+} {
+  const activeDocumentViewMode = (() => {
+    if (args.flowEditorStandalone === true) return 'documentStructure'
+    if (args.documentStructureBaselineLock === true) return 'documentStructure'
+    const semanticMode = String(args.documentSemanticMode || '').trim().toLowerCase() === 'keyword' ? 'keyword' : 'document'
+    if (semanticMode === 'keyword') return 'keyword'
+    if (args.frontmatterModeEnabled === true) return 'frontmatter'
+    if (args.multiDimTableModeEnabled === true) return 'multiDimTable'
+    return 'documentStructure'
+  })()
+  const documentSemanticModeKey = (() => {
+    if (args.flowEditorStandalone === true) return 'flowEditor'
+    if (activeDocumentViewMode === 'keyword') return 'keyword'
+    if (activeDocumentViewMode === 'multiDimTable') return 'document:mdtbl'
+    return 'document'
+  })()
+  const markdownPanelAllowedKinds = activeDocumentViewMode === 'multiDimTable'
+    ? MULTI_DIM_TABLE_MARKDOWN_PANEL_ALLOWED_KINDS
+    : DEFAULT_MARKDOWN_PANEL_ALLOWED_KINDS
+  return {
+    activeDocumentViewMode,
+    documentSemanticModeKey,
+    documentSemanticViewModeKey: `${documentSemanticModeKey}|mode:${activeDocumentViewMode}`,
+    markdownPanelAllowedKinds,
+    forceDocumentStructureGroups: activeDocumentViewMode === 'documentStructure',
+  }
+}
+
+const readDocumentViewModeMetadata = (
+  graphData: { metadata?: unknown } | null | undefined,
+): Record<string, unknown> | null => {
+  return graphData?.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+    ? (graphData.metadata as Record<string, unknown>)
+    : null
 }
 
 export function readGraphActiveDocumentViewMode(graphData: { context?: unknown; metadata?: unknown } | null | undefined): ActiveDocumentViewMode | null {
   if (!graphData || typeof graphData !== 'object') return null
-  const meta = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
-    ? (graphData.metadata as Record<string, unknown>)
-    : null
+  const meta = readDocumentViewModeMetadata(graphData)
   const rawMode = String(meta?.[ACTIVE_DOCUMENT_VIEW_MODE_META_KEY] || '').trim()
   if (rawMode === 'documentStructure' || rawMode === 'keyword' || rawMode === 'frontmatter' || rawMode === 'multiDimTable') {
     return rawMode
@@ -65,9 +69,7 @@ export function readGraphActiveDocumentViewMode(graphData: { context?: unknown; 
 export function withActiveDocumentViewMode<T extends { metadata?: unknown }>(graphData: T, mode: ActiveDocumentViewMode): T {
   const current = readGraphActiveDocumentViewMode(graphData as { context?: unknown; metadata?: unknown })
   if (current === mode) return graphData
-  const meta = graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
-    ? (graphData.metadata as Record<string, unknown>)
-    : {}
+  const meta = readDocumentViewModeMetadata(graphData) || {}
   return {
     ...graphData,
     metadata: {

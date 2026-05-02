@@ -1,7 +1,7 @@
 import React from 'react'
 import { Compass, ExternalLink, Send } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { appendChatHistoryWorkspaceFile } from '@/features/chat/chatHistoryWorkspace'
 import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
@@ -46,13 +46,11 @@ type PlaceItem = {
   coordinates: string
 }
 
+const EMPTY_STRING_ARRAY: string[] = []
+
 function openMainPanelMaps(searchQuery: string): void {
-  if (typeof window === 'undefined') return
   try {
-    const CustomEventCtor = typeof window.CustomEvent === 'function' ? window.CustomEvent : CustomEvent
-    window.dispatchEvent(new CustomEventCtor(MAIN_PANEL_OPEN_EVENT, {
-      detail: { tab: 'maps', searchQuery },
-    }))
+    emitMainPanelOpen({ tab: 'maps', searchQuery })
   } catch {
     void 0
   }
@@ -273,7 +271,7 @@ export function GrabMapsDiscoveryWidgetSection(): React.ReactElement {
   const setChatKnowgrphWorkspacePath = useGraphStore(s => s.setChatKnowgrphWorkspacePath)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
   const setEditorWorkspacePane = useGraphStore(s => s.setEditorWorkspacePane)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds ?? EMPTY_STRING_ARRAY)
   const graphData = useGraphStore(s => s.graphData || null)
   const [settingsValues, setSettingsValues] = React.useState<GrabMapsDiscoverySettingsValues>(() => readGrabMapsDiscoverySettingsValues())
   const [queryText, setQueryText] = React.useState<string>(() => readString(readGrabMapsDiscoverySettingsValues()['maps.grabmaps.mcp.searchPlaces.query']))

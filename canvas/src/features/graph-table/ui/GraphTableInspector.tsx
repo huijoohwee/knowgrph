@@ -14,14 +14,17 @@ import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta, type Webpage
 import { NodeOverlayEditorPanel } from '@/components/FlowEditor/NodeOverlayEditorPanel'
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import {
-  FLOW_WIDGET_FORM_ID_KEY,
-  FLOW_WIDGET_TYPE_ID_KEY,
+  isWidgetCandidateNode,
   resolveWidgetRegistryEntry,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildWidgetBundleJsonText } from '@/lib/graph/io/widgetBundle'
 import { useShallow } from 'zustand/react/shallow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+
+const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
+const EMPTY_STRING_ARRAY: string[] = []
 
 export type GraphTableInspectorRow = {
   tableId: 'nodes' | 'edges'
@@ -76,8 +79,8 @@ export function GraphTableInspector({
       graphData: s.graphData,
       sourceFiles: s.sourceFiles,
       schema: s.schema,
-      widgetRegistry: s.widgetRegistry || [],
-      openWidgetNodeIds: s.openWidgetNodeIds || [],
+      widgetRegistry: s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY,
+      openWidgetNodeIds: s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY,
       selectedNodeId: s.selectedNodeId,
       uiIconScale: s.uiIconScale,
       uiIconStrokeWidth: s.uiIconStrokeWidth,
@@ -105,15 +108,11 @@ export function GraphTableInspector({
     if (!node) return false
     const id = String(node.id || '').trim()
     if (!id) return false
-    const props = (node.properties || {}) as Record<string, unknown>
-    const hasHint =
-      (typeof props[FLOW_WIDGET_TYPE_ID_KEY] === 'string' && String(props[FLOW_WIDGET_TYPE_ID_KEY]).trim()) ||
-      (typeof props[FLOW_WIDGET_FORM_ID_KEY] === 'string' && String(props[FLOW_WIDGET_FORM_ID_KEY]).trim())
     const isSelected = id === String(selectedNodeId || '')
     const isPinned = openWidgetNodeIds.includes(id)
-    const isWidgetNode = hasHint || !!registryEntry
+    const isWidgetNode = isWidgetCandidateNode({ node, registry: widgetRegistry })
     return isWidgetNode && (isSelected || isPinned)
-  }, [node, openWidgetNodeIds, registryEntry, selectedNodeId])
+  }, [node, openWidgetNodeIds, selectedNodeId, widgetRegistry])
 
   const connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | undefined = useMemo(() => {
     if (!node || !showWidget) return undefined

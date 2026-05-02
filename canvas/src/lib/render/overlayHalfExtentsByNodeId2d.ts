@@ -1,7 +1,7 @@
 import type { GraphNode } from '@/lib/graph/types'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 import type { NodeHalfExtents } from '@/components/GraphCanvas/layout/overlap'
-import { computeOverlayHalfExtentsWorld, DEFAULT_OVERLAY_SIZING_CONFIG, normalizeOverlaySizingConfig } from '@/lib/render/overlaySizing2d'
+import { computeOverlayHalfExtentsWorld, readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 
 export function computeOverlayHalfExtentsByNodeId2d(args: {
   nodes: GraphNode[]
@@ -11,14 +11,7 @@ export function computeOverlayHalfExtentsByNodeId2d(args: {
   viewportH?: number
   zoomK: number
   mediaPanelDensity: MediaPanelDensity
-  overlaySizing?: {
-    overlayBaseWidthRatioDefault?: number
-    overlayBaseWidthRatioCompact?: number
-    overlayBaseWidthMinPxDefault?: number
-    overlayBaseWidthMinPxCompact?: number
-    overlayBaseWidthMaxPxDefault?: number
-    overlayBaseWidthMaxPxCompact?: number
-  } | null
+  overlaySizing?: OverlayDensitySizingConfigInput | null
 }): Record<string, NodeHalfExtents> | null {
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   if (nodes.length === 0) return null
@@ -42,33 +35,7 @@ export function computeOverlayHalfExtentsByNodeId2d(args: {
   }
 
   const density: MediaPanelDensity = args.mediaPanelDensity === 'compact' ? 'compact' : 'default'
-  const sizing = args.overlaySizing || null
-  const overlayCfg = normalizeOverlaySizingConfig({
-    widthRatio:
-      density === 'compact'
-        ? typeof sizing?.overlayBaseWidthRatioCompact === 'number' && Number.isFinite(sizing.overlayBaseWidthRatioCompact)
-          ? sizing.overlayBaseWidthRatioCompact
-          : DEFAULT_OVERLAY_SIZING_CONFIG.widthRatio
-        : typeof sizing?.overlayBaseWidthRatioDefault === 'number' && Number.isFinite(sizing.overlayBaseWidthRatioDefault)
-          ? sizing.overlayBaseWidthRatioDefault
-          : DEFAULT_OVERLAY_SIZING_CONFIG.widthRatio,
-    widthMinPx:
-      density === 'compact'
-        ? typeof sizing?.overlayBaseWidthMinPxCompact === 'number' && Number.isFinite(sizing.overlayBaseWidthMinPxCompact)
-          ? sizing.overlayBaseWidthMinPxCompact
-          : DEFAULT_OVERLAY_SIZING_CONFIG.widthMinPx
-        : typeof sizing?.overlayBaseWidthMinPxDefault === 'number' && Number.isFinite(sizing.overlayBaseWidthMinPxDefault)
-          ? sizing.overlayBaseWidthMinPxDefault
-          : DEFAULT_OVERLAY_SIZING_CONFIG.widthMinPx,
-    widthMaxPx:
-      density === 'compact'
-        ? typeof sizing?.overlayBaseWidthMaxPxCompact === 'number' && Number.isFinite(sizing.overlayBaseWidthMaxPxCompact)
-          ? sizing.overlayBaseWidthMaxPxCompact
-          : DEFAULT_OVERLAY_SIZING_CONFIG.widthMaxPx
-        : typeof sizing?.overlayBaseWidthMaxPxDefault === 'number' && Number.isFinite(sizing.overlayBaseWidthMaxPxDefault)
-          ? sizing.overlayBaseWidthMaxPxDefault
-          : DEFAULT_OVERLAY_SIZING_CONFIG.widthMaxPx,
-  })
+  const overlayCfg = readOverlaySizingConfigForDensity({ density, sizing: args.overlaySizing || null })
 
   const fallback = computeOverlayHalfExtentsWorld({
     density,
@@ -98,4 +65,3 @@ export function computeOverlayHalfExtentsByNodeId2d(args: {
 
   return Object.keys(out).length > 0 ? out : null
 }
-

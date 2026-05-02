@@ -1,5 +1,5 @@
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import type { GraphSchema } from '@/lib/graph/schema'
 
 type FlowFitIntent = 'fitToView' | 'fitToScreen' | 'initialFit'
@@ -26,13 +26,13 @@ export function buildFlowFitOptions(args: {
   const opts = readFitAllOptions({ schema: args.schema, mode, intent: args.intent })
   if (args.enableDocumentStructureBounds !== true) return opts
 
-  const activeDocumentViewMode = resolveActiveDocumentViewMode({
+  const documentViewMode = readDocumentViewModeContext({
     frontmatterModeEnabled: args.frontmatterModeEnabled === true,
     multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
     documentSemanticMode: String(args.documentSemanticMode || 'document'),
     documentStructureBaselineLock: args.documentStructureBaselineLock === true,
   })
-  if (activeDocumentViewMode !== 'documentStructure') return opts
+  if (documentViewMode.forceDocumentStructureGroups !== true) return opts
 
   opts.detectClusters = false
   opts.includeGroupsBounds = true

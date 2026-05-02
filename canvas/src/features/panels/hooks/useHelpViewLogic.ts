@@ -1,7 +1,8 @@
 import React from 'react';
 import { useLaunchSpotlight } from '@/features/panels/hooks/useLaunchSpotlight';
 import { HELP_SHORTCUT_ITEMS, type HelpStepKey } from '@/features/panels/config';
-import { MAIN_PANEL_OPEN_EVENT } from '@/features/panels/utils/useMainPanelRect';
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect';
+import { HELP_SCROLL_TO_ANCHOR_EVENT } from '@/features/panels/utils/helpPanelEvents';
 import { normalized as normalizeText } from '@/features/panels/utils/json';
 import { useGraphStore } from '@/hooks/useGraphStore';
 
@@ -66,9 +67,9 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
         if (!anchor) return;
         scrollToAnchor(anchor);
       };
-      window.addEventListener('kg:helpScrollToAnchor', handler as EventListener);
+      window.addEventListener(HELP_SCROLL_TO_ANCHOR_EVENT, handler as EventListener);
       return () => {
-        window.removeEventListener('kg:helpScrollToAnchor', handler as EventListener);
+        window.removeEventListener(HELP_SCROLL_TO_ANCHOR_EVENT, handler as EventListener);
       };
     } catch {
       void 0;
@@ -128,9 +129,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
   // 7. Navigation handlers
   const handleOpenFlowEditorManagerTab = React.useCallback(() => {
     try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'workflowManager' } }));
-      }
+      emitMainPanelOpen({ tab: 'workflowManager' });
     } catch {
       void 0;
     }
@@ -138,9 +137,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
 
   const handleOpenSettingsTab = React.useCallback(() => {
     try {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab: 'settings' } }));
-      }
+      emitMainPanelOpen({ tab: 'settings' });
     } catch {
       void 0;
     }

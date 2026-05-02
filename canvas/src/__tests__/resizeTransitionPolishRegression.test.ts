@@ -106,17 +106,17 @@ export function testResizeTransitionPolishKeepsChevronAndHandleDotTransitions() 
   if (htmlViewerRuntimeText.includes("out = replaceAllExact(\n    out,\n    \"var xid2 = String(ex2.getAttribute('data-node-id') || '').trim();\"")) {
     throw new Error('expected html viewer runtime patching to stop carrying the dead xid2 node-id rewrite branch once the upstream token is gone')
   }
-  if (htmlViewerRuntimeText.split("\"var b = markdownBlocks[i];\\n        if (!b) continue;\\n        var id = String(b.id || '');\\n        if (!id) continue;\"").length - 1 !== 1) {
-    throw new Error('expected html viewer runtime patching to keep only one live markdown block anchor-preload rewrite branch after duplicate cleanup')
+  if (htmlViewerRuntimeText.split("\"var b = markdownBlocks[i];\\n        if (!b) continue;\\n        var id = String(b.id || '');\\n        if (!id) continue;\"").length - 1 !== 0) {
+    throw new Error('expected html viewer runtime patching to fold the markdown block anchor-preload rewrite upstream and remove the downstream branch')
   }
-  if (htmlViewerRuntimeText.split("\"el.setAttribute('data-md-id', id);\"").length - 1 !== 1) {
-    throw new Error('expected html viewer runtime patching to keep only one live markdown data-md-id anchor rewrite branch after duplicate cleanup')
+  if (htmlViewerRuntimeText.split("\"el.setAttribute('data-md-id', id);\"").length - 1 !== 0) {
+    throw new Error('expected html viewer runtime patching to fold the markdown data-md-id anchor rewrite upstream and remove the downstream branch')
   }
-  if (htmlViewerRuntimeText.split("\"overlay.__kgMdById[id] = el;\"").length - 1 !== 1) {
-    throw new Error('expected html viewer runtime patching to keep only one live markdown overlay map rewrite branch after duplicate cleanup')
+  if (htmlViewerRuntimeText.split("\"overlay.__kgMdById[id] = el;\"").length - 1 !== 0) {
+    throw new Error('expected html viewer runtime patching to fold the markdown overlay map rewrite upstream and remove the downstream branch')
   }
-  if (htmlViewerRuntimeText.split("\"var xanchor = String(ex.getAttribute('data-kg-anchor-node-id') || '').trim();\"").length - 1 !== 1) {
-    throw new Error('expected html viewer runtime patching to keep only one live markdown anchor rewrite branch after duplicate cleanup')
+  if (htmlViewerRuntimeText.split("\"var xanchor = String(ex.getAttribute('data-kg-anchor-node-id') || '').trim();\"").length - 1 !== 0) {
+    throw new Error('expected html viewer runtime patching to remove the dead raw markdown anchor rewrite branch after upstream consolidation')
   }
   if (htmlViewerRuntimeText.includes("out = replaceAllExact(\n    out,\n    \"el.setAttribute('data-kg-canvas-wheel-ignore', 'true');\",\n    '',\n  )")) {
     throw new Error('expected html viewer runtime patching to stop carrying the dead wheel-ignore removal branch once the emitted runtime is already unchanged without it')
@@ -138,6 +138,90 @@ export function testResizeTransitionPolishKeepsChevronAndHandleDotTransitions() 
   }
   if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"if (overlayFollowAnimation && svg && (svg.__kgNodeOffsetById || (svg.__kgNodeOffsetById = {}))) {\\n          var map = svg.__kgNodeOffsetById;")) {
     throw new Error('expected html viewer runtime patching to stop carrying the dead overlayFollowAnimation offset-map guard rewrite once the emitted runtime is unchanged without it')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceAllExact(\n    out,\n    \"lastBoxById[id] = { left: left, top: top, w: panelW, h: panelH, display: 'block' };\"")) {
+    throw new Error('expected html viewer runtime patching to fold media panel edge-geometry scheduling upstream and remove the downstream lastBoxById rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceAllExact(\n    out,\n    \"if (bid) lastMdBoxById[bid] = boxVal;\\n              if (anchorId) lastMdBoxById[anchorId] = boxVal;\"")) {
+    throw new Error('expected html viewer runtime patching to fold markdown world-box edge scheduling upstream and remove the downstream boxVal rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"var mdBoxById = overlay.__kgMdBoxById || {};\\n          if (markdownBlocks && markdownBlocks.length) {")) {
+    throw new Error('expected html viewer runtime patching to fold markdown world-box mode gating upstream and remove the downstream hasMdBlocks rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"              if (!prev1 || Math.abs((Number(prev1.x) || 0) - dx1) > 0.5 || Math.abs((Number(prev1.y) || 0) - dy1) > 0.5) {\\n                offMap[key1] = { x: dx1, y: dy1 };")) {
+    throw new Error('expected html viewer runtime patching to fold markdown offset-map fallback scheduling upstream and remove the downstream key1/key2 rewrite branch')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"var kind = String(n.kind || 'iframe');\"")) {
+    throw new Error('expected html viewer runtime patching to fold media kind inference into the upstream url/kind payload injection and remove the separate kind rewrite branch')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"var url = String(n.url || '');\\n        var kind = String(n.kind || 'iframe');\"")) {
+    throw new Error('expected html viewer runtime patching to fold media payload openUrl normalization and inferred kind setup into the canonical runtime template and remove the downstream payload rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    'var inferred = kgInferMediaKindFromUrl(url0);'")) {
+    throw new Error('expected html viewer runtime patching to fold media element rehydrate inference into the canonical runtime template and remove the downstream inferred-kind rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    'imgEl.src = url;'")) {
+    throw new Error('expected html viewer runtime patching to fold image element source setup into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    'vid.src = url;'")) {
+    throw new Error('expected html viewer runtime patching to fold video element source setup into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    'iframe.src = url;'")) {
+    throw new Error('expected html viewer runtime patching to fold iframe source setup, sandboxing, and srcdoc handling into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    'var x1 = Number(a.x);\\n      var y1 = Number(a.y);\\n      var x2 = Number(b.x);\\n      var y2 = Number(b.y);'")) {
+    throw new Error('expected html viewer runtime patching to fold overlay-follow edge endpoint offsets into the canonical edge geometry template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"el.className = 'kg-media';\"")) {
+    throw new Error('expected html viewer runtime patching to fold media click-through handling into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"if (k === 'video' || k === 'image' || k === 'svg') return kgBuildRemoteFetchProxyUrl(u);\"")) {
+    throw new Error('expected html viewer runtime patching to fold media proxy routing into the upstream kgResolveMediaSrc rewrite and remove the separate remote-fetch branch')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"if (u.startsWith('/__') || u.startsWith('/@')) return u;\"")) {
+    throw new Error('expected html viewer runtime patching to fold local proxy-origin rewriting into the upstream kgResolveMediaSrc rewrite and remove the separate early-return branch')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    'if (!touches || touches.length === 0) return;\\n\\n        var t0 = safeViewportTransform(state);'")) {
+    throw new Error('expected html viewer runtime patching to fold touch start lifecycle handling into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"if (touchDrag.type === 'rotate') {\"")) {
+    throw new Error('expected html viewer runtime patching to fold touch move lifecycle handling into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    'if (!touches || touches.length === 0) touchDrag = null;'")) {
+    throw new Error('expected html viewer runtime patching to fold touch end lifecycle handling into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"try { scheduleEdgeGeometryUpdateForNode(nodeId); } catch (e0) {}\\n    }\\n\\n    function translateGroupByDelta(groupId, dx, dy){\"")) {
+    throw new Error('expected html viewer runtime patching to fold group-rect helper injection into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"p.x = targetX;\\n      p.y = targetY;\\n      translateNodeByDelta(nodeDrag.id, dx, dy);\"")) {
+    throw new Error('expected html viewer runtime patching to fold node-drag group-rect upkeep into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"var edgeLs = svg.querySelectorAll('[data-edge-id]');\"")) {
+    throw new Error('expected html viewer runtime patching to fold late edge bootstrap into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("if (!out.includes('var markdownBlocks =')) {")) {
+    throw new Error('expected html viewer runtime patching to fold the markdownBlocks declaration into the canonical runtime template and remove the fallback insertion block')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    'if (mediaBtn) mediaBtn.addEventListener(\\'click\\', function(){ setMediaInteractive(!mediaInteractive); });'")) {
+    throw new Error('expected html viewer runtime patching to fold the HUD control/frontmatter/rich/3D state block into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("window.addEventListener('keydown', function(e){")) {
+    throw new Error('expected html viewer runtime patching to fold the keyboard media-toggle shortcut into the canonical runtime template and remove the downstream rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    \"var mediaBtn = document.getElementById('kg-media-toggle');\"")) {
+    throw new Error('expected html viewer runtime patching to fold the media/proxy helper subsystem into the canonical runtime template and remove the downstream mediaBtn rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    'var kgResolveMediaSrc = function(url, kind){'")) {
+    throw new Error('expected html viewer runtime patching to fold the media/proxy helper prelude into the canonical runtime template and remove the downstream kgResolveMediaSrc rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("const markdownBlockInteractionsSnippet = `var __kgMdDrag = null;")) {
+    throw new Error('expected html viewer runtime patching to fold markdown block interaction helpers into the canonical runtime template and remove the downstream snippet injection')
+  }
+  if (htmlViewerRuntimeText.includes("out = replaceOnceExact(\n    out,\n    '      updateOverlays();'")) {
+    throw new Error('expected html viewer runtime patching to fold markdown block interaction installation into the canonical runtime template and remove the downstream updateOverlays call rewrite')
+  }
+  if (htmlViewerRuntimeText.includes("el.setAttribute('data-kg-canvas-wheel-ignore', 'true');")) {
+    throw new Error('expected html viewer runtime patching to stop emitting direct Rich Media wheel-ignore attrs once overlay pan/zoom stays canvas-driven')
   }
   if (!cssText.includes('.kg-panel-action-btn {') || !cssText.includes('.kg-panel-icon-btn {')) {
     throw new Error('expected app CSS to expose shared panel action button classes for consumers like Kanban')

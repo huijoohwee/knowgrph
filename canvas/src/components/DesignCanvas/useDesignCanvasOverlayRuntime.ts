@@ -7,6 +7,7 @@ import { readNodeCenterWorld2d } from '@/lib/render/mediaAnchor'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { startMediaOverlayLayoutLoop2d } from '@/lib/render/mediaOverlayLayoutLoop2d'
 import { normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
+import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
@@ -19,12 +20,7 @@ type OverlayRuntimeArgs = {
   viewportH: number
   mediaPanelDensity: unknown
   renderMediaAsNodes: boolean
-  threeIframeOverlayBaseWidthRatioDefault: unknown
-  threeIframeOverlayBaseWidthRatioCompact: unknown
-  threeIframeOverlayBaseWidthMinPxDefault: unknown
-  threeIframeOverlayBaseWidthMinPxCompact: unknown
-  threeIframeOverlayBaseWidthMaxPxDefault: unknown
-  threeIframeOverlayBaseWidthMaxPxCompact: unknown
+  overlaySizing?: OverlayDensitySizingConfigInput | null
   svgRef: React.RefObject<SVGSVGElement | null>
   zoomRef: React.RefObject<d3.ZoomBehavior<SVGSVGElement, unknown> | null>
   documentUrl: string
@@ -47,12 +43,7 @@ export function useDesignCanvasOverlayRuntime(args: OverlayRuntimeArgs) {
     viewportH,
     mediaPanelDensity,
     renderMediaAsNodes,
-    threeIframeOverlayBaseWidthRatioDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMaxPxCompact,
+    overlaySizing,
     svgRef,
     zoomRef,
     documentUrl,
@@ -100,9 +91,7 @@ export function useDesignCanvasOverlayRuntime(args: OverlayRuntimeArgs) {
     if (!active) return
     if (designMediaOverlayNodes.length === 0) return
     const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
-    const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
-    const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
-    const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+    const sizingConfig = readOverlaySizingConfigForDensity({ density, sizing: overlaySizing || null })
 
     const loop = startMediaOverlayLayoutLoop2d({
       enabled: true,
@@ -133,9 +122,9 @@ export function useDesignCanvasOverlayRuntime(args: OverlayRuntimeArgs) {
         return readNodeCenterWorld2d(node, { coords: 'center' })
       },
       sizingConfig: {
-        widthRatio: Number.isFinite(widthRatioRaw as number) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
-        widthMinPx: Number.isFinite(widthMinRaw as number) ? Math.max(1, Math.floor(Number(widthMinRaw))) : 210,
-        widthMaxPx: Number.isFinite(widthMaxRaw as number) ? Math.max(1, Math.floor(Number(widthMaxRaw))) : 360,
+        widthRatio: sizingConfig.widthRatio,
+        widthMinPx: sizingConfig.widthMinPx,
+        widthMaxPx: sizingConfig.widthMaxPx,
       },
     })
 
@@ -145,14 +134,9 @@ export function useDesignCanvasOverlayRuntime(args: OverlayRuntimeArgs) {
     designMediaOverlayNodeIdsKey,
     designMediaOverlayNodes,
     mediaPanelDensity,
+    overlaySizing,
     renderMediaAsNodes,
     svgRef,
-    threeIframeOverlayBaseWidthMaxPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthRatioDefault,
     viewportH,
     viewportW,
   ])

@@ -13,6 +13,8 @@ import { getNodeBaseFill } from '@/components/GraphCanvas/helpers'
 import type { TokensByGraphLayerRow, StatsCommunity, TokensForSelectedNode, TokensForSelectedNodes } from '@/components/BottomPanel/stats/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
+const EMPTY_STRING_ARRAY: string[] = []
+
 type UseStatsDerivedDataProps = {
   effectiveGraph: GraphData | null
   data: GraphData | null
@@ -34,7 +36,7 @@ export function useStatsDerivedData({
 }: UseStatsDerivedDataProps) {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds ?? EMPTY_STRING_ARRAY)
 
   const maxListItems = effectiveLod === 'low' ? 10 : effectiveLod === 'medium' ? 20 : 50
 

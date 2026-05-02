@@ -1,7 +1,7 @@
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { computeMarkdownOutline } from '@/features/markdown-explorer/outline'
-import { computeBacklinks, computeWorkspaceBacklinks } from '@/features/markdown-explorer/backlinks'
+import { computeBacklinks, computeWorkspaceBacklinks, summarizeWorkspaceBacklinksBySource } from '@/features/markdown-explorer/backlinks'
 
 export const testWorkspaceFsSeedAndCrud = async () => {
   const fs = await getWorkspaceFs()
@@ -47,5 +47,20 @@ export const testMarkdownOutlineAndBacklinks = () => {
   })
   if (docKeyBacklinks.length !== 2) {
     throw new Error(`Expected 2 doc-key backlinks, got ${docKeyBacklinks.length}`)
+  }
+
+  const summarized = summarizeWorkspaceBacklinksBySource([
+    { fromPath: 'notes-b.md', line: 5, lineText: 'see ](index.md)' },
+    { fromPath: 'notes-a.md', line: 2, lineText: 'see [[index]]' },
+    { fromPath: 'notes-a.md', line: 8, lineText: 'see [[index]] again' },
+  ])
+  if (summarized.length !== 2) {
+    throw new Error(`Expected 2 backlink source summaries, got ${summarized.length}`)
+  }
+  if (summarized[0]?.sourceDocKey !== 'notes-a.md' || summarized[0]?.count !== 2) {
+    throw new Error(`Expected notes-a.md summary first with count 2, got ${JSON.stringify(summarized[0] || null)}`)
+  }
+  if (summarized[1]?.sourceDocKey !== 'notes-b.md' || summarized[1]?.count !== 1) {
+    throw new Error(`Expected notes-b.md summary second with count 1, got ${JSON.stringify(summarized[1] || null)}`)
   }
 }

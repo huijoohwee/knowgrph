@@ -203,6 +203,9 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   if (!typesText.includes('DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY')) {
     throw new Error('Expected workspace pane visibility defaults to live in the shared main types module')
   }
+  if (!typesText.includes('export function resolveMarkdownWorkspacePaneVisibility')) {
+    throw new Error('Expected workspace pane visibility rules to live in a shared main types helper')
+  }
   if (!typesText.includes('json: false')) {
     throw new Error('Expected JSON pane to be opt-in by default to avoid eager Markdown JSON-LD generation on load')
   }
@@ -245,13 +248,16 @@ export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
   if (!editorPaneText.includes('const getLineStarts = React.useCallback')) {
     throw new Error('Expected markdown editor pane to build line starts lazily after caret events')
   }
-  if (!mainText.includes("const markdownPaneVisible = layoutMode === 'editor' ? true : layoutMode === 'split' && splitPaneVisibility.markdown")) {
-    throw new Error('Expected markdown pane visibility to keep editor mode usable while keeping split markdown editor opt-in')
+  if (!mainText.includes('resolveMarkdownWorkspacePaneVisibility({ layoutMode, splitPaneVisibility })')) {
+    throw new Error('Expected workspace main pane visibility to reuse the shared visibility helper SSOT')
   }
   if (!mainText.includes('if (!markdownPaneVisible && !viewerPaneVisible) return null')) {
     throw new Error('Expected JSON-to-markdown derivation to be skipped when markdown and viewer panes are hidden')
   }
-  if (!layoutText.includes('props.splitPaneVisibility.json ?')) {
+  if (!layoutText.includes('resolveMarkdownWorkspacePaneVisibility({')) {
+    throw new Error('Expected layout to reuse the shared pane visibility helper SSOT')
+  }
+  if (!layoutText.includes('paneVisibility.json ?')) {
     throw new Error('Expected layout to avoid mounting hidden JSON editor pane')
   }
   if (!toolbarText.includes('DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY')) {

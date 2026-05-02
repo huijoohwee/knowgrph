@@ -10,12 +10,11 @@ import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { readPanSpeed, readWheelBehavior, readZoomSpeed } from '@/lib/canvas/camera-options-2d'
 import type { UiToastInput } from '@/hooks/store/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 import { injectLiveMarkdownDesignBlocksIntoSvgMarkupAnchored, readCanvasViewportSizeFromDom } from '@/lib/graph/svgSnapshot'
 import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
-import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
 import { lexMarkdown, buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout, deriveMarkdownDesignLayoutFromGraphBlocks } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { normalizeInteractiveSvgForHtmlViewer } from './normalizeInteractiveSvg'
@@ -28,6 +27,7 @@ import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/mark
 import { captureLiveOverlayHtmlForHtmlViewerExport } from '@/lib/graph/htmlViewer/liveOverlayExport'
 import { readViewportControlsPresetFromLocalStorage } from '@/lib/graph/htmlViewer/exportViewportControls'
 import { writeKgcCompanionOutputText } from '@/features/chat/chatHistoryWorkspace.output'
+import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 
 const deriveThreeCameraStartup = (
   pose: { position?: { x?: number; y?: number; z?: number }; target?: { x?: number; y?: number; z?: number } } | null | undefined,
@@ -90,18 +90,14 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       documentSemanticMode: store.documentSemanticMode,
       graphData: baseGraphData,
     })
-    const layoutSemanticModeKey = buildDocumentSemanticModeKey({
+    const documentViewMode = readDocumentViewModeContext({
       frontmatterModeEnabled: frontmatterModeEnabled === true,
       multiDimTableModeEnabled,
       documentSemanticMode,
       documentStructureBaselineLock: store.documentStructureBaselineLock === true,
     })
-    const activeDocumentViewMode = resolveActiveDocumentViewMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true,
-      multiDimTableModeEnabled,
-      documentSemanticMode,
-      documentStructureBaselineLock: store.documentStructureBaselineLock === true,
-    })
+    const layoutSemanticModeKey = documentViewMode.documentSemanticModeKey
+    const forceDocumentStructure = documentViewMode.forceDocumentStructureGroups
 
     const graphData = deriveGraphDataForActiveView({
       graphData: baseGraphData,
@@ -164,7 +160,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
           centerMode: 'centroid',
           schema,
           graphData,
-          deriveGroupsOptions: { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' },
+          deriveGroupsOptions: { forceDocumentStructure },
         }
         const t = fitAllTransform((graphData.nodes ?? []) as any, fixedViewport.widthPx, fixedViewport.heightPx, opts as any)
         if (!t || !(typeof t.k === 'number' && Number.isFinite(t.k) && t.k > 0)) return null
@@ -253,12 +249,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
             collapsedGroupIds: store.collapsedGroupIds,
             layoutPositionCacheByMode: store.layoutPositionCacheByMode,
             canvas2dRenderer: store.canvas2dRenderer,
-            overlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
-            overlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
-            overlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,
-            overlayBaseWidthMinPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMinPxCompact?: number }).threeIframeOverlayBaseWidthMinPxCompact,
-            overlayBaseWidthMaxPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMaxPxDefault?: number }).threeIframeOverlayBaseWidthMaxPxDefault,
-            overlayBaseWidthMaxPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMaxPxCompact?: number }).threeIframeOverlayBaseWidthMaxPxCompact,
+            overlaySizing: readOverlaySizingInputFromStoreState(store),
             layoutSemanticModeKey,
           })
           if (rendered) return normalizeInteractiveSvgForHtmlViewer(rendered)
@@ -373,12 +364,7 @@ export async function exportHtmlCanvasFromWorkspace(args: {
       initialFrontmatterEnabled: frontmatterModeEnabled,
       preferWebgl3d: wants3dExport,
       initialView: !geospatialEnabled && !wants3dExport ? (exportView.initialView || fitInitialView2d || undefined) : undefined,
-      threeIframeOverlayBaseWidthRatioDefault: (store as unknown as { threeIframeOverlayBaseWidthRatioDefault?: number }).threeIframeOverlayBaseWidthRatioDefault,
-      threeIframeOverlayBaseWidthRatioCompact: (store as unknown as { threeIframeOverlayBaseWidthRatioCompact?: number }).threeIframeOverlayBaseWidthRatioCompact,
-      threeIframeOverlayBaseWidthMinPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMinPxDefault?: number }).threeIframeOverlayBaseWidthMinPxDefault,
-      threeIframeOverlayBaseWidthMinPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMinPxCompact?: number }).threeIframeOverlayBaseWidthMinPxCompact,
-      threeIframeOverlayBaseWidthMaxPxDefault: (store as unknown as { threeIframeOverlayBaseWidthMaxPxDefault?: number }).threeIframeOverlayBaseWidthMaxPxDefault,
-      threeIframeOverlayBaseWidthMaxPxCompact: (store as unknown as { threeIframeOverlayBaseWidthMaxPxCompact?: number }).threeIframeOverlayBaseWidthMaxPxCompact,
+      overlaySizing: readOverlaySizingInputFromStoreState(store),
       zoomMinK: readZoomScaleExtent(store.schema || defaultSchema)[0],
       zoomMaxK: readZoomScaleExtent(store.schema || defaultSchema)[1],
       wheelBehavior: readWheelBehavior(store.schema || defaultSchema),

@@ -32,6 +32,9 @@ import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import { hashSignatureParts } from '@/lib/hash/signature'
 
+const EMPTY_STRING_ARRAY: string[] = []
+const EMPTY_BOOL_RECORD: Record<string, boolean> = {}
+
 export default function FlowEditorCanvasRuntime(
   {
     active = true,
@@ -88,9 +91,9 @@ export default function FlowEditorCanvasRuntime(
     })),
   )
   const selectedNodeId = useGraphStore(s => (typeof s.selectedNodeId === 'string' ? s.selectedNodeId : null))
-  const selectedNodeIds = useGraphStore(s => (Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : []))
+  const selectedNodeIds = useGraphStore(s => (Array.isArray(s.selectedNodeIds) ? s.selectedNodeIds : EMPTY_STRING_ARRAY))
   const selectedEdgeId = useGraphStore(s => (typeof s.selectedEdgeId === 'string' ? s.selectedEdgeId : null))
-  const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId || {})
+  const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId ?? EMPTY_BOOL_RECORD)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectEdge = useGraphStore(s => s.selectEdge)
@@ -213,7 +216,7 @@ export default function FlowEditorCanvasRuntime(
   const lastDroppedWidgetNodeIdRef = React.useRef<string | null>(null)
   const [lastDroppedWidgetToken, setLastDroppedWidgetToken] = React.useState<number>(0)
 
-  const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds || [])
+  const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY)
   const openWidgetNodeIdsRef = React.useRef(openWidgetNodeIds)
   const overlayEditorNodeIdsRef = React.useRef<string[]>([])
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)

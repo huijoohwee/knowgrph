@@ -29,6 +29,8 @@ import {
   inferTextGenerationProviderFamily,
 } from '@/features/flow-editor-manager/registryTemplates'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+  FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveNodeWidgetIdentity, resolveWidgetRegistryEntry
+import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 import { patchById } from 'grph-shared/array/patchArrayItem'
@@ -256,9 +258,10 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
       return
     }
     const props = (node?.properties || {}) as Record<string, unknown>
+    const widgetIdentity = resolveNodeWidgetIdentity({ node })
     const inferredMode = inferSmartMediaMode({
       nodeTypeId,
-      formId: props[FLOW_WIDGET_FORM_ID_KEY],
+      formId: widgetIdentity.formId,
     })
     const inferredDraft =
       inferredMode === 'image'
@@ -269,11 +272,11 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
           ? buildTextGenerationRegistryDraft({
               providerFamily: inferTextGenerationProviderFamily({
                 provider: props.chatProvider,
-                widgetTypeId: props[FLOW_WIDGET_TYPE_ID_KEY],
-                formId: props[FLOW_WIDGET_FORM_ID_KEY],
+                widgetTypeId: widgetIdentity.widgetTypeId,
+                formId: widgetIdentity.formId,
               }),
-              widgetTypeId: String(props[FLOW_WIDGET_TYPE_ID_KEY] || '').trim() || 'default',
-              formId: String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim() || 'textGeneration',
+              widgetTypeId: widgetIdentity.widgetTypeId || 'default',
+              formId: widgetIdentity.formId || 'textGeneration',
             })
           : buildWidgetDraftFromSmartFields({ nodeTypeId })
     openCreate(inferredDraft)
@@ -340,9 +343,10 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
     }
 
     const props = (node.properties || {}) as Record<string, unknown>
+    const widgetIdentity = resolveNodeWidgetIdentity({ node })
     const inferredMode = inferSmartMediaMode({
       nodeTypeId: baseType,
-      formId: props[FLOW_WIDGET_FORM_ID_KEY],
+      formId: widgetIdentity.formId,
     })
     const draft = inferredMode === 'image'
       ? buildGenerateImageRegistryDraft()
@@ -352,11 +356,11 @@ export default function FlowEditorMappingTab({ searchQuery, onRegisterActions }:
           ? buildTextGenerationRegistryDraft({
               providerFamily: inferTextGenerationProviderFamily({
                 provider: props.chatProvider,
-                widgetTypeId: props[FLOW_WIDGET_TYPE_ID_KEY],
-                formId: props[FLOW_WIDGET_FORM_ID_KEY],
+                widgetTypeId: widgetIdentity.widgetTypeId,
+                formId: widgetIdentity.formId,
               }),
-              widgetTypeId: String(props[FLOW_WIDGET_TYPE_ID_KEY] || '').trim() || 'default',
-              formId: String(props[FLOW_WIDGET_FORM_ID_KEY] || '').trim() || 'textGeneration',
+              widgetTypeId: widgetIdentity.widgetTypeId || 'default',
+              formId: widgetIdentity.formId || 'textGeneration',
             })
         : buildWidgetDraftFromSmartFields({ nodeTypeId: baseType })
 

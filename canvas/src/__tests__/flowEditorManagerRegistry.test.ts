@@ -11,7 +11,10 @@ import {
   getWidgetRegistryEntryLabel,
   inferTextGenerationProviderFamily,
   getTextGenerationWidgetLabel,
+  listVisibleWidgetRegistryPortsForPropsEditor,
   normalizeTextGenerationWidgetPropertiesForProviderFamily,
+  resolveWidgetRegistryApiDocRef,
+  resolveWidgetRegistryMainPanelLink,
   resolveEffectiveTextGenerationWidgetProperties,
 } from '@/features/flow-editor-manager/registryTemplates'
 import {
@@ -451,5 +454,118 @@ export function testFlowEditorManagerNormalizesBytePlusTextWidgetProviderDefault
   }
   if (String(effective.chatModel || '') !== CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT) {
     throw new Error(`expected effective BytePlus widget properties to fall back to global model ${CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT}`)
+  }
+}
+
+export function testFlowEditorManagerFiltersBytePlusTextInputRegistryPortsInPropsEditor() {
+  const bytePlusVisiblePorts = listVisibleWidgetRegistryPortsForPropsEditor({
+    registryEntry: {
+      nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'textGeneration',
+      ports: [
+        { portKey: 'prompt_in', direction: 'input', schemaPath: 'properties.prompt' },
+        { portKey: 'text_out', direction: 'output', schemaPath: 'properties.output' },
+      ],
+    },
+    properties: {},
+  })
+  if (bytePlusVisiblePorts.some(port => port.portKey === 'prompt_in')) {
+    throw new Error('expected BytePlus text widget props editor to hide input registry port rows')
+  }
+  if (!bytePlusVisiblePorts.some(port => port.portKey === 'text_out')) {
+    throw new Error('expected BytePlus text widget props editor to keep output registry port rows')
+  }
+
+  const openAiVisiblePorts = listVisibleWidgetRegistryPortsForPropsEditor({
+    registryEntry: {
+      nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'textGeneration.openai',
+      ports: [
+        { portKey: 'prompt_in', direction: 'input', schemaPath: 'properties.prompt' },
+      ],
+    },
+    properties: {
+      chatProvider: 'openai',
+    },
+  })
+  if (!openAiVisiblePorts.some(port => port.portKey === 'prompt_in')) {
+    throw new Error('expected OpenAI text widget props editor to keep input registry port rows')
+  }
+}
+
+export function testFlowEditorManagerResolvesWidgetRegistryApiDocRefs() {
+  const bytePlusPrompt = resolveWidgetRegistryApiDocRef({
+    registryEntry: {
+      nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'textGeneration',
+    },
+    properties: {},
+    fieldKey: 'prompt',
+    schemaPath: 'properties.prompt',
+  })
+  if (!bytePlusPrompt || bytePlusPrompt.rowKey !== 'byteplusApi.messages.content.text' || bytePlusPrompt.apiKey !== 'messages.content.text') {
+    throw new Error(`expected BytePlus text widget prompt doc ref, got ${JSON.stringify(bytePlusPrompt)}`)
+  }
+
+  const openAiPrompt = resolveWidgetRegistryApiDocRef({
+    registryEntry: {
+      nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'textGeneration.openai',
+    },
+    properties: {
+      chatProvider: 'openai',
+    },
+    fieldKey: 'prompt',
+    schemaPath: 'properties.prompt',
+  })
+  if (!openAiPrompt || openAiPrompt.rowKey !== 'openaiApi.input' || openAiPrompt.apiKey !== 'input') {
+    throw new Error(`expected OpenAI text widget prompt doc ref, got ${JSON.stringify(openAiPrompt)}`)
+  }
+
+  const videoOutput = resolveWidgetRegistryApiDocRef({
+    registryEntry: {
+      nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'videoGeneration',
+    },
+    properties: {},
+    portKey: 'videoUrl',
+  })
+  if (!videoOutput || videoOutput.rowKey !== 'byteplusVideoApi.polling_endpoint' || videoOutput.apiKey !== 'polling_endpoint') {
+    throw new Error(`expected BytePlus video widget output doc ref, got ${JSON.stringify(videoOutput)}`)
+  }
+}
+
+export function testFlowEditorManagerResolvesWidgetRegistryMainPanelLinks() {
+  const openAiPromptLink = resolveWidgetRegistryMainPanelLink({
+    registryEntry: {
+      nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'textGeneration.openai',
+    },
+    properties: {
+      chatProvider: 'openai',
+    },
+    portKey: 'prompt_in',
+  })
+  if (!openAiPromptLink || openAiPromptLink.tab !== 'integrations' || openAiPromptLink.searchQuery !== 'openaiApi.input' || openAiPromptLink.anchorId !== 'openai-chat-api-row-openaiapi-input') {
+    throw new Error(`expected OpenAI text widget main-panel link, got ${JSON.stringify(openAiPromptLink)}`)
+  }
+
+  const bytePlusVideoLink = resolveWidgetRegistryMainPanelLink({
+    registryEntry: {
+      nodeTypeId: FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
+      widgetTypeId: 'default',
+      formId: 'videoGeneration',
+    },
+    properties: {},
+    portKey: 'videoUrl',
+  })
+  if (!bytePlusVideoLink || bytePlusVideoLink.tab !== 'integrations' || bytePlusVideoLink.searchQuery !== 'byteplusVideoApi.polling_endpoint' || bytePlusVideoLink.anchorId !== 'byteplus-video-generation-api-row-byteplusvideoapi-polling-endpoint') {
+    throw new Error(`expected BytePlus video widget main-panel link, got ${JSON.stringify(bytePlusVideoLink)}`)
   }
 }

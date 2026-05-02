@@ -14,8 +14,8 @@ import {
   WORKSPACE_ROOT_PATH,
 } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
+import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
 import type { MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
-import { normalizeWebpageFrontmatterView } from '@/lib/markdown/frontmatter'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { toCanonicalKgcWorkspacePath } from '@/features/chat/chatHistoryWorkspace.paths'
 
@@ -172,12 +172,13 @@ export function useMarkdownWorkspaceSelection(args: {
       if (String(args.activeText || '').trim() || !String(candidate || '').trim()) return
       args.setActiveText(candidate)
       if (activeDocumentKey) {
-        void args.setActiveMarkdownDocument({
+        void applyActiveMarkdownDocumentPayload({
+          setActiveMarkdownDocument: args.setActiveMarkdownDocument,
           name: activeDocumentKey,
-          text: normalizeWebpageFrontmatterView(candidate, 'markdown'),
-          normalizeMermaidMmd: false,
-          autoEnableFrontmatter: false,
+          text: candidate,
           sourceUrl: activeDocumentSourceUrl,
+          autoEnableFrontmatter: false,
+          normalizeWebpageFrontmatterToMarkdown: true,
         })
       }
       return
@@ -192,12 +193,13 @@ export function useMarkdownWorkspaceSelection(args: {
     if (!snap || snap.path !== path || !String(snap.text || '').trim()) return
     args.setActiveText(snap.text)
     if (activeDocumentKey) {
-      void args.setActiveMarkdownDocument({
+      void applyActiveMarkdownDocumentPayload({
+        setActiveMarkdownDocument: args.setActiveMarkdownDocument,
         name: activeDocumentKey,
-        text: normalizeWebpageFrontmatterView(snap.text, 'markdown'),
-        normalizeMermaidMmd: false,
-        autoEnableFrontmatter: false,
+        text: snap.text,
         sourceUrl: activeDocumentSourceUrl,
+        autoEnableFrontmatter: false,
+        normalizeWebpageFrontmatterToMarkdown: true,
       })
     }
   }, [
@@ -222,12 +224,13 @@ export function useMarkdownWorkspaceSelection(args: {
     if (last && last.path === path && String(last.text || '').trim()) {
       args.setActiveText(last.text)
       if (activeDocumentKey) {
-        void args.setActiveMarkdownDocument({
+        void applyActiveMarkdownDocumentPayload({
+          setActiveMarkdownDocument: args.setActiveMarkdownDocument,
           name: activeDocumentKey,
-          text: normalizeWebpageFrontmatterView(last.text, 'markdown'),
-          normalizeMermaidMmd: false,
-          autoEnableFrontmatter: false,
+          text: last.text,
           sourceUrl: activeDocumentSourceUrl,
+          autoEnableFrontmatter: false,
+          normalizeWebpageFrontmatterToMarkdown: true,
         })
       }
       return

@@ -10,7 +10,7 @@ import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveRankdir, buildGraphMetaKeyIgnoringPending } from '@/components/FlowCanvas/layout'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
@@ -45,12 +45,7 @@ type UseFlowCanvasLayoutStateArgs = {
   schema: GraphSchema | null
   widgetRegistry: unknown[]
   setLayoutPositionsForMode?: (cacheKey: string, positions: Record<string, { x: number; y: number }>) => void
-  threeIframeOverlayBaseWidthRatioDefault?: number
-  threeIframeOverlayBaseWidthRatioCompact?: number
-  threeIframeOverlayBaseWidthMinPxDefault?: number
-  threeIframeOverlayBaseWidthMinPxCompact?: number
-  threeIframeOverlayBaseWidthMaxPxDefault?: number
-  threeIframeOverlayBaseWidthMaxPxCompact?: number
+  overlaySizing?: OverlayDensitySizingConfigInput | null
   openWidgetNodeIds: string[]
   flowWidgetPinnedByNodeId: Record<string, boolean>
   flowWidgetWorldPosByNodeId: Record<string, { x: number; y: number }>
@@ -78,12 +73,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     schema,
     widgetRegistry,
     setLayoutPositionsForMode,
-    threeIframeOverlayBaseWidthRatioDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMaxPxCompact,
+    overlaySizing,
     openWidgetNodeIds,
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
@@ -109,6 +99,15 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     if (flowConfig.elk.algorithm !== 'layered') return flowConfig
     return { ...flowConfig, elk: { ...flowConfig.elk, algorithm: 'stress' as const } }
   }, [documentSemanticMode, flowConfig, schema?.layout?.flow?.elkLayout])
+  const sceneGraphLookup = React.useMemo(() => {
+    return getCachedGraphLookup({
+      cacheScope: 'flow-canvas-layout-state-scene-graph',
+      graphData: sceneGraphData,
+      graphRevision: graphDataRevision,
+      preferCurrentGraphDataRefs: true,
+    })
+  }, [graphDataRevision, sceneGraphData])
+  const sceneGraphNodeById = sceneGraphLookup?.nodeById || null
 
   const flowPresentation = React.useMemo(() => {
     const basePresentation = readFlowPresentation({ schema, documentSemanticMode })
@@ -291,13 +290,13 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     for (let i = 0; i < ids.length; i += 1) {
       const id = ids[i]!
       if (!shouldSeedAll) {
-        const node = nodes.find(entry => String(entry?.id || '').trim() === id) || null
+        const node = sceneGraphNodeById?.get(id) || null
         if (node && isFiniteNum((node as { x?: unknown }).x) && isFiniteNum((node as { y?: unknown }).y)) continue
       }
       if (seeded[id]) next[id] = seeded[id]!
     }
     return Object.keys(next).length > 0 ? next : null
-  }, [computedPositions, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, sceneGraphData])
+  }, [computedPositions, flowConfigEffective.node.heightPx, flowConfigEffective.node.widthPx, sceneGraphData, sceneGraphNodeById])
 
   const graphDataForZoom = React.useMemo(() => {
     if (!sceneGraphData) return null
@@ -360,30 +359,22 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
 
   const mediaPanelWorldSizeForFit = React.useMemo(() => {
     const density = normalizeRichMediaPanelDensity(mediaPanelDensity)
-    const widthRatioRaw = density === 'compact' ? threeIframeOverlayBaseWidthRatioCompact : threeIframeOverlayBaseWidthRatioDefault
-    const widthMinRaw = density === 'compact' ? threeIframeOverlayBaseWidthMinPxCompact : threeIframeOverlayBaseWidthMinPxDefault
-    const widthMaxRaw = density === 'compact' ? threeIframeOverlayBaseWidthMaxPxCompact : threeIframeOverlayBaseWidthMaxPxDefault
+    const sizingConfig = readOverlaySizingConfigForDensity({
+      density,
+      sizing: overlaySizing || null,
+    })
     const sizing = computeMediaOverlaySizing({
       density,
       viewportW,
       viewportH,
       zoomK: 1,
       itemCount: 1,
-      config: {
-        widthRatio: Number.isFinite(widthRatioRaw) ? Math.max(0.001, Number(widthRatioRaw)) : 0.2,
-        widthMinPx: Number.isFinite(widthMinRaw) ? Math.max(1, Math.floor(widthMinRaw)) : 210,
-        widthMaxPx: Number.isFinite(widthMaxRaw) ? Math.max(1, Math.floor(widthMaxRaw)) : 360,
-      },
+      config: sizingConfig,
     })
     return { panelW: sizing.panelW, panelH: sizing.panelH }
   }, [
     mediaPanelDensity,
-    threeIframeOverlayBaseWidthMaxPxCompact,
-    threeIframeOverlayBaseWidthMaxPxDefault,
-    threeIframeOverlayBaseWidthMinPxCompact,
-    threeIframeOverlayBaseWidthMinPxDefault,
-    threeIframeOverlayBaseWidthRatioCompact,
-    threeIframeOverlayBaseWidthRatioDefault,
+    overlaySizing,
     viewportH,
     viewportW,
   ])
@@ -460,12 +451,6 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     const nodesForGuard = nodesForFlowTransformGuard
     if (isFlowEditor && nodesForGuard.length === 0) return null
     const schemaNow = useGraphStore.getState().schema
-    const activeDocumentViewMode = resolveActiveDocumentViewMode({
-      frontmatterModeEnabled: frontmatterModeEnabled === true,
-      multiDimTableModeEnabled: multiDimTableModeEnabled === true,
-      documentSemanticMode: String(documentSemanticMode || 'document'),
-      documentStructureBaselineLock: documentStructureBaselineLock === true,
-    })
     const opts = buildFlowFitOptions({
       schema: schemaNow,
       intent: 'initialFit',

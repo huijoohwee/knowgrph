@@ -28,6 +28,8 @@ import {
   PANEL_FRAME_ROOT_STYLE,
 } from '@/lib/ui/panelFrame'
 
+const EMPTY_STRING_ARRAY: string[] = []
+
 export type RichMediaPanelProps = {
   overlayId?: string
   title: string
@@ -77,11 +79,15 @@ export type RichMediaPanelProps = {
   flowEditorInteractionMode?: boolean
   flowEditorFrontmatterDocumentMode?: boolean
   flowEditorSurfaceId?: string
-  showFloatingToolbar?: boolean
   richMediaViewToggle?: {
     visible: boolean
     isKtvRows: boolean
     onToggle: () => void
+  }
+  richMediaMediaSelector?: {
+    visible: boolean
+    selectedMode: RichMediaPanelTab
+    onSelect: (next: RichMediaPanelTab) => void
   }
   richMediaAspectToggle?: {
     visible: boolean
@@ -515,7 +521,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const flowEditorFrontmatterDocumentMode =
     props.flowEditorFrontmatterDocumentMode === true || flowEditorFrontmatterDocumentModeFromStore
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds ?? EMPTY_STRING_ARRAY)
   const flowEditorOverlayProxyMode = props.flowEditorInteractionMode === true
   const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode
   const panelControlsHidden = isFlowEditorRenderer !== true
@@ -622,7 +628,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     hasMultiKinds: panelHasMultiKinds,
     selectedTab: panelSelectedTab,
     safeOpenUrl,
-  }) && props.showFloatingToolbar !== false
+  })
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const handleToggleRichMediaTextMode = React.useCallback(() => {
     if (!panel || panelSelectedTab !== 'text') return
@@ -663,11 +669,13 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
           remove: false,
         }}
         richMediaViewToggle={showWidgetLikeToolbar ? props.richMediaViewToggle : undefined}
-        richMediaMediaSelector={showWidgetLikeToolbar ? {
-          visible: panelHasMultiKinds,
-          selectedMode: panelActiveTab,
-          onSelect: next => onPanelChange?.({ activeTab: next, freezeConnectedOutput: panelFreezeConnectedOutput }),
-        } : undefined}
+        richMediaMediaSelector={showWidgetLikeToolbar
+          ? (props.richMediaMediaSelector || {
+              visible: panelHasMultiKinds,
+              selectedMode: panelActiveTab,
+              onSelect: next => onPanelChange?.({ activeTab: next, freezeConnectedOutput: panelFreezeConnectedOutput }),
+            })
+          : undefined}
         richMediaAspectToggle={showWidgetLikeToolbar ? props.richMediaAspectToggle : undefined}
         richMediaTextModeToggle={showWidgetLikeToolbar && panelSelectedTab === 'text' ? {
           visible: true,

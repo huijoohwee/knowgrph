@@ -114,13 +114,21 @@ export const testGeospatialWidgetPanelsOverrideStalePinnedReuseOnDrop = () => {
 
 export const testGeospatialWidgetPanelsIncludeRichMediaPanelInSharedOpenPath = () => {
   const flowEditorPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
+  const grabMapsPoiPath = path.resolve(process.cwd(), 'src', 'features', 'geospatial', 'grabMapsPoiRichMedia.ts')
   const flowEditorText = readUtf8(flowEditorPath)
+  const grabMapsPoiText = readUtf8(grabMapsPoiPath)
 
   if (flowEditorText.includes('entry.nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID')) {
     throw new Error('Expected Rich Media Panel drops to reuse the shared pending widget-open path')
   }
   if (flowEditorText.includes("String(nodeById.get(s)?.type || '') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID")) {
     throw new Error('Expected Rich Media Panel nodes to stay eligible for shared geospatial widget overlay visibility')
+  }
+  if (!grabMapsPoiText.includes("from '@/lib/render/richMediaSsot'") || !grabMapsPoiText.includes('resolvePreferredRichMediaPanelNodeId')) {
+    throw new Error('Expected GrabMaps POI rich media picker to reuse the shared preferred Rich Media panel resolver')
+  }
+  if (grabMapsPoiText.includes('const pickFromIds =')) {
+    throw new Error('Expected GrabMaps POI rich media picker to remove its local preferred Rich Media panel resolver logic')
   }
 }
 
@@ -808,13 +816,24 @@ export const testLaunchDropdownFallbackActivatesFirstImportedWorkspaceFile = () 
   const text = readUtf8(fallbackPath)
   const required = [
     'async function focusFirstImportedWorkspaceFile',
-    "state.setWorkspaceViewMode('editor')",
-    'await state.setActiveMarkdownDocument({',
+    'activateFirstImportedWorkspaceFile',
     'await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })',
   ]
   const missing = required.filter(snippet => !text.includes(snippet))
   if (missing.length) {
     throw new Error(`Expected launch dropdown fallback import to activate first imported workspace file: ${missing.join(', ')}`)
+  }
+
+  const importActionsPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'importActions.ts')
+  const importActionsText = readUtf8(importActionsPath)
+  const sharedRequired = [
+    'export async function activateFirstImportedWorkspaceFile',
+    'useMarkdownExplorerStore.getState().setActivePath',
+    'await state.setActiveMarkdownDocument({',
+  ]
+  const missingShared = sharedRequired.filter(snippet => !importActionsText.includes(snippet))
+  if (missingShared.length) {
+    throw new Error(`Expected shared import action helper to activate first imported workspace file: ${missingShared.join(', ')}`)
   }
 }
 

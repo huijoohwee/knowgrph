@@ -164,6 +164,47 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
   return next.sort(compareNodeIdsByVisualIndex)
 }
 
+function isFlowEditorOverlayExcludedNode(node: GraphNode | null | undefined): boolean {
+  return String(node?.type || '') === 'Section'
+}
+
+export function deriveOpenWidgetOverlayNodeIds(args: {
+  graphData: GraphData | null | undefined
+  openWidgetNodeIds: ReadonlyArray<string> | null | undefined
+  eligibleNodeIds?: ReadonlySet<string> | null | undefined
+  nodeById?: ReadonlyMap<string, GraphNode> | null | undefined
+  selectedNodeId?: string | null | undefined
+}): string[] {
+  const next: string[] = []
+  const seen = new Set<string>()
+  const eligibleNodeIds = args.eligibleNodeIds || null
+  const nodeById = args.nodeById || null
+
+  const canIncludeNodeId = (id: string): boolean => {
+    if (!id || seen.has(id)) return false
+    if (eligibleNodeIds && eligibleNodeIds.size > 0 && !eligibleNodeIds.has(id)) return false
+    if (isFlowEditorOverlayExcludedNode(nodeById?.get(id) || null)) return false
+    return true
+  }
+
+  const pushResolvedOverlayNodeId = (rawId: unknown) => {
+    const resolvedId = resolveGraphNodeIdByCanonicalId(args.graphData, rawId)
+    const id = resolvedId || String(rawId || '').trim()
+    if (!canIncludeNodeId(id)) return
+    seen.add(id)
+    next.push(id)
+  }
+
+  const openWidgetNodeIds = Array.isArray(args.openWidgetNodeIds) ? args.openWidgetNodeIds : []
+  for (let i = 0; i < openWidgetNodeIds.length; i += 1) {
+    pushResolvedOverlayNodeId(openWidgetNodeIds[i])
+  }
+
+  const selectedNodeId = String(args.selectedNodeId || '').trim()
+  if (selectedNodeId) pushResolvedOverlayNodeId(selectedNodeId)
+  return next
+}
+
 type FlowEditorWidgetOverlayProps = {
   visible?: boolean
   active: boolean

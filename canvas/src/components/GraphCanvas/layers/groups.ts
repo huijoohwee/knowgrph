@@ -29,7 +29,7 @@ import { bindGroupsResizeHandle } from '@/components/GraphCanvas/layers/groupsRe
 import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { filterGroupsByCollapsedAncestors } from '@/lib/graph/groupVisibility'
 import { readCanvasDragIntentThresholdPx } from '@/lib/canvas/dragIntent'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 type GroupDatum = GraphGroup
@@ -65,15 +65,16 @@ export const createGroupsLayer = (args: {
   const enabled = cfg.enabled !== false
   if (!enabled) return { update: () => {} }
 
-  const activeDocumentViewMode = resolveActiveDocumentViewMode({
-    frontmatterModeEnabled: args.frontmatterModeEnabled === true,
-    multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
-    documentSemanticMode: String(args.documentSemanticMode || 'document'),
-    documentStructureBaselineLock: args.documentStructureBaselineLock === true,
-  })
   const groups =
     args.groupsOverride ||
-    deriveGraphGroups(graphData, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
+    deriveGraphGroups(graphData, {
+      forceDocumentStructure: readDocumentViewModeContext({
+        frontmatterModeEnabled: args.frontmatterModeEnabled === true,
+        multiDimTableModeEnabled: args.multiDimTableModeEnabled === true,
+        documentSemanticMode: String(args.documentSemanticMode || 'document'),
+        documentStructureBaselineLock: args.documentStructureBaselineLock === true,
+      }).forceDocumentStructureGroups,
+    })
   if (groups.length === 0) return { update: () => {} }
 
   const allowResize = readAllowGroupResize(schema)
@@ -95,6 +96,12 @@ export const createGroupsLayer = (args: {
     if (!isDisplayNode(n)) continue
     displayNodes.push(n)
   }
+  const graphLookup = getCachedGraphLookup({
+    cacheScope: 'graph-canvas-groups-graph',
+    graphData,
+    preferCurrentGraphDataRefs: true,
+  })
+  const graphNodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
   const displayNodeLookup = getCachedGraphLookup({
     cacheScope: 'graph-canvas-groups-display-nodes',
     graphData: { type: 'application/json', nodes: displayNodes, edges: [] },
@@ -607,7 +614,7 @@ export const createGroupsLayer = (args: {
             maxZ = Math.max(maxZ, z)
           }
           const nextZ = shiftDown ? minZ - 1 : maxZ + 1
-          const subgraphNode = (graphData.nodes || []).find(n => String(n.id) === id) || null
+          const subgraphNode = graphNodeById.get(id) || null
           if (subgraphNode) {
             const props = ((subgraphNode as unknown as { properties?: unknown })?.properties || {}) as Record<string, unknown>
             const nextProps = { ...props, 'visual:zIndex': nextZ }

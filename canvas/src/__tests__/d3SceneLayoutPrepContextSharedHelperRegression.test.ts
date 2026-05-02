@@ -16,8 +16,20 @@ export function testD3SceneLayoutPrepContextHelperIsReusedByD3SceneHook() {
   if (!helperText.includes('const { layoutPositionsForMode, skipInitialLayout, cacheKey } = determineLayoutPositions({')) {
     throw new Error('expected D3 scene layout prep helper to centralize layout position derivation')
   }
-  if (!helperText.includes('const baselineLayoutPositions = (() => {')) {
-    throw new Error('expected D3 scene layout prep helper to centralize baseline layout lookup derivation')
+  if (!helperText.includes('const baselineLayoutRuntime = readBaselineDocumentLayoutRuntimeContext({')) {
+    throw new Error('expected D3 scene layout prep helper to centralize baseline layout lookup derivation through the shared runtime context helper')
+  }
+  if (!helperText.includes('const currentLayoutPrep = readCurrentLayoutPrepContext({')) {
+    throw new Error('expected D3 scene layout prep helper to centralize current layout prep context derivation through the shared helper')
+  }
+  if (!helperText.includes('const layoutResolutionContext = readCurrentLayoutResolutionContext({')) {
+    throw new Error('expected D3 scene layout prep helper to centralize current layout resolution context derivation through the shared helper')
+  }
+  if (!helperText.includes('const currentLayoutSeed = readCurrentLayoutSeedContext({')) {
+    throw new Error('expected D3 scene layout prep helper to centralize current layout seed derivation through the shared helper')
+  }
+  if (!helperText.includes('const currentLayoutHistory = readCurrentLayoutHistoryContext({')) {
+    throw new Error('expected D3 scene layout prep helper to centralize determineLayoutPositions history derivation through the shared helper')
   }
   if (!hookText.includes('const layoutPrep = buildD3SceneLayoutPrepContext({')) {
     throw new Error('expected useD3GraphScene2d to reuse the shared D3 scene layout prep helper')

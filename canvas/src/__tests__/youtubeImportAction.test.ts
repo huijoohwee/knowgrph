@@ -234,6 +234,17 @@ export async function testYouTubeImportPopulatesMarkdownAndJsonEditors() {
   if (!Array.isArray(graphData.nodes) || graphData.nodes.length === 0) {
     throw new Error('Expected graphData.nodes to be populated after YouTube import')
   }
+  const transcriptNode = graphData.nodes[0]
+  const transcriptProps = (transcriptNode?.properties || {}) as Record<string, unknown>
+  if (transcriptProps.thumbnail_url !== undefined) {
+    throw new Error('Expected YouTube import graph node properties to omit legacy thumbnail_url')
+  }
+  if (transcriptProps.image !== undefined) {
+    throw new Error('Expected image to stay unset when transcript has no thumbnail_url')
+  }
+  if (transcriptProps.imageUrl !== undefined) {
+    throw new Error('Expected imageUrl to stay unset when transcript has no thumbnail_url')
+  }
   if (!Array.isArray(graphData.edges)) {
     throw new Error('Expected graphData.edges to be an array after YouTube import')
   }

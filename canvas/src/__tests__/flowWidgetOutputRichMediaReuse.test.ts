@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { deriveOpenWidgetOverlayNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { buildTextWidgetOutputPatch } from '@/features/chat/richMediaRun'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { resolveRichMediaConnectedRenderSchemaPath } from '@/lib/flowEditor/widgetAutoRender'
@@ -83,17 +84,53 @@ export function testFlowEditorCanvasUsesDraftRevisionForActiveRenderGraph() {
 }
 
 export function testFlowEditorCanvasResolvesCanonicalSelectionIdsAcrossDraftAndOverlayGraphs() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
+  const text = `${readFileSync(selectionBookkeepingPath, 'utf8')}\n${readFileSync(overlaySurfacePath, 'utf8')}\n${readFileSync(sharedPath, 'utf8')}`
 
   if (!text.includes("import { parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")) {
     throw new Error('expected FlowEditorCanvas to reuse the shared canonical node-id resolver SSOT for selection and overlay paths')
   }
-  if (!text.includes('return resolveGraphNodeByCanonicalId(draftGraphData, selectedNodeId)')) {
+  if (!text.includes('return resolveDraftGraphNode(selectedNodeId) || resolveGraphNodeByCanonicalId(draftGraphData, selectedNodeId)')) {
     throw new Error('expected FlowEditorCanvas selected draft node lookup to resolve composed ids against the draft graph')
   }
-  if (!text.includes('const resolvedId = resolveGraphNodeIdByCanonicalId(renderGraphDataOverride as GraphData | null, rawId)')) {
-    throw new Error('expected FlowEditorCanvas overlay-open widget ids to normalize composed ids against the active render graph')
+  if (!text.includes('deriveOpenWidgetOverlayNodeIds({')) {
+    throw new Error('expected FlowEditorCanvas overlay-open widget ids to resolve through the shared overlay node-id helper')
+  }
+  if (!text.includes('const resolvedId = resolveGraphNodeIdByCanonicalId(args.graphData, rawId)')) {
+    throw new Error('expected shared FlowEditor overlay node-id helper to normalize composed ids against the active render graph')
+  }
+}
+
+export function testDeriveOpenWidgetOverlayNodeIdsNormalizesCanonicalIdsAndFiltersExcludedNodes() {
+  const graphData = {
+    type: 'application/json',
+    nodes: [
+      { id: 'group-a::node-a', type: 'TextGeneration', properties: {} },
+      { id: 'node-b', type: 'ImageGeneration', properties: {} },
+      { id: 'section-1', type: 'Section', properties: {} },
+      { id: 'node-c', type: 'VideoGeneration', properties: {} },
+    ],
+    edges: [],
+  } as const
+  const nodeById = new Map(graphData.nodes.map(node => [String(node.id || '').trim(), node]))
+  const ids = deriveOpenWidgetOverlayNodeIds({
+    graphData,
+    openWidgetNodeIds: ['node-a', 'group-a::node-a', 'section-1', 'node-c'],
+    eligibleNodeIds: new Set(['group-a::node-a', 'node-b']),
+    nodeById,
+    selectedNodeId: 'node-b',
+  })
+
+  if (ids.length !== 2) {
+    throw new Error(`expected two canonical overlay ids after dedupe/filtering, got ${ids.length}`)
+  }
+  if (ids[0] !== 'group-a::node-a') {
+    throw new Error(`expected canonical graph node id for composed widget overlay, got ${String(ids[0] || '<none>')}`)
+  }
+  if (ids[1] !== 'node-b') {
+    throw new Error(`expected selected draft node id to append when eligible and not excluded, got ${String(ids[1] || '<none>')}`)
   }
 }
 

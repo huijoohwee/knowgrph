@@ -1,4 +1,4 @@
-import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
+import { getNodeImagePreviewUrls, getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 
 export async function testNodeMediaSpecDetectsWebpageElementImg() {
   const node = {
@@ -81,18 +81,18 @@ export async function testNodeMediaSpecSkipsPlainHttpLinkWithoutMediaHint() {
   if (spec) throw new Error('expected no media spec for plain article link')
 }
 
-export async function testNodeMediaSpecDetectsLegacyImageUrlField() {
+export async function testNodeMediaSpecDetectsCanonicalImageField() {
   const node = {
-    id: 'legacy:image-url:1',
+    id: 'canonical:image:1',
     type: 'Image',
-    label: 'Legacy image_url',
+    label: 'Canonical image',
     properties: {
-      image_url: 'https://mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=png&from=appmsg',
+      image: 'https://mmbiz.qpic.cn/mmbiz_png/test/640?wx_fmt=png&from=appmsg',
     },
   } as unknown as Parameters<typeof getNodeMediaSpec>[0]
   const spec = getNodeMediaSpec(node)
-  if (!spec) throw new Error('expected media spec for legacy image_url field')
-  if (spec.kind !== 'image') throw new Error(`expected image kind from image_url, got ${String((spec as any).kind)}`)
+  if (!spec) throw new Error('expected media spec for canonical image field')
+  if (spec.kind !== 'image') throw new Error(`expected image kind from image, got ${String((spec as any).kind)}`)
 }
 
 export async function testNodeMediaSpecDetectsCamelImageUrlField() {
@@ -194,4 +194,42 @@ export async function testNodeMediaSpecDetectsStandaloneMarkdownLinkBilibiliAsEm
   if (spec.kind !== 'iframe') throw new Error(`expected iframe kind, got ${String((spec as any).kind)}`)
   const u = String(spec.url)
   if (!u.startsWith('https://player.bilibili.com/player.html?bvid=')) throw new Error('expected bilibili embed url')
+}
+
+export async function testNodeImagePreviewUrlsReadCanonicalImageContracts() {
+  const node = {
+    id: 'preview:image:1',
+    type: 'Image',
+    label: 'Preview image',
+    properties: {
+      image: 'https://example.com/cover.png',
+      media_kind: 'image',
+      media_url: 'https://example.com/cover.png',
+    },
+    metadata: {
+      imageUrl: 'https://example.com/cover-2.png',
+    },
+  } as unknown as Parameters<typeof getNodeImagePreviewUrls>[0]
+
+  const urls = getNodeImagePreviewUrls(node)
+  if (urls.length !== 2) throw new Error(`expected 2 canonical preview urls, got ${urls.length}`)
+  if (urls[0] !== 'https://example.com/cover.png') throw new Error(`expected primary preview url from image field, got ${String(urls[0])}`)
+  if (urls[1] !== 'https://example.com/cover-2.png') throw new Error(`expected secondary preview url from metadata imageUrl, got ${String(urls[1])}`)
+}
+
+export async function testNodeImagePreviewUrlsReadMarkdownImagesWithoutLegacyImageLists() {
+  const node = {
+    id: 'preview:markdown:1',
+    type: 'Paragraph',
+    label: 'Markdown preview',
+    properties: {
+      text: 'Before ![](https://example.com/inline-preview.png) after',
+    },
+  } as unknown as Parameters<typeof getNodeImagePreviewUrls>[0]
+
+  const urls = getNodeImagePreviewUrls(node)
+  if (urls.length !== 1) throw new Error(`expected 1 markdown preview url, got ${urls.length}`)
+  if (urls[0] !== 'https://example.com/inline-preview.png') {
+    throw new Error(`expected markdown preview url without mdImagesJson fallback, got ${String(urls[0])}`)
+  }
 }

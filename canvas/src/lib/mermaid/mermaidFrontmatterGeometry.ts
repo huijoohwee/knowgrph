@@ -633,15 +633,12 @@ export function applyMermaidFrontmatterContextLayoutToGraphData(graphData: Graph
     if (typeof props.media_kind === 'string' && String(props.media_kind || '').trim()) return true
     if (typeof props.mediaKind === 'string' && String(props.mediaKind || '').trim()) return true
     if (typeof props.iframe_url === 'string' && String(props.iframe_url || '').trim()) return true
-    if (typeof props.iframeUrl === 'string' && String(props.iframeUrl || '').trim()) return true
     if (typeof props.media_url === 'string' && String(props.media_url || '').trim()) return true
     if (typeof props.mediaUrl === 'string' && String(props.mediaUrl || '').trim()) return true
     if (typeof props.image === 'string' && String(props.image || '').trim()) return true
     if (typeof props.imageUrl === 'string' && String(props.imageUrl || '').trim()) return true
-    if (typeof props.image_url === 'string' && String(props.image_url || '').trim()) return true
     if (typeof props.video === 'string' && String(props.video || '').trim()) return true
     if (typeof props.videoUrl === 'string' && String(props.videoUrl || '').trim()) return true
-    if (typeof props.video_url === 'string' && String(props.video_url || '').trim()) return true
     return false
   }
 

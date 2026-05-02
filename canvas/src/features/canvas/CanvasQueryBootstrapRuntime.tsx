@@ -1,5 +1,5 @@
 import React from 'react'
-import { MAIN_PANEL_OPEN_EVENT, MAIN_PANEL_OPEN_READY_EVENT } from '@/features/panels/utils/useMainPanelRect'
+import { emitMainPanelOpen, MAIN_PANEL_OPEN_READY_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE, QUERY_PARAM_OPEN_MAIN_PANEL } from '@/lib/routing/queryParams'
 
 export const shouldOpenEditorWorkspaceFromSearch = (search: string): boolean => {
@@ -32,7 +32,7 @@ export function CanvasQueryBootstrapRuntime(props: {
       if (openedMainPanelFromQueryRef.current) return
       openedMainPanelFromQueryRef.current = true
       try {
-        window.dispatchEvent(new CustomEvent(MAIN_PANEL_OPEN_EVENT, { detail: { tab } }))
+        emitMainPanelOpen({ tab })
       } catch {
         void 0
       }

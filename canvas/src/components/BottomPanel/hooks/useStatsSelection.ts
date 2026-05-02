@@ -7,14 +7,16 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { SelectionSnapshot } from '@/components/BottomPanel/stats/types'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 
+const EMPTY_STRING_ARRAY: string[] = []
+
 export function useStatsSelection() {
   const data = useGraphStore(s => s.graphData)
   const schema = useGraphStore(s => s.schema) as GraphSchema
   const zoomK = useGraphStore(s => s.zoomState?.k ?? 1)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])
-  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])
+  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds ?? EMPTY_STRING_ARRAY)
+  const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds ?? EMPTY_STRING_ARRAY)
   const derivedGraph = useActiveGraphRenderData()
 
   const edgeSelectionSnapshotRef = React.useRef<SelectionSnapshot | null>(null)

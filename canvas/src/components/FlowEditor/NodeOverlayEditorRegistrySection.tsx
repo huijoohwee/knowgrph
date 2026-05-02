@@ -2,7 +2,7 @@ import React from 'react'
 
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
 import type { WidgetRegistryEntry, WidgetRegistryFieldOption } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import { getObjectPath, setObjectPath } from '@/lib/data/objectPath'
+import { getObjectPath } from '@/lib/data/objectPath'
 import { NodeOverlayEditorKvTable, NodeOverlayEditorTypePill, type NodeOverlayEditorKvRow } from '@/components/FlowEditor/NodeOverlayEditorKvTable'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
@@ -12,34 +12,23 @@ import { cn } from '@/lib/utils'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import {
   inferTextGenerationProviderFamily,
+  listVisibleWidgetRegistryPortsForPropsEditor,
+  resolveWidgetRegistryApiDocRef,
+  resolveWidgetRegistryMainPanelLink,
   resolveEffectiveTextGenerationWidgetProperties,
 } from '@/features/flow-editor-manager/registryTemplates'
-import {
-  getOpenAiApiDocRowByRowKey,
-  resolveOpenAiTextWidgetChatApiRowKey,
-} from '@/features/integrations/openaiResponsesSsot'
-import {
-  getBytePlusApiDocRowByRowKey,
-  resolveBytePlusTextWidgetChatApiRowKey,
-} from '@/features/integrations/byteplusChatApiSsot'
-import {
-  getBytePlusImageApiDocRowByRowKey,
-  resolveBytePlusImageWidgetApiRowKey,
-} from '@/features/integrations/byteplusImageGenerationSsot'
 import { resolveEffectiveBytePlusImageWidgetProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { resolveEffectiveBytePlusVideoWidgetProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
-import {
-  getBytePlusVideoApiDocRowByRowKey,
-  resolveBytePlusVideoWidgetApiRowKey,
-} from '@/features/integrations/byteplusVideoGenerationSsot'
-import {
-  getMapsApiDocRowByRowKey,
-  resolveGrabMapsDiscoveryWidgetApiRowKey,
-} from '@/features/integrations/grabMapsSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.flow-editor'
-import { isGrabMapsDiscoveryWidgetEntry } from '@/features/flow-editor-manager/grabMapsDiscoveryWidget'
+import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
+import {
+  applyConnectedWidgetFieldsToEmptyValues,
+  applyWidgetFieldValueUpdate,
+  coerceWidgetFieldValue,
+  normalizeWidgetFieldSchemaPath,
+} from '@/features/flow-editor-manager/widgetFieldMutation'
 
 function formatConnectedValue(value: unknown): string {
   if (value == null) return ''
@@ -50,50 +39,6 @@ function formatConnectedValue(value: unknown): string {
     return JSON.stringify(value)
   } catch {
     return String(value)
-  }
-}
-
-function coerceValueForFieldType(args: { fieldType: string; value: unknown }): unknown {
-  const ft = String(args.fieldType || '').trim().toLowerCase()
-  const v = args.value
-  if (ft === 'boolean' || ft === 'bool') return typeof v === 'boolean' ? v : Boolean(v)
-  if (ft === 'number' || ft === 'int' || ft === 'integer' || ft === 'float') {
-    if (typeof v === 'number' && Number.isFinite(v)) return v
-    if (typeof v === 'string' && v.trim()) {
-      const n = Number.parseFloat(v)
-      return Number.isFinite(n) ? n : undefined
-    }
-    return undefined
-  }
-  if (ft === 'json') return v
-  if (typeof v === 'string') return v
-  if (typeof v === 'number' && Number.isFinite(v)) return String(v)
-  if (typeof v === 'boolean') return v ? 'true' : 'false'
-  try {
-    return JSON.stringify(v)
-  } catch {
-    return String(v)
-  }
-}
-
-function isEmptyFieldValue(args: { fieldType: string; value: unknown }): boolean {
-  const ft = String(args.fieldType || '').trim().toLowerCase()
-  const v = args.value
-  if (typeof v === 'undefined' || v === null) return true
-  if (ft === 'boolean' || ft === 'bool') return false
-  if (ft === 'number' || ft === 'int' || ft === 'integer' || ft === 'float') return false
-  if (typeof v === 'string') return v.trim().length === 0
-  return false
-}
-
-function valuesEqual(a: unknown, b: unknown): boolean {
-  if (Object.is(a, b)) return true
-  if (typeof a !== typeof b) return false
-  if (typeof a !== 'object' || a === null || b === null) return false
-  try {
-    return JSON.stringify(a) === JSON.stringify(b)
-  } catch {
-    return false
   }
 }
 
@@ -172,7 +117,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   textSizeClass: string
   keyValueInputClass: string
   keyLabelClass: string
-  normalizeRegistrySchemaPath: (schemaPath: string | undefined, fallbackKey: string) => string
   ids: { registryField: (fieldKey: string) => string }
   dotSizePx: number
   dotHitPx: number
@@ -193,7 +137,6 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
     textSizeClass,
     keyValueInputClass,
     keyLabelClass,
-    normalizeRegistrySchemaPath,
     ids,
     dotSizePx,
     dotHitPx,
@@ -209,9 +152,12 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   const registryFields = (registryEntry?.fields || []).filter(
     f => (f as { isHidden?: boolean }).isHidden !== true,
   )
-  const registryPorts = (registryEntry?.ports || []).filter(
-    p => (p as { isHidden?: boolean }).isHidden !== true,
-  )
+  const registryPorts = React.useMemo(() => {
+    return listVisibleWidgetRegistryPortsForPropsEditor({
+      registryEntry,
+      properties,
+    })
+  }, [properties, registryEntry])
 
   const rows: NodeOverlayEditorKvRow[] = []
   const globalTextDefaults = useGraphStore(
@@ -247,49 +193,15 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
 
   const applyConnectedToEmptyFields = React.useCallback(() => {
     if (!active) return
-    if (!connectedValuesBySchemaPath) return
-    let nextRoot: { properties: Record<string, unknown> } = { properties }
-    let changed = false
-
-    for (let idx = 0; idx < registryFields.length; idx += 1) {
-      const f = registryFields[idx]
-      const path = normalizeRegistrySchemaPath(f.schemaPath, f.fieldKey)
-      if (!path) continue
-      const connected = connectedValuesBySchemaPath[path]
-      if (!connected) continue
-      const fieldType = String(f.fieldType || '').trim().toLowerCase()
-      const cur = getObjectPath(nextRoot, path)
-      if (!isEmptyFieldValue({ fieldType, value: cur })) continue
-      const nextValue = coerceValueForFieldType({ fieldType, value: connected.value })
-      if (typeof nextValue === 'undefined') continue
-      if (valuesEqual(cur, nextValue)) continue
-      nextRoot = setObjectPath(nextRoot, path, nextValue) as { properties: Record<string, unknown> }
-      changed = true
-    }
-
-    if (!changed) return
-    onSetProperties(nextRoot.properties || {})
-  }, [active, connectedValuesBySchemaPath, normalizeRegistrySchemaPath, onSetProperties, properties, registryFields])
-
-  const textProviderFamily = React.useMemo(() => {
-    if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return null
-    return inferTextGenerationProviderFamily({
-      provider: properties.chatProvider,
-      widgetTypeId: registryEntry.widgetTypeId,
-      formId: registryEntry.formId,
+    const nextProperties = applyConnectedWidgetFieldsToEmptyValues({
+      properties,
+      fields: registryFields,
+      connectedValuesBySchemaPath,
     })
-  }, [properties.chatProvider, registryEntry.formId, registryEntry.nodeTypeId, registryEntry.widgetTypeId])
-  const canLinkToOpenAiChatApi = textProviderFamily === 'openai'
-  const canLinkToBytePlusChatApi = textProviderFamily === 'byteplus'
-  const canLinkToBytePlusImageApi = React.useMemo(() => {
-    return String(registryEntry.nodeTypeId || '').trim() === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
-  }, [registryEntry.nodeTypeId])
-  const canLinkToBytePlusVideoApi = React.useMemo(() => {
-    return String(registryEntry.nodeTypeId || '').trim() === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
-  }, [registryEntry.nodeTypeId])
-  const canLinkToGrabMapsApi = React.useMemo(() => {
-    return isGrabMapsDiscoveryWidgetEntry(registryEntry)
-  }, [registryEntry])
+    if (!nextProperties) return
+    onSetProperties(nextProperties)
+  }, [active, connectedValuesBySchemaPath, onSetProperties, properties, registryFields])
+
   const effectiveProperties = React.useMemo(() => {
     if (String(registryEntry.nodeTypeId || '').trim() === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) {
       return resolveEffectiveBytePlusImageWidgetProperties({
@@ -322,7 +234,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
   for (let idx = 0; idx < registryFields.length; idx += 1) {
     const f = registryFields[idx]
     const rowKey = `${String(f.fieldKey || '')}:${idx}`
-    const path = normalizeRegistrySchemaPath(f.schemaPath, f.fieldKey)
+    const path = normalizeWidgetFieldSchemaPath(f.schemaPath, f.fieldKey)
     const cur = path ? getObjectPath({ properties }, path) : undefined
     const effectiveCur = path ? getObjectPath({ properties: effectiveProperties }, path) : undefined
     const connected = path ? connectedValuesBySchemaPath?.[path] : undefined
@@ -333,69 +245,24 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       : []
     const id = ids.registryField(String(f.fieldKey || idx))
     const labelId = `registry-field-${String(f.fieldKey || idx)}-${idx}`
-    const openAiFieldLinkSearch = canLinkToOpenAiChatApi
-      ? resolveOpenAiTextWidgetChatApiRowKey({
-          schemaPath: String(f.schemaPath || '').trim(),
-          fieldKey: String(f.fieldKey || '').trim(),
-        })
-      : null
-    const bytePlusFieldLinkSearch = canLinkToBytePlusChatApi
-      ? resolveBytePlusTextWidgetChatApiRowKey({
-          schemaPath: String(f.schemaPath || '').trim(),
-          fieldKey: String(f.fieldKey || '').trim(),
-        })
-      : null
-    const bytePlusImageFieldLinkSearch = canLinkToBytePlusImageApi
-      ? resolveBytePlusImageWidgetApiRowKey({
-          schemaPath: String(f.schemaPath || '').trim(),
-          fieldKey: String(f.fieldKey || '').trim(),
-        })
-      : null
-    const bytePlusVideoFieldLinkSearch = canLinkToBytePlusVideoApi
-      ? resolveBytePlusVideoWidgetApiRowKey({
-          schemaPath: String(f.schemaPath || '').trim(),
-          fieldKey: String(f.fieldKey || '').trim(),
-          portKey: String((f as { portKey?: string }).portKey || '').trim(),
-        })
-      : null
-    const grabMapsFieldLinkSearch = canLinkToGrabMapsApi
-      ? resolveGrabMapsDiscoveryWidgetApiRowKey({
-          schemaPath: String(f.schemaPath || '').trim(),
-          fieldKey: String(f.fieldKey || '').trim(),
-          portKey: String((f as { portKey?: string }).portKey || '').trim(),
-        })
-      : null
+    const apiDocRef = resolveWidgetRegistryApiDocRef({
+      registryEntry,
+      properties,
+      schemaPath: f.schemaPath,
+      fieldKey: f.fieldKey,
+      portKey: (f as { portKey?: string }).portKey,
+    })
 
     const setValue = (nextValue: unknown) => {
       if (!path) return
-      const nextRoot = setObjectPath({ properties }, path, nextValue)
-      const nextProps = (nextRoot as { properties?: Record<string, unknown> }).properties || {}
-      onSetProperties(nextProps)
+      onSetProperties(applyWidgetFieldValueUpdate({
+        properties,
+        schemaPath: path,
+        nextValue,
+      }))
     }
 
-    const apiKey = (() => {
-      if (bytePlusFieldLinkSearch) {
-        const row = getBytePlusApiDocRowByRowKey(bytePlusFieldLinkSearch)
-        return row ? String(row.key || '').trim() : ''
-      }
-      if (bytePlusImageFieldLinkSearch) {
-        const row = getBytePlusImageApiDocRowByRowKey(bytePlusImageFieldLinkSearch)
-        return row ? String(row.key || '').trim() : ''
-      }
-      if (bytePlusVideoFieldLinkSearch) {
-        const row = getBytePlusVideoApiDocRowByRowKey(bytePlusVideoFieldLinkSearch)
-        return row ? String(row.key || '').trim() : ''
-      }
-      if (openAiFieldLinkSearch) {
-        const row = getOpenAiApiDocRowByRowKey(openAiFieldLinkSearch)
-        return row ? String(row.key || '').trim() : ''
-      }
-      if (grabMapsFieldLinkSearch) {
-        const row = getMapsApiDocRowByRowKey(grabMapsFieldLinkSearch)
-        return row ? String(row.key || '').trim() : ''
-      }
-      return ''
-    })()
+    const apiKey = apiDocRef?.apiKey || ''
     const keyNode = (
       <label className={cn(keyLabelClass, UI_THEME_TOKENS.text.secondary)} htmlFor={id}>
         <span className={cn('block min-w-0 truncate', UI_THEME_TOKENS.text.primary)}>{label}</span>
@@ -450,7 +317,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
             <button
               type="button"
               className={cn('shrink-0 rounded border px-2 py-1', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.button.text)}
-              onClick={() => setValue(coerceValueForFieldType({ fieldType, value: connected.value }))}
+              onClick={() => setValue(coerceWidgetFieldValue({ fieldType, value: connected.value }))}
               disabled={!active}
               aria-label={UI_COPY.flowWidgetApplyConnectedValueLabel}
               title={UI_COPY.flowWidgetApplyConnectedValueLabel}
@@ -650,6 +517,11 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       const handleType = readFlowHandleTypeLabel(isIn ? 'in' : 'out')
       const handlePathValue = formatFlowHandleKeyValue({ dir: isIn ? 'in' : 'out', portKey })
       const aria = handlePathValue
+      const mainPanelLink = resolveWidgetRegistryMainPanelLink({
+        registryEntry,
+        properties,
+        portKey,
+      })
 
       const portButton = (
         <button
@@ -677,7 +549,12 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
               void 0
             }
             if (!active || !portHandlesEnabled) return
-            onSchemaPortHandleClick?.({ dir: isIn ? 'in' : 'out', portKey })
+            if (onSchemaPortHandleClick) {
+              onSchemaPortHandleClick({ dir: isIn ? 'in' : 'out', portKey })
+              return
+            }
+            if (!mainPanelLink) return
+            emitMainPanelOpen(mainPanelLink)
           }}
           disabled={!active || !portHandlesEnabled}
         >
@@ -725,7 +602,7 @@ export const NodeOverlayEditorRegistrySection = React.memo(function NodeOverlayE
       })
     }
     return out
-  }, [active, dotHitPx, dotSizePx, ids, keyLabelClass, keyValueInputClass, monospaceTextClass, onSchemaPortHandleClick, portHandlesEnabled, registryPorts, textSizeClass])
+  }, [active, dotHitPx, dotSizePx, ids, keyLabelClass, keyValueInputClass, monospaceTextClass, onSchemaPortHandleClick, portHandlesEnabled, properties, registryEntry, registryPorts, textSizeClass])
 
   if (!registryEntry) return null
   const visibleFieldRows = showFieldRows ? rows : []

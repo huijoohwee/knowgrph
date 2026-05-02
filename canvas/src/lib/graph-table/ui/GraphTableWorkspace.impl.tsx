@@ -4,6 +4,7 @@ import type { RxChangeEvent } from 'rxdb'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { deriveGraphDataWithGroupCollapse } from '@/components/GraphCanvas/viewDerivation'
+import { emitTocFocus } from '@/features/markdown/ui/tocFocusEvents'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { hashRecordSignature32 } from '@/lib/hash/signature'
@@ -69,6 +70,7 @@ import {
 
 const GRAPH_TABLE_PREVIEW_MIN_WIDTH_PX = 320
 const GRAPH_TABLE_PREVIEW_RIGHT_GUTTER_PX = 48
+const EMPTY_STRING_ARRAY: string[] = []
 
 function resolveGraphTablePreviewBounds() {
   const maxPx = resolveWorkspacePaneMaxWidthPx({
@@ -99,7 +101,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       active
         ? (s: ReturnType<typeof useGraphStore.getState>) => ({
             baseGraphData: s.graphData,
-            collapsedGroupIds: (s.collapsedGroupIds || []) as string[],
+            collapsedGroupIds: (s.collapsedGroupIds ?? EMPTY_STRING_ARRAY) as string[],
             graphDataRevision: s.graphDataRevision,
             graphContentRevision: s.graphContentRevision,
             infiniteCanvasInteractionMode: s.infiniteCanvasInteractionMode,
@@ -107,7 +109,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
             selectionSource: s.selectionSource,
             selectedNodeId: s.selectedNodeId,
             selectedEdgeId: s.selectedEdgeId,
-            openWidgetNodeIds: s.openWidgetNodeIds || [],
+            openWidgetNodeIds: s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY,
           })
         : () => INACTIVE_GRAPH_SLICE,
     [active],
@@ -387,7 +389,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
       try { sub?.unsubscribe() } catch { void 0 }
       try { rowSub?.unsubscribe() } catch { void 0 }
     }
-  }, [active, activeTableId])
+  }, [active, activeTableId, canvasWorkspaceSyncMode, collapsedGroupIdsKey, graphSyncRevision, syncGraphData])
 
   useEffect(() => {
     if (selectionSource === 'toolbar') return
@@ -682,7 +684,7 @@ export default function GraphTableWorkspace(props: { canvasPreview?: ReactNode; 
         const tocId = getRowTocId(row)
         if (tocId) {
           try {
-            window.dispatchEvent(new CustomEvent('kg:tocFocus', { detail: { id: tocId } }))
+            emitTocFocus(tocId)
           } catch {
             void 0
           }

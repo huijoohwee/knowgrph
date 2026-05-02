@@ -25,7 +25,6 @@ function clearRichMediaGenericRenderDrivers(properties: Record<string, unknown>)
   delete next.media_url
   delete next.mediaUrl
   delete next.iframe_url
-  delete next.iframeUrl
   delete next.media
   delete next.src
   delete next.url
@@ -44,13 +43,11 @@ function clearRichMediaRenderChannel(args: {
   if (args.renderPath === 'properties.imageUrl') {
     delete next.image
     delete next.imageUrl
-    delete next.image_url
     return next
   }
   if (args.renderPath === 'properties.videoUrl') {
     delete next.video
     delete next.videoUrl
-    delete next.video_url
     return next
   }
   if (args.renderPath === 'properties.output' || args.renderPath === 'properties.outputSrcDoc') {
@@ -76,13 +73,10 @@ function baseRenderNodeSignature(node: GraphNode): string {
       media_url: props.media_url,
       mediaUrl: props.mediaUrl,
       iframe_url: props.iframe_url,
-      iframeUrl: props.iframeUrl,
       image: props.image,
       imageUrl: props.imageUrl,
-      image_url: props.image_url,
       video: props.video,
       videoUrl: props.videoUrl,
-      video_url: props.video_url,
       media: props.media,
       src: props.src,
       url: props.url,

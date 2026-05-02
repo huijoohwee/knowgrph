@@ -10,10 +10,11 @@ import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDat
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import {
-  isRichMediaPanelNode,
+  buildRichMediaConnectedValueTargetNodeIdSet,
+  buildRichMediaPanelOverlayExcludeNodeIdSet,
+  isRichMediaConnectedValueTargetNode,
   listDisplayRichMediaOverlayNodes,
 } from '@/lib/render/richMediaSsot'
-import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { pickGraphDataForFlowRenderer } from '@/components/FlowCanvas/shared'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
@@ -119,14 +120,10 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   const mediaRenderConnectedValuesByNodeId = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
     if (nodes.length === 0) return new Map()
-    const targetNodeIds = new Set<string>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]
-      const id = String(node?.id || '').trim()
-      if (!id) continue
-      if (isRichMediaPanelNode(node)) targetNodeIds.add(id)
-      else if (getNodeMediaSpec(node)) targetNodeIds.add(id)
-    }
+    const targetNodeIds = buildRichMediaConnectedValueTargetNodeIdSet({
+      nodes,
+      includeMediaSpecNodes: true,
+    })
     if (targetNodeIds.size === 0) return new Map()
     const dataflowRegistry = buildDataflowWidgetRegistry({
       documentWidgetRegistry,
@@ -168,21 +165,12 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       ...(Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds : []),
       ...(Array.isArray(excludeRichMediaOverlayNodeIds) ? excludeRichMediaOverlayNodeIds : []),
     ]
-    const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
-    if (nodes.length === 0) return undefined
-    const out = new Set<string>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]!
-      const id = String(node?.id || '').trim()
-      if (!id) continue
-      if (excludeAllRichMediaPanelNodes && isRichMediaPanelNode(node)) out.add(id)
-    }
-    for (let i = 0; i < candidateRawIds.length; i += 1) {
-      const rawId = candidateRawIds[i]
-      const id = String(resolveGraphNodeByCanonicalId(sceneGraphData, rawId)?.id || rawId || '').trim()
-      if (!id || !isRichMediaPanelNode(sceneGraphNodeById?.get(id))) continue
-      out.add(id)
-    }
+    const out = buildRichMediaPanelOverlayExcludeNodeIdSet({
+      graphData: sceneGraphData,
+      nodeById: sceneGraphNodeById || undefined,
+      candidateRawIds,
+      excludeAllRichMediaPanelNodes,
+    })
     return out.size > 0 ? out : undefined
   }, [canvas2dRenderer, excludeRichMediaOverlayNodeIds, flowEditorFrontmatterInteractionMode, openWidgetNodeIds, sceneGraphData, sceneGraphNodeById])
 
@@ -224,7 +212,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       if (!key) return false
       if (!needed.has(key)) return false
       const node = sceneGraphNodeById?.get(key)
-      return !!node && !!getNodeMediaSpec(node)
+      return isRichMediaConnectedValueTargetNode({ node, includeMediaSpecNodes: true })
     }
 
     const nextIds: string[] = []

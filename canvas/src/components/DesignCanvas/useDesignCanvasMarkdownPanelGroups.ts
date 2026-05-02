@@ -1,25 +1,21 @@
 import React from 'react'
-import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { deriveMarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { resolveActiveDocumentViewMode } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { readAllowGroupResize } from '@/lib/canvas/groupResizePolicy'
 import { readGroupResizeHandleConfig } from '@/lib/canvas/groupResizeHandleConfig'
 import { buildDeepestGroupRectByNodeId, buildGroupRectByIdFromSchemaOverrides } from '@/lib/canvas/groupExplicitBounds'
 import type { RectBounds } from '@/lib/canvas/groupContainment'
+import {
+  buildMarkdownMatchedBlockNodeIdSetFromGraphNodes,
+  buildPanelOnlyNodeIdSetFromGraphNodes,
+  type MarkdownPanelLineRanges,
+} from '@/lib/render/markdownPanelOverlayPool'
 import { listDisplayRichMediaOverlayNodes } from '@/lib/render/richMediaSsot'
-import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import type { DesignCanvasFrameRect, DesignCanvasGroupBounds } from '@/components/DesignCanvas/types'
-
-type MarkdownPanelLineRanges = {
-  table: Set<number>
-  code: Set<number>
-  blockquote: Set<number>
-  iframe: Set<number>
-}
 
 type UseDesignCanvasMarkdownPanelGroupsArgs = {
   active: boolean
@@ -62,17 +58,6 @@ function readMarkdownPanelLineRanges(markdownText: string, markdownDocumentName:
   return { table, code, blockquote, iframe }
 }
 
-function readMarkdownPanelAllowedKinds(args: {
-  frontmatterModeEnabled: boolean
-  multiDimTableModeEnabled: boolean
-  documentSemanticMode: string
-  documentStructureBaselineLock: boolean
-}) {
-  const activeDocumentViewMode = resolveActiveDocumentViewMode(args)
-  if (activeDocumentViewMode === 'multiDimTable') return ['code', 'blockquote', 'callout', 'html'] as const
-  return ['table', 'code', 'blockquote', 'callout', 'html'] as const
-}
-
 export function useDesignCanvasMarkdownPanelGroups(args: UseDesignCanvasMarkdownPanelGroupsArgs) {
   const {
     active,
@@ -97,9 +82,9 @@ export function useDesignCanvasMarkdownPanelGroups(args: UseDesignCanvasMarkdown
     [deferredMarkdownText, markdownDocumentName],
   )
 
-  const markdownPanelAllowedKinds = React.useMemo(
+  const documentViewMode = React.useMemo(
     () =>
-      readMarkdownPanelAllowedKinds({
+      readDocumentViewModeContext({
         frontmatterModeEnabled,
         multiDimTableModeEnabled,
         documentSemanticMode,
@@ -107,60 +92,27 @@ export function useDesignCanvasMarkdownPanelGroups(args: UseDesignCanvasMarkdown
       }),
     [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, multiDimTableModeEnabled],
   )
+  const markdownPanelAllowedKinds = documentViewMode.markdownPanelAllowedKinds
 
   const panelOnlyNodeIdSet = React.useMemo(() => {
     if (!active || !markdownPanelLineRanges) return null
     const nodes = Array.isArray(localGraphData?.nodes) ? (localGraphData.nodes as GraphNode[]) : []
     if (nodes.length === 0) return null
-    const ids = new Set<string>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]!
-      const id = String(node?.id || '').trim()
-      if (!id) continue
-      const typeLower = String(node.type || '').trim().toLowerCase()
-      if (typeLower === 'table' || typeLower === 'codeblock') {
-        ids.add(id)
-        continue
-      }
-      if (typeLower === 'paragraph') {
-        const propsObj =
-          node.properties && typeof node.properties === 'object' && !Array.isArray(node.properties) ? (node.properties as Record<string, unknown>) : null
-        const text = propsObj && typeof propsObj.text === 'string' ? String(propsObj.text || '').trim() : ''
-        if (propsObj?.calloutType === true || text.startsWith('>')) {
-          ids.add(id)
-          continue
-        }
-        if (text && /<\s*iframe\b/i.test(text) && text.toLowerCase().startsWith('<iframe') && looksLikeSingleTagBlock(text, 'iframe')) {
-          ids.add(id)
-          continue
-        }
-      }
-      const meta = node.metadata && typeof node.metadata === 'object' && !Array.isArray(node.metadata) ? (node.metadata as Record<string, unknown>) : null
-      const lineStartRaw = meta ? meta.lineStart : null
-      const lineStart = typeof lineStartRaw === 'number' ? lineStartRaw : typeof lineStartRaw === 'string' ? Number(lineStartRaw) : NaN
-      if (!Number.isFinite(lineStart)) continue
-      const start = Math.max(1, Math.floor(lineStart))
-      if (typeLower === 'table' && markdownPanelLineRanges.table.has(start)) ids.add(id)
-      else if (typeLower === 'codeblock' && markdownPanelLineRanges.code.has(start)) ids.add(id)
-      else if (typeLower === 'paragraph' && markdownPanelLineRanges.blockquote.has(start)) ids.add(id)
-      else {
-        const spec = getNodeMediaSpec(node)
-        if (spec?.kind === 'iframe' && markdownPanelLineRanges.iframe.has(start)) ids.add(id)
-      }
-    }
+    const ids = buildPanelOnlyNodeIdSetFromGraphNodes(nodes)
+    const matchedNodeIds = buildMarkdownMatchedBlockNodeIdSetFromGraphNodes({
+      nodes,
+      lineRanges: markdownPanelLineRanges,
+    })
+    for (const id of matchedNodeIds) ids.add(id)
     return ids.size > 0 ? ids : null
   }, [active, localGraphData, markdownPanelLineRanges])
 
   const designGroups = React.useMemo(() => {
     if (!graphData) return []
-    const activeDocumentViewMode = resolveActiveDocumentViewMode({
-      frontmatterModeEnabled,
-      multiDimTableModeEnabled,
-      documentSemanticMode,
-      documentStructureBaselineLock,
+    return deriveGraphGroups(graphData, {
+      forceDocumentStructure: documentViewMode.forceDocumentStructureGroups,
     })
-    return deriveGraphGroups(graphData, { forceDocumentStructure: activeDocumentViewMode === 'documentStructure' })
-  }, [documentSemanticMode, documentStructureBaselineLock, frontmatterModeEnabled, graphData, multiDimTableModeEnabled])
+  }, [documentViewMode.forceDocumentStructureGroups, graphData])
 
   const allowGroupResize = readAllowGroupResize(schema)
   const groupHandleCfg = readGroupResizeHandleConfig(schema)

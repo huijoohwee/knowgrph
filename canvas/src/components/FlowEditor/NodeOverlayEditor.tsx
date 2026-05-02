@@ -59,6 +59,7 @@ import {
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = Z_INDEX_GRAPH_OVERLAY_BASE
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = Z_INDEX_GRAPH_OVERLAY_SELECTED
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
+const EMPTY_STRING_ARRAY: string[] = []
 const WIDGET_ACTIONS_TOOLBAR_OFFSET_PX = 40
 const WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
 const WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX = 8
@@ -170,7 +171,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       documentWidgetRegistry: (s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
       effectiveWidgetRegistry: (s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
       baseWidgetRegistry: (s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
-      openWidgetNodeIds: s.openWidgetNodeIds || [],
+      openWidgetNodeIds: s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY,
       upsertUiToast: s.upsertUiToast,
       selectNode: s.selectNode,
       setSelectionSource: s.setSelectionSource,

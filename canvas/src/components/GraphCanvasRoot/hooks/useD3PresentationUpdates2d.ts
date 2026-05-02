@@ -220,14 +220,7 @@ export function useD3PresentationUpdates2d(args: {
           }
         })(),
         mediaPanelDensity,
-        overlaySizing: {
-          overlayBaseWidthRatioDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioDefault,
-          overlayBaseWidthRatioCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthRatioCompact,
-          overlayBaseWidthMinPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxDefault,
-          overlayBaseWidthMinPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMinPxCompact,
-          overlayBaseWidthMaxPxDefault: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxDefault,
-          overlayBaseWidthMaxPxCompact: (useGraphStore.getState() as any).threeIframeOverlayBaseWidthMaxPxCompact,
-        },
+        overlaySizing: useGraphStore.getState(),
       })
       const stableOverlayHalfExtentsByNodeId = mergeStableOverlayHalfExtents({
         nodeById: sceneGraphLookup?.nodeById || new Map<string, GraphNode>(),

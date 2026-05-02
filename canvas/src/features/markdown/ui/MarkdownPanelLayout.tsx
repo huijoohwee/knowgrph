@@ -1,5 +1,4 @@
 import React from 'react'
-import { MarkdownTableOfContents } from '@/features/markdown/ui/MarkdownTableOfContents'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import type { TokenWithLines } from './markdownPreviewLex'
@@ -8,18 +7,16 @@ import { LS_KEYS } from '@/lib/config'
 import { lsInt, lsSetInt } from '@/lib/persistence'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import usePersistedBoolean from '@/features/hooks/usePersistedBoolean'
-import {
-  MarkdownSourceFilesPanel,
-  type MarkdownSourceFilesPanelIntegration,
-  type MarkdownSourceFileListItem,
-} from './MarkdownSourceFilesPanel'
+import type {
+  MarkdownSourceFilesPanelIntegration,
+  MarkdownSourceFileListItem,
+} from './markdownSourceFilesPanelTypes'
 import { MarkdownSidebarFrame } from './MarkdownSidebarFrame'
 import { buildMarkdownSidebarTitleClassName } from './markdownSidebarText'
-import { MarkdownBacklinksPanel } from './MarkdownBacklinksPanel'
-import IconButton from '@/components/IconButton'
-import { FilePlus, FolderOpen, FolderPlus, RefreshCw } from 'lucide-react'
-import { MarkdownSidebarSection } from './MarkdownSidebarSection'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
+import { MarkdownSourceFilesSidebarSection } from './MarkdownSourceFilesSidebarSection'
+import { MarkdownBacklinksSidebarSection } from './MarkdownBacklinksSidebarSection'
+import { MarkdownOutlineSidebarSection } from './MarkdownOutlineSidebarSection'
 
 export type MarkdownPanelLayoutProps = {
   children: React.ReactNode
@@ -224,139 +221,46 @@ export function MarkdownPanelLayout(props: MarkdownPanelLayoutProps) {
         <section className="flex-1 flex flex-col min-h-0 overflow-hidden" aria-label="Markdown panel sidebar">
           <nav className="flex-1 overflow-auto" aria-label="Explorer">
             {sourceFilesPanelIntegration ? (
-              <MarkdownSidebarSection
-                ariaLabel={UI_COPY.markdownPreviewSourceFilesLabel}
-                title={sourceFilesPanelIntegration.folderName || UI_COPY.markdownPreviewSourceFilesLabel}
+              <MarkdownSourceFilesSidebarSection
                 uiPanelTextFontClass={uiPanelTextFontClass}
                 uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
                 uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+                sourceFiles={sourceFilesList}
+                onSourceFileSelect={onSourceFileSelect}
+                integration={sourceFilesPanelIntegration}
                 collapsed={sourceFilesSectionCollapsed}
                 onToggleCollapsed={() => setSourceFilesSectionCollapsed(!sourceFilesSectionCollapsed)}
-                menuAriaLabel="Source files actions"
-                menuItems={
-                  <>
-                    <li className="list-none">
-                      <IconButton
-                        title="Open folder"
-                        tooltipContent="Open folder"
-                        showTooltip
-                        onClick={() => void sourceFilesPanelIntegration.onOpenFolder()}
-                      >
-                        <FolderOpen className={sourceFilesPanelIntegration.iconClassName} strokeWidth={1.5} aria-hidden="true" />
-                      </IconButton>
-                    </li>
-                    {sourceFilesPanelIntegration.onRefreshFiles ? (
-                      <li className="list-none">
-                        <IconButton
-                          title="Refresh"
-                          tooltipContent="Refresh"
-                          showTooltip
-                          onClick={() => void sourceFilesPanelIntegration.onRefreshFiles?.()}
-                        >
-                          <RefreshCw className={sourceFilesPanelIntegration.iconClassName} strokeWidth={1.5} aria-hidden="true" />
-                        </IconButton>
-                      </li>
-                    ) : null}
-                    {sourceFilesPanelIntegration.onCreateFolder && sourceFilesPanelIntegration.canWrite ? (
-                      <li className="list-none">
-                        <IconButton
-                          title="New folder"
-                          tooltipContent="New folder"
-                          showTooltip
-                          onClick={() => void sourceFilesPanelIntegration.onCreateFolder?.(null)}
-                        >
-                          <FolderPlus className={sourceFilesPanelIntegration.iconClassName} strokeWidth={1.5} aria-hidden="true" />
-                        </IconButton>
-                      </li>
-                    ) : null}
-                    {sourceFilesPanelIntegration.onCreateFile && sourceFilesPanelIntegration.canWrite ? (
-                      <li className="list-none">
-                        <IconButton
-                          title="New file"
-                          tooltipContent="New file"
-                          showTooltip
-                          onClick={() => sourceFilesPanelIntegration.onCreateFile?.(null)}
-                        >
-                          <FilePlus className={sourceFilesPanelIntegration.iconClassName} strokeWidth={1.5} aria-hidden="true" />
-                        </IconButton>
-                      </li>
-                    ) : null}
-                  </>
-                }
-              >
-                <section
-                  className={[
-                    'px-2 py-1 border-t',
-                    UI_THEME_TOKENS.panel.divider,
-                    UI_THEME_TOKENS.text.tertiary,
-                    uiPanelTextFontClass,
-                    'text-[10px] flex items-center justify-between gap-2',
-                  ].join(' ')}
-                  aria-label="Source files status"
-                >
-                  <span className="truncate overflow-hidden whitespace-nowrap">
-                    {sourceFilesPanelIntegration.folderName
-                      ? sourceFilesPanelIntegration.canWrite
-                        ? 'Writable'
-                        : 'Read-only'
-                      : 'No folder open'}
-                  </span>
-                  {sourceFilesPanelIntegration.accessMode ? (
-                    <span className="truncate overflow-hidden whitespace-nowrap">{sourceFilesPanelIntegration.accessMode}</span>
-                  ) : null}
-                </section>
-                <MarkdownSourceFilesPanel
-                  uiPanelTextFontClass={uiPanelTextFontClass}
-                  sourceFiles={sourceFilesList}
-                  onSourceFileSelect={onSourceFileSelect}
-                  integration={sourceFilesPanelIntegration}
-                />
-              </MarkdownSidebarSection>
+              />
             ) : null}
 
             {tokens ? (
-              <MarkdownSidebarSection
-                ariaLabel="Outline"
-                title={UI_COPY.markdownExplorerOutlineLabel || 'Outline'}
+              <MarkdownOutlineSidebarSection
+                tokens={tokens}
                 uiPanelTextFontClass={uiPanelTextFontClass}
                 uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
                 uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+                onTocSelect={onTocSelect}
+                onTocDoubleClick={onTocDoubleClick}
+                onTocReorder={onTocReorder}
+                allCollapsed={allCollapsed}
+                collapsedIds={collapsedIds}
+                onToggleCollapse={onToggleCollapse}
                 collapsed={outlineSectionCollapsed}
                 onToggleCollapsed={() => setOutlineSectionCollapsed(!outlineSectionCollapsed)}
-              >
-                <MarkdownTableOfContents
-                  tokens={tokens}
-                  onSelect={onTocSelect}
-                  onDoubleClick={onTocDoubleClick}
-                  onReorder={onTocReorder}
-                  uiPanelTextFontClass={uiPanelTextFontClass}
-                  uiPanelKeyValueTextSizeClass={'text-sm'}
-                  className="flex-1"
-                  indentBasePx={6}
-                  allCollapsed={allCollapsed}
-                  collapsedIds={collapsedIds}
-                  onToggleCollapse={onToggleCollapse}
-                />
-              </MarkdownSidebarSection>
+              />
             ) : null}
 
             {Array.isArray(sourceFiles) && sourceFiles.length > 0 ? (
-              <MarkdownSidebarSection
-                ariaLabel="Backlinks"
-                title={UI_COPY.markdownExplorerBacklinksLabel || 'Backlinks'}
+              <MarkdownBacklinksSidebarSection
                 uiPanelTextFontClass={uiPanelTextFontClass}
                 uiPanelMicroLabelTextSizeClass={uiPanelMicroLabelTextSizeClass}
                 uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+                activeDocumentKey={activeSourceFileKey || null}
+                sourceFiles={sourceFiles}
+                onSourceFileSelect={onSourceFileSelect}
                 collapsed={backlinksSectionCollapsed}
                 onToggleCollapsed={() => setBacklinksSectionCollapsed(!backlinksSectionCollapsed)}
-              >
-                <MarkdownBacklinksPanel
-                  uiPanelTextFontClass={uiPanelTextFontClass}
-                  activeDocumentKey={activeSourceFileKey || null}
-                  sourceFiles={sourceFiles}
-                  onSourceFileSelect={onSourceFileSelect}
-                />
-              </MarkdownSidebarSection>
+              />
             ) : null}
 
             {sidebarAppendContent}

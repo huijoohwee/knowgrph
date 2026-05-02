@@ -6,7 +6,7 @@ import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { buildDocumentSemanticModeKey } from '@/lib/graph/documentViewMode'
+import { readDocumentViewModeContext } from '@/lib/graph/documentViewMode'
 import { computeLayoutDatasetKey, buildLayoutViewKey, buildLayoutPositionCacheKey } from '@/lib/canvas/layoutPositioning'
 import { coverageOfPositions, pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
@@ -47,12 +47,12 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
       documentSemanticMode: semanticModeBase as 'document' | 'keyword',
       graphData: (graphDataForViewOverride || graphData) as any,
     })
-    const semanticMode = buildDocumentSemanticModeKey({
+    const semanticMode = readDocumentViewModeContext({
       frontmatterModeEnabled: effectiveFrontmatter,
       multiDimTableModeEnabled: multiDimTableModeEnabled === true,
       documentSemanticMode: semanticModeBase,
       documentStructureBaselineLock: documentStructureBaselineLock === true,
-    })
+    }).documentSemanticModeKey
     const datasetKey = computeLayoutDatasetKey({ graphData: graphDataForView, graphDataRevision })
     const graphMetaKey = buildGraphMetaKeyIgnoringPending((graphDataForViewOverride || graphData) as any)
     const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(collapsedGroupIds)

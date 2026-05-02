@@ -399,13 +399,13 @@ const resolveOutputPreferenceFromNode = (node: GraphNode): KgcRunOutputPreferenc
     const resolved = normalizeOutputExtension(String(candidate || ''))
     if (resolved) return resolved
   }
-  if (typeof data.video === 'string' || typeof data.video_url === 'string') {
+  if (typeof data.video === 'string' || typeof data.videoUrl === 'string') {
     return { kind: 'video', extension: 'mp4' }
   }
   if (typeof data.svg === 'string') {
     return { kind: 'svg', extension: 'svg' }
   }
-  if (typeof data.image === 'string' || typeof data.image_url === 'string') {
+  if (typeof data.image === 'string' || typeof data.imageUrl === 'string') {
     return { kind: 'png', extension: 'png' }
   }
   return null
