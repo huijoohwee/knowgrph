@@ -136,6 +136,28 @@ export const testMarkdownWorkspaceRuntimeGraphWritebackRefreshesActiveEditorText
   }
 }
 
+export const testMarkdownWorkspaceDerivedViewsCentralizePersistenceWriteback = () => {
+  const derivedViewsPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceDerivedViews.tsx')
+  const ioPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntime.io.ts')
+  const derivedViewsText = readUtf8(derivedViewsPath)
+  const ioText = readUtf8(ioPath)
+  if (!derivedViewsText.includes('const persistDerivedWorkspaceText = React.useCallback(')) {
+    throw new Error('Expected derived workspace views to extract shared persistence/writeback plumbing behind a local helper')
+  }
+  if (!derivedViewsText.includes('await writeWorkspaceFileAndSync({')) {
+    throw new Error('Expected derived workspace views to reuse the shared workspace file persistence helper')
+  }
+  if (derivedViewsText.includes('commitMarkdownWorkspaceWriteback({')) {
+    throw new Error('Expected derived workspace views not to duplicate direct writeback commits once the shared persistence helper is in place')
+  }
+  if (derivedViewsText.includes('await fs.writeFileText(args.activePath, nextText)')) {
+    throw new Error('Expected derived workspace views not to duplicate raw filesystem writeback sequences per view')
+  }
+  if (!ioText.includes('commitMarkdownWorkspaceWriteback({')) {
+    throw new Error('Expected shared workspace file persistence helper to funnel editor/workspace refresh through the shared writeback commit')
+  }
+}
+
 export const testMarkdownWorkspaceRealtimeSyncAppliesEditorChangesBackToGraph = () => {
   const runtimeText = readUtf8(markdownWorkspaceRuntimePath())
   const interactionsText = readUtf8(markdownWorkspaceInteractionsPath())

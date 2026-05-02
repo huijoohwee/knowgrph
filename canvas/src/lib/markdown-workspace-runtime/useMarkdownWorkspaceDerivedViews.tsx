@@ -18,8 +18,7 @@ import { websiteImportArtifactKindForWebpageView } from '@/lib/websites/websiteI
 import { workspaceDocumentKey } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { inferYoutubeVideoIdFromPath, parseYoutubeWorkspaceFrontmatter } from './markdownWorkspaceRuntime.shared'
-import { resolveAuthoritativeWorkspaceText } from './markdownWorkspaceRuntime.io'
-import { commitMarkdownWorkspaceWriteback } from './markdownWorkspaceWritebackCommit'
+import { resolveAuthoritativeWorkspaceText, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
 export function useMarkdownWorkspaceDerivedViews(args: {
@@ -88,6 +87,37 @@ export function useMarkdownWorkspaceDerivedViews(args: {
   const [pdfWorkspaceViewerTextOverride, setPdfWorkspaceViewerTextOverride] = React.useState<string | null>(null)
   const [webpageWorkspaceEditorTextOverride, setWebpageWorkspaceEditorTextOverride] = React.useState<string | null>(null)
   const [webpageWorkspaceViewerTextOverride, setWebpageWorkspaceViewerTextOverride] = React.useState<string | null>(null)
+  const persistDerivedWorkspaceText = React.useCallback(
+    async (nextText: string, options?: { refreshActiveDocument?: boolean }) => {
+      const activePath = args.activePath
+      if (!activePath) return
+      const refreshActiveDocument = options?.refreshActiveDocument === true
+      const docKey = refreshActiveDocument ? workspaceDocumentKey(activePath) : ''
+      const source = refreshActiveDocument ? args.sourcesByPath[activePath] : null
+      const sourceUrl = source && source.kind === 'url' ? String(source.url || '').trim() : ''
+      await writeWorkspaceFileAndSync({
+        path: activePath,
+        text: nextText,
+        getFs: args.getFs,
+        lastLoadedRef: args.lastLoadedRef,
+        patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
+        setActiveText: args.setActiveTextProgrammatic,
+        activeDocumentKey: docKey || undefined,
+        activeDocumentSourceUrl: docKey ? (sourceUrl || null) : undefined,
+        setActiveMarkdownDocument: docKey ? args.setActiveMarkdownDocument : undefined,
+        resetParsedState: true,
+      })
+    },
+    [
+      args.activePath,
+      args.getFs,
+      args.lastLoadedRef,
+      args.patchWorkspaceEntryInlineText,
+      args.setActiveMarkdownDocument,
+      args.setActiveTextProgrammatic,
+      args.sourcesByPath,
+    ],
+  )
 
   const pdfWorkspaceFetchArgs = React.useMemo(() => {
     const docId = pdfWorkspaceMeta ? String(pdfWorkspaceMeta.docId || '').trim() : ''
@@ -279,32 +309,13 @@ export function useMarkdownWorkspaceDerivedViews(args: {
             ? `${frontmatter}\`\`\`json\n${res.transcriptJsonText}\n\`\`\`\n`
             : `${frontmatter}${res.markdown}`
 
-        const fs = await args.getFs()
-        await fs.writeFileText(args.activePath, nextText)
-        commitMarkdownWorkspaceWriteback({
-          path: args.activePath,
-          text: nextText,
-          lastLoadedRef: args.lastLoadedRef,
-          patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
-          setActiveTextProgrammatic: args.setActiveTextProgrammatic,
-        })
-        const docKey = workspaceDocumentKey(args.activePath)
-        if (docKey) {
-          const source = args.sourcesByPath[args.activePath]
-          const sourceUrl = source && source.kind === 'url' ? String(source.url || '').trim() : ''
-          void args.setActiveMarkdownDocument({
-            name: docKey,
-            text: nextText,
-            normalizeMermaidMmd: false,
-            sourceUrl: sourceUrl ? sourceUrl : null,
-          })
-        }
+        await persistDerivedWorkspaceText(nextText, { refreshActiveDocument: true })
         args.setStatusWithAutoClear('Loaded', UI_TOAST_TTL_MS.statusAutoCloseFast)
       } catch (e) {
         args.setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [args, youtubeWorkspaceMeta],
+    [args, persistDerivedWorkspaceText, youtubeWorkspaceMeta],
   )
 
   const switchActiveWebpageWorkspaceView = React.useCallback(
@@ -320,7 +331,6 @@ export function useMarkdownWorkspaceDerivedViews(args: {
       try {
         args.setStatusProgress('Updating view')
         ticker.start()
-        const fs = await args.getFs()
 
         if (view === 'markdown') {
           setWebpageWorkspaceEditorTextOverride(prev => (prev == null ? prev : null))
@@ -376,14 +386,7 @@ export function useMarkdownWorkspaceDerivedViews(args: {
           })
         })()
 
-        await fs.writeFileText(args.activePath, nextText)
-        commitMarkdownWorkspaceWriteback({
-          path: args.activePath,
-          text: nextText,
-          lastLoadedRef: args.lastLoadedRef,
-          patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
-          setActiveTextProgrammatic: args.setActiveTextProgrammatic,
-        })
+        await persistDerivedWorkspaceText(nextText)
         ticker.stop(100)
         args.setStatusWithAutoClear('Updated', UI_TOAST_TTL_MS.statusAutoCloseFast)
       } catch (e) {
@@ -395,7 +398,7 @@ export function useMarkdownWorkspaceDerivedViews(args: {
         args.setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [args, webpageWorkspaceMeta, websiteImportMeta],
+    [args, persistDerivedWorkspaceText, webpageWorkspaceMeta, websiteImportMeta],
   )
 
   const updateActiveWebpageWorkspaceMeta = React.useCallback(
@@ -403,7 +406,6 @@ export function useMarkdownWorkspaceDerivedViews(args: {
       if (!args.activePath || !webpageWorkspaceMeta) return
       try {
         args.setStatusProgress('Updating view')
-        const fs = await args.getFs()
         const prevText = await resolveAuthoritativeWorkspaceText({
           path: args.activePath,
           getFs: args.getFs,
@@ -418,20 +420,13 @@ export function useMarkdownWorkspaceDerivedViews(args: {
           siteRootRel: meta.siteRootRel,
           fidelityLevel: patch.fidelityLevel,
         })
-        await fs.writeFileText(args.activePath, nextText)
-        commitMarkdownWorkspaceWriteback({
-          path: args.activePath,
-          text: nextText,
-          lastLoadedRef: args.lastLoadedRef,
-          patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
-          setActiveTextProgrammatic: args.setActiveTextProgrammatic,
-        })
+        await persistDerivedWorkspaceText(nextText)
         args.setStatusWithAutoClear('Updated', UI_TOAST_TTL_MS.statusAutoCloseFast)
       } catch (e) {
         args.setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [args, webpageWorkspaceMeta],
+    [args, persistDerivedWorkspaceText, webpageWorkspaceMeta],
   )
 
   return {

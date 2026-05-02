@@ -71,6 +71,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["baseline.flowEditor.widget.scroll.wheelCaptureNoStopPropagation","@/__tests__/flowEditorFrontmatterFlowWidgetAndTypedHandlesRegression.test","testWidgetWheelCaptureDoesNotBlockInternalScroll"],
   ["baseline.flowEditor.widget.portHandles.tooltip.directionalPath","@/__tests__/flowEditorFrontmatterFlowWidgetAndTypedHandlesRegression.test","testWidgetPortHandleTooltipUsesDirectionalHandlePath"],
   ["workspace.runtime.graphWriteback.refreshesActiveEditorTextSafely","@/__tests__/workspaceSwitchStaleGuard.test","testMarkdownWorkspaceRuntimeGraphWritebackRefreshesActiveEditorTextSafely"],
+  ["workspace.runtime.derivedViews.centralizePersistenceWriteback","@/__tests__/workspaceSwitchStaleGuard.test","testMarkdownWorkspaceDerivedViewsCentralizePersistenceWriteback"],
   ["workspace.runtime.realtimeSync.appliesEditorChangesBackToGraph","@/__tests__/workspaceSwitchStaleGuard.test","testMarkdownWorkspaceRealtimeSyncAppliesEditorChangesBackToGraph"],
   ["baseline.flowEditor.widget.byteplusLink.localFieldEdits","@/__tests__/flowWidgetPortHandleDomAnchors.test","testTextWidgetCellsStayLocallyEditable"],
   ["baseline.flowEditor.widget.byteplusLink.registryFieldPlaceholderHandles","@/__tests__/flowWidgetPortHandleDomAnchors.test","testTextWidgetRegistryFieldRowsKeepPlaceholderPortHandles"],

@@ -10,6 +10,7 @@ import { useParserUIState } from '@/features/parsers/uiState'
 import { parseSchemaText } from '@/features/schema/io'
 import { buildSourceFileLifecycleState } from '@/features/source-files/sourceFileParsedState'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
+import { commitMarkdownWorkspaceWriteback } from './markdownWorkspaceWritebackCommit'
 import {
   resolveWorkspaceSourceFileInlineText,
   upsertWorkspaceEntryInlineText,
@@ -116,20 +117,34 @@ export const writeWorkspaceFileAndSync = async (args: {
 }): Promise<void> => {
   const fs = await args.getFs()
   await fs.writeFileText(args.path, args.text)
-  if (typeof args.patchWorkspaceEntryInlineText === 'function') {
-    args.patchWorkspaceEntryInlineText(args.path, args.text)
-  } else if (args.setEntries) {
-    args.setEntries(prev =>
-      upsertWorkspaceEntryInlineText({
-        entries: prev,
+  const patchWorkspaceEntryInlineText = typeof args.patchWorkspaceEntryInlineText === 'function'
+    ? args.patchWorkspaceEntryInlineText
+    : args.setEntries
+      ? ((path: WorkspacePath, text: string) => {
+          args.setEntries?.(prev =>
+            upsertWorkspaceEntryInlineText({
+              entries: prev,
+              path,
+              text,
+            }),
+          )
+        })
+      : null
+  if (args.synchronizeActiveDocument !== false) {
+    if (patchWorkspaceEntryInlineText) {
+      commitMarkdownWorkspaceWriteback({
         path: args.path,
         text: args.text,
-      }),
-    )
-  }
-  if (args.synchronizeActiveDocument !== false) {
-    args.lastLoadedRef.current = { path: args.path, text: args.text }
-    if (typeof args.setActiveText === 'function') args.setActiveText(args.text)
+        lastLoadedRef: args.lastLoadedRef,
+        patchWorkspaceEntryInlineText,
+        setActiveTextProgrammatic: nextText => {
+          if (typeof args.setActiveText === 'function') args.setActiveText(nextText)
+        },
+      })
+    } else {
+      args.lastLoadedRef.current = { path: args.path, text: args.text }
+      if (typeof args.setActiveText === 'function') args.setActiveText(args.text)
+    }
     if (args.activeDocumentKey && args.setActiveMarkdownDocument) {
       pushWorkspaceTextToActiveMarkdownDocument({
         activeDocumentKey: args.activeDocumentKey,
@@ -138,6 +153,8 @@ export const writeWorkspaceFileAndSync = async (args: {
         text: args.text,
       })
     }
+  } else if (patchWorkspaceEntryInlineText) {
+    patchWorkspaceEntryInlineText(args.path, args.text)
   }
   updateExistingWorkspaceSourceFile({
     path: args.path,
