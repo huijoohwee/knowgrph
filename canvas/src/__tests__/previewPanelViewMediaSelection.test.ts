@@ -205,8 +205,8 @@ export async function testPreviewPanelStandaloneLinkWebpageAndTweetSelectable() 
       await waitForNextFrame(dom.window)
     })
 
-    const mediaHeader = doc.querySelector('[data-kg-media-panel-header="1"]')
-    if (!mediaHeader) throw new Error('expected RichMediaPanel header in active media preview')
+    const mediaPanel = doc.querySelector('[data-kg-rich-media-panel="1"][data-kg-rich-media-render-surface="1"]')
+    if (!mediaPanel) throw new Error('expected active media preview to reuse the widget-style RichMediaPanel surface')
 
     const expectedWebpageKey = buildMarkdownPreviewMediaKey(
       'webpage',

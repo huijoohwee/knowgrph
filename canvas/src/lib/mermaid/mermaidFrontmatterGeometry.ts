@@ -66,6 +66,11 @@ export type MermaidFrontmatterRenderResult = {
   geometry: MermaidFrontmatterSvgGeometry
 }
 
+type MermaidFrontmatterRenderInput = {
+  code: string
+  theme: MermaidTheme
+}
+
 type MermaidFrontmatterGraphBindings = {
   nodes: GraphNode[]
   edges: GraphEdge[]
@@ -819,15 +824,37 @@ export function applyMermaidFrontmatterContextLayoutToGraphData(graphData: Graph
 }
 
 const readFrontmatterMermaidCode = (graphData: GraphData): string => {
+const findFrontmatterMermaidDiagramNode = (graphData: GraphData): GraphNode | null => {
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]!
     if (!isFrontmatterMermaidDiagram(n)) continue
-    const props = readRecordProps(n)
-    const code = props && typeof props.code === 'string' ? String(props.code || '').trim() : ''
-    if (code) return code
+    return n
   }
+  return null
+}
+
+const readFrontmatterMermaidCode = (graphData: GraphData): string => {
+  const node = findFrontmatterMermaidDiagramNode(graphData)
+  if (!node) return ''
+  const props = readRecordProps(node)
+  const code = props && typeof props.code === 'string' ? String(props.code || '').trim() : ''
+  if (code) return code
   return ''
+}
+
+const resolveMermaidFrontmatterRenderInput = (args: {
+  graphData: GraphData
+  theme?: MermaidTheme
+  codeOverride?: string
+}): MermaidFrontmatterRenderInput | null => {
+  const code = String(args.codeOverride || readFrontmatterMermaidCode(args.graphData) || '').trim()
+  if (!code) return null
+  const theme = args.theme === 'dark' || args.theme === 'light' ? args.theme : (getKgThemeFromDom() as MermaidTheme)
+  return {
+    code,
+    theme,
+  }
 }
 
 export async function renderMermaidFrontmatterGeometry(args: {
@@ -835,15 +862,17 @@ export async function renderMermaidFrontmatterGeometry(args: {
   theme?: MermaidTheme
   codeOverride?: string
 }): Promise<MermaidFrontmatterRenderResult | null> {
-  const code = String(args.codeOverride || readFrontmatterMermaidCode(args.graphData) || '').trim()
-  if (!code) return null
+  const renderInput = resolveMermaidFrontmatterRenderInput(args)
+  if (!renderInput) return null
   if (typeof window === 'undefined' || typeof document === 'undefined') return null
-  const theme = args.theme === 'dark' || args.theme === 'light' ? args.theme : (getKgThemeFromDom() as MermaidTheme)
-  const rendered = await renderMermaidSvgCached({ code, theme: theme === 'dark' ? 'dark' : 'light' })
+  const rendered = await renderMermaidSvgCached({
+    code: renderInput.code,
+    theme: renderInput.theme === 'dark' ? 'dark' : 'light',
+  })
   const geometry = parseMermaidSvgGeometry(rendered.svg)
   return {
-    code,
-    theme,
+    code: renderInput.code,
+    theme: renderInput.theme,
     svg: rendered.svg,
     geometry,
   }
@@ -1070,6 +1099,26 @@ const assignFallbackMermaidEdgeGeometry = (args: {
   }
 }
 
+const finalizeMermaidFrontmatterGraph = (args: {
+  graphData: GraphData
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}): GraphData => {
+  const graphWithGeometry: GraphData = {
+    ...args.graphData,
+    context: 'frontmatter-mermaid',
+    nodes: args.nodes,
+    edges: args.edges,
+    metadata: {
+      ...(args.graphData.metadata && typeof args.graphData.metadata === 'object' && !Array.isArray(args.graphData.metadata)
+        ? args.graphData.metadata
+        : {}),
+      layoutEngine: 'mermaid',
+    } as never,
+  }
+  return applyMermaidFrontmatterContextLayoutToGraphData(graphWithGeometry)
+}
+
 export async function applyMermaidFrontmatterGeometryToGraphData(
   graphData: GraphData,
   args?: { theme?: MermaidTheme; codeOverride?: string },
@@ -1127,17 +1176,9 @@ export async function applyMermaidFrontmatterGeometryToGraphData(
     unmatched: matchedEdgeGeometry.unmatched,
     edges: updatedEdges,
   })
-
-  const graphWithGeom = {
-    ...graphData,
-    context: 'frontmatter-mermaid',
+  return finalizeMermaidFrontmatterGraph({
+    graphData,
     nodes: updatedNodes,
     edges: updatedEdges,
-    metadata: {
-      ...(graphData.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata) ? graphData.metadata : {}),
-      layoutEngine: 'mermaid',
-    } as never,
-  }
-
-  return applyMermaidFrontmatterContextLayoutToGraphData(graphWithGeom)
+  })
 }

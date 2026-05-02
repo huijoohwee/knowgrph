@@ -99,15 +99,8 @@ export async function testRichMediaPanelClickToOpenUsesBodyNotHeader() {
       }),
     { window: dom.window, frames: 20 })
 
-    const header = container.querySelector('[data-kg-media-panel-header="1"]') as HTMLElement | null
-    if (!header) throw new Error('expected media panel header')
     const bodyLink = await waitForBodyLink(container, dom.window, url)
     if (!bodyLink) throw new Error('expected body click-to-open overlay link')
-    await act(async () => {
-      header.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
-      await waitForNextFrame(dom.window)
-    })
-    if (opened.length) throw new Error(`expected header click not to open; opened=${opened.join(',')}`)
     await act(async () => {
       bodyLink.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForNextFrame(dom.window)

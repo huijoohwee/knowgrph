@@ -820,20 +820,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     const isResizeHandleTarget = !!targetEl?.closest('[data-kg-resize-handle]')
     const isScrollableSurfaceTarget = !!targetEl?.closest('[data-kg-media-scroll-surface="1"]')
     const isInteractiveControlTarget = !!targetEl?.closest('textarea,input,select,button,a,[contenteditable="true"]')
-    const isHeaderTarget = (() => {
-      if (!targetEl) return false
-      return !!targetEl.closest('[data-kg-media-panel-header="1"]')
-    })()
-    const allowHeaderOverlayPan = (() => {
-      if (!isHeaderTarget) return true
-      if (!installHeaderDrag) return true
-      if (typeof props.shouldStartHeaderDrag !== 'function') return false
-      try {
-        return props.shouldStartHeaderDrag(native) !== true
-      } catch {
-        return false
-      }
-    })()
     const allowPointerButtons = (() => {
       const b = typeof native.buttons === 'number' ? native.buttons : 0
       return (b & 1) === 1 || (b & 4) === 4
@@ -842,7 +828,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       isResizeHandleTarget
       || isScrollableSurfaceTarget
       || isInteractiveControlTarget
-    if (!blockOverlayPanForTarget && !isHeaderTarget && startHeaderDrag(native)) {
+    if (!blockOverlayPanForTarget && startHeaderDrag(native)) {
       try {
         e.preventDefault()
         e.stopPropagation()
@@ -854,7 +840,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     if (
       overlayAlreadySelected
       && !blockOverlayPanForTarget
-      && allowHeaderOverlayPan
       && installOverlayPan
       && allowPointerButtons
       && native

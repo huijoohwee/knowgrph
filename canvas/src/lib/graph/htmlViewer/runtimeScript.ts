@@ -122,12 +122,6 @@ export function buildHtmlViewerRuntimeScript(args: {
 
   out = replaceOnceExact(
     out,
-    "var header = document.createElement('div');\n        header.className = 'kg-mediaHeader';\n        var title = document.createElement('div');\n        title.className = 'kg-mediaTitle';",
-    "var header = document.createElement('header');\n        header.className = 'kg-mediaHeader';\n        try { header.setAttribute('data-kg-media-panel-header', '1'); } catch (e0) {}\n        var title = document.createElement('h3');\n        title.className = 'kg-mediaTitle';",
-  )
-
-  out = replaceOnceExact(
-    out,
     'if (fitBtn) fitBtn.addEventListener(\'click\', function(){ fitToCenter(); });\n    if (resetBtn) resetBtn.addEventListener(\'click\', function(){ resetView(); });\n    if (mediaBtn) mediaBtn.addEventListener(\'click\', function(){ setMediaInteractive(!mediaInteractive); });',
     "if (fitBtn) fitBtn.addEventListener('click', function(){ fitToCenter(); });\n    if (resetBtn) resetBtn.addEventListener('click', function(){ resetView(); });\n    if (mediaBtn) mediaBtn.addEventListener('click', function(){ setMediaInteractive(!mediaInteractive); });",
   )
@@ -139,19 +133,6 @@ export function buildHtmlViewerRuntimeScript(args: {
   )
 
   out = replaceOnceExact(out, 'var mediaInteractive = false;', 'var mediaInteractive = true;')
-
-  out = replaceOnceExact(
-    out,
-    "function isMediaHeaderTarget(t){\n      try {\n        if (!(t instanceof Element)) return false;\n        return !!t.closest('.kg-mediaHeader');\n      } catch (err) {\n        return false;\n      }\n    }",
-    "function isMediaHeaderTarget(t){\n      try {\n        if (!(t instanceof Element)) return false;\n        return !!t.closest('.kg-mediaHeader,[data-kg-media-panel-header=\\\"1\\\"]');\n      } catch (err) {\n        return false;\n      }\n    }",
-  )
-
-
-  out = replaceOnceExact(
-    out,
-    "if (isMediaHeaderTarget(e.target)) {",
-    "if (isMediaHeaderTarget(e.target)) {\n        try {\n          var headerEl = e.target instanceof Element ? e.target.closest('.kg-mediaHeader,[data-kg-media-panel-header=\"1\"]') : null;\n        } catch (err0) {}\n        try {\n          if (pointerMode === 'pan' || panHeld) {\n            startDrag(e.pointerId, e.clientX, e.clientY);\n            try { root.setPointerCapture(e.pointerId); } catch (err5) {}\n            try { e.preventDefault(); } catch (err6) {}\n            try { e.stopPropagation(); } catch (err7) {}\n            return;\n          }\n        } catch (err0) {}",
-  )
 
   out = replaceOnceExact(
     out,

@@ -21,7 +21,7 @@ export function testRichMediaPanelUsesSectionBodyResizeHandleSsot() {
 export function testSharedRichMediaPanelUsesBodySectionAsResizeSurfaceSsot() {
   const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const text = readFileSync(p, 'utf8')
-  if (!text.includes('className="kg-mediaBody"')) {
+  if (!text.includes("'kg-mediaBody'")) {
     throw new Error('expected shared Rich Media Panel to keep a dedicated body section render surface')
   }
   if (!text.includes('data-kg-rich-media-render-surface="1"')) {
@@ -33,7 +33,7 @@ export function testSharedRichMediaPanelUsesBodySectionAsResizeSurfaceSsot() {
   if (text.includes('{showPanelMarkdownPreview ? (\n          <div') || text.includes(') : isEmptyPanel ? (\n          <div') || text.includes(') : panelIsLoading ? (\n          <div')) {
     throw new Error('expected shared Rich Media Panel body render states to forbid generic div surfaces')
   }
-  const bodyStart = text.indexOf('className="kg-mediaBody"')
+  const bodyStart = text.indexOf("'kg-mediaBody'")
   const resizeHandle = text.indexOf('data-kg-resize-handle="se"')
   const renderSurfaceStart = text.indexOf('const renderSurfaceChildren = (')
   if (bodyStart < 0 || resizeHandle < 0 || renderSurfaceStart < 0) {

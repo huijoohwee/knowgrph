@@ -35,6 +35,12 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   if (!geometryText.includes('const applyMermaidSubgraphGeometry = (args: {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared applyMermaidSubgraphGeometry helper')
   }
+  if (!geometryText.includes('const finalizeMermaidFrontmatterGraph = (args: {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared finalizeMermaidFrontmatterGraph helper')
+  }
+  if (!geometryText.includes('const resolveMermaidFrontmatterRenderInput = (args: {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared resolveMermaidFrontmatterRenderInput helper')
+  }
   if (!geometryText.includes('const resolveMermaidImageMediaKind = (imageUrl: string): \'image\' | \'svg\' => {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to centralize Mermaid image media-kind derivation')
   }
@@ -49,6 +55,15 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   }
   if (!geometryText.includes('applyMermaidSubgraphGeometry({')) {
     throw new Error('expected frontmatter Mermaid geometry applier to reuse shared subgraph geometry mutation helper')
+  }
+  if (!geometryText.includes('return finalizeMermaidFrontmatterGraph({')) {
+    throw new Error('expected frontmatter Mermaid geometry applier to reuse shared graph finalization helper')
+  }
+  if (!geometryText.includes("layoutEngine: 'mermaid'")) {
+    throw new Error('expected shared graph finalization helper to preserve Mermaid layout engine metadata')
+  }
+  if (!geometryText.includes('const renderInput = resolveMermaidFrontmatterRenderInput(args)')) {
+    throw new Error('expected Mermaid frontmatter renderer to reuse shared render input resolution helper')
   }
 
   try {
