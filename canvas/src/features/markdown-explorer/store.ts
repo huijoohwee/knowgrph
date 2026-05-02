@@ -3,6 +3,18 @@ import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { normalizeMarkdownWorkspaceSelectionPath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionPath'
+import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
+
+export function resolveInitialMarkdownExplorerActivePath(value: unknown): WorkspacePath | null {
+  const v = typeof value === 'string' ? value : null
+  if (!v) return null
+  try {
+    const normalized = normalizeMarkdownWorkspaceSelectionPath(v as WorkspacePath)
+    return isInitializationWorkspacePath(normalized) ? null : normalized
+  } catch {
+    return null
+  }
+}
 
 type MarkdownExplorerState = {
   activePath: WorkspacePath | null
@@ -16,15 +28,7 @@ export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
   activePath: lsJson(
     LS_KEYS.markdownExplorerActivePath,
     null as WorkspacePath | null,
-    (raw) => {
-      const v = typeof raw === 'string' ? raw : null
-      if (!v) return null
-      try {
-        return normalizeMarkdownWorkspaceSelectionPath(v as WorkspacePath)
-      } catch {
-        return null
-      }
-    },
+    resolveInitialMarkdownExplorerActivePath,
   ),
   requestedRevealLine: null,
   lastSetActivePath: null,
