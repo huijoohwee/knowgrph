@@ -1,6 +1,7 @@
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
 
 export type GraphFieldScope = 'node' | 'edge'
 export type GraphFieldKind = 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array' | 'mixed' | 'unknown'
@@ -147,7 +148,9 @@ function toGraphFieldKindBase(value: JSONValue): GraphFieldKindBase {
 const DERIVED_FIELD_NESTED_MAX_DEPTH = 4
 const DERIVED_FIELD_NESTED_SCAN_LIMIT = 20_000
 const DERIVED_FIELDS_CACHE_LIMIT = 12
+const RESOLVED_FIELD_SETTINGS_CACHE_LIMIT = 16
 const derivedFieldsCache = new Map<string, ReadonlyArray<GraphField>>()
+const resolvedFieldSettingsCache = new Map<string, Map<GraphFieldId, GraphFieldSettingsResolved>>()
 
 export type GetCachedDerivedFieldsArgs = {
   graphData?: GraphData | null
@@ -173,6 +176,79 @@ function writeCachedDerivedFields(
     if (typeof oldestKey === 'string') derivedFieldsCache.delete(oldestKey)
   }
   return fields
+}
+
+function buildResolvedFieldSettingsFieldSignature(
+  fields: ReadonlyArray<GraphField>,
+): string {
+  if (!Array.isArray(fields) || fields.length === 0) return hashSignatureParts(['resolved-field-settings-fields', 0])
+  return hashSignatureParts([
+    'resolved-field-settings-fields',
+    hashArrayOfObjectsSignature(
+      fields.map(field => ({
+        id: field.id,
+        scope: field.scope,
+        key: field.key,
+        kind: field.kind,
+      })),
+      { maxItems: Math.max(24, fields.length), maxKeysPerItem: 4 },
+    ),
+  ])
+}
+
+function buildResolvedFieldSettingsSettingsSignature(
+  fields: ReadonlyArray<GraphField>,
+  settingsById: GraphFieldSettingsById,
+): string {
+  if (!Array.isArray(fields) || fields.length === 0) return hashSignatureParts(['resolved-field-settings-settings', 0])
+  return hashSignatureParts([
+    'resolved-field-settings-settings',
+    hashArrayOfObjectsSignature(
+      fields.map(field => {
+        const settings = settingsById[field.id]
+        return {
+          id: field.id,
+          displayName: String(settings?.displayName || ''),
+          isHidden: settings?.isHidden === true,
+          fieldType: String(settings?.fieldType || ''),
+          isCustom: settings?.isCustom === true,
+          description: String(settings?.description || ''),
+          defaultValue: settings?.defaultValue === undefined ? '' : JSON.stringify(settings.defaultValue),
+          selectOptions: Array.isArray(settings?.selectOptions) ? settings?.selectOptions.join('\u001f') : '',
+          decimalPlaces:
+            typeof settings?.decimalPlaces === 'number' && Number.isFinite(settings.decimalPlaces)
+              ? settings.decimalPlaces
+              : '',
+          currencyCode: String(settings?.currencyCode || ''),
+          urlProtocol: String(settings?.urlProtocol || ''),
+          dateTimeFormat: String(settings?.dateTimeFormat || ''),
+        }
+      }),
+      { maxItems: Math.max(24, fields.length), maxKeysPerItem: 11 },
+    ),
+  ])
+}
+
+function readCachedResolvedFieldSettings(
+  cacheKey: string,
+): Map<GraphFieldId, GraphFieldSettingsResolved> | null {
+  const cached = resolvedFieldSettingsCache.get(cacheKey) || null
+  if (!cached) return null
+  resolvedFieldSettingsCache.delete(cacheKey)
+  resolvedFieldSettingsCache.set(cacheKey, cached)
+  return cached
+}
+
+function writeCachedResolvedFieldSettings(
+  cacheKey: string,
+  resolvedSettingsById: Map<GraphFieldId, GraphFieldSettingsResolved>,
+): Map<GraphFieldId, GraphFieldSettingsResolved> {
+  resolvedFieldSettingsCache.set(cacheKey, resolvedSettingsById)
+  if (resolvedFieldSettingsCache.size > RESOLVED_FIELD_SETTINGS_CACHE_LIMIT) {
+    const oldestKey = resolvedFieldSettingsCache.keys().next().value
+    if (typeof oldestKey === 'string') resolvedFieldSettingsCache.delete(oldestKey)
+  }
+  return resolvedSettingsById
 }
 
 export function computeDerivedFields(graphData: GraphData): ReadonlyArray<GraphField> {
@@ -397,6 +473,29 @@ export function normalizeSettingsForField(field: GraphField, settings: GraphFiel
     urlProtocol,
     dateTimeFormat,
   }
+}
+
+export function getCachedResolvedFieldSettingsById(args: {
+  fields: ReadonlyArray<GraphField>
+  settingsById: GraphFieldSettingsById
+  graphSemanticKey?: string | null
+}): Map<GraphFieldId, GraphFieldSettingsResolved> {
+  const fields = Array.isArray(args.fields) ? args.fields : []
+  if (fields.length === 0) return new Map<GraphFieldId, GraphFieldSettingsResolved>()
+  const cacheKey = hashSignatureParts([
+    'graph-fields-resolved-settings',
+    String(args.graphSemanticKey || ''),
+    buildResolvedFieldSettingsFieldSignature(fields),
+    buildResolvedFieldSettingsSettingsSignature(fields, args.settingsById),
+  ])
+  const cached = readCachedResolvedFieldSettings(cacheKey)
+  if (cached) return cached
+  const resolvedSettingsById = new Map<GraphFieldId, GraphFieldSettingsResolved>()
+  for (let i = 0; i < fields.length; i += 1) {
+    const field = fields[i]
+    resolvedSettingsById.set(field.id, normalizeSettingsForField(field, args.settingsById[field.id]))
+  }
+  return writeCachedResolvedFieldSettings(cacheKey, resolvedSettingsById)
 }
 
 export function defaultFieldTypeForKind(kind: GraphFieldKind): GraphFieldType {

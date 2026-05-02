@@ -1027,6 +1027,21 @@ export function testFlowEditorPortHandleEdgeConnectivityUsesEndpointIdResolver()
   if (!handlesText.includes('readEdgeEndpointId((e as { target?: unknown })?.target)')) {
     throw new Error('expected flow handle computation to resolve target endpoint ids via shared helper')
   }
+  if (!handlesText.includes('const cacheKey = buildFlowHandlesByNodeSignature(args)')) {
+    throw new Error('expected flow handle computation to derive a semantic cache key before rebuilding node handles')
+  }
+  if (!handlesText.includes('return writeCachedFlowHandlesByNode(cacheKey, out)')) {
+    throw new Error('expected flow handle computation to reuse cached results across stable graph semantics')
+  }
+  if (!portHandlesText.includes('const edgeConnectivitySignature = React.useMemo(() => {')) {
+    throw new Error('expected widget port handle overlay to derive semantic edge connectivity signatures before coercing edge endpoints')
+  }
+  if (!portHandlesText.includes('const registryEntriesSignature = React.useMemo(() => {')) {
+    throw new Error('expected widget port handle overlay to derive semantic registry signatures before recomputing handles')
+  }
+  if (!portHandlesText.includes('const nodePropertiesSignature = React.useMemo(() => {')) {
+    throw new Error('expected widget port handle overlay to derive semantic node property signatures before recomputing handles')
+  }
   if (!buildNativeSceneText.includes('const source = readEdgeEndpointId(e?.source)')) {
     throw new Error('expected flow native scene edge construction to resolve source endpoint ids via shared helper')
   }

@@ -13,7 +13,7 @@ import {
   type GraphDataTableScope,
 } from '../BottomPanelCuratorModels'
 import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
-import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
+import { useSelectionAnchorIds } from '@/components/GraphCanvas/highlight'
 import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import {
@@ -174,14 +174,13 @@ export function useBottomPanelCuratorVisibleRows({
     traversalSummarySemanticKey,
   ])
 
-  const graphDataRef = React.useRef<{ key: string; value: GraphData } | null>(null)
-  if (graphDataRef.current?.key !== graphDataSemanticKey) {
-    graphDataRef.current = {
-      key: graphDataSemanticKey,
-      value: { type: 'Graph', nodes, edges },
-    }
-  }
-  const graphData = graphDataRef.current.value
+  const graphData = React.useMemo<GraphData>(() => ({ type: 'Graph', nodes, edges }), [edges, nodes])
+  const selectionAnchorIds = useSelectionAnchorIds({
+    selectedNodeId,
+    selectedEdgeId,
+    selectedNodeIds,
+    selectedEdgeIds,
+  })
   const traversalGraphSemanticKey = React.useMemo(() => {
     return buildScopedGraphSemanticKey('bottom-panel-curator-visible-rows', {
       graphData,
@@ -192,12 +191,6 @@ export function useBottomPanelCuratorVisibleRows({
 
   const selectionNeighborhoodMembership = React.useMemo(() => {
     if (graphDataTableViewMode !== 'selectionNeighborhood') return null
-    const selectionAnchorIds: SelectionAnchorIds = normalizeSelectionIds({
-      selectedNodeId,
-      selectedEdgeId,
-      selectedNodeIds,
-      selectedEdgeIds,
-    })
     if (
       selectionAnchorIds.selectionNodeIds.length === 0
       && selectionAnchorIds.selectionEdgeIds.length === 0
@@ -208,10 +201,7 @@ export function useBottomPanelCuratorVisibleRows({
   }, [
     graphData,
     graphDataTableViewMode,
-    selectedEdgeId,
-    selectedEdgeIds,
-    selectedNodeId,
-    selectedNodeIds,
+    selectionAnchorIds,
   ])
 
   const traversalMembership = React.useMemo(() => {

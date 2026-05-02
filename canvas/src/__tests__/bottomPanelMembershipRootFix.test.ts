@@ -100,13 +100,13 @@ export function testBottomPanelVisibleRowsReuseSharedMembershipHelpers() {
     !visibleRowsText.includes('readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)')
     || !visibleRowsText.includes('readTraversalSummaryMembership(graphData, lastTraversalSummary, {')
     || !visibleRowsText.includes('graphRevision: graphDataRevision')
-    || !visibleRowsText.includes("const graphDataRef = React.useRef<{ key: string; value: GraphData } | null>(null)")
+    || !visibleRowsText.includes("const graphData = React.useMemo<GraphData>(() => ({ type: 'Graph', nodes, edges }), [edges, nodes])")
     || !visibleRowsText.includes("'bottom-panel-curator-visible-rows-graph'")
     || visibleRowsText.includes('selectionSubgraph.nodes.map(')
     || visibleRowsText.includes('selectionSubgraph.edges.map(')
     || visibleRowsText.includes('for (const edge of edges)')
   ) {
-    throw new Error('expected bottom-panel visible rows to consume shared membership helpers and semantic graph snapshots instead of rebuilding local membership sets')
+    throw new Error('expected bottom-panel visible rows to consume shared membership helpers and a memoized root graph wrapper instead of rebuilding local membership sets')
   }
 
   if (

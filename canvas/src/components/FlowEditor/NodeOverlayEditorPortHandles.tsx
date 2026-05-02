@@ -7,6 +7,7 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import { computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
+import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
@@ -14,6 +15,7 @@ import { PORT_HANDLE_LINE_CLASS, PORT_HANDLE_STROKE_CLASS, readPortHandleUiMetri
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d'
 import { shouldRenderNodePortHandleAsDot } from '@/components/GraphCanvas/portHandlesConfig'
 import { formatFlowHandleKeyValue, readFlowHandlePath } from '@/lib/graph/flowHandlePresentation'
+import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 
 type FlowEditorToolMode = 'select' | 'addEdge'
 
@@ -65,7 +67,41 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   onBeginAddEdgeFromNode?: (nodeId: string, portKey?: string | null) => void
   onFinalizeAddEdgeToNode?: (nodeId: string, portKey?: string | null) => void
 }) {
-  const edges = React.useMemo(() => coerceEdgeEndpoints(args.edges), [args.edges])
+  const edgeConnectivitySignature = React.useMemo(() => {
+    return hashArrayOfObjectsSignature(
+      (Array.isArray(args.edges) ? args.edges : []).map(e => {
+        const props =
+          e && typeof e === 'object' && !Array.isArray(e)
+            ? ((e as { properties?: unknown }).properties as Record<string, unknown> | null | undefined)
+            : null
+        return {
+          id: String((e as { id?: unknown })?.id || '').trim(),
+          source: readEdgeEndpointId(e?.source),
+          target: readEdgeEndpointId(e?.target),
+          sourcePortKey:
+            typeof props?.[FLOW_EDGE_SOURCE_PORT_KEY] === 'string'
+              ? String(props?.[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
+              : '',
+          targetPortKey:
+            typeof props?.[FLOW_EDGE_TARGET_PORT_KEY] === 'string'
+              ? String(props?.[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
+              : '',
+        }
+      }),
+      { maxItems: Math.max(24, Array.isArray(args.edges) ? args.edges.length : 0), maxKeysPerItem: 5 },
+    )
+  }, [args.edges])
+  const coerceEdgeEndpointsSnapshotRef = React.useRef<{
+    key: string
+    value: Array<{ id: string; source: string; target: string; properties?: unknown }>
+  } | null>(null)
+  if (coerceEdgeEndpointsSnapshotRef.current?.key !== edgeConnectivitySignature) {
+    coerceEdgeEndpointsSnapshotRef.current = {
+      key: edgeConnectivitySignature,
+      value: coerceEdgeEndpoints(args.edges),
+    }
+  }
+  const edges = coerceEdgeEndpointsSnapshotRef.current.value
   const socketTypes = useGraphStore(s => (s.graphData?.metadata as Record<string, unknown> | null | undefined)?.socketTypes)
   const socketStyleByType = React.useMemo(() => {
     if (!isRecord(socketTypes)) return new Map<string, { color: string }>()
@@ -81,19 +117,63 @@ export const NodeOverlayEditorPortHandles = React.memo(function NodeOverlayEdito
   }, [socketTypes])
 
   const nodeId = React.useMemo(() => String(args.node?.id || '').trim(), [args.node?.id])
+  const nodePropertiesSignature = React.useMemo(() => {
+    return hashRecordSignature32(args.node?.properties || null, {
+      maxEntries: 80,
+      maxDepth: 2,
+    })
+  }, [args.node?.properties])
+  const registryEntriesSignature = React.useMemo(() => {
+    const entries = Array.isArray(args.registryEntries) ? args.registryEntries : []
+    return hashArrayOfObjectsSignature(
+      entries.map(entry => ({
+        id: String(entry?.id || '').trim(),
+        nodeTypeId: String(entry?.nodeTypeId || '').trim(),
+        widgetTypeId: String(entry?.widgetTypeId || '').trim(),
+        formId: String(entry?.formId || '').trim(),
+        updatedAt: String(entry?.updatedAt || '').trim(),
+        portsSignature: hashSignatureParts([
+          'ports',
+          ...(Array.isArray(entry?.ports) ? entry.ports.flatMap(port => [
+            String(port?.direction || '').trim(),
+            String(port?.portKey || '').trim(),
+            port?.isHidden === true ? '1' : '0',
+          ]) : []),
+        ]),
+      })),
+      { maxItems: Math.max(24, entries.length), maxKeysPerItem: 6 },
+    )
+  }, [args.registryEntries])
+  const registryEntriesSnapshotRef = React.useRef<{ key: string; value: ReadonlyArray<WidgetRegistryEntry> } | null>(null)
+  if (registryEntriesSnapshotRef.current?.key !== registryEntriesSignature) {
+    registryEntriesSnapshotRef.current = {
+      key: registryEntriesSignature,
+      value: Array.isArray(args.registryEntries) ? args.registryEntries : [],
+    }
+  }
+  const registryEntriesSnapshot = registryEntriesSnapshotRef.current.value
 
   const handles = React.useMemo(() => {
     if (!nodeId) return { in: [], out: [] }
     const byNode = computeFlowHandlesByNode({
       nodes: [{ id: nodeId, type: args.node?.type, properties: args.node?.properties }],
       edges,
-      widgetRegistry: args.registryEntries || null,
+      widgetRegistry: registryEntriesSnapshot,
     })
     const base = byNode[nodeId] || { in: [], out: [] }
     if (args.strictHandleSet === true) return base
     if (args.forceEnabled !== true && !shouldInjectDefaultFlowHandles(args.schema)) return base
     return ensureFlowHandlesHaveDefaults(base)
-  }, [args.forceEnabled, args.node?.properties, args.node?.type, args.registryEntries, args.schema, args.strictHandleSet, edges, nodeId])
+  }, [
+    args.forceEnabled,
+    args.node?.properties,
+    args.node?.type,
+    args.schema,
+    args.strictHandleSet,
+    edges,
+    nodeId,
+    registryEntriesSnapshot,
+  ])
 
   const nodeDims = React.useMemo(() => {
     const n = {

@@ -5,6 +5,7 @@ import {
 } from '@/features/graph-data-table/graphDataTable'
 import {
   getCachedDerivedFields,
+  getCachedResolvedFieldSettingsById,
   normalizeSettingsForField,
   type GraphField,
   type GraphFieldId,
@@ -15,7 +16,7 @@ import {
   type NumericSampleStats,
 } from '../BottomPanelCuratorModels'
 import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
-import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
+import { useSelectionAnchorIds } from '@/components/GraphCanvas/highlight'
 import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 
 interface UseBottomPanelCuratorFieldAggregatesParams {
@@ -73,14 +74,12 @@ export function useBottomPanelCuratorFieldAggregates({
 }: UseBottomPanelCuratorFieldAggregatesParams): BottomPanelCuratorFieldAggregatesResult {
   const graphData = React.useMemo<GraphData>(() => ({ type: 'Graph', nodes, edges }), [edges, nodes])
 
-  const selectionAnchorIds = React.useMemo(() => {
-    return normalizeSelectionIds({
-      selectedNodeId,
-      selectedEdgeId,
-      selectedNodeIds,
-      selectedEdgeIds,
-    })
-  }, [selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
+  const selectionAnchorIds = useSelectionAnchorIds({
+    selectedNodeId,
+    selectedEdgeId,
+    selectedNodeIds,
+    selectedEdgeIds,
+  })
 
   const selectionMembership = React.useMemo(() => {
     if (graphDataTableViewMode !== 'selectionNeighborhood') return null
@@ -131,6 +130,11 @@ export function useBottomPanelCuratorFieldAggregates({
     return derivedGraphFields.map(f => `prop:${f.scope}:${f.key}` as GraphDataTableColumnKey)
   }, [derivedGraphFields])
 
+  const resolvedSettingsById = React.useMemo(
+    () => getCachedResolvedFieldSettingsById({ fields: derivedGraphFields, settingsById: graphFieldSettingsById, graphSemanticKey: sampleGraphSemanticKey }),
+    [derivedGraphFields, graphFieldSettingsById, sampleGraphSemanticKey],
+  )
+
   const numericSampleStatsByFieldId = React.useMemo(() => {
     const shouldComputeNumericSamples =
       graphDataTablePanel === 'group' || graphDataTableAggregateKeys.length > 0 || graphDataTableGroupKey !== ''
@@ -163,7 +167,7 @@ export function useBottomPanelCuratorFieldAggregates({
       graphDataTablePanel === 'group' || graphDataTableAggregateKeys.length > 0 || graphDataTableGroupKey !== ''
     if (shouldIncludeFieldAggregates) {
       for (const field of derivedGraphFields) {
-        const settings = normalizeSettingsForField(field, graphFieldSettingsById[field.id])
+        const settings = resolvedSettingsById.get(field.id) || normalizeSettingsForField(field, graphFieldSettingsById[field.id])
         const fieldType = settings.fieldType
         const isNumericKind = field.kind === 'number'
         const isMixedKind = field.kind === 'mixed'
@@ -205,6 +209,7 @@ export function useBottomPanelCuratorFieldAggregates({
     numericSampleStatsByFieldId,
     numericSampleMinCount,
     numericSampleMinRatio,
+    resolvedSettingsById,
   ])
 
   React.useEffect(() => {

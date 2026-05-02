@@ -7,6 +7,12 @@ import {
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import {
+  hashArrayOfObjectsSignature,
+  hashRecordSignature32,
+  hashScopedStringArraySignature,
+  hashSignatureParts,
+} from '@/lib/hash/signature'
 
 export type FlowHandleDir = 'in' | 'out'
 
@@ -30,6 +36,8 @@ export function parseFlowHandleKey(handleId: FlowHandleId): string {
 }
 
 export const FLOW_HANDLE_DEFAULT_EDGE_ID = '__flow_default_handle__' as const
+const FLOW_HANDLES_BY_NODE_CACHE_LIMIT = 32
+const flowHandlesByNodeCache = new Map<string, Record<string, FlowNodeHandles>>()
 
 export function buildFlowHandleId(args: { dir: FlowHandleDir; edgeId: string }): FlowHandleId {
   const edgeId = String(args.edgeId || '').trim()
@@ -47,11 +55,115 @@ export function ensureFlowHandlesHaveDefaults(handles: FlowNodeHandles): FlowNod
   return { in: nextIn, out: nextOut }
 }
 
+function readCachedFlowHandlesByNode(signature: string): Record<string, FlowNodeHandles> | null {
+  const cached = flowHandlesByNodeCache.get(signature) || null
+  if (!cached) return null
+  flowHandlesByNodeCache.delete(signature)
+  flowHandlesByNodeCache.set(signature, cached)
+  return cached
+}
+
+function writeCachedFlowHandlesByNode(
+  signature: string,
+  value: Record<string, FlowNodeHandles>,
+): Record<string, FlowNodeHandles> {
+  flowHandlesByNodeCache.set(signature, value)
+  if (flowHandlesByNodeCache.size > FLOW_HANDLES_BY_NODE_CACHE_LIMIT) {
+    const oldestKey = flowHandlesByNodeCache.keys().next().value
+    if (typeof oldestKey === 'string') flowHandlesByNodeCache.delete(oldestKey)
+  }
+  return value
+}
+
+function buildWidgetRegistryPortsSignature(entry: WidgetRegistryEntry): string {
+  const ports = Array.isArray(entry?.ports) ? entry.ports : []
+  const portParts: Array<string | number> = ['ports', ports.length]
+  for (let i = 0; i < ports.length; i += 1) {
+    const port = ports[i]
+    portParts.push(
+      String(port?.direction || '').trim(),
+      String(port?.portKey || '').trim(),
+      port?.isHidden === true ? 1 : 0,
+    )
+  }
+  return hashSignatureParts(portParts)
+}
+
+function buildFlowHandlesByNodeSignature(args: {
+  nodes: ReadonlyArray<{ id: unknown; type?: unknown; properties?: unknown }>
+  edges: ReadonlyArray<{ id: unknown; source: unknown; target: unknown; properties?: unknown }>
+  widgetRegistry?: ReadonlyArray<WidgetRegistryEntry> | null
+}): string {
+  const nodeSignature = hashArrayOfObjectsSignature(
+    (Array.isArray(args.nodes) ? args.nodes : []).map(node => ({
+      id: String(node?.id ?? '').trim(),
+      type: String(node?.type ?? '').trim(),
+      propertiesSignature: hashRecordSignature32(
+        node && typeof node === 'object' && !Array.isArray(node)
+          ? (node as { properties?: unknown }).properties
+          : null,
+        { maxEntries: 80, maxDepth: 2 },
+      ),
+    })),
+    { maxItems: Math.max(12, Array.isArray(args.nodes) ? args.nodes.length : 0), maxKeysPerItem: 3 },
+  )
+  const edgeSignature = hashArrayOfObjectsSignature(
+    (Array.isArray(args.edges) ? args.edges : []).map(edge => {
+      const props =
+        edge && typeof edge === 'object' && !Array.isArray(edge)
+          ? ((edge as { properties?: unknown }).properties as Record<string, unknown> | null | undefined)
+          : null
+      return {
+        id: String(edge?.id ?? '').trim(),
+        source: readEdgeEndpointId(edge?.source),
+        target: readEdgeEndpointId(edge?.target),
+        sourcePortKey:
+          props && typeof props[FLOW_EDGE_SOURCE_PORT_KEY] === 'string'
+            ? String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
+            : '',
+        targetPortKey:
+          props && typeof props[FLOW_EDGE_TARGET_PORT_KEY] === 'string'
+            ? String(props[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
+            : '',
+      }
+    }),
+    { maxItems: Math.max(24, Array.isArray(args.edges) ? args.edges.length : 0), maxKeysPerItem: 5 },
+  )
+  const registry = Array.isArray(args.widgetRegistry) ? args.widgetRegistry : []
+  const registrySignature = hashArrayOfObjectsSignature(
+    registry.map(entry => ({
+      id: String(entry?.id || '').trim(),
+      nodeTypeId: String(entry?.nodeTypeId || '').trim(),
+      widgetTypeId: String(entry?.widgetTypeId || '').trim(),
+      formId: String(entry?.formId || '').trim(),
+      updatedAt: String(entry?.updatedAt || '').trim(),
+      portsSignature: buildWidgetRegistryPortsSignature(entry),
+    })),
+    { maxItems: Math.max(24, registry.length), maxKeysPerItem: 6 },
+  )
+  const nodeIdSignature = hashScopedStringArraySignature(
+    'flow-handle-node-ids',
+    (Array.isArray(args.nodes) ? args.nodes : []).map(node => String(node?.id ?? '').trim()),
+    { unique: true },
+  )
+  return hashSignatureParts([
+    'flow-handles-by-node',
+    nodeIdSignature,
+    nodeSignature,
+    edgeSignature,
+    registrySignature,
+  ])
+}
+
 export function computeFlowHandlesByNode(args: {
   nodes: ReadonlyArray<{ id: unknown; type?: unknown; properties?: unknown }>
   edges: ReadonlyArray<{ id: unknown; source: unknown; target: unknown; properties?: unknown }>
   widgetRegistry?: ReadonlyArray<WidgetRegistryEntry> | null
 }): Record<string, FlowNodeHandles> {
+  const cacheKey = buildFlowHandlesByNodeSignature(args)
+  const cached = readCachedFlowHandlesByNode(cacheKey)
+  if (cached) return cached
+
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   const edges = Array.isArray(args.edges) ? args.edges : []
   const registry = Array.isArray(args.widgetRegistry) ? args.widgetRegistry : []
@@ -213,7 +325,7 @@ export function computeFlowHandlesByNode(args: {
       out: mergeByPrecedence([registryHandles?.out, schemaHandles?.out, dyn.out]),
     }
   }
-  return out
+  return writeCachedFlowHandlesByNode(cacheKey, out)
 }
 
 export function computeFlowNodeHandles(args: {

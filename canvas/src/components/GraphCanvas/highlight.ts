@@ -5,6 +5,11 @@ import { getAdjacencyMap } from '@/components/GraphCanvas/adjacency'
 import { getEdgeEndpoints, type EdgeWithRuntime } from '@/components/GraphCanvas/simulation';
 import { getEdgeBaseStroke, getLayerOpacity, getVisualOpacity, getNodeBaseFill, getEdgeStrokeWidth, hasNodeMedia } from '@/components/GraphCanvas/helpers';
 import { UI_THEME_COLORS_CSS, type ThemeColors } from '@/lib/ui/theme-tokens';
+import {
+  normalizeSelectionAnchorIds,
+  useSelectionAnchorIds,
+  type SelectionIdParams,
+} from '@/lib/selection/anchorIds'
 
 export type SelectionHighlightParams = {
   data: GraphData
@@ -18,29 +23,9 @@ export type SelectionHighlightParams = {
   themeColors?: ThemeColors
 }
 
-export type SelectionIdParams = Pick<
-  SelectionHighlightParams,
-  'selectedNodeId' | 'selectedEdgeId' | 'selectedNodeIds' | 'selectedEdgeIds'
->
-
-export const normalizeSelectionIds = (
-  params: SelectionIdParams,
-): SelectionAnchorIds => {
-  const { selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds } = params
-  const selectionNodeIds =
-    Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0
-      ? selectedNodeIds
-      : selectedNodeId
-        ? [selectedNodeId]
-        : []
-  const selectionEdgeIds =
-    Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0
-      ? selectedEdgeIds
-      : selectedEdgeId
-        ? [selectedEdgeId]
-        : []
-  return { selectionNodeIds, selectionEdgeIds }
-}
+export type { SelectionIdParams } from '@/lib/selection/anchorIds'
+export const normalizeSelectionIds = normalizeSelectionAnchorIds
+export { useSelectionAnchorIds }
 
 export type NodeVisual = {
   fill: string

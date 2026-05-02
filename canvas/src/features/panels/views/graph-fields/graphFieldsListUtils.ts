@@ -3,7 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getRendererPalette } from '@/lib/graph/schema'
 import {
   getAgenticRagFieldKind,
-  normalizeSettingsForField,
+  getCachedResolvedFieldSettingsById,
   parseGraphFieldId,
   type GraphField,
   type GraphFieldId,
@@ -33,11 +33,7 @@ export function buildResolvedSettingsByIdMap(
   fields: ReadonlyArray<GraphField>,
   settingsById: GraphFieldSettingsById,
 ): Map<GraphFieldId, GraphFieldSettingsResolved> {
-  const map = new Map<GraphFieldId, GraphFieldSettingsResolved>()
-  for (const field of fields) {
-    map.set(field.id, normalizeSettingsForField(field, settingsById[field.id]))
-  }
-  return map
+  return getCachedResolvedFieldSettingsById({ fields, settingsById })
 }
 
 export function computeSchemaDefinedFieldIds(args: {

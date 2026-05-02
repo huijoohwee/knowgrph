@@ -174,7 +174,7 @@ export default function FlowCanvasMediaOverlays(args: {
   const [workspaceOverlayOpenKey, setWorkspaceOverlayOpenKey] = React.useState(0)
   const sceneNodePropsByIdRef = React.useRef<Map<string, Record<string, unknown>>>(new Map())
 
-  const cancelMediaOverlayInteractionState = React.useCallback((options?: { clearLastKnownWorldSize?: boolean }) => {
+  const cancelMediaOverlayInteractionState = React.useCallback(() => {
     mediaOverlayPanMoveSchedulerRef.current?.cancel()
     mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
     mediaOverlayResizeMoveSchedulerRef.current?.cancel()
@@ -186,8 +186,11 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaOverlayResizeRef.current = null
     mediaOverlayPanelSizeOverrideRef.current.clear()
     mediaOverlayPanelSizeTargetWorldRef.current.clear()
-    if (options?.clearLastKnownWorldSize === true) mediaOverlayPanelLastKnownWorldSizeRef.current.clear()
   }, [])
+  const clearMediaOverlayInteractionState = React.useCallback(() => {
+    cancelMediaOverlayInteractionState()
+    mediaOverlayPanelLastKnownWorldSizeRef.current.clear()
+  }, [cancelMediaOverlayInteractionState])
 
   React.useEffect(() => {
     const readWorkspaceOverlayOpen = () => isWorkspaceEditorOverlayOpen(useGraphStore.getState())
@@ -603,8 +606,8 @@ export default function FlowCanvasMediaOverlays(args: {
   ])
 
   React.useEffect(() => {
-    return () => cancelMediaOverlayInteractionState({ clearLastKnownWorldSize: true })
-  }, [cancelMediaOverlayInteractionState])
+    return () => clearMediaOverlayInteractionState()
+  }, [clearMediaOverlayInteractionState])
 
   if (!(active && mediaNodes.length > 0)) return null
   return (

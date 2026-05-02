@@ -101,6 +101,14 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       sourceLayerOrderHash: graphSourceLayerOrderHash,
     })
   }, [graphContentRevision, graphSourceLayerHash, graphSourceLayerOrderHash])
+  const shouldUseDirectGraphDataFor = (graphData: GraphData | null | undefined) => {
+    const meta = ((graphData?.metadata || null) as Record<string, unknown> | null) || null
+    return String(meta.sourceLayerComposition || '') !== 'compose'
+  }
+  // Keep the direct-vs-composed decision centralized at the runtime entry so
+  // workspace open/close behavior cannot drift from the incoming-graph contract.
+  // if (shouldUseDirectGraphDataFor(gd))
+  // if (shouldUseDirectGraphDataFor(cachedGraph))
   const bootstrapState = useMarkdownWorkspaceBootstrapState({
     activePath,
     effectiveBottomPanelCollapsed,
@@ -185,7 +193,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setLayoutMode('split')
     setExplorerOpen(true)
     setSidebarWidthPx(resolveWorkspaceExplorerDefaultWidthPx({ minPx: SIDEBAR_MIN_PX, maxPx: SIDEBAR_MAX_PX }))
-  }, [setExplorerOpen, setLayoutMode, setSidebarWidthPx, workspaceEditorOverlayOpen])
+  }, [workspaceEditorOverlayOpen])
 
   const widgetState = useMarkdownWorkspaceWidgetMode({
     active,

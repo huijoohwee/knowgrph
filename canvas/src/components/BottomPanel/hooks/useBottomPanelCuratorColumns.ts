@@ -9,7 +9,7 @@ import {
 } from '@/features/graph-data-table/graphDataTable'
 import {
   getAgenticRagFieldKind,
-  normalizeSettingsForField,
+  getCachedResolvedFieldSettingsById,
   type GraphField,
   type GraphFieldId,
   type GraphFieldSettingsResolved,
@@ -70,10 +70,15 @@ export function useBottomPanelCuratorColumns({
     return Array.from(set.values())
   }, [propertyColumnKeysFromGraphFields, graphDataTableColumnOrder, graphDataTableVisibleColumns])
 
+  const resolvedSettingsById = React.useMemo(
+    () => getCachedResolvedFieldSettingsById({ fields: derivedGraphFields, settingsById: graphFieldSettingsById }),
+    [derivedGraphFields, graphFieldSettingsById],
+  )
+
   const graphDataTableColumnLabelByKey = React.useMemo(() => {
     const map = new Map<GraphDataTableColumnKey, string>(GRAPH_DATA_TABLE_COLUMN_DEFS.map(def => [def.key, def.label]))
     for (const field of derivedGraphFields) {
-      const settings = normalizeSettingsForField(field, graphFieldSettingsById[field.id])
+      const settings = resolvedSettingsById.get(field.id)
       const agenticKind = getAgenticRagFieldKind(field)
       const agenticPrefix =
         agenticKind === 'chunk_text' ||
@@ -91,13 +96,13 @@ export function useBottomPanelCuratorColumns({
       const parsed = parseGraphDataTablePropertyColumnKey(key)
       if (!parsed) continue
       const fieldId = `${parsed.scope}:${parsed.propertyKey}` as GraphFieldId
-      const settings = graphFieldSettingsById[fieldId]
+      const settings = resolvedSettingsById.get(fieldId) || graphFieldSettingsById[fieldId]
       const displayName = settings?.displayName || parsed.propertyKey
       const label = `${parsed.scope === 'node' ? 'Node' : 'Edge'} · ${displayName || parsed.propertyKey}`
       map.set(key, label)
     }
     return map
-  }, [derivedGraphFields, graphFieldSettingsById, uiPropertyColumnKeys])
+  }, [derivedGraphFields, graphFieldSettingsById, resolvedSettingsById, uiPropertyColumnKeys])
 
   const orderedAllColumnKeys = React.useMemo(() => {
     const next: GraphDataTableColumnKey[] = []
@@ -134,12 +139,13 @@ export function useBottomPanelCuratorColumns({
   const propertyFieldSettingsByColumnKey = React.useMemo(() => {
     const map = new Map<GraphDataTableColumnKey, GraphFieldSettingsResolved>()
     for (const field of derivedGraphFields) {
-      const settings = normalizeSettingsForField(field, graphFieldSettingsById[field.id])
+      const settings = resolvedSettingsById.get(field.id)
+      if (!settings) continue
       const key = `prop:${field.scope}:${field.key}` as GraphDataTableColumnKey
       map.set(key, settings)
     }
     return map
-  }, [derivedGraphFields, graphFieldSettingsById])
+  }, [derivedGraphFields, resolvedSettingsById])
 
   const isGraphDataTableColumnVisible = React.useCallback(
     (key: GraphDataTableColumnKey) =>

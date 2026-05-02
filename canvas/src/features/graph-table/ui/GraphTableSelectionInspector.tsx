@@ -86,23 +86,15 @@ export default function GraphTableSelectionInspector() {
     () => buildScopedGraphSemanticKey('graph-table-selection-inspector-base-graph', { graphData: baseGraphData ?? null, graphRevision: graphDataRevision }),
     [baseGraphData, graphDataRevision],
   )
-  const baseGraphLookupSnapshotRef = useRef<{ key: string; value: typeof baseGraphData } | null>(null)
-  if (baseGraphLookupSnapshotRef.current?.key !== baseGraphSemanticKey) {
-    baseGraphLookupSnapshotRef.current = {
-      key: baseGraphSemanticKey,
-      value: baseGraphData ?? null,
-    }
-  }
-  const baseGraphLookupGraphData = baseGraphLookupSnapshotRef.current?.value || null
   const baseGraphLookup = useMemo(
     () => getCachedGraphLookup({
       cacheScope: 'graph-table-selection-inspector-base-graph',
-      graphData: baseGraphLookupGraphData,
+      graphData: baseGraphData,
       graphRevision: graphDataRevision,
       graphSemanticKey: baseGraphSemanticKey,
       preferCurrentGraphDataRefs: true,
     }),
-    [baseGraphLookupGraphData, baseGraphSemanticKey, graphDataRevision],
+    [baseGraphData, baseGraphSemanticKey, graphDataRevision],
   )
 
   const syncGraphData = useMemo(() => {

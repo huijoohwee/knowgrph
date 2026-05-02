@@ -11,9 +11,9 @@ import {
   AGENTIC_RAG_DATASET_CONTEXT_VOCAB_LABEL,
   DATASET_EMPTY_TEXT,
 } from '@/lib/config'
-import type { GraphData, SelectionAnchorIds } from '@/lib/graph/types'
+import type { GraphData } from '@/lib/graph/types'
 import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
-import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
+import { useSelectionAnchorIds } from '@/components/GraphCanvas/highlight'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import {
   DatasetDistributionViz,
@@ -67,14 +67,12 @@ export default function DatasetInspectorSection({
   const copy = RENDER_PANEL_SECTION_COPY.datasetInspector
   const graph = useActiveGraphRenderData()
 
-  const selectionAnchorIds = React.useMemo<SelectionAnchorIds>(() => {
-    return normalizeSelectionIds({
-      selectedNodeId,
-      selectedEdgeId,
-      selectedNodeIds,
-      selectedEdgeIds,
-    })
-  }, [selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
+  const selectionAnchorIds = useSelectionAnchorIds({
+    selectedNodeId,
+    selectedEdgeId,
+    selectedNodeIds,
+    selectedEdgeIds,
+  })
 
   const selectionMembership = React.useMemo(() => {
     if (!graph) return null

@@ -1,8 +1,8 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
+import { useSelectionAnchorIds } from '@/components/GraphCanvas/highlight'
 import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
-import type { GraphData, SelectionAnchorIds } from '@/lib/graph/types'
+import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { SelectionSnapshot } from '@/components/BottomPanel/stats/types'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
@@ -36,14 +36,12 @@ export function useStatsSelection() {
     return { selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds }
   }, [pinnedCommunityId, pinnedEdgeId, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
 
-  const selectionAnchorIds = React.useMemo<SelectionAnchorIds>(() => {
-    return normalizeSelectionIds({
+  const selectionAnchorIds = useSelectionAnchorIds({
       selectedNodeId: selectionInputsForStats.selectedNodeId,
       selectedEdgeId: selectionInputsForStats.selectedEdgeId,
       selectedNodeIds: selectionInputsForStats.selectedNodeIds,
       selectedEdgeIds: selectionInputsForStats.selectedEdgeIds,
     })
-  }, [selectionInputsForStats])
 
   const selectionMembership = React.useMemo(() => {
     const graph = derivedGraph as GraphData | null
