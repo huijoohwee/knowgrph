@@ -244,21 +244,31 @@ export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() 
 }
 
 export function testFlowCanvasRichMediaResizeUsesCanonicalSelectionMatch() {
-  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
-  const text = readFileSync(flowCanvasPath, 'utf8')
+  const flowCanvasStatePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
+  const flowCanvasOverlayPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const stateText = readFileSync(flowCanvasStatePath, 'utf8')
+  const overlayText = readFileSync(flowCanvasOverlayPath, 'utf8')
 
-  if (!text.includes("import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'")) {
-    throw new Error('expected FlowCanvas overlay selection gates to reuse shared canonical node-id equality helper')
+  if (!stateText.includes("buildCanonicalNodeIdSet")) {
+    throw new Error('expected FlowCanvas graph state to reuse shared canonical node-id set helpers for overlay selection')
   }
-  if (!text.includes('const selectedOverlayNodeIds = React.useMemo(() => {')) {
+  if (!stateText.includes('const selectedOverlayNodeIds = React.useMemo(() => {')) {
     throw new Error('expected FlowCanvas to derive canonical overlay selection ids from store-selected node id and selected node-id set')
   }
-  if (!text.includes('const isSelected = selectedOverlayNodeIds.some(id => isCanonicalNodeIdEqual(id, n.id))')) {
-    throw new Error('expected FlowCanvas media overlay selection checks to match canonical ids across selected overlay id set, not only a stale ref')
+  if (!stateText.includes('return buildCanonicalNodeIdSet(selectedOverlayNodeIds)')) {
+    throw new Error('expected FlowCanvas graph state to memoize a canonical selected-overlay id set instead of rescanning media nodes')
   }
-  if (!text.includes("const flowEditorOverlayInteractionMode = canvas2dRenderer === 'flowEditor'")) {
+  if (!overlayText.includes("import { canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'")) {
+    throw new Error('expected FlowCanvas media overlays to reuse shared canonical node-id set membership helper')
+  }
+  if (!overlayText.includes('const isSelected = canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)')) {
+    throw new Error('expected FlowCanvas media overlay selection checks to use shared canonical set membership instead of ad hoc rescans')
+  }
+  if (!stateText.includes("const flowEditorOverlayInteractionMode = canvas2dRenderer === 'flowEditor'")) {
     throw new Error('expected FlowCanvas overlay interactions to use renderer-level FlowEditor gate as interaction SSOT')
   }
+  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+  const text = readFileSync(flowCanvasPath, 'utf8')
   if (!text.includes('const isFlowEditorOverlayInteractionMode = React.useCallback(() => {')) {
     throw new Error('expected FlowCanvas overlay runtime handlers to share the renderer-level FlowEditor interaction gate')
   }

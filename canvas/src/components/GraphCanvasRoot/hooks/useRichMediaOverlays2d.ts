@@ -211,30 +211,34 @@ export function useRichMediaOverlays2d(args: {
     }
 
     const nextIds: string[] = []
+    const nextIdSet = new Set<string>()
     for (let i = 0; i < pinnedOrder.length; i += 1) {
       if (nextIds.length >= poolMax) break
       const id = String(pinnedOrder[i] || '').trim()
       if (!id) continue
-      if (nextIds.includes(id)) continue
+      if (nextIdSet.has(id)) continue
       if (!stickyMap.has(id)) continue
       if (!isValidOverlayId(id)) continue
       nextIds.push(id)
+      nextIdSet.add(id)
     }
     for (let i = 0; i < prevOrder.length; i += 1) {
       if (nextIds.length >= poolMax) break
       const id = String(prevOrder[i] || '').trim()
       if (!id) continue
-      if (nextIds.includes(id)) continue
+      if (nextIdSet.has(id)) continue
       if (!stickyMap.has(id)) continue
       if (!isValidOverlayId(id)) continue
       nextIds.push(id)
+      nextIdSet.add(id)
     }
     for (let i = 0; i < suggested.length; i += 1) {
       if (nextIds.length >= poolMax) break
       const id = String(suggested[i]!.id || '').trim()
       if (!id) continue
-      if (nextIds.includes(id)) continue
+      if (nextIdSet.has(id)) continue
       nextIds.push(id)
+      nextIdSet.add(id)
     }
 
     stickyOverlayOrderRef.current = nextIds

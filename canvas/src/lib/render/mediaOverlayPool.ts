@@ -15,7 +15,7 @@ import {
   getFlowEditorSmartWidgetLabel,
 } from '@/lib/config.flow-editor'
 import { getTextGenerationWidgetLabel } from '@/features/flow-editor-manager/registryTemplates'
-import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
+import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
 import { buildRichMediaPanelOverlayState, type RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 
 export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video'
@@ -291,7 +291,7 @@ export function listMediaOverlayNodes(args: {
     })
     const baseSpec = getNodeMediaSpec(n0) || buildRichMediaPanelFallbackSpec(panel)
     const nodeForSpec = (() => {
-      if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return n0
+      if (!hasConnectedValuesBySchemaPath(connectedValuesBySchemaPath)) return n0
       if (!isRichMediaPanel && baseSpec) return n0
       const connectedNode = applyConnectedValuesToNodeForRender({ node: n0, connectedValuesBySchemaPath })
       const connectedPanel = isRichMediaPanel

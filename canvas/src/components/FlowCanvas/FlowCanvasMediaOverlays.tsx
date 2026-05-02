@@ -13,7 +13,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { createRafLatestScheduler, type RafLatestScheduler } from '@/lib/react/rafLatestScheduler'
-import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { canonicalNodeIdSetHas } from '@/lib/graph/canonicalNodeIds'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { Z_INDEX_GRAPH_MEDIA_LAYER, Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
 import {
@@ -429,20 +429,14 @@ export default function FlowCanvasMediaOverlays(args: {
     const rect = el?.getBoundingClientRect()
     const measuredW = rect && Number.isFinite(rect.width) ? rect.width : 0
     const measuredH = rect && Number.isFinite(rect.height) ? rect.height : 0
-    const headerPx = (() => {
-      const headerEl = el?.querySelector('[data-kg-media-panel-header="1"]') as HTMLElement | null
-      const headerRect = headerEl?.getBoundingClientRect()
-      return headerRect && Number.isFinite(headerRect.height) ? headerRect.height : 0
-    })()
-    const headerWorldH = Math.max(0, headerPx / Math.max(0.001, scale))
     const baseProps = sceneNodePropsByIdRef.current.get(id) || {}
     const storedW = Number(baseProps['visual:width'])
     const storedH = Number(baseProps['visual:height'])
     const startW = Number.isFinite(storedW) && storedW > 0 ? Math.max(24, Math.round(storedW)) : Math.max(24, Math.round(measuredW / Math.max(0.001, scale)))
     const startHRaw = Number.isFinite(storedH) && storedH > 0 ? Math.max(24, Math.round(storedH)) : Math.max(24, Math.round(measuredH / Math.max(0.001, scale)))
-    const bodyAspect = Math.max(0.001, Math.max(24, startHRaw - headerWorldH) / Math.max(1, startW))
-    const stableH = Math.max(24 + headerWorldH, Math.round(startW * bodyAspect + headerWorldH))
-    mediaOverlayResizeRef.current = { id, pointerId, startW, startH: stableH, startScale: scale, headerH: headerWorldH, bodyAspect, lastW: startW, lastH: stableH }
+    const bodyAspect = Math.max(0.001, startHRaw / Math.max(1, startW))
+    const stableH = Math.max(24, Math.round(startW * bodyAspect))
+    mediaOverlayResizeRef.current = { id, pointerId, startW, startH: stableH, startScale: scale, headerH: 0, bodyAspect, lastW: startW, lastH: stableH }
     mediaOverlayPanelSizeOverrideRef.current.set(id, { w: startW * scale, h: stableH * scale })
     mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: startW, h: stableH })
     writeRichMediaResizeTrace(['phase=start', `id=${id}`, `pid=${pointerId}`, `startW=${startW}`, `startH=${stableH}`])
@@ -620,7 +614,7 @@ export default function FlowCanvasMediaOverlays(args: {
       style={{ zIndex: Z_INDEX_GRAPH_MEDIA_LAYER }}
     >
       {mediaNodes.map((node, index) => {
-        const isSelected = selectedOverlayNodeIdSet.has(node.id) || Array.from(selectedOverlayNodeIdSet).some(id => isCanonicalNodeIdEqual(id, node.id))
+        const isSelected = canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)
         const resizeInteractionActive = flowEditorOverlayInteractionMode && flowEditorFrontmatterDocumentModeRequested
         const overlayZIndex = isSelected
           ? Z_INDEX_GRAPH_OVERLAY_SELECTED

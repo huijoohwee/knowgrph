@@ -41,6 +41,27 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   if (!geometryText.includes('const resolveMermaidFrontmatterRenderInput = (args: {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared resolveMermaidFrontmatterRenderInput helper')
   }
+  if (!geometryText.includes('const findFrontmatterMermaidDiagramNode = (graphData: GraphData): GraphNode | null => {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid source-node discovery helper')
+  }
+  if (!geometryText.includes('const readFrontmatterMermaidDiagramProps = (graphData: GraphData): Record<string, unknown> | null => {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid diagram-property reader helper')
+  }
+  if (!geometryText.includes('const readFrontmatterMermaidCodeFromProps = (props: Record<string, unknown> | null): string => {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid code reader helper')
+  }
+  if (!geometryText.includes('const isFrontmatterMermaidDiagramProps = (props: Record<string, unknown> | null): boolean => {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid diagram-property classification helper')
+  }
+  if (!geometryText.includes('return isFrontmatterMermaidDiagramProps(readRecordProps(n))')) {
+    throw new Error('expected frontmatter Mermaid diagram classifier to delegate property gating to the shared frontmatter-property helper')
+  }
+  if (!geometryText.includes('return readRecordProps(node)')) {
+    throw new Error('expected frontmatter Mermaid diagram-property reader to reuse shared record-property extraction')
+  }
+  if (!geometryText.includes('return readFrontmatterMermaidCodeFromProps(readFrontmatterMermaidDiagramProps(graphData))')) {
+    throw new Error('expected frontmatter Mermaid code reader to compose shared diagram-property and code reader helpers')
+  }
   if (!geometryText.includes('const resolveMermaidImageMediaKind = (imageUrl: string): \'image\' | \'svg\' => {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to centralize Mermaid image media-kind derivation')
   }

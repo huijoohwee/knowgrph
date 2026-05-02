@@ -66,6 +66,7 @@ function clearRichMediaRenderChannel(args: {
 
 const CONNECTED_RENDER_NODE_CACHE_LIMIT = 48
 const connectedRenderNodeCacheByNode = new WeakMap<GraphNode, Map<string, GraphNode>>()
+const connectedSchemaPathCache = new WeakMap<FlowConnectedValuesBySchemaPath, string[]>()
 
 function baseRenderNodeSignature(node: GraphNode): string {
   const props = (node.properties || {}) as Record<string, unknown>
@@ -99,7 +100,7 @@ function baseRenderNodeSignature(node: GraphNode): string {
 }
 
 function connectedRenderValueSignature(connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath): string {
-  const paths = Object.keys(connectedValuesBySchemaPath).sort()
+  const paths = listConnectedSchemaPaths(connectedValuesBySchemaPath).slice().sort()
   const parts: Array<string | number | boolean> = ['paths', paths.length]
   for (let i = 0; i < paths.length; i += 1) {
     const path = paths[i]
@@ -113,6 +114,21 @@ function connectedRenderValueSignature(connectedValuesBySchemaPath: FlowConnecte
     parts.push(path, hashRecordSignature32({ value: connected?.value }, { maxEntries: 1, maxDepth: 3 }), sourceParts.join(','))
   }
   return hashSignatureParts(parts)
+}
+
+export function listConnectedSchemaPaths(connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath): string[] {
+  if (!connectedValuesBySchemaPath) return []
+  const cached = connectedSchemaPathCache.get(connectedValuesBySchemaPath)
+  if (cached) return cached
+  const paths = Object.keys(connectedValuesBySchemaPath)
+    .map(path => String(path || '').trim())
+    .filter(Boolean)
+  connectedSchemaPathCache.set(connectedValuesBySchemaPath, paths)
+  return paths
+}
+
+export function hasConnectedValuesBySchemaPath(connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath): boolean {
+  return listConnectedSchemaPaths(connectedValuesBySchemaPath).length > 0
 }
 
 function readConnectedRenderNodeCache(node: GraphNode, signature: string): GraphNode | null {
@@ -137,7 +153,7 @@ export function applyConnectedValuesToNodeForRender(args: {
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 }): GraphNode {
   const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
-  if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return args.node
+  if (!hasConnectedValuesBySchemaPath(connectedValuesBySchemaPath)) return args.node
   const cacheSignature = hashSignatureParts([
     baseRenderNodeSignature(args.node),
     connectedRenderValueSignature(connectedValuesBySchemaPath),
@@ -150,9 +166,7 @@ export function applyConnectedValuesToNodeForRender(args: {
     properties: { ...((args.node.properties || {}) as Record<string, unknown>) },
   } as GraphNode
   let changed = false
-  const connectedPaths = Object.keys(connectedValuesBySchemaPath)
-    .map(path => String(path || '').trim())
-    .filter(Boolean)
+  const connectedPaths = listConnectedSchemaPaths(connectedValuesBySchemaPath)
   const connectedRenderPathsForSpec = new Set<string>()
   const freezeConnectedOutput =
     String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID

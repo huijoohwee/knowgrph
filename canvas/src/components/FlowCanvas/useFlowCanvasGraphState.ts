@@ -4,7 +4,11 @@ import { cloneGraphDataForRender } from '@/components/GraphCanvas/renderClone'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { computeEffectiveFrontmatterMode, isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
-import { resolveGraphNodeByCanonicalId, isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import {
+  buildCanonicalNodeIdSet,
+  buildCanonicalNodeLookup,
+  getCanonicalNodeLookupValue,
+} from '@/lib/graph/canonicalNodeIds'
 import { buildPanelOnlyNodeIdSetFromGraphNodes } from '@/lib/render/markdownPanelOverlayPool'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
@@ -18,6 +22,7 @@ import {
 import { pickGraphDataForFlowRenderer } from '@/components/FlowCanvas/shared'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { hashScopedStringArraySignature, normalizeStringArrayForSignature } from '@/lib/hash/signature'
 
 type UseFlowCanvasGraphStateArgs = {
   graphDataOverride: GraphData | null | undefined
@@ -99,17 +104,6 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     return sceneDisplayGraphDerivation?.displayGraphData || filteredGraphDataForRenderer
   }, [filteredGraphDataForRenderer, sceneDisplayGraphDerivation])
 
-  const selectedOverlayNodeIds = React.useMemo(() => {
-    const nodeIdSet = new Set<string>((selectedNodeIds || []).map(v => String(v)))
-    if (selectedNodeId) nodeIdSet.add(String(selectedNodeId))
-    return Array.from(nodeIdSet)
-      .map(rawId => {
-        const resolved = resolveGraphNodeByCanonicalId(sceneGraphData, rawId)
-        return String(resolved?.id || rawId || '').trim()
-      })
-      .filter(Boolean)
-  }, [sceneGraphData, selectedNodeId, selectedNodeIds])
-
   const panelOnlyNodeIdSet = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
     if (nodes.length === 0) return null
@@ -157,13 +151,63 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     })
   }, [graphDataRevision, sceneGraphData])
   const sceneGraphNodeById = sceneGraphLookup?.nodeById || null
+  const sceneGraphCanonicalNodeById = React.useMemo(() => {
+    if (!sceneGraphNodeById || sceneGraphNodeById.size === 0) return null
+    return buildCanonicalNodeLookup(sceneGraphNodeById.entries())
+  }, [sceneGraphNodeById])
+  const selectedNodeIdsKey = React.useMemo(
+    () => hashScopedStringArraySignature('flow-selected-node-ids', selectedNodeIds),
+    [selectedNodeIds],
+  )
+  const selectedNodeIdsSnapshotRef = React.useRef<{ key: string; value: string[] } | null>(null)
+  if (selectedNodeIdsSnapshotRef.current?.key !== selectedNodeIdsKey) {
+    selectedNodeIdsSnapshotRef.current = {
+      key: selectedNodeIdsKey,
+      value: normalizeStringArrayForSignature(selectedNodeIds),
+    }
+  }
+  const selectedNodeIdsSnapshot = selectedNodeIdsSnapshotRef.current?.value || []
+  const openWidgetNodeIdsKey = React.useMemo(
+    () => hashScopedStringArraySignature('flow-open-widget-node-ids', openWidgetNodeIds),
+    [openWidgetNodeIds],
+  )
+  const openWidgetNodeIdsSnapshotRef = React.useRef<{ key: string; value: string[] } | null>(null)
+  if (openWidgetNodeIdsSnapshotRef.current?.key !== openWidgetNodeIdsKey) {
+    openWidgetNodeIdsSnapshotRef.current = {
+      key: openWidgetNodeIdsKey,
+      value: normalizeStringArrayForSignature(openWidgetNodeIds),
+    }
+  }
+  const openWidgetNodeIdsSnapshot = openWidgetNodeIdsSnapshotRef.current?.value || []
+  const excludeRichMediaOverlayNodeIdsKey = React.useMemo(
+    () => hashScopedStringArraySignature('flow-exclude-rich-media-overlay-node-ids', excludeRichMediaOverlayNodeIds),
+    [excludeRichMediaOverlayNodeIds],
+  )
+  const excludeRichMediaOverlayNodeIdsSnapshotRef = React.useRef<{ key: string; value: string[] } | null>(null)
+  if (excludeRichMediaOverlayNodeIdsSnapshotRef.current?.key !== excludeRichMediaOverlayNodeIdsKey) {
+    excludeRichMediaOverlayNodeIdsSnapshotRef.current = {
+      key: excludeRichMediaOverlayNodeIdsKey,
+      value: normalizeStringArrayForSignature(excludeRichMediaOverlayNodeIds),
+    }
+  }
+  const excludeRichMediaOverlayNodeIdsSnapshot = excludeRichMediaOverlayNodeIdsSnapshotRef.current?.value || []
+  const selectedOverlayNodeIds = React.useMemo(() => {
+    const nodeIdSet = new Set<string>(selectedNodeIdsSnapshot)
+    if (selectedNodeId) nodeIdSet.add(String(selectedNodeId))
+    return Array.from(nodeIdSet)
+      .map(rawId => {
+        const resolved = getCanonicalNodeLookupValue(sceneGraphCanonicalNodeById, rawId)
+        return String(resolved?.id || rawId || '').trim()
+      })
+      .filter(Boolean)
+  }, [sceneGraphCanonicalNodeById, selectedNodeId, selectedNodeIdsSnapshot])
 
   const flowEditorRichMediaPanelOverlayExcludeNodeIdSet = React.useMemo(() => {
     if (canvas2dRenderer !== 'flowEditor') return undefined
     const excludeAllRichMediaPanelNodes = !flowEditorFrontmatterInteractionMode
     const candidateRawIds = [
-      ...(Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds : []),
-      ...(Array.isArray(excludeRichMediaOverlayNodeIds) ? excludeRichMediaOverlayNodeIds : []),
+      ...openWidgetNodeIdsSnapshot,
+      ...excludeRichMediaOverlayNodeIdsSnapshot,
     ]
     const out = buildRichMediaPanelOverlayExcludeNodeIdSet({
       graphData: sceneGraphData,
@@ -172,7 +216,14 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       excludeAllRichMediaPanelNodes,
     })
     return out.size > 0 ? out : undefined
-  }, [canvas2dRenderer, excludeRichMediaOverlayNodeIds, flowEditorFrontmatterInteractionMode, openWidgetNodeIds, sceneGraphData, sceneGraphNodeById])
+  }, [
+    canvas2dRenderer,
+    excludeRichMediaOverlayNodeIdsSnapshot,
+    flowEditorFrontmatterInteractionMode,
+    openWidgetNodeIdsSnapshot,
+    sceneGraphData,
+    sceneGraphNodeById,
+  ])
 
   const stickyOverlayNodeByIdRef = React.useRef(new Map<string, ReturnType<typeof listDisplayRichMediaOverlayNodes>[number]>())
   const stickyOverlayOrderRef = React.useRef<string[]>([])
@@ -216,15 +267,18 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     }
 
     const nextIds: string[] = []
+    const nextIdSet = new Set<string>()
     const pushId = (id: string) => {
-      if (!id || nextIds.length >= poolMax || nextIds.includes(id) || !stickyMap.has(id) || !isValid(id)) return
+      if (!id || nextIds.length >= poolMax || nextIdSet.has(id) || !stickyMap.has(id) || !isValid(id)) return
       nextIds.push(id)
+      nextIdSet.add(id)
     }
     for (let i = 0; i < prevOrder.length; i += 1) pushId(String(prevOrder[i] || '').trim())
     for (let i = 0; i < suggested.length; i += 1) {
       const id = String(suggested[i]!.id || '').trim()
-      if (!id || nextIds.length >= poolMax || nextIds.includes(id)) continue
+      if (!id || nextIds.length >= poolMax || nextIdSet.has(id)) continue
       nextIds.push(id)
+      nextIdSet.add(id)
     }
 
     stickyOverlayOrderRef.current = nextIds
@@ -251,14 +305,8 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
   ])
 
   const selectedOverlayNodeIdSet = React.useMemo(() => {
-    const out = new Set<string>()
-    for (let i = 0; i < mediaNodes.length; i += 1) {
-      const id = String(mediaNodes[i]?.id || '').trim()
-      if (!id) continue
-      if (selectedOverlayNodeIds.some(selectedId => isCanonicalNodeIdEqual(selectedId, id))) out.add(id)
-    }
-    return out
-  }, [mediaNodes, selectedOverlayNodeIds])
+    return buildCanonicalNodeIdSet(selectedOverlayNodeIds)
+  }, [selectedOverlayNodeIds])
 
   return {
     graphDataRevision,

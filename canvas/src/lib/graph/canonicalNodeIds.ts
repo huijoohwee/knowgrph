@@ -30,6 +30,37 @@ export function buildCanonicalNodeLookup<T>(entries: Iterable<readonly [string, 
   return lookup
 }
 
+export function buildCanonicalNodeIdSet(rawIds: Iterable<unknown>): Set<string> {
+  const out = new Set<string>()
+  for (const rawId of rawIds) {
+    const candidateIds = parseCanonicalNodeIds(rawId)
+    for (let i = 0; i < candidateIds.length; i += 1) {
+      const candidateId = String(candidateIds[i] || '').trim()
+      if (!candidateId) continue
+      out.add(candidateId)
+      const inner = splitComposedNodeId(candidateId).inner
+      if (inner) out.add(inner)
+    }
+  }
+  return out
+}
+
+export function canonicalNodeIdSetHas(
+  lookup: ReadonlySet<string> | null | undefined,
+  rawId: unknown,
+): boolean {
+  if (!lookup || lookup.size === 0) return false
+  const candidateIds = parseCanonicalNodeIds(rawId)
+  for (let i = 0; i < candidateIds.length; i += 1) {
+    const candidateId = String(candidateIds[i] || '').trim()
+    if (!candidateId) continue
+    if (lookup.has(candidateId)) return true
+    const inner = splitComposedNodeId(candidateId).inner
+    if (inner && lookup.has(inner)) return true
+  }
+  return false
+}
+
 export function getCanonicalNodeLookupValue<T>(
   lookup: ReadonlyMap<string, T> | null | undefined,
   rawId: unknown,

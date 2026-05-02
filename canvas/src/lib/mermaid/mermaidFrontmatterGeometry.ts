@@ -405,12 +405,15 @@ const readRecordProps = (n: GraphNode): Record<string, unknown> | null => {
   return p as Record<string, unknown>
 }
 
-const isFrontmatterMermaidDiagram = (n: GraphNode): boolean => {
-  if (String(n.type || '') !== 'MermaidDiagram') return false
-  const props = readRecordProps(n)
+const isFrontmatterMermaidDiagramProps = (props: Record<string, unknown> | null): boolean => {
   if (!props) return false
   if (props.isMermaidFrontmatter === true) return true
   return String(props.mermaidScope || '') === 'frontmatter'
+}
+
+const isFrontmatterMermaidDiagram = (n: GraphNode): boolean => {
+  if (String(n.type || '') !== 'MermaidDiagram') return false
+  return isFrontmatterMermaidDiagramProps(readRecordProps(n))
 }
 
 export function applyMermaidFrontmatterContextLayoutToGraphData(graphData: GraphData): GraphData {
@@ -823,7 +826,6 @@ export function applyMermaidFrontmatterContextLayoutToGraphData(graphData: Graph
   return { ...graphData, nodes: nextNodes }
 }
 
-const readFrontmatterMermaidCode = (graphData: GraphData): string => {
 const findFrontmatterMermaidDiagramNode = (graphData: GraphData): GraphNode | null => {
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
   for (let i = 0; i < nodes.length; i += 1) {
@@ -834,13 +836,20 @@ const findFrontmatterMermaidDiagramNode = (graphData: GraphData): GraphNode | nu
   return null
 }
 
-const readFrontmatterMermaidCode = (graphData: GraphData): string => {
+const readFrontmatterMermaidDiagramProps = (graphData: GraphData): Record<string, unknown> | null => {
   const node = findFrontmatterMermaidDiagramNode(graphData)
-  if (!node) return ''
-  const props = readRecordProps(node)
+  if (!node) return null
+  return readRecordProps(node)
+}
+
+const readFrontmatterMermaidCodeFromProps = (props: Record<string, unknown> | null): string => {
   const code = props && typeof props.code === 'string' ? String(props.code || '').trim() : ''
   if (code) return code
   return ''
+}
+
+const readFrontmatterMermaidCode = (graphData: GraphData): string => {
+  return readFrontmatterMermaidCodeFromProps(readFrontmatterMermaidDiagramProps(graphData))
 }
 
 const resolveMermaidFrontmatterRenderInput = (args: {

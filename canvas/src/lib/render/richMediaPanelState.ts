@@ -1,6 +1,6 @@
 import type { GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
+import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.flow-editor'
 
 export type RichMediaPanelTab = 'auto' | 'text' | 'image' | 'video' | 'poi'
@@ -125,7 +125,7 @@ export function resolveRichMediaPanelRenderNode(args: {
 }): GraphNode {
   const baseNode = args.node
   const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
-  if (!connectedValuesBySchemaPath || Object.keys(connectedValuesBySchemaPath).length === 0) return baseNode
+  if (!hasConnectedValuesBySchemaPath(connectedValuesBySchemaPath)) return baseNode
   return applyConnectedValuesToNodeForRender({ node: baseNode, connectedValuesBySchemaPath })
 }
 
