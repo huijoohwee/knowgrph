@@ -486,14 +486,16 @@ export function testMarkdownWorkspaceRuntimeReusesParsedWorkspaceSourceFileInste
 
 export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraphApply() {
   const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
+  const bootstrapStartupPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesBootstrapStartup.ts')
   const runtimeSharedPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesRuntimeShared.ts')
   const bootstrapText = readFileSync(bootstrapPath, 'utf8')
+  const bootstrapStartupText = readFileSync(bootstrapStartupPath, 'utf8')
   const runtimeSharedText = readFileSync(runtimeSharedPath, 'utf8')
 
   if (!runtimeSharedText.includes('applyToGraph?: boolean')) {
     throw new Error('expected workspace bootstrap materialize helper to make graph apply explicit instead of implicit')
   }
-  if (!bootstrapText.includes('applyToGraph: true,')) {
+  if (!bootstrapStartupText.includes('applyToGraph: true,')) {
     throw new Error('expected initial bootstrap materialization to opt into graph apply explicitly')
   }
   if (!runtimeSharedText.includes('export function resolveMaterializedWorkspaceActivePath(args?:')) {
@@ -523,20 +525,26 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('resolveMaterializedWorkspaceActivePath({')) {
     throw new Error('expected source files bootstrap to reuse the shared active workspace path helper before rematerializing source files')
   }
+  if (!bootstrapStartupText.includes('resolveMaterializedWorkspaceActivePath({')) {
+    throw new Error('expected bootstrap startup materialization to reuse the shared active workspace path helper before initial graph apply')
+  }
   if (!bootstrapText.includes('buildMaterializedWorkspaceActivePathKey({')) {
     throw new Error('expected source files bootstrap to reuse the shared active workspace path key helper before rematerialization dedupe')
   }
-  if (!bootstrapText.includes('readReusableWorkspaceEntriesSnapshot(startup.workspaceEntries)')) {
+  if (!bootstrapStartupText.includes('readReusableWorkspaceEntriesSnapshot(startup.workspaceEntries)')) {
     throw new Error('expected source files bootstrap to reuse the shared workspace snapshot helper before deciding whether startup entries should be passed into materialization')
   }
   if (!runtimeSharedText.includes('resolveWorkspaceSourceIndexSnapshot(args?.sourcesByPath)')) {
     throw new Error('expected workspace bootstrap materialization to centralize source-index snapshot reuse vs reload decisions in the shared source-index helper')
   }
-  if (!bootstrapText.includes('resolveWorkspaceSourceIndexSnapshot(undefined)')) {
+  if (!bootstrapStartupText.includes('resolveWorkspaceSourceIndexSnapshot(undefined)')) {
     throw new Error('expected source files bootstrap startup hydration to reuse the shared source-index snapshot helper')
   }
-  if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false })') && !bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false,') && !bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({\n        activePathOverride: activePath,')) {
-    throw new Error('expected active-path rematerialization to stay hydration-only so Editor Workspace open cannot replay import graph apply')
+  if (!bootstrapText.includes('const shouldApplyToGraph = isInitializationWorkspacePath(activePath)')) {
+    throw new Error('expected active-path rematerialization to opt into graph apply only for initialization files')
+  }
+  if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: shouldApplyToGraph })')) {
+    throw new Error('expected active-path rematerialization to preserve hydration-only behavior for ordinary files while enforcing initialization-file landing')
   }
 }
 
@@ -649,14 +657,17 @@ export function testWorkspaceImportFocusDoesNotDuplicateGraphApply() {
   const text = readFileSync(importPath, 'utf8')
   const fallbackText = readFileSync(fallbackPath, 'utf8')
 
-  if (!text.includes("await focusAfterImport(createdPath, { applyToGraph: false, jobId })")) {
-    throw new Error('expected local workspace import focus to avoid duplicate graph apply after canonical source-files import apply')
+  if (!text.includes("await focusAfterImport(createdPath, { applyToGraph, jobId })")) {
+    throw new Error('expected local workspace import focus to reuse the shared graph-apply decision when activating the imported file')
   }
-  if (!text.includes("await focusAfterImport(createdPath, { sourceUrl, applyToGraph: false, jobId })")) {
-    throw new Error('expected URL workspace import focus to avoid duplicate graph apply after canonical source-files import apply')
+  if (!text.includes("await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })")) {
+    throw new Error('expected URL workspace import focus to enforce graph-aware activation for imported canvas documents')
   }
-  if (!fallbackText.includes('applyToGraph: false,')) {
-    throw new Error('expected launch dropdown fallback focus to avoid duplicate graph apply after canonical source-files import apply')
+  if (!fallbackText.includes('await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })')) {
+    throw new Error('expected launch dropdown local import fallback to forward the shared graph-apply decision into imported-file activation')
+  }
+  if (!fallbackText.includes("opts: { applyToGraph: true }")) {
+    throw new Error('expected launch dropdown URL import fallback to enforce graph apply before focusing the imported document')
   }
   if (fallbackText.includes('forceApplyToGraph: true')) {
     throw new Error('expected launch dropdown fallback focus to stop forcing duplicate graph apply after import')

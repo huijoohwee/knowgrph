@@ -1,4 +1,11 @@
-import { buildRepoFilePath, deriveFilenameFromUrl, isYouTubeUrl, normalizeGitHubBlobLikeUrl, unwrapUserProvidedText } from '@/lib/url'
+import {
+  buildLocalFsFetchPath,
+  buildRepoFilePath,
+  deriveFilenameFromUrl,
+  isYouTubeUrl,
+  normalizeGitHubBlobLikeUrl,
+  unwrapUserProvidedText,
+} from '@/lib/url'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { describeFetchRemoteTextFailure } from '@/lib/net/fetchRemoteTextFailure'
 import { convertPdfUrlToMarkdown, fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
@@ -153,6 +160,9 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   const isHttpUrl = /^https?:\/\//i.test(normalizedUrl)
   const isFileUrl = /^file:\/\//i.test(normalizedUrl)
   const isLocalRepoPath = (!isHttpUrl && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalizedUrl)) || isFileUrl
+  const localFsFetchPath =
+    buildLocalFsFetchPath(normalizedUrl)
+    || (isFileUrl ? buildLocalFsFetchPath(normalizedUrl.replace(/^file:\/\//i, '')) : null)
   const localRepoPath = isLocalRepoPath
     ? normalizedUrl
         .replace(/^file:\/\//i, '')
@@ -534,6 +544,9 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
 
   if (isLocalRepoPath) {
     if (localRepoPath.includes('..')) throw new Error('Invalid local path')
+    const localSourceUrl = localFsFetchPath
+      ? (isFileUrl ? normalizedUrl.replace(/^file:\/\//i, '') : normalizedUrl)
+      : localRepoPath
     if (looksLikeLocalHtml) {
       const base = localRepoPath.split('/').pop() || 'webpage'
       const baseNoExt = base.replace(/\.[a-z0-9]+$/i, '') || 'webpage'
@@ -541,11 +554,12 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
       const text = ['---', `kgWebpageUrl: ${yamlQuote(localRepoPath)}`, `kgWebpageView: ${yamlQuote('html')}`, localSiteRootRel ? `kgWebpageSiteRootRel: ${yamlQuote(localSiteRootRel)}` : null, '---', '']
         .filter(Boolean)
         .join('\n')
-      return { normalizedUrl: localRepoPath, name, text }
+      return { normalizedUrl: localSourceUrl, name, text }
     }
 
     opts?.onProgress?.(10)
-    const res = await fetch(buildRepoFilePath(localRepoPath), { headers: { Accept: '*/*' } })
+    const fetchPath = localFsFetchPath || buildRepoFilePath(localRepoPath)
+    const res = await fetch(fetchPath, { headers: { Accept: '*/*' } })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const text = await res.text()
     opts?.onProgress?.(100)
@@ -554,7 +568,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
 
     const base = localRepoPath.split('/').pop() || `import${fallbackExt}`
     const name = base.includes('.') ? base : `${base}${fallbackExt}`
-    return { normalizedUrl: localRepoPath, name, text }
+    return { normalizedUrl: localSourceUrl, name, text }
   }
 
   opts?.onProgress?.(10)

@@ -20,6 +20,7 @@ import {
   materializeActiveWorkspaceEntryIntoSourceFiles,
   resolveMaterializedWorkspaceActivePath,
 } from '@/features/source-files/sourceFilesRuntimeShared'
+import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 import {
   materializeBootstrapWorkspaceSourceFiles,
   restoreBootstrapPersistedSourceFiles,
@@ -168,7 +169,8 @@ export function SourceFilesPersistenceBootstrap() {
       })
       if (lastMaterializedActivePathRef.current === activePathKey) return
       lastMaterializedActivePathRef.current = activePathKey
-      void materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: false }).catch(() => {
+      const shouldApplyToGraph = isInitializationWorkspacePath(activePath)
+      void materializeActiveWorkspaceEntryIntoSourceFiles({ applyToGraph: shouldApplyToGraph }).catch(() => {
         if (lastMaterializedActivePathRef.current === activePathKey) {
           lastMaterializedActivePathRef.current = ''
         }

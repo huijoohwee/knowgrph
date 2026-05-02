@@ -27,8 +27,8 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     lastRequestedActivePath: null,
     nowMs: 10_000,
   })
-  if (startup !== WORKSPACE_README_SEED_PATH) {
-    throw new Error(`expected bootstrap helper to keep README as the stable default seed, got ${String(startup)}`)
+  if (startup !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected bootstrap helper to prefer the validation seed as the default initialization file, got ${String(startup)}`)
   }
 
   const preserveValidActivePath = resolveMarkdownWorkspaceBootstrapActivePath({

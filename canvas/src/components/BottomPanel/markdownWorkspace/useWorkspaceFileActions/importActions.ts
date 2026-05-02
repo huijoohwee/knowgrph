@@ -10,6 +10,7 @@ import {
   parseCanvasWorkspaceFrontmatterPreset,
   parseWebpageFrontmatterMeta,
 } from '@/lib/markdown/frontmatter'
+import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { bulkSetWorkspaceEntrySources, type WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
@@ -205,6 +206,16 @@ export async function activateFirstImportedWorkspaceFile(args: {
       applyViewPreset: args.applyToGraph === true,
       applyToGraph: args.applyToGraph === true,
     })
+    if (args.applyToGraph === true) {
+      try {
+        applyCanvasFrontmatterPreset({
+          graphData: useGraphStore.getState().graphData,
+          rawText: text,
+        })
+      } catch {
+        void 0
+      }
+    }
   } catch {
     void 0
   }
@@ -443,7 +454,7 @@ export function useWorkspaceImportActions(args: {
         })
 
         if (createdPath) {
-          await focusAfterImport(createdPath, { sourceUrl, applyToGraph: false, jobId })
+          await focusAfterImport(createdPath, { sourceUrl, applyToGraph: true, jobId })
         }
 
         const hydrateWebpageStub = async () => {

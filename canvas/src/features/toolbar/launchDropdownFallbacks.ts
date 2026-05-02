@@ -186,8 +186,12 @@ export async function importUrlFallback(args: {
       }),
     ))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
-    await applyWorkspaceImportToCanvasBestEffort({ fs, createdPaths: res.createdPaths })
-    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
+    await applyWorkspaceImportToCanvasBestEffort({
+      fs,
+      createdPaths: res.createdPaths,
+      opts: { applyToGraph: true },
+    })
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph: true })
     args.pushUiToast({
       id: toastId,
       kind: 'success',

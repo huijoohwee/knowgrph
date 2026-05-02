@@ -29,7 +29,7 @@ export function resolveMarkdownWorkspaceBootstrapActivePath(args: {
     const startupPath = resolveWorkspaceStartupActivePath({
       workspaceFilePaths,
       activePath: args.activePath,
-      preferValidationSeedForDefaultFamily: preferCustomValidationSeed,
+      preferValidationSeedForDefaultFamily: true,
       forceValidationSeedIfPresent: preferCustomValidationSeed,
     })
     if (startupPath && startupPath !== args.activePath) return startupPath

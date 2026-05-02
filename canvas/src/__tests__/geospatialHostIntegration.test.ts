@@ -820,7 +820,7 @@ export const testLaunchDropdownFallbackActivatesFirstImportedWorkspaceFile = () 
   const required = [
     'async function focusFirstImportedWorkspaceFile',
     'activateFirstImportedWorkspaceFile',
-    'await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })',
+    'await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })',
   ]
   const missing = required.filter(snippet => !text.includes(snippet))
   if (missing.length) {

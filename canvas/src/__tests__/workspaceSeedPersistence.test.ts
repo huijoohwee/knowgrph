@@ -161,17 +161,17 @@ export async function testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRem
   }
 }
 
-export function testWorkspaceStartupActivePathPrefersReadmeForDefaultSeedFamily() {
+export function testWorkspaceStartupActivePathPrefersValidationSeedForDefaultSeedFamily() {
   const next = resolveWorkspaceStartupActivePath({
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
       TEST_VALIDATION_WORKSPACE_SEED_PATH,
     ],
     activePath: TEST_VALIDATION_WORKSPACE_SEED_PATH,
-    preferValidationSeedForDefaultFamily: false,
+    preferValidationSeedForDefaultFamily: true,
   })
-  if (next !== WORKSPACE_README_SEED_PATH) {
-    throw new Error(`expected default seed startup to prefer README, got ${String(next)}`)
+  if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected default seed startup to prefer validation seed, got ${String(next)}`)
   }
 }
 

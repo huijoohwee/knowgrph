@@ -14,6 +14,7 @@ import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { syncWorkspaceTextState } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
+import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import type { StatusHelpers, UseWorkspaceFileActionsArgs } from './types'
 import type { MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
 import { formatMarkdownWorkspaceStatusLabel } from '../markdownWorkspaceStatusUi'
@@ -218,6 +219,12 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
       const graphData = store.graphData
       const hasAnyGraph = !!(graphData && (((graphData.nodes || []).length > 0) || ((graphData.edges || []).length > 0)))
       if (!hasAnyGraph) return
+
+      try {
+        applyCanvasFrontmatterPreset({ graphData, rawText: resolvedText })
+      } catch {
+        void 0
+      }
 
       if (!baselineLocked && shouldForceDocumentSemanticModeForImport(inner.nameForParse)) {
         store.setDocumentSemanticMode('document')

@@ -23,6 +23,19 @@ export function buildRepoFilePath(relPath: string): string {
   return `/__repo_file/${encodeRepoPathForUrl(normalized)}`
 }
 
+export function isLikelyAbsoluteFsPath(value: unknown): boolean {
+  const raw = typeof value === 'string' ? (unwrapUserProvidedText(value) || value.trim()) : ''
+  if (!raw.startsWith('/')) return false
+  if (raw.startsWith('/@fs/')) return false
+  return /^\/(Users|home|private|var|tmp|Volumes)\//.test(raw)
+}
+
+export function buildLocalFsFetchPath(value: unknown): string | null {
+  const raw = typeof value === 'string' ? (unwrapUserProvidedText(value) || value.trim()) : ''
+  if (!isLikelyAbsoluteFsPath(raw)) return null
+  return `/@fs${encodeURI(raw)}`
+}
+
 export function isYouTubeUrl(value: unknown): boolean {
   if (typeof value !== 'string') return false
   const raw = unwrapUserProvidedText(value) || value.trim()
