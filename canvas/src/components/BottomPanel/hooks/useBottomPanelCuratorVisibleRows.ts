@@ -12,13 +12,20 @@ import {
 import {
   type GraphDataTableScope,
 } from '../BottomPanelCuratorModels'
-import { buildSelectionSubgraphForAnchorIds } from '@/lib/graph/file'
+import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
-import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
+import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import {
+  readTraversalSummaryMembership,
+  type TraversalSummary,
+  type TraversalSummaryMembership,
+} from '@/features/panels/utils/orchestratorTraversal'
 
 interface UseBottomPanelCuratorVisibleRowsParams {
   nodes: GraphNode[]
   edges: GraphEdge[]
+  graphDataRevision?: number
   query: string
   graphDataTableScope: GraphDataTableScope
   graphDataTableFilterMatch: GraphDataTableFilterMatch
@@ -36,32 +43,11 @@ interface UseBottomPanelCuratorVisibleRowsParams {
 function applySelectionNeighborhoodFilter(
   filteredRows: UnifiedRow[],
   graphDataTableViewMode: 'allRows' | 'selectionNeighborhood' | 'traversalSequence',
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  selectedNodeId: string | null,
-  selectedEdgeId: string | null,
-  selectedNodeIds: string[],
-  selectedEdgeIds: string[],
+  selectionNeighborhoodMembership: ReturnType<typeof readSelectionSubgraphMembershipForAnchorIds>,
 ): UnifiedRow[] {
   if (graphDataTableViewMode !== 'selectionNeighborhood') return filteredRows
-  if (!selectedNodeId && !selectedEdgeId && selectedNodeIds.length === 0 && selectedEdgeIds.length === 0) {
-    return filteredRows
-  }
-
-  const data: GraphData = { type: 'Graph', nodes, edges }
-
-  const selectionAnchorIds: SelectionAnchorIds = normalizeSelectionIds({
-    selectedNodeId,
-    selectedEdgeId,
-    selectedNodeIds,
-    selectedEdgeIds,
-  })
-
-  const selectionSubgraph = buildSelectionSubgraphForAnchorIds(data, selectionAnchorIds)
-  if (!selectionSubgraph) return filteredRows
-
-  const nodeIdSet = new Set<string>(selectionSubgraph.nodes.map(n => String(n.id)))
-  const edgeIdSet = new Set<string>(selectionSubgraph.edges.map(e => String(e.id)))
+  if (!selectionNeighborhoodMembership) return filteredRows
+  const { nodeIdSet, edgeIdSet } = selectionNeighborhoodMembership
 
   return filteredRows.filter(row => {
     if (row.kind === 'node') return nodeIdSet.has(row.id)
@@ -74,30 +60,20 @@ function applyTraversalSequenceFilter(
   baseRows: UnifiedRow[],
   filteredRows: UnifiedRow[],
   graphDataTableViewMode: 'allRows' | 'selectionNeighborhood' | 'traversalSequence',
-  edges: GraphEdge[],
-  lastTraversalSummary: TraversalSummary | null,
+  traversalMembership: TraversalSummaryMembership | null,
   graphDataTableSortRules: ReadonlyArray<GraphDataTableSortRule>,
 ): UnifiedRow[] {
   if (
     graphDataTableViewMode !== 'traversalSequence' ||
-    !lastTraversalSummary ||
-    !Array.isArray(lastTraversalSummary.edgeIds) ||
-    lastTraversalSummary.edgeIds.length === 0
+    !traversalMembership ||
+    traversalMembership.edgeIds.length === 0
   ) {
     return baseRows
   }
 
   if (graphDataTableSortRules.length > 0) return baseRows
 
-  const traversalEdgeIdSet = new Set<string>(lastTraversalSummary.edgeIds.map(id => String(id)))
-  const traversalNodeIdSet = new Set<string>()
-
-  for (const edge of edges) {
-    const id = String(edge.id)
-    if (!traversalEdgeIdSet.has(id)) continue
-    traversalNodeIdSet.add(String(edge.source))
-    traversalNodeIdSet.add(String(edge.target))
-  }
+  const { edgeIdSet: traversalEdgeIdSet, nodeIdSet: traversalNodeIdSet } = traversalMembership
 
   const nodeRows = filteredRows.filter(
     row => row.kind === 'node' && traversalNodeIdSet.has(row.id),
@@ -122,6 +98,7 @@ function applyTraversalSequenceFilter(
 export function useBottomPanelCuratorVisibleRows({
   nodes,
   edges,
+  graphDataRevision = 0,
   query,
   graphDataTableScope,
   graphDataTableFilterMatch,
@@ -135,20 +112,119 @@ export function useBottomPanelCuratorVisibleRows({
   graphDataTableSortRules,
   lastTraversalSummary,
 }: UseBottomPanelCuratorVisibleRowsParams): UnifiedRow[] {
-  const rows = React.useMemo<UnifiedRow[]>(() => {
-    const traversalEdgeStepMap = (() => {
-      if (!lastTraversalSummary || !Array.isArray(lastTraversalSummary.edgeIds)) return null
-      const map = new Map<string, number>()
-      lastTraversalSummary.edgeIds.forEach((edgeId, index) => {
-        const id = String(edgeId)
-        if (!id) return
-        if (map.has(id)) return
-        map.set(id, index + 1)
-      })
-      return map
-    })()
+  const selectionSemanticKey = React.useMemo(() => {
+    return hashSignatureParts([
+      'bottom-panel-curator-visible-rows-selection',
+      graphDataTableViewMode,
+      selectedNodeId || '',
+      selectedEdgeId || '',
+      hashScopedStringArraySignature('selected-node-ids', selectedNodeIds),
+      hashScopedStringArraySignature('selected-edge-ids', selectedEdgeIds),
+    ])
+  }, [
+    graphDataTableViewMode,
+    selectedEdgeId,
+    selectedEdgeIds,
+    selectedNodeId,
+    selectedNodeIds,
+  ])
 
-    const nodeRows: UnifiedRow[] = nodes.map(n => ({
+  const traversalSummarySemanticKey = React.useMemo(() => {
+    return hashSignatureParts([
+      'bottom-panel-curator-visible-rows-traversal',
+      lastTraversalSummary?.mode || '',
+      hashScopedStringArraySignature(
+        'bottom-panel-curator-visible-rows-traversal-edge-ids',
+        lastTraversalSummary?.edgeIds || [],
+      ),
+    ])
+  }, [lastTraversalSummary?.edgeIds, lastTraversalSummary?.mode])
+
+  const fallbackGraphIdentityKey = React.useMemo(() => {
+    if (graphDataRevision > 0) return ''
+    return hashSignatureParts([
+      'bottom-panel-curator-visible-rows-fallback-graph',
+      hashScopedStringArraySignature(
+        'bottom-panel-curator-visible-rows-node-ids',
+        nodes.map(node => String(node.id || '')),
+      ),
+      hashScopedStringArraySignature(
+        'bottom-panel-curator-visible-rows-edge-ids',
+        edges.map(edge => String(edge.id || '')),
+      ),
+    ])
+  }, [edges, graphDataRevision, nodes])
+
+  const graphDataSemanticKey = React.useMemo(() => {
+    return hashSignatureParts([
+      'bottom-panel-curator-visible-rows-graph',
+      graphDataRevision,
+      selectionSemanticKey,
+      traversalSummarySemanticKey,
+      nodes.length,
+      edges.length,
+      fallbackGraphIdentityKey,
+    ])
+  }, [
+    edges.length,
+    fallbackGraphIdentityKey,
+    graphDataRevision,
+    nodes.length,
+    selectionSemanticKey,
+    traversalSummarySemanticKey,
+  ])
+
+  const graphDataRef = React.useRef<{ key: string; value: GraphData } | null>(null)
+  if (graphDataRef.current?.key !== graphDataSemanticKey) {
+    graphDataRef.current = {
+      key: graphDataSemanticKey,
+      value: { type: 'Graph', nodes, edges },
+    }
+  }
+  const graphData = graphDataRef.current.value
+  const traversalGraphSemanticKey = React.useMemo(() => {
+    return buildScopedGraphSemanticKey('bottom-panel-curator-visible-rows', {
+      graphData,
+      graphRevision: graphDataRevision,
+      graphSemanticKey: graphDataSemanticKey,
+    })
+  }, [graphData, graphDataRevision, graphDataSemanticKey])
+
+  const selectionNeighborhoodMembership = React.useMemo(() => {
+    if (graphDataTableViewMode !== 'selectionNeighborhood') return null
+    const selectionAnchorIds: SelectionAnchorIds = normalizeSelectionIds({
+      selectedNodeId,
+      selectedEdgeId,
+      selectedNodeIds,
+      selectedEdgeIds,
+    })
+    if (
+      selectionAnchorIds.selectionNodeIds.length === 0
+      && selectionAnchorIds.selectionEdgeIds.length === 0
+    ) {
+      return null
+    }
+    return readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)
+  }, [
+    graphData,
+    graphDataTableViewMode,
+    selectedEdgeId,
+    selectedEdgeIds,
+    selectedNodeId,
+    selectedNodeIds,
+  ])
+
+  const traversalMembership = React.useMemo(() => {
+    return readTraversalSummaryMembership(graphData, lastTraversalSummary, {
+      graphRevision: graphDataRevision,
+      graphSemanticKey: traversalGraphSemanticKey,
+    })
+  }, [graphData, graphDataRevision, lastTraversalSummary, traversalGraphSemanticKey])
+
+  const rows = React.useMemo<UnifiedRow[]>(() => {
+    const traversalEdgeStepMap = traversalMembership?.edgeStepById ?? null
+
+    const nodeRows: UnifiedRow[] = graphData.nodes.map(n => ({
       kind: 'node',
       id: n.id,
       label: n.label,
@@ -156,7 +232,7 @@ export function useBottomPanelCuratorVisibleRows({
       properties: n.properties,
       metadata: n.metadata,
     }))
-    const edgeRows: UnifiedRow[] = edges.map(e => {
+    const edgeRows: UnifiedRow[] = graphData.edges.map(e => {
       const traversalStep =
         traversalEdgeStepMap && traversalEdgeStepMap.size > 0
           ? traversalEdgeStepMap.get(String(e.id))
@@ -173,7 +249,7 @@ export function useBottomPanelCuratorVisibleRows({
       }
     })
     return [...nodeRows, ...edgeRows]
-  }, [edges, lastTraversalSummary, nodes])
+  }, [graphData, traversalMembership])
 
   const visibleRows = React.useMemo(() => {
     const queryFilteredRows = filterRows(rows, query, graphDataTableScope)
@@ -186,20 +262,14 @@ export function useBottomPanelCuratorVisibleRows({
     let baseRows = applySelectionNeighborhoodFilter(
       filteredRows,
       graphDataTableViewMode,
-      nodes,
-      edges,
-      selectedNodeId,
-      selectedEdgeId,
-      selectedNodeIds,
-      selectedEdgeIds,
+      selectionNeighborhoodMembership,
     )
 
     baseRows = applyTraversalSequenceFilter(
       baseRows,
       filteredRows,
       graphDataTableViewMode,
-      edges,
-      lastTraversalSummary,
+      traversalMembership,
       graphDataTableSortRules,
     )
 
@@ -219,21 +289,16 @@ export function useBottomPanelCuratorVisibleRows({
       return 0
     })
   }, [
-    edges,
     graphDataTableFilterClauses,
     graphDataTableFilterMatch,
     graphDataTableScope,
     graphDataTableSortRules,
     graphDataTableViewMode,
     isGraphDataTableAutoSortEnabled,
-    lastTraversalSummary,
-    nodes,
     query,
     rows,
-    selectedEdgeId,
-    selectedNodeId,
-    selectedEdgeIds,
-    selectedNodeIds,
+    selectionNeighborhoodMembership,
+    traversalMembership,
   ])
 
   return visibleRows

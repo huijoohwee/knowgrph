@@ -55,6 +55,23 @@ const buildGraphWithConflictingSeedanceAndRichMediaPanelNodes = (): GraphData =>
   edges: [],
 })
 
+const buildGraphWithRichMediaPanelTextPreview = (): GraphData => ({
+  type: 'Graph',
+  nodes: [
+    {
+      id: 'rich-media-text-panel',
+      type: 'RichMediaPanel',
+      label: 'Rich Media Panel',
+      properties: {
+        richMediaActiveTab: 'text',
+        output: '# Inline preview\n\nBody copy.',
+        outputSrcDoc: '<!doctype html><html><body><h1>Inline preview</h1><p>Body copy.</p></body></html>',
+      },
+    },
+  ],
+  edges: [],
+})
+
 const buildMarkdown = (): string =>
   [
     '# Title',
@@ -284,6 +301,65 @@ export async function testPreviewPanelGraphMediaDeduplicatesBytePlusVideoWidgetT
     }
     if (graphCardText.includes('Rich Media Panel for ')) {
       throw new Error(`expected graph media card title to stay on the single Rich Media Panel SSOT, got ${graphCardText}`)
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    restoreDom()
+    restoreWindow()
+  }
+}
+
+export async function testPreviewPanelGraphRichMediaPanelTextPreviewUsesCanonicalPanelSurface() {
+  const storage = new MemoryStorage()
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+
+  try {
+    const doc = dom.window.document
+    const container = doc.createElement('div')
+    container.id = 'root'
+    doc.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+
+    const state = useGraphStore.getState()
+    const expectedKey = 'graph-node-media:rich-media-text-panel:iframe:srcdoc'
+    state.setGraphData(buildGraphWithRichMediaPanelTextPreview())
+    state.setMarkdownDocument('doc.md', '')
+    try {
+      state.setFrontmatterModeEnabled(false)
+    } catch {
+      void 0
+    }
+    try {
+      useGraphStore.setState({ frontmatterModeEnabled: false })
+    } catch {
+      void 0
+    }
+    state.setMarkdownPreviewMermaidFocus(null)
+    state.setMarkdownPreviewActiveMediaKey(expectedKey)
+
+    await mountReactRoot(root, React.createElement(PreviewPanelView), { window: dom.window, frames: 8 })
+
+    const graphCards = (Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]).filter(btn =>
+      String(btn.textContent || '').includes('Node media:'),
+    )
+    if (graphCards.length !== 1) {
+      throw new Error(`expected one graph-backed rich media card, got ${graphCards.length}`)
+    }
+    const after = useGraphStore.getState()
+    if (after.markdownPreviewActiveMediaKey !== expectedKey) {
+      throw new Error(`expected markdownPreviewActiveMediaKey "${expectedKey}", got ${String(after.markdownPreviewActiveMediaKey)}`)
+    }
+    const mediaPanel = doc.querySelector('[data-kg-rich-media-markdown-preview="1"]')
+    if (!mediaPanel) throw new Error('expected PreviewPanelView to mount the canonical RichMediaPanel markdown preview surface for graph text previews')
+    const markdownPreview = doc.querySelector('[data-kg-rich-media-markdown-preview="1"]')
+    if (!markdownPreview) throw new Error('expected graph-backed RichMediaPanel text preview to render through the shared markdown preview surface')
+    const loadEmbedButton = Array.from(doc.querySelectorAll('button')).find(btn =>
+      String(btn.textContent || '').toLowerCase().includes('load embed'),
+    )
+    if (loadEmbedButton) {
+      throw new Error('expected graph-backed RichMediaPanel text preview to avoid the legacy explicit iframe load gate')
     }
 
     await unmountReactRoot(root, { window: dom.window })

@@ -12,7 +12,6 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { NODE_MEDIA_KINDS, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
-import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const FLOATING_MEDIA_VIEW_OPTIONS = [
@@ -44,21 +43,10 @@ export function FloatingPropsPanel() {
       || `w-full h-6 px-2 text-xs ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded text-right`,
   )
 
-  const documentWidgetRegistry = useGraphStore(s => s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
   const effectiveWidgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
-  const baseWidgetRegistry = useGraphStore(s => s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY)
-  const widgetRegistry = React.useMemo(
-    () =>
-      buildDataflowWidgetRegistry({
-        documentWidgetRegistry,
-        effectiveWidgetRegistry,
-        widgetRegistry: baseWidgetRegistry,
-      }),
-    [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry],
-  )
   const widgetPaletteEntries = React.useMemo(
-    () => (Array.isArray(widgetRegistry) ? widgetRegistry : []).filter(e => e && e.isEnabled),
-    [widgetRegistry],
+    () => (Array.isArray(effectiveWidgetRegistry) ? effectiveWidgetRegistry : []).filter(e => e && e.isEnabled),
+    [effectiveWidgetRegistry],
   )
   const widgetDragEnabled = widgetPaletteEntries.length > 0
 

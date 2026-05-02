@@ -390,8 +390,8 @@ export const testImportRenderPipelineKnowgrphVideoDemoFlowEditorDocumentModes = 
   const overlayEditorNodeIds = deriveFrontmatterFlowOverlayNodeIds(activeGraph)
   const richMediaPanelNodeIds = new Set(richMediaPanelNodes.map(node => String(node.id || '').trim()).filter(Boolean))
   const overlayEditorRichMediaIds = overlayEditorNodeIds.filter(id => richMediaPanelNodeIds.has(id))
-  if (overlayEditorRichMediaIds.length > 0) {
-    throw new Error(`expected flow editor widget overlays to exclude rich media panel nodes, got ${overlayEditorRichMediaIds.join(', ')}`)
+  if (overlayEditorRichMediaIds.length !== richMediaPanelNodeIds.size) {
+    throw new Error(`expected flow editor widget overlays to include all rich media panel nodes, got ${overlayEditorRichMediaIds.join(', ')}`)
   }
   const targetNodeIds = new Set(richMediaPanelNodes.map(node => String(node.id || '').trim()).filter(Boolean))
   const connectedValuesA = computeFlowConnectedValuesBySchemaPath({ graphData: activeGraph, registry: widgetRegistry, targetNodeIds })
@@ -407,8 +407,11 @@ export const testImportRenderPipelineKnowgrphVideoDemoFlowEditorDocumentModes = 
     excludeNodeIdSet: new Set(overlayEditorNodeIds),
     connectedValuesByNodeId: connectedValuesA,
   })
-  if (flowEditorRichMediaOverlays.length === 0) {
-    throw new Error('expected knowgrph video demo to retain rich media overlays after excluding widget overlay ids')
+  const leakedWidgetOwnedIds = flowEditorRichMediaOverlays
+    .map(node => String(node.id || '').trim())
+    .filter(id => richMediaPanelNodeIds.has(id))
+  if (leakedWidgetOwnedIds.length > 0) {
+    throw new Error(`expected flow canvas rich media overlay pool to exclude widget-owned panel nodes, got ${leakedWidgetOwnedIds.join(', ')}`)
   }
 
   const mediaKinds = new Set<string>()

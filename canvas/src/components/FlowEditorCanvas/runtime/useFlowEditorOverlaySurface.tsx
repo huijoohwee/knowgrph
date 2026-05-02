@@ -24,6 +24,7 @@ import {
   normalizeStringArrayForSignature,
 } from '@/lib/hash/signature'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { isFlowEditorQeTraceEnabled, pushFlowEditorQeTrace } from '@/lib/flowEditor/flowEditorQeTrace'
 import {
   buildRichMediaConnectedValueTargetNodeIdSet,
@@ -160,12 +161,21 @@ export function useFlowEditorOverlaySurface(args: {
     if (revision > 0) return revision
     return flowEditorViewActive ? draftGraphDataRevision : baseGraphDataRevision
   }, [baseGraphDataRevision, draftGraphDataRevision, flowEditorViewActive, renderGraphDataOverride])
+  const renderGraphSemanticKey = React.useMemo(
+    () => buildScopedGraphSemanticKey('flow-editor-overlay-surface-render-graph', {
+      graphData: renderGraphDataOverride,
+      graphRevision: renderGraphDataRevision,
+    }),
+    [renderGraphDataOverride, renderGraphDataRevision],
+  )
   const renderGraphLookup = React.useMemo(() => {
     const graph = renderGraphDataOverride
     const baseLookup = getCachedGraphLookup({
       cacheScope: 'flow-editor-overlay-surface-render-graph',
       graphData: graph,
       graphRevision: renderGraphDataRevision,
+      graphSemanticKey: renderGraphSemanticKey,
+      preferCurrentGraphDataRefs: true,
     })
     if (!baseLookup) return null
     const nodes = baseLookup.nodes
@@ -175,13 +185,15 @@ export function useFlowEditorOverlaySurface(args: {
       nodes,
       edges: baseLookup.edges,
       nodeById: baseLookup.nodeById,
+      incidentEdgesByNodeId: baseLookup.incidentEdgesByNodeId,
       eligibleNodeIds: buildFlowWidgetEligibleNodeIdSet(nodes),
       graphMetaKind: String(((graph?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null,
     }
-  }, [renderGraphDataOverride, renderGraphDataRevision])
+  }, [renderGraphDataOverride, renderGraphDataRevision, renderGraphSemanticKey])
   const renderGraphNodes = renderGraphLookup?.nodes || EMPTY_GRAPH_NODES
   const renderGraphEdges = renderGraphLookup?.edges || EMPTY_GRAPH_EDGES
   const renderGraphNodeById = renderGraphLookup?.nodeById || EMPTY_GRAPH_NODE_BY_ID
+  const renderGraphIncidentEdgesByNodeId = renderGraphLookup?.incidentEdgesByNodeId || null
   const renderGraphEligibleNodeIds = renderGraphLookup?.eligibleNodeIds || EMPTY_GRAPH_ELIGIBLE_NODE_IDS
   const renderGraphMetaKind = renderGraphLookup?.graphMetaKind || null
 
@@ -309,6 +321,9 @@ export function useFlowEditorOverlaySurface(args: {
     }
   }
   const overlayEditorNodeIdsSnapshot = overlayEditorNodeIdsSnapshotRef.current.value
+  const frontmatterOverlayCoverageActive = React.useMemo(() => {
+    return flowEditorViewActive && isFrontmatterFlowGraph(renderGraphDataOverride)
+  }, [flowEditorViewActive, renderGraphDataOverride])
 
   React.useEffect(() => {
     if (!geospatialWidgetPanelMode) return
@@ -334,47 +349,57 @@ export function useFlowEditorOverlaySurface(args: {
     if (!defaultPinned) scheduleOverlayCollisionResolve()
   }, [geospatialWidgetPanelMode, overlayEditorNodeIds, overlayEditorNodeIdsKey, scheduleOverlayCollisionResolve])
   const frontmatterVisibleSceneDisplayRef = React.useRef<{
-    graph: GraphData | null
-    revision: number
+    key: string
     value: ReturnType<typeof deriveSceneDisplayGraph> | null
   } | null>(null)
+  const frontmatterVisibleGraphSemanticKey = React.useMemo(
+    () => buildScopedGraphSemanticKey('flow-editor-overlay-surface-frontmatter-visible-graph', {
+      graphData: renderGraphDataOverride,
+      graphRevision: renderGraphDataRevision,
+      graphSemanticKey: renderGraphSemanticKey,
+    }),
+    [renderGraphDataOverride, renderGraphDataRevision, renderGraphSemanticKey],
+  )
   if (
     !frontmatterVisibleSceneDisplayRef.current
-    || frontmatterVisibleSceneDisplayRef.current.graph !== renderGraphDataOverride
-    || frontmatterVisibleSceneDisplayRef.current.revision !== renderGraphDataRevision
+    || frontmatterVisibleSceneDisplayRef.current.key !== frontmatterVisibleGraphSemanticKey
   ) {
     frontmatterVisibleSceneDisplayRef.current = {
-      graph: renderGraphDataOverride,
-      revision: renderGraphDataRevision,
-      value: renderGraphDataOverride ? deriveSceneDisplayGraph({ graphData: renderGraphDataOverride }) : null,
+      key: frontmatterVisibleGraphSemanticKey,
+      value: frontmatterOverlayCoverageActive && renderGraphDataOverride
+        ? deriveSceneDisplayGraph({ graphData: renderGraphDataOverride })
+        : null,
     }
   }
   const frontmatterVisibleSceneDisplay = frontmatterVisibleSceneDisplayRef.current?.value || null
   const frontmatterVisibleGraphNodes = React.useMemo(() => {
+    if (!frontmatterOverlayCoverageActive) return renderGraphNodes
     const displayNodes = Array.isArray(frontmatterVisibleSceneDisplay?.displayGraphData?.nodes)
       ? (frontmatterVisibleSceneDisplay?.displayGraphData?.nodes as GraphNode[])
       : null
     if (displayNodes && displayNodes.length > 0) return displayNodes
     return renderGraphNodes
-  }, [frontmatterVisibleSceneDisplay, renderGraphNodes])
+  }, [frontmatterOverlayCoverageActive, frontmatterVisibleSceneDisplay, renderGraphNodes])
   const connectedValueTargetNodeIds = React.useMemo(() => {
     return buildRichMediaConnectedValueTargetNodeIdSet({
-      nodes: frontmatterVisibleGraphNodes,
+      nodes: frontmatterOverlayCoverageActive ? frontmatterVisibleGraphNodes : [],
       extraNodeIds: overlayEditorNodeIdsSnapshot,
     })
-  }, [frontmatterVisibleGraphNodes, overlayEditorNodeIdsSnapshot])
+  }, [frontmatterOverlayCoverageActive, frontmatterVisibleGraphNodes, overlayEditorNodeIdsSnapshot])
   const connectedValuesGraphRevision = flowEditorViewActive ? draftGraphDataRevision : baseGraphDataRevision
   const connectedValuesByNodeId = React.useMemo(() => {
+    if (connectedValueTargetNodeIds.size === 0) return new Map<string, FlowConnectedValuesBySchemaPath>()
     return computeFlowConnectedValuesBySchemaPath({
       graphData: renderGraphDataOverride,
       registry: Array.isArray(widgetRegistry) ? widgetRegistry : [],
       targetNodeIds: connectedValueTargetNodeIds,
       graphRevision: connectedValuesGraphRevision,
+      graphSemanticKey: renderGraphSemanticKey,
     })
-  }, [connectedValuesGraphRevision, connectedValueTargetNodeIds, renderGraphDataOverride, widgetRegistry])
+  }, [connectedValuesGraphRevision, connectedValueTargetNodeIds, renderGraphDataOverride, renderGraphSemanticKey, widgetRegistry])
   const frontmatterRichMediaOverlayNodeIds = React.useMemo(() => {
-    if (!flowEditorViewActive) return [] as string[]
-    if (!isFrontmatterFlowGraph(renderGraphDataOverride)) return [] as string[]
+    if (!frontmatterOverlayCoverageActive) return [] as string[]
+    const overlayEditorNodeIdSet = new Set(overlayEditorNodeIdsSnapshot)
     const overlays = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes: false,
       canvas2dRenderer: 'flowEditor',
@@ -382,10 +407,11 @@ export function useFlowEditorOverlaySurface(args: {
       documentSemanticMode: 'document',
       nodes: frontmatterVisibleGraphNodes,
       poolMax: 24,
+      excludeNodeIdSet: overlayEditorNodeIdSet,
       connectedValuesByNodeId,
     })
     return overlays.map(node => String(node.id || '').trim()).filter(Boolean)
-  }, [connectedValuesByNodeId, flowEditorViewActive, frontmatterVisibleGraphNodes, renderGraphDataOverride])
+  }, [connectedValuesByNodeId, frontmatterOverlayCoverageActive, frontmatterVisibleGraphNodes, overlayEditorNodeIdsSnapshot])
   const frontmatterRichMediaOverlayNodeIdsKey = React.useMemo(
     () => hashScopedStringArraySignature('frontmatter-rich-media-overlay', frontmatterRichMediaOverlayNodeIds),
     [frontmatterRichMediaOverlayNodeIds],
@@ -405,8 +431,8 @@ export function useFlowEditorOverlaySurface(args: {
 
   const overlayEditorElements = React.useMemo(() => {
     if (!flowEditorViewActive) return []
-    const edges = renderGraphEdges
     const nodeById = renderGraphNodeById
+    const incidentEdgesByNodeId = renderGraphIncidentEdgesByNodeId
     const graphMetaKind = renderGraphMetaKind
     const resolveNode = (id: string) => {
       const found = nodeById.get(id) || null
@@ -422,6 +448,7 @@ export function useFlowEditorOverlaySurface(args: {
         if (String(node.type || '') === 'Section') return null
         const autoRevealKey = id === String(lastDroppedWidgetNodeIdRef.current || '') ? lastDroppedWidgetToken : 0
         const connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | undefined = connectedValuesByNodeId.get(id) || undefined
+        const portHandleEdges = incidentEdgesByNodeId?.get(id) || EMPTY_GRAPH_EDGES
         return (
           <FlowEditorWidgetOverlay
             key={`qe-${id}`}
@@ -430,7 +457,8 @@ export function useFlowEditorOverlaySurface(args: {
             flowEditorSurfaceId={flowEditorSurfaceId}
             node={node}
             graphMetaKind={graphMetaKind}
-            edges={edges}
+            portHandleEdges={portHandleEdges}
+            registryEntries={widgetRegistry}
             connectedValuesBySchemaPath={connectedValuesBySchemaPath}
             toolMode={toolMode}
             pendingEdgeSourceId={pendingEdgeSourceId}
@@ -536,7 +564,7 @@ export function useFlowEditorOverlaySurface(args: {
     connectedValuesByNodeId,
     handlePinnedInCanvasChange,
     overlayEditorNodeIds,
-    renderGraphEdges,
+    renderGraphIncidentEdgesByNodeId,
     renderGraphMetaKind,
     renderGraphNodeById,
   ])

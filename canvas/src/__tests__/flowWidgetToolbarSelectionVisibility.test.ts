@@ -56,11 +56,23 @@ export function testRichMediaPanelViewToggleLivesInFloatingToolbarOnly() {
   if (overlayText.includes('richMediaMediaSelector={isRichMediaPanelWidget ? {')) {
     throw new Error('expected NodeOverlayEditor to remove legacy Rich Media media-selector wiring from the outer generic toolbar')
   }
-  if (!panelText.includes('richMediaViewToggle={richMediaViewToggle}')) {
-    throw new Error('expected NodeOverlayEditorPanel to wire the Rich Media Panel view toggle through the shared RichMediaPanel shell')
+  if (!overlayText.includes('richMediaViewToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaViewToggle : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel view toggle through the real outer widget floating toolbar')
   }
-  if (!panelText.includes('richMediaMediaSelector={richMediaMediaSelector}')) {
-    throw new Error('expected NodeOverlayEditorPanel to wire the Rich Media Panel Media Selector through the shared RichMediaPanel shell')
+  if (!overlayText.includes('richMediaMediaSelector={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaMediaSelector : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel Media Selector through the real outer widget floating toolbar')
+  }
+  if (!overlayText.includes('richMediaAspectToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaAspectToggle : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel aspect toggle through the real outer widget floating toolbar')
+  }
+  if (!overlayText.includes('richMediaTextModeToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaTextModeToggle : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel text edit/view toggle through the real outer widget floating toolbar')
+  }
+  if (!overlayText.includes('openExternalAction={isRichMediaPanelWidget ? richMediaPanelToolbarProps.openExternalAction : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to wire the Rich Media Panel open-source action through the real outer widget floating toolbar')
+  }
+  if (!panelText.includes('widgetToolbarActive={false}')) {
+    throw new Error('expected NodeOverlayEditorPanel to keep the RichMediaPanel body free of duplicate in-body widget toolbar ownership')
   }
   if (!overlayText.includes('selectedMode: richMediaSelectedMode')) {
     throw new Error('expected NodeOverlayEditor to pass the selected Rich Media mode into the shared RichMediaPanel shell')

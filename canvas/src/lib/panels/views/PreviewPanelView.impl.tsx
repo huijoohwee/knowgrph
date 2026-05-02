@@ -38,7 +38,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { listMediaOverlayNodes, type RichMediaPanelOverlayState } from '@/lib/render/mediaOverlayPool'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildStaticRichMediaPanelOverlayState, commitRichMediaPanelChange } from '@/lib/render/richMediaSsot'
@@ -68,9 +68,11 @@ export default function PreviewPanelView() {
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled || false)
   const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
-  const baseWidgetRegistry = useGraphStore(s => s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY)
-  const documentWidgetRegistry = useGraphStore(s => s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
   const rootThemeMode = useRootThemeMode()
+  const graphSemanticKey = React.useMemo(
+    () => buildScopedGraphSemanticKey('preview-panel-graph', { graphData, graphRevision: graphDataRevision }),
+    [graphData, graphDataRevision],
+  )
 
   const hasMarkdown = !!(markdownText && markdownText.trim())
   const [overlayPortalTarget, setOverlayPortalTarget] = React.useState<HTMLDivElement | null>(null)
@@ -171,6 +173,7 @@ export default function PreviewPanelView() {
     code?: string
     mermaidConfig?: MermaidInitConfig | null
     src?: string
+    srcDoc?: string
     openUrl?: string
     alt?: string
     panel?: RichMediaPanelOverlayState
@@ -447,16 +450,11 @@ export default function PreviewPanelView() {
     }
 
     if (graphData && Array.isArray(graphData.nodes) && graphData.nodes.length > 0) {
-      const dataflowRegistry =
-        buildDataflowWidgetRegistry({
-          documentWidgetRegistry,
-          effectiveWidgetRegistry: widgetRegistry,
-          widgetRegistry: baseWidgetRegistry,
-        })
       const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
         graphData,
-        registry: dataflowRegistry,
+        registry: widgetRegistry,
         graphRevision: graphDataRevision,
+        graphSemanticKey,
       })
       const effectiveNodes = graphData.nodes.map(node => {
         const nodeId = String(node?.id || '').trim()
@@ -497,6 +495,7 @@ export default function PreviewPanelView() {
           label: `Node media: ${label}`,
           panelTitle: label,
           src,
+          srcDoc: String(item.srcDoc || '').trim() || undefined,
           openUrl: openUrl || undefined,
           alt: baseLabel || undefined,
           nodeId,
@@ -507,12 +506,11 @@ export default function PreviewPanelView() {
 
     return list
   }, [
-    baseWidgetRegistry,
-    documentWidgetRegistry,
     frontmatterMermaidCode,
     frontmatterMermaidDiagrams,
     graphData,
     graphDataRevision,
+    graphSemanticKey,
     markdownDocumentName,
     mermaidFrontmatterConfig,
     rootThemeMode,
@@ -607,7 +605,7 @@ export default function PreviewPanelView() {
       )
     }
 
-    if (!activeMedia.src && activeMedia.kind !== 'mermaid') {
+    if (!activeMedia.src && !activeMedia.srcDoc && activeMedia.kind !== 'mermaid') {
       return (
         <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
           Selected media has no preview source.
@@ -632,7 +630,7 @@ export default function PreviewPanelView() {
           : 'iframe'
       const richMediaTitle = activeMedia.panelTitle || activeMedia.alt || activeMedia.label
       const richMediaOpenUrl = activeMedia.openUrl || activeMedia.src
-      const richMediaNeedsExplicitLoad = richMediaKind === 'iframe'
+      const richMediaNeedsExplicitLoad = richMediaKind === 'iframe' && !String(activeMedia.srcDoc || '').trim()
       const richMediaLoaded = !richMediaNeedsExplicitLoad || loadedEmbedKey === activeMedia.key
       const frameClass = richMediaKind === 'iframe'
         ? `aspect-video w-full max-w-4xl bg-black/5 rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden`
@@ -644,6 +642,7 @@ export default function PreviewPanelView() {
               <RichMediaPanel
                 title={richMediaTitle}
                 url={activeMedia.src}
+                srcDoc={activeMedia.srcDoc}
                 openUrl={richMediaOpenUrl}
                 kind={richMediaKind}
                 interactive={richMediaKind !== 'image'}

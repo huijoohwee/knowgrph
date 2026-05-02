@@ -156,7 +156,6 @@ export function deriveFrontmatterFlowOverlayNodeIds(graphData: GraphData | null 
     const id = String(n?.id || '').trim()
     if (!id || seen.has(id)) continue
     if (String(n?.type || '') === 'Section') continue
-    if (String(n?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
     if (!allowedFlowNodeIds.has(id)) continue
     seen.add(id)
     next.push(id)
@@ -211,7 +210,8 @@ type FlowEditorWidgetOverlayProps = {
   flowEditorSurfaceId?: string
   node: GraphNode
   graphMetaKind?: string | null
-  edges: ReadonlyArray<GraphEdge>
+  portHandleEdges?: ReadonlyArray<GraphEdge>
+  registryEntries?: ReadonlyArray<WidgetRegistryEntry>
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   viewportW: number
   viewportH: number
@@ -251,7 +251,8 @@ export const FlowEditorWidgetOverlay = React.memo(function FlowEditorWidgetOverl
       flowEditorSurfaceId={args.flowEditorSurfaceId}
       node={args.node}
       graphMetaKind={args.graphMetaKind}
-      edges={args.edges}
+      portHandleEdges={args.portHandleEdges}
+      registryEntries={args.registryEntries}
       connectedValuesBySchemaPath={args.connectedValuesBySchemaPath}
       toolMode={args.toolMode}
       pendingEdgeSourceId={args.pendingEdgeSourceId}

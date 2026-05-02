@@ -67,7 +67,7 @@ export function GraphTableInspector({
     graphData,
     sourceFiles,
     schema,
-    widgetRegistry,
+    effectiveWidgetRegistry,
     openWidgetNodeIds,
     selectedNodeId,
     uiIconScale,
@@ -80,7 +80,7 @@ export function GraphTableInspector({
       graphData: s.graphData,
       sourceFiles: s.sourceFiles,
       schema: s.schema,
-      widgetRegistry: s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY,
+      effectiveWidgetRegistry: s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY,
       openWidgetNodeIds: s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY,
       selectedNodeId: s.selectedNodeId,
       uiIconScale: s.uiIconScale,
@@ -102,7 +102,7 @@ export function GraphTableInspector({
   const graphLookup = useMemo(
     () => getCachedGraphLookup({
       cacheScope: 'graph-table-inspector',
-      graphData: graphData ?? null,
+      graphData,
       graphRevision: graphDataRevision,
       graphSemanticKey,
       preferCurrentGraphDataRefs: true,
@@ -118,8 +118,8 @@ export function GraphTableInspector({
     return graphNodeById.get(id) || null
   }, [graphNodeById, row])
   const registryEntry = useMemo(
-    () => (node ? resolveWidgetRegistryEntry({ node, registry: widgetRegistry }) : null),
-    [node, widgetRegistry],
+    () => (node ? resolveWidgetRegistryEntry({ node, registry: effectiveWidgetRegistry }) : null),
+    [effectiveWidgetRegistry, node],
   )
   const openWidgetNodeIdSet = useMemo(() => new Set(openWidgetNodeIds), [openWidgetNodeIds])
   const showWidget = useMemo(() => {
@@ -128,9 +128,9 @@ export function GraphTableInspector({
     if (!id) return false
     const isSelected = id === String(selectedNodeId || '')
     const isPinned = openWidgetNodeIdSet.has(id)
-    const isWidgetNode = isWidgetCandidateNode({ node, registry: widgetRegistry })
+    const isWidgetNode = isWidgetCandidateNode({ node, registry: effectiveWidgetRegistry })
     return isWidgetNode && (isSelected || isPinned)
-  }, [node, openWidgetNodeIdSet, selectedNodeId, widgetRegistry])
+  }, [effectiveWidgetRegistry, node, openWidgetNodeIdSet, selectedNodeId])
 
   const connectedValuesBySchemaPath: FlowConnectedValuesBySchemaPath | undefined = useMemo(() => {
     if (!node || !showWidget) return undefined
@@ -138,12 +138,13 @@ export function GraphTableInspector({
     if (!nodeId) return undefined
     const byNodeId = computeFlowConnectedValuesBySchemaPath({
       graphData,
-      registry: Array.isArray(widgetRegistry) ? widgetRegistry : [],
+      registry: Array.isArray(effectiveWidgetRegistry) ? effectiveWidgetRegistry : [],
       targetNodeIds: new Set([nodeId]),
       graphRevision: graphDataRevision,
+      graphSemanticKey,
     })
     return byNodeId.get(nodeId)
-  }, [graphData, graphDataRevision, node, widgetRegistry, showWidget])
+  }, [effectiveWidgetRegistry, graphData, graphDataRevision, graphSemanticKey, node, showWidget])
 
   const [codeFormat, setCodeFormat] = useState<'json' | 'markdown'>('json')
   const widgetBundleGraphSemanticKey = useMemo(() => {
@@ -160,7 +161,7 @@ export function GraphTableInspector({
     if (!nodeId) return ''
 
     const safeType = String(node.type || '').trim()
-    const registryForType = (widgetRegistry || []).filter((e: unknown) => {
+    const registryForType = (effectiveWidgetRegistry || []).filter((e: unknown) => {
       if (!e || typeof e !== 'object') return false
       const rec = e as { isEnabled?: unknown; nodeTypeId?: unknown }
       if (rec.isEnabled !== true) return false
@@ -182,7 +183,7 @@ export function GraphTableInspector({
     })
     if (codeFormat === 'markdown') return `\`\`\`json\n${bundleText}\n\`\`\``
     return bundleText
-  }, [codeFormat, graphDataRevision, graphEdgesByNodeId, node, showWidget, widgetBundleGraphSemanticKey, widgetRegistry])
+  }, [codeFormat, effectiveWidgetRegistry, graphDataRevision, graphEdgesByNodeId, node, showWidget, widgetBundleGraphSemanticKey])
 
   const copyWidgetCode = () => {
     const text = widgetCodeText
@@ -398,7 +399,7 @@ export function GraphTableInspector({
                   active={true}
                   node={node}
                   registryEntry={registryEntry}
-                  registryEntries={widgetRegistry}
+                  registryEntries={effectiveWidgetRegistry}
                   minimized={panelMinimized}
                   hideFields={panelHideFields}
                   pinned={false}

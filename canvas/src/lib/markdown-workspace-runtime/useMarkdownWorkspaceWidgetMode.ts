@@ -112,39 +112,26 @@ export function useMarkdownWorkspaceWidgetMode(args: {
   }
   const widgetRegistrySnapshot = widgetRegistrySnapshotRef.current.value
 
-  const widgetGraphSnapshotKey = React.useMemo(() => {
-    if (!widgetLookupActive || !widgetGraphSemanticKey) return ''
-    return hashSignatureParts([
-      'widget-graph-snapshot',
-      widgetGraphSemanticKey,
-      args.graphNodes.length,
-      args.graphEdges.length,
-    ])
-  }, [args.graphEdges.length, args.graphNodes.length, widgetGraphSemanticKey, widgetLookupActive])
-  const widgetGraphDataRef = React.useRef<{ key: string; value: GraphData | null } | null>(null)
-  if (widgetGraphDataRef.current?.key !== widgetGraphSnapshotKey) {
-    widgetGraphDataRef.current = {
-      key: widgetGraphSnapshotKey,
-      value: widgetGraphSnapshotKey
-        ? {
-            type: 'application/json',
-            nodes: Array.isArray(args.graphNodes) ? args.graphNodes : [],
-            edges: Array.isArray(args.graphEdges) ? args.graphEdges : [],
-          }
-        : null,
+  const widgetGraphData = React.useMemo<GraphData | null>(() => {
+    if (!widgetLookupActive || !widgetGraphSemanticKey) return null
+    return {
+      type: 'application/json',
+      nodes: Array.isArray(args.graphNodes) ? args.graphNodes : [],
+      edges: Array.isArray(args.graphEdges) ? args.graphEdges : [],
     }
-  }
-  const widgetGraphData = widgetGraphDataRef.current?.value || null
+  }, [args.graphEdges, args.graphNodes, widgetGraphSemanticKey, widgetLookupActive])
   const widgetNodeLookup = React.useMemo(
     () => getCachedGraphLookup({
       cacheScope: 'markdown-workspace-widget-node-lookup',
       graphData: widgetGraphData,
       graphRevision: args.graphContentRevision,
       graphSemanticKey: widgetGraphSemanticKey,
+      preferCurrentGraphDataRefs: true,
     }),
     [args.graphContentRevision, widgetGraphData, widgetGraphSemanticKey],
   )
   const graphLookupById = widgetNodeLookup?.nodeById || null
+  const graphLookupEdgesByNodeId = widgetNodeLookup?.incidentEdgesByNodeId || null
 
   const resolvedWidgetNodeIds = React.useMemo(() => {
     if (!widgetLookupActive || !graphLookupById) return []
@@ -171,16 +158,6 @@ export function useMarkdownWorkspaceWidgetMode(args: {
     () => hashSignatureParts(['widget-bundle-subset', widgetGraphSemanticKey, widgetNodeIdsKey]),
     [widgetGraphSemanticKey, widgetNodeIdsKey],
   )
-  const widgetBundleLookup = React.useMemo(
-    () => getCachedGraphLookup({
-      cacheScope: 'markdown-workspace-widget-bundle-lookup',
-      graphData: widgetBundleBuildActive ? widgetGraphData : null,
-      graphRevision: args.graphContentRevision,
-      graphSemanticKey: widgetBundleSemanticKey,
-    }),
-    [args.graphContentRevision, widgetBundleBuildActive, widgetBundleSemanticKey, widgetGraphData],
-  )
-  const graphLookupEdgesByNodeId = widgetBundleLookup?.incidentEdgesByNodeId || null
 
   React.useEffect(() => {
     if (contentMode === 'widget' && !widgetAvailable) setContentModeAuto('document')

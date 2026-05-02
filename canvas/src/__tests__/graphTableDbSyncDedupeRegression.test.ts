@@ -30,4 +30,13 @@ export function testGraphTableSelectionInspectorGatesDbSyncWhenGraphTablePaneIsA
   if (!text.includes('syncEnabled') || !text.includes("editorWorkspacePane !== 'graphTable'")) {
     throw new Error('expected GraphTableSelectionInspector to disable sync when graphTable pane is active')
   }
+  if (!text.includes("buildScopedGraphSemanticKey('graph-table-selection-inspector-base-graph'")) {
+    throw new Error('expected GraphTableSelectionInspector to key base-graph fallback selection from the shared semantic graph helper')
+  }
+  if (!text.includes("cacheScope: 'graph-table-selection-inspector-base-graph'") || !text.includes('getCachedGraphLookup({')) {
+    throw new Error('expected GraphTableSelectionInspector to reuse the shared graph lookup cache instead of rebuilding a raw node id set for widget fallback selection')
+  }
+  if (!text.includes('preferCurrentGraphDataRefs: true')) {
+    throw new Error('expected GraphTableSelectionInspector base graph lookup to preserve current graph references on cache refresh')
+  }
 }

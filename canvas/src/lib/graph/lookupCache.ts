@@ -25,6 +25,13 @@ type GetCachedGraphLookupArgs = {
 
 const graphLookupCache = new Map<string, CachedGraphLookup>()
 
+function readGraphCollections(graphData: GraphData): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  return {
+    nodes: Array.isArray(graphData.nodes) ? graphData.nodes : [],
+    edges: Array.isArray(graphData.edges) ? graphData.edges : [],
+  }
+}
+
 function readCachedGraphLookup(cacheKey: string): CachedGraphLookup | null {
   const cached = graphLookupCache.get(cacheKey) || null
   if (!cached) return null
@@ -43,8 +50,7 @@ function writeCachedGraphLookup(cacheKey: string, value: CachedGraphLookup): Cac
 }
 
 function buildGraphLookup(cacheKey: string, graphData: GraphData): CachedGraphLookup {
-  const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
-  const edges = Array.isArray(graphData.edges) ? graphData.edges : []
+  const { nodes, edges } = readGraphCollections(graphData)
   const nodeById = new Map<string, GraphNode>()
   const edgeById = new Map<string, GraphEdge>()
   const incidentEdgesByNodeId = new Map<string, GraphEdge[]>()
@@ -102,7 +108,13 @@ export function getCachedGraphLookup(args: GetCachedGraphLookupArgs): CachedGrap
   const cached = readCachedGraphLookup(cacheKey)
   if (cached) {
     if (cached.graphData !== graphData) {
+      const { nodes, edges } = readGraphCollections(graphData)
+      const reusesCurrentCollections = cached.nodes === nodes && cached.edges === edges
       if (args.preferCurrentGraphDataRefs === true) {
+        if (reusesCurrentCollections) {
+          cached.graphData = graphData
+          return cached
+        }
         return writeCachedGraphLookup(cacheKey, buildGraphLookup(cacheKey, graphData))
       }
       cached.graphData = graphData

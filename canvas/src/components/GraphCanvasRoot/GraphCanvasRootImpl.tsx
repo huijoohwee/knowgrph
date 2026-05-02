@@ -459,8 +459,8 @@ export default function GraphCanvas({ active = true }: { active?: boolean }) {
     })
   }, [markdownDocumentName, deferredMarkdownDocumentText])
 
-  const nodeByIdForPanelsRef = useRef<{ graphData: GraphData | null; rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
-    graphData: null,
+  const nodeByIdForPanelsRef = useRef<{ graphSemanticKey: string; rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
+    graphSemanticKey: '',
     rev: -1,
     sim: null,
     map: new Map(),

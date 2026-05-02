@@ -1,5 +1,5 @@
 import React from 'react'
-import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
+import { StaticRichMediaPanelPreview } from '@/components/StaticRichMediaPanelPreview'
 import type { DesignCanvasFrameNodeRef, DesignCanvasFrameRect, DesignCanvasWireframePreview } from '@/components/DesignCanvas/types'
 import { truncateTextWithEllipsis } from '@/lib/ui/text/labelText'
 
@@ -38,11 +38,10 @@ export function DesignCanvasWireframePreviewLayer(props: {
           <g key={`txt:${node.id}`} transform={`translate(${position.x},${position.y})`}>
             {preview.kind === 'media' ? (
               preview.tag === 'IMG' || preview.tag === 'VIDEO' || preview.tag === 'IFRAME' ? (
-                <DesignRichMediaPreview
+                <StaticRichMediaPanelPreview
                   tag={preview.tag}
                   url={preview.src}
                   titleChip={preview.titleChip}
-                  clipId={preview.clipId}
                   innerX={preview.innerX}
                   innerY={preview.innerY}
                   innerW={preview.innerW}

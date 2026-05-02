@@ -42,13 +42,13 @@ import { computeDefaultWidgetFloatingPos, computeWidgetAnchoredStackOffset } fro
 import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { getIconSizeClass } from '@/lib/ui'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { useShallow } from 'zustand/react/shallow'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { readPortHandleUiMetrics } from '@/components/FlowEditor/portHandleUi'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config.flow-editor'
+import { useRichMediaWidgetPreview } from '@/components/FlowEditor/useRichMediaWidgetPreview'
 import {
   normalizeRichMediaPanelTab,
   resolveRichMediaAspectSelection,
@@ -60,7 +60,6 @@ import {
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_BASE = Z_INDEX_GRAPH_OVERLAY_BASE
 const FLOW_EDITOR_NODE_OVERLAY_Z_INDEX_SELECTED = Z_INDEX_GRAPH_OVERLAY_SELECTED
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
-const EMPTY_STRING_ARRAY: string[] = []
 const WIDGET_ACTIONS_TOOLBAR_OFFSET_PX = 40
 const WIDGET_ACTIONS_TOOLBAR_CLEARANCE_PX = 48
 const WIDGET_ACTIONS_TOOLBAR_SIDE_OFFSET_PX = 8
@@ -84,7 +83,8 @@ type NodeOverlayEditorProps = {
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
   getLiveContainmentGroupAabbForNode?: (nodeId: string) => { groupId: string; minX: number; minY: number; maxX: number; maxY: number } | null
   graphMetaKind?: string | null
-  edges: ReadonlyArray<GraphEdge>
+  portHandleEdges?: ReadonlyArray<GraphEdge>
+  registryEntries?: ReadonlyArray<WidgetRegistryEntry>
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   toolMode?: 'select' | 'addEdge'
   pendingEdgeSourceId?: string | null
@@ -121,7 +121,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   getLiveZoomTransform,
   getLiveContainmentGroupAabbForNode,
   graphMetaKind,
-  edges,
+  portHandleEdges = [],
+  registryEntries = EMPTY_WIDGET_REGISTRY,
   connectedValuesBySchemaPath,
   toolMode,
   pendingEdgeSourceId,
@@ -151,10 +152,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     uiPanelOpacity,
     schema,
     documentStructureBaselineLock,
-    documentWidgetRegistry,
-    effectiveWidgetRegistry,
-    baseWidgetRegistry,
-    openWidgetNodeIds,
+    openWidgetNodeCount,
     upsertUiToast,
     selectNode,
     setSelectionSource,
@@ -169,10 +167,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       uiPanelOpacity: s.uiPanelOpacity,
       schema: s.schema,
       documentStructureBaselineLock: s.documentStructureBaselineLock === true,
-      documentWidgetRegistry: (s.documentWidgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
-      effectiveWidgetRegistry: (s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
-      baseWidgetRegistry: (s.widgetRegistry ?? EMPTY_WIDGET_REGISTRY) as WidgetRegistryEntry[],
-      openWidgetNodeIds: s.openWidgetNodeIds ?? EMPTY_STRING_ARRAY,
+      openWidgetNodeCount: Array.isArray(s.openWidgetNodeIds) ? s.openWidgetNodeIds.length : 0,
       upsertUiToast: s.upsertUiToast,
       selectNode: s.selectNode,
       setSelectionSource: s.setSelectionSource,
@@ -182,16 +177,6 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         .setFlowWidgetWorldPosByNodeId,
       setFlowWidgetPinnedByNodeId: s.setFlowWidgetPinnedByNodeId,
     })),
-  )
-
-  const widgetRegistry = React.useMemo(
-    () =>
-      buildDataflowWidgetRegistry({
-        documentWidgetRegistry,
-        effectiveWidgetRegistry,
-        widgetRegistry: baseWidgetRegistry,
-      }),
-    [baseWidgetRegistry, documentWidgetRegistry, effectiveWidgetRegistry],
   )
 
   const nodeId = React.useMemo(() => String(node.id || '').trim(), [node.id])
@@ -208,8 +193,8 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
   }, [nodeId, selectedNodeId, stackIndex])
 
   const registryEntry: WidgetRegistryEntry | null = React.useMemo(
-    () => resolveWidgetRegistryEntry({ node, registry: widgetRegistry, graphMetaKind }),
-    [graphMetaKind, node, widgetRegistry],
+    () => resolveWidgetRegistryEntry({ node, registry: registryEntries, graphMetaKind }),
+    [graphMetaKind, node, registryEntries],
   )
 
   const asideRef = React.useRef<HTMLElement | null>(null)
@@ -240,7 +225,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       zoomK: zoomStateRef.current?.k ?? 1,
       viewportW,
       viewportH,
-      count: openWidgetNodeIds.length,
+      count: openWidgetNodeCount,
       baseWidth: WIDGET_BASE_SIZE.width,
       baseHeight: WIDGET_BASE_SIZE.height,
     })),
@@ -577,7 +562,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
           extent,
           viewportW,
           viewportH,
-          count: openWidgetNodeIds.length,
+          count: openWidgetNodeCount,
           baseWidth: WIDGET_BASE_SIZE.width,
           baseHeight: WIDGET_BASE_SIZE.height,
           quantizeStep: 0.02,
@@ -724,7 +709,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
     getLiveZoomTransform,
     graphMetaKind,
     nodeId,
-    openWidgetNodeIds.length,
+    openWidgetNodeCount,
     pinnedLeftPx,
     pinnedTopPx,
     scheduleClampCommit,
@@ -861,7 +846,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             zoomK: nextZoom?.k ?? 1,
             viewportW,
             viewportH,
-            count: openWidgetNodeIds.length,
+            count: openWidgetNodeCount,
             baseWidth: WIDGET_BASE_SIZE.width,
             baseHeight: WIDGET_BASE_SIZE.height,
           }))
@@ -883,7 +868,7 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         void 0
       }
     }
-  }, [applyOverlayPosition, openWidgetNodeIds.length, viewportH, viewportW, zoomViewKey])
+  }, [applyOverlayPosition, openWidgetNodeCount, viewportH, viewportW, zoomViewKey])
 
   React.useEffect(() => {
     if (!active) return
@@ -984,6 +969,19 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       return next
     })
   }, [])
+  const showRichMediaPanelBody = isRichMediaPanelWidget && !hideFields && !minimized
+  const richMediaWidgetPreview = useRichMediaWidgetPreview({
+    enabled: showRichMediaPanelBody,
+    node,
+    onPatchProperties,
+    connectedValuesBySchemaPath,
+  })
+  const {
+    richMediaPanelState,
+    richMediaSelectedTab,
+    richMediaOpenUrl,
+    handleRichMediaPanelChange,
+  } = richMediaWidgetPreview
   const richMediaSelectedMode = React.useMemo<RichMediaPanelTab>(() => {
     if (!isRichMediaPanelWidget) return 'auto'
     return normalizeRichMediaPanelTab((node.properties || {}).richMediaActiveTab)
@@ -1037,15 +1035,43 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         selected: richMediaAspectSelection,
         onToggle: handleToggleRichMediaAspect,
       },
+      richMediaTextModeToggle: richMediaSelectedTab === 'text' && richMediaPanelState ? {
+        visible: true,
+        freezeConnectedOutput: richMediaPanelState.freezeConnectedOutput,
+        onToggle: () => {
+          if (!richMediaPanelState) return
+          if (richMediaPanelState.freezeConnectedOutput) {
+            handleRichMediaPanelChange({ activeTab: 'text', freezeConnectedOutput: false })
+            return
+          }
+          const base = richMediaPanelState.connectedText || richMediaPanelState.text
+          handleRichMediaPanelChange({ activeTab: 'text', freezeConnectedOutput: true, text: base })
+        },
+      } : undefined,
+      openExternalAction: richMediaOpenUrl ? {
+        visible: true,
+        label: 'Open source',
+        onOpen: () => {
+          try {
+            window.open(richMediaOpenUrl, '_blank', 'noopener,noreferrer')
+          } catch {
+            void 0
+          }
+        },
+      } : undefined,
     }
   }, [
+    handleRichMediaPanelChange,
     handleSelectRichMediaMode,
     handleToggleHideFields,
     handleToggleRichMediaAspect,
     hideFields,
     isRichMediaPanelWidget,
+    richMediaOpenUrl,
     richMediaAspectSelection,
+    richMediaPanelState,
     richMediaSelectedMode,
+    richMediaSelectedTab,
   ])
 
   const spacePanUserSelectUnlockRef = React.useRef<null | (() => void)>(null)
@@ -1379,6 +1405,11 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
             enableHandlesDisabled={enableHandlesDisabled}
             convertToLoopDisabled={convertToLoopDisabled}
             duplicateDisabled={pinnedInCanvas}
+            richMediaViewToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaViewToggle : undefined}
+            richMediaMediaSelector={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaMediaSelector : undefined}
+            richMediaAspectToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaAspectToggle : undefined}
+            richMediaTextModeToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaTextModeToggle : undefined}
+            openExternalAction={isRichMediaPanelWidget ? richMediaPanelToolbarProps.openExternalAction : undefined}
             importUrlAction={isVideoTranscriberWidget ? {
               visible: true,
               initialUrl: typeof (node.properties || {}).sourceUrl === 'string' ? String((node.properties || {}).sourceUrl || '').trim() : '',
@@ -1423,14 +1454,15 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
         onValidate={onValidate}
         onRegistrySelectionChange={handleRegistrySelectionChange}
         onRenameSchemaFieldId={onRenameSchemaFieldId}
+        richMediaWidgetPreview={richMediaWidgetPreview}
         {...richMediaPanelToolbarProps}
 
         registryEntry={registryEntry}
-        registryEntries={widgetRegistry}
+        registryEntries={registryEntries}
 
         connectedValuesBySchemaPath={connectedValuesBySchemaPath}
 
-        portHandleEdges={Array.isArray(edges) ? edges : []}
+        portHandleEdges={portHandleEdges}
         schema={schema}
         toolMode={toolMode}
         pendingEdgeSourceId={pendingEdgeSourceId}

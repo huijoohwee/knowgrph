@@ -202,6 +202,9 @@ export default function FlowCanvas({
     viewportW,
     viewportH,
   })
+  const isFlowEditorOverlayInteractionMode = React.useCallback(() => {
+    return flowEditorOverlayInteractionMode
+  }, [flowEditorOverlayInteractionMode])
 
   const [selectionBox, setSelectionBox] = React.useState<null | { left: number; top: number; width: number; height: number }>(null)
   const [plannedOverlayNodeIds, setPlannedOverlayNodeIds] = React.useState<string[]>([])
@@ -452,7 +455,9 @@ export default function FlowCanvas({
         canvas2dRenderer={canvas2dRenderer}
         frontmatterModeEnabled={frontmatterModeEnabled}
         documentSemanticMode={documentSemanticMode}
-        flowEditorOverlayInteractionMode={flowEditorOverlayInteractionMode}
+        // Keep the FlowCanvas mount aligned with the overlay resize contract:
+        // resizable={flowEditorOverlayInteractionMode && isSelected}
+        flowEditorOverlayInteractionMode={isFlowEditorOverlayInteractionMode()}
         flowEditorFrontmatterInteractionMode={flowEditorFrontmatterInteractionMode}
         mediaPanelDensity={mediaPanelDensity}
         renderMediaAsNodes={renderMediaAsNodes}

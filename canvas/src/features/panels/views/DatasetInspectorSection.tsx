@@ -12,7 +12,7 @@ import {
   DATASET_EMPTY_TEXT,
 } from '@/lib/config'
 import type { GraphData, SelectionAnchorIds } from '@/lib/graph/types'
-import { buildSelectionSubgraphForAnchorIds } from '@/lib/graph/file'
+import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import {
@@ -67,18 +67,23 @@ export default function DatasetInspectorSection({
   const copy = RENDER_PANEL_SECTION_COPY.datasetInspector
   const graph = useActiveGraphRenderData()
 
-  const selectionSubgraph = React.useMemo<GraphData | null>(() => {
-    if (!graph) return null
-    const selectionAnchorIds: SelectionAnchorIds = normalizeSelectionIds({
+  const selectionAnchorIds = React.useMemo<SelectionAnchorIds>(() => {
+    return normalizeSelectionIds({
       selectedNodeId,
       selectedEdgeId,
       selectedNodeIds,
       selectedEdgeIds,
     })
+  }, [selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
+
+  const selectionMembership = React.useMemo(() => {
+    if (!graph) return null
     const { selectionNodeIds, selectionEdgeIds } = selectionAnchorIds
     if (selectionNodeIds.length === 0 && selectionEdgeIds.length === 0) return null
-    return buildSelectionSubgraphForAnchorIds(graph, selectionAnchorIds)
-  }, [graph, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
+    return readSelectionSubgraphMembershipForAnchorIds(graph, selectionAnchorIds)
+  }, [graph, selectionAnchorIds])
+
+  const selectionSubgraph = selectionMembership?.subgraph ?? null
 
   const hasSelectionSubgraph = !!(
     selectionSubgraph &&

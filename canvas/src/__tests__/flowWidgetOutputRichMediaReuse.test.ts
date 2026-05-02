@@ -83,6 +83,43 @@ export function testFlowEditorCanvasUsesDraftRevisionForActiveRenderGraph() {
   }
 }
 
+export function testRichMediaRenderPathsReuseSemanticGraphKeysForConnectedValueCaching() {
+  const flowDataflowPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
+  const flowCanvasStatePath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts')
+  const overlays2dPath = resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useRichMediaOverlays2d.ts')
+  const previewPanelPath = resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx')
+  const graphTableInspectorPath = resolve(process.cwd(), 'src', 'features', 'graph-table', 'ui', 'GraphTableInspector.tsx')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const flowDataflowText = readFileSync(flowDataflowPath, 'utf8')
+  const flowCanvasStateText = readFileSync(flowCanvasStatePath, 'utf8')
+  const overlays2dText = readFileSync(overlays2dPath, 'utf8')
+  const previewPanelText = readFileSync(previewPanelPath, 'utf8')
+  const graphTableInspectorText = readFileSync(graphTableInspectorPath, 'utf8')
+  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+
+  if (!flowDataflowText.includes('graphSemanticKey?: string')) {
+    throw new Error('expected flow dataflow cache SSOT to accept an explicit semantic graph key')
+  }
+  if (!flowDataflowText.includes("buildScopedGraphSemanticKey('flow-connected-values-graph'")) {
+    throw new Error('expected flow dataflow cache SSOT to derive cache keys from the shared semantic graph key helper')
+  }
+  if (!flowCanvasStateText.includes('graphSemanticKey: sceneGraphSemanticKey,')) {
+    throw new Error('expected FlowCanvas rich media connected-value path to reuse the scene graph semantic key')
+  }
+  if (!overlays2dText.includes('graphSemanticKey: sceneGraphSemanticKey,')) {
+    throw new Error('expected D3 rich media overlay path to reuse the scene graph semantic key for connected-value caching')
+  }
+  if (!previewPanelText.includes('graphSemanticKey,')) {
+    throw new Error('expected PreviewPanelView graph media path to thread a semantic graph key into connected-value caching')
+  }
+  if (!graphTableInspectorText.includes('graphSemanticKey,')) {
+    throw new Error('expected GraphTableInspector widget preview path to thread a semantic graph key into connected-value caching')
+  }
+  if (!overlaySurfaceText.includes('frontmatterVisibleSceneDisplayRef.current.key !== frontmatterVisibleGraphSemanticKey')) {
+    throw new Error('expected FlowEditor overlay surface to invalidate frontmatter scene derivation on semantic graph keys instead of raw graph identity')
+  }
+}
+
 export function testFlowEditorCanvasResolvesCanonicalSelectionIdsAcrossDraftAndOverlayGraphs() {
   const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
@@ -179,23 +216,26 @@ export function testFloatingPropsPanelUsesMergedDataflowRegistry() {
   const modelText = readFileSync(floatingPropsModelPath, 'utf8')
   const mediaSpecText = readFileSync(mediaSpecPath, 'utf8')
 
-  if (!text.includes('buildDataflowWidgetRegistry')) {
-    throw new Error('expected FloatingPropsPanel widget palette to reuse shared merged dataflow registry')
-  }
-  if (!text.includes('documentWidgetRegistry')) {
-    throw new Error('expected FloatingPropsPanel to include document widget registry in merged palette resolution')
-  }
   if (!text.includes('effectiveWidgetRegistry')) {
-    throw new Error('expected FloatingPropsPanel to include effective widget registry in merged palette resolution')
+    throw new Error('expected FloatingPropsPanel widget palette to reuse the store effective widget registry SSOT')
   }
-  if (!text.includes('baseWidgetRegistry')) {
-    throw new Error('expected FloatingPropsPanel to include base widget registry in merged palette resolution')
+  if (text.includes('buildDataflowWidgetRegistry')) {
+    throw new Error('expected FloatingPropsPanel to avoid rebuilding a duplicate merged widget registry locally')
+  }
+  if (!text.includes('.filter(e => e && e.isEnabled)')) {
+    throw new Error('expected FloatingPropsPanel widget palette to filter enabled entries from the effective widget registry')
   }
   if (!text.includes('NODE_MEDIA_KINDS')) {
     throw new Error('expected FloatingPropsPanel media kind options to reuse the shared canonical node media kind list')
   }
   if (!modelText.includes('DEFAULT_NODE_MEDIA_KIND')) {
     throw new Error('expected FloatingPropsPanel model to reuse the shared default node media kind')
+  }
+  if (!modelText.includes("buildScopedGraphSemanticKey('floating-props-panel-graph'")) {
+    throw new Error('expected FloatingPropsPanel model to key lookup reuse from the shared semantic graph signature helper')
+  }
+  if (!modelText.includes('preferCurrentGraphDataRefs: true')) {
+    throw new Error('expected FloatingPropsPanel model to preserve current graph references when the semantic lookup cache refreshes')
   }
   if (!mediaSpecText.includes('export function patchNodeMediaProperties')) {
     throw new Error('expected mediaSpec SSOT to expose a shared node-media property patch helper')

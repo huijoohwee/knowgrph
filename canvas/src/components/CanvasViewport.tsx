@@ -208,11 +208,12 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
     const base = (derived || graphData) as GraphData
     return buildGeospatialOverlayGraphData({
       graphData: base,
+      graphRevision: graphDataRevision,
       markdownText: markdownDocumentText,
       sourceDocumentPath: markdownDocumentName,
       sourceFiles,
     })
-  }, [active, graphData, markdownDocumentName, markdownDocumentText, sourceFiles])
+  }, [active, graphData, graphDataRevision, markdownDocumentName, markdownDocumentText, sourceFiles])
 
   React.useEffect(() => {
     if (!active) return

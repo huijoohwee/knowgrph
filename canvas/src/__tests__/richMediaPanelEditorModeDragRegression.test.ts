@@ -1,7 +1,5 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { shouldShowRichMediaFloatingToolbar } from '@/lib/render/richMediaSsot'
-
 export function testRichMediaPanelEditorModeDisablesInteractiveContentForDragging() {
   const p = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
   const text = readFileSync(p, 'utf8')
@@ -46,32 +44,14 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   const overlayEditorPanelText = readFileSync(overlayEditorPanelPath, 'utf8')
   const overlayEditorText = readFileSync(overlayEditorPath, 'utf8')
 
-  if (!panelText.includes("import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'")) {
-    throw new Error('expected RichMediaPanel to reuse the shared widget-like floating toolbar component')
+  if (panelText.includes('NodeOverlayEditorActionsToolbar')) {
+    throw new Error('expected RichMediaPanel to stop mounting its own widget-like floating toolbar and defer toolbar ownership upstream')
   }
-  if (!panelText.includes('shouldShowRichMediaFloatingToolbar({')) {
-    throw new Error('expected RichMediaPanel to derive its shared floating-toolbar visibility through the rich-media SSOT helper')
+  if (panelText.includes('shouldShowRichMediaFloatingToolbar({')) {
+    throw new Error('expected RichMediaPanel to stop deriving floating-toolbar visibility locally after upstream toolbar consolidation')
   }
-  if (!panelText.includes('<NodeOverlayEditorActionsToolbar')) {
-    throw new Error('expected RichMediaPanel to mount the shared floating toolbar instead of duplicating header actions')
-  }
-  if (!panelText.includes('richMediaMediaSelector={showWidgetLikeToolbar ? {')) {
-    throw new Error('expected RichMediaPanel to route media-mode selection through the shared floating toolbar')
-  }
-  if (!panelText.includes('richMediaViewToggle={showWidgetLikeToolbar ? props.richMediaViewToggle : undefined}')) {
-    throw new Error('expected RichMediaPanel to route rich-media view toggles through the shared floating toolbar contract')
-  }
-  if (!panelText.includes('richMediaAspectToggle={showWidgetLikeToolbar ? props.richMediaAspectToggle : undefined}')) {
-    throw new Error('expected RichMediaPanel to route aspect toggles through the shared floating toolbar contract')
-  }
-  if (!panelText.includes("richMediaTextModeToggle={showWidgetLikeToolbar && panelSelectedTab === 'text' ? {")) {
-    throw new Error('expected RichMediaPanel to route text edit/view toggles through the shared floating toolbar')
-  }
-  if (!panelText.includes('openExternalAction={showWidgetLikeToolbar && safeOpenUrl ? {')) {
-    throw new Error('expected RichMediaPanel to route open-source actions through the shared floating toolbar')
-  }
-  if (!panelText.includes('actionVisibility={{')) {
-    throw new Error('expected RichMediaPanel to disable legacy generic widget actions when reusing the shared floating toolbar')
+  if (panelText.includes('data-kg-rich-media-floating-toolbar="1"')) {
+    throw new Error('expected RichMediaPanel render surface to stop exposing a duplicate floating-toolbar shell marker')
   }
   if (panelText.includes('data-kg-panel-action="1"')) {
     throw new Error('expected RichMediaPanel to remove the legacy inline header action variant after consolidation')
@@ -85,26 +65,26 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   if (!overlayEditorPanelText.includes('panel={richMediaPanelState || undefined}')) {
     throw new Error('expected NodeOverlayEditorPanel to pass canonical rich-media panel state into the shared RichMediaPanel shell')
   }
-  if (!overlayEditorPanelText.includes('richMediaViewToggle={richMediaViewToggle}')) {
-    throw new Error('expected NodeOverlayEditorPanel to pass view-toggle state into the shared RichMediaPanel toolbar')
-  }
-  if (!overlayEditorPanelText.includes('richMediaAspectToggle={richMediaAspectToggle}')) {
-    throw new Error('expected NodeOverlayEditorPanel to pass aspect-toggle state into the shared RichMediaPanel toolbar')
+  if (!overlayEditorPanelText.includes('widgetToolbarActive={false}')) {
+    throw new Error('expected NodeOverlayEditorPanel to disable duplicate in-body RichMediaPanel toolbar ownership')
   }
   if (overlayEditorPanelText.includes("richMediaPreview?.kind === 'image' && richMediaPreview.url ? (")) {
     throw new Error('expected NodeOverlayEditorPanel to remove the legacy bespoke image/video/iframe preview branches after consolidation')
   }
-  if (overlayEditorText.includes('richMediaMediaSelector={isRichMediaPanelWidget ? {')) {
-    throw new Error('expected NodeOverlayEditor to stop mounting legacy Rich Media media selectors on the outer generic widget toolbar')
+  if (!overlayEditorText.includes('richMediaMediaSelector={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaMediaSelector : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to own the Rich Media media selector through the real outer widget floating toolbar')
   }
-  if (overlayEditorText.includes('richMediaViewToggle={isRichMediaPanelWidget ? {')) {
-    throw new Error('expected NodeOverlayEditor to stop mounting legacy Rich Media view toggles on the outer generic widget toolbar')
+  if (!overlayEditorText.includes('richMediaViewToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaViewToggle : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to own the Rich Media view toggle through the real outer widget floating toolbar')
   }
-  if (overlayEditorText.includes('richMediaAspectToggle={isRichMediaPanelWidget ? {')) {
-    throw new Error('expected NodeOverlayEditor to stop mounting legacy Rich Media aspect toggles on the outer generic widget toolbar')
+  if (!overlayEditorText.includes('richMediaAspectToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaAspectToggle : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to own the Rich Media aspect toggle through the real outer widget floating toolbar')
   }
-  if (!overlayEditorPanelText.includes('richMediaMediaSelector={richMediaMediaSelector}')) {
-    throw new Error('expected Flow Editor rich-media media selectors to flow through the shared RichMediaPanel shell')
+  if (!overlayEditorText.includes('richMediaTextModeToggle={isRichMediaPanelWidget ? richMediaPanelToolbarProps.richMediaTextModeToggle : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to own the Rich Media text edit/view toggle through the real outer widget floating toolbar')
+  }
+  if (!overlayEditorText.includes('openExternalAction={isRichMediaPanelWidget ? richMediaPanelToolbarProps.openExternalAction : undefined}')) {
+    throw new Error('expected NodeOverlayEditor to own the Rich Media open-source action through the real outer widget floating toolbar')
   }
   if (!toolbarText.includes('richMediaTextModeToggle?: {')) {
     throw new Error('expected NodeOverlayEditorActionsToolbar to expose a shared rich-media text edit/view toggle contract')
@@ -117,27 +97,5 @@ export function testRichMediaPanelFlowEditorReusesSharedFloatingToolbarVariant()
   }
   if (!toolbarText.includes("data-kg-rich-media-open-source=\"1\"")) {
     throw new Error('expected the shared floating toolbar to expose a stable rich-media open-source hook')
-  }
-}
-
-export function testRichMediaFloatingToolbarShowsForCanonicalOpenUrlPreview() {
-  const showForOpenUrlOnly = shouldShowRichMediaFloatingToolbar({
-    hasPanelState: false,
-    hasMultiKinds: false,
-    selectedTab: 'image',
-    safeOpenUrl: 'https://example.com/source',
-  })
-  if (showForOpenUrlOnly !== true) {
-    throw new Error('expected canonical Rich Media previews with an open source URL to keep the widget-like floating toolbar')
-  }
-
-  const hideForEmptyNonPanel = shouldShowRichMediaFloatingToolbar({
-    hasPanelState: false,
-    hasMultiKinds: false,
-    selectedTab: 'image',
-    safeOpenUrl: '',
-  })
-  if (hideForEmptyNonPanel !== false) {
-    throw new Error('expected empty non-panel Rich Media surfaces to avoid mounting a ghost floating toolbar')
   }
 }

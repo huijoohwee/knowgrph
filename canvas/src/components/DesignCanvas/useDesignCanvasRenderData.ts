@@ -1,6 +1,5 @@
 import React from 'react'
 import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
-import { hashText } from '@/features/parsers/hash'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { truncateTextWithEllipsis } from '@/lib/ui/text/labelText'
 import type {
@@ -307,8 +306,7 @@ export function useDesignCanvasRenderData(args: UseDesignCanvasRenderDataArgs) {
       if (!rawSrc) continue
       const title = tag === 'IMG' ? 'Image' : tag === 'VIDEO' ? 'Video' : 'IFrame'
       const titleChip = truncateTextWithEllipsis(title, 24)
-      const clipId = `kgmd-clip-${hashText(id)}`
-      map.set(id, { tag, titleChip, url: rawSrc, clipId })
+      map.set(id, { tag, titleChip, url: rawSrc })
     }
     return map
   }, [designGraphNodeById, showMediaPreview, styleById, visibleNodes])

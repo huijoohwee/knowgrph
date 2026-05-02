@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { AgenticRagNodeId, GraphData, JSONValue } from '@/lib/graph/types'
 import { findGraphRagTraversalEdgeIds } from '@/lib/graph/graphragTraversal'
 import {
@@ -82,6 +84,30 @@ export function testGraphRagTraversalHandlesMissingOwner() {
   }
   const edgeIds = findGraphRagTraversalEdgeIds(graph)
   if (edgeIds.length !== 0) throw new Error(`expected no edges, got ${edgeIds.join(',')}`)
+}
+
+export function testGraphRagTraversalReusesSemanticLookupCache() {
+  const traversalText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'graph', 'graphragTraversal.ts'), 'utf8')
+  const orchestratorText = readFileSync(
+    resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'OrchestratorSettingsSection.tsx'),
+    'utf8',
+  )
+
+  if (
+    !traversalText.includes("cacheScope: 'graph-traversal-lookup'")
+    || !traversalText.includes("buildScopedGraphSemanticKey('graph-traversal', {")
+    || traversalText.includes('new WeakMap<GraphData')
+  ) {
+    throw new Error('expected graph traversal helpers to reuse shared semantic graph lookup caching instead of raw GraphData identity WeakMaps')
+  }
+  if (
+    !orchestratorText.includes("cacheScope: 'orchestrator-settings-graph'")
+    || !orchestratorText.includes('graphRevision: graphDataRevision')
+    || !orchestratorText.includes('findTraversalEdgeIds(graph, {')
+    || !orchestratorText.includes('graphSemanticKey,')
+  ) {
+    throw new Error('expected FloatingPanel orchestrator traversal to pass graph revision and semantic graph keys through shared lookup-based traversal helpers')
+  }
 }
 
 export function testBuildEdgeIdsForPath() {

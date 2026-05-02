@@ -2,8 +2,11 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { hashText } from '@/features/parsers/hash'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 
-const GROUP_COLLAPSE_CACHE = new WeakMap<GraphData, Map<string, GraphData>>()
+const GROUP_COLLAPSE_CACHE_LIMIT = 64
+const GROUP_COLLAPSE_CACHE = new Map<string, GraphData>()
 
 const clampNumber = (v: number, min: number, max: number): number => {
   if (!Number.isFinite(v)) return min
@@ -46,13 +49,13 @@ export const deriveGraphDataWithGroupCollapse = (args: {
   const normalizedCollapsedGroupIds = Array.isArray(args.collapsedGroupIds)
     ? args.collapsedGroupIds.map(x => String(x || '').trim()).filter(Boolean)
     : []
-  const collapsedKey = normalizedCollapsedGroupIds.length ? normalizedCollapsedGroupIds.join('|') : ''
-
-  if (collapsedKey) {
-    const byKey = GROUP_COLLAPSE_CACHE.get(args.graphData)
-    const cached = byKey?.get(collapsedKey)
-    if (cached) return cached
-  }
+  const collapsedGroupIdsKey = hashScopedStringArraySignature('graph-group-collapse-ids', normalizedCollapsedGroupIds)
+  const graphSemanticKey = buildScopedGraphSemanticKey('graph-canvas-view-derivation-group-collapse', {
+    graphData: args.graphData,
+    graphSemanticKey: collapsedGroupIdsKey,
+  })
+  const cached = graphSemanticKey ? GROUP_COLLAPSE_CACHE.get(graphSemanticKey) : null
+  if (cached) return cached
 
   const collapsedSet = new Set<string>(normalizedCollapsedGroupIds)
   if (collapsedSet.size === 0) return args.graphData
@@ -73,6 +76,8 @@ export const deriveGraphDataWithGroupCollapse = (args: {
   const graphLookup = getCachedGraphLookup({
     cacheScope: 'graph-canvas-view-derivation-group-collapse',
     graphData: args.graphData,
+    graphSemanticKey,
+    preferCurrentGraphDataRefs: true,
   })
   const nodeById = graphLookup?.nodeById || new Map<string, GraphNode>()
 
@@ -232,10 +237,12 @@ export const deriveGraphDataWithGroupCollapse = (args: {
     },
   }
 
-  if (collapsedKey) {
-    const byKey = GROUP_COLLAPSE_CACHE.get(args.graphData) || new Map<string, GraphData>()
-    byKey.set(collapsedKey, out)
-    GROUP_COLLAPSE_CACHE.set(args.graphData, byKey)
+  if (graphSemanticKey) {
+    GROUP_COLLAPSE_CACHE.set(graphSemanticKey, out)
+    if (GROUP_COLLAPSE_CACHE.size > GROUP_COLLAPSE_CACHE_LIMIT) {
+      const oldestKey = GROUP_COLLAPSE_CACHE.keys().next().value
+      if (typeof oldestKey === 'string') GROUP_COLLAPSE_CACHE.delete(oldestKey)
+    }
   }
   return out
 }

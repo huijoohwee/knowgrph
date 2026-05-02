@@ -521,8 +521,9 @@ export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
 }
 
 export function testFrontmatterFlowOverlayEditorsIncludeCanonicalBuiltInWidgets() {
-  const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
-  const text = readFileSync(flowEditorCanvasPath, 'utf8')
+  const placementAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetPlacementAuthority.ts')
+  const sharedPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'flowEditorCanvasShared.tsx')
+  const text = `${readFileSync(placementAuthorityPath, 'utf8')}\n${readFileSync(sharedPath, 'utf8')}`
 
   if (!text.includes('function isCanonicalFrontmatterBuiltInWidgetNode')) {
     throw new Error('expected FlowEditorCanvas to centralize canonical built-in frontmatter widget detection')
@@ -532,6 +533,9 @@ export function testFrontmatterFlowOverlayEditorsIncludeCanonicalBuiltInWidgets(
   }
   if (!text.includes('allowedFlowNodeIds.add(id)')) {
     throw new Error('expected frontmatter overlay derivation to keep canonical built-in widget ids in the overlay set')
+  }
+  if (text.includes("if (String(n?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue")) {
+    throw new Error('expected frontmatter overlay derivation to stop excluding Rich Media Panel widget nodes from the Flow Editor overlay set')
   }
 }
 
@@ -1041,9 +1045,11 @@ export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow(
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const placementAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetPlacementAuthority.ts')
+  const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
   const placementAuthorityText = readFileSync(placementAuthorityPath, 'utf8')
+  const overlayText = readFileSync(overlayPath, 'utf8')
   if (overlaySurfaceText.includes('forcePinnedToCanvas')) {
     throw new Error('expected FlowEditor overlay widgets to avoid legacy force-pinned canvas mode')
   }
@@ -1052,6 +1058,18 @@ export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow(
   }
   if (!runtimeSceneText.includes("return typeof v === 'boolean' ? v : defaultPinnedInCanvas")) {
     throw new Error('expected zoom-follow pinned buckets to defer undefined pin state to shared default pinning rules')
+  }
+  if (!overlayText.includes("openWidgetNodeCount: Array.isArray(s.openWidgetNodeIds) ? s.openWidgetNodeIds.length : 0")) {
+    throw new Error('expected widget overlay scale follow to depend on semantic open-widget count rather than raw array identity')
+  }
+  if (!overlaySurfaceText.includes("incidentEdgesByNodeId: baseLookup.incidentEdgesByNodeId")) {
+    throw new Error('expected overlay surface to reuse cached per-node incident edges from the shared graph lookup')
+  }
+  if (!overlaySurfaceText.includes("const portHandleEdges = incidentEdgesByNodeId?.get(id) || EMPTY_GRAPH_EDGES")) {
+    throw new Error('expected overlay surface to pass only node-local cached edges into each widget overlay')
+  }
+  if (!overlayText.includes('registryEntries={registryEntries}')) {
+    throw new Error('expected widget overlay editor to reuse upstream merged registry entries instead of rebuilding a local registry')
   }
 }
 

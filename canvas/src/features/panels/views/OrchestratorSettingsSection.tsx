@@ -46,6 +46,8 @@ import {
   AGENTIC_RAG_NODE_JSON_STATUS_COPIED,
   UI_COPY,
 } from '@/lib/config'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type OrchestratorSettingsSectionProps = {
@@ -83,6 +85,7 @@ export default function OrchestratorSettingsSection({
   const setCharge = useGraphStore(s => s.setCharge)
   const setCollisionByType = useGraphStore(s => s.setCollisionByType)
   const data = useGraphStore(s => s.graphData)
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const setGraphData = useGraphStore(s => s.setGraphData)
   const graphId = useGraphStore(s => s.graphId)
   const graphRagWorkflowJsonText = useGraphStore(s => s.graphRagWorkflowJsonText)
@@ -107,6 +110,21 @@ export default function OrchestratorSettingsSection({
   const [traversalLabelFilter, setTraversalLabelFilter] = React.useState('')
   const [agenticCopyStatus, setAgenticCopyStatus] = React.useState<string | null>(null)
   const { lastTraversal, setLastTraversal, editState, editPaths } = useOrchestratorTraversalEditState()
+  const graph = data as GraphData | null
+  const graphSemanticKey = React.useMemo(
+    () => buildScopedGraphSemanticKey('orchestrator-settings-graph', { graphData: graph, graphRevision: graphDataRevision }),
+    [graph, graphDataRevision],
+  )
+  const graphLookup = React.useMemo(
+    () => getCachedGraphLookup({
+      cacheScope: 'orchestrator-settings-graph',
+      graphData: graph,
+      graphRevision: graphDataRevision,
+      graphSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    }),
+    [graph, graphDataRevision, graphSemanticKey],
+  )
 
   const handleSetTraversalDelayMs = React.useCallback(
     (value: number) => {
@@ -120,7 +138,6 @@ export default function OrchestratorSettingsSection({
   )
 
   const graphRagWorkflowState = React.useMemo(() => {
-    const graph = data as GraphData | null
     const safeGraphId = typeof graphId === 'string' && graphId.trim() ? graphId : 'graph'
     const fallback = buildGraphRagWorkflowFromGraphData(safeGraphId, graph)
     const text = typeof graphRagWorkflowJsonText === 'string' ? graphRagWorkflowJsonText : ''
@@ -159,7 +176,7 @@ export default function OrchestratorSettingsSection({
         validationErrors: [] as string[],
       }
     }
-  }, [data, graphId, graphRagWorkflowJsonText])
+  }, [graph, graphId, graphRagWorkflowJsonText])
 
   const workflowDoc: GraphRagWorkflowJsonLd = graphRagWorkflowState.workflow
   const workflowSource = graphRagWorkflowState.source
@@ -167,13 +184,13 @@ export default function OrchestratorSettingsSection({
   const workflowValidationErrors = graphRagWorkflowState.validationErrors
 
   const agenticContext = React.useMemo(
-    () => getAgenticRagContextComparison(data as GraphData | null),
-    [data],
+    () => getAgenticRagContextComparison(graph),
+    [graph],
   )
 
   const ignoreFilters = React.useMemo(
-    () => getAgenticRagIgnoreFiltersSummary(data as GraphData | null),
-    [data],
+    () => getAgenticRagIgnoreFiltersSummary(graph),
+    [graph],
   )
 
   const handleUpdateWorkflow = React.useCallback(
@@ -191,7 +208,6 @@ export default function OrchestratorSettingsSection({
 
   const handleSetAgenticContextUrl = React.useCallback(
     (value: string) => {
-      const graph = data as GraphData | null
       if (!graph) return
       const raw = graph.context as JSONValue | undefined
       let ctx: Record<string, JSONValue> = {}
@@ -219,12 +235,11 @@ export default function OrchestratorSettingsSection({
       }
       setGraphData(next)
     },
-    [data, setGraphData],
+    [graph, setGraphData],
   )
 
   const handleSetIgnoreCodebasePaths = React.useCallback(
     (value: string) => {
-      const graph = data as GraphData | null
       if (!graph) return
       const parts = value
         .split(',')
@@ -247,28 +262,26 @@ export default function OrchestratorSettingsSection({
       }
       setGraphData(next)
     },
-    [data, setGraphData],
+    [graph, setGraphData],
   )
 
   const graphNodesById = React.useMemo(() => {
-    const graph = data as GraphData | null
-    if (!graph || !Array.isArray(graph.nodes)) return {} as Record<string, { label: string }>
+    if (!graphLookup) return {} as Record<string, { label: string }>
     const map: Record<string, { label: string }> = {}
-    graph.nodes.forEach(node => {
+    graphLookup.nodes.forEach(node => {
       const id = String(node.id)
       const label = typeof node.label === 'string' && node.label.length > 0 ? node.label : id
       map[id] = { label }
     })
     return map
-  }, [data])
+  }, [graphLookup])
 
   const graphEdgesById = React.useMemo(() => {
-    const graph = data as GraphData | null
-    if (!graph || !Array.isArray(graph.edges)) {
+    if (!graphLookup) {
       return {} as Record<string, { source: string; target: string; label: string }>
     }
     const map: Record<string, { source: string; target: string; label: string }> = {}
-    graph.edges.forEach(edge => {
+    graphLookup.edges.forEach(edge => {
       const id = String(edge.id)
       const source = String(edge.source)
       const target = String(edge.target)
@@ -276,10 +289,9 @@ export default function OrchestratorSettingsSection({
       map[id] = { source, target, label }
     })
     return map
-  }, [data])
+  }, [graphLookup])
 
   const graphRagPathHelper: GraphRagPathHelper | null = React.useMemo(() => {
-    const graph = data as GraphData | null
     const owner = findGraphRagOwnerNode(graph, selectedNodeId)
     if (!owner) return null
     const props = owner.properties ?? {}
@@ -297,22 +309,24 @@ export default function OrchestratorSettingsSection({
         typeof owner.label === 'string' && owner.label.length > 0 ? owner.label : String(owner.id),
       traverse: traversePath.traverse.map(id => String(id)),
     }
-  }, [data, selectedNodeId])
+  }, [graph, selectedNodeId])
 
   const previewEdgeIds = React.useMemo(() => {
-    const graph = data as GraphData | null
     const traversal = lastTraversal
     if (!graph || !Array.isArray(graph.edges)) return []
     if (!traversal || traversal.mode !== 'graphRag') return []
     const ownerId = String(traversal.ownerNodeId || '').trim()
     if (!ownerId) return []
     const pathIds = [ownerId, ...(traversal.traverseNodeIds || [])].map(id => String(id))
-    return buildEdgeIdsForPath(graph, pathIds)
-  }, [data, lastTraversal])
+    return buildEdgeIdsForPath(graph, pathIds, {
+      graphRevision: graphDataRevision,
+      graphSemanticKey,
+    })
+  }, [graph, graphDataRevision, graphSemanticKey, lastTraversal])
 
   React.useEffect(() => {
     setLastTraversal(null)
-  }, [data, setLastTraversal])
+  }, [graphSemanticKey, setLastTraversal])
 
   React.useEffect(() => {
     setLastTraversalSummary(lastTraversal)
@@ -378,7 +392,6 @@ export default function OrchestratorSettingsSection({
   }, [traversalPlane])
 
   const runGraphRagTraversal = React.useCallback(() => {
-    const graph = data as GraphData | null
     if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return
     let edgeIds: string[] = []
     const summary: GraphRagTraversalSummary | null = buildGraphRagTraversalSummary(graph, selectedNodeId)
@@ -386,7 +399,10 @@ export default function OrchestratorSettingsSection({
       edgeIds = summary.edgeIds.map(id => String(id))
       setLastTraversal(summary)
     } else {
-      edgeIds = findGraphRagTraversalEdgeIds(graph)
+      edgeIds = findGraphRagTraversalEdgeIds(graph, {
+        graphRevision: graphDataRevision,
+        graphSemanticKey,
+      })
       if (!edgeIds.length) return
       setLastTraversal({
         mode: 'graphRag',
@@ -406,10 +422,17 @@ export default function OrchestratorSettingsSection({
         : selectedNodeId || null
     startTraversalPlane(edgeIds.length)
     runEdgeTraversalSequence(edgeIds, startNodeId)
-  }, [data, selectedNodeId, runEdgeTraversalSequence, setLastTraversal, startTraversalPlane])
+  }, [
+    graph,
+    graphDataRevision,
+    graphSemanticKey,
+    selectedNodeId,
+    runEdgeTraversalSequence,
+    setLastTraversal,
+    startTraversalPlane,
+  ])
 
   const runGenericTraversalQuery = React.useCallback(() => {
-    const graph = data as GraphData | null
     if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return
     const trimmedStart = traversalStartNodeId.trim()
     const startNodeId = trimmedStart.length > 0 ? trimmedStart : (selectedNodeId || '')
@@ -420,6 +443,9 @@ export default function OrchestratorSettingsSection({
       startNodeId,
       maxDepth: depth,
       allowedEdgeLabels: labelParts.length > 0 ? labelParts : undefined,
+    }, {
+      graphRevision: graphDataRevision,
+      graphSemanticKey,
     })
     if (!edgeIds.length) return
     setLastTraversal({
@@ -432,7 +458,9 @@ export default function OrchestratorSettingsSection({
     startTraversalPlane(edgeIds.length)
     runEdgeTraversalSequence(edgeIds, startNodeId)
   }, [
-    data,
+    graph,
+    graphDataRevision,
+    graphSemanticKey,
     traversalStartNodeId,
     traversalMaxDepth,
     traversalLabelFilter,
@@ -443,12 +471,11 @@ export default function OrchestratorSettingsSection({
   ])
 
   const selectedAgenticNode: AgenticRagNodeView | null = React.useMemo(() => {
-    const graph = data as GraphData | null
-    if (!graph || !Array.isArray(graph.nodes) || !selectedNodeId) return null
-    const node = graph.nodes.find(n => String(n.id) === String(selectedNodeId)) as GraphNode | undefined
+    if (!graphLookup || !selectedNodeId) return null
+    const node = graphLookup.nodeById.get(String(selectedNodeId)) as GraphNode | undefined
     if (!node) return null
     return agenticRagNodeFromGraphNode(node)
-  }, [data, selectedNodeId])
+  }, [graphLookup, selectedNodeId])
 
   const handleCopyAgenticRagNodeJson = React.useCallback(async () => {
     try {
@@ -475,11 +502,10 @@ export default function OrchestratorSettingsSection({
   }, [requestAiKgTraversal, runGraphRagTraversal, setRequestAiKgTraversal])
 
   React.useEffect(() => {
-    const graph = data as GraphData | null
     const next = persistTraversalSummaryToGraph(graph, lastTraversal)
     if (!graph || !next || next === graph) return
     useGraphStore.getState().setGraphData(next)
-  }, [data, lastTraversal])
+  }, [graph, lastTraversal])
 
   const traversalViewModel = buildOrchestratorTraversalSectionViewModel({
     graphNodesById,
@@ -560,7 +586,7 @@ export default function OrchestratorSettingsSection({
       <AgenticRagContextSection
         collapsed={contextCollapsed}
         onToggle={setContextCollapsed}
-        graphData={data as GraphData | null}
+        graphData={graph}
       />
     </section>
   )

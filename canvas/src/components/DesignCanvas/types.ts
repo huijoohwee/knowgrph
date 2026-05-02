@@ -54,7 +54,6 @@ export type DesignCanvasInlineMediaPreview = {
   tag: 'IMG' | 'VIDEO' | 'IFRAME'
   titleChip: string
   url: string
-  clipId: string
 }
 
 export type DesignCanvasLabelChip = {
@@ -97,7 +96,6 @@ export type DesignCanvasWireframePreview =
       titleChip: string
       src: string
       isDataImage: boolean
-      clipId: string
     }
   | {
       kind: 'text'

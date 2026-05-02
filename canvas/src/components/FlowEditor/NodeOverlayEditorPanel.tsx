@@ -2,7 +2,6 @@ import React from 'react'
 
 import IconButton from '@/components/IconButton'
 import RichMediaPanel from '@/components/RichMediaPanel'
-import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { FloatingPanel } from '@/components/ui/FloatingPanel'
 import { NodeOverlayEditorForm } from '@/components/FlowEditor/NodeOverlayEditorForm'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
@@ -19,19 +18,13 @@ import { resolveBeatRefForNode, resolveBeatClipOverlayIdsForNode } from '@/compo
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { NodeOverlayEditorPortHandles } from '@/components/FlowEditor/NodeOverlayEditorPortHandles'
 import { resolveWidgetNodeTitle } from '@/components/FlowEditor/nodeOverlayEditorTitle'
+import type { RichMediaWidgetPreviewState } from '@/components/FlowEditor/useRichMediaWidgetPreview'
 import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
 } from '@/lib/config.flow-editor'
 import {
-  buildRichMediaPanelOverlayState,
-  buildRichMediaPanelPreviewSpec,
-  commitRichMediaPanelChange,
-  coerceRichMediaPanelSizePx,
   getRichMediaPanelNodeLabel,
 } from '@/lib/render/richMediaSsot'
-
-const RICH_MEDIA_PANEL_MIN_WIDTH = 220
-const RICH_MEDIA_PANEL_MIN_HEIGHT = 160
 
 export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel(args: {
   active: boolean
@@ -62,23 +55,8 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   onValidate: () => void
   onRegistrySelectionChange?: (args: { entry: WidgetRegistryEntry | null }) => void
   onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
-  richMediaViewToggle?: {
-    visible: boolean
-    isKtvRows: boolean
-    onToggle: () => void
-  }
-  richMediaMediaSelector?: {
-    visible: boolean
-    selectedMode: 'auto' | 'text' | 'image' | 'video' | 'poi'
-    onSelect: (next: 'auto' | 'text' | 'image' | 'video' | 'poi') => void
-  }
-  richMediaAspectToggle?: {
-    visible: boolean
-    selected: '16:9' | '9:16' | null
-    onToggle: () => void
-  }
-
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
+  richMediaWidgetPreview?: RichMediaWidgetPreviewState
 
   portHandleEdges: ReadonlyArray<GraphEdge>
   schema: GraphSchema | null
@@ -116,11 +94,9 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
     onValidate,
     onRegistrySelectionChange,
     onRenameSchemaFieldId,
-    richMediaViewToggle,
-    richMediaMediaSelector,
-    richMediaAspectToggle,
 
     connectedValuesBySchemaPath,
+    richMediaWidgetPreview,
 
     portHandleEdges,
     schema,
@@ -175,131 +151,12 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
   }, [graphMetaKind])
   const isRichMediaPanelWidget = String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
   const showRichMediaPanelBody = isRichMediaPanelWidget && !hideFields && !minimized
-  const richMediaPanelStoredWidth =
-    typeof node.properties?.['visual:width'] === 'number' && Number.isFinite(node.properties['visual:width'])
-      ? Math.max(RICH_MEDIA_PANEL_MIN_WIDTH, Math.round(node.properties['visual:width'] as number))
-      : 280
-  const richMediaPanelStoredHeight =
-    typeof node.properties?.['visual:height'] === 'number' && Number.isFinite(node.properties['visual:height'])
-      ? Math.max(RICH_MEDIA_PANEL_MIN_HEIGHT, Math.round(node.properties['visual:height'] as number))
-      : 180
-  const richMediaPanelBaseSize = React.useMemo(() => {
-    const vw = typeof window !== 'undefined' ? window.innerWidth : null
-    const vh = typeof window !== 'undefined' ? window.innerHeight : null
-    const coerced = coerceRichMediaPanelSizePx({
-      width: richMediaPanelStoredWidth,
-      height: richMediaPanelStoredHeight,
-      viewportW: vw,
-      viewportH: vh,
-      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
-      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
-    })
-    return { width: coerced.width, height: coerced.height }
-  }, [richMediaPanelStoredHeight, richMediaPanelStoredWidth])
-  const [richMediaPanelViewSize, setRichMediaPanelViewSize] = React.useState(richMediaPanelBaseSize)
-  const richMediaPanelResizeStartRef = React.useRef(richMediaPanelBaseSize)
-
-  React.useEffect(() => {
-    if (!showRichMediaPanelBody) return
-    setRichMediaPanelViewSize(prev => (
-      prev.width === richMediaPanelBaseSize.width && prev.height === richMediaPanelBaseSize.height
-        ? prev
-        : richMediaPanelBaseSize
-    ))
-  }, [richMediaPanelBaseSize, showRichMediaPanelBody])
-
-  const richMediaPanelState = React.useMemo(() => {
-    if (!showRichMediaPanelBody) return null
-    return buildRichMediaPanelOverlayState({
-      node,
-      connectedValuesBySchemaPath,
-    })
-  }, [connectedValuesBySchemaPath, node, showRichMediaPanelBody])
-
-  const richMediaPreview = React.useMemo(() => {
-    if (!showRichMediaPanelBody) return null
-    return buildRichMediaPanelPreviewSpec({
-      node,
-      connectedValuesBySchemaPath,
-      panel: richMediaPanelState,
-    })
-  }, [connectedValuesBySchemaPath, node, richMediaPanelState, showRichMediaPanelBody])
-
-  const handleRichMediaPanelChange = React.useCallback((next: {
-    activeTab: 'auto' | 'text' | 'image' | 'video' | 'poi'
-    freezeConnectedOutput: boolean
-    text?: string
-  }) => {
-    if (!isRichMediaPanelWidget) return
-    const nodeId = String(node.id || '').trim()
-    if (!nodeId) return
-    commitRichMediaPanelChange({
-      nodeId,
-      next,
-      updateNode: (_id, patch) => {
-        onPatchProperties(patch.properties)
-      },
-    })
-  }, [isRichMediaPanelWidget, node.id, onPatchProperties])
-
-  const handleRichMediaResizeStart = React.useCallback(() => {
-    richMediaPanelResizeStartRef.current = richMediaPanelViewSize
-  }, [richMediaPanelViewSize])
-
-  const handleRichMediaResize = React.useCallback((args: { dx: number; dy: number }) => {
-    const vw = typeof window !== 'undefined' ? window.innerWidth : null
-    const vh = typeof window !== 'undefined' ? window.innerHeight : null
-    const coerced = coerceRichMediaPanelSizePx({
-      width: Math.round(richMediaPanelResizeStartRef.current.width + args.dx),
-      height: Math.round(richMediaPanelResizeStartRef.current.height + args.dy),
-      viewportW: vw,
-      viewportH: vh,
-      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
-      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
-    })
-    setRichMediaPanelViewSize({ width: coerced.width, height: coerced.height })
-  }, [])
-
-  const handleRichMediaResizeEnd = React.useCallback(() => {
-    const vw = typeof window !== 'undefined' ? window.innerWidth : null
-    const vh = typeof window !== 'undefined' ? window.innerHeight : null
-    const coerced = coerceRichMediaPanelSizePx({
-      width: richMediaPanelViewSize.width,
-      height: richMediaPanelViewSize.height,
-      viewportW: vw,
-      viewportH: vh,
-      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
-      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
-    })
-    onPatchProperties({
-      'visual:width': coerced.width,
-      'visual:height': coerced.height,
-    })
-  }, [onPatchProperties, richMediaPanelViewSize.height, richMediaPanelViewSize.width])
-
-  const handleRichMediaResizePointerDown = React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
-    if (!active || e.button !== 0) return
-    const native = e.nativeEvent
-    handleRichMediaResizeStart()
-    try {
-      e.preventDefault()
-      e.stopPropagation()
-    } catch {
-      void 0
-    }
-    startPointerDrag({
-      ev: native,
-      cursor: 'nwse-resize',
-      onMove: ev => {
-        handleRichMediaResize({
-          dx: ev.clientX - native.clientX,
-          dy: ev.clientY - native.clientY,
-        })
-      },
-      onEnd: handleRichMediaResizeEnd,
-      onCancel: handleRichMediaResizeEnd,
-    })
-  }, [active, handleRichMediaResize, handleRichMediaResizeEnd, handleRichMediaResizeStart])
+  const richMediaPanelState = richMediaWidgetPreview?.richMediaPanelState || null
+  const richMediaPreview = richMediaWidgetPreview?.richMediaPreview || null
+  const richMediaPanelViewSize = richMediaWidgetPreview?.richMediaPanelViewSize || { width: 280, height: 180 }
+  const handleRichMediaResizeStart = richMediaWidgetPreview?.handleRichMediaResizeStart
+  const handleRichMediaResize = richMediaWidgetPreview?.handleRichMediaResize
+  const handleRichMediaResizeEnd = richMediaWidgetPreview?.handleRichMediaResizeEnd
 
   return (
     <FloatingPanel
@@ -450,10 +307,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
             onResize={handleRichMediaResize}
             onResizeEnd={handleRichMediaResizeEnd}
             panel={richMediaPanelState || undefined}
-            richMediaViewToggle={richMediaViewToggle}
-            richMediaMediaSelector={richMediaMediaSelector}
-            richMediaAspectToggle={richMediaAspectToggle}
-            onPanelChange={handleRichMediaPanelChange}
+            widgetToolbarActive={false}
             style={{ width: '100%', height: '100%', boxShadow: 'none' }}
           />
         </section>
@@ -475,6 +329,7 @@ export const NodeOverlayEditorPanel = React.memo(function NodeOverlayEditorPanel
           onRenameSchemaFieldId={onRenameSchemaFieldId}
           onRegistrySelectionChange={onRegistrySelectionChange}
           connectedValuesBySchemaPath={connectedValuesBySchemaPath}
+          richMediaWidgetPreview={richMediaWidgetPreview}
 
           registryEntry={registryEntry}
           registryEntries={registryEntries}

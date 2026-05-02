@@ -22,6 +22,7 @@ import {
 import { pickGraphDataForFlowRenderer } from '@/components/FlowCanvas/shared'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { hashScopedStringArraySignature, normalizeStringArrayForSignature } from '@/lib/hash/signature'
 
 type UseFlowCanvasGraphStateArgs = {
@@ -103,6 +104,10 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     if (!filteredGraphDataForRenderer) return null
     return sceneDisplayGraphDerivation?.displayGraphData || filteredGraphDataForRenderer
   }, [filteredGraphDataForRenderer, sceneDisplayGraphDerivation])
+  const sceneGraphSemanticKey = React.useMemo(
+    () => buildScopedGraphSemanticKey('flow-canvas-scene-graph', { graphData: sceneGraphData, graphRevision: graphDataRevision }),
+    [graphDataRevision, sceneGraphData],
+  )
 
   const panelOnlyNodeIdSet = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
@@ -129,8 +134,9 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       registry: dataflowRegistry,
       targetNodeIds,
       graphRevision: graphDataRevision,
+      graphSemanticKey: sceneGraphSemanticKey,
     })
-  }, [baseWidgetRegistry, documentWidgetRegistry, graphDataRevision, sceneGraphData, widgetRegistry])
+  }, [baseWidgetRegistry, documentWidgetRegistry, graphDataRevision, sceneGraphData, sceneGraphSemanticKey, widgetRegistry])
 
   const mediaRenderNodes = React.useMemo(() => {
     const nodes = Array.isArray(sceneGraphData?.nodes) ? (sceneGraphData.nodes as GraphNode[]) : []
@@ -148,8 +154,10 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
       cacheScope: 'flow-canvas-scene-graph',
       graphData: sceneGraphData,
       graphRevision: graphDataRevision,
+      graphSemanticKey: sceneGraphSemanticKey,
+      preferCurrentGraphDataRefs: true,
     })
-  }, [graphDataRevision, sceneGraphData])
+  }, [graphDataRevision, sceneGraphData, sceneGraphSemanticKey])
   const sceneGraphNodeById = sceneGraphLookup?.nodeById || null
   const sceneGraphCanonicalNodeById = React.useMemo(() => {
     if (!sceneGraphNodeById || sceneGraphNodeById.size === 0) return null

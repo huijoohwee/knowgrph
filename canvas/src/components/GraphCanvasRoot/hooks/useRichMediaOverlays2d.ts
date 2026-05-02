@@ -22,6 +22,7 @@ import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDat
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config.flow-editor'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { readMergedGraphNodeLookup } from '@/components/GraphCanvasRoot/utils/mergedNodeLookup'
 
 export function useRichMediaOverlays2d(args: {
@@ -80,8 +81,8 @@ export function useRichMediaOverlays2d(args: {
       setMountedOverlayIdsKey('')
     }
   }, [])
-  const iframeNodeByIdRef = useRef<{ graphData: GraphData | null; rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
-    graphData: null,
+  const iframeNodeByIdRef = useRef<{ graphSemanticKey: string; rev: number; sim: d3.Simulation<GraphNode, GraphEdge> | null; map: Map<string, GraphNode> }>({
+    graphSemanticKey: '',
     rev: -1,
     sim: null,
     map: new Map(),
@@ -103,13 +104,19 @@ export function useRichMediaOverlays2d(args: {
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const frontmatterModeEnabled = useGraphStore(s => s.frontmatterModeEnabled === true)
   const documentSemanticMode = useGraphStore(s => String(s.documentSemanticMode || ''))
+  const sceneGraphSemanticKey = useMemo(
+    () => buildScopedGraphSemanticKey('graph-canvas-root-rich-media-overlays-scene-graph', { graphData: sceneGraphData, graphRevision: graphDataRevision }),
+    [graphDataRevision, sceneGraphData],
+  )
   const sceneGraphLookup = useMemo(() => {
     return getCachedGraphLookup({
       cacheScope: 'graph-canvas-root-rich-media-overlays-scene-graph',
       graphData: sceneGraphData,
       graphRevision: graphDataRevision,
+      graphSemanticKey: sceneGraphSemanticKey,
+      preferCurrentGraphDataRefs: true,
     })
-  }, [graphDataRevision, sceneGraphData])
+  }, [graphDataRevision, sceneGraphData, sceneGraphSemanticKey])
   const sceneGraphNodeById = sceneGraphLookup?.nodeById || null
 
   const requestMediaOverlaySchedule = useCallback(() => {
@@ -139,7 +146,13 @@ export function useRichMediaOverlays2d(args: {
     const registryRaw = metadata[FLOW_WIDGET_REGISTRY_METADATA_KEY]
     const registry = Array.isArray(registryRaw) ? (registryRaw as WidgetRegistryEntry[]) : []
     const connectedValuesByNodeId = richMediaPanelNodeIds.size > 0
-      ? computeFlowConnectedValuesBySchemaPath({ graphData: sceneGraphData, registry, targetNodeIds: richMediaPanelNodeIds, graphRevision: graphDataRevision })
+      ? computeFlowConnectedValuesBySchemaPath({
+        graphData: sceneGraphData,
+        registry,
+        targetNodeIds: richMediaPanelNodeIds,
+        graphRevision: graphDataRevision,
+        graphSemanticKey: sceneGraphSemanticKey,
+      })
       : undefined
     const suggested = listDisplayRichMediaOverlayNodes({
       renderMediaAsNodes,
@@ -264,6 +277,7 @@ export function useRichMediaOverlays2d(args: {
     graphDataRevision,
     renderMediaAsNodes,
     sceneGraphData,
+    sceneGraphSemanticKey,
     sceneGraphNodeById,
     threeIframeOverlayPoolMax,
   ])

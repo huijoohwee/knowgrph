@@ -1,5 +1,5 @@
 import React from 'react'
-import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
+import { StaticRichMediaPanelPreview } from '@/components/StaticRichMediaPanelPreview'
 import type {
   DesignCanvasFrameNodeRef,
   DesignCanvasFrameRect,
@@ -84,11 +84,10 @@ export function DesignCanvasFrameShellLayer(props: {
               filter={visual.filter}
             />
             {preview ? (
-              <DesignRichMediaPreview
+              <StaticRichMediaPanelPreview
                 tag={preview.tag}
                 url={preview.url}
                 titleChip={preview.titleChip}
-                clipId={preview.clipId}
                 innerX={14}
                 innerY={44}
                 innerW={Math.max(1, rect.w - 28)}

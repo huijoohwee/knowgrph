@@ -10,6 +10,8 @@ import { normalizeRichMediaPanelDensity } from '@/lib/render/richMediaSsot'
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 type OverlayRuntimeArgs = {
   active: boolean
@@ -58,10 +60,6 @@ export function useDesignCanvasOverlayRuntime(args: OverlayRuntimeArgs) {
 
   const localGraphDataRef = React.useRef<GraphData>(localGraphData)
   const designMediaOverlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
-  const designMediaOverlayNodeByIdRef = React.useRef<{ graph: unknown | null; map: Map<string, GraphNode> }>({
-    graph: null,
-    map: new Map(),
-  })
   const designMediaHeaderDragRef = React.useRef<null | {
     id: string
     pointerId: number
@@ -77,6 +75,19 @@ export function useDesignCanvasOverlayRuntime(args: OverlayRuntimeArgs) {
   React.useEffect(() => {
     localGraphDataRef.current = localGraphData
   }, [localGraphData])
+  const localGraphSemanticKey = React.useMemo(
+    () => buildScopedGraphSemanticKey('design-canvas-overlay-runtime-graph', { graphData: localGraphData }),
+    [localGraphData],
+  )
+  const localGraphLookup = React.useMemo(() => {
+    return getCachedGraphLookup({
+      cacheScope: 'design-canvas-overlay-runtime-graph',
+      graphData: localGraphData,
+      graphSemanticKey: localGraphSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    })
+  }, [localGraphData, localGraphSemanticKey])
+  const localGraphNodeById = localGraphLookup?.nodeById || null
 
   React.useEffect(() => {
     const next = new Map<string, HTMLElement>()
@@ -107,18 +118,7 @@ export function useDesignCanvasOverlayRuntime(args: OverlayRuntimeArgs) {
       },
       getElementForId: id => designMediaOverlayElsRef.current.get(id) || null,
       getNodeWorldCenterForId: id => {
-        const graph = localGraphDataRef.current
-        if (designMediaOverlayNodeByIdRef.current.graph !== graph) {
-          const nodes = Array.isArray((graph as any)?.nodes) ? ((graph as any).nodes as GraphNode[]) : []
-          const map = new Map<string, GraphNode>()
-          for (let i = 0; i < nodes.length; i += 1) {
-            const node = nodes[i]
-            const key = String(node?.id || '').trim()
-            if (key && !map.has(key)) map.set(key, node)
-          }
-          designMediaOverlayNodeByIdRef.current = { graph, map }
-        }
-        const node = designMediaOverlayNodeByIdRef.current.map.get(id) || null
+        const node = localGraphNodeById?.get(id) || null
         return readNodeCenterWorld2d(node, { coords: 'center' })
       },
       sizingConfig: {
@@ -136,6 +136,7 @@ export function useDesignCanvasOverlayRuntime(args: OverlayRuntimeArgs) {
     mediaPanelDensity,
     overlaySizing,
     renderMediaAsNodes,
+    localGraphNodeById,
     svgRef,
     viewportH,
     viewportW,

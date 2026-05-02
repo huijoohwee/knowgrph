@@ -8,44 +8,100 @@ import type {
   GraphData,
   JSONValue,
 } from './types'
+import { hashSignatureParts, normalizeStringArrayForSignature } from '@/lib/hash/signature'
+import { getCachedGraphLookup, type CachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey, readGraphRevision } from '@/lib/graph/semanticKey'
 
-type NeighborEntry = { edgeId: string; otherId: string; label: string }
-type NeighborMap = Map<string, NeighborEntry[]>
+const TRAVERSAL_RESULT_CACHE_LIMIT = 64
+const traversalResultCache = new Map<string, string[]>()
 
-const neighborsCache = new WeakMap<GraphData, NeighborMap>()
-const graphRagTraversalCache = new WeakMap<GraphData, string[]>()
-
-type TraversalCacheKey = string
-type TraversalCacheMap = Map<TraversalCacheKey, string[]>
-
-const traversalCache = new WeakMap<GraphData, TraversalCacheMap>()
-
-function getTraversalCache(graph: GraphData): TraversalCacheMap {
-  const existing = traversalCache.get(graph)
-  if (existing) return existing
-  const created: TraversalCacheMap = new Map()
-  traversalCache.set(graph, created)
-  return created
+export type GraphTraversalCacheContext = {
+  graphRevision?: number | null
+  graphSemanticKey?: string | null
 }
 
-function getOrBuildNeighborMap(graph: GraphData): NeighborMap {
-  const cached = neighborsCache.get(graph)
-  if (cached) return cached
-  const neighborsByNode: NeighborMap = new Map()
-  graph.edges.forEach(e => {
-    const id = String(e.id)
-    const s = String(e.source)
-    const t = String(e.target)
-    const label = String(e.label ?? '')
-    const entryST = neighborsByNode.get(s) || []
-    entryST.push({ edgeId: id, otherId: t, label })
-    neighborsByNode.set(s, entryST)
-    const entryTS = neighborsByNode.get(t) || []
-    entryTS.push({ edgeId: id, otherId: s, label })
-    neighborsByNode.set(t, entryTS)
+type TraversalGraphAccess = {
+  graphSemanticKey: string
+  graphRevision: number
+  lookup: CachedGraphLookup
+}
+
+function readCachedTraversalResult(cacheKey: string): string[] | null {
+  const cached = traversalResultCache.get(cacheKey) || null
+  if (!cached) return null
+  traversalResultCache.delete(cacheKey)
+  traversalResultCache.set(cacheKey, cached)
+  return cached
+}
+
+function writeCachedTraversalResult(cacheKey: string, value: string[]): string[] {
+  traversalResultCache.set(cacheKey, value)
+  if (traversalResultCache.size > TRAVERSAL_RESULT_CACHE_LIMIT) {
+    const oldestKey = traversalResultCache.keys().next().value
+    if (typeof oldestKey === 'string') traversalResultCache.delete(oldestKey)
+  }
+  return value
+}
+
+function resolveTraversalGraphAccess(
+  graph: GraphData | null,
+  context?: GraphTraversalCacheContext | null,
+): TraversalGraphAccess | null {
+  if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return null
+  const graphRevision = readGraphRevision(context?.graphRevision)
+  const graphSemanticKey = buildScopedGraphSemanticKey('graph-traversal', {
+    graphData: graph,
+    graphRevision,
+    graphSemanticKey: context?.graphSemanticKey,
   })
-  neighborsCache.set(graph, neighborsByNode)
-  return neighborsByNode
+  if (!graphSemanticKey) return null
+  const lookup = getCachedGraphLookup({
+    cacheScope: 'graph-traversal-lookup',
+    graphData: graph,
+    graphRevision,
+    graphSemanticKey,
+    preferCurrentGraphDataRefs: true,
+  })
+  if (!lookup) return null
+  return {
+    graphSemanticKey,
+    graphRevision,
+    lookup,
+  }
+}
+
+function buildTraversalResultCacheKey(scope: string, graphSemanticKey: string, parts: Array<string | number>): string {
+  return hashSignatureParts([scope, graphSemanticKey, ...parts])
+}
+
+function getEdgeOtherNodeId(edge: { source?: unknown; target?: unknown }, currentNodeId: string): string {
+  const sourceId = String(edge.source || '').trim()
+  const targetId = String(edge.target || '').trim()
+  if (!sourceId && !targetId) return ''
+  if (sourceId === currentNodeId) return targetId
+  if (targetId === currentNodeId) return sourceId
+  return sourceId || targetId
+}
+
+function findIncidentPathEdgeId(
+  lookup: CachedGraphLookup,
+  sourceNodeId: string,
+  targetNodeId: string,
+): string | null {
+  const incidentEdges = lookup.incidentEdgesByNodeId.get(sourceNodeId) || []
+  for (let i = 0; i < incidentEdges.length; i += 1) {
+    const edge = incidentEdges[i]
+    const edgeSourceId = String(edge?.source || '').trim()
+    const edgeTargetId = String(edge?.target || '').trim()
+    if (
+      (edgeSourceId === sourceNodeId && edgeTargetId === targetNodeId)
+      || (edgeSourceId === targetNodeId && edgeTargetId === sourceNodeId)
+    ) {
+      const edgeId = String(edge?.id || '').trim()
+      if (edgeId) return edgeId
+    }
+  }
+  return null
 }
 
 export function isGraphRagPathValue(value: JSONValue | unknown): value is AgenticGraphRagPathValue {
@@ -101,35 +157,39 @@ export function toParsedExamplePath(
   return { example, hops }
 }
 
-export function findGraphRagTraversalEdgeIds(graph: GraphData | null): string[] {
-  if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return []
-  const cached = graphRagTraversalCache.get(graph)
+export function findGraphRagTraversalEdgeIds(
+  graph: GraphData | null,
+  context?: GraphTraversalCacheContext | null,
+): string[] {
+  const access = resolveTraversalGraphAccess(graph, context)
+  if (!access) return []
+  const cacheKey = buildTraversalResultCacheKey('graph-rag-traversal', access.graphSemanticKey, [
+    access.graphRevision,
+  ])
+  const cached = readCachedTraversalResult(cacheKey)
   if (cached) return cached
-  const neighborsByNode = getOrBuildNeighborMap(graph)
-  const owner = graph.nodes.find(node => {
+  const owner = access.lookup.nodes.find(node => {
     const props = node.properties ?? {}
     const raw = (props as Record<string, JSONValue>).graphRAGPath
     if (!isGraphRagPathValue(raw)) return false
     const parsed = toParsedTraversePath(raw)
     return parsed !== null && Array.isArray(parsed.traverse) && parsed.traverse.length > 0
   })
-  if (!owner) return []
+  if (!owner) return writeCachedTraversalResult(cacheKey, [])
   const props = owner.properties ?? {}
   const raw = (props as Record<string, JSONValue>).graphRAGPath
-  if (!isGraphRagPathValue(raw)) return []
+  if (!isGraphRagPathValue(raw)) return writeCachedTraversalResult(cacheKey, [])
   const parsed = toParsedTraversePath(raw)
-  if (!parsed || !Array.isArray(parsed.traverse) || parsed.traverse.length === 0) return []
+  if (!parsed || !Array.isArray(parsed.traverse) || parsed.traverse.length === 0) {
+    return writeCachedTraversalResult(cacheKey, [])
+  }
   const pathIds: AgenticRagNodeId[] = [owner.id as AgenticRagNodeId, ...parsed.traverse]
   const edgesForPath: string[] = []
   for (let i = 0; i < pathIds.length - 1; i += 1) {
-    const a = pathIds[i]
-    const b = pathIds[i + 1]
-    const neighbors = neighborsByNode.get(String(a)) || []
-    const match = neighbors.find(entry => entry.otherId === String(b))
-    if (match) edgesForPath.push(match.edgeId)
+    const edgeId = findIncidentPathEdgeId(access.lookup, String(pathIds[i]), String(pathIds[i + 1]))
+    if (edgeId) edgesForPath.push(edgeId)
   }
-  graphRagTraversalCache.set(graph, edgesForPath)
-  return edgesForPath
+  return writeCachedTraversalResult(cacheKey, edgesForPath)
 }
 
 export type TraversalQuery = {
@@ -138,44 +198,55 @@ export type TraversalQuery = {
   allowedEdgeLabels?: string[]
 }
 
-export function findTraversalEdgeIds(graph: GraphData | null, query: TraversalQuery | null): string[] {
-  if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return []
+export function findTraversalEdgeIds(
+  graph: GraphData | null,
+  query: TraversalQuery | null,
+  context?: GraphTraversalCacheContext | null,
+): string[] {
+  const access = resolveTraversalGraphAccess(graph, context)
+  if (!access) return []
   if (!query) return []
   const start = String(query.startNodeId || '').trim()
   if (!start) return []
   const maxDepth = Number.isFinite(query.maxDepth) && query.maxDepth > 0 ? Math.floor(query.maxDepth) : 1
-  const allowedLabels = (query.allowedEdgeLabels || [])
-    .map(label => String(label || '').trim())
-    .filter(label => label.length > 0)
-  const nodeExists = graph.nodes.some(n => String(n.id) === start)
+  const allowedLabels = normalizeStringArrayForSignature(query.allowedEdgeLabels, {
+    unique: true,
+    sort: true,
+  })
+  const nodeExists = access.lookup.nodeById.has(start)
   if (!nodeExists) return []
-  const cacheKey: TraversalCacheKey = `${start}|${maxDepth}|${allowedLabels.join(',')}`
-  const cacheForGraph = getTraversalCache(graph)
-  const cached = cacheForGraph.get(cacheKey)
+  const cacheKey = buildTraversalResultCacheKey('generic-traversal', access.graphSemanticKey, [
+    access.graphRevision,
+    start,
+    maxDepth,
+    ...allowedLabels,
+  ])
+  const cached = readCachedTraversalResult(cacheKey)
   if (cached) return cached
+  const allowedLabelSet = allowedLabels.length > 0 ? new Set(allowedLabels) : null
   const visitedNodes = new Set<string>()
   const queued: Array<{ id: string; depth: number }> = [{ id: start, depth: 0 }]
+  let queuedIndex = 0
   visitedNodes.add(start)
   const edgeIds = new Set<string>()
-  const neighborsByNode = getOrBuildNeighborMap(graph)
-  while (queued.length > 0) {
-    const current = queued.shift()
-    if (!current) continue
+  while (queuedIndex < queued.length) {
+    const current = queued[queuedIndex]
+    queuedIndex += 1
     if (current.depth >= maxDepth) continue
-    const neighbors = neighborsByNode.get(current.id)
-    if (!neighbors || neighbors.length === 0) continue
-    neighbors.forEach(item => {
-      if (allowedLabels.length > 0 && !allowedLabels.includes(item.label)) return
-      if (!edgeIds.has(item.edgeId)) {
-        edgeIds.add(item.edgeId)
-      }
-      if (!visitedNodes.has(item.otherId)) {
-        visitedNodes.add(item.otherId)
-        queued.push({ id: item.otherId, depth: current.depth + 1 })
-      }
-    })
+    const incidentEdges = access.lookup.incidentEdgesByNodeId.get(current.id) || []
+    if (incidentEdges.length === 0) continue
+    for (let i = 0; i < incidentEdges.length; i += 1) {
+      const edge = incidentEdges[i]
+      const edgeLabel = String(edge?.label ?? '').trim()
+      if (allowedLabelSet && !allowedLabelSet.has(edgeLabel)) continue
+      const edgeId = String(edge?.id || '').trim()
+      if (edgeId && !edgeIds.has(edgeId)) edgeIds.add(edgeId)
+      const otherId = getEdgeOtherNodeId(edge, current.id)
+      if (!otherId || visitedNodes.has(otherId)) continue
+      visitedNodes.add(otherId)
+      queued.push({ id: otherId, depth: current.depth + 1 })
+    }
   }
   const result = Array.from(edgeIds)
-  cacheForGraph.set(cacheKey, result)
-  return result
+  return writeCachedTraversalResult(cacheKey, result)
 }

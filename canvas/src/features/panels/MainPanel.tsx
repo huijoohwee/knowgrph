@@ -9,6 +9,9 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import { useShallow } from 'zustand/react/shallow'
 import { useActiveGraphData } from '@/hooks/useActiveGraphData'
+import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import {
   MAIN_PANEL_TABS,
   getMainPanelTabMeta,
@@ -155,10 +158,40 @@ export default function MainPanel({
     },
     [],
   )
-  const { lastTraversalSummary } = useGraphStore(
-    useShallow(s => ({ lastTraversalSummary: s.lastTraversalSummary })),
+  const { graphDataRevision, lastTraversalSummary } = useGraphStore(
+    useShallow(s => ({ graphDataRevision: s.graphDataRevision || 0, lastTraversalSummary: s.lastTraversalSummary })),
   )
   const graphData = useActiveGraphData()
+  const traversalGraphSemanticKey = React.useMemo(
+    () => buildScopedGraphSemanticKey('main-panel-traversal-graph', { graphData: graphData ?? null, graphRevision: graphDataRevision }),
+    [graphData, graphDataRevision],
+  )
+  const traversalGraphLookup = React.useMemo(
+    () => getCachedGraphLookup({
+      cacheScope: 'main-panel-traversal-graph',
+      graphData,
+      graphRevision: graphDataRevision,
+      graphSemanticKey: traversalGraphSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    }),
+    [graphData, graphDataRevision, traversalGraphSemanticKey],
+  )
+  const traversalEdgeById = traversalGraphLookup?.edgeById || null
+  const traversalSummarySignature = React.useMemo(
+    () => hashSignatureParts([
+      'main-panel-traversal-summary',
+      lastTraversalSummary?.mode || '',
+      hashScopedStringArraySignature('main-panel-traversal-edge-ids', lastTraversalSummary?.edgeIds || []),
+    ]),
+    [lastTraversalSummary?.edgeIds, lastTraversalSummary?.mode],
+  )
+  const traversalSummarySnapshotRef = React.useRef<{ key: string; value: typeof lastTraversalSummary } | null>(null)
+  if (traversalSummarySnapshotRef.current?.key !== traversalSummarySignature) {
+    traversalSummarySnapshotRef.current = {
+      key: traversalSummarySignature,
+      value: lastTraversalSummary,
+    }
+  }
   const activeTabMeta = getMainPanelTabMeta(tab)
   const activeSharedActions = isSharedMainPanelTabKey(tab) ? sharedActionsByTab[tab] : null
   const searchVisible = searchOpen && mainPanelTabSupportsSearch(tab)
@@ -166,20 +199,18 @@ export default function MainPanel({
   const footerLabel = activeTabMeta.footerLabel
 
   const traversalChip = React.useMemo(() => {
-    const summary = lastTraversalSummary
-    const graph = graphData
+    const summary = traversalSummarySnapshotRef.current?.value || null
     if (!summary || !summary.edgeIds || summary.edgeIds.length === 0) return null
     const edgesCount = summary.edgeIds.length
     let nodesCount: number | null = null
-    if (graph && Array.isArray(graph.edges)) {
-      const edgeIdSet = new Set(summary.edgeIds.map(id => String(id)))
+    if (traversalEdgeById && traversalEdgeById.size > 0) {
       const nodeIdSet = new Set<string>()
-      graph.edges.forEach(edge => {
-        const id = String(edge.id)
-        if (!edgeIdSet.has(id)) return
-        nodeIdSet.add(String(edge.source))
-        nodeIdSet.add(String(edge.target))
-      })
+      for (let i = 0; i < summary.edgeIds.length; i += 1) {
+        const edge = traversalEdgeById.get(String(summary.edgeIds[i] || ''))
+        if (!edge) continue
+        nodeIdSet.add(String(edge.source || ''))
+        nodeIdSet.add(String(edge.target || ''))
+      }
       nodesCount = nodeIdSet.size
     }
     const modeLabel = summary.mode === 'graphRag' ? 'AgenticRAG' : 'Generic'
@@ -191,7 +222,7 @@ export default function MainPanel({
       edgesLabel,
       nodesLabel,
     }
-  }, [graphData, lastTraversalSummary])
+  }, [traversalEdgeById, traversalSummarySignature])
 
   React.useEffect(() => {
     if (!requestedTab) return

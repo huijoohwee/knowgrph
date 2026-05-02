@@ -9,10 +9,13 @@ import type {
 } from '@/lib/graph/types'
 import { isGraphRagPathValue, toParsedExamplePath, toParsedTraversePath } from '@/lib/graph/graphragTraversal'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { getThreeConfig, getThreeSelectionConfig } from '@/lib/graph/schema'
 import { lsInt } from '@/lib/persistence'
 import { LS_KEYS, buildNumericTooltip } from '@/lib/config'
 import { requestGeospatialTraversalRun } from '@/features/geospatial/gympgrphBridge'
+import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 
 export type GraphRagTraversalSummary = {
   mode: 'graphRag'
@@ -35,6 +38,26 @@ export type GenericTraversalSummary = {
 }
 
 export type TraversalSummary = GraphRagTraversalSummary | GenericTraversalSummary
+
+type BuildEdgeIdsForPathContext = {
+  graphRevision?: number | null
+  graphSemanticKey?: string | null
+}
+
+type TraversalSummaryMembershipContext = {
+  graphRevision?: number | null
+  graphSemanticKey?: string | null
+}
+
+export type TraversalSummaryMembership = {
+  edgeIds: string[]
+  edgeIdSet: Set<string>
+  edgeStepById: Map<string, number>
+  nodeIdSet: Set<string>
+}
+
+const TRAVERSAL_SUMMARY_MEMBERSHIP_CACHE_LIMIT = 24
+const traversalSummaryMembershipCache = new Map<string, TraversalSummaryMembership | null>()
 
 export const ORCHESTRATOR_TRAVERSAL_DELAY_DEFAULT_MS = 900
 export const ORCHESTRATOR_TRAVERSAL_DELAY_MIN_MS = 300
@@ -107,6 +130,30 @@ function arraysShallowEqual<T>(a: T[], b: T[]): boolean {
   return true
 }
 
+function readCachedTraversalSummaryMembership(
+  cacheKey: string,
+): TraversalSummaryMembership | null | undefined {
+  if (!cacheKey) return undefined
+  const cached = traversalSummaryMembershipCache.get(cacheKey)
+  if (cached === undefined) return undefined
+  traversalSummaryMembershipCache.delete(cacheKey)
+  traversalSummaryMembershipCache.set(cacheKey, cached)
+  return cached
+}
+
+function writeCachedTraversalSummaryMembership(
+  cacheKey: string,
+  membership: TraversalSummaryMembership | null,
+): TraversalSummaryMembership | null {
+  if (!cacheKey) return membership
+  traversalSummaryMembershipCache.set(cacheKey, membership)
+  if (traversalSummaryMembershipCache.size > TRAVERSAL_SUMMARY_MEMBERSHIP_CACHE_LIMIT) {
+    const oldestKey = traversalSummaryMembershipCache.keys().next().value
+    if (typeof oldestKey === 'string') traversalSummaryMembershipCache.delete(oldestKey)
+  }
+  return membership
+}
+
 export function findGraphRagOwnerNode(
   graph: GraphData | null,
   selectedNodeId: string | null | undefined,
@@ -154,14 +201,32 @@ export function findGraphRagOwnerNode(
   return candidates[0]
 }
 
-export function buildEdgeIdsForPath(graph: GraphData | null, pathIds: string[]): string[] {
+export function buildEdgeIdsForPath(
+  graph: GraphData | null,
+  pathIds: string[],
+  context?: BuildEdgeIdsForPathContext | null,
+): string[] {
   if (!graph || !Array.isArray(graph.edges)) return []
   if (!Array.isArray(pathIds) || pathIds.length < 2) return []
+  const graphSemanticKey = buildScopedGraphSemanticKey('orchestrator-traversal-path', {
+    graphData: graph,
+    graphRevision: context?.graphRevision,
+    graphSemanticKey: context?.graphSemanticKey,
+  })
+  const graphLookup = graphSemanticKey
+    ? getCachedGraphLookup({
+        cacheScope: 'orchestrator-traversal-path',
+        graphData: graph,
+        graphRevision: context?.graphRevision,
+        graphSemanticKey,
+      })
+    : null
   const ids: string[] = []
   for (let i = 0; i < pathIds.length - 1; i += 1) {
     const a = String(pathIds[i])
     const b = String(pathIds[i + 1])
-    const edge = graph.edges.find(e => {
+    const incidentEdges = graphLookup?.incidentEdgesByNodeId.get(a) || graph.edges
+    const edge = incidentEdges.find(e => {
       const s = String(e.source)
       const t = String(e.target)
       return (s === a && t === b) || (s === b && t === a)
@@ -169,6 +234,54 @@ export function buildEdgeIdsForPath(graph: GraphData | null, pathIds: string[]):
     if (edge) ids.push(String(edge.id))
   }
   return ids
+}
+
+export function readTraversalSummaryMembership(
+  graph: GraphData | null,
+  summary: TraversalSummary | null,
+  context?: TraversalSummaryMembershipContext | null,
+): TraversalSummaryMembership | null {
+  if (!graph || !Array.isArray(graph.edges)) return null
+  if (!summary || !Array.isArray(summary.edgeIds) || summary.edgeIds.length === 0) return null
+  const normalizedEdgeIds = Array.from(
+    new Set(summary.edgeIds.map(edgeId => String(edgeId || '').trim()).filter(Boolean)),
+  )
+  if (normalizedEdgeIds.length === 0) return null
+  const graphSemanticKey = buildScopedGraphSemanticKey('orchestrator-traversal-membership', {
+    graphData: graph,
+    graphRevision: context?.graphRevision,
+    graphSemanticKey: context?.graphSemanticKey,
+  })
+  const cacheKey = hashSignatureParts([
+    'orchestrator-traversal-membership',
+    graphSemanticKey,
+    hashScopedStringArraySignature('traversal-edge-ids', normalizedEdgeIds),
+  ])
+  const cached = readCachedTraversalSummaryMembership(cacheKey)
+  if (cached !== undefined) return cached
+  const graphLookup = getCachedGraphLookup({
+    cacheScope: 'orchestrator-traversal-membership',
+    graphData: graph,
+    graphRevision: context?.graphRevision,
+    graphSemanticKey,
+    preferCurrentGraphDataRefs: true,
+  })
+  const edgeIdSet = new Set<string>(normalizedEdgeIds)
+  const edgeStepById = new Map<string, number>()
+  const nodeIdSet = new Set<string>()
+  normalizedEdgeIds.forEach((edgeId, index) => {
+    edgeStepById.set(edgeId, index + 1)
+    const edge = graphLookup?.edgeById.get(edgeId)
+    if (!edge) return
+    nodeIdSet.add(String(edge.source))
+    nodeIdSet.add(String(edge.target))
+  })
+  return writeCachedTraversalSummaryMembership(cacheKey, {
+    edgeIds: normalizedEdgeIds,
+    edgeIdSet,
+    edgeStepById,
+    nodeIdSet,
+  })
 }
 
 export function persistTraversalSummaryToGraph(

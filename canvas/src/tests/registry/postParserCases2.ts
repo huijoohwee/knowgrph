@@ -195,6 +195,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["graphrag.traversal.happyPath","@/__tests__/graphRagTraversal.test","testGraphRagTraversalHappyPath"],
   ["graphrag.traversal.ignoresInvalidShapes","@/__tests__/graphRagTraversal.test","testGraphRagTraversalIgnoresInvalidShapes"],
   ["graphrag.traversal.missingOwner","@/__tests__/graphRagTraversal.test","testGraphRagTraversalHandlesMissingOwner"],
+  ["graphrag.traversal.reusesSemanticLookupCache","@/__tests__/graphRagTraversal.test","testGraphRagTraversalReusesSemanticLookupCache"],
   ["graphrag.owner.prefersSelectedOwner","@/__tests__/graphRagTraversal.test","testFindGraphRagOwnerNodePrefersSelectedOwner"],
   ["graphrag.owner.prefersOwnerWithSelectedInTraverse","@/__tests__/graphRagTraversal.test","testFindGraphRagOwnerNodePrefersOwnerWithSelectedInTraverse"],
   ["ui.graphTraversalFloatingPanel.genericDepthClamp","@/__tests__/graphTraversalFloatingPanel.test","testGraphTraversalFloatingPanelGenericDepthClamp"],

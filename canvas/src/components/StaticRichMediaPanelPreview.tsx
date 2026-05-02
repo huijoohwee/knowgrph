@@ -2,7 +2,7 @@ import React from 'react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
 
-export type DesignRichMediaTag = 'IMG' | 'VIDEO' | 'IFRAME'
+export type StaticRichMediaPanelPreviewTag = 'IMG' | 'VIDEO' | 'IFRAME'
 
 const stopEvent = (event: React.SyntheticEvent) => {
   try {
@@ -12,11 +12,10 @@ const stopEvent = (event: React.SyntheticEvent) => {
   }
 }
 
-export function DesignRichMediaPreview(props: {
-  tag: DesignRichMediaTag
+export function StaticRichMediaPanelPreview(props: {
+  tag: StaticRichMediaPanelPreviewTag
   url: string
   titleChip: string
-  clipId: string
   innerX: number
   innerY: number
   innerW: number
@@ -45,7 +44,7 @@ export function DesignRichMediaPreview(props: {
     onOverlayPanEnd,
   } = props
 
-  const titleW = Math.min(innerW, Math.max(64, (titleChip.length + 6) * 6))
+  const titleWidth = Math.min(innerW, Math.max(64, (titleChip.length + 6) * 6))
   const mediaCorner = 6
   const kind = tag === 'IMG' ? 'image' : tag === 'VIDEO' ? 'video' : 'iframe'
   const panel = React.useMemo(
@@ -113,7 +112,7 @@ export function DesignRichMediaPreview(props: {
       <rect
         x={innerX}
         y={innerY}
-        width={titleW}
+        width={titleWidth}
         height={18}
         rx={5}
         fill="var(--kg-panel-bg)"

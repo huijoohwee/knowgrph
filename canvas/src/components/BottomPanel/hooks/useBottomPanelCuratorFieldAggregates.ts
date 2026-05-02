@@ -1,5 +1,5 @@
 import React from 'react'
-import type { GraphNode, GraphEdge, GraphData, SelectionAnchorIds } from '@/lib/graph/types'
+import type { GraphNode, GraphEdge, GraphData } from '@/lib/graph/types'
 import {
   type GraphDataTableColumnKey,
 } from '@/features/graph-data-table/graphDataTable'
@@ -11,10 +11,10 @@ import {
   type GraphFieldSettingsById,
 } from '@/features/graph-fields/graphFields'
 import {
-  computeNumericSampleStatsForField,
+  getCachedNumericSampleStatsByFieldId,
   type NumericSampleStats,
 } from '../BottomPanelCuratorModels'
-import { buildSelectionSubgraphForAnchorIds } from '@/lib/graph/file'
+import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
 import { hashScopedStringArraySignature, hashSignatureParts } from '@/lib/hash/signature'
 
@@ -71,50 +71,42 @@ export function useBottomPanelCuratorFieldAggregates({
   selectedEdgeIds,
   setGraphDataTableAggregateKeysState,
 }: UseBottomPanelCuratorFieldAggregatesParams): BottomPanelCuratorFieldAggregatesResult {
-  const { sampleNodes, sampleEdges } = React.useMemo(() => {
+  const graphData = React.useMemo<GraphData>(() => ({ type: 'Graph', nodes, edges }), [edges, nodes])
+
+  const selectionAnchorIds = React.useMemo(() => {
+    return normalizeSelectionIds({
+      selectedNodeId,
+      selectedEdgeId,
+      selectedNodeIds,
+      selectedEdgeIds,
+    })
+  }, [selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
+
+  const selectionMembership = React.useMemo(() => {
+    if (graphDataTableViewMode !== 'selectionNeighborhood') return null
     if (
-      graphDataTableViewMode === 'selectionNeighborhood' &&
-      (selectedNodeId ||
-        selectedEdgeId ||
-        (selectedNodeIds && selectedNodeIds.length > 0) ||
-        (selectedEdgeIds && selectedEdgeIds.length > 0))
+      selectionAnchorIds.selectionNodeIds.length === 0
+      && selectionAnchorIds.selectionEdgeIds.length === 0
     ) {
-      const data: GraphData = { type: 'Graph', nodes, edges }
-      const selectionAnchorIds: SelectionAnchorIds = normalizeSelectionIds({
-        selectedNodeId,
-        selectedEdgeId,
-        selectedNodeIds,
-        selectedEdgeIds,
-      })
-      const selectionSubgraph = buildSelectionSubgraphForAnchorIds(data, selectionAnchorIds)
-      if (selectionSubgraph) {
-        return {
-          sampleNodes: selectionSubgraph.nodes,
-          sampleEdges: selectionSubgraph.edges,
-        }
-      }
+      return null
     }
-    return {
-      sampleNodes: nodes,
-      sampleEdges: edges,
-    }
-  }, [edges, graphDataTableViewMode, nodes, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
+    return readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)
+  }, [graphData, graphDataTableViewMode, selectionAnchorIds])
+
+  const sampleGraphData = selectionMembership?.subgraph ?? graphData
+  const sampleNodes = sampleGraphData.nodes
+  const sampleEdges = sampleGraphData.edges
 
   const selectionSemanticKey = React.useMemo(() => {
     return hashSignatureParts([
       'bottom-panel-curator-selection',
       graphDataTableViewMode,
-      selectedNodeId || '',
-      selectedEdgeId || '',
-      hashScopedStringArraySignature('selected-nodes', selectedNodeIds),
-      hashScopedStringArraySignature('selected-edges', selectedEdgeIds),
+      hashScopedStringArraySignature('selected-nodes', selectionAnchorIds.selectionNodeIds),
+      hashScopedStringArraySignature('selected-edges', selectionAnchorIds.selectionEdgeIds),
     ])
   }, [
     graphDataTableViewMode,
-    selectedEdgeId,
-    selectedEdgeIds,
-    selectedNodeId,
-    selectedNodeIds,
+    selectionAnchorIds,
   ])
 
   const sampleGraphSemanticKey = React.useMemo(() => {
@@ -126,15 +118,6 @@ export function useBottomPanelCuratorFieldAggregates({
       sampleEdges.length,
     ])
   }, [graphDataRevision, sampleEdges.length, sampleNodes.length, selectionSemanticKey])
-
-  const sampleGraphRef = React.useRef<{ key: string; value: GraphData } | null>(null)
-  if (sampleGraphRef.current?.key !== sampleGraphSemanticKey) {
-    sampleGraphRef.current = {
-      key: sampleGraphSemanticKey,
-      value: { type: 'Graph', nodes: sampleNodes, edges: sampleEdges },
-    }
-  }
-  const sampleGraphData = sampleGraphRef.current.value
 
   const derivedGraphFields = React.useMemo(() => {
     return getCachedDerivedFields({
@@ -152,12 +135,17 @@ export function useBottomPanelCuratorFieldAggregates({
     const shouldComputeNumericSamples =
       graphDataTablePanel === 'group' || graphDataTableAggregateKeys.length > 0 || graphDataTableGroupKey !== ''
     if (!shouldComputeNumericSamples) return new Map<GraphFieldId, NumericSampleStats>()
-    const map = new Map<GraphFieldId, NumericSampleStats>()
-    for (const field of derivedGraphFields) {
-      const stats = computeNumericSampleStatsForField(field, sampleNodes, sampleEdges, numericSampleLimit)
-      map.set(field.id, stats)
-    }
-    return map
+    return getCachedNumericSampleStatsByFieldId({
+      fields: derivedGraphFields.map(field => ({
+        id: field.id,
+        scope: field.scope,
+        key: field.key,
+      })),
+      nodes: sampleNodes,
+      edges: sampleEdges,
+      numericSampleLimit,
+      graphSemanticKey: sampleGraphSemanticKey,
+    })
   }, [
     derivedGraphFields,
     sampleEdges,
@@ -166,6 +154,7 @@ export function useBottomPanelCuratorFieldAggregates({
     graphDataTableAggregateKeys.length,
     graphDataTableGroupKey,
     graphDataTablePanel,
+    sampleGraphSemanticKey,
   ])
 
   const aggregatePanelColumnKeys = React.useMemo(() => {

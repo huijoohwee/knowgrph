@@ -133,7 +133,7 @@ export function testRichMediaSsotConsistencyRegression() {
   const designText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas.tsx'), 'utf8')
   const designMarkdownPanelGroupsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useDesignCanvasMarkdownPanelGroups.ts'), 'utf8')
   const designMediaOverlayText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'MediaOverlay.tsx'), 'utf8')
-  const designRichMediaText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignRichMedia.tsx'), 'utf8')
+  const staticRichMediaPanelPreviewText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StaticRichMediaPanelPreview.tsx'), 'utf8')
   const markdownDesignOverlayText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx'), 'utf8')
   const previewPanelText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx'), 'utf8')
   const threeText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'), 'utf8')
@@ -217,8 +217,8 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!designMediaOverlayText.includes('panel={node.panel}') || !designMediaOverlayText.includes('commitRichMediaPanelChange')) {
     throw new Error('expected Design canvas media overlays to reuse canonical Rich Media panel state and writeback helpers')
   }
-  if (!designRichMediaText.includes('buildStaticRichMediaPanelOverlayState({ renderKind: kind })')) {
-    throw new Error('expected Design rich media preview to derive canonical panel state through the shared static builder')
+  if (!staticRichMediaPanelPreviewText.includes('buildStaticRichMediaPanelOverlayState({ renderKind: kind })')) {
+    throw new Error('expected static Rich Media panel preview to derive canonical panel state through the shared static builder')
   }
   if (
     !previewPanelText.includes('buildStaticRichMediaPanelOverlayState({ renderKind: activeMedia.kind })')
@@ -226,6 +226,15 @@ export function testRichMediaSsotConsistencyRegression() {
     || !previewPanelText.includes('commitRichMediaPanelChange')
   ) {
     throw new Error('expected Preview panel rich media mounts to reuse canonical Rich Media panel state and writeback helpers')
+  }
+  if (!previewPanelText.includes('const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)')) {
+    throw new Error('expected PreviewPanelView graph media path to reuse the effective widget registry SSOT')
+  }
+  if (previewPanelText.includes('buildDataflowWidgetRegistry')) {
+    throw new Error('expected PreviewPanelView to avoid rebuilding a duplicate merged widget registry locally')
+  }
+  if (!previewPanelText.includes('registry: widgetRegistry,')) {
+    throw new Error('expected PreviewPanelView connected-value computation to consume the effective widget registry directly')
   }
   if (!markdownDesignOverlayText.includes("buildStaticRichMediaPanelOverlayState({ activeTab: 'text', text: snippet })")) {
     throw new Error('expected markdown design overlay text previews to reuse the shared static Rich Media panel builder')

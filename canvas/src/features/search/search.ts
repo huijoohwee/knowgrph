@@ -1,6 +1,8 @@
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { SearchResult } from './types'
 import { normalized } from '@/features/panels/utils/json'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 const jsonStr = (v: unknown) => {
   try {
     return JSON.stringify(v ?? {})
@@ -134,10 +136,26 @@ const edgeEndpointId = (x: string | GraphNode | undefined): string => {
   return ''
 }
 
-const memo = new WeakMap<GraphData, Map<string, SearchResult[]>>()
-const nodeTextMemo = new WeakMap<GraphData, NodeIndexEntry[]>()
-const edgeTextMemo = new WeakMap<GraphData, EdgeIndexEntry[]>()
+const SEARCH_CACHE_LIMIT = 64
+const memo = new Map<string, Map<string, SearchResult[]>>()
+const nodeTextMemo = new Map<string, NodeIndexEntry[]>()
+const edgeTextMemo = new Map<string, EdgeIndexEntry[]>()
 const makeKey = (q: string, limit: number) => `${q}::${limit}`
+
+const touchSearchCacheEntry = <T>(cache: Map<string, T>, key: string, value: T): T => {
+  cache.delete(key)
+  cache.set(key, value)
+  return value
+}
+
+const writeBoundedSearchCacheEntry = <T>(cache: Map<string, T>, key: string, value: T): T => {
+  cache.set(key, value)
+  if (cache.size > SEARCH_CACHE_LIMIT) {
+    const oldestKey = cache.keys().next().value
+    if (typeof oldestKey === 'string') cache.delete(oldestKey)
+  }
+  return value
+}
 
 const rankEdge = (entry: EdgeIndexEntry, parsed: ParsedQuery): Ranked<SearchResult> | null => {
   const kindFilters = parsed.filters.kind || parsed.filters.k || []
@@ -182,11 +200,24 @@ const rankEdge = (entry: EdgeIndexEntry, parsed: ParsedQuery): Ranked<SearchResu
   }
 }
 
-const getNodeEntries = (graphData: GraphData): NodeIndexEntry[] => {
-  const cached = nodeTextMemo.get(graphData)
-  if (cached) return cached
+const getNodeEntries = (graphData: GraphData, graphSemanticKey?: string): NodeIndexEntry[] => {
+  const cacheKey = buildScopedGraphSemanticKey('search-node-entries', {
+    graphData,
+    graphSemanticKey,
+  })
+  if (cacheKey) {
+    const cached = nodeTextMemo.get(cacheKey)
+    if (cached) return touchSearchCacheEntry(nodeTextMemo, cacheKey, cached)
+  }
   const nodes: NodeIndexEntry[] = []
-  for (const n of graphData.nodes || []) {
+  const graphLookup = getCachedGraphLookup({
+    cacheScope: 'search-node-entries',
+    graphData,
+    graphSemanticKey: cacheKey,
+    preferCurrentGraphDataRefs: true,
+  })
+  const sourceNodes = graphLookup?.nodes || graphData.nodes || []
+  for (const n of sourceNodes) {
     const id = normalized(n.id)
     const label = normalized(n.label)
     const type = normalized(n.type)
@@ -202,15 +233,28 @@ const getNodeEntries = (graphData: GraphData): NodeIndexEntry[] => {
     const props = normalized(jsonStr(n.properties))
     nodes.push({ node: n, id, label, type, path, props })
   }
-  nodeTextMemo.set(graphData, nodes)
+  if (cacheKey) writeBoundedSearchCacheEntry(nodeTextMemo, cacheKey, nodes)
   return nodes
 }
 
-const getEdgeEntries = (graphData: GraphData): EdgeIndexEntry[] => {
-  const cached = edgeTextMemo.get(graphData)
-  if (cached) return cached
+const getEdgeEntries = (graphData: GraphData, graphSemanticKey?: string): EdgeIndexEntry[] => {
+  const cacheKey = buildScopedGraphSemanticKey('search-edge-entries', {
+    graphData,
+    graphSemanticKey,
+  })
+  if (cacheKey) {
+    const cached = edgeTextMemo.get(cacheKey)
+    if (cached) return touchSearchCacheEntry(edgeTextMemo, cacheKey, cached)
+  }
   const edges: EdgeIndexEntry[] = []
-  for (const e of graphData.edges || []) {
+  const graphLookup = getCachedGraphLookup({
+    cacheScope: 'search-edge-entries',
+    graphData,
+    graphSemanticKey: cacheKey,
+    preferCurrentGraphDataRefs: true,
+  })
+  const sourceEdges = graphLookup?.edges || graphData.edges || []
+  for (const e of sourceEdges) {
     const id = normalized(e.id)
     const label = normalized(e.label)
     const source = normalized(edgeEndpointId(e.source))
@@ -227,21 +271,35 @@ const getEdgeEntries = (graphData: GraphData): EdgeIndexEntry[] => {
     const props = normalized(jsonStr(e.properties))
     edges.push({ edge: e, id, label, source, target, path, props })
   }
-  edgeTextMemo.set(graphData, edges)
+  if (cacheKey) writeBoundedSearchCacheEntry(edgeTextMemo, cacheKey, edges)
   return edges
 }
 
-export function searchGraph(graphData: GraphData | null | undefined, query: string, limit = 50): SearchResult[] {
+export function searchGraph(
+  graphData: GraphData | null | undefined,
+  query: string,
+  limit = 50,
+  graphSemanticKey?: string,
+): SearchResult[] {
   if (!graphData) return []
   const parsed = parseQuery(query)
   if (!parsed.free.length && Object.keys(parsed.filters).length === 0) return []
   const key = makeKey(`${parsed.free.join(' ')}|${JSON.stringify(parsed.filters)}`, limit)
-  const byQuery = memo.get(graphData) || new Map<string, SearchResult[]>()
+  const resultsCacheKey = buildScopedGraphSemanticKey('search-graph-results', {
+    graphData,
+    graphSemanticKey,
+  })
+  const byQuery = resultsCacheKey ? (memo.get(resultsCacheKey) || new Map<string, SearchResult[]>()) : new Map<string, SearchResult[]>()
   const cached = byQuery.get(key)
-  if (cached) return cached
+  if (cached) {
+    byQuery.delete(key)
+    byQuery.set(key, cached)
+    if (resultsCacheKey) touchSearchCacheEntry(memo, resultsCacheKey, byQuery)
+    return cached
+  }
   const ranked: Ranked<SearchResult>[] = []
-  const nodeEntries = getNodeEntries(graphData)
-  const edgeEntries = getEdgeEntries(graphData)
+  const nodeEntries = getNodeEntries(graphData, graphSemanticKey)
+  const edgeEntries = getEdgeEntries(graphData, graphSemanticKey)
   for (const entry of nodeEntries) {
     const r = rankNode(entry, parsed)
     if (r) ranked.push(r)
@@ -253,7 +311,7 @@ export function searchGraph(graphData: GraphData | null | undefined, query: stri
   ranked.sort((a, b) => b._score - a._score)
   const out = ranked.slice(0, limit).map(({ id, kind, title, meta }) => ({ id, kind, title, meta }))
   byQuery.set(key, out)
-  memo.set(graphData, byQuery)
+  if (resultsCacheKey) writeBoundedSearchCacheEntry(memo, resultsCacheKey, byQuery)
   return out
 }
 

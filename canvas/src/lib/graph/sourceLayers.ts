@@ -2,6 +2,7 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { readParsedGraphRevisionOrInitial } from '@/features/source-files/sourceFileParsedGraphRevision'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 export type SourceLayerInput = {
   id: string
@@ -47,26 +48,25 @@ function readSourceLayerGraphMetadata(graphData: { metadata?: unknown } | null |
   return isRecord(graphData?.metadata) ? (graphData.metadata as Record<string, unknown>) : {}
 }
 
-const composedGraphCacheByFirstGraph = new WeakMap<GraphData, Map<string, GraphData>>()
 const COMPOSED_GRAPH_CACHE_LIMIT = 24
+const composedGraphCache = new Map<string, GraphData>()
 
-function readComposedGraphCache(firstGraph: GraphData | null, key: string): GraphData | null {
-  if (!firstGraph || !key) return null
-  return composedGraphCacheByFirstGraph.get(firstGraph)?.get(key) || null
+function readComposedGraphCache(key: string): GraphData | null {
+  if (!key) return null
+  const cached = composedGraphCache.get(key) || null
+  if (!cached) return null
+  composedGraphCache.delete(key)
+  composedGraphCache.set(key, cached)
+  return cached
 }
 
-function writeComposedGraphCache(firstGraph: GraphData | null, key: string, graphData: GraphData): void {
-  if (!firstGraph || !key) return
-  let byKey = composedGraphCacheByFirstGraph.get(firstGraph)
-  if (!byKey) {
-    byKey = new Map<string, GraphData>()
-    composedGraphCacheByFirstGraph.set(firstGraph, byKey)
+function writeComposedGraphCache(key: string, graphData: GraphData): void {
+  if (!key) return
+  composedGraphCache.set(key, graphData)
+  if (composedGraphCache.size > COMPOSED_GRAPH_CACHE_LIMIT) {
+    const oldest = composedGraphCache.keys().next().value
+    if (typeof oldest === 'string') composedGraphCache.delete(oldest)
   }
-  if (!byKey.has(key) && byKey.size >= COMPOSED_GRAPH_CACHE_LIMIT) {
-    const oldest = byKey.keys().next().value
-    if (typeof oldest === 'string') byKey.delete(oldest)
-  }
-  byKey.set(key, graphData)
 }
 
 function mergeWidgetRegistryMetadata(layers: SourceLayerInput[]): JSONValue[] | undefined {
@@ -178,8 +178,13 @@ export function composeGraphFromSourceLayers(args: {
   const enabledParsed = layers.filter(l => l.enabled && l.parsedGraphData)
 
   const base = enabledParsed[0]?.parsedGraphData || null
-  const cacheKey = `${contentKey}\n${orderKey}\n${String(args.fallbackType || '')}`
-  const cachedGraphData = readComposedGraphCache(base, cacheKey)
+  const cacheKey = buildScopedGraphSemanticKey('source-layer-compose', {
+    graphData: base,
+    sourceLayerHash: contentKey,
+    sourceLayerOrderHash: orderKey,
+    graphSemanticKey: String(args.fallbackType || ''),
+  })
+  const cachedGraphData = readComposedGraphCache(cacheKey)
   if (cachedGraphData) return { graphData: cachedGraphData, contentKey, orderKey }
   const baseType = base?.type || args.fallbackType || 'Graph'
   const baseContext = typeof base?.context === 'undefined' ? 'sourceLayers' : (base?.context as JSONValue)
@@ -254,7 +259,7 @@ export function composeGraphFromSourceLayers(args: {
     nodes,
     edges,
   }
-  writeComposedGraphCache(base, cacheKey, graphData)
+  writeComposedGraphCache(cacheKey, graphData)
   return {
     graphData,
     contentKey,

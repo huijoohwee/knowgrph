@@ -1,8 +1,8 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { normalizeSelectionIds } from '@/components/GraphCanvas/highlight'
-import { buildSelectionSubgraphForAnchorIds } from '@/lib/graph/file'
-import type { GraphData } from '@/lib/graph/types'
+import { readSelectionSubgraphMembershipForAnchorIds } from '@/lib/graph/file'
+import type { GraphData, SelectionAnchorIds } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { SelectionSnapshot } from '@/components/BottomPanel/stats/types'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
@@ -36,20 +36,25 @@ export function useStatsSelection() {
     return { selectedNodeId, selectedEdgeId, selectedNodeIds, selectedEdgeIds }
   }, [pinnedCommunityId, pinnedEdgeId, selectedEdgeId, selectedEdgeIds, selectedNodeId, selectedNodeIds])
 
-  const selectionSubgraph = React.useMemo<GraphData | null>(() => {
-    const graph = derivedGraph as GraphData | null
-    if (!graph) return null
-    const selectionAnchorIds = normalizeSelectionIds({
+  const selectionAnchorIds = React.useMemo<SelectionAnchorIds>(() => {
+    return normalizeSelectionIds({
       selectedNodeId: selectionInputsForStats.selectedNodeId,
       selectedEdgeId: selectionInputsForStats.selectedEdgeId,
       selectedNodeIds: selectionInputsForStats.selectedNodeIds,
       selectedEdgeIds: selectionInputsForStats.selectedEdgeIds,
     })
+  }, [selectionInputsForStats])
+
+  const selectionMembership = React.useMemo(() => {
+    const graph = derivedGraph as GraphData | null
+    if (!graph) return null
     if (selectionAnchorIds.selectionNodeIds.length === 0 && selectionAnchorIds.selectionEdgeIds.length === 0) {
       return null
     }
-    return buildSelectionSubgraphForAnchorIds(graph, selectionAnchorIds)
-  }, [derivedGraph, selectionInputsForStats])
+    return readSelectionSubgraphMembershipForAnchorIds(graph, selectionAnchorIds)
+  }, [derivedGraph, selectionAnchorIds])
+
+  const selectionSubgraph = selectionMembership?.subgraph ?? null
 
   const hasSelectionSubgraph = !!(
     selectionSubgraph &&

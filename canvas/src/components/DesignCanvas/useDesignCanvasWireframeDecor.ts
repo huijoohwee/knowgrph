@@ -11,7 +11,6 @@ import {
 } from '@/lib/graph/edgeTypes'
 import { applyMediaProxySrc, resolveUrlAgainstBase } from '@/lib/url'
 import { estimateMaxCharsForWidthPx, truncateTextWithEllipsis, wrapTextByMaxChars } from '@/lib/ui/text/labelText'
-import { hashText } from '@/features/parsers/hash'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type {
   DesignCanvasFrameNodeRef,
@@ -234,7 +233,6 @@ export function useDesignCanvasWireframeDecor(args: UseDesignCanvasWireframeDeco
           titleChip: truncateTextWithEllipsis(title, Math.max(8, Math.min(64, estimateMaxCharsForWidthPx(Math.max(0, innerW - 20), 10)))),
           src: srcFinal,
           isDataImage: /^data:image\//i.test(srcResolved || src),
-          clipId: `kgwf-clip-${hashText(node.id)}`,
         })
         continue
       }

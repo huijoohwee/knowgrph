@@ -1,6 +1,8 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { resolveGraphNodeIdsByCanonicalIds } from '@/lib/graph/canonicalNodeIds'
 import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 type SelectionAnchorIds = {
   selectionNodeIds: string[]
@@ -61,26 +63,61 @@ const resolveSelectionNodeIds = (graphData: GraphData, rawIds: ReadonlyArray<str
   return resolved.length > 0 ? resolved : rawIds.map(id => String(id || '').trim()).filter(Boolean)
 }
 
-const adjCache = new WeakMap<GraphData, Map<string, Set<string>>>()
+const ADJ_CACHE_LIMIT = 32
+const adjCache = new Map<string, Map<string, Set<string>>>()
 
 const getAdjacencyMap = (data: GraphData): Map<string, Set<string>> => {
-  const cached = adjCache.get(data)
-  if (cached) return cached
+  const graphSemanticKey = buildScopedGraphSemanticKey('selection-zoom-adjacency', { graphData: data })
+  const cached = graphSemanticKey ? adjCache.get(graphSemanticKey) || null : null
+  if (cached) {
+    adjCache.delete(graphSemanticKey)
+    adjCache.set(graphSemanticKey, cached)
+    return cached
+  }
   const map = new Map<string, Set<string>>()
-  for (const node of data.nodes || []) {
+  const graphLookup = getCachedGraphLookup({
+    cacheScope: 'selection-zoom-adjacency',
+    graphData: data,
+    graphSemanticKey,
+    preferCurrentGraphDataRefs: true,
+  })
+  const nodes = graphLookup?.nodes || []
+  const incidentEdgesByNodeId = graphLookup?.incidentEdgesByNodeId || null
+  for (const node of nodes) {
     map.set(String(node.id), new Set<string>())
   }
-  for (const edge of data.edges || []) {
-    const { src, tgt } = getEdgeEndpoints(edge)
-    const s = src ?? ''
-    const t = tgt ?? ''
-    if (!s || !t) continue
-    if (!map.has(s)) map.set(s, new Set<string>())
-    if (!map.has(t)) map.set(t, new Set<string>())
-    map.get(s)!.add(t)
-    map.get(t)!.add(s)
+  if (incidentEdgesByNodeId) {
+    incidentEdgesByNodeId.forEach((edges, nodeId) => {
+      const sourceId = String(nodeId || '').trim()
+      if (!sourceId) return
+      const neighbors = map.get(sourceId) || new Set<string>()
+      for (let i = 0; i < edges.length; i += 1) {
+        const endpoints = getEdgeEndpoints(edges[i]!)
+        const neighborId = endpoints.src === sourceId ? endpoints.tgt : endpoints.src
+        const targetId = String(neighborId || '').trim()
+        if (targetId) neighbors.add(targetId)
+      }
+      map.set(sourceId, neighbors)
+    })
+  } else {
+    for (const edge of data.edges || []) {
+      const { src, tgt } = getEdgeEndpoints(edge)
+      const s = src ?? ''
+      const t = tgt ?? ''
+      if (!s || !t) continue
+      if (!map.has(s)) map.set(s, new Set<string>())
+      if (!map.has(t)) map.set(t, new Set<string>())
+      map.get(s)!.add(t)
+      map.get(t)!.add(s)
+    }
   }
-  adjCache.set(data, map)
+  if (graphSemanticKey) {
+    adjCache.set(graphSemanticKey, map)
+    if (adjCache.size > ADJ_CACHE_LIMIT) {
+      const oldestKey = adjCache.keys().next().value
+      if (typeof oldestKey === 'string') adjCache.delete(oldestKey)
+    }
+  }
   return map
 }
 

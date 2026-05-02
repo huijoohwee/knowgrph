@@ -1,5 +1,4 @@
 import React from 'react'
-import { NodeOverlayEditorActionsToolbar } from '@/components/FlowEditor/NodeOverlayEditorActionsToolbar'
 import RichMediaIframe from '@/components/RichMediaIframe'
 import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
 import { applyImageLikeProxySrc } from '@/lib/url'
@@ -9,7 +8,6 @@ import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspa
 import type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 import {
   resolveRichMediaPanelSelectedTab,
-  shouldShowRichMediaFloatingToolbar,
 } from '@/lib/render/richMediaSsot'
 import {
   readLatestGrabMapsPoiRichMediaPreview,
@@ -19,7 +17,6 @@ import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/whee
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { resolveIframeEmbed, resolveIframeSandbox, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { getIconSizeClass } from '@/lib/ui'
 import {
   PANEL_FRAME_BODY_STYLE,
   PANEL_FRAME_ROOT_STYLE,
@@ -60,6 +57,7 @@ export type RichMediaPanelProps = {
   onClickCapture?: React.MouseEventHandler<HTMLDivElement>
   onDoubleClickCapture?: React.MouseEventHandler<HTMLDivElement>
   onContextMenuCapture?: React.MouseEventHandler<HTMLDivElement>
+  widgetToolbarActive?: boolean
   panel?: {
     activeTab: RichMediaPanelTab
     freezeConnectedOutput: boolean
@@ -75,27 +73,10 @@ export type RichMediaPanelProps = {
   flowEditorInteractionMode?: boolean
   flowEditorFrontmatterDocumentMode?: boolean
   flowEditorSurfaceId?: string
-  richMediaViewToggle?: {
-    visible: boolean
-    isKtvRows: boolean
-    onToggle: () => void
-  }
-  richMediaMediaSelector?: {
-    visible: boolean
-    selectedMode: RichMediaPanelTab
-    onSelect: (next: RichMediaPanelTab) => void
-  }
-  richMediaAspectToggle?: {
-    visible: boolean
-    selected: '16:9' | '9:16' | null
-    onToggle: () => void
-  }
   onPanelChange?: (next: { activeTab: RichMediaPanelTab; freezeConnectedOutput: boolean; text?: string }) => void
 }
 
 const RICH_MEDIA_SKELETON_STYLE_ID = 'kg-rich-media-skeleton-style'
-const RICH_MEDIA_FLOATING_TOOLBAR_SIDE_OFFSET_PX = 8
-
 type RichMediaPlaceholderMode = 'text' | 'image' | 'video' | 'undefined'
 
 type RichMediaSkeletonVariant = RichMediaPlaceholderMode | 'iframe'
@@ -442,10 +423,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const panelActiveTab = panel ? panel.activeTab : 'auto'
   const panelFreezeConnectedOutput = panel ? panel.freezeConnectedOutput : false
   const panelHasPoi = panel ? panel.hasPoi : Boolean(grabMapsPoiPreviewSrcDoc.trim() || grabMapsPoiPreviewLabel.trim())
-  const panelAvailableTabCount = panel
-    ? [panel.hasText, panel.hasImage, panel.hasVideo, panelHasPoi].filter(Boolean).length
-    : 0
-  const panelHasMultiKinds = panelAvailableTabCount > 1
   const panelSelectedTab = resolveRichMediaPanelSelectedTab({
     activeTab: panelActiveTab,
     hasText: panel?.hasText === true,
@@ -498,8 +475,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
-  const uiIconScale = useGraphStore(s => s.uiIconScale)
-  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const isFlowEditorRenderer = useGraphStore(s => String(s.canvas2dRenderer || '') === 'flowEditor')
   const flowEditorFrontmatterDocumentModeFromStore = useGraphStore(s => isFlowEditorFrontmatterDocumentModeRequested({
     canvas2dRenderer: String(s.canvas2dRenderer || ''),
@@ -611,80 +586,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     }
     return false
   }, [overlayId, selectedNodeId, selectedNodeIds])
-  const showWidgetLikeToolbar = shouldShowRichMediaFloatingToolbar({
-    hasPanelState: !!panel,
-    hasMultiKinds: panelHasMultiKinds,
-    selectedTab: panelSelectedTab,
-    safeOpenUrl,
-  })
-  const iconSizeClass = getIconSizeClass(uiIconScale)
-  const handleToggleRichMediaTextMode = React.useCallback(() => {
-    if (!panel || panelSelectedTab !== 'text') return
-    if (panelFreezeConnectedOutput) {
-      onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: false })
-      return
-    }
-    const base = panel.connectedText || panel.text
-    onPanelChange?.({ activeTab: 'text', freezeConnectedOutput: true, text: base })
-  }, [onPanelChange, panel, panelFreezeConnectedOutput, panelSelectedTab])
-  const floatingWidgetLikeToolbar = showWidgetLikeToolbar ? (
-    <div
-      className="absolute z-10 pointer-events-auto"
-      style={{
-        top: '50%',
-        left: '100%',
-        marginLeft: `${RICH_MEDIA_FLOATING_TOOLBAR_SIDE_OFFSET_PX}px`,
-        transform: 'translateY(-50%)',
-      }}
-    >
-      <NodeOverlayEditorActionsToolbar
-        visible={true}
-        iconSizeClass={iconSizeClass}
-        iconStrokeWidth={uiIconStrokeWidth}
-        active={true}
-        enableHandlesDisabled={true}
-        convertToLoopDisabled={true}
-        duplicateDisabled={true}
-        actionVisibility={{
-          run: false,
-          updateKvEntry: false,
-          openInSidepane: false,
-          enableHandles: false,
-          convertToLoop: false,
-          duplicate: false,
-          clearOutput: false,
-          help: false,
-          remove: false,
-        }}
-        richMediaViewToggle={showWidgetLikeToolbar ? props.richMediaViewToggle : undefined}
-        richMediaMediaSelector={showWidgetLikeToolbar ? {
-          visible: props.richMediaMediaSelector?.visible ?? panelHasMultiKinds,
-          selectedMode: props.richMediaMediaSelector?.selectedMode ?? panelActiveTab,
-          onSelect: props.richMediaMediaSelector?.onSelect
-            || (next => onPanelChange?.({ activeTab: next, freezeConnectedOutput: panelFreezeConnectedOutput })),
-        } : undefined}
-        richMediaAspectToggle={showWidgetLikeToolbar ? props.richMediaAspectToggle : undefined}
-        richMediaTextModeToggle={showWidgetLikeToolbar && panelSelectedTab === 'text' ? {
-          visible: true,
-          freezeConnectedOutput: panelFreezeConnectedOutput,
-          onToggle: handleToggleRichMediaTextMode,
-        } : undefined}
-        openExternalAction={showWidgetLikeToolbar && safeOpenUrl ? {
-          visible: true,
-          label: 'Open source',
-          onOpen: openSafeUrl,
-        } : undefined}
-        onRun={() => void 0}
-        onDuplicate={() => void 0}
-        onClearOutput={() => void 0}
-        onHelp={() => void 0}
-        onRemove={() => void 0}
-        onEnableHandlesForAllInputs={() => void 0}
-        onConvertToLoopNode={() => void 0}
-      />
-    </div>
-  ) : null
-
   const selectSelf = React.useCallback((native: PointerEvent | null) => {
     if (!flowEditorInteractionMode) return
     const id = String(props.overlayId || '').trim()
@@ -818,6 +719,7 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     const isResizeHandleTarget = !!targetEl?.closest('[data-kg-resize-handle]')
     const isScrollableSurfaceTarget = !!targetEl?.closest('[data-kg-media-scroll-surface="1"]')
     const isInteractiveControlTarget = !!targetEl?.closest('textarea,input,select,button,a,[contenteditable="true"]')
+    const isHeaderTarget = !!targetEl?.closest('[data-kg-canvas-overlay-drag-handle="true"]')
     const allowPointerButtons = (() => {
       const b = typeof native.buttons === 'number' ? native.buttons : 0
       return (b & 1) === 1 || (b & 4) === 4
@@ -1262,7 +1164,6 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
       onDoubleClickCapture={props.onDoubleClickCapture}
       onContextMenuCapture={props.onContextMenuCapture}
     >
-      {floatingWidgetLikeToolbar}
       {renderSurfaceChildren}
     </section>
   )

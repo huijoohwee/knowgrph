@@ -2,7 +2,6 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { edgeExists } from '@/lib/graph/edges'
 import { DEFAULT_NODE_MEDIA_KIND, getNodeMediaSpec, patchNodeMediaProperties, type NodeMediaKind } from '@/components/GraphCanvas/helpers'
 import { emitChatInputAppend, emitSidePanelOpen } from '@/features/canvas/utils'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -12,6 +11,7 @@ import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 type FloatingPanelModel = {
   graphData: GraphData | null
@@ -136,13 +136,19 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const [mediaUrl, setMediaUrl] = React.useState<string>('')
   const [mediaInteractive, setMediaInteractive] = React.useState<boolean>(false)
 
+  const graphSemanticKey = React.useMemo(
+    () => buildScopedGraphSemanticKey('floating-props-panel-graph', { graphData, graphRevision: graphDataRevision }),
+    [graphData, graphDataRevision],
+  )
   const graphLookup = React.useMemo(() => {
     return getCachedGraphLookup({
       cacheScope: 'floating-props-panel-graph',
       graphData,
       graphRevision: graphDataRevision,
+      graphSemanticKey,
+      preferCurrentGraphDataRefs: true,
     })
-  }, [graphData, graphDataRevision])
+  }, [graphData, graphDataRevision, graphSemanticKey])
 
   const nodeContextId = selectedNodeId
   const edgeContextId = selectedEdgeId
@@ -188,12 +194,12 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     const current = graphLookup.nodeById.get(nodeContextId) || null
     if (!current) return
 
-    const nextProps: GraphNode['properties'] = patchNodeMediaProperties({
+    const nextProps = patchNodeMediaProperties({
       properties: (current.properties || {}) as Record<string, unknown>,
       kind: mediaKind,
       url: mediaUrl,
       interactive: mediaInteractive,
-    })
+    }) as GraphNode['properties']
     updateNode(nodeContextId, { properties: nextProps })
   }, [graphLookup, mediaInteractive, mediaKind, mediaUrl, nodeContextId, updateNode])
 
@@ -496,7 +502,7 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   }, [addNode, newLabel, newType, schema, selectNode, setSelectionSource])
 
   const doAddNodePlusEdgeFromSelected = React.useCallback(() => {
-    if (!graphData || !graphLookup || !nodeContextId) return
+    if (!graphLookup || !nodeContextId) return
     const start = graphLookup.nodeById.get(nodeContextId) || null
     if (!start) return
     const tpl = (schema?.templates?.node || {})[newType] || {}
@@ -514,29 +520,18 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
     }
     addNode(node)
     const resolvedEdgeLabel = String(newEdgeLabel || defaultEdgeLabel || 'link').trim() || 'link'
-    const exists = edgeExists(graphData.edges, start.id, newNodeId, resolvedEdgeLabel)
-    if (!exists) {
-      const newEdgeId = createId('e')
-      const edge: GraphEdge = {
-        id: newEdgeId,
-        source: start.id,
-        target: newNodeId,
-        label: resolvedEdgeLabel,
-        properties: {},
-      }
-      addEdge(edge)
-      setSelectionSource('toolbar')
-      selectEdge(newEdgeId)
-    } else {
-      const dup = (graphLookup.incidentEdgesByNodeId.get(start.id) || []).find(
-        e => e.source === start.id && e.target === newNodeId && e.label === resolvedEdgeLabel,
-      )
-      if (dup) {
-        setSelectionSource('toolbar')
-        selectEdge(dup.id)
-      }
+    const newEdgeId = createId('e')
+    const edge: GraphEdge = {
+      id: newEdgeId,
+      source: start.id,
+      target: newNodeId,
+      label: resolvedEdgeLabel,
+      properties: {},
     }
-  }, [addEdge, addNode, defaultEdgeLabel, graphData, graphLookup, newEdgeLabel, newLabel, newType, nodeContextId, schema, selectEdge, setSelectionSource])
+    addEdge(edge)
+    setSelectionSource('toolbar')
+    selectEdge(newEdgeId)
+  }, [addEdge, addNode, defaultEdgeLabel, graphLookup, newEdgeLabel, newLabel, newType, nodeContextId, schema, selectEdge, setSelectionSource])
 
   const doStartEdgeFromSelected = React.useCallback(() => {
     if (!graphLookup || !nodeContextId) return
@@ -550,12 +545,12 @@ export function useFloatingPropsPanelModel(): FloatingPanelModel {
   const doAddMediaNode = React.useCallback(() => {
     const tpl = (schema?.templates?.node || {})[newType] || {}
     const newNodeId = createId('n')
-    const props: GraphNode['properties'] = patchNodeMediaProperties({
+    const props = patchNodeMediaProperties({
       properties: (tpl || {}) as Record<string, unknown>,
       kind: mediaKind,
       url: mediaUrl,
       interactive: mediaInteractive,
-    })
+    }) as GraphNode['properties']
     const center = getCanvasCenterGraphPoint()
     const node: GraphNode = {
       id: newNodeId,

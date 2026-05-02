@@ -23,7 +23,7 @@ export const computeSearchResults = (data: unknown, query: string, limit: number
   const key = buildToolbarSearchCacheKey(query, limit, versionKey, nodesLen, edgesLen)
   const cached = searchCache.get(key)
   if (cached) return cached
-  const res = searchGraph((data as import('@/lib/graph/types').GraphData | null) ?? null, query, limit)
+  const res = searchGraph((data as import('@/lib/graph/types').GraphData | null) ?? null, query, limit, versionKey)
   searchCache.set(key, res)
   return res
 }

@@ -43,16 +43,10 @@ import { NodeOverlayEditorBeatByBeatSection } from '@/components/FlowEditor/Node
 import type { GraphEdge } from '@/lib/graph/types'
 import { emitFlowEditorInteractionFrame } from '@/lib/canvas/flow-editor-overlay-proxy'
 import { PORT_HANDLE_STROKE_CLASS } from '@/components/FlowEditor/portHandleUi'
+import type { RichMediaWidgetPreviewState } from '@/components/FlowEditor/useRichMediaWidgetPreview'
 import {
-  buildRichMediaPanelOverlayState,
-  buildRichMediaPanelPreviewSpec,
-  commitRichMediaPanelChange,
-  coerceRichMediaPanelSizePx,
   getRichMediaPanelNodeLabel,
 } from '@/lib/render/richMediaSsot'
-
-const RICH_MEDIA_PANEL_MIN_WIDTH = 220
-const RICH_MEDIA_PANEL_MIN_HEIGHT = 160
 
 function pickString(v: unknown): string {
   return typeof v === 'string' ? v : ''
@@ -79,6 +73,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   onRenameSchemaFieldId,
   onRegistrySelectionChange,
   connectedValuesBySchemaPath,
+  richMediaWidgetPreview,
   registryEntry = null,
   registryEntries = [],
 }: {
@@ -98,6 +93,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   onRenameSchemaFieldId?: (args: { prevId: string; nextId: string }) => void
   onRegistrySelectionChange?: (args: { entry: WidgetRegistryEntry | null }) => void
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
+  richMediaWidgetPreview?: RichMediaWidgetPreviewState
   registryEntry?: WidgetRegistryEntry | null
   registryEntries?: ReadonlyArray<WidgetRegistryEntry>
 }) {
@@ -128,102 +124,13 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
   const showRichMediaPanelViewer = isRichMediaPanelWidget && !hideFields
   const showRichMediaPanelKtvRows = isRichMediaPanelWidget && hideFields && !isFrontmatterFlow
   const portHandlesEnabled = Boolean(schema?.behavior?.portHandles?.enabled) || isFrontmatterFlow
-  const richMediaPanelStoredWidth =
-    typeof node.properties?.['visual:width'] === 'number' && Number.isFinite(node.properties['visual:width'])
-      ? Math.max(RICH_MEDIA_PANEL_MIN_WIDTH, Math.round(node.properties['visual:width'] as number))
-      : 280
-  const richMediaPanelStoredHeight =
-    typeof node.properties?.['visual:height'] === 'number' && Number.isFinite(node.properties['visual:height'])
-      ? Math.max(RICH_MEDIA_PANEL_MIN_HEIGHT, Math.round(node.properties['visual:height'] as number))
-      : 180
-  const richMediaPanelBaseSize = React.useMemo(() => {
-    const vw = typeof window !== 'undefined' ? window.innerWidth : null
-    const vh = typeof window !== 'undefined' ? window.innerHeight : null
-    const coerced = coerceRichMediaPanelSizePx({
-      width: richMediaPanelStoredWidth,
-      height: richMediaPanelStoredHeight,
-      viewportW: vw,
-      viewportH: vh,
-      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
-      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
-    })
-    return { width: coerced.width, height: coerced.height }
-  }, [richMediaPanelStoredHeight, richMediaPanelStoredWidth])
-  const [richMediaPanelViewSize, setRichMediaPanelViewSize] = React.useState(richMediaPanelBaseSize)
-  const richMediaPanelResizeStartRef = React.useRef(richMediaPanelBaseSize)
-
-  React.useEffect(() => {
-    if (!showRichMediaPanelViewer) return
-    setRichMediaPanelViewSize(prev => (
-      prev.width === richMediaPanelBaseSize.width && prev.height === richMediaPanelBaseSize.height
-        ? prev
-        : richMediaPanelBaseSize
-    ))
-  }, [richMediaPanelBaseSize, showRichMediaPanelViewer])
-
-  const richMediaPanelState = React.useMemo(() => {
-    if (!showRichMediaPanelViewer) return null
-    return buildRichMediaPanelOverlayState({
-      node,
-      connectedValuesBySchemaPath,
-    })
-  }, [connectedValuesBySchemaPath, node, showRichMediaPanelViewer])
-  const richMediaPreview = React.useMemo(() => {
-    if (!showRichMediaPanelViewer) return null
-    return buildRichMediaPanelPreviewSpec({
-      node,
-      connectedValuesBySchemaPath,
-      panel: richMediaPanelState,
-    })
-  }, [connectedValuesBySchemaPath, node, richMediaPanelState, showRichMediaPanelViewer])
-  const handleRichMediaPanelChange = React.useCallback((next: {
-    activeTab: 'auto' | 'text' | 'image' | 'video' | 'poi'
-    freezeConnectedOutput: boolean
-    text?: string
-  }) => {
-    if (!showRichMediaPanelViewer) return
-    const nodeId = String(node.id || '').trim()
-    if (!nodeId) return
-    commitRichMediaPanelChange({
-      nodeId,
-      next,
-      updateNode: (_id, patch) => {
-        onPatchProperties(patch.properties)
-      },
-    })
-  }, [node.id, onPatchProperties, showRichMediaPanelViewer])
-  const handleRichMediaResizeStart = React.useCallback(() => {
-    richMediaPanelResizeStartRef.current = richMediaPanelViewSize
-  }, [richMediaPanelViewSize])
-  const handleRichMediaResize = React.useCallback((args: { dx: number; dy: number }) => {
-    const vw = typeof window !== 'undefined' ? window.innerWidth : null
-    const vh = typeof window !== 'undefined' ? window.innerHeight : null
-    const coerced = coerceRichMediaPanelSizePx({
-      width: Math.round(richMediaPanelResizeStartRef.current.width + args.dx),
-      height: Math.round(richMediaPanelResizeStartRef.current.height + args.dy),
-      viewportW: vw,
-      viewportH: vh,
-      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
-      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
-    })
-    setRichMediaPanelViewSize({ width: coerced.width, height: coerced.height })
-  }, [])
-  const handleRichMediaResizeEnd = React.useCallback(() => {
-    const vw = typeof window !== 'undefined' ? window.innerWidth : null
-    const vh = typeof window !== 'undefined' ? window.innerHeight : null
-    const coerced = coerceRichMediaPanelSizePx({
-      width: richMediaPanelViewSize.width,
-      height: richMediaPanelViewSize.height,
-      viewportW: vw,
-      viewportH: vh,
-      minWidthPx: RICH_MEDIA_PANEL_MIN_WIDTH,
-      minHeightPx: RICH_MEDIA_PANEL_MIN_HEIGHT,
-    })
-    onPatchProperties({
-      'visual:width': coerced.width,
-      'visual:height': coerced.height,
-    })
-  }, [onPatchProperties, richMediaPanelViewSize.height, richMediaPanelViewSize.width])
+  const richMediaPanelState = richMediaWidgetPreview?.richMediaPanelState || null
+  const richMediaPreview = richMediaWidgetPreview?.richMediaPreview || null
+  const richMediaPanelViewSize = richMediaWidgetPreview?.richMediaPanelViewSize || { width: 280, height: 180 }
+  const handleRichMediaPanelChange = richMediaWidgetPreview?.handleRichMediaPanelChange
+  const handleRichMediaResizeStart = richMediaWidgetPreview?.handleRichMediaResizeStart
+  const handleRichMediaResize = richMediaWidgetPreview?.handleRichMediaResize
+  const handleRichMediaResizeEnd = richMediaWidgetPreview?.handleRichMediaResizeEnd
 
   const flowEnvelopeValueBoxClass = React.useMemo(() => {
     return cn(
@@ -667,6 +574,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
             onResize={handleRichMediaResize}
             onResizeEnd={handleRichMediaResizeEnd}
             panel={richMediaPanelState || undefined}
+            widgetToolbarActive={false}
             onPanelChange={handleRichMediaPanelChange}
             style={{ width: '100%', height: '100%', boxShadow: 'none' }}
           />

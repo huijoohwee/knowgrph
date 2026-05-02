@@ -12,6 +12,7 @@ import { isFrontmatterFlowComputedEnabled } from '@/lib/graph/frontmatterFlowSet
 import { readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/flowComputeInline'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 export type FlowConnectedValueSource = {
   edgeId: string
@@ -72,12 +73,24 @@ function buildConnectedValuesTargetKey(targetNodeIds?: ReadonlySet<string>): str
     .join('\n')
 }
 
-function buildConnectedValuesGraphKey(graph: GraphData, graphRevision?: number): string {
+function buildConnectedValuesGraphKey(args: {
+  graph: GraphData
+  graphRevision?: number
+  graphSemanticKey?: string
+}): string {
+  const explicitGraphSemanticKey = String(args.graphSemanticKey || '').trim()
+  if (explicitGraphSemanticKey) {
+    return buildScopedGraphSemanticKey('flow-connected-values-graph', {
+      graphRevision: args.graphRevision,
+      graphSemanticKey: explicitGraphSemanticKey,
+    })
+  }
+  const graph = args.graph
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
   const edges = Array.isArray(graph.edges) ? graph.edges : []
   const parts: Array<string | number | boolean> = [
     'rev',
-    Number.isFinite(graphRevision) ? Number(graphRevision) : -1,
+    Number.isFinite(args.graphRevision) ? Number(args.graphRevision) : -1,
     'nodes',
     nodes.length,
   ]
@@ -320,13 +333,18 @@ export function computeFlowConnectedValuesBySchemaPath(args: {
   registry: ReadonlyArray<WidgetRegistryEntry>
   targetNodeIds?: ReadonlySet<string>
   graphRevision?: number
+  graphSemanticKey?: string
 }): Map<string, FlowConnectedValuesBySchemaPath> {
   const graph = args.graphData
   if (!graph) return new Map()
   const registry = Array.isArray(args.registry) ? args.registry : []
   const registryKey = registryCollectionKey(registry)
   const targetKey = buildConnectedValuesTargetKey(args.targetNodeIds)
-  const graphKey = buildConnectedValuesGraphKey(graph, args.graphRevision)
+  const graphKey = buildConnectedValuesGraphKey({
+    graph,
+    graphRevision: args.graphRevision,
+    graphSemanticKey: args.graphSemanticKey,
+  })
   const cached = readConnectedValuesResultCache({ graphKey, registryKey, targetKey })
   if (cached) return cached
   const computeEnabled = isFrontmatterFlowComputedEnabled(graph)

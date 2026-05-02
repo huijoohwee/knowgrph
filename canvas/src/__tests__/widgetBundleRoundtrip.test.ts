@@ -92,6 +92,15 @@ export function testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths() 
   if (!graphTableInspectorText.includes('graphRevision: graphDataRevision')) {
     throw new Error('expected GraphTableInspector widget copy path to pass graph revision metadata into the shared widget bundle JSON helper')
   }
+  if (!graphTableInspectorText.includes('effectiveWidgetRegistry: s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY')) {
+    throw new Error('expected GraphTableInspector widget flows to reuse the store effective widget registry SSOT')
+  }
+  if (graphTableInspectorText.includes('graphLookupSnapshotRef')) {
+    throw new Error('expected GraphTableInspector to rely on the shared graph lookup cache instead of preserving a local graph snapshot ref')
+  }
+  if (!graphTableInspectorText.includes('preferCurrentGraphDataRefs: true')) {
+    throw new Error('expected GraphTableInspector shared graph lookup to preserve current graph references on cache refresh')
+  }
 
   const flowEditorMappingTabPath = resolve(process.cwd(), 'src', 'features', 'flow-editor-manager', 'FlowEditorMappingTab.tsx')
   const flowEditorMappingTabText = readFileSync(flowEditorMappingTabPath, 'utf8')

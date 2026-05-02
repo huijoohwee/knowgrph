@@ -15,6 +15,8 @@ import { applyCellUpdateToGraphStore } from '@/features/graph-table/lib/applyCel
 import { useGraphTableDbSync } from '@/features/graph-table/hooks/useGraphTableDbSync'
 import { hashRecordSignature32 } from '@/lib/hash/signature'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
+import { getCachedGraphLookup, type CachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 const EMPTY_STRING_ARRAY: string[] = []
 
@@ -28,16 +30,16 @@ const toInspectorRow = (tableId: GraphTableId, doc: GraphRowDoc): GraphTableInsp
   },
 })
 
-const buildFallbackInspectorRow = (selection: { tableId: GraphTableId; rowId: string } | null): GraphTableInspectorRow | null => {
+const buildFallbackInspectorRow = (
+  selection: { tableId: GraphTableId; rowId: string } | null,
+  baseGraphLookup: CachedGraphLookup | null,
+): GraphTableInspectorRow | null => {
   if (!selection) return null
   const { tableId, rowId } = selection
-  const store = useGraphStore.getState()
-  const graphData = store.graphData as unknown as { nodes?: unknown[]; edges?: unknown[] } | null
-  if (!graphData) return { tableId, rowId, order: 0, data: { id: rowId } }
+  if (!baseGraphLookup) return { tableId, rowId, order: 0, data: { id: rowId } }
 
   if (tableId === 'nodes') {
-    const nodes = Array.isArray(graphData.nodes) ? (graphData.nodes as Array<{ id?: unknown; label?: unknown; type?: unknown }>) : []
-    const node = nodes.find(n => String(n.id || '') === rowId) || null
+    const node = baseGraphLookup.nodeById.get(rowId) || null
     return {
       tableId,
       rowId,
@@ -50,10 +52,7 @@ const buildFallbackInspectorRow = (selection: { tableId: GraphTableId; rowId: st
     }
   }
 
-  const edges = Array.isArray(graphData.edges)
-    ? (graphData.edges as Array<{ id?: unknown; label?: unknown; source?: unknown; target?: unknown }>)
-    : []
-  const edge = edges.find(e => String(e.id || '') === rowId) || null
+  const edge = baseGraphLookup.edgeById.get(rowId) || null
   return {
     tableId,
     rowId,
@@ -83,6 +82,28 @@ export default function GraphTableSelectionInspector() {
   const collapsedGroupIdsKey = useMemo(() => {
     return buildCollapsedGroupIdsKey(collapsedGroupIds)
   }, [collapsedGroupIds])
+  const baseGraphSemanticKey = useMemo(
+    () => buildScopedGraphSemanticKey('graph-table-selection-inspector-base-graph', { graphData: baseGraphData ?? null, graphRevision: graphDataRevision }),
+    [baseGraphData, graphDataRevision],
+  )
+  const baseGraphLookupSnapshotRef = useRef<{ key: string; value: typeof baseGraphData } | null>(null)
+  if (baseGraphLookupSnapshotRef.current?.key !== baseGraphSemanticKey) {
+    baseGraphLookupSnapshotRef.current = {
+      key: baseGraphSemanticKey,
+      value: baseGraphData ?? null,
+    }
+  }
+  const baseGraphLookupGraphData = baseGraphLookupSnapshotRef.current?.value || null
+  const baseGraphLookup = useMemo(
+    () => getCachedGraphLookup({
+      cacheScope: 'graph-table-selection-inspector-base-graph',
+      graphData: baseGraphLookupGraphData,
+      graphRevision: graphDataRevision,
+      graphSemanticKey: baseGraphSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    }),
+    [baseGraphLookupGraphData, baseGraphSemanticKey, graphDataRevision],
+  )
 
   const syncGraphData = useMemo(() => {
     if (!baseGraphData) return null
@@ -101,18 +122,16 @@ export default function GraphTableSelectionInspector() {
     if (selectedNodeId) return { tableId: 'nodes' as const, rowId: selectedNodeId }
     if (selectedEdgeId) return { tableId: 'edges' as const, rowId: selectedEdgeId }
     if (openWidgetNodeIds.length > 0) {
-      const graphData = baseGraphData as unknown as { nodes?: unknown[] } | null
-      const nodes = Array.isArray(graphData?.nodes) ? (graphData?.nodes as Array<{ id?: unknown }>) : []
-      const nodeIdSet = new Set(nodes.map(n => String(n.id || '')).filter(Boolean))
+      const nodeById = baseGraphLookup?.nodeById || null
       for (let i = openWidgetNodeIds.length - 1; i >= 0; i -= 1) {
         const id = String(openWidgetNodeIds[i] || '').trim()
         if (!id) continue
-        if (!nodeIdSet.has(id)) continue
+        if (!nodeById?.has(id)) continue
         return { tableId: 'nodes' as const, rowId: id }
       }
     }
     return null
-  }, [baseGraphData, openWidgetNodeIds, selectedEdgeId, selectedNodeId])
+  }, [baseGraphLookup, openWidgetNodeIds, selectedEdgeId, selectedNodeId])
 
   useEffect(() => {
     if (!selection) {
@@ -121,7 +140,7 @@ export default function GraphTableSelectionInspector() {
       rowHashRef.current = 0
       return
     }
-    const fallback = buildFallbackInspectorRow(selection)
+    const fallback = buildFallbackInspectorRow(selection, baseGraphLookup)
     if (fallback) {
       const fallbackHash = hashRecordSignature32(fallback.data || {}, { maxEntries: 120, maxDepth: 1 })
       rowHashRef.current = fallbackHash
@@ -144,7 +163,7 @@ export default function GraphTableSelectionInspector() {
       const doc = await collections.rows.findOne(pk).exec()
       if (cancelled) return
       if (!doc) {
-        const nextFallback = buildFallbackInspectorRow(selection)
+        const nextFallback = buildFallbackInspectorRow(selection, baseGraphLookup)
         if (!nextFallback) {
           rowHashRef.current = 0
           setRow(null)
@@ -200,7 +219,7 @@ export default function GraphTableSelectionInspector() {
         void 0
       }
     }
-  }, [selection])
+  }, [baseGraphLookup, selection])
 
   const handleClose = useCallback(() => {
     const store = useGraphStore.getState()

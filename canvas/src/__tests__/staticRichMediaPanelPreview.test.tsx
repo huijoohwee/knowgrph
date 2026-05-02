@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { DesignRichMediaPreview } from '@/components/DesignRichMedia'
+import { StaticRichMediaPanelPreview } from '@/components/StaticRichMediaPanelPreview'
 
 const tick = async (win: Window) => {
   const anyWindow = win as unknown as { requestAnimationFrame?: (cb: () => void) => number }
@@ -15,7 +15,7 @@ const tick = async (win: Window) => {
   })
 }
 
-export async function testDesignRichMediaPreviewRendersImageVideoAndIframe() {
+export async function testStaticRichMediaPanelPreviewRendersImageVideoAndIframe() {
   const { dom, restore } = initJsdomHarness()
   const prevFetch = (globalThis as unknown as { fetch?: unknown }).fetch
   try {
@@ -47,44 +47,40 @@ export async function testDesignRichMediaPreviewRendersImageVideoAndIframe() {
         React.createElement(
           'svg',
           { width: 600, height: 240 },
-          React.createElement(DesignRichMediaPreview, {
+          React.createElement(StaticRichMediaPanelPreview, {
             tag: 'IMG',
             url: 'https://example.com/image.png',
             titleChip: 'Image',
-            clipId: 'clip-img',
             innerX: 10,
             innerY: 10,
             innerW: 180,
             innerH: 120,
             interactive: false,
           }),
-          React.createElement(DesignRichMediaPreview, {
+          React.createElement(StaticRichMediaPanelPreview, {
             tag: 'VIDEO',
             url: 'https://example.com/video.mp4',
             titleChip: 'Video',
-            clipId: 'clip-vid',
             innerX: 210,
             innerY: 10,
             innerW: 180,
             innerH: 120,
             interactive: false,
           }),
-          React.createElement(DesignRichMediaPreview, {
+          React.createElement(StaticRichMediaPanelPreview, {
             tag: 'IFRAME',
             url: 'https://www.citriniresearch.com/p/2028gic',
             titleChip: 'IFrame',
-            clipId: 'clip-ifr',
             innerX: 410,
             innerY: 10,
             innerW: 85,
             innerH: 120,
             interactive: false,
           }),
-          React.createElement(DesignRichMediaPreview, {
+          React.createElement(StaticRichMediaPanelPreview, {
             tag: 'IFRAME',
             url: 'https://www.ycombinator.com/library/8d-how-to-build-a-great-series-a-pitch-and-deck',
             titleChip: 'IFrame',
-            clipId: 'clip-ifr-2',
             innerX: 505,
             innerY: 10,
             innerW: 85,
@@ -116,8 +112,12 @@ export async function testDesignRichMediaPreviewRendersImageVideoAndIframe() {
     }
 
     const openSourceButtons = Array.from(doc.querySelectorAll('[data-kg-rich-media-open-source="1"]'))
-    if (openSourceButtons.length < 4) {
-      throw new Error(`expected widget-style floating toolbar open-source actions for design rich media previews, got ${openSourceButtons.length}`)
+    if (openSourceButtons.length !== 0) {
+      throw new Error(`expected static rich media previews to avoid widget floating-toolbar actions outside widget mode, got ${openSourceButtons.length}`)
+    }
+    const floatingToolbars = Array.from(doc.querySelectorAll('[data-kg-rich-media-floating-toolbar="1"]'))
+    if (floatingToolbars.length !== 0) {
+      throw new Error(`expected static rich media previews to avoid the widget-like floating toolbar shell outside widget mode, got ${floatingToolbars.length}`)
     }
 
     await act(async () => {

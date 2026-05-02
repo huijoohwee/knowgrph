@@ -38,7 +38,7 @@ export function useOverlayInteractions2d(args: {
   const headerDragRef = useRef<null | { id: string; baseX: number; baseY: number; structured: boolean; frozen: boolean; lastDx: number; lastDy: number; workspaceViewModeAtStart: 'canvas' | 'editor' }>(null)
   const overlayPanRef = useRef<null | { pointerId: number; startClientX: number; startClientY: number; startTransform: d3.ZoomTransform }>(null)
   const overlayNodeLookupRef = useRef<MergedGraphNodeLookupCache>({
-    graphData: null,
+    graphSemanticKey: '',
     rev: -1,
     sim: null,
     map: new Map(),
