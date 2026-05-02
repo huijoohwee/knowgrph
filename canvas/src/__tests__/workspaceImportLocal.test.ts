@@ -11,8 +11,10 @@ import {
   isPendingLocalImportStubText,
   peekPendingWorkspaceLocalImport,
 } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { shouldApplyImportedCanvasDocumentToGraph } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES } from '@/lib/config'
+import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 
 const createFile = (name: string, text: string) => {
   const blob = new Blob([text], { type: 'text/plain' })
@@ -75,6 +77,59 @@ export async function testLaunchDropdownImportLocalFilesFallbackActivatesWorkspa
     const importedText = await fs.readFileText(importedPath)
     if (String(importedText || '').trim().length === 0) {
       throw new Error('expected imported.md workspace file text to be non-empty')
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testLaunchDropdownImportLocalFilesFallbackAppliesCanvasFrontmatterLanding() {
+  const { restore } = initJsdomHarness()
+  try {
+    resetWorkspaceFsForTests()
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('d3')
+    store.setDocumentSemanticMode('keyword')
+    store.setFrontmatterModeEnabled(false)
+
+    const text = [
+      '---',
+      'title: "Video Demo"',
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "flowEditor"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: true',
+      'kgMultiDimTableModeEnabled: false',
+      '$schema: "kgc-pipeline/v1"',
+      'widget_bundle:',
+      '  kind: kg:flow:widgetBundle',
+      'flow:',
+      '  nodes: []',
+      '---',
+      '',
+      '# Imported Video Demo',
+      '',
+    ].join('\n')
+    const file = createFile('knowgrph-video-demo.md', text)
+    await importLocalFilesFallback({
+      files: [file] as unknown as FileList,
+      pushUiToast: () => void 0,
+    })
+
+    const next = useGraphStore.getState()
+    if (next.canvasRenderMode !== '2d') {
+      throw new Error(`expected fallback import to keep 2d canvas mode, got ${String(next.canvasRenderMode || '')}`)
+    }
+    if (next.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected fallback import to apply Flow Editor renderer, got ${String(next.canvas2dRenderer || '')}`)
+    }
+    if (next.documentSemanticMode !== 'document') {
+      throw new Error(`expected fallback import to apply document semantic mode, got ${String(next.documentSemanticMode || '')}`)
+    }
+    if (next.frontmatterModeEnabled !== true) {
+      throw new Error('expected fallback import to enable frontmatter mode for canvas-frontmatter markdown')
     }
   } finally {
     restore()
@@ -343,6 +398,92 @@ export async function testWorkspaceImportLocalFolderHydratesOnlyOpenedFile() {
     if (!bText || !isPendingLocalImportStubText(bText)) throw new Error('expected b.md to remain pending until opened')
     const pendingB = peekPendingWorkspaceLocalImport(bPath)
     if (!pendingB) throw new Error('expected b.md to remain pending after hydrating a.md')
+  } finally {
+    restore()
+  }
+}
+
+export function testWorkspaceImportCanvasFrontmatterDocsOptIntoGraphLanding() {
+  const canvasDoc = [
+    '---',
+    'title: "Video Demo"',
+    'kgCanvasRenderMode: "2d"',
+    'kgCanvas2dRenderer: "flowEditor"',
+    'kgDocumentSemanticMode: "document"',
+    'kgFrontmatterModeEnabled: true',
+    'kgMultiDimTableModeEnabled: false',
+    '$schema: "kgc-pipeline/v1"',
+    'widget_bundle:',
+    '  kind: kg:flow:widgetBundle',
+    'flow:',
+    '  nodes: []',
+    '---',
+    '',
+    '# Video Demo',
+  ].join('\n')
+  const plainDoc = [
+    '---',
+    'title: "Plain Note"',
+    'author: "demo"',
+    '---',
+    '',
+    '# Plain Note',
+  ].join('\n')
+
+  if (!shouldApplyImportedCanvasDocumentToGraph({ path: '/knowgrph-video-demo.md', text: canvasDoc })) {
+    throw new Error('expected imported canvas frontmatter markdown to opt into graph-aware landing')
+  }
+  if (shouldApplyImportedCanvasDocumentToGraph({ path: '/note.md', text: plainDoc })) {
+    throw new Error('expected plain markdown import to remain passive')
+  }
+  if (shouldApplyImportedCanvasDocumentToGraph({ path: '/diagram.txt', text: canvasDoc })) {
+    throw new Error('expected non-markdown imports to remain passive even when text looks like frontmatter')
+  }
+}
+
+export async function testWorkspaceImportCanvasPresetAppliesNonFrontmatterFlowGraphLanding() {
+  const { restore } = initJsdomHarness()
+  try {
+    resetWorkspaceFsForTests()
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    const store = useGraphStore.getState()
+    store.resetAll()
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('d3')
+    store.setDocumentSemanticMode('keyword')
+    store.setFrontmatterModeEnabled(false)
+
+    const text = [
+      '---',
+      'title: "Mermaid Canvas Preset"',
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "flowEditor"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: true',
+      'kgMultiDimTableModeEnabled: false',
+      '---',
+      '',
+      '```mermaid',
+      'graph LR',
+      '  A --> B',
+      '```',
+      '',
+    ].join('\n')
+    const file = createFile('mermaid-frontmatter.md', text)
+    const result = await importWorkspaceLocalFiles({ fs, files: [file], parentPath: '/' })
+    await applyWorkspaceImportToCanvas({ fs, createdPaths: result.createdPaths, opts: { applyToGraph: true } })
+
+    const next = useGraphStore.getState()
+    if (next.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected workspace import to honor flowEditor preset for parsed non-frontmatter-flow graph, got ${String(next.canvas2dRenderer || '')}`)
+    }
+    if (next.documentSemanticMode !== 'document') {
+      throw new Error(`expected workspace import to honor document semantic mode from frontmatter preset, got ${String(next.documentSemanticMode || '')}`)
+    }
+    if (next.frontmatterModeEnabled !== true) {
+      throw new Error('expected workspace import to enable frontmatter mode for parsed non-frontmatter-flow graph preset')
+    }
   } finally {
     restore()
   }

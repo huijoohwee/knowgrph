@@ -707,9 +707,15 @@ export async function testActiveMarkdownDocumentHelpersCentralizePayloadDefaults
     text: ['---', 'kgWebpageUrl: https://example.com/demo', '---', '# Demo'].join('\n'),
     sourceUrl: 'https://example.com/demo',
     autoEnableFrontmatter: false,
+    applyViewPreset: false,
     normalizeWebpageFrontmatterToMarkdown: true,
   })
-  if (calls.length !== 1 || calls[0]?.normalizeMermaidMmd !== false || calls[0]?.autoEnableFrontmatter !== false) {
+  if (
+    calls.length !== 1 ||
+    calls[0]?.normalizeMermaidMmd !== false ||
+    calls[0]?.autoEnableFrontmatter !== false ||
+    calls[0]?.applyViewPreset !== false
+  ) {
     throw new Error('expected active markdown document apply helper to preserve shared payload defaults across runtime/import callers')
   }
 }

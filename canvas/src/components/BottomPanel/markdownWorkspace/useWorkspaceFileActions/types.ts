@@ -30,6 +30,7 @@ export type UseWorkspaceFileActionsArgs = {
     sourceUrl?: string | null
     jsonSourceText?: string | null
     autoEnableFrontmatter?: boolean
+    applyViewPreset?: boolean
     recent?: Omit<import('@/hooks/store/types').RecentFileEntry, 'id' | 'timestamp'> | null
     applyToGraph?: boolean
     forceApplyToGraph?: boolean

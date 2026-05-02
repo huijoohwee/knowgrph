@@ -8,7 +8,7 @@ import {
   WORKSPACE_IMPORT_AUTO_PARSE_MAX_TOTAL_CHARS,
 } from '@/lib/config'
 import { DEFAULT_CANVAS_2D_RENDERER } from '@/lib/config.render'
-import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
+import { isFrontmatterOnlyDoc, parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
@@ -42,17 +42,16 @@ export function applyInteractiveImportModes(args?: { graphData?: GraphData | nul
   const graphData = args?.graphData || null
   const frontmatterOnlyDoc = args?.frontmatterOnlyDoc === true
   const rawText = String(args?.rawText || '')
-  const presetApplied = applyCanvasFrontmatterPreset({ rawText })
 
   if (graphData) {
     try {
-      applyFrontmatterFlowImportModes(graphData)
-    } catch {
-      void 0
-    }
-  } else if (presetApplied) {
-    try {
-      if (store.multiDimTableModeEnabled !== false) store.setMultiDimTableModeEnabled(false)
+      const presetApplied = applyFrontmatterFlowImportModes(graphData)
+      if (!presetApplied) {
+        applyCanvasFrontmatterPreset({
+          graphData,
+          rawText,
+        })
+      }
     } catch {
       void 0
     }
@@ -64,6 +63,7 @@ export function applyInteractiveImportModes(args?: { graphData?: GraphData | nul
         defaultCanvas2dRenderer: DEFAULT_CANVAS_2D_RENDERER,
         defaultDocumentSemanticMode: 'document',
         defaultFrontmatterModeEnabled: true,
+        defaultMultiDimTableModeEnabled: false,
         disableMultiDimTableMode: true,
       })
     } catch {
@@ -204,7 +204,11 @@ export async function applyWorkspaceImportToCanvas(args: {
     const graphData = res?.graphData || null
     const parserId = typeof res?.parserId === 'string' ? res.parserId : undefined
     const inlineText = resolveWorkspaceSourceFileInlineText(text)
+    const hasCanvasFrontmatterPreset = !!parseCanvasWorkspaceFrontmatterPreset(text)
     if (!preferredInteractiveImportGraphData && graphData && isFrontmatterFlowGraph(graphData)) {
+      preferredInteractiveImportGraphData = graphData
+      preferredInteractiveImportRawText = text
+    } else if (!preferredInteractiveImportGraphData && graphData && hasCanvasFrontmatterPreset) {
       preferredInteractiveImportGraphData = graphData
       preferredInteractiveImportRawText = text
     }

@@ -24,16 +24,27 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     }
   },
 
-  setMarkdownDocument: (name: string | null, text: string | null, opts?: { autoEnableFrontmatter?: boolean }) => {
+  setMarkdownDocument: (
+    name: string | null,
+    text: string | null,
+    opts?: { autoEnableFrontmatter?: boolean; applyViewPreset?: boolean },
+  ) => {
     const nextText = String(text || '')
     const hasFrontmatterMermaid = containsFrontmatterMermaid(nextText)
     const shouldAutoEnableFrontmatter = opts?.autoEnableFrontmatter !== false
+    const applyViewPreset = typeof opts?.applyViewPreset === 'boolean' ? opts.applyViewPreset !== false : true
     const state = get()
     const needsAutoEnable = shouldAutoEnableFrontmatter && hasFrontmatterMermaid && !(state.frontmatterModeEnabled || false)
-    if (!needsAutoEnable && state.markdownDocumentName === name && state.markdownDocumentText === text) return
+    if (
+      !needsAutoEnable &&
+      state.markdownDocumentName === name &&
+      state.markdownDocumentText === text &&
+      state.markdownDocumentApplyViewPreset === applyViewPreset
+    ) return
     set({
       markdownDocumentName: name,
       markdownDocumentText: text,
+      markdownDocumentApplyViewPreset: applyViewPreset,
       markdownTokens: null, // Invalidate tokens
       markdownTokensPath: null,
       markdownTokensKey: null,
@@ -49,6 +60,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     sourceUrl?: string | null
     jsonSourceText?: string | null
     autoEnableFrontmatter?: boolean
+    applyViewPreset?: boolean
     recent?: Omit<import('@/hooks/store/types').RecentFileEntry, 'id' | 'timestamp'> | null
     applyToGraph?: boolean
     forceApplyToGraph?: boolean
@@ -59,9 +71,12 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     const rawText = String(args?.text || '')
     const text = args?.normalizeMermaidMmd === false ? rawText : normalizeMermaidMmdToMarkdown(name, rawText)
 
-    get().setMarkdownDocument(name, text, { autoEnableFrontmatter: args?.autoEnableFrontmatter })
+    get().setMarkdownDocument(name, text, {
+      autoEnableFrontmatter: args?.autoEnableFrontmatter,
+      applyViewPreset: args?.applyViewPreset,
+    })
 
-    if (text.trim()) {
+    if (args?.applyViewPreset !== false && !args?.applyToGraph && text.trim()) {
       try {
         const { applyCanvasFrontmatterPreset } = (await import('@/features/parsers/canvasFrontmatterPreset')) as typeof import('@/features/parsers/canvasFrontmatterPreset')
         const presetApplied = applyCanvasFrontmatterPreset({

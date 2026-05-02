@@ -136,6 +136,7 @@ export interface GraphStatePanelsMarkdown {
   setGraphHoverPreviewConfig: (config: Partial<GraphHoverPreviewConfig>) => void;
   markdownDocumentName: string | null;
   markdownDocumentText: string | null;
+  markdownDocumentApplyViewPreset: boolean;
   markdownTokens: TokenWithLines[] | null;
   markdownTokensPath: string | null;
   markdownTokensKey: string | null;
@@ -247,13 +248,18 @@ export interface GraphStatePanelsMarkdown {
   setGraphDataTableOverscanMultiplier: (v: number) => void;
   setGraphDataTableVirtualMinRows: (v: number) => void;
   setGraphDataTableVirtualDebugLogRanges: (v: boolean) => void;
-  setMarkdownDocument: (name: string | null, text: string | null, opts?: { autoEnableFrontmatter?: boolean }) => void;
+  setMarkdownDocument: (
+    name: string | null,
+    text: string | null,
+    opts?: { autoEnableFrontmatter?: boolean; applyViewPreset?: boolean },
+  ) => void;
   setActiveMarkdownDocument: (args: {
     name: string
     text: string
     sourceUrl?: string | null
     jsonSourceText?: string | null
     autoEnableFrontmatter?: boolean
+    applyViewPreset?: boolean
     recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
     applyToGraph?: boolean
     forceApplyToGraph?: boolean

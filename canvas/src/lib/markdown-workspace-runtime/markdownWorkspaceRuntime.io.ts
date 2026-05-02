@@ -22,6 +22,9 @@ export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
   activeDocumentSourceUrl: string | null
   setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   text: string
+  applyViewPreset?: boolean
+  applyToGraph?: boolean
+  forceApplyToGraph?: boolean
 }): void => {
   void applyActiveMarkdownDocumentPayload({
     setActiveMarkdownDocument: args.setActiveMarkdownDocument,
@@ -29,6 +32,9 @@ export const pushWorkspaceTextToActiveMarkdownDocument = (args: {
     text: args.text,
     sourceUrl: args.activeDocumentSourceUrl,
     autoEnableFrontmatter: false,
+    applyViewPreset: args.applyViewPreset ?? false,
+    applyToGraph: args.applyToGraph,
+    forceApplyToGraph: args.forceApplyToGraph,
     normalizeWebpageFrontmatterToMarkdown: true,
   })
 }

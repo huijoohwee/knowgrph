@@ -9,6 +9,7 @@ kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "flowEditor"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
+kgMultiDimTableModeEnabled: false
 kgDocumentStructureBaselineLock: false
 
 $schema: "kgc-pipeline/v1"

@@ -1,4 +1,5 @@
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '../markdown'
+import type { Canvas2dRendererId } from '@/lib/config.render'
 
 export type YamlFrontmatterBlock = {
   rawBlock: string
@@ -8,9 +9,10 @@ export type YamlFrontmatterBlock = {
 
 export type CanvasWorkspaceFrontmatterPreset = {
   canvasRenderMode?: '2d' | '3d'
-  canvas2dRenderer?: 'd3' | 'flowEditor' | 'design'
+  canvas2dRenderer?: Canvas2dRendererId
   documentSemanticMode?: 'document' | 'keyword'
   frontmatterModeEnabled?: boolean
+  multiDimTableModeEnabled?: boolean
   documentStructureBaselineLock?: boolean
 }
 
@@ -46,28 +48,72 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
+function normalizePresetToken(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '')
+}
+
+function readCanvas2dRendererPreset(value: unknown): Canvas2dRendererId | undefined {
+  const raw = String(value || '').trim()
+  if (!raw) return undefined
+  if (
+    raw === 'd3' ||
+    raw === 'd3Bipartite' ||
+    raw === 'flow' ||
+    raw === 'flowEditor' ||
+    raw === 'design'
+  ) {
+    return raw as Canvas2dRendererId
+  }
+  const normalized = normalizePresetToken(raw)
+  if (normalized === 'd3' || normalized === 'd3graph') return 'd3'
+  if (normalized === 'd3bipartite' || normalized === 'bipartite' || normalized === 'flowchart') return 'd3Bipartite'
+  if (normalized === 'flow' || normalized === 'flowcanvas') return 'flow'
+  if (normalized === 'floweditor' || normalized === 'edit') return 'flowEditor'
+  if (normalized === 'design') return 'design'
+  return undefined
+}
+
+function readDocumentSemanticModePreset(value: unknown): 'document' | 'keyword' | undefined {
+  const raw = String(value || '').trim()
+  if (!raw) return undefined
+  if (raw === 'document' || raw === 'keyword') return raw
+  const normalized = normalizePresetToken(raw)
+  if (normalized === 'document' || normalized === 'documentstructure' || normalized === 'documentstructuremode') {
+    return 'document'
+  }
+  if (normalized === 'keyword' || normalized === 'keywordmode') return 'keyword'
+  return undefined
+}
+
+function readBooleanPreset(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value
+  const normalized = normalizePresetToken(value)
+  if (!normalized) return undefined
+  if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') return true
+  if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') return false
+  return undefined
+}
+
 function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | null | undefined): CanvasWorkspaceFrontmatterPreset | null {
   if (!meta) return null
 
   const canvasRenderMode =
     meta.kgCanvasRenderMode === '3d' ? '3d' : meta.kgCanvasRenderMode === '2d' ? '2d' : undefined
-  const canvas2dRenderer =
-    meta.kgCanvas2dRenderer === 'd3' || meta.kgCanvas2dRenderer === 'flowEditor' || meta.kgCanvas2dRenderer === 'design'
-      ? meta.kgCanvas2dRenderer
-      : undefined
-  const documentSemanticMode =
-    meta.kgDocumentSemanticMode === 'keyword' || meta.kgDocumentSemanticMode === 'document'
-      ? meta.kgDocumentSemanticMode
-      : undefined
-  const frontmatterModeEnabled = typeof meta.kgFrontmatterModeEnabled === 'boolean' ? meta.kgFrontmatterModeEnabled : undefined
-  const documentStructureBaselineLock =
-    typeof meta.kgDocumentStructureBaselineLock === 'boolean' ? meta.kgDocumentStructureBaselineLock : undefined
+  const canvas2dRenderer = readCanvas2dRendererPreset(meta.kgCanvas2dRenderer)
+  const documentSemanticMode = readDocumentSemanticModePreset(meta.kgDocumentSemanticMode)
+  const frontmatterModeEnabled = readBooleanPreset(meta.kgFrontmatterModeEnabled)
+  const multiDimTableModeEnabled = readBooleanPreset(meta.kgMultiDimTableModeEnabled)
+  const documentStructureBaselineLock = readBooleanPreset(meta.kgDocumentStructureBaselineLock)
 
   if (
     canvasRenderMode === undefined &&
     canvas2dRenderer === undefined &&
     documentSemanticMode === undefined &&
     frontmatterModeEnabled === undefined &&
+    multiDimTableModeEnabled === undefined &&
     documentStructureBaselineLock === undefined
   ) {
     return null
@@ -78,6 +124,7 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
     canvas2dRenderer,
     documentSemanticMode,
     frontmatterModeEnabled,
+    multiDimTableModeEnabled,
     documentStructureBaselineLock,
   }
 }
@@ -97,15 +144,15 @@ export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWo
   const canvas2dRendererRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvas2dRenderer')
   const documentSemanticModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgDocumentSemanticMode')
   const frontmatterModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgFrontmatterModeEnabled')
+  const multiDimTableModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgMultiDimTableModeEnabled')
   const documentStructureBaselineLockRaw = readYamlFrontmatterValue(block.rawBlock, 'kgDocumentStructureBaselineLock')
   return coerceCanvasWorkspaceFrontmatterPreset({
     kgCanvasRenderMode: canvasRenderModeRaw || undefined,
     kgCanvas2dRenderer: canvas2dRendererRaw || undefined,
     kgDocumentSemanticMode: documentSemanticModeRaw || undefined,
-    kgFrontmatterModeEnabled:
-      frontmatterModeEnabledRaw === 'true' ? true : frontmatterModeEnabledRaw === 'false' ? false : undefined,
-    kgDocumentStructureBaselineLock:
-      documentStructureBaselineLockRaw === 'true' ? true : documentStructureBaselineLockRaw === 'false' ? false : undefined,
+    kgFrontmatterModeEnabled: readBooleanPreset(frontmatterModeEnabledRaw),
+    kgMultiDimTableModeEnabled: readBooleanPreset(multiDimTableModeEnabledRaw),
+    kgDocumentStructureBaselineLock: readBooleanPreset(documentStructureBaselineLockRaw),
   })
 }
 

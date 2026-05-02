@@ -37,12 +37,11 @@ export function RichMediaOverlayLayer2d(props: {
   } = props
 
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
+  const updateNode = useGraphStore(s => s.updateNode)
   const allowEmbeddedMediaInteraction = infiniteCanvasInteractionMode === 'interactive'
 
   if (!active) return null
   if (mediaOverlayNodes.length === 0) return null
-
-  const updateNode = useGraphStore(s => s.updateNode)
 
   return (
     <section

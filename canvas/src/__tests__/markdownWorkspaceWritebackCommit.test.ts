@@ -45,7 +45,9 @@ export function testMarkdownWorkspaceTextStateSyncCentralizesEditorAndDocumentRe
     activeDocumentKey: 'docs/demo.md',
     activeDocumentSourceUrl: 'https://example.com/demo',
     setActiveMarkdownDocument: async payload => {
-      calls.push(`document:${String(payload.name)}:${String(payload.sourceUrl || '')}:${String(payload.text)}`)
+      calls.push(
+        `document:${String(payload.name)}:${String(payload.sourceUrl || '')}:${String(payload.applyViewPreset)}:${String(payload.text)}`,
+      )
       return true
     },
   })
@@ -56,7 +58,7 @@ export function testMarkdownWorkspaceTextStateSyncCentralizesEditorAndDocumentRe
   if (lastLoadedRef.current.path !== '/docs/demo.md' || lastLoadedRef.current.text !== '# Demo') {
     throw new Error(`expected workspace text state sync helper to persist the active path/text pair, got ${JSON.stringify(lastLoadedRef.current)}`)
   }
-  if (calls.join('|') !== 'patch:/docs/demo.md:# Demo|editor:# Demo|document:docs/demo.md:https://example.com/demo:# Demo') {
+  if (calls.join('|') !== 'patch:/docs/demo.md:# Demo|editor:# Demo|document:docs/demo.md:https://example.com/demo:false:# Demo') {
     throw new Error(`expected workspace text state sync helper to centralize patch, editor, and active-document refresh, got ${calls.join('|')}`)
   }
 }

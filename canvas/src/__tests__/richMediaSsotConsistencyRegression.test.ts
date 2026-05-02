@@ -234,6 +234,11 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!d3LayerText.includes('commitRichMediaPanelChange') || !d3LayerText.includes('resolveRichMediaPanelInteractive')) {
     throw new Error('expected D3 rich media overlay layer to reuse upstream Rich Media panel writeback and interactivity SSOT')
   }
+  const updateNodeHookIndex = d3LayerText.indexOf('const updateNode = useGraphStore(s => s.updateNode)')
+  const inactiveReturnIndex = d3LayerText.indexOf('if (!active) return null')
+  if (updateNodeHookIndex < 0 || inactiveReturnIndex < 0 || updateNodeHookIndex > inactiveReturnIndex) {
+    throw new Error('expected D3 rich media overlay layer to declare all store hooks before any early return to keep hook ordering stable during media-rich imports')
+  }
   if (!graphCanvasSceneText.includes('preferDomMediaOverlays: true')) {
     throw new Error('expected GraphCanvas scene to force DOM Rich Media overlays as the sole active panel renderer')
   }

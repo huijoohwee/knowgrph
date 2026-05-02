@@ -12,6 +12,7 @@ export function buildMarkdownWorkspaceRestoredActiveDocumentArgs(args: {
     text: args.text,
     sourceUrl: args.activeDocumentSourceUrl,
     autoEnableFrontmatter: false,
+    applyViewPreset: false,
     normalizeWebpageFrontmatterToMarkdown: true,
   }
 }

@@ -7,5 +7,6 @@ export type MarkdownWorkspaceRuntimeSetActiveDocument = (args: {
   text: string
   normalizeMermaidMmd?: boolean
   autoEnableFrontmatter?: boolean
+  applyViewPreset?: boolean
   sourceUrl?: string | null
 }) => Promise<boolean>

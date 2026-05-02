@@ -4,7 +4,12 @@ import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from 
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
-import { isFrontmatterOnlyDoc, normalizeWebpageFrontmatterView, parseWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
+import {
+  isFrontmatterOnlyDoc,
+  normalizeWebpageFrontmatterView,
+  parseCanvasWorkspaceFrontmatterPreset,
+  parseWebpageFrontmatterMeta,
+} from '@/lib/markdown/frontmatter'
 import { bulkSetWorkspaceEntrySources, type WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
@@ -71,6 +76,37 @@ export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportRes
   return { createdPaths, sources, skipped, failed }
 }
 
+export function shouldApplyImportedCanvasDocumentToGraph(args: {
+  path: string
+  text: string
+}): boolean {
+  const path = String(args.path || '').trim().toLowerCase()
+  const text = String(args.text || '')
+  if (!path.endsWith('.md') && !path.endsWith('.mdx')) return false
+  if (!text.trim()) return false
+  if (parseCanvasWorkspaceFrontmatterPreset(text)) return true
+  if (!text.startsWith('---')) return false
+  if (/^\$schema:\s*["']kgc-pipeline\/v1["']/m.test(text)) return true
+  if (/^widget_bundle\s*:/m.test(text)) return true
+  if (/^flow\s*:/m.test(text)) return true
+  return false
+}
+
+export async function resolveImportedCanvasDocumentApplyToGraph(args: {
+  fs: WorkspaceFs
+  createdPaths: string[]
+}): Promise<boolean> {
+  const createdPaths = Array.isArray(args.createdPaths)
+    ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
+    : []
+  for (const path of createdPaths) {
+    const hydrated = await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path }).catch(() => null)
+    const text = String((hydrated?.text || (await args.fs.readFileText(path).catch(() => ''))) || '')
+    if (shouldApplyImportedCanvasDocumentToGraph({ path, text })) return true
+  }
+  return false
+}
+
 export async function applyWorkspaceImportToCanvasBestEffort(args: {
   fs: WorkspaceFs
   createdPaths: string[]
@@ -119,6 +155,7 @@ export async function pickFirstCreatedFilePathForImportFocus(fs: WorkspaceFs, cr
 export async function activateFirstImportedWorkspaceFile(args: {
   fs: WorkspaceFs
   createdPaths: string[]
+  applyToGraph?: boolean
 }): Promise<void> {
   const createdPaths = Array.isArray(args.createdPaths)
     ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
@@ -165,7 +202,8 @@ export async function activateFirstImportedWorkspaceFile(args: {
       normalizeMermaidMmd: false,
       sourceUrl: null,
       jsonSourceText: null,
-      applyToGraph: false,
+      applyViewPreset: args.applyToGraph === true,
+      applyToGraph: args.applyToGraph === true,
     })
   } catch {
     void 0
@@ -279,14 +317,19 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
+        const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({
+          fs,
+          createdPaths: res.createdPaths,
+        })
+        if (importJobRef.current !== jobId) return
         const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
           result: res,
           hydratePending: true,
-          applyToGraph: false,
+          applyToGraph,
         })
         if (createdPath) {
-          await focusAfterImport(createdPath, { applyToGraph: false, jobId })
+          await focusAfterImport(createdPath, { applyToGraph, jobId })
         }
         status.setStatusInfo(formatWorkspaceImportSummary('Imported', res).message)
       } catch (e) {
@@ -313,14 +356,19 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
+        const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({
+          fs,
+          createdPaths: res.createdPaths,
+        })
+        if (importJobRef.current !== jobId) return
         const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
           result: res,
           hydratePending: true,
-          applyToGraph: false,
+          applyToGraph,
         })
         if (createdPath) {
-          await focusAfterImport(createdPath, { applyToGraph: false, jobId })
+          await focusAfterImport(createdPath, { applyToGraph, jobId })
         }
         status.setStatusInfo(formatWorkspaceImportSummary('Imported folder:', res).message)
       } catch (e) {

@@ -3,6 +3,7 @@ import type { DocumentSemanticMode } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { LS_KEYS } from '@/lib/config'
+import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { lsSetBool } from '@/lib/persistence'
 import {
   parseCanvasWorkspaceFrontmatterPreset,
@@ -48,6 +49,7 @@ export function applyCanvasFrontmatterPreset(args: {
   defaultCanvas2dRenderer?: Canvas2dRendererId
   defaultDocumentSemanticMode?: DocumentSemanticMode
   defaultFrontmatterModeEnabled?: boolean
+  defaultMultiDimTableModeEnabled?: boolean
   defaultDocumentStructureBaselineLock?: boolean
   disableMultiDimTableMode?: boolean
 }): boolean {
@@ -77,15 +79,43 @@ export function applyCanvasFrontmatterPreset(args: {
     changed = true
   }
 
-  const documentSemanticMode = preset?.documentSemanticMode ?? args.defaultDocumentSemanticMode
+  const frontmatterOnlyPolicyActive = isFrontmatterOnlyPolicyActive({
+    canvasRenderMode: canvasRenderMode ?? store.canvasRenderMode,
+    canvas2dRenderer: canvas2dRenderer ?? store.canvas2dRenderer,
+  })
+
+  const documentSemanticMode = frontmatterOnlyPolicyActive
+    ? 'document'
+    : (preset?.documentSemanticMode ?? args.defaultDocumentSemanticMode)
   if (documentSemanticMode && store.documentSemanticMode !== documentSemanticMode) {
     store.setDocumentSemanticMode(documentSemanticMode)
     changed = true
   }
 
-  const frontmatterModeEnabled = preset?.frontmatterModeEnabled ?? args.defaultFrontmatterModeEnabled
-  if (typeof frontmatterModeEnabled === 'boolean' && store.frontmatterModeEnabled !== frontmatterModeEnabled) {
-    store.setFrontmatterModeEnabled(frontmatterModeEnabled)
+  const frontmatterModeEnabled = frontmatterOnlyPolicyActive
+    ? true
+    : (preset?.frontmatterModeEnabled ?? args.defaultFrontmatterModeEnabled)
+  const multiDimTableModeEnabled = frontmatterOnlyPolicyActive
+    ? false
+    : (
+        preset?.multiDimTableModeEnabled
+        ?? (args.disableMultiDimTableMode === true ? false : args.defaultMultiDimTableModeEnabled)
+      )
+
+  if (typeof frontmatterModeEnabled === 'boolean' && frontmatterModeEnabled === false && store.frontmatterModeEnabled !== false) {
+    store.setFrontmatterModeEnabled(false)
+    changed = true
+  }
+  if (typeof multiDimTableModeEnabled === 'boolean' && multiDimTableModeEnabled === false && store.multiDimTableModeEnabled !== false) {
+    store.setMultiDimTableModeEnabled(false)
+    changed = true
+  }
+  if (typeof multiDimTableModeEnabled === 'boolean' && multiDimTableModeEnabled === true && store.multiDimTableModeEnabled !== true) {
+    store.setMultiDimTableModeEnabled(true)
+    changed = true
+  }
+  if (typeof frontmatterModeEnabled === 'boolean' && frontmatterModeEnabled === true && store.frontmatterModeEnabled !== true) {
+    store.setFrontmatterModeEnabled(true)
     changed = true
   }
 
@@ -94,11 +124,6 @@ export function applyCanvasFrontmatterPreset(args: {
     store.documentStructureBaselineLock !== documentStructureBaselineLock
   ) {
     store.setDocumentStructureBaselineLock(documentStructureBaselineLock)
-    changed = true
-  }
-
-  if (args.disableMultiDimTableMode === true && store.multiDimTableModeEnabled !== false) {
-    store.setMultiDimTableModeEnabled(false)
     changed = true
   }
 

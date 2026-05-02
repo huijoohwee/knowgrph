@@ -8,6 +8,7 @@ export type ActiveMarkdownDocumentPayload = {
   sourceUrl?: string | null
   jsonSourceText?: string | null
   autoEnableFrontmatter?: boolean
+  applyViewPreset?: boolean
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
   applyToGraph?: boolean
   forceApplyToGraph?: boolean
@@ -19,6 +20,7 @@ export function buildActiveMarkdownDocumentPayload(args: {
   sourceUrl?: string | null
   jsonSourceText?: string | null
   autoEnableFrontmatter?: boolean
+  applyViewPreset?: boolean
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
   applyToGraph?: boolean
   forceApplyToGraph?: boolean
@@ -37,6 +39,7 @@ export function buildActiveMarkdownDocumentPayload(args: {
     ...(args.sourceUrl === null || typeof args.sourceUrl === 'string' ? { sourceUrl: args.sourceUrl ?? null } : {}),
     ...(args.jsonSourceText === null || typeof args.jsonSourceText === 'string' ? { jsonSourceText: args.jsonSourceText ?? null } : {}),
     ...(typeof args.autoEnableFrontmatter === 'boolean' ? { autoEnableFrontmatter: args.autoEnableFrontmatter } : {}),
+    ...(typeof args.applyViewPreset === 'boolean' ? { applyViewPreset: args.applyViewPreset } : {}),
     ...(args.recent ? { recent: args.recent } : {}),
     ...(typeof args.applyToGraph === 'boolean' ? { applyToGraph: args.applyToGraph } : {}),
     ...(typeof args.forceApplyToGraph === 'boolean' ? { forceApplyToGraph: args.forceApplyToGraph } : {}),
@@ -50,6 +53,7 @@ export function applyActiveMarkdownDocumentPayload(args: {
   sourceUrl?: string | null
   jsonSourceText?: string | null
   autoEnableFrontmatter?: boolean
+  applyViewPreset?: boolean
   recent?: Omit<RecentFileEntry, 'id' | 'timestamp'> | null
   applyToGraph?: boolean
   forceApplyToGraph?: boolean

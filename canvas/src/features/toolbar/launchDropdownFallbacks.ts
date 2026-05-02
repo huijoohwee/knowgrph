@@ -7,6 +7,7 @@ type PushUiToast = (toast: UiToastInput) => void
 async function focusFirstImportedWorkspaceFile(args: {
   fs: WorkspaceFs
   createdPaths: string[]
+  applyToGraph?: boolean
 }): Promise<void> {
   try {
     const { activateFirstImportedWorkspaceFile } = (await import(
@@ -38,7 +39,7 @@ export async function importLocalFilesFallback(args: {
       { runWorkspaceFsChangedBatch },
       { bulkSetWorkspaceEntrySources },
       { importWorkspaceLocalFiles },
-      { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult },
+      { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult, resolveImportedCanvasDocumentApplyToGraph },
     ] =
       await Promise.all([
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
@@ -62,8 +63,13 @@ export async function importLocalFilesFallback(args: {
       }),
     ))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
-    await applyWorkspaceImportToCanvasBestEffort({ fs, createdPaths: res.createdPaths })
-    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
+    const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
+    await applyWorkspaceImportToCanvasBestEffort({
+      fs,
+      createdPaths: res.createdPaths,
+      opts: applyToGraph ? { applyToGraph: true } : undefined,
+    })
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })
     args.pushUiToast({
       id: 'launch:import:localFiles',
       kind: 'success',
@@ -95,7 +101,7 @@ export async function importLocalFolderFallback(args: {
       { runWorkspaceFsChangedBatch },
       { bulkSetWorkspaceEntrySources },
       { importWorkspaceLocalFolder },
-      { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult },
+      { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult, resolveImportedCanvasDocumentApplyToGraph },
     ] =
       await Promise.all([
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
@@ -112,8 +118,13 @@ export async function importLocalFolderFallback(args: {
     await fs.ensureSeed()
     const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() => importWorkspaceLocalFolder({ fs, files: snapshot })))
     bulkSetWorkspaceEntrySources(res.sources as Array<{ path: string; source: WorkspaceEntrySource }>)
-    await applyWorkspaceImportToCanvasBestEffort({ fs, createdPaths: res.createdPaths })
-    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths })
+    const applyToGraph = await resolveImportedCanvasDocumentApplyToGraph({ fs, createdPaths: res.createdPaths })
+    await applyWorkspaceImportToCanvasBestEffort({
+      fs,
+      createdPaths: res.createdPaths,
+      opts: applyToGraph ? { applyToGraph: true } : undefined,
+    })
+    await focusFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph })
     args.pushUiToast({
       id: 'launch:import:folder',
       kind: 'success',

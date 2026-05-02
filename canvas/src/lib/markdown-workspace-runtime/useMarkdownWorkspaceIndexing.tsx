@@ -11,7 +11,7 @@ import {
   WORKSPACE_ROOT_PATH,
 } from '@/features/workspace-fs/path'
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
-import { getWorkspaceSeedFiles } from '@/features/workspace-fs/workspaceFs'
+import { getWorkspaceSeedFiles, isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
 import {
   hydrateWorkspaceFileFromPendingLocalImport,
@@ -205,12 +205,44 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
                 }),
               )
             }
-            pushWorkspaceTextToActiveMarkdownDocument({
-              activeDocumentKey: args.activeDocumentKey,
-              activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
-              setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+            const textHash = buildSourceFileParseIdentityHash({
+              cacheNamespace: `workspace-import:${path}`,
+              name: workspaceDocumentKey(path),
               text: nextText,
             })
+            const rememberIndexedForPath = (candidatePath: WorkspacePath, value: string): void => {
+              const map = args.lastIndexedByPathRef.current
+              if (map.has(candidatePath)) map.delete(candidatePath)
+              map.set(candidatePath, value)
+              while (map.size > 24) {
+                const oldest = map.keys().next().value as WorkspacePath | undefined
+                if (!oldest) break
+                map.delete(oldest)
+              }
+            }
+            const shouldApplyInitializationDocumentLanding =
+              isInitializationWorkspacePath(path)
+              && !!args.activeDocumentKey
+              && nextText.trim().length > 0
+            if (shouldApplyInitializationDocumentLanding) {
+              pushWorkspaceTextToActiveMarkdownDocument({
+                activeDocumentKey: args.activeDocumentKey,
+                activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
+                setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+                text: nextText,
+                applyViewPreset: true,
+                applyToGraph: true,
+                forceApplyToGraph: true,
+              })
+            } else {
+              pushWorkspaceTextToActiveMarkdownDocument({
+                activeDocumentKey: args.activeDocumentKey,
+                activeDocumentSourceUrl: sourceUrl ? sourceUrl : null,
+                setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+                text: nextText,
+                applyViewPreset: false,
+              })
+            }
           }
 
           const wasIndexedForPath = (candidatePath: WorkspacePath, textHash: string): boolean => {
@@ -493,6 +525,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
       cancelMarkdownWorkspaceIndexStart()
     }
   }, [
+    args,
     args.active,
     args.activeDocumentKey,
     args.activeEntry,

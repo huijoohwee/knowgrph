@@ -8,6 +8,7 @@ kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "d3"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
+kgMultiDimTableModeEnabled: false
 kgDocumentStructureBaselineLock: false
 index:
   legend:

@@ -16,6 +16,7 @@ export const createGraphDataSlice = (set: SetGraph, get: GetGraph) => ({
   docLocationRevision: 0,
   markdownDocumentName: null as string | null,
   markdownDocumentText: null as string | null,
+  markdownDocumentApplyViewPreset: true as boolean,
   markdownTokens: null as import('@/features/markdown/ui/markdownPreviewLex').TokenWithLines[] | null,
   markdownTokensPath: null as string | null,
   markdownTokensKey: null as string | null,

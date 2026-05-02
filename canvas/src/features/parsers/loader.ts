@@ -18,6 +18,7 @@ import {
 } from '@/lib/graph/db'
 import { pipelinePerfEnd, pipelinePerfMeasureAsync, pipelinePerfMeasureSync, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
+import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 
 export type LoaderResult = {
   parserId?: string
@@ -182,7 +183,8 @@ export async function loadGraphDataFromBackendViaParser(url: string): Promise<Lo
   if (!fetched) return null
   try {
     useGraphStore.getState().setGraphData(fetched.data)
-    applyFrontmatterFlowImportModes(fetched.data)
+    const appliedGraphPreset = applyFrontmatterFlowImportModes(fetched.data)
+    if (!appliedGraphPreset) applyCanvasFrontmatterPreset({ graphData: fetched.data })
   } catch {
     void 0
   }
@@ -211,7 +213,12 @@ export async function loadGraphDataFromTextViaParser(
     isMarkdownLikeFileName(String(name || ''))
   ) {
     try {
-      void useGraphStore.getState().setActiveMarkdownDocument({ name, text: normalizedText, normalizeMermaidMmd: false })
+      void useGraphStore.getState().setActiveMarkdownDocument({
+        name,
+        text: normalizedText,
+        normalizeMermaidMmd: false,
+        applyViewPreset: false,
+      })
     } catch {
       void 0
     }
@@ -279,7 +286,13 @@ export async function loadGraphDataFromTextViaParser(
         notifyLoaderProgress(options, 'Applying graph')
         try {
           useGraphStore.getState().setGraphData(graphData)
-          applyFrontmatterFlowImportModes(graphData)
+          const appliedGraphPreset = applyFrontmatterFlowImportModes(graphData)
+          if (!appliedGraphPreset) {
+            applyCanvasFrontmatterPreset({
+              graphData,
+              rawText: normalizedText,
+            })
+          }
         } catch {
           void 0
         }
@@ -311,7 +324,13 @@ export async function loadGraphDataFromTextViaParser(
     notifyLoaderProgress(options, 'Applying graph')
     try {
       useGraphStore.getState().setGraphData(graphData)
-      applyFrontmatterFlowImportModes(graphData)
+      const appliedGraphPreset = applyFrontmatterFlowImportModes(graphData)
+      if (!appliedGraphPreset) {
+        applyCanvasFrontmatterPreset({
+          graphData,
+          rawText: normalizedText,
+        })
+      }
     } catch {
       void 0
     }

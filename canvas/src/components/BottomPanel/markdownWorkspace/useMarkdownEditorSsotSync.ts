@@ -72,6 +72,7 @@ export function useMarkdownEditorSsotSync(args: {
           text: normalized,
           normalizeMermaidMmd: false,
           autoEnableFrontmatter: false,
+          applyViewPreset: false,
           sourceUrl: activeDocumentSourceUrl,
         })
         lastPushedRef.current = { key, text: normalized }
