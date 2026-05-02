@@ -9,6 +9,7 @@ import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
 import {
   deriveMarkdownDesignLayout,
   patchMarkdownDesignLayoutPositions,
@@ -563,16 +564,7 @@ export const MarkdownDesignOverlay = React.memo(function MarkdownDesignOverlay(p
               onDoubleClickCapture={() => {
                 onPreviewClick?.(b.startLine)
               }}
-              panel={{
-                activeTab: 'text',
-                freezeConnectedOutput: false,
-                hasText: true,
-                hasImage: false,
-                hasVideo: false,
-                hasPoi: false,
-                text: snippet,
-                connectedText: '',
-              }}
+              panel={buildStaticRichMediaPanelOverlayState({ activeTab: 'text', text: snippet })}
               style={{ width: '100%', height: '100%', boxShadow: 'none' }}
             />
           </div>

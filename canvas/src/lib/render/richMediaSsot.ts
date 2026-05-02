@@ -10,11 +10,12 @@ import { listMediaOverlayNodes, type MediaOverlayNode } from '@/lib/render/media
 import {
   type RichMediaPanelTab,
   type RichMediaPanelOverlayState,
+  buildStaticRichMediaPanelOverlayState,
   buildRichMediaPanelOverlayState,
   resolveRichMediaPanelRenderNode,
 } from '@/lib/render/richMediaPanelState'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
-export { buildRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
+export { buildRichMediaPanelOverlayState, buildStaticRichMediaPanelOverlayState, resolveRichMediaPanelRenderNode } from '@/lib/render/richMediaPanelState'
 export type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 
 export type RichMediaDisplayMode = 'circle-only' | 'panel-only'

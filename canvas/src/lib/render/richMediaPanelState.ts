@@ -53,6 +53,41 @@ export function normalizeConnectedTextValue(value: unknown): string {
   return ''
 }
 
+export function buildStaticRichMediaPanelOverlayState(args: {
+  renderKind?: unknown
+  activeTab?: unknown
+  text?: unknown
+  connectedText?: unknown
+  isLoading?: unknown
+  loadingLabel?: unknown
+}): RichMediaPanelOverlayState {
+  const renderKind = String(args.renderKind || '').trim().toLowerCase()
+  const requestedTab = String(args.activeTab || '').trim().toLowerCase()
+  const activeTab: RichMediaPanelOverlayState['activeTab'] =
+    requestedTab === 'text' || requestedTab === 'image' || requestedTab === 'video' || requestedTab === 'poi' || requestedTab === 'auto'
+      ? (requestedTab as RichMediaPanelOverlayState['activeTab'])
+      : renderKind === 'image' || renderKind === 'svg'
+        ? 'image'
+        : renderKind === 'video'
+          ? 'video'
+          : 'auto'
+  const text = normalizeConnectedTextValue(args.text)
+  const connectedText = normalizeConnectedTextValue(args.connectedText)
+  const loadingLabel = typeof args.loadingLabel === 'string' ? args.loadingLabel.trim() : ''
+  return {
+    activeTab,
+    freezeConnectedOutput: false,
+    hasText: Boolean(text || connectedText),
+    hasImage: renderKind === 'image' || renderKind === 'svg',
+    hasVideo: renderKind === 'video',
+    hasPoi: activeTab === 'poi',
+    text,
+    connectedText,
+    isLoading: args.isLoading === true,
+    loadingLabel,
+  }
+}
+
 function deriveRichMediaPanelLoadingSourceLabels(args: {
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   nodeById?: ReadonlyMap<string, GraphNode>

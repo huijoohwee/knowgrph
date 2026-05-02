@@ -10,7 +10,9 @@ import { coerceMarkdownParenUrl, extractMarkdownInlineRefs } from '@/features/pa
 import { fixBrokenMarkdownImageSyntax } from '@/lib/markdown/sanitizeImportedMarkdown'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 
-export type NodeMediaKind = 'image' | 'svg' | 'video' | 'iframe'
+export const NODE_MEDIA_KINDS = ['image', 'svg', 'video', 'iframe'] as const
+export type NodeMediaKind = typeof NODE_MEDIA_KINDS[number]
+export const DEFAULT_NODE_MEDIA_KIND: NodeMediaKind = NODE_MEDIA_KINDS[0]
 
 export type NodeMediaSpec = {
   kind: NodeMediaKind

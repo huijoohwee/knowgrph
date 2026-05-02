@@ -36,11 +36,12 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_COPY } from '@/lib/config'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import RichMediaPanel from '@/components/RichMediaPanel'
-import { listMediaOverlayNodes } from '@/lib/render/mediaOverlayPool'
+import { listMediaOverlayNodes, type RichMediaPanelOverlayState } from '@/lib/render/mediaOverlayPool'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { buildDataflowWidgetRegistry } from '@/lib/flowEditor/widgetRegistryDataflow'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
+import { buildStaticRichMediaPanelOverlayState, commitRichMediaPanelChange } from '@/lib/render/richMediaSsot'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
@@ -59,6 +60,7 @@ export default function PreviewPanelView() {
   const selectNode = useGraphStore(s => s.selectNode)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const setWorkspaceViewMode = useGraphStore(s => s.setWorkspaceViewMode)
+  const updateNode = useGraphStore(s => s.updateNode)
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
@@ -171,6 +173,7 @@ export default function PreviewPanelView() {
     src?: string
     openUrl?: string
     alt?: string
+    panel?: RichMediaPanelOverlayState
   }
 
   const mediaItems: MediaItem[] = React.useMemo(() => {
@@ -497,6 +500,7 @@ export default function PreviewPanelView() {
           openUrl: openUrl || undefined,
           alt: baseLabel || undefined,
           nodeId,
+          panel: item.panel,
         })
       }
     }
@@ -524,6 +528,11 @@ export default function PreviewPanelView() {
   )
 
   const activeMedia = hasMermaidFocus || frontmatterModeEnabled ? null : activeMediaFromKey || mediaItems[0] || null
+  const previewPanelState = React.useMemo<RichMediaPanelOverlayState | null>(() => {
+    if (!activeMedia || activeMedia.kind === 'mermaid') return null
+    if (activeMedia.panel) return activeMedia.panel
+    return buildStaticRichMediaPanelOverlayState({ renderKind: activeMedia.kind })
+  }, [activeMedia])
 
   const handleSelectMedia = (item: MediaItem) => {
     if (item.kind === 'mermaid') {
@@ -640,6 +649,15 @@ export default function PreviewPanelView() {
                 interactive={richMediaKind !== 'image'}
                 iframeMode="srcdoc-when-needed"
                 showHeader={true}
+                panel={previewPanelState || undefined}
+                onPanelChange={next => {
+                  if (!activeMedia?.nodeId || !activeMedia.panel) return
+                  commitRichMediaPanelChange({
+                    nodeId: activeMedia.nodeId,
+                    next,
+                    updateNode: (id, patch) => updateNode(id, patch as Partial<import('@/lib/graph/types').GraphNode>),
+                  })
+                }}
                 style={{ width: '100%', height: '100%', boxShadow: 'none' }}
               />
             ) : (

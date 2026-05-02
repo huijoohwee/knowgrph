@@ -1,6 +1,8 @@
 import React from 'react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
+import { commitRichMediaPanelChange } from '@/lib/render/richMediaSsot'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function DesignCanvasMediaOverlay(props: {
   active: boolean
@@ -28,6 +30,7 @@ export function DesignCanvasMediaOverlay(props: {
     onHeaderDrag,
     onHeaderDragEnd,
   } = props
+  const updateNode = useGraphStore(s => s.updateNode)
   if (!active || designMediaOverlayNodes.length === 0) return null
   return (
     <section aria-label="Design media overlay" className="absolute inset-0 z-[80] pointer-events-none">
@@ -44,6 +47,15 @@ export function DesignCanvasMediaOverlay(props: {
           interactive={node.interactive}
           hideUntilReady={true}
           iframeMode="srcdoc-when-needed"
+          panel={node.panel}
+          onPanelChange={next => {
+            if (!node.panel) return
+            commitRichMediaPanelChange({
+              nodeId: node.id,
+              next,
+              updateNode: (id, patch) => updateNode(id, patch as Partial<import('@/lib/graph/types').GraphNode>),
+            })
+          }}
           forwardWheelTo={forwardWheelTo}
           shouldStartHeaderDrag={shouldStartHeaderDrag}
           onOverlayPanStart={onOverlayPanStart}

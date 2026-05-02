@@ -1,5 +1,6 @@
 import React from 'react'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { buildStaticRichMediaPanelOverlayState } from '@/lib/render/richMediaSsot'
 
 export type DesignRichMediaTag = 'IMG' | 'VIDEO' | 'IFRAME'
 
@@ -47,6 +48,10 @@ export function DesignRichMediaPreview(props: {
   const titleW = Math.min(innerW, Math.max(64, (titleChip.length + 6) * 6))
   const mediaCorner = 6
   const kind = tag === 'IMG' ? 'image' : tag === 'VIDEO' ? 'video' : 'iframe'
+  const panel = React.useMemo(
+    () => buildStaticRichMediaPanelOverlayState({ renderKind: kind }),
+    [kind],
+  )
   const panelStyle = {
     width: '100%',
     height: '100%',
@@ -98,6 +103,7 @@ export function DesignRichMediaPreview(props: {
           interactive={interactive}
           iframeMode="srcdoc-when-needed"
           showHeader={false}
+          panel={panel}
           forwardWheelTo={forwardWheelTo}
           onOverlayPanStart={onOverlayPanStart}
           onOverlayPan={onOverlayPan}

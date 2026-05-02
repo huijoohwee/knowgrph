@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
+  buildStaticRichMediaPanelOverlayState,
   listDisplayRichMediaOverlayNodes,
   normalizeRichMediaPanelDensity,
   normalizeRichMediaPanelTab,
@@ -86,6 +87,14 @@ export function testRichMediaSsotConsistencyRegression() {
   ) {
     throw new Error('expected frontmatter Flow Editor document mode to preserve Rich Media overlay interaction without the manual toggle')
   }
+  const staticVideoPanel = buildStaticRichMediaPanelOverlayState({ renderKind: 'video' })
+  if (staticVideoPanel.activeTab !== 'video' || staticVideoPanel.hasVideo !== true || staticVideoPanel.isLoading !== false) {
+    throw new Error('expected static Rich Media panel builder to derive canonical video state without local ad hoc fields')
+  }
+  const staticTextPanel = buildStaticRichMediaPanelOverlayState({ activeTab: 'text', text: 'hello' })
+  if (staticTextPanel.activeTab !== 'text' || staticTextPanel.hasText !== true || staticTextPanel.loadingLabel !== '') {
+    throw new Error('expected static Rich Media panel builder to derive canonical text state with stable defaults')
+  }
 
   const imageNode = {
     id: 'img-1',
@@ -123,6 +132,10 @@ export function testRichMediaSsotConsistencyRegression() {
   const graphCanvasNodesLayerText = readFileSync(resolve(process.cwd(), 'src', 'components', 'GraphCanvas', 'layers', 'nodes.ts'), 'utf8')
   const designText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas.tsx'), 'utf8')
   const designMarkdownPanelGroupsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useDesignCanvasMarkdownPanelGroups.ts'), 'utf8')
+  const designMediaOverlayText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'MediaOverlay.tsx'), 'utf8')
+  const designRichMediaText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignRichMedia.tsx'), 'utf8')
+  const markdownDesignOverlayText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx'), 'utf8')
+  const previewPanelText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx'), 'utf8')
   const threeText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'), 'utf8')
 
   if (
@@ -201,7 +214,26 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!designText.includes('useDesignCanvasMarkdownPanelGroups') || !designMarkdownPanelGroupsText.includes('listDisplayRichMediaOverlayNodes')) {
     throw new Error('expected Design canvas runtime to reuse upstream Rich Media overlay enablement SSOT through its markdown panel group helper')
   }
+  if (!designMediaOverlayText.includes('panel={node.panel}') || !designMediaOverlayText.includes('commitRichMediaPanelChange')) {
+    throw new Error('expected Design canvas media overlays to reuse canonical Rich Media panel state and writeback helpers')
+  }
+  if (!designRichMediaText.includes('buildStaticRichMediaPanelOverlayState({ renderKind: kind })')) {
+    throw new Error('expected Design rich media preview to derive canonical panel state through the shared static builder')
+  }
+  if (
+    !previewPanelText.includes('buildStaticRichMediaPanelOverlayState({ renderKind: activeMedia.kind })')
+    || !previewPanelText.includes('panel={previewPanelState || undefined}')
+    || !previewPanelText.includes('commitRichMediaPanelChange')
+  ) {
+    throw new Error('expected Preview panel rich media mounts to reuse canonical Rich Media panel state and writeback helpers')
+  }
+  if (!markdownDesignOverlayText.includes("buildStaticRichMediaPanelOverlayState({ activeTab: 'text', text: snippet })")) {
+    throw new Error('expected markdown design overlay text previews to reuse the shared static Rich Media panel builder')
+  }
   if (!threeText.includes('listDisplayRichMediaOverlayNodes') || !threeText.includes('resolveRichMediaPanelInteractive')) {
     throw new Error('expected 3D rich media overlays to reuse upstream Rich Media SSOT helpers')
+  }
+  if (!threeText.includes('panel={n.panel}') || !threeText.includes('commitRichMediaPanelChange')) {
+    throw new Error('expected 3D rich media overlays to reuse canonical Rich Media panel state and writeback helpers')
   }
 }

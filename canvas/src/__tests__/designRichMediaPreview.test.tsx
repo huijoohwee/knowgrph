@@ -115,6 +115,11 @@ export async function testDesignRichMediaPreviewRendersImageVideoAndIframe() {
       if (!srcdoc.trim()) throw new Error('expected iframe srcdoc to be populated')
     }
 
+    const openSourceButtons = Array.from(doc.querySelectorAll('[data-kg-rich-media-open-source="1"]'))
+    if (openSourceButtons.length < 4) {
+      throw new Error(`expected widget-style floating toolbar open-source actions for design rich media previews, got ${openSourceButtons.length}`)
+    }
+
     await act(async () => {
       root.unmount()
     })

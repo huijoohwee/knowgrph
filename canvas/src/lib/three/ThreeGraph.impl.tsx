@@ -15,6 +15,7 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { applyMediaPanelCssVars, applyPanelBox, computeMediaPanelCssVars3d, computePanelRect, computePanelSizeFromContent16x9 } from '@/lib/render/mediaPanelLayout'
 import {
   listDisplayRichMediaOverlayNodes,
+  commitRichMediaPanelChange,
   normalizeRichMediaPanelDensity,
   resolveRichMediaPanelInteractive,
 } from '@/lib/render/richMediaSsot'
@@ -1018,6 +1019,15 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
                 })}
                 hideUntilReady={false}
                 iframeMode="srcdoc-when-needed"
+                panel={n.panel}
+                onPanelChange={next => {
+                  if (!n.panel) return
+                  commitRichMediaPanelChange({
+                    nodeId: n.id,
+                    next,
+                    updateNode: (id, patch) => useGraphStore.getState().updateNode(id, patch as Partial<GraphNode>),
+                  })
+                }}
                 forwardWheelTo={allowEmbeddedMediaInteraction ? undefined : (() => glCanvasRef.current)}
                 onOverlayPanStart={({ pointerId }) => {
                   const pose = useGraphStore.getState().captureThreeCameraPose()
