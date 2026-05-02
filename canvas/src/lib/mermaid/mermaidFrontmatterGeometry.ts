@@ -873,6 +873,10 @@ const canRenderMermaidFrontmatterGeometry = (): boolean => {
   return typeof window !== 'undefined' && typeof document !== 'undefined'
 }
 
+const readMermaidFrontmatterSvgGeometry = (svg: string): MermaidFrontmatterSvgGeometry => {
+  return parseMermaidSvgGeometry(svg)
+}
+
 const buildMermaidFrontmatterRenderResult = (args: {
   renderInput: MermaidFrontmatterRenderInput
   svg: string
@@ -881,7 +885,7 @@ const buildMermaidFrontmatterRenderResult = (args: {
     code: args.renderInput.code,
     theme: args.renderInput.theme,
     svg: args.svg,
-    geometry: parseMermaidSvgGeometry(args.svg),
+    geometry: readMermaidFrontmatterSvgGeometry(args.svg),
   }
 }
 
