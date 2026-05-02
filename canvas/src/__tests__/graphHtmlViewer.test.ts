@@ -31,8 +31,8 @@ export async function testExportHtmlViewerIsSvgOnlyAndBlocksBrowserZoomAndSelect
   if (!html.includes('user-select:none') && !html.includes('user-select: none')) {
     throw new Error('expected selection disabled')
   }
-  if (!html.includes('.kg-mediaTitle') || !html.includes('pointer-events:none')) {
-    throw new Error('expected rich media title to be non-interactive to avoid text selection')
+  if (!html.includes('.kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video') || !html.includes('data-kg-rich-media-render-surface')) {
+    throw new Error('expected exported viewer to use the widget rich media render surface contract')
   }
   if (!html.includes('kg-media-toggle') || !html.includes('Toggle media interaction')) {
     throw new Error('expected media interaction toggle control')
@@ -470,7 +470,7 @@ export async function testExportHtmlViewerDedupesMarkdownByAnchorNode() {
 export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g></svg>`
   const overlayHtml =
-    '<article data-kg-rich-media-panel="1" data-node-id="m1"><header class="kg-mediaHeader" data-kg-media-panel-header="1">H</header><section class="kg-mediaBody"><iframe src="about:blank"></iframe></section></article>'
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1" data-kg-title="Overlay Media"><iframe src="about:blank" title="Overlay Media"></iframe></article>'
   const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg, overlayHtml })
   if (!html) throw new Error('expected html')
   const match = html.match(/<script>\n([\s\S]*?)\n\s*<\/script>/)
@@ -502,6 +502,9 @@ export async function testExportHtmlViewerRuntimeScriptParsesWithOverlayHtml() {
   }
   if (!js.includes("var openUrl = String((n && n.openUrl) || '');") || !js.includes("el.setAttribute('data-kg-open-url', openUrl);")) {
     throw new Error('expected runtime to normalize openUrl into canonical media payload attributes from the template')
+  }
+  if (!js.includes("el.setAttribute('data-kg-rich-media-render-surface', '1');") || !js.includes("el.setAttribute('data-kg-canvas-overlay-drag-handle', 'true');")) {
+    throw new Error('expected runtime to synthesize only the widget rich media render surface')
   }
   if (!js.includes('var inferredKind = kgInferMediaKindFromUrl2(url) || kgInferMediaKindFromUrl(url);') || !js.includes('var inferred = (typeof kgInferMediaKindFromUrl2 === \"function\" ? kgInferMediaKindFromUrl2(url0) : \"\") || kgInferMediaKindFromUrl(url0);')) {
     throw new Error('expected runtime to use extended inferred-kind normalization for both media payload creation and media element rehydration')
@@ -561,13 +564,15 @@ export async function testExportHtmlViewerOverlayExportPreservesInteractionGuard
   const root = document.createElement('div')
   const panel = document.createElement('article')
   panel.setAttribute('data-kg-rich-media-panel', '1')
+  panel.setAttribute('data-kg-rich-media-render-surface', '1')
+  panel.setAttribute('data-kg-canvas-overlay-drag-handle', 'true')
   panel.setAttribute('data-node-id', 'm1')
   panel.setAttribute('data-kg-canvas-pointer-ignore', 'true')
   panel.setAttribute('data-kg-canvas-wheel-ignore', 'true')
   panel.style.pointerEvents = 'auto'
   panel.style.touchAction = 'none'
   panel.style.userSelect = 'none'
-  panel.innerHTML = '<header class="kg-mediaHeader">H</header><section class="kg-mediaBody"><div style="pointer-events:auto">B</div></section>'
+  panel.innerHTML = '<a aria-label="Overlay Media" href="https://example.com/open"></a><div style="pointer-events:auto">B</div>'
   root.appendChild(panel)
 
   const html = captureLiveRichMediaOverlayHtmlForHtmlViewerExport({ overlayRootEl: root })
@@ -590,13 +595,15 @@ export async function testExportHtmlViewerOverlayExportStripsTransformPositionin
 
     const panel = document.createElement('article')
     panel.setAttribute('data-kg-rich-media-panel', '1')
+    panel.setAttribute('data-kg-rich-media-render-surface', '1')
+    panel.setAttribute('data-kg-canvas-overlay-drag-handle', 'true')
     panel.setAttribute('data-node-id', 'm1')
     panel.style.position = 'absolute'
     panel.style.left = '123px'
     panel.style.top = '456px'
     panel.style.transform = 'translate3d(12px,34px,0)'
     panel.style.zIndex = '999'
-    panel.innerHTML = '<header class="kg-mediaHeader">H</header><section class="kg-mediaBody"><div>B</div></section>'
+    panel.innerHTML = '<a aria-label="Overlay Media" href="https://example.com/open"></a><div>B</div>'
     root.appendChild(panel)
 
     const html = captureLiveRichMediaOverlayHtmlForHtmlViewerExport({ overlayRootEl: root })
@@ -702,7 +709,7 @@ export async function testExportHtmlViewerOverlayExportCollectsFlowAnd3dRoots() 
 export async function testExportHtmlViewerSeedsOverlayPanelsIntoRuntimePayloads() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40"><g data-node-id="m1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-node-id="n1"><circle cx="10" cy="10" r="5" fill="blue"/></g><line data-edge-id="e1" data-source-id="m1" data-target-id="n1" x1="0" y1="0" x2="10" y2="10"/></svg>`
   const overlayHtml =
-    '<article data-kg-rich-media-panel="1" data-node-id="m1" data-kg-kind="iframe" data-kg-url="https://example.com/media" data-kg-open-url="https://example.com/open"><header class="kg-mediaHeader" data-kg-media-panel-header="1"><h3 class="kg-mediaTitle">Overlay Media</h3></header></article>' +
+    '<article data-kg-rich-media-panel="1" data-kg-rich-media-render-surface="1" data-kg-canvas-overlay-drag-handle="true" data-node-id="m1" data-kg-title="Overlay Media" data-kg-kind="iframe" data-kg-url="https://example.com/media" data-kg-open-url="https://example.com/open"><iframe src="https://example.com/media" title="Overlay Media"></iframe></article>' +
     '<article data-md-id="b1" data-kg-anchor-node-id="n1" data-kg-world-x="-4" data-kg-world-y="-6" data-kg-world-w="12" data-kg-world-h="8"><header class="kg-mdHeader"><div class="kg-mdTitle">MD Block</div></header></article>'
   const html = await buildGraphHtmlViewerMarkup({
     title: 'T',
@@ -752,7 +759,7 @@ export async function testExportHtmlViewerSeedsNodePositionsFromOverlayMarkdownW
 export async function testExportHtmlViewerMarkdownOverlaySupportsAnchorNodeIds() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"><g data-node-id="n1"><circle cx="0" cy="0" r="5" fill="red"/></g><g data-kg-layer="markdown-design-blocks"><foreignObject x="-5" y="-5" width="10" height="10" data-kg-markdown-block-id="b1" data-kg-anchor-node-id="n1"></foreignObject></g></svg>`
   const overlayHtml =
-    '<article data-md-id="b1" data-kg-anchor-node-id="n1"><header data-kg-media-panel-header="1">H</header><section><table><tr><td>T</td></tr></table></section></article>'
+    '<article data-md-id="b1" data-kg-anchor-node-id="n1"><section><table><tr><td>T</td></tr></table></section></article>'
   const html = await buildGraphHtmlViewerMarkup({ title: 'T', svgMarkup: svg, overlayHtml })
   if (!html) throw new Error('expected html')
   if (!html.includes('data-kg-anchor-node-id')) {
