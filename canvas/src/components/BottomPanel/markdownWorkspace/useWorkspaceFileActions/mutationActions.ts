@@ -11,26 +11,12 @@ import {
 import { fetchWorkspaceUrlContent } from '../workspaceImport'
 import { loadWorkspaceSourceIndex, removeWorkspaceEntrySourcesForPrefix, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
-import type { UseWorkspaceFileActionsArgs } from './types'
+import type { WorkspaceMutationActionsCtx } from './types'
 import { syncWorkspaceTextState, writeWorkspaceFileAndSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.io'
 
 export function useWorkspaceMutationActions(args: {
   core: { status: ReturnType<typeof import('./core').useWorkspaceStatusHelpers> }
-  ctx: Pick<
-    UseWorkspaceFileActionsArgs,
-    | 'getFs'
-    | 'refresh'
-    | 'openedPath'
-    | 'selectionPath'
-    | 'selectionEntryKind'
-    | 'activeDocumentKey'
-    | 'setActiveText'
-    | 'setEntries'
-    | 'lastLoadedRef'
-    | 'setActiveMarkdownDocument'
-    | 'setActivePathSafe'
-    | 'setSelectionPathSafe'
-  >
+  ctx: WorkspaceMutationActionsCtx
 }) {
   const { status } = args.core
   const {
@@ -47,6 +33,50 @@ export function useWorkspaceMutationActions(args: {
     setActivePathSafe,
     setSelectionPathSafe,
   } = args.ctx
+
+  const writeMutationWorkspaceText = React.useCallback(
+    async (
+      path: WorkspacePath,
+      text: string,
+      options?: {
+        getFsOverride?: () => ReturnType<typeof getFs>
+        activeDocumentSourceUrl?: string | null
+      },
+    ) => {
+      const normalized = normalizeWorkspacePath(path)
+      await writeWorkspaceFileAndSync({
+        path: normalized,
+        text,
+        getFs: options?.getFsOverride || getFs,
+        lastLoadedRef,
+        setEntries,
+        synchronizeActiveDocument: openedPath === normalized,
+        setActiveText,
+        activeDocumentKey,
+        activeDocumentSourceUrl: options?.activeDocumentSourceUrl ?? null,
+        setActiveMarkdownDocument,
+        resetParsedState: true,
+      })
+    },
+    [activeDocumentKey, getFs, lastLoadedRef, openedPath, setActiveMarkdownDocument, setActiveText, setEntries],
+  )
+
+  const syncRenamedActiveWorkspacePath = React.useCallback(
+    async (fs: Awaited<ReturnType<typeof getFs>>, remappedOpenedPath: WorkspacePath) => {
+      setActivePathSafe(remappedOpenedPath)
+      const latestText = String((await fs.readFileText(remappedOpenedPath)) || '')
+      syncWorkspaceTextState({
+        path: remappedOpenedPath,
+        text: latestText,
+        lastLoadedRef,
+        setActiveText,
+        activeDocumentKey: workspaceDocumentKey(remappedOpenedPath) || activeDocumentKey,
+        activeDocumentSourceUrl: null,
+        setActiveMarkdownDocument,
+      })
+    },
+    [activeDocumentKey, lastLoadedRef, setActiveMarkdownDocument, setActivePathSafe, setActiveText],
+  )
 
   const refreshFileFromSource = React.useCallback(
     async (path: WorkspacePath) => {
@@ -89,25 +119,15 @@ export function useWorkspaceMutationActions(args: {
           }
         }
 
-        await writeWorkspaceFileAndSync({
-          path: normalized,
-          text: nextText,
-          getFs,
-          lastLoadedRef,
-          setEntries,
-          synchronizeActiveDocument: openedPath === normalized,
-          setActiveText,
-          activeDocumentKey,
+        await writeMutationWorkspaceText(normalized, nextText, {
           activeDocumentSourceUrl: fetched.normalizedUrl,
-          setActiveMarkdownDocument,
-          resetParsedState: true,
         })
         status.setStatusInfo('Refreshed')
       } catch (e) {
         status.setStatusError(`Refresh failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, getFs, lastLoadedRef, openedPath, setActiveMarkdownDocument, setActiveText, setEntries, status],
+    [getFs, status, writeMutationWorkspaceText],
   )
 
   const deleteEntry = React.useCallback(
@@ -223,17 +243,7 @@ export function useWorkspaceMutationActions(args: {
           return null
         })()
         if (remappedOpenedPath) {
-          setActivePathSafe(remappedOpenedPath)
-          const latestText = String((await fs.readFileText(remappedOpenedPath)) || '')
-          syncWorkspaceTextState({
-            path: remappedOpenedPath,
-            text: latestText,
-            lastLoadedRef,
-            setActiveText,
-            activeDocumentKey: workspaceDocumentKey(remappedOpenedPath) || activeDocumentKey,
-            activeDocumentSourceUrl: null,
-            setActiveMarkdownDocument,
-          })
+          await syncRenamedActiveWorkspacePath(fs, remappedOpenedPath)
         }
 
         await refresh()
@@ -243,17 +253,13 @@ export function useWorkspaceMutationActions(args: {
       }
     },
     [
-      activeDocumentKey,
       getFs,
-      lastLoadedRef,
       openedPath,
       refresh,
       selectionPath,
-      setActiveMarkdownDocument,
-      setActivePathSafe,
-      setActiveText,
       setSelectionPathSafe,
       status,
+      syncRenamedActiveWorkspacePath,
     ],
   )
 
@@ -262,26 +268,13 @@ export function useWorkspaceMutationActions(args: {
       const normalized = normalizeWorkspacePath(path)
       status.setStatusProgress('Clearing')
       try {
-        const fs = await getFs()
-        await writeWorkspaceFileAndSync({
-          path: normalized,
-          text: '',
-          getFs,
-          lastLoadedRef,
-          setEntries,
-          synchronizeActiveDocument: openedPath === normalized,
-          setActiveText,
-          activeDocumentKey,
-          activeDocumentSourceUrl: null,
-          setActiveMarkdownDocument,
-          resetParsedState: true,
-        })
+        await writeMutationWorkspaceText(normalized, '')
         status.setStatusInfo('Cleared')
       } catch (e) {
         status.setStatusError(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, getFs, lastLoadedRef, openedPath, setActiveMarkdownDocument, setActiveText, setEntries, status],
+    [status, writeMutationWorkspaceText],
   )
 
   const clearFolder = React.useCallback(
@@ -297,21 +290,9 @@ export function useWorkspaceMutationActions(args: {
           .filter(e => e.kind === 'file')
           .map(e => normalizeWorkspacePath(e.path))
           .filter(p => p.startsWith(prefix))
-        const targetSet = new Set(targets)
-        const normalizedActivePath = openedPath ? normalizeWorkspacePath(openedPath) : null
         for (const p of targets) {
-          await writeWorkspaceFileAndSync({
-            path: p as WorkspacePath,
-            text: '',
-            getFs: async () => fs,
-            lastLoadedRef,
-            setEntries,
-            synchronizeActiveDocument: p === normalizedActivePath,
-            setActiveText,
-            activeDocumentKey,
-            activeDocumentSourceUrl: null,
-            setActiveMarkdownDocument,
-            resetParsedState: true,
+          await writeMutationWorkspaceText(p as WorkspacePath, '', {
+            getFsOverride: async () => fs,
           })
         }
 
@@ -320,7 +301,7 @@ export function useWorkspaceMutationActions(args: {
         status.setStatusError(`Clear failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [activeDocumentKey, getFs, lastLoadedRef, openedPath, setActiveMarkdownDocument, setActiveText, setEntries, status],
+    [getFs, status, writeMutationWorkspaceText],
   )
 
   const canClearActiveSelection = !!(

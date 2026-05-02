@@ -247,6 +247,56 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
     [applyMarkdownDocumentToGraph, status],
   )
 
+  const syncFocusedWorkspacePath = React.useCallback(
+    async (path: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => {
+      if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
+      const fs = await getFs()
+      const text = await fs.readFileText(path)
+      if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
+      const docKey = workspaceDocumentKey(path)
+      const content = String(text || '')
+      syncWorkspaceTextState({
+        path,
+        text: content,
+        lastLoadedRef,
+        setActiveText,
+        activeDocumentKey: content.trim() ? docKey : undefined,
+        activeDocumentSourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
+        setActiveMarkdownDocument: content.trim() ? setActiveMarkdownDocument : undefined,
+      })
+      if (docKey && content.trim() && opts?.applyToGraph) {
+        await applyImportedTextToGraph({ nameForParse: docKey, text: content })
+      }
+    },
+    [
+      activeDocumentSourceUrl,
+      applyImportedTextToGraph,
+      getFs,
+      lastLoadedRef,
+      setActiveMarkdownDocument,
+      setActiveText,
+    ],
+  )
+
+  const createWorkspaceEntryAndRefresh = React.useCallback(
+    async (args: {
+      parentPath?: WorkspacePath
+      create: (inner: { fs: Awaited<ReturnType<typeof getFs>>; parentPath: WorkspacePath }) => Promise<WorkspacePath>
+      afterCreate?: (path: WorkspacePath) => void
+    }) => {
+      const fs = await getFs()
+      const parentPath = args.parentPath ? normalizeWorkspacePath(args.parentPath) : WORKSPACE_ROOT_PATH
+      const path = await runWorkspaceFsChangedBatch(async () => {
+        suppressNextWorkspaceFsChangedEvent()
+        return await args.create({ fs, parentPath })
+      })
+      args.afterCreate?.(path)
+      await refresh()
+      return path
+    },
+    [getFs, refresh],
+  )
+
   const revealWorkspacePath = React.useCallback(
     (path: WorkspacePath, opts?: { activate?: boolean }) => {
       setSelectionPathSafe(path)
@@ -265,23 +315,7 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
       if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
       revealWorkspacePath(createdPath, { activate: true })
       try {
-        const fs = await getFs()
-        const text = await fs.readFileText(createdPath)
-        if (opts?.jobId != null && importJobRef.current !== opts.jobId) return
-        const docKey = workspaceDocumentKey(createdPath)
-        const content = String(text || '')
-        syncWorkspaceTextState({
-          path: createdPath,
-          text: content,
-          lastLoadedRef,
-          setActiveText,
-          activeDocumentKey: content.trim() ? docKey : undefined,
-          activeDocumentSourceUrl: typeof opts?.sourceUrl === 'string' ? opts.sourceUrl : activeDocumentSourceUrl,
-          setActiveMarkdownDocument: content.trim() ? setActiveMarkdownDocument : undefined,
-        })
-        if (docKey && content.trim() && opts?.applyToGraph) {
-          await applyImportedTextToGraph({ nameForParse: docKey, text: content })
-        }
+        await syncFocusedWorkspacePath(createdPath, opts)
       } catch (e) {
         if (opts?.applyToGraph) {
           status.setStatusError(`Apply failed: ${String((e as { message?: unknown })?.message ?? e)}`)
@@ -291,14 +325,9 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
       }
     },
     [
-      activeDocumentSourceUrl,
-      applyImportedTextToGraph,
-      getFs,
-      lastLoadedRef,
       revealWorkspacePath,
-      setActiveMarkdownDocument,
-      setActiveText,
       status,
+      syncFocusedWorkspacePath,
     ],
   )
 
@@ -306,41 +335,41 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
     async (opts?: { parentPath?: WorkspacePath }) => {
       status.setStatusProgress('Creating')
       try {
-        const fs = await getFs()
-        const parentPath = opts?.parentPath ? normalizeWorkspacePath(opts.parentPath) : WORKSPACE_ROOT_PATH
-        const path = await runWorkspaceFsChangedBatch(async () => {
-          suppressNextWorkspaceFsChangedEvent()
-          return await fs.createFile({ parentPath, name: 'note.md', text: '' })
+        const path = await createWorkspaceEntryAndRefresh({
+          parentPath: opts?.parentPath,
+          create: async ({ fs, parentPath }) => {
+            return await fs.createFile({ parentPath, name: 'note.md', text: '' })
+          },
+          afterCreate: path => {
+            setWorkspaceEntrySource(path, { kind: 'local', originalName: null })
+          },
         })
-        setWorkspaceEntrySource(path, { kind: 'local', originalName: null })
-        await refresh()
         await focusAfterImport(path, { applyToGraph: false })
         status.setStatusInfo('Created')
       } catch (e) {
         status.setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [focusAfterImport, getFs, refresh, status],
+    [createWorkspaceEntryAndRefresh, focusAfterImport, status],
   )
 
   const createNewFolder = React.useCallback(
     async (opts?: { parentPath?: WorkspacePath }) => {
       status.setStatusProgress('Creating')
       try {
-        const fs = await getFs()
-        const parentPath = opts?.parentPath ? normalizeWorkspacePath(opts.parentPath) : WORKSPACE_ROOT_PATH
-        const path = await runWorkspaceFsChangedBatch(async () => {
-          suppressNextWorkspaceFsChangedEvent()
-          return await fs.createFolder({ parentPath, name: 'folder' })
+        const path = await createWorkspaceEntryAndRefresh({
+          parentPath: opts?.parentPath,
+          create: async ({ fs, parentPath }) => {
+            return await fs.createFolder({ parentPath, name: 'folder' })
+          },
         })
-        await refresh()
         revealWorkspacePath(path, { activate: false })
         status.setStatusInfo('Created')
       } catch (e) {
         status.setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [getFs, refresh, revealWorkspacePath, status],
+    [createWorkspaceEntryAndRefresh, revealWorkspacePath, status],
   )
 
   return { importJobRef, status, focusAfterImport, createNewFile, createNewFolder }

@@ -16,7 +16,7 @@ import {
   importWorkspaceUrl,
 } from '../workspaceImport'
 import type { WorkspaceImportResult } from '../workspaceImport/types'
-import type { UseWorkspaceFileActionsArgs } from './types'
+import type { WorkspaceImportActionsCtx } from './types'
 
 export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportResult {
   const rec = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
@@ -188,10 +188,7 @@ export function useWorkspaceImportActions(args: {
     status: ReturnType<typeof import('./core').useWorkspaceStatusHelpers>
     focusAfterImport: (createdPath: string, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => Promise<void>
   }
-  ctx: Pick<
-    UseWorkspaceFileActionsArgs,
-    'getFs' | 'refresh' | 'openedPath' | 'activeDocumentKey' | 'setActiveText' | 'setEntries' | 'lastLoadedRef' | 'setActiveMarkdownDocument'
-  >
+  ctx: WorkspaceImportActionsCtx
 }) {
   const { importJobRef, status, focusAfterImport } = args.core
   const { getFs, refresh, openedPath, activeDocumentKey, setActiveText, setEntries, lastLoadedRef, setActiveMarkdownDocument } = args.ctx
@@ -203,6 +200,62 @@ export function useWorkspaceImportActions(args: {
       await hydrateWorkspaceFileFromPendingLocalImport({ fs, path: nextPath }).catch(() => null)
     }
   }, [])
+
+  const finalizeWorkspaceImportCommit = React.useCallback(
+    async (args: {
+      fs: WorkspaceFs
+      result: WorkspaceImportResult
+      hydratePending: boolean
+      applyToGraph: boolean
+      resolveSourceUrl?: boolean
+    }) => {
+      const { fs, result } = args
+      bulkSetWorkspaceEntrySources(result.sources)
+      if (args.hydratePending) {
+        await hydratePendingImportedPaths(fs, result.createdPaths)
+      }
+      const refreshed = await refresh()
+      await applyWorkspaceImportToCanvasBestEffort({
+        fs,
+        createdPaths: result.createdPaths,
+        opts: {
+          ...(args.applyToGraph ? { applyToGraph: true } : {}),
+          workspaceEntries: refreshed.entries,
+          sourcesByPath: refreshed.sourcesByPath,
+        },
+      })
+      const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, result.createdPaths)
+      const source = args.resolveSourceUrl && createdPath ? result.sources.find(s => s.path === createdPath)?.source : result.sources[0]?.source
+      const sourceUrl = source && source.kind === 'url' ? source.url : null
+      return { createdPath, sourceUrl }
+    },
+    [hydratePendingImportedPaths, refresh],
+  )
+
+  const formatWorkspaceImportSummary = React.useCallback(
+    (prefix: string, result: WorkspaceImportResult) => {
+      const imported = result.createdPaths.length
+      const skipped = result.skipped.length
+      const failed = result.failed.length
+      const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
+      const firstFailure = prefix === 'Imported URL'
+        ? result.failed.find(f => String((f as { name?: unknown }).name || '').trim() === 'GitHub repo import') || result.failed[0]
+        : result.failed[0]
+      const failureSuffix =
+        failed > 0 && firstFailure
+          ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
+          : ''
+      return {
+        imported,
+        skipped,
+        failed,
+        suffix,
+        failureSuffix,
+        message: `${prefix}${prefix.endsWith(': ') ? imported : imported > 1 && prefix === 'Imported URL' ? ` ${imported}` : ` ${imported}`}${suffix}${failureSuffix}`,
+      }
+    },
+    [],
+  )
 
   const handleImportLocalFiles = React.useCallback(
     async (files: FileList | null) => {
@@ -226,37 +279,22 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
-        bulkSetWorkspaceEntrySources(res.sources)
-        await hydratePendingImportedPaths(fs, res.createdPaths)
-        const refreshed = await refresh()
-        await applyWorkspaceImportToCanvasBestEffort({
+        const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
-          createdPaths: res.createdPaths,
-          opts: {
-            workspaceEntries: refreshed.entries,
-            sourcesByPath: refreshed.sourcesByPath,
-          },
+          result: res,
+          hydratePending: true,
+          applyToGraph: false,
         })
-        const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
           await focusAfterImport(createdPath, { applyToGraph: false, jobId })
         }
-        const imported = res.createdPaths.length
-        const skipped = res.skipped.length
-        const failed = res.failed.length
-        const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
-        const firstFailure = res.failed[0]
-        const failureSuffix =
-          failed > 0 && firstFailure
-            ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
-            : ''
-        status.setStatusInfo(`Imported ${imported}${suffix}${failureSuffix}`)
+        status.setStatusInfo(formatWorkspaceImportSummary('Imported', res).message)
       } catch (e) {
         if (importJobRef.current !== jobId) return
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [focusAfterImport, getFs, hydratePendingImportedPaths, refresh, importJobRef, status],
+    [finalizeWorkspaceImportCommit, focusAfterImport, formatWorkspaceImportSummary, getFs, importJobRef, status],
   )
 
   const handleImportLocalFolder = React.useCallback(
@@ -275,37 +313,22 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
-        bulkSetWorkspaceEntrySources(res.sources)
-        await hydratePendingImportedPaths(fs, res.createdPaths)
-        const refreshed = await refresh()
-        await applyWorkspaceImportToCanvasBestEffort({
+        const { createdPath } = await finalizeWorkspaceImportCommit({
           fs,
-          createdPaths: res.createdPaths,
-          opts: {
-            workspaceEntries: refreshed.entries,
-            sourcesByPath: refreshed.sourcesByPath,
-          },
+          result: res,
+          hydratePending: true,
+          applyToGraph: false,
         })
-        const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
         if (createdPath) {
           await focusAfterImport(createdPath, { applyToGraph: false, jobId })
         }
-        const imported = res.createdPaths.length
-        const skipped = res.skipped.length
-        const failed = res.failed.length
-        const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
-        const firstFailure = res.failed[0]
-        const failureSuffix =
-          failed > 0 && firstFailure
-            ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
-            : ''
-        status.setStatusInfo(`Imported folder: ${imported}${suffix}${failureSuffix}`)
+        status.setStatusInfo(formatWorkspaceImportSummary('Imported folder:', res).message)
       } catch (e) {
         if (importJobRef.current !== jobId) return
         status.setStatusError(`Import failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },
-    [focusAfterImport, getFs, hydratePendingImportedPaths, refresh, importJobRef, status],
+    [finalizeWorkspaceImportCommit, focusAfterImport, formatWorkspaceImportSummary, getFs, importJobRef, status],
   )
 
   const handleImportUrl = React.useCallback(
@@ -362,32 +385,13 @@ export function useWorkspaceImportActions(args: {
           })
         }))
         if (importJobRef.current !== jobId) return
-        bulkSetWorkspaceEntrySources(res.sources)
-        const refreshed = await refresh()
-
-        const imported = res.createdPaths.length
-        const skipped = res.skipped.length
-        const failed = res.failed.length
-        const suffix = skipped || failed ? ` (skipped ${skipped}, failed ${failed})` : ''
-        const firstFailure = res.failed.find(f => String((f as { name?: unknown }).name || '').trim() === 'GitHub repo import') || res.failed[0]
-        const failureSuffix =
-          failed > 0 && firstFailure
-            ? `: ${String(firstFailure.name || 'file').trim() || 'file'} — ${String(firstFailure.error || '').trim() || 'failed'}`
-            : ''
-        const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, res.createdPaths)
-        const source = createdPath ? res.sources.find(s => s.path === createdPath)?.source : res.sources[0]?.source
-        const sourceUrl = source && source.kind === 'url' ? source.url : null
-
-        const shouldApplyToGraph = true
-
-        await applyWorkspaceImportToCanvasBestEffort({
+        const summary = formatWorkspaceImportSummary('Imported URL', res)
+        const { createdPath, sourceUrl } = await finalizeWorkspaceImportCommit({
           fs,
-          createdPaths: res.createdPaths,
-          opts: {
-            applyToGraph: shouldApplyToGraph,
-            workspaceEntries: refreshed.entries,
-            sourcesByPath: refreshed.sourcesByPath,
-          },
+          result: res,
+          hydratePending: false,
+          applyToGraph: true,
+          resolveSourceUrl: true,
         })
 
         if (createdPath) {
@@ -454,10 +458,10 @@ export function useWorkspaceImportActions(args: {
         }
 
         void hydrateWebpageStub()
-        status.setStatusInfo(imported > 1 ? `Imported ${imported}${suffix}${failureSuffix}` : `Imported URL${suffix}${failureSuffix}`)
+        status.setStatusInfo(summary.imported > 1 ? `Imported ${summary.imported}${summary.suffix}${summary.failureSuffix}` : `Imported URL${summary.suffix}${summary.failureSuffix}`)
         useGraphStore.getState().pushUiLog({
-          kind: failed > 0 ? 'warning' : 'success',
-          message: `Import URL finished: ${imported} imported${suffix}${failureSuffix}`,
+          kind: summary.failed > 0 ? 'warning' : 'success',
+          message: `Import URL finished: ${summary.imported} imported${summary.suffix}${summary.failureSuffix}`,
           source: 'workspace:importUrl',
         })
       } catch (e) {
@@ -467,7 +471,7 @@ export function useWorkspaceImportActions(args: {
         useGraphStore.getState().pushUiLog({ kind: 'error', message: `Import URL failed: ${msg}`, source: 'workspace:importUrl' })
       }
     },
-    [activeDocumentKey, focusAfterImport, getFs, importJobRef, lastLoadedRef, openedPath, refresh, setActiveMarkdownDocument, setActiveText, setEntries, status],
+    [activeDocumentKey, finalizeWorkspaceImportCommit, focusAfterImport, formatWorkspaceImportSummary, getFs, importJobRef, lastLoadedRef, openedPath, setActiveMarkdownDocument, setActiveText, setEntries, status],
   )
 
   return { handleImportLocalFiles, handleImportLocalFolder, handleImportUrl }

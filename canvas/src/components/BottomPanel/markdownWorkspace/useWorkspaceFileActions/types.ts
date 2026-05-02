@@ -38,6 +38,29 @@ export type UseWorkspaceFileActionsArgs = {
   applyMarkdownDocumentToGraph: (name: string, text: string, opts?: { force?: boolean }) => Promise<boolean>
 }
 
+export type WorkspaceImportActionsCtx = Pick<
+  UseWorkspaceFileActionsArgs,
+  'getFs' | 'refresh' | 'openedPath' | 'activeDocumentKey' | 'setActiveText' | 'setEntries' | 'lastLoadedRef' | 'setActiveMarkdownDocument'
+>
+
+export type WorkspaceWebsiteImportCtx = Pick<UseWorkspaceFileActionsArgs, 'getFs' | 'refresh'>
+
+export type WorkspaceMutationActionsCtx = Pick<
+  UseWorkspaceFileActionsArgs,
+  | 'getFs'
+  | 'refresh'
+  | 'openedPath'
+  | 'selectionPath'
+  | 'selectionEntryKind'
+  | 'activeDocumentKey'
+  | 'setActiveText'
+  | 'setEntries'
+  | 'lastLoadedRef'
+  | 'setActiveMarkdownDocument'
+  | 'setActivePathSafe'
+  | 'setSelectionPathSafe'
+>
+
 export type WorkspaceFileActions = {
   createNewFile: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
   createNewFolder: (opts?: { parentPath?: WorkspacePath }) => Promise<void>
