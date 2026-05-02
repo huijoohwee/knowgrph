@@ -269,33 +269,6 @@ export function useFlowCanvasRuntime(args: {
   }, [zoomViewKey])
 
   React.useEffect(() => {
-    const runtime = runtimeRef.current
-    const transform = runtime?.transform || null
-    __flowCanvasDebug.lastRuntimeTransform =
-      transform && Number.isFinite(transform.k) && Number.isFinite(transform.x) && Number.isFinite(transform.y)
-        ? { k: transform.k, x: transform.x, y: transform.y }
-        : null
-    const trackedSceneWorldById: Record<string, { x: number; y: number }> = {}
-    const trackedStoredWorldById: Record<string, { x: number; y: number }> = {}
-    const sceneNodeById = runtime?.scene?.nodeById || null
-    const openIds = Array.isArray(openWidgetNodeIds) ? openWidgetNodeIds : []
-    for (let i = 0; i < openIds.length; i += 1) {
-      const id = String(openIds[i] || '').trim()
-      if (!id) continue
-      const sceneNode = sceneNodeById?.get(id) || null
-      if (sceneNode && Number.isFinite(sceneNode.x) && Number.isFinite(sceneNode.y)) {
-        trackedSceneWorldById[id] = { x: sceneNode.x, y: sceneNode.y }
-      }
-      const stored = flowWidgetWorldPosByNodeId?.[id]
-      if (stored && Number.isFinite(stored.x) && Number.isFinite(stored.y)) {
-        trackedStoredWorldById[id] = { x: stored.x, y: stored.y }
-      }
-    }
-    __flowCanvasDebug.trackedOpenWidgetSceneWorldById = trackedSceneWorldById
-    __flowCanvasDebug.trackedOpenWidgetStoredWorldById = trackedStoredWorldById
-  }, [flowWidgetWorldPosByNodeId, openWidgetNodeIds, runtimeRef, viewportH, viewportW, zoomViewKey])
-
-  React.useEffect(() => {
     if (!active) return
     const runtime = runtimeRef.current
     if (!runtime || !graphDataForZoom) return
