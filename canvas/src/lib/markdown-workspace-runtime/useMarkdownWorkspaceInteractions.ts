@@ -2,13 +2,9 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useCanvasMarkdownSync } from '@/components/BottomPanel/markdownWorkspace/useCanvasMarkdownSync'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
-import type { WorkspaceBacklink, WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { HighlightedLineRange } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
 import { buildDocLocationIndex } from '@/features/markdown-explorer/docLocationIndex'
-import { computeBacklinks } from '@/features/markdown-explorer/backlinks'
-import { lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
-import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
-import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
 import { extractEmbeddedGeoJsonGraphDataRequests } from '@/lib/markdown/embeddedGeoJson'
@@ -19,7 +15,6 @@ import { hashStringToHex } from '@/lib/hash/stringHash'
 import {
   subscribeMarkdownLayoutRequest,
   WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS,
-  WORKSPACE_TOC_PARSE_MAX_CHARS,
 } from './markdownWorkspaceRuntime.shared'
 import {
   resolveMarkdownWorkspaceLineOffset,
@@ -29,6 +24,7 @@ import {
   syncMarkdownWorkspaceSelectionFromEditorCaret,
   type MarkdownWorkspaceLineOffsetCache,
 } from './markdownWorkspaceInteractionHelpers'
+import { useMarkdownWorkspaceExplorerDerivations } from './useMarkdownWorkspaceExplorerDerivations'
 
 export function useMarkdownWorkspaceInteractions(args: {
   active: boolean
@@ -265,75 +261,18 @@ export function useMarkdownWorkspaceInteractions(args: {
     [docLocationIndex, layoutModeRef, selectEdge, selectNode, selectedEdgeId, selectedNodeId, setHighlightedLineRange, setSelectionSource],
   )
 
-  const markdownLexCacheRef = React.useRef<{ text: string; tokens: TokenWithLines[] } | null>(null)
-  const getLexedTokensCached = React.useCallback((text: string): TokenWithLines[] => {
-    const cached = markdownLexCacheRef.current
-    if (cached && cached.text === text) return cached.tokens
-    const tokens = lexMarkdown(text).tokens
-    markdownLexCacheRef.current = { text, tokens }
-    return tokens
-  }, [])
-
-  const tocTokens = React.useMemo(() => {
-    if (!active || !explorerOpen || tocCollapsed) return [] as TokenWithLines[]
-    const text = String(outlineText || '')
-    if (!text.trim() || text.length > WORKSPACE_TOC_PARSE_MAX_CHARS) return [] as TokenWithLines[]
-    if (!text.includes('#') && !/<h[1-6]\b/i.test(text)) return [] as TokenWithLines[]
-    try {
-      return getLexedTokensCached(text)
-    } catch {
-      return [] as TokenWithLines[]
-    }
-  }, [active, explorerOpen, getLexedTokensCached, outlineText, tocCollapsed])
-
-  const onTocReorder = React.useCallback(
-    (parentId: string | null, fromIndex: number, toIndex: number) => {
-      try {
-        if (activeText.length > WORKSPACE_TOC_PARSE_MAX_CHARS) return
-        const tokens = getLexedTokensCached(activeText)
-        const next = reorderMarkdownHeadings(activeText, tokens, parentId, fromIndex, toIndex)
-        if (next !== activeText) setActiveText(next)
-      } catch {
-        void 0
-      }
-    },
-    [activeText, getLexedTokensCached, setActiveText],
-  )
-
-  const [backlinks, setBacklinks] = React.useState<WorkspaceBacklink[]>([])
-  const backlinksJobRef = React.useRef(0)
-  React.useEffect(() => {
-    if (!active || !explorerOpen || backlinksCollapsed || !activePath) {
-      setBacklinks([])
-      return
-    }
-    const jobId = ++backlinksJobRef.current
-    const run = () => {
-      if (backlinksJobRef.current !== jobId) return
-      try {
-        const next = computeBacklinks({ activePath, entries })
-        if (backlinksJobRef.current === jobId) setBacklinks(next)
-      } catch {
-        if (backlinksJobRef.current === jobId) setBacklinks([])
-      }
-    }
-    const w = window as unknown as {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number
-      cancelIdleCallback?: (id: number) => void
-    }
-    if (typeof w.requestIdleCallback === 'function') {
-      const id = w.requestIdleCallback(run, { timeout: 700 })
-      return () => {
-        try {
-          w.cancelIdleCallback?.(id)
-        } catch {
-          void 0
-        }
-      }
-    }
-    const t = window.setTimeout(run, 0)
-    return () => window.clearTimeout(t)
-  }, [active, activePath, backlinksCollapsed, entries, explorerOpen])
+  const explorerState = useMarkdownWorkspaceExplorerDerivations({
+    active,
+    explorerOpen,
+    tocCollapsed,
+    backlinksCollapsed,
+    outlineText,
+    activeText,
+    activeDocumentKey,
+    activePath,
+    entries,
+    setActiveText,
+  })
 
   React.useEffect(() => {
     if (selectionSource !== 'canvas') return
@@ -459,9 +398,9 @@ export function useMarkdownWorkspaceInteractions(args: {
     showInPresentation,
     showInSlidesGallery,
     onEditorCaretLine,
-    tocTokens,
-    backlinks,
-    onTocReorder,
+    tocTokens: explorerState.tocTokens,
+    backlinks: explorerState.backlinks,
+    onTocReorder: explorerState.onTocReorder,
     handleApply,
     handleFormatAction,
   }

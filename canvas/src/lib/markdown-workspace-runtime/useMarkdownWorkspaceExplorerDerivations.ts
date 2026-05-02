@@ -42,46 +42,58 @@ export function useMarkdownWorkspaceExplorerDerivations(args: MarkdownWorkspaceE
   backlinks: WorkspaceBacklink[]
   onTocReorder: (parentId: string | null, fromIndex: number, toIndex: number) => void
 } {
+  const {
+    active,
+    explorerOpen,
+    tocCollapsed,
+    backlinksCollapsed,
+    outlineText,
+    activeText,
+    activeDocumentKey,
+    activePath,
+    entries,
+    setActiveText,
+  } = args
   const tocSourceText = React.useMemo(
     () =>
       resolveTocCandidateText({
-        active: args.active,
-        explorerOpen: args.explorerOpen,
-        tocCollapsed: args.tocCollapsed,
-        text: args.outlineText,
+        active,
+        explorerOpen,
+        tocCollapsed,
+        text: outlineText,
       }),
-    [args.active, args.explorerOpen, args.outlineText, args.tocCollapsed],
+    [active, explorerOpen, outlineText, tocCollapsed],
   )
   const tocReorderSourceText = React.useMemo(
     () =>
       resolveTocCandidateText({
-        active: args.active,
-        explorerOpen: args.explorerOpen,
-        tocCollapsed: args.tocCollapsed,
-        text: args.activeText,
+        active,
+        explorerOpen,
+        tocCollapsed,
+        text: activeText,
       }),
-    [args.active, args.activeText, args.explorerOpen, args.tocCollapsed],
+    [active, activeText, explorerOpen, tocCollapsed],
   )
-  const tocTokens = useMarkdownPreviewTokens(tocSourceText, undefined, args.activeDocumentKey, false)
-  const tocReorderTokens = useMarkdownPreviewTokens(tocReorderSourceText, undefined, args.activeDocumentKey, false)
+  const tocTokens = useMarkdownPreviewTokens(tocSourceText, undefined, activeDocumentKey, false)
+  const tocReorderTokens = useMarkdownPreviewTokens(tocReorderSourceText, undefined, activeDocumentKey, false)
 
   const onTocReorder = React.useCallback(
     (parentId: string | null, fromIndex: number, toIndex: number) => {
       try {
         if (!tocReorderSourceText) return
-        const next = reorderMarkdownHeadings(args.activeText, tocReorderTokens, parentId, fromIndex, toIndex)
-        if (next !== args.activeText) args.setActiveText(next)
+        const next = reorderMarkdownHeadings(activeText, tocReorderTokens, parentId, fromIndex, toIndex)
+        if (next !== activeText) setActiveText(next)
       } catch {
         void 0
       }
     },
-    [args.activeText, args.setActiveText, tocReorderSourceText, tocReorderTokens],
+    [activeText, setActiveText, tocReorderSourceText, tocReorderTokens],
   )
 
   const [backlinks, setBacklinks] = React.useState<WorkspaceBacklink[]>([])
   const backlinksJobRef = React.useRef(0)
   React.useEffect(() => {
-    if (!args.active || !args.explorerOpen || args.backlinksCollapsed || !args.activePath) {
+    if (!active || !explorerOpen || backlinksCollapsed || !activePath) {
       setBacklinks([])
       return
     }
@@ -89,7 +101,7 @@ export function useMarkdownWorkspaceExplorerDerivations(args: MarkdownWorkspaceE
     const run = () => {
       if (backlinksJobRef.current !== jobId) return
       try {
-        const next = computeBacklinks({ activePath: args.activePath as WorkspacePath, entries: args.entries })
+        const next = computeBacklinks({ activePath, entries })
         if (backlinksJobRef.current === jobId) setBacklinks(next)
       } catch {
         if (backlinksJobRef.current === jobId) setBacklinks([])
@@ -108,7 +120,7 @@ export function useMarkdownWorkspaceExplorerDerivations(args: MarkdownWorkspaceE
     }
     const t = window.setTimeout(run, 0)
     return () => window.clearTimeout(t)
-  }, [args.active, args.activePath, args.backlinksCollapsed, args.entries, args.explorerOpen])
+  }, [active, activePath, backlinksCollapsed, entries, explorerOpen])
 
   return {
     tocTokens,
