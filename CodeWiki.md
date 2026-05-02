@@ -1,5 +1,7 @@
 # Knowledge Graph (Knowgrph) Code Wiki
 
+Docs: see `docs/conflict-resolution.md` for the repo conflict-resolution and sync policy.
+
 ## 1. 项目整体架构 (Overall Architecture)
 
 本项目实现了一个端到端的数据处理与可视化流水线（Pipeline），主要用于将结构化和半结构化的数据转换为可交互、可分析的知识图谱（Knowledge Graph）。

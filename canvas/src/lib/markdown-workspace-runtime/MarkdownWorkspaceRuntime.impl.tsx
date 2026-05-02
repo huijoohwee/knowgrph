@@ -1,32 +1,16 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { LS_KEYS } from '@/lib/config'
-import { lsBool, lsInt, lsJson } from '@/lib/persistence'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
-import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
-import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
+import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
-import { parseMarkdownWorkspaceLayoutMode, type MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
-import { readMarkdownExplorerChromeState } from '@/features/markdown/ui/markdownExplorerChromePersistence'
-import { readMarkdownExplorerModePreferences } from '@/features/markdown/ui/markdownExplorerModePreferencesPersistence'
-import { readPersistedMarkdownSourceFolderPaths } from '@/features/markdown/ui/markdownSourceFilesPersistence'
-import { readMarkdownExplorerViewPreferences } from '@/features/markdown/ui/markdownExplorerViewPreferencesPersistence'
-import { readMarkdownExplorerSectionCollapseState } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
-import type { HighlightedLineRange, MarkdownPresentationApi } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
+import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
 import { MarkdownWorkspaceExplorer } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceExplorer'
 import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
-import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
-import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, isMarkdownPath } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
-import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
-import { useWorkspaceFileActions, useWorkspaceStatusHelpers } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions'
+import { isMarkdownPath } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
+import { useWorkspaceFileActions } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
-import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
-import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
-import { upsertWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
-import { EMPTY_GRAPH_EDGES, EMPTY_GRAPH_NODES, EMPTY_WIDGET_REGISTRY, type FolderModeContract } from './markdownWorkspaceRuntime.shared'
+import { EMPTY_GRAPH_EDGES, EMPTY_GRAPH_NODES, EMPTY_WIDGET_REGISTRY } from './markdownWorkspaceRuntime.shared'
 import { useMarkdownWorkspaceDerivedViews } from './useMarkdownWorkspaceDerivedViews'
 import { useMarkdownWorkspaceEffectiveContent } from './useMarkdownWorkspaceEffectiveContent'
 import { useMarkdownWorkspaceExplorerState } from './useMarkdownWorkspaceExplorerState'
@@ -36,8 +20,17 @@ import { useMarkdownWorkspaceSave } from './useMarkdownWorkspaceSave'
 import { useMarkdownWorkspaceSelection } from './useMarkdownWorkspaceSelection'
 import { useMarkdownWorkspaceViewShell } from './useMarkdownWorkspaceViewShell'
 import { useMarkdownWorkspaceWidgetMode } from './useMarkdownWorkspaceWidgetMode'
+import { useMarkdownWorkspaceShell } from './useMarkdownWorkspaceShell'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { useMarkdownWorkspaceBootstrapState } from './useMarkdownWorkspaceBootstrapState'
+import {
+  buildMarkdownWorkspaceDerivedViewsArgs,
+  buildMarkdownWorkspaceFileActionsArgs,
+  buildMarkdownWorkspaceIndexingArgs,
+  buildMarkdownWorkspaceSaveArgs,
+  buildMarkdownWorkspaceSelectionArgs,
+} from './markdownWorkspaceRuntime.composition'
 
 const EMPTY_STRING_ARRAY: string[] = []
 
@@ -101,93 +94,72 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       sourceLayerOrderHash: graphSourceLayerOrderHash,
     })
   }, [graphContentRevision, graphSourceLayerHash, graphSourceLayerOrderHash])
-  const [entries, setEntries] = React.useState<WorkspaceEntry[]>([])
-  const [sourcesByPath, setSourcesByPath] = React.useState(() => loadWorkspaceSourceIndex())
-  const [loading, setLoading] = React.useState(true)
-  const [loadError, setLoadError] = React.useState('')
-  const [search, setSearch] = React.useState('')
-  const initialExplorerChromeState = React.useMemo(
-    () =>
-      readMarkdownExplorerChromeState({
-        minWidthPx: SIDEBAR_MIN_PX,
-        maxWidthPx: SIDEBAR_MAX_PX,
-        defaultWidthPx: resolveWorkspaceExplorerDefaultWidthPx({ minPx: SIDEBAR_MIN_PX, maxPx: SIDEBAR_MAX_PX }),
-      }),
-    [],
-  )
-  const [sidebarWidthPx, setSidebarWidthPx] = React.useState(() => initialExplorerChromeState.sidebarWidthPx)
-  const [explorerOpen, setExplorerOpen] = React.useState(() => initialExplorerChromeState.explorerOpen)
-  const initialExplorerSectionCollapseState = React.useMemo(() => readMarkdownExplorerSectionCollapseState(), [])
-  const [sourceFilesCollapsed, setSourceFilesCollapsed] = React.useState(
-    () => initialExplorerSectionCollapseState.sourceFilesCollapsed,
-  )
-  const [tocCollapsed, setTocCollapsed] = React.useState(() => initialExplorerSectionCollapseState.outlineCollapsed)
-  const [backlinksCollapsed, setBacklinksCollapsed] = React.useState(
-    () => initialExplorerSectionCollapseState.backlinksCollapsed,
-  )
-  const initialExplorerViewPreferences = React.useMemo(() => readMarkdownExplorerViewPreferences(), [])
-  const [markdownWordWrap, setMarkdownWordWrap] = React.useState(() => initialExplorerViewPreferences.markdownWordWrap)
-  const [markdownTextHighlight, setMarkdownTextHighlight] = React.useState(
-    () => initialExplorerViewPreferences.markdownTextHighlight,
-  )
-  const initialExplorerModePreferences = React.useMemo(() => readMarkdownExplorerModePreferences(), [])
-  const [folderModeContract, setFolderModeContract] = React.useState<FolderModeContract>(
-    () => initialExplorerModePreferences.folderModeContract,
-  )
-  const [layoutMode, setLayoutMode] = React.useState<MarkdownWorkspaceLayoutMode>(
-    () => initialExplorerModePreferences.layoutMode,
-  )
-  const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(() => {
-    const arr = readPersistedMarkdownSourceFolderPaths()
-    return new Set((arr || []).map(path => normalizeWorkspacePath(path)))
+  const bootstrapState = useMarkdownWorkspaceBootstrapState({
+    activePath,
+    effectiveBottomPanelCollapsed,
   })
-  const patchWorkspaceEntryInlineText = React.useCallback((path: WorkspacePath, text: string) => {
-    setEntries(prev => upsertWorkspaceEntryInlineText({
-      entries: prev,
-      path,
-      text,
-    }))
-  }, [])
+  const {
+    entries,
+    setEntries,
+    sourcesByPath,
+    setSourcesByPath,
+    loading,
+    setLoading,
+    loadError,
+    setLoadError,
+    search,
+    setSearch,
+    sidebarWidthPx,
+    setSidebarWidthPx,
+    explorerOpen,
+    setExplorerOpen,
+    sourceFilesCollapsed,
+    setSourceFilesCollapsed,
+    tocCollapsed,
+    setTocCollapsed,
+    backlinksCollapsed,
+    setBacklinksCollapsed,
+    markdownWordWrap,
+    setMarkdownWordWrap,
+    markdownTextHighlight,
+    setMarkdownTextHighlight,
+    folderModeContract,
+    setFolderModeContract,
+    layoutMode,
+    setLayoutMode,
+    expandedPaths,
+    setExpandedPaths,
+    patchWorkspaceEntryInlineText,
+    editorRef,
+    resizeHandleEl,
+    setResizeHandleEl,
+    workspaceRootRef,
+    presentationApiRef,
+    highlightedLineRange,
+    setHighlightedLineRange,
+    activeText,
+    setActiveText,
+    activeTextRef,
+    viewerInlineEditActive,
+    setViewerInlineEditActive,
+    viewerInlineEditActiveRef,
+    userEditedActiveTextRef,
+    setActiveTextProgrammatic,
+    debouncedText,
+    outlineText,
+    lastLoadedRef,
+    repairedMissingWorkspaceFilesRef,
+    lastIndexedByPathRef,
+    indexJobRef,
+    collapsedSnapshotRef,
+    prevCollapsedRef,
+    lastRequestedActivePathRef,
+    activePathRef,
+    layoutModeRef,
+  } = bootstrapState
 
-  const editorRef = React.useRef<MonacoTextEditorHandle | null>(null)
-  const [resizeHandleEl, setResizeHandleEl] = React.useState<HTMLHRElement | null>(null)
-  const workspaceRootRef = React.useRef<HTMLElement | null>(null)
-  const presentationApiRef = React.useRef<MarkdownPresentationApi | null>(null)
-  const [highlightedLineRange, setHighlightedLineRange] = React.useState<HighlightedLineRange>(null)
-  const [activeText, setActiveText] = React.useState('')
-  const activeTextRef = React.useRef('')
-  activeTextRef.current = activeText
-  const [viewerInlineEditActive, setViewerInlineEditActive] = React.useState(false)
-  const viewerInlineEditActiveRef = React.useRef(false)
-  viewerInlineEditActiveRef.current = viewerInlineEditActive
-
-  const status = useWorkspaceStatusHelpers()
-  const setStatusInfo = status.setStatusInfo
-  const setStatusError = status.setStatusError
-  const setStatusProgress = status.setStatusProgress
-  const setStatusWithAutoClear = React.useCallback(
-    (label: string, ttlMs: number = UI_TOAST_TTL_MS.statusAutoClose) => setStatusInfo(label, { ttlMs }),
-    [setStatusInfo],
-  )
-  const userEditedActiveTextRef = React.useRef(false)
-  const setActiveTextProgrammatic = React.useCallback((next: string) => {
-    userEditedActiveTextRef.current = false
-    setActiveText(next)
-  }, [])
-  const debouncedText = useDebouncedValue(activeText, 450, activePath)
-  const outlineText = useDebouncedValue(activeText, 160, activePath)
-  const lastLoadedRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
-  const repairedMissingWorkspaceFilesRef = React.useRef<Set<WorkspacePath>>(new Set())
-  const lastIndexedByPathRef = React.useRef<Map<WorkspacePath, string>>(new Map())
-  const indexJobRef = React.useRef(0)
-  const collapsedSnapshotRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
-  const prevCollapsedRef = React.useRef<boolean>(effectiveBottomPanelCollapsed)
-  const lastRequestedActivePathRef = React.useRef<{ path: WorkspacePath; atMs: number } | null>(null)
-  const activePathRef = React.useRef<WorkspacePath | null>(null)
-  activePathRef.current = activePath
 
   const wasWorkspaceEditorOverlayOpenRef = React.useRef<boolean>(workspaceEditorOverlayOpen)
-  const layoutModeRef = React.useRef<MarkdownWorkspaceLayoutMode>(layoutMode)
   React.useEffect(() => {
     layoutModeRef.current = layoutMode
   }, [layoutMode])
@@ -240,100 +212,108 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setSidebarWidthPx,
     search,
   })
-  const selectionState = useMarkdownWorkspaceSelection({
-    activePath,
-    setActivePath,
-    entries,
-    loading,
-    activeText,
-    setActiveText,
-    setActiveTextProgrammatic,
-    markdownDocumentName,
-    markdownDocumentText,
-    setActiveMarkdownDocument,
-    sourcesByPath,
-    viewerInlineEditActive,
-    activeRef,
-    activeTextRef,
-    lastLoadedRef,
-    userEditedActiveTextRef,
-    collapsedSnapshotRef,
-    prevCollapsedRef,
-    effectiveBottomPanelCollapsed,
-    canvas2dRenderer,
-    lastSetActivePath,
-    lastRequestedActivePathRef,
-    patchWorkspaceEntryInlineText,
-    clearStatus: status.clearStatus,
-    setHighlightedLineRange: () => setHighlightedLineRange(null),
-  })
-  const derivedViews = useMarkdownWorkspaceDerivedViews({
-    activePath,
-    activeText,
-    layoutMode,
-    getFs: explorerState.getFs,
-    sourcesByPath,
-    lastLoadedRef,
-    activeTextRef,
-    userEditedActiveTextRef,
-    patchWorkspaceEntryInlineText,
-    setActiveTextProgrammatic,
-    setActiveMarkdownDocument,
-    setStatusError,
-    setStatusProgress,
-    setStatusWithAutoClear,
-  })
-  useMarkdownWorkspaceIndexing({
-    active,
-    viewerInlineEditActive,
-    contentMode: widgetState.contentMode,
-    widgetAvailable: widgetState.widgetAvailable,
-    activePath,
-    activeEntry: selectionState.activeEntry,
-    activeEntryKind: selectionState.activeEntryKind,
-    activeEntryText: selectionState.activeEntryText,
-    activeDocumentKey: selectionState.activeDocumentKey,
-    activeDocumentSourceUrl: selectionState.activeDocumentSourceUrl,
-    sourcesByPath,
-    getFs: explorerState.getFs,
-    lastLoadedRef,
-    activePathRef,
-    activeTextRef,
-    userEditedActiveTextRef,
-    repairedMissingWorkspaceFilesRef,
-    lastIndexedByPathRef,
-    indexJobRef,
-    patchWorkspaceEntryInlineText,
-    setActiveTextProgrammatic,
-    setActiveMarkdownDocument,
-    setEntries,
-    setStatusError,
-    setStatusProgress,
-    setStatusWithAutoClear,
-  })
-  const saveState = useMarkdownWorkspaceSave({
-    active,
-    viewerInlineEditActive,
-    activePath,
-    activeEntryKind: selectionState.activeEntryKind,
-    activeText,
-    debouncedText,
-    activeDocumentKey: selectionState.activeDocumentKey,
-    activeDocumentSourceUrl: selectionState.activeDocumentSourceUrl,
-    getFs: explorerState.getFs,
-    lastLoadedRef,
-    patchWorkspaceEntryInlineText,
-    setActiveMarkdownDocument,
-    setGraphRagWorkflowJsonText,
-    setStatusProgress,
-    setStatusWithAutoClear,
-    setStatusError,
-    setActiveTextProgrammatic,
-    refresh: explorerState.refresh,
-    setActivePathSafe: selectionState.setActivePathSafe,
-    setSelectionPathSafe: selectionState.setSelectionPathSafe,
-    userEditedActiveTextRef,
-  })
+  const selectionState = useMarkdownWorkspaceSelection(
+    buildMarkdownWorkspaceSelectionArgs({
+      activePath,
+      setActivePath,
+      entries,
+      loading,
+      activeText,
+      setActiveText,
+      setActiveTextProgrammatic,
+      markdownDocumentName,
+      markdownDocumentText,
+      setActiveMarkdownDocument,
+      sourcesByPath,
+      viewerInlineEditActive,
+      activeRef,
+      activeTextRef,
+      lastLoadedRef,
+      userEditedActiveTextRef,
+      collapsedSnapshotRef,
+      prevCollapsedRef,
+      effectiveBottomPanelCollapsed,
+      canvas2dRenderer,
+      lastSetActivePath,
+      lastRequestedActivePathRef,
+      patchWorkspaceEntryInlineText,
+      clearStatus: status.clearStatus,
+      setHighlightedLineRange: () => setHighlightedLineRange(null),
+    }),
+  )
+  const derivedViews = useMarkdownWorkspaceDerivedViews(
+    buildMarkdownWorkspaceDerivedViewsArgs({
+      activePath,
+      activeText,
+      layoutMode,
+      getFs: explorerState.getFs,
+      sourcesByPath,
+      lastLoadedRef,
+      activeTextRef,
+      userEditedActiveTextRef,
+      patchWorkspaceEntryInlineText,
+      setActiveTextProgrammatic,
+      setActiveMarkdownDocument,
+      setStatusError,
+      setStatusProgress,
+      setStatusWithAutoClear,
+    }),
+  )
+  useMarkdownWorkspaceIndexing(
+    buildMarkdownWorkspaceIndexingArgs({
+      active,
+      viewerInlineEditActive,
+      contentMode: widgetState.contentMode,
+      widgetAvailable: widgetState.widgetAvailable,
+      activePath,
+      activeEntry: selectionState.activeEntry,
+      activeEntryKind: selectionState.activeEntryKind,
+      activeEntryText: selectionState.activeEntryText,
+      activeDocumentKey: selectionState.activeDocumentKey,
+      activeDocumentSourceUrl: selectionState.activeDocumentSourceUrl,
+      sourcesByPath,
+      getFs: explorerState.getFs,
+      lastLoadedRef,
+      activePathRef,
+      activeTextRef,
+      userEditedActiveTextRef,
+      repairedMissingWorkspaceFilesRef,
+      lastIndexedByPathRef,
+      indexJobRef,
+      patchWorkspaceEntryInlineText,
+      setActiveTextProgrammatic,
+      setActiveMarkdownDocument,
+      setEntries,
+      setStatusError,
+      setStatusProgress,
+      setStatusWithAutoClear,
+    }),
+  )
+  const saveState = useMarkdownWorkspaceSave(
+    buildMarkdownWorkspaceSaveArgs({
+      active,
+      viewerInlineEditActive,
+      activePath,
+      activeEntryKind: selectionState.activeEntryKind,
+      activeText,
+      debouncedText,
+      activeDocumentKey: selectionState.activeDocumentKey,
+      activeDocumentSourceUrl: selectionState.activeDocumentSourceUrl,
+      getFs: explorerState.getFs,
+      lastLoadedRef,
+      patchWorkspaceEntryInlineText,
+      setActiveMarkdownDocument,
+      setGraphRagWorkflowJsonText,
+      setStatusProgress,
+      setStatusWithAutoClear,
+      setStatusError,
+      setActiveTextProgrammatic,
+      refresh: explorerState.refresh,
+      setActivePathSafe: selectionState.setActivePathSafe,
+      setSelectionPathSafe: selectionState.setSelectionPathSafe,
+      userEditedActiveTextRef,
+    }),
+  )
   const interactionState = useMarkdownWorkspaceInteractions({
     active,
     entries,
@@ -374,49 +354,40 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setStatusProgress: label => setStatusProgress(label),
   })
 
-  const refreshWorkspace = explorerState.refresh
-  React.useEffect(() => {
-    if (active) void refreshWorkspace()
-  }, [active, refreshWorkspace])
-  React.useEffect(() => {
-    if (!highlightedLineRange) return
-    const id = window.setTimeout(() => setHighlightedLineRange(null), 1500)
-    return () => window.clearTimeout(id)
-  }, [highlightedLineRange])
-
-  const toggleFullscreen = React.useCallback(() => {
-    const el = workspaceRootRef.current
-    if (!el) return
-    try {
-      const doc = document as Document & { fullscreenElement?: Element | null; exitFullscreen?: () => Promise<void> }
-      if (doc.fullscreenElement) {
-        void doc.exitFullscreen?.()
-        return
-      }
-      const requestFullscreen = (el as HTMLElement & { requestFullscreen?: () => Promise<void> }).requestFullscreen
-      void requestFullscreen?.call(el)
-    } catch {
-      void 0
-    }
-  }, [])
-
-  const fileActions = useWorkspaceFileActions({
-    getFs: explorerState.getFs,
-    refresh: explorerState.refresh,
-    openedPath: activePath,
-    selectionPath: selectionState.selectionPath,
-    selectionEntryKind: selectionState.selectionEntry?.kind ?? null,
-    activeDocumentKey: selectionState.activeDocumentKey,
-    activeDocumentSourceUrl: selectionState.activeDocumentSourceUrl,
-    setActiveText: setActiveTextProgrammatic,
-    setEntries,
-    lastLoadedRef,
-    setExpandedPaths,
-    setActivePathSafe: selectionState.setActivePathSafe,
-    setSelectionPathSafe: selectionState.setSelectionPathSafe,
-    setActiveMarkdownDocument,
-    applyMarkdownDocumentToGraph,
+  const fileActions = useWorkspaceFileActions(
+    buildMarkdownWorkspaceFileActionsArgs({
+      getFs: explorerState.getFs,
+      refresh: explorerState.refresh,
+      activePath,
+      selectionPath: selectionState.selectionPath,
+      selectionEntryKind: selectionState.selectionEntry?.kind ?? null,
+      activeDocumentKey: selectionState.activeDocumentKey,
+      activeDocumentSourceUrl: selectionState.activeDocumentSourceUrl,
+      setActiveText: setActiveTextProgrammatic,
+      setEntries,
+      lastLoadedRef,
+      setExpandedPaths,
+      setActivePathSafe: selectionState.setActivePathSafe,
+      setSelectionPathSafe: selectionState.setSelectionPathSafe,
+      setActiveMarkdownDocument,
+      applyMarkdownDocumentToGraph,
+    }),
+  )
+  const shellState = useMarkdownWorkspaceShell({
+    active,
+    refreshWorkspace: explorerState.refresh,
+    highlightedLineRange,
+    setHighlightedLineRange,
+    workspaceRootRef,
+    fileActions,
+    createParentPath: selectionState.createParentPath,
+    saveEnabled: effectiveContent.saveEnabled,
+    saveActiveFileNow: saveState.saveActiveFileNow,
   })
+  const status = shellState.status
+  const setStatusInfo = status.setStatusInfo
+  const setStatusProgress = status.setStatusProgress
+  const setStatusWithAutoClear = shellState.setStatusWithAutoClear
   const viewShell = useMarkdownWorkspaceViewShell({
     entries,
     sourcesByPath,
@@ -456,21 +427,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   })
   const saveEnabled = effectiveContent.saveEnabled
   const saveActiveFileNow = saveState.saveActiveFileNow
-
-  const actionBridge = React.useMemo(
-    () => ({
-      importLocalFiles: fileActions.handleImportLocalFiles,
-      importLocalFolder: fileActions.handleImportLocalFolder,
-      importUrl: fileActions.handleImportUrl,
-      importWebsite: fileActions.handleImportWebsite,
-      createNewFolder: () => void fileActions.createNewFolder({ parentPath: selectionState.createParentPath }),
-      save: saveEnabled ? () => void saveActiveFileNow() : undefined,
-    }),
-    [fileActions, saveActiveFileNow, saveEnabled, selectionState.createParentPath],
-  )
-  React.useEffect(() => {
-    return registerMarkdownWorkspaceActionBridge('markdown-workspace-explorer', actionBridge)
-  }, [actionBridge])
 
   return (
     <section
@@ -546,7 +502,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         onStatusProgress={setStatusProgress}
         onStatusWithAutoClear={(label, ttlMs) => setStatusWithAutoClear(label, ttlMs)}
         onSaveAs={() => void saveState.saveAsActiveFileNow()}
-        onToggleFullscreen={toggleFullscreen}
+        onToggleFullscreen={shellState.toggleFullscreen}
         presentationApiRef={presentationApiRef}
         isEditing={effectiveContent.effectiveIsEditing}
         isMarkdown={effectiveContent.effectiveIsMarkdown}

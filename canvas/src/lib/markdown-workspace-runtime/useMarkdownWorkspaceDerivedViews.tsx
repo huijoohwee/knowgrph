@@ -21,7 +21,7 @@ import { inferYoutubeVideoIdFromPath, parseYoutubeWorkspaceFrontmatter } from '.
 import { resolveAuthoritativeWorkspaceText, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
-export function useMarkdownWorkspaceDerivedViews(args: {
+export type MarkdownWorkspaceDerivedViewsArgs = {
   activePath: WorkspacePath | null
   activeText: string
   layoutMode: string
@@ -43,7 +43,9 @@ export function useMarkdownWorkspaceDerivedViews(args: {
     opts?: { ttlMs?: number },
   ) => void
   setStatusWithAutoClear: (label: string, ttlMs?: number) => void
-}) {
+}
+
+export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedViewsArgs) {
   const pdfWorkspaceMeta = React.useMemo(() => {
     if (!args.activePath) return null
     if (!args.activePath.endsWith('.md') && !args.activePath.endsWith('.markdown')) return null

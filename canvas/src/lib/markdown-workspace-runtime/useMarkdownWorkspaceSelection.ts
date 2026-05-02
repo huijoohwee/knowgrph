@@ -20,7 +20,7 @@ import {
   resolveInvalidatedMarkdownWorkspaceSelectionPath,
 } from './markdownWorkspaceSelectionSync'
 
-export function useMarkdownWorkspaceSelection(args: {
+export type MarkdownWorkspaceSelectionArgs = {
   activePath: WorkspacePath | null
   setActivePath: (path: WorkspacePath) => void
   entries: WorkspaceEntry[]
@@ -46,7 +46,9 @@ export function useMarkdownWorkspaceSelection(args: {
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
   clearStatus: () => void
   setHighlightedLineRange: (value: null) => void
-}) {
+}
+
+export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionArgs) {
   const setActivePathSafe = React.useCallback(
     (path: WorkspacePath) => {
       const normalized = normalizeMarkdownWorkspaceSelectionPath(path)

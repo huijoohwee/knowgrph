@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+echo "[knowgrph] pre-push: running conflict compliance checks..."
+cd "${ROOT_DIR}"
+npm run conflict:check

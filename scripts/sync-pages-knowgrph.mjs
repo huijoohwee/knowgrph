@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 
+const checkMode = process.argv.includes('--check')
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -103,15 +104,18 @@ const fileHash = async (filePath) => {
   return createHash('sha256').update(buf).digest('hex')
 }
 
-const copyIfChanged = async (src, dest) => {
-  let same = false
+const fileNeedsUpdate = async (src, dest) => {
   try {
     const [srcHash, dstHash] = await Promise.all([fileHash(src), fileHash(dest)])
-    same = srcHash === dstHash
+    return srcHash !== dstHash
   } catch {
-    same = false
+    return true
   }
-  if (same) return false
+}
+
+const copyIfChanged = async (src, dest) => {
+  const needsUpdate = await fileNeedsUpdate(src, dest)
+  if (!needsUpdate) return false
   await fs.mkdir(path.dirname(dest), { recursive: true })
   await fs.copyFile(src, dest)
   return true
@@ -138,8 +142,7 @@ const removeEmptyDirs = async (rootDir) => {
   await walk(rootDir)
 }
 
-const updateKnowgrphRedirects = async (rootFiles) => {
-  const existing = await fs.readFile(redirectsPath, 'utf8')
+const buildKnowgrphRedirects = (existing, rootFiles) => {
   const generatedLines = [
     GENERATED_REDIRECTS_START,
     ...rootFiles.map(rel => `/knowgrph/${rel} /content/knowgrph/${rel} 200`),
@@ -162,50 +165,109 @@ const updateKnowgrphRedirects = async (rootFiles) => {
     }
     next = next.replace(anchor, `${anchor}\n${nextBlock}`)
   }
-  if (next !== existing) {
-    await fs.writeFile(redirectsPath, next, 'utf8')
-  }
+  return next
 }
 
 if (!(await existsDir(distDir))) {
   throw new Error(`Missing build output directory: ${distDir}`)
 }
 
-await fs.mkdir(targetDir, { recursive: true })
 const sourceFiles = await listFiles(distDir)
 const sourceSet = new Set(sourceFiles)
-let copiedCount = 0
+const filesToCopy = []
 for (const rel of sourceFiles) {
   const src = path.resolve(distDir, rel)
   const dst = path.resolve(targetDir, rel)
-  const copied = await copyIfChanged(src, dst)
-  if (copied) copiedCount += 1
+  if (await fileNeedsUpdate(src, dst)) filesToCopy.push(rel)
 }
 
+const filesToRemove = []
 if (await existsDir(targetDir)) {
   const targetFiles = await listAllFiles(targetDir)
   for (const rel of targetFiles) {
     if (isPreservedRelativePath(rel)) continue
     if (sourceSet.has(rel)) continue
-    await fs.rm(path.resolve(targetDir, rel), { force: true })
+    filesToRemove.push(rel)
   }
-  await removeEmptyDirs(targetDir)
 }
 
-await fs.mkdir(publicRouteDir, { recursive: true })
 const publicIndex = path.resolve(publicRouteDir, 'index.html')
-const copiedPublicIndex = await copyIfChanged(path.resolve(targetDir, 'index.html'), publicIndex)
+const publicIndexNeedsUpdate = await fileNeedsUpdate(path.resolve(distDir, 'index.html'), publicIndex)
 const rootFiles = sourceFiles
   .filter(rel => !rel.includes('/') && rel !== 'index.html' && !rel.startsWith('_'))
   .sort((a, b) => a.localeCompare(b))
-await updateKnowgrphRedirects(rootFiles)
+const existingRedirects = await fs.readFile(redirectsPath, 'utf8')
+const nextRedirects = buildKnowgrphRedirects(existingRedirects, rootFiles)
+const redirectsNeedUpdate = nextRedirects !== existingRedirects
 
-let copiedRepoSeedCount = 0
+const repoSeedsToCopy = []
 for (const entry of repoFileSeeds) {
-  const copied = await copyIfChanged(entry.source, entry.target)
-  if (copied) copiedRepoSeedCount += 1
+  if (await fileNeedsUpdate(entry.source, entry.target)) {
+    repoSeedsToCopy.push(path.relative(knowgrphRoot, entry.source).split(path.sep).join('/'))
+  }
 }
 
-console.log(
-  `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, publicIndexUpdated=${copiedPublicIndex ? 'yes' : 'no'}, repoFileSeedsUpdated=${copiedRepoSeedCount})`,
-)
+if (checkMode) {
+  const hasDrift = (
+    filesToCopy.length > 0 ||
+    filesToRemove.length > 0 ||
+    publicIndexNeedsUpdate ||
+    redirectsNeedUpdate ||
+    repoSeedsToCopy.length > 0
+  )
+  if (hasDrift) {
+    console.error('[knowgrph] publish sync drift detected')
+    if (filesToCopy.length > 0) {
+      console.error(`  content files needing sync (${filesToCopy.length}):`)
+      for (const rel of filesToCopy.slice(0, 20)) console.error(`  - ${rel}`)
+      if (filesToCopy.length > 20) console.error(`  - ... ${filesToCopy.length - 20} more`)
+    }
+    if (filesToRemove.length > 0) {
+      console.error(`  stale mirrored files needing removal (${filesToRemove.length}):`)
+      for (const rel of filesToRemove.slice(0, 20)) console.error(`  - ${rel}`)
+      if (filesToRemove.length > 20) console.error(`  - ... ${filesToRemove.length - 20} more`)
+    }
+    if (publicIndexNeedsUpdate) console.error('  - public route `huijoohwee/knowgrph/index.html` is out of sync')
+    if (redirectsNeedUpdate) console.error('  - `huijoohwee/_redirects` generated knowgrph block is out of sync')
+    if (repoSeedsToCopy.length > 0) {
+      console.error(`  repo file seeds needing sync (${repoSeedsToCopy.length}):`)
+      for (const rel of repoSeedsToCopy) console.error(`  - ${rel}`)
+    }
+    console.error('  fix: run `npm run pages:build-sync`')
+    process.exitCode = 1
+  } else {
+    console.log('[knowgrph] publish sync is up to date')
+  }
+} else {
+  await fs.mkdir(targetDir, { recursive: true })
+  let copiedCount = 0
+  for (const rel of sourceFiles) {
+    const src = path.resolve(distDir, rel)
+    const dst = path.resolve(targetDir, rel)
+    const copied = await copyIfChanged(src, dst)
+    if (copied) copiedCount += 1
+  }
+
+  if (await existsDir(targetDir)) {
+    for (const rel of filesToRemove) {
+      await fs.rm(path.resolve(targetDir, rel), { force: true })
+    }
+    await removeEmptyDirs(targetDir)
+  }
+
+  await fs.mkdir(publicRouteDir, { recursive: true })
+  const copiedPublicIndex = await copyIfChanged(path.resolve(distDir, 'index.html'), publicIndex)
+  if (redirectsNeedUpdate) {
+    await fs.writeFile(redirectsPath, nextRedirects, 'utf8')
+  }
+
+  let copiedRepoSeedCount = 0
+  for (const entry of repoFileSeeds) {
+    const copied = await copyIfChanged(entry.source, entry.target)
+    if (copied) copiedRepoSeedCount += 1
+  }
+
+  console.log(
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicIndexUpdated=${copiedPublicIndex ? 'yes' : 'no'}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, repoFileSeedsUpdated=${copiedRepoSeedCount})`,
+  )
+}

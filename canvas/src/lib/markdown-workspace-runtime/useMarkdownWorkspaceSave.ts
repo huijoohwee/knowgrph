@@ -11,7 +11,7 @@ import {
 import { syncWorkspaceTextState, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
-export function useMarkdownWorkspaceSave(args: {
+export type MarkdownWorkspaceSaveArgs = {
   active: boolean
   viewerInlineEditActive: boolean
   activePath: WorkspacePath | null
@@ -40,7 +40,9 @@ export function useMarkdownWorkspaceSave(args: {
   setActivePathSafe: (path: WorkspacePath) => void
   setSelectionPathSafe: (path: WorkspacePath) => void
   userEditedActiveTextRef: React.MutableRefObject<boolean>
-}) {
+}
+
+export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
   const autosaveInFlightRef = React.useRef(false)
   const autosavePendingRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const autosaveStatusTimerRef = React.useRef<number | null>(null)

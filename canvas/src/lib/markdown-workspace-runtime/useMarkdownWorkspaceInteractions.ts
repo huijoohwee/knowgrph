@@ -21,6 +21,14 @@ import {
   WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS,
   WORKSPACE_TOC_PARSE_MAX_CHARS,
 } from './markdownWorkspaceRuntime.shared'
+import {
+  resolveMarkdownWorkspaceLineOffset,
+  revealMarkdownWorkspaceLineFromCanvas,
+  revealMarkdownWorkspaceLineInEditor,
+  showMarkdownWorkspaceLineInMode,
+  syncMarkdownWorkspaceSelectionFromEditorCaret,
+  type MarkdownWorkspaceLineOffsetCache,
+} from './markdownWorkspaceInteractionHelpers'
 
 export function useMarkdownWorkspaceInteractions(args: {
   active: boolean
@@ -132,28 +140,27 @@ export function useMarkdownWorkspaceInteractions(args: {
 
   const revealLineInEditor = React.useCallback(
     (line: number, endLine?: number) => {
-      if (!Number.isFinite(line) || line <= 0) return
-      const start = Math.floor(line)
-      const end = Number.isFinite(endLine) && (endLine as number) > 0 ? Math.max(start, Math.floor(endLine as number)) : start
-      setHighlightedLineRange({ start, end })
-      const currentLayoutMode = layoutModeRef.current
-      if (currentLayoutMode !== 'split' && currentLayoutMode !== 'editor') setLayoutMode('split')
-      requestRevealLine(start)
+      revealMarkdownWorkspaceLineInEditor({
+        line,
+        endLine,
+        currentLayoutMode: layoutModeRef.current,
+        setLayoutMode,
+        requestRevealLine,
+        setHighlightedLineRange,
+      })
     },
     [layoutModeRef, requestRevealLine, setHighlightedLineRange, setLayoutMode],
   )
 
   const revealLineFromCanvas = React.useCallback(
     (line: number, endLine?: number) => {
-      if (!Number.isFinite(line) || line <= 0) return
-      const start = Math.floor(line)
-      const end = Number.isFinite(endLine) && (endLine as number) > 0 ? Math.max(start, Math.floor(endLine as number)) : start
-      const currentLayoutMode = layoutModeRef.current
-      if (currentLayoutMode === 'editor' || currentLayoutMode === 'viewer') {
-        setHighlightedLineRange({ start, end })
-        return
-      }
-      revealLineInEditor(start, end)
+      revealMarkdownWorkspaceLineFromCanvas({
+        line,
+        endLine,
+        currentLayoutMode: layoutModeRef.current,
+        setHighlightedLineRange,
+        revealLineInEditor,
+      })
     },
     [layoutModeRef, revealLineInEditor, setHighlightedLineRange],
   )
@@ -168,27 +175,22 @@ export function useMarkdownWorkspaceInteractions(args: {
     setStatusError,
   })
 
+  const requestedRevealOffsetCacheRef = React.useRef<MarkdownWorkspaceLineOffsetCache | null>(null)
   React.useEffect(() => {
     if (!requestedRevealLine) return
     const handle = editorRef.current
     if (!handle) return
-    const line = Math.max(1, Math.floor(requestedRevealLine))
     const text = String(activeText || '')
-    let offset = 0
-    let currentLine = 1
-    while (currentLine < line && offset < text.length) {
-      const nextNewline = text.indexOf('\n', offset)
-      if (nextNewline < 0) {
-        offset = text.length
-        break
-      }
-      offset = nextNewline + 1
-      currentLine += 1
-    }
+    const resolved = resolveMarkdownWorkspaceLineOffset({
+      text,
+      line: requestedRevealLine,
+      cache: requestedRevealOffsetCacheRef.current,
+    })
+    requestedRevealOffsetCacheRef.current = resolved.cache
     try {
       handle.focus()
-      handle.setSelectionOffsets(offset, offset)
-      handle.revealOffsetInCenter(offset)
+      handle.setSelectionOffsets(resolved.offset, resolved.offset)
+      handle.revealOffsetInCenter(resolved.offset)
     } catch {
       void 0
     }
@@ -203,37 +205,34 @@ export function useMarkdownWorkspaceInteractions(args: {
 
   const showInViewer = React.useCallback(
     (line: number) => {
-      setLayoutMode('viewer')
-      if (!Number.isFinite(line) || line <= 0) {
-        setHighlightedLineRange(null)
-        return
-      }
-      const value = Math.floor(line)
-      setHighlightedLineRange({ start: value, end: value })
+      showMarkdownWorkspaceLineInMode({
+        mode: 'viewer',
+        line,
+        setLayoutMode,
+        setHighlightedLineRange,
+      })
     },
     [setHighlightedLineRange, setLayoutMode],
   )
   const showInPresentation = React.useCallback(
     (line: number) => {
-      setLayoutMode('presentation')
-      if (!Number.isFinite(line) || line <= 0) {
-        setHighlightedLineRange(null)
-        return
-      }
-      const value = Math.floor(line)
-      setHighlightedLineRange({ start: value, end: value })
+      showMarkdownWorkspaceLineInMode({
+        mode: 'presentation',
+        line,
+        setLayoutMode,
+        setHighlightedLineRange,
+      })
     },
     [setHighlightedLineRange, setLayoutMode],
   )
   const showInSlidesGallery = React.useCallback(
     (line: number) => {
-      setLayoutMode('slides-gallery')
-      if (!Number.isFinite(line) || line <= 0) {
-        setHighlightedLineRange(null)
-        return
-      }
-      const value = Math.floor(line)
-      setHighlightedLineRange({ start: value, end: value })
+      showMarkdownWorkspaceLineInMode({
+        mode: 'slides-gallery',
+        line,
+        setLayoutMode,
+        setHighlightedLineRange,
+      })
     },
     [setHighlightedLineRange, setLayoutMode],
   )
@@ -250,25 +249,18 @@ export function useMarkdownWorkspaceInteractions(args: {
   const lastCaretLineRef = React.useRef<number | null>(null)
   const onEditorCaretLine = React.useCallback(
     (line: number) => {
-      const currentLayoutMode = layoutModeRef.current
-      if (currentLayoutMode !== 'editor' && currentLayoutMode !== 'split') return
-      if (!Number.isFinite(line) || line <= 0) return
-      const value = Math.floor(line)
-      if (lastCaretLineRef.current === value) return
-      lastCaretLineRef.current = value
-      setHighlightedLineRange({ start: value, end: value })
-
-      const hit = docLocationIndex.find(value)
-      if (!hit) return
-      if (hit.kind === 'node') {
-        if (selectedNodeId === hit.id) return
-        setSelectionSource('editor')
-        selectNode(hit.id)
-        return
-      }
-      if (selectedEdgeId === hit.id) return
-      setSelectionSource('editor')
-      selectEdge(hit.id)
+      lastCaretLineRef.current = syncMarkdownWorkspaceSelectionFromEditorCaret({
+        line,
+        currentLayoutMode: layoutModeRef.current,
+        lastCaretLine: lastCaretLineRef.current,
+        setHighlightedLineRange,
+        findDocLocation: value => docLocationIndex.find(value),
+        selectedNodeId,
+        selectedEdgeId,
+        setSelectionSource,
+        selectNode,
+        selectEdge,
+      })
     },
     [docLocationIndex, layoutModeRef, selectEdge, selectNode, selectedEdgeId, selectedNodeId, setHighlightedLineRange, setSelectionSource],
   )

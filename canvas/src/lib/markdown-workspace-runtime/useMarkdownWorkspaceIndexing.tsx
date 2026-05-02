@@ -44,7 +44,7 @@ import {
   upsertWorkspaceEntryInlineText,
 } from '@/features/workspace-fs/workspaceInlineText'
 
-export function useMarkdownWorkspaceIndexing(args: {
+export type MarkdownWorkspaceIndexingArgs = {
   active: boolean
   viewerInlineEditActive: boolean
   contentMode: 'document' | 'widget'
@@ -78,7 +78,9 @@ export function useMarkdownWorkspaceIndexing(args: {
     opts?: { ttlMs?: number },
   ) => void
   setStatusWithAutoClear: (label: string, ttlMs?: number) => void
-}) {
+}
+
+export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs) {
   React.useEffect(() => {
     if (!args.active || args.viewerInlineEditActive) return
     if (args.contentMode === 'widget' && args.widgetAvailable) return

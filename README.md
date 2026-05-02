@@ -353,4 +353,6 @@ If you believe video creation should be as reusable as code — declarative, loc
 
 **Demo:** airvio.co/knowgrph  
 
+**Docs:** see `docs/conflict-resolution.md` for the repo conflict-resolution and sync policy.  
+
 > *"Write it. See it. Ship it."*
