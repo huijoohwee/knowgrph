@@ -50,6 +50,24 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   if (!geometryText.includes('const readFrontmatterMermaidCodeFromProps = (props: Record<string, unknown> | null): string => {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid code reader helper')
   }
+  if (!geometryText.includes("const resolveMermaidFrontmatterTheme = (theme?: MermaidTheme): MermaidTheme => {")) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid theme resolver helper')
+  }
+  if (!geometryText.includes('const executeMermaidFrontmatterRender = async (')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid render-execution helper')
+  }
+  if (!geometryText.includes('const canRenderMermaidFrontmatterGeometry = (): boolean => {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid render environment helper')
+  }
+  if (!geometryText.includes('const buildMermaidFrontmatterRenderResult = (args: {')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid SVG result builder helper')
+  }
+  if (!geometryText.includes('const renderMermaidFrontmatterSvgCached = async (')) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid cached SVG render helper')
+  }
+  if (!geometryText.includes("const resolveMermaidFrontmatterCachedRenderTheme = (")) {
+    throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid cached render theme helper')
+  }
   if (!geometryText.includes('const isFrontmatterMermaidDiagramProps = (props: Record<string, unknown> | null): boolean => {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to expose shared frontmatter Mermaid diagram-property classification helper')
   }
@@ -61,6 +79,24 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   }
   if (!geometryText.includes('return readFrontmatterMermaidCodeFromProps(readFrontmatterMermaidDiagramProps(graphData))')) {
     throw new Error('expected frontmatter Mermaid code reader to compose shared diagram-property and code reader helpers')
+  }
+  if (!geometryText.includes('theme: resolveMermaidFrontmatterTheme(args.theme)')) {
+    throw new Error('expected Mermaid frontmatter render input resolution to compose the shared theme resolver helper')
+  }
+  if (!geometryText.includes('return executeMermaidFrontmatterRender(renderInput)')) {
+    throw new Error('expected Mermaid frontmatter renderer to delegate cached render execution to the shared render-execution helper')
+  }
+  if (!geometryText.includes('if (!canRenderMermaidFrontmatterGeometry()) return null')) {
+    throw new Error('expected shared frontmatter Mermaid render-execution helper to delegate environment gating to the shared render environment helper')
+  }
+  if (!geometryText.includes('return buildMermaidFrontmatterRenderResult({')) {
+    throw new Error('expected shared frontmatter Mermaid render-execution helper to delegate SVG result assembly to the shared result builder helper')
+  }
+  if (!geometryText.includes('svg: await renderMermaidFrontmatterSvgCached(renderInput)')) {
+    throw new Error('expected shared frontmatter Mermaid render-execution helper to delegate cached SVG rendering to the shared cached render helper')
+  }
+  if (!geometryText.includes('theme: resolveMermaidFrontmatterCachedRenderTheme(renderInput.theme)')) {
+    throw new Error('expected shared frontmatter Mermaid cached SVG render helper to delegate theme coercion to the shared cached render theme helper')
   }
   if (!geometryText.includes('const resolveMermaidImageMediaKind = (imageUrl: string): \'image\' | \'svg\' => {')) {
     throw new Error('expected mermaidFrontmatterGeometry SSOT to centralize Mermaid image media-kind derivation')

@@ -852,6 +852,10 @@ const readFrontmatterMermaidCode = (graphData: GraphData): string => {
   return readFrontmatterMermaidCodeFromProps(readFrontmatterMermaidDiagramProps(graphData))
 }
 
+const resolveMermaidFrontmatterTheme = (theme?: MermaidTheme): MermaidTheme => {
+  return theme === 'dark' || theme === 'light' ? theme : (getKgThemeFromDom() as MermaidTheme)
+}
+
 const resolveMermaidFrontmatterRenderInput = (args: {
   graphData: GraphData
   theme?: MermaidTheme
@@ -859,11 +863,52 @@ const resolveMermaidFrontmatterRenderInput = (args: {
 }): MermaidFrontmatterRenderInput | null => {
   const code = String(args.codeOverride || readFrontmatterMermaidCode(args.graphData) || '').trim()
   if (!code) return null
-  const theme = args.theme === 'dark' || args.theme === 'light' ? args.theme : (getKgThemeFromDom() as MermaidTheme)
   return {
     code,
-    theme,
+    theme: resolveMermaidFrontmatterTheme(args.theme),
   }
+}
+
+const canRenderMermaidFrontmatterGeometry = (): boolean => {
+  return typeof window !== 'undefined' && typeof document !== 'undefined'
+}
+
+const buildMermaidFrontmatterRenderResult = (args: {
+  renderInput: MermaidFrontmatterRenderInput
+  svg: string
+}): MermaidFrontmatterRenderResult => {
+  return {
+    code: args.renderInput.code,
+    theme: args.renderInput.theme,
+    svg: args.svg,
+    geometry: parseMermaidSvgGeometry(args.svg),
+  }
+}
+
+const resolveMermaidFrontmatterCachedRenderTheme = (
+  theme: MermaidFrontmatterRenderInput['theme'],
+): MermaidTheme => {
+  return theme === 'dark' ? 'dark' : 'light'
+}
+
+const renderMermaidFrontmatterSvgCached = async (
+  renderInput: MermaidFrontmatterRenderInput,
+): Promise<string> => {
+  const rendered = await renderMermaidSvgCached({
+    code: renderInput.code,
+    theme: resolveMermaidFrontmatterCachedRenderTheme(renderInput.theme),
+  })
+  return rendered.svg
+}
+
+const executeMermaidFrontmatterRender = async (
+  renderInput: MermaidFrontmatterRenderInput,
+): Promise<MermaidFrontmatterRenderResult | null> => {
+  if (!canRenderMermaidFrontmatterGeometry()) return null
+  return buildMermaidFrontmatterRenderResult({
+    renderInput,
+    svg: await renderMermaidFrontmatterSvgCached(renderInput),
+  })
 }
 
 export async function renderMermaidFrontmatterGeometry(args: {
@@ -873,18 +918,7 @@ export async function renderMermaidFrontmatterGeometry(args: {
 }): Promise<MermaidFrontmatterRenderResult | null> {
   const renderInput = resolveMermaidFrontmatterRenderInput(args)
   if (!renderInput) return null
-  if (typeof window === 'undefined' || typeof document === 'undefined') return null
-  const rendered = await renderMermaidSvgCached({
-    code: renderInput.code,
-    theme: renderInput.theme === 'dark' ? 'dark' : 'light',
-  })
-  const geometry = parseMermaidSvgGeometry(rendered.svg)
-  return {
-    code: renderInput.code,
-    theme: renderInput.theme,
-    svg: rendered.svg,
-    geometry,
-  }
+  return executeMermaidFrontmatterRender(renderInput)
 }
 
 const prepareMermaidFrontmatterGraphBindings = (graphData: GraphData): MermaidFrontmatterGraphBindings => {

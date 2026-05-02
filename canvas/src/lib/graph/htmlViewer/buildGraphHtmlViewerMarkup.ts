@@ -59,6 +59,23 @@ const readNumAttr = (el: Element, name: string): number | null => {
   return Number.isFinite(n) ? n : null
 }
 
+const readRichMediaPanelTitle = (el: Element): string => {
+  const titleAttr = String(el.getAttribute('data-kg-title') || '').trim()
+  if (titleAttr) return titleAttr
+  const labeledLink = el.querySelector('a[aria-label]') as HTMLElement | null
+  const linkLabel = String(labeledLink?.getAttribute('aria-label') || '').trim()
+  if (linkLabel) return linkLabel
+  const titledFrame = el.querySelector('iframe[title]') as HTMLElement | null
+  const frameTitle = String(titledFrame?.getAttribute('title') || '').trim()
+  if (frameTitle) return frameTitle
+  const titledMedia = el.querySelector('video[title],img[alt]') as HTMLElement | null
+  const mediaTitle = String(
+    titledMedia?.getAttribute('title') || titledMedia?.getAttribute('alt') || '',
+  ).trim()
+  if (mediaTitle) return mediaTitle
+  return ''
+}
+
 const readMarkdownOverlayIdFromElement = (el: Element): string => {
   return String(el.getAttribute('data-md-id') || '').trim()
 }
@@ -582,7 +599,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
         return { mediaNodes, markdownBlocks }
       }
 
-      const mediaEls = root.querySelectorAll('[data-kg-rich-media-panel="1"][data-node-id], .kg-media[data-node-id]')
+      const mediaEls = root.querySelectorAll('[data-kg-rich-media-panel="1"][data-node-id]')
       for (let i = 0; i < mediaEls.length; i += 1) {
         const el = mediaEls[i] as Element
         const idRaw = String(el.getAttribute('data-node-id') || '').trim()
@@ -598,9 +615,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
         const kind = kindAttr === 'image' || kindAttr === 'svg' || kindAttr === 'video' || kindAttr === 'iframe'
           ? (kindAttr as HtmlViewerMediaNode['kind'])
           : inferMediaKind(url)
-        const title =
-          String((el.querySelector('.kg-mediaTitle') as HTMLElement | null)?.textContent || '').trim() ||
-          id
+        const title = readRichMediaPanelTitle(el) || id
         mediaNodes.push({
           id,
           title,
@@ -625,7 +640,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
         const anchorNodeId = resolveOverlayNodeId(anchorRaw)
         const title =
           String((el.querySelector('.kg-mdTitle') as HTMLElement | null)?.textContent || '').trim() ||
-          String((el.querySelector('.kg-mediaTitle') as HTMLElement | null)?.textContent || '').trim() ||
+          readRichMediaPanelTitle(el) ||
           id
         markdownBlocks.push({
           id,
@@ -710,15 +725,14 @@ export async function buildGraphHtmlViewerMarkup(args: {
   const canvasAccent = resolveCssVarWithKgFallback('--kg-canvas-accent') || '#3b82f6'
   const canvasLabelFill = resolveCssVarWithKgFallback('--kg-canvas-label-fill') || text
   const canvasLabelHalo = resolveCssVarWithKgFallback('--kg-canvas-label-halo') || canvasBg
-  const mediaHeaderBg = resolveCssVarWithKgFallback('--kg-media-panel-header-bg') || 'rgba(0,0,0,0.04)'
+  const markdownHeaderBg = resolveCssVarWithKgFallback('--kg-media-panel-header-bg') || 'rgba(0,0,0,0.04)'
 
   const density = args.mediaPanelDensity === 'compact' ? 'compact' : 'default'
 
-  const mediaPanelHeaderH = density === 'compact' ? 22 : 28
+  const markdownPanelHeaderH = density === 'compact' ? 22 : 28
   const mediaPanelRadius = density === 'compact' ? 9 : 10
   const mediaPanelPadding = density === 'compact' ? 6 : 8
   const mediaPanelTitleSize = density === 'compact' ? 11 : 12
-  const mediaPanelHeaderGap = 8
   const overlaySizingDefault = readOverlaySizingConfigForDensity({ density: 'default', sizing: args.overlaySizing || null })
   const overlaySizingCompact = readOverlaySizingConfigForDensity({ density: 'compact', sizing: args.overlaySizing || null })
   const widthRatioDefault = overlaySizingDefault.widthRatio
@@ -1078,13 +1092,12 @@ export async function buildGraphHtmlViewerMarkup(args: {
       --kg-canvas-accent:${escapeHtml(canvasAccent)};
       --kg-canvas-label-fill:${escapeHtml(canvasLabelFill)};
       --kg-canvas-label-halo:${escapeHtml(canvasLabelHalo)};
-      --kg-media-panel-header-bg:${escapeHtml(mediaHeaderBg)};
-      --kg-media-panel-header-h:${mediaPanelHeaderH}px;
+      --kg-md-panel-header-bg:${escapeHtml(markdownHeaderBg)};
+      --kg-md-panel-header-h:${markdownPanelHeaderH}px;
       --kg-media-panel-border-w:1px;
       --kg-media-panel-radius:${mediaPanelRadius}px;
       --kg-media-panel-padding:${mediaPanelPadding}px;
       --kg-media-panel-title-size:${mediaPanelTitleSize}px;
-      --kg-media-panel-header-gap:${mediaPanelHeaderGap}px;
       --kg-media-pointer-events:auto;
     }
     html,body{height:100%;width:100%;margin:0;background:var(--kg-canvas-bg);color:var(--kg-text);font-family:${escapeHtml(fontFamily)};-webkit-user-select:none;user-select:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
@@ -1102,8 +1115,6 @@ export async function buildGraphHtmlViewerMarkup(args: {
     #kg-svgWrap [data-kg-layer="markdown-design-blocks"]{display:block}
     #kg-overlay{position:fixed;inset:0;pointer-events:none}
     .kg-media{position:absolute;left:0;top:0;box-sizing:border-box;overflow:hidden;contain:layout paint;isolation:isolate;border-radius:var(--kg-media-panel-radius, 10px);border:var(--kg-media-panel-border-w, 1px) solid var(--kg-border);background:var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.92)));box-shadow:0 10px 30px rgba(0,0,0,0.18);backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:left, top, transform, width, height;display:flex;flex-direction:column;pointer-events:auto}
-    .kg-mediaHeader{height:var(--kg-media-panel-header-h, 28px);min-height:var(--kg-media-panel-header-h, 28px);box-sizing:border-box;display:flex;align-items:flex-start;justify-content:space-between;gap:var(--kg-media-panel-header-gap, 6px);padding-left:var(--kg-media-panel-padding, 6px);padding-right:var(--kg-media-panel-padding, 6px);padding-top:2px;padding-bottom:2px;background:var(--kg-media-panel-header-bg, var(--kg-media-panel-bg, var(--kg-panel-bg, rgba(255,255,255,0.96))));color:var(--kg-text-primary, var(--kg-text));font-size:var(--kg-media-panel-title-size, 12px);font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;pointer-events:auto;cursor:grab;touch-action:none}
-    .kg-mediaTitle{margin:0;min-width:0;font-size:var(--kg-media-panel-title-size, 12px);font-weight:600;line-height:1.25;color:var(--kg-text-primary, var(--kg-text));white-space:nowrap;text-overflow:ellipsis;overflow:hidden;pointer-events:none}
     .kg-mediaBody{flex:1;padding:var(--kg-media-panel-padding, 6px);box-sizing:border-box;min-height:0;position:relative}
     .kg-mediaBody iframe,.kg-mediaBody img,.kg-mediaBody video{display:block;width:100%;height:100%;border:0;border-radius:calc(var(--kg-media-panel-radius) * 0.8);background:rgba(0,0,0,0.02);pointer-events:var(--kg-media-pointer-events);box-sizing:border-box}
     .kg-mediaSnap{position:absolute;inset:var(--kg-media-panel-padding, 6px);border-radius:calc(var(--kg-media-panel-radius) * 0.8);overflow:hidden;background:linear-gradient(135deg, rgba(15,23,42,0.06), rgba(148,163,184,0.10));border:1px solid rgba(0,0,0,0.06);display:flex;align-items:stretch;justify-content:stretch;pointer-events:none}
@@ -1112,7 +1123,7 @@ export async function buildGraphHtmlViewerMarkup(args: {
     .kg-mediaSnapTitle{font-size:12px;line-height:1.25;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .kg-mediaSnapHost{font-size:11px;line-height:1.25;opacity:0.84;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .kg-md{position:absolute;left:0;top:0;display:flex;flex-direction:column;pointer-events:none;background:var(--kg-panel-bg);border:var(--kg-media-panel-border-w) solid var(--kg-border);border-radius:var(--kg-media-panel-radius);box-shadow:0 10px 30px rgba(0,0,0,.12);overflow:hidden;box-sizing:border-box}
-    .kg-mdHeader{height:var(--kg-media-panel-header-h);display:flex;align-items:center;gap:8px;padding:0 10px;background:rgba(0,0,0,0.04);border-bottom:var(--kg-media-panel-border-w) solid var(--kg-border)}
+    .kg-mdHeader{height:var(--kg-md-panel-header-h);display:flex;align-items:center;gap:8px;padding:0 10px;background:var(--kg-md-panel-header-bg, rgba(0,0,0,0.04));border-bottom:var(--kg-media-panel-border-w) solid var(--kg-border)}
     .kg-mdTitle{font-size:var(--kg-media-panel-title-size);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--kg-text-tertiary)}
     .kg-mdBody{position:relative;flex:1;padding:var(--kg-media-panel-padding);box-sizing:border-box}
     .kg-mdTable{width:100%;border-collapse:collapse;font-size:11px;line-height:1.25;color:var(--kg-text)}
