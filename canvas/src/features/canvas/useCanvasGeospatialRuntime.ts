@@ -1,6 +1,6 @@
 import React from 'react'
 import { LS_KEYS } from '@/lib/config'
-import { lsBool } from '@/lib/persistence'
+import { getLocalStorage, lsBool, resolveBrowserStorageKey } from '@/lib/persistence'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
@@ -23,8 +23,9 @@ export function useCanvasGeospatialRuntime(): boolean {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
+    const storageKey = resolveBrowserStorageKey(LS_KEYS.geospatialOverlayEnabled)
     const handler = (ev: StorageEvent) => {
-      if (!ev || ev.key !== LS_KEYS.geospatialOverlayEnabled) return
+      if (!ev || ev.key !== storageKey) return
       try {
         setGeospatialModeEnabled(lsBool(LS_KEYS.geospatialOverlayEnabled, true))
       } catch {
@@ -50,12 +51,12 @@ export function useCanvasGeospatialRuntime(): boolean {
           if (typeof gm.setGeospatialModeEnabled === 'function') {
             gm.setGeospatialModeEnabled(true)
           } else {
-            window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+            getLocalStorage()?.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
             setGeospatialModeEnabled(true)
           }
         })
         .catch(() => {
-          window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+          getLocalStorage()?.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
           setGeospatialModeEnabled(true)
         })
     } catch {

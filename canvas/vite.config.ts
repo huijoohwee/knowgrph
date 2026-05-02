@@ -13,6 +13,7 @@ import { unwrapUserProvidedText } from 'grph-shared/url'
 import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
+import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
@@ -1100,20 +1101,15 @@ function createLazyWebsiteImportHandler(
   const getHandler = async () => {
     if (handlerPromise) return await handlerPromise
     const hasSsr = server && typeof (server as unknown as { ssrLoadModule?: unknown }).ssrLoadModule === 'function'
-    if (!hasSsr) {
-      handlerPromise = Promise.resolve((req, res, _next) => {
-        res.statusCode = 500
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'Website import handler unavailable in preview server' }))
-      })
-      return await handlerPromise
-    }
     handlerPromise = (async () => {
-      const devServer = server as Pick<import('vite').ViteDevServer, 'ssrLoadModule'>
-      const mod = (await devServer.ssrLoadModule('/src/lib/websites/server/websiteImportServer.ts')) as unknown as {
-        createWebsiteImportHandler: (args: { repoRoot: string }) => import('vite').Connect.NextHandleFunction
+      if (hasSsr) {
+        const devServer = server as Pick<import('vite').ViteDevServer, 'ssrLoadModule'>
+        const mod = (await devServer.ssrLoadModule('/src/lib/websites/server/websiteImportServer.ts')) as unknown as {
+          createWebsiteImportHandler: (args: { repoRoot: string }) => import('vite').Connect.NextHandleFunction
+        }
+        return mod.createWebsiteImportHandler({ repoRoot })
       }
-      return mod.createWebsiteImportHandler({ repoRoot })
+      return createWebsiteImportHandler({ repoRoot })
     })()
     return await handlerPromise
   }

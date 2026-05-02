@@ -4,8 +4,101 @@ import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 const LS_COALESCED_WRITE_DELAY_MS = 80
 const LS_COALESCED_TASK_PREFIX = 'ls:coalesced'
 const LS_LAST_WRITTEN_LIMIT = 500
+const STORAGE_SCOPE_PREFIX = 'kg:scope:'
 
 const lastWrittenValueByKey = new Map<string, string>()
+const scopedStorageProxyByStorage = new WeakMap<Storage, Storage>()
+
+const normalizeStorageScopeBasePath = (raw: string | null | undefined): string => {
+  const trimmed = String(raw || '').trim()
+  if (!trimmed || trimmed === '/') return '/'
+  const withLeading = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  const collapsed = withLeading.replace(/\/{2,}/g, '/')
+  return collapsed.endsWith('/') ? collapsed : `${collapsed}/`
+}
+
+const readStorageScopeBasePath = (): string => {
+  try {
+    const envBaseUrl = (
+      import.meta as unknown as { env?: { BASE_URL?: unknown } }
+    )?.env?.BASE_URL
+    if (typeof envBaseUrl === 'string' && envBaseUrl.trim()) {
+      return normalizeStorageScopeBasePath(envBaseUrl)
+    }
+  } catch {
+    void 0
+  }
+  return '/'
+}
+
+const getStorageScopePrefix = (): string | null => {
+  const basePath = readStorageScopeBasePath()
+  if (basePath === '/') return null
+  return `${STORAGE_SCOPE_PREFIX}${basePath}::`
+}
+
+export const resolveBrowserStorageKey = (key: string): string => {
+  const safeKey = String(key || '').trim()
+  if (!safeKey) return ''
+  const scopePrefix = getStorageScopePrefix()
+  if (!scopePrefix) return safeKey
+  if (safeKey.startsWith(scopePrefix)) return safeKey
+  return `${scopePrefix}${safeKey}`
+}
+
+const scopeStorageKey = (key: string): string => {
+  const resolved = resolveBrowserStorageKey(key)
+  return resolved || String(key || '')
+}
+
+const wrapScopedStorage = (storage: Storage | null): Storage | null => {
+  if (!storage) return null
+  const scopePrefix = getStorageScopePrefix()
+  if (!scopePrefix) return storage
+  const cached = scopedStorageProxyByStorage.get(storage)
+  if (cached) return cached
+  const proxy = new Proxy(storage, {
+    get(target, prop, receiver) {
+      if (prop === 'getItem') return (key: string) => target.getItem(scopeStorageKey(key))
+      if (prop === 'setItem') return (key: string, value: string) => target.setItem(scopeStorageKey(key), value)
+      if (prop === 'removeItem') return (key: string) => target.removeItem(scopeStorageKey(key))
+      if (prop === 'key') {
+        return (index: number) => {
+          const keys: string[] = []
+          for (let i = 0; i < target.length; i += 1) {
+            const key = target.key(i)
+            if (typeof key !== 'string' || !key.startsWith(scopePrefix)) continue
+            keys.push(key.slice(scopePrefix.length))
+          }
+          return keys[index] ?? null
+        }
+      }
+      if (prop === 'length') {
+        let count = 0
+        for (let i = 0; i < target.length; i += 1) {
+          const key = target.key(i)
+          if (typeof key === 'string' && key.startsWith(scopePrefix)) count += 1
+        }
+        return count
+      }
+      if (prop === 'clear') {
+        return () => {
+          const keysToRemove: string[] = []
+          for (let i = 0; i < target.length; i += 1) {
+            const key = target.key(i)
+            if (typeof key === 'string' && key.startsWith(scopePrefix)) {
+              keysToRemove.push(key)
+            }
+          }
+          for (const key of keysToRemove) target.removeItem(key)
+        }
+      }
+      return Reflect.get(target, prop, receiver)
+    },
+  }) as Storage
+  scopedStorageProxyByStorage.set(storage, proxy)
+  return proxy
+}
 
 const noteLastWrittenValue = (key: string, value: string): void => {
   if (!key) return
@@ -28,7 +121,7 @@ const readLastWrittenValue = (key: string): string | null => {
 export function readNumFromStorage(storage: Storage | null, key: string, fallback: number): number {
   if (!storage) return fallback
   try {
-    const v = parseFloat(storage.getItem(key) || '')
+    const v = parseFloat(storage.getItem(scopeStorageKey(key)) || '')
     if (isNaN(v)) return fallback
     const x = Math.max(0, Math.min(1, v))
     return x
@@ -41,7 +134,7 @@ export function writeNumToStorage(storage: Storage | null, key: string, value: n
   const x = Math.max(0, Math.min(1, value))
   if (!storage) return x
   try {
-    storage.setItem(key, String(x))
+    storage.setItem(scopeStorageKey(key), String(x))
   } catch (err) {
     void err
   }
@@ -51,7 +144,7 @@ export function writeNumToStorage(storage: Storage | null, key: string, value: n
 export function readBoolFromStorage(storage: Storage | null, key: string, fallback: boolean): boolean {
   if (!storage) return fallback
   try {
-    const v = storage.getItem(key)
+    const v = storage.getItem(scopeStorageKey(key))
     if (v === null) return fallback
     return v === '1' || v === 'true'
   } catch {
@@ -63,7 +156,7 @@ export function writeBoolToStorage(storage: Storage | null, key: string, value: 
   const next = !!value
   if (!storage) return next
   try {
-    storage.setItem(key, next ? '1' : '0')
+    storage.setItem(scopeStorageKey(key), next ? '1' : '0')
   } catch (err) {
     void err
   }
@@ -73,7 +166,7 @@ export function writeBoolToStorage(storage: Storage | null, key: string, value: 
 export function readIntFromStorage(storage: Storage | null, key: string, fallback: number): number {
   if (!storage) return fallback
   try {
-    const v = parseInt(storage.getItem(key) || '', 10)
+    const v = parseInt(storage.getItem(scopeStorageKey(key)) || '', 10)
     if (isNaN(v)) return fallback
     return v
   } catch {
@@ -89,7 +182,7 @@ export function readFloatFromStorage(
 ): number {
   if (!storage) return fallback
   try {
-    const v = parseFloat(storage.getItem(key) || '')
+    const v = parseFloat(storage.getItem(scopeStorageKey(key)) || '')
     if (!Number.isFinite(v)) return fallback
     const min = typeof opts?.min === 'number' && Number.isFinite(opts.min) ? opts.min : -Number.MAX_SAFE_INTEGER
     const max = typeof opts?.max === 'number' && Number.isFinite(opts.max) ? opts.max : Number.MAX_SAFE_INTEGER
@@ -111,7 +204,7 @@ export function writeFloatToStorage(
   const x = Math.max(min, Math.min(max, safe))
   if (!storage) return x
   try {
-    storage.setItem(key, String(x))
+    storage.setItem(scopeStorageKey(key), String(x))
   } catch {
     void 0
   }
@@ -129,7 +222,7 @@ export function writeIntToStorage(
   const x = Math.max(min, Math.min(max, Math.floor(value)))
   if (!storage) return x
   try {
-    storage.setItem(key, String(x))
+    storage.setItem(scopeStorageKey(key), String(x))
   } catch (err) {
     void err
   }
@@ -144,7 +237,7 @@ export function readJsonFromStorage<T>(
 ): T {
   if (!storage) return fallback
   try {
-    const raw = storage.getItem(key)
+    const raw = storage.getItem(scopeStorageKey(key))
     if (!raw) return fallback
     const parsed = parse(JSON.parse(raw) as unknown)
     return parsed ?? fallback
@@ -156,7 +249,7 @@ export function readJsonFromStorage<T>(
 export function writeJsonToStorage<T>(storage: Storage | null, key: string, value: T): T {
   if (!storage) return value
   try {
-    storage.setItem(key, JSON.stringify(value))
+    storage.setItem(scopeStorageKey(key), JSON.stringify(value))
   } catch {
     void 0
   }
@@ -166,7 +259,7 @@ export function writeJsonToStorage<T>(storage: Storage | null, key: string, valu
 export const getLocalStorage = (): Storage | null => {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return null
-    return window.localStorage
+    return wrapScopedStorage(window.localStorage)
   } catch {
     return null
   }
@@ -311,7 +404,7 @@ export const lsRemove = (key: LsStorageKey): void => {
   const storage = getLocalStorage()
   if (!storage) return
   try {
-    storage.removeItem(key)
+    storage.removeItem(scopeStorageKey(key))
   } catch {
     void 0
   }
@@ -320,7 +413,7 @@ export const lsRemove = (key: LsStorageKey): void => {
 export const getSessionStorage = (): Storage | null => {
   try {
     if (typeof window === 'undefined' || !window.sessionStorage) return null
-    return window.sessionStorage
+    return wrapScopedStorage(window.sessionStorage)
   } catch {
     return null
   }
@@ -333,7 +426,7 @@ export const ssString = (
   const storage = getSessionStorage()
   if (!storage) return fallback
   try {
-    const raw = storage.getItem(key)
+    const raw = storage.getItem(scopeStorageKey(key))
     if (raw === null) return fallback
     return raw
   } catch {
@@ -349,7 +442,7 @@ export const ssSetString = (
   const next = String(value ?? '')
   if (!storage) return next
   try {
-    storage.setItem(key, next)
+    storage.setItem(scopeStorageKey(key), next)
   } catch {
     void 0
   }
@@ -360,7 +453,7 @@ export const ssRemove = (key: SessionStorageKey | StorageChannelKey): void => {
   const storage = getSessionStorage()
   if (!storage) return
   try {
-    storage.removeItem(key)
+    storage.removeItem(scopeStorageKey(key))
   } catch {
     void 0
   }

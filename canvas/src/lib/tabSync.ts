@@ -1,5 +1,5 @@
 import type { StorageChannelKey } from '@/lib/config';
-import { getLocalStorage } from '@/lib/persistence';
+import { getLocalStorage, resolveBrowserStorageKey } from '@/lib/persistence';
 import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { WORKSPACE_SYNC_SCOPE_CANVAS_TAB_SYNC_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
 
@@ -65,12 +65,13 @@ export const createTabSync = (channelName: StorageChannelKey): TabSync => {
   const bcSupported = typeof window !== 'undefined' && 'BroadcastChannel' in window;
   const subscribers = new Set<Subscriber>();
   if (!channelSubscribers.has(channelName)) channelSubscribers.set(channelName, new Set<Subscriber>());
+  const storageChannelKey = resolveBrowserStorageKey(channelName)
 
   let singleton = channelSingletons.get(channelName) || null;
   if (!singleton) {
     const bc = bcSupported ? new BroadcastChannel(channelName) : null;
     const onStorage = (e: StorageEvent) => {
-      if (e.key !== channelName || !e.newValue) return;
+      if (e.key !== storageChannelKey || !e.newValue) return;
       try {
         const msg = JSON.parse(e.newValue);
         const subs = channelSubscribers.get(channelName);

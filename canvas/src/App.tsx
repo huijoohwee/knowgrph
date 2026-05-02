@@ -6,7 +6,7 @@ import { CanvasRouteRuntime } from '@/features/canvas/CanvasRouteRuntime'
 import { PerformanceAutomationReadout } from '@/features/canvas/PerformanceAutomationReadout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { resolveRouterBasename } from '@/lib/routing/basePath'
-import { getLocalStorage } from '@/lib/persistence'
+import { getLocalStorage, resolveBrowserStorageKey } from '@/lib/persistence'
 import { applyThemeMode, getInitialThemeMode } from '@/lib/ui/theme'
 
 const Canvas = lazy(() => import('@/pages/Canvas'))
@@ -75,7 +75,7 @@ export default function App() {
           storageHandler = (e: StorageEvent) => {
             try {
               if (e.storageArea !== window.localStorage) return
-              if (e.key !== configModule.LS_KEYS.themeMode) return
+              if (e.key !== resolveBrowserStorageKey(configModule.LS_KEYS.themeMode)) return
               const v = String(e.newValue || '').trim()
               const mode = v === 'light' || v === 'dark' || v === 'system' ? v : 'system'
               graphStoreModule.useGraphStore.getState().setThemeMode(mode)

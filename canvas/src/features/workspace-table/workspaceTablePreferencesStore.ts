@@ -29,6 +29,7 @@ import {
   subscribeWorkspaceTablePreferencesChanged,
 } from '@/features/workspace-table/workspaceTablePreferencesEvents'
 import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
+import { resolveBrowserStorageKey } from '@/lib/persistence'
 import {
   WORKSPACE_SYNC_SCOPE_WORKSPACE_TABLE_PREFS_RUNTIME_PERSISTENCE,
   WORKSPACE_SYNC_TASK_WORKSPACE_TABLE_PREFS_NOTIFY,
@@ -94,13 +95,13 @@ const writePreferenceAndNotify = <T>(writer: () => T): T => {
 }
 
 const isWorkspacePreferenceStorageKey = (storageKey: string | null): boolean =>
-  storageKey === LS_KEYS.workspaceEditorMode ||
-  storageKey === LS_KEYS.graphTableViewMode ||
-  storageKey === LS_KEYS.workspaceCellSelectPanelPlacement ||
-  storageKey === LS_KEYS.jsonImportWorkspaceTarget ||
-  storageKey === LS_KEYS.jsonMarkdownMode ||
-  storageKey === LS_KEYS.jsonMarkdownTableMaxRows ||
-  storageKey === LS_KEYS.jsonMarkdownTableMaxColumns
+  storageKey === resolveBrowserStorageKey(LS_KEYS.workspaceEditorMode) ||
+  storageKey === resolveBrowserStorageKey(LS_KEYS.graphTableViewMode) ||
+  storageKey === resolveBrowserStorageKey(LS_KEYS.workspaceCellSelectPanelPlacement) ||
+  storageKey === resolveBrowserStorageKey(LS_KEYS.jsonImportWorkspaceTarget) ||
+  storageKey === resolveBrowserStorageKey(LS_KEYS.jsonMarkdownMode) ||
+  storageKey === resolveBrowserStorageKey(LS_KEYS.jsonMarkdownTableMaxRows) ||
+  storageKey === resolveBrowserStorageKey(LS_KEYS.jsonMarkdownTableMaxColumns)
 
 const notifySubscribersCoalesced = (): void => {
   if (subscribers.size === 0) return

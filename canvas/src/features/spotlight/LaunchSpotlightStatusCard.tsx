@@ -7,6 +7,7 @@ import { getSpotlightCardStyle } from '@/features/spotlight/positioning'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import SchemaSummary from '@/features/panels/ui/SchemaSummary'
 import { UI_LABELS } from '@/lib/config'
+import { getLocalStorage } from '@/lib/persistence'
 import { emitFlowResetZoomFloorCache } from '@/components/FlowCanvas/shared'
 import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
 import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
@@ -195,7 +196,7 @@ export function LaunchSpotlightStatusCard({
     if (!import.meta.env.DEV) return false
     if (typeof window === 'undefined') return false
     try {
-      return window.localStorage?.getItem(FLOW_QE_TRACE_LS_KEY) === '1'
+      return getLocalStorage()?.getItem(FLOW_QE_TRACE_LS_KEY) === '1'
     } catch {
       return false
     }
