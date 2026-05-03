@@ -8,15 +8,22 @@ import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { normalizeWorkspacePath, workspaceDocumentKey } from '@/features/workspace-fs/path'
 import { hashText } from '@/features/parsers/hash'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { runAsyncEffect } from '@/lib/async/asyncEffectRunner'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import type { WebpageFidelityLevel, WebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
-import { createProgressTicker } from '@/lib/progress/progressTicker'
+import { createProgressSession } from '@/lib/progress/progressTicker'
 import { tryExtractDesignDocumentUrl } from '@/lib/render/designDocumentUrl'
-import type { WebpageDomProbeResult } from '@/lib/websites/webpageDomExport'
-import { getCachedWebpageLayoutSnapshot, setCachedWebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutCache'
 import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
+import { buildWebpageLayoutCacheKey, getDesignWebpageWireframePreset } from '@/lib/websites/webpageLayoutPresets'
+import {
+  applyWebpageLayoutExportOutcome,
+  emitWebpageLayoutExportWarningToast,
+  formatWebpageLayoutExportStatus,
+  loadWebpageLayoutSnapshotWithCache,
+  resolveWebpageLayoutExportOutcome,
+} from '@/lib/websites/webpageSnapshotShared'
 import { convertWebpageLayoutToGraphData } from '@/lib/websites/webpageLayoutToGraph'
 
 type WebpageSourceState = {
@@ -220,163 +227,80 @@ export function useDesignCanvasWebpageWireframe(args: UseDesignCanvasWebpageWire
     const prevUrl = lastWebpageLayoutUrlRef.current
     lastWebpageLayoutUrlRef.current = url
     const requestId = (lastWebpageLayoutReqRef.current += 1)
-    let cancelled = false
     const allowCache = webpageLayoutRetryNonce <= 0
     const fidelity = readFidelityLevel(webpageFrontmatter)
-    const maxElements = fidelity === 4 ? 3200 : fidelity === 3 ? 2400 : fidelity === 2 ? 1800 : 1400
-    const viewportW = (() => {
-      try {
-        const width = typeof window !== 'undefined' ? window.innerWidth : 0
-        if (!Number.isFinite(width) || width <= 0) return 1200
-        return Math.max(900, Math.min(1400, Math.floor(width * 0.9)))
-      } catch {
-        return 1200
-      }
-    })()
-    const viewportH = (() => {
-      try {
-        const height = typeof window !== 'undefined' ? window.innerHeight : 0
-        if (!Number.isFinite(height) || height <= 0) return 800
-        return Math.max(650, Math.min(1000, Math.floor(height * 0.84)))
-      } catch {
-        return 800
-      }
-    })()
-    const networkIdleMs = fidelity >= 3 ? 1100 : 900
-    const domQuietMs = fidelity >= 3 ? 900 : 650
-    const minWaitAfterLoadMs = fidelity >= 3 ? 1600 : 1200
+    const layoutPreset = getDesignWebpageWireframePreset({
+      fidelityLevel: fidelity,
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : undefined,
+      viewportHeight: typeof window !== 'undefined' ? window.innerHeight : undefined,
+    })
     const epoch = Number.isFinite(designWireframeCacheEpoch) ? designWireframeCacheEpoch : 0
-    const layoutCacheKey = `layout:v2:e=${epoch}:maxEl=${maxElements}:vp=${viewportW}x${viewportH}:scroll=1:faq=1:netIdle=1:netIdleMs=${networkIdleMs}:domQuietMs=${domQuietMs}:minAfter=${minWaitAfterLoadMs}`
-    if (allowCache) {
-      const cached = getCachedWebpageLayoutSnapshot(url, layoutCacheKey)
-      if (cached) {
-        setWebpageLayout(cached)
-        setWebpageLayoutStatus('ready')
-        setWebpageStatusUi({ progress: 100, message: 'Loaded from cache' })
-        return
-      }
-    }
+    const layoutCacheKey = buildWebpageLayoutCacheKey(layoutPreset, { epoch })
     if (prevUrl && prevUrl !== url) setWebpageLayout(null)
     setWebpageLayoutStatus('loading')
-    setWebpageStatusUi({ progress: 0, message: 'Loading webpage for wireframe…' })
-    const ticker = createProgressTicker({
+    setWebpageStatusUi({ progress: 0, message: formatWebpageLayoutExportStatus({ consumer: 'wireframe', phase: 'loading' }) })
+    const progressSession = createProgressSession({
       onProgress: progress => setWebpageStatusUi({ progress }),
       intervalMs: 280,
       maxPercentage: 92,
       maxStepPercentage: 12,
     })
-    const abortController = new AbortController()
-    void (async () => {
-      try {
-        ticker.start()
-        const { probeWebpageDomViaHiddenIframe } = await import('@/lib/websites/webpageDomExport')
-        const probe = await probeWebpageDomViaHiddenIframe({
-          url,
-          mode: 'layout',
-          maxElements,
-          scrollCrawl: true,
-          expandFaq: true,
-          timeoutMs: 45_000,
-          waitForNetworkIdle: true,
-          networkIdleMs,
-          domQuietMs,
-          minWaitAfterLoadMs,
-          viewportW,
-          viewportH,
-          signal: abortController.signal,
-        })
-        if (cancelled || requestId !== lastWebpageLayoutReqRef.current) return
-        if (!probe.ok) {
-          const fail = probe as Extract<WebpageDomProbeResult, { ok: false }>
-          ticker.stop()
-          setWebpageLayout(null)
-          setWebpageLayoutStatus('error')
-          setWebpageStatusUi({ message: `Export failed (${fail.stage}): ${fail.error}` })
-          try {
-            useGraphStore.getState().pushUiToast({
-              id: 'design-webpage-layout-failed',
-              kind: 'warning',
-              message: `Webpage wireframe export failed (${fail.stage}): ${fail.error}`,
-              ttlMs: 8000,
-            })
-          } catch {
-            void 0
-          }
-          return
-        }
-        const resultText = probe.result?.text
-        if (!resultText) {
-          ticker.stop()
-          setWebpageLayout(null)
-          setWebpageLayoutStatus('error')
-          setWebpageStatusUi({ message: 'Export failed: empty result' })
-          return
-        }
-        const snapshot = (() => {
-          try {
-            const parsed = JSON.parse(resultText) as unknown
-            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-            const objectValue = parsed as Record<string, unknown>
-            const meta = objectValue.meta as Record<string, unknown> | null
-            const elements = objectValue.elements as unknown
-            if (!meta || typeof meta !== 'object' || !Array.isArray(elements) || meta.kind !== 'layout') return null
-            return parsed as WebpageLayoutSnapshot
-          } catch {
-            return null
-          }
-        })()
-        if (!snapshot) {
-          ticker.stop()
-          setWebpageLayout(null)
-          setWebpageLayoutStatus('error')
-          setWebpageStatusUi({ message: 'Export failed: invalid snapshot payload' })
-          return
-        }
-        setCachedWebpageLayoutSnapshot(url, snapshot, layoutCacheKey)
-        setWebpageLayout(snapshot)
-        setWebpageLayoutStatus('ready')
-        ticker.stop(100)
-        const count = Array.isArray(snapshot.elements) ? snapshot.elements.length : 0
-        setWebpageStatusUi({ progress: 100, message: `Wireframe ready — elements=${count}` })
-      } catch (error) {
-        if (cancelled || requestId !== lastWebpageLayoutReqRef.current) return
-        ticker.stop()
-        const message =
-          error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '') : ''
-        setWebpageLayout(null)
-        setWebpageLayoutStatus('error')
-        setWebpageStatusUi({ message: `Export failed: ${message || 'Request failed'}` })
-        try {
-          useGraphStore.getState().pushUiToast({
-            id: 'design-webpage-layout-failed',
-            kind: 'warning',
-            message: `Webpage wireframe export failed: ${message || 'Request failed'}`,
-            ttlMs: 8000,
-          })
-        } catch {
-          void 0
-        }
-      } finally {
-        try {
-          ticker.stop()
-        } catch {
-          void 0
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-      try {
-        abortController.abort()
-      } catch {
-        void 0
-      }
-      try {
-        ticker.stop()
-      } catch {
-        void 0
-      }
+    const pushWebpageLayoutWarningToast = (message: string) => {
+      emitWebpageLayoutExportWarningToast({
+        message,
+        toastId: 'design-webpage-layout-failed',
+        ttlMs: 8000,
+        pushToast: toast => useGraphStore.getState().pushUiToast(toast),
+      })
     }
+    return runAsyncEffect({
+      requestId,
+      getLatestRequestId: () => lastWebpageLayoutReqRef.current,
+      onCleanup: progressSession.cleanup,
+      onError: error => {
+        const outcome = resolveWebpageLayoutExportOutcome({
+          consumer: 'wireframe',
+          error,
+        })
+        progressSession.stop()
+        applyWebpageLayoutExportOutcome({
+          outcome,
+          setSnapshot: setWebpageLayout,
+          setStatus: setWebpageLayoutStatus,
+          setStatusMessage: message => setWebpageStatusUi({ message }),
+          setToastMessage: pushWebpageLayoutWarningToast,
+        })
+      },
+      run: async ({ signal, isStale }) => {
+        progressSession.start()
+        const load = await loadWebpageLayoutSnapshotWithCache({
+          url,
+          layoutPreset,
+          layoutCacheKey,
+          allowCache,
+          signal,
+        })
+        if (isStale()) return
+        const outcome = resolveWebpageLayoutExportOutcome({
+          consumer: 'wireframe',
+          loadResult: load,
+        })
+        applyWebpageLayoutExportOutcome({
+          outcome,
+          setSnapshot: setWebpageLayout,
+          setStatus: setWebpageLayoutStatus,
+          setStatusMessage: message => setWebpageStatusUi({ message }),
+          setToastMessage: outcome.status === 'error' ? pushWebpageLayoutWarningToast : undefined,
+          setProgress: progress => setWebpageStatusUi({ progress }),
+          readyProgress: 100,
+        })
+        if (outcome.status === 'error') {
+          progressSession.stop()
+          return
+        }
+        progressSession.finish(100)
+      },
+    })
   }, [active, designWireframeCacheEpoch, documentUrl, setWebpageStatusUi, webpageFrontmatter, webpageLayoutRetryNonce])
 
   const webpageLayoutGraphData = React.useMemo(() => {
@@ -462,7 +386,14 @@ export function useDesignCanvasWebpageWireframe(args: UseDesignCanvasWebpageWire
     if (!documentUrl || webpageLayoutStatus !== 'ready') return
     const elementCount = Array.isArray(webpageLayout?.elements) ? webpageLayout.elements.length : 0
     const nodeCount = Array.isArray(activeWebpageLayoutGraphData?.nodes) ? activeWebpageLayoutGraphData.nodes.length : 0
-    setWebpageStatusUi({ message: `Wireframe ready — elements=${elementCount}, nodes=${nodeCount}` })
+    setWebpageStatusUi({
+      message: formatWebpageLayoutExportStatus({
+        consumer: 'wireframe',
+        phase: 'ready',
+        elementCount,
+        nodeCount,
+      }),
+    })
   }, [activeWebpageLayoutGraphData, documentUrl, setWebpageStatusUi, webpageLayout, webpageLayoutStatus])
 
   const webpageLayoutKey = React.useMemo(() => {
@@ -538,7 +469,7 @@ export function useDesignCanvasWebpageWireframe(args: UseDesignCanvasWebpageWire
   const retryWebpageLayout = React.useCallback(() => {
     setWebpageLayout(null)
     setWebpageLayoutStatus('loading')
-    setWebpageStatusUi({ progress: 0, message: 'Retrying…' })
+    setWebpageStatusUi({ progress: 0, message: formatWebpageLayoutExportStatus({ consumer: 'wireframe', phase: 'retrying' }) })
     setWebpageLayoutRetryNonce(value => value + 1)
   }, [setWebpageStatusUi])
 

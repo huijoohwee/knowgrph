@@ -13,6 +13,7 @@ import {
 } from '@/features/source-files/sourceFilesRuntimeShared'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
+  GEOSPATIAL_WORKSPACE_SEED_PATH,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
@@ -43,16 +44,14 @@ import {
 export async function testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles() {
   const { restore } = initJsdomHarness()
   try {
-    const fs = createMemoryWorkspaceFs()
-    await fs.ensureSeed()
+    const fs = createMemoryWorkspaceFs({
+      initialEntries: [
+        { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+        { path: '/notes/custom.md', parentPath: '/notes', kind: 'file', name: 'custom.md', text: '# Custom', updatedAtMs: 1 },
+      ],
+    })
 
-    const seeded = await fs.listEntries()
-    const seededFiles = seeded.filter(e => e.kind === 'file')
-    if (seededFiles.length === 0) throw new Error('expected seed files to exist after ensureSeed')
-
-    for (const f of seededFiles) {
-      await fs.deleteEntry(f.path)
-    }
+    await fs.deleteEntry('/notes/custom.md' as never)
 
     const afterDelete = await fs.listEntries()
     if (afterDelete.some(e => e.kind === 'file')) throw new Error('expected all files deleted')
@@ -90,12 +89,19 @@ export async function testWorkspaceEnsureSeedMigratesLegacyDefaultsToReadmeAndVa
     if (!filePaths.has(TEST_VALIDATION_WORKSPACE_SEED_PATH)) {
       throw new Error('expected validation demo workspace seed to remain present after legacy seed migration')
     }
-    if (filePaths.size !== 2) {
-      throw new Error(`expected exactly two default workspace seed files after migration, got ${String(filePaths.size)}`)
+    if (!filePaths.has(GEOSPATIAL_WORKSPACE_SEED_PATH)) {
+      throw new Error('expected geospatial workspace seed to be added during canonical seed-family migration')
+    }
+    if (filePaths.size !== 3) {
+      throw new Error(`expected exactly three default workspace seed files after migration, got ${String(filePaths.size)}`)
     }
     const readmeEntry = entries.find(e => e.path === WORKSPACE_README_SEED_PATH && e.kind === 'file')
+    const geospatialEntry = entries.find(e => e.path === GEOSPATIAL_WORKSPACE_SEED_PATH && e.kind === 'file')
     if (!readmeEntry || typeof readmeEntry.text !== 'string' || !readmeEntry.text.includes('kgCanvas2dRenderer: "d3"')) {
       throw new Error('expected migrated README workspace seed to replace the legacy placeholder content with the real D3 preload seed')
+    }
+    if (!geospatialEntry || typeof geospatialEntry.text !== 'string' || !geospatialEntry.text.includes('kgCanvasSurfaceMode: "geospatial"')) {
+      throw new Error('expected migrated geospatial workspace seed to carry the canonical geospatial frontmatter preset')
     }
   } finally {
     restore()
@@ -124,9 +130,9 @@ export async function testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRem
         },
         {
           path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
-          parentPath: '/sandbox/test-data/test-generate-video',
+          parentPath: '/',
           kind: 'file',
-          name: 'knowgrph-demo-video.md',
+          name: 'knowgrph-video-demo.md',
           text: [
             '---',
             'kgCanvas2dRenderer: "flowEditor"',
@@ -136,23 +142,40 @@ export async function testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRem
           ].join('\n'),
           updatedAtMs: 1,
         },
+        {
+          path: GEOSPATIAL_WORKSPACE_SEED_PATH,
+          parentPath: '/',
+          kind: 'file',
+          name: 'knowgrph-maps-grabmap-multim-demo.md',
+          text: [
+            '---',
+            'kgCanvasSurfaceMode: "geospatial"',
+            'kgCanvas2dRenderer: "flowEditor"',
+            'kgFrontmatterModeEnabled: true',
+            '---',
+            '# Geospatial',
+          ].join('\n'),
+          updatedAtMs: 1,
+        },
       ],
     })
     await fs.ensureSeed()
 
     const entries = await fs.listEntries()
     const readmeEntry = entries.find(e => e.path === WORKSPACE_README_SEED_PATH && e.kind === 'file')
-    const validationEntry = entries.find(e => e.path === TEST_VALIDATION_WORKSPACE_SEED_PATH && e.kind === 'file')
+    const geospatialEntry = entries.find(e => e.path === GEOSPATIAL_WORKSPACE_SEED_PATH && e.kind === 'file')
     if (!readmeEntry || typeof readmeEntry.text !== 'string' || !readmeEntry.text.includes('kgCanvas2dRenderer: "d3"')) {
       throw new Error('expected README seed entry to exist before deletion')
     }
-    if (!validationEntry || typeof validationEntry.text !== 'string' || !validationEntry.text.includes('kgCanvas2dRenderer: "flowEditor"')) {
-      throw new Error('expected validation seed entry to exist before deletion')
+    if (!geospatialEntry || typeof geospatialEntry.text !== 'string' || !geospatialEntry.text.includes('kgCanvasSurfaceMode: "geospatial"')) {
+      throw new Error('expected geospatial seed entry to exist before deletion')
     }
 
-    await fs.deleteEntry(TEST_VALIDATION_WORKSPACE_SEED_PATH)
-    await fs.ensureSeed()
-    const afterDelete = await fs.listEntries()
+    const fsWithoutValidation = createMemoryWorkspaceFs({
+      initialEntries: entries.filter(entry => entry.path !== TEST_VALIDATION_WORKSPACE_SEED_PATH),
+    })
+    await fsWithoutValidation.ensureSeed()
+    const afterDelete = await fsWithoutValidation.listEntries()
     if (afterDelete.some(e => e.path === TEST_VALIDATION_WORKSPACE_SEED_PATH && e.kind === 'file')) {
       throw new Error('expected deleted default seed entry to stay removed after ensureSeed')
     }
@@ -166,6 +189,7 @@ export function testWorkspaceStartupActivePathPrefersValidationSeedForDefaultSee
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
       TEST_VALIDATION_WORKSPACE_SEED_PATH,
+      GEOSPATIAL_WORKSPACE_SEED_PATH,
     ],
     activePath: TEST_VALIDATION_WORKSPACE_SEED_PATH,
     preferValidationSeedForDefaultFamily: true,
@@ -180,6 +204,7 @@ export function testWorkspaceStartupActivePathPrefersValidationSeedForCustomVali
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
       TEST_VALIDATION_WORKSPACE_SEED_PATH,
+      GEOSPATIAL_WORKSPACE_SEED_PATH,
     ],
     activePath: null,
     preferValidationSeedForDefaultFamily: true,
@@ -194,6 +219,7 @@ export function testWorkspaceStartupActivePathPreservesExplicitDefaultSeedSelect
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
       TEST_VALIDATION_WORKSPACE_SEED_PATH,
+      GEOSPATIAL_WORKSPACE_SEED_PATH,
     ],
     activePath: WORKSPACE_README_SEED_PATH,
     preferValidationSeedForDefaultFamily: true,
@@ -208,6 +234,7 @@ export function testWorkspaceStartupActivePathForcesValidationSeedWhenCustomTarg
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
       TEST_VALIDATION_WORKSPACE_SEED_PATH,
+      GEOSPATIAL_WORKSPACE_SEED_PATH,
       '/notes/knowgrph-pitchdeck.md',
     ],
     activePath: '/notes/knowgrph-pitchdeck.md' as never,
@@ -224,6 +251,7 @@ export function testWorkspaceStartupActivePathPreservesCustomWorkspaceSelection(
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
       TEST_VALIDATION_WORKSPACE_SEED_PATH,
+      GEOSPATIAL_WORKSPACE_SEED_PATH,
       '/notes/custom.md',
     ],
     activePath: TEST_VALIDATION_WORKSPACE_SEED_PATH,

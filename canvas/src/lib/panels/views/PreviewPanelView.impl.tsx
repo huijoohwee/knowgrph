@@ -39,6 +39,7 @@ import RichMediaPanel from '@/components/RichMediaPanel'
 import { listMediaOverlayNodes, type RichMediaPanelOverlayState } from '@/lib/render/mediaOverlayPool'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { buildStaticRichMediaPanelOverlayState, commitRichMediaPanelChange } from '@/lib/render/richMediaSsot'
@@ -72,6 +73,16 @@ export default function PreviewPanelView() {
   const graphSemanticKey = React.useMemo(
     () => buildScopedGraphSemanticKey('preview-panel-graph', { graphData, graphRevision: graphDataRevision }),
     [graphData, graphDataRevision],
+  )
+  const graphLookup = React.useMemo(
+    () => getCachedGraphLookup({
+      cacheScope: 'preview-panel-graph-media',
+      graphData,
+      graphRevision: graphDataRevision,
+      graphSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    }),
+    [graphData, graphDataRevision, graphSemanticKey],
   )
 
   const hasMarkdown = !!(markdownText && markdownText.trim())
@@ -468,10 +479,8 @@ export default function PreviewPanelView() {
         nodes: effectiveNodes,
         poolMax: effectiveNodes.length,
         connectedValuesByNodeId,
+        nodeById: graphLookup?.nodeById || undefined,
       })
-      const effectiveNodeById = new Map(
-        effectiveNodes.map(node => [String(node?.id || '').trim(), node] as const).filter(([nodeId]) => !!nodeId),
-      )
 
       for (let i = 0; i < canonicalGraphMedia.length; i += 1) {
         const item = canonicalGraphMedia[i]
@@ -480,7 +489,7 @@ export default function PreviewPanelView() {
         if (!nodeId) continue
         const src = String(item.url || '').trim()
         if (!src && !String(item.srcDoc || '').trim()) continue
-        const node = effectiveNodeById.get(nodeId) || null
+        const node = graphLookup?.nodeById.get(nodeId) || null
         const baseLabel = String(node?.label || nodeId).trim()
         const label = String(item.title || '').trim() || (baseLabel ? `Node media: ${baseLabel}` : 'Node media')
         const kind: MediaKind =
@@ -510,6 +519,7 @@ export default function PreviewPanelView() {
     frontmatterMermaidDiagrams,
     graphData,
     graphDataRevision,
+    graphLookup,
     graphSemanticKey,
     markdownDocumentName,
     mermaidFrontmatterConfig,

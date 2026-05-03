@@ -7,7 +7,7 @@ import { uiMarkdownSettingsRegistry } from './registry-ui.markdown'
 import { uiImportYoutubeSettingsRegistry } from './registry-ui.import-youtube'
 import { uiImportWebpageSettingsRegistry } from './registry-ui.import-webpage'
 import { uiImportGeoSettingsRegistry } from './registry-ui.import-geo'
-import { uiBipartiteSettingsRegistry } from './registry-ui.bipartite'
+import { uiFlowchartSettingsRegistry } from './registry-ui.flowchart'
 import { uiMonacoSettingsRegistry } from './registry-ui.monaco'
 import { uiGrabMapsSettingsRegistry } from './registry-ui.grabmaps'
 
@@ -17,7 +17,7 @@ export const uiSettingsRegistry: SettingMeta[] = [
   ...uiMarkdownSettingsRegistry,
   ...uiImportGeoSettingsRegistry,
   ...uiGrabMapsSettingsRegistry,
-  ...uiBipartiteSettingsRegistry,
+  ...uiFlowchartSettingsRegistry,
   ...uiMonacoSettingsRegistry,
   ...uiImportPdfSettingsRegistry,
   ...uiImportYoutubeSettingsRegistry,

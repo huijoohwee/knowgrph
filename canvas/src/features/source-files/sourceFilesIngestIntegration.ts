@@ -2,7 +2,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { createId } from '@/lib/id'
 import { pickFileWithExtensions } from '@/lib/graph/filePicker'
 import { SOURCE_FILES_FORMATS } from '@/lib/config.copy'
-import { deriveFilenameFromUrl, normalizeGitHubBlobLikeUrl, unwrapUserProvidedText } from '@/lib/url'
+import { decodeCodebasePathFromUrl, deriveFilenameFromUrl, normalizeGitHubBlobLikeUrl, unwrapUserProvidedText } from '@/lib/url'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
 import { describeFetchRemoteTextFailure } from '@/lib/net/fetchRemoteTextFailure'
 import { downloadBlob } from '@/lib/graph/save'
@@ -58,14 +58,14 @@ const buildExportFilename = (rawName: string, ext: string) => {
   return `${stem}${ext}`
 }
 
-const isSameOriginRepoFileUrl = (rawUrl: string): boolean => {
+const isSameOriginCodebaseFileUrl = (rawUrl: string): boolean => {
   if (typeof window === 'undefined') return false
   const text = String(rawUrl || '').trim()
   if (!text) return false
   try {
     const parsed = new URL(text, window.location.href)
     if (parsed.origin !== window.location.origin) return false
-    return parsed.pathname.includes('/__repo_file/')
+    return parsed.pathname === '/__codebase_file' && !!decodeCodebasePathFromUrl(parsed.toString())
   } catch {
     return false
   }
@@ -84,7 +84,7 @@ const coerceGrabMapsHttpsUrl = (rawUrl: string): string | null => {
   }
 }
 
-const fetchSameOriginRepoFileText = async (url: string): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
+const fetchSameOriginCodebaseFileText = async (url: string): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
   const target = String(url || '').trim()
   if (!target) return { ok: false, error: 'Request failed' }
   const attempts = 2
@@ -633,8 +633,8 @@ async function importUrlIntoActive(args: { fileId: string | null; url: string; f
       }
     }
 
-    if (isSameOriginRepoFileUrl(normalizedUrl)) {
-      const direct = await fetchSameOriginRepoFileText(normalizedUrl)
+    if (isSameOriginCodebaseFileUrl(normalizedUrl)) {
+      const direct = await fetchSameOriginCodebaseFileText(normalizedUrl)
       if (direct.ok === false) {
         store.updateSourceFile(
           id,

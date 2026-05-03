@@ -2358,6 +2358,9 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirecto
   if (String(panelProps.richMediaActiveTab || '') !== 'text') throw new Error('expected shot text panel richMediaActiveTab=text')
   const posPanel = { x: (shotTextPanel as unknown as { x?: unknown }).x, y: (shotTextPanel as unknown as { y?: unknown }).y }
   if (posPanel.x === posText.x && posPanel.y === posText.y) throw new Error('expected shot panel to not overlap shot text position')
+  if (!(Number(posPanel.y) - Number(posText.y) > 600)) {
+    throw new Error('expected derived director_brief shot panel rows to clear the full widget height instead of overlapping the source widget')
+  }
 
   const shotImagePanel = nodeById.get('db-shot-S01-image-panel') || null
   const shotVideoPanel = nodeById.get('db-shot-S01-video-panel') || null
@@ -2380,6 +2383,36 @@ export function testMarkdownFrontmatterFlowGraphFidelityKnowgrphVideoDemoDirecto
   }
   if (String((((topLevelPanelById.get('p-video-scene')?.properties || {}) as Record<string, unknown>).richMediaActiveTab) || '') !== 'video') {
     throw new Error('expected authored video panel richMediaActiveTab=video')
+  }
+  const authoredFlowXs = ['w-text-script', 'w-img-scene', 'w-video-scene', 'p-text-script', 'p-img-scene', 'p-video-scene']
+    .map(id => Number((nodeById.get(id) as unknown as { x?: unknown } | null)?.x))
+    .filter(Number.isFinite)
+  const shotBandXs = ['db-shot-S01-text', 'db-shot-S01-image', 'db-shot-S01-video', 'db-shot-S05-text', 'db-shot-S05-image', 'db-shot-S05-video']
+    .map(id => Number((nodeById.get(id) as unknown as { x?: unknown } | null)?.x))
+    .filter(Number.isFinite)
+  const authoredFlowYs = ['w-text-script', 'w-img-scene', 'w-video-scene', 'p-text-script', 'p-img-scene', 'p-video-scene']
+    .map(id => Number((nodeById.get(id) as unknown as { y?: unknown } | null)?.y))
+    .filter(Number.isFinite)
+  const shotBandYs = ['db-shot-S01-text', 'db-shot-S01-text-panel', 'db-shot-S05-text', 'db-shot-S05-text-panel']
+    .map(id => Number((nodeById.get(id) as unknown as { y?: unknown } | null)?.y))
+    .filter(Number.isFinite)
+  if (authoredFlowXs.length > 0 && shotBandXs.length > 0) {
+    const authoredMinX = Math.min(...authoredFlowXs)
+    const authoredMaxX = Math.max(...authoredFlowXs)
+    const shotMinX = Math.min(...shotBandXs)
+    const shotMaxX = Math.max(...shotBandXs)
+    const separatedHorizontally =
+      authoredMinX - shotMaxX > 300
+      || shotMinX - authoredMaxX > 300
+    const separatedVertically = authoredFlowYs.length > 0 && shotBandYs.length > 0
+      ? (
+          Math.min(...authoredFlowYs) - Math.max(...shotBandYs) > 300
+          || Math.min(...shotBandYs) - Math.max(...authoredFlowYs) > 300
+        )
+      : false
+    if (!separatedHorizontally && !separatedVertically) {
+      throw new Error('expected derived director_brief shot grid to stay in a separate band so it does not overlap the primary frontmatter flow graph')
+    }
   }
 
   const shot2 = nodeById.get('db-shot-S02-text') || null

@@ -1,4 +1,6 @@
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { importLocalFilesFallback } from '@/features/toolbar/launchDropdownFallbacks'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -11,7 +13,9 @@ import {
   isPendingLocalImportStubText,
   peekPendingWorkspaceLocalImport,
 } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { activateFirstImportedWorkspaceFile } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions'
 import { shouldApplyImportedCanvasDocumentToGraph } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions'
+import { resolveWorkspaceFileJsonLdExport } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/workspaceFileJsonLd'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES } from '@/lib/config'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
@@ -189,7 +193,7 @@ export async function testWorkspaceImportLargeLocalFileDefersHydrationUntilOpen(
   }
 }
 
-export async function testWorkspaceImportWorkspaceFileJsonLdConvertsToMarkdown() {
+export async function testWorkspaceImportWorkspaceFileJsonLdPreservesHighFidelityJsonLdFile() {
   const { restore } = initJsdomHarness()
   try {
     const fs = createMemoryWorkspaceFs()
@@ -217,51 +221,46 @@ export async function testWorkspaceImportWorkspaceFileJsonLdConvertsToMarkdown()
     if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
 
     const entries = await fs.listEntries()
-    const notePath = entries.find(e => e.kind === 'file' && e.name === 'note.md')?.path || ''
-    if (!notePath) throw new Error('expected note.md to be created from workspace file')
+    const notePath = entries.find(e => e.kind === 'file' && e.name === 'note.workspace.jsonld')?.path || ''
+    if (!notePath) throw new Error('expected note.workspace.jsonld to be preserved as a workspace file')
 
     const text = await fs.readFileText(notePath)
-    if (text !== '# Note\n') throw new Error(`expected note.md contents to match workspace document text, got: ${JSON.stringify(text)}`)
+    if (text !== `${JSON.stringify(payload, null, 2)}\n`) {
+      throw new Error(`expected workspace jsonld contents to round-trip exactly, got: ${JSON.stringify(text)}`)
+    }
   } finally {
     restore()
   }
 }
 
-export async function testWorkspaceImportWorkspaceFileJsonLdPreservesMdxExtension() {
-  const { restore } = initJsdomHarness()
-  try {
-    const fs = createMemoryWorkspaceFs()
-    await fs.ensureSeed()
-
-    const payload = {
-      '@context': {
-        kg: 'http://example.org/kg#',
-        version: 'kg:version',
-        document: 'kg:document',
-        path: 'kg:path',
-        text: 'kg:text',
-      },
-      '@type': 'kg:WorkspaceFile',
-      version: 1,
-      document: {
-        '@type': 'kg:WorkspaceDocument',
-        path: 'docs/note.mdx',
-        text: '# Note MDX\n',
-      },
-    }
-
-    const files = [createFile('note.workspace.jsonld', `${JSON.stringify(payload, null, 2)}\n`)]
-    const res = await importWorkspaceLocalFiles({ fs, files, parentPath: '/' })
-    if (res.createdPaths.length !== 1) throw new Error('expected 1 created path')
-
-    const entries = await fs.listEntries()
-    const notePath = entries.find(e => e.kind === 'file' && e.name === 'note.mdx')?.path || ''
-    if (!notePath) throw new Error('expected note.mdx to be created from workspace file')
-
-    const text = await fs.readFileText(notePath)
-    if (text !== '# Note MDX\n') throw new Error(`expected note.mdx contents to match, got: ${JSON.stringify(text)}`)
-  } finally {
-    restore()
+export function testWorkspaceFileJsonLdExportPreservesExistingHighFidelityDocument() {
+  const payload = {
+    '@context': {
+      kg: 'http://example.org/kg#',
+      version: 'kg:version',
+      document: 'kg:document',
+      path: 'kg:path',
+      text: 'kg:text',
+    },
+    '@type': 'kg:WorkspaceFile',
+    version: 1,
+    document: {
+      '@type': 'kg:WorkspaceDocument',
+      path: 'docs/note.mdx',
+      text: '# Note MDX\n',
+    },
+  }
+  const raw = `${JSON.stringify(payload, null, 2)}\n`
+  const exported = resolveWorkspaceFileJsonLdExport({
+    activeDocumentPath: '/imports/note.workspace.jsonld',
+    exportBaseName: 'note',
+    text: raw,
+  })
+  if (exported.name !== 'note.workspace.jsonld') {
+    throw new Error(`expected export to preserve original workspace jsonld filename, got ${exported.name}`)
+  }
+  if (exported.text !== raw) {
+    throw new Error('expected export to preserve existing workspace jsonld content without nested wrapping')
   }
 }
 
@@ -473,6 +472,7 @@ export async function testWorkspaceImportCanvasPresetAppliesNonFrontmatterFlowGr
     const file = createFile('mermaid-frontmatter.md', text)
     const result = await importWorkspaceLocalFiles({ fs, files: [file], parentPath: '/' })
     await applyWorkspaceImportToCanvas({ fs, createdPaths: result.createdPaths, opts: { applyToGraph: true } })
+    await activateFirstImportedWorkspaceFile({ fs, createdPaths: result.createdPaths, applyToGraph: true })
 
     const next = useGraphStore.getState()
     if (next.canvas2dRenderer !== 'flowEditor') {
@@ -483,6 +483,87 @@ export async function testWorkspaceImportCanvasPresetAppliesNonFrontmatterFlowGr
     }
     if (next.frontmatterModeEnabled !== true) {
       throw new Error('expected workspace import to enable frontmatter mode for parsed non-frontmatter-flow graph preset')
+    }
+  } finally {
+    restore()
+  }
+}
+
+export async function testActivateFirstImportedWorkspaceFilePreservesImportedFrontmatterLandingFromPreviousSelection() {
+  const { restore } = initJsdomHarness()
+  try {
+    resetWorkspaceFsForTests()
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    const store = useGraphStore.getState()
+    const explorer = useMarkdownExplorerStore.getState()
+    store.resetAll()
+    store.setCanvasRenderMode('2d')
+    store.setCanvas2dRenderer('d3')
+    store.setDocumentSemanticMode('keyword')
+    store.setFrontmatterModeEnabled(false)
+
+    const priorActiveText = [
+      '---',
+      'title: "Workspace README"',
+      'kgCanvasSurfaceMode: "2d"',
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "d3"',
+      'kgDocumentSemanticMode: "keyword"',
+      'kgFrontmatterModeEnabled: false',
+      'kgMultiDimTableModeEnabled: true',
+      '---',
+      '',
+      '```mermaid',
+      'graph LR',
+      '  A --> B',
+      '```',
+      '',
+    ].join('\n')
+    const priorActiveFile = createFile('README.md', priorActiveText)
+    const priorActiveImport = await importWorkspaceLocalFiles({ fs, files: [priorActiveFile], parentPath: '/' })
+    explorer.setActivePath('/README.md')
+    await applyWorkspaceImportToCanvas({
+      fs,
+      createdPaths: priorActiveImport.createdPaths,
+      opts: { applyToGraph: true, skipComposedGraphApply: true },
+    })
+
+    const afterPriorActiveImport = useGraphStore.getState()
+    if (afterPriorActiveImport.canvas2dRenderer !== 'd3') {
+      throw new Error(`expected prior active import to land on d3, got ${String(afterPriorActiveImport.canvas2dRenderer || '')}`)
+    }
+
+    const videoText = readFileSync(resolve(process.cwd(), '..', 'knowgrph-video-demo.md'), 'utf8')
+    const videoFile = createFile('knowgrph-video-demo.md', videoText)
+    const videoImport = await importWorkspaceLocalFiles({ fs, files: [videoFile], parentPath: '/' })
+    const importedVideoPath = String(videoImport.createdPaths[0] || '').trim()
+    if (!importedVideoPath) {
+      throw new Error('expected imported video path')
+    }
+
+    // Keep the previously active path selected to reproduce stale active-document state.
+    explorer.setActivePath('/README.md')
+    await activateFirstImportedWorkspaceFile({ fs, createdPaths: videoImport.createdPaths, applyToGraph: true })
+
+    const next = useGraphStore.getState()
+    if (useMarkdownExplorerStore.getState().activePath !== importedVideoPath) {
+      throw new Error(`expected import activation to focus imported video doc, got ${String(useMarkdownExplorerStore.getState().activePath || '')}`)
+    }
+    if (next.canvasRenderMode !== '2d') {
+      throw new Error(`expected video import to preserve 2d render mode, got ${String(next.canvasRenderMode || '')}`)
+    }
+    if (next.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected video import to preserve flowEditor renderer, got ${String(next.canvas2dRenderer || '')}`)
+    }
+    if (next.documentSemanticMode !== 'document') {
+      throw new Error(`expected video import to preserve document mode, got ${String(next.documentSemanticMode || '')}`)
+    }
+    if (next.frontmatterModeEnabled !== true) {
+      throw new Error('expected video import to preserve frontmatter mode')
+    }
+    if (next.multiDimTableModeEnabled !== false) {
+      throw new Error('expected video import to preserve multi-dimensional table disablement from frontmatter')
     }
   } finally {
     restore()

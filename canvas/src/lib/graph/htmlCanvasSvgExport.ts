@@ -15,7 +15,7 @@ import { injectMarkdownDesignBlocksIntoSvgEl } from '@/lib/graph/htmlViewer/mark
 import { type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
-import { withD3BipartiteSceneSchema } from '@/lib/canvas/d3BipartiteSchemaOverrides'
+import { withD3FlowchartSceneSchema } from '@/lib/canvas/d3FlowchartSchemaOverrides'
 import { buildGraphMetaKeyIgnoringPending, readBaselineGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import {
   determineLayoutPositions,
@@ -74,7 +74,7 @@ export async function renderGraphCanvasSvgForHtmlExport(args: {
   } = args
 
   const graphDataForDisplay = getGraphDataForDisplay({ graphData, edges: null })
-  const schemaForScene = withD3BipartiteSceneSchema({
+  const schemaForScene = withD3FlowchartSceneSchema({
     schema,
     graphData: graphDataForDisplay,
     canvasRenderMode: '2d',

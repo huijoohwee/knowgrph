@@ -62,8 +62,8 @@ export function usePersistLayoutOnDeactivate2d(args: {
       graphDataRevision: state.graphDataRevision || 0,
     })
     const renderVariant = String(state.canvas2dRenderer || 'd3')
-    const layoutVariant = renderVariant === 'd3Bipartite'
-      ? `bipartite:v4:${semanticModeKey}:${String(frontmatter ? 1 : 0)}:${String(state.infiniteCanvasInteractionMode)}`
+    const layoutVariant = renderVariant === 'flowchart'
+      ? `flowchart:v4:${semanticModeKey}:${String(frontmatter ? 1 : 0)}:${String(state.infiniteCanvasInteractionMode)}`
       : ''
     const graphMetaKey = buildGraphMetaKeyIgnoringPending(graphDataForView)
     const collapsedGroupIdsKey = buildCollapsedGroupIdsKey(state.collapsedGroupIds)

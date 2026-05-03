@@ -18,6 +18,10 @@
 
 **Workspace Persistence**: The `sourceFiles` workspace is persisted locally via IndexedDB (Dexie) so Source Files survive reloads and act as a lightweight file-system abstraction; the persisted payload is intentionally minimal (no heavy parsed graph blobs) and includes workspace metadata (folder name/access mode/selected folder path). Local-folder-backed entries fall back to cached text when folder handles are unavailable.
 
+**Initialization-File Bootstrap Contract**: The default initialization-file family is sourced from `huijoohwee/docs` and materialized into the root of the local workspace as `/README.md`, `/knowgrph-video-demo.md`, and `/knowgrph-maps-grabmap-multim-demo.md`. `README.md` is the canonical D3 document seed, `knowgrph-video-demo.md` is the canonical Flow Editor validation seed, and `knowgrph-maps-grabmap-multim-demo.md` is the canonical geospatial seed. Source Files and workspace bootstrap must treat those root-level workspace paths as the activation ids while treating `huijoohwee/docs` as the source-text SSOT.
+
+**Imported-Document Activation Rule**: During the exact UI import path, the first imported workspace file chosen for focus becomes the active raw-frontmatter authority before any composed source-file replay runs. This prevents a previously selected document from reapplying stale renderer/surface frontmatter over the newly imported preset document.
+
 **Composition Invariant**: Any change to `sourceFiles` (add/remove/clear/toggle/parsed hash updates) must trigger a recomposition via `applyComposedGraphFromSourceFiles()` so the active `graphData` and all graph-tied touchpoints (canvas, curation tables) stay consistent. When Source Files becomes empty, the composed `graphData` must become empty as well (no stale rows).
 
 **Supported Formats**: Local import/export supports `.md .markdown .txt .json .jsonld .csv .html .htm .yaml .yml`, URL sources via `https://…`, and YouTube imports via the YouTube importer.
@@ -72,6 +76,44 @@ sequenceDiagram
   UI->>OPEN: openBottomPanel('curation')
 ```
 
+### Initialization-File Bootstrap → Frontmatter View Landing (Knowgrph)
+
+```mermaid
+sequenceDiagram
+  participant BOOT as workspaceFs.ensureSeed
+  participant DOCS as huijoohwee/docs
+  participant WS as IndexedDB Workspace
+  participant SF as workspaceSeedSourceFiles
+  participant MD as setMarkdownDocument
+  participant FM as applyCanvasFrontmatterPreset
+
+  BOOT->>DOCS: load README/video-demo/maps-demo source text
+  BOOT->>WS: materialize /README.md, /knowgrph-video-demo.md, /knowgrph-maps-grabmap-multim-demo.md
+  WS->>SF: reconcile canonical root-level source-file ids
+  SF->>MD: activate selected initialization file
+  MD->>FM: apply frontmatter-selected renderer/document/surface mode
+```
+
+### UI Import Activation → Frontmatter-Preset Landing (Knowgrph)
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant UI as Import local files
+  participant WS as Workspace Import
+  participant ACT as activateFirstImportedWorkspaceFile
+  participant EXP as Explorer active path
+  participant APP as applyWorkspaceImportToCanvas
+  participant FM as applyCanvasFrontmatterPreset
+
+  U->>UI: import README / video-demo / maps-demo
+  UI->>WS: create workspace files
+  WS->>ACT: pick first imported file for focus
+  ACT->>EXP: set active path to imported file
+  ACT->>APP: apply imported source files to canvas
+  APP->>FM: apply imported file frontmatter as landing SSOT
+```
+
 ### Format-Specific Import (Parse → GraphCanvas Render) (Knowgrph)
 
 ```mermaid
@@ -113,6 +155,9 @@ sequenceDiagram
   - `knowgrph/canvas/src/features/workspace-actions/WorkspaceActionsPanel.tsx` renders Step 3 subsections (Dataset fetch limits + Source Files).
 - **Source Files Ingest (Knowgrph)**:
   - `knowgrph/canvas/src/features/source-files/sourceFilesIngestIntegration.ts` implements Source Files import/export/clear + parse/apply helpers used by the BottomPanel Markdown toolbar.
+  - `knowgrph/canvas/src/features/source-files/workspaceSeedSourceFiles.ts` keeps the canonical source-file aliases for the 3-file initialization family aligned with the root-level workspace paths.
+- **Workspace Seed Bootstrap (Knowgrph)**:
+  - `knowgrph/canvas/src/features/workspace-fs/workspaceFs.ts` loads initialization-file source text from `huijoohwee/docs`, materializes the canonical files into the workspace root, and keeps seed ordering deterministic.
 - **Curation UI (Curagrph)**:
   - `curagrph/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders an Explorer-like sidebar (Source Files + Outline + Backlinks).
   - `curagrph/src/components/BottomPanel/BottomPanelMarkdownSection.tsx` wires selection to `setMarkdownDocument(...)`.
@@ -156,7 +201,7 @@ sequenceDiagram
 - **Iframe implementation**:
   - HTML/JSON always render via sandboxed iframe `srcdoc`.
   - HTML source is fetched via `/__webpage_proxy` (remote or local in-repo path), or read from stored website-import artifacts when available.
-  - For local in-repo webpages, assets resolve through `/__codebase_asset?path=...` (preferred) plus optional `kgWebpageSiteRootRel` for root-relative URLs. `/__repo_file/*` may exist for legacy baseHref flows but should not be relied on by new docs.
+-  - For local in-repo webpages, assets resolve through `/__codebase_asset?path=...` plus optional `kgWebpageSiteRootRel` for root-relative URLs. Local HTML rewriting should target the codebase routes directly instead of relying on path-based baseHref behavior.
   - Script execution baseline is controlled by `webpageViewerScriptPolicy`, but effective per-page behavior is auto by default: shared rich-media + iframe heuristics decide when scripts are required for DOM export versus when they should be stripped.
 - **Iframe sandbox policy**: Use `sandbox="allow-scripts"` with `referrerPolicy="no-referrer"`; forbid top-level navigation. Also set a restrictive `allow` feature policy (no geolocation/camera/mic/payment/clipboard).
 - **Safety invariant**: Switching view must not mutate graph/layout/zoom/layers, trigger re-parsing/apply-to-graph, or write default import settings.

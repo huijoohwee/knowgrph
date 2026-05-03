@@ -5,7 +5,7 @@ import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import { clampSnapGridSize } from '@/lib/canvas/snapGridSize'
 
-export function withD3BipartiteSceneSchema(args: {
+export function withD3FlowchartSceneSchema(args: {
   schema: GraphSchema
   graphData: GraphData
   canvasRenderMode: '2d' | '3d'
@@ -18,7 +18,7 @@ export function withD3BipartiteSceneSchema(args: {
   const meta = (graphData?.metadata || {}) as Record<string, unknown>
   const graphKind = typeof meta.graphKind === 'string' ? meta.graphKind : ''
   const enforceBlockLayout = layoutMode === 'block'
-  if (!enforceBlockLayout && graphKind !== 'bipartite') return schema
+  if (!enforceBlockLayout && graphKind !== 'flowchart') return schema
   const isD3LikeRenderer = isD3Like2dRenderer((canvas2dRenderer || null) as never)
   if (!forceForAny2dRenderer && !isD3LikeRenderer) return schema
   const gridSize = clampSnapGridSize((schema?.behavior?.snapGrid as { size?: unknown } | null)?.size)
@@ -38,7 +38,7 @@ export function withD3BipartiteSceneSchema(args: {
         centerStrength: 0,
         disjointComponents: false,
         postFitForce: false,
-        ...( { bipartiteMode: true } as any ),
+        ...( { flowchartMode: true } as any ),
         linkDistanceByLabel: {
           ...((((schema.layout || {}).forces || {}) as any).linkDistanceByLabel || {}),
           linksTo: snapScalarToGrid(680, gridSize),

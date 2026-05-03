@@ -1,5 +1,5 @@
 import type { GraphData, JSONValue } from '@/lib/graph/types'
-import type { GraphField } from '@/features/graph-fields/graphFields'
+import { getCachedFieldSampleValues, type GraphField } from '@/features/graph-fields/graphFields'
 
 export type FieldSampleFreq = {
   value: string
@@ -11,8 +11,7 @@ export function computeFieldValueFrequencies(
   field: GraphField | null,
 ): FieldSampleFreq[] {
   if (!graphData || !field) return []
-  const { scope, key } = field
-  const ENTITY_SCAN_LIMIT = 5_000
+  const { key } = field
   const UNIQUE_SUGGESTION_LIMIT = 500
   const freqs = new Map<string, number>()
 
@@ -39,21 +38,10 @@ export function computeFieldValueFrequencies(
     else if (typeof value === 'boolean') add(value ? 'true' : 'false')
   }
 
-  const scanNodes = (graphData.nodes || []).slice(0, ENTITY_SCAN_LIMIT)
-  const scanEdges = (graphData.edges || []).slice(0, ENTITY_SCAN_LIMIT)
-
-  if (scope === 'node') {
-    for (const node of scanNodes) {
-      const props = node?.properties || {}
-      collect(props[key] as JSONValue | undefined)
-      if (freqs.size >= UNIQUE_SUGGESTION_LIMIT) break
-    }
-  } else {
-    for (const edge of scanEdges) {
-      const props = edge?.properties || {}
-      collect(props[key] as JSONValue | undefined)
-      if (freqs.size >= UNIQUE_SUGGESTION_LIMIT) break
-    }
+  const values = getCachedFieldSampleValues(graphData, field)
+  for (let i = 0; i < values.length; i += 1) {
+    collect(values[i] as JSONValue | undefined)
+    if (freqs.size >= UNIQUE_SUGGESTION_LIMIT) break
   }
 
   const entries = Array.from(freqs.entries())

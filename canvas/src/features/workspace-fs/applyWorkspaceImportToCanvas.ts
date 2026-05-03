@@ -27,6 +27,7 @@ import { resolveWorkspaceSourceFileInlineText } from './workspaceInlineText'
 
 type ApplyWorkspaceImportToCanvasOpts = {
   applyToGraph?: boolean
+  skipComposedGraphApply?: boolean
   workspaceEntries?: WorkspaceEntry[]
   sourcesByPath?: WorkspaceSourceIndex
 }
@@ -100,6 +101,7 @@ export async function applyWorkspaceImportToCanvas(args: {
 }): Promise<ApplyWorkspaceImportToCanvasResult> {
   const rawCreated = Array.isArray(args.createdPaths) ? args.createdPaths : []
   const applyToGraph = args.opts?.applyToGraph !== false && WORKSPACE_IMPORT_AUTO_APPLY_ENABLED
+  const skipComposedGraphApply = args.opts?.skipComposedGraphApply === true
 
   const createdPaths = Array.from(
     new Set(
@@ -205,6 +207,9 @@ export async function applyWorkspaceImportToCanvas(args: {
     const parserId = typeof res?.parserId === 'string' ? res.parserId : undefined
     const inlineText = resolveWorkspaceSourceFileInlineText(text)
     const hasCanvasFrontmatterPreset = !!parseCanvasWorkspaceFrontmatterPreset(text)
+    if (!preferredInteractiveImportRawText && hasCanvasFrontmatterPreset) {
+      preferredInteractiveImportRawText = text
+    }
     if (!preferredInteractiveImportGraphData && graphData && isFrontmatterFlowGraph(graphData)) {
       preferredInteractiveImportGraphData = graphData
       preferredInteractiveImportRawText = text
@@ -262,7 +267,12 @@ export async function applyWorkspaceImportToCanvas(args: {
 
   if (next) {
     store.setSourceFiles(next)
-    scheduleApplyComposedGraphFromSourceFiles()
+    const preserveInteractiveImportLanding =
+      !!preferredInteractiveImportRawText
+      || sawFrontmatterOnlyDoc
+    if (!skipComposedGraphApply && !preserveInteractiveImportLanding) {
+      scheduleApplyComposedGraphFromSourceFiles()
+    }
     applyInteractiveImportModes({
       graphData: preferredInteractiveImportGraphData,
       frontmatterOnlyDoc: sawFrontmatterOnlyDoc,

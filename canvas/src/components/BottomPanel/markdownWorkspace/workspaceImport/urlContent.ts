@@ -1,6 +1,6 @@
 import {
   buildLocalFsFetchPath,
-  buildRepoFilePath,
+  buildCodebaseFilePath,
   deriveFilenameFromUrl,
   isYouTubeUrl,
   normalizeGitHubBlobLikeUrl,
@@ -14,7 +14,7 @@ import { fetchWebpageHtmlAuto } from '@/lib/websites/webpageIframeSrcdoc'
 import { exportWebpageDomViaHiddenIframe } from '@/lib/websites/webpageDomExport'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
-import { createProgressTicker } from '@/lib/progress/progressTicker'
+import { createProgressSession } from '@/lib/progress/progressTicker'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
 import { htmlFallbackToMarkdownAllText, normalizeWebpageCardAndListBlocks } from './htmlTextFallback'
@@ -311,8 +311,8 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     }
 
     const ctrl = new AbortController()
-    const ticker = opts?.onProgress
-      ? createProgressTicker({ onProgress: opts.onProgress, intervalMs: 300, maxPercentage: 90, maxStepPercentage: 15 })
+    const progressSession = opts?.onProgress
+      ? createProgressSession({ onProgress: opts.onProgress, intervalMs: 300, maxPercentage: 90, maxStepPercentage: 15 })
       : null
 
     let includeImages = true
@@ -324,7 +324,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     let shouldConvertToMarkdown = false
     let shouldFallbackToPlainText = false
     try {
-      ticker?.start()
+      progressSession?.start()
 
       const store = useGraphStore.getState()
       includeImages = store.webpageImportIncludeImages !== false
@@ -501,7 +501,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         return await runInIdle(async () => htmlFallbackToMarkdownAllText(boundedHtml), { timeoutMs: 900 })
       })()
 
-      ticker?.stop()
+      progressSession?.finish(100)
       opts?.onProgress?.(95)
 
       const clipped = clipLargeWebpageMarkdown(upstreamMarkdown)
@@ -530,7 +530,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
         if (recovered.trim() && !isFrontmatterOnlyDoc(recovered)) return { normalizedUrl, name, text: recovered }
       }
     } finally {
-      ticker?.stop()
+      progressSession?.cleanup()
       try {
         ctrl.abort()
       } catch {
@@ -558,7 +558,7 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
     }
 
     opts?.onProgress?.(10)
-    const fetchPath = localFsFetchPath || buildRepoFilePath(localRepoPath)
+    const fetchPath = localFsFetchPath || buildCodebaseFilePath(localRepoPath)
     const res = await fetch(fetchPath, { headers: { Accept: '*/*' } })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const text = await res.text()

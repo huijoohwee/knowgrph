@@ -157,14 +157,14 @@ export const attachSimulationTick = (args: {
       semanticMode === 'document' ||
       semanticMode === 'keyword'
     if (!semanticAllowed) return false
-    const hasBipartiteNodes = (() => {
+    const hasFlowchartNodes = (() => {
       for (let i = 0; i < nodes.length; i += 1) {
         const props = (nodes[i].properties || {}) as Record<string, unknown>
-        if (typeof props['bipartite:side'] === 'string' || props['bipartite:hub'] === true) return true
+        if (typeof props['flowchart:side'] === 'string' || props['flowchart:hub'] === true) return true
       }
       return false
     })()
-    if (hasBipartiteNodes) return false
+    if (hasFlowchartNodes) return false
     const cfg = readRadialOrbitConfig(schema)
     if (!cfg.enabled || nodes.length < 2) return false
     const now = Date.now()
@@ -186,11 +186,11 @@ export const attachSimulationTick = (args: {
       const props = ((e as unknown as { properties?: unknown }).properties || {}) as Record<string, unknown>
       const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(e)
       if (!sourceId || !targetId || sourceId === targetId) continue
-      if (label === 'spokeTo' || props['kg:radarSpoke'] === true || props['bipartite:spoke'] === true) {
+      if (label === 'spokeTo' || props['kg:radarSpoke'] === true || props['flowchart:spoke'] === true) {
         const sourceNode = nodeMap.get(sourceId)
         const targetNode = nodeMap.get(targetId)
-        const sourceHub = sourceNode && (((sourceNode.properties || {}) as Record<string, unknown>)['kg:radarHub'] === true || ((sourceNode.properties || {}) as Record<string, unknown>)['bipartite:hub'] === true)
-        const targetHub = targetNode && (((targetNode.properties || {}) as Record<string, unknown>)['kg:radarHub'] === true || ((targetNode.properties || {}) as Record<string, unknown>)['bipartite:hub'] === true)
+        const sourceHub = sourceNode && (((sourceNode.properties || {}) as Record<string, unknown>)['kg:radarHub'] === true || ((sourceNode.properties || {}) as Record<string, unknown>)['flowchart:hub'] === true)
+        const targetHub = targetNode && (((targetNode.properties || {}) as Record<string, unknown>)['kg:radarHub'] === true || ((targetNode.properties || {}) as Record<string, unknown>)['flowchart:hub'] === true)
         const hubId = sourceHub ? sourceId : targetHub ? targetId : ''
         const nodeId = hubId === sourceId ? targetId : hubId === targetId ? sourceId : ''
         if (hubId && nodeId && !parentByChild.has(nodeId)) parentByChild.set(nodeId, hubId)

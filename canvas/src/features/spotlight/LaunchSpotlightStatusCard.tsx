@@ -13,6 +13,8 @@ import { getBadgeChipClass, getIconSizeClass } from '@/lib/ui'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { openSchemaConfigWorkspaceFile } from '@/features/panels/utils/schemaWorkspaceFiles'
 import { formatSignedPx, formatZoomPercent } from '@/lib/canvas/viewport-format'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 type FlowWidgetTraceEntry = {
   ts?: number
@@ -42,6 +44,7 @@ export function LaunchSpotlightStatusCard({
 }: LaunchSpotlightStatusCardProps) {
   const enableSpotlight = useGraphStore(s => s.enableLaunchSpotlight)
   const graphData = useGraphStore(s => s.graphData)
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds ?? EMPTY_STRING_ARRAY)
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds ?? EMPTY_STRING_ARRAY)
@@ -152,11 +155,26 @@ export function LaunchSpotlightStatusCard({
   })
   const shouldRender = enableSpotlight && !dismissed && ready
 
-  const selectedLabel = (() => {
-    if (!graphData || !Array.isArray(graphData.nodes) || !selectedNodeId) return 'None'
-    const found = graphData.nodes.find(n => n.id === selectedNodeId)
+  const graphLookup = React.useMemo(() => {
+    if (!graphData) return null
+    const graphSemanticKey = buildScopedGraphSemanticKey('launch-spotlight-status-card-graph', {
+      graphData,
+      graphRevision: graphDataRevision,
+    })
+    return getCachedGraphLookup({
+      cacheScope: 'launch-spotlight-status-card-graph',
+      graphData,
+      graphRevision: graphDataRevision,
+      graphSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    })
+  }, [graphData, graphDataRevision])
+
+  const selectedLabel = React.useMemo(() => {
+    if (!selectedNodeId) return 'None'
+    const found = graphLookup?.nodeById.get(selectedNodeId) || null
     return found && typeof found.label === 'string' && found.label.trim() ? found.label : selectedNodeId
-  })()
+  }, [graphLookup, selectedNodeId])
 
   const catalog = schema && schema.catalog
   const catalogNodeTypes = catalog && Array.isArray(catalog.nodeTypes) ? catalog.nodeTypes.length : 0

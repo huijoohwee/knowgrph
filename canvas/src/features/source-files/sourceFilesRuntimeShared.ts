@@ -14,6 +14,7 @@ import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+  isInitializationWorkspacePath,
   resolveWorkspaceStartupActivePath,
 } from '@/features/workspace-fs/workspaceFs'
 
@@ -113,6 +114,9 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
   if (merged !== existing) {
     store.setSourceFiles(merged)
   }
+  const preserveCanonicalInitializationLanding =
+    args?.applyToGraph === true &&
+    isInitializationWorkspacePath(activePath)
   const materialized = await applyWorkspaceImportToCanvas({
     fs,
     createdPaths: [activePath],
@@ -120,9 +124,14 @@ export async function materializeActiveWorkspaceEntryIntoSourceFiles(args?: {
       workspaceEntries,
       sourcesByPath,
       applyToGraph: args?.applyToGraph === true,
+      skipComposedGraphApply: preserveCanonicalInitializationLanding,
     },
   })
-  if (args?.applyToGraph === true && (materialized.parsedCount > 0 || materialized.enabledCount > 0)) {
+  if (
+    !preserveCanonicalInitializationLanding &&
+    args?.applyToGraph === true &&
+    (materialized.parsedCount > 0 || materialized.enabledCount > 0)
+  ) {
     scheduleApplyComposedGraphFromSourceFiles()
   }
 }

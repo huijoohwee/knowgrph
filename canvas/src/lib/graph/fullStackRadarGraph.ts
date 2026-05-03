@@ -1,9 +1,10 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from './types'
+import { isPlainObject } from './value'
 
 type StackEntry = Record<string, unknown>
 
 const asObject = (v: unknown): Record<string, unknown> | null =>
-  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null
+  isPlainObject(v) ? (v as Record<string, unknown>) : null
 
 const asText = (v: unknown): string => (typeof v === 'string' ? v : String(v ?? ''))
 

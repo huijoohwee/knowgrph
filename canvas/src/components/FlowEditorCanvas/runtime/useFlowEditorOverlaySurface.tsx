@@ -1,7 +1,6 @@
 import React from 'react'
 
 import {
-  deriveFrontmatterFlowOverlayNodeIds,
   deriveOpenWidgetOverlayNodeIds,
   FlowEditorWidgetOverlay,
   isCanonicalFrontmatterBuiltInWidgetNode,
@@ -9,9 +8,7 @@ import {
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
-import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
-import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
@@ -24,13 +21,16 @@ import {
   hashSignatureParts,
   normalizeStringArrayForSignature,
 } from '@/lib/hash/signature'
-import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { isFlowEditorQeTraceEnabled, pushFlowEditorQeTrace } from '@/lib/flowEditor/flowEditorQeTrace'
 import {
   buildRichMediaConnectedValueTargetNodeIdSet,
   listDisplayRichMediaOverlayNodes,
 } from '@/lib/render/richMediaSsot'
+import {
+  getCachedFlowEditorRenderGraph,
+  getCachedFlowEditorWidgetPlacementContext,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 
 const EMPTY_GRAPH_NODES: GraphNode[] = []
 const EMPTY_GRAPH_EDGES: GraphEdge[] = []
@@ -163,41 +163,35 @@ export function useFlowEditorOverlaySurface(args: {
     [renderGraphDataOverride, renderGraphDataRevision],
   )
   const renderGraphLookup = React.useMemo(() => {
-    const graph = renderGraphDataOverride
-    const baseLookup = getCachedGraphLookup({
-      cacheScope: 'flow-editor-overlay-surface-render-graph',
-      graphData: graph,
+    return getCachedFlowEditorRenderGraph({
+      scope: 'flow-editor-overlay-surface-render-graph',
+      graphData: renderGraphDataOverride,
       graphRevision: renderGraphDataRevision,
-      graphSemanticKey: renderGraphSemanticKey,
       preferCurrentGraphDataRefs: true,
     })
-    if (!baseLookup) return null
-    const nodes = baseLookup.nodes
-    return {
-      graph,
-      revision: renderGraphDataRevision,
-      nodes,
-      edges: baseLookup.edges,
-      nodeById: baseLookup.nodeById,
-      incidentEdgesByNodeId: baseLookup.incidentEdgesByNodeId,
-      eligibleNodeIds: buildFlowWidgetEligibleNodeIdSet(nodes),
-      graphMetaKind: String(((graph?.metadata || {}) as Record<string, unknown>).kind || '').trim() || null,
-    }
-  }, [renderGraphDataOverride, renderGraphDataRevision, renderGraphSemanticKey])
+  }, [renderGraphDataOverride, renderGraphDataRevision])
   const renderGraphNodes = renderGraphLookup?.nodes || EMPTY_GRAPH_NODES
   const renderGraphEdges = renderGraphLookup?.edges || EMPTY_GRAPH_EDGES
   const renderGraphNodeById = renderGraphLookup?.nodeById || EMPTY_GRAPH_NODE_BY_ID
   const renderGraphIncidentEdgesByNodeId = renderGraphLookup?.incidentEdgesByNodeId || null
   const renderGraphEligibleNodeIds = renderGraphLookup?.eligibleNodeIds || EMPTY_GRAPH_ELIGIBLE_NODE_IDS
-  const renderGraphMetaKind = renderGraphLookup?.graphMetaKind || null
+  const renderGraphPlacementContext = React.useMemo(() => {
+    return getCachedFlowEditorWidgetPlacementContext({
+      graphData: renderGraphDataOverride,
+      graphRevision: renderGraphDataRevision,
+      openWidgetNodeIds: openWidgetNodeIdsSnapshot,
+      preferCurrentGraphDataRefs: true,
+    })
+  }, [openWidgetNodeIdsSnapshot, renderGraphDataOverride, renderGraphDataRevision])
+  const renderGraphMetaKind = renderGraphPlacementContext?.graphMetaKind || renderGraphLookup?.graphMetaKind || null
 
   const overlayEditorNodeIds = React.useMemo(() => {
     if (!flowEditorViewActive) return []
-    const isFrontmatterFlow = renderGraphDataOverride ? isFrontmatterFlowGraph(renderGraphDataOverride) : false
+    const isFrontmatterFlow = renderGraphPlacementContext?.isFrontmatterFlow === true
     const nodes = renderGraphNodes
     const nodeById = renderGraphNodeById
     if (isFrontmatterFlow && nodes.length > 0) {
-      const sorted = deriveFrontmatterFlowOverlayNodeIds(renderGraphDataOverride)
+      const sorted = renderGraphPlacementContext?.frontmatterOverlayNodeIds || []
       if (sorted.length > 0) {
         lastStableOverlayEditorNodeIdsRef.current = sorted
         return sorted
@@ -219,6 +213,7 @@ export function useFlowEditorOverlaySurface(args: {
     flowEditorViewActive,
     overlayDraftNode?.id,
     renderGraphDataOverride,
+    renderGraphPlacementContext,
     openWidgetNodeIdsSnapshot,
     renderGraphEligibleNodeIds,
     renderGraphNodeById,
@@ -272,14 +267,13 @@ export function useFlowEditorOverlaySurface(args: {
   React.useEffect(() => {
     const graphData = renderGraphDataOverrideRef.current
     if (!graphData) return
-    if (!isFrontmatterFlowGraph(graphData)) return
+    if (renderGraphPlacementContext?.isFrontmatterFlow !== true) return
     if (overlayEditorNodeIds.length === 0) return
 
     const st = useGraphStore.getState()
     if (isWorkspaceGraphMutationBlocked(st)) return
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
-    const graphMetaKind = String(((graphData.metadata || {}) as Record<string, unknown>).kind || '').trim()
-    const defaultPinned = resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
+    const defaultPinned = renderGraphPlacementContext?.defaultPinnedInCanvas ?? true
     const missingIds = overlayEditorNodeIds.filter(id => id && !Object.prototype.hasOwnProperty.call(pinnedById, id))
     const missingIdsKey = hashScopedStringArraySignature('missing-frontmatter-pins', missingIds)
     const seedKey = hashSignatureParts([
@@ -304,7 +298,7 @@ export function useFlowEditorOverlaySurface(args: {
     if (!changed) return
     st.setFlowWidgetPinnedByNodeId(nextPinned)
     if (!defaultPinned) scheduleOverlayCollisionResolve()
-  }, [overlayTopologyLayoutSignature, overlayEditorNodeIds, overlayEditorNodeIdsKey, scheduleOverlayCollisionResolve])
+  }, [overlayTopologyLayoutSignature, overlayEditorNodeIds, overlayEditorNodeIdsKey, renderGraphPlacementContext, scheduleOverlayCollisionResolve])
 
   const seededGeospatialOverlayWidgetPinsKeyRef = React.useRef<string>('')
   const overlayEditorNodeIdsSnapshotRef = React.useRef<{ key: string; value: string[] } | null>(null)
@@ -316,8 +310,8 @@ export function useFlowEditorOverlaySurface(args: {
   }
   const overlayEditorNodeIdsSnapshot = overlayEditorNodeIdsSnapshotRef.current.value
   const frontmatterOverlayCoverageActive = React.useMemo(() => {
-    return flowEditorViewActive && isFrontmatterFlowGraph(renderGraphDataOverride)
-  }, [flowEditorViewActive, renderGraphDataOverride])
+    return flowEditorViewActive && renderGraphPlacementContext?.isFrontmatterFlow === true
+  }, [flowEditorViewActive, renderGraphPlacementContext])
 
   React.useEffect(() => {
     if (!geospatialWidgetPanelMode) return
@@ -602,24 +596,13 @@ export function useFlowEditorOverlaySurface(args: {
         frontmatterOverlayOnlyCoverageRef.current = null
         return false
       }
-      if (frontmatterOverlayHideSafety.kind !== 'frontmatter-flow') return true
-      const now = Date.now()
-      if (frontmatterOverlayHideSafety.hasFullOverlayCoverageForVisibleNodes) {
-        frontmatterOverlayOnlyCoverageRef.current = {
-          key: frontmatterOverlayHideSafety.coverageGuardKey,
-          untilMs: now + 1600,
-        }
-        return true
+      if (Boolean(geospatialWidgetPanelMode)) return true
+      if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {
+        // Keep the base FlowCanvas graph visible in document frontmatter mode; overlays augment it.
+        frontmatterOverlayOnlyCoverageRef.current = null
+        return false
       }
-      const stableCoverage = frontmatterOverlayOnlyCoverageRef.current
-      if (
-        stableCoverage
-        && stableCoverage.key === frontmatterOverlayHideSafety.coverageGuardKey
-        && stableCoverage.untilMs > now
-      ) {
-        return true
-      }
-      return false
+      return true
     })()
 
   const overlayOnlyHidePortHandleNodeIds = React.useMemo(() => {

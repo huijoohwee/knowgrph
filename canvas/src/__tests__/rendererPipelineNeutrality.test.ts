@@ -82,8 +82,8 @@ export function testWorkspaceJsonPipelineStaysNeutralAndFileAgnostic() {
   if (text.includes("parseGraph(name || 'workspace.data.json', text)")) {
     throw new Error('expected workspace JSON fallback parsing to avoid hardcoded .json file hints')
   }
-  if (!text.includes('buildBipartiteSourceMeta({')) {
-    throw new Error('expected workspace bipartite parsing to carry shared source metadata')
+  if (!text.includes('buildFlowchartSourceMeta({')) {
+    throw new Error('expected workspace flowchart parsing to carry shared source metadata')
   }
   if (!text.includes("const WORKSPACE_GRAPH_SOURCE = 'workspace:graph'")) {
     throw new Error('expected workspace JSON pipeline to use a neutral workspace graph source identity')

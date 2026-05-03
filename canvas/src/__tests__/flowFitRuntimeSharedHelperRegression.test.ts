@@ -14,6 +14,10 @@ export function testFlowFitRuntimePathsReuseSharedHelpers() {
     resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts'),
     'utf8',
   )
+  const nativeZoomText = readFileSync(
+    resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts'),
+    'utf8',
+  )
 
   if (!fitRuntimeText.includes('export function buildFlowFitOptions') || !fitRuntimeText.includes('export function readFlowEditorPortExtraPadScreenPx')) {
     throw new Error('expected FlowCanvas fit runtime helpers to centralize shared fit option and port padding logic')
@@ -29,5 +33,11 @@ export function testFlowFitRuntimePathsReuseSharedHelpers() {
   }
   if (!runtimeText.includes('buildFlowFitOptions({') || !runtimeText.includes('readFlowEditorPortExtraPadScreenPx(')) {
     throw new Error('expected FlowCanvas runtime to reuse shared Flow fit runtime helpers instead of duplicating fit prep logic')
+  }
+  if (!nativeZoomText.includes('fitFlowEditorPinnedWidgets({') || !nativeZoomText.includes('buildFlowFitOptions({') || !nativeZoomText.includes('readFlowEditorPortExtraPadScreenPx(')) {
+    throw new Error('expected FlowCanvas zoom reset/fit actions to reuse the shared pinned-widget fit and fit-runtime helpers')
+  }
+  if (!nativeZoomText.includes('recenterVisibleFlowEditorOverlayCentroid') || !nativeZoomText.includes('collectCanonicalFlowEditorOverlayRectEntries')) {
+    throw new Error('expected FlowCanvas zoom reset/fit actions to nudge the live visible Flow Editor overlay centroid into the viewport center after the shared fit resolves')
   }
 }

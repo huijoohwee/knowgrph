@@ -2,7 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
-import { computeWidgetScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { viewportCenterToWorld } from '@/lib/zoom/viewport'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -80,7 +80,14 @@ export async function testFlowEditorPinnedWidgetsInitCenteredEvenGrid() {
     const viewportW = 800
     const viewportH = 600
     const center = viewportCenterToWorld({ transform: z, viewportW, viewportH })
-    const panelScale = computeWidgetScale(z.k, null, { mode: 'pinnedInCanvas' })
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK: z.k,
+      viewportW,
+      viewportH,
+      count: ids.length,
+      baseWidth: 360,
+      baseHeight: 520,
+    })
     const panelScreen = computeWidgetScaledSize(panelScale)
     const panelWorldW = panelScreen.width / z.k
     const panelWorldH = panelScreen.height / z.k
@@ -252,7 +259,14 @@ export async function testFlowEditorPinnedWidgetsReseedWhenViewportStabilizes() 
 
     const z = { k: 1, x: 0, y: 0 }
     const center = viewportCenterToWorld({ transform: z, viewportW: 260, viewportH: 600 })
-    const panelScale = computeWidgetScale(z.k, null, { mode: 'pinnedInCanvas' })
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK: z.k,
+      viewportW: 260,
+      viewportH: 600,
+      count: ids.length,
+      baseWidth: 360,
+      baseHeight: 520,
+    })
     const panelScreen = computeWidgetScaledSize(panelScale)
     const panelWorldW = panelScreen.width / z.k
     const panelWorldH = panelScreen.height / z.k
@@ -346,7 +360,14 @@ export async function testFlowEditorPinnedWidgetsReseedWhenInitiallyStacked() {
       throw new Error('expected stacked widgets to reseed into spread positions')
     })()
 
-    const panelScale = computeWidgetScale(1, null, { mode: 'pinnedInCanvas' })
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK: 1,
+      viewportW: 800,
+      viewportH: 600,
+      count: ids.length,
+      baseWidth: 360,
+      baseHeight: 520,
+    })
     const panelScreen = computeWidgetScaledSize(panelScale)
     const rects = ids.map(id => {
       const p = worldById[id]!

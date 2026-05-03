@@ -99,6 +99,15 @@ export function testFlowEditorOverlayOnlyHideRequiresVisibleFrontmatterOverlayCo
   if (!text.includes('const visibleFlowNodeIds = visibleNodeIds.filter')) {
     throw new Error('expected frontmatter overlay safety to limit coverage checks to visible flow-widget nodes')
   }
+  if (!text.includes("if (frontmatterOverlayHideSafety.kind === 'frontmatter-flow') {")) {
+    throw new Error('expected frontmatter-flow overlay guard to branch explicitly before overlay-only canvas suppression')
+  }
+  if (!text.includes('return false')) {
+    throw new Error('expected frontmatter-flow overlay guard to keep the base FlowCanvas graph visible beneath widget overlays')
+  }
+  if (!text.includes('Keep the base FlowCanvas graph visible in document frontmatter mode; overlays augment it.')) {
+    throw new Error('expected frontmatter-flow overlay guard to document why frontmatter widget overlays no longer blank the base graph')
+  }
 }
 
 export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartMediaWhenConfigured() {
@@ -212,9 +221,14 @@ export function testFlowEditorOverlayEdgeSchedulerStabilizesAcrossScrollPanZoom(
 
 export function testFlowEditorOverlayEdgesAnchorThroughSharedOverlayRoots() {
   const edgeHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
   const edgeHookText = readFileSync(edgeHookPath, 'utf8')
-  if (!edgeHookText.includes("import { canonicalNodeIdSetHas, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")) {
-    throw new Error('expected overlay edge renderer to reuse shared canonical overlay identity helpers for workspace-composed graph ids')
+  const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
+  if (!edgeHookText.includes("import {\n  getCachedFlowEditorOverlayEdgeGraph,\n  readCanonicalFlowEditorOverlayIdentity,\n} from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'")) {
+    throw new Error('expected overlay edge renderer to consume shared overlay-edge graph and canonical overlay identity helpers')
+  }
+  if (!renderGraphHelperText.includes("import { canonicalNodeIdSetHas, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'")) {
+    throw new Error('expected shared overlay edge graph helper to reuse canonical overlay identity helpers for workspace-composed graph ids')
   }
   if (!edgeHookText.includes('CANVAS_OVERLAY_PROXY_ROOT_SELECTOR')) {
     throw new Error('expected overlay edge renderer to resolve anchors through the shared Flow Editor overlay surface')
@@ -234,14 +248,17 @@ export function testFlowEditorOverlayEdgesAnchorThroughSharedOverlayRoots() {
   if (!edgeHookText.includes('for (let i = 0; i < domOverlayRootEntries.length; i += 1) {')) {
     throw new Error('expected overlay edge renderer to reuse active overlay-root entries for both node-set and rect collection')
   }
-  if (!edgeHookText.includes('const id = readCanonicalOverlayIdentity(domOverlayRootEntries[i]?.id)')) {
+  if (!edgeHookText.includes('const id = readCanonicalFlowEditorOverlayIdentity(domOverlayRootEntries[i]?.id)')) {
     throw new Error('expected overlay edge renderer to canonicalize active overlay DOM ids before merging them into the edge node set')
   }
-  if (!edgeHookText.includes('canonicalNodeIdSetHas(overlayIdSet, rawNodes[i]?.id)')) {
-    throw new Error('expected overlay edge renderer to match live graph nodes against the canonical overlay id set during workspace-composed id churn')
+  if (!renderGraphHelperText.includes('if (!canonicalNodeIdSetHas(overlayNodeIdSet, sourceRaw) || !canonicalNodeIdSetHas(overlayNodeIdSet, targetRaw)) continue')) {
+    throw new Error('expected shared overlay edge graph helper to match edge endpoints through canonical overlay identities during workspace-composed id churn')
   }
-  if (!edgeHookText.includes('canonicalNodeIdSetHas(overlayIdSet, sourceRaw)') || !edgeHookText.includes('canonicalNodeIdSetHas(overlayIdSet, targetRaw)')) {
-    throw new Error('expected overlay edge renderer to match edge endpoints through canonical overlay identities during workspace-composed id churn')
+  if (!renderGraphHelperText.includes('const source = readCanonicalFlowEditorOverlayIdentity(sourceRaw)')) {
+    throw new Error('expected shared overlay edge graph helper to normalize source endpoint ids before edge rendering reuse')
+  }
+  if (!renderGraphHelperText.includes('const target = readCanonicalFlowEditorOverlayIdentity(targetRaw)')) {
+    throw new Error('expected shared overlay edge graph helper to normalize target endpoint ids before edge rendering reuse')
   }
   if (edgeHookText.includes("const stroke = style?.color || 'currentColor'")) {
     throw new Error('expected overlay edge renderer to avoid currentColor-only fallback strokes that can become non-visible')
@@ -324,14 +341,24 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
   const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
   const selectionBookkeepingText = readFileSync(selectionBookkeepingPath, 'utf8')
+  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
+  const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
   if (!overlaySurfaceText.includes('frontmatterOverlayOnlyCoverageRef')) {
     throw new Error('expected frontmatter overlay-only mode to preserve the last stable full-coverage state across bounded workspace/indexing churn')
   }
-  if (!overlaySurfaceText.includes("cacheScope: 'flow-editor-overlay-surface-render-graph'") || !overlaySurfaceText.includes('getCachedGraphLookup({')) {
-    throw new Error('expected Flow Editor overlay surface to reuse the shared graph lookup helper instead of rebuilding local node maps per graph revision')
+  if (
+    !renderGraphHelperText.includes("cacheScope: scope,")
+    || !renderGraphHelperText.includes('getCachedGraphLookup({')
+    || !overlaySurfaceText.includes("scope: 'flow-editor-overlay-surface-render-graph'")
+    || !overlaySurfaceText.includes('getCachedFlowEditorRenderGraph({')
+  ) {
+    throw new Error('expected Flow Editor overlay surface to reuse the shared render-graph helper instead of rebuilding local node maps per graph revision')
   }
-  if (!selectionBookkeepingText.includes("cacheScope: 'flow-editor-selection-bookkeeping-draft-graph'") || !selectionBookkeepingText.includes('getCachedGraphLookup({')) {
-    throw new Error('expected Flow Editor selection bookkeeping to reuse the shared graph lookup helper before deriving inner-id aliases')
+  if (
+    !selectionBookkeepingText.includes("scope: 'flow-editor-selection-bookkeeping-draft-graph'")
+    || !selectionBookkeepingText.includes('getCachedFlowEditorRenderGraph({')
+  ) {
+    throw new Error('expected Flow Editor selection bookkeeping to reuse the shared render-graph helper before deriving inner-id aliases')
   }
   if (!overlaySurfaceText.includes("'frontmatter-overlay-only-coverage'")) {
     throw new Error('expected frontmatter overlay-only coverage preservation to use a semantic signature instead of raw array identity')
@@ -351,29 +378,29 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
   if (!text.includes('const graph = shouldReuseStableGraph ? stableGraph : liveGraph')) {
     throw new Error('expected overlay edge renderer to preserve the last stable graph while workspace-close hydration transiently reports zero edges')
   }
-  if (!text.includes('const overlayGraphLookupCacheRef = React.useRef<{')) {
-    throw new Error('expected overlay edge renderer to keep a revision-aware graph lookup cache for node and edge filtering')
+  if (!renderGraphHelperText.includes('export function getCachedFlowEditorOverlayEdgeGraph(args: {')) {
+    throw new Error('expected FlowEditor runtime helper to own filtered overlay-edge graph derivation')
   }
-  if (!text.includes('const graphRevision = readGraphDataRevision(graph)')) {
-    throw new Error('expected overlay edge renderer to key lookup reuse from graph revision metadata when available')
+  if (!text.includes('graphRevision: readGraphDataRevision(graph),')) {
+    throw new Error('expected overlay edge renderer to pass graph revisions into the shared filtered overlay-edge helper')
   }
-  if (!text.includes('function buildOverlayNodeHandleSignature(')) {
-    throw new Error('expected overlay edge renderer to derive a semantic node-handle signature for cache invalidation when node port semantics change')
+  if (!renderGraphHelperText.includes('function buildOverlayNodeHandleSignature(')) {
+    throw new Error('expected FlowEditor runtime helper to derive semantic node-handle signatures for overlay-edge cache invalidation')
   }
-  if (!text.includes('const id = readCanonicalOverlayIdentity(node?.id)')) {
-    throw new Error('expected overlay edge node-handle signature to canonicalize workspace-composed overlay node ids before hashing')
+  if (!renderGraphHelperText.includes('const id = readCanonicalFlowEditorOverlayIdentity(node?.id)')) {
+    throw new Error('expected shared overlay-edge helper to canonicalize workspace-composed overlay node ids before hashing')
   }
-  if (!text.includes('const nodeHandleSemanticKey = buildOverlayNodeHandleSignature(rawNodes)')) {
-    throw new Error('expected overlay edge renderer to compute handle cache invalidation from live node semantics before filtering overlay edges')
+  if (!renderGraphHelperText.includes('const nodeHandleSemanticKey = buildOverlayNodeHandleSignature(baseGraph.nodes)')) {
+    throw new Error('expected shared overlay-edge helper to compute handle cache invalidation from the shared base graph semantics')
   }
-  if (!text.includes("hashSignatureParts([\n            'overlay-graph-semantic',")) {
-    throw new Error('expected overlay edge renderer to combine shared topology signature with node-handle semantics when graph revision metadata is absent')
+  if (!renderGraphHelperText.includes("hashSignatureParts([\n        'overlay-graph-semantic',")) {
+    throw new Error('expected shared overlay-edge helper to combine topology signature with node-handle semantics when graph revision metadata is absent')
   }
-  if (!text.includes("const overlayNodeIdsForLookupKey = hashScopedStringArraySignature(")) {
-    throw new Error('expected overlay edge renderer to derive a shared semantic overlay-node key before caching graph lookups')
+  if (!renderGraphHelperText.includes("const overlayNodeIdsKey = hashScopedStringArraySignature('overlay-node-ids', overlayNodeIds, {")) {
+    throw new Error('expected shared overlay-edge helper to derive a semantic overlay-node key before caching filtered graph lookups')
   }
-  if (!text.includes("const graphLookupKey = hashSignatureParts([\n        'overlay-graph-lookup',\n        graphSemanticKey,\n        overlayNodeIdsForLookupKey,")) {
-    throw new Error('expected overlay edge renderer to cache filtered node and edge lookups by semantic overlay-node signature')
+  if (!renderGraphHelperText.includes("const cacheKey = hashSignatureParts([\n    'overlay-graph-lookup',\n    graphSemanticKey,\n    overlayNodeIdsKey,")) {
+    throw new Error('expected shared overlay-edge helper to cache filtered node and edge lookups by semantic overlay-node signature')
   }
   if (!text.includes("const cacheKey = hashSignatureParts([\n          'topPct',\n          graphSemanticKey,")) {
     throw new Error('expected overlay edge handle-position cache to invalidate from semantic graph revisions instead of only overlay ids and edges')
@@ -496,7 +523,9 @@ export function testFlowEditorOverlayEdgesPreserveStableNodeSetAcrossWorkspaceTo
 export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const edgeHookPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
   const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(edgeHookPath, 'utf8')}`
+  const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
 
   if (!text.includes('const overlayEditorNodeIdsRef = React.useRef<string[]>([])')) {
     throw new Error('expected FlowEditor overlay edge renderer to keep a ref of canonical overlay editor node ids')
@@ -531,14 +560,20 @@ export function testFlowEditorOverlayEdgesUseCanonicalOverlayNodeSet() {
     throw new Error('expected overlay edge renderer to reuse the shared endpoint helper instead of local endpoint parsing')
   }
   if (
+    !renderGraphHelperText.includes('readGraphEdgeEndpoints')
+    || !renderGraphHelperText.includes('const { src: sourceRaw, tgt: targetRaw } = readGraphEdgeEndpoints(edge)')
+    || !renderGraphHelperText.includes('if (!canonicalNodeIdSetHas(overlayNodeIdSet, sourceRaw) || !canonicalNodeIdSetHas(overlayNodeIdSet, targetRaw)) continue')
+  ) {
+    throw new Error('expected shared overlay edge graph helper to filter candidate edges with the shared endpoint helper')
+  }
+  if (
     !text.includes('readGraphEdgeEndpoints')
-    || !text.includes('const { src: sourceRaw, tgt: targetRaw } = readGraphEdgeEndpoints(rawEdges[i])')
     || !text.includes('const { src: sourceId, tgt: targetId } = readGraphEdgeEndpoints(e)')
   ) {
-    throw new Error('expected overlay edge renderer to filter candidate edges with the shared endpoint helper')
+    throw new Error('expected overlay edge renderer to reuse normalized edge endpoints from the shared overlay edge graph output')
   }
-  if (!text.includes('const source = readCanonicalOverlayIdentity(sourceRaw)') || !text.includes('const target = readCanonicalOverlayIdentity(targetRaw)')) {
-    throw new Error('expected overlay edge renderer to canonicalize shared edge endpoints before filtering workspace-composed overlay edges')
+  if (!renderGraphHelperText.includes('const source = readCanonicalFlowEditorOverlayIdentity(sourceRaw)') || !renderGraphHelperText.includes('const target = readCanonicalFlowEditorOverlayIdentity(targetRaw)')) {
+    throw new Error('expected shared overlay edge graph helper to canonicalize shared edge endpoints before filtering workspace-composed overlay edges')
   }
   if (!text.includes('Array.isArray(args.overlayEditorNodeIdsRef.current) && args.overlayEditorNodeIdsRef.current.length > 0')) {
     throw new Error('expected overlay edge renderer to prefer canonical overlay editor ids over open widget ids')
@@ -935,6 +970,54 @@ export function testFlowEditorInactiveWarmMountDoesNotMutateWidgetsAcrossRendere
   }
 }
 
+export function testKnowgrphVideoDemoFrontmatterLandingKeepsWidgetsVisibleAgainstFlowCanvasInterference() {
+  const videoDemoPath = resolve(process.cwd(), '..', 'knowgrph-video-demo.md')
+  const runtimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
+  const renderStatePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRenderState.ts')
+  const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const selectionBookkeepingPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorSelectionBookkeeping.ts')
+  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+
+  const videoDemoText = readFileSync(videoDemoPath, 'utf8')
+  const runtimeText = readFileSync(runtimePath, 'utf8')
+  const renderStateText = readFileSync(renderStatePath, 'utf8')
+  const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
+  const selectionBookkeepingText = readFileSync(selectionBookkeepingPath, 'utf8')
+  const flowCanvasText = readFileSync(flowCanvasPath, 'utf8')
+
+  if (!videoDemoText.includes('kgCanvas2dRenderer: "flowEditor"')) {
+    throw new Error('expected knowgrph-video-demo.md to keep Flow Editor as the canonical frontmatter-selected 2D renderer')
+  }
+  if (!videoDemoText.includes('kgDocumentSemanticMode: "document"') || !videoDemoText.includes('kgFrontmatterModeEnabled: true')) {
+    throw new Error('expected knowgrph-video-demo.md to keep document frontmatter mode enabled for widget-visible landing')
+  }
+  if (!runtimeText.includes('const flowEditorViewActive = editorRuntimeActive')) {
+    throw new Error('expected knowgrph-video-demo Flow Editor view visibility to stay bound to the active Flow Editor renderer, not sibling renderer mounts')
+  }
+  if (!renderStateText.includes('const graphDataForRender = args.flowEditorViewActive ? draftGraphData : args.baseGraphData')) {
+    throw new Error('expected knowgrph-video-demo Flow Editor render state to keep draft graph visibility scoped to active Flow Editor view')
+  }
+  if (!overlaySurfaceText.includes('if (!flowEditorViewActive) return []')) {
+    throw new Error('expected knowgrph-video-demo widget overlays to stay view-scoped so inactive Flow Canvas/Flowchart mounts cannot keep or blank widget overlays')
+  }
+  if (!overlaySurfaceText.includes('visible={flowEditorViewActive}') || !overlaySurfaceText.includes('active={canEdit}')) {
+    throw new Error('expected knowgrph-video-demo widget overlays to remain visible in Flow Editor view while decoupling visibility from editability')
+  }
+  if (!selectionBookkeepingText.includes('if (!editorRuntimeActive || !flowEditorViewActive || !draftGraphData) return')) {
+    throw new Error('expected knowgrph-video-demo widget bookkeeping to avoid pruning or mutating visible widget ids from inactive renderer paths')
+  }
+  if (!flowCanvasText.includes("if (canvas2dRenderer === 'flowEditor') {")) {
+    throw new Error('expected Flow Canvas draw args to expose widget overlay state only for the active Flow Editor renderer')
+  }
+  if (
+    !flowCanvasText.includes('drawArgsRef.current.flowEditorWidgetOpenNodeIds = undefined')
+    || !flowCanvasText.includes('drawArgsRef.current.flowEditorWidgetPinnedByNodeId = undefined')
+    || !flowCanvasText.includes('drawArgsRef.current.flowEditorWidgetWorldPosByNodeId = undefined')
+  ) {
+    throw new Error('expected inactive Flow Canvas/Flowchart renderer paths to clear Flow Editor widget draw-state instead of reusing stale visibility state')
+  }
+}
+
 export function testWidgetInitUsesLayoutHydrationAndRafClampCommit() {
   const nodeOverlayEditorPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const text = readFileSync(nodeOverlayEditorPath, 'utf8')
@@ -1119,27 +1202,41 @@ export function testFlowEditorWidgetOverlaysDefaultToFloatingBalancedZoomFollow(
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const placementAuthorityPath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'widgetPlacementAuthority.ts')
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
+  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
   const overlaySurfaceText = readFileSync(overlaySurfacePath, 'utf8')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
   const placementAuthorityText = readFileSync(placementAuthorityPath, 'utf8')
   const overlayText = readFileSync(overlayPath, 'utf8')
+  const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
   if (overlaySurfaceText.includes('forcePinnedToCanvas')) {
     throw new Error('expected FlowEditor overlay widgets to avoid legacy force-pinned canvas mode')
   }
   if (!placementAuthorityText.includes('export function resolveDefaultFlowWidgetPinnedInCanvas')) {
     throw new Error('expected FlowEditor widget placement authority to expose shared default pinning rules')
   }
+  if (!renderGraphHelperText.includes('export function getCachedFlowEditorWidgetPlacementContext(args: {')) {
+    throw new Error('expected FlowEditor runtime helper to centralize widget placement context derivation')
+  }
   if (!runtimeSceneText.includes("return typeof v === 'boolean' ? v : defaultPinnedInCanvas")) {
     throw new Error('expected zoom-follow pinned buckets to defer undefined pin state to shared default pinning rules')
+  }
+  if (!runtimeSceneText.includes('const widgetPlacementContext = getCachedFlowEditorWidgetPlacementContext({')) {
+    throw new Error('expected runtime scene to reuse the shared widget placement context for frontmatter seeding decisions')
   }
   if (!overlayText.includes("openWidgetNodeCount: Array.isArray(s.openWidgetNodeIds) ? s.openWidgetNodeIds.length : 0")) {
     throw new Error('expected widget overlay scale follow to depend on semantic open-widget count rather than raw array identity')
   }
-  if (!overlaySurfaceText.includes("incidentEdgesByNodeId: baseLookup.incidentEdgesByNodeId")) {
-    throw new Error('expected overlay surface to reuse cached per-node incident edges from the shared graph lookup')
+  if (!renderGraphHelperText.includes('incidentEdgesByNodeId: baseLookup.incidentEdgesByNodeId')) {
+    throw new Error('expected FlowEditor render-graph helper to reuse cached per-node incident edges from the shared graph lookup')
+  }
+  if (!renderGraphHelperText.includes('const defaultPinnedInCanvas = resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })')) {
+    throw new Error('expected widget placement context helper to own shared default pinning rules')
   }
   if (!overlaySurfaceText.includes("const portHandleEdges = incidentEdgesByNodeId?.get(id) || EMPTY_GRAPH_EDGES")) {
     throw new Error('expected overlay surface to pass only node-local cached edges into each widget overlay')
+  }
+  if (!overlaySurfaceText.includes('const renderGraphPlacementContext = React.useMemo(() => {')) {
+    throw new Error('expected overlay surface to reuse the shared widget placement context')
   }
   if (!overlayText.includes('registryEntries={registryEntries}')) {
     throw new Error('expected widget overlay editor to reuse upstream merged registry entries instead of rebuilding a local registry')

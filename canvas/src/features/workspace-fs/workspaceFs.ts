@@ -1,7 +1,7 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
-import { buildRepoFilePath } from '@/lib/url'
+import { buildCodebaseFilePath } from '@/lib/url'
 
 const notifyWorkspaceFsDegraded = async (err: unknown) => {
   try {
@@ -240,29 +240,115 @@ export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
 ])
-export const WORKSPACE_README_SEED_REL_PATH = 'README.md'
+export const WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH = readEnvString(
+  'VITE_WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH',
+  'huijoohwee/docs',
+)
+const buildInitializationSeedRelPath = (basename: string): string => {
+  const root = String(WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+  const name = String(basename || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+  if (!root) return name
+  if (!name) return root
+  return `${root}/${name}`
+}
+export const WORKSPACE_README_SEED_REL_PATH = buildInitializationSeedRelPath('README.md')
 export const WORKSPACE_README_SEED_PATH = '/README.md' as WorkspacePath
-export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = 'knowgrph-video-demo.md'
+export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = buildInitializationSeedRelPath('knowgrph-video-demo.md')
 export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
 )
 export const CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE =
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
-const normalizedValidationSeedPath = normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
+const normalizedValidationSeedSourcePath = normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
 export const TEST_VALIDATION_WORKSPACE_SEED_PATH =
-  normalizedValidationSeedPath === WORKSPACE_ROOT_PATH
-    ? ('/sandbox/test-data/test-generate-video/knowgrph-demo-video.md' as WorkspacePath)
-    : normalizedValidationSeedPath
+  CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE
+    ? (
+        normalizedValidationSeedSourcePath === WORKSPACE_ROOT_PATH
+          ? ('/sandbox/test-data/test-generate-video/knowgrph-demo-video.md' as WorkspacePath)
+          : normalizedValidationSeedSourcePath
+      )
+    : normalizeWorkspacePath('knowgrph-video-demo.md')
+export const GEOSPATIAL_WORKSPACE_SEED_REL_PATH = buildInitializationSeedRelPath('knowgrph-maps-grabmap-multim-demo.md')
+export const GEOSPATIAL_WORKSPACE_SEED_PATH = normalizeWorkspacePath('knowgrph-maps-grabmap-multim-demo.md')
+const DEFAULT_WORKSPACE_README_TEXT = [
+  '---',
+  'title: "Knowgrph"',
+  'kgCanvasSurfaceMode: "2d"',
+  'kgCanvasRenderMode: "2d"',
+  'kgCanvas2dRenderer: "d3"',
+  'kgDocumentSemanticMode: "document"',
+  'kgFrontmatterModeEnabled: true',
+  'kgMultiDimTableModeEnabled: false',
+  'kgDocumentStructureBaselineLock: false',
+  '---',
+  '',
+  '# Write it. See it. Ship it.',
+  '',
+  'Workspace seed fallback for `README.md`.',
+].join('\n')
+const DEFAULT_VALIDATION_WORKSPACE_SEED_TEXT = [
+  '---',
+  `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-video-demo.md'}"`,
+  'kgCanvasSurfaceMode: "2d"',
+  'kgCanvasRenderMode: "2d"',
+  'kgCanvas2dRenderer: "flowEditor"',
+  'kgDocumentSemanticMode: "document"',
+  'kgFrontmatterModeEnabled: true',
+  'kgMultiDimTableModeEnabled: false',
+  'kgDocumentStructureBaselineLock: false',
+  '---',
+  '',
+  `Validation seed fallback for \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`,
+].join('\n')
+const DEFAULT_GEOSPATIAL_WORKSPACE_SEED_TEXT = [
+  '---',
+  'title: "Knowgrph Maps GrabMap Multim Demo"',
+  'kgCanvasSurfaceMode: "geospatial"',
+  'kgCanvas2dRenderer: "flowEditor"',
+  'kgDocumentSemanticMode: "document"',
+  'kgFrontmatterModeEnabled: true',
+  'kgMultiDimTableModeEnabled: false',
+  'kgDocumentStructureBaselineLock: false',
+  '---',
+  '',
+  `Geospatial seed fallback for \`${GEOSPATIAL_WORKSPACE_SEED_REL_PATH}\`.`,
+].join('\n')
+type WorkspaceSeedSpec = {
+  path: WorkspacePath
+  sourceRelPath: string
+  fallbackText: string
+}
+const WORKSPACE_SEED_SPECS: readonly WorkspaceSeedSpec[] = [
+  {
+    path: WORKSPACE_README_SEED_PATH,
+    sourceRelPath: WORKSPACE_README_SEED_REL_PATH,
+    fallbackText: DEFAULT_WORKSPACE_README_TEXT,
+  },
+  {
+    path: TEST_VALIDATION_WORKSPACE_SEED_PATH,
+    sourceRelPath: TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+    fallbackText: DEFAULT_VALIDATION_WORKSPACE_SEED_TEXT,
+  },
+  {
+    path: GEOSPATIAL_WORKSPACE_SEED_PATH,
+    sourceRelPath: GEOSPATIAL_WORKSPACE_SEED_REL_PATH,
+    fallbackText: DEFAULT_GEOSPATIAL_WORKSPACE_SEED_TEXT,
+  },
+]
+const WORKSPACE_SEED_PATH_SET = new Set<WorkspacePath>(WORKSPACE_SEED_SPECS.map(seed => seed.path))
 const DEFAULT_WORKSPACE_SEED_FAMILY_PATHS = new Set<WorkspacePath>([
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
-  WORKSPACE_README_SEED_PATH,
-  TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  ...WORKSPACE_SEED_SPECS.map(seed => seed.path),
 ])
-const DEFAULT_VALIDATION_DEMO_ANCESTOR_PATHS = new Set<WorkspacePath>(
-  ancestorPathsForWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_PATH),
-)
 export const LEGACY_WORKSPACE_README_TEXT = [
   '# Workspace',
   '',
@@ -275,26 +361,11 @@ export const LEGACY_WORKSPACE_README_TEXT = [
   'This workspace is stored locally in your browser.',
 ].join('\n')
 
-const DEFAULT_WORKSPACE_README_TEXT = [
-  '---',
-  'title: "Knowgrph"',
-  'kgCanvasRenderMode: "2d"',
-  'kgCanvas2dRenderer: "d3"',
-  'kgDocumentSemanticMode: "document"',
-  'kgFrontmatterModeEnabled: true',
-  'kgDocumentStructureBaselineLock: false',
-  '---',
-  '',
-  '# Write it. See it. Ship it.',
-  '',
-  'Workspace seed fallback for `README.md`.',
-].join('\n')
-
 const loadWorkspaceSeedText = async (relPath: string, fallbackText: string): Promise<string> => {
-  const repoFilePath = buildRepoFilePath(relPath)
+  const codebaseFilePath = buildCodebaseFilePath(relPath)
   if (typeof fetch === 'function') {
     try {
-      const res = await fetch(repoFilePath)
+      const res = await fetch(codebaseFilePath)
       if (res.ok) {
         const text = (await res.text()).trim()
         if (text) return text
@@ -306,31 +377,10 @@ const loadWorkspaceSeedText = async (relPath: string, fallbackText: string): Pro
   return fallbackText
 }
 
-const loadReadmeWorkspaceSeedText = async (): Promise<string> =>
-  loadWorkspaceSeedText(WORKSPACE_README_SEED_REL_PATH, DEFAULT_WORKSPACE_README_TEXT)
-
-const loadValidationWorkspaceSeedText = async (): Promise<string> => {
-  return loadWorkspaceSeedText(
-    TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
-    [
-      '---',
-      `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-demo-video.md'}"`,
-      'kgCanvasRenderMode: "2d"',
-      'kgCanvas2dRenderer: "flowEditor"',
-      'kgDocumentSemanticMode: "document"',
-      'kgFrontmatterModeEnabled: true',
-      'kgDocumentStructureBaselineLock: false',
-      '---',
-      '',
-      `Validation seed fallback for \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`,
-    ].join('\n'),
-  )
-}
-
 export function isInitializationWorkspacePath(path: WorkspacePath | null | undefined): boolean {
   const normalized = path ? normalizeWorkspacePath(path) : null
   if (!normalized) return false
-  return normalized === WORKSPACE_README_SEED_PATH || normalized === TEST_VALIDATION_WORKSPACE_SEED_PATH
+  return WORKSPACE_SEED_PATH_SET.has(normalized)
 }
 
 export function buildWorkspaceSeedFileEntry(path: WorkspacePath, text: string, updatedAtMs = Date.now()): WorkspaceEntry {
@@ -367,14 +417,13 @@ export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string
 }
 
 export async function getWorkspaceSeedFiles(): Promise<Array<{ path: WorkspacePath; text: string }>> {
-  const [readmeText, validationText] = await Promise.all([
-    loadReadmeWorkspaceSeedText(),
-    loadValidationWorkspaceSeedText(),
-  ])
-  return [
-    { path: WORKSPACE_README_SEED_PATH, text: readmeText || DEFAULT_WORKSPACE_README_TEXT },
-    { path: TEST_VALIDATION_WORKSPACE_SEED_PATH, text: validationText || DEFAULT_WORKSPACE_README_TEXT },
-  ]
+  const loaded = await Promise.all(
+    WORKSPACE_SEED_SPECS.map(async seed => ({
+      path: seed.path,
+      text: (await loadWorkspaceSeedText(seed.sourceRelPath, seed.fallbackText)) || seed.fallbackText,
+    })),
+  )
+  return loaded
 }
 
 export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<WorkspacePath>): boolean {
@@ -388,10 +437,7 @@ export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<Works
     LEGACY_WORKSPACE_TRIP_DEMO_PATH,
     TEST_VALIDATION_WORKSPACE_SEED_PATH,
   ])
-  const nextSeedPaths = new Set<WorkspacePath>([
-    WORKSPACE_README_SEED_PATH,
-    TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  ])
+  const nextSeedPaths = WORKSPACE_SEED_PATH_SET
   let alreadyOnNextSeedSet = normalized.length === nextSeedPaths.size
   if (alreadyOnNextSeedSet) {
     for (const path of normalized) {
@@ -416,10 +462,7 @@ export function shouldReconcileDefaultWorkspaceSeedFamily(paths: ReadonlyArray<W
   for (let i = 0; i < normalized.length; i += 1) {
     if (!DEFAULT_WORKSPACE_SEED_FAMILY_PATHS.has(normalized[i]!)) return false
   }
-  const nextSeedPaths = new Set<WorkspacePath>([
-    WORKSPACE_README_SEED_PATH,
-    TEST_VALIDATION_WORKSPACE_SEED_PATH,
-  ])
+  const nextSeedPaths = WORKSPACE_SEED_PATH_SET
   if (normalized.length !== nextSeedPaths.size) return true
   for (let i = 0; i < normalized.length; i += 1) {
     if (!nextSeedPaths.has(normalized[i]!)) return true
@@ -477,13 +520,15 @@ export function sortWorkspaceEntriesForExplorer(entries: ReadonlyArray<Workspace
     .map(entry => normalizeWorkspacePath(entry.path))
     .filter((path): path is WorkspacePath => Boolean(path))
   const isDefaultSeedOnly = isDefaultWorkspaceSeedFamilyOnly(workspaceFilePaths)
+  const canonicalSeedRankByPath = new Map<WorkspacePath, number>(
+    WORKSPACE_SEED_SPECS.map((seed, index) => [seed.path, index]),
+  )
   const rank = (entry: WorkspaceEntry): number => {
     const path = normalizeWorkspacePath(entry.path)
     if (!isDefaultSeedOnly) return entry.kind === 'folder' ? 0 : 1
-    if (path === WORKSPACE_README_SEED_PATH) return 0
-    if (entry.kind === 'folder' && DEFAULT_VALIDATION_DEMO_ANCESTOR_PATHS.has(path)) return 1
-    if (path === TEST_VALIDATION_WORKSPACE_SEED_PATH) return 2
-    return entry.kind === 'folder' ? 3 : 4
+    const canonicalRank = canonicalSeedRankByPath.get(path)
+    if (typeof canonicalRank === 'number') return canonicalRank
+    return entry.kind === 'folder' ? WORKSPACE_SEED_SPECS.length : WORKSPACE_SEED_SPECS.length + 1
   }
   list.sort((a, b) => {
     const rankDiff = rank(a) - rank(b)

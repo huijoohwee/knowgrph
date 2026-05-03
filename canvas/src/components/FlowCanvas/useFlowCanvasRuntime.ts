@@ -146,6 +146,22 @@ export function useFlowCanvasRuntime(args: {
     zoomToSelectionMode,
     viewPinned,
   } = args
+  const frontmatterFlowInitialFitFillRatio = useGraphStore(s => s.frontmatterFlowInitialFitFillRatio)
+  const frontmatterFlowOverlayFitProxyScalePhone = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScalePhone)
+  const frontmatterFlowOverlayFitProxyScaleTablet = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleTablet)
+  const frontmatterFlowOverlayFitProxyScaleLaptop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleLaptop)
+  const frontmatterFlowOverlayFitProxyScaleDesktop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleDesktop)
+  const frontmatterOverlayFitProxyScales = React.useMemo(() => ({
+    phone: frontmatterFlowOverlayFitProxyScalePhone,
+    tablet: frontmatterFlowOverlayFitProxyScaleTablet,
+    laptop: frontmatterFlowOverlayFitProxyScaleLaptop,
+    desktop: frontmatterFlowOverlayFitProxyScaleDesktop,
+  }), [
+    frontmatterFlowOverlayFitProxyScaleDesktop,
+    frontmatterFlowOverlayFitProxyScaleLaptop,
+    frontmatterFlowOverlayFitProxyScalePhone,
+    frontmatterFlowOverlayFitProxyScaleTablet,
+  ])
 
   React.useEffect(() => {
     if (!active) return
@@ -176,6 +192,7 @@ export function useFlowCanvasRuntime(args: {
       documentSemanticMode,
       documentStructureBaselineLock,
       enableDocumentStructureBounds: true,
+      frontmatterFlowInitialFitFillRatio,
     })
     const fit = fitFlowEditorPinnedWidgets({
       nodes,
@@ -188,6 +205,7 @@ export function useFlowCanvasRuntime(args: {
       portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema),
       graphData: graphDataForZoomRequests,
       fitOpts: opts,
+      frontmatterOverlayFitProxyScales,
     })
     setFlowAutoMinScale(runtime, typeof fit?.k === 'number' && fit.k > 0 ? fit.k : null)
   }, [
@@ -199,6 +217,8 @@ export function useFlowCanvasRuntime(args: {
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
     frontmatterModeEnabled,
+    frontmatterFlowInitialFitFillRatio,
+    frontmatterOverlayFitProxyScales,
     graphDataForZoomRequests,
     multiDimTableModeEnabled,
     openWidgetNodeIds,
@@ -307,8 +327,9 @@ export function useFlowCanvasRuntime(args: {
       initial == null &&
       lastBuiltGraphKeyRef.current.length > 0
     if (lateFlowEditorInitAfterSceneBuild) {
-      lastInitTransformZoomViewKeyRef.current = initKey
-      return
+      // The scene can build before the Flow Editor zoom key is initialized.
+      // Continue into fit so the first visible frame does not stay frozen at identity.
+      void lastBuiltGraphKeyRef
     }
     const opts = buildFlowFitOptions({
       schema: state.schema,

@@ -406,14 +406,15 @@ const markdownPipelineDevPlugin = {
   },
 }
 
-function resolveHackamapBipartiteFixturePath(): string | null {
+function resolveHackamapFlowchartFixturePath(): string | null {
   const fromEnv =
-    String(process.env.KNOWGRPH_BIPARTITE_FIXTURE_PATH || '').trim() ||
-    String(process.env.VITE_KNOWGRPH_BIPARTITE_FIXTURE_PATH || '').trim()
+    String(process.env.KNOWGRPH_FLOWCHART_FIXTURE_PATH || '').trim() ||
+    String(process.env.VITE_KNOWGRPH_FLOWCHART_FIXTURE_PATH || '').trim()
 
   const candidates = [
     fromEnv,
-    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'hackamap', 'hackamap-df-06-d3-snippet.json'),
+    path.resolve(repoRoot, '..', 'huijoohwee', 'content', 'hackamap', 'hackamap-flowchart-fixture.json'),
+    path.resolve(repoRoot, '..', 'project', 'prjt4000-hackamap', 'site', 'hackamap-flowchart-fixture.json'),
   ].filter(Boolean)
 
   for (const p of candidates) {
@@ -845,19 +846,19 @@ const apiGraphDevPlugin = {
   },
 }
 
-const bipartiteFixtureDevPlugin = {
-  name: 'knowgrph-bipartite-fixture-dev',
+const flowchartFixtureDevPlugin = {
+  name: 'knowgrph-flowchart-fixture-dev',
   configureServer(server: import('vite').ViteDevServer) {
-    server.middlewares.use('/__bipartite_fixture', async (req, res, next) => {
+    server.middlewares.use('/__flowchart_fixture', async (req, res, next) => {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         next()
         return
       }
-      const fixturePath = resolveHackamapBipartiteFixturePath()
+      const fixturePath = resolveHackamapFlowchartFixturePath()
       if (!fixturePath) {
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ problems: [], solutions: [], metadata: { source: '__bipartite_fixture:fallback' } }))
+        res.end(JSON.stringify({ problems: [], solutions: [], metadata: { source: '__flowchart_fixture:fallback' } }))
         return
       }
 
@@ -883,16 +884,16 @@ const bipartiteFixtureDevPlugin = {
     })
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
-    server.middlewares.use('/__bipartite_fixture', async (req, res, next) => {
+    server.middlewares.use('/__flowchart_fixture', async (req, res, next) => {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         next()
         return
       }
-      const fixturePath = resolveHackamapBipartiteFixturePath()
+      const fixturePath = resolveHackamapFlowchartFixturePath()
       if (!fixturePath) {
         res.statusCode = 200
         res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ problems: [], solutions: [], metadata: { source: '__bipartite_fixture:fallback' } }))
+        res.end(JSON.stringify({ problems: [], solutions: [], metadata: { source: '__flowchart_fixture:fallback' } }))
         return
       }
 
@@ -1245,7 +1246,6 @@ const webpageProxyDevPlugin = {
         res.end(JSON.stringify({ ok: false, error: 'webpage meta handler failed' }))
       }
     })
-    server.middlewares.use('/__repo_file', createRepoFileHandler())
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
     server.middlewares.use('/__webpage_proxy', createWebpageProxyHandler())
@@ -1261,7 +1261,6 @@ const webpageProxyDevPlugin = {
         res.end(JSON.stringify({ ok: false, error: 'webpage meta handler failed' }))
       }
     })
-    server.middlewares.use('/__repo_file', createRepoFileHandler())
   },
 }
 
@@ -3029,7 +3028,6 @@ function injectWebpageProxyHtml(opts: { html: string; originalUrl: string; scrip
       '      if (p.startsWith("/__webpage_proxy")) return true;',
       '      if (p.startsWith("/__webpage_asset_proxy")) return true;',
       '      if (p.startsWith("/__webpage_asset_path")) return true;',
-      '      if (p.startsWith("/__repo_file")) return true;',
       '      if (p.startsWith("/__fetch_remote")) return true;',
       '    } catch {',
       '      void 0;',
@@ -4359,104 +4357,6 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
   }
 }
 
-function createRepoFileHandler(): import('vite').Connect.NextHandleFunction {
-  return async (req, res, next) => {
-    if (req.method === 'OPTIONS') {
-      res.statusCode = 204
-      res.setHeader('Access-Control-Allow-Origin', '*')
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
-      res.setHeader('Access-Control-Allow-Headers', '*')
-      res.setHeader('Access-Control-Max-Age', '86400')
-      res.end()
-      return
-    }
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      next()
-      return
-    }
-
-    const repoPath = (() => {
-      try {
-        const parsed = new URL(req.url || '', `http://${req.headers.host}`)
-        const p = parsed.pathname.replace(/^\/__repo_file\/?/, '')
-        return decodeURIComponent(p).replace(/\\/g, '/').replace(/^\/+/, '')
-      } catch {
-        return ''
-      }
-    })()
-
-    if (!repoPath || repoPath.includes('..')) {
-      res.statusCode = 400
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-      res.end('Missing or invalid path')
-      return
-    }
-
-    const roots = [path.resolve(repoRoot), path.resolve(repoRoot, '..')]
-
-    try {
-      let fileAbs: string | null = null
-      let content: Buffer | null = null
-      for (const rootResolved of roots) {
-        const candidate = path.resolve(rootResolved, repoPath)
-        if (!candidate.startsWith(rootResolved + path.sep) && candidate !== rootResolved) continue
-        try {
-          const stat = await fs.stat(candidate)
-          if (!stat.isFile()) continue
-          fileAbs = candidate
-          content = await fs.readFile(candidate)
-          break
-        } catch {
-          continue
-        }
-      }
-      if (!fileAbs || !content) {
-        res.statusCode = 404
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-        res.end('Not found')
-        return
-      }
-      const ext = path.extname(fileAbs).toLowerCase()
-      const types: Record<string, string> = {
-        '.html': 'text/html',
-        '.htm': 'text/html',
-        '.css': 'text/css',
-        '.js': 'text/javascript',
-        '.mjs': 'text/javascript',
-        '.json': 'application/json',
-        '.md': 'text/markdown',
-        '.markdown': 'text/markdown',
-        '.mdx': 'text/markdown',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.gif': 'image/gif',
-        '.svg': 'image/svg+xml',
-        '.woff': 'font/woff',
-        '.woff2': 'font/woff2',
-        '.ttf': 'font/ttf',
-        '.eot': 'application/vnd.ms-fontobject',
-        '.otf': 'font/otf',
-        '.ico': 'image/x-icon',
-      }
-      const contentType = types[ext] || 'application/octet-stream'
-      res.statusCode = 200
-      res.setHeader('Content-Type', contentType)
-      res.setHeader('Cache-Control', 'no-store')
-      res.setHeader('Access-Control-Allow-Origin', '*')
-      if (req.method === 'HEAD') {
-        res.end()
-        return
-      }
-      res.end(content)
-    } catch {
-      res.statusCode = 500
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-      res.end('Failed to load repo file')
-    }
-  }
-}
-
 function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
   const MAX_BODY_BYTES = 25_000_000
   const workspaceMirrorRoot = path.resolve(repoRoot, '..')
@@ -5698,7 +5598,7 @@ export default defineConfig(({ command }) => ({
           stripeCheckoutDevPlugin,
           markdownPipelineDevPlugin,
           apiGraphDevPlugin,
-          bipartiteFixtureDevPlugin,
+          flowchartFixtureDevPlugin,
           codebaseFileDevPlugin,
           remoteFetchProxyDevPlugin,
           grabMapsProxyDevPlugin,

@@ -4,6 +4,7 @@ import {
   FLOW_EDGE_TARGET_PORT_KEY,
 } from '@/lib/graph/flowPorts'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort, WidgetRegistrySchemaMapping } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
@@ -13,6 +14,7 @@ import { readFlowComputeSource, runFlowComputeSource } from '@/lib/flowEditor/fl
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { isPlainObject } from '@/lib/graph/value'
 
 export type FlowConnectedValueSource = {
   edgeId: string
@@ -60,8 +62,8 @@ function registryCollectionKey(registry: ReadonlyArray<WidgetRegistryEntry>): st
   return parts.join('\n')
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
 }
 
 function buildConnectedValuesTargetKey(targetNodeIds?: ReadonlySet<string>): string {
@@ -99,7 +101,7 @@ function buildConnectedValuesGraphKey(args: {
     parts.push(
       cleanString(node?.id),
       cleanString(node?.type),
-      hashRecordSignature32((node?.properties || {}) as Record<string, unknown>, { maxEntries: 80, maxDepth: 3 }),
+      hashRecordSignature32(readNodeProperties(node), { maxEntries: 80, maxDepth: 3 }),
     )
   }
   parts.push('edges', edges.length)
@@ -110,7 +112,7 @@ function buildConnectedValuesGraphKey(args: {
       cleanString((edge as unknown as { id?: unknown })?.id),
       src || '',
       tgt || '',
-      hashRecordSignature32((edge?.properties || {}) as Record<string, unknown>, { maxEntries: 40, maxDepth: 2 }),
+      hashRecordSignature32(readPlainObject(edge?.properties) || {}, { maxEntries: 40, maxDepth: 2 }),
     )
   }
   return hashSignatureParts(parts)
@@ -159,7 +161,7 @@ function normalizeSchemaPath(schemaPath: string | undefined, fallbackKey: string
 }
 
 function readFlowEdgePortKey(edge: GraphEdge, key: string): string {
-  const props = isRecord(edge?.properties) ? (edge.properties as Record<string, unknown>) : null
+  const props = readPlainObject(edge?.properties)
   return cleanString(props?.[key])
 }
 

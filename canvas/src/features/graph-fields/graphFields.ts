@@ -149,8 +149,20 @@ const DERIVED_FIELD_NESTED_MAX_DEPTH = 4
 const DERIVED_FIELD_NESTED_SCAN_LIMIT = 20_000
 const DERIVED_FIELDS_CACHE_LIMIT = 12
 const RESOLVED_FIELD_SETTINGS_CACHE_LIMIT = 16
+const FIELD_SAMPLE_VALUES_CACHE_LIMIT = 48
+const GRAPH_FIELD_OWNER_SUMMARY_CACHE_LIMIT = 24
+const FIELD_SAMPLE_ENTITY_SCAN_LIMIT = 5_000
 const derivedFieldsCache = new Map<string, ReadonlyArray<GraphField>>()
 const resolvedFieldSettingsCache = new Map<string, Map<GraphFieldId, GraphFieldSettingsResolved>>()
+const fieldSampleValuesCache = new Map<string, ReadonlyArray<unknown>>()
+const graphFieldOwnerSummaryCache = new Map<string, GraphFieldOwnerSummary>()
+
+type GraphFieldOwnerSummary = {
+  firstNodeType: string
+  firstEdgeLabel: string
+  nodeOwnerByFieldKey: Map<string, string>
+  edgeOwnerByFieldKey: Map<string, string>
+}
 
 export type GetCachedDerivedFieldsArgs = {
   graphData?: GraphData | null
@@ -249,6 +261,135 @@ function writeCachedResolvedFieldSettings(
     if (typeof oldestKey === 'string') resolvedFieldSettingsCache.delete(oldestKey)
   }
   return resolvedSettingsById
+}
+
+function readCachedGraphFieldOwnerSummary(
+  cacheKey: string,
+): GraphFieldOwnerSummary | null {
+  const cached = graphFieldOwnerSummaryCache.get(cacheKey) || null
+  if (!cached) return null
+  graphFieldOwnerSummaryCache.delete(cacheKey)
+  graphFieldOwnerSummaryCache.set(cacheKey, cached)
+  return cached
+}
+
+function writeCachedGraphFieldOwnerSummary(
+  cacheKey: string,
+  summary: GraphFieldOwnerSummary,
+): GraphFieldOwnerSummary {
+  graphFieldOwnerSummaryCache.set(cacheKey, summary)
+  if (graphFieldOwnerSummaryCache.size > GRAPH_FIELD_OWNER_SUMMARY_CACHE_LIMIT) {
+    const oldestKey = graphFieldOwnerSummaryCache.keys().next().value
+    if (typeof oldestKey === 'string') graphFieldOwnerSummaryCache.delete(oldestKey)
+  }
+  return summary
+}
+
+export function getCachedGraphFieldOwnerSummary(
+  graphData: GraphData | null,
+): GraphFieldOwnerSummary | null {
+  if (!graphData) return null
+  const graphSemanticKey = buildScopedGraphSemanticKey('graph-fields-owner-summary', {
+    graphData,
+  })
+  const cached = readCachedGraphFieldOwnerSummary(graphSemanticKey)
+  if (cached) return cached
+
+  const nodeOwnerByFieldKey = new Map<string, string>()
+  const edgeOwnerByFieldKey = new Map<string, string>()
+  let firstNodeType = ''
+  let firstEdgeLabel = ''
+
+  for (const node of graphData.nodes || []) {
+    const nodeType = typeof node?.type === 'string' ? node.type.trim() : ''
+    if (!firstNodeType && nodeType) firstNodeType = nodeType
+    if (!nodeType || !node.properties || typeof node.properties !== 'object') continue
+    for (const propertyKey of Object.keys(node.properties)) {
+      if (!nodeOwnerByFieldKey.has(propertyKey)) {
+        nodeOwnerByFieldKey.set(propertyKey, nodeType)
+      }
+    }
+  }
+
+  for (const edge of graphData.edges || []) {
+    const edgeLabel = typeof edge?.label === 'string' ? edge.label.trim() : ''
+    if (!firstEdgeLabel && edgeLabel) firstEdgeLabel = edgeLabel
+    if (!edgeLabel || !edge.properties || typeof edge.properties !== 'object') continue
+    for (const propertyKey of Object.keys(edge.properties)) {
+      if (!edgeOwnerByFieldKey.has(propertyKey)) {
+        edgeOwnerByFieldKey.set(propertyKey, edgeLabel)
+      }
+    }
+  }
+
+  return writeCachedGraphFieldOwnerSummary(graphSemanticKey, {
+    firstNodeType,
+    firstEdgeLabel,
+    nodeOwnerByFieldKey,
+    edgeOwnerByFieldKey,
+  })
+}
+
+function readCachedFieldSampleValues(
+  cacheKey: string,
+): ReadonlyArray<unknown> | null {
+  const cached = fieldSampleValuesCache.get(cacheKey) || null
+  if (!cached) return null
+  fieldSampleValuesCache.delete(cacheKey)
+  fieldSampleValuesCache.set(cacheKey, cached)
+  return cached
+}
+
+function writeCachedFieldSampleValues(
+  cacheKey: string,
+  values: ReadonlyArray<unknown>,
+): ReadonlyArray<unknown> {
+  fieldSampleValuesCache.set(cacheKey, values)
+  if (fieldSampleValuesCache.size > FIELD_SAMPLE_VALUES_CACHE_LIMIT) {
+    const oldestKey = fieldSampleValuesCache.keys().next().value
+    if (typeof oldestKey === 'string') fieldSampleValuesCache.delete(oldestKey)
+  }
+  return values
+}
+
+export function getCachedFieldSampleValues(
+  graphData: GraphData | null,
+  field: GraphField | null,
+): ReadonlyArray<unknown> {
+  if (!graphData || !field) return []
+  const graphSemanticKey = buildScopedGraphSemanticKey('graph-fields-sampled-values-graph', {
+    graphData,
+  })
+  const cacheKey = hashSignatureParts([
+    'graph-fields-sampled-values',
+    graphSemanticKey,
+    field.scope,
+    field.key,
+  ])
+  const cached = readCachedFieldSampleValues(cacheKey)
+  if (cached) return cached
+
+  const values: unknown[] = []
+  const collectValue = (raw: unknown) => {
+    if (raw === null || typeof raw === 'undefined') return
+    values.push(raw)
+  }
+
+  if (field.scope === 'node') {
+    const scanNodes = (graphData.nodes || []).slice(0, FIELD_SAMPLE_ENTITY_SCAN_LIMIT)
+    for (const node of scanNodes) {
+      const props = node?.properties || {}
+      collectValue((props as Record<string, unknown>)[field.key])
+    }
+  } else {
+    const scanEdges = (graphData.edges || []).slice(0, FIELD_SAMPLE_ENTITY_SCAN_LIMIT)
+    for (const edge of scanEdges) {
+      const props = edge?.properties || {}
+      collectValue((props as Record<string, unknown>)[field.key])
+    }
+  }
+
+  return writeCachedFieldSampleValues(cacheKey, values)
 }
 
 export function computeDerivedFields(graphData: GraphData): ReadonlyArray<GraphField> {
@@ -532,28 +673,7 @@ export function inferFieldTypeFromGraphData(
   if (field.kind === 'array') return 'Multi-select'
 
   const keyHint = String(field.key || '').trim().toLowerCase()
-
-  const ENTITY_SCAN_LIMIT = 5_000
-  const scanNodes = (graphData.nodes || []).slice(0, ENTITY_SCAN_LIMIT)
-  const scanEdges = (graphData.edges || []).slice(0, ENTITY_SCAN_LIMIT)
-
-  const values: unknown[] = []
-  const collectValue = (raw: unknown) => {
-    if (raw === null || typeof raw === 'undefined') return
-    values.push(raw)
-  }
-
-  if (field.scope === 'node') {
-    for (const node of scanNodes) {
-      const props = node?.properties || {}
-      collectValue((props as Record<string, unknown>)[field.key])
-    }
-  } else {
-    for (const edge of scanEdges) {
-      const props = edge?.properties || {}
-      collectValue((props as Record<string, unknown>)[field.key])
-    }
-  }
+  const values = getCachedFieldSampleValues(graphData, field)
 
   if (field.kind === 'number') {
     let total = 0

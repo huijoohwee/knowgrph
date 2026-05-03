@@ -17,11 +17,15 @@ import { WebpageViewerPane } from './webpage/WebpageViewerPane'
 import { deriveWebpageFrontmatterMetaFromBlock, deriveWebsiteImportFrontmatterMetaFromBlock, shouldRenderWebpageIframe } from './webpage/webpageMeta'
 import { useWebpageIframeView } from './webpage/useWebpageIframeView'
 import { MarkdownEditorPane } from './editor/MarkdownEditorPane'
-import { DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY, resolveMarkdownWorkspacePaneVisibility } from './types'
+import {
+  DEFAULT_MARKDOWN_WORKSPACE_PANE_VISIBILITY,
+  resolveMarkdownWorkspacePaneVisibility,
+  type MarkdownWorkspaceMainProps,
+} from './types'
 import { MarkdownWorkspaceLayout } from './layout/MarkdownWorkspaceLayout'
 import { useWorkspaceScrollSync } from './scroll/useWorkspaceScrollSync'
 import { MarkdownWorkspaceDerivedViewer, type MarkdownWorkspaceDerivedViewerKind, type MarkdownWorkspaceDerivedViewerMode } from './viewer/MarkdownWorkspaceDerivedViewer'
-import { buildBipartiteMarkdownFromJsonText } from '@/features/markdown/bipartiteJsonToMarkdown'
+import { buildFlowchartMarkdownFromJsonText } from '@/features/markdown/flowchartJsonToMarkdown'
 import { jsonToMarkdownPreferTable } from '@/features/markdown/jsonToMarkdown'
 import { buildJsonMarkdownConfigFromPreferences } from '@/features/markdown/jsonMarkdownPreferences'
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
@@ -39,57 +43,6 @@ const MarkdownWorkspaceSlidesGallerySurfaceLazy = React.lazy(
   async (): Promise<{ default: typeof import('./presentation/MarkdownWorkspaceSlidesGallerySurface')['MarkdownWorkspaceSlidesGallerySurface'] }> =>
     import('./presentation/MarkdownWorkspaceSlidesGallerySurface').then(mod => ({ default: mod.MarkdownWorkspaceSlidesGallerySurface })),
 )
-
-export type MarkdownWorkspaceMainProps = {
-  themeMode: 'light' | 'dark'
-  uiPanelTextFontClass: string
-  uiPanelMonospaceTextClass: string
-  geoDatasetIntegration?: MarkdownGeoDatasetIntegration
-
-  explorerOpen: boolean
-  setExplorerOpen: (next: boolean) => void
-
-  layoutMode: MarkdownWorkspaceLayoutMode
-  setLayoutMode: (mode: MarkdownWorkspaceLayoutMode) => void
-  markdownWordWrap: boolean
-  setMarkdownWordWrap: (next: boolean) => void
-  markdownTextHighlight: boolean
-  setMarkdownTextHighlight: (next: boolean) => void
-
-  onStatusProgress?: (label: string, current?: number | null, total?: number | null, bytesCurrent?: number | null, bytesTotal?: number | null) => void
-  onStatusWithAutoClear?: (label: string, ttlMs?: number) => void
-  onSaveAs?: () => void
-  onToggleFullscreen: () => void
-  presentationApiRef: React.MutableRefObject<MarkdownPresentationApi | null>
-
-  isEditing: boolean
-  isMarkdown: boolean
-  onFormatAction: (action: MarkdownFormatAction) => void
-
-  webpageWorkspaceMeta?: WebpageFrontmatterMeta | null
-  onWebpageChangeView?: (view: WebpageViewMode) => void
-  onWebpageUpdateMeta?: (patch: { fidelityLevel?: 1 | 2 | 3 | 4 }) => void
-
-  activeText: string
-  setActiveText: (next: string) => void
-  editorTextOverride?: string | null
-  webpageHtmlOverride?: string | null
-  disableEditorMutations?: boolean
-  viewerTextOverride?: string | null
-  disableViewerMutations?: boolean
-  activeDocumentKey: string
-  highlightedLineRange: HighlightedLineRange
-  revealLineInEditor: (line: number, endLine?: number) => void
-  showInViewer: (line: number) => void
-  showInPresentation: (line: number) => void
-  showInSlidesGallery: (line: number) => void
-
-  editorUri: string
-  editorLanguage: string
-  editorRef: React.MutableRefObject<MonacoTextEditorHandle | null>
-  onEditorCaretLine?: (line: number) => void
-  onViewerInlineEditStateChange?: (active: boolean) => void
-}
 
 function sanitizeInvalidDataUrls(raw: string): string {
   const s = String(raw || '')
@@ -141,6 +94,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     disableEditorMutations,
     viewerTextOverride,
     disableViewerMutations,
+    widgetModeActive = false,
     activeDocumentKey,
     highlightedLineRange,
     revealLineInEditor,
@@ -251,10 +205,12 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     if (!markdownPaneVisible && !viewerPaneVisible) return null
     const text = String(activeText || '').trim()
     if (!text || (!text.startsWith('{') && !text.startsWith('['))) return null
-    const widgetBundleMarkdown = tryBuildWidgetBundleMarkdownFromJsonText(text)
-    if (widgetBundleMarkdown) return widgetBundleMarkdown
-    const bipartite = buildBipartiteMarkdownFromJsonText(text)
-    if (bipartite) return bipartite
+    if (widgetModeActive) {
+      const widgetBundleMarkdown = tryBuildWidgetBundleMarkdownFromJsonText(text)
+      if (widgetBundleMarkdown) return widgetBundleMarkdown
+    }
+    const flowchart = buildFlowchartMarkdownFromJsonText(text)
+    if (flowchart) return flowchart
     try {
       const parsed = JSON.parse(text) as unknown
       const renderConfig = buildJsonMarkdownConfigFromPreferences()
@@ -262,7 +218,7 @@ export const MarkdownWorkspaceMain = React.memo(function MarkdownWorkspaceMain(p
     } catch {
       return null
     }
-  }, [activeText, isMarkdown, markdownPaneVisible, viewerPaneVisible])
+  }, [activeText, isMarkdown, markdownPaneVisible, viewerPaneVisible, widgetModeActive])
 
   const isJsonMarkdownEditing = !isMarkdown && viewerKind === 'markdown' && !!jsonDerivedMarkdownBase
   const [jsonDerivedMarkdownDraft, setJsonDerivedMarkdownDraft] = React.useState<string | null>(null)

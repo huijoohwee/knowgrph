@@ -6,7 +6,10 @@ import { persistGraphDataToLocalStorage } from '@/hooks/store/graphDataPersisten
 import { normalizeGraphData } from '@/lib/graph/normalize'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
-import { stripFrontmatterAutoManagedWidgetScreenPositions } from '@/lib/flowEditor/widgetPlacementAuthority'
+import {
+  shouldPreserveFrontmatterAutoManagedBalancedCollective,
+  stripFrontmatterAutoManagedWidgetScreenPositions,
+} from '@/lib/flowEditor/widgetPlacementAuthority'
 import { buildCanonicalNodeLookup, parseCanonicalNodeIds, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import {
   applyLayoutAutosuggestFromMetadata,
@@ -149,11 +152,13 @@ function isSameFlowWidgetScreenPosByNodeId(
 function resolveCommittedFlowWidgetScreenPositions(args: {
   graphData: GraphData
   posByNodeId: Record<string, { top: number; left: number }>
+  pinnedByNodeId?: Record<string, boolean>
   preserveStableSameSourceOverlayState: boolean
 }): Record<string, { top: number; left: number }> {
   return stripFrontmatterAutoManagedWidgetScreenPositions({
     graphData: args.graphData,
     posByNodeId: args.posByNodeId,
+    pinnedByNodeId: args.pinnedByNodeId,
     preserveBalancedCollective: args.preserveStableSameSourceOverlayState,
   })
 }
@@ -195,14 +200,24 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
     const currentGraph = get().graphData
     const currentGraphKey = buildGraphMetaKeyIgnoringPending(currentGraph)
     const collapsedKey = buildGraphMetaKeyIgnoringPending(nextGraphDataBase)
+    const stableSameSourceTopology = hasStableSameSourceTopology(currentGraph, nextGraphDataBase)
     const carryForwardSameSourceUiState =
       !!collapsedKey &&
       !!currentGraphKey &&
       collapsedKey !== currentGraphKey &&
-      hasStableSameSourceTopology(currentGraph, nextGraphDataBase)
+      stableSameSourceTopology
+    const currentPinnedByNodeId = get().flowWidgetPinnedByNodeId || {}
+    const currentPosByNodeId = get().flowWidgetPosByNodeId || {}
+    const carryForwardBalancedFloatingCollectiveState =
+      stableSameSourceTopology &&
+      shouldPreserveFrontmatterAutoManagedBalancedCollective({
+        graphData: currentGraph,
+        posByNodeId: currentPosByNodeId,
+        pinnedByNodeId: currentPinnedByNodeId,
+      })
     const carryForwardSameSourceWidgetOverlayState =
-      carryForwardSameSourceUiState &&
-      hasStableSameSourceNodeLayout(currentGraph, nextGraphDataBase)
+      (carryForwardSameSourceUiState && hasStableSameSourceNodeLayout(currentGraph, nextGraphDataBase))
+      || carryForwardBalancedFloatingCollectiveState
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)
@@ -249,6 +264,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       const nextPos = resolveCommittedFlowWidgetScreenPositions({
         graphData: nextGraphData,
         posByNodeId: nextPosRaw || {},
+        pinnedByNodeId: nextPinned || {},
         preserveStableSameSourceOverlayState: carryForwardSameSourceWidgetOverlayState,
       })
       const nextWorld =
@@ -375,7 +391,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
         const mode = get().schema.layout?.mode
         if (mode === 'radial') {
           const curRenderer = get().canvas2dRenderer
-          if (curRenderer !== 'd3' && curRenderer !== 'd3Bipartite' && !isFlowEditorCanvas2dRenderer(curRenderer)) {
+          if (curRenderer !== 'd3' && curRenderer !== 'flowchart' && !isFlowEditorCanvas2dRenderer(curRenderer)) {
             const setCanvas2dRenderer = get().setCanvas2dRenderer
             if (typeof setCanvas2dRenderer === 'function') setCanvas2dRenderer('d3')
           }
@@ -418,14 +434,24 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
     const currentGraph = get().graphData
     const currentGraphKey = buildGraphMetaKeyIgnoringPending(currentGraph)
     const collapsedKey = buildGraphMetaKeyIgnoringPending(nextGraphData)
+    const stableSameSourceTopology = hasStableSameSourceTopology(currentGraph, nextGraphData)
     const carryForwardSameSourceUiState =
       !!collapsedKey &&
       !!currentGraphKey &&
       collapsedKey !== currentGraphKey &&
-      hasStableSameSourceTopology(currentGraph, nextGraphData)
+      stableSameSourceTopology
+    const currentPinnedByNodeId = get().flowWidgetPinnedByNodeId || {}
+    const currentPosByNodeId = get().flowWidgetPosByNodeId || {}
+    const carryForwardBalancedFloatingCollectiveState =
+      stableSameSourceTopology &&
+      shouldPreserveFrontmatterAutoManagedBalancedCollective({
+        graphData: currentGraph,
+        posByNodeId: currentPosByNodeId,
+        pinnedByNodeId: currentPinnedByNodeId,
+      })
     const carryForwardSameSourceWidgetOverlayState =
-      carryForwardSameSourceUiState &&
-      hasStableSameSourceNodeLayout(currentGraph, nextGraphData)
+      (carryForwardSameSourceUiState && hasStableSameSourceNodeLayout(currentGraph, nextGraphData))
+      || carryForwardBalancedFloatingCollectiveState
     set(s => {
       const nextRevision = (s.graphDataRevision || 0) + 1
       const byKey = (s.collapsedGroupIdsByGraphMetaKey || {}) as Record<string, string[]>
@@ -469,6 +495,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
       const nextPos = resolveCommittedFlowWidgetScreenPositions({
         graphData: nextGraphData,
         posByNodeId: nextPosRaw || {},
+        pinnedByNodeId: nextPinned || {},
         preserveStableSameSourceOverlayState: carryForwardSameSourceWidgetOverlayState,
       })
       const nextWorld =

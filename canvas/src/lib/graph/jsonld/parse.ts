@@ -18,8 +18,13 @@ import {
   isIdPropertyKey,
   AGENTIC_RAG_MINIMAL_CONTEXT,
 } from './utils';
+import { isPlainObject } from '@/lib/graph/value';
 
 const compareText = (a: unknown, b: unknown): number => String(a || '').localeCompare(String(b || ''));
+
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null;
+};
 
 const getSortedRecordKeys = (value: Record<string, unknown>): string[] => Object.keys(value).sort((a, b) => compareText(a, b));
 
@@ -39,8 +44,9 @@ const sortJsonLdEdges = (edges: GraphEdge[]): GraphEdge[] => {
 
 export function parseJsonLd(jsonld: unknown): GraphData {
   const root = jsonld as Record<string, unknown> | unknown[];
-  const graph = Array.isArray(root) ? root : ((isRecord(root) && Array.isArray((root as Record<string, unknown>)['@graph'])) ? ((root as Record<string, unknown>)['@graph'] as unknown[]) : []);
-  const rawCtx = isRecord(root) ? (root['@context'] as unknown) : undefined;
+  const rootRecord = readPlainObject(root);
+  const graph = Array.isArray(root) ? root : (Array.isArray(rootRecord?.['@graph']) ? (rootRecord['@graph'] as unknown[]) : []);
+  const rawCtx = rootRecord?.['@context'] as unknown;
   const { ctxRecord, graphContext } = (() => {
     const mergeAgenticMinimalContext = (base: Record<string, unknown>): Record<string, unknown> => ({
       '@vocab': AGENTIC_RAG_CONTEXT_URL,
@@ -56,12 +62,13 @@ export function parseJsonLd(jsonld: unknown): GraphData {
       }
       try {
         const parsed = JSON.parse(rawCtx) as unknown;
-        if (isRecord(parsed)) {
-          const vocab = parsed['@vocab'];
+        const parsedRecord = readPlainObject(parsed);
+        if (parsedRecord) {
+          const vocab = parsedRecord['@vocab'];
           const merged =
             typeof vocab === 'string' && vocab.trim() === AGENTIC_RAG_CONTEXT_URL
-              ? mergeAgenticMinimalContext(parsed)
-              : parsed;
+              ? mergeAgenticMinimalContext(parsedRecord)
+              : parsedRecord;
           return { ctxRecord: merged, graphContext: merged as JSONValue };
         }
       } catch {
@@ -73,9 +80,9 @@ export function parseJsonLd(jsonld: unknown): GraphData {
     if (Array.isArray(rawCtx)) {
       const merged: Record<string, unknown> = {};
       rawCtx.forEach((entry) => {
-        if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
-          Object.assign(merged, entry as Record<string, unknown>);
-        }
+        const entryRecord = readPlainObject(entry);
+        if (!entryRecord) return;
+        Object.assign(merged, entryRecord);
       });
       const vocab = merged['@vocab'];
       const mergedWithAgentic =
@@ -85,31 +92,31 @@ export function parseJsonLd(jsonld: unknown): GraphData {
       return { ctxRecord: mergedWithAgentic, graphContext: mergedWithAgentic as JSONValue };
     }
 
-    if (isRecord(rawCtx)) {
-      const vocab = rawCtx['@vocab'];
+    const rawContextRecord = readPlainObject(rawCtx);
+    if (rawContextRecord) {
+      const vocab = rawContextRecord['@vocab'];
       const merged =
         typeof vocab === 'string' && vocab.trim() === AGENTIC_RAG_CONTEXT_URL
-          ? mergeAgenticMinimalContext(rawCtx)
-          : rawCtx;
+          ? mergeAgenticMinimalContext(rawContextRecord)
+          : rawContextRecord;
       return { ctxRecord: merged, graphContext: merged as JSONValue };
     }
 
     return { ctxRecord: {}, graphContext: undefined };
   })();
   let graphMetadata: Record<string, JSONValue> | undefined;
-  if (isRecord(root)) {
-    const metaRaw = (root as Record<string, unknown>)['metadata'] as unknown;
-    if (isRecord(metaRaw) && Object.keys(metaRaw).length > 0) {
-      graphMetadata = metaRaw as Record<string, JSONValue>;
-    }
+  const metaRaw = rootRecord?.['metadata'] as unknown;
+  const graphMetadataRecord = readPlainObject(metaRaw);
+  if (graphMetadataRecord && Object.keys(graphMetadataRecord).length > 0) {
+    graphMetadata = graphMetadataRecord as Record<string, JSONValue>;
   }
   const extraEdgePropertyKeys = (() => {
     const out = new Set<string>()
-    const meta = graphMetadata as unknown
-    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return out
-    const cfgRaw = (meta as Record<string, unknown>).jsonLdMapping as unknown
-    if (!cfgRaw || typeof cfgRaw !== 'object' || Array.isArray(cfgRaw)) return out
-    const listRaw = (cfgRaw as Record<string, unknown>).contextEdgeProperties as unknown
+    const meta = readPlainObject(graphMetadata as unknown)
+    if (!meta) return out
+    const cfgRaw = readPlainObject(meta.jsonLdMapping)
+    if (!cfgRaw) return out
+    const listRaw = cfgRaw.contextEdgeProperties as unknown
     if (!Array.isArray(listRaw)) return out
     for (let i = 0; i < listRaw.length; i += 1) {
       const v = listRaw[i]

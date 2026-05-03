@@ -82,6 +82,22 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     viewportW,
     viewportH,
   } = args
+  const frontmatterFlowInitialFitFillRatio = useGraphStore(s => s.frontmatterFlowInitialFitFillRatio)
+  const frontmatterFlowOverlayFitProxyScalePhone = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScalePhone)
+  const frontmatterFlowOverlayFitProxyScaleTablet = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleTablet)
+  const frontmatterFlowOverlayFitProxyScaleLaptop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleLaptop)
+  const frontmatterFlowOverlayFitProxyScaleDesktop = useGraphStore(s => s.frontmatterFlowOverlayFitProxyScaleDesktop)
+  const frontmatterOverlayFitProxyScales = React.useMemo(() => ({
+    phone: frontmatterFlowOverlayFitProxyScalePhone,
+    tablet: frontmatterFlowOverlayFitProxyScaleTablet,
+    laptop: frontmatterFlowOverlayFitProxyScaleLaptop,
+    desktop: frontmatterFlowOverlayFitProxyScaleDesktop,
+  }), [
+    frontmatterFlowOverlayFitProxyScaleDesktop,
+    frontmatterFlowOverlayFitProxyScaleLaptop,
+    frontmatterFlowOverlayFitProxyScalePhone,
+    frontmatterFlowOverlayFitProxyScaleTablet,
+  ])
 
   const schemaLayoutEngineJson = React.useMemo(() => buildSchemaLayoutEngineJson2d(schema), [schema])
   const collapsedGroupIdsKey = React.useMemo(() => buildCollapsedGroupIdsKey(collapsedGroupIds), [collapsedGroupIds])
@@ -463,6 +479,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
       documentSemanticMode,
       documentStructureBaselineLock,
       enableDocumentStructureBounds: true,
+      frontmatterFlowInitialFitFillRatio,
     })
     const fitW = Math.max(1, viewportW - (isFlowEditor ? flowEditorReservedW : 0))
     const fit = isFlowEditor
@@ -478,6 +495,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
             portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schemaNow),
             graphData,
             fitOpts: opts,
+            frontmatterOverlayFitProxyScales,
           })
         })()
       : fitAllTransform(nodesForFit, fitW, viewportH, { ...opts, graphData: graphData || undefined })
@@ -504,6 +522,8 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
     frontmatterModeEnabled,
+    frontmatterFlowInitialFitFillRatio,
+    frontmatterOverlayFitProxyScales,
     multiDimTableModeEnabled,
     nodesForFlowTransformGuard,
     nodesForFlowZoomCollective,

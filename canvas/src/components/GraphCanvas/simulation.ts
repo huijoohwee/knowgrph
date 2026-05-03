@@ -34,7 +34,7 @@ import {
   readPhysics2dTuning,
 } from '@/lib/graph/physics2dTuning'
 import { isRadarFlowEdge, isRadarGraph as detectRadarGraph, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
-import { readBipartiteGridSizePx, readBipartiteLaneSeparationPx } from '@/lib/canvas/bipartiteGrid'
+import { readFlowchartGridSizePx, readFlowchartLaneSeparationPx } from '@/lib/canvas/flowchartGrid'
 import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 
@@ -289,7 +289,7 @@ const computeIndexAnchorPlan2d = (args: {
 const computeCollideIterations = (nodeCount: number): number =>
   nodeCount <= 450 ? 4 : nodeCount <= 1600 ? 3 : 2
 
-const isBipartiteType = (t: unknown): t is 'problem' | 'solution' => {
+const isFlowchartType = (t: unknown): t is 'problem' | 'solution' => {
   if (typeof t !== 'string') return false
   const v = t.trim().toLowerCase()
   return v === 'problem' || v === 'solution'
@@ -297,9 +297,9 @@ const isBipartiteType = (t: unknown): t is 'problem' | 'solution' => {
 
 const isHubNode = (n: GraphNode): boolean => String(n.type || '').trim().toLowerCase() === 'hub'
 
-const readBipartiteSide = (n: GraphNode): 'problem' | 'solution' | null => {
+const readFlowchartSide = (n: GraphNode): 'problem' | 'solution' | null => {
   const props = (n.properties || {}) as Record<string, unknown>
-  const side = String(props['bipartite:side'] || '').trim().toLowerCase()
+  const side = String(props['flowchart:side'] || '').trim().toLowerCase()
   if (side === 'problem' || side === 'solution') return side
   const type = String(n.type || '').trim().toLowerCase()
   if (type === 'problem' || type === 'solution') return type
@@ -617,9 +617,9 @@ export const buildSimulation = (
 
     const groupKeyOf = options?.groupKeyOf || createGroupKeyOfNode({ nodes, edges: edgesForSim })
 
-    const bipartite = (() => {
+    const flowchart = (() => {
       const forces = (schema.layout?.forces || {}) as any
-      if (forces?.bipartiteMode !== true) return { enabled: false }
+      if (forces?.flowchartMode !== true) return { enabled: false }
       let problems = 0
       let solutions = 0
       let hubs = 0
@@ -629,7 +629,7 @@ export const buildSimulation = (
           hubs += 1
           continue
         }
-        if (!isBipartiteType(t)) continue
+        if (!isFlowchartType(t)) continue
         if (t === 'problem') problems += 1
         else solutions += 1
       }
@@ -649,7 +649,7 @@ export const buildSimulation = (
     simulation
       .force(
         'charge',
-        bipartite.enabled && (bipartite.hasHubNodes || bipartite.hasSpokeEdges)
+        flowchart.enabled && (flowchart.hasHubNodes || flowchart.hasSpokeEdges)
           ? (disjointEnabled
               ? d3
                   .forceManyBody<GraphNode>()
@@ -745,17 +745,17 @@ export const buildSimulation = (
           : null,
       )
       .force(
-        'bipartiteX',
-        bipartite.enabled
+        'flowchartX',
+        flowchart.enabled
           ? (() => {
-              const gridSize = readBipartiteGridSizePx(schema)
-              const separation = readBipartiteLaneSeparationPx({ schema, frameW })
+              const gridSize = readFlowchartGridSizePx(schema)
+              const separation = readFlowchartLaneSeparationPx({ schema, frameW })
               const cx = snapScalarToGrid(centerX, gridSize)
               const leftX = cx - separation
               const rightX = cx + separation
               return d3
                 .forceX<GraphNode>(d => {
-                  const side = readBipartiteSide(d)
+                  const side = readFlowchartSide(d)
                   if (side === 'problem') return leftX
                   if (side === 'solution') return rightX
                   return cx
@@ -887,9 +887,9 @@ export const updateForceSimulationPresentation = (args: {
   const isRadarGraph = detectRadarGraph(nodes)
   const radarForces = readRadarForceConfig(schema)
 
-  const bipartite = (() => {
+  const flowchart = (() => {
     const forces = (schema.layout?.forces || {}) as any
-    if (forces?.bipartiteMode !== true) return { enabled: false }
+    if (forces?.flowchartMode !== true) return { enabled: false }
       let problems = 0
       let solutions = 0
     let hubs = 0
@@ -899,7 +899,7 @@ export const updateForceSimulationPresentation = (args: {
         hubs += 1
         continue
       }
-      if (!isBipartiteType(t)) continue
+      if (!isFlowchartType(t)) continue
         if (t === 'problem') problems += 1
         else solutions += 1
       }
@@ -1034,7 +1034,7 @@ export const updateForceSimulationPresentation = (args: {
       Math.abs(prevSignature.centerY - signature.centerY) > 0.25)
   presentationSignatureCache.set(simulation as unknown as object, signature)
 
-  if (bipartite.enabled && (bipartite.hasHubNodes || bipartite.hasSpokeEdges)) {
+  if (flowchart.enabled && (flowchart.hasHubNodes || flowchart.hasSpokeEdges)) {
     updateManyBodyForceByNode({
       simulation,
       name: 'charge',
@@ -1200,23 +1200,23 @@ export const updateForceSimulationPresentation = (args: {
 
   updatePositioningForceFn({
     simulation,
-    name: 'bipartiteX',
+    name: 'flowchartX',
     axis: 'x',
     target: (() => {
-      const gridSize = readBipartiteGridSizePx(schema)
-      const separation = readBipartiteLaneSeparationPx({ schema, frameW })
+      const gridSize = readFlowchartGridSizePx(schema)
+      const separation = readFlowchartLaneSeparationPx({ schema, frameW })
       const cx = snapScalarToGrid(centerX, gridSize)
       const leftX = cx - separation
       const rightX = cx + separation
       return (d: GraphNode) => {
-        const side = readBipartiteSide(d)
+        const side = readFlowchartSide(d)
         if (side === 'problem') return leftX
         if (side === 'solution') return rightX
         return cx
       }
     })(),
     strength: indexPlan.enabled ? 0.12 : 0.28,
-    enabled: bipartite.enabled,
+    enabled: flowchart.enabled,
   })
 
   if (schema.layout?.forces?.alphaDecay != null) {

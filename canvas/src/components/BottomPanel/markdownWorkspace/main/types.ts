@@ -77,4 +77,6 @@ export type MarkdownWorkspaceMainProps = {
   editorLanguage: string
   editorRef: React.MutableRefObject<MonacoTextEditorHandle | null>
   onEditorCaretLine?: (line: number) => void
+  onViewerInlineEditStateChange?: (active: boolean) => void
+  widgetModeActive?: boolean
 }

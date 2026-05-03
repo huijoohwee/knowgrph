@@ -1,4 +1,5 @@
 import {
+  GEOSPATIAL_WORKSPACE_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
@@ -18,6 +19,7 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
   const defaultSeedEntries = [
     buildFileEntry(WORKSPACE_README_SEED_PATH),
     buildFileEntry(TEST_VALIDATION_WORKSPACE_SEED_PATH),
+    buildFileEntry(GEOSPATIAL_WORKSPACE_SEED_PATH),
   ]
 
   const startup = resolveMarkdownWorkspaceBootstrapActivePath({

@@ -1,4 +1,5 @@
 import type { GraphNode } from '@/lib/graph/types'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
 import type { MediaPanelDensity } from '@/lib/render/mediaPanelSpec'
 import type { NodeHalfExtents } from '@/components/GraphCanvas/layout/overlap'
 import { computeOverlayHalfExtentsWorld, readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
@@ -50,10 +51,9 @@ export function computeOverlayHalfExtentsByNodeId2d(args: {
     const n = byId.get(id)
     if (!n) continue
 
-    const props = (n as any)?.properties
-    const rec = props && typeof props === 'object' && !Array.isArray(props) ? (props as Record<string, unknown>) : null
-    const wRaw = rec ? rec['visual:width'] : null
-    const hRaw = rec ? rec['visual:height'] : null
+    const props = readNodeProperties(n)
+    const wRaw = props['visual:width']
+    const hRaw = props['visual:height']
     const w = typeof wRaw === 'number' && Number.isFinite(wRaw) && wRaw > 0 ? wRaw : NaN
     const h = typeof hRaw === 'number' && Number.isFinite(hRaw) && hRaw > 0 ? hRaw : NaN
     if (Number.isFinite(w) && Number.isFinite(h)) {

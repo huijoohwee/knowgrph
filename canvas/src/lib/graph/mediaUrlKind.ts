@@ -6,8 +6,22 @@ const VIDEO_EXT_RE = /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i
 const SVG_EXT_RE = /\.svg(\?|#|$)/i
 const IFRAME_EXT_RE = /\.(html?|pdf)(\?|#|$)/i
 
-export function inferMediaKindFromResourceUrl(rawUrl: string): UrlMediaKind | null {
+function readCanonicalResourcePath(rawUrl: string): string {
   const url = String(rawUrl || '').trim()
+  if (!url) return ''
+  try {
+    const parsed = new URL(url, 'https://example.invalid')
+    if (parsed.pathname === '/__codebase_asset' || parsed.pathname === '/__codebase_file') {
+      return String(parsed.searchParams.get('path') || '').trim()
+    }
+    return parsed.toString()
+  } catch {
+    return url
+  }
+}
+
+export function inferMediaKindFromResourceUrl(rawUrl: string): UrlMediaKind | null {
+  const url = readCanonicalResourcePath(rawUrl)
   if (!url) return null
   if (isLikelyImageUrl(url)) return SVG_EXT_RE.test(url) ? 'svg' : 'image'
   if (VIDEO_EXT_RE.test(url)) return 'video'
@@ -19,8 +33,8 @@ export function prefersIframeFromLinkContext(args: { label?: string; url?: strin
   if (args.preferMedia === true) return true
   const label = String(args.label || '').trim().toLowerCase()
   if (label.startsWith('iframe') || label.startsWith('embed') || label.startsWith('webpage')) return true
-  const url = String(args.url || '').trim()
+  const url = readCanonicalResourcePath(String(args.url || '').trim())
   if (!url) return false
-  if (/^\/__repo_file\/.+\.(html?|pdf)(\?|#|$)/i.test(url)) return true
+  if (IFRAME_EXT_RE.test(url)) return true
   return false
 }

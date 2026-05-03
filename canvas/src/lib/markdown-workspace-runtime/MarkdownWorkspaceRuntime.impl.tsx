@@ -554,6 +554,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
         editorLanguage={effectiveContent.editorLanguage}
         editorRef={editorRef}
         onEditorCaretLine={interactionState.onEditorCaretLine}
+        widgetModeActive={widgetState.contentMode === 'widget'}
         onViewerInlineEditStateChange={activeState =>
           viewShell.handleViewerInlineEditStateChange(activeState, updater => setViewerInlineEditActive(updater))
         }

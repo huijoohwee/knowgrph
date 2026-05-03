@@ -65,16 +65,16 @@ export function shouldUseFlowEditorWidgetFloatingScreenAuthority(args: {
   return kind === 'frontmatter-flow' && args.pinnedInCanvas !== true
 }
 
-export function stripFrontmatterAutoManagedWidgetScreenPositions(args: {
+export function shouldPreserveFrontmatterAutoManagedBalancedCollective(args: {
   graphData: GraphData | null | undefined
   posByNodeId: Record<string, { top: number; left: number }>
-  preserveBalancedCollective?: boolean
-}): Record<string, { top: number; left: number }> {
+  pinnedByNodeId?: Record<string, boolean>
+}): boolean {
   const graphData = args.graphData
   const kind = String((((graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
-  if (kind !== 'frontmatter-flow') return args.posByNodeId
-  const autoManagedItems: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
+  if (kind !== 'frontmatter-flow') return false
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const items: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
   let autoManagedNodeCount = 0
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
@@ -83,8 +83,9 @@ export function stripFrontmatterAutoManagedWidgetScreenPositions(args: {
     const id = String(node?.id || '').trim()
     const pos = id ? args.posByNodeId?.[id] : undefined
     if (!id || !pos) continue
+    if (args.pinnedByNodeId?.[id] === true) continue
     if (!Number.isFinite(pos.top) || !Number.isFinite(pos.left)) continue
-    autoManagedItems.push({
+    items.push({
       id,
       left: pos.left,
       top: pos.top,
@@ -92,13 +93,28 @@ export function stripFrontmatterAutoManagedWidgetScreenPositions(args: {
       height: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_SIZE.height,
     })
   }
+  if (autoManagedNodeCount === 0 || items.length !== autoManagedNodeCount) return false
+  return !isVerticalOverlayCluster({ items, gapPx: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX })
+    && !isHorizontalOverlayStrip({ items, gapPx: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX })
+}
+
+export function stripFrontmatterAutoManagedWidgetScreenPositions(args: {
+  graphData: GraphData | null | undefined
+  posByNodeId: Record<string, { top: number; left: number }>
+  pinnedByNodeId?: Record<string, boolean>
+  preserveBalancedCollective?: boolean
+}): Record<string, { top: number; left: number }> {
+  const graphData = args.graphData
+  const kind = String((((graphData || null)?.metadata || {}) as Record<string, unknown>)?.kind || '').trim()
+  if (kind !== 'frontmatter-flow') return args.posByNodeId
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
   if (
     args.preserveBalancedCollective === true
-    && autoManagedNodeCount > 0
-    && autoManagedItems.length === autoManagedNodeCount
-    && autoManagedItems.length > 0
-    && !isVerticalOverlayCluster({ items: autoManagedItems, gapPx: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX })
-    && !isHorizontalOverlayStrip({ items: autoManagedItems, gapPx: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX })
+    && shouldPreserveFrontmatterAutoManagedBalancedCollective({
+      graphData,
+      posByNodeId: args.posByNodeId,
+      pinnedByNodeId: args.pinnedByNodeId,
+    })
   ) {
     return args.posByNodeId
   }

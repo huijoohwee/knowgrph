@@ -5,10 +5,12 @@ doc_type: "Video Script — Director Brief"
 date: "2026-04-30"
 lang: en-US
 
+kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "flowEditor"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
+kgMultiDimTableModeEnabled: false
 kgDocumentStructureBaselineLock: false
 
 $schema: "kgc-pipeline/v1"

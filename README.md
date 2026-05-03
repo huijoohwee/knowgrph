@@ -4,6 +4,7 @@ id: md:knowgrph-readme-v3
 author: joohwee
 institution: "Knowgrph — airvio.co/knowgrph"
 date: "2026-05-01"
+kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "d3"
 kgDocumentSemanticMode: "document"

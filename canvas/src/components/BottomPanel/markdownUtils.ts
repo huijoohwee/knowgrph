@@ -1,5 +1,7 @@
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import {
   computeHighlightedRangeFromLines,
   getDocumentLocationFromMetadata,
@@ -28,7 +30,13 @@ export function getSelectionInfo(
   if (!graphData) return null
   const id = selectedNodeId || selectedEdgeId
   if (!id) return null
-  const node = graphData.nodes.find(n => n.id === id)
+  const graphSemanticKey = buildScopedGraphSemanticKey('bottom-panel-markdown-selection-graph', { graphData })
+  const graphLookup = getCachedGraphLookup({
+    cacheScope: 'bottom-panel-markdown-selection-graph',
+    graphData,
+    graphSemanticKey,
+  })
+  const node = graphLookup?.nodeById.get(id) || null
   if (node) {
     const location = getDocumentLocationFromMetadata(node.metadata as unknown)
     const documentPath = location ? location.documentPath : getDocumentPathForNode(node as GraphNode)
@@ -50,7 +58,7 @@ export function getSelectionInfo(
         typeof baseColor === 'string' && baseColor.trim() ? baseColor : null,
     }
   }
-  const edge = graphData.edges.find(e => e.id === id)
+  const edge = graphLookup?.edgeById.get(id) || null
   if (edge) {
     const location = getDocumentLocationFromMetadata(edge.metadata as unknown)
     const documentPath = location ? location.documentPath : getDocumentPathForEdge(edge as GraphEdge)

@@ -1,4 +1,4 @@
-import { buildRepoFilePath, isHttpUrl } from '@/lib/url'
+import { buildCodebaseFilePath, isHttpUrl } from '@/lib/url'
 import { clearWebpageSandboxDocCaches } from './webpageSandboxDoc'
 import { clearWebpageSandboxBlobUrlCache } from './webpageSandboxBlobUrlCache'
 
@@ -255,7 +255,7 @@ export async function fetchWebpageHtmlFromRepoFile(args: {
     key,
     async (signal) => {
       const fetchFn = typeof args.fetchImpl === 'function' ? args.fetchImpl : fetch
-      const res = await fetchFn(buildRepoFilePath(rel), { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
+      const res = await fetchFn(buildCodebaseFilePath(rel), { signal, headers: { Accept: 'text/html,*/*;q=0.9' } })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await fetchBoundedText(res, 8_000_000, args.onProgress)
     },

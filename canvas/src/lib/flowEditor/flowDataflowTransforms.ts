@@ -1,3 +1,5 @@
+import { isPlainObject } from '@/lib/graph/value'
+
 export type FlowDataflowTransformFn = (value: unknown) => unknown
 export type FlowDataflowReducerFn = (values: ReadonlyArray<unknown>) => unknown
 
@@ -5,8 +7,8 @@ function cleanString(v: unknown): string {
   return typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : ''
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
 }
 
 function clampByte(v: unknown): number | null {
@@ -24,10 +26,11 @@ function parseRgb(v: unknown): { r: number; g: number; b: number } | null {
     return { r, g, b }
   }
 
-  if (isRecord(v)) {
-    const r = clampByte(v.r ?? v.red)
-    const g = clampByte(v.g ?? v.green)
-    const b = clampByte(v.b ?? v.blue)
+  const record = readPlainObject(v)
+  if (record) {
+    const r = clampByte(record.r ?? record.red)
+    const g = clampByte(record.g ?? record.green)
+    const b = clampByte(record.b ?? record.blue)
     if (r == null || g == null || b == null) return null
     return { r, g, b }
   }

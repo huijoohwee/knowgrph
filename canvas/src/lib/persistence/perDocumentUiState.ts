@@ -5,6 +5,7 @@ import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import { isCanvas2dRendererId } from '@/lib/config.render'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
 import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
+import { isPlainObject } from '@/lib/graph/value'
 
 export type PerDocumentUiState = {
   documentRef?: string
@@ -72,8 +73,8 @@ const notePerDocumentUiStateEntryCache = (storageKey: string, next: PersistedEnt
   }
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
 }
 
 function coerceStringArray(v: unknown): string[] {
@@ -82,25 +83,26 @@ function coerceStringArray(v: unknown): string[] {
 }
 
 function coerceState(raw: unknown): PerDocumentUiState | null {
-  if (!isRecord(raw)) return null
-  const canvasRenderMode = raw.canvasRenderMode === '3d' ? '3d' : raw.canvasRenderMode === '2d' ? '2d' : undefined
-  const canvas3dMode = raw.canvas3dMode === 'voxel' ? 'voxel' : raw.canvas3dMode === '3d' ? '3d' : undefined
-  const canvas2dRenderer = isCanvas2dRendererId(raw.canvas2dRenderer) ? (raw.canvas2dRenderer as Canvas2dRendererId) : undefined
-  const documentSemanticMode = raw.documentSemanticMode === 'keyword' || raw.documentSemanticMode === 'document'
-    ? (raw.documentSemanticMode as DocumentSemanticMode)
+  const record = readPlainObject(raw)
+  if (!record) return null
+  const canvasRenderMode = record.canvasRenderMode === '3d' ? '3d' : record.canvasRenderMode === '2d' ? '2d' : undefined
+  const canvas3dMode = record.canvas3dMode === 'voxel' ? 'voxel' : record.canvas3dMode === '3d' ? '3d' : undefined
+  const canvas2dRenderer = isCanvas2dRendererId(record.canvas2dRenderer) ? (record.canvas2dRenderer as Canvas2dRendererId) : undefined
+  const documentSemanticMode = record.documentSemanticMode === 'keyword' || record.documentSemanticMode === 'document'
+    ? (record.documentSemanticMode as DocumentSemanticMode)
     : undefined
-  const frontmatterModeEnabled = typeof raw.frontmatterModeEnabled === 'boolean' ? raw.frontmatterModeEnabled : undefined
-  const viewPinned = typeof raw.viewPinned === 'boolean' ? raw.viewPinned : undefined
-  const fitToScreenMode = typeof raw.fitToScreenMode === 'boolean' ? raw.fitToScreenMode : undefined
-  const zoomToSelectionMode = typeof raw.zoomToSelectionMode === 'boolean' ? raw.zoomToSelectionMode : undefined
-  const selectedNodeId = typeof raw.selectedNodeId === 'string' ? raw.selectedNodeId : raw.selectedNodeId === null ? null : undefined
-  const selectedEdgeId = typeof raw.selectedEdgeId === 'string' ? raw.selectedEdgeId : raw.selectedEdgeId === null ? null : undefined
-  const selectedGroupId = typeof raw.selectedGroupId === 'string' ? raw.selectedGroupId : raw.selectedGroupId === null ? null : undefined
-  const selectedNodeIds = raw.selectedNodeIds != null ? coerceStringArray(raw.selectedNodeIds) : undefined
-  const selectedEdgeIds = raw.selectedEdgeIds != null ? coerceStringArray(raw.selectedEdgeIds) : undefined
-  const selectedGroupIds = raw.selectedGroupIds != null ? coerceStringArray(raw.selectedGroupIds) : undefined
-  const documentRef = typeof raw.documentRef === 'string' ? raw.documentRef : undefined
-  const updatedAtMs = typeof raw.updatedAtMs === 'number' && Number.isFinite(raw.updatedAtMs) ? raw.updatedAtMs : undefined
+  const frontmatterModeEnabled = typeof record.frontmatterModeEnabled === 'boolean' ? record.frontmatterModeEnabled : undefined
+  const viewPinned = typeof record.viewPinned === 'boolean' ? record.viewPinned : undefined
+  const fitToScreenMode = typeof record.fitToScreenMode === 'boolean' ? record.fitToScreenMode : undefined
+  const zoomToSelectionMode = typeof record.zoomToSelectionMode === 'boolean' ? record.zoomToSelectionMode : undefined
+  const selectedNodeId = typeof record.selectedNodeId === 'string' ? record.selectedNodeId : record.selectedNodeId === null ? null : undefined
+  const selectedEdgeId = typeof record.selectedEdgeId === 'string' ? record.selectedEdgeId : record.selectedEdgeId === null ? null : undefined
+  const selectedGroupId = typeof record.selectedGroupId === 'string' ? record.selectedGroupId : record.selectedGroupId === null ? null : undefined
+  const selectedNodeIds = record.selectedNodeIds != null ? coerceStringArray(record.selectedNodeIds) : undefined
+  const selectedEdgeIds = record.selectedEdgeIds != null ? coerceStringArray(record.selectedEdgeIds) : undefined
+  const selectedGroupIds = record.selectedGroupIds != null ? coerceStringArray(record.selectedGroupIds) : undefined
+  const documentRef = typeof record.documentRef === 'string' ? record.documentRef : undefined
+  const updatedAtMs = typeof record.updatedAtMs === 'number' && Number.isFinite(record.updatedAtMs) ? record.updatedAtMs : undefined
   return {
     documentRef,
     updatedAtMs,
@@ -122,11 +124,12 @@ function coerceState(raw: unknown): PerDocumentUiState | null {
 }
 
 function coerceMap(raw: unknown): PersistedMapV1 | null {
-  if (!isRecord(raw)) return null
-  const v = raw.v === 1 ? 1 : null
+  const record = readPlainObject(raw)
+  if (!record) return null
+  const v = record.v === 1 ? 1 : null
   if (v == null) return null
-  const order = coerceStringArray(raw.order)
-  const byKeyRaw = isRecord(raw.byKey) ? raw.byKey : null
+  const order = coerceStringArray(record.order)
+  const byKeyRaw = readPlainObject(record.byKey)
   const byKey: Record<string, PerDocumentUiState> = {}
   if (byKeyRaw) {
     for (const [k, entry] of Object.entries(byKeyRaw)) {

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { LS_KEYS } from '@/lib/config'
 import { createMemoryStorage } from '@/tests/lib/memoryStorage'
 import {
@@ -86,5 +88,25 @@ export function testPerDocumentUiStateSkipsInitializationWorkspaceDocs() {
   }
   if (storage.getItem(`${LS_KEYS.perDocumentUiStateMap}:order`) != null) {
     throw new Error('Expected initialization workspace doc UI state to avoid persistence writes entirely')
+  }
+}
+
+export function testPerDocumentUiStateReusesSharedPlainObjectGuard() {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'persistence', 'perDocumentUiState.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected per-document UI persistence to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const readPlainObject = (value: unknown): Record<string, unknown> | null => {')) {
+    throw new Error('expected per-document UI persistence to centralize plain-object coercion in one local helper')
+  }
+  if (!text.includes('const record = readPlainObject(raw)')) {
+    throw new Error('expected per-document UI persistence coercion to reuse the shared local plain-object helper')
+  }
+  if (!text.includes('const byKeyRaw = readPlainObject(record.byKey)')) {
+    throw new Error('expected per-document UI persistence map parsing to reuse the shared local plain-object helper')
+  }
+  if (text.includes('function isRecord(v: unknown): v is Record<string, unknown> {')) {
+    throw new Error('expected per-document UI persistence to stop defining a local record guard')
   }
 }

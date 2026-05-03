@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { isFrontmatterFlowComputedEnabled, readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 
 export const testFrontmatterFlowRenderSettingsReadsDirectionAndEdgeType = () => {
@@ -46,4 +48,18 @@ export const testFrontmatterFlowComputedEnabledDefaultsTrueAndHonorsFalse = () =
     },
   } as never)
   if (disabled !== false) throw new Error('expected frontmatter flow computed=false to disable runtime compute')
+}
+
+export const testFrontmatterFlowSettingsReuseSharedPlainObjectGuard = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'graph', 'frontmatterFlowSettings.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected frontmatter flow settings to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('return isPlainObject(rawSettings) ? settings : null')) {
+    throw new Error('expected frontmatter flow settings record reads to reuse the shared plain-object guard')
+  }
+  if (text.includes("return rawSettings && typeof rawSettings === 'object' && !Array.isArray(rawSettings) ? settings : null")) {
+    throw new Error('expected frontmatter flow settings to stop coercing settings objects inline')
+  }
 }

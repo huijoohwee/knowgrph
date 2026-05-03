@@ -50,19 +50,20 @@ export async function testNodeMediaSpecDetectsMarkdownLinkImageWithoutMediaKind(
 }
 
 export async function testNodeMediaSpecDetectsMarkdownLinkIframeFromLabelAndLocalHtml() {
+  const localHtmlUrl = '/__codebase_asset?path=sandbox%2Ftest-data%2Fopenclaw-injection-demo.html'
   const node = {
     id: 'link:iframe:1',
     type: 'Link',
     label: 'IFrame Demo',
     properties: {
-      url: '/__repo_file/sandbox/test-data/openclaw-injection-demo.html',
+      url: localHtmlUrl,
       label: 'iframe demo',
     },
   } as unknown as Parameters<typeof getNodeMediaSpec>[0]
   const spec = getNodeMediaSpec(node)
   if (!spec) throw new Error('expected media spec for markdown link local iframe html')
   if (spec.kind !== 'iframe') throw new Error(`expected iframe kind, got ${String((spec as any).kind)}`)
-  if (!String(spec.url).startsWith('/__repo_file/sandbox/test-data/openclaw-injection-demo.html')) {
+  if (String(spec.url) !== localHtmlUrl) {
     throw new Error('expected local html iframe path to be preserved')
   }
 }

@@ -1,6 +1,11 @@
 import { hashString32, hashStringToHex } from '@/lib/hash/stringHash'
+import { isPlainObject } from '@/lib/graph/value'
 
 type SignaturePrimitive = string | number | boolean | null | undefined
+
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
 
 const normalizePrimitive = (value: SignaturePrimitive): string => {
   if (value === null || value === undefined) return ''
@@ -127,7 +132,7 @@ export const hashRecordSignature = (
     maxEntries?: number
   },
 ): string => {
-  const obj = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+  const obj = readPlainObject(value)
   if (!obj) return hashSignatureParts(['count', 0])
 
   const maxEntries = Math.max(0, Math.floor(options?.maxEntries ?? 60))
@@ -151,7 +156,7 @@ export const hashRecordSignature32 = (
     maxDepth?: number
   },
 ): number => {
-  const obj = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+  const obj = readPlainObject(value)
   if (!obj) return hashSignatureParts32(['count', 0])
 
   const maxEntries = Math.max(0, Math.floor(options?.maxEntries ?? 80))
@@ -186,11 +191,11 @@ export const hashArrayOfObjectsSignature = (
   const sliced = raw.slice(0, maxItems)
   for (let i = 0; i < sliced.length; i += 1) {
     const item = sliced[i]
-    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    const obj = readPlainObject(item)
+    if (!obj) {
       parts.push(String(item ?? ''))
       continue
     }
-    const obj = item as Record<string, unknown>
     const keys = Object.keys(obj).sort().slice(0, maxKeysPerItem)
     for (let k = 0; k < keys.length; k += 1) {
       const key = keys[k]
@@ -220,11 +225,11 @@ export const hashArrayOfObjectsSignature32 = (
   const sliced = raw.slice(0, maxItems)
   for (let i = 0; i < sliced.length; i += 1) {
     const item = sliced[i]
-    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    const obj = readPlainObject(item)
+    if (!obj) {
       parts.push(String(item ?? ''))
       continue
     }
-    const obj = item as Record<string, unknown>
     const keys = Object.keys(obj).sort().slice(0, maxKeysPerItem)
     for (let k = 0; k < keys.length; k += 1) {
       const key = keys[k]

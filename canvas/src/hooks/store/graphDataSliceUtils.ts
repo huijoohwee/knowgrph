@@ -8,6 +8,7 @@ import {
   type GraphDataTableColumnKey,
   type GraphDataTableColumnVisibilityByKey,
 } from '@/features/graph-data-table/graphDataTable'
+import { readCanvasWorkspaceFrontmatterPresetFromMeta } from '@/lib/markdown/frontmatter'
 import { readValidatedWidgetRegistryMetadataEntries } from '@/hooks/store/flowEditorManagerSlice'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
@@ -168,8 +169,20 @@ export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unkn
 
     const setCanvas2dRenderer = get().setCanvas2dRenderer
     const currentRenderer = get().canvas2dRenderer
-    if (typeof setCanvas2dRenderer === 'function' && !isFlowEditorCanvas2dRenderer(currentRenderer)) {
-      setCanvas2dRenderer('d3Bipartite')
+    const frontmatterMeta = isRecord(metadata.frontmatterMeta)
+      ? (metadata.frontmatterMeta as Record<string, unknown>)
+      : null
+    const explicitFrontmatterPreset = readCanvasWorkspaceFrontmatterPresetFromMeta(frontmatterMeta)
+    const shouldPreserveExplicitRenderer =
+      !!explicitFrontmatterPreset?.canvas2dRenderer
+      || !!explicitFrontmatterPreset?.canvasSurfaceMode
+      || isFrontmatterFlowGraph(get().graphData)
+    if (
+      typeof setCanvas2dRenderer === 'function'
+      && !shouldPreserveExplicitRenderer
+      && !isFlowEditorCanvas2dRenderer(currentRenderer)
+    ) {
+      setCanvas2dRenderer('flowchart')
     }
   }
 }

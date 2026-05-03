@@ -2,7 +2,7 @@ import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { buildBipartiteApiMetaUrl } from '@/lib/bipartite/source'
+import { buildFlowchartApiMetaUrl } from '@/lib/flowchart/source'
 import { useShallow } from 'zustand/react/shallow'
 
 type ApiRuntimeRun = {
@@ -236,7 +236,7 @@ function SelectRow(props: {
   )
 }
 
-export function BipartiteRendererSettings() {
+export function FlowchartRendererSettings() {
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || '')
   const [apiRuntimeMeta, setApiRuntimeMeta] = React.useState<ApiRuntimeMeta | null>(null)
   const [builderPresetId, setBuilderPresetId] = React.useState('')
@@ -277,28 +277,28 @@ export function BipartiteRendererSettings() {
     setShowClusterGap,
   } = useGraphStore(
     useShallow(s => ({
-      dataSource: s.bipartiteDataSource,
-      setDataSource: s.setBipartiteDataSource,
-      apiRunId: s.bipartiteApiRunId,
-      setApiRunId: s.setBipartiteApiRunId,
-      pollIntervalSec: s.bipartitePollIntervalSec,
-      setPollIntervalSec: s.setBipartitePollIntervalSec,
-      nodeSizeMetric: s.bipartiteNodeSizeMetric,
-      setNodeSizeMetric: s.setBipartiteNodeSizeMetric,
-      nodeGlowMetric: s.bipartiteNodeGlowMetric,
-      setNodeGlowMetric: s.setBipartiteNodeGlowMetric,
-      nodePulseMetric: s.bipartiteNodePulseMetric,
-      setNodePulseMetric: s.setBipartiteNodePulseMetric,
-      nodeBorderMetric: s.bipartiteNodeBorderMetric,
-      setNodeBorderMetric: s.setBipartiteNodeBorderMetric,
-      edgeOpacityMetric: s.bipartiteEdgeOpacityMetric,
-      setEdgeOpacityMetric: s.setBipartiteEdgeOpacityMetric,
-      showBadges: s.bipartiteShowSpecificityBadges,
-      setShowBadges: s.setBipartiteShowSpecificityBadges,
-      showGapScore: s.bipartiteShowGapScoreInLabel,
-      setShowGapScore: s.setBipartiteShowGapScoreInLabel,
-      showClusterGap: s.bipartiteShowClusterGapRatio,
-      setShowClusterGap: s.setBipartiteShowClusterGapRatio,
+      dataSource: s.flowchartDataSource,
+      setDataSource: s.setFlowchartDataSource,
+      apiRunId: s.flowchartApiRunId,
+      setApiRunId: s.setFlowchartApiRunId,
+      pollIntervalSec: s.flowchartPollIntervalSec,
+      setPollIntervalSec: s.setFlowchartPollIntervalSec,
+      nodeSizeMetric: s.flowchartNodeSizeMetric,
+      setNodeSizeMetric: s.setFlowchartNodeSizeMetric,
+      nodeGlowMetric: s.flowchartNodeGlowMetric,
+      setNodeGlowMetric: s.setFlowchartNodeGlowMetric,
+      nodePulseMetric: s.flowchartNodePulseMetric,
+      setNodePulseMetric: s.setFlowchartNodePulseMetric,
+      nodeBorderMetric: s.flowchartNodeBorderMetric,
+      setNodeBorderMetric: s.setFlowchartNodeBorderMetric,
+      edgeOpacityMetric: s.flowchartEdgeOpacityMetric,
+      setEdgeOpacityMetric: s.setFlowchartEdgeOpacityMetric,
+      showBadges: s.flowchartShowSpecificityBadges,
+      setShowBadges: s.setFlowchartShowSpecificityBadges,
+      showGapScore: s.flowchartShowGapScoreInLabel,
+      setShowGapScore: s.setFlowchartShowGapScoreInLabel,
+      showClusterGap: s.flowchartShowClusterGapRatio,
+      setShowClusterGap: s.setFlowchartShowClusterGapRatio,
     })),
   )
 
@@ -306,7 +306,7 @@ export function BipartiteRendererSettings() {
     let cancelled = false
     const load = async () => {
       try {
-        const res = await fetch(buildBipartiteApiMetaUrl(), { cache: 'no-store' })
+        const res = await fetch(buildFlowchartApiMetaUrl(), { cache: 'no-store' })
         if (!res.ok) return
         const parsed = (await res.json()) as unknown
         if (cancelled || !parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return

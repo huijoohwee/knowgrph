@@ -1,4 +1,4 @@
-import { buildBipartiteMarkdownFromJsonText, buildBipartiteMarkdownFromJsonValue } from '@/features/markdown/bipartiteJsonToMarkdown'
+import { buildFlowchartMarkdownFromJsonText, buildFlowchartMarkdownFromJsonValue } from '@/features/markdown/flowchartJsonToMarkdown'
 import { jsonToMarkdownPreferTable, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
 import { buildJsonMarkdownConfigFromPreferences, readJsonMarkdownMode, writeJsonMarkdownMode } from '@/features/markdown/jsonMarkdownPreferences'
 
@@ -25,17 +25,17 @@ export function buildJsonMarkdownDocumentFromValue(
   opts?: { preferredMode?: JsonToMarkdownMode; sourceText?: string | null },
 ): JsonMarkdownDocumentResult {
   const mode = opts?.preferredMode || readJsonMarkdownMode()
-  const bipartite = buildBipartiteMarkdownFromJsonValue(value)
+  const flowchart = buildFlowchartMarkdownFromJsonValue(value)
   const config = buildJsonMarkdownConfigFromPreferences()
-  const markdown = bipartite || jsonToMarkdownPreferTable(value, { ...config, defaultMode: mode }, mode)
+  const markdown = flowchart || jsonToMarkdownPreferTable(value, { ...config, defaultMode: mode }, mode)
   writeJsonMarkdownMode(mode)
   const jsonSourceText = typeof opts?.sourceText === 'string' && opts.sourceText.trim() ? opts.sourceText.trim() : null
   return { markdown, jsonSourceText, mode }
 }
 
 export function tryBuildJsonMarkdownTablesFromText(text: string, preferredMode?: JsonToMarkdownMode): string | null {
-  const bipartite = buildBipartiteMarkdownFromJsonText(text)
-  if (bipartite) return bipartite
+  const flowchart = buildFlowchartMarkdownFromJsonText(text)
+  if (flowchart) return flowchart
   const built = tryBuildJsonMarkdownDocumentFromText(text, preferredMode)
   return built ? built.markdown : null
 }

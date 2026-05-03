@@ -3,6 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getRendererPalette } from '@/lib/graph/schema'
 import {
   getAgenticRagFieldKind,
+  getCachedGraphFieldOwnerSummary,
   getCachedResolvedFieldSettingsById,
   parseGraphFieldId,
   type GraphField,
@@ -151,6 +152,7 @@ export function computeStyleOwnerByFieldId(args: {
     Object.keys(nodeStyles)[0] || catalogNodeTypes[0] || 'default'
   const firstEdgeStyleKey =
     Object.keys(edgeStyles)[0] || catalogEdgeLabels[0] || 'default'
+  const ownerSummary = getCachedGraphFieldOwnerSummary(graphData)
 
   for (const field of fields) {
     const key = field.key
@@ -162,16 +164,7 @@ export function computeStyleOwnerByFieldId(args: {
           break
         }
       }
-      if (!ownerKey && graphData?.nodes) {
-        const node = graphData.nodes.find(
-          n =>
-            n.properties &&
-            Object.prototype.hasOwnProperty.call(n.properties, key),
-        )
-        if (node && typeof node.type === 'string' && node.type.trim()) {
-          ownerKey = node.type.trim()
-        }
-      }
+      if (!ownerKey) ownerKey = ownerSummary?.nodeOwnerByFieldKey.get(key) || ''
       if (!ownerKey) ownerKey = firstNodeStyleKey
     } else {
       for (const [label, props] of Object.entries(edgeSchemas)) {
@@ -180,16 +173,7 @@ export function computeStyleOwnerByFieldId(args: {
           break
         }
       }
-      if (!ownerKey && graphData?.edges) {
-        const edge = graphData.edges.find(
-          e =>
-            e.properties &&
-            Object.prototype.hasOwnProperty.call(e.properties, key),
-        )
-        if (edge && typeof edge.label === 'string' && edge.label.trim()) {
-          ownerKey = edge.label.trim()
-        }
-      }
+      if (!ownerKey) ownerKey = ownerSummary?.edgeOwnerByFieldKey.get(key) || ''
       if (!ownerKey) ownerKey = firstEdgeStyleKey
     }
     map.set(field.id, ownerKey)
@@ -205,10 +189,7 @@ export function computeNodeStyleOwnerKey(args: {
   const { graphData, schema } = args
   const styles = schema?.nodeStyles || {}
   const styleKeys = Object.keys(styles)
-  const dataType = graphData?.nodes?.find(
-    n => typeof n.type === 'string' && n.type.trim(),
-  )?.type
-  const trimmed = typeof dataType === 'string' ? dataType.trim() : ''
+  const trimmed = getCachedGraphFieldOwnerSummary(graphData)?.firstNodeType || ''
   if (trimmed) return trimmed
   if (styleKeys.length > 0) return styleKeys[0]
   const catalogTypes = schema?.catalog?.nodeTypes || []
@@ -223,10 +204,7 @@ export function computeEdgeStyleOwnerKey(args: {
   const { graphData, schema } = args
   const styles = schema?.edgeStyles || {}
   const styleKeys = Object.keys(styles)
-  const dataLabel = graphData?.edges?.find(
-    e => typeof e.label === 'string' && e.label.trim(),
-  )?.label
-  const trimmed = typeof dataLabel === 'string' ? dataLabel.trim() : ''
+  const trimmed = getCachedGraphFieldOwnerSummary(graphData)?.firstEdgeLabel || ''
   if (trimmed) return trimmed
   if (styleKeys.length > 0) return styleKeys[0]
   const catalogLabels = schema?.catalog?.edgeLabels || []

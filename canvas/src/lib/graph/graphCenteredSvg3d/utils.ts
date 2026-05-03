@@ -1,3 +1,5 @@
+import { isPlainObject } from '@/lib/graph/value'
+
 export const SVG_NS = 'http://www.w3.org/2000/svg'
 
 export const clampFinite = (n: unknown, min: number, max: number): number => {
@@ -176,8 +178,8 @@ export const createDepthOpacity = (args: {
 }
 
 export const readCameraPoseTargetCenter = (cameraPose: unknown): { x: number; y: number; z: number } | null => {
-  const pose = cameraPose && typeof cameraPose === 'object' && !Array.isArray(cameraPose) ? (cameraPose as Record<string, unknown>) : null
-  const target = pose && pose.target && typeof pose.target === 'object' && !Array.isArray(pose.target) ? (pose.target as Record<string, unknown>) : null
+  const pose = isPlainObject(cameraPose) ? (cameraPose as Record<string, unknown>) : null
+  const target = isPlainObject(pose?.target) ? (pose.target as Record<string, unknown>) : null
   if (!target) return null
   const x = Number(target.x)
   const y = Number(target.y)

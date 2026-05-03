@@ -128,6 +128,19 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
   if (!approxEq(followPinnedZoomIn, 1)) {
     throw new Error(`expected follow-pinned collective scale to cap at pinned zoom-in size, got ${followPinnedZoomIn}`)
   }
+
+  const followPinnedDense16x9 = computeCollectiveFollowPinnedScale({
+    zoomK: 1,
+    extent,
+    viewportW: 1920,
+    viewportH: 1080,
+    count: 36,
+    baseWidth: 360,
+    baseHeight: 520,
+  })
+  if (!(followPinnedDense16x9 >= 0.5 && followPinnedDense16x9 <= 0.6)) {
+    throw new Error(`expected dense 36-up pinned collective scale to stay legible while still shrinking for 16:9 fit, got ${followPinnedDense16x9}`)
+  }
 }
 
 export function testBalancedSpreadPrefersWide16x9CollectiveLayout() {

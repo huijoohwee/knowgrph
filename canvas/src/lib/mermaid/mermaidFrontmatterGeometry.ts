@@ -672,8 +672,7 @@ export function applyMermaidFrontmatterContextLayoutToGraphData(graphData: Graph
   const blockOrderKey = (id: string): number => {
     const n = nextById.get(id)
     if (!n) return Number.POSITIVE_INFINITY
-    const meta = n.metadata as unknown
-    const m = meta && typeof meta === 'object' && !Array.isArray(meta) ? (meta as Record<string, unknown>) : null
+    const m = toMetadataRecord(n.metadata)
     const lineStart = m && typeof m.lineStart === 'number' && Number.isFinite(m.lineStart) ? Math.floor(m.lineStart) : null
     if (lineStart != null) return lineStart
     const props = (n.properties || {}) as Record<string, unknown>

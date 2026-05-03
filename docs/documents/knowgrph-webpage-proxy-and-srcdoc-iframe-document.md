@@ -63,10 +63,6 @@ When `kgWebsiteImportId/kgWebsiteNodeId` are present, the HTML Viewer prefers st
 
 - Routes local LM Studio chat calls through a same-origin proxy path instead of direct localhost URLs, normalizes legacy endpoint/model ids, extracts real upstream error text, and may auto-switch to a discovered working model when the configured id is invalid.
 
-### `GET /__repo_file/*` (legacy)
-
-- Legacy path-based serving used by older docs and some baseHref flows. Prefer `/__codebase_file` + `/__codebase_asset` for new behavior.
-
 ### `POST /__website_import/import-url`
 
 - Persists per-URL artifacts to the workspace output dir (default `.knowgrph-workspace/...`; in this repo the directory is moved to `sandbox/.knowgrph-workspace` via symlink):

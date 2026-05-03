@@ -8,6 +8,15 @@ import { createPanelLayoutUiSlice } from '@/hooks/store/panelLayoutUiSlice'
 import { GRABMAPS_DEFAULT_DIRECTIONS_URL, GRABMAPS_DEFAULT_STYLE_URL } from 'grph-shared/geospatial/grabMapsSsot'
 import { PANEL_TYPOGRAPHY_DEFAULTS } from 'grph-shared/ui/panelTypography'
 import { clampFillRatio } from 'grph-shared/zoom/presets'
+import {
+  clampFrontmatterInitialFitFillRatio,
+  clampFrontmatterOverlayFitProxyScale,
+  FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_DESKTOP,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_LAPTOP,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_PHONE,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET,
+} from '@/components/FlowCanvas/frontmatterLayoutConfig'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
 import { readGrabMapsByokApiKeyFromBrowser } from 'grph-shared/geospatial/grabMapsAuth'
 import type { UiStorageReaders } from './uiSliceStorage'
@@ -147,6 +156,56 @@ export const createUiInitialState = (
         if (state.viewportFitFillRatio === next) return {}
         lsSetFloat(LS_KEYS.viewportFitFillRatio, next, { min: 0.2, max: 0.95 })
         return { viewportFitFillRatio: next } as Partial<GraphState>
+      }),
+    frontmatterFlowInitialFitFillRatio: clampFrontmatterInitialFitFillRatio(
+      lsFloat(LS_KEYS.frontmatterFlowInitialFitFillRatio, FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO, { min: 0.6, max: 0.95 }),
+    ),
+    setFrontmatterFlowInitialFitFillRatio: (v: number) =>
+      set(state => {
+        const next = clampFrontmatterInitialFitFillRatio(v)
+        if (state.frontmatterFlowInitialFitFillRatio === next) return {}
+        lsSetFloat(LS_KEYS.frontmatterFlowInitialFitFillRatio, next, { min: 0.6, max: 0.95 })
+        return { frontmatterFlowInitialFitFillRatio: next } as Partial<GraphState>
+      }),
+    frontmatterFlowOverlayFitProxyScalePhone: clampFrontmatterOverlayFitProxyScale(
+      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScalePhone, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_PHONE, { min: 0.01, max: 1 }),
+    ),
+    setFrontmatterFlowOverlayFitProxyScalePhone: (v: number) =>
+      set(state => {
+        const next = clampFrontmatterOverlayFitProxyScale(v)
+        if (state.frontmatterFlowOverlayFitProxyScalePhone === next) return {}
+        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScalePhone, next, { min: 0.01, max: 1 })
+        return { frontmatterFlowOverlayFitProxyScalePhone: next } as Partial<GraphState>
+      }),
+    frontmatterFlowOverlayFitProxyScaleTablet: clampFrontmatterOverlayFitProxyScale(
+      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleTablet, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET, { min: 0.01, max: 1 }),
+    ),
+    setFrontmatterFlowOverlayFitProxyScaleTablet: (v: number) =>
+      set(state => {
+        const next = clampFrontmatterOverlayFitProxyScale(v)
+        if (state.frontmatterFlowOverlayFitProxyScaleTablet === next) return {}
+        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleTablet, next, { min: 0.01, max: 1 })
+        return { frontmatterFlowOverlayFitProxyScaleTablet: next } as Partial<GraphState>
+      }),
+    frontmatterFlowOverlayFitProxyScaleLaptop: clampFrontmatterOverlayFitProxyScale(
+      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleLaptop, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_LAPTOP, { min: 0.01, max: 1 }),
+    ),
+    setFrontmatterFlowOverlayFitProxyScaleLaptop: (v: number) =>
+      set(state => {
+        const next = clampFrontmatterOverlayFitProxyScale(v)
+        if (state.frontmatterFlowOverlayFitProxyScaleLaptop === next) return {}
+        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleLaptop, next, { min: 0.01, max: 1 })
+        return { frontmatterFlowOverlayFitProxyScaleLaptop: next } as Partial<GraphState>
+      }),
+    frontmatterFlowOverlayFitProxyScaleDesktop: clampFrontmatterOverlayFitProxyScale(
+      lsFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleDesktop, FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_DESKTOP, { min: 0.01, max: 1 }),
+    ),
+    setFrontmatterFlowOverlayFitProxyScaleDesktop: (v: number) =>
+      set(state => {
+        const next = clampFrontmatterOverlayFitProxyScale(v)
+        if (state.frontmatterFlowOverlayFitProxyScaleDesktop === next) return {}
+        lsSetFloat(LS_KEYS.frontmatterFlowOverlayFitProxyScaleDesktop, next, { min: 0.01, max: 1 })
+        return { frontmatterFlowOverlayFitProxyScaleDesktop: next } as Partial<GraphState>
       }),
 
     graphDragAlphaTarget2d: lsFloat(LS_KEYS.graphDragAlphaTarget2d, DEFAULT_DRAG_ALPHA_TARGET, { min: 0, max: 0.6 }),

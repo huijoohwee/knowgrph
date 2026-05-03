@@ -1,3 +1,5 @@
+import { isPlainObject } from '@/lib/graph/value'
+
 export type ObjectPathToken = { kind: 'key'; key: string } | { kind: 'index'; index: number }
 
 export function parseObjectPath(path: string): ObjectPathToken[] {
@@ -50,7 +52,7 @@ export function setObjectPath<T>(obj: T, path: string, value: unknown): T {
     const isLast = idx === tokens.length - 1
 
     if (tok.kind === 'key') {
-      const base: Record<string, unknown> = cur && typeof cur === 'object' && !Array.isArray(cur) ? { ...(cur as Record<string, unknown>) } : {}
+      const base: Record<string, unknown> = isPlainObject(cur) ? { ...(cur as Record<string, unknown>) } : {}
       if (isLast) {
         if (typeof value === 'undefined') {
           delete base[tok.key]
@@ -75,4 +77,3 @@ export function setObjectPath<T>(obj: T, path: string, value: unknown): T {
 
   return setRec(obj, 0) as T
 }
-

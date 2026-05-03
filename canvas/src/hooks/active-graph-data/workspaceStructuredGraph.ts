@@ -3,10 +3,10 @@ import { parseGraphFromJson } from '@/lib/graph/io/adapter'
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import {
-  normalizeBipartiteApiGraphData,
-  parseBipartiteApiGraphPayload,
-} from '@/features/bipartite/apiGraphBipartite'
-import { buildBipartiteSourceMeta } from '@/lib/bipartite/source'
+  normalizeFlowchartApiGraphData,
+  parseFlowchartApiGraphPayload,
+} from '@/features/flowchart/apiGraphFlowchart'
+import { buildFlowchartSourceMeta } from '@/lib/flowchart/source'
 import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { LRUCache } from '@/lib/cache/LRUCache'
@@ -56,7 +56,7 @@ const toWorkspaceJsonGraphData = (data: GraphData): GraphData | null => {
     },
     { problem: 0, solution: 0 },
   )
-  const isBipartite = typeCounts.problem > 0 && typeCounts.solution > 0
+  const isFlowchart = typeCounts.problem > 0 && typeCounts.solution > 0
   const meta =
     data.metadata && typeof data.metadata === 'object' && !Array.isArray(data.metadata)
       ? (data.metadata as Record<string, unknown>)
@@ -72,8 +72,8 @@ const toWorkspaceJsonGraphData = (data: GraphData): GraphData | null => {
   const graphKind =
     typeof meta.graphKind === 'string' && meta.graphKind.trim()
       ? meta.graphKind
-      : isBipartite
-        ? 'bipartite'
+      : isFlowchart
+        ? 'flowchart'
         : 'graph'
   return {
     ...data,
@@ -99,11 +99,11 @@ const parseWorkspaceJsonGraphData = (args: { markdownName: string | null; markdo
     const parsed = JSON.parse(trimmed) as unknown
     if (!parsed || typeof parsed !== 'object') return null
     if (!Array.isArray(parsed)) {
-      const bipartitePayload = parseBipartiteApiGraphPayload(parsed)
-      if (bipartitePayload) {
-        return normalizeBipartiteApiGraphData({
-          payload: bipartitePayload,
-          sourceMeta: buildBipartiteSourceMeta({
+      const flowchartPayload = parseFlowchartApiGraphPayload(parsed)
+      if (flowchartPayload) {
+        return normalizeFlowchartApiGraphData({
+          payload: flowchartPayload,
+          sourceMeta: buildFlowchartSourceMeta({
             kind: 'workspace',
             documentName: args.markdownName,
           }),

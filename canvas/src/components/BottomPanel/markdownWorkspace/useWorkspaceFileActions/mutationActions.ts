@@ -159,6 +159,10 @@ export function useWorkspaceMutationActions(args: {
       const sourcePath = normalizeWorkspacePath(path)
       const nextName = String(nextNameRaw || '').trim()
       if (!sourcePath || sourcePath === WORKSPACE_ROOT_PATH) return
+      if (isInitializationWorkspacePath(sourcePath)) {
+        status.setStatusError('Rename disabled for initialization file')
+        return
+      }
       if (!nextName || nextName.includes('/') || nextName.includes('\\')) {
         status.setStatusError('Invalid name')
         return

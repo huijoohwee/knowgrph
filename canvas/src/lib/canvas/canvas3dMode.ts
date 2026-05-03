@@ -33,7 +33,7 @@ export function readGeospatialOverlayEnabled(): boolean {
 
 export function getVoxelModeInapplicableReason(args: VoxelModeApplicabilityArgs): VoxelModeInapplicableReason {
   if ((args.geospatialEnabled ?? readGeospatialOverlayEnabled()) === true) return 'geospatial'
-  if (args.canvas2dRenderer !== 'd3Bipartite') return 'renderer'
+  if (args.canvas2dRenderer !== 'flowchart') return 'renderer'
   if (!isVoxelSemanticModeAllowed(args)) return 'semantic'
   if (args.schema?.layout?.mode !== 'block') return 'layout'
   return null

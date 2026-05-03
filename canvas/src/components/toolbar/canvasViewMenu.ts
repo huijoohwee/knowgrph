@@ -29,8 +29,8 @@ export const getCanvasViewRendererOptions = (): CanvasViewRendererOption[] => [
     label: 'D3',
   },
   {
-    id: 'd3Bipartite' as const,
-    title: UI_COPY.canvasViewRendererD3BipartiteTitle,
+    id: 'flowchart' as const,
+    title: UI_COPY.canvasViewRendererD3FlowchartTitle,
     Icon: Columns2,
     label: 'Bi',
   },

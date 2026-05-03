@@ -20,6 +20,7 @@ import type { MarkdownWorkspaceStatus } from '../markdownWorkspaceTypes'
 import { formatMarkdownWorkspaceStatusLabel } from '../markdownWorkspaceStatusUi'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
+import { getDefaultNewWorkspaceFileName, resolveNewWorkspaceFileDraft } from './fileDraft'
 
 const DEFAULT_WORKSPACE_STATUS_TOAST_ID = 'markdown-workspace-status'
 
@@ -338,12 +339,24 @@ export function useWorkspaceFileActionsCore(args: UseWorkspaceFileActionsArgs): 
 
   const createNewFile = React.useCallback(
     async (opts?: { parentPath?: WorkspacePath }) => {
+      const draftName = typeof window !== 'undefined'
+        ? window.prompt('New file', getDefaultNewWorkspaceFileName())
+        : getDefaultNewWorkspaceFileName()
+      if (draftName == null) {
+        status.setStatusInfo('Create cancelled', { ttlMs: UI_TOAST_TTL_MS.statusAutoCloseFast })
+        return
+      }
+      const fileDraft = resolveNewWorkspaceFileDraft(draftName)
+      if (!fileDraft) {
+        status.setStatusError('Invalid name')
+        return
+      }
       status.setStatusProgress('Creating')
       try {
         const path = await createWorkspaceEntryAndRefresh({
           parentPath: opts?.parentPath,
           create: async ({ fs, parentPath }) => {
-            return await fs.createFile({ parentPath, name: 'note.md', text: '' })
+            return await fs.createFile({ parentPath, name: fileDraft.name, text: fileDraft.text })
           },
           afterCreate: path => {
             setWorkspaceEntrySource(path, { kind: 'local', originalName: null })

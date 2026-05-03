@@ -1,4 +1,4 @@
-import { withD3BipartiteSceneSchema } from '@/lib/canvas/d3BipartiteSchemaOverrides'
+import { withD3FlowchartSceneSchema } from '@/lib/canvas/d3FlowchartSchemaOverrides'
 import { isD3Like2dRenderer } from '@/lib/config.render'
 import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -7,7 +7,7 @@ import type { GraphData } from '@/lib/graph/types'
 export type D3SceneSetupContext = {
   graphKind: string
   isD3LikeRenderer: boolean
-  isBipartite: boolean
+  isFlowchart: boolean
   schemaForScene: GraphSchema
   hoverEnabled: boolean
   zoomOnDoubleClick: boolean
@@ -39,8 +39,8 @@ export function buildD3SceneSetupContext(args: {
     return typeof metadata.graphKind === 'string' ? metadata.graphKind : ''
   })()
   const isD3LikeRenderer = args.canvasRenderMode === '2d' && isD3Like2dRenderer((args.canvas2dRenderer || null) as never)
-  const isBipartite = isD3LikeRenderer && graphKind === 'bipartite'
-  const schemaForScene = withD3BipartiteSceneSchema({
+  const isFlowchart = isD3LikeRenderer && graphKind === 'flowchart'
+  const schemaForScene = withD3FlowchartSceneSchema({
     schema: args.schema,
     graphData: args.sceneGraphData,
     canvasRenderMode: args.canvasRenderMode,
@@ -60,8 +60,8 @@ export function buildD3SceneSetupContext(args: {
     String(args.documentSemanticMode),
     graphMetaKey,
     `${String(args.sceneGraphData?.nodes?.length ?? 0)}:${String(args.sceneGraphData?.edges?.length ?? 0)}`,
-    String(isBipartite ? 0 : (args.renderMediaAsNodes ? 1 : 0)),
-    String(isBipartite ? '' : args.mediaPanelDensity),
+    String(isFlowchart ? 0 : (args.renderMediaAsNodes ? 1 : 0)),
+    String(isFlowchart ? '' : args.mediaPanelDensity),
     args.collapsedGroupIdsKey,
     String(args.infiniteCanvasInteractionMode),
   ].join('|')
@@ -77,7 +77,7 @@ export function buildD3SceneSetupContext(args: {
   return {
     graphKind,
     isD3LikeRenderer,
-    isBipartite,
+    isFlowchart,
     schemaForScene,
     hoverEnabled,
     zoomOnDoubleClick,

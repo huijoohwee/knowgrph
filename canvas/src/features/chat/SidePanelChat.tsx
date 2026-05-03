@@ -35,9 +35,12 @@ import { useFinalizeAssistantSuccess } from '@/features/chat/sidePanelChat/useFi
 import { useSidePanelChatSubmit } from '@/features/chat/sidePanelChat/useSidePanelChatSubmit'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { emitMarkdownLayoutRequest } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.shared'
+import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 
 export default function SidePanelChat() {
   const graphData = useGraphStore(s => s.graphData)
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const markdownText = useGraphStore(s => s.markdownDocumentText || null)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
@@ -238,10 +241,25 @@ export default function SidePanelChat() {
     setChatKnowgrphWorkspacePath,
   ])
 
+  const graphLookup = React.useMemo(() => {
+    if (!graphData) return null
+    const graphSemanticKey = buildScopedGraphSemanticKey('side-panel-chat-graph', {
+      graphData,
+      graphRevision: graphDataRevision,
+    })
+    return getCachedGraphLookup({
+      cacheScope: 'side-panel-chat-graph',
+      graphData,
+      graphRevision: graphDataRevision,
+      graphSemanticKey,
+      preferCurrentGraphDataRefs: true,
+    })
+  }, [graphData, graphDataRevision])
+
   const currentNode = React.useMemo(() => {
-    if (!graphData || !selectedNodeId) return null
-    return graphData.nodes.find(n => n.id === selectedNodeId) || null
-  }, [graphData, selectedNodeId])
+    if (!selectedNodeId) return null
+    return graphLookup?.nodeById.get(selectedNodeId) || null
+  }, [graphLookup, selectedNodeId])
 
   React.useEffect(() => {
     if (lastLoadedHistoryKeyRef.current === historyKey) return

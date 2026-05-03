@@ -74,8 +74,8 @@ export function Canvas3dModeSelect({
     }
     if (inapplicableReason === 'renderer') {
       return {
-        reason: 'Requires 2D Renderer: D3 Bipartite',
-        hint: 'Switch 2D Renderer to D3 Bipartite',
+        reason: 'Requires 2D Renderer: D3 Flowchart',
+        hint: 'Switch 2D Renderer to D3 Flowchart',
       }
     }
     if (inapplicableReason === 'semantic') {
@@ -156,8 +156,8 @@ export function Canvas3dModeSelect({
               },
             })
           }
-          if (canvas2dRenderer !== 'd3Bipartite') {
-            setCanvas2dRenderer('d3Bipartite')
+          if (canvas2dRenderer !== 'flowchart') {
+            setCanvas2dRenderer('flowchart')
           }
           setCanvas3dMode('voxel')
           setCanvasRenderMode('3d')

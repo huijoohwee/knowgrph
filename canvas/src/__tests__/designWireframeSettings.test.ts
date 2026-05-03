@@ -79,3 +79,23 @@ export function testDesignWireframeSettingsReusesSharedMetadataReader() {
     throw new Error('expected designWireframeSettings to stop coercing schema metadata inline')
   }
 }
+
+export function testDesignWireframeSettingsReusesSharedPlainObjectGuard() {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'render', 'designWireframeSettings.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected designWireframeSettings to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const readPlainObject = (value: unknown): Record<string, unknown> | null => {')) {
+    throw new Error('expected designWireframeSettings to centralize plain-object coercion in one local helper')
+  }
+  if (!text.includes('const schemaObj = readPlainObject(schemaRaw)')) {
+    throw new Error('expected designWireframeSettings schema overrides to reuse the shared local plain-object helper')
+  }
+  if (!text.includes('const graphObj = readPlainObject(graphRaw)')) {
+    throw new Error('expected designWireframeSettings graph overrides to reuse the shared local plain-object helper')
+  }
+  if (text.includes("const schemaObj = schemaRaw && typeof schemaRaw === 'object' && !Array.isArray(schemaRaw) ? (schemaRaw as Record<string, unknown>) : null")) {
+    throw new Error('expected designWireframeSettings to stop coercing override objects inline')
+  }
+}

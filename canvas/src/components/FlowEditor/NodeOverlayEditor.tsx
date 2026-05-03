@@ -556,21 +556,18 @@ const NodeOverlayEditorInner = React.memo(function NodeOverlayEditorInner({
       const [minK, maxK] = readZoomScaleExtent(s)
       return { minK: Math.min(minK, DEFAULT_ZOOM_MIN_SCALE_HARD_CAP), maxK }
     })()
-    const panelScaleBase = computeWidgetScale(zoomK, extent, { mode: 'pinnedInCanvas' })
-    const panelScale = floatingRef.current
-      ? computeCollectiveFollowPinnedScale({
-          zoomK,
-          extent,
-          viewportW,
-          viewportH,
-          count: openWidgetNodeCount,
-          baseWidth: WIDGET_BASE_SIZE.width,
-          baseHeight: WIDGET_BASE_SIZE.height,
-          quantizeStep: 0.02,
-          hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min,
-          hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.max,
-        })
-      : panelScaleBase
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK,
+      extent,
+      viewportW,
+      viewportH,
+      count: openWidgetNodeCount,
+      baseWidth: WIDGET_BASE_SIZE.width,
+      baseHeight: WIDGET_BASE_SIZE.height,
+      quantizeStep: 0.02,
+      hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min,
+      hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.max,
+    })
     if (floatingRef.current) lastFloatingScaleKeyRef.current = computeWidgetScaleKey(panelScale)
     const scaled = computeWidgetScaledSize(panelScale)
     scaledSizeRef.current = scaled

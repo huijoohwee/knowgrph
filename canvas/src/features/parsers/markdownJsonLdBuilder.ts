@@ -1,5 +1,6 @@
 import { slugify } from './markdownJsonLdUtils'
 import { inferMediaKindFromResourceUrl, prefersIframeFromLinkContext } from '@/lib/graph/mediaUrlKind'
+import { decodeCodebasePathFromUrl } from '@/lib/url'
 import { patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import { buildBilibiliEmbedUrl, buildTwitterEmbedUrl, buildVimeoEmbedUrl, buildYouTubeEmbedUrl } from 'grph-shared/rich-media/providers'
 
@@ -221,7 +222,7 @@ export class MarkdownGraphBuilder {
       const genericWebpageMediaProps = (() => {
         if (!prefersIframeFromLinkContext({ label, url, preferMedia: opts?.preferMedia === true })) return null
         const raw = String(url || '').trim()
-        if (!/^https?:\/\//i.test(raw) && !/^\/__repo_file\//i.test(raw)) return null
+        if (!/^https?:\/\//i.test(raw) && !decodeCodebasePathFromUrl(raw)) return null
         if (inlineLinkMediaProps) return null
         return {
           ...buildAliasedMediaProperties({ kind: 'iframe', url: raw, interactive: true }),

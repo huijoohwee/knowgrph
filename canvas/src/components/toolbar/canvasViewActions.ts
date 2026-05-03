@@ -146,8 +146,8 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
         },
       })
     }
-    if (canvas2dRenderer !== 'd3Bipartite') {
-      setCanvas2dRenderer('d3Bipartite')
+    if (canvas2dRenderer !== 'flowchart') {
+      setCanvas2dRenderer('flowchart')
     }
     setCanvas3dMode('voxel')
     setCanvasRenderMode('3d')

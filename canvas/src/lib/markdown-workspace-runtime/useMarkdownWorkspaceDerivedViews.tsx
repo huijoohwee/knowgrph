@@ -1,7 +1,9 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { abortControllerSafely, isAsyncRequestStale } from '@/lib/async/asyncGuards'
+import { runAsyncEffect } from '@/lib/async/asyncEffectRunner'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
-import { createProgressTicker } from '@/lib/progress/progressTicker'
+import { createProgressSession } from '@/lib/progress/progressTicker'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
@@ -148,7 +150,7 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
           outputDirRel: pdfWorkspaceFetchArgs.outputDirRel,
           signal: controller.signal,
         })
-        if (cancelled) return
+        if (isAsyncRequestStale({ cancelled })) return
         if (res.ok !== true) {
           setPdfWorkspaceViewerTextOverride(null)
           return
@@ -161,11 +163,7 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
     return () => {
       cancelled = true
       clearTimeout(t)
-      try {
-        controller.abort()
-      } catch {
-        void 0
-      }
+      abortControllerSafely(controller)
     }
   }, [args.layoutMode, pdfWorkspaceFetchArgs, pdfWorkspaceFetchKey])
 
@@ -188,17 +186,22 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
       return
     }
 
-    let cancelled = false
-    const controller = new AbortController()
-    const ticker = createProgressTicker({
+    const progressSession = createProgressSession({
       onProgress: p => args.setStatusProgress(view === 'json' ? 'Loading JSON' : 'Loading view', p, 100),
       intervalMs: 280,
       maxPercentage: 92,
       maxStepPercentage: 12,
     })
-    void (async () => {
-      try {
-        ticker.start()
+    return runAsyncEffect({
+      onCleanup: progressSession.cleanup,
+      onError: () => {
+        progressSession.stop()
+        setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
+        setWebpageWorkspaceViewerTextOverride(null)
+        args.setStatusError('Load failed')
+      },
+      run: async ({ signal, isStale }) => {
+        progressSession.start()
         args.setStatusProgress(view === 'json' ? 'Loading JSON' : 'Loading view')
         if (websiteImportKey) {
           const [importId, nodeId, outputDirRelRaw] = websiteImportKey.split(':')
@@ -210,16 +213,16 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
               nodeId: String(nodeId || ''),
               outputDirRel,
               kind,
-              signal: controller.signal,
+              signal,
             })
-            if (cancelled) return
+            if (isStale()) return
             const clipped = effective.length > 200_000 ? `${effective.slice(0, 200_000)}\n\n(clipped)\n` : effective
             setWebpageWorkspaceEditorTextOverride(clipped)
             setWebpageWorkspaceViewerTextOverride(view === 'json' ? `\`\`\`json\n${clipped}\n\`\`\`\n` : null)
-            ticker.stop(100)
+            progressSession.finish(100)
             args.setStatusWithAutoClear('Loaded', UI_TOAST_TTL_MS.statusAutoCloseFast)
           } catch (err) {
-            if (cancelled) return
+            if (isStale()) return
             const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
             const errorText =
               view === 'json'
@@ -227,7 +230,7 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
                 : `Load failed: ${msg || 'Request failed'}\n`
             setWebpageWorkspaceEditorTextOverride(errorText)
             setWebpageWorkspaceViewerTextOverride(view === 'json' ? `\`\`\`json\n${errorText}\n\`\`\`\n` : null)
-            ticker.stop()
+            progressSession.stop()
             args.setStatusError(`Load failed: ${msg || 'Request failed'}`)
           }
           return
@@ -236,8 +239,8 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
         if (view === 'json') {
           const includeImages = useGraphStore.getState().webpageImportIncludeImages ?? true
           try {
-            const rawJson = await fetchWebpageConversionJsonViaConvert({ url, includeImages, signal: controller.signal })
-            if (cancelled) return
+            const rawJson = await fetchWebpageConversionJsonViaConvert({ url, includeImages, signal })
+            if (isStale()) return
             const pretty = (() => {
               const t = String(rawJson || '')
               try {
@@ -248,15 +251,15 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
             })()
             setWebpageWorkspaceEditorTextOverride(pretty)
             setWebpageWorkspaceViewerTextOverride(`\`\`\`json\n${pretty}\n\`\`\`\n`)
-            ticker.stop(100)
+            progressSession.finish(100)
             args.setStatusWithAutoClear('Loaded', UI_TOAST_TTL_MS.statusAutoCloseFast)
           } catch (err) {
-            if (cancelled) return
+            if (isStale()) return
             const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
             const errorText = JSON.stringify({ ok: false, error: msg || 'Request failed' }, null, 2)
             setWebpageWorkspaceEditorTextOverride(errorText)
             setWebpageWorkspaceViewerTextOverride(`\`\`\`json\n${errorText}\n\`\`\`\n`)
-            ticker.stop()
+            progressSession.stop()
             args.setStatusError(`Load failed: ${msg || 'Request failed'}`)
           }
           return
@@ -264,29 +267,9 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
 
         setWebpageWorkspaceEditorTextOverride(null)
         setWebpageWorkspaceViewerTextOverride(null)
-        ticker.stop(100)
-      } catch {
-        if (cancelled) return
-        ticker.stop()
-        setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
-        setWebpageWorkspaceViewerTextOverride(null)
-        args.setStatusError('Load failed')
-      }
-    })()
-
-    return () => {
-      cancelled = true
-      try {
-        ticker.stop()
-      } catch {
-        void 0
-      }
-      try {
-        controller.abort()
-      } catch {
-        void 0
-      }
-    }
+        progressSession.finish(100)
+      },
+    })
   }, [args.setStatusError, args.setStatusProgress, args.setStatusWithAutoClear, webpageUrl, webpageView, websiteImportKey])
 
   const switchActiveYoutubeWorkspaceFormat = React.useCallback(
@@ -324,7 +307,7 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
     async (view: WebpageViewMode) => {
       if (!args.activePath || !webpageWorkspaceMeta) return
       if (webpageWorkspaceMeta.view === view) return
-      const ticker = createProgressTicker({
+      const progressSession = createProgressSession({
         onProgress: p => args.setStatusProgress('Updating view', p, 100),
         intervalMs: 280,
         maxPercentage: 92,
@@ -332,7 +315,7 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
       })
       try {
         args.setStatusProgress('Updating view')
-        ticker.start()
+        progressSession.start()
 
         if (view === 'markdown') {
           setWebpageWorkspaceEditorTextOverride(prev => (prev == null ? prev : null))
@@ -389,14 +372,10 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
         })()
 
         await persistDerivedWorkspaceText(nextText)
-        ticker.stop(100)
+        progressSession.finish(100)
         args.setStatusWithAutoClear('Updated', UI_TOAST_TTL_MS.statusAutoCloseFast)
       } catch (e) {
-        try {
-          ticker.stop()
-        } catch {
-          void 0
-        }
+        progressSession.stop()
         args.setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
       }
     },

@@ -1,9 +1,11 @@
 ---
 title: "Knowgrph Rich Media Generation Demo"
+kgCanvasSurfaceMode: "2d"
 kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "flowEditor"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
+kgMultiDimTableModeEnabled: false
 kgDocumentStructureBaselineLock: false
 ---
 

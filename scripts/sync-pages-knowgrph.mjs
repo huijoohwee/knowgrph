@@ -12,12 +12,15 @@ const githubRoot = path.resolve(knowgrphRoot, '..')
 const distDir = path.resolve(knowgrphRoot, 'canvas', 'dist')
 const targetDir = path.resolve(githubRoot, 'huijoohwee', 'content', 'knowgrph')
 const publicRouteDir = path.resolve(githubRoot, 'huijoohwee', 'knowgrph')
-const repoFileTargetDir = path.resolve(githubRoot, 'huijoohwee', '__repo_file')
 const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
-const repoFileSeeds = [
-  { source: path.resolve(knowgrphRoot, 'README.md'), target: path.resolve(repoFileTargetDir, 'README.md') },
-  { source: path.resolve(knowgrphRoot, 'knowgrph-video-demo.md'), target: path.resolve(repoFileTargetDir, 'knowgrph-video-demo.md') },
-]
+const publicManagedRootFiles = new Set([
+  'favicon.svg',
+  'index.html',
+  'manifest.webmanifest',
+  'settings-flow.json',
+  'sw.js',
+])
+const obsoleteLegacyMirrorDir = path.resolve(githubRoot, 'huijoohwee', '__' + 'repo_file')
 const blockedRelativeRoots = new Set([
   'cesium',
   'demo',
@@ -59,6 +62,11 @@ const isPreservedRelativePath = (rel) => {
     if (rel === preserved || rel.startsWith(`${preserved}/`)) return true
   }
   return false
+}
+
+const isPublicManagedRelativePath = (rel) => {
+  if (!rel) return false
+  return rel.startsWith('assets/') || publicManagedRootFiles.has(rel)
 }
 
 const listFiles = async (rootDir) => {
@@ -191,8 +199,22 @@ if (await existsDir(targetDir)) {
   }
 }
 
-const publicIndex = path.resolve(publicRouteDir, 'index.html')
-const publicIndexNeedsUpdate = await fileNeedsUpdate(path.resolve(distDir, 'index.html'), publicIndex)
+const publicFilesToCopy = []
+for (const rel of sourceFiles) {
+  if (!isPublicManagedRelativePath(rel)) continue
+  const src = path.resolve(distDir, rel)
+  const dst = path.resolve(publicRouteDir, rel)
+  if (await fileNeedsUpdate(src, dst)) publicFilesToCopy.push(rel)
+}
+const publicFilesToRemove = []
+if (await existsDir(publicRouteDir)) {
+  const publicFiles = await listAllFiles(publicRouteDir)
+  for (const rel of publicFiles) {
+    if (!isPublicManagedRelativePath(rel)) continue
+    if (sourceSet.has(rel)) continue
+    publicFilesToRemove.push(rel)
+  }
+}
 const rootFiles = sourceFiles
   .filter(rel => !rel.includes('/') && rel !== 'index.html' && !rel.startsWith('_'))
   .sort((a, b) => a.localeCompare(b))
@@ -200,20 +222,14 @@ const existingRedirects = await fs.readFile(redirectsPath, 'utf8')
 const nextRedirects = buildKnowgrphRedirects(existingRedirects, rootFiles)
 const redirectsNeedUpdate = nextRedirects !== existingRedirects
 
-const repoSeedsToCopy = []
-for (const entry of repoFileSeeds) {
-  if (await fileNeedsUpdate(entry.source, entry.target)) {
-    repoSeedsToCopy.push(path.relative(knowgrphRoot, entry.source).split(path.sep).join('/'))
-  }
-}
-
 if (checkMode) {
   const hasDrift = (
     filesToCopy.length > 0 ||
     filesToRemove.length > 0 ||
-    publicIndexNeedsUpdate ||
+    publicFilesToCopy.length > 0 ||
+    publicFilesToRemove.length > 0 ||
     redirectsNeedUpdate ||
-    repoSeedsToCopy.length > 0
+    await existsDir(obsoleteLegacyMirrorDir)
   )
   if (hasDrift) {
     console.error('[knowgrph] publish sync drift detected')
@@ -223,15 +239,23 @@ if (checkMode) {
       if (filesToCopy.length > 20) console.error(`  - ... ${filesToCopy.length - 20} more`)
     }
     if (filesToRemove.length > 0) {
-      console.error(`  stale mirrored files needing removal (${filesToRemove.length}):`)
+      console.error(`  stale content files needing removal (${filesToRemove.length}):`)
       for (const rel of filesToRemove.slice(0, 20)) console.error(`  - ${rel}`)
       if (filesToRemove.length > 20) console.error(`  - ... ${filesToRemove.length - 20} more`)
     }
-    if (publicIndexNeedsUpdate) console.error('  - public route `huijoohwee/knowgrph/index.html` is out of sync')
+    if (publicFilesToCopy.length > 0) {
+      console.error(`  public route files needing sync (${publicFilesToCopy.length}):`)
+      for (const rel of publicFilesToCopy.slice(0, 20)) console.error(`  - ${rel}`)
+      if (publicFilesToCopy.length > 20) console.error(`  - ... ${publicFilesToCopy.length - 20} more`)
+    }
+    if (publicFilesToRemove.length > 0) {
+      console.error(`  stale public route files needing removal (${publicFilesToRemove.length}):`)
+      for (const rel of publicFilesToRemove.slice(0, 20)) console.error(`  - ${rel}`)
+      if (publicFilesToRemove.length > 20) console.error(`  - ... ${publicFilesToRemove.length - 20} more`)
+    }
     if (redirectsNeedUpdate) console.error('  - `huijoohwee/_redirects` generated knowgrph block is out of sync')
-    if (repoSeedsToCopy.length > 0) {
-      console.error(`  repo file seeds needing sync (${repoSeedsToCopy.length}):`)
-      for (const rel of repoSeedsToCopy) console.error(`  - ${rel}`)
+    if (await existsDir(obsoleteLegacyMirrorDir)) {
+      console.error('  - obsolete legacy publish directory still exists')
     }
     console.error('  fix: run `npm run pages:build-sync`')
     process.exitCode = 1
@@ -256,18 +280,25 @@ if (checkMode) {
   }
 
   await fs.mkdir(publicRouteDir, { recursive: true })
-  const copiedPublicIndex = await copyIfChanged(path.resolve(distDir, 'index.html'), publicIndex)
+  let copiedPublicCount = 0
+  for (const rel of sourceFiles) {
+    if (!isPublicManagedRelativePath(rel)) continue
+    const src = path.resolve(distDir, rel)
+    const dst = path.resolve(publicRouteDir, rel)
+    const copied = await copyIfChanged(src, dst)
+    if (copied) copiedPublicCount += 1
+  }
+  if (await existsDir(publicRouteDir)) {
+    for (const rel of publicFilesToRemove) {
+      await fs.rm(path.resolve(publicRouteDir, rel), { force: true })
+    }
+    await removeEmptyDirs(publicRouteDir)
+  }
   if (redirectsNeedUpdate) {
     await fs.writeFile(redirectsPath, nextRedirects, 'utf8')
   }
 
-  let copiedRepoSeedCount = 0
-  for (const entry of repoFileSeeds) {
-    const copied = await copyIfChanged(entry.source, entry.target)
-    if (copied) copiedRepoSeedCount += 1
-  }
-
   console.log(
-    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicIndexUpdated=${copiedPublicIndex ? 'yes' : 'no'}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'}, repoFileSeedsUpdated=${copiedRepoSeedCount})`,
+    `[knowgrph] synced ${distDir} -> ${targetDir} (copied=${copiedCount}, removed=${filesToRemove.length}, publicCopied=${copiedPublicCount}, publicRemoved=${publicFilesToRemove.length}, redirectsUpdated=${redirectsNeedUpdate ? 'yes' : 'no'})`,
   )
 }

@@ -7,26 +7,11 @@ export type WebpageDomProbeResult =
   | { ok: false; stage: string; error: string; attempts?: { src: string; sandbox: string }[] }
 
 import { looksLikeNetworkSecurityBlockText } from 'grph-shared/rich-media/webpagePreview'
+import { isNoiseProneWebpagePreviewHost } from '@/lib/websites/webpageSnapshotShared'
 
 const KG_EXPORT_DOM_KIND = 'kg-export-dom'
 const KG_WEBPAGE_NET_KIND = 'kg-webpage-net'
 const KG_WEBPAGE_DOM_KIND = 'kg-webpage-dom'
-
-const isNoisePronePreviewHost = (rawUrl: string): boolean => {
-  try {
-    const host = String(new URL(rawUrl).hostname || '').toLowerCase()
-    if (!host) return false
-    if (host === 'example.com' || host.endsWith('.example.com')) return true
-    if (host === 'example.org' || host.endsWith('.example.org')) return true
-    if (host === 'example.net' || host.endsWith('.example.net')) return true
-    if (host === 'localhost' || host === '127.0.0.1') return true
-    if (host.endsWith('.test') || host.endsWith('.invalid')) return true
-    return false
-  } catch {
-    return false
-  }
-}
-
 
 async function waitMs(ms: number, signal?: AbortSignal): Promise<void> {
   await new Promise<void>(resolve => {
@@ -123,7 +108,7 @@ export async function probeWebpageDomViaHiddenIframe(args: {
 }): Promise<WebpageDomProbeResult> {
   const url0 = String(args.url || '').trim()
   if (!url0) return { ok: false, stage: 'init', error: 'Missing url' }
-  if (isNoisePronePreviewHost(url0)) return { ok: false, stage: 'skipped', error: 'Preview skipped for noise-prone host' }
+  if (isNoiseProneWebpagePreviewHost(url0)) return { ok: false, stage: 'skipped', error: 'Preview skipped for noise-prone host' }
 
   const timeoutMs = Math.max(2000, Math.min(60_000, Math.floor(args.timeoutMs ?? 20_000)))
   const maxChars = Math.max(100_000, Math.min(12_000_000, Math.floor(args.maxChars ?? 8_000_000)))

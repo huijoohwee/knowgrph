@@ -2,10 +2,8 @@ import React from 'react'
 
 import { computeFlowGroupAabb, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { placeWidgetsCenteredInGroupBounds } from '@/components/FlowEditor/seedGroupSpread'
-import { computeWidgetScale, computeWidgetScaledSize } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import {
-  deriveFrontmatterFlowOverlayNodeIds,
-  resolveDefaultFlowWidgetPinnedInCanvas,
   shouldAutoPlaceFlowEditorWidget,
 } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -17,6 +15,8 @@ import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect
 import type { GraphData } from '@/lib/graph/types'
 import { viewportCenterToWorld } from '@/lib/zoom/viewport'
 import { readWidgetGridLayoutSettings, snapToGridPx } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
+import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
+import { getCachedFlowEditorWidgetPlacementContext } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 
 export function useFlowEditorRuntimeScene(args: {
   active: boolean
@@ -145,15 +145,16 @@ export function useFlowEditorRuntimeScene(args: {
     if (!args.active) return
     const st = useGraphStore.getState()
     const graphDataForSeeding = renderGraphDataOverrideRef.current || st.graphData || null
-    const graphMetaKind = String((((graphDataForSeeding || null)?.metadata || {}) as Record<string, unknown>).kind || '').trim()
-    const frontmatterFlowGraphActive = graphMetaKind === 'frontmatter-flow'
-    const effectiveOpenIds = frontmatterFlowGraphActive
-      ? deriveFrontmatterFlowOverlayNodeIds(graphDataForSeeding)
-      : args.openWidgetNodeIds
+    const widgetPlacementContext = getCachedFlowEditorWidgetPlacementContext({
+      graphData: graphDataForSeeding,
+      graphRevision: readGraphDataRevision(graphDataForSeeding),
+      openWidgetNodeIds: args.openWidgetNodeIds,
+      preferCurrentGraphDataRefs: true,
+    })
+    const graphMetaKind = widgetPlacementContext?.graphMetaKind || null
+    const effectiveOpenIds = widgetPlacementContext?.effectiveOpenWidgetNodeIds || []
     if (!Array.isArray(effectiveOpenIds) || effectiveOpenIds.length === 0) return
-    const defaultPinnedInCanvas = frontmatterFlowGraphActive
-      ? resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind })
-      : true
+    const defaultPinnedInCanvas = widgetPlacementContext?.defaultPinnedInCanvas ?? true
     const pinnedById = st.flowWidgetPinnedByNodeId || {}
     const worldById =
       (st as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
@@ -181,7 +182,22 @@ export function useFlowEditorRuntimeScene(args: {
       }) ||
       { k: 1, x: 0, y: 0 }
     const zoomK = typeof z.k === 'number' && Number.isFinite(z.k) ? z.k : 1
-    const panelScale = computeWidgetScale(zoomK, null, { mode: 'pinnedInCanvas' })
+    const pinnedOpenIds = effectiveOpenIds
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+      .filter(id => {
+        const v = pinnedById[id]
+        return typeof v === 'boolean' ? v : defaultPinnedInCanvas
+      })
+      .sort((a, b) => a.localeCompare(b))
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK,
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
+      count: Math.max(1, pinnedOpenIds.length),
+      baseWidth: WIDGET_BASE_SIZE.width,
+      baseHeight: WIDGET_BASE_SIZE.height,
+    })
     const panelScreen = computeWidgetScaledSize(panelScale)
     const panelWorldW = panelScreen.width / Math.max(0.001, zoomK)
     const panelWorldH = panelScreen.height / Math.max(0.001, zoomK)
@@ -214,14 +230,6 @@ export function useFlowEditorRuntimeScene(args: {
       })
 
     const viewportBucketId = '__viewport__'
-    const pinnedOpenIds = effectiveOpenIds
-      .map(id => String(id || '').trim())
-      .filter(Boolean)
-      .filter(id => {
-        const v = pinnedById[id]
-        return typeof v === 'boolean' ? v : defaultPinnedInCanvas
-      })
-      .sort((a, b) => a.localeCompare(b))
     const allBoundsByBucket = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>()
     allBoundsByBucket.set(viewportBucketId, viewportBounds)
     for (let i = 0; i < pinnedOpenIds.length; i += 1) {

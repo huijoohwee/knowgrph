@@ -58,7 +58,7 @@ export function LaunchDropdown({
   const pushUiToast = useGraphStore(s => s.pushUiToast)
   const setCanvasRenderMode = useGraphStore(s => s.setCanvasRenderMode)
   const setCanvas2dRenderer = useGraphStore(s => s.setCanvas2dRenderer)
-  const setBipartiteDataSource = useGraphStore(s => s.setBipartiteDataSource)
+  const setFlowchartDataSource = useGraphStore(s => s.setFlowchartDataSource)
 
   const bridge = getMarkdownWorkspaceActionBridge()
 
@@ -324,8 +324,8 @@ export function LaunchDropdown({
                 onClose()
                 setUrlInputOpen(false)
                 setCanvasRenderMode('2d')
-                setCanvas2dRenderer('d3Bipartite')
-                setBipartiteDataSource('api')
+                setCanvas2dRenderer('flowchart')
+                setFlowchartDataSource('api')
                 pushUiToast({
                   id: 'launch:fetch-api-data-source',
                   kind: 'neutral',

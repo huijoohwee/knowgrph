@@ -57,7 +57,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - **Frontmatter Mode On/Off**:
   - Frontmatter Mode **On**: when the active Markdown file defines a Flow frontmatter graph (`nodes`/`connections`/`'kg:subgraphs'`), 2D D3 and Flow treat that graph as the layout SSOT (no hidden per-renderer nodes). Flow Editor uses a frontmatter-only derived view: keyword/table/composed-source derivations are disabled while Flow/Flow Editor frontmatter-only policy is active so other document modes/renderers cannot interfere with Flow Editor graph state.
   - If `flow` block metadata exists, flow-derived nodes/connections are the canonical parser input for renderer surfaces; parser wiring must not merge legacy top-level `edges` into the rendered graph.
-  - Flowchart renderer (compat id: `d3Bipartite`) is strict frontmatter mode: it renders only frontmatter Mermaid/flow-derived graph data from the local ingest→parse→render pipeline and must not fetch API/fixture fallback graphs.
+-  - Flowchart renderer (canonical id: `flowchart`) consumes the shared Flowchart payload contract from API, fixture, or workspace sources via one normalization path; renderer switches must stay view-only and must not fork source-specific graph semantics.
   - Subgraph/group metadata must stay explicit-only (`kg:subgraphs` and cluster derivation); renderer paths must not rely on synthetic fallback groups such as `frontmatter:all`, tier buckets, or category buckets.
   - Frontmatter Mode **Off**: renderers fall back to the Markdown→JSON‑LD pipeline; the active graph is still `graphDataForDisplay`, and mode switches are view‑only (no store mutations of imported Markdown/JSON‑LD).
 - **2D vs 3D renderer parity**:
@@ -66,7 +66,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
   - Switching 2D↔3D must preserve selection and view keys (per‑renderer zoom keys are isolated; layout caches are renderer‑variant aware but share the same schema/layout fingerprint).
   - Standard 3D stays available for Block/frontmatter-flow graphs and reuses the same display-graph + layout-cache path as 2D; only Radial auto-demotes to 2D.
 - **Voxel Mode (3D Flowchart sub-mode)**:
-  - Voxel Mode is a 3D sub-mode gated to Flowchart (compat id: `d3Bipartite`) with Block layout; radial layouts do not expose voxel controls. It reuses the same SSOT `graphDataForDisplay` and Flowchart lane layout as its XY baseline.
+-  - Voxel Mode is a 3D sub-mode gated to Flowchart (canonical id: `flowchart`) with Block layout; radial layouts do not expose voxel controls. It reuses the same SSOT `graphDataForDisplay` and Flowchart lane layout as its XY baseline.
   - XY positions in Voxel Mode are derived from the active Flowchart seed (layout-position cache or live node positions) without re-running a separate layout pipeline. Voxel cubes sit on the XY ground plane (`z=0`) and must not introduce vertical “Z columns” when parity mode is enabled.
   - Seed selection is keyed by the same layout-position cache key as 2D (`datasetKey + layoutMode + semanticMode + frontmatterMode + viewKey`) so switching between Infinite Canvas variants (Document/Keyword/Frontmatter/Multi-dimensional Table) and 2D/3D/Voxel reuses the same SSOT layout where applicable.
   - Voxel grouping and color should prefer imported metadata first (`visual:layer`, `layer:label`, `layer:color`, `visual:color`) and fall back to hashed cluster styling only when explicit layer metadata is absent; PMF and other structured imports must not need renderer-local color remapping.
@@ -83,7 +83,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - **HTML Canvas export parity**:
   - HTML Viewer/Canvas exports use the same renderer matrix semantics: the exported SVG is rendered from the display‑derived graph (including group envelopes) via GraphCanvas (live or off‑screen), and the exported runtime script instantiates Rich Media overlays from a serialized `mediaNodes` list.
   - Flow‑based HTML Canvas exports do not snapshot the Flow canvas; they re‑render into off‑screen SVG using the same layout/fit rules as GraphCanvas and reuse group membership (`deriveGraphGroups`) so dragging groups or nodes in the export keeps nodes, edges, and overlays interconnected.
-  - Repo‑relative Rich Media URLs (e.g., `/__repo_file/...`) are resolved by the runtime helper and may be inlined as `data:` URLs during export when safe and within size bounds; exports opened via `file://` must still resolve local media using the probed dev/preview origin.
+  - Repo‑relative Rich Media URLs are resolved through `/__codebase_file?path=...` and `/__codebase_asset?path=...`, and may be inlined as `data:` URLs during export when safe and within size bounds; exports opened via `file://` must still resolve local media using the probed dev/preview origin.
 
 ### Edge Types (Global SSOT)
 
@@ -248,16 +248,16 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ### 2D Flowchart Layout (Super-Groups)
 
-- **Scope**: 2D Flowchart renderer (compat id: `canvas2dRenderer="d3Bipartite"`) consumes a bipartite graph where `node.type∈{problem,solution}` and cluster ids come from metadata (`cluster`, `clusters[]`, or cluster_gap_ratios keys).
+- **Scope**: 2D Flowchart renderer (`canvas2dRenderer="flowchart"`) consumes the canonical Flowchart graph contract where `node.type∈{problem,solution}` and cluster ids come from metadata (`cluster`, `clusters[]`, or `cluster_gap_ratios` keys).
 - **Hierarchy** (SSOT):
-  - Root super-group: `Bipartite` contains all problem+solution nodes.
+-  - Root super-group: `Flowchart` contains all problem+solution nodes.
   - Side super-groups: `Problems` and `Solutions` each contain their side’s nodes.
   - Cluster groups: per-cluster groups (e.g., Capital/Growth/Network) sit under the appropriate side super-group and contain member nodes.
   - The hierarchy is expressed structurally via `kg:subgraphs`/subgraph metadata, not via renderer-specific flags.
 - **Layout invariants**:
   - Problems and Solutions occupy separated left/right lanes derived from `visual:xIndex` and schema forces; switching 2D renderer variants must not reassign nodes across sides.
   - Super-group/group envelopes, headers, and cluster outlines are part of fit geometry (collective bounds) and must remain visible during interaction (click/drag/zoom) without requiring renderer switching.
-  - Edge visibility in Flowchart mode uses schema + per-edge visual opacity/width only; selection/highlight may dim but must not fully hide the bipartite “line” structure when nodes are visible.
+-  - Edge visibility in Flowchart mode uses schema + per-edge visual opacity/width only; selection/highlight may dim but must not fully hide the Flowchart lane/link structure when nodes are visible.
 
 ### Selection Zoom (Node/Edge vs Graph)
 - Zoom-to-selection operates on a selection subset (selected node ids and/or edge endpoints) and must share duration/timing knobs across 2D renderers.

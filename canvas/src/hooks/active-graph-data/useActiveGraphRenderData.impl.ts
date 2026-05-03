@@ -119,7 +119,7 @@ export function useActiveGraphRenderData(enabled: boolean = true): GraphData | n
 
   const computed = React.useMemo(() => {
     if (!graphData) return null
-    const flowchartMode = canvasRenderMode === '2d' && canvas2dRenderer === 'd3Bipartite'
+    const flowchartMode = canvasRenderMode === '2d' && canvas2dRenderer === 'flowchart'
     if (flowchartMode) {
       return deriveFlowchartFrontmatterActiveViewGraph({
         graphData,

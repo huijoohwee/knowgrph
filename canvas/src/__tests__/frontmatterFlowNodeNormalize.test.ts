@@ -98,6 +98,29 @@ describe('normalizeNodes frontmatter flow defaults', () => {
     }
   })
 
+  it('uses widget footprint gaps for built-in frontmatter widget and panel seeds', () => {
+    const meta = {
+      nodes: [
+        { id: 'w-text', type: 'TextGeneration', label: 'Text' },
+        { id: 'w-image', type: 'ImageGeneration', label: 'Image' },
+        { id: 'w-video', type: 'VideoGeneration', label: 'Video' },
+        { id: 'p-media', type: 'RichMediaPanel', label: 'Panel' },
+      ],
+    } as Record<string, unknown>
+    const out = normalizeNodes(meta)
+    expect(out).toBeTruthy()
+    const xs = (out?.nodes || []).map(node => Math.round(Number(node.x || 0))).sort((a, b) => a - b)
+    const ys = (out?.nodes || []).map(node => Math.round(Number(node.y || 0))).sort((a, b) => a - b)
+    const uniqueXs = Array.from(new Set(xs))
+    const uniqueYs = Array.from(new Set(ys))
+    if (uniqueXs.length > 1) {
+      expect(uniqueXs[1] - uniqueXs[0]).toBeGreaterThan(470)
+    }
+    if (uniqueYs.length > 1) {
+      expect(uniqueYs[1] - uniqueYs[0]).toBeGreaterThan(630)
+    }
+  })
+
   it('uses canonical widget formId fallback for text/image/video/panel nodes', () => {
     const meta = {
       nodes: [

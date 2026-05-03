@@ -1,5 +1,6 @@
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '../markdown'
-import type { Canvas2dRendererId } from '@/lib/config.render'
+import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config.render'
+import { isPlainObject } from '@/lib/graph/value'
 
 export type YamlFrontmatterBlock = {
   rawBlock: string
@@ -8,7 +9,9 @@ export type YamlFrontmatterBlock = {
 }
 
 export type CanvasWorkspaceFrontmatterPreset = {
+  canvasSurfaceMode?: '2d' | '3d' | 'geospatial'
   canvasRenderMode?: '2d' | '3d'
+  canvas3dMode?: Canvas3dModeId
   canvas2dRenderer?: Canvas2dRendererId
   documentSemanticMode?: 'document' | 'keyword'
   frontmatterModeEnabled?: boolean
@@ -44,10 +47,6 @@ export function readYamlFrontmatterValue(fmBlock: string, key: string): string {
   return v
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
-}
-
 function normalizePresetToken(value: unknown): string {
   return String(value || '')
     .trim()
@@ -55,12 +54,33 @@ function normalizePresetToken(value: unknown): string {
     .replace(/[\s_-]+/g, '')
 }
 
+function readCanvasSurfaceModePreset(value: unknown): '2d' | '3d' | 'geospatial' | undefined {
+  const raw = String(value || '').trim()
+  if (!raw) return undefined
+  if (raw === '2d' || raw === '3d' || raw === 'geospatial') return raw
+  const normalized = normalizePresetToken(raw)
+  if (normalized === '2d' || normalized === 'mode2d' || normalized === 'surface2d') return '2d'
+  if (normalized === '3d' || normalized === 'mode3d' || normalized === 'surface3d') return '3d'
+  if (normalized === 'geospatial' || normalized === 'geomode' || normalized === 'geospatialmode' || normalized === 'surfacegeospatial') return 'geospatial'
+  return undefined
+}
+
+function readCanvas3dModePreset(value: unknown): Canvas3dModeId | undefined {
+  const raw = String(value || '').trim()
+  if (!raw) return undefined
+  if (raw === '3d' || raw === 'voxel') return raw
+  const normalized = normalizePresetToken(raw)
+  if (normalized === '3d' || normalized === 'free3d') return '3d'
+  if (normalized === 'voxel' || normalized === 'voxelmode') return 'voxel'
+  return undefined
+}
+
 function readCanvas2dRendererPreset(value: unknown): Canvas2dRendererId | undefined {
   const raw = String(value || '').trim()
   if (!raw) return undefined
   if (
     raw === 'd3' ||
-    raw === 'd3Bipartite' ||
+    raw === 'flowchart' ||
     raw === 'flow' ||
     raw === 'flowEditor' ||
     raw === 'design'
@@ -69,7 +89,7 @@ function readCanvas2dRendererPreset(value: unknown): Canvas2dRendererId | undefi
   }
   const normalized = normalizePresetToken(raw)
   if (normalized === 'd3' || normalized === 'd3graph') return 'd3'
-  if (normalized === 'd3bipartite' || normalized === 'bipartite' || normalized === 'flowchart') return 'd3Bipartite'
+  if (normalized === 'd3flowchart' || normalized === 'flowchart' || normalized === 'flowchart') return 'flowchart'
   if (normalized === 'flow' || normalized === 'flowcanvas') return 'flow'
   if (normalized === 'floweditor' || normalized === 'edit') return 'flowEditor'
   if (normalized === 'design') return 'design'
@@ -100,8 +120,10 @@ function readBooleanPreset(value: unknown): boolean | undefined {
 function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | null | undefined): CanvasWorkspaceFrontmatterPreset | null {
   if (!meta) return null
 
+  const canvasSurfaceMode = readCanvasSurfaceModePreset(meta.kgCanvasSurfaceMode)
   const canvasRenderMode =
     meta.kgCanvasRenderMode === '3d' ? '3d' : meta.kgCanvasRenderMode === '2d' ? '2d' : undefined
+  const canvas3dMode = readCanvas3dModePreset(meta.kgCanvas3dMode)
   const canvas2dRenderer = readCanvas2dRendererPreset(meta.kgCanvas2dRenderer)
   const documentSemanticMode = readDocumentSemanticModePreset(meta.kgDocumentSemanticMode)
   const frontmatterModeEnabled = readBooleanPreset(meta.kgFrontmatterModeEnabled)
@@ -109,7 +131,9 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
   const documentStructureBaselineLock = readBooleanPreset(meta.kgDocumentStructureBaselineLock)
 
   if (
+    canvasSurfaceMode === undefined &&
     canvasRenderMode === undefined &&
+    canvas3dMode === undefined &&
     canvas2dRenderer === undefined &&
     documentSemanticMode === undefined &&
     frontmatterModeEnabled === undefined &&
@@ -120,7 +144,9 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
   }
 
   return {
+    canvasSurfaceMode,
     canvasRenderMode,
+    canvas3dMode,
     canvas2dRenderer,
     documentSemanticMode,
     frontmatterModeEnabled,
@@ -139,15 +165,19 @@ export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWo
   const block = extractYamlFrontmatterBlock(rawText)
   if (!block) return null
   const parsed = parseMarkdownFrontmatter(splitMarkdownLines(rawText))
-  if (isRecord(parsed.meta)) return coerceCanvasWorkspaceFrontmatterPreset(parsed.meta)
+  if (isPlainObject(parsed.meta)) return coerceCanvasWorkspaceFrontmatterPreset(parsed.meta)
+  const canvasSurfaceModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvasSurfaceMode')
   const canvasRenderModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvasRenderMode')
+  const canvas3dModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvas3dMode')
   const canvas2dRendererRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvas2dRenderer')
   const documentSemanticModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgDocumentSemanticMode')
   const frontmatterModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgFrontmatterModeEnabled')
   const multiDimTableModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgMultiDimTableModeEnabled')
   const documentStructureBaselineLockRaw = readYamlFrontmatterValue(block.rawBlock, 'kgDocumentStructureBaselineLock')
   return coerceCanvasWorkspaceFrontmatterPreset({
+    kgCanvasSurfaceMode: canvasSurfaceModeRaw || undefined,
     kgCanvasRenderMode: canvasRenderModeRaw || undefined,
+    kgCanvas3dMode: canvas3dModeRaw || undefined,
     kgCanvas2dRenderer: canvas2dRendererRaw || undefined,
     kgDocumentSemanticMode: documentSemanticModeRaw || undefined,
     kgFrontmatterModeEnabled: readBooleanPreset(frontmatterModeEnabledRaw),

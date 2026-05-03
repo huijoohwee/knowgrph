@@ -1,5 +1,9 @@
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
-import { TEST_VALIDATION_WORKSPACE_SEED_PATH, WORKSPACE_README_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
+import {
+  GEOSPATIAL_WORKSPACE_SEED_PATH,
+  TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  WORKSPACE_README_SEED_PATH,
+} from '@/features/workspace-fs/workspaceFs'
 
 export const testWorkspaceFsMemoryInitialEntries = async () => {
   const fs = createMemoryWorkspaceFs({
@@ -29,10 +33,12 @@ export const testWorkspaceFsMemoryForbidsInitializationFileDelete = async () => 
   await fs.ensureSeed()
   await fs.deleteEntry('/README.md')
   await fs.deleteEntry('/knowgrph-video-demo.md')
+  await fs.deleteEntry('/knowgrph-maps-grabmap-multim-demo.md')
 
   const entries = await fs.listEntries()
   if (!entries.some(e => e.kind === 'file' && e.path === '/README.md')) throw new Error('Expected README initialization file to remain after delete')
   if (!entries.some(e => e.kind === 'file' && e.path === '/knowgrph-video-demo.md')) throw new Error('Expected video demo initialization file to remain after delete')
+  if (!entries.some(e => e.kind === 'file' && e.path === '/knowgrph-maps-grabmap-multim-demo.md')) throw new Error('Expected geospatial initialization file to remain after delete')
 }
 
 export const testWorkspaceFsMemoryRefreshesStaleInitializationFileText = async () => {
@@ -55,6 +61,14 @@ export const testWorkspaceFsMemoryRefreshesStaleInitializationFileText = async (
         text: 'stale video demo initialization content',
         updatedAtMs: 1,
       },
+      {
+        path: GEOSPATIAL_WORKSPACE_SEED_PATH,
+        parentPath: '/',
+        kind: 'file',
+        name: 'knowgrph-maps-grabmap-multim-demo.md',
+        text: 'stale geospatial initialization content',
+        updatedAtMs: 1,
+      },
     ],
   })
 
@@ -62,7 +76,8 @@ export const testWorkspaceFsMemoryRefreshesStaleInitializationFileText = async (
 
   const readmeText = await fs.readFileText(WORKSPACE_README_SEED_PATH)
   const videoDemoText = await fs.readFileText(TEST_VALIDATION_WORKSPACE_SEED_PATH)
+  const geospatialText = await fs.readFileText(GEOSPATIAL_WORKSPACE_SEED_PATH)
   if (!String(readmeText || '').includes('kgCanvas2dRenderer: "d3"')) throw new Error('Expected stale README initialization content to refresh from current seed source')
   if (!String(videoDemoText || '').includes('kgCanvas2dRenderer: "flowEditor"')) throw new Error('Expected stale video demo initialization content to refresh from current seed source')
+  if (!String(geospatialText || '').includes('kgCanvasSurfaceMode: "geospatial"')) throw new Error('Expected stale geospatial initialization content to refresh from current seed source')
 }
-

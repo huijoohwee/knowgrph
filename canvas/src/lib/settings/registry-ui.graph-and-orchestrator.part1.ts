@@ -19,6 +19,13 @@ import { DEFAULT_PHYSICS2D_TUNING } from '@/lib/graph/physics2dTuning'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { SettingMeta } from '@/features/settings/types'
 import {
+  FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_DESKTOP,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_LAPTOP,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_PHONE,
+  FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET,
+} from '@/components/FlowCanvas/frontmatterLayoutConfig'
+import {
   JSON_IMPORT_WORKSPACE_TARGET_OPTIONS,
   readJsonImportWorkspaceTarget,
   writeJsonImportWorkspaceTarget,
@@ -35,6 +42,51 @@ export const uiGraphAndOrchestratorSettingsRegistryPart1: SettingMeta[] = [
     write: (v) => s().setViewportFitFillRatio(Number(v)),
     docKey: 'viewport.fitFillRatio',
     default: () => DEFAULT_FIT_TO_SCREEN_FILL_RATIO,
+  },
+  {
+    key: 'flow.frontmatter.initialFitFillRatio',
+    type: 'number',
+    source: 'store',
+    read: () => s().frontmatterFlowInitialFitFillRatio,
+    write: (v) => s().setFrontmatterFlowInitialFitFillRatio(Number(v)),
+    docKey: 'flow.frontmatter.initialFitFillRatio',
+    default: () => FLOW_FRONTMATTER_INITIAL_FIT_FILL_RATIO,
+  },
+  {
+    key: 'flow.frontmatter.overlayFitProxyScale.phone',
+    type: 'number',
+    source: 'store',
+    read: () => s().frontmatterFlowOverlayFitProxyScalePhone,
+    write: (v) => s().setFrontmatterFlowOverlayFitProxyScalePhone(Number(v)),
+    docKey: 'flow.frontmatter.overlayFitProxyScale.phone',
+    default: () => FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_PHONE,
+  },
+  {
+    key: 'flow.frontmatter.overlayFitProxyScale.tablet',
+    type: 'number',
+    source: 'store',
+    read: () => s().frontmatterFlowOverlayFitProxyScaleTablet,
+    write: (v) => s().setFrontmatterFlowOverlayFitProxyScaleTablet(Number(v)),
+    docKey: 'flow.frontmatter.overlayFitProxyScale.tablet',
+    default: () => FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_TABLET,
+  },
+  {
+    key: 'flow.frontmatter.overlayFitProxyScale.laptop',
+    type: 'number',
+    source: 'store',
+    read: () => s().frontmatterFlowOverlayFitProxyScaleLaptop,
+    write: (v) => s().setFrontmatterFlowOverlayFitProxyScaleLaptop(Number(v)),
+    docKey: 'flow.frontmatter.overlayFitProxyScale.laptop',
+    default: () => FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_LAPTOP,
+  },
+  {
+    key: 'flow.frontmatter.overlayFitProxyScale.desktop',
+    type: 'number',
+    source: 'store',
+    read: () => s().frontmatterFlowOverlayFitProxyScaleDesktop,
+    write: (v) => s().setFrontmatterFlowOverlayFitProxyScaleDesktop(Number(v)),
+    docKey: 'flow.frontmatter.overlayFitProxyScale.desktop',
+    default: () => FLOW_FRONTMATTER_OVERLAY_FIT_PROXY_SCALE_DESKTOP,
   },
   {
     key: 'schema.layout.forces.physics2dChargeScale',

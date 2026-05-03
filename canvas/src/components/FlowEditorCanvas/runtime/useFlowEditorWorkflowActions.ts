@@ -7,12 +7,10 @@ import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/feat
 import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
 import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { UI_COPY, FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
-import { parseCanonicalNodeIds, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
+import { UI_COPY, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { buildSelectionSubgraph, exportWidgetBundleAsJson } from '@/lib/graph/file'
-import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
-import { FLOW_RUN_ALL_PHASES, buildFlowRunAllNodeSequence } from '@/lib/flowEditor/runAllSequenceSsot'
+import { FLOW_RUN_ALL_PHASES } from '@/lib/flowEditor/runAllSequenceSsot'
 import { WORKFLOW_RUN_ALL_EVENT } from '@/features/canvas/utils'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
@@ -21,21 +19,21 @@ import { fetchYouTubeTranscriptMarkdown } from '@/features/transcription/youtube
 import { CHAT_PROVIDER_BYTEPLUS, getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
 import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidgetProperties } from '@/features/flow-editor-manager/registryTemplates'
-import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
-
-function areRecordValuesEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
-  for (const key of keys) {
-    if (!Object.is(a[key], b[key])) return false
-  }
-  return true
-}
-
-function bumpDraftGraphDataRevision(graphData: GraphData): GraphData {
-  const metadata = (graphData.metadata || {}) as Record<string, unknown>
-  const current = readGraphDataRevision(graphData)
-  return { ...graphData, metadata: { ...metadata, graphDataRevision: current + 1 } }
-}
+import {
+  getCachedFlowEditorWorkflowNodeResolutionContext,
+  getCachedFlowEditorWorkflowRunPlan,
+  resolveFlowEditorWorkflowNodeByIdAcrossGraphs,
+  resolveFlowEditorWorkflowRunTarget,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
+import {
+  applyFlowEditorWorkflowRichMediaPanelDraftPatch,
+  ensureFlowEditorWorkflowRichMediaPanelNodeId,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRichMediaPanel'
+import { resolveFlowEditorWorkflowConnectedValuesInput } from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowRunInputs'
+import {
+  setFlowEditorWorkflowRunLoadingStateForKnownNodeIds,
+  updateFlowEditorWorkflowOutputForKnownNodeIds,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorWorkflowWriteback'
 
 export function useFlowEditorWorkflowActions(args: {
   flowEditorViewActive: boolean
@@ -127,170 +125,81 @@ export function useFlowEditorWorkflowActions(args: {
         args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorNoDraftGraphToast, ttlMs: 2400 })
         return
       }
-      const resolved = [draft, args.renderGraphDataOverride as GraphData | null, args.baseGraphData].filter(Boolean).map(graph => {
-        const node = (graph!.nodes || []).find(n => String(n.id || '') === id) || null
-        return node ? { graph: graph as GraphData, node } : null
-      }).find(Boolean) as { graph: GraphData; node: GraphNode } | null
-      const node = resolved?.node || null
+      const store = useGraphStore.getState()
+      const workflowNodeResolutionContext = getCachedFlowEditorWorkflowNodeResolutionContext({
+        draftGraph: draft,
+        draftGraphRevision: readGraphDataRevision(draft),
+        renderGraph: args.renderGraphDataOverride,
+        renderGraphRevision: readGraphDataRevision(args.renderGraphDataOverride),
+        baseGraph: args.baseGraphData,
+        baseGraphRevision: readGraphDataRevision(args.baseGraphData),
+        storeGraph: store.graphData as GraphData | null,
+        storeGraphRevision: readGraphDataRevision(store.graphData as GraphData | null),
+        preferCurrentGraphDataRefs: true,
+      })
+      const resolvedRunTarget = resolveFlowEditorWorkflowRunTarget({
+        context: workflowNodeResolutionContext,
+        requestedNodeId: id,
+      })
+      const node = resolvedRunTarget?.node || null
       if (!node) {
         args.upsertUiToast({ id: `flow-editor-run-${id}`, kind: 'neutral', message: UI_COPY.flowEditorNodeNotFoundToast(id), ttlMs: 2400 })
         return
       }
-      const graphForRun = resolved?.graph || draft
-      const resolvedNodeId = String(node.id || id)
-      const pickWritableNodeId = () => {
-        const liveDraft = readLiveDraftGraphData() || draft
-        const draftNodes = Array.isArray(liveDraft.nodes) ? liveDraft.nodes : []
-        const requested = splitComposedNodeId(id)
-        const resolvedId = splitComposedNodeId(resolvedNodeId)
-        const targetInners = new Set([requested.inner, resolvedId.inner].filter(Boolean))
-        const exactRequested = draftNodes.find(n => String(n.id || '').trim() === requested.full)
-        if (exactRequested) return String(exactRequested.id || '')
-        const exactResolved = draftNodes.find(n => String(n.id || '').trim() === resolvedId.full)
-        if (exactResolved) return String(exactResolved.id || '')
-        const innerMatches = draftNodes.filter(n => targetInners.has(splitComposedNodeId(n.id).inner))
-        if (innerMatches.length === 1) return String(innerMatches[0]?.id || '')
-        return resolvedNodeId
-      }
-      const writableNodeId = pickWritableNodeId() || resolvedNodeId
-      const store = useGraphStore.getState()
+      const graphForRun = resolvedRunTarget?.graphForRun || draft
+      const resolvedNodeId = String(resolvedRunTarget?.resolvedNodeId || node.id || id)
+      const writableNodeId = String(resolvedRunTarget?.writableNodeId || resolvedNodeId).trim() || resolvedNodeId
 
-      const resolveNodeByIdAcrossGraphs = (candidateId: string): GraphNode | null => {
-        const cid = String(candidateId || '').trim()
-        if (!cid) return null
-        const candidates = [
-          readLiveDraftGraphData(),
-          args.renderGraphDataOverride,
-          store.graphData as GraphData | null,
+      const resolveNodeByIdAcrossGraphs = (candidateId: string): GraphNode | null =>
+        resolveFlowEditorWorkflowNodeByIdAcrossGraphs({
+          context: workflowNodeResolutionContext,
+          candidateNodeId: candidateId,
           graphForRun,
-        ].filter(Boolean) as GraphData[]
-        for (let i = 0; i < candidates.length; i += 1) {
-          const hit = (candidates[i]!.nodes || []).find(n => String(n.id || '').trim() === cid) || null
-          if (hit) return hit
-        }
-        return null
+        })
+
+      const commitDraftGraphDataUpdate = (currentDraft: GraphData, nextDraft: GraphData) => {
+        args.draftGraphDataRef.current = nextDraft
+        args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))
       }
-
+      const workflowWritebackNodeIds = [writableNodeId, resolvedNodeId, id, node.id]
       const updateRunOutputForKnownNodeIds = (buildPatch: (nodeProps: Record<string, unknown>) => Record<string, unknown>) => {
-        const candidateIds = new Set<string>()
-        for (const next of parseCanonicalNodeIds(writableNodeId)) candidateIds.add(next)
-        for (const next of parseCanonicalNodeIds(resolvedNodeId)) candidateIds.add(next)
-        for (const next of parseCanonicalNodeIds(id)) candidateIds.add(next)
-        for (const next of parseCanonicalNodeIds(node.id)) candidateIds.add(next)
-
-        const currentDraft = readLiveDraftGraphData()
-        if (currentDraft && Array.isArray(currentDraft.nodes) && currentDraft.nodes.length > 0) {
-          let changed = false
-          const nextNodes = currentDraft.nodes.map(existing => {
-            const existingId = String(existing?.id || '').trim()
-            if (!existingId || !candidateIds.has(existingId)) return existing
-            const currentProps = (existing.properties || {}) as Record<string, unknown>
-            const nextProps = buildPatch(currentProps)
-            if (areRecordValuesEqual(currentProps, nextProps)) return existing
-            changed = true
-            return { ...existing, properties: nextProps as never }
-          })
-          if (changed) {
-            const nextDraft = bumpDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })
-            args.draftGraphDataRef.current = nextDraft
-            args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))
-          }
-        }
-
-        let updated = false
-        for (const candidateId of Array.from(candidateIds.values())) {
-          const hit = resolveNodeByIdAcrossGraphs(candidateId)
-          if (!hit) continue
-          const currentProps = (hit.properties || {}) as Record<string, unknown>
-          const nextProps = buildPatch(currentProps)
-          if (areRecordValuesEqual(currentProps, nextProps)) continue
-          args.updateNode(candidateId, { properties: nextProps as never })
-          updated = true
-        }
-        if (!updated) {
-          const currentProps = (node.properties || {}) as Record<string, unknown>
-          const nextProps = buildPatch(currentProps)
-          if (!areRecordValuesEqual(currentProps, nextProps)) {
-            args.updateNode(writableNodeId, { properties: nextProps as never })
-            updated = true
-          }
-        }
-        if (updated) scheduleWorkflowOutputEdgeRefresh()
+        updateFlowEditorWorkflowOutputForKnownNodeIds({
+          nodeIds: workflowWritebackNodeIds,
+          fallbackNode: node,
+          fallbackWritableNodeId: writableNodeId,
+          readLiveDraftGraphData,
+          resolveNodeByIdAcrossGraphs,
+          commitDraftGraphDataUpdate,
+          updateNode: args.updateNode,
+          scheduleWorkflowOutputEdgeRefresh,
+          buildPatch,
+        })
       }
 
       const setRunLoadingStateForKnownNodeIds = (loadingArgs: { loading: boolean; kind?: 'text' | 'image' | 'video' }) => {
-        updateRunOutputForKnownNodeIds(nodeProps => ({
-          ...nodeProps,
-          outputLoading: loadingArgs.loading === true ? true : undefined,
-          outputLoadingKind: loadingArgs.loading === true ? (loadingArgs.kind || undefined) : undefined,
-          lastRunAt: loadingArgs.loading === true ? new Date().toISOString() : nodeProps.lastRunAt,
-        }))
-      }
-
-      const resolveRichMediaPanelTargetNodeId = (): string | null => {
-        const graphs: GraphData[] = [
-          readLiveDraftGraphData(),
-          args.renderGraphDataOverride,
-          graphForRun,
-          store.graphData as GraphData | null,
-        ].filter(Boolean) as GraphData[]
-        const allNodes: GraphNode[] = []
-        for (let i = 0; i < graphs.length; i += 1) {
-          const nodes = Array.isArray(graphs[i]!.nodes) ? (graphs[i]!.nodes as GraphNode[]) : []
-          for (let j = 0; j < nodes.length; j += 1) allNodes.push(nodes[j]!)
-        }
-        const panels = allNodes.filter(n => String(n.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
-        if (panels.length === 0) return null
-        const activePanel = panels.find(n => {
-          const p = (n.properties || {}) as Record<string, unknown>
-          return (typeof p.outputSrcDoc === 'string' && p.outputSrcDoc.trim()) || (typeof p.output === 'string' && p.output.trim())
+        setFlowEditorWorkflowRunLoadingStateForKnownNodeIds({
+          nodeIds: workflowWritebackNodeIds,
+          fallbackNode: node,
+          fallbackWritableNodeId: writableNodeId,
+          loading: loadingArgs.loading,
+          kind: loadingArgs.kind,
+          readLiveDraftGraphData,
+          resolveNodeByIdAcrossGraphs,
+          commitDraftGraphDataUpdate,
+          updateNode: args.updateNode,
+          scheduleWorkflowOutputEdgeRefresh,
         })
-        return String((activePanel || panels[0])!.id || '').trim() || null
-      }
-
-      const ensureRichMediaPanelNodeId = (anchorNode: GraphNode): string | null => {
-        const existing = resolveRichMediaPanelTargetNodeId()
-        if (existing) return existing
-        if (!allowCreateRichMediaPanel) return null
-        if (!readLiveDraftGraphData()) return null
-        const createdId = args.appendDraftNode({
-          id: null,
-          type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-          label: FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
-          x: (Number.isFinite(anchorNode.x) ? anchorNode.x : 0) + 520,
-          y: Number.isFinite(anchorNode.y) ? anchorNode.y : 0,
-          properties: { media_interactive: true },
-        })
-        return createdId
-      }
-
-      const updatePanelInDraft = (panelId: string, patch: Record<string, unknown>) => {
-        const currentDraft = readLiveDraftGraphData()
-        const currentPanel = Array.isArray(currentDraft?.nodes)
-          ? currentDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelId) || null
-          : null
-        const currentProps = (currentPanel?.properties || {}) as Record<string, unknown>
-        if (currentPanel && areRecordValuesEqual(currentProps, { ...currentProps, ...patch })) return
-        if (!currentDraft || !Array.isArray(currentDraft.nodes) || currentDraft.nodes.length === 0) return
-        let changed = false
-        const nextNodes = currentDraft.nodes.map(existing => {
-          const existingId = String(existing?.id || '').trim()
-          if (existingId !== panelId) return existing
-          const existingProps = (existing.properties || {}) as Record<string, unknown>
-          const nextProps = { ...existingProps, ...patch }
-          if (areRecordValuesEqual(existingProps, nextProps)) return existing
-          changed = true
-          return { ...existing, properties: nextProps as never }
-        })
-        if (!changed) return
-        const nextDraft = bumpDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })
-        args.draftGraphDataRef.current = nextDraft
-        args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))
-        scheduleWorkflowOutputEdgeRefresh()
       }
 
       const publishTextRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; outputText: string; title: string; model?: unknown; sourceUrl?: string; loading?: boolean }) => {
-        const panelNodeId = ensureRichMediaPanelNodeId(panelArgs.anchorNode)
+        const panelNodeId = ensureFlowEditorWorkflowRichMediaPanelNodeId({
+          context: workflowNodeResolutionContext,
+          graphForRun,
+          allowCreateRichMediaPanel,
+          anchorNode: panelArgs.anchorNode,
+          readLiveDraftGraphData,
+          appendDraftNode: args.appendDraftNode,
+        })
         if (!panelNodeId) return
         const patch: Record<string, unknown> = {
           ...clearRichMediaOutputProperties({}),
@@ -301,11 +210,17 @@ export function useFlowEditorWorkflowActions(args: {
           lastRunAt: panelArgs.loading === true ? new Date().toISOString() : undefined,
           outputSourceUrl: typeof panelArgs.sourceUrl === 'string' && panelArgs.sourceUrl.trim() ? panelArgs.sourceUrl.trim() : undefined,
         }
-        updatePanelInDraft(panelNodeId, patch)
+        const updatedPanelInDraft = applyFlowEditorWorkflowRichMediaPanelDraftPatch({
+          panelNodeId,
+          patch,
+          readLiveDraftGraphData,
+          commitDraftGraphDataUpdate,
+          scheduleWorkflowOutputEdgeRefresh,
+        })
         const liveDraft = readLiveDraftGraphData()
-        const updatedPanel = Array.isArray(liveDraft?.nodes)
+        const updatedPanel = updatedPanelInDraft || (Array.isArray(liveDraft?.nodes)
           ? liveDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
-          : resolveNodeByIdAcrossGraphs(panelNodeId)
+          : resolveNodeByIdAcrossGraphs(panelNodeId))
         const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>
         args.updateNode(panelNodeId, { properties: { ...existingPanelProps, ...patch } as never })
       }
@@ -351,10 +266,11 @@ export function useFlowEditorWorkflowActions(args: {
       if (richMediaKind) {
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: richMediaKind })
         try {
-          const connectedValuesByNodeId = computeFlowConnectedValuesBySchemaPath({
-            graphData: (args.renderGraphDataOverride as GraphData | null) || graphForRun,
+          const connectedValuesInput = resolveFlowEditorWorkflowConnectedValuesInput({
+            context: workflowNodeResolutionContext,
+            graphForRun,
+            writableNodeId,
             registry: args.widgetRegistry,
-            targetNodeIds: new Set([writableNodeId]),
           })
           const normalizedProvider = normalizeChatProviderId(store.chatProvider)
           const runProvider = CHAT_PROVIDER_BYTEPLUS
@@ -363,7 +279,7 @@ export function useFlowEditorWorkflowActions(args: {
           const runEndpointUrl = normalizedProvider === CHAT_PROVIDER_BYTEPLUS ? store.chatEndpointUrl : getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_BYTEPLUS)
           const richMediaResult = await runRichMediaWidgetGeneration({
             node,
-            connectedValuesBySchemaPath: connectedValuesByNodeId.get(writableNodeId),
+            connectedValuesBySchemaPath: connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId),
             markdownDocumentText: typeof store.markdownDocumentText === 'string' ? store.markdownDocumentText : '',
             workspacePath: activeWorkspacePath || null,
             generationConfig: { provider: runProvider, endpointUrl: runEndpointUrl, apiKey: runApiKey, chatModel: store.chatModel },
@@ -530,13 +446,18 @@ export function useFlowEditorWorkflowActions(args: {
         args.upsertUiToast({ id: 'flow-editor-run-all-missing', kind: 'neutral', message: UI_COPY.flowEditorNoDraftGraphToast, ttlMs: 2400 })
         return
       }
-      const ordered = buildFlowRunAllNodeSequence({ graphData: draft, eligibleNodeIds: buildFlowWidgetEligibleNodeIdSet(nodes) })
-      const ids = ordered.orderedNodeIds
+      const runPlan = getCachedFlowEditorWorkflowRunPlan({
+        graphData: draft,
+        graphRevision: readGraphDataRevision(draft),
+        preferCurrentGraphDataRefs: true,
+      })
+      const ids = runPlan?.orderedNodeIds || []
       if (ids.length === 0) {
         args.upsertUiToast({ id: 'flow-editor-run-all-empty', kind: 'neutral', message: 'No runnable workflow nodes found.', ttlMs: 2400 })
         return
       }
-      const phaseSummary = FLOW_RUN_ALL_PHASES.map(phase => `${phase.label}: ${ordered.phaseCounts[phase.id] || 0}`).join(' · ')
+      const phaseCounts = runPlan?.phaseCounts || { text: 0, imageFoundation: 0, imageScene: 0, video: 0 }
+      const phaseSummary = FLOW_RUN_ALL_PHASES.map(phase => `${phase.label}: ${phaseCounts[phase.id] || 0}`).join(' · ')
       args.upsertUiToast({ id: 'flow-editor-run-all', kind: 'neutral', message: `Running ${ids.length} nodes in sequence. ${phaseSummary}`, ttlMs: 2600 })
       for (let i = 0; i < ids.length; i += 1) {
         await runWorkflowNode(ids[i]!, { allowCreateRichMediaPanel: false })

@@ -1,6 +1,7 @@
 import React from 'react'
 import RichMediaIframe from '@/components/RichMediaIframe'
-import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
+import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'
+import { useShallow } from 'zustand/react/shallow'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { isFlowEditorFrontmatterDocumentModeRequested } from '@/lib/graph/frontmatterMode'
@@ -15,7 +16,7 @@ import {
 } from '@/features/geospatial/grabMapsPoiRichMedia'
 import { installWheelForwardingAndBrowserZoomGuards } from 'grph-shared/dom/wheelGuards'
 import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
-import { resolveIframeEmbed, resolveIframeSandbox, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
+import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   PANEL_FRAME_BODY_STYLE,
@@ -471,22 +472,37 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
   }, [proxiedUrl])
   const hideUntilReady = props.hideUntilReady === true
   const headerPassthrough = props.headerPassthrough === true
-  const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)
-  const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
-  const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
-  const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
-  const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
-  const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
-  const isFlowEditorRenderer = useGraphStore(s => String(s.canvas2dRenderer || '') === 'flowEditor')
-  const flowEditorFrontmatterDocumentModeFromStore = useGraphStore(s => isFlowEditorFrontmatterDocumentModeRequested({
-    canvas2dRenderer: String(s.canvas2dRenderer || ''),
-    frontmatterModeEnabled: s.frontmatterModeEnabled === true,
-    documentSemanticMode: String(s.documentSemanticMode || ''),
-  }))
+  const {
+    richMediaPanelMode,
+    infiniteCanvasInteractionMode,
+    workspaceViewMode,
+    workspaceCanvasPaneOpen,
+    uiPanelTextFontClass,
+    uiPanelMonospaceTextClass,
+    isFlowEditorRenderer,
+    flowEditorFrontmatterDocumentModeFromStore,
+    selectedNodeId,
+    selectedNodeIds,
+  } = useGraphStore(
+    useShallow(s => ({
+      richMediaPanelMode: s.richMediaPanelMode,
+      infiniteCanvasInteractionMode: s.infiniteCanvasInteractionMode,
+      workspaceViewMode: s.workspaceViewMode,
+      workspaceCanvasPaneOpen: s.workspaceCanvasPaneOpen,
+      uiPanelTextFontClass: s.uiPanelTextFontClass || 'font-sans',
+      uiPanelMonospaceTextClass: s.uiPanelMonospaceTextClass || 'font-mono text-xs',
+      isFlowEditorRenderer: String(s.canvas2dRenderer || '') === 'flowEditor',
+      flowEditorFrontmatterDocumentModeFromStore: isFlowEditorFrontmatterDocumentModeRequested({
+        canvas2dRenderer: String(s.canvas2dRenderer || ''),
+        frontmatterModeEnabled: s.frontmatterModeEnabled === true,
+        documentSemanticMode: String(s.documentSemanticMode || ''),
+      }),
+      selectedNodeId: s.selectedNodeId,
+      selectedNodeIds: s.selectedNodeIds ?? EMPTY_STRING_ARRAY,
+    })),
+  )
   const flowEditorFrontmatterDocumentMode =
     props.flowEditorFrontmatterDocumentMode === true || flowEditorFrontmatterDocumentModeFromStore
-  const selectedNodeId = useGraphStore(s => s.selectedNodeId)
-  const selectedNodeIds = useGraphStore(s => s.selectedNodeIds ?? EMPTY_STRING_ARRAY)
   const flowEditorOverlayProxyMode = props.flowEditorInteractionMode === true
   const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode
   const panelControlsHidden = isFlowEditorRenderer !== true
@@ -854,6 +870,18 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
     padding: 0,
     pointerEvents: headerPassthrough ? (contentInteractive ? 'auto' : 'none') : undefined,
   }
+  const iframeSurfaceStyle = React.useMemo<React.CSSProperties>(() => ({
+    display: 'block',
+    width: '100%',
+    height: '100%',
+    border: 0,
+    borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
+    background: 'transparent',
+    backfaceVisibility: 'hidden',
+    WebkitBackfaceVisibility: 'hidden',
+    pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
+    touchAction: 'auto',
+  }), [allowPanelContentPointerEvents, forwardingEnabled])
   const renderSurfaceChildren = (
     <>
       {showTextEditor && !panelControlsHidden ? (
@@ -989,63 +1017,41 @@ const Panel = React.forwardRef<HTMLElement, RichMediaPanelProps>(function Panel(
         <RichMediaEmptyCardPlaceholder variant={expectedEmptyPlaceholderVariant} />
       ) : kind === 'iframe' ? (
         effectiveInlineSrcDoc ? (
-          <iframe
-            src="about:blank"
-            srcDoc={effectiveInlineSrcDoc}
+          <SharedWebpageSurface
+            renderMode="iframe"
+            webpageUrl={proxiedUrl}
             title={title}
-            allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            sandbox={resolveIframeSandbox('proxied')}
-            referrerPolicy="no-referrer"
-            loading="lazy"
-            style={{
-              display: 'block',
-              width: '100%',
-              height: '100%',
-              border: 0,
-              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-              background: 'transparent',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
-              touchAction: 'auto',
-            }}
+            iframeSrc="about:blank"
+            iframeSrcDoc={effectiveInlineSrcDoc}
+            iframeAllow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            iframeReferrerPolicy="no-referrer"
+            style={iframeSurfaceStyle}
             onLoad={() => setReady(true)}
           />
         ) : (
         iframeEmbed && !iframeEmbed.direct && (hideUntilReady || forceSnapshotIframe) && (!preferEmbed || forceSnapshotIframe) ? (
-          <WebpageSnapshotPreview
-            url={proxiedUrl}
+          <SharedWebpageSurface
+            renderMode="snapshot"
+            webpageUrl={proxiedUrl}
             title={title}
             className="w-full h-full"
-            style={{
-              display: 'block',
-              width: '100%',
-              height: '100%',
-              border: 0,
-              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-              overflow: 'hidden',
-              background: 'transparent',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
-            }}
+            style={{ ...iframeSurfaceStyle, overflow: 'hidden', touchAction: undefined }}
           />
         ) : (
-          <RichMediaIframe
+          <SharedWebpageSurface
+            renderMode="iframe"
+            webpageUrl={proxiedUrl}
             title={title}
-            url={proxiedUrl}
-            style={{
-              display: 'block',
-              width: '100%',
-              height: '100%',
-              border: 0,
-              borderRadius: 'calc(var(--kg-media-panel-radius, 10px) * 0.8)',
-              background: 'transparent',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              pointerEvents: allowPanelContentPointerEvents ? (forwardingEnabled ? 'none' : undefined) : 'none',
-              touchAction: 'auto',
-            }}
+            style={iframeSurfaceStyle}
+            iframeRenderer={frameProps => (
+              <RichMediaIframe
+                title={frameProps.title}
+                url={proxiedUrl}
+                className={frameProps.className}
+                style={frameProps.style}
+                onLoad={frameProps.onLoad}
+              />
+            )}
             onLoad={() => setReady(true)}
           />
         )

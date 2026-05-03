@@ -69,7 +69,7 @@ export function testFlowEditorOverlayOnlyModeDoesNotBlankCanvasWhenNoOverlaysOpe
   if (!overlaySurfaceText.includes('const overlayOnlyActive =')) {
     throw new Error('Expected Flow Editor overlay-only rendering to be gated by whether overlays exist')
   }
-  if (!overlaySurfaceText.includes('hasOverlayEditors || Boolean(args.geospatialWidgetPanelMode)')) {
+  if (!overlaySurfaceText.includes('hasOverlayEditors || Boolean(geospatialWidgetPanelMode)')) {
     throw new Error('Expected Flow Editor overlay-only mode to require visible overlays or geospatial panel mode')
   }
   if (!surfaceText.includes('renderEdges={!props.overlayOnlyActive}')) {

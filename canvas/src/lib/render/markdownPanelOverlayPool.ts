@@ -4,6 +4,7 @@ import { looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { hasNodeMedia } from '@/components/GraphCanvas/helpers'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import { toMetadataRecord } from '@/lib/graph/documentMetadata'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
 
 export type MarkdownPanelLineRanges = {
   table: ReadonlySet<number>
@@ -22,9 +23,9 @@ function readLineStart(n: GraphNode): number | null {
 function isPanelOnlyParagraphNode(n: GraphNode): boolean {
   const typeLower = String(n.type || '').trim().toLowerCase()
   if (typeLower !== 'paragraph') return false
-  const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null
-  const text = propsObj && typeof propsObj.text === 'string' ? String(propsObj.text || '').trim() : ''
-  if (propsObj && propsObj.calloutType === true) return true
+  const propsObj = readNodeProperties(n)
+  const text = typeof propsObj.text === 'string' ? String(propsObj.text || '').trim() : ''
+  if (propsObj.calloutType === true) return true
   if (text.startsWith('>')) return true
   if (text && /<\s*iframe\b/i.test(text) && text.toLowerCase().startsWith('<iframe') && looksLikeSingleTagBlock(text, 'iframe')) return true
   if (hasNodeMedia(n)) return true

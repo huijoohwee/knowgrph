@@ -1,21 +1,23 @@
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import { type GraphSchema, getAgenticRagTagColor, getRendererPalette } from '@/lib/graph/schema'
 import { readGlobalEdgeColor } from '@/lib/graph/edgeTypes'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { isPlainObject } from '@/lib/graph/value'
 
 const readVisualString = (props: Record<string, unknown>, key: string): string => {
   const raw = props[key]
   return typeof raw === 'string' ? raw.trim() : ''
 }
 
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
+
 export const getEdgeBaseStroke = (edge: GraphEdge, schema: GraphSchema): string => {
   const safeEdge = (edge && typeof edge === 'object' ? edge : null) as
     | { label?: unknown; properties?: unknown }
     | null
-  const rawProps = safeEdge?.properties
-  const props =
-    rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)
-      ? (rawProps as Record<string, unknown>)
-      : {}
+  const props = readPlainObject(safeEdge?.properties) || {}
   const visualStroke = readVisualString(props, 'visual:stroke')
   if (visualStroke) return visualStroke
   const visualColor = readVisualString(props, 'visual:color')
@@ -33,11 +35,7 @@ export const getNodeBaseFill = (node: GraphNode, schema: GraphSchema): string =>
   const safeNode = (node && typeof node === 'object' ? node : null) as
     | { type?: unknown; properties?: unknown }
     | null
-  const rawProps = safeNode?.properties
-  const props =
-    rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)
-      ? (rawProps as Record<string, unknown>)
-      : {}
+  const props = readNodeProperties(node)
   const visualFill = readVisualString(props, 'visual:fill')
   if (visualFill) return visualFill
   const fill = readVisualString(props, 'fill')
@@ -55,11 +53,7 @@ export const getNodeBaseStroke = (node: GraphNode, schema: GraphSchema): string 
   const safeNode = (node && typeof node === 'object' ? node : null) as
     | { type?: unknown; properties?: unknown }
     | null
-  const rawProps = safeNode?.properties
-  const props =
-    rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)
-      ? (rawProps as Record<string, unknown>)
-      : {}
+  const props = readNodeProperties(node)
   const visualStroke = readVisualString(props, 'visual:stroke')
   if (visualStroke) return visualStroke
   const nodeType = typeof safeNode?.type === 'string' ? safeNode.type : ''
@@ -70,11 +64,7 @@ export const getNodeBaseStroke = (node: GraphNode, schema: GraphSchema): string 
 
 export const getNodeLabelColor = (node: GraphNode, schema: GraphSchema): string => {
   const safeNode = (node && typeof node === 'object' ? node : null) as { properties?: unknown } | null
-  const rawProps = safeNode?.properties
-  const props =
-    rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)
-      ? (rawProps as Record<string, unknown>)
-      : {}
+  const props = readNodeProperties(node)
   const visualLabelColor = readVisualString(props, 'visual:labelColor')
   if (visualLabelColor) return visualLabelColor
   const visualColor = readVisualString(props, 'visual:color')
@@ -86,11 +76,7 @@ export const getNodeLabelColor = (node: GraphNode, schema: GraphSchema): string 
 
 export const getEdgeLabelColor = (edge: GraphEdge, schema: GraphSchema): string => {
   const safeEdge = (edge && typeof edge === 'object' ? edge : null) as { properties?: unknown } | null
-  const rawProps = safeEdge?.properties
-  const props =
-    rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)
-      ? (rawProps as Record<string, unknown>)
-      : {}
+  const props = readPlainObject(safeEdge?.properties) || {}
   const visualLabelColor = readVisualString(props, 'visual:labelColor')
   if (visualLabelColor) return visualLabelColor
   const visualColor = readVisualString(props, 'visual:color')

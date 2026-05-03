@@ -3,6 +3,7 @@ import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
 
 function measuredLayoutKey(value: unknown): string {
   const n = typeof value === 'number' ? value : Number(value)
@@ -27,7 +28,7 @@ export function buildOverlayTopologyLayoutSignature(graphData: GraphData | null 
     .map(node => {
       const id = readCanonicalOverlayIdentity(node?.id)
       if (!id) return ''
-      const props = (node.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)) ? node.properties as Record<string, unknown> : {}
+      const props = readNodeProperties(node)
       return [
         id,
         String(node.type || '').trim(),

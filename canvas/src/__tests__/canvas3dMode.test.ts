@@ -18,7 +18,7 @@ const BLOCK_SCHEMA = {
 
 export function testVoxelModeRejectsGeospatialMode() {
   const args = {
-    canvas2dRenderer: 'd3Bipartite' as const,
+    canvas2dRenderer: 'flowchart' as const,
     documentSemanticMode: 'document' as const,
     frontmatterModeEnabled: false,
     multiDimTableModeEnabled: false,
@@ -84,7 +84,7 @@ export function testCanvas3dModeSetterRejectsVoxelWhileGeospatialModeIsPersisted
     useGraphStore.getState().setDocumentStructureBaselineLock(false)
     storage?.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
     useGraphStore.getState().setSchema(BLOCK_SCHEMA)
-    useGraphStore.getState().setCanvas2dRenderer('d3Bipartite')
+    useGraphStore.getState().setCanvas2dRenderer('flowchart')
     useGraphStore.getState().setDocumentSemanticMode('document')
     useGraphStore.getState().setCanvas3dMode('voxel')
     const next = useGraphStore.getState().canvas3dMode

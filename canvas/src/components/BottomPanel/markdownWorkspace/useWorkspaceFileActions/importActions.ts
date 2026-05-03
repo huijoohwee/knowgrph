@@ -263,6 +263,14 @@ export function useWorkspaceImportActions(args: {
       if (args.hydratePending) {
         await hydratePendingImportedPaths(fs, result.createdPaths)
       }
+      const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, result.createdPaths)
+      if (args.applyToGraph && createdPath) {
+        try {
+          useMarkdownExplorerStore.getState().setActivePath(createdPath as WorkspacePath)
+        } catch {
+          void 0
+        }
+      }
       const refreshed = await refresh()
       await applyWorkspaceImportToCanvasBestEffort({
         fs,
@@ -273,7 +281,6 @@ export function useWorkspaceImportActions(args: {
           sourcesByPath: refreshed.sourcesByPath,
         },
       })
-      const createdPath = await pickFirstCreatedFilePathForImportFocus(fs, result.createdPaths)
       const source = args.resolveSourceUrl && createdPath ? result.sources.find(s => s.path === createdPath)?.source : result.sources[0]?.source
       const sourceUrl = source && source.kind === 'url' ? source.url : null
       return { createdPath, sourceUrl }

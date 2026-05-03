@@ -1,10 +1,17 @@
 import * as d3 from 'd3'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { fitFlowEditorPinnedWidgets } from '@/components/FlowCanvas/fitPinnedWidgets'
+import { buildFlowFitOptions, readFlowEditorPortExtraPadScreenPx } from '@/components/FlowCanvas/fitRuntime'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import type { ZoomRequest } from '@/lib/zoom/requests'
 import type { GraphData } from '@/lib/graph/types'
 import { setFlowNativeTransform, type FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
+import {
+  collectCanonicalFlowEditorOverlayRectEntries,
+  FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
+  RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
+} from '@/lib/canvas/flow-editor-overlay-proxy'
 import { easeOutCubic01, lerpNumber } from '@/lib/canvas/zoom-smoothing'
 import { getFlowAutoMinScale, setFlowAutoMinScale } from '@/components/FlowCanvas/flowScaleExtentOverride'
 import { DEFAULT_TOOLBAR_ZOOM_CONFIG } from '@/lib/zoom/toolbarZoom'
@@ -13,6 +20,56 @@ import { resolveZoomRequest2d } from '@/lib/zoom/resolveZoomRequest2d'
 const FLOW_ZOOM_MAX_VISUAL_CAP = 24
 
 const FLOW_ZOOM_REQUEST_ANIMS = new WeakMap<FlowNativeRuntime, { rafId: number | null; token: number }>()
+
+function recenterVisibleFlowEditorOverlayCentroid(args: {
+  runtime: FlowNativeRuntime
+  viewportW: number
+  viewportH: number
+  onFrame?: () => void
+}) {
+  if (typeof document === 'undefined') return
+  const run = () => {
+    const merged = new Map<string, { left: number; right: number; top: number; bottom: number; area: number }>()
+    const pushEntries = (selector: string) => {
+      const els = Array.from(document.querySelectorAll(selector))
+        .filter((el): el is HTMLElement => el instanceof HTMLElement)
+      const entries = collectCanonicalFlowEditorOverlayRectEntries(els)
+      for (let i = 0; i < entries.length; i += 1) {
+        const entry = entries[i]!
+        const area = Math.max(0, entry.rect.width) * Math.max(0, entry.rect.height)
+        const prev = merged.get(entry.id)
+        if (prev && prev.area >= area) continue
+        merged.set(entry.id, {
+          left: entry.rect.left,
+          right: entry.rect.right,
+          top: entry.rect.top,
+          bottom: entry.rect.bottom,
+          area,
+        })
+      }
+    }
+    pushEntries(FLOW_EDITOR_OVERLAY_ROOT_SELECTOR)
+    pushEntries(RICH_MEDIA_OVERLAY_ROOT_SELECTOR)
+    const entries = Array.from(merged.values())
+      .filter(entry => entry.right > 0 && entry.bottom > 0 && entry.left < args.viewportW && entry.top < args.viewportH)
+    if (entries.length === 0) return
+    const centroid = entries.reduce((acc, entry) => ({
+      x: acc.x + (entry.left + entry.right) / 2,
+      y: acc.y + (entry.top + entry.bottom) / 2,
+    }), { x: 0, y: 0 })
+    centroid.x /= entries.length
+    centroid.y /= entries.length
+    const deltaX = args.viewportW / 2 - centroid.x
+    const deltaY = args.viewportH / 2 - centroid.y
+    if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) return
+    const current = args.runtime.transform || d3.zoomIdentity
+    setFlowNativeTransform(args.runtime, d3.zoomIdentity.translate(current.x + deltaX, current.y + deltaY).scale(current.k))
+    args.onFrame?.()
+  }
+  requestAnimationFrame(() => {
+    requestAnimationFrame(run)
+  })
+}
 
 export const cancelFlowZoomRequestAnim = (runtime: FlowNativeRuntime) => {
   const prev = FLOW_ZOOM_REQUEST_ANIMS.get(runtime)
@@ -59,28 +116,79 @@ export const applyZoomRequestNative = (args: {
   const flowMinK = Math.min(schemaMinK, 0.000001)
   const flowMaxK = Math.min(schemaMaxK, FLOW_ZOOM_MAX_VISUAL_CAP)
   const autoMinK = getFlowAutoMinScale(args.runtime)
-  const resolved = resolveZoomRequest2d({
-    zoomRequest: args.zoomRequest,
-    graphData: args.graphData,
-    schema,
-    documentSemanticMode: (state.documentSemanticMode as 'document' | 'keyword' | undefined) ?? undefined,
-    graphDataRevision: state.graphDataRevision || 0,
-    viewportW: Math.max(1, Math.floor(args.width)),
-    viewportH: Math.max(1, Math.floor(args.height)),
-    viewPinned: state.viewPinned === true,
-    durations: { fitMs: state.zoomDurationFitMs, selectionMs: state.zoomDurationSelectionMs },
-    toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
-    selectedNodeId: args.selectedNodeId,
-    selectedEdgeId: args.selectedEdgeId,
-    selectedGroupId: args.selectedGroupId,
-    selectedNodeIds: args.selectedNodeIds,
-    selectedEdgeIds: args.selectedEdgeIds,
-    selectedGroupIds: args.selectedGroupIds,
-    currentTransform: t0,
-    schemaExtent: { minK: flowMinK, maxK: flowMaxK },
-    currentExtent: { minK: autoMinK ?? flowMinK, maxK: flowMaxK },
-    cacheKeyBase: '2d',
-  })
+  const viewportW = Math.max(1, Math.floor(args.width))
+  const viewportH = Math.max(1, Math.floor(args.height))
+  const isFlowEditorFitRequest =
+    state.canvasRenderMode === '2d'
+    && state.canvas2dRenderer === 'flowEditor'
+    && !!args.graphData
+    && Array.isArray(args.graphData.nodes)
+    && args.graphData.nodes.length > 0
+    && (
+      args.zoomRequest.type === 'reset'
+      || args.zoomRequest.type === 'fit'
+    )
+  const resolved = isFlowEditorFitRequest
+    ? (() => {
+        const intent =
+          args.zoomRequest.type === 'fit' && args.zoomRequest.intent === 'fitToScreen'
+            ? 'fitToScreen'
+            : 'fitToView'
+        const fit = fitFlowEditorPinnedWidgets({
+          nodes: args.graphData?.nodes || [],
+          fitW: viewportW,
+          viewportW,
+          viewportH,
+          openWidgetNodeIds: Array.isArray(state.openWidgetNodeIds) ? state.openWidgetNodeIds : [],
+          pinnedById: state.flowWidgetPinnedByNodeId || {},
+          worldPosById: state.flowWidgetWorldPosByNodeId || {},
+          portExtraPadScreenPx: readFlowEditorPortExtraPadScreenPx(schema),
+          graphData: args.graphData,
+          frontmatterOverlayFitProxyScales: {
+            phone: state.frontmatterFlowOverlayFitProxyScalePhone,
+            tablet: state.frontmatterFlowOverlayFitProxyScaleTablet,
+            laptop: state.frontmatterFlowOverlayFitProxyScaleLaptop,
+            desktop: state.frontmatterFlowOverlayFitProxyScaleDesktop,
+          },
+          fitOpts: buildFlowFitOptions({
+            schema,
+            intent,
+            frontmatterModeEnabled: state.frontmatterModeEnabled === true,
+            multiDimTableModeEnabled: state.multiDimTableModeEnabled === true,
+            documentSemanticMode: String(state.documentSemanticMode || 'document'),
+            documentStructureBaselineLock: state.documentStructureBaselineLock === true,
+            enableDocumentStructureBounds: intent !== 'fitToScreen',
+            frontmatterFlowInitialFitFillRatio: state.frontmatterFlowInitialFitFillRatio,
+          }),
+        })
+        return {
+          nextTransform: fit,
+          durationMs: args.zoomRequest.type === 'reset' ? 250 : Math.max(0, Math.floor(state.zoomDurationFitMs || 300)),
+          nextMinScale: fit.k,
+        }
+      })()
+    : resolveZoomRequest2d({
+        zoomRequest: args.zoomRequest,
+        graphData: args.graphData,
+        schema,
+        documentSemanticMode: (state.documentSemanticMode as 'document' | 'keyword' | undefined) ?? undefined,
+        graphDataRevision: state.graphDataRevision || 0,
+        viewportW,
+        viewportH,
+        viewPinned: state.viewPinned === true,
+        durations: { fitMs: state.zoomDurationFitMs, selectionMs: state.zoomDurationSelectionMs },
+        toolbarZoom: DEFAULT_TOOLBAR_ZOOM_CONFIG,
+        selectedNodeId: args.selectedNodeId,
+        selectedEdgeId: args.selectedEdgeId,
+        selectedGroupId: args.selectedGroupId,
+        selectedNodeIds: args.selectedNodeIds,
+        selectedEdgeIds: args.selectedEdgeIds,
+        selectedGroupIds: args.selectedGroupIds,
+        currentTransform: t0,
+        schemaExtent: { minK: flowMinK, maxK: flowMaxK },
+        currentExtent: { minK: autoMinK ?? flowMinK, maxK: flowMaxK },
+        cacheKeyBase: '2d',
+      })
   if (!resolved) {
     clear()
     return
@@ -97,6 +205,14 @@ export const applyZoomRequestNative = (args: {
     cancelFlowZoomRequestAnim(args.runtime)
     setFlowNativeTransform(args.runtime, resolved.nextTransform)
     args.onFrame?.()
+    if (isFlowEditorFitRequest) {
+      recenterVisibleFlowEditorOverlayCentroid({
+        runtime: args.runtime,
+        viewportW,
+        viewportH,
+        onFrame: args.onFrame,
+      })
+    }
     return
   }
   cancelFlowZoomRequestAnim(args.runtime)
@@ -118,6 +234,14 @@ export const applyZoomRequestNative = (args: {
     args.onFrame?.()
     if (!(raw01 < 1)) {
       FLOW_ZOOM_REQUEST_ANIMS.set(args.runtime, { rafId: null, token })
+      if (isFlowEditorFitRequest) {
+        recenterVisibleFlowEditorOverlayCentroid({
+          runtime: args.runtime,
+          viewportW,
+          viewportH,
+          onFrame: args.onFrame,
+        })
+      }
       return
     }
     const rafId = requestAnimationFrame(tick)

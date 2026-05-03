@@ -232,7 +232,7 @@ export const deriveGraphGroups = (
 
     const out: GraphGroup[] = []
     const meta = (data.metadata || {}) as Record<string, unknown>
-    const isBipartiteGraph = String(meta.graphKind || '') === 'bipartite'
+    const isFlowchartGraph = String(meta.graphKind || '') === 'flowchart'
     byId.forEach((row, id) => {
       const gid = subgraphGroupId(id)
       if (!gid) return
@@ -251,15 +251,15 @@ export const deriveGraphGroups = (
           row.kind === 'cluster'
             ? {
                 stroke: theme === 'dark' ? '#38bdf8' : '#0EA5E9',
-                strokeWidth: isBipartiteGraph ? 2.8 : 2,
-                fill: isBipartiteGraph
+                strokeWidth: isFlowchartGraph ? 2.8 : 2,
+                fill: isFlowchartGraph
                   ? (theme === 'dark' ? 'rgba(56,189,248,0.24)' : 'rgba(14,165,233,0.16)')
                   : (theme === 'dark' ? 'rgba(56,189,248,0.16)' : 'rgba(14,165,233,0.10)'),
               }
             : {
                 stroke: theme === 'dark' ? '#a78bfa' : '#7c3aed',
-                strokeWidth: isBipartiteGraph ? 3.2 : 2,
-                fill: isBipartiteGraph
+                strokeWidth: isFlowchartGraph ? 3.2 : 2,
+                fill: isFlowchartGraph
                   ? (theme === 'dark' ? 'rgba(167,139,250,0.2)' : 'rgba(124,58,237,0.14)')
                   : (theme === 'dark' ? 'rgba(167,139,250,0.14)' : 'rgba(124,58,237,0.08)'),
               },

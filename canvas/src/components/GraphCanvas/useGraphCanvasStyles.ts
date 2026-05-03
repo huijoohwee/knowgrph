@@ -15,7 +15,7 @@ import { UI_THEME_COLORS_CSS } from '@/lib/ui/theme-tokens';
 import { getNodeRectDimensions2d } from '@/components/GraphCanvas/nodeSizing2d';
 import { readEdgeOpacity2d } from '@/lib/graph/layoutDefaults'
 import { readLabelPresentation2d } from '@/lib/canvas/labelPresentation2d'
-import { isBipartiteCrossEdge } from '@/lib/bipartite/source'
+import { isFlowchartCrossEdge } from '@/lib/flowchart/source'
 
 type UseGraphCanvasStylesProps = {
   gRef?: MutableRefObject<d3.Selection<SVGGElement, unknown, null, undefined> | null>;
@@ -126,7 +126,7 @@ export function applyGraphCanvasStyles2d({
     });
     linksSelRef.current.attr('stroke-opacity', (d: GraphEdge) => {
       const combined = baseEdgeOpacity * readEdgeVisualOpacity(d)
-      const floor = isBipartiteCrossEdge(d) ? 0.58 : 0.18
+      const floor = isFlowchartCrossEdge(d) ? 0.58 : 0.18
       return Math.max(floor, Math.min(1, combined))
     });
     linksSelRef.current.attr('stroke-width', (d: GraphEdge) => {

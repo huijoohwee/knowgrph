@@ -1,7 +1,32 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { computeFlowConnectedValuesBySchemaPath } from '@/lib/flowEditor/flowDataflow'
 import { parseGraph } from '@/lib/graph/io/adapter'
 import { FLOW_WIDGET_REGISTRY_METADATA_KEY } from '@/lib/config'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+
+export const testFlowDataflowConnectedValuesReusesSharedReaders = () => {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'flowDataflow.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected flow dataflow to reuse the shared node properties reader upstream')
+  }
+  if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
+    throw new Error('expected flow dataflow to reuse the shared plain-object guard upstream')
+  }
+  if (!text.includes('const readPlainObject = (value: unknown): Record<string, unknown> | null => {')) {
+    throw new Error('expected flow dataflow to centralize plain-object coercion in one local helper')
+  }
+  if (!text.includes('hashRecordSignature32(readNodeProperties(node), { maxEntries: 80, maxDepth: 3 })')) {
+    throw new Error('expected flow dataflow graph keys to reuse the shared node properties reader')
+  }
+  if (!text.includes('const props = readPlainObject(edge?.properties)')) {
+    throw new Error('expected flow dataflow edge port reads to reuse the shared local plain-object helper')
+  }
+  if (text.includes('function isRecord(v: unknown): v is Record<string, unknown> {')) {
+    throw new Error('expected flow dataflow to stop defining a local record guard')
+  }
+}
 
 export const testFlowDataflowConnectedValuesBySchemaPath = () => {
   const graphData = {

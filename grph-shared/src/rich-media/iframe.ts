@@ -128,7 +128,8 @@ export function isSafeIframeUrl(
   if (!raw) return false
   if (allowInternalPaths) {
     if (raw.startsWith('/__webpage_proxy?url=')) return true
-    if (raw.startsWith('/__repo_file/')) return true
+    if (raw.startsWith('/__codebase_asset?path=')) return true
+    if (raw.startsWith('/__codebase_file?path=')) return true
   }
   try {
     const u = new URL(raw)

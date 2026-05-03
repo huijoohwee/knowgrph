@@ -18,6 +18,7 @@ import {
 } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import { hashText } from '@/features/parsers/hash'
 import { normalizeSigilId } from '@/features/parsers/markdownFrontmatterFlowGraph.sigil'
+import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 
 const FRONTMATTER_REGISTRY_UPDATED_AT = '1970-01-01T00:00:00.000Z'
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
@@ -137,8 +138,17 @@ function spreadMissingNodePositions(nodes: GraphNode[]): GraphNode[] {
   }
   if (unresolvedIndexes.length === 0) return nodes
 
-  const GAP_X = 360
-  const GAP_Y = 260
+  const containsBuiltInWidgetOrPanel = nodes.some(node => {
+    const type = String(node?.type || '').trim()
+    return (
+      type === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+      || type === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+      || type === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
+      || type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    )
+  })
+  const GAP_X = containsBuiltInWidgetOrPanel ? (WIDGET_BASE_SIZE.width + 120) : 360
+  const GAP_Y = containsBuiltInWidgetOrPanel ? (WIDGET_BASE_SIZE.height + 120) : 260
   const occupied = new Set<string>()
   for (let i = 0; i < nodes.length; i += 1) {
     const x = asFiniteNumber(nodes[i]?.x)
@@ -148,6 +158,24 @@ function spreadMissingNodePositions(nodes: GraphNode[]): GraphNode[] {
   }
   const centerX = Number.isFinite(minX) && Number.isFinite(maxX) ? (minX + maxX) / 2 : 0
   const centerY = Number.isFinite(minY) && Number.isFinite(maxY) ? (minY + maxY) / 2 : 0
+  const shouldPlaceOutsideOccupiedBand =
+    containsBuiltInWidgetOrPanel
+    && occupied.size > 0
+    && Number.isFinite(maxX)
+    && Number.isFinite(centerX)
+    && Number.isFinite(minY)
+  const outsideBandCols = shouldPlaceOutsideOccupiedBand
+    ? Math.max(1, Math.ceil(Math.sqrt(unresolvedIndexes.length)))
+    : 1
+  const outsideBandRows = shouldPlaceOutsideOccupiedBand
+    ? Math.max(1, Math.ceil(unresolvedIndexes.length / outsideBandCols))
+    : 1
+  const outsideBandStartX = shouldPlaceOutsideOccupiedBand
+    ? Math.round(centerX - ((outsideBandCols - 1) * GAP_X) / 2)
+    : 0
+  const outsideBandStartY = shouldPlaceOutsideOccupiedBand
+    ? Math.round(minY - outsideBandRows * GAP_Y)
+    : 0
 
   let cursor = 0
   for (let i = 0; i < unresolvedIndexes.length; i += 1) {
@@ -156,33 +184,40 @@ function spreadMissingNodePositions(nodes: GraphNode[]): GraphNode[] {
     let placedY = 0
     let found = false
     while (!found) {
-      const ring = Math.floor(Math.sqrt(cursor))
-      const side = ring * 2 + 1
-      const max = side * side
-      const leg = Math.max(1, side - 1)
-      const offset = max - cursor
-      const legIdx = Math.floor(offset / leg)
-      const legPos = offset % leg
-      let gx = 0
-      let gy = 0
-      if (ring === 0) {
-        gx = 0
-        gy = 0
-      } else if (legIdx === 0) {
-        gx = ring - legPos
-        gy = -ring
-      } else if (legIdx === 1) {
-        gx = -ring
-        gy = -ring + legPos
-      } else if (legIdx === 2) {
-        gx = -ring + legPos
-        gy = ring
+      if (shouldPlaceOutsideOccupiedBand) {
+        const col = cursor % outsideBandCols
+        const row = Math.floor(cursor / outsideBandCols)
+        placedX = Math.round(outsideBandStartX + col * GAP_X)
+        placedY = Math.round(outsideBandStartY + row * GAP_Y)
       } else {
-        gx = ring
-        gy = ring - legPos
+        const ring = Math.floor(Math.sqrt(cursor))
+        const side = ring * 2 + 1
+        const max = side * side
+        const leg = Math.max(1, side - 1)
+        const offset = max - cursor
+        const legIdx = Math.floor(offset / leg)
+        const legPos = offset % leg
+        let gx = 0
+        let gy = 0
+        if (ring === 0) {
+          gx = 0
+          gy = 0
+        } else if (legIdx === 0) {
+          gx = ring - legPos
+          gy = -ring
+        } else if (legIdx === 1) {
+          gx = -ring
+          gy = -ring + legPos
+        } else if (legIdx === 2) {
+          gx = -ring + legPos
+          gy = ring
+        } else {
+          gx = ring
+          gy = ring - legPos
+        }
+        placedX = Math.round(centerX + gx * GAP_X)
+        placedY = Math.round(centerY + gy * GAP_Y)
       }
-      placedX = Math.round(centerX + gx * GAP_X)
-      placedY = Math.round(centerY + gy * GAP_Y)
       cursor += 1
       const key = `${placedX}:${placedY}`
       if (occupied.has(key)) continue
@@ -193,10 +228,10 @@ function spreadMissingNodePositions(nodes: GraphNode[]): GraphNode[] {
       ? ({ ...(nodes[nodeIndex]!.properties as Record<string, JSONValue>) } as Record<string, JSONValue>)
       : ({} as Record<string, JSONValue>)
     if (typeof baseProps['visual:xIndex'] === 'undefined') {
-      baseProps['visual:xIndex'] = Math.floor(placedX / 320) as unknown as JSONValue
+      baseProps['visual:xIndex'] = Math.floor(placedX / Math.max(320, GAP_X)) as unknown as JSONValue
     }
     if (typeof baseProps['visual:yIndex'] === 'undefined') {
-      baseProps['visual:yIndex'] = Math.floor(placedY / 220) as unknown as JSONValue
+      baseProps['visual:yIndex'] = Math.floor(placedY / Math.max(220, GAP_Y)) as unknown as JSONValue
     }
     baseProps['frontmatter:autoSeededPos'] = true as unknown as JSONValue
     nodes[nodeIndex] = {

@@ -1,4 +1,4 @@
-export const CANVAS_2D_RENDERERS = ['d3', 'd3Bipartite', 'flow', 'flowEditor', 'design'] as const
+export const CANVAS_2D_RENDERERS = ['d3', 'flowchart', 'flow', 'flowEditor', 'design'] as const
 
 export type Canvas2dRendererId = (typeof CANVAS_2D_RENDERERS)[number]
 
@@ -13,11 +13,11 @@ export const isCanvas2dRendererId = (id: unknown): id is Canvas2dRendererId => {
 }
 
 export const isD3Like2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'd3' || id === 'd3Bipartite'
+  return id === 'd3' || id === 'flowchart'
 }
 
-export const isBipartiteCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return id === 'd3Bipartite'
+export const isFlowchartCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
+  return id === 'flowchart'
 }
 
 export const isFlowCanvas2dRenderer = (id: Canvas2dRendererId | null | undefined): boolean => {
@@ -48,7 +48,7 @@ export const getCanvas2dSurfaceId = (id: Canvas2dRendererId | null | undefined):
 }
 
 export const supportsCanvas2dMinimap = (id: Canvas2dRendererId | null | undefined): boolean => {
-  return getCanvas2dSurfaceId(id) !== null && !isBipartiteCanvas2dRenderer(id)
+  return getCanvas2dSurfaceId(id) !== null && !isFlowchartCanvas2dRenderer(id)
 }
 
 export const CANVAS_3D_MODES = ['3d', 'voxel'] as const

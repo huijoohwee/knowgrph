@@ -19,7 +19,7 @@ export function testD3SceneSetupContextHelperIsReusedByD3SceneHook() {
   if (!hookText.includes('const sceneSetup = buildD3SceneSetupContext({')) {
     throw new Error('expected useD3GraphScene2d to reuse the shared D3 scene setup context helper')
   }
-  if (!hookText.includes('const { isBipartite, schemaForScene, hoverEnabled, zoomOnDoubleClick, graphMetaKey, buildKey, isMermaidLayout } = sceneSetup')) {
+  if (!hookText.includes('const { isFlowchart, schemaForScene, hoverEnabled, zoomOnDoubleClick, graphMetaKey, buildKey, isMermaidLayout } = sceneSetup')) {
     throw new Error('expected useD3GraphScene2d to consume the shared scene setup context bundle instead of rebuilding it inline')
   }
 }

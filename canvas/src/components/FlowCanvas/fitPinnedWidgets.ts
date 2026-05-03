@@ -2,10 +2,17 @@ import * as d3 from 'd3'
 
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { fitAllTransform, type FitAllTransformOptions } from '@/components/GraphCanvas/fit'
+import {
+  readFrontmatterOverlayFitProxyScale,
+  type FrontmatterOverlayFitProxyScales,
+} from '@/components/FlowCanvas/frontmatterLayoutConfig'
 import { DEFAULT_FLOW_NODE_WIDTH_PX } from '@/lib/graph/layoutDefaults'
-import { computeWidgetScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { computeCollectiveFollowPinnedScale, WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+
+export { readFrontmatterOverlayFitProxyScale } from '@/components/FlowCanvas/frontmatterLayoutConfig'
 
 export function fitFlowEditorPinnedWidgets(args: {
   nodes: GraphNode[]
@@ -18,11 +25,20 @@ export function fitFlowEditorPinnedWidgets(args: {
   portExtraPadScreenPx: number
   graphData?: GraphData | null
   fitOpts: FitAllTransformOptions
+  frontmatterOverlayFitProxyScales?: Partial<FrontmatterOverlayFitProxyScales> | null
 }): d3.ZoomTransform {
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   if (nodes.length === 0) return d3.zoomIdentity
 
-  const openIds = Array.isArray(args.openWidgetNodeIds) ? args.openWidgetNodeIds : []
+  const explicitOpenIds = Array.isArray(args.openWidgetNodeIds) ? args.openWidgetNodeIds : []
+  const frontmatterOverlayIds = explicitOpenIds.length > 0 ? [] : deriveFrontmatterFlowOverlayNodeIds(args.graphData || null)
+  const openIds = explicitOpenIds.length > 0 ? explicitOpenIds : frontmatterOverlayIds
+  const graphMeta = (args.graphData?.metadata || {}) as Record<string, unknown>
+  const graphContext = String(args.graphData?.context || '').trim()
+  const isFrontmatterOverlayFit =
+    frontmatterOverlayIds.length > 0 ||
+    String(graphMeta.kind || '').trim() === 'frontmatter-flow' ||
+    graphContext === 'frontmatter-flow'
   if (openIds.length === 0) {
     return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
   }
@@ -39,6 +55,11 @@ export function fitFlowEditorPinnedWidgets(args: {
   if (pinned.length === 0) {
     return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
   }
+  const pinnedIdSet = new Set(
+    pinned
+      .map(entry => String(entry.id || '').trim())
+      .filter(Boolean),
+  )
 
   const nodeLookup = getCachedGraphLookup({
     cacheScope: 'flow-canvas-fit-pinned-widgets',
@@ -67,17 +88,33 @@ export function fitFlowEditorPinnedWidgets(args: {
     ? (args.fitOpts.maxScale as number)
     : Math.max(minScale * 2, 6)
   const worldById = args.worldPosById || {}
-
-  const refit = (kGuess: number): d3.ZoomTransform => {
-    const panelScale = computeWidgetScale(kGuess, { minK: minScale, maxK: maxScale }, { mode: 'pinnedInCanvas' })
+  const buildOverlayFitNodes = (kGuess: number) => {
+    const panelScale = computeCollectiveFollowPinnedScale({
+      zoomK: kGuess,
+      extent: { minK: minScale, maxK: maxScale },
+      viewportW: args.viewportW,
+      viewportH: args.viewportH,
+      count: Math.max(1, pinned.length),
+      baseWidth: WIDGET_BASE_SIZE.width,
+      baseHeight: WIDGET_BASE_SIZE.height,
+    })
     const portExtraPadWorld = args.portExtraPadScreenPx / Math.max(1e-6, kGuess)
     const panelW = (WIDGET_BASE_SIZE.width * panelScale) / Math.max(1e-6, kGuess)
     const panelH = (WIDGET_BASE_SIZE.height * panelScale) / Math.max(1e-6, kGuess)
-    if (!(panelW > 1e-9) || !(panelH > 1e-9)) {
-      return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
+    const fitProxyScale = isFrontmatterOverlayFit
+      ? readFrontmatterOverlayFitProxyScale(args.viewportW, args.frontmatterOverlayFitProxyScales)
+      : 1
+    const panelWFit = panelW * fitProxyScale
+    const panelHFit = panelH * fitProxyScale
+    if (!(panelW > 1e-9) || !(panelH > 1e-9) || !(panelWFit > 1e-9) || !(panelHFit > 1e-9)) {
+      return {
+        extras: [] as GraphNode[],
+        fitNodes: nodes,
+      }
     }
 
     const extras: GraphNode[] = []
+    const fitExtras: GraphNode[] = []
     for (let i = 0; i < pinned.length; i += 1) {
       const entry = pinned[i]!
       const id = entry.id
@@ -108,24 +145,50 @@ export function fitFlowEditorPinnedWidgets(args: {
       const left = storedX != null ? storedX : (fallback ? fallback.left : null)
       const top = storedY != null ? storedY : (fallback ? fallback.top : null)
       if (left == null || top == null) continue
+      const centerX = left + panelW / 2
+      const centerY = top + panelH / 2
       extras.push({
         id: `__qe:${id}`,
         type: 'FlowWidget',
         label: '',
-        x: left + panelW / 2,
-        y: top + panelH / 2,
+        x: centerX,
+        y: centerY,
         properties: {
           'visual:width': panelW,
           'visual:height': panelH,
           'visual:shape': 'rect',
         } as unknown as GraphNode['properties'],
       })
+      fitExtras.push({
+        id: `__qf:${id}`,
+        type: 'FlowWidget',
+        label: '',
+        x: centerX,
+        y: centerY,
+        properties: {
+          'visual:width': panelWFit,
+          'visual:height': panelHFit,
+          'visual:shape': 'rect',
+        } as unknown as GraphNode['properties'],
+      })
     }
 
+    const unpinnedNodes = nodes.filter(node => {
+      const id = String(node?.id || '').trim()
+      return !id || !pinnedIdSet.has(id)
+    })
+    return {
+      extras,
+      fitNodes: fitExtras.length > 0 ? [...unpinnedNodes, ...fitExtras] : nodes,
+    }
+  }
+
+  const refit = (kGuess: number): d3.ZoomTransform => {
+    const { extras, fitNodes } = buildOverlayFitNodes(kGuess)
     if (extras.length === 0) {
       return fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
     }
-    return fitAllTransform([...nodes, ...extras], args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
+    return fitAllTransform(fitNodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
   }
 
   const fitBase = fitAllTransform(nodes, args.fitW, args.viewportH, { ...args.fitOpts, graphData: args.graphData || undefined })
@@ -142,5 +205,44 @@ export function fitFlowEditorPinnedWidgets(args: {
     if (Math.abs(nextK - kGuess) < 1e-6) break
     kGuess = nextK
   }
-  return last
+  const { extras } = buildOverlayFitNodes(last.k)
+  if (extras.length === 0) return last
+  let minScreenX = Number.POSITIVE_INFINITY
+  let minScreenY = Number.POSITIVE_INFINITY
+  let maxScreenX = Number.NEGATIVE_INFINITY
+  let maxScreenY = Number.NEGATIVE_INFINITY
+  const sum = extras.reduce((acc, node) => ({
+    x: acc.x + (last.x + last.k * (Number(node.x) || 0)),
+    y: acc.y + (last.y + last.k * (Number(node.y) || 0)),
+  }), { x: 0, y: 0 })
+  for (let i = 0; i < extras.length; i += 1) {
+    const node = extras[i]!
+    const props = (node.properties || {}) as Record<string, unknown>
+    const width = typeof props['visual:width'] === 'number' && Number.isFinite(props['visual:width']) ? (props['visual:width'] as number) : 0
+    const height = typeof props['visual:height'] === 'number' && Number.isFinite(props['visual:height']) ? (props['visual:height'] as number) : 0
+    const centerX = last.x + last.k * (Number(node.x) || 0)
+    const centerY = last.y + last.k * (Number(node.y) || 0)
+    minScreenX = Math.min(minScreenX, centerX - (width * last.k) / 2)
+    minScreenY = Math.min(minScreenY, centerY - (height * last.k) / 2)
+    maxScreenX = Math.max(maxScreenX, centerX + (width * last.k) / 2)
+    maxScreenY = Math.max(maxScreenY, centerY + (height * last.k) / 2)
+  }
+  const centroidX = sum.x / extras.length
+  const centroidY = sum.y / extras.length
+  const desiredDeltaX = args.fitW / 2 - centroidX
+  const desiredDeltaY = args.viewportH / 2 - centroidY
+  const minDeltaX = Number.isFinite(minScreenX) ? -minScreenX : desiredDeltaX
+  const maxDeltaX = Number.isFinite(maxScreenX) ? args.fitW - maxScreenX : desiredDeltaX
+  const minDeltaY = Number.isFinite(minScreenY) ? -minScreenY : desiredDeltaY
+  const maxDeltaY = Number.isFinite(maxScreenY) ? args.viewportH - maxScreenY : desiredDeltaY
+  const deltaX =
+    minDeltaX <= maxDeltaX
+      ? Math.max(minDeltaX, Math.min(maxDeltaX, desiredDeltaX))
+      : desiredDeltaX
+  const deltaY =
+    minDeltaY <= maxDeltaY
+      ? Math.max(minDeltaY, Math.min(maxDeltaY, desiredDeltaY))
+      : desiredDeltaY
+  if (Math.abs(deltaX) < 1e-6 && Math.abs(deltaY) < 1e-6) return last
+  return d3.zoomIdentity.translate(last.x + deltaX, last.y + deltaY).scale(last.k)
 }

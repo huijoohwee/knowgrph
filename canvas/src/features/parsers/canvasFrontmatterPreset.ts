@@ -1,7 +1,7 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { DocumentSemanticMode } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
-import type { Canvas2dRendererId } from '@/lib/config'
+import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config'
 import { LS_KEYS } from '@/lib/config'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { lsSetBool } from '@/lib/persistence'
@@ -29,6 +29,58 @@ function disableGeospatialForDocumentPreset(): void {
   }
 }
 
+function enableGeospatialForDocumentPreset(): void {
+  try {
+    lsSetBool(LS_KEYS.geospatialOverlayEnabled, true)
+  } catch {
+    void 0
+  }
+  try {
+    void setGeospatialModeEnabled(true).catch(() => void 0)
+  } catch {
+    void 0
+  }
+}
+
+function resolveCanvasSurfacePreset(args: {
+  preset: CanvasWorkspaceFrontmatterPreset | null
+  defaultCanvasSurfaceMode?: '2d' | '3d' | 'geospatial'
+  defaultCanvasRenderMode?: '2d' | '3d'
+  defaultCanvas3dMode?: Canvas3dModeId
+}): {
+  geospatialModeEnabled?: boolean
+  canvasRenderMode?: '2d' | '3d'
+  canvas3dMode?: Canvas3dModeId
+} {
+  const canvasSurfaceMode = args.preset?.canvasSurfaceMode ?? args.defaultCanvasSurfaceMode
+  if (canvasSurfaceMode === 'geospatial') {
+    return {
+      geospatialModeEnabled: true,
+      canvasRenderMode: '2d',
+      canvas3dMode: args.preset?.canvas3dMode ?? args.defaultCanvas3dMode,
+    }
+  }
+  if (canvasSurfaceMode === '3d') {
+    return {
+      geospatialModeEnabled: false,
+      canvasRenderMode: '3d',
+      canvas3dMode: args.preset?.canvas3dMode ?? args.defaultCanvas3dMode ?? '3d',
+    }
+  }
+  if (canvasSurfaceMode === '2d') {
+    return {
+      geospatialModeEnabled: false,
+      canvasRenderMode: '2d',
+      canvas3dMode: args.preset?.canvas3dMode ?? args.defaultCanvas3dMode,
+    }
+  }
+  return {
+    geospatialModeEnabled: args.preset?.canvasRenderMode ? false : undefined,
+    canvasRenderMode: args.preset?.canvasRenderMode ?? args.defaultCanvasRenderMode,
+    canvas3dMode: args.preset?.canvas3dMode ?? args.defaultCanvas3dMode,
+  }
+}
+
 export function resolveCanvasFrontmatterPreset(args: {
   graphData?: GraphData | null
   rawText?: string | null
@@ -45,7 +97,9 @@ export function resolveCanvasFrontmatterPreset(args: {
 export function applyCanvasFrontmatterPreset(args: {
   graphData?: GraphData | null
   rawText?: string | null
+  defaultCanvasSurfaceMode?: '2d' | '3d' | 'geospatial'
   defaultCanvasRenderMode?: '2d' | '3d'
+  defaultCanvas3dMode?: Canvas3dModeId
   defaultCanvas2dRenderer?: Canvas2dRendererId
   defaultDocumentSemanticMode?: DocumentSemanticMode
   defaultFrontmatterModeEnabled?: boolean
@@ -58,18 +112,32 @@ export function applyCanvasFrontmatterPreset(args: {
   let changed = false
   const documentStructureBaselineLock =
     preset?.documentStructureBaselineLock ?? args.defaultDocumentStructureBaselineLock
+  const surfacePreset = resolveCanvasSurfacePreset({
+    preset,
+    defaultCanvasSurfaceMode: args.defaultCanvasSurfaceMode,
+    defaultCanvasRenderMode: args.defaultCanvasRenderMode,
+    defaultCanvas3dMode: args.defaultCanvas3dMode,
+  })
 
   if (documentStructureBaselineLock === false && store.documentStructureBaselineLock !== false) {
     store.setDocumentStructureBaselineLock(false)
     changed = true
   }
 
-  const canvasRenderMode = preset?.canvasRenderMode ?? args.defaultCanvasRenderMode
-  if (canvasRenderMode) {
+  const geospatialModeEnabled = surfacePreset.geospatialModeEnabled
+  if (geospatialModeEnabled === true) {
+    enableGeospatialForDocumentPreset()
+  } else if (geospatialModeEnabled === false) {
     disableGeospatialForDocumentPreset()
   }
+  const canvasRenderMode = surfacePreset.canvasRenderMode
   if (canvasRenderMode && store.canvasRenderMode !== canvasRenderMode) {
     store.setCanvasRenderMode(canvasRenderMode)
+    changed = true
+  }
+  const canvas3dMode = surfacePreset.canvas3dMode
+  if (canvas3dMode && store.canvas3dMode !== canvas3dMode) {
+    store.setCanvas3dMode(canvas3dMode)
     changed = true
   }
 

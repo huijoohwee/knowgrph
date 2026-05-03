@@ -96,7 +96,7 @@ export function useD3GraphScene2d(args: {
   const workspaceOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
   const workspaceOverlayOpenRef = useRef(workspaceOverlayOpen)
   workspaceOverlayOpenRef.current = workspaceOverlayOpen
-  const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(args.canvas2dRenderer || '') !== 'd3Bipartite'
+  const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(args.canvas2dRenderer || '') !== 'flowchart'
   const infiniteCanvasInteractionMode = useGraphStore(s => s.infiniteCanvasInteractionMode)
 
   const {
@@ -242,7 +242,7 @@ export function useD3GraphScene2d(args: {
       graphContentRevision,
       infiniteCanvasInteractionMode,
     })
-    const { isBipartite, schemaForScene, hoverEnabled, zoomOnDoubleClick, graphMetaKey, buildKey, isMermaidLayout } = sceneSetup
+    const { isFlowchart, schemaForScene, hoverEnabled, zoomOnDoubleClick, graphMetaKey, buildKey, isMermaidLayout } = sceneSetup
     const zoomCommitScheduler = zoomCommitSchedulerRef.current
     let rafId: number | null = null
     rafId = requestAnimationFrame(() => {
@@ -323,7 +323,7 @@ export function useD3GraphScene2d(args: {
         collapsedGroupIdsKey,
         fitToScreenMode,
         zoomToSelectionMode,
-        isBipartite,
+        isFlowchart,
         infiniteCanvasInteractionMode,
         sceneWidth,
         sceneHeight,
@@ -411,10 +411,10 @@ export function useD3GraphScene2d(args: {
           initialZoomTransform,
           layoutPositionsForMode: effectiveLayoutPositionsForMode,
           baselineLayoutPositions,
-          prevPositions: isBipartite ? null : Object.keys(prevPositions).length > 0 ? prevPositions : null,
+          prevPositions: isFlowchart ? null : Object.keys(prevPositions).length > 0 ? prevPositions : null,
           skipInitialLayout: effectiveSkipInitialLayout,
           freezeSimulation: isEmbeddedPreview || isMermaidLayout,
-          enableContinuousForceLayout: isBipartite || infiniteCanvasInteractionMode === 'interactive',
+          enableContinuousForceLayout: isFlowchart || infiniteCanvasInteractionMode === 'interactive',
           groupsForBboxCollide: sceneGroupsDerivation?.allGroups || [],
           layoutGroupKeyByNodeId: sceneGroupsDerivation?.layoutGroupKeyByNodeId || null,
           gRef,

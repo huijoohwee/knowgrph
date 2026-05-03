@@ -11,7 +11,7 @@ export const coerceCanvas2dRendererForSchema = (args: {
   const layoutMode = readLayoutMode2d(args.schema)
   const voxelRenderer =
     args.canvas3dMode === 'voxel' && !isD3Like2dRenderer(args.requested)
-      ? 'd3Bipartite'
+      ? 'flowchart'
       : args.requested
   if (layoutMode !== 'radial') return voxelRenderer
   return isD3Like2dRenderer(voxelRenderer) ? voxelRenderer : 'd3'

@@ -6,6 +6,27 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v))
 }
 
+function buildBalancedSpreadRowCounts(args: {
+  count: number
+  rows: number
+  cols?: number
+}): number[] {
+  const count = Math.max(1, Math.floor(args.count))
+  const rows = Math.max(1, Math.floor(args.rows))
+  const cols = Math.max(1, Math.floor(Number(args.cols) || count))
+  const rowCounts = new Array<number>(rows).fill(Math.floor(count / rows))
+  const extra = count % rows
+  const rowOrder = Array.from({ length: rows }, (_, row) => row).sort((a, b) => {
+    const center = (rows - 1) / 2
+    const da = Math.abs(a - center)
+    const db = Math.abs(b - center)
+    if (da !== db) return da - db
+    return a - b
+  })
+  for (let i = 0; i < extra; i += 1) rowCounts[rowOrder[i]!] += 1
+  return rowCounts.map(value => Math.max(0, Math.min(cols, value)))
+}
+
 export function computeBalancedSpreadGridForTargetAspect(args: {
   count: number
   cellW: number
@@ -23,18 +44,31 @@ export function computeBalancedSpreadGridForTargetAspect(args: {
   const maxRows = Math.max(1, Math.min(n, Math.floor(Number(args.maxRows) || n)))
   const minCols = Math.max(1, Math.min(maxCols, Math.floor(Number(args.minCols) || 1)))
   const softRowsCap = Math.max(3, Math.min(maxRows, Math.ceil(Math.sqrt(n) * 1.8)))
+  const multiRowPreferred = n >= 4 && maxRows >= 2
+  const multiColPreferred = n >= 4 && maxCols >= 2
   const scoreGrid = (cols: number, rows: number, options?: { allowOverflow?: boolean }): number => {
     const safeCols = Math.max(1, Math.floor(cols))
     const safeRows = Math.max(1, Math.floor(rows))
-    const gridAspect = (safeCols * cellW) / Math.max(1, safeRows * cellH)
+    const rowCounts = buildBalancedSpreadRowCounts({ count: n, rows: safeRows, cols: safeCols })
+    const occupiedCols = Math.max(1, ...rowCounts)
+    const occupiedRows = Math.max(1, rowCounts.filter(value => value > 0).length)
+    const gridAspect = (occupiedCols * cellW) / Math.max(1, occupiedRows * cellH)
     const aspectScore = Math.abs(Math.log(Math.max(0.2, gridAspect) / Math.max(0.2, targetAspect)))
     const emptySlots = safeCols * safeRows - n
     const emptyPenalty = (emptySlots / Math.max(1, n)) * 0.24
     const verticalPenalty = safeRows > safeCols ? (safeRows - safeCols) * 0.16 : 0
     const widePenalty = safeCols > safeRows + 2 ? (safeCols - safeRows - 2) * 0.05 : 0
     const tallPenalty = safeRows > softRowsCap ? (safeRows - softRowsCap) * 0.2 : 0
-    const singleRowPenalty = safeRows === 1 && n >= 5 ? 0.24 : 0
-    const singleColPenalty = safeCols === 1 && n >= 3 ? 0.35 : 0
+    const singleRowPenalty = safeRows === 1 && multiRowPreferred ? 2.4 : safeRows === 1 && n >= 5 ? 0.24 : 0
+    const singleColPenalty = safeCols === 1 && multiColPreferred ? 2.6 : safeCols === 1 && n >= 3 ? 0.35 : 0
+    const stripPenalty =
+      occupiedRows <= 2 && occupiedCols >= Math.max(4, occupiedRows + 2) && n >= 6
+        ? 0.65 + Math.max(0, occupiedCols - occupiedRows - 2) * 0.08
+        : 0
+    const towerPenalty =
+      occupiedCols <= 2 && occupiedRows >= Math.max(4, occupiedCols + 2) && n >= 6
+        ? 0.7 + Math.max(0, occupiedRows - occupiedCols - 2) * 0.08
+        : 0
     const overflowPenalty = options?.allowOverflow === true
       ? Math.max(0, safeRows - maxRows) * 0.22 + Math.max(0, safeCols - maxCols) * 0.3
       : 0
@@ -46,6 +80,8 @@ export function computeBalancedSpreadGridForTargetAspect(args: {
       + tallPenalty
       + singleRowPenalty
       + singleColPenalty
+      + stripPenalty
+      + towerPenalty
       + overflowPenalty
     )
   }
@@ -275,16 +311,7 @@ function buildCenteredSpreadCells(args: {
   const count = Math.max(1, Math.floor(args.count))
   const snapPx = Number.isFinite(args.snapPx) && args.snapPx > 0 ? args.snapPx : 1
   const snap = (v: number) => Math.round(v / snapPx) * snapPx
-  const rowCounts = new Array<number>(rows).fill(Math.floor(count / rows))
-  let extra = count % rows
-  const rowOrder = Array.from({ length: rows }, (_, row) => row).sort((a, b) => {
-    const center = (rows - 1) / 2
-    const da = Math.abs(a - center)
-    const db = Math.abs(b - center)
-    if (da !== db) return da - db
-    return a - b
-  })
-  for (let i = 0; i < extra; i += 1) rowCounts[rowOrder[i]!] += 1
+  const rowCounts = buildBalancedSpreadRowCounts({ count, rows, cols })
 
   const cells: Array<{ left: number; top: number; row: number; col: number }> = []
   for (let row = 0; row < rows; row += 1) {
@@ -302,6 +329,73 @@ function buildCenteredSpreadCells(args: {
     }
   }
   return cells
+}
+
+function recenterBalancedSpreadCells(args: {
+  cells: Array<{ left: number; top: number; row: number; col: number }>
+  viewportW: number
+  viewportH: number
+  marginLeftPx: number
+  marginRightPx: number
+  marginTopPx: number
+  marginBottomPx: number
+  footprintW: number
+  footprintH: number
+  snapPx: number
+}): {
+  cells: Array<{ left: number; top: number; row: number; col: number }>
+  bbox: { minLeft: number; minTop: number; maxRight: number; maxBottom: number }
+} {
+  const cells = Array.isArray(args.cells) ? args.cells : []
+  if (cells.length === 0) {
+    return {
+      cells: [],
+      bbox: { minLeft: 0, minTop: 0, maxRight: 0, maxBottom: 0 },
+    }
+  }
+  const snapPx = Number.isFinite(args.snapPx) && args.snapPx > 0 ? args.snapPx : 1
+  const snap = (v: number) => Math.round(v / snapPx) * snapPx
+  const footprintW = Math.max(1, args.footprintW)
+  const footprintH = Math.max(1, args.footprintH)
+  let minLeft = Number.POSITIVE_INFINITY
+  let minTop = Number.POSITIVE_INFINITY
+  let maxRight = Number.NEGATIVE_INFINITY
+  let maxBottom = Number.NEGATIVE_INFINITY
+  let sumCenterX = 0
+  let sumCenterY = 0
+  for (let i = 0; i < cells.length; i += 1) {
+    const cell = cells[i]!
+    minLeft = Math.min(minLeft, cell.left)
+    minTop = Math.min(minTop, cell.top)
+    maxRight = Math.max(maxRight, cell.left + footprintW)
+    maxBottom = Math.max(maxBottom, cell.top + footprintH)
+    sumCenterX += cell.left + footprintW / 2
+    sumCenterY += cell.top + footprintH / 2
+  }
+  const usableCenterX = args.marginLeftPx + Math.max(1, args.viewportW - args.marginLeftPx - args.marginRightPx) / 2
+  const usableCenterY = args.marginTopPx + Math.max(1, args.viewportH - args.marginTopPx - args.marginBottomPx) / 2
+  const currentCenterX = sumCenterX / cells.length
+  const currentCenterY = sumCenterY / cells.length
+  const minDx = args.marginLeftPx - minLeft
+  const maxDx = args.viewportW - args.marginRightPx - maxRight
+  const minDy = args.marginTopPx - minTop
+  const maxDy = args.viewportH - args.marginBottomPx - maxBottom
+  const shiftX = snap(clamp(usableCenterX - currentCenterX, minDx, maxDx))
+  const shiftY = snap(clamp(usableCenterY - currentCenterY, minDy, maxDy))
+  const shiftedCells = cells.map(cell => ({
+    ...cell,
+    left: snap(cell.left + shiftX),
+    top: snap(cell.top + shiftY),
+  }))
+  return {
+    cells: shiftedCells,
+    bbox: {
+      minLeft: snap(minLeft + shiftX),
+      minTop: snap(minTop + shiftY),
+      maxRight: snap(maxRight + shiftX),
+      maxBottom: snap(maxBottom + shiftY),
+    },
+  }
 }
 
 export function computeBalancedSpreadLayout(args: {
@@ -336,6 +430,7 @@ export function computeBalancedSpreadLayout(args: {
   const marginRightPx = Math.max(0, Number(args.marginRightPx) || 0)
   const marginTopPx = Math.max(0, Number(args.marginTopPx) || 0)
   const marginBottomPx = Math.max(0, Number(args.marginBottomPx) || 0)
+  const snapPx = args.snapPx ?? 1
   const usableW = Math.max(1, viewportW - marginLeftPx - marginRightPx)
   const usableH = Math.max(1, viewportH - marginTopPx - marginBottomPx)
   const { cols, rows } = computeBalancedSpreadGrid({
@@ -350,23 +445,36 @@ export function computeBalancedSpreadLayout(args: {
   const gridH = Math.max(1, rows * cellH - gapPx)
   const startLeft = marginLeftPx + Math.max(0, Math.floor((usableW - gridW) / 2))
   const startTop = marginTopPx + Math.max(0, Math.floor((usableH - gridH) / 2))
+  const centeredCells = buildCenteredSpreadCells({
+    count,
+    cols,
+    rows,
+    startLeft,
+    startTop,
+    cellW,
+    cellH,
+    snapPx,
+  })
+  const recentered = recenterBalancedSpreadCells({
+    cells: centeredCells,
+    viewportW,
+    viewportH,
+    marginLeftPx,
+    marginRightPx,
+    marginTopPx,
+    marginBottomPx,
+    footprintW: Math.max(1, cellW - gapPx),
+    footprintH: Math.max(1, cellH - gapPx),
+    snapPx,
+  })
   return {
     cols,
     rows,
-    gridW,
-    gridH,
-    startLeft,
-    startTop,
-    cells: buildCenteredSpreadCells({
-      count,
-      cols,
-      rows,
-      startLeft,
-      startTop,
-      cellW,
-      cellH,
-      snapPx: args.snapPx ?? 1,
-    }),
+    gridW: Math.max(1, recentered.bbox.maxRight - recentered.bbox.minLeft),
+    gridH: Math.max(1, recentered.bbox.maxBottom - recentered.bbox.minTop),
+    startLeft: recentered.bbox.minLeft,
+    startTop: recentered.bbox.minTop,
+    cells: recentered.cells,
   }
 }
 
@@ -399,9 +507,11 @@ export function clampBalancedCollectiveScaleToViewport(args: {
   const aspectBias = clamp(Math.sqrt(viewportAspect / Math.max(0.5, targetAspect)), 0.9, 1.1)
   const denseCountBias = clamp(Math.sqrt(4 / Math.max(4, count)), 0.76, 1)
   const minWidthRatio = clamp((0.11 - Math.min(0.035, density * 0.0045)) * denseCountBias * aspectBias, 0.075, 0.12)
-  const maxWidthRatio = clamp((0.225 - Math.min(0.115, density * 0.011)) * denseCountBias * aspectBias, 0.12, 0.24)
+  // Keep dense 16:9 collectives legible by avoiding an overly small shared floor
+  // once count-driven shrinkage bottoms out.
+  const maxWidthRatio = clamp((0.225 - Math.min(0.115, density * 0.011)) * denseCountBias * aspectBias, 0.14, 0.26)
   const minHeightRatio = clamp((0.17 - Math.min(0.055, density * 0.0055)) * denseCountBias, 0.11, 0.18)
-  const maxHeightRatio = clamp((0.39 - Math.min(0.18, density * 0.016)) * denseCountBias, 0.22, 0.42)
+  const maxHeightRatio = clamp((0.39 - Math.min(0.18, density * 0.016)) * denseCountBias, 0.26, 0.48)
 
   const viewportMinScale = Math.max(
     hardMinScale,

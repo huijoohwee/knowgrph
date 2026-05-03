@@ -160,6 +160,20 @@ export function testRichMediaSsotConsistencyRegression() {
   const designMarkdownPanelGroupsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'useDesignCanvasMarkdownPanelGroups.ts'), 'utf8')
   const designMediaOverlayText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'MediaOverlay.tsx'), 'utf8')
   const staticRichMediaPanelPreviewText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StaticRichMediaPanelPreview.tsx'), 'utf8')
+  const sharedWebpageSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'SharedWebpageSurface.tsx'), 'utf8')
+  const sharedWebpageSnapshotSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'SharedWebpageSnapshotSurface.tsx'), 'utf8')
+  const webpageSnapshotPreviewText = readFileSync(resolve(process.cwd(), 'src', 'components', 'WebpageSnapshotPreview.tsx'), 'utf8')
+  const designWebpageWireframeText = readFileSync(resolve(process.cwd(), 'src', 'components', 'DesignCanvas', 'webpageWireframe.tsx'), 'utf8')
+  const webpageLayoutPresetsText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'websites', 'webpageLayoutPresets.ts'), 'utf8')
+  const sharedWebpageSnapshotLogicText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'websites', 'webpageSnapshotShared.ts'), 'utf8')
+  const asyncGuardsText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'async', 'asyncGuards.ts'), 'utf8')
+  const asyncEffectRunnerText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'async', 'asyncEffectRunner.ts'), 'utf8')
+  const progressTickerText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'progress', 'progressTicker.ts'), 'utf8')
+  const markdownWorkspaceDerivedViewsText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceDerivedViews.tsx'), 'utf8')
+  const workspaceUrlContentText = readFileSync(resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'workspaceImport', 'urlContent.ts'), 'utf8')
+  const markdownWorkspaceWebpageSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'presentation', 'MarkdownWorkspaceWebpageSurface.tsx'), 'utf8')
+  const richMediaPanelText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
+  const markdownMediaUiText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-core', 'ui', 'MarkdownMediaUi.impl.tsx'), 'utf8')
   const markdownDesignOverlayText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx'), 'utf8')
   const previewPanelText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'panels', 'views', 'PreviewPanelView.impl.tsx'), 'utf8')
   const threeText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'), 'utf8')
@@ -251,6 +265,145 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!designMediaOverlayText.includes('panel={node.panel}') || !designMediaOverlayText.includes('commitRichMediaPanelChange')) {
     throw new Error('expected Design canvas media overlays to reuse canonical Rich Media panel state and writeback helpers')
   }
+  if (!sharedWebpageSurfaceText.includes('export function SharedWebpageSurface(')) {
+    throw new Error('expected webpage snapshot/embed rendering to be centralized in one shared surface helper upstream')
+  }
+  if (!sharedWebpageSnapshotSurfaceText.includes('export function SharedWebpageSnapshotSurface(')) {
+    throw new Error('expected webpage snapshot card rendering to be centralized in one shared snapshot surface helper upstream')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('export async function probeWebpageLayoutSnapshot(')) {
+    throw new Error('expected webpage layout snapshot probing/parsing to be centralized in one shared upstream helper')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('export async function loadWebpageLayoutSnapshotWithCache(')) {
+    throw new Error('expected webpage layout snapshot cache/probe/cache-write loading to be centralized in one shared upstream helper')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('export function useWebpageLayoutSnapshotLifecycle(')) {
+    throw new Error('expected webpage layout snapshot cache/probe lifecycle to be centralized in one shared upstream helper')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('export function formatWebpageLayoutExportStatus(') || !sharedWebpageSnapshotLogicText.includes('export function formatWebpageLayoutExportError(')) {
+    throw new Error('expected webpage export status and error formatting to be centralized in the shared upstream helper layer')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('export function resolveWebpageLayoutExportOutcome(')) {
+    throw new Error('expected webpage export outcome resolution to be centralized in the shared upstream helper layer')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('export function applyWebpageLayoutExportOutcome(')) {
+    throw new Error('expected webpage export outcome application to be centralized in the shared upstream helper layer')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('export function emitWebpageLayoutExportWarningToast(')) {
+    throw new Error('expected webpage export warning-toast emission to be centralized in the shared upstream helper layer')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('export function useWebpageSnapshotSurfaceAssets(')) {
+    throw new Error('expected webpage snapshot asset composition to be centralized in one shared upstream helper')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('export function isNoiseProneWebpagePreviewHost(') || !sharedWebpageSnapshotLogicText.includes('export function shouldAutoLoadWebpageLayoutSnapshot(')) {
+    throw new Error('expected webpage snapshot host suppression and auto-load policy to be centralized in the shared upstream helper layer')
+  }
+  if (!webpageLayoutPresetsText.includes('export function buildWebpageLayoutCacheKey(')) {
+    throw new Error('expected webpage layout cache-key construction to be centralized in one shared upstream preset helper')
+  }
+  if (!progressTickerText.includes('export function stopProgressTickerSafely(')) {
+    throw new Error('expected progress ticker stop/finalize behavior to be centralized in a shared upstream helper')
+  }
+  if (!progressTickerText.includes('export function createProgressSession(')) {
+    throw new Error('expected progress ticker session setup to be centralized in a shared upstream helper')
+  }
+  if (!asyncGuardsText.includes('export function abortControllerSafely(') || !asyncGuardsText.includes('export function isAsyncRequestStale(')) {
+    throw new Error('expected async abort and stale-request guard behavior to be centralized in a shared upstream helper')
+  }
+  if (!asyncEffectRunnerText.includes('export function runAsyncEffect(')) {
+    throw new Error('expected async effect orchestration to be centralized in a shared upstream runner helper')
+  }
+  if (!markdownWorkspaceDerivedViewsText.includes('createProgressSession')) {
+    throw new Error('expected markdown workspace derived-view loaders to reuse the shared progress session helper')
+  }
+  if (!workspaceUrlContentText.includes('createProgressSession')) {
+    throw new Error('expected markdown workspace URL import loaders to reuse the shared progress session helper')
+  }
+  if (!markdownWorkspaceDerivedViewsText.includes('runAsyncEffect')) {
+    throw new Error('expected markdown workspace derived-view loaders to reuse the shared async effect runner')
+  }
+  if (!webpageLayoutPresetsText.includes('export function getUiWebpageSnapshotPreset(') || !webpageLayoutPresetsText.includes('export function getMarkdownWebpageSnapshotPreset(') || !webpageLayoutPresetsText.includes('export function getDesignWebpageWireframePreset(')) {
+    throw new Error('expected webpage layout probe presets for ui, markdown, and design callers to be centralized upstream')
+  }
+  if (!sharedWebpageSurfaceText.includes("renderMode: 'snapshot' | 'iframe'")) {
+    throw new Error('expected shared webpage surface helper to normalize snapshot and iframe rendering modes')
+  }
+  if (!webpageSnapshotPreviewText.includes("import { SharedWebpageSnapshotSurface } from '@/components/SharedWebpageSnapshotSurface'")) {
+    throw new Error('expected WebpageSnapshotPreview to reuse the shared webpage snapshot surface helper')
+  }
+  if (!webpageSnapshotPreviewText.includes('useWebpageLayoutSnapshotLifecycle') || !webpageSnapshotPreviewText.includes('useWebpageSnapshotSurfaceAssets')) {
+    throw new Error('expected WebpageSnapshotPreview to reuse shared webpage snapshot lifecycle and asset helpers')
+  }
+  if (!webpageSnapshotPreviewText.includes('allowNodeJsUserAgent: true') || !webpageSnapshotPreviewText.includes('requireProbeReady: true')) {
+    throw new Error('expected WebpageSnapshotPreview to configure the shared snapshot lifecycle helper for deferred UI probing')
+  }
+  if (!webpageSnapshotPreviewText.includes('getUiWebpageSnapshotPreset') || !webpageSnapshotPreviewText.includes('buildWebpageLayoutCacheKey(layoutPreset)')) {
+    throw new Error('expected WebpageSnapshotPreview to reuse the shared ui webpage layout preset and cache-key builder')
+  }
+  if (!markdownWorkspaceWebpageSurfaceText.includes("import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'")) {
+    throw new Error('expected markdown workspace webpage surfaces to reuse the shared webpage surface helper')
+  }
+  if (markdownWorkspaceWebpageSurfaceText.includes("import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'")) {
+    throw new Error('expected markdown workspace webpage surfaces to stop rendering snapshot previews directly after shared-surface extraction')
+  }
+  if (!richMediaPanelText.includes("import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'")) {
+    throw new Error('expected RichMediaPanel iframe/webpage branches to reuse the shared webpage surface helper')
+  }
+  if (richMediaPanelText.includes("import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'")) {
+    throw new Error('expected RichMediaPanel to stop importing snapshot preview directly after shared-surface extraction')
+  }
+  if (!markdownMediaUiText.includes("import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'")) {
+    throw new Error('expected markdown media iframe rendering to reuse the shared webpage surface helper')
+  }
+  if (!markdownMediaUiText.includes("import { SharedWebpageSnapshotSurface } from '@/components/SharedWebpageSnapshotSurface'")) {
+    throw new Error('expected markdown media webpage snapshot rendering to reuse the shared snapshot surface helper')
+  }
+  if (!markdownMediaUiText.includes('useWebpageLayoutSnapshotLifecycle') || !markdownMediaUiText.includes('useWebpageSnapshotSurfaceAssets')) {
+    throw new Error('expected markdown media webpage snapshot rendering to reuse the shared webpage snapshot lifecycle and asset helpers')
+  }
+  if (!markdownMediaUiText.includes('isNoiseProneWebpagePreviewHost') || !markdownMediaUiText.includes('skipSnapshot = preferEmbedEffective || isNoiseProneWebpagePreviewHost(normalizedUrl)')) {
+    throw new Error('expected markdown media webpage snapshot rendering to gate the shared lifecycle helper through shared host suppression and embed policy')
+  }
+  if (!markdownMediaUiText.includes('getMarkdownWebpageSnapshotPreset') || !markdownMediaUiText.includes('buildWebpageLayoutCacheKey(layoutPreset)')) {
+    throw new Error('expected markdown media webpage snapshot rendering to reuse the shared markdown webpage layout preset and cache-key builder')
+  }
+  if (!markdownMediaUiText.includes('<SharedWebpageSurface')) {
+    throw new Error('expected markdown media iframe rendering to mount the shared webpage surface helper')
+  }
+  if (!markdownMediaUiText.includes('<SharedWebpageSnapshotSurface')) {
+    throw new Error('expected markdown media webpage snapshot rendering to mount the shared snapshot surface helper')
+  }
+  if (!designWebpageWireframeText.includes("from '@/lib/websites/webpageSnapshotShared'") || !designWebpageWireframeText.includes('loadWebpageLayoutSnapshotWithCache')) {
+    throw new Error('expected DesignCanvas webpage wireframe export to reuse the shared webpage snapshot cached loader helper')
+  }
+  if (!designWebpageWireframeText.includes('formatWebpageLayoutExportStatus')) {
+    throw new Error('expected DesignCanvas webpage wireframe export to reuse shared webpage export status formatting helpers')
+  }
+  if (!designWebpageWireframeText.includes('resolveWebpageLayoutExportOutcome')) {
+    throw new Error('expected DesignCanvas webpage wireframe export to reuse the shared webpage export outcome resolver')
+  }
+  if (!designWebpageWireframeText.includes('applyWebpageLayoutExportOutcome')) {
+    throw new Error('expected DesignCanvas webpage wireframe export to reuse the shared webpage export outcome applier')
+  }
+  if (!designWebpageWireframeText.includes('emitWebpageLayoutExportWarningToast')) {
+    throw new Error('expected DesignCanvas webpage wireframe export to reuse the shared webpage export warning-toast helper')
+  }
+  if (!designWebpageWireframeText.includes('createProgressSession')) {
+    throw new Error('expected DesignCanvas webpage wireframe export to reuse the shared progress session helper')
+  }
+  if (!designWebpageWireframeText.includes('runAsyncEffect')) {
+    throw new Error('expected DesignCanvas webpage wireframe export to reuse the shared async effect runner')
+  }
+  if (!sharedWebpageSnapshotLogicText.includes('runAsyncEffect')) {
+    throw new Error('expected shared webpage snapshot lifecycle logic to reuse the shared async effect runner')
+  }
+  const webpageDomExportText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'websites', 'webpageDomExport.ts'), 'utf8')
+  if (!webpageDomExportText.includes("import { isNoiseProneWebpagePreviewHost } from '@/lib/websites/webpageSnapshotShared'")) {
+    throw new Error('expected webpage DOM export to reuse the shared noise-prone-host helper instead of duplicating host suppression logic')
+  }
+  if (!designWebpageWireframeText.includes('getDesignWebpageWireframePreset') || !designWebpageWireframeText.includes('buildWebpageLayoutCacheKey(layoutPreset, { epoch })')) {
+    throw new Error('expected DesignCanvas webpage wireframe export to reuse the shared design webpage layout preset and cache-key builder')
+  }
   if (!staticRichMediaPanelPreviewText.includes('buildStaticRichMediaPanelOverlayState({ renderKind: kind })')) {
     throw new Error('expected static Rich Media panel preview to derive canonical panel state through the shared static builder')
   }
@@ -263,6 +416,15 @@ export function testRichMediaSsotConsistencyRegression() {
   }
   if (!previewPanelText.includes('const widgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)')) {
     throw new Error('expected PreviewPanelView graph media path to reuse the effective widget registry SSOT')
+  }
+  if (!previewPanelText.includes("cacheScope: 'preview-panel-graph-media'") || !previewPanelText.includes('getCachedGraphLookup({')) {
+    throw new Error('expected PreviewPanelView graph media path to reuse the shared graph lookup helper instead of rebuilding a local node map')
+  }
+  if (!previewPanelText.includes('nodeById: graphLookup?.nodeById || undefined')) {
+    throw new Error('expected PreviewPanelView graph media path to pass the shared graph lookup into Rich Media overlay derivation')
+  }
+  if (previewPanelText.includes('const effectiveNodeById = new Map(')) {
+    throw new Error('expected PreviewPanelView graph media path to stop rebuilding a duplicate effective node-id map locally')
   }
   if (previewPanelText.includes('buildDataflowWidgetRegistry')) {
     throw new Error('expected PreviewPanelView to avoid rebuilding a duplicate merged widget registry locally')

@@ -74,9 +74,9 @@ export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, gra
       renderMode: '2d',
       viewKey,
     })
-    const seed2dRenderer = canvas3dMode === 'voxel' ? 'd3Bipartite' : canvas2dRenderer
-    const layoutVariantExpected = seed2dRenderer === 'd3Bipartite'
-      ? `bipartite:v4:${semanticMode}:${String(effectiveFrontmatter ? 1 : 0)}:${String(infiniteCanvasInteractionMode)}`
+    const seed2dRenderer = canvas3dMode === 'voxel' ? 'flowchart' : canvas2dRenderer
+    const layoutVariantExpected = seed2dRenderer === 'flowchart'
+      ? `flowchart:v4:${semanticMode}:${String(effectiveFrontmatter ? 1 : 0)}:${String(infiniteCanvasInteractionMode)}`
       : ''
     const expectedKey = buildLayoutPositionCacheKey({
       datasetKey,

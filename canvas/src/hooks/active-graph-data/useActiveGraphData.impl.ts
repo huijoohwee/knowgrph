@@ -10,7 +10,7 @@ import { LRUCache } from '@/lib/cache/LRUCache'
 import { pipelinePerfEnd, pipelinePerfStart } from '@/lib/pipelinePerf'
 import { deriveKeywordGraphInWorker, deriveKeywordGraphPreviewInWorker } from '@/features/semantic-mode/keywordGraphWorker'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
-import { useApiGraphBipartiteGraphData } from '@/features/bipartite/apiGraphBipartite'
+import { useApiGraphFlowchartGraphData } from '@/features/flowchart/apiGraphFlowchart'
 import type { Canvas2dRendererId } from '@/lib/config'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildKeywordSourceTextFromBaselineGraph, markdownToPlainText, stripFrontmatter } from './keywordSourceText'
@@ -86,34 +86,34 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   }, [canvas2dRenderer, canvasRenderMode])
   const effectiveMode: 'document' | 'keyword' = frontmatterOnlyPolicyActive ? 'document' : mode
 
-  const wantsApiGraphBipartite = false
+  const wantsApiGraphFlowchart = false
   const debouncedStructuredMarkdownText = useDebouncedValue(markdownText, WORKSPACE_STRUCTURED_PARSE_DEBOUNCE_MS)
   const workspaceJsonGraphData = React.useMemo(
     () =>
-      enabled && !wantsApiGraphBipartite
+      enabled && !wantsApiGraphFlowchart
         ? parseWorkspaceJsonGraphDataCached({ markdownName, markdownText: debouncedStructuredMarkdownText })
         : null,
-    [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphBipartite],
+    [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphFlowchart],
   )
   const workspaceFrontmatterMermaidGraphData = React.useMemo(() => {
-    if (!enabled || wantsApiGraphBipartite) return null
+    if (!enabled || wantsApiGraphFlowchart) return null
     return parseWorkspaceFrontmatterMermaidGraphDataCached({
       markdownName,
       markdownText: debouncedStructuredMarkdownText,
     })
-  }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphBipartite])
+  }, [debouncedStructuredMarkdownText, enabled, markdownName, wantsApiGraphFlowchart])
   const hasStructuredWorkspaceGraph = !!workspaceJsonGraphData || !!workspaceFrontmatterMermaidGraphData
   const baseGraphData = workspaceJsonGraphData || workspaceFrontmatterMermaidGraphData || baseGraphDataRaw
-  const { graphData: apiGraphBipartite } = useApiGraphBipartiteGraphData(wantsApiGraphBipartite)
+  const { graphData: apiGraphFlowchart } = useApiGraphFlowchartGraphData(wantsApiGraphFlowchart)
 
   const lastRef = React.useRef<GraphData | null>(null)
 
   React.useEffect(() => {
     if (!enabled) return
-    if (!wantsApiGraphBipartite) return
-    if (!apiGraphBipartite) return
-    lastRef.current = apiGraphBipartite
-  }, [apiGraphBipartite, enabled, wantsApiGraphBipartite])
+    if (!wantsApiGraphFlowchart) return
+    if (!apiGraphFlowchart) return
+    lastRef.current = apiGraphFlowchart
+  }, [apiGraphFlowchart, enabled, wantsApiGraphFlowchart])
 
   const lastKeywordRef = React.useRef<{ cacheKey: string; docId: string; graph: GraphData } | null>(null)
   const [asyncBump, setAsyncBump] = React.useState(0)
@@ -121,7 +121,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
   const pendingPreviewKeyRef = React.useRef<string | null>(null)
 
   const keywordDeriveInputs = React.useMemo(() => {
-    if (wantsApiGraphBipartite) return null
+    if (wantsApiGraphFlowchart) return null
     if (hasStructuredWorkspaceGraph) return null
     if (!baseGraphData) return null
     if (effectiveMode !== 'keyword') return null
@@ -192,7 +192,7 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
     markdownText,
     effectiveMode,
     revision,
-    wantsApiGraphBipartite,
+    wantsApiGraphFlowchart,
   ])
 
   const debouncedKeywordPreviewInputs = useDebouncedValue(
@@ -417,17 +417,17 @@ export function useActiveGraphData(enabled: boolean = true): GraphData | null {
 
   React.useEffect(() => {
     if (!enabled) return
-    const next = wantsApiGraphBipartite ? apiGraphBipartite : computed
+    const next = wantsApiGraphFlowchart ? apiGraphFlowchart : computed
     lastRef.current = next
-    if (wantsApiGraphBipartite) return
+    if (wantsApiGraphFlowchart) return
     if (effectiveMode === 'keyword' && keywordDeriveInputs) {
       const cached = keywordGraphCache.get(keywordDeriveInputs.cacheKey)
       if (cached && cached.graph) {
         lastKeywordRef.current = { cacheKey: keywordDeriveInputs.cacheKey, docId: keywordDeriveInputs.docId, graph: cached.graph }
       }
     }
-  }, [apiGraphBipartite, computed, enabled, keywordDeriveInputs, effectiveMode, wantsApiGraphBipartite])
+  }, [apiGraphFlowchart, computed, enabled, keywordDeriveInputs, effectiveMode, wantsApiGraphFlowchart])
 
-  const out = wantsApiGraphBipartite ? apiGraphBipartite : computed
+  const out = wantsApiGraphFlowchart ? apiGraphFlowchart : computed
   return enabled ? out : lastRef.current
 }

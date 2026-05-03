@@ -1,5 +1,5 @@
 import { saveBlobWithPicker, downloadBlob } from '@/lib/graph/save'
-import { buildWorkspaceFileJsonLdV1 } from '../../workspaceImport'
+import { resolveWorkspaceFileJsonLdExport } from '../../workspaceImport/workspaceFileJsonLd'
 
 export async function exportWorkspaceFileJsonLd(args: {
   activeDocumentKey: string
@@ -7,12 +7,13 @@ export async function exportWorkspaceFileJsonLd(args: {
   text: string
 }): Promise<void> {
   try {
-    const payload = buildWorkspaceFileJsonLdV1({
-      path: String(args.activeDocumentKey || '').trim() || `${String(args.exportBaseName || '').trim() || 'document'}.md`,
-      text: String(args.text || ''),
+    const exported = resolveWorkspaceFileJsonLdExport({
+      activeDocumentPath: args.activeDocumentKey,
+      exportBaseName: args.exportBaseName,
+      text: args.text,
     })
-    const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/ld+json;charset=utf-8' })
-    const name = `${String(args.exportBaseName || '').trim() || 'document'}.workspace.jsonld`
+    const blob = new Blob([exported.text], { type: 'application/ld+json;charset=utf-8' })
+    const name = exported.name
     const saved = await saveBlobWithPicker(blob, name, {
       description: 'Workspace Files',
       accept: { 'application/ld+json': ['.workspace.jsonld', '.jsonld', '.json-ld'] },
@@ -23,4 +24,3 @@ export async function exportWorkspaceFileJsonLd(args: {
     void 0
   }
 }
-

@@ -173,6 +173,29 @@ export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView
   }
 }
 
+export const testGrabMapsReferenceDemoDeclaresCanonicalGeospatialSeedPreset = () => {
+  const demoPath = path.resolve(process.cwd(), '..', '..', 'sandbox', 'demo', 'knowgrph-maps-grabmap-multim-demo.md')
+  const text = readUtf8(demoPath)
+  if (!text.includes('kgCanvasSurfaceMode: "geospatial"')) {
+    throw new Error('Expected GrabMaps reference demo to declare geospatial surface mode as the canonical seed preset')
+  }
+  if (!text.includes('kgCanvas2dRenderer: "flowEditor"')) {
+    throw new Error('Expected GrabMaps reference demo to preserve flowEditor as the canonical 2D renderer for geospatial widget-panel overlays')
+  }
+  if (!text.includes('kgDocumentSemanticMode: "document"')) {
+    throw new Error('Expected GrabMaps reference demo to declare document semantic mode explicitly')
+  }
+  if (!text.includes('kgFrontmatterModeEnabled: true')) {
+    throw new Error('Expected GrabMaps reference demo to enable Frontmatter Mode explicitly')
+  }
+  if (!text.includes('kgMultiDimTableModeEnabled: false')) {
+    throw new Error('Expected GrabMaps reference demo to disable Multi-dimensional Table Mode explicitly')
+  }
+  if (!text.includes('kgDocumentStructureBaselineLock: false')) {
+    throw new Error('Expected GrabMaps reference demo to keep View Lock OFF explicitly')
+  }
+}
+
 export const testGrabMapsFallbackDoesNotTreatAuthErrorsAsUnavailable = () => {
   const basemapPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
   const text = readUtf8(basemapPath)

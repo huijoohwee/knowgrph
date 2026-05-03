@@ -27,7 +27,9 @@ export function testTextWidgetOutputPatchBuildsRichMediaIframeSpec() {
 export function testFlowEditorCanvasTextRunUsesSharedRichMediaOutputPatch() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const workflowRichMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRichMediaPanel.ts')
   const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(workflowActionsPath, 'utf8')}`
+  const workflowRichMediaPanelText = readFileSync(workflowRichMediaPanelPath, 'utf8')
 
   if (!text.includes('buildTextWidgetOutputPatch')) {
     throw new Error('expected FlowEditorCanvas text widget run path to reuse shared text-widget rich-media output patch helper')
@@ -38,21 +40,40 @@ export function testFlowEditorCanvasTextRunUsesSharedRichMediaOutputPatch() {
   if (!text.includes('...buildTextWidgetOutputPatch({')) {
     throw new Error('expected FlowEditorCanvas text widget run path to write shared rich-media panel output metadata')
   }
+  if (!workflowRichMediaPanelText.includes('export function ensureFlowEditorWorkflowRichMediaPanelNodeId(args: {')) {
+    throw new Error('expected FlowEditor runtime helper to centralize rich-media panel creation fallback')
+  }
+  if (!text.includes('const panelNodeId = ensureFlowEditorWorkflowRichMediaPanelNodeId({')) {
+    throw new Error('expected FlowEditorCanvas text widget run path to reuse the shared rich-media panel target helper')
+  }
+  if (!text.includes('const updatedPanelInDraft = applyFlowEditorWorkflowRichMediaPanelDraftPatch({')) {
+    throw new Error('expected FlowEditorCanvas text widget run path to reuse the shared rich-media panel draft patch helper')
+  }
 }
 
 export function testFlowEditorCanvasRunTargetsWritableNodeIdForComposedGraphs() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.tsx')
   const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
+  const workflowWritebackPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowWriteback.ts')
   const text = `${readFileSync(flowEditorCanvasPath, 'utf8')}\n${readFileSync(workflowActionsPath, 'utf8')}`
+  const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
+  const workflowWritebackText = readFileSync(workflowWritebackPath, 'utf8')
 
-  if (!text.includes('splitComposedNodeId')) {
-    throw new Error('expected FlowEditorCanvas run path to normalize composed node ids before writeback')
+  if (!renderGraphHelperText.includes('export function resolveFlowEditorWorkflowWritableNodeId(args: {')) {
+    throw new Error('expected FlowEditor runtime helper to centralize composed-id draft write-target resolution')
   }
-  if (!text.includes('const writableNodeId = pickWritableNodeId() || resolvedNodeId')) {
-    throw new Error('expected FlowEditorCanvas run path to resolve a writable node id in the active draft graph')
+  if (!renderGraphHelperText.includes('const exactRequested = requested.full ? args.context.draftNodeById.get(requested.full) || null : null')) {
+    throw new Error('expected shared workflow node-resolution helper to prefer exact draft node matches before canonical fallback')
   }
-  if (!text.includes('updateRunOutputForKnownNodeIds')) {
-    throw new Error('expected FlowEditorCanvas run path to write outputs via canonical id updater')
+  if (!renderGraphHelperText.includes('const innerMatches = args.context.draftNodes.filter(node => targetInners.has(splitComposedNodeId(node?.id).inner))')) {
+    throw new Error('expected shared workflow node-resolution helper to reuse canonical inner-id fallback when draft ids are composed')
+  }
+  if (!text.includes('const writableNodeId = String(resolvedRunTarget?.writableNodeId || resolvedNodeId).trim() || resolvedNodeId')) {
+    throw new Error('expected FlowEditorCanvas run path to consume the shared writable node id from the upstream run-target resolver')
+  }
+  if (!workflowWritebackText.includes('export function updateFlowEditorWorkflowOutputForKnownNodeIds(args: {')) {
+    throw new Error('expected FlowEditor runtime helper to centralize output writes via canonical id updater')
   }
   if (!text.includes('args.draftGraphDataRef.current = nextDraft')) {
     throw new Error('expected FlowEditorCanvas run path to update live draft graph ref output before renderer recompute')
@@ -60,8 +81,8 @@ export function testFlowEditorCanvasRunTargetsWritableNodeIdForComposedGraphs() 
   if (!text.includes('args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))')) {
     throw new Error('expected FlowEditorCanvas run path to preserve live draft ref as SSOT while React state catches up')
   }
-  if (!text.includes('function bumpDraftGraphDataRevision(graphData: GraphData): GraphData')) {
-    throw new Error('expected FlowEditorCanvas run path to bump draft graph revision for output cache invalidation')
+  if (!workflowWritebackText.includes('export function bumpFlowEditorWorkflowDraftGraphDataRevision(graphData: GraphData): GraphData')) {
+    throw new Error('expected FlowEditor runtime helper to bump draft graph revision for output cache invalidation')
   }
 }
 
@@ -186,8 +207,10 @@ export function testDeriveOpenWidgetOverlayNodeIdsNormalizesCanonicalIdsAndFilte
 export function testFlowEditorCanvasDataflowRegistryPrefersNonEmptyDocumentThenEffectiveThenBase() {
   const flowEditorCanvasRuntimePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const workflowRunInputsPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRunInputs.ts')
   const runtimeText = readFileSync(flowEditorCanvasRuntimePath, 'utf8')
   const workflowActionsText = readFileSync(workflowActionsPath, 'utf8')
+  const workflowRunInputsText = readFileSync(workflowRunInputsPath, 'utf8')
 
   if (!runtimeText.includes('buildDataflowWidgetRegistry')) {
     throw new Error('expected FlowEditorCanvas runtime to derive one upstream merged dataflow widget registry')
@@ -201,8 +224,17 @@ export function testFlowEditorCanvasDataflowRegistryPrefersNonEmptyDocumentThenE
   if (!workflowActionsText.includes('widgetRegistry: WidgetRegistryEntry[]')) {
     throw new Error('expected FlowEditor workflow actions to accept the upstream merged widget registry instead of rebuilding it locally')
   }
-  if (!workflowActionsText.includes('registry: args.widgetRegistry,')) {
-    throw new Error('expected FlowEditor workflow rich-media runs to reuse the upstream merged widget registry for connected-value resolution')
+  if (!workflowRunInputsText.includes('registry: args.registry,')) {
+    throw new Error('expected FlowEditor workflow run-input helper to reuse the upstream merged widget registry for connected-value resolution')
+  }
+  if (!workflowRunInputsText.includes('if (args.context.renderGraph) candidateGraphs.push(args.context.renderGraph)')) {
+    throw new Error('expected FlowEditor workflow run-input helper to prefer render graph data for connected-value resolution')
+  }
+  if (!workflowActionsText.includes('const connectedValuesInput = resolveFlowEditorWorkflowConnectedValuesInput({')) {
+    throw new Error('expected FlowEditor workflow rich-media runs to reuse the shared run-input helper instead of choosing a graph locally')
+  }
+  if (!workflowActionsText.includes('connectedValuesBySchemaPath: connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId)')) {
+    throw new Error('expected rich-media runs to read connected values through the helper-resolved target node id')
   }
   if (!workflowActionsText.includes('resolveWidgetRegistryEntry({ node, registry: args.widgetRegistry, graphMetaKind: args.baseGraphKind })')) {
     throw new Error('expected FlowEditor workflow text runs to reuse the upstream merged widget registry for registry resolution')
@@ -218,6 +250,9 @@ export function testFlowEditorCanvasDataflowRegistryPrefersNonEmptyDocumentThenE
   }
   if (workflowActionsText.includes('Array.isArray(store.widgetRegistry)')) {
     throw new Error('expected FlowEditor workflow actions to stop reading base widget registry directly from store state')
+  }
+  if (workflowActionsText.includes('computeFlowConnectedValuesBySchemaPath({')) {
+    throw new Error('expected FlowEditor workflow actions to stop owning inline connected-values graph selection')
   }
 }
 
@@ -312,6 +347,21 @@ export function testRichMediaPanelMarkdownPreviewDisablesGlobalTokenStoreSync() 
   if (!panelText.includes('const flowEditorInteractionMode = flowEditorOverlayProxyMode || flowEditorFrontmatterDocumentMode')) {
     throw new Error('expected RichMediaPanel selection/scroll interactivity gate to accept Flow Editor interaction and frontmatter document overlay semantics')
   }
+  if (!panelText.includes("import { useShallow } from 'zustand/react/shallow'")) {
+    throw new Error('expected RichMediaPanel to reuse zustand shallow selectors for hot-path store subscriptions')
+  }
+  if (!panelText.includes('} = useGraphStore(\n    useShallow(s => ({')) {
+    throw new Error('expected RichMediaPanel to consolidate hot-path store reads behind one shallow store selector')
+  }
+  if (panelText.includes('const richMediaPanelMode = useGraphStore(s => s.richMediaPanelMode)')) {
+    throw new Error('expected RichMediaPanel to remove per-field store subscriptions after the shared shallow selector was introduced')
+  }
+  if (panelText.includes('const selectedNodeId = useGraphStore(s => s.selectedNodeId)')) {
+    throw new Error('expected RichMediaPanel selection state to come from the shared shallow selector instead of a separate subscription')
+  }
+  if (!panelText.includes('selectedNodeIds: s.selectedNodeIds ?? EMPTY_STRING_ARRAY')) {
+    throw new Error('expected RichMediaPanel shared shallow selector to preserve the stable selected-node fallback constant')
+  }
 }
 
 export function testFlowCanvasRichMediaResizeUsesCanonicalSelectionMatch() {
@@ -388,9 +438,13 @@ export function testFlowCanvasWheelProxyHonorsWheelIgnoreTargets() {
 
 export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
   const flowEditorCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
+  const workflowWritebackPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowWriteback.ts')
   const text = readFileSync(flowEditorCanvasPath, 'utf8')
-  if (!text.includes('const setRunLoadingStateForKnownNodeIds =') || !text.includes("kind?: 'text' | 'image' | 'video'")) {
-    throw new Error('expected FlowEditorCanvas run path to centralize output loading state patching for run widgets')
+  const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
+  const workflowWritebackText = readFileSync(workflowWritebackPath, 'utf8')
+  if (!workflowWritebackText.includes('export function setFlowEditorWorkflowRunLoadingStateForKnownNodeIds(args: {') || !workflowWritebackText.includes("kind?: FlowEditorWorkflowOutputLoadingKind")) {
+    throw new Error('expected FlowEditor runtime helper to centralize output loading state patching for run widgets')
   }
   if (!text.includes("setRunLoadingStateForKnownNodeIds({ loading: true, kind: richMediaKind })")) {
     throw new Error('expected RichMedia widget run path to publish loading state before generation')
@@ -398,8 +452,8 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
   if (!text.includes("setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })")) {
     throw new Error('expected TextGeneration run path to publish loading state before generation')
   }
-  if (!text.includes("lastRunAt: loadingArgs.loading === true ? new Date().toISOString() : nodeProps.lastRunAt")) {
-    throw new Error('expected run-scoped Rich Media loading state to stamp lastRunAt so initialization does not masquerade as an active run')
+  if (!workflowWritebackText.includes("lastRunAt: args.loading === true ? new Date().toISOString() : nodeProps.lastRunAt")) {
+    throw new Error('expected shared workflow loading-state helper to stamp lastRunAt so initialization does not masquerade as an active run')
   }
   if (!text.includes('const publishTextRunOutput = (outputText: string, loading: boolean) => {')) {
     throw new Error('expected TextGeneration run path to centralize streamed/final output publishing in one SSOT helper')
@@ -410,8 +464,14 @@ export function testFlowEditorCanvasRunSetsSharedOutputLoadingState() {
   if (!text.includes('args.draftGraphDataRef.current || args.draftGraphData')) {
     throw new Error('expected run output updates to prefer latest draft graph state so loading-clear does not wipe freshly published text output')
   }
-  if (!text.includes('scheduleWorkflowOutputEdgeRefresh()')) {
-    throw new Error('expected run output updates to refresh overlay edges after output/loading writes without forcing layout reseed')
+  if (!workflowWritebackText.includes('if (updated) args.scheduleWorkflowOutputEdgeRefresh()')) {
+    throw new Error('expected shared workflow output writes to refresh overlay edges after output/loading writes without forcing layout reseed')
+  }
+  if (!renderGraphHelperText.includes('export function getCachedFlowEditorWorkflowRunPlan(args: {')) {
+    throw new Error('expected FlowEditor runtime helper to centralize run-all workflow plan derivation')
+  }
+  if (!text.includes('const runPlan = getCachedFlowEditorWorkflowRunPlan({')) {
+    throw new Error('expected FlowEditor workflow actions to reuse the shared run-all workflow plan')
   }
 }
 

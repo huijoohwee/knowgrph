@@ -44,7 +44,7 @@ export function buildD3SceneLayoutPrepContext(args: {
   collapsedGroupIdsKey: string
   fitToScreenMode: boolean
   zoomToSelectionMode: boolean
-  isBipartite: boolean
+  isFlowchart: boolean
   infiniteCanvasInteractionMode: string
   sceneWidth: number
   sceneHeight: number
@@ -99,8 +99,8 @@ export function buildD3SceneLayoutPrepContext(args: {
   })
   const mode = layoutResolutionContext.mode
   const datasetKey = currentLayoutPrep.datasetKey
-  const layoutVariant = args.isBipartite
-    ? `bipartite:v4:${layoutResolutionContext.semanticMode}:${String(args.effectiveFrontmatterModeEnabled ? 1 : 0)}:${String(args.infiniteCanvasInteractionMode)}`
+  const layoutVariant = args.isFlowchart
+    ? `flowchart:v4:${layoutResolutionContext.semanticMode}:${String(args.effectiveFrontmatterModeEnabled ? 1 : 0)}:${String(args.infiniteCanvasInteractionMode)}`
     : ''
   const currentLayoutSeed = readCurrentLayoutSeedContext({
     datasetKey,
@@ -137,7 +137,7 @@ export function buildD3SceneLayoutPrepContext(args: {
     layoutVariant,
     ...currentLayoutHistory,
   })
-  const effectiveLayoutPositionsForMode = args.isBipartite ? null : layoutPositionsForMode
+  const effectiveLayoutPositionsForMode = args.isFlowchart ? null : layoutPositionsForMode
 
   const baselineLayoutRuntime = readBaselineDocumentLayoutRuntimeContext({
     documentSemanticMode: args.documentSemanticMode,
@@ -163,7 +163,7 @@ export function buildD3SceneLayoutPrepContext(args: {
   })
   const baselineLayoutPositions = baselineLayoutRuntime.baselineLayoutPositions
 
-  const effectiveSkipInitialLayout = args.isBipartite
+  const effectiveSkipInitialLayout = args.isFlowchart
     ? false
     : baselineLayoutRuntime.shouldSkipInitialLayoutFromBaselineDocumentPositions
         && args.canvasRenderMode === '2d'

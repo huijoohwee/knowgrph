@@ -20,83 +20,83 @@ export const createUiSettingsRenderSlice = (set: SetGraph, readers: UiStorageRea
     set({ richMediaPanelMode: next })
   },
 
-  bipartiteDataSource: (() => {
-    const raw = readLsString(LS_KEYS.bipartiteDataSource, 'workspace')
+  flowchartDataSource: (() => {
+    const raw = readLsString(LS_KEYS.flowchartDataSource, 'workspace')
     return (raw === 'fixture' ? 'fixture' : raw === 'workspace' ? 'workspace' : 'api') as 'api' | 'fixture' | 'workspace'
   })(),
-  setBipartiteDataSource: (v: 'api' | 'fixture' | 'workspace') => {
+  setFlowchartDataSource: (v: 'api' | 'fixture' | 'workspace') => {
     const next = v === 'fixture' ? 'fixture' : v === 'workspace' ? 'workspace' : 'api'
-    writeLsString(LS_KEYS.bipartiteDataSource, next)
-    set({ bipartiteDataSource: next })
+    writeLsString(LS_KEYS.flowchartDataSource, next)
+    set({ flowchartDataSource: next })
   },
-  bipartiteApiRunId: readLsString(LS_KEYS.bipartiteApiRunId, ''),
-  setBipartiteApiRunId: (v: string) => {
-    const next = writeLsString(LS_KEYS.bipartiteApiRunId, v)
-    set({ bipartiteApiRunId: next })
+  flowchartApiRunId: readLsString(LS_KEYS.flowchartApiRunId, ''),
+  setFlowchartApiRunId: (v: string) => {
+    const next = writeLsString(LS_KEYS.flowchartApiRunId, v)
+    set({ flowchartApiRunId: next })
   },
-  bipartitePollIntervalSec: clampInt(lsInt(LS_KEYS.bipartitePollIntervalSec, 60), 60, { min: 3, max: 3600 }),
-  setBipartitePollIntervalSec: (v: number) =>
-    set({ bipartitePollIntervalSec: lsSetInt(LS_KEYS.bipartitePollIntervalSec, v, { min: 3, max: 3600 }) }),
+  flowchartPollIntervalSec: clampInt(lsInt(LS_KEYS.flowchartPollIntervalSec, 60), 60, { min: 3, max: 3600 }),
+  setFlowchartPollIntervalSec: (v: number) =>
+    set({ flowchartPollIntervalSec: lsSetInt(LS_KEYS.flowchartPollIntervalSec, v, { min: 3, max: 3600 }) }),
 
-  bipartiteNodeSizeMetric: (() => {
-    const raw = readLsString(LS_KEYS.bipartiteNodeSizeMetric, 'gap_score')
+  flowchartNodeSizeMetric: (() => {
+    const raw = readLsString(LS_KEYS.flowchartNodeSizeMetric, 'gap_score')
     const next = raw === 'pmf_score' || raw === 'gap_velocity' || raw === 'source_count' || raw === 'none' ? raw : 'gap_score'
     return next as 'gap_score' | 'pmf_score' | 'gap_velocity' | 'source_count' | 'none'
   })(),
-  setBipartiteNodeSizeMetric: (v: 'gap_score' | 'pmf_score' | 'gap_velocity' | 'source_count' | 'none') => {
+  setFlowchartNodeSizeMetric: (v: 'gap_score' | 'pmf_score' | 'gap_velocity' | 'source_count' | 'none') => {
     const next = v === 'pmf_score' || v === 'gap_velocity' || v === 'source_count' || v === 'none' ? v : 'gap_score'
-    writeLsString(LS_KEYS.bipartiteNodeSizeMetric, next)
-    set({ bipartiteNodeSizeMetric: next })
+    writeLsString(LS_KEYS.flowchartNodeSizeMetric, next)
+    set({ flowchartNodeSizeMetric: next })
   },
-  bipartiteNodeGlowMetric: (() => {
-    const raw = readLsString(LS_KEYS.bipartiteNodeGlowMetric, 'pmf_score')
+  flowchartNodeGlowMetric: (() => {
+    const raw = readLsString(LS_KEYS.flowchartNodeGlowMetric, 'pmf_score')
     const next = raw === 'gap_score' || raw === 'none' ? raw : 'pmf_score'
     return next as 'pmf_score' | 'gap_score' | 'none'
   })(),
-  setBipartiteNodeGlowMetric: (v: 'pmf_score' | 'gap_score' | 'none') => {
+  setFlowchartNodeGlowMetric: (v: 'pmf_score' | 'gap_score' | 'none') => {
     const next = v === 'gap_score' || v === 'none' ? v : 'pmf_score'
-    writeLsString(LS_KEYS.bipartiteNodeGlowMetric, next)
-    set({ bipartiteNodeGlowMetric: next })
+    writeLsString(LS_KEYS.flowchartNodeGlowMetric, next)
+    set({ flowchartNodeGlowMetric: next })
   },
-  bipartiteNodePulseMetric: (() => {
-    const raw = readLsString(LS_KEYS.bipartiteNodePulseMetric, 'gap_velocity')
+  flowchartNodePulseMetric: (() => {
+    const raw = readLsString(LS_KEYS.flowchartNodePulseMetric, 'gap_velocity')
     const next = raw === 'pmf_score' || raw === 'none' ? raw : 'gap_velocity'
     return next as 'gap_velocity' | 'pmf_score' | 'none'
   })(),
-  setBipartiteNodePulseMetric: (v: 'gap_velocity' | 'pmf_score' | 'none') => {
+  setFlowchartNodePulseMetric: (v: 'gap_velocity' | 'pmf_score' | 'none') => {
     const next = v === 'pmf_score' || v === 'none' ? v : 'gap_velocity'
-    writeLsString(LS_KEYS.bipartiteNodePulseMetric, next)
-    set({ bipartiteNodePulseMetric: next })
+    writeLsString(LS_KEYS.flowchartNodePulseMetric, next)
+    set({ flowchartNodePulseMetric: next })
   },
-  bipartiteNodeBorderMetric: (() => {
-    const raw = readLsString(LS_KEYS.bipartiteNodeBorderMetric, 'source_count')
+  flowchartNodeBorderMetric: (() => {
+    const raw = readLsString(LS_KEYS.flowchartNodeBorderMetric, 'source_count')
     const next = raw === 'gap_score' || raw === 'none' ? raw : 'source_count'
     return next as 'source_count' | 'gap_score' | 'none'
   })(),
-  setBipartiteNodeBorderMetric: (v: 'source_count' | 'gap_score' | 'none') => {
+  setFlowchartNodeBorderMetric: (v: 'source_count' | 'gap_score' | 'none') => {
     const next = v === 'gap_score' || v === 'none' ? v : 'source_count'
-    writeLsString(LS_KEYS.bipartiteNodeBorderMetric, next)
-    set({ bipartiteNodeBorderMetric: next })
+    writeLsString(LS_KEYS.flowchartNodeBorderMetric, next)
+    set({ flowchartNodeBorderMetric: next })
   },
-  bipartiteEdgeOpacityMetric: (() => {
-    const raw = readLsString(LS_KEYS.bipartiteEdgeOpacityMetric, 'strength')
+  flowchartEdgeOpacityMetric: (() => {
+    const raw = readLsString(LS_KEYS.flowchartEdgeOpacityMetric, 'strength')
     return (raw === 'none' ? 'none' : 'strength') as 'strength' | 'none'
   })(),
-  setBipartiteEdgeOpacityMetric: (v: 'strength' | 'none') => {
+  setFlowchartEdgeOpacityMetric: (v: 'strength' | 'none') => {
     const next = v === 'none' ? 'none' : 'strength'
-    writeLsString(LS_KEYS.bipartiteEdgeOpacityMetric, next)
-    set({ bipartiteEdgeOpacityMetric: next })
+    writeLsString(LS_KEYS.flowchartEdgeOpacityMetric, next)
+    set({ flowchartEdgeOpacityMetric: next })
   },
 
-  bipartiteShowSpecificityBadges: lsBool(LS_KEYS.bipartiteShowSpecificityBadges, true),
-  setBipartiteShowSpecificityBadges: (v: boolean) =>
-    set({ bipartiteShowSpecificityBadges: lsSetBool(LS_KEYS.bipartiteShowSpecificityBadges, v) }),
-  bipartiteShowGapScoreInLabel: lsBool(LS_KEYS.bipartiteShowGapScoreInLabel, true),
-  setBipartiteShowGapScoreInLabel: (v: boolean) =>
-    set({ bipartiteShowGapScoreInLabel: lsSetBool(LS_KEYS.bipartiteShowGapScoreInLabel, v) }),
-  bipartiteShowClusterGapRatio: lsBool(LS_KEYS.bipartiteShowClusterGapRatio, true),
-  setBipartiteShowClusterGapRatio: (v: boolean) =>
-    set({ bipartiteShowClusterGapRatio: lsSetBool(LS_KEYS.bipartiteShowClusterGapRatio, v) }),
+  flowchartShowSpecificityBadges: lsBool(LS_KEYS.flowchartShowSpecificityBadges, true),
+  setFlowchartShowSpecificityBadges: (v: boolean) =>
+    set({ flowchartShowSpecificityBadges: lsSetBool(LS_KEYS.flowchartShowSpecificityBadges, v) }),
+  flowchartShowGapScoreInLabel: lsBool(LS_KEYS.flowchartShowGapScoreInLabel, true),
+  setFlowchartShowGapScoreInLabel: (v: boolean) =>
+    set({ flowchartShowGapScoreInLabel: lsSetBool(LS_KEYS.flowchartShowGapScoreInLabel, v) }),
+  flowchartShowClusterGapRatio: lsBool(LS_KEYS.flowchartShowClusterGapRatio, true),
+  setFlowchartShowClusterGapRatio: (v: boolean) =>
+    set({ flowchartShowClusterGapRatio: lsSetBool(LS_KEYS.flowchartShowClusterGapRatio, v) }),
 
   threeIframeOverlayPoolMax: clampInt(lsInt(LS_KEYS.renderThreeIframeOverlayPoolMax, 24), 24, { min: 1, max: 200 }),
   setThreeIframeOverlayPoolMax: (v: number) => set({ threeIframeOverlayPoolMax: lsSetInt(LS_KEYS.renderThreeIframeOverlayPoolMax, v, { min: 1, max: 200 }) }),

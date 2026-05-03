@@ -7,11 +7,11 @@ import { applyClusterAwareHeuristicSeedLayout } from '@/components/GraphCanvas/l
 import { applyIndexGridSeedLayout } from '@/components/GraphCanvas/layout/indexGridSeed'
 import { applyGroupGeometrySeedLayout } from '@/components/GraphCanvas/layout/groupGeometrySeed'
 import { snapScalarToGrid } from '@/lib/canvas/gridSnap'
-import { readBipartiteGridSizePx, readBipartiteLaneSeparationPx, readBipartiteRowStepPx } from '@/lib/canvas/bipartiteGrid'
+import { readFlowchartGridSizePx, readFlowchartLaneSeparationPx, readFlowchartRowStepPx } from '@/lib/canvas/flowchartGrid'
 
-const applyBipartiteLaneSeedLayout = (args: { nodes: GraphNode[]; width: number; height: number; schema: GraphSchema }): void => {
+const applyFlowchartLaneSeedLayout = (args: { nodes: GraphNode[]; width: number; height: number; schema: GraphSchema }): void => {
   const forces = (args.schema.layout?.forces || {}) as any
-  if (forces?.bipartiteMode !== true) return
+  if (forces?.flowchartMode !== true) return
   const nodes = args.nodes
   if (!Array.isArray(nodes) || nodes.length === 0) return
 
@@ -26,13 +26,13 @@ const applyBipartiteLaneSeedLayout = (args: { nodes: GraphNode[]; width: number;
 
   const w = Math.max(1, args.width)
   const h = Math.max(1, args.height)
-  const gridSize = readBipartiteGridSizePx(args.schema)
+  const gridSize = readFlowchartGridSizePx(args.schema)
   const centerX = snapScalarToGrid(w / 2, gridSize)
   const centerY = snapScalarToGrid(h / 2, gridSize)
-  const separation = readBipartiteLaneSeparationPx({ schema: args.schema, frameW: w })
+  const separation = readFlowchartLaneSeparationPx({ schema: args.schema, frameW: w })
   const leftX = centerX - separation
   const rightX = centerX + separation
-  const rowStep = readBipartiteRowStepPx(args.schema)
+  const rowStep = readFlowchartRowStepPx(args.schema)
 
   let placed = 0
   for (let i = 0; i < nodes.length; i += 1) {
@@ -59,7 +59,7 @@ export function applyForceModeSeeds(args: {
   groupKeyOf?: (n: GraphNode) => string | null
   groupsForBboxCollide?: GraphGroup[]
 }) {
-  applyBipartiteLaneSeedLayout({ nodes: args.nodes, width: args.width, height: args.height, schema: args.schema })
+  applyFlowchartLaneSeedLayout({ nodes: args.nodes, width: args.width, height: args.height, schema: args.schema })
   applyGroupGeometrySeedLayout({
     nodes: args.nodes,
     groups: Array.isArray(args.groupsForBboxCollide) ? args.groupsForBboxCollide : [],

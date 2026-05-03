@@ -47,6 +47,7 @@ import {
   mergeSubgraphs,
   readSocketTypes,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.compose'
+import { WIDGET_BASE_SIZE } from '@/components/FlowEditor/widgetZoom'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 
 function guessJsonTypeLabel(value: unknown): string {
@@ -194,13 +195,17 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
     return ok ? { minX, maxX, minY, maxY } : { minX: 0, maxX: 0, minY: 0, maxY: 0 }
   })()
 
-  const GRID_COL_GAP_X = 420
-  const GRID_ROW_GAP_Y = 560
-  const GRID_START_X = bounds.maxX + 520
+  const SHOT_WIDGET_COL_GAP_X = WIDGET_BASE_SIZE.width + 160
+  const SHOT_PANEL_OFFSET_Y = WIDGET_BASE_SIZE.height + 140
+  const SHOT_ROW_GAP_Y = SHOT_PANEL_OFFSET_Y + WIDGET_BASE_SIZE.height + 160
+  const GRID_COL_GAP_X = SHOT_WIDGET_COL_GAP_X
+  const GRID_ROW_GAP_Y = SHOT_ROW_GAP_Y
+  const GRID_START_X = Math.max(bounds.maxX + 1400, 4200)
   const GRID_START_Y = bounds.minY
-  const PANEL_OFFSET_Y = 260
-  // 3 columns means 2 inter-column gaps; previous overestimate biased tall layouts.
-  const SHOT_CELL_WIDTH = GRID_COL_GAP_X * 2 + 320
+  const PANEL_OFFSET_Y = SHOT_PANEL_OFFSET_Y
+  // 3 columns means 2 inter-column gaps plus the width of the final widget footprint,
+  // with extra separation so adjacent shot groups do not graze after viewport fit scaling.
+  const SHOT_CELL_WIDTH = GRID_COL_GAP_X * 2 + WIDGET_BASE_SIZE.width + 160
   const SHOT_CELL_HEIGHT = GRID_ROW_GAP_Y
 
   const chooseShotGridCols = (count: number): number => {

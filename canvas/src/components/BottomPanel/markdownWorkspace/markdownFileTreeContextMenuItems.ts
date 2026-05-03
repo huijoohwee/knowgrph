@@ -1,4 +1,5 @@
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
+import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 
 export type MarkdownFileTreeContextMenuItem = {
   key: 'reveal' | 'copyPath' | 'copyRelativePath' | 'rename' | 'delete'
@@ -24,8 +25,9 @@ export function buildMarkdownFileTreeContextMenuItems(
   const promptRename = args.promptRename || (currentName => window.prompt('Rename', currentName))
   const confirmDelete = args.confirmDelete || (entryPath => window.confirm(`Delete ${entryPath}?`))
   const entryPath = args.entry.path
+  const isInitializationEntry = isInitializationWorkspacePath(entryPath)
 
-  return [
+  const items: MarkdownFileTreeContextMenuItem[] = [
     {
       key: 'reveal',
       label: 'Reveal in Finder',
@@ -51,7 +53,10 @@ export function buildMarkdownFileTreeContextMenuItems(
         args.closeContextMenu()
       },
     },
-    {
+  ]
+
+  if (!isInitializationEntry) {
+    items.push({
       key: 'rename',
       label: 'Rename',
       onSelect: () => {
@@ -64,8 +69,8 @@ export function buildMarkdownFileTreeContextMenuItems(
         args.onRenameEntry?.(entryPath, String(next).trim())
         args.closeContextMenu()
       },
-    },
-    {
+    })
+    items.push({
       key: 'delete',
       label: 'Delete',
       tone: 'danger',
@@ -77,6 +82,8 @@ export function buildMarkdownFileTreeContextMenuItems(
         args.onDeleteEntry?.(entryPath)
         args.closeContextMenu()
       },
-    },
-  ]
+    })
+  }
+
+  return items
 }

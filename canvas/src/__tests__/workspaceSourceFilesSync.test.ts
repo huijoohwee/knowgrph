@@ -2,7 +2,9 @@ import type { SourceFile } from '@/hooks/store/types'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import {
+  BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH,
   BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH,
+  GEOSPATIAL_WORKSPACE_SOURCE_PATH,
   TEST_VALIDATION_SOURCE_PATH,
   WORKSPACE_README_SOURCE_PATH,
   reconcileDefaultWorkspaceSeedSourceFiles,
@@ -143,21 +145,35 @@ export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFil
         text: '# Demo',
         updatedAtMs: 1,
       },
+      {
+        kind: 'file',
+        path: '/knowgrph-maps-grabmap-multim-demo.md',
+        parentPath: '/',
+        name: 'knowgrph-maps-grabmap-multim-demo.md',
+        text: '# Maps',
+        updatedAtMs: 1,
+      },
     ],
     sourcesByPath: {},
   })
 
   const readme = next.find(f => f.source?.path === WORKSPACE_README_SOURCE_PATH)
   const demo = next.find(f => f.source?.path === TEST_VALIDATION_SOURCE_PATH)
+  const geospatial = next.find(f => f.source?.path === GEOSPATIAL_WORKSPACE_SOURCE_PATH)
   if (!readme) throw new Error('expected canonical README seed to always be mirrored into Source Files')
   if (!demo) throw new Error('expected canonical validation demo seed to always be mirrored into Source Files')
+  if (!geospatial) throw new Error('expected canonical geospatial seed to always be mirrored into Source Files')
   if (readme.enabled !== true) throw new Error('expected canonical README seed to stay enabled by default')
   if (demo.enabled !== false) throw new Error('expected canonical validation demo seed to stay disabled by default until explicitly activated')
+  if (geospatial.enabled !== false) throw new Error('expected canonical geospatial seed to stay disabled by default until explicitly activated')
 }
 
 export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasToCanonicalSourcePath() {
   if (resolveWorkspaceSeedSourcePath(BUNDLED_TEST_VALIDATION_WORKSPACE_SEED_PATH) !== TEST_VALIDATION_SOURCE_PATH) {
     throw new Error('expected bundled validation workspace seed alias to resolve onto the canonical validation source-file path')
+  }
+  if (resolveWorkspaceSeedSourcePath(BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH) !== GEOSPATIAL_WORKSPACE_SOURCE_PATH) {
+    throw new Error('expected bundled geospatial workspace seed alias to resolve onto the canonical geospatial source-file path')
   }
   if (resolveWorkspaceSeedSourcePath('/README.md') !== WORKSPACE_README_SOURCE_PATH) {
     throw new Error('expected README workspace seed path to resolve onto the canonical README source-file path')
@@ -179,15 +195,19 @@ export async function testWorkspaceSeedSourceFilesReconcilePersistedDefaultFamil
     },
   ])
 
-  if (next.length !== 2) throw new Error(`expected canonical default source-file family to contain exactly two entries, got ${next.length}`)
+  if (next.length !== 3) throw new Error(`expected canonical default source-file family to contain exactly three entries, got ${next.length}`)
   if (next[0]?.source?.path !== WORKSPACE_README_SOURCE_PATH) {
     throw new Error('expected reconciled default source-file family to restore README first')
   }
   if (next[1]?.source?.path !== TEST_VALIDATION_SOURCE_PATH) {
     throw new Error('expected reconciled default source-file family to restore validation demo second')
   }
+  if (next[2]?.source?.path !== GEOSPATIAL_WORKSPACE_SOURCE_PATH) {
+    throw new Error('expected reconciled default source-file family to restore geospatial demo third')
+  }
   if (next[0]?.enabled !== true) throw new Error('expected reconciled README seed source file to stay enabled')
   if (next[1]?.enabled !== false) throw new Error('expected reconciled validation demo seed source file to stay disabled')
+  if (next[2]?.enabled !== false) throw new Error('expected reconciled geospatial seed source file to stay disabled')
 }
 
 export async function testWorkspaceSeedSourceFilesReconcilePreservesEnabledValidationSeed() {

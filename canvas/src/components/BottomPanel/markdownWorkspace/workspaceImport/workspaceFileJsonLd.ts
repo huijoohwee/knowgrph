@@ -1,14 +1,18 @@
-type WorkspaceFileDocument = { path: string; text: string }
+export type WorkspaceFileDocument = { path: string; text: string }
 
-function buildWorkspaceFileLeafName(args: { documentPath: string; fallbackName: string }): string {
-  const docPathRaw = String(args.documentPath || '').trim()
-  const fallbackNameRaw = String(args.fallbackName || '').trim() || 'document'
-  const leafRaw = (docPathRaw || fallbackNameRaw).replace(/\\/g, '/').split('/').filter(Boolean).pop() || 'document.md'
-  const ext = leafRaw.toLowerCase().split('.').filter(Boolean).pop() || ''
-  const keepExt = ext === 'md' || ext === 'markdown' || ext === 'mmd' || ext === 'mdx'
-  const leaf = keepExt ? leafRaw : `${leafRaw}.md`
+export function isWorkspaceJsonLdName(nameRaw: string): boolean {
+  const lower = String(nameRaw || '').trim().toLowerCase()
+  return lower.endsWith('.jsonld') || lower.endsWith('.json-ld')
+}
+
+function resolveLeafName(pathRaw: string, fallbackNameRaw: string): string {
+  const leaf = (pathRaw || fallbackNameRaw || 'document.workspace.jsonld')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .pop() || 'document.workspace.jsonld'
   const safeName = leaf.length > 200 ? leaf.slice(0, 200) : leaf
-  return safeName || 'document.md'
+  return safeName || 'document.workspace.jsonld'
 }
 
 export function buildWorkspaceFileJsonLdV1(args: { path: string; text: string }): Record<string, unknown> {
@@ -30,7 +34,7 @@ export function buildWorkspaceFileJsonLdV1(args: { path: string; text: string })
   }
 }
 
-function parseWorkspaceFileDocument(rawText: string): WorkspaceFileDocument | null {
+export function parseWorkspaceFileJsonLdDocument(rawText: string): WorkspaceFileDocument | null {
   const raw = String(rawText || '').trim()
   if (!raw) return null
   try {
@@ -82,16 +86,31 @@ export async function importTextFileOrWorkspaceJsonLd(args: {
   onText: (args: { name: string; text: string }) => Promise<string>
 }): Promise<string> {
   const nameRaw = String(args.file.name || '').trim() || 'file'
-  const lower = nameRaw.toLowerCase()
   const rawText = await args.file.text()
-  const looksLikeWorkspaceFile = lower.endsWith('.jsonld') || lower.endsWith('.json-ld')
-  if (looksLikeWorkspaceFile) {
-    const parsed = parseWorkspaceFileDocument(rawText)
-    if (parsed) {
-      const safeName = buildWorkspaceFileLeafName({ documentPath: parsed.path, fallbackName: nameRaw })
-      return await args.onText({ name: safeName, text: parsed.text })
-    }
-  }
   return await args.onText({ name: nameRaw, text: rawText })
 }
 
+export function resolveWorkspaceFileJsonLdExport(args: {
+  activeDocumentPath: string
+  exportBaseName: string
+  text: string
+}): { name: string; text: string } {
+  const activeDocumentPath = String(args.activeDocumentPath || '').trim()
+  const exportBaseName = String(args.exportBaseName || '').trim() || 'document'
+  const text = String(args.text || '')
+  const parsed = parseWorkspaceFileJsonLdDocument(text)
+  if (isWorkspaceJsonLdName(activeDocumentPath) && parsed) {
+    return {
+      name: resolveLeafName(activeDocumentPath, `${exportBaseName}.workspace.jsonld`),
+      text: text.endsWith('\n') ? text : `${text}\n`,
+    }
+  }
+  const payload = buildWorkspaceFileJsonLdV1({
+    path: activeDocumentPath || `${exportBaseName}.md`,
+    text,
+  })
+  return {
+    name: `${exportBaseName}.workspace.jsonld`,
+    text: `${JSON.stringify(payload, null, 2)}\n`,
+  }
+}

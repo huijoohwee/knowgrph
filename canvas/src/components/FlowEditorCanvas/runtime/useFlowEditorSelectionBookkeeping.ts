@@ -1,13 +1,12 @@
 import React from 'react'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { buildFlowWidgetEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { FORCE_SELECT_MAX_TICKS, FORCE_SELECT_TICK_MS, OVERLAY_NODE_OVERRIDE_LOCK_MS, WIDGET_DROP_DEDUPE_WINDOW_MS, resolveGraphNodeIdByCanonicalId } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { parseCanonicalNodeIds, resolveGraphNodeByCanonicalId, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
-import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { getCachedFlowEditorRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 
 export function useFlowEditorSelectionBookkeeping(args: {
   active: boolean
@@ -66,33 +65,12 @@ export function useFlowEditorSelectionBookkeeping(args: {
   } = args
   const draftGraphDataRevision = React.useMemo(() => readGraphDataRevision(draftGraphData), [draftGraphData])
   const draftGraphLookup = React.useMemo(() => {
-    const graph = draftGraphData
-    const baseLookup = getCachedGraphLookup({
-      cacheScope: 'flow-editor-selection-bookkeeping-draft-graph',
-      graphData: graph,
+    return getCachedFlowEditorRenderGraph({
+      scope: 'flow-editor-selection-bookkeeping-draft-graph',
+      graphData: draftGraphData,
       graphRevision: draftGraphDataRevision,
+      preferCurrentGraphDataRefs: true,
     })
-    if (!baseLookup) return null
-    const nodes = baseLookup.nodes
-    const nodeIdsByInnerId = new Map<string, string[]>()
-    for (let i = 0; i < nodes.length; i += 1) {
-      const node = nodes[i]
-      const id = String(node?.id || '').trim()
-      if (!id) continue
-      const innerId = splitComposedNodeId(id).inner
-      if (!innerId) continue
-      const existing = nodeIdsByInnerId.get(innerId)
-      if (existing) existing.push(id)
-      else nodeIdsByInnerId.set(innerId, [id])
-    }
-    return {
-      graph,
-      revision: draftGraphDataRevision,
-      nodes,
-      eligibleNodeIds: buildFlowWidgetEligibleNodeIdSet(nodes),
-      nodeById: baseLookup.nodeById,
-      nodeIdsByInnerId,
-    }
   }, [draftGraphData, draftGraphDataRevision])
 
   const resolveDraftGraphNode = React.useCallback((rawId: unknown): GraphNode | null => {

@@ -9,8 +9,83 @@ import {
   fetchWebpageHtmlAuto,
   fetchWebsiteImportArtifact,
 } from '@/lib/websites/webpageIframeSrcdoc'
-import { inferIframeScriptPolicyFromHtml, isHttpUrl } from '@/lib/url'
+import { buildCodebaseAssetPath, inferIframeScriptPolicyFromHtml, isHttpUrl, normalizeCodebaseRelPath } from '@/lib/url'
 import { getOrCreateWebpageSandboxBlobUrl } from '@/lib/websites/webpageSandboxBlobUrlCache'
+
+function resolveLocalCodebaseAssetUrl(args: {
+  rawUrl: string
+  fileDirRel: string
+  siteRootRel: string
+}): string | null {
+  const raw = String(args.rawUrl || '').trim()
+  if (!raw) return null
+  if (raw.startsWith('#')) return raw
+  if (/^(data:|blob:|mailto:|tel:|javascript:)/i.test(raw)) return raw
+  if (/^https?:\/\//i.test(raw)) return raw
+  if (raw.startsWith('//')) return `https:${raw}`
+  if (raw.startsWith('/__')) return raw
+  const rootRel = normalizeCodebaseRelPath(args.siteRootRel || args.fileDirRel)
+  const fileDirRel = normalizeCodebaseRelPath(args.fileDirRel)
+  const joined = raw.startsWith('/')
+    ? normalizeCodebaseRelPath(rootRel ? `${rootRel}/${raw.replace(/^\/+/, '')}` : raw)
+    : normalizeCodebaseRelPath(fileDirRel ? `${fileDirRel}/${raw}` : raw)
+  if (!joined) return null
+  return buildCodebaseAssetPath(joined)
+}
+
+function rewriteLocalHtmlSrcsetValue(
+  srcset: string,
+  args: { fileDirRel: string; siteRootRel: string },
+): string {
+  const raw = String(srcset || '').trim()
+  if (!raw) return raw
+  return raw
+    .split(',')
+    .map(part => {
+      const trimmed = String(part || '').trim()
+      if (!trimmed) return trimmed
+      const firstWhitespace = trimmed.search(/\s/)
+      const candidateUrl = firstWhitespace >= 0 ? trimmed.slice(0, firstWhitespace) : trimmed
+      const descriptor = firstWhitespace >= 0 ? trimmed.slice(firstWhitespace) : ''
+      const rewritten = resolveLocalCodebaseAssetUrl({
+        rawUrl: candidateUrl,
+        fileDirRel: args.fileDirRel,
+        siteRootRel: args.siteRootRel,
+      })
+      return rewritten ? `${rewritten}${descriptor}` : trimmed
+    })
+    .join(', ')
+}
+
+function rewriteLocalHtmlForCodebaseAssets(args: {
+  rawHtml: string
+  fileDirRel: string
+  siteRootRel: string
+}): string {
+  let next = String(args.rawHtml || '')
+  if (!next) return next
+  next = next.replace(/\b(src|href|poster|data)\s*=\s*(["'])([\s\S]*?)\2/gi, (_m, attr: string, quote: string, value: string) => {
+    const rewritten = resolveLocalCodebaseAssetUrl({
+      rawUrl: value,
+      fileDirRel: args.fileDirRel,
+      siteRootRel: args.siteRootRel,
+    })
+    return `${attr}=${quote}${rewritten || value}${quote}`
+  })
+  next = next.replace(/\b(srcset|data-srcset)\s*=\s*(["'])([\s\S]*?)\2/gi, (_m, attr: string, quote: string, value: string) => {
+    return `${attr}=${quote}${rewriteLocalHtmlSrcsetValue(value, args)}${quote}`
+  })
+  next = next.replace(/url\(\s*(["']?)([^)"']+)\1\s*\)/gi, (match: string, quote: string, value: string) => {
+    const rewritten = resolveLocalCodebaseAssetUrl({
+      rawUrl: value,
+      fileDirRel: args.fileDirRel,
+      siteRootRel: args.siteRootRel,
+    })
+    if (!rewritten || rewritten === value) return match
+    return `url(${quote}${rewritten}${quote})`
+  })
+  return next
+}
 
 export function useWebpageIframeSrcdoc(args: {
   enabled: boolean
@@ -181,37 +256,17 @@ export function useWebpageIframeSrcdoc(args: {
         if (parts.length <= 1) return ''
         return parts.slice(0, -1).join('/')
       })()
-      const encodePathForUrl = (rel: string): string =>
-        String(rel || '')
-          .replace(/\\/g, '/')
-          .split('/')
-          .filter(Boolean)
-          .map(seg => encodeURIComponent(seg))
-          .join('/')
-      const origin = (() => {
-        try {
-          return typeof window !== 'undefined' && window.location && typeof window.location.origin === 'string' ? window.location.origin : ''
-        } catch {
-          return ''
-        }
-      })()
       const baseHref = /^https?:\/\//i.test(url)
         ? url
-        : origin
-          ? `${origin}/__repo_file/${encodePathForUrl(localDirRel || siteRootRel || '')}${(localDirRel || siteRootRel) ? '/' : ''}`
-          : 'https://example.invalid/'
+        : 'https://example.invalid/'
 
       const htmlPreprocessed = (() => {
-        if (!origin) return rawHtml
         if (/^https?:\/\//i.test(url)) return rawHtml
-        const root = siteRootRel || localDirRel
-        if (!root) return rawHtml
-        if (!/(\b(src|href)\s*=\s*(["'])\s*\/(?!\/))|url\(\s*\/(?!\/)/i.test(rawHtml)) return rawHtml
-        const rootBase = `${origin}/__repo_file/${encodePathForUrl(root)}/`
-        let next = rawHtml
-        next = next.replace(/\b(src|href)\s*=\s*(["'])\s*\/(?!\/)/gi, (_m, a: string, q: string) => `${a}=${q}${rootBase}`)
-        next = next.replace(/url\(\s*\/(?!\/)/gi, `url(${rootBase}`)
-        return next
+        return rewriteLocalHtmlForCodebaseAssets({
+          rawHtml,
+          fileDirRel: localDirRel,
+          siteRootRel,
+        })
       })()
 
       onStatusProgressRef.current?.('Rendering HTML')
@@ -287,6 +342,7 @@ export function useWebpageIframeSrcdoc(args: {
     args.view,
     args.siteRootRel,
     args.includeImages,
+    args.websiteImportMeta,
     args.websiteImportMeta?.importId,
     args.websiteImportMeta?.nodeId,
     args.websiteImportMeta?.outputDirRel,

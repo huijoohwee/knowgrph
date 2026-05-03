@@ -29,12 +29,14 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas.runtime.tsx')
   const scenePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const surfacePath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlaySurface.tsx')
+  const renderGraphHelperPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
   const topologySignaturePath = path.resolve(process.cwd(), 'src', 'lib', 'flowEditor', 'overlayTopologyLayoutSignature.ts')
   const presentationPath = path.resolve(process.cwd(), 'src', 'components', 'GraphCanvasRoot', 'hooks', 'useD3PresentationUpdates2d.ts')
   const hookText = readUtf8(hookPath)
   const runtimeText = readUtf8(runtimePath)
   const sceneText = readUtf8(scenePath)
   const surfaceText = readUtf8(surfacePath)
+  const renderGraphHelperText = readUtf8(renderGraphHelperPath)
   const topologySignatureText = readUtf8(topologySignaturePath)
   const presentationText = readUtf8(presentationPath)
   if (!hookText.includes('const posSig = buildPosSignature(overlayNodeIds, st.flowWidgetPosByNodeId)')) {
@@ -43,8 +45,13 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes("import { hashScopedStringArraySignature, hashSignatureParts, normalizeStringArrayForSignature } from '@/lib/hash/signature'")) {
     throw new Error('expected overlay collision runtime to reuse shared semantic-key helpers instead of local join-based key assembly')
   }
-  if (!hookText.includes("cacheScope: 'flow-editor-overlay-collision-graph'") || !hookText.includes('getCachedGraphLookup({')) {
-    throw new Error('expected overlay collision runtime to reuse the shared graph lookup helper instead of rebuilding local node maps inside the settle loop')
+  if (
+    !renderGraphHelperText.includes("cacheScope: scope,")
+    || !renderGraphHelperText.includes('getCachedGraphLookup({')
+    || !hookText.includes("scope: 'flow-editor-overlay-collision-graph'")
+    || !hookText.includes('getCachedFlowEditorRenderGraph({')
+  ) {
+    throw new Error('expected overlay collision runtime to reuse the shared render-graph helper instead of rebuilding local node maps inside the settle loop')
   }
   if (!hookText.includes('const panelScaleKey = computeWidgetScaleKey(panelScale)')) {
     throw new Error('expected overlay collision key to bucket relayouts by stable floating scale')
@@ -91,8 +98,8 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('movable: true')) {
     throw new Error('expected floating overlays with stored positions to remain auto-rebalanceable')
   }
-  if (!hookText.includes('const nodeTypeById = new Map<string, string>()')) {
-    throw new Error('expected overlay collision path to derive node types for shared auto-placement authority decisions')
+  if (!hookText.includes('const nodeById = overlayGraphLookup?.nodeById || null')) {
+    throw new Error('expected overlay collision path to read node types from the shared render-graph node lookup')
   }
   if (!hookText.includes('shouldRebalanceCluster')) {
     throw new Error('expected overlay collision path to rebalance vertical clusters')
@@ -106,8 +113,8 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('const base = !hasStored || storedCollectiveIsResidue')) {
     throw new Error('expected overlay collision path to reseed stale horizontal/vertical stored residue from balanced cells')
   }
-  if (!hookText.includes('nodeTypeId: nodeTypeById.get(id) || \'\'')) {
-    throw new Error('expected overlay collision path to keep canonical frontmatter built-ins auto-rebalanceable after stored strip positions')
+  if (!hookText.includes("nodeTypeId: String(nodeById?.get(id)?.type || '').trim()")) {
+    throw new Error('expected overlay collision path to keep canonical frontmatter built-ins auto-rebalanceable through the shared node lookup')
   }
   if (!hookText.includes('if (stillOverlaps && changed)')) {
     throw new Error('expected overlay collision settle loop to stop rescheduling when no effective movement remains')
@@ -216,36 +223,57 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   }
 
   const overlayEdgesPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayEdges.ts')
+  const overlayEdgeRenderGraphHelperPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorRenderGraph.ts')
   const overlayEdgesText = readUtf8(overlayEdgesPath)
-  if (!overlayEdgesText.includes('readFlowEdgePortKey')) {
-    throw new Error('expected Flow Editor overlay edge rendering to resolve endpoint keys through shared flow port helpers')
+  const overlayEdgeRenderGraphHelperText = readUtf8(overlayEdgeRenderGraphHelperPath)
+  if (!overlayEdgeRenderGraphHelperText.includes("import { pickDefaultFlowPortKey, readFlowEdgePortKey } from '@/lib/graph/flowPorts'")) {
+    throw new Error('expected Flow Editor overlay edge graph helper to own shared flow port helper reuse')
   }
-  if (!overlayEdgesText.includes('pickDefaultFlowPortKey')) {
-    throw new Error('expected Flow Editor overlay edge rendering to reuse shared semantic default port-key helper')
+  if (!overlayEdgeRenderGraphHelperText.includes("const sourcePortKey =\n      readFlowEdgePortKey(edgeWithProps, 'source')")) {
+    throw new Error('expected Flow Editor overlay edge graph helper to resolve source endpoint keys through shared flow port helpers')
   }
-  if (!overlayEdgesText.includes('FLOW_HANDLE_DEFAULT_EDGE_ID')) {
-    throw new Error('expected Flow Editor overlay edge rendering to keep default handle fallback aligned with handle SSOT')
+  if (!overlayEdgeRenderGraphHelperText.includes("const targetPortKey =\n      readFlowEdgePortKey(edgeWithProps, 'target')")) {
+    throw new Error('expected Flow Editor overlay edge graph helper to resolve target endpoint keys through shared flow port helpers')
+  }
+  if (!overlayEdgeRenderGraphHelperText.includes("const outPortKey = pickDefaultFlowPortKey({ properties: node?.properties as never }, 'out') || FLOW_HANDLE_DEFAULT_EDGE_ID")) {
+    throw new Error('expected Flow Editor overlay edge graph helper to reuse shared semantic default out-port fallback')
+  }
+  if (!overlayEdgeRenderGraphHelperText.includes("const inPortKey = pickDefaultFlowPortKey({ properties: node?.properties as never }, 'in') || FLOW_HANDLE_DEFAULT_EDGE_ID")) {
+    throw new Error('expected Flow Editor overlay edge graph helper to reuse shared semantic default in-port fallback')
+  }
+  if (!overlayEdgesText.includes('const graphLookup = getCachedFlowEditorOverlayEdgeGraph({')) {
+    throw new Error('expected Flow Editor overlay edge rendering to consume the shared overlay edge graph helper')
+  }
+  if (!overlayEdgesText.includes('const defaultPortKeyByNodeId = graphLookup?.defaultPortKeyByNodeId || new Map<string, { in: string; out: string }>()')) {
+    throw new Error('expected Flow Editor overlay edge rendering to consume shared default port fallbacks from the overlay edge graph helper')
+  }
+  if (!overlayEdgesText.includes('e.sourcePortKey || FLOW_HANDLE_DEFAULT_EDGE_ID')) {
+    throw new Error('expected Flow Editor overlay edge rendering to keep default handle fallback aligned with the shared overlay edge graph output')
   }
   if (overlayEdgesText.includes('firstSchemaPortKeyByNodeId')) {
     throw new Error('expected Flow Editor overlay edge rendering to avoid local first-schema-port fallback aliases')
   }
 
   const workflowPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorWorkflowActions.ts')
+  const workflowWritebackPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowWriteback.ts')
+  const workflowRichMediaPanelPath = path.resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'flowEditorWorkflowRichMediaPanel.ts')
   const workflowText = readUtf8(workflowPath)
-  if (!workflowText.includes('function areRecordValuesEqual')) {
-    throw new Error('expected Run all output writes to compare semantic property values before replacing node objects')
+  const workflowWritebackText = readUtf8(workflowWritebackPath)
+  const workflowRichMediaPanelText = readUtf8(workflowRichMediaPanelPath)
+  if (!workflowWritebackText.includes('export function areFlowEditorWorkflowRecordValuesEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean')) {
+    throw new Error('expected shared workflow writeback helper to compare semantic property values before replacing node objects')
   }
-  if (!workflowText.includes('if (areRecordValuesEqual(currentProps, nextProps)) return existing')) {
-    throw new Error('expected Run all draft output writes to skip unchanged output/loading patches')
+  if (!workflowWritebackText.includes('if (areFlowEditorWorkflowRecordValuesEqual(currentProps, nextProps)) return existing')) {
+    throw new Error('expected shared workflow writeback helper to skip unchanged draft output/loading patches')
   }
-  if (!workflowText.includes('if (updated) scheduleWorkflowOutputEdgeRefresh()')) {
-    throw new Error('expected Run all to refresh overlay edges only after an actual output write')
+  if (!workflowWritebackText.includes('if (updated) args.scheduleWorkflowOutputEdgeRefresh()')) {
+    throw new Error('expected shared workflow writeback helper to refresh overlay edges only after an actual output write')
   }
   if (!workflowText.includes('const allowCreateRichMediaPanel = runOptions?.allowCreateRichMediaPanel !== false')) {
     throw new Error('expected workflow node runs to expose an explicit topology creation gate for Rich Media Panel mirroring')
   }
-  if (!workflowText.includes('if (!allowCreateRichMediaPanel) return null')) {
-    throw new Error('expected Rich Media Panel mirroring to skip node creation when Run all is output-only')
+  if (!workflowRichMediaPanelText.includes('if (!args.allowCreateRichMediaPanel) return null')) {
+    throw new Error('expected shared Rich Media Panel helper to skip node creation when Run all is output-only')
   }
   if (!workflowText.includes('await runWorkflowNode(ids[i]!, { allowCreateRichMediaPanel: false })')) {
     throw new Error('expected Toolbar Run all to write outputs into existing nodes only without appending Rich Media Panel nodes')
@@ -256,11 +284,11 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!workflowText.includes('args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))')) {
     throw new Error('expected Run all output writes to update the draft ref synchronously before React state catches up')
   }
-  if (!workflowText.includes('function bumpDraftGraphDataRevision(graphData: GraphData): GraphData')) {
-    throw new Error('expected Run all output writes to bump the live draft graph revision for connected-value cache invalidation')
+  if (!workflowWritebackText.includes('export function bumpFlowEditorWorkflowDraftGraphDataRevision(graphData: GraphData): GraphData')) {
+    throw new Error('expected shared workflow writeback helper to bump the live draft graph revision for connected-value cache invalidation')
   }
-  if (!workflowText.includes('const nextDraft = bumpDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })')) {
-    throw new Error('expected Run all output writes to bump revision at the same SSOT draft mutation point')
+  if (!workflowWritebackText.includes('const nextDraft = bumpFlowEditorWorkflowDraftGraphDataRevision({ ...currentDraft, nodes: nextNodes })')) {
+    throw new Error('expected shared workflow writeback helper to bump revision at the same SSOT draft mutation point')
   }
   if (workflowText.includes("await runWorkflowNode(ids[i]!, { allowCreateRichMediaPanel: false })\n        scheduleWorkflowOutputEdgeRefresh()")) {
     throw new Error('expected Run all to avoid unconditional overlay edge refresh churn between nodes')

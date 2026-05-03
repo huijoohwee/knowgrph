@@ -7,13 +7,13 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   const overlayPath = resolve(process.cwd(), 'src', 'components', 'FlowEditor', 'NodeOverlayEditor.tsx')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorRuntimeScene.ts')
   const collisionPath = resolve(process.cwd(), 'src', 'components', 'FlowEditorCanvas', 'runtime', 'useFlowEditorOverlayCollision.ts')
-  const graphDataSlicePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graphDataSlice.ts')
+  const graphDataCommitActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataCommitActions.ts')
   const sharedText = readFileSync(sharedPath, 'utf8')
   const authorityText = readFileSync(authorityPath, 'utf8')
   const overlayText = readFileSync(overlayPath, 'utf8')
   const runtimeText = readFileSync(runtimeScenePath, 'utf8')
   const collisionText = readFileSync(collisionPath, 'utf8')
-  const graphDataSliceText = readFileSync(graphDataSlicePath, 'utf8')
+  const graphDataCommitActionsText = readFileSync(graphDataCommitActionsPath, 'utf8')
 
   if (!sharedText.includes('export {')) {
     throw new Error('expected Flow Editor canvas shared module to re-export pure widget placement authority helpers')
@@ -54,13 +54,19 @@ export function testFlowEditorFrontmatterManualPlacementAuthorityUsesSharedHelpe
   if (!collisionText.includes('shouldAutoPlaceFlowEditorWidget')) {
     throw new Error('expected floating widget collision auto-placement to reuse the shared auto-placement authority helper')
   }
-  if (!collisionText.includes('nodeTypeId: nodeTypeById.get(id) || \'\'')) {
-    throw new Error('expected floating widget collision auto-placement to pass built-in node-type context into the shared helper')
+  if (!collisionText.includes("nodeTypeId: String(nodeById?.get(id)?.type || '').trim()")) {
+    throw new Error('expected floating widget collision auto-placement to pass built-in node-type context through the shared node lookup helper')
   }
-  if (!graphDataSliceText.includes('stripFrontmatterAutoManagedWidgetScreenPositions')) {
+  if (!authorityText.includes('export function shouldPreserveFrontmatterAutoManagedBalancedCollective')) {
+    throw new Error('expected widget placement authority SSOT to expose a pure helper for preserving only balanced floating frontmatter collectives')
+  }
+  if (!graphDataCommitActionsText.includes('stripFrontmatterAutoManagedWidgetScreenPositions')) {
     throw new Error('expected graph commit path to strip stale frontmatter built-in screen positions via the shared authority helper')
   }
-  if (!graphDataSliceText.includes('preserveBalancedCollective: args.preserveStableSameSourceOverlayState')) {
+  if (!graphDataCommitActionsText.includes('shouldPreserveFrontmatterAutoManagedBalancedCollective')) {
+    throw new Error('expected graph commit path to detect balanced floating frontmatter collectives before carrying overlay state across same-source layout churn')
+  }
+  if (!graphDataCommitActionsText.includes('preserveBalancedCollective: args.preserveStableSameSourceOverlayState')) {
     throw new Error('expected graph commit path to preserve only balanced same-source frontmatter collective screen layouts')
   }
 }

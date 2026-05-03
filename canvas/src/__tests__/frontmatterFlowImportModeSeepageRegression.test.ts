@@ -2,8 +2,11 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { applyFrontmatterFlowImportModes } from '@/features/parsers/frontmatterFlowImportMode'
 import { applyInteractiveImportModes } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { resolveCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
+import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
+import { materializeActiveWorkspaceEntryIntoSourceFiles } from '@/features/source-files/sourceFilesRuntimeShared'
 import { LS_KEYS } from '@/lib/config'
 import { readGlobalEdgeType } from '@/lib/graph/edgeTypes'
+import { lsBool } from '@/lib/persistence'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -148,7 +151,7 @@ export function testWorkspaceImportModesNormalizeRendererAliasesAndExplicitTable
 
   const preset = resolveCanvasFrontmatterPreset({ rawText })
   if (!preset) throw new Error('expected flowchart alias preset to resolve')
-  if (preset.canvas2dRenderer !== 'd3Bipartite') throw new Error(`expected Flowchart alias to normalize to d3Bipartite, got ${String(preset.canvas2dRenderer)}`)
+  if (preset.canvas2dRenderer !== 'flowchart') throw new Error(`expected Flowchart alias to normalize to flowchart, got ${String(preset.canvas2dRenderer)}`)
   if (preset.documentSemanticMode !== 'keyword') throw new Error(`expected Keyword Mode alias to normalize to keyword, got ${String(preset.documentSemanticMode)}`)
   if (preset.frontmatterModeEnabled !== false) throw new Error('expected explicit frontmatter OFF to resolve')
   if (preset.multiDimTableModeEnabled !== true) throw new Error('expected explicit multi-dimensional table mode ON to resolve')
@@ -157,7 +160,7 @@ export function testWorkspaceImportModesNormalizeRendererAliasesAndExplicitTable
 
   const st = useGraphStore.getState()
   if (st.canvasRenderMode !== '2d') throw new Error(`expected explicit preset to force 2d canvas render mode, got ${String(st.canvasRenderMode)}`)
-  if (st.canvas2dRenderer !== 'd3Bipartite') throw new Error(`expected Flowchart alias landing to use d3Bipartite, got ${String(st.canvas2dRenderer)}`)
+  if (st.canvas2dRenderer !== 'flowchart') throw new Error(`expected Flowchart alias landing to use flowchart, got ${String(st.canvas2dRenderer)}`)
   if (st.documentSemanticMode !== 'keyword') throw new Error(`expected explicit keyword mode landing, got ${String(st.documentSemanticMode)}`)
   if (st.frontmatterModeEnabled !== false) throw new Error('expected explicit frontmatter OFF to be preserved')
   if (st.multiDimTableModeEnabled !== true) throw new Error('expected explicit multi-dimensional table mode ON to be preserved')
@@ -168,7 +171,7 @@ export function testWorkspaceImportModesNormalizeFlowCanvasAliasToFrontmatterOnl
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)
   useGraphStore.getState().setCanvasRenderMode('2d')
-  useGraphStore.getState().setCanvas2dRenderer('d3Bipartite')
+  useGraphStore.getState().setCanvas2dRenderer('flowchart')
   useGraphStore.getState().setDocumentSemanticMode('keyword')
   useGraphStore.getState().setFrontmatterModeEnabled(false)
   useGraphStore.getState().setMultiDimTableModeEnabled(true)
@@ -225,6 +228,101 @@ export function testCanvasFrontmatterPresetDisablesGeospatialOverlayFor2dDocumen
     if (next !== '0' && next !== 'false') {
       throw new Error(`expected 2d frontmatter preset to disable geospatial overlay, got ${String(next)}`)
     }
+  } finally {
+    restore()
+  }
+}
+
+export function testCanvasFrontmatterPresetEnablesGeospatialSurfaceMode() {
+  const { restore } = initJsdomHarness()
+  try {
+    useGraphStore.getState().resetAll()
+    window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, 'false')
+    useGraphStore.getState().setCanvasRenderMode('3d')
+    useGraphStore.getState().setCanvas2dRenderer('d3')
+    useGraphStore.getState().setDocumentSemanticMode('keyword')
+    useGraphStore.getState().setFrontmatterModeEnabled(false)
+    useGraphStore.getState().setMultiDimTableModeEnabled(true)
+
+    const rawText = [
+      '---',
+      'title: "GrabMaps Surface Preset"',
+      'kgCanvasSurfaceMode: "geospatial"',
+      'kgCanvas2dRenderer: "flowEditor"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: true',
+      'kgMultiDimTableModeEnabled: false',
+      'kgDocumentStructureBaselineLock: false',
+      '---',
+      '',
+      '# GrabMaps Surface Preset',
+    ].join('\n')
+
+    const preset = resolveCanvasFrontmatterPreset({ rawText })
+    if (!preset) throw new Error('expected geospatial surface preset to resolve')
+    if (preset.canvasSurfaceMode !== 'geospatial') {
+      throw new Error(`expected geospatial surface mode, got ${String(preset.canvasSurfaceMode || '')}`)
+    }
+
+    applyInteractiveImportModes({ rawText })
+
+    const st = useGraphStore.getState()
+    const next = window.localStorage.getItem(LS_KEYS.geospatialOverlayEnabled)
+    if (next !== '1' && next !== 'true') {
+      throw new Error(`expected geospatial surface preset to enable geospatial overlay, got ${String(next)}`)
+    }
+    if (st.canvasRenderMode !== '2d') throw new Error(`expected geospatial surface preset to normalize render mode to 2d, got ${String(st.canvasRenderMode)}`)
+    if (st.canvas2dRenderer !== 'flowEditor') throw new Error(`expected geospatial surface preset to preserve flowEditor renderer, got ${String(st.canvas2dRenderer)}`)
+    if (st.documentSemanticMode !== 'document') throw new Error(`expected geospatial surface preset to apply document semantic mode, got ${String(st.documentSemanticMode)}`)
+    if (st.frontmatterModeEnabled !== true) throw new Error('expected geospatial surface preset to enable frontmatter mode')
+    if (st.multiDimTableModeEnabled !== false) throw new Error('expected geospatial surface preset to disable multi-dimensional table mode')
+  } finally {
+    restore()
+  }
+}
+
+export function testCanvasFrontmatterPresetEnables3dSurfaceModeAndVoxelMode() {
+  const { restore } = initJsdomHarness()
+  try {
+    useGraphStore.getState().resetAll()
+    window.localStorage.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
+    useGraphStore.getState().setCanvasRenderMode('2d')
+    useGraphStore.getState().setCanvas3dMode('3d')
+    useGraphStore.getState().setCanvas2dRenderer('flowchart')
+    useGraphStore.getState().setDocumentSemanticMode('document')
+    useGraphStore.getState().setFrontmatterModeEnabled(false)
+    useGraphStore.getState().setMultiDimTableModeEnabled(false)
+
+    const rawText = [
+      '---',
+      'title: "3D Surface Preset"',
+      'kgCanvasSurfaceMode: "3d"',
+      'kgCanvas3dMode: "voxel"',
+      'kgCanvas2dRenderer: "flowchart"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: false',
+      'kgMultiDimTableModeEnabled: false',
+      'kgDocumentStructureBaselineLock: false',
+      '---',
+      '',
+      '# 3D Surface Preset',
+    ].join('\n')
+
+    const preset = resolveCanvasFrontmatterPreset({ rawText })
+    if (!preset) throw new Error('expected 3d surface preset to resolve')
+    if (preset.canvasSurfaceMode !== '3d') throw new Error(`expected 3d surface mode, got ${String(preset.canvasSurfaceMode || '')}`)
+    if (preset.canvas3dMode !== 'voxel') throw new Error(`expected voxel 3d mode, got ${String(preset.canvas3dMode || '')}`)
+
+    applyInteractiveImportModes({ rawText })
+
+    const st = useGraphStore.getState()
+    const next = window.localStorage.getItem(LS_KEYS.geospatialOverlayEnabled)
+    if (next !== '0' && next !== 'false') {
+      throw new Error(`expected 3d surface preset to disable geospatial overlay, got ${String(next)}`)
+    }
+    if (st.canvasRenderMode !== '3d') throw new Error(`expected 3d surface preset to force 3d render mode, got ${String(st.canvasRenderMode)}`)
+    if (st.canvas3dMode !== 'voxel') throw new Error(`expected 3d surface preset to force voxel mode, got ${String(st.canvas3dMode)}`)
+    if (st.canvas2dRenderer !== 'flowchart') throw new Error(`expected 3d surface preset to preserve flowchart renderer, got ${String(st.canvas2dRenderer)}`)
   } finally {
     restore()
   }
@@ -387,6 +485,109 @@ export function testInitializationWorkspaceSelectionPromotesAtomicGraphAndPreset
   }
   if (!runtimeIoText.includes('applyViewPreset: args.applyViewPreset ?? false')) {
     throw new Error('expected shared workspace active-document refresh helper to remain passive unless callers opt into preset landing')
+  }
+}
+
+export async function testInitializationWorkspaceMaterializationPreservesCanonicalDocumentGraph() {
+  const { restore } = initJsdomHarness()
+  const previousRaf = typeof window !== 'undefined' ? window.requestAnimationFrame : undefined
+  try {
+    useGraphStore.getState().resetAll()
+    useGraphStore.getState().setDocumentStructureBaselineLock(false)
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+        callback(0)
+        return 1
+      }) as typeof window.requestAnimationFrame
+    }
+
+    const readmeText = fs.readFileSync(path.resolve(process.cwd(), '..', 'README.md'), 'utf8')
+    const videoText = fs.readFileSync(path.resolve(process.cwd(), '..', 'knowgrph-video-demo.md'), 'utf8')
+    const geospatialText = fs.readFileSync(
+      path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'knowgrph-maps-grabmap-multim-demo.md'),
+      'utf8',
+    )
+    const workspaceFs = createMemoryWorkspaceFs({
+      initialEntries: [
+        { path: '/README.md', parentPath: '/', kind: 'file', name: 'README.md', text: readmeText, updatedAtMs: 1 },
+        {
+          path: '/knowgrph-video-demo.md',
+          parentPath: '/',
+          kind: 'file',
+          name: 'knowgrph-video-demo.md',
+          text: videoText,
+          updatedAtMs: 2,
+        },
+        {
+          path: '/knowgrph-maps-grabmap-multim-demo.md',
+          parentPath: '/',
+          kind: 'file',
+          name: 'knowgrph-maps-grabmap-multim-demo.md',
+          text: geospatialText,
+          updatedAtMs: 3,
+        },
+      ],
+    })
+    const workspaceEntries = await workspaceFs.listEntries()
+
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: '/knowgrph-video-demo.md',
+      fs: workspaceFs,
+      workspaceEntries,
+      sourcesByPath: {},
+      applyToGraph: true,
+    })
+
+    const afterVideo = useGraphStore.getState()
+    if (afterVideo.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected video-demo initialization materialization to preserve flowEditor landing, got ${String(afterVideo.canvas2dRenderer)}`)
+    }
+    if ((afterVideo.graphData?.nodes || []).some(node => String(node?.id || '').includes('::'))) {
+      throw new Error('expected video-demo initialization materialization to preserve canonical parsed graph ids instead of composed source-layer ids')
+    }
+
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: '/README.md',
+      fs: workspaceFs,
+      workspaceEntries,
+      sourcesByPath: {},
+      applyToGraph: true,
+    })
+
+    const afterReadme = useGraphStore.getState()
+    if (afterReadme.canvas2dRenderer !== 'd3') {
+      throw new Error(`expected README initialization materialization to preserve d3 landing, got ${String(afterReadme.canvas2dRenderer)}`)
+    }
+    if ((afterReadme.graphData?.nodes || []).some(node => String(node?.id || '').includes('::'))) {
+      throw new Error('expected README initialization materialization to preserve canonical parsed graph ids instead of composed source-layer ids')
+    }
+
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: '/knowgrph-maps-grabmap-multim-demo.md',
+      fs: workspaceFs,
+      workspaceEntries,
+      sourcesByPath: {},
+      applyToGraph: true,
+    })
+
+    const afterGeospatial = useGraphStore.getState()
+    if (afterGeospatial.canvas2dRenderer !== 'flowEditor') {
+      throw new Error(`expected geospatial initialization materialization to preserve flowEditor landing, got ${String(afterGeospatial.canvas2dRenderer)}`)
+    }
+    if (afterGeospatial.canvasRenderMode !== '2d') {
+      throw new Error(`expected geospatial initialization materialization to preserve 2d surface mode, got ${String(afterGeospatial.canvasRenderMode)}`)
+    }
+    if (afterGeospatial.frontmatterModeEnabled !== true) {
+      throw new Error('expected geospatial initialization materialization to preserve frontmatter mode')
+    }
+    if (!lsBool(LS_KEYS.geospatialOverlayEnabled, false)) {
+      throw new Error('expected geospatial initialization materialization to enable geospatial surface mode')
+    }
+  } finally {
+    if (typeof window !== 'undefined' && previousRaf) {
+      window.requestAnimationFrame = previousRaf
+    }
+    restore()
   }
 }
 

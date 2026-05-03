@@ -57,3 +57,22 @@ export async function testMarkdownFileTreeContextMenuItemsReuseSharedDefinitions
     throw new Error(`expected copy actions to reuse absolute and relative path logic, got ${copied.join(',')}`)
   }
 }
+
+export async function testMarkdownFileTreeContextMenuItemsHideMutationsForInitializationFiles() {
+  const items = buildMarkdownFileTreeContextMenuItems({
+    entry: {
+      path: '/README.md',
+      parentPath: '/',
+      kind: 'file',
+      name: 'README.md',
+      updatedAtMs: 0,
+    },
+    copyToClipboard: async () => true,
+    closeContextMenu: () => void 0,
+  })
+
+  const labels = items.map(item => item.label).join(',')
+  if (labels !== 'Reveal in Finder,Copy Path,Copy Relative Path') {
+    throw new Error(`expected initialization-file menu to hide rename and delete, got ${labels}`)
+  }
+}

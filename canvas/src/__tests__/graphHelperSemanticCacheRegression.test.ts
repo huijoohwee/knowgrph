@@ -25,12 +25,14 @@ export function testGraphHelperCachesReuseSemanticKeysInsteadOfRawGraphIdentity(
   }
 
   if (
-    !selectionTargetsText.includes("buildScopedGraphSemanticKey('selection-zoom-adjacency'")
-    || !selectionTargetsText.includes("cacheScope: 'selection-zoom-adjacency'")
-    || !selectionTargetsText.includes('const adjCache = new Map<string, Map<string, Set<string>>>()')
+    !selectionTargetsText.includes("import { getAdjacencyMap } from '@/components/GraphCanvas/adjacency'")
+    || !selectionTargetsText.includes('const adj = getAdjacencyMap(graphData)')
+    || selectionTargetsText.includes("buildScopedGraphSemanticKey('selection-zoom-adjacency'")
+    || selectionTargetsText.includes("cacheScope: 'selection-zoom-adjacency'")
+    || selectionTargetsText.includes('const adjCache = new Map<string, Map<string, Set<string>>>()')
     || selectionTargetsText.includes('new WeakMap<GraphData')
   ) {
-    throw new Error('expected selection zoom adjacency cache to use semantic keys and shared graph lookup reuse')
+    throw new Error('expected selection zoom logic to reuse the shared GraphCanvas adjacency SSOT instead of owning a duplicate adjacency cache')
   }
 
   if (

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
 import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 
 export function testOverlaySizingHelperIsReusedAcrossCanvasAndOverlayPaths() {
@@ -75,5 +76,44 @@ export function testOverlaySizingInputFromStoreStateKeepsStableReferencesForEqua
   })
   if (changed === first) {
     throw new Error('expected shared overlay sizing input helper to publish a new snapshot when sizing values change')
+  }
+}
+
+export function testOverlayHalfExtentsByNodeId2dReusesSharedNodePropertiesReader() {
+  const halfExtentsPath = resolve(process.cwd(), 'src', 'lib', 'render', 'overlayHalfExtentsByNodeId2d.ts')
+  const text = readFileSync(halfExtentsPath, 'utf8')
+  if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected overlay half-extents derivation to reuse the shared node properties reader upstream')
+  }
+  if (!text.includes('const props = readNodeProperties(n)')) {
+    throw new Error('expected overlay half-extents derivation to reuse the shared node properties reader for visual sizing props')
+  }
+  if (text.includes("const rec = props && typeof props === 'object' && !Array.isArray(props) ? (props as Record<string, unknown>) : null")) {
+    throw new Error('expected overlay half-extents derivation to stop coercing node properties inline')
+  }
+}
+
+export function testOverlayHalfExtentsByNodeId2dUsesVisualPropsWhenPresent() {
+  const out = computeOverlayHalfExtentsByNodeId2d({
+    nodes: [
+      {
+        id: 'panel-1',
+        type: 'RichMediaPanel',
+        properties: {
+          'visual:width': 240,
+          'visual:height': 120,
+        },
+      } as never,
+    ],
+    panelOnlyNodeIdSet: new Set(['panel-1']),
+    viewportW: 1200,
+    viewportH: 800,
+    zoomK: 1,
+    mediaPanelDensity: 'default',
+  })
+  const panel = out?.['panel-1']
+  if (!panel) throw new Error('expected overlay half-extents for selected panel node')
+  if (panel.halfW !== 120 || panel.halfH !== 60) {
+    throw new Error(`expected overlay half-extents to reuse explicit visual props, got ${JSON.stringify(panel)}`)
   }
 }

@@ -155,6 +155,12 @@ export async function testMermaidFrontmatterGeometryReusesSharedRenderSeam() {
   if (!geometryText.includes('...toMetadataRecord(args.graphData.metadata),')) {
     throw new Error('expected shared graph finalization helper to reuse the shared document metadata coercion helper before writing Mermaid layout metadata')
   }
+  if (!geometryText.includes('const m = toMetadataRecord(n.metadata)')) {
+    throw new Error('expected Mermaid block-order metadata reads to reuse the shared document metadata coercion helper')
+  }
+  if (geometryText.includes("const m = meta && typeof meta === 'object' && !Array.isArray(meta) ? (meta as Record<string, unknown>) : null")) {
+    throw new Error('expected Mermaid block-order metadata reads to stop coercing metadata inline')
+  }
   if (!geometryText.includes('const renderInput = resolveMermaidFrontmatterRenderInput(args)')) {
     throw new Error('expected Mermaid frontmatter renderer to reuse shared render input resolution helper')
   }

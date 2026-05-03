@@ -5,14 +5,14 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
 import { hashScopedStringArraySignature, hashSignatureParts, normalizeStringArrayForSignature } from '@/lib/hash/signature'
-import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
+import type { GraphData } from '@/lib/graph/types'
 import { getEffectiveZoomStateForKey, getZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { readFlowLayoutKnobs } from '@/lib/graph/layoutDefaults'
-import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import {
   collectCanonicalFlowEditorOverlayRectEntries,
   FLOW_EDITOR_OVERLAY_ROOT_SELECTOR,
@@ -33,6 +33,7 @@ import {
   isHorizontalOverlayStrip,
   isVerticalOverlayCluster,
 } from '@/lib/ui/overlayBalancedSpread'
+import { getCachedFlowEditorRenderGraph } from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 
 function hasOverlap(
   a: { left: number; top: number; width?: number; height?: number },
@@ -60,6 +61,12 @@ function quantizeOverlayPos(v: number): number {
 
 function normalizeOverlaySignatureIds(ids: string[]): string[] {
   return normalizeStringArrayForSignature(ids, { unique: true, sort: true })
+}
+
+function escapeSelectorAttrValue(value: string): string {
+  const text = String(value || '')
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(text)
+  return text.replace(/["\\]/g, '\\$&')
 }
 
 function buildPosSignature(
@@ -136,7 +143,7 @@ export function useFlowEditorOverlayCollision(args: {
     if (typeof document === 'undefined') return []
     const surfaceId = String(flowEditorSurfaceId || '').trim()
     const surfaceRoot = surfaceId
-      ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${CSS.escape(surfaceId)}"]`)
+      ? document.querySelector<HTMLElement>(`[${FLOW_EDITOR_OVERLAY_SURFACE_ROOT_ATTR}="${escapeSelectorAttrValue(surfaceId)}"]`)
       : null
     const queryRoot: ParentNode = surfaceRoot || document
     return Array.from(queryRoot.querySelectorAll<HTMLElement>(selector))
@@ -199,23 +206,17 @@ export function useFlowEditorOverlayCollision(args: {
       overlayCollisionWarmupAttemptsRef.current = 0
 
       const graphDataForOverlayRuntime = draftGraphDataRef.current || renderGraphDataOverride || null
-      const graphKind = String((((graphDataForOverlayRuntime || null)?.metadata || {}) as Record<string, unknown>).kind || '').trim()
-      const isFrontmatterFlow = graphKind === 'frontmatter-flow'
-      const graphMeta = graphDataForOverlayRuntime?.metadata
-      const graphRevision =
-        graphMeta && typeof graphMeta === 'object' && !Array.isArray(graphMeta)
-          ? (() => {
-              const raw = (graphMeta as Record<string, unknown>).graphDataRevision
-              return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0
-            })()
-          : 0
-      const overlayGraphLookup = getCachedGraphLookup({
-        cacheScope: 'flow-editor-overlay-collision-graph',
+      const graphRevision = readGraphDataRevision(graphDataForOverlayRuntime)
+      const overlayGraphLookup = getCachedFlowEditorRenderGraph({
+        scope: 'flow-editor-overlay-collision-graph',
         graphData: graphDataForOverlayRuntime,
         graphRevision,
+        preferCurrentGraphDataRefs: true,
       })
+      const graphKind = overlayGraphLookup?.graphMetaKind || ''
+      const isFrontmatterFlow = graphKind === 'frontmatter-flow'
       const nodes = overlayGraphLookup?.nodes || []
-      const nodeById = overlayGraphLookup?.nodeById || new Map<string, GraphNode>()
+      const nodeById = overlayGraphLookup?.nodeById || null
       const nodeZKeyById = buildNodeZKeyById({ nodes, groups: [] })
       const compareByVisualIndex = (aId: string, bId: string): number => {
         if (!aId || !bId) return String(aId || '').localeCompare(String(bId || ''))
@@ -300,14 +301,6 @@ export function useFlowEditorOverlayCollision(args: {
       const floatingScaled = computeWidgetScaledSize(panelScale)
       const pinnedById = st.flowWidgetPinnedByNodeId || {}
       const posById = st.flowWidgetPosByNodeId || {}
-      const nodeTypeById = new Map<string, string>()
-      const graphNodes = Array.isArray(graphDataForOverlayRuntime?.nodes) ? (graphDataForOverlayRuntime.nodes as GraphNode[]) : []
-      for (let i = 0; i < graphNodes.length; i += 1) {
-        const node = graphNodes[i]
-        const id = String(node?.id || '').trim()
-        if (!id) continue
-        nodeTypeById.set(id, String(node?.type || '').trim())
-      }
       const canvasOffsetLeft = Number.isFinite(canvasOffset.left) ? canvasOffset.left : 0
       const canvasOffsetTop = Number.isFinite(canvasOffset.top) ? canvasOffset.top : 0
       const rectByNodeId = new Map<string, { left: number; top: number; width: number; height: number }>()
@@ -429,7 +422,7 @@ export function useFlowEditorOverlayCollision(args: {
             graphMetaKind: graphKind,
             pinnedInCanvas: false,
             floatingPos: posById[id],
-            nodeTypeId: nodeTypeById.get(id) || '',
+            nodeTypeId: String(nodeById?.get(id)?.type || '').trim(),
           })) return null
           const stored = posById[id]
           if (!stored || !Number.isFinite(stored.top) || !Number.isFinite(stored.left)) return null
@@ -463,7 +456,7 @@ export function useFlowEditorOverlayCollision(args: {
           graphMetaKind: graphKind,
           pinnedInCanvas: false,
           floatingPos: posById[id],
-          nodeTypeId: nodeTypeById.get(id) || '',
+          nodeTypeId: String(nodeById?.get(id)?.type || '').trim(),
         })) {
           if (rect) pinnedObstacles.push({ id, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
           continue

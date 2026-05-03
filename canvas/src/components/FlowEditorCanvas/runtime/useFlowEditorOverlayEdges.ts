@@ -9,7 +9,6 @@ import {
   hashSignatureParts,
 } from '@/lib/hash/signature'
 import { type ToolMode, isRecord, pickString } from '@/components/FlowEditorCanvas/flowEditorCanvasShared'
-import { buildOverlayTopologyLayoutSignature } from '@/lib/flowEditor/overlayTopologyLayoutSignature'
 import {
   CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
   FLOW_EDITOR_INTERACTION_FRAME_EVENT,
@@ -22,10 +21,7 @@ import {
 import {
   FLOW_EDGE_SOURCE_PORT_KEY,
   FLOW_EDGE_TARGET_PORT_KEY,
-  pickDefaultFlowPortKey,
-  readFlowEdgePortKey,
 } from '@/lib/graph/flowPorts'
-import { canonicalNodeIdSetHas, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphEdge } from '@/lib/graph/types'
 import {
@@ -46,31 +42,10 @@ import {
   isFlowEditorQeTraceEnabled,
   pushFlowEditorQeTrace,
 } from '@/lib/flowEditor/flowEditorQeTrace'
-
-function buildOverlayNodeHandleSignature(
-  nodes: ReadonlyArray<{ id?: unknown; type?: unknown; properties?: unknown }>,
-): string {
-  if (!Array.isArray(nodes) || nodes.length === 0) return ''
-  const parts = nodes
-    .map(node => {
-      const id = readCanonicalOverlayIdentity(node?.id)
-      if (!id) return ''
-      return [
-        id,
-        String(node?.type || '').trim(),
-        hashRecordSignature32(node?.properties || {}, { maxEntries: 24, maxDepth: 3 }),
-      ].join(':')
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b))
-  return hashSignatureParts(['overlay-node-handle-signature', ...parts])
-}
-
-function readCanonicalOverlayIdentity(rawId: unknown): string {
-  const id = String(rawId || '').trim()
-  if (!id) return ''
-  return splitComposedNodeId(id).inner || id
-}
+import {
+  getCachedFlowEditorOverlayEdgeGraph,
+  readCanonicalFlowEditorOverlayIdentity,
+} from '@/components/FlowEditorCanvas/runtime/flowEditorRenderGraph'
 
 function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>) {
   for (const el of ref.current.values()) {
@@ -128,21 +103,6 @@ export function useFlowEditorOverlayEdges(args: {
   const lastStableOverlayEdgeNodeIdsRef = React.useRef<string[]>([])
   const lastStableOverlayEdgeGraphRef = React.useRef<GraphData | null>(null)
   const overlayEdgeWorkspaceCloseRecoveryUntilRef = React.useRef(0)
-  const overlayGraphLookupCacheRef = React.useRef<{
-    key: string
-    nodes: Array<{ id: unknown; type?: unknown; properties?: unknown }>
-    nodeIds: Set<string>
-    defaultPortKeyByNodeId: Map<string, { in: string; out: string }>
-    rawEdgeById: Map<string, GraphEdge>
-    edges: Array<{
-      id: string
-      source: string
-      target: string
-      sourcePortKey: string
-      targetPortKey: string
-      edgeType: string
-    }>
-  } | null>(null)
   const workspaceOverlayOpenRef = React.useRef(false)
   const scheduleOverlayEdgeUpdateRef = React.useRef<() => void>(() => void 0)
   const overlayEdgeTopPctCacheRef = React.useRef<{
@@ -171,7 +131,6 @@ export function useFlowEditorOverlayEdges(args: {
     overlayEdgeTransientRetryRef.current = null
     overlayEdgePartialNodeSetRetryRef.current = null
     overlayEdgeReadinessRetryRef.current = null
-    overlayGraphLookupCacheRef.current = null
   }, [])
 
   const cacheFrozenOverlayEdgePaths = React.useCallback(() => {
@@ -544,7 +503,7 @@ export function useFlowEditorOverlayEdges(args: {
         for (let i = 0; i < els.length; i += 1) {
           const el = els[i]
           if (readFlowEditorOverlaySurfaceId(el) !== surfaceId) continue
-          const id = readCanonicalOverlayIdentity(readCanvasOverlayNodeId(el))
+          const id = readCanonicalFlowEditorOverlayIdentity(readCanvasOverlayNodeId(el))
           if (!id) continue
           entries.push({ id, el })
         }
@@ -558,17 +517,17 @@ export function useFlowEditorOverlayEdges(args: {
         const sel = String(args.pendingOverlayNodeIdRef.current || '').trim()
         const set = new Set<string>()
         for (let i = 0; i < liveIds.length; i += 1) {
-          const id = readCanonicalOverlayIdentity(liveIds[i])
+          const id = readCanonicalFlowEditorOverlayIdentity(liveIds[i])
           if (id) set.add(id)
         }
         for (let i = 0; i < domOverlayRootEntries.length; i += 1) {
-          const id = readCanonicalOverlayIdentity(domOverlayRootEntries[i]?.id)
+          const id = readCanonicalFlowEditorOverlayIdentity(domOverlayRootEntries[i]?.id)
           if (id) set.add(id)
         }
-        if (sel) set.add(readCanonicalOverlayIdentity(sel))
+        if (sel) set.add(readCanonicalFlowEditorOverlayIdentity(sel))
         const liveSetSize = set.size
         const stableIds = lastStableOverlayEdgeNodeIdsRef.current
-          .map(id => readCanonicalOverlayIdentity(id))
+          .map(id => readCanonicalFlowEditorOverlayIdentity(id))
           .filter(Boolean)
         const stableSetSize = stableIds.length
         if (
@@ -626,97 +585,20 @@ export function useFlowEditorOverlayEdges(args: {
         return
       }
 
-      const readPropString = (props: unknown, key: string): string => {
-        if (!props || typeof props !== 'object' || Array.isArray(props)) return ''
-        const raw = (props as Record<string, unknown>)[key]
-        return typeof raw === 'string' ? raw.trim() : ''
-      }
       const overlayNodeIdsForLookup = Array.from(overlayIdSet).sort((a, b) => a.localeCompare(b))
-      const overlayNodeIdsForLookupKey = hashScopedStringArraySignature(
-        'overlay-node-ids',
-        overlayNodeIdsForLookup,
-        { unique: true, sort: true },
-      )
-      const graphRevision = readGraphDataRevision(graph)
-      const nodeHandleSemanticKey = buildOverlayNodeHandleSignature(rawNodes)
-      const graphSemanticKey = graphRevision > 0
-        ? `rev:${graphRevision}`
-        : hashSignatureParts([
-            'overlay-graph-semantic',
-            buildOverlayTopologyLayoutSignature(graph),
-            nodeHandleSemanticKey,
-          ])
-      const graphLookupKey = hashSignatureParts([
-        'overlay-graph-lookup',
-        graphSemanticKey,
-        overlayNodeIdsForLookupKey,
-      ])
-      const cachedGraphLookup = overlayGraphLookupCacheRef.current
-      const graphLookup = (() => {
-        if (cachedGraphLookup && cachedGraphLookup.key === graphLookupKey) return cachedGraphLookup
-        const nodeIds = new Set<string>()
-        const nodes: Array<{ id: unknown; type?: unknown; properties?: unknown }> = []
-        for (let i = 0; i < rawNodes.length; i += 1) {
-          const id = readCanonicalOverlayIdentity(rawNodes[i]?.id)
-          if (!id || !canonicalNodeIdSetHas(overlayIdSet, rawNodes[i]?.id)) continue
-          nodeIds.add(id)
-          nodes.push({ id, type: rawNodes[i]?.type, properties: rawNodes[i]?.properties })
-        }
-        const defaultPortKeyByNodeId = new Map<string, { in: string; out: string }>()
-        const rawEdgeById = new Map<string, GraphEdge>()
-        for (let i = 0; i < nodes.length; i += 1) {
-          const node = nodes[i]
-          const id = String(node?.id || '').trim()
-          if (!id) continue
-          const outPortKey = pickDefaultFlowPortKey({ properties: node?.properties as never }, 'out') || FLOW_HANDLE_DEFAULT_EDGE_ID
-          const inPortKey = pickDefaultFlowPortKey({ properties: node?.properties as never }, 'in') || FLOW_HANDLE_DEFAULT_EDGE_ID
-          defaultPortKeyByNodeId.set(id, { out: outPortKey, in: inPortKey })
-        }
-        const edges: Array<{
-          id: string
-          source: string
-          target: string
-          sourcePortKey: string
-          targetPortKey: string
-          edgeType: string
-        }> = []
-        for (let i = 0; i < rawEdges.length; i += 1) {
-          const id = String(rawEdges[i]?.id || '').trim()
-          const { src: sourceRaw, tgt: targetRaw } = readGraphEdgeEndpoints(rawEdges[i])
-          const source = readCanonicalOverlayIdentity(sourceRaw)
-          const target = readCanonicalOverlayIdentity(targetRaw)
-          if (!id || !source || !target) continue
-          if (!canonicalNodeIdSetHas(overlayIdSet, sourceRaw) || !canonicalNodeIdSetHas(overlayIdSet, targetRaw)) continue
-          const props = rawEdges[i]?.properties
-          const edgeWithProps = { properties: props as GraphEdge['properties'] } as Pick<GraphEdge, 'properties'>
-          const sourcePortKey =
-            readFlowEdgePortKey(edgeWithProps, 'source')
-            || defaultPortKeyByNodeId.get(source)?.out
-            || FLOW_HANDLE_DEFAULT_EDGE_ID
-          const targetPortKey =
-            readFlowEdgePortKey(edgeWithProps, 'target')
-            || defaultPortKeyByNodeId.get(target)?.in
-            || FLOW_HANDLE_DEFAULT_EDGE_ID
-          rawEdgeById.set(id, rawEdges[i] as GraphEdge)
-          edges.push({
-            id,
-            source,
-            target,
-            sourcePortKey,
-            targetPortKey,
-            edgeType: pickString(rawEdges[i]?.type) || readPropString(props, 'flow:socketType'),
-          })
-        }
-        const nextLookup = { key: graphLookupKey, nodes, nodeIds, defaultPortKeyByNodeId, rawEdgeById, edges }
-        overlayGraphLookupCacheRef.current = nextLookup
-        return nextLookup
-      })()
-      const nodeIds = graphLookup.nodeIds
-      const nodes = graphLookup.nodes
-      const defaultPortKeyByNodeId = graphLookup.defaultPortKeyByNodeId
-      const edges = graphLookup.edges.map(edge => {
+      const graphLookup = getCachedFlowEditorOverlayEdgeGraph({
+        graphData: graph,
+        graphRevision: readGraphDataRevision(graph),
+        overlayNodeIds: overlayNodeIdsForLookup,
+        preferCurrentGraphDataRefs: true,
+      })
+      const graphSemanticKey = graphLookup?.graphSemanticKey || ''
+      const nodeIds = graphLookup?.nodeIds || new Set<string>()
+      const nodes = graphLookup?.nodes || []
+      const defaultPortKeyByNodeId = graphLookup?.defaultPortKeyByNodeId || new Map<string, { in: string; out: string }>()
+      const edges = (graphLookup?.edges || []).map(edge => {
         const style = edge.edgeType ? socketStyleByType.get(edge.edgeType) || null : null
-        const rawEdge = graphLookup.rawEdgeById.get(edge.id)
+        const rawEdge = graphLookup?.rawEdgeById.get(edge.id)
         const stroke = style?.color || getEdgeBaseStroke(rawEdge as GraphEdge, schema)
         const strokeWidth = style?.edgeWidthPx != null ? String(style.edgeWidthPx) : String(getEdgeStrokeWidth(rawEdge as GraphEdge, schema))
         return { ...edge, stroke, strokeWidth }
@@ -978,7 +860,7 @@ export function useFlowEditorOverlayEdges(args: {
           overlayPendingEdgePathRef.current = null
         }
       } else {
-        const sourceId = readCanonicalOverlayIdentity(pending.sourceId)
+        const sourceId = readCanonicalFlowEditorOverlayIdentity(pending.sourceId)
         const sRect = sourceId ? overlayRectsByNodeId.get(sourceId) : null
         if (sRect && cursor) {
           const handleKey = String(

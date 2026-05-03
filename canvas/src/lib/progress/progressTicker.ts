@@ -3,6 +3,13 @@ export type ProgressTicker = {
   stop: (finalPercentage?: number) => void
 }
 
+export type ProgressSession = {
+  start: () => void
+  finish: (finalPercentage?: number) => void
+  stop: () => void
+  cleanup: () => void
+}
+
 export function createProgressTicker(args: {
   onProgress: (percentage: number) => void
   intervalMs?: number
@@ -42,3 +49,34 @@ export function createProgressTicker(args: {
   return { start, stop }
 }
 
+export function stopProgressTickerSafely(ticker: ProgressTicker | null | undefined, finalPercentage?: number): void {
+  if (!ticker) return
+  try {
+    if (typeof finalPercentage === 'number' && Number.isFinite(finalPercentage)) {
+      ticker.stop(finalPercentage)
+      return
+    }
+    ticker.stop()
+  } catch {
+    void 0
+  }
+}
+
+export function createProgressSession(args: {
+  onProgress: (percentage: number) => void
+  intervalMs?: number
+  maxPercentage?: number
+  maxStepPercentage?: number
+}): ProgressSession {
+  const ticker = createProgressTicker(args)
+  const start = () => ticker.start()
+  const finish = (finalPercentage?: number) => stopProgressTickerSafely(ticker, finalPercentage)
+  const stop = () => stopProgressTickerSafely(ticker)
+  const cleanup = () => stopProgressTickerSafely(ticker)
+  return {
+    start,
+    finish,
+    stop,
+    cleanup,
+  }
+}

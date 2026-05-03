@@ -1,11 +1,13 @@
 import type { GraphNode } from '@/lib/graph/types'
+import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { isPlainObject } from '@/lib/graph/value'
 
 function cleanString(v: unknown): string {
   return typeof v === 'string' ? v.trim() : ''
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
 }
 
 const FLOW_COMPUTE_FUNCTION_CACHE_MAX_SIZE = 120
@@ -67,7 +69,7 @@ function compileFlowComputeSource(source: string): ((inputs: Record<string, unkn
 }
 
 export function readFlowComputeSource(node: GraphNode): string {
-  const props = isRecord(node?.properties) ? (node.properties as Record<string, unknown>) : null
+  const props = readNodeProperties(node)
   return cleanString(props?.['flow:compute'])
 }
 
@@ -77,8 +79,7 @@ export function runFlowComputeSource(source: string, inputs: Record<string, unkn
   try {
     const anyImportMeta = import.meta as unknown as { env?: { DEV?: boolean } }
     const computed = anyImportMeta?.env?.DEV ? computeFn(Object.freeze({ ...inputs })) : computeFn(inputs)
-    if (!isRecord(computed)) return null
-    return computed
+    return readPlainObject(computed)
   } catch {
     return null
   }

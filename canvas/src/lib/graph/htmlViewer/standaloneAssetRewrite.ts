@@ -1,3 +1,5 @@
+import { decodeCodebasePathFromUrl } from '@/lib/url'
+
 const isHttpUrl = (v: string): boolean => /^https?:\/\//i.test(String(v || '').trim())
 
 export const unwrapStandaloneProxyUrl = (rawUrl: string): string => {
@@ -54,22 +56,7 @@ export const unwrapStandaloneProxyUrl = (rawUrl: string): string => {
 }
 
 export const decodeRepoFileUrlToRelPath = (url: string): string | null => {
-  const raw = String(url || '').trim()
-  if (!raw.startsWith('/__repo_file/')) return null
-  const suffix = raw.slice('/__repo_file/'.length)
-  if (!suffix) return null
-  const decoded = suffix
-    .split('/')
-    .filter(Boolean)
-    .map(seg => {
-      try {
-        return decodeURIComponent(seg)
-      } catch {
-        return seg
-      }
-    })
-    .join('/')
-  return decoded || null
+  return decodeCodebasePathFromUrl(url)
 }
 
 export const inferMimeFromPath = (relPath: string): string => {
@@ -140,4 +127,3 @@ export const inlineRepoFileUrlToDataUrl = async (rawUrl: string, args?: { maxByt
   if (!b64) return null
   return `data:${mime};base64,${b64}`
 }
-

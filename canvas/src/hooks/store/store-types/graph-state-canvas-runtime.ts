@@ -170,6 +170,11 @@ export interface GraphStateCanvasRuntime {
   zoomDurationSelectionMs: number;
   wheelZoomCtrlMetaBoostMultiplier: number;
   viewportFitFillRatio: number;
+  frontmatterFlowInitialFitFillRatio: number;
+  frontmatterFlowOverlayFitProxyScalePhone: number;
+  frontmatterFlowOverlayFitProxyScaleTablet: number;
+  frontmatterFlowOverlayFitProxyScaleLaptop: number;
+  frontmatterFlowOverlayFitProxyScaleDesktop: number;
   graphDragAlphaTarget2d: number;
   canvasInteractionSpeedMultiplier: number;
   canvasPanSpeedMultiplier: number;
@@ -191,6 +196,11 @@ export interface GraphStateCanvasRuntime {
   setZoomDurationSelectionMs: (v: number) => void;
   setWheelZoomCtrlMetaBoostMultiplier: (v: number) => void;
   setViewportFitFillRatio: (v: number) => void;
+  setFrontmatterFlowInitialFitFillRatio: (v: number) => void;
+  setFrontmatterFlowOverlayFitProxyScalePhone: (v: number) => void;
+  setFrontmatterFlowOverlayFitProxyScaleTablet: (v: number) => void;
+  setFrontmatterFlowOverlayFitProxyScaleLaptop: (v: number) => void;
+  setFrontmatterFlowOverlayFitProxyScaleDesktop: (v: number) => void;
   setGraphDragAlphaTarget2d: (v: number) => void;
   setCanvasInteractionSpeedMultiplier: (v: number) => void;
   setCanvasPanSpeedMultiplier: (v: number) => void;

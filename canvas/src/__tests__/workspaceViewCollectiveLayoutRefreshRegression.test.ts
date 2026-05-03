@@ -215,7 +215,10 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     throw new Error('expected Flow runtime to name the late Flow Editor init guard explicitly')
   }
   if (!runtimeText.includes('lastBuiltGraphKeyRef.current.length > 0')) {
-    throw new Error('expected Flow runtime late init guard to suppress re-fit after an earlier scene build')
+    throw new Error('expected Flow runtime late init guard to detect scene builds that raced ahead of zoom-key initialization')
+  }
+  if (!runtimeText.includes('Continue into fit so the first visible frame does not stay frozen at identity.')) {
+    throw new Error('expected Flow runtime late init guard to continue into fit instead of freezing Flow Editor at identity')
   }
   if (runtimeText.includes('const graphKey = `${graphDataRevision}:')) {
     throw new Error('expected Flow runtime scene rebuild key to avoid raw graphDataRevision churn')

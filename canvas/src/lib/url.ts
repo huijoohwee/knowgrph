@@ -8,19 +8,54 @@ export function isHttpUrl(value: unknown): boolean {
   return /^https?:\/\//i.test(raw)
 }
 
-export function encodeRepoPathForUrl(relPath: string): string {
-  return String(relPath || '')
+export function normalizeCodebaseRelPath(relPath: string): string {
+  const trimmed = String(relPath || '')
+    .trim()
+    .replace(/^file:\/\//i, '')
     .replace(/\\/g, '/')
-    .split('/')
-    .filter(Boolean)
-    .map(seg => encodeURIComponent(seg))
-    .join('/')
+    .replace(/^\/+/, '')
+    .split(/[?#]/)[0]
+  if (!trimmed) return ''
+  const parts = trimmed.split('/').filter(Boolean)
+  const out: string[] = []
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i] || ''
+    if (!part || part === '.') continue
+    if (part === '..') {
+      if (out.length === 0) return ''
+      out.pop()
+      continue
+    }
+    out.push(part)
+  }
+  return out.join('/')
 }
 
-export function buildRepoFilePath(relPath: string): string {
-  const normalized = String(relPath || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
-  if (!normalized) return '/__repo_file'
-  return `/__repo_file/${encodeRepoPathForUrl(normalized)}`
+export function buildCodebaseFilePath(relPath: string): string {
+  const normalized = normalizeCodebaseRelPath(relPath)
+  if (!normalized) return '/__codebase_file'
+  return `/__codebase_file?path=${encodeURIComponent(normalized)}`
+}
+
+export function buildCodebaseAssetPath(relPath: string): string {
+  const normalized = normalizeCodebaseRelPath(relPath)
+  if (!normalized) return '/__codebase_asset'
+  return `/__codebase_asset?path=${encodeURIComponent(normalized)}`
+}
+
+export function decodeCodebasePathFromUrl(rawUrl: string): string | null {
+  const raw = String(rawUrl || '').trim()
+  if (!raw) return null
+  try {
+    const parsed = new URL(raw, 'https://example.invalid')
+    if (parsed.pathname === '/__codebase_file' || parsed.pathname === '/__codebase_asset') {
+      const rel = normalizeCodebaseRelPath(parsed.searchParams.get('path') || '')
+      return rel || null
+    }
+  } catch {
+    return null
+  }
+  return null
 }
 
 export function isLikelyAbsoluteFsPath(value: unknown): boolean {
@@ -101,7 +136,8 @@ export function applyImageLikeProxySrc(src: string): string {
   if (!raw) return ''
   if (/^(data:|blob:)/i.test(raw)) return raw
   if (raw.startsWith('/__binary_download_proxy')) return raw
-  if (raw.startsWith('/__repo_file/')) return raw
+  if (raw.startsWith('/__codebase_asset')) return raw
+  if (raw.startsWith('/__codebase_file')) return raw
   if (raw.startsWith('/__webpage_asset_path/')) return raw
   if (raw.startsWith('/__webpage_asset_proxy?url=')) return raw
   if (raw.startsWith('/__media_proxy?url=')) return raw

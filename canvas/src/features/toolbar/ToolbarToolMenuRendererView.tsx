@@ -10,7 +10,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { GraphEditorToolRail, type GraphEditorToolId } from '@/features/graph-editor/GraphEditorToolRail'
 import { GraphEditorRightPanel } from '@/features/graph-editor/GraphEditorRightPanel'
 import { DesignWireframeSettings } from '@/features/toolbar/ui/DesignWireframeSettings'
-import { BipartiteRendererSettings } from '@/features/toolbar/ui/BipartiteRendererSettings'
+import { FlowchartRendererSettings } from '@/features/toolbar/ui/FlowchartRendererSettings'
 import { RadarGalaxyRendererSettings } from '@/features/toolbar/ui/RadarGalaxyRendererSettings'
 import { EdgeTypesRendererSettings } from '@/features/toolbar/ui/EdgeTypesRendererSettings'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -22,7 +22,7 @@ import {
   WORKSPACE_SYNC_SCOPE_RENDERER_EDGE_TYPE_RUNTIME_PERSISTENCE,
   WORKSPACE_SYNC_TASK_RENDERER_EDGE_TYPE_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
-import { isBipartiteCanvas2dRenderer, isD3Like2dRenderer } from '@/lib/config.render'
+import { isFlowchartCanvas2dRenderer, isD3Like2dRenderer } from '@/lib/config.render'
 
 const WorkspaceTableModeControlLazy = React.lazy(async () => {
   const module = await import('@/features/workspace-table/ui/WorkspaceTableModeControl')
@@ -146,7 +146,7 @@ export function ToolbarToolMenuRendererView(props: {
   const showGraphEditorUi =
     workspaceViewMode === 'editor' && canvasRenderMode === '2d' && canvas2dRenderer === 'd3'
   const showDesignWireframeUi = canvasRenderMode === '2d' && canvas2dRenderer === 'design'
-  const showBipartiteUi = canvasRenderMode === '2d' && isBipartiteCanvas2dRenderer(canvas2dRenderer)
+  const showFlowchartUi = canvasRenderMode === '2d' && isFlowchartCanvas2dRenderer(canvas2dRenderer)
   const showRadarGalaxyUi = canvasRenderMode === '2d' && isD3Like2dRenderer(canvas2dRenderer)
   const allowLayoutModeSelection = isD3Like2dRenderer(canvas2dRenderer)
 
@@ -197,7 +197,7 @@ export function ToolbarToolMenuRendererView(props: {
         onSelectEdgeType={handleSelectEdgeType}
       />
       {showRadarGalaxyUi ? <RadarGalaxyRendererSettings /> : null}
-      {showBipartiteUi ? <BipartiteRendererSettings /> : null}
+      {showFlowchartUi ? <FlowchartRendererSettings /> : null}
       <section className="flex flex-col gap-1" aria-label="Rich media rendering">
         <div className={`text-xs font-semibold ${UI_THEME_TOKENS.button.text}`}>
           Rich media

@@ -1,4 +1,4 @@
-import { parseBipartiteApiGraphPayload } from '@/features/bipartite/apiGraphBipartite'
+import { parseFlowchartApiGraphPayload } from '@/features/flowchart/apiGraphFlowchart'
 
 type TopLevelJson = Record<string, unknown>
 
@@ -85,10 +85,10 @@ const parseLeadingNumber = (text: string): string => {
   return m ? m[0] : ''
 }
 
-export function buildBipartiteMarkdownFromJsonValue(value: unknown): string | null {
+export function buildFlowchartMarkdownFromJsonValue(value: unknown): string | null {
   const root = asObj(value)
   if (!root) return null
-  const payload = parseBipartiteApiGraphPayload(root)
+  const payload = parseFlowchartApiGraphPayload(root)
   if (!payload) return null
   const hasComposite =
     (Array.isArray(payload.member_nodes) && payload.member_nodes.length > 0) ||
@@ -106,7 +106,7 @@ export function buildBipartiteMarkdownFromJsonValue(value: unknown): string | nu
   const whitespace = asArrayObj(root.whitespace)
 
   const titleProduct = safeText(root.product) || 'Knowledge Graph'
-  const titleCanvas = safeText(root.canvas) || 'Bipartite + Hub-Spoke'
+  const titleCanvas = safeText(root.canvas) || 'Flowchart + Hub-Spoke'
   const schemaVersion = safeText(root.schema_version) || 'unknown'
   const generatedAt = safeText(root.generated_at)
   const layoutMeta = asObj(topMeta?.layout)
@@ -309,13 +309,13 @@ export function buildBipartiteMarkdownFromJsonValue(value: unknown): string | nu
   return lines.join('\n')
 }
 
-export function buildBipartiteMarkdownFromJsonText(text: string): string | null {
+export function buildFlowchartMarkdownFromJsonText(text: string): string | null {
   const trimmed = String(text || '').trim()
   if (!trimmed) return null
   if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null
   try {
     const parsed = JSON.parse(trimmed) as unknown
-    return buildBipartiteMarkdownFromJsonValue(parsed)
+    return buildFlowchartMarkdownFromJsonValue(parsed)
   } catch {
     return null
   }

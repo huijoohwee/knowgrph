@@ -1,6 +1,7 @@
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
 import { toMetadataRecord } from '@/lib/graph/documentMetadata'
+import { isPlainObject } from '@/lib/graph/value'
 
 export type DesignWireframeSettings = {
   showEdges: boolean
@@ -15,6 +16,10 @@ export type DesignWireframeSettings = {
 }
 
 export const DESIGN_WIREFRAME_META_KEY = 'renderer:designWireframe'
+
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
 
 export const DEFAULT_DESIGN_WIREFRAME_SETTINGS: DesignWireframeSettings = {
   showEdges: false,
@@ -40,8 +45,8 @@ export function readDesignWireframeSettings(
   const graphRaw = graphMeta && Object.prototype.hasOwnProperty.call(graphMeta, DESIGN_WIREFRAME_META_KEY)
     ? (graphMeta[DESIGN_WIREFRAME_META_KEY] as unknown)
     : undefined
-  const schemaObj = schemaRaw && typeof schemaRaw === 'object' && !Array.isArray(schemaRaw) ? (schemaRaw as Record<string, unknown>) : null
-  const graphObj = graphRaw && typeof graphRaw === 'object' && !Array.isArray(graphRaw) ? (graphRaw as Record<string, unknown>) : null
+  const schemaObj = readPlainObject(schemaRaw)
+  const graphObj = readPlainObject(graphRaw)
   const obj = schemaObj || graphObj ? ({ ...(schemaObj || {}), ...(graphObj || {}) } as Record<string, unknown>) : null
   if (!obj) return DEFAULT_DESIGN_WIREFRAME_SETTINGS
   const readBool = (k: keyof DesignWireframeSettings): boolean =>

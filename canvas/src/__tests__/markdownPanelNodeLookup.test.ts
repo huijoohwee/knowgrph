@@ -147,3 +147,17 @@ export function testMarkdownPanelOverlayPoolReusesSharedMetadataReaderForLineSta
     throw new Error('expected markdownPanelOverlayPool to stop coercing node metadata inline when reading lineStart values')
   }
 }
+
+export function testMarkdownPanelOverlayPoolReusesSharedNodePropertiesReaderForPanelOnlyParagraphs() {
+  const filePath = resolve(process.cwd(), 'src', 'lib', 'render', 'markdownPanelOverlayPool.ts')
+  const text = readFileSync(filePath, 'utf8')
+  if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected markdownPanelOverlayPool to reuse the shared node properties reader upstream')
+  }
+  if (!text.includes('const propsObj = readNodeProperties(n)')) {
+    throw new Error('expected markdownPanelOverlayPool panel-only paragraph reads to reuse the shared node properties reader')
+  }
+  if (text.includes("const propsObj = n.properties && typeof n.properties === 'object' && !Array.isArray(n.properties) ? (n.properties as Record<string, unknown>) : null")) {
+    throw new Error('expected markdownPanelOverlayPool to stop coercing node properties inline for panel-only paragraph detection')
+  }
+}

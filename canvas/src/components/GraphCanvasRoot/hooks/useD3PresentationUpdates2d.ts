@@ -149,7 +149,7 @@ export function useD3PresentationUpdates2d(args: {
     selectedEdgeIdRef,
     setHoverInfo,
   } = args
-  const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(canvas2dRenderer || '') !== 'd3Bipartite'
+  const enableEditorGestures = !workspaceOverlayOpen && workspaceViewMode === 'editor' && String(canvas2dRenderer || '') !== 'flowchart'
   const graphStoreActions = useMemo(
     () =>
       buildGraphCanvasStoreActionAdapters({

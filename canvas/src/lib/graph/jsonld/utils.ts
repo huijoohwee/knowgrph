@@ -31,6 +31,10 @@ export function stripKg(x: unknown): string {
 
 export const isRecord = isPlainObject
 
+const readPlainObject = (value: unknown): Record<string, unknown> | null => {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
+
 export const AGENTIC_RAG_MINIMAL_CONTEXT: Record<string, unknown> = {
   source: { '@type': '@id' },
   target: { '@type': '@id' },
@@ -112,12 +116,10 @@ export function getJsonLdGraphMappingSummary(data: GraphData | null | undefined)
   const edges = Array.isArray(data.edges) ? data.edges : []
 
   let selectedEdgeProps: string[] = []
-  const metaRaw = data.metadata as unknown
-  if (metaRaw && typeof metaRaw === 'object' && !Array.isArray(metaRaw)) {
-    const meta = metaRaw as Record<string, unknown>
-    const cfgRaw = meta.jsonLdMapping as unknown
-    if (cfgRaw && typeof cfgRaw === 'object' && !Array.isArray(cfgRaw)) {
-      const cfg = cfgRaw as JsonLdGraphMappingConfig
+  const meta = readPlainObject(data.metadata)
+  if (meta) {
+    const cfg = readPlainObject(meta.jsonLdMapping) as JsonLdGraphMappingConfig | null
+    if (cfg) {
       const listRaw = (cfg as unknown as Record<string, unknown>).contextEdgeProperties as unknown
       if (Array.isArray(listRaw)) {
         selectedEdgeProps = listRaw.filter(entry => typeof entry === 'string')
@@ -130,14 +132,12 @@ export function getJsonLdGraphMappingSummary(data: GraphData | null | undefined)
   if (typeof contextValue === 'string') {
     try {
       const parsed = JSON.parse(contextValue) as unknown
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        ctx = parsed as Record<string, unknown>
-      }
+      ctx = readPlainObject(parsed)
     } catch {
       ctx = null
     }
-  } else if (contextValue && typeof contextValue === 'object' && !Array.isArray(contextValue)) {
-    ctx = contextValue as Record<string, unknown>
+  } else {
+    ctx = readPlainObject(contextValue)
   }
 
   if (!ctx) {
@@ -157,9 +157,9 @@ export function getJsonLdGraphMappingSummary(data: GraphData | null | undefined)
 
   const edgeProps: string[] = []
   Object.keys(ctx).forEach(key => {
-    const entry = ctx ? (ctx as Record<string, unknown>)[key] : undefined
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return
-    const typeValue = (entry as Record<string, unknown>)['@type']
+    const entry = readPlainObject(ctx[key])
+    if (!entry) return
+    const typeValue = entry['@type']
     if (typeValue === '@id') edgeProps.push(key)
   })
 
@@ -190,9 +190,8 @@ export function getAgenticRagIgnoreFiltersSummary(
   data: GraphData | null | undefined,
 ): AgenticRagIgnoreFiltersSummary | null {
   if (!data) return null
-  const metaRaw = data.metadata as unknown
-  if (!metaRaw || typeof metaRaw !== 'object' || Array.isArray(metaRaw)) return null
-  const meta = metaRaw as Record<string, unknown>
+  const meta = readPlainObject(data.metadata)
+  if (!meta) return null
   const raw = meta.ignoreCodebasePaths as unknown
   const resolved = meta.ignoreCodebasePathsResolved as unknown
   const rawPatterns = Array.isArray(raw) ? raw.filter((x) => typeof x === 'string') as string[] : []
@@ -216,11 +215,13 @@ export function getAgenticRagContextComparison(
   if (typeof value === 'string') {
     const trimmed = value.trim()
     graphContextUrl = trimmed.length > 0 ? trimmed : null
-  } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const record = value as Record<string, JSONValue>
-    const vocab = record['@vocab']
-    if (typeof vocab === 'string' && vocab.trim().length > 0) {
-      graphContextUrl = vocab.trim()
+  } else {
+    const record = readPlainObject(value) as Record<string, JSONValue> | null
+    if (record) {
+      const vocab = record['@vocab']
+      if (typeof vocab === 'string' && vocab.trim().length > 0) {
+        graphContextUrl = vocab.trim()
+      }
     }
   }
   let isCanonicalMatch: boolean | null = null
@@ -237,8 +238,8 @@ export function getAgenticRagContextComparison(
 export function agenticRagNodeFromGraphNode(node: GraphNode): AgenticRagNodeView {
   const id = node.id as AgenticRagNodeId
   const labels = [node.type].filter(label => label && label.length > 0)
-  const props = node.properties || {}
-  const meta = node.metadata || {}
+  const props = readPlainObject(node.properties) || {}
+  const meta = readPlainObject(node.metadata) || {}
 
   let graphRagPath: AgenticGraphRagPathValue | undefined
   let parsedTraversePath: ParsedAgenticGraphRagTraversePath | null = null
@@ -270,16 +271,14 @@ export function agenticRagNodeFromGraphNode(node: GraphNode): AgenticRagNodeView
       ? (mediaSpec.url as AgenticRagMediaUrl)
       : undefined
 
-  const provenanceRaw = typeof meta === 'object' && !Array.isArray(meta) ? meta : {}
   const provenance: AgenticRagNodeProvenance | undefined =
-    provenanceRaw && Object.keys(provenanceRaw).length > 0
-      ? (provenanceRaw as AgenticRagNodeProvenance)
+    Object.keys(meta).length > 0
+      ? (meta as AgenticRagNodeProvenance)
       : undefined
 
   const geo = (() => {
-    const raw = (props as Record<string, JSONValue>).geo as unknown
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
-    const rec = raw as Record<string, unknown>
+    const rec = readPlainObject((props as Record<string, JSONValue>).geo)
+    if (!rec) return undefined
     const lat = rec.lat
     const lng = rec.lng
     if (typeof lat !== 'number' || typeof lng !== 'number') return undefined

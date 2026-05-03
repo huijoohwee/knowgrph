@@ -18,7 +18,7 @@ const modParserCacheCfgKey = () => import('@/__tests__/parserCacheCfgKey.test')
 const modParserWorkflowPersistence = () => import('@/__tests__/parserWorkflowPersistence.test')
 const modRawJsonIngestion = () => import('@/__tests__/rawJsonIngestion.test')
 const modRawJsonWorkflowShapeIngestion = () => import('@/__tests__/rawJsonWorkflowShapeIngestion.test')
-const modBipartitePipelineNeutrality = () => import('@/__tests__/bipartitePipelineNeutrality.test')
+const modFlowchartPipelineNeutrality = () => import('@/__tests__/flowchartPipelineNeutrality.test')
 const modMermaidSubgraphGroups = () => import('@/__tests__/mermaidSubgraphGroups.test')
 const modMermaidSeedLayout = () => import('@/__tests__/mermaidSeedLayout.test')
 const modMermaidNodeShapes = () => import('@/__tests__/mermaidNodeShapes.test')
@@ -106,13 +106,21 @@ export const runParserTests = async (results: TestResult[]) => {
     const mod = await modRawJsonWorkflowShapeIngestion()
     await mod.testRawJsonWorkflowShapeIngestion()
   })
-  await execTest(results, 'parser.bipartite.neutralSourceMetadata', async () => {
-    const mod = await modBipartitePipelineNeutrality()
-    await mod.testBipartiteNormalizeKeepsNeutralSourceMetadata()
+  await execTest(results, 'parser.flowchart.neutralSourceMetadata', async () => {
+    const mod = await modFlowchartPipelineNeutrality()
+    await mod.testFlowchartNormalizeKeepsNeutralSourceMetadata()
   })
-  await execTest(results, 'parser.bipartite.sideAliases', async () => {
-    const mod = await modBipartitePipelineNeutrality()
-    await mod.testBipartiteNormalizeAcceptsSideAliases()
+  await execTest(results, 'parser.flowchart.sideAliases', async () => {
+    const mod = await modFlowchartPipelineNeutrality()
+    await mod.testFlowchartNormalizeAcceptsSideAliases()
+  })
+  await execTest(results, 'parser.flowchart.reusesSharedPlainObjectGuard', async () => {
+    const mod = await modFlowchartPipelineNeutrality()
+    await mod.testFlowchartParserReusesSharedPlainObjectGuard()
+  })
+  await execTest(results, 'parser.flowchart.nestedClusterGapRatioObjects', async () => {
+    const mod = await modFlowchartPipelineNeutrality()
+    await mod.testFlowchartNormalizeReadsNestedClusterGapRatioObjects()
   })
   await execTest(results, 'parser.mermaid.subgraphParentId', async () => {
     const mod = await modMermaidSubgraphGroups()
