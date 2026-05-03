@@ -1,4 +1,4 @@
-import { pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
+import { pickPreferredLayoutSeed, pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
 
 export function testFlowSeedFromOtherRendererPrefersExpectedVariant() {
   const nodes = [{ id: 'a' }, { id: 'b' }]
@@ -20,5 +20,28 @@ export function testFlowSeedFromOtherRendererPrefersExpectedVariant() {
   })
   if (picked !== variantB) {
     throw new Error('expected flow seed to prefer expected layout variant')
+  }
+}
+
+export function testFlowEditorPrefersSourceSeedOverOtherRendererCache() {
+  const sourcePositions = {
+    a: { x: 4200, y: 0 },
+    b: { x: 4680, y: 0 },
+  }
+  const flowRendererCachedPositions = {
+    a: { x: 120, y: 80 },
+    b: { x: 360, y: 80 },
+  }
+  const picked = pickPreferredLayoutSeed({
+    preferSourceSeededPositions: true,
+    cachedPositions: null,
+    allowCached: false,
+    otherRendererPositions: flowRendererCachedPositions,
+    allowOther: true,
+    sourcePositions,
+    allowSource: true,
+  })
+  if (picked !== sourcePositions) {
+    throw new Error('expected Flow Editor frontmatter-document seed selection to prefer imported source positions over other-renderer cache positions')
   }
 }

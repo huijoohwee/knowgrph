@@ -413,6 +413,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["flow.seed.extractNodePositions.extractsFinite","@/__tests__/flowSeedPositions.test","testFlowExtractNodePositionsExtractsFinitePositions"],
   ["flow.seed.extractNodePositions.nullWhenNone","@/__tests__/flowSeedPositions.test","testFlowExtractNodePositionsReturnsNullWhenNone"],
   ["flow.seed.otherRenderer.prefersExpectedVariant","@/__tests__/flowSeedOtherRendererVariant.test","testFlowSeedFromOtherRendererPrefersExpectedVariant"],
+  ["flow.seed.flowEditorFrontmatter.prefersSourceOverOtherRendererCache","@/__tests__/flowSeedOtherRendererVariant.test","testFlowEditorPrefersSourceSeedOverOtherRendererCache"],
   ["collision.nodeBbox.zAxis.gated","@/__tests__/bboxCollisionZNode.test","testNodeBboxCollideZRespectsSchemaGating"],
   ["collision.nodeBbox.zAxis.requiresExplicitZ","@/__tests__/bboxCollisionZNode.test","testNodeBboxCollideZRequiresExplicitZ"],
   ["flow.collision.relax.separatesOverlappingNodes","@/__tests__/flowCollisionRelax.test","testFlowCollisionRelaxSeparatesOverlappingNodes"],
