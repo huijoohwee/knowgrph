@@ -1,1 +1,5 @@
-export { coverageOfPositions, pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
+export {
+  coverageOfPositions,
+  pickPreferredLayoutSeed,
+  pickSeedFromOtherRendererCache,
+} from '@/lib/canvas/layoutSeed'

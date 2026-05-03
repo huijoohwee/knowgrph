@@ -6,7 +6,7 @@ import { DEFAULT_FLOW_DAGRE_MAX_NODES, DEFAULT_FLOW_ELK_MAX_NODES } from '@/lib/
 import { buildElkLayout } from '@/components/FlowCanvas/elkLayout'
 import { buildDagreLayout, buildFastGridLayout, buildGraphMetaKeyIgnoringPending } from '@/components/FlowCanvas/layout'
 import { buildLayoutPositionCacheKey } from '@/components/GraphCanvas/layout/positioning'
-import { pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
+import { pickPreferredLayoutSeed, pickSeedFromOtherRendererCache } from '@/components/FlowCanvas/seed'
 import { extractNodePositions, hasCacheCoverage, looksUnstablePositions } from '@/components/FlowCanvas/seedPositions'
 import { relaxFlowPositionsWithCollision } from '@/components/FlowCanvas/relaxPositions'
 import { packDisjointPositions2d } from '@/components/GraphCanvas/layout/collectivePackPositions'
@@ -223,15 +223,20 @@ export function useFlowComputedPositions(args: {
       const preferMermaid = usePerNodeVisualSize && nodesCoverageOk && seededFromNodes
 
       const isMermaidLayout = usePerNodeVisualSize
-      const computed = isMermaidLayout && seededFromNodes && nodesCoverageOk
-        ? seededFromNodes
-        : cacheAllowed
-        ? cached
-        : allowOther
-          ? seededFromOtherRenderer
-          : allowNodes
-            ? seededFromNodes
-            : await (async () => {
+      const preferredSeed = isMermaidLayout
+        ? (nodesCoverageOk ? seededFromNodes : null)
+        : pickPreferredLayoutSeed({
+            preferSourceSeededPositions,
+            cachedPositions: cached,
+            allowCached: cacheAllowed,
+            otherRendererPositions: seededFromOtherRenderer,
+            allowOther,
+            sourcePositions: seededFromNodes,
+            allowSource: allowNodes,
+          })
+      const computed = preferredSeed
+        ? preferredSeed
+        : await (async () => {
                 if (layoutMode === 'radial') {
                   const dim = Math.max(
                     1200,

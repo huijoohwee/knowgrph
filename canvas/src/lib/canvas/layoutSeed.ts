@@ -63,3 +63,32 @@ export function pickSeedFromOtherRendererCache(args: {
   return best
 }
 
+export function pickPreferredLayoutSeed(args: {
+  preferSourceSeededPositions?: boolean
+  cachedPositions?: Record<string, { x: number; y: number }> | null
+  allowCached?: boolean
+  otherRendererPositions?: Record<string, { x: number; y: number }> | null
+  allowOther?: boolean
+  sourcePositions?: Record<string, { x: number; y: number }> | null
+  allowSource?: boolean
+}): Record<string, { x: number; y: number }> | null {
+  const {
+    preferSourceSeededPositions,
+    cachedPositions,
+    allowCached,
+    otherRendererPositions,
+    allowOther,
+    sourcePositions,
+    allowSource,
+  } = args
+  if (preferSourceSeededPositions) {
+    if (allowSource && sourcePositions) return sourcePositions
+    if (allowOther && otherRendererPositions) return otherRendererPositions
+    if (allowCached && cachedPositions) return cachedPositions
+    return null
+  }
+  if (allowCached && cachedPositions) return cachedPositions
+  if (allowOther && otherRendererPositions) return otherRendererPositions
+  if (allowSource && sourcePositions) return sourcePositions
+  return null
+}
