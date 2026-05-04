@@ -1,4 +1,5 @@
-import { GraphNode } from '@/lib/graph/types'
+import type { GraphNode } from '@/lib/graph/types'
+import type { GraphSchema } from '@/lib/graph/schema'
 import { readBaselineGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
 
@@ -82,12 +83,12 @@ export function readCurrentLayoutResolutionContext(args: {
   canvas2dRenderer?: string | null | undefined
   default2dRenderVariant?: string | null | undefined
 }): {
-  mode: string
+  mode: ReturnType<typeof readLayoutMode>
   semanticMode: string
   renderVariant: string
 } {
   return {
-    mode: readLayoutMode(args.schema),
+    mode: readLayoutMode(args.schema as GraphSchema),
     semanticMode: String(args.semanticMode || 'document'),
     renderVariant: args.renderMode === '2d'
       ? String(args.canvas2dRenderer || args.default2dRenderVariant || '')

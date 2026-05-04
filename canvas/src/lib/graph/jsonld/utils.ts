@@ -289,7 +289,7 @@ export function agenticRagNodeFromGraphNode(node: GraphNode): AgenticRagNodeView
   return {
     id,
     labels,
-    properties: props,
+    properties: props as Record<string, JSONValue>,
     chunkText,
     embedding,
     geo,

@@ -62,7 +62,7 @@ export function buildInitialWorkspaceStartupSnapshot(args: {
   currentActivePath: WorkspacePath | null
   desiredActivePath: WorkspacePath | null
   workspaceEntries: WorkspaceEntry[]
-  lastSetActivePath?: boolean
+  lastSetActivePath?: unknown
   preferCustomValidationSeed?: boolean
 }): {
   activePath: WorkspacePath | null

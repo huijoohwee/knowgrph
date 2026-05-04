@@ -75,7 +75,7 @@ const buildSourceFileFromStorageDocument = (
   existing: SourceFile | null,
 ): SourceFile => {
   const sourceFileId = readKnowgrphSourceFileIdFromDocumentId(document.id)
-  const graphData = graphSnapshot?.graphJson as GraphData | undefined
+  const graphData = graphSnapshot?.graphJson as unknown as GraphData | undefined
   return normalizeSourceFileRecord({
     id: sourceFileId,
     name: readSourceFileNameFromCanonicalPath(normalizeString(document.canonicalPath), document.title),

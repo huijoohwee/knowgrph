@@ -27,9 +27,12 @@ import {
   buildWidgetDraftFromSmartFields,
   inferTextGenerationProviderFamily,
 } from '@/features/flow-editor-manager/registryTemplates'
-import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveWidgetRegistryEntry } from '@/features/flow-editor-manager/resolveWidgetRegistry'
-  FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY, resolveNodeWidgetIdentity, resolveWidgetRegistryEntry
-import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
+import {
+  FLOW_WIDGET_FORM_ID_KEY,
+  FLOW_WIDGET_TYPE_ID_KEY,
+  resolveNodeWidgetIdentity,
+  resolveWidgetRegistryEntry,
+} from '@/features/flow-editor-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 import { applyMappingRowsToRegistryEntry, buildMappingRowsFromRegistryEntry, validateMappingRows, type FlowEditorMappingRow } from '@/features/flow-editor-manager/mappingRows'
 import { patchById } from 'grph-shared/array/patchArrayItem'

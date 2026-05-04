@@ -163,7 +163,7 @@ export function useFlowEditorOverlayEdges(args: {
     if (existingDomPaths.length > 0) {
       overlayEdgePathByIdRef.current.clear()
       for (let i = 0; i < existingDomPaths.length; i += 1) {
-        const pathEl = existingDomPaths[i]
+        const pathEl = existingDomPaths[i] as SVGPathElement
         const edgeId = String(pathEl.getAttribute(FLOW_EDITOR_OVERLAY_EDGE_ID_ATTR) || '').trim()
         if (!edgeId) continue
         overlayEdgePathByIdRef.current.set(edgeId, pathEl)

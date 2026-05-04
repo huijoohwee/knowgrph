@@ -72,7 +72,7 @@ export default function SchemaStepCopyAndStatus({
       {renderActions ? renderActions(statusNode) : statusNode}
       {showSchemaInlineStatus && (
         <>
-          <span className={UI_THEME_TOKENS.text.subtle}>|</span>
+          <span className={UI_THEME_TOKENS.text.tertiary}>|</span>
           <SchemaSummary
             variant="inline"
             showTitle={false}

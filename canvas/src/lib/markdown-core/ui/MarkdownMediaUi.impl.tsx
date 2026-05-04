@@ -7,6 +7,7 @@ import { applyMediaProxySrc, buildMarkdownPreviewMediaKey } from '@/features/mar
 import { resolveIframeEmbed, shouldForceSnapshotIframeUrl } from 'grph-shared/rich-media/iframe'
 import { inferMediaKindFromUrl } from 'grph-shared/rich-media/mediaKind'
 import { getOrCreateVideoThumbnail } from 'grph-shared/rich-media/videoThumbnail'
+import { getWebpageFallbackInfo } from 'grph-shared/rich-media/webpageFallback'
 import { applyImageLikeProxySrc } from '@/lib/url'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'

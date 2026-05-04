@@ -1,7 +1,7 @@
 import React from 'react'
 
 import RichMediaPanel from '@/components/RichMediaPanel'
-import type { GraphNode } from '@/lib/graph/types'
+import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import {
   UI_COPY,
@@ -232,7 +232,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
         id: node.id,
         type: node.type,
         label: node.label,
-        properties: propertiesSnapshot,
+        properties: propertiesSnapshot as Record<string, JSONValue>,
       },
     }
   }
@@ -285,7 +285,7 @@ export const NodeOverlayEditorForm = React.memo(function NodeOverlayEditorForm({
       value: connectedValuesBySchemaPath,
     }
   }
-  const connectedValuesSnapshot = connectedValuesSnapshotRef.current.value?.value
+  const connectedValuesSnapshot = connectedValuesSnapshotRef.current.value
   const isRichMediaPanelWidget = nodeTypeId === 'RichMediaPanel'
   const idBase = React.useMemo(() => {
     const nodeId = cleanDomIdPart(nodeHelperSnapshot.id) || 'node'

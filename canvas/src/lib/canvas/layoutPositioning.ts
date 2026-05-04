@@ -1,6 +1,7 @@
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import type { GraphNode } from '@/lib/graph/types'
 
 type LayoutDatasetGraph = {
   metadata?: unknown
@@ -35,7 +36,7 @@ export const computeLayoutDatasetKey = (args: { graphData: LayoutDatasetGraph; g
     const n = nodes[i]
     const t = typeof n?.type === 'string' ? n.type.trim() : ''
     if (t !== 'Document') continue
-    const props = readNodeProperties(n as { properties?: unknown } | null | undefined)
+    const props = readNodeProperties(n as Pick<GraphNode, 'properties'> | null | undefined)
     const path = typeof props.path === 'string' ? props.path.trim() : ''
     if (path) return `path:${path}`
     const nMeta = toMetadataRecord(n?.metadata)

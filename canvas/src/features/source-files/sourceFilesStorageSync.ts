@@ -149,7 +149,7 @@ const buildGraphSnapshotRecordForSourceFile = (
   graphRevision: Math.max(1, Number(file.parsedGraphRevision || documentRevision || 1)),
   graphHash: buildSourceFileGraphHash(file),
   graphJson: (file.parsedGraphData && typeof file.parsedGraphData === 'object'
-    ? (file.parsedGraphData as Record<string, unknown>)
+    ? (file.parsedGraphData as unknown as Record<string, unknown>)
     : {}) as Record<string, unknown>,
   layoutJson: null,
   derivedFromDocumentRevision: Math.max(1, documentRevision),

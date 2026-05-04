@@ -14,6 +14,7 @@ import type { NodeHalfExtents } from '@/components/GraphCanvas/layout/overlap'
 import type { HoverInfo } from '@/components/GraphHoverTooltip'
 import type { PortHandleDatum } from '@/components/GraphCanvas/portHandles'
 import { computeOverlayHalfExtentsByNodeId2d } from '@/lib/render/overlayHalfExtentsByNodeId2d'
+import { readOverlaySizingInputFromStoreState } from '@/lib/render/overlaySizing2d'
 import { pipelinePerfMeasureSync } from '@/lib/pipelinePerf'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 
@@ -220,7 +221,7 @@ export function useD3PresentationUpdates2d(args: {
           }
         })(),
         mediaPanelDensity,
-        overlaySizing: useGraphStore.getState(),
+        overlaySizing: readOverlaySizingInputFromStoreState(useGraphStore.getState()),
       })
       const stableOverlayHalfExtentsByNodeId = mergeStableOverlayHalfExtents({
         nodeById: sceneGraphLookup?.nodeById || new Map<string, GraphNode>(),

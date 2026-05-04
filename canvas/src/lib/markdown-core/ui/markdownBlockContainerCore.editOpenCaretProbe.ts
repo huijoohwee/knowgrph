@@ -243,7 +243,7 @@ export const useMarkdownBlockContainerEditOpenCaretProbe = (args: {
         'caretColor',
       ]
       const mismatches = keys
-        .map(key => ({ key, read: String(read[String(key)] || ''), edit: String(edit[key] || '') }))
+        .map(key => ({ key: String(key), read: String(read[String(key)] || ''), edit: String(edit[String(key)] || '') }))
         .filter(row => row.read !== row.edit)
       const payload = {
         startLine: args.editStartLine,

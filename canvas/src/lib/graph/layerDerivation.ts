@@ -1,7 +1,7 @@
 import { readEdgeEndpointId } from '@/lib/graph/edgeEndpoints'
 import { readNodeProperties } from '@/lib/graph/nodeProperties'
 import { isPlainObject } from '@/lib/graph/value'
-import { GraphData } from './types';
+import type { GraphData, GraphNode } from './types'
 
 const FLOW_WIDGET_FORM_ID_KEY = 'flow:widgetFormId' as const
 const FLOW_PORT_TYPES_KEY = 'flow:portTypes' as const
@@ -10,7 +10,7 @@ const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey' as const
 
 const isFrontmatterMermaidNode = (n: { properties?: unknown } | null | undefined): boolean => {
   if (!n) return false
-  const p = readNodeProperties(n)
+  const p = readNodeProperties(n as Pick<GraphNode, 'properties'> | null | undefined)
   return p.isMermaidFrontmatter === true || p.mermaidScope === 'frontmatter'
 }
 
@@ -87,11 +87,11 @@ export const filterGraphToFrontmatterMermaid = (data: GraphData): GraphData => {
   })
 
   return { ...data, nodes, edges }
-};
+}
 
 function isFlowNode(n: unknown): boolean {
   if (!n || typeof n !== 'object' || Array.isArray(n)) return false
-  const props = readNodeProperties(n as { properties?: unknown })
+  const props = readNodeProperties(n as Pick<GraphNode, 'properties'> | null | undefined)
   const form = props[FLOW_WIDGET_FORM_ID_KEY]
   if (typeof form === 'string' && form.trim()) return true
   const portTypes = props[FLOW_PORT_TYPES_KEY]

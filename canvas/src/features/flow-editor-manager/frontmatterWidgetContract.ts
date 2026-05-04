@@ -21,6 +21,10 @@ function sortUniqueStrings(values: Iterable<string>): string[] {
   return Array.from(new Set(Array.from(values).map(value => pickString(value)).filter(Boolean))).sort((a, b) => a.localeCompare(b))
 }
 
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(entry => pickString(entry)).filter(Boolean) : []
+}
+
 function stringifyContractValue(value: unknown): string {
   if (typeof value === 'string') return value
   try {
@@ -86,6 +90,8 @@ export type FrontmatterWidgetContractRowSpec =
       typeLabel: string
       valueText: string
     }
+
+export type FrontmatterWidgetContractHandleRowSpec = Extract<FrontmatterWidgetContractRowSpec, { kind: 'handle' }>
 
 export function buildFrontmatterWidgetContractModel(args: {
   node: Pick<GraphNode, 'id' | 'properties'> | null | undefined
@@ -159,8 +165,8 @@ export function buildFrontmatterWidgetContractModel(args: {
     const handlesValue = properties[FRONTMATTER_FLOW_HANDLES_VALUE_KEY]
     return isRecord(handlesValue) ? handlesValue : null
   })()
-  const frontmatterInKeys = sortUniqueStrings(Array.isArray(handlesRecord?.target) ? (handlesRecord!.target as unknown[]) : [])
-  const frontmatterOutKeys = sortUniqueStrings(Array.isArray(handlesRecord?.source) ? (handlesRecord!.source as unknown[]) : [])
+  const frontmatterInKeys = sortUniqueStrings(readStringArray(handlesRecord?.target))
+  const frontmatterOutKeys = sortUniqueStrings(readStringArray(handlesRecord?.source))
 
   const flowCompute = pickString(properties['flow:compute'])
   const hasFlowCompute = Object.prototype.hasOwnProperty.call(properties, 'flow:compute')
@@ -245,10 +251,10 @@ export function buildFrontmatterWidgetContractModel(args: {
 export function buildFrontmatterWidgetContractRowSpecs(
   model: FrontmatterWidgetContractModel,
 ): {
-  handleRows: ReadonlyArray<FrontmatterWidgetContractRowSpec>
+  handleRows: ReadonlyArray<FrontmatterWidgetContractHandleRowSpec>
   envelopeRows: ReadonlyArray<FrontmatterWidgetContractRowSpec>
 } {
-  const handleRows: FrontmatterWidgetContractRowSpec[] = []
+  const handleRows: FrontmatterWidgetContractHandleRowSpec[] = []
 
   const pushHandleRow = (args: {
     dir: 'in' | 'out'
