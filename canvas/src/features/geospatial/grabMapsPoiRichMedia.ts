@@ -68,11 +68,66 @@ export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDeta
     Number.isFinite(lat) && Number.isFinite(lng)
       ? `${lat.toFixed(6)}, ${lng.toFixed(6)}`
       : ''
-  const metaRows = [
-    address ? `<div><strong>Address</strong><span>${address}</span></div>` : '',
-    category ? `<div><strong>Category</strong><span>${category}</span></div>` : '',
-    coordText ? `<div><strong>Coordinates</strong><span>${coordText}</span></div>` : '',
+  const rawLabel = String(detail.label || '').trim() || 'POI'
+  const hasFiniteCoordinates = Number.isFinite(lat) && Number.isFinite(lng)
+  const osmHref = hasFiniteCoordinates
+    ? `https://www.openstreetmap.org/?mlat=${encodeURIComponent(String(lat))}&mlon=${encodeURIComponent(String(lng))}#map=17/${encodeURIComponent(String(lat))}/${encodeURIComponent(String(lng))}`
+    : ''
+  const geoHref = hasFiniteCoordinates
+    ? `geo:${encodeURIComponent(String(lat))},${encodeURIComponent(String(lng))}`
+    : ''
+  const searchHref = `https://www.openstreetmap.org/search?query=${encodeURIComponent(rawLabel)}`
+  const actions = [
+    osmHref ? `<a href="${osmHref}" target="_blank" rel="noopener noreferrer">Open coordinates in OpenStreetMap</a>` : '',
+    geoHref ? `<a href="${geoHref}" rel="noopener noreferrer">Open location via geo URI</a>` : '',
+    `<a href="${searchHref}" target="_blank" rel="noopener noreferrer">Search POI label in OpenStreetMap</a>`,
   ].filter(Boolean).join('')
+  const metaRows = [
+    `<div><strong>Address</strong><span>${address || 'Not provided'}</span></div>`,
+    `<div><strong>Category</strong><span>${category || 'Uncategorized'}</span></div>`,
+    `<div><strong>Coordinates</strong><span>${coordText || 'Not provided'}</span></div>`,
+  ].filter(Boolean).join('')
+  const payload = escapeHtml(JSON.stringify({
+    label: rawLabel,
+    address: String(detail.address || '').trim(),
+    category: String(detail.category || '').trim(),
+    coordinates: hasFiniteCoordinates ? { lat, lng } : null,
+  }, null, 2))
+  const miniMap = (() => {
+    if (!hasFiniteCoordinates) return ''
+    const width = 320
+    const height = 170
+    const pad = 12
+    const innerWidth = width - pad * 2
+    const innerHeight = height - pad * 2
+    const normalizedX = ((lng + 180) / 360) * innerWidth + pad
+    const normalizedY = ((90 - lat) / 180) * innerHeight + pad
+    const markerX = Math.max(pad, Math.min(width - pad, normalizedX))
+    const markerY = Math.max(pad, Math.min(height - pad, normalizedY))
+    const markerLabel = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+    const latText = lat >= 0 ? `${Math.abs(lat).toFixed(2)}°N` : `${Math.abs(lat).toFixed(2)}°S`
+    const lngText = lng >= 0 ? `${Math.abs(lng).toFixed(2)}°E` : `${Math.abs(lng).toFixed(2)}°W`
+    return [
+      '<figure class="mini-map" aria-label="POI mini-map snapshot">',
+      `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Mini-map snapshot for ${label}">`,
+      '<defs>',
+      '<linearGradient id="kgMiniMapBg" x1="0" y1="0" x2="0" y2="1">',
+      '<stop offset="0%" stop-color="#dbeafe"/>',
+      '<stop offset="100%" stop-color="#bfdbfe"/>',
+      '</linearGradient>',
+      '</defs>',
+      `<rect x="0" y="0" width="${width}" height="${height}" rx="12" fill="url(#kgMiniMapBg)"/>`,
+      `<rect x="${pad}" y="${pad}" width="${innerWidth}" height="${innerHeight}" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>`,
+      `<line x1="${pad}" y1="${height / 2}" x2="${width - pad}" y2="${height / 2}" stroke="#cbd5e1" stroke-dasharray="4 4"/>`,
+      `<line x1="${width / 2}" y1="${pad}" x2="${width / 2}" y2="${height - pad}" stroke="#cbd5e1" stroke-dasharray="4 4"/>`,
+      `<circle cx="${markerX.toFixed(2)}" cy="${markerY.toFixed(2)}" r="5.5" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>`,
+      `<circle cx="${markerX.toFixed(2)}" cy="${markerY.toFixed(2)}" r="14" fill="none" stroke="#ef4444" stroke-opacity="0.35" stroke-width="2"/>`,
+      `<text x="${pad + 6}" y="${height - 16}" fill="#334155" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">${escapeHtml(latText)} / ${escapeHtml(lngText)}</text>`,
+      '</svg>',
+      `<figcaption>${escapeHtml(markerLabel)}</figcaption>`,
+      '</figure>',
+    ].join('')
+  })()
   return [
     '<!doctype html>',
     '<html><head><meta charset="utf-8" />',
@@ -85,11 +140,21 @@ export function buildGrabMapsPoiRichMediaSrcDoc(detail: GrabMapsPoiRichMediaDeta
     'p{margin:8px 0 0;color:#475569;}',
     'section{margin-top:16px;display:grid;gap:10px;}',
     'section div{display:grid;gap:2px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;}',
+    '.actions{display:grid;gap:8px;margin-top:16px;}',
+    '.actions a{display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;text-decoration:none;font-weight:600;}',
+    '.actions a:hover{background:#f1f5f9;}',
+    '.mini-map{margin:16px 0 0;display:grid;gap:8px;}',
+    '.mini-map svg{width:100%;height:auto;display:block;border-radius:12px;box-shadow:inset 0 0 0 1px #cbd5e1;}',
+    '.mini-map figcaption{font-size:12px;color:#475569;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}',
+    'pre{margin:16px 0 0;padding:10px 12px;background:#0f172a;color:#e2e8f0;border-radius:10px;overflow:auto;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}',
     'strong{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#64748b;}',
     'span{font-size:14px;color:#0f172a;word-break:break-word;}',
     '</style></head><body>',
     `<main><article><h1>${label}</h1><p>GrabMaps POI selection rendered on the Rich Media Panel surface.</p>`,
     metaRows ? `<section>${metaRows}</section>` : '',
+    miniMap,
+    actions ? `<div class="actions">${actions}</div>` : '',
+    `<pre aria-label="POI payload">${payload}</pre>`,
     '</article></main></body></html>',
   ].join('')
 }

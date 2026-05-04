@@ -153,7 +153,7 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
   const desiredActivePath = resolveWorkspaceStartupActivePath({
     workspaceFilePaths,
     activePath: resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath }),
-    preferValidationSeedForDefaultFamily: true,
+    preferValidationSeedForDefaultFamily: false,
     forceValidationSeedIfPresent: preferCustomValidationSeed,
   })
   const currentActivePath = resolveMaterializedWorkspaceActivePath({ explorerActivePath: explorer.activePath })

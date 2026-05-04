@@ -681,6 +681,15 @@ export const testGeospatialPoiClickWiresHostActionAndRichMediaPanel = () => {
   if (!viewportText.includes('richMediaPoiLabel: String(detail.label || \'\').trim() || \'POI\'')) {
     throw new Error('Expected CanvasViewport POI handoff to persist a canonical POI label for Rich Media Panel viewer selection')
   }
+  if (!viewportText.includes('richMediaPoiAddress: String(detail.address || \'\').trim()')) {
+    throw new Error('Expected CanvasViewport POI handoff to persist POI address metadata for richer Rich Media state')
+  }
+  if (!viewportText.includes('richMediaPoiCategory: String(detail.category || \'\').trim()')) {
+    throw new Error('Expected CanvasViewport POI handoff to persist POI category metadata for richer Rich Media state')
+  }
+  if (!viewportText.includes('richMediaPoiCoordinates:')) {
+    throw new Error('Expected CanvasViewport POI handoff to persist normalized POI coordinate metadata')
+  }
   if (!viewportText.includes('outputSrcDoc: srcDoc')) {
     throw new Error('Expected CanvasViewport to write the shared POI srcdoc payload into Rich Media Panel output')
   }
@@ -695,6 +704,9 @@ export const testGeospatialPoiClickWiresHostActionAndRichMediaPanel = () => {
   }
   if (!viewportText.includes('flowEditorOpenWidgetNodeIds')) {
     throw new Error('Expected CanvasViewport POI resolution to reuse Flow Editor widget ids explicitly')
+  }
+  if (!viewportText.includes('gympgrphBridge.addNode(buildRichMediaPanelNode')) {
+    throw new Error('Expected CanvasViewport POI handoff to auto-create a Rich Media Panel when none exists')
   }
 }
 

@@ -293,9 +293,11 @@ export function SourceFilesPersistenceBootstrap() {
   }, [])
 
   React.useEffect(() => {
-    const syncNow = () => {
+    const syncNow = (activePathSnapshot?: string | null) => {
+      if (!workspaceHydratedRef.current) return
       const activePath = resolveMaterializedWorkspaceActivePath({
-        explorerActivePath: useMarkdownExplorerStore.getState().activePath,
+        activePathOverride: activePathSnapshot ?? null,
+        explorerActivePath: activePathSnapshot == null ? useMarkdownExplorerStore.getState().activePath : null,
       })
       if (!activePath) {
         lastMaterializedActivePathRef.current = ''
@@ -313,7 +315,13 @@ export function SourceFilesPersistenceBootstrap() {
         }
       })
     }
-    const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(s => s.activePath && syncNow())
+    const unsubscribeActivePath = useMarkdownExplorerStore.subscribe(
+      s => s.activePath,
+      activePath => {
+        syncNow(activePath)
+      },
+      { equalityFn: Object.is },
+    )
     return () => {
       unsubscribeActivePath()
     }

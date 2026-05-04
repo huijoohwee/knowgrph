@@ -6,6 +6,28 @@ export function isRichMediaPanelNode(node: GraphNode | null | undefined): boolea
   return String(node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
 }
 
+export function buildRichMediaPanelNode(args: {
+  id: string
+  anchor?: GraphNode | null
+  xOffset?: number
+  yOffset?: number
+  label?: string | null
+}): GraphNode {
+  const id = String(args.id || '').trim()
+  const anchorX = Number.isFinite(args.anchor?.x) ? (args.anchor!.x as number) : 0
+  const anchorY = Number.isFinite(args.anchor?.y) ? (args.anchor!.y as number) : 0
+  const xOffset = Number.isFinite(args.xOffset) ? (args.xOffset as number) : 520
+  const yOffset = Number.isFinite(args.yOffset) ? (args.yOffset as number) : 0
+  return {
+    id,
+    type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    label: String(args.label ?? FLOW_RICH_MEDIA_PANEL_NODE_LABEL).trim() || FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+    x: anchorX + xOffset,
+    y: anchorY + yOffset,
+    properties: { media_interactive: true },
+  }
+}
+
 export function resolvePreferredRichMediaPanelNodeId(args: {
   graphData: GraphData | null | undefined
   selectedNodeId?: string | null

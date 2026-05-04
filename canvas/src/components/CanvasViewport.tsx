@@ -19,6 +19,9 @@ import { subscribeMarkdownPanelMetric } from '@/features/metrics/uiMetrics'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { createId } from '@/lib/id'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { buildRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
 
 import { getCanvas2dSurfaceId, supportsCanvas2dMinimap } from '@/lib/config.render'
@@ -251,14 +254,32 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
     const flowEditorOpenWidgetNodeIds = Array.isArray(gympgrphBridge.openWidgetNodeIdsByRenderer?.flowEditor)
       ? gympgrphBridge.openWidgetNodeIdsByRenderer.flowEditor
       : []
-    const targetNodeId = resolveGrabMapsPoiRichMediaPanelNodeId({
+    let targetNodeId = resolveGrabMapsPoiRichMediaPanelNodeId({
       graphData,
       selectedNodeId: gympgrphBridge.selectedNodeId,
       selectedNodeIds: gympgrphBridge.selectedNodeIds,
       openWidgetNodeIds: gympgrphBridge.openWidgetNodeIds,
       flowEditorOpenWidgetNodeIds,
     })
-    if (!targetNodeId) return false
+    if (!targetNodeId) {
+      const candidateIds = [
+        String(gympgrphBridge.selectedNodeId || '').trim(),
+        ...(Array.isArray(gympgrphBridge.selectedNodeIds) ? gympgrphBridge.selectedNodeIds : []).map(v => String(v || '').trim()),
+      ].filter(Boolean)
+      let anchorNode = null
+      for (let i = 0; i < candidateIds.length; i += 1) {
+        const resolved = resolveGraphNodeByCanonicalId(graphData, candidateIds[i]) || null
+        if (!resolved) continue
+        if (Number.isFinite(resolved.x) && Number.isFinite(resolved.y)) {
+          anchorNode = resolved
+          break
+        }
+        if (!anchorNode) anchorNode = resolved
+      }
+      const nextId = createId('rich-media-panel')
+      gympgrphBridge.addNode(buildRichMediaPanelNode({ id: nextId, anchor: anchorNode }))
+      targetNodeId = nextId
+    }
     publishGrabMapsPoiRichMediaPreview({
       targetNodeId,
       srcDoc,
@@ -270,6 +291,14 @@ const CanvasViewportGeospatialOverlay = React.memo(function CanvasViewportGeospa
         richMediaActiveTab: 'poi',
         freezeConnectedOutput: true,
         richMediaPoiLabel: String(detail.label || '').trim() || 'POI',
+        richMediaPoiAddress: String(detail.address || '').trim(),
+        richMediaPoiCategory: String(detail.category || '').trim(),
+        richMediaPoiLat: Number.isFinite(Number(detail.lat)) ? Number(detail.lat) : null,
+        richMediaPoiLng: Number.isFinite(Number(detail.lng)) ? Number(detail.lng) : null,
+        richMediaPoiCoordinates:
+          Number.isFinite(Number(detail.lat)) && Number.isFinite(Number(detail.lng))
+            ? `${Number(detail.lat).toFixed(6)}, ${Number(detail.lng).toFixed(6)}`
+            : '',
         output: '',
         outputSrcDoc: srcDoc,
       },

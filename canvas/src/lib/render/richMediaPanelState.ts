@@ -147,6 +147,9 @@ export function buildRichMediaPanelOverlayState(args: {
   const imageUrl = typeof props.imageUrl === 'string' ? props.imageUrl : ''
   const videoUrl = typeof props.videoUrl === 'string' ? props.videoUrl : ''
   const poiLabel = typeof props.richMediaPoiLabel === 'string' ? props.richMediaPoiLabel : ''
+  const poiAddress = typeof props.richMediaPoiAddress === 'string' ? props.richMediaPoiAddress : ''
+  const poiCategory = typeof props.richMediaPoiCategory === 'string' ? props.richMediaPoiCategory : ''
+  const poiCoordinates = typeof props.richMediaPoiCoordinates === 'string' ? props.richMediaPoiCoordinates : ''
   const rawTab = String(props.richMediaActiveTab || '').trim().toLowerCase()
   const activeTab: RichMediaPanelOverlayState['activeTab'] =
     rawTab === 'text' || rawTab === 'image' || rawTab === 'video' || rawTab === 'poi' || rawTab === 'auto'
@@ -170,7 +173,13 @@ export function buildRichMediaPanelOverlayState(args: {
     hasText: Boolean(output.trim() || outputSrcDoc.trim() || connectedText.trim()),
     hasImage: Boolean(imageUrl.trim()),
     hasVideo: Boolean(videoUrl.trim()),
-    hasPoi: Boolean(poiLabel.trim() || (activeTab === 'poi' && outputSrcDoc.trim())),
+    hasPoi: Boolean(
+      poiLabel.trim()
+      || poiAddress.trim()
+      || poiCategory.trim()
+      || poiCoordinates.trim()
+      || (activeTab === 'poi' && outputSrcDoc.trim()),
+    ),
     text: output,
     connectedText,
     isLoading,

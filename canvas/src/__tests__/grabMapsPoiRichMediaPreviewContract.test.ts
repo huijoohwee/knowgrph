@@ -5,6 +5,7 @@ import { JSDOM } from 'jsdom'
 
 import {
   GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT,
+  buildGrabMapsPoiRichMediaSrcDoc,
   publishGrabMapsPoiRichMediaPreview,
   readGrabMapsPoiRichMediaPreviewEventDetail,
   subscribeGrabMapsPoiRichMediaPreview,
@@ -78,5 +79,33 @@ export const testGrabMapsPoiPreviewCallsitesUseSharedHelpers = () => {
   }
   if (richMediaPanelText.includes('addEventListener(GRABMAPS_POI_RICH_MEDIA_PREVIEW_EVENT')) {
     throw new Error('expected RichMediaPanel to avoid raw GrabMaps preview event listener wiring')
+  }
+}
+
+export const testGrabMapsPoiSrcDocIncludesRichGeoMetadataAndNeutralActions = () => {
+  const srcDoc = buildGrabMapsPoiRichMediaSrcDoc({
+    label: 'Marina Bay Sands',
+    lat: 1.2834,
+    lng: 103.8607,
+    address: '10 Bayfront Ave, Singapore',
+    category: 'landmark',
+  })
+  if (!srcDoc.includes('Coordinates</strong><span>1.283400, 103.860700</span>')) {
+    throw new Error('expected GrabMaps POI srcdoc to include normalized six-decimal coordinates')
+  }
+  if (!srcDoc.includes('Open coordinates in OpenStreetMap')) {
+    throw new Error('expected GrabMaps POI srcdoc to include a neutral coordinate map action')
+  }
+  if (!srcDoc.includes('Open location via geo URI')) {
+    throw new Error('expected GrabMaps POI srcdoc to include a provider-agnostic geo URI action')
+  }
+  if (!srcDoc.includes('&quot;coordinates&quot;: {')) {
+    throw new Error('expected GrabMaps POI srcdoc to include a structured payload preview')
+  }
+  if (!srcDoc.includes('aria-label="POI mini-map snapshot"') || !srcDoc.includes('<svg viewBox="0 0 320 170"')) {
+    throw new Error('expected GrabMaps POI srcdoc to include an inline mini-map SVG snapshot block')
+  }
+  if (!srcDoc.includes('<circle cx="') || !srcDoc.includes('fill="#ef4444"')) {
+    throw new Error('expected GrabMaps POI srcdoc mini-map to render a visible POI marker')
   }
 }

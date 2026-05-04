@@ -138,14 +138,20 @@ export function testSourceFilesBootstrapResyncsOnlyOnActivePathChanges() {
   const bootstrapPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'SourceFilesPersistenceBootstrap.tsx')
   const text = readFileSync(bootstrapPath, 'utf8')
 
-  if (!text.includes('useMarkdownExplorerStore.subscribe(s => s.activePath')) {
+  if (!(text.includes('useMarkdownExplorerStore.subscribe(') && text.includes('s => s.activePath'))) {
     throw new Error('expected source files bootstrap to continue resyncing on active path changes')
+  }
+  if (text.includes('s => s.activePath && syncNow()')) {
+    throw new Error('expected source files bootstrap active-path subscription to avoid selector-side effects that cause churn and stale rematerialization')
   }
   if (text.includes('useGraphStore.subscribe(s => s.workspaceViewMode')) {
     throw new Error('expected source files bootstrap to stop rematerializing active workspace files just because workspace view mode flipped')
   }
   if (!text.includes('const lastMaterializedActivePathRef = React.useRef')) {
     throw new Error('expected source files bootstrap to dedupe redundant materialization by active workspace path')
+  }
+  if (!text.includes('if (!workspaceHydratedRef.current) return')) {
+    throw new Error('expected source files bootstrap to gate active-path rematerialization until workspace bootstrap hydration completes')
   }
   if (!text.includes('const activePathKey = buildMaterializedWorkspaceActivePathKey({') || !text.includes('if (lastMaterializedActivePathRef.current === activePathKey) return')) {
     throw new Error('expected source files bootstrap to skip repeated workspace-view materialization when the active path is unchanged')
