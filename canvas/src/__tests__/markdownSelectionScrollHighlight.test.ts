@@ -1,16 +1,68 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
+import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
+import { useMarkdownAutoPosition } from '@/components/BottomPanel/hooks/useMarkdownAutoPosition'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import type { GraphData } from '@/lib/graph/types'
+import type { MarkdownLayoutMode } from '@/components/BottomPanel/BottomPanelMarkdownSection'
+
+const tick = async (dom: { window: Window }) => {
+  await new Promise<void>(resolve => {
+    const raf = (dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }).requestAnimationFrame
+    if (typeof raf === 'function') {
+      raf(() => resolve())
+      return
+    }
+    setTimeout(() => resolve(), 0)
+  })
+}
+
+const waitForValue = async <T,>(readValue: () => T | null, dom: { window: Window }, maxTicks = 8): Promise<T | null> => {
+  for (let i = 0; i < maxTicks; i += 1) {
+    const value = readValue()
+    if (value) return value
+    await act(async () => {
+      await tick(dom)
+    })
+  }
+  return readValue()
+}
+
+function MarkdownAutoPositionHarness(props: {
+  selectionSource: string | null
+  selectedNodeId: string | null
+  selectedEdgeId: string | null
+  graphData: GraphData | null
+  markdownDocumentName: string | null
+  triggerJump: (line: number) => void
+  markdownText: string
+  markdownLayoutMode: MarkdownLayoutMode
+  setMarkdownLayoutMode: (mode: MarkdownLayoutMode) => void
+  setMarkdownPresentationMode: (mode: boolean) => void
+}) {
+  useMarkdownAutoPosition({
+    selectionSource: props.selectionSource,
+    selectedNodeId: props.selectedNodeId,
+    selectedEdgeId: props.selectedEdgeId,
+    graphData: props.graphData,
+    markdownDocumentName: props.markdownDocumentName,
+    triggerJump: props.triggerJump,
+    frontmatterMermaidCode: '',
+    markdownText: props.markdownText,
+    markdownLayoutMode: props.markdownLayoutMode,
+    setMarkdownLayoutMode: props.setMarkdownLayoutMode,
+    setMarkdownPresentationMode: props.setMarkdownPresentationMode,
+  })
+  return null
+}
 
 export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { dom, restore: restoreDom } = initJsdomHarness()
+  const { dom, restore: restoreDom } = initJsdomHarness('<!doctype html><html><body><div id="root"></div></body></html>')
+  let root: ReturnType<typeof createRoot> | null = null
   try {
     const doc = dom.window.document
     if (!doc.defaultView) {
@@ -32,27 +84,10 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
       anyGlobal.requestAnimationFrame = anyWindow.requestAnimationFrame
     }
 
-    Object.defineProperty(dom.window.HTMLTextAreaElement.prototype, 'scrollHeight', {
-      get() {
-        return 1000
-      },
-      configurable: true,
-    })
-    Object.defineProperty(dom.window.HTMLTextAreaElement.prototype, 'clientHeight', {
-      get() {
-        return 100
-      },
-      configurable: true,
-    })
-
-    const container = doc.createElement('div')
-    container.id = 'root'
-    doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
-
     const lines: string[] = []
-    for (let i = 1; i <= 200; i += 1) {
-      lines.push(`line ${i}`)
+    for (let i = 1; i <= 60; i += 1) {
+      lines.push(`paragraph ${i}`)
+      lines.push('')
     }
     const markdownText = lines.join('\n')
 
@@ -65,9 +100,9 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
           label: 'Target',
           properties: {},
           metadata: {
-            documentPath: '',
-            lineStart: 100,
-            lineEnd: 102,
+            documentPath: '/docs/example.md',
+            lineStart: 101,
+            lineEnd: 101,
           },
         },
       ],
@@ -75,64 +110,105 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
       metadata: {},
     }
 
-    const state = useGraphStore.getState()
-    state.setGraphData(graphData as never)
-    state.setMarkdownDocument('test.md', markdownText)
-    state.setSelectionSource('canvas')
-    state.selectNode('node-100')
+    const container = doc.getElementById('root')
+    if (!container) throw new Error('missing root container')
 
-    root.render(React.createElement(BottomPanelMarkdownSection))
+    const requestedLayoutModes: MarkdownLayoutMode[] = []
+    const requestedPresentationModes: boolean[] = []
+    const requestedJumpLines: number[] = []
 
-    const tick = () =>
-      new Promise<void>(resolve =>
-        anyWindow.requestAnimationFrame ? anyWindow.requestAnimationFrame(() => resolve()) : setTimeout(() => resolve(), 0),
+    root = createRoot(container as unknown as HTMLElement)
+    await act(async () => {
+      root?.render(
+        React.createElement(MarkdownAutoPositionHarness, {
+          selectionSource: 'canvas',
+          selectedNodeId: 'node-100',
+          selectedEdgeId: null,
+          graphData,
+          markdownDocumentName: '/docs/example.md',
+          triggerJump: (line: number) => {
+            requestedJumpLines.push(line)
+          },
+          markdownText,
+          markdownLayoutMode: 'split',
+          setMarkdownLayoutMode: (mode: MarkdownLayoutMode) => {
+            requestedLayoutModes.push(mode)
+          },
+          setMarkdownPresentationMode: (mode: boolean) => {
+            requestedPresentationModes.push(mode)
+          },
+        }),
       )
-    await tick()
-    await tick()
-
-    const toggleButton = doc.querySelector(
-      'button[aria-label="Toggle text highlight"]',
-    ) as HTMLButtonElement | null
-    if (!toggleButton) {
-      throw new Error('markdown text highlight toggle button not found')
-    }
-    toggleButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-    await tick()
-    await tick()
-
-    const textarea = doc.querySelector('textarea') as HTMLTextAreaElement | null
-    if (!textarea) {
-      throw new Error('editor textarea not found')
-    }
-
-    Object.defineProperty(textarea, 'scrollHeight', {
-      value: 1000,
-      configurable: true,
-    })
-    Object.defineProperty(textarea, 'clientHeight', {
-      value: 100,
-      configurable: true,
+      await tick(dom)
+      await tick(dom)
     })
 
-    await tick()
-    await tick()
-
-    const scrollTopAfter = textarea.scrollTop
-    if (scrollTopAfter <= 0) {
-      throw new Error('expected textarea to scroll for selected node line range')
+    if (!requestedLayoutModes.includes('editor')) {
+      throw new Error(`expected canvas selection to request editor mode, got ${JSON.stringify(requestedLayoutModes)}`)
+    }
+    if (requestedPresentationModes[0] !== false) {
+      throw new Error(`expected canvas selection to disable presentation mode, got ${JSON.stringify(requestedPresentationModes)}`)
+    }
+    if (requestedJumpLines[0] !== 101) {
+      throw new Error(`expected canvas selection to request jump to line 101, got ${JSON.stringify(requestedJumpLines)}`)
     }
 
-    const gutter = doc.querySelector('.shrink-0.border-r.relative.overflow-hidden') as HTMLDivElement | null
-    if (!gutter) {
-      throw new Error('editor gutter not found')
+    await act(async () => {
+      root?.unmount()
+    })
+    root = createRoot(container as unknown as HTMLElement)
+    await act(async () => {
+      root?.render(
+        React.createElement(MarkdownPreview, {
+          markdownText,
+          activeDocumentPath: '/docs/example.md',
+          highlightedLineRange: { start: 101, end: 101 },
+          markdownWordWrap: true,
+          markdownPresentationMode: false,
+          markdownTextHighlight: true,
+          uiPanelTextFontClass: 'font-sans text-xs',
+          uiPanelMonospaceTextClass: 'font-mono text-xs',
+          previewOverlayScope: 'container',
+          previewOverlayPortalTarget: null,
+          previewScrollable: true,
+          viewMode: 'viewer',
+        }),
+      )
+      await tick(dom)
+      await tick(dom)
+    })
+
+    const previewRoot = await waitForValue(
+      () => doc.querySelector('[data-testid="markdown-preview-root"]') as HTMLDivElement | null,
+      dom,
+    )
+    if (!previewRoot) throw new Error('expected markdown preview root')
+
+    const highlightedBlock = await waitForValue(
+      () => previewRoot.querySelector('[data-start-line="101"]') as HTMLElement | null,
+      dom,
+    )
+    if (!highlightedBlock) throw new Error('expected highlighted markdown block at start line 101')
+    if (!String(highlightedBlock.textContent || '').includes('paragraph 51')) {
+      throw new Error(`expected highlighted block text for line 101, got ${JSON.stringify(highlightedBlock.textContent || '')}`)
     }
-    const highlighted = gutter.querySelectorAll('[style*="background-color"]')
-    if (!highlighted || highlighted.length === 0) {
-      throw new Error('expected at least one highlighted line number in gutter')
+    if (!String(highlightedBlock.getAttribute('class') || '').includes('transition-colors')) {
+      throw new Error(`expected highlighted markdown block classes, got ${JSON.stringify(highlightedBlock.getAttribute('class') || '')}`)
     }
 
-    root.unmount()
+    const nonHighlightedBlock = previewRoot.querySelector('[data-start-line="99"]') as HTMLElement | null
+    if (!nonHighlightedBlock) throw new Error('expected neighboring markdown block at start line 99')
+    if (String(nonHighlightedBlock.getAttribute('class') || '').includes('transition-colors')) {
+      throw new Error('expected neighboring markdown block to remain unhighlighted')
+    }
   } finally {
+    try {
+      await act(async () => {
+        root?.unmount()
+      })
+    } catch {
+      void 0
+    }
     restoreDom()
     restoreWindow()
   }

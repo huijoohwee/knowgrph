@@ -61,7 +61,12 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modShowOnCanvas.testMarkdownPreviewViewModeSwitchDoesNotCrossDocumentPath,
     )
 
-    await import('../__tests__/markdownSelectionScrollHighlight.test')
+    const modSelectionScrollHighlight = await import('../__tests__/markdownSelectionScrollHighlight.test')
+    await execTest(
+      results,
+      'ui.markdown.workspace.selectionScrollHighlight',
+      modSelectionScrollHighlight.testCanvasSelectionScrollsAndHighlightsMarkdown,
+    )
 
     const modCollapsible = await import('../__tests__/collapsibleDefaults.test')
     await execTest(
