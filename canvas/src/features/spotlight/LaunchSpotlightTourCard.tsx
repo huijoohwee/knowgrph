@@ -193,7 +193,7 @@ export function LaunchSpotlightTourCard({
                 <Tooltip
                   content={LAUNCH_SPOTLIGHT_TOUR_TOOLTIP}
                   maxWidthPx={260}
-                  contentClassName="bg-gray-800/90"
+
                 >
                   <div className="flex items-center gap-1">
                     <div className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>{current.title}</div>

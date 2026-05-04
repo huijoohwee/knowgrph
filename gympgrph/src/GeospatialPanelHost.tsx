@@ -89,6 +89,13 @@ function GeoViewModeChoice(props: GeoViewModeChoiceProps): React.ReactElement {
   )
 }
 
+const geospatialPanelRootClassName = `h-full w-full p-3 text-sm ${UI_THEME_TOKENS.text.primary}`
+const geospatialPanelSecondaryTextClassName = `text-[12px] ${UI_THEME_TOKENS.text.secondary}`
+const geospatialPanelMetaTextClassName = `text-[11px] ${UI_THEME_TOKENS.text.tertiary}`
+const geospatialPanelCardClassName = `mt-2 rounded border p-2 ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg}`
+const geospatialPanelControlClassName = `px-2 py-1 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
+const geospatialPanelInputClassName = `px-2 py-1 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
+
 const readLsString = (key: string, fallback: string): string => {
   if (typeof window === 'undefined') return fallback
   try {
@@ -329,10 +336,10 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
   }, [active, disabled])
 
   return (
-    <div className="h-full w-full p-3 text-sm text-gray-800 dark:text-gray-100">
+    <div className={geospatialPanelRootClassName}>
       <div className="flex items-center justify-between gap-2">
         <div className="font-medium">Geospatial</div>
-        <div className="text-[11px] text-gray-500 dark:text-gray-400">
+        <div className={geospatialPanelMetaTextClassName}>
           style: {
             committedStyleUrl === MAPLIBRE_CLASSIC_DEFAULT_STYLE_URL ||
             committedStyleUrl === MAPLIBRE_MODERN_DEFAULT_STYLE_URL ||
@@ -345,7 +352,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
 
       <div className="mt-3 grid gap-2">
         <div className="flex items-center justify-between gap-2">
-          <label className="text-[12px] text-gray-600 dark:text-gray-300">View</label>
+          <label className={geospatialPanelSecondaryTextClassName}>View</label>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-6" aria-label="Geospatial view mode">
           <GeoViewModeChoice
@@ -392,43 +399,43 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
           />
         </div>
 
-        <div className="mt-2 rounded border border-gray-200/60 dark:border-gray-800/60 p-2">
-          <div className="text-[12px] text-gray-600 dark:text-gray-300">Point Style</div>
+        <div className={geospatialPanelCardClassName}>
+          <div className={geospatialPanelSecondaryTextClassName}>Point Style</div>
           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-4">
-            <label className="text-[11px] text-gray-600 dark:text-gray-300">
+            <label className={geospatialPanelMetaTextClassName}>
               Airport
               <input
-                className="mt-1 w-full px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                className={`mt-1 w-full ${geospatialPanelInputClassName}`}
                 type="color"
                 value={pointStyleDraft.colors.airport}
                 disabled={disabled}
                 onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, airport: e.target.value } }))}
               />
             </label>
-            <label className="text-[11px] text-gray-600 dark:text-gray-300">
+            <label className={geospatialPanelMetaTextClassName}>
               Hotel
               <input
-                className="mt-1 w-full px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                className={`mt-1 w-full ${geospatialPanelInputClassName}`}
                 type="color"
                 value={pointStyleDraft.colors.hotel}
                 disabled={disabled}
                 onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, hotel: e.target.value } }))}
               />
             </label>
-            <label className="text-[11px] text-gray-600 dark:text-gray-300">
+            <label className={geospatialPanelMetaTextClassName}>
               POI
               <input
-                className="mt-1 w-full px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                className={`mt-1 w-full ${geospatialPanelInputClassName}`}
                 type="color"
                 value={pointStyleDraft.colors.poi}
                 disabled={disabled}
                 onChange={e => setPointStyleDraft(prev => ({ ...prev, colors: { ...prev.colors, poi: e.target.value } }))}
               />
             </label>
-            <label className="text-[11px] text-gray-600 dark:text-gray-300">
+            <label className={geospatialPanelMetaTextClassName}>
               Radius x
               <input
-                className="mt-1 w-full px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                className={`mt-1 w-full ${geospatialPanelInputClassName}`}
                 type="number"
                 step="0.05"
                 min="0.6"
@@ -446,7 +453,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
-              className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              className={geospatialPanelControlClassName}
               disabled={disabled}
               onClick={applyPointStyle}
             >
@@ -454,7 +461,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
             </button>
             <button
               type="button"
-              className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              className={geospatialPanelControlClassName}
               disabled={disabled}
               onClick={resetPointStyle}
             >
@@ -464,10 +471,10 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <label className="text-[12px] text-gray-600 dark:text-gray-300">Auto-fit</label>
+          <label className={geospatialPanelSecondaryTextClassName}>Auto-fit</label>
           <button
             type="button"
-            className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+            className={geospatialPanelControlClassName}
             disabled={disabled}
             onClick={() => setGeospatialAutoFitEnabled(!geospatialAutoFitEnabled)}
           >
@@ -478,7 +485,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+            className={geospatialPanelControlClassName}
             disabled={disabled}
             onClick={() => requestGeospatialFitToData()}
           >
@@ -486,7 +493,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
           </button>
           <button
             type="button"
-            className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+            className={geospatialPanelControlClassName}
             disabled={disabled}
             onClick={() => requestGeospatialFitToSelection()}
           >
@@ -494,7 +501,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
           </button>
           <button
             type="button"
-            className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+            className={geospatialPanelControlClassName}
             disabled={disabled || currentLocationState === 'locating'}
             onClick={useCurrentLocation}
           >
@@ -505,7 +512,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
           <div
             className={[
               'text-[11px]',
-              currentLocationState === 'error' ? 'text-red-600 dark:text-red-300' : 'text-gray-500 dark:text-gray-400',
+              currentLocationState === 'error' ? 'text-red-600 dark:text-red-300' : UI_THEME_TOKENS.text.tertiary,
             ].join(' ')}
           >
             {currentLocationMessage}
@@ -513,10 +520,10 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
         ) : null}
 
         <div className="mt-2">
-          <div className="text-[12px] text-gray-600 dark:text-gray-300">Basemap style URL</div>
+          <div className={geospatialPanelSecondaryTextClassName}>Basemap style URL</div>
           <div className="mt-1 flex items-center gap-2">
             <input
-              className="flex-1 min-w-0 px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              className={`flex-1 min-w-0 ${geospatialPanelInputClassName}`}
               value={styleUrlDraft}
               onChange={e => setStyleUrlDraft(e.target.value)}
               placeholder="Leave blank for MapLibre default style"
@@ -525,7 +532,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
             />
             <button
               type="button"
-              className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              className={geospatialPanelControlClassName}
               disabled={disabled}
               onClick={applyStyleUrl}
             >
@@ -533,7 +540,7 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
             </button>
             <button
               type="button"
-              className="px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+              className={geospatialPanelControlClassName}
               disabled={disabled}
               onClick={resetStyleUrl}
             >
@@ -543,13 +550,13 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
         </div>
 
         <div className="mt-2">
-          <div className="text-[12px] text-gray-600 dark:text-gray-300">Dataset loading</div>
+          <div className={geospatialPanelSecondaryTextClassName}>Dataset loading</div>
           <div className="mt-1 grid gap-2">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-[12px] text-gray-600 dark:text-gray-300">Timeout (ms)</label>
+              <label className={geospatialPanelSecondaryTextClassName}>Timeout (ms)</label>
               <div className="flex items-center gap-2">
                 <input
-                  className="w-28 px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                  className={`w-28 ${geospatialPanelInputClassName}`}
                   value={timeoutMsInput}
                   onChange={e => setTimeoutMsInput(e.target.value)}
                   onBlur={commitTimeoutMs}
@@ -558,10 +565,10 @@ export function GeospatialPanelHost(props: GeospatialPanelHostProps): React.Reac
               </div>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <label className="text-[12px] text-gray-600 dark:text-gray-300">Max bytes (MB)</label>
+              <label className={geospatialPanelSecondaryTextClassName}>Max bytes (MB)</label>
               <div className="flex items-center gap-2">
                 <input
-                  className="w-28 px-2 py-1 rounded-md border border-gray-200/60 dark:border-gray-800/60 bg-white/70 dark:bg-black/40"
+                  className={`w-28 ${geospatialPanelInputClassName}`}
                   value={maxBytesMbInput}
                   onChange={e => setMaxBytesMbInput(e.target.value)}
                   onBlur={commitMaxBytes}

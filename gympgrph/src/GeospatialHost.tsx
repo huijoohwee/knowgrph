@@ -1,5 +1,6 @@
 import React from 'react'
 import { hashStringToHex } from 'grph-shared/hash/stringHash'
+import { UI_THEME_TOKENS } from 'grph-shared/ui/themeTokens'
 import { useGympgrphStore } from './store.js'
 import { useMapLibreBasemap } from './features/geospatial/useMapLibreBasemap.js'
 import { LS_KEYS } from './lib/config.js'
@@ -131,8 +132,10 @@ function GeospatialPointLegend(props: {
     { key: 'route', label: 'Route' },
   ]
   return (
-    <div className="absolute left-2 bottom-2 z-20 pointer-events-none rounded-md border border-gray-200/70 bg-white/82 px-2 py-1.5 text-[11px] text-gray-700 shadow-sm dark:border-gray-800/70 dark:bg-black/62 dark:text-gray-200">
-      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Legend</div>
+    <div
+      className={`absolute left-2 bottom-2 z-20 pointer-events-none rounded-md border px-2 py-1.5 text-[11px] shadow-sm ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.overlayBg} ${UI_THEME_TOKENS.text.secondary}`}
+    >
+      <div className={`mb-1 text-[10px] font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Legend</div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1">
         {items.map(item => (
           <div key={item.key} className="flex items-center gap-1.5">
@@ -1287,7 +1290,9 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
         }}
       />
       {debug ? (
-        <div className="absolute top-2 right-2 z-20 pointer-events-none rounded-md border border-gray-200/60 bg-white/80 px-2 py-1 text-[11px] text-gray-700 dark:border-gray-800/60 dark:bg-black/60 dark:text-gray-200">
+        <div
+          className={`absolute top-2 right-2 z-20 pointer-events-none rounded-md border px-2 py-1 text-[11px] ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.overlayBg} ${UI_THEME_TOKENS.text.secondary}`}
+        >
           <div>map: {activeBasemap.map ? 'yes' : 'no'}</div>
           <div>view: {geospatialViewMode} provider: {providerLabel}</div>
           <div>
@@ -1308,7 +1313,7 @@ export function GeospatialOverlayHost(props: GeospatialOverlayHostProps): React.
         </div>
       ) : null}
       {!debug && activeBasemap.mapError ? (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-700 dark:text-gray-200 bg-white/70 dark:bg-black/40">
+        <div className={`absolute inset-0 flex items-center justify-center text-xs ${UI_THEME_TOKENS.panel.overlayBg} ${UI_THEME_TOKENS.text.secondary}`}>
           {activeBasemap.mapError}
         </div>
       ) : null}

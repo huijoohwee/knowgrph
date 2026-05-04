@@ -59,7 +59,7 @@ export default function ThreeViewCameraSection({
               <Tooltip
                 content={CAMERA_DAMPING_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.cameraDampingFactor ?? 0.08)}
@@ -86,7 +86,7 @@ export default function ThreeViewCameraSection({
               <Tooltip
                 content={ROTATE_SPEED_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.cameraRotateSpeed ?? 0.6)}
@@ -113,7 +113,7 @@ export default function ThreeViewCameraSection({
               <Tooltip
                 content={ZOOM_SPEED_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.cameraZoomSpeed ?? 0.8)}
@@ -140,7 +140,7 @@ export default function ThreeViewCameraSection({
               <Tooltip
                 content={PAN_SPEED_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.cameraPanSpeed ?? 0.5)}
@@ -183,7 +183,7 @@ export default function ThreeViewCameraSection({
               <Tooltip
                 content={AUTO_ROTATE_SPEED_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.cameraAutoRotateSpeed ?? 0.4)}

@@ -122,9 +122,7 @@ export async function testCanvasSelectionScrollsAndHighlightsMarkdown() {
       throw new Error('expected textarea to scroll for selected node line range')
     }
 
-    const gutter = doc.querySelector(
-      '.shrink-0.border-r.border-gray-200.bg-gray-50.text-gray-500.relative.overflow-hidden',
-    ) as HTMLDivElement | null
+    const gutter = doc.querySelector('.shrink-0.border-r.relative.overflow-hidden') as HTMLDivElement | null
     if (!gutter) {
       throw new Error('editor gutter not found')
     }

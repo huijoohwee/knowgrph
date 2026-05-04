@@ -106,7 +106,7 @@ export default function MediaNodesSection({
         <Tooltip
           content={copy.tooltip}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+
         >
           {titleContent}
         </Tooltip>
@@ -160,7 +160,7 @@ export default function MediaNodesSection({
               <Tooltip
                 content={copy.viewToggleHelper || ''}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span
                   className={[

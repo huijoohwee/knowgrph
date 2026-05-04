@@ -150,7 +150,7 @@ export default function DatasetInspectorSection({
         <Tooltip
           content={copy.tooltip}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+
         >
           {titleContent}
         </Tooltip>

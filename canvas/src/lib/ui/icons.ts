@@ -1,3 +1,5 @@
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
 export type UiIconScale = 'compact' | 'default'
 
 export function getIconSizeClass(scale: UiIconScale | undefined): string {
@@ -41,7 +43,7 @@ export function getChipClass(
   const extraBase = options.baseClass || ''
   const base = extraBase ? `${defaultBase} ${extraBase}` : defaultBase
   const sizeClass = options.textSizeClass || 'text-xs'
-  const defaultColorClass = variant === 'selected' ? 'text-blue-700' : 'text-gray-700'
+  const defaultColorClass = variant === 'selected' ? 'text-blue-700' : UI_THEME_TOKENS.text.secondary
   const colorClass = options.textColorClass || defaultColorClass
   const extra = options.extraClassName || ''
   return [base, sizeClass, colorClass, extra].filter(Boolean).join(' ')
@@ -64,19 +66,15 @@ export function getBadgeChipClass(
   const extraBase = options.baseClass || ''
   const base = extraBase ? `${defaultBase} ${extraBase}` : defaultBase
   const sizeClass = options.textSizeClass || 'text-[9px]'
-  const defaultTextClass =
-    variant === 'selected' ? 'text-blue-700' : variant === 'neutral' ? 'text-gray-700' : 'text-gray-100'
-  const textColorClass = options.textColorClass || defaultTextClass
-  const defaultBgClass =
-    variant === 'selected' ? 'bg-blue-50' : variant === 'neutral' ? 'bg-gray-50' : 'bg-gray-800'
-  const bgColorClass = options.bgColorClass || defaultBgClass
-  const defaultBorderClass =
+  const defaultStateClass =
     variant === 'selected'
-      ? 'border border-blue-300'
+      ? 'text-blue-700 bg-blue-50 border border-blue-300'
       : variant === 'neutral'
-        ? 'border border-gray-300'
-        : 'border border-gray-700'
-  const borderColorClass = options.borderColorClass || defaultBorderClass
+        ? UI_THEME_TOKENS.status.neutral
+        : `border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`
+  const textColorClass = options.textColorClass || ''
+  const bgColorClass = options.bgColorClass || ''
+  const borderColorClass = options.borderColorClass || ''
   const extra = options.extraClassName || ''
-  return [base, sizeClass, textColorClass, bgColorClass, borderColorClass, extra].filter(Boolean).join(' ')
+  return [base, sizeClass, defaultStateClass, textColorClass, bgColorClass, borderColorClass, extra].filter(Boolean).join(' ')
 }

@@ -108,7 +108,7 @@ export default function ThreeViewBackgroundFogSection({
               <Tooltip
                 content={FOG_NEAR_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.fogNear ?? 180)}
@@ -133,7 +133,7 @@ export default function ThreeViewBackgroundFogSection({
               <Tooltip
                 content={FOG_FAR_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.fogFar ?? 360)}

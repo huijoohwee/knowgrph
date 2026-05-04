@@ -220,7 +220,7 @@ export function RightAlignedValueCell({ children, className }: RightAlignedValue
 export function RightAlignedTooltipInput({
   tooltip,
   maxWidthPx = 260,
-  contentClassName = 'bg-gray-800/90',
+  contentClassName = '',
   className,
   containerClassName,
   ...inputProps

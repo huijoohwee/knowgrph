@@ -48,7 +48,7 @@ export default function MainPanelHelpHeader({
         <Tooltip
           content={HELP_TAB_HEADER_TOOLTIP}
           maxWidthPx={280}
-          contentClassName="bg-gray-800/90"
+
         >
           <span>Help</span>
         </Tooltip>

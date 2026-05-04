@@ -188,7 +188,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
         const colorLabel = scope === 'node' ? UI_COPY.graphFieldsNodeColorLabel : UI_COPY.graphFieldsEdgeColorLabel
         const tooltipText = UI_COPY.graphFieldsColorSwatchTooltip(scope)
         return (
-          <Tooltip content={tooltipText} maxWidthPx={260} contentClassName="bg-gray-800/90">
+          <Tooltip content={tooltipText} maxWidthPx={260}>
             <label className="inline-flex items-center justify-center relative group h-6 w-6" aria-label={colorLabel}>
               <FieldColorIcon
                 color={scopeColor}

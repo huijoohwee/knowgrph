@@ -86,7 +86,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={NODE_MOTION_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.nodeMotionIntensity ?? 1.0)}
@@ -111,7 +111,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={MINIMAP_OPACITY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.minimapOpacity ?? 0.7)}
@@ -136,7 +136,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={SPHERE_RADIUS_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.sphereRadius ?? 120)}
@@ -161,7 +161,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={MIN_SPACING_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.minSpacing ?? 0)}
@@ -177,7 +177,7 @@ export default function ThreeViewLayoutSection({
             <Tooltip
               content={LAYOUT_SEED_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+
             >
               <input
                 type="number"
@@ -223,7 +223,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_SEED_SCALE_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelSeedScaleFactor ?? 1)}
@@ -248,7 +248,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_GRID_SCALE_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelGridScaleFactor ?? 1)}
@@ -273,7 +273,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_LAYER_SPACING_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelLayerSpacing ?? 84)}
@@ -298,7 +298,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_LAYER_PLATE_OPACITY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelLayerPlateOpacity ?? 0.06)}
@@ -314,7 +314,7 @@ export default function ThreeViewLayoutSection({
             <Tooltip
               content={VOXEL_LAYER_PLATE_RISE_DURATION_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+
             >
               <input
                 type="number"
@@ -332,7 +332,7 @@ export default function ThreeViewLayoutSection({
             <Tooltip
               content={VOXEL_LAYER_PLATE_RISE_STAGGER_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+
             >
               <input
                 type="number"
@@ -359,7 +359,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_CLUSTER_PULSE_STRENGTH_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelClusterPulseStrength ?? 0.22)}
@@ -384,7 +384,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_EDGE_HOVER_OPACITY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelEdgeHoverOpacity ?? 0.65)}
@@ -409,7 +409,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_GAP_RING_THRESHOLD_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelGapRingThreshold ?? 0.85)}
@@ -434,7 +434,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_INTRO_DELAY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelIntroDelayMs ?? 320)}
@@ -459,7 +459,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_INTRO_DURATION_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelIntroDurationMs ?? 1100)}
@@ -484,7 +484,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_DEFAULT_YAW_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelDefaultYawDeg ?? -36)}
@@ -509,7 +509,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_DEFAULT_TILT_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelDefaultTiltDeg ?? 32)}
@@ -534,7 +534,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_DEFAULT_DISTANCE_FACTOR_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelDefaultDistanceFactor ?? 2.2)}
@@ -559,7 +559,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_DEFAULT_TARGET_LIFT_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelDefaultTargetLift ?? 8)}
@@ -584,7 +584,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_GHOST_OPACITY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelGhostOpacity ?? 0.32)}
@@ -609,7 +609,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_TOP_CAP_EMISSIVE_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelTopCapEmissiveIntensity ?? 0.9)}
@@ -634,7 +634,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_CLUSTER_LIGHT_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelClusterLightIntensity ?? 0.7)}
@@ -659,7 +659,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_HUB_PULSE_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelHubPulseStrength ?? 0.07)}
@@ -684,7 +684,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_CONCEPT_FLOAT_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelConceptFloatStrength ?? 1)}
@@ -709,7 +709,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_IDLE_ROTATE_DELAY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelIdleAutoRotateDelayMs ?? 900)}
@@ -734,7 +734,7 @@ export default function ThreeViewLayoutSection({
               <Tooltip
                 content={VOXEL_IDLE_ROTATE_SPEED_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueLabelClassName}>
                   {String(schema.three?.voxelIdleAutoRotateSpeed ?? 0.12)}

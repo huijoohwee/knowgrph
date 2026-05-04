@@ -55,7 +55,7 @@ export default function ThreeViewSelectionSection({
               <Tooltip
                 content={SELECTED_NODE_GLOW_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.selection?.selectedNodeGlowIntensity ?? 0.8)}
@@ -84,7 +84,7 @@ export default function ThreeViewSelectionSection({
               <Tooltip
                 content={DIMMED_NODE_OPACITY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.selection?.dimmedNodeOpacity ?? 0.2)}
@@ -113,7 +113,7 @@ export default function ThreeViewSelectionSection({
               <Tooltip
                 content={DIMMED_EDGE_OPACITY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.selection?.dimmedEdgeOpacity ?? 0.2)}

@@ -88,7 +88,7 @@ export function ParserSelectionSection({
               <Tooltip
                 content={copy.tooltip}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={titleClassName}>
                   {copy.title}
@@ -472,7 +472,7 @@ export function ParserDataSection({
               <Tooltip
                 content={copy.tooltip}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={titleClassName}>
                   {copy.title}

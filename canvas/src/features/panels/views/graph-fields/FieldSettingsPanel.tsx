@@ -273,7 +273,7 @@ export default function FieldSettingsPanel({
         <Tooltip
           content={UI_COPY.graphFieldsAgenticFieldSettingsDescription}
           maxWidthPx={420}
-          contentClassName="bg-gray-800/90"
+
           className="min-w-0"
         >
           <section className={`${uiPanelKeyValueTextSizeClass} truncate`}>{UI_LABELS.fieldSettings}</section>
@@ -388,7 +388,7 @@ export default function FieldSettingsPanel({
                     <Tooltip
                       content={GRAPH_FIELDS_DESCRIPTION_TOOLTIP_TEXT}
                       maxWidthPx={260}
-                      contentClassName="bg-gray-800/90"
+
                     >
                       <span className="inline-flex items-center gap-1">
                         <span>{UI_COPY.graphFieldsDescriptionLabel}</span>

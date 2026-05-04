@@ -115,7 +115,7 @@ export default function ThreeSizingAndWidthControls({
           <Tooltip
             content="Renderer → choose three.nodeSizingFormula → size nodes by schema type or visual importance so key concepts stand out in dense views."
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+
           >
             <span className={keyLabelClassName}>
               schema.three.nodeSizingFormula
@@ -128,7 +128,7 @@ export default function ThreeSizingAndWidthControls({
             <Tooltip
               content="Default: schema; Impact: toggles node sizes between schema types and importance weights."
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+
               className="w-full h-full"
             >
               <select
@@ -154,7 +154,7 @@ export default function ThreeSizingAndWidthControls({
           <Tooltip
             content="Renderer → choose three.edgeWidthFormula → map edge thickness to schema label or weight so stronger relations appear visually bolder."
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+
           >
             <span className={keyLabelClassName}>
               schema.three.edgeWidthFormula
@@ -167,7 +167,7 @@ export default function ThreeSizingAndWidthControls({
             <Tooltip
               content="Default: schema; Impact: toggles edge widths between labels and weight-based emphasis."
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+
               className="w-full h-full"
             >
               <select
@@ -193,7 +193,7 @@ export default function ThreeSizingAndWidthControls({
           <Tooltip
             content="Renderer → scale keyword node sizes (visual:nodeSize / visual:importance) to tune frequency emphasis without regenerating the keyword graph."
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+
           >
             <span className={keyLabelClassName}>
               schema.three.keywordNodeSizeScale
@@ -225,7 +225,7 @@ export default function ThreeSizingAndWidthControls({
           <Tooltip
             content="Renderer → scale keyword edge widths (visual:width / weight) to tune strength emphasis without regenerating the keyword graph."
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+
           >
             <span className={keyLabelClassName}>
               schema.three.keywordEdgeWidthScale

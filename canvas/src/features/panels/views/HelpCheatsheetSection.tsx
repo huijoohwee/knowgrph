@@ -97,7 +97,7 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
         <Tooltip
           content={HELP_CHEATSHEET_ALIGNMENT_TOOLTIP}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+
         >
           <span className="inline-flex items-center gap-1">
             <span>{HELP_STEP_COPY.cheatsheet.title}</span>

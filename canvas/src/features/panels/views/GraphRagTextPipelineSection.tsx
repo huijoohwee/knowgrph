@@ -168,7 +168,7 @@ export default function GraphRagTextPipelineSection() {
       <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary}`}>
         {UI_COPY.graphragTextPipelineBadge}
       </span>
-      <Tooltip content={UI_COPY.graphragTextPipelineTooltip} maxWidthPx={320} contentClassName="bg-gray-800/90">
+      <Tooltip content={UI_COPY.graphragTextPipelineTooltip} maxWidthPx={320}>
         <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>
           {UI_COPY.graphragTextPipelineTitle}
         </span>

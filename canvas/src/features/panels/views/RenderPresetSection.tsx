@@ -285,7 +285,7 @@ export function TraversalPresetSection({
         <Tooltip
           content={TRAVERSAL_PRESET_UI_TOOLTIP}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+
         >
           <div className={sectionHeadingClassName}>
             Traversal
@@ -341,7 +341,7 @@ export function TraversalPresetSection({
               <Tooltip
                 content="Orchestrator → choose startNodeId for generic traversal queries → treat this node as the traversal anchor so presets and ad‑hoc walks explore neighborhoods relative to a single starting point."
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={keyLabelClassName}>
                   traversalStartNodeId
@@ -369,7 +369,7 @@ export function TraversalPresetSection({
               <Tooltip
                 content="Orchestrator → cap maxDepth hops from the traversal start node → bound neighborhood walks so generic traversals stay inspectable while still surfacing multi‑hop structure around the chosen anchor."
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={keyLabelClassName}>
                   traversalMaxDepth
@@ -404,7 +404,7 @@ export function TraversalPresetSection({
               <Tooltip
                 content="Orchestrator → filter traversal relations by allowed edge labels → keep generic walks constrained to selected relation names so GraphRAG‑style previews highlight only semantically relevant connections."
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={keyLabelClassName}>
                   traversalLabelFilter

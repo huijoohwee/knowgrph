@@ -319,7 +319,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
           <Tooltip
             content={GRAPH_FIELDS_ICON_LEGEND_TOOLTIP}
             maxWidthPx={260}
-            contentClassName="bg-gray-800/90"
+
           >
             <div>
               {UI_COPY.graphFieldsIconLegendHeaderLabel}

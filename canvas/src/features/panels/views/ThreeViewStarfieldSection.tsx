@@ -67,7 +67,7 @@ export default function ThreeViewStarfieldSection({
               <Tooltip
                 content={STAR_COUNT_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.starfieldCount ?? 0)}
@@ -96,7 +96,7 @@ export default function ThreeViewStarfieldSection({
               <Tooltip
                 content={STARFIELD_RADIUS_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(
@@ -125,7 +125,7 @@ export default function ThreeViewStarfieldSection({
               <Tooltip
                 content={STARFIELD_BRIGHTNESS_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.starfieldOpacity ?? 0.9)}

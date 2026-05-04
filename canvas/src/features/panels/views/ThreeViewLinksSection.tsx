@@ -60,7 +60,7 @@ export default function ThreeViewLinksSection({
               <Tooltip
                 content={ARROW_LENGTH_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.linkDirectionalArrowLength ?? 8)}
@@ -85,7 +85,7 @@ export default function ThreeViewLinksSection({
               <Tooltip
                 content={LINK_OPACITY_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.linkOpacity ?? 0.6)}
@@ -110,7 +110,7 @@ export default function ThreeViewLinksSection({
               <Tooltip
                 content={LINK_CURVATURE_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.linkCurvature ?? 0.0)}
@@ -135,7 +135,7 @@ export default function ThreeViewLinksSection({
               <Tooltip
                 content={CURVE_ROTATION_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.linkCurveRotation ?? 0.0)}
@@ -162,7 +162,7 @@ export default function ThreeViewLinksSection({
               <Tooltip
                 content={DIRECTIONAL_PARTICLES_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.linkDirectionalParticles ?? 0)}
@@ -189,7 +189,7 @@ export default function ThreeViewLinksSection({
               <Tooltip
                 content={ARROW_POSITION_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.linkDirectionalArrowRelPos ?? 0.85)}
@@ -216,7 +216,7 @@ export default function ThreeViewLinksSection({
               <Tooltip
                 content={PARTICLE_SPEED_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(schema.three?.linkDirectionalParticleSpeed ?? 0.6)}
@@ -243,7 +243,7 @@ export default function ThreeViewLinksSection({
               <Tooltip
                 content={SELECTED_EDGE_WIDTH_TOOLTIP}
                 maxWidthPx={260}
-                contentClassName="bg-gray-800/90"
+
               >
                 <span className={valueTextClassName}>
                   {String(selectionConfig.selectedEdgeWidth)}

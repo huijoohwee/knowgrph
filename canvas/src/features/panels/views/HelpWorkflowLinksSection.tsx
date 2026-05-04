@@ -45,7 +45,7 @@ export function HelpWorkflowLinksSection({
         <Tooltip
           content={WORKFLOW_LINKS_TOOLTIP}
           maxWidthPx={260}
-          contentClassName="bg-gray-800/90"
+
         >
           <span>{HELP_STEP_COPY.workflowLinks.title}</span>
         </Tooltip>
@@ -153,7 +153,7 @@ export function HelpWorkflowLinksSection({
             <Tooltip
               content={AGENTIC_REASONING_LABELS_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+
             >
               <div>
                 Agentic reasoning labels
@@ -166,7 +166,7 @@ export function HelpWorkflowLinksSection({
             <Tooltip
               content={HELP_CODEBASE_INDEX_ENTRY_POINTS_TOOLTIP}
               maxWidthPx={260}
-              contentClassName="bg-gray-800/90"
+
             >
               <div className="font-semibold">
                 Markdown pipeline entry points
@@ -219,7 +219,7 @@ export function HelpWorkflowLinksSection({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Tooltip content={GRAPHRAG_PATH_METADATA_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
+          <Tooltip content={GRAPHRAG_PATH_METADATA_TOOLTIP} maxWidthPx={260}>
             <div>
               graphRAGPath metadata
             </div>

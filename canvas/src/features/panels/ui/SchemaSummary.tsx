@@ -164,7 +164,7 @@ export default function SchemaSummary({
             : 'No schema is currently applied. Use the Schema Configurator tab to load or edit a schema.'
         }
         maxWidthPx={260}
-        contentClassName="bg-gray-800/90"
+
       >
         <span className={hasSchema ? '' : `${UI_THEME_TOKENS.status.warning} font-medium`}>
           {hasSchema ? (
@@ -196,7 +196,7 @@ export default function SchemaSummary({
             : `No graph data is currently loaded. Use Load Data or the bottom panel ${getBottomTabLabel('data')} tab to load a dataset.`
         }
         maxWidthPx={260}
-        contentClassName="bg-gray-800/90"
+
       >
         <span className={hasData ? '' : `${UI_THEME_TOKENS.status.warning} font-medium`}>
           {hasData ? (
@@ -221,7 +221,7 @@ export default function SchemaSummary({
         key="ontologies"
         content="Counts come from markdown frontmatter ontologies/graphLayers (polygonLayers alias) or GraphData metadata. Click to open Help on multi-ontology graphs and cluster layers."
         maxWidthPx={260}
-        contentClassName="bg-gray-800/90"
+
       >
         <button
           type="button"
