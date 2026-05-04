@@ -106,6 +106,30 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     [args.activePath, args.entries, args.sourcesByPath, selectionPath],
   )
 
+  const previousActivePathRef = React.useRef<WorkspacePath | null>(args.activePath)
+  React.useEffect(() => {
+    const nextPath = args.activePath
+    const prevPath = previousActivePathRef.current
+    previousActivePathRef.current = nextPath
+    if (!nextPath || !prevPath || prevPath === nextPath || activeEntryKind === 'folder' || !args.activeRef.current) return
+    const currentText = String(args.activeTextRef.current || '')
+    if (!currentText) return
+    const lastLoaded = args.lastLoadedRef.current
+    if (lastLoaded?.path === nextPath && String(lastLoaded.text || '') === currentText) return
+    args.setActiveTextProgrammatic('')
+    args.setHighlightedLineRange(null)
+    args.clearStatus()
+  }, [
+    activeEntryKind,
+    args.activePath,
+    args.activeRef,
+    args.activeTextRef,
+    args.clearStatus,
+    args.lastLoadedRef,
+    args.setActiveTextProgrammatic,
+    args.setHighlightedLineRange,
+  ])
+
   useMarkdownEditorSsotSync({
     activeDocumentKey,
     activeDocumentSourceUrl,

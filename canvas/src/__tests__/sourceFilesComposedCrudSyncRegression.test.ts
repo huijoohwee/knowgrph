@@ -226,6 +226,84 @@ export async function testComposedSourceFilesPreferEnabledReadmeFrontmatterPrese
   }
 }
 
+export async function testComposedSourceFilesOrderOnlyRecomposeDoesNotReplayUnchangedPreset() {
+  const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
+  const previousActivePath = useMarkdownExplorerStore.getState().activePath
+  try {
+    const state = useGraphStore.getState()
+    state.resetAll()
+    state.clearSourceFiles()
+    useMarkdownExplorerStore.getState().setActivePath('workspace:/README.md')
+    state.setMarkdownDocument('workspace:/README.md', '---\ntitle: Readme\n---\n')
+    state.setCanvasRenderMode('2d')
+    state.setCanvas2dRenderer('flowEditor')
+    state.setGraphData({ type: 'Graph', nodes: [], edges: [], metadata: {} } as unknown as GraphData)
+
+    const readmeText = [
+      '---',
+      'title: "Knowgrph"',
+      'kgCanvasRenderMode: "2d"',
+      'kgCanvas2dRenderer: "d3"',
+      'kgDocumentSemanticMode: "document"',
+      'kgFrontmatterModeEnabled: true',
+      'kgDocumentStructureBaselineLock: false',
+      '---',
+      '',
+      '# Knowgrph',
+    ].join('\n')
+
+    state.addSourceFile({
+      id: 'sf-readme',
+      name: 'README.md',
+      text: readmeText,
+      enabled: true,
+      status: 'parsed',
+      parsedGraphData: {
+        type: 'Graph',
+        nodes: [{ id: 'readme-node', label: 'README', type: 'Thing', properties: {} }],
+        edges: [],
+        metadata: {},
+      },
+      parsedTextHash: 'readme-hash',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: 'workspace:/README.md' },
+    })
+    state.addSourceFile({
+      id: 'sf-demo',
+      name: 'demo.md',
+      text: '# Demo',
+      enabled: true,
+      status: 'parsed',
+      parsedGraphData: {
+        type: 'Graph',
+        nodes: [{ id: 'demo-node', label: 'Demo', type: 'Thing', properties: {} }],
+        edges: [],
+        metadata: {},
+      },
+      parsedTextHash: 'demo-hash',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: 'workspace:/demo.md' },
+    })
+
+    applyComposedGraphFromSourceFiles()
+    if (useGraphStore.getState().canvas2dRenderer !== 'd3') {
+      throw new Error('expected initial composed apply to honor the README preset renderer')
+    }
+
+    useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+    useGraphStore.setState(s => ({ sourceFiles: [s.sourceFiles[1], s.sourceFiles[0]] }))
+    applyComposedGraphFromSourceFiles()
+
+    if (useGraphStore.getState().canvas2dRenderer !== 'flowEditor') {
+      throw new Error('expected order-only recomposition to avoid replaying an unchanged composed frontmatter preset')
+    }
+  } finally {
+    useMarkdownExplorerStore.getState().setActivePath(previousActivePath)
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    bootstrap.restore()
+  }
+}
+
 export async function testComposedSourceFilesDeleteLastEnabledSourceClearsGraphAndOpenWidgets() {
   const bootstrap = initJsdomHarness('<!doctype html><html><body></body></html>')
   try {

@@ -106,8 +106,16 @@ export function testMarkdownWorkspaceWidgetModeUsesSemanticCacheAndLazyBundleBui
   if (!text.includes("from '@/lib/hash/signature'") || !text.includes('hashScopedStringArraySignature')) {
     throw new Error('expected widget mode to reuse shared hash signature helper for semantic cache keys')
   }
-  if (!text.includes('openWidgetNodeIdsSnapshotRef') || !text.includes('widgetRegistrySnapshotRef') || !text.includes('getCachedGraphLookup({')) {
+  if (
+    !text.includes('openWidgetNodeIdsSnapshotRef')
+    || !text.includes('widgetRegistrySnapshotRef')
+    || !text.includes('widgetGraphDataSnapshotRef')
+    || !text.includes('getCachedGraphLookup({')
+  ) {
     throw new Error('expected widget mode to cache hot-path snapshots by semantic keys instead of raw array identity')
+  }
+  if (text.includes('preferCurrentGraphDataRefs: true')) {
+    throw new Error('expected widget mode lookup caching to stop keying rebuilds off current graph collection identities')
   }
   if (!text.includes('deriveWidgetCandidateNodeIds({')) {
     throw new Error('expected widget mode to reuse the shared widget candidate node-id resolver instead of local open-widget filtering')

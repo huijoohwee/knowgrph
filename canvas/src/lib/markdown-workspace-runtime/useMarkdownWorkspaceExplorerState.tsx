@@ -33,6 +33,7 @@ import {
   pruneWorkspaceEntriesForInlineSnapshot,
   type FolderModeContract,
 } from './markdownWorkspaceRuntime.shared'
+import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceInfoStatus } from './markdownWorkspaceStatusTransitions'
 
 export function useMarkdownWorkspaceExplorerState(args: {
   active: boolean
@@ -125,7 +126,10 @@ export function useMarkdownWorkspaceExplorerState(args: {
         void 0
       }
       runtime.setLoading(false)
-      runtime.setStatusInfo('Ready')
+      applyMarkdownWorkspaceInfoStatus({
+        setStatusInfo: runtime.setStatusInfo,
+        label: 'Ready',
+      })
       return buildWorkspaceRefreshSnapshot({
         entries: pruned,
         sourcesByPath: sources,
@@ -134,7 +138,13 @@ export function useMarkdownWorkspaceExplorerState(args: {
       const currentRuntime = runtimeRef.current
       currentRuntime.setLoading(false)
       currentRuntime.setLoadError(String((e as { message?: unknown })?.message ?? e))
-      currentRuntime.setStatusError('Refresh failed')
+      applyMarkdownWorkspaceErrorStatus({
+        setStatusError: currentRuntime.setStatusError,
+        prefix: 'Refresh failed',
+        error: e,
+        fallbackMessage: 'Request failed',
+        includeDetail: false,
+      })
       return buildFailedWorkspaceRefreshSnapshot()
     }
   }, [getFs, scheduleApplyComposedFromSourceFiles])

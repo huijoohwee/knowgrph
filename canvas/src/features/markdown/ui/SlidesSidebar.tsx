@@ -84,7 +84,7 @@ export function SlidesSidebar(props: SlidesSidebarProps) {
       {selectedSlideIds.length > 0 ? (
         <button
           type="button"
-          className={`text-[10px] mr-1 ${UI_THEME_TOKENS.text.tertiary} hover:text-gray-900 dark:hover:text-gray-100`}
+          className={`text-[10px] mr-1 ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg} rounded px-1`}
           onClick={() => setSelectedSlideIds([])}
         >
           {UI_COPY.markdownSlidesSidebarClearSelectionLabel}

@@ -3,6 +3,7 @@ import type { JSONValue } from '@/lib/graph/types'
 import Subsection from '@/features/schema-editor/ui/Subsection'
 import { parseJsonOrError } from '@/features/schema-editor/advancedSerialization'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type SerializationSectionProps = {
   uiPanelKeyValueTextSizeClass: string
@@ -25,17 +26,20 @@ export default function SerializationSection({
   const [predicatesText, setPredicatesText] = React.useState('{}')
   const [typesText, setTypesText] = React.useState('{}')
   const [contextText, setContextText] = React.useState('{}')
+  const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.secondary}`
+  const fieldLabelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary} mb-1`
+  const editorShellClassName = `w-full border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden ${UI_THEME_TOKENS.panel.bg}`
 
   return (
     <div className="space-y-3">
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-700`}>Serialization</div>
+      <div className={sectionHeadingClassName}>Serialization</div>
       <Subsection title="Serialization">
         <div className="space-y-2">
           <div>
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700 mb-1`}>
+            <div className={fieldLabelClassName}>
               Predicates by Edge Label
             </div>
-            <div className="w-full border border-gray-300 rounded overflow-hidden bg-white h-[92px]">
+            <div className={`${editorShellClassName} h-[92px]`}>
               <MonacoTextEditor
                 value={predicatesText}
                 onChange={setPredicatesText}
@@ -62,10 +66,10 @@ export default function SerializationSection({
             )}
           </div>
           <div>
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700 mb-1`}>
+            <div className={fieldLabelClassName}>
               Types by Node
             </div>
-            <div className="w-full border border-gray-300 rounded overflow-hidden bg-white h-[92px]">
+            <div className={`${editorShellClassName} h-[92px]`}>
               <MonacoTextEditor
                 value={typesText}
                 onChange={setTypesText}
@@ -92,10 +96,10 @@ export default function SerializationSection({
             )}
           </div>
           <div>
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700 mb-1`}>
+            <div className={fieldLabelClassName}>
               JSON-LD Context
             </div>
-            <div className="w-full border border-gray-300 rounded overflow-hidden bg-white h-[120px]">
+            <div className={`${editorShellClassName} h-[120px]`}>
               <MonacoTextEditor
                 value={contextText}
                 onChange={setContextText}

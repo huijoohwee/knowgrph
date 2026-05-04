@@ -3,6 +3,7 @@ import type { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import type { JSONValue } from '@/lib/graph/types'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import { UI_COPY, UI_LABELS } from '@/lib/config.copy'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import FieldTemplatesSection from '@/features/panels/views/graph-fields/FieldTemplatesSection'
 import FieldLocalSchemaRowsEditor from '@/features/panels/views/graph-fields/FieldLocalSchemaRowsEditor'
 import FieldLocalSchemaValidationEditor, {
@@ -86,9 +87,12 @@ export default function FieldLocalSchemaSectionBody({
   suggestedPropertySampleByKey,
   enumCandidatesByKey,
 }: FieldLocalSchemaSectionBodyProps) {
+  const schemaPanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`
+  const schemaInputClassName = `h-9 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const schemaSectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
   return (
     <div className="p-3 space-y-3">
-      <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
+      <div className={schemaPanelClassName}>
         <div className="flex items-center gap-2">
           <select
             value={localSchemaScope}
@@ -105,7 +109,7 @@ export default function FieldLocalSchemaSectionBody({
                 }
               })
             }}
-            className={`h-9 rounded border border-gray-300 bg-white px-2 ${uiPanelKeyValueTextSizeClass}`}
+            className={`${schemaInputClassName} ${uiPanelKeyValueTextSizeClass}`}
           >
             <option value="node">{UI_COPY.graphFieldsScopeNodeLabel}</option>
             <option value="edge">{UI_COPY.graphFieldsScopeEdgeLabel}</option>
@@ -119,7 +123,7 @@ export default function FieldLocalSchemaSectionBody({
                 return { ...prev, ownerKey: v }
               })
             }}
-            className={`h-9 flex-1 min-w-0 rounded border border-gray-300 bg-white px-2 ${uiPanelKeyValueTextSizeClass}`}
+            className={`${schemaInputClassName} flex-1 min-w-0 ${uiPanelKeyValueTextSizeClass}`}
           >
             {localSchemaOwnerCandidates.length === 0 ? (
               <option value="">(none)</option>
@@ -144,12 +148,12 @@ export default function FieldLocalSchemaSectionBody({
           />
         ) : null
       ) : !hasLocalSchemaOwner ? (
-        <div className={`p-3 ${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+        <div className={`p-3 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
           {UI_COPY.graphFieldsLocalSchemaSelectOwnerEmpty}
         </div>
       ) : (
-        <div className="rounded border border-gray-200 bg-white p-3 space-y-2">
-          <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
+        <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-2`}>
+          <div className={schemaSectionHeadingClassName}>
             {localSchemaFacet === 'properties'
               ? UI_COPY.graphFieldsLocalSchemaFacetPropertiesLabel
               : localSchemaFacet === 'validation'
@@ -166,7 +170,9 @@ export default function FieldLocalSchemaSectionBody({
               type="button"
               onClick={applyLocalSchemaText}
               className={[
-                'App-toolbar__btn bg-gray-100 text-gray-700',
+                'App-toolbar__btn',
+                UI_THEME_TOKENS.button.neutralMuted,
+                UI_THEME_TOKENS.button.hoverBg,
                 uiPanelKeyValueTextSizeClass,
               ].join(' ')}
             >
@@ -177,7 +183,9 @@ export default function FieldLocalSchemaSectionBody({
               onClick={resetLocalSchemaText}
               disabled={!hasLocalSchemaOwner}
               className={[
-                'App-toolbar__btn bg-gray-100 text-gray-700',
+                'App-toolbar__btn',
+                UI_THEME_TOKENS.button.neutralMuted,
+                UI_THEME_TOKENS.button.hoverBg,
                 uiPanelKeyValueTextSizeClass,
               ].join(' ')}
             >

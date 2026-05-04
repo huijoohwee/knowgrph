@@ -1,6 +1,7 @@
 import React from 'react'
 import { postprocessMermaidSvg, renderPlainMermaidSvgCached } from '@/lib/mermaid/mermaidSvg'
 import { normalizeMermaidCodeForRuntime } from 'grph-shared/markdown/mermaidInput'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function PlainMermaidDiagram({
   code,
@@ -55,7 +56,7 @@ export function PlainMermaidDiagram({
 
   return (
     <div
-      className="overflow-auto rounded border border-gray-200/70 bg-white/70 dark:border-gray-700 dark:bg-gray-950/40"
+      className={`overflow-auto rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   )

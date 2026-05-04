@@ -9,6 +9,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_INTENT_TOKENS } from 'grph-shared/ui/intentTokens'
 import { resolveContiguousQuoteLineRangeOnOpen } from './markdownEditParitySsot'
 import {
   getMarkdownQuoteLikeEditorClass,
@@ -41,21 +42,21 @@ type MarkdownCalloutBlockProps = {
 
 const getCalloutBorderClass = (calloutType: string): string => {
   const t = String(calloutType || '').trim().toLowerCase()
-  if (t === 'tip' || t === 'hint') return 'border-emerald-400 dark:border-emerald-600'
-  if (t === 'warning' || t === 'caution') return 'border-amber-400 dark:border-amber-600'
-  if (t === 'danger' || t === 'error' || t === 'fail') return 'border-red-400 dark:border-red-600'
-  if (t === 'example') return 'border-indigo-400 dark:border-indigo-600'
-  if (t === 'note' || t === 'info') return 'border-blue-400 dark:border-blue-600'
-  return 'border-slate-300 dark:border-slate-600'
+  if (t === 'tip' || t === 'hint') return UI_INTENT_TOKENS.success.border
+  if (t === 'warning' || t === 'caution') return UI_INTENT_TOKENS.warning.border
+  if (t === 'danger' || t === 'error' || t === 'fail') return UI_INTENT_TOKENS.danger.border
+  if (t === 'example') return UI_INTENT_TOKENS.example.border
+  if (t === 'note' || t === 'info') return UI_INTENT_TOKENS.info.border
+  return UI_INTENT_TOKENS.neutral.border
 }
 const getCalloutAccentClass = (calloutType: string): string => {
   const t = String(calloutType || '').trim().toLowerCase()
-  if (t === 'tip' || t === 'hint') return 'bg-emerald-400 dark:bg-emerald-600'
-  if (t === 'warning' || t === 'caution') return 'bg-amber-400 dark:bg-amber-600'
-  if (t === 'danger' || t === 'error' || t === 'fail') return 'bg-red-400 dark:bg-red-600'
-  if (t === 'example') return 'bg-indigo-400 dark:bg-indigo-600'
-  if (t === 'note' || t === 'info') return 'bg-blue-400 dark:bg-blue-600'
-  return 'bg-slate-300 dark:bg-slate-600'
+  if (t === 'tip' || t === 'hint') return UI_INTENT_TOKENS.success.accentBg
+  if (t === 'warning' || t === 'caution') return UI_INTENT_TOKENS.warning.accentBg
+  if (t === 'danger' || t === 'error' || t === 'fail') return UI_INTENT_TOKENS.danger.accentBg
+  if (t === 'example') return UI_INTENT_TOKENS.example.accentBg
+  if (t === 'note' || t === 'info') return UI_INTENT_TOKENS.info.accentBg
+  return UI_INTENT_TOKENS.neutral.accentBg
 }
 
 export const MarkdownCalloutBlock = React.memo(function MarkdownCalloutBlock({

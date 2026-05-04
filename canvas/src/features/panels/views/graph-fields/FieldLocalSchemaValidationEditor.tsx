@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphSchema, PropertySpec } from '@/lib/graph/schema'
 import type { GraphFieldsSelectedView } from '@/features/panels/views/GraphFieldsView'
 import { UI_COPY } from '@/lib/config.copy'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 
 export type ValidationWarning =
@@ -62,6 +63,10 @@ export default function FieldLocalSchemaValidationEditor({
   getValidationControlId,
   focusValidationControl,
 }: FieldLocalSchemaValidationEditorProps) {
+  const validationActionButtonClassName = `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.button.hoverBg}`
+  const validationSelectClassName = `rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 py-1 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const validationCheckboxClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+  const validationPanelClassName = `w-full rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.input.bg} h-[116px]`
   return (
     <div className="space-y-3">
       {localValidationWarnings.length > 0 ? (
@@ -113,23 +118,23 @@ export default function FieldLocalSchemaValidationEditor({
         </div>
       ) : null}
 
-      <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+      <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
         Validation uses this owner&apos;s property schema for available fields and base
         types. Adjust properties first, then refine required fields, types, and
         additional options here.
       </div>
 
       <div className={`flex items-center gap-2 ${uiPanelKeyValueTextSizeClass}`}>
-        <span className="text-gray-700">{UI_COPY.validationSeverityLabel}</span>
+        <span className={UI_THEME_TOKENS.text.primary}>{UI_COPY.validationSeverityLabel}</span>
         <div className="inline-flex items-center gap-1">
           <button
             type="button"
             onClick={() => setLocalValidationSeverity('error')}
             className={[
-              'App-toolbar__btn text-xs border border-gray-300',
+              `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border}`,
               localValidationSeverity === 'error'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700',
+                ? UI_THEME_TOKENS.button.primarySolid
+                : `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.button.hoverBg}`,
             ].join(' ')}
           >
             {UI_COPY.validationSeverityErrorLabel}
@@ -138,10 +143,10 @@ export default function FieldLocalSchemaValidationEditor({
             type="button"
             onClick={() => setLocalValidationSeverity('warn')}
             className={[
-              'App-toolbar__btn text-xs border border-gray-300',
+              `App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border}`,
               localValidationSeverity === 'warn'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700',
+                ? UI_THEME_TOKENS.button.primarySolid
+                : `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.button.hoverBg}`,
             ].join(' ')}
           >
             {UI_COPY.validationSeverityWarnLabel}
@@ -150,12 +155,12 @@ export default function FieldLocalSchemaValidationEditor({
       </div>
 
       <div>
-        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700 mb-1`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary} mb-1`}>
           {UI_COPY.validationRequiredFieldsTitle}
         </div>
         <div className="grid grid-cols-3 gap-1">
           {validationPropertyNames.length === 0 ? (
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+            <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
               No properties for this owner.
             </div>
           ) : (
@@ -166,6 +171,7 @@ export default function FieldLocalSchemaValidationEditor({
               >
                 <input
                   type="checkbox"
+                  className={validationCheckboxClassName}
                   id={getValidationControlId('required', p)}
                   checked={localValidationRequiredSet.has(p)}
                   onChange={e => {
@@ -184,7 +190,7 @@ export default function FieldLocalSchemaValidationEditor({
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <button
               type="button"
-              className="App-toolbar__btn text-xs border border-gray-300"
+              className={validationActionButtonClassName}
               onClick={() =>
                 setLocalValidationRequiredSet(new Set<string>(validationPropertyNames))
               }
@@ -193,7 +199,7 @@ export default function FieldLocalSchemaValidationEditor({
             </button>
             <button
               type="button"
-              className="App-toolbar__btn text-xs border border-gray-300"
+              className={validationActionButtonClassName}
               onClick={() => {
                 const nums = validationPropertyNames.filter(
                   p => (localValidationTypesMap[p] ?? 'string') === 'number',
@@ -205,7 +211,7 @@ export default function FieldLocalSchemaValidationEditor({
             </button>
             <button
               type="button"
-              className="App-toolbar__btn text-xs border border-gray-300"
+              className={validationActionButtonClassName}
               onClick={() => setLocalValidationRequiredSet(new Set())}
             >
               {UI_COPY.validationClearRequiredButtonLabel}
@@ -215,7 +221,7 @@ export default function FieldLocalSchemaValidationEditor({
       </div>
 
       <div>
-        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700 mb-1`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary} mb-1`}>
           {UI_COPY.validationPropertyTypesTitle}
         </div>
         <div className="grid grid-cols-2 gap-1">
@@ -224,7 +230,7 @@ export default function FieldLocalSchemaValidationEditor({
               key={p}
               className={`${uiPanelKeyValueTextSizeClass} flex items-center gap-1`}
             >
-              <span className="w-24 truncate text-gray-700">{p}</span>
+              <span className={`w-24 truncate ${UI_THEME_TOKENS.text.primary}`}>{p}</span>
               <select
                 id={getValidationControlId('type', p)}
                 value={localValidationTypesMap[p] ?? 'string'}
@@ -235,7 +241,7 @@ export default function FieldLocalSchemaValidationEditor({
                     [p]: v,
                   })
                 }}
-                className="flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                className={`flex-1 ${validationSelectClassName}`}
               >
                 <option value="string">string</option>
                 <option value="number">number</option>
@@ -253,7 +259,7 @@ export default function FieldLocalSchemaValidationEditor({
               onChange={e =>
                 setLocalValidationBulkType(e.target.value as PropertySpec['type'])
               }
-              className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+              className={validationSelectClassName}
             >
               <option value="string">string</option>
               <option value="number">number</option>
@@ -263,7 +269,7 @@ export default function FieldLocalSchemaValidationEditor({
             </select>
             <button
               type="button"
-              className="App-toolbar__btn text-xs border border-gray-300"
+              className={validationActionButtonClassName}
               onClick={() => {
                 const next: Record<string, PropertySpec['type']> = {}
                 validationPropertyNames.forEach(p => {
@@ -276,7 +282,7 @@ export default function FieldLocalSchemaValidationEditor({
             </button>
             <button
               type="button"
-              className="App-toolbar__btn text-xs border border-gray-300"
+              className={validationActionButtonClassName}
               title="Infer types from the current property schema for this owner"
               onClick={() => {
                 const inferred: Record<string, PropertySpec['type']> = {}
@@ -297,10 +303,10 @@ export default function FieldLocalSchemaValidationEditor({
       </div>
 
       <div>
-        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700 mb-1`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary} mb-1`}>
           {UI_COPY.validationAdditionalOptionsJsonTitle}
         </div>
-        <div className="w-full rounded border border-gray-300 overflow-hidden bg-white h-[116px]">
+        <div className={validationPanelClassName}>
           <MonacoTextEditor
             value={localValidationOtherText}
             onChange={setLocalValidationOtherText}

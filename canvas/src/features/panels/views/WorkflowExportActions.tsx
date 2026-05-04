@@ -3,6 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { pickDirectoryForWrite, isDirectoryPickerWriteSupported } from '@/lib/fsAccess/writeTextFileToDirectory'
 import { openSaveFilePickerHandle } from '@/lib/graph/save'
 import { getPublishCapabilities } from '@/lib/fsAccess/publishCapabilities'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type WorkflowExportActionsProps = {
   exportedThisSession: boolean
@@ -93,6 +94,10 @@ export default function WorkflowExportActions({
   const uiPanelKeyValueInputClass = useGraphStore(
     s => s.uiPanelKeyValueInputClass,
   )
+  const neutralActionButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.button.hoverBg}`
+  const neutralActionButtonDisabledClassName = `${neutralActionButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`
+  const secondaryTextClassName = `${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary}`
+  const tertiaryTextClassName = `${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`
 
   const htmlCanvasPublishFolderName = useGraphStore(s => s.htmlCanvasPublishFolderName)
   const htmlCanvasPublishFileName = useGraphStore(s => s.htmlCanvasPublishFileName)
@@ -176,7 +181,7 @@ export default function WorkflowExportActions({
       <div className="flex items-center gap-2 mb-2">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportAll}
         >
           Export All
@@ -191,42 +196,42 @@ export default function WorkflowExportActions({
         </div>
       </div>
       {graphHeading && (
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-1`}>
+        <div className={`${secondaryTextClassName} mb-1`}>
           {graphHeading}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportGraphJsonLd}
         >
           Export Graph JSON-LD (AgenticRAG)
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportGraphJson}
         >
           Export Graph JSON
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportGraphCsvCombined}
         >
           Export Graph CSV Combined
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportGraphMl}
         >
           Export GraphML
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportGraphCypher}
         >
           Export Graph Cypher
@@ -235,21 +240,21 @@ export default function WorkflowExportActions({
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportSettingsJsonLd}
         >
           Export Settings JSON-LD (AgenticRAG)
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportHistoryJsonLd}
         >
           Export History JSON-LD (AgenticRAG)
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportGraphFieldSettingsJsonLd}
         >
           Export Graph Field Settings JSON-LD (AgenticRAG)
@@ -257,7 +262,7 @@ export default function WorkflowExportActions({
         {onExportGraphRagWorkflowJsonLd && (
           <button
             type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+            className={neutralActionButtonClassName}
             onClick={onExportGraphRagWorkflowJsonLd}
           >
             Export GraphRAG Workflow JSON-LD
@@ -266,7 +271,7 @@ export default function WorkflowExportActions({
         {onExportParsers && (
           <button
             type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+            className={neutralActionButtonClassName}
             onClick={onExportParsers}
           >
             Export Parsers
@@ -276,14 +281,14 @@ export default function WorkflowExportActions({
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportSvgSnapshot}
         >
           Export Graph SVG Snapshot
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportPngSnapshot}
         >
           Export Graph PNG Snapshot
@@ -291,7 +296,7 @@ export default function WorkflowExportActions({
         {onExportHtmlViewer ? (
           <button
             type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+            className={neutralActionButtonClassName}
             onClick={onExportHtmlViewer}
           >
             Export Graph HTML Viewer
@@ -300,7 +305,7 @@ export default function WorkflowExportActions({
         {onExportHtmlCanvas ? (
           <button
             type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+            className={neutralActionButtonClassName}
             onClick={onExportHtmlCanvas}
           >
             Export HTML Canvas
@@ -310,21 +315,21 @@ export default function WorkflowExportActions({
           <div className="w-full flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+              className={neutralActionButtonClassName}
               onClick={openHtmlCanvasPublishFolder}
             >
               Set Publish Folder
             </button>
             <button
               type="button"
-              className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+              className={neutralActionButtonClassName}
               onClick={openHtmlCanvasPublishFile}
             >
               Set Publish File
             </button>
             <button
               type="button"
-              className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+              className={neutralActionButtonClassName}
               onClick={() => clearHtmlCanvasPublishTarget()}
             >
               Clear
@@ -336,24 +341,24 @@ export default function WorkflowExportActions({
               placeholder="index.html or data/canvas-{mode}.html"
             />
             {!publishCaps.isSecureContext ? (
-              <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+              <span className={secondaryTextClassName}>
                 Publishing disabled on `file://`; use `http://localhost` or `https://`.
               </span>
             ) : !publishCaps.isTopLevel ? (
-              <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+              <span className={secondaryTextClassName}>
                 Running in iframe; pickers may be blocked.
               </span>
             ) : null}
             {htmlCanvasPublishFolderName ? (
-              <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+              <span className={secondaryTextClassName}>
                 {isDirectoryPickerWriteSupported() ? htmlCanvasPublishFolderName : `${htmlCanvasPublishFolderName} (folder picker unsupported)`}
               </span>
             ) : htmlCanvasPublishFileName ? (
-              <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+              <span className={secondaryTextClassName}>
                 {htmlCanvasPublishFileName}
               </span>
             ) : !isDirectoryPickerWriteSupported() ? (
-              <span className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+              <span className={secondaryTextClassName}>
                 Folder picker not supported; use “Set Publish File” or save via download.
               </span>
             ) : null}
@@ -361,14 +366,14 @@ export default function WorkflowExportActions({
         ) : null}
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onCopyGraphJsonLd}
         >
           Copy Graph JSON-LD (AgenticRAG)
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onCopyGraphJson}
         >
           Copy Graph JSON
@@ -377,7 +382,7 @@ export default function WorkflowExportActions({
       <div className="flex flex-wrap items-center gap-2 mb-1">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed`}
+          className={neutralActionButtonDisabledClassName}
           onClick={onExportSelectionJsonLd}
           disabled={!hasSelection || !onExportSelectionJsonLd}
         >
@@ -385,7 +390,7 @@ export default function WorkflowExportActions({
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed`}
+          className={neutralActionButtonDisabledClassName}
           onClick={onExportSelectionJson}
           disabled={!hasSelection || !onExportSelectionJson}
         >
@@ -393,7 +398,7 @@ export default function WorkflowExportActions({
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed`}
+          className={neutralActionButtonDisabledClassName}
           onClick={onExportSelectionCsvCombined}
           disabled={!hasSelection || !onExportSelectionCsvCombined}
         >
@@ -401,7 +406,7 @@ export default function WorkflowExportActions({
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed`}
+          className={neutralActionButtonDisabledClassName}
           onClick={onExportSelectionGraphMl}
           disabled={!hasSelection || !onExportSelectionGraphMl}
         >
@@ -409,7 +414,7 @@ export default function WorkflowExportActions({
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed`}
+          className={neutralActionButtonDisabledClassName}
           onClick={onExportSelectionCypher}
           disabled={!hasSelection || !onExportSelectionCypher}
         >
@@ -417,33 +422,33 @@ export default function WorkflowExportActions({
         </button>
       </div>
       {selectionSummary && (
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500 mb-2`}>
+        <div className={`${tertiaryTextClassName} mb-2`}>
           {selectionSummary}
         </div>
       )}
       {schemaHeading && (
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-1`}>
+        <div className={`${secondaryTextClassName} mb-1`}>
           {schemaHeading}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportSchemaJson}
         >
           Export Schema JSON
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportSchemaJsonLd}
         >
           Export Schema JSON-LD (AgenticRAG)
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportSchemaCsv}
         >
           Export Schema CSV
@@ -451,7 +456,7 @@ export default function WorkflowExportActions({
         {onCopySchemaJsonLd && (
           <button
             type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+            className={neutralActionButtonClassName}
             onClick={onCopySchemaJsonLd}
           >
             Copy Schema JSON-LD (AgenticRAG)
@@ -460,7 +465,7 @@ export default function WorkflowExportActions({
         {onCopySchemaJson && (
           <button
             type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+            className={neutralActionButtonClassName}
             onClick={onCopySchemaJson}
           >
             Copy Schema JSON
@@ -470,21 +475,21 @@ export default function WorkflowExportActions({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportValidationJson}
         >
           Export Validation JSON
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={neutralActionButtonClassName}
           onClick={onExportValidationMarkdown}
         >
           Export Validation Markdown
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed`}
+          className={neutralActionButtonDisabledClassName}
           onClick={onExportSelectionValidationJson}
           disabled={!hasSelection || !onExportSelectionValidationJson}
         >
@@ -492,7 +497,7 @@ export default function WorkflowExportActions({
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed`}
+          className={neutralActionButtonDisabledClassName}
           onClick={onExportSelectionValidationMarkdown}
           disabled={!hasSelection || !onExportSelectionValidationMarkdown}
         >

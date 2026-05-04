@@ -1,3 +1,4 @@
+import { UI_INTENT_TOKENS } from './intentTokens.js'
 import { resolveCssVarWithKgFallback } from './kgTokens.js'
 
 export type ThemeColors = {
@@ -54,6 +55,15 @@ export const UI_THEME_TOKENS = {
   button: {
     text: 'text-[color:var(--kg-text-secondary)]',
     hoverBg: 'hover:bg-[var(--kg-panel-action-bg-hover)]',
+    neutralSubtle: 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
+    neutralMuted: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
+    primarySolid: `${UI_INTENT_TOKENS.primary.solidBg} ${UI_INTENT_TOKENS.primary.solidText}`,
+    primaryChipActive: `${UI_INTENT_TOKENS.primary.bg} ${UI_INTENT_TOKENS.primary.text} ${UI_INTENT_TOKENS.primary.softBorder}`,
+    primaryOutline: `${UI_INTENT_TOKENS.primary.border} ${UI_INTENT_TOKENS.primary.text} hover:bg-[var(--kg-panel-action-bg-hover)]`,
+    primaryLinkHoverText: UI_INTENT_TOKENS.primary.hoverText,
+    hintHoverEmphasis: 'hover:bg-[var(--kg-panel-action-bg-hover)] hover:border-blue-200 dark:hover:border-blue-700',
+    inverseHoverBg: 'hover:bg-black/70 dark:hover:bg-white/15',
+    dangerHoverBg: 'hover:bg-red-50 dark:hover:bg-red-900/20',
     ring: 'ring-blue-500 dark:ring-blue-400',
     padding: 'p-2',
     square: 'h-[var(--kg-control-height,28px)] w-[var(--kg-control-height,28px)] p-0 flex items-center justify-center',
@@ -114,7 +124,16 @@ export const UI_THEME_TOKENS = {
   input: {
     bg: 'bg-[var(--kg-panel-bg)]',
     border: 'border-[color:var(--kg-border)]',
+    hoverBorder: 'hover:border-blue-500/30 dark:hover:border-blue-400/40',
+    selectionControl: 'text-blue-500 focus:ring-blue-500 dark:focus:ring-blue-400',
     text: 'text-[color:var(--kg-text-primary)]',
+  },
+  focus: {
+    primaryRing: 'focus-visible:ring-1 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
+    primaryStrongRing: 'focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
+    primaryBorderRing: 'focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400',
+    primarySoftRing: 'focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:focus:ring-blue-400/40',
+    primarySofterRing: 'focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50',
   },
   status: {
     success: 'text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30',

@@ -3,6 +3,12 @@ import { parseAsciiBoxTable } from '@/features/markdown/ui/codeblock/asciiBoxTab
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { parseHtmlFragmentCached } from './markdownHtmlParseCache'
 
+const mediaFrameClassName = `rounded border ${UI_THEME_TOKENS.panel.border}`
+const tableShellClassName = `mt-4 mb-4 overflow-auto max-h-[80vh] rounded-lg border ${UI_THEME_TOKENS.panel.border} shadow-sm`
+const tableHeaderClassName = `${UI_THEME_TOKENS.table.headerBg} ${UI_THEME_TOKENS.text.primary}`
+const tableCellBorderClassName = `border-b ${UI_THEME_TOKENS.table.cellBorder} align-top`
+const preBlockClassName = `mt-3 mb-3 overflow-x-auto p-3 rounded border ${UI_THEME_TOKENS.panel.border}`
+
 type RenderOpts = {
   activeDocumentPath: string
   uiPanelTextFontClass: string
@@ -187,7 +193,7 @@ export const renderSafeHtmlBlockImpl = (
         const style: React.CSSProperties = {}
         if (width) { style.width = `${Math.round(width)}px`; style.maxWidth = '100%' }
         if (height) style.height = `${Math.round(height)}px`
-        return <img key={key} src={src || undefined} alt={el.getAttribute('alt') || ''} loading="lazy" decoding="async" style={Object.keys(style).length ? style : undefined} className="inline-block max-w-full h-auto rounded border border-gray-200" />
+        return <img key={key} src={src || undefined} alt={el.getAttribute('alt') || ''} loading="lazy" decoding="async" style={Object.keys(style).length ? style : undefined} className={`inline-block max-w-full h-auto ${mediaFrameClassName}`} />
       }
 
       if (tag === 'picture') {
@@ -202,7 +208,7 @@ export const renderSafeHtmlBlockImpl = (
         const imgCandidate = img ? mediaSourceCandidate(img, deps) : ''
         if (!imgCandidate || !deps.isSafeHref(imgCandidate) || !deps.isSafeMediaSrc(imgCandidate)) return <React.Fragment key={key}>{''}</React.Fragment>
         const imgResolved = deps.applyMediaProxySrc(deps.resolveHref(imgCandidate, opts.activeDocumentPath))
-        return <picture key={key} className={safeClass || undefined} style={safeStyle}>{sources as unknown as React.ReactNode}<img src={imgResolved || undefined} alt={img?.getAttribute('alt') || ''} loading="lazy" decoding="async" className="inline-block max-w-full h-auto rounded border border-gray-200" /></picture>
+        return <picture key={key} className={safeClass || undefined} style={safeStyle}>{sources as unknown as React.ReactNode}<img src={imgResolved || undefined} alt={img?.getAttribute('alt') || ''} loading="lazy" decoding="async" className={`inline-block max-w-full h-auto ${mediaFrameClassName}`} /></picture>
       }
 
       if (tag === 'video' || tag === 'audio') {
@@ -224,7 +230,7 @@ export const renderSafeHtmlBlockImpl = (
         const poster = posterRaw && deps.isSafeHref(posterRaw) && deps.isSafeMediaSrc(posterRaw) ? deps.applyMediaProxySrc(deps.resolveHref(posterRaw, opts.activeDocumentPath)) : undefined
         const controls = el.hasAttribute('controls') ? true : el.hasAttribute('autoplay') || el.hasAttribute('loop') ? false : true
         return (
-          <video key={key} src={src} poster={poster} controls={controls} autoPlay={el.hasAttribute('autoplay') || undefined} muted={el.hasAttribute('muted') || undefined} loop={el.hasAttribute('loop') || undefined} playsInline={el.hasAttribute('playsinline') || undefined} className={['max-w-full rounded border border-gray-200', safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>
+          <video key={key} src={src} poster={poster} controls={controls} autoPlay={el.hasAttribute('autoplay') || undefined} muted={el.hasAttribute('muted') || undefined} loop={el.hasAttribute('loop') || undefined} playsInline={el.hasAttribute('playsinline') || undefined} className={['max-w-full', mediaFrameClassName, safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>
             {renderedSources as unknown as React.ReactNode}
           </video>
         )
@@ -236,14 +242,14 @@ export const renderSafeHtmlBlockImpl = (
           const src = deps.resolveHref(srcRaw, opts.activeDocumentPath)
           return (
             <section key={key} className={opts.markdownPresentationMode ? 'aspect-video w-full' : 'aspect-video w-full max-w-xl'}>
-              <iframe src={src} title={el.getAttribute('title') || 'Embedded content'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="no-referrer" loading="lazy" className={['w-full h-full rounded border border-gray-200', safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle} />
+              <iframe src={src} title={el.getAttribute('title') || 'Embedded content'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="no-referrer" loading="lazy" className={['w-full h-full', mediaFrameClassName, safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle} />
             </section>
           )
         }
         const srcDoc = String(el.getAttribute('srcdoc') || '').trim()
         if (!srcDoc) return <React.Fragment key={key}>{''}</React.Fragment>
         const heightClass = opts.markdownPresentationMode ? 'h-[220px]' : 'h-[140px]'
-        return <section key={key} className={`w-full ${heightClass}`}><iframe title={el.getAttribute('title') || 'Embedded content'} sandbox="" referrerPolicy="no-referrer" srcDoc={deps.sanitizeSrcDocCached(srcDoc)} className="w-full h-full rounded border border-gray-200" /></section>
+        return <section key={key} className={`w-full ${heightClass}`}><iframe title={el.getAttribute('title') || 'Embedded content'} sandbox="" referrerPolicy="no-referrer" srcDoc={deps.sanitizeSrcDocCached(srcDoc)} className={`w-full h-full ${mediaFrameClassName}`} /></section>
       }
 
       if (svgTagNames.has(tag)) {
@@ -279,7 +285,7 @@ export const renderSafeHtmlBlockImpl = (
       if (tag === 'center') return <section key={key} className="text-center">{children}</section>
       if (tag === 'button') return <button key={key} type="button" className={safeClass || undefined}>{children}</button>
       if (tag === 'br') return <br key={key} />
-      if (tag === 'caption') return <caption key={key} className="text-sm text-gray-600 p-2">{children}</caption>
+      if (tag === 'caption') return <caption key={key} className={`text-sm ${UI_THEME_TOKENS.text.secondary} p-2`}>{children}</caption>
       if (tag === 'abbr') return <abbr key={key} title={(el.getAttribute('title') || '') || undefined} className="bg-yellow-100 border-b border-dotted border-yellow-400 cursor-help px-0.5 rounded-sm">{el.textContent || ''}</abbr>
 
       if (tag === 'pre') {
@@ -289,15 +295,15 @@ export const renderSafeHtmlBlockImpl = (
           : null
         if (asciiTable) {
           return (
-            <section key={key} className="mt-4 mb-4 overflow-auto max-h-[80vh] rounded-lg border border-gray-200 shadow-sm">
+            <section key={key} className={tableShellClassName}>
               <table className={['min-w-full border-collapse table-auto text-xs', safeClass].filter(Boolean).join(' ') || undefined}>
-                {asciiTable.header ? <thead className="bg-gray-50 text-gray-900"><tr>{asciiTable.header.map((cell, j) => <th key={`${key}-h-${j}`} className="px-3 py-2 text-left font-semibold border-b border-gray-200 align-top sticky top-0 z-10 bg-gray-50">{cell}</th>)}</tr></thead> : null}
-                <tbody className="text-gray-900">{asciiTable.rows.map((row, rIdx) => <tr key={`${key}-r-${rIdx}`} className={`odd:bg-white even:bg-gray-50 ${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`}>{row.map((cell, cIdx) => <td key={`${key}-c-${rIdx}-${cIdx}`} className="px-3 py-2 border-b border-gray-200 align-top">{cell}</td>)}</tr>)}</tbody>
+                {asciiTable.header ? <thead className={tableHeaderClassName}><tr>{asciiTable.header.map((cell, j) => <th key={`${key}-h-${j}`} className={`px-3 py-2 text-left font-semibold ${tableCellBorderClassName} sticky top-0 z-10 ${UI_THEME_TOKENS.table.headerBg}`}>{cell}</th>)}</tr></thead> : null}
+                <tbody className={UI_THEME_TOKENS.text.primary}>{asciiTable.rows.map((row, rIdx) => <tr key={`${key}-r-${rIdx}`} className={`${UI_THEME_TOKENS.table.rowBg} ${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`}>{row.map((cell, cIdx) => <td key={`${key}-c-${rIdx}-${cIdx}`} className={`px-3 py-2 ${tableCellBorderClassName}`}>{cell}</td>)}</tr>)}</tbody>
               </table>
             </section>
           )
         }
-        return <pre key={key} className={['mt-3 mb-3 overflow-x-auto p-3 rounded border border-gray-200', opts.uiPanelMonospaceTextClass, safeClass].filter(Boolean).join(' ')}>{preText}</pre>
+        return <pre key={key} className={[preBlockClassName, opts.uiPanelMonospaceTextClass, safeClass].filter(Boolean).join(' ')}>{preText}</pre>
       }
 
       if (tag === 'code') return <code key={key} className={[opts.uiPanelMonospaceTextClass, safeClass].filter(Boolean).join(' ') || undefined}>{children}</code>
@@ -307,15 +313,15 @@ export const renderSafeHtmlBlockImpl = (
         const rowSpanN = Number(el.getAttribute('rowspan') || '')
         const colSpan = Number.isFinite(colSpanN) && colSpanN > 1 ? Math.floor(colSpanN) : undefined
         const rowSpan = Number.isFinite(rowSpanN) && rowSpanN > 1 ? Math.floor(rowSpanN) : undefined
-        const base = tag === 'th' ? 'px-4 py-2 text-left font-semibold border-b border-gray-200 align-top' : 'px-4 py-2 border-b border-gray-200 align-top'
+        const base = tag === 'th' ? `px-4 py-2 text-left font-semibold ${tableCellBorderClassName}` : `px-4 py-2 ${tableCellBorderClassName}`
         const Cell = tag as 'th' | 'td'
         return <Cell key={key} colSpan={colSpan} rowSpan={rowSpan} className={[base, safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</Cell>
       }
-      if (tag === 'table') return <section key={key} className="mt-4 mb-4 overflow-auto max-h-[80vh] rounded-lg border border-gray-200 shadow-sm"><table className={['min-w-full text-sm', safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>{children}</table></section>
-      if (tag === 'thead') return <thead key={key} className={['bg-gray-50 text-gray-900', safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</thead>
-      if (tag === 'tbody') return <tbody key={key} className={['text-gray-900', safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tbody>
-      if (tag === 'tfoot') return <tfoot key={key} className={['bg-gray-50 text-gray-900', safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tfoot>
-      if (tag === 'tr') return <tr key={key} className={[`odd:bg-white even:bg-gray-50 ${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`, safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tr>
+      if (tag === 'table') return <section key={key} className={tableShellClassName}><table className={['min-w-full text-sm', safeClass].filter(Boolean).join(' ') || undefined} style={safeStyle}>{children}</table></section>
+      if (tag === 'thead') return <thead key={key} className={[tableHeaderClassName, safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</thead>
+      if (tag === 'tbody') return <tbody key={key} className={[UI_THEME_TOKENS.text.primary, safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tbody>
+      if (tag === 'tfoot') return <tfoot key={key} className={[tableHeaderClassName, safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tfoot>
+      if (tag === 'tr') return <tr key={key} className={[`${UI_THEME_TOKENS.table.rowBg} ${UI_THEME_TOKENS.table.rowHoverHighlight} transition-colors`, safeClass].filter(Boolean).join(' ')} style={safeStyle}>{children}</tr>
       if (tag === 'colgroup') return <colgroup key={key} className={safeClass || undefined} style={safeStyle}>{children}</colgroup>
       if (tag === 'col') {
         const spanN = Number(el.getAttribute('span') || '')

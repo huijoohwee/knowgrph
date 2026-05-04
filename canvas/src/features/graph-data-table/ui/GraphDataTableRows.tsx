@@ -367,7 +367,7 @@ export function GraphDataTableRows({
                 </span>
                 <input
                   type="checkbox"
-                  className={`absolute h-4 w-4 rounded ${UI_THEME_TOKENS.input.border} ${uiPrimaryIconActiveClassName} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 transition-opacity ${
+                  className={`absolute h-4 w-4 rounded ${UI_THEME_TOKENS.input.border} ${uiPrimaryIconActiveClassName} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} transition-opacity ${
                     isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                   }`}
                   checked={isActive}

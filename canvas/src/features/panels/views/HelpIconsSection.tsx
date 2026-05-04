@@ -13,6 +13,8 @@ import {
 import { FieldOriginIcon, KindPill, ScopeIcon, VisibilityIcon } from '@/features/graph-fields/ui/graphFieldIcons';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { getIconSizeClass, getPillClass } from '@/lib/ui';
+import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 interface IconRow {
   category: string;
@@ -47,20 +49,20 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
       const pillClass = getPillClass('legend', {
         baseClass: `${basePillClass} inline-flex items-center gap-1`,
         legendTextSizeClass,
-        textColorClass: 'text-gray-700',
+        textColorClass: UI_THEME_TOKENS.text.primary,
       });
       const iconOnlyPillClass = 'inline-flex items-center justify-center';
       return [
         {
           category: 'Scope',
-          icon: <ScopeIcon scope="node" className={`${iconSizeClass} text-gray-500`} strokeWidth={uiIconStrokeWidth} />,
+          icon: <ScopeIcon scope="node" className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} strokeWidth={uiIconStrokeWidth} />,
           name: 'Node field',
           agentic: 'Node-level property',
           usage: 'Field attached to nodes; use for node attributes such as title or type.',
         },
         {
           category: 'Scope',
-          icon: <ScopeIcon scope="edge" className={`${iconSizeClass} text-gray-500`} strokeWidth={uiIconStrokeWidth} />,
+          icon: <ScopeIcon scope="edge" className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`} strokeWidth={uiIconStrokeWidth} />,
           name: 'Edge field',
           agentic: 'Edge-level property',
           usage: 'Field attached to edges; use for relationship attributes such as weight or labels.',
@@ -288,7 +290,7 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
           category: 'Actions',
           icon: (
             <span className={iconOnlyPillClass}>
-              <Eraser className={`${iconSizeClass} text-gray-600`} strokeWidth={uiIconStrokeWidth} />
+              <Eraser className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary}`} strokeWidth={uiIconStrokeWidth} />
             </span>
           ),
           name: 'Clear / Reset',
@@ -309,11 +311,11 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
         id={UI_ANCHORS.graphFieldsIcons}
       >
         {HELP_STEP_COPY.icons.descriptionShort && (
-          <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
             {HELP_STEP_COPY.icons.descriptionShort}
           </div>
         )}
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2 flex items-center gap-1`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2 flex items-center gap-1`}>
           <Tooltip
             content={GRAPH_FIELDS_ICON_LEGEND_TOOLTIP}
             maxWidthPx={260}
@@ -327,13 +329,13 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
         <div className="mb-2 flex flex-wrap gap-2 items-center">
           <button
             type="button"
-            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+            className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${uiToolbarButtonMutedClassName}`}
             onClick={onOpenSettingsTab}
             data-kg-anchor={UI_ANCHORS.settingsUiIconScale}
           >
             {UI_COPY.openSettingsUiDensityIconsButton}
           </button>
-          <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500`}>
+          <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`}>
             Icons in toolbars, headers, and this legend follow the
             {' '}
             <span className="font-semibold">UI Density: Icons</span>
@@ -341,29 +343,29 @@ export function HelpIconsSection({ collapsed, onToggle, onOpenSettingsTab }: Hel
             setting in Panel Settings (compact vs default).
           </div>
         </div>
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} mb-2 text-gray-500`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} mb-2 ${UI_THEME_TOKENS.text.tertiary}`}>
           {GRAPH_FIELDS_ICON_LEGEND_REUSE_TEXT}
         </div>
-        <div className={`mb-2 border border-gray-100 rounded px-2 py-1 bg-gray-50 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+        <div className={`mb-2 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1 ${UI_THEME_TOKENS.button.neutralSubtle} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary}`}>
           <div className="font-semibold mb-0.5">
             Graph Data Table mapping
           </div>
           <div>{GRAPH_FIELDS_GRAPH_DATA_TABLE_MAPPING_TOOLTIP}</div>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-xs text-gray-700 border border-gray-200 rounded-sm">
-            <thead className="bg-gray-50">
+          <table className={`min-w-full text-xs ${UI_THEME_TOKENS.text.primary} border ${UI_THEME_TOKENS.table.cellBorder} rounded-sm`}>
+            <thead className={UI_THEME_TOKENS.table.headerBg}>
               <tr>
-                <th className="px-2 py-1 text-left font-medium text-gray-700">Category</th>
-                <th className="px-2 py-1 text-left font-medium text-gray-700">Icon</th>
-                <th className="px-2 py-1 text-left font-medium text-gray-700">Name</th>
-                <th className="px-2 py-1 text-left font-medium text-gray-700">AgenticRAG alignment</th>
-                <th className="px-2 py-1 text-left font-medium text-gray-700">Usage notes</th>
+                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Category</th>
+                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Icon</th>
+                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Name</th>
+                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>AgenticRAG alignment</th>
+                <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Usage notes</th>
               </tr>
             </thead>
             <tbody>
               {iconRows.map(row => (
-                <tr key={`${row.category}-${row.name}`} className="border-t border-gray-200">
+                <tr key={`${row.category}-${row.name}`} className={`border-t ${UI_THEME_TOKENS.table.cellBorder}`}>
                   <td className="px-2 py-1 align-top whitespace-nowrap">{row.category}</td>
                   <td className="px-2 py-1 align-top">
                     <span className="inline-flex items-center justify-center">{row.icon}</span>

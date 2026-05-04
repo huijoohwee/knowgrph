@@ -35,7 +35,7 @@ export const uiSecondaryToggleActiveClassName =
 
 export const uiPrimaryPillActiveClassName = `${UI_COLOR_PRIMARY_BLUE_BG} ${UI_THEME_TOKENS.button.activeText}`
 
-export const uiPrimaryChipActiveClassName = `${UI_COLOR_PRIMARY_BLUE_BG} ${UI_THEME_TOKENS.button.activeText} border border-blue-200 dark:border-blue-800`
+export const uiPrimaryChipActiveClassName = `border ${UI_THEME_TOKENS.button.primaryChipActive}`
 
 export const uiPrimaryIconActiveClassName = `${UI_COLOR_PRIMARY_BLUE} ${UI_COLOR_PRIMARY_BLUE_BG}`
 
@@ -45,11 +45,11 @@ export const uiPrimaryLinkClassName = `${UI_COLOR_PRIMARY_BLUE} hover:underline`
 
 export const uiPrimaryLinkSmallClassName = `${UI_COLOR_PRIMARY_BLUE} hover:underline`
 
-export const uiPrimaryLinkButtonClassName = `underline ${UI_COLOR_PRIMARY_BLUE} hover:text-blue-800 dark:hover:text-blue-300 focus:outline-none`
+export const uiPrimaryLinkButtonClassName = `underline ${UI_COLOR_PRIMARY_BLUE} ${UI_THEME_TOKENS.button.primaryLinkHoverText} focus:outline-none`
 
 export const graphDataTableToolbarButtonClassName = (active: boolean) =>
-  `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} rounded-md h-7 px-2 shrink-0 truncate ${
-    active ? `${UI_THEME_TOKENS.button.hoverBg}` : `${UI_THEME_TOKENS.panel.border}`
+  `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} rounded-md h-7 px-2 shrink-0 truncate ${
+    active ? `${UI_THEME_TOKENS.button.primaryChipActive}` : `${UI_THEME_TOKENS.panel.border}`
   }`
 
 export const GRAPH_DATA_TABLE_TOOLBAR_ACTIVE_CLASS = `!${UI_THEME_TOKENS.panel.bg} !${UI_THEME_TOKENS.button.activeText} !${UI_COLOR_PRIMARY_BLUE_BORDER}`

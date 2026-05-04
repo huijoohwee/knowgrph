@@ -24,6 +24,7 @@ import {
 import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
+import { uiToolbarButtonNeutralClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 const DATASET_INPUT_DIR_TOOLTIP = buildDefaultTooltip({
   defaultValue: './data/raw',
@@ -114,6 +115,7 @@ export function GraphRagWorkflowIndexingSection({
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
+  const sectionTextClassName = `${UI_THEME_TOKENS.text.primary} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`
 
   return (
     <CollapsibleSection
@@ -133,9 +135,8 @@ export function GraphRagWorkflowIndexingSection({
     >
       <div
         className={[
-          'space-y-1 text-gray-700',
-          uiPanelKeyValueTextSizeClass,
-          uiPanelTextFontClass,
+          'space-y-1',
+          sectionTextClassName,
         ].join(' ')}
       >
         <div className="space-y-0.5">
@@ -474,7 +475,7 @@ export function GraphRagWorkflowIndexingSection({
                     ) : (
                       <div
                         className={[
-                          'mt-0.5 text-gray-500 text-left',
+                          `mt-0.5 ${UI_THEME_TOKENS.text.tertiary} text-left`,
                           uiPanelMicroLabelTextSizeClass,
                         ].join(' ')}
                       >
@@ -518,7 +519,7 @@ export function GraphRagWorkflowIndexingSection({
                     <button
                       type="button"
                       className={[
-                        'App-toolbar__btn bg-gray-50 text-gray-700',
+                        `App-toolbar__btn ${uiToolbarButtonNeutralClassName}`,
                         uiPanelKeyValueTextSizeClass,
                         uiPanelTextFontClass,
                       ].join(' ')}

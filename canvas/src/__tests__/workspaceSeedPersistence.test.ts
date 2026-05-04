@@ -14,6 +14,7 @@ import {
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import {
   GEOSPATIAL_WORKSPACE_SEED_PATH,
+  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
@@ -74,6 +75,7 @@ export async function testWorkspaceEnsureSeedMigratesLegacyDefaultsToReadmeAndVa
         { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
         { path: LEGACY_WORKSPACE_README_PATH, parentPath: '/', kind: 'file', name: 'README.md', text: '# Workspace', updatedAtMs: 1 },
         { path: LEGACY_WORKSPACE_TRIP_DEMO_PATH, parentPath: '/', kind: 'file', name: 'trip-demo-mmd.md', text: '# Trip demo', updatedAtMs: 1 },
+        { path: LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH, parentPath: '/', kind: 'file', name: 'knowgrph-maps-grabmap-multim-demo.md', text: '# Maps demo', updatedAtMs: 1 },
       ],
     })
     await fs.ensureSeed()
@@ -82,6 +84,9 @@ export async function testWorkspaceEnsureSeedMigratesLegacyDefaultsToReadmeAndVa
     const filePaths = new Set(entries.filter(e => e.kind === 'file').map(e => String(e.path || '')))
     if (filePaths.has(LEGACY_WORKSPACE_TRIP_DEMO_PATH)) {
       throw new Error('expected legacy trip demo workspace seed to be removed during validation demo migration')
+    }
+    if (filePaths.has(LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH)) {
+      throw new Error('expected legacy geospatial workspace seed to be removed during canonical seed-family migration')
     }
     if (!filePaths.has(WORKSPACE_README_SEED_PATH)) {
       throw new Error('expected README workspace seed to be present after legacy seed migration')

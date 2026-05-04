@@ -99,7 +99,9 @@ export default function BottomPanelStatsTab() {
 
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || 'text-xs')
-  const uiPanelKeyValueInputClass = useGraphStore(s => s.uiPanelKeyValueInputClass || 'w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs')
+  const uiPanelKeyValueInputClass = useGraphStore(
+    s => s.uiPanelKeyValueInputClass || `w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 py-1 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
+  )
   const uiPanelMicroLabelTextSizeClass = useGraphStore(s => s.uiPanelMicroLabelTextSizeClass || 'text-xs')
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
 

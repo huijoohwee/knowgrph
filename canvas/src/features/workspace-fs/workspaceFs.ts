@@ -236,9 +236,11 @@ export function resetWorkspaceFsForTests(): void {
 
 export const LEGACY_WORKSPACE_README_PATH = '/README.md' as WorkspacePath
 export const LEGACY_WORKSPACE_TRIP_DEMO_PATH = '/trip-demo-mmd.md' as WorkspacePath
+export const LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH = '/knowgrph-maps-grabmap-multim-demo.md' as WorkspacePath
 export const LEGACY_WORKSPACE_SEED_PATHS = new Set<WorkspacePath>([
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
 ])
 export const WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH = readEnvString(
   'VITE_WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH',
@@ -258,9 +260,12 @@ const buildInitializationSeedRelPath = (basename: string): string => {
   if (!name) return root
   return `${root}/${name}`
 }
-export const WORKSPACE_README_SEED_REL_PATH = buildInitializationSeedRelPath('README.md')
-export const WORKSPACE_README_SEED_PATH = '/README.md' as WorkspacePath
-export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = buildInitializationSeedRelPath('knowgrph-video-demo.md')
+export const WORKSPACE_README_SEED_BASENAME = 'knowgrph-maps-readme.md'
+export const TEST_VALIDATION_WORKSPACE_SEED_BASENAME = 'knowgrph-video-demo.md'
+export const GEOSPATIAL_WORKSPACE_SEED_BASENAME = 'knowgrph-maps-places.md'
+export const WORKSPACE_README_SEED_REL_PATH = buildInitializationSeedRelPath(WORKSPACE_README_SEED_BASENAME)
+export const WORKSPACE_README_SEED_PATH = normalizeWorkspacePath(WORKSPACE_README_SEED_BASENAME)
+export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = buildInitializationSeedRelPath(TEST_VALIDATION_WORKSPACE_SEED_BASENAME)
 export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
@@ -275,12 +280,12 @@ export const TEST_VALIDATION_WORKSPACE_SEED_PATH =
           ? ('/sandbox/test-data/test-generate-video/knowgrph-demo-video.md' as WorkspacePath)
           : normalizedValidationSeedSourcePath
       )
-    : normalizeWorkspacePath('knowgrph-video-demo.md')
-export const GEOSPATIAL_WORKSPACE_SEED_REL_PATH = buildInitializationSeedRelPath('knowgrph-maps-grabmap-multim-demo.md')
-export const GEOSPATIAL_WORKSPACE_SEED_PATH = normalizeWorkspacePath('knowgrph-maps-grabmap-multim-demo.md')
+    : normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_BASENAME)
+export const GEOSPATIAL_WORKSPACE_SEED_REL_PATH = buildInitializationSeedRelPath(GEOSPATIAL_WORKSPACE_SEED_BASENAME)
+export const GEOSPATIAL_WORKSPACE_SEED_PATH = normalizeWorkspacePath(GEOSPATIAL_WORKSPACE_SEED_BASENAME)
 const DEFAULT_WORKSPACE_README_TEXT = [
   '---',
-  'title: "Knowgrph"',
+  'title: "Knowgrph - Write it. See it. Ship it."',
   'kgCanvasSurfaceMode: "2d"',
   'kgCanvasRenderMode: "2d"',
   'kgCanvas2dRenderer: "d3"',
@@ -292,11 +297,11 @@ const DEFAULT_WORKSPACE_README_TEXT = [
   '',
   '# Write it. See it. Ship it.',
   '',
-  'Workspace seed fallback for `README.md`.',
+  `Workspace seed fallback for \`${WORKSPACE_README_SEED_REL_PATH}\`.`,
 ].join('\n')
 const DEFAULT_VALIDATION_WORKSPACE_SEED_TEXT = [
   '---',
-  `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || 'knowgrph-video-demo.md'}"`,
+  `title: "${workspaceBasename(TEST_VALIDATION_WORKSPACE_SEED_PATH) || TEST_VALIDATION_WORKSPACE_SEED_BASENAME}"`,
   'kgCanvasSurfaceMode: "2d"',
   'kgCanvasRenderMode: "2d"',
   'kgCanvas2dRenderer: "flowEditor"',
@@ -310,7 +315,7 @@ const DEFAULT_VALIDATION_WORKSPACE_SEED_TEXT = [
 ].join('\n')
 const DEFAULT_GEOSPATIAL_WORKSPACE_SEED_TEXT = [
   '---',
-  'title: "Knowgrph Maps GrabMap Multim Demo"',
+  'title: "GrabMaps Place - New Cafe Site Selection v1.1 (Singapore)"',
   'kgCanvasSurfaceMode: "geospatial"',
   'kgCanvas2dRenderer: "flowEditor"',
   'kgDocumentSemanticMode: "document"',
@@ -347,6 +352,7 @@ const WORKSPACE_SEED_PATH_SET = new Set<WorkspacePath>(WORKSPACE_SEED_SPECS.map(
 const DEFAULT_WORKSPACE_SEED_FAMILY_PATHS = new Set<WorkspacePath>([
   LEGACY_WORKSPACE_README_PATH,
   LEGACY_WORKSPACE_TRIP_DEMO_PATH,
+  LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   ...WORKSPACE_SEED_SPECS.map(seed => seed.path),
 ])
 export const LEGACY_WORKSPACE_README_TEXT = [
@@ -431,12 +437,13 @@ export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<Works
     .map(path => normalizeWorkspacePath(path))
     .filter((path): path is WorkspacePath => Boolean(path))
   if (normalized.length === 0) return false
-  if (!normalized.includes(LEGACY_WORKSPACE_TRIP_DEMO_PATH)) return false
-  const defaultOnlyPaths = new Set<WorkspacePath>([
+  const staleSeedPaths = new Set<WorkspacePath>([
     LEGACY_WORKSPACE_README_PATH,
     LEGACY_WORKSPACE_TRIP_DEMO_PATH,
-    TEST_VALIDATION_WORKSPACE_SEED_PATH,
+    LEGACY_GEOSPATIAL_WORKSPACE_SEED_PATH,
   ])
+  const hasStaleSeedPath = normalized.some(path => staleSeedPaths.has(path))
+  if (!hasStaleSeedPath) return false
   const nextSeedPaths = WORKSPACE_SEED_PATH_SET
   let alreadyOnNextSeedSet = normalized.length === nextSeedPaths.size
   if (alreadyOnNextSeedSet) {
@@ -449,7 +456,7 @@ export function shouldMigrateLegacyWorkspaceSeedPaths(paths: ReadonlyArray<Works
   }
   if (alreadyOnNextSeedSet) return false
   for (let i = 0; i < normalized.length; i += 1) {
-    if (!defaultOnlyPaths.has(normalized[i]!)) return false
+    if (!DEFAULT_WORKSPACE_SEED_FAMILY_PATHS.has(normalized[i]!)) return false
   }
   return true
 }

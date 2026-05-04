@@ -5,6 +5,7 @@ import { LS_KEYS } from '@/lib/config.ls.keys'
 import { lsSetBool, lsSetFloat, lsSetInt, lsSetJson, lsSetNum } from '@/lib/persistence'
 import { clampFillRatio } from 'grph-shared/zoom/presets'
 import { DEFAULT_DRAG_ALPHA_TARGET, DEFAULT_FIT_TO_SCREEN_FILL_RATIO } from '@/lib/graph/layoutDefaults'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -86,7 +87,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
         uiPanelKeyValueInputClass: lsSetJson(
           LS_KEYS.panelKeyValueInputClass,
           String(className || '').trim() ||
-            'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+            `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
         ),
       }),
 
@@ -169,7 +170,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
       set({
         uiIconColorClass: lsSetJson(
           LS_KEYS.iconColorClass,
-          String(className || '').trim() || 'text-gray-600',
+          String(className || '').trim() || UI_THEME_TOKENS.text.secondary,
         ),
       }),
     setUiIconHoverBgClass: (className: string) =>
@@ -191,7 +192,7 @@ export const createUiCoreActions = (set: SetGraph)=> ({
         uiIconPillClass: lsSetJson(
           LS_KEYS.iconPillClass,
           String(className || '').trim() ||
-            'inline-flex items-center justify-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5',
+            `inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} px-1.5 py-0.5`,
         ),
       }),
     setUiIconBadgeChipClass: (className: string) =>

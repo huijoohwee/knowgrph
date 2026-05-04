@@ -23,6 +23,7 @@ import {
   uiPrimaryToggleActiveClassName,
   uiPrimaryIconInactiveClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
@@ -44,11 +45,22 @@ export function ParserSelectionSection({
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
+  const badgeClassName = [
+    uiPanelKeyValueTextSizeClass,
+    uiPanelTextFontClass,
+    `font-semibold ${UI_THEME_TOKENS.text.tertiary}`,
+  ].join(' ')
+  const titleClassName = `text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`
+  const descriptionClassName = [
+    uiPanelKeyValueTextSizeClass,
+    uiPanelTextFontClass,
+    UI_THEME_TOKENS.text.secondary,
+  ].join(' ')
 
   const info = (
     <>
       {!hasSelectedSpec && parserMessage && (
-        <div className="text-xs mb-2 px-2 py-1 rounded bg-amber-50 border border-amber-200 text-amber-800">
+        <div className={`text-xs mb-2 px-2 py-1 rounded border ${UI_THEME_TOKENS.status.warning}`}>
           {parserMessage}
         </div>
       )}
@@ -69,13 +81,7 @@ export function ParserSelectionSection({
       title={
         <div className="flex flex-col">
           <span className="inline-flex items-center gap-2">
-            <span
-              className={[
-                uiPanelKeyValueTextSizeClass,
-                uiPanelTextFontClass,
-                'font-semibold text-gray-500',
-              ].join(' ')}
-            >
+            <span className={badgeClassName}>
               {copy.badge}
             </span>
             {copy.tooltip ? (
@@ -84,24 +90,18 @@ export function ParserSelectionSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-xs font-semibold text-gray-800">
+                <span className={titleClassName}>
                   {copy.title}
                 </span>
               </Tooltip>
             ) : (
-              <span className="text-xs font-semibold text-gray-800">
+              <span className={titleClassName}>
                 {copy.title}
               </span>
             )}
           </span>
           {copy.descriptionShort && (
-            <span
-              className={[
-                uiPanelKeyValueTextSizeClass,
-                uiPanelTextFontClass,
-                'text-gray-600',
-              ].join(' ')}
-            >
+            <span className={descriptionClassName}>
               {copy.descriptionShort}
             </span>
           )}
@@ -134,6 +134,24 @@ export function ParserDataSection({
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   )
+  const badgeClassName = [
+    uiPanelKeyValueTextSizeClass,
+    uiPanelTextFontClass,
+    `font-semibold ${UI_THEME_TOKENS.text.tertiary}`,
+  ].join(' ')
+  const titleClassName = `text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`
+  const descriptionClassName = [
+    uiPanelKeyValueTextSizeClass,
+    uiPanelTextFontClass,
+    UI_THEME_TOKENS.text.secondary,
+  ].join(' ')
+  const bodyTextClassName = [
+    'mt-1 space-y-1',
+    uiPanelKeyValueTextSizeClass,
+    uiPanelTextFontClass,
+    UI_THEME_TOKENS.text.secondary,
+  ].join(' ')
+  const tertiaryTextClassName = UI_THEME_TOKENS.text.tertiary
 
   const validation = React.useMemo(() => validateGraphDataWithSchema(data, schema), [data, schema])
 
@@ -191,13 +209,7 @@ export function ParserDataSection({
   const content = (
     <>
       <div className="mt-2">
-        <div
-          className={[
-            'mt-1 text-gray-600 space-y-1',
-            uiPanelKeyValueTextSizeClass,
-            uiPanelTextFontClass,
-          ].join(' ')}
-        >
+        <div className={bodyTextClassName}>
           {showMetrics && (
             <>
               <div>
@@ -283,7 +295,7 @@ export function ParserDataSection({
             </>
           )}
           {jsonLdMapping && (
-            <div className="mt-1 space-y-0.5 text-gray-600">
+            <div className={`mt-1 space-y-0.5 ${UI_THEME_TOKENS.text.secondary}`}>
               <div>
                 JSON-LD graph mapping:
                 {' '}
@@ -303,15 +315,15 @@ export function ParserDataSection({
                   <div className="flex flex-wrap gap-1">
                     {jsonLdMapping.edgeProps.map(key => {
                       const checked = jsonLdMapping.selectedEdgeProps.includes(key)
-                      const baseClass = 'focus:outline-none focus:ring-1'
+                      const baseClass = `focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`
                       const variantClassOptions = checked
                         ? {
                             textColorClass: 'text-blue-700',
                             extraClassName: uiPrimaryToggleActiveClassName,
                           }
                         : {
-                            textColorClass: uiPrimaryIconInactiveClassName,
-                            extraClassName: 'border-gray-300 bg-white',
+                          textColorClass: `${uiPrimaryIconInactiveClassName} ${UI_THEME_TOKENS.text.secondary}`,
+                          extraClassName: `${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.panel.bg}`,
                           }
                       return (
                         <button
@@ -343,23 +355,23 @@ export function ParserDataSection({
               )}
                   {jsonLdMapping.edgeProps.length > 0 && (
                 <>
-                  <div className="mt-0.5 text-gray-500">
+                  <div className={`mt-0.5 ${tertiaryTextClassName}`}>
                     {PARSER_JSONLD_EDGE_MAPPING_PIPELINE_DESCRIPTION}
                   </div>
-                  <div className="mt-0.5 text-gray-500">
+                  <div className={`mt-0.5 ${tertiaryTextClassName}`}>
                     {ORCHESTRATOR_AGENTIC_COPY.schemaLabel}
                     {' '}
                     <span className={`${uiPanelMonospaceTextClass} break-all`}>
                       {AGENTIC_RAG_SCHEMA_URL}
                     </span>
                   </div>
-                  <div className="text-gray-500">
+                  <div className={tertiaryTextClassName}>
                     <span
                       className={getPillClass('badge', {
                         baseClass:
-                          'inline-flex items-center px-1 py-[1px] mr-1 rounded border border-gray-300 bg-gray-50',
+                          `inline-flex items-center px-1 py-[1px] mr-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle}`,
                         badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                        textColorClass: 'text-gray-600',
+                        textColorClass: UI_THEME_TOKENS.text.secondary,
                       })}
                     >
                       {PIPELINE_STAGE_COPY.ingestValidate.badge}
@@ -382,21 +394,21 @@ export function ParserDataSection({
                       </>
                     )}
                   </div>
-                  <div className="text-gray-500">
+                  <div className={tertiaryTextClassName}>
                     {ORCHESTRATOR_AGENTIC_COPY.graphRagPathIriLabel}
                     {' '}
                     <span className={`${uiPanelMonospaceTextClass} break-all`}>
                       {AGENTIC_RAG_GRAPH_RAG_PATH_IRI}
                     </span>
                   </div>
-                  <div className="text-gray-500">
+                  <div className={tertiaryTextClassName}>
                     Node type IRI:
                     {' '}
                     <span className={`${uiPanelMonospaceTextClass} break-all`}>
                       {AGENTIC_RAG_NODE_TYPE_IRI}
                     </span>
                   </div>
-                  <div className="text-gray-500">
+                  <div className={tertiaryTextClassName}>
                     Edge type IRI:
                     {' '}
                     <span className={`${uiPanelMonospaceTextClass} break-all`}>
@@ -453,13 +465,7 @@ export function ParserDataSection({
       title={
         <div className="flex flex-col">
           <span className="inline-flex items-center gap-2">
-            <span
-              className={[
-                uiPanelKeyValueTextSizeClass,
-                uiPanelTextFontClass,
-                'font-semibold text-gray-500',
-              ].join(' ')}
-            >
+            <span className={badgeClassName}>
               {copy.badge}
             </span>
             {copy.tooltip ? (
@@ -468,24 +474,18 @@ export function ParserDataSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-xs font-semibold text-gray-800">
+                <span className={titleClassName}>
                   {copy.title}
                 </span>
               </Tooltip>
             ) : (
-              <span className="text-xs font-semibold text-gray-800">
+              <span className={titleClassName}>
                 {copy.title}
               </span>
             )}
           </span>
           {copy.descriptionShort && (
-            <span
-              className={[
-                uiPanelKeyValueTextSizeClass,
-                uiPanelTextFontClass,
-                'text-gray-600',
-              ].join(' ')}
-            >
+            <span className={descriptionClassName}>
               {copy.descriptionShort}
             </span>
           )}

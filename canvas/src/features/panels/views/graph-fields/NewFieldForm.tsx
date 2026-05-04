@@ -3,6 +3,7 @@ import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { FieldKeyIcon } from '@/features/graph-fields/ui/graphFieldIcons'
 import { GRAPH_FIELD_TYPES, type GraphFieldType } from '@/features/graph-fields/graphFields'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type NewFieldFormProps = {
   newFieldKey: string
@@ -33,8 +34,14 @@ export function NewFieldForm({
   iconSizeClass,
   uiIconStrokeWidth,
 }: NewFieldFormProps) {
+  const sectionClassName = `border-b ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.bg} p-2`
+  const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
+  const inputShellClassName = `mt-1 flex items-center gap-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 focus-within:border-blue-500 dark:focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-500 dark:focus-within:ring-blue-400`
+  const textInputClassName = `h-8 w-full bg-transparent text-xs ${UI_THEME_TOKENS.input.text} outline-none placeholder:text-[color:var(--kg-text-tertiary)]`
+  const actionButtonClassName = `App-toolbar__btn rounded border px-2 py-1 ${uiPanelKeyValueTextSizeClass}`
+
   return (
-    <div className="border-b border-gray-200 bg-white p-2">
+    <div className={sectionClassName}>
       <form
         onSubmit={e => {
           e.preventDefault()
@@ -44,17 +51,17 @@ export function NewFieldForm({
       >
         <div className="flex items-center gap-2">
           <div className="flex-1">
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>{UI_LABELS.name}</div>
-            <div className="mt-1 flex items-center gap-2 rounded border border-gray-300 bg-white px-2">
+            <div className={labelClassName}>{UI_LABELS.name}</div>
+            <div className={inputShellClassName}>
               <FieldKeyIcon
-                className={`${iconSizeClass} text-gray-500`}
+                className={`${iconSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}
                 strokeWidth={uiIconStrokeWidth}
               />
               <input
                 value={newFieldKey}
                 onChange={e => setNewFieldKey(e.target.value)}
                 placeholder={UI_COPY.fieldNamePlaceholder}
-                className="h-8 w-full bg-transparent text-xs outline-none"
+                className={textInputClassName}
               />
             </div>
           </div>
@@ -62,7 +69,7 @@ export function NewFieldForm({
 
         <div className="flex items-center gap-2">
           <div className="flex-1">
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>{UI_LABELS.scope}</div>
+            <div className={labelClassName}>{UI_LABELS.scope}</div>
             <div className="mt-1">
               <select
                 value={newFieldScope}
@@ -77,7 +84,7 @@ export function NewFieldForm({
             </div>
           </div>
           <div className="flex-1">
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>{UI_LABELS.type}</div>
+            <div className={labelClassName}>{UI_LABELS.type}</div>
             <div className="mt-1">
               <select
                 value={newFieldType}
@@ -97,14 +104,14 @@ export function NewFieldForm({
         <div className="flex items-center justify-end gap-2">
           <button
             type="button"
-            className={`${uiPanelKeyValueTextSizeClass} rounded border border-gray-200 bg-white px-2 py-1 text-gray-700`}
+            className={`${actionButtonClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary}`}
             onClick={() => setNewFieldOpen(false)}
           >
             {UI_LABELS.cancel}
           </button>
           <button
             type="submit"
-            className={`${uiPanelKeyValueTextSizeClass} rounded border border-gray-200 bg-gray-50 px-2 py-1 text-gray-700 disabled:opacity-50`}
+            className={`${actionButtonClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary} disabled:opacity-50`}
             disabled={!graphDataPresent}
           >
             {UI_LABELS.create}

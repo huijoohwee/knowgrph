@@ -265,6 +265,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
       slideTokens,
       headMeta,
       activeDocumentPath,
+      uiPanelMicroLabelTextSizeClass,
       highlightedLineRange,
       markdownWordWrap,
       markdownTextHighlight,
@@ -392,6 +393,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
       activeDocumentPath,
       uiPanelTextFontClass,
       uiPanelMonospaceTextClass,
+      uiPanelMicroLabelTextSizeClass,
       mermaidFrontmatterConfig,
       rootThemeMode,
       previewOverlayScope,
@@ -429,7 +431,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
       }
       setIsSlidesFullscreenOpen(true)
     },
-    [onShowInEditor, onPreviewClick, slides, safeActiveSlideId],
+    [onShowInEditor, onPreviewClick, setIsSlidesFullscreenOpen, slides, safeActiveSlideId],
   )
 
   return (
@@ -490,7 +492,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
         scope={previewOverlayScope}
         portalTarget={previewOverlayPortalTarget}
       >
-        <div ref={previewOverlayContainerRef} className="w-full h-full bg-white dark:bg-gray-900 relative overflow-hidden">
+        <div ref={previewOverlayContainerRef} className="w-full h-full bg-[color:var(--kg-panel-bg)] relative overflow-hidden">
           {/* Sidebar Trigger Area */}
           <div
             className="absolute left-0 top-0 bottom-0 w-2 z-[60] bg-transparent hover:bg-gray-200/20 dark:hover:bg-gray-700/20 transition-colors duration-200"
@@ -500,7 +502,7 @@ export function MarkdownPreviewPresentation(props: MarkdownPreviewPresentationPr
           />
           <section className="w-full h-full flex" onContextMenu={onContextMenu}>
             <aside
-              className={`absolute left-0 top-0 h-full z-[50] transition-transform duration-300 ease-in-out bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-xl ${
+              className={`absolute left-0 top-0 h-full z-[50] transition-transform duration-300 ease-in-out ${UI_THEME_TOKENS.panel.bg} border-r ${UI_THEME_TOKENS.panel.divider} shadow-xl ${
                 showSlidesSidebar || isSidebarHovered ? 'translate-x-0' : '-translate-x-full'
               }`}
               onMouseEnter={handleSidebarMouseEnter}

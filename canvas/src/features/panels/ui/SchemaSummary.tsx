@@ -86,9 +86,9 @@ export default function SchemaSummary({
 
   const schemaOpClass =
     schemaOpOk === true
-      ? 'text-green-700'
+      ? UI_THEME_TOKENS.status.success
       : schemaOpOk === false
-        ? 'text-red-700'
+        ? UI_THEME_TOKENS.status.error
         : ''
 
   let lintContent: JSX.Element | string = 'Lint: not run'
@@ -105,7 +105,7 @@ export default function SchemaSummary({
           <>
             Lint: {lintCount} metadata {label}{' '}
             <select
-              className="ml-1 px-1 py-0.5 text-xs border border-gray-300 rounded bg-white"
+              className={`ml-1 px-1 py-0.5 text-xs border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
               value={currentValue}
               onChange={e => {
                 const nextPath = e.target.value
@@ -152,7 +152,7 @@ export default function SchemaSummary({
 
   const sections: Array<JSX.Element> = []
   if (resolvedShowTitle) {
-    sections.push(<div key="title" className="font-semibold uppercase tracking-wide text-gray-500">SCHEMA SUMMARY</div>)
+    sections.push(<div key="title" className={`font-semibold uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>SCHEMA SUMMARY</div>)
   }
   if (resolvedShowSchemaSummary) {
     sections.push(
@@ -166,7 +166,7 @@ export default function SchemaSummary({
         maxWidthPx={260}
         contentClassName="bg-gray-800/90"
       >
-        <span className={hasSchema ? '' : 'text-amber-700 font-medium'}>
+        <span className={hasSchema ? '' : `${UI_THEME_TOKENS.status.warning} font-medium`}>
           {hasSchema ? (
             <>
               Schema: {nodeTypes} node types · {edgeLabels} edge labels · Import: {schemaImportFileName || 'none'}
@@ -198,7 +198,7 @@ export default function SchemaSummary({
         maxWidthPx={260}
         contentClassName="bg-gray-800/90"
       >
-        <span className={hasData ? '' : 'text-amber-700 font-medium'}>
+        <span className={hasData ? '' : `${UI_THEME_TOKENS.status.warning} font-medium`}>
           {hasData ? (
             <>Data: {nodesCount} nodes · {edgesCount} edges</>
           ) : (
@@ -225,7 +225,7 @@ export default function SchemaSummary({
       >
         <button
           type="button"
-          className={`inline-flex items-center px-1.5 py-0.5 rounded-full border border-gray-300 bg-gray-50 ${UI_THEME_TOKENS.button.hoverBg} text-gray-700 cursor-pointer`}
+          className={`inline-flex items-center px-1.5 py-0.5 rounded-full border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.primary} cursor-pointer`}
           onClick={() => {
             try {
               emitMainPanelOpen({ tab: 'help' as const })
@@ -248,13 +248,13 @@ export default function SchemaSummary({
     <div className={className ?? (variant === 'full' ? 'mb-1' : undefined)}>
       <div
         className={[
-          'inline-flex items-center gap-2 text-gray-600',
+          `inline-flex items-center gap-2 ${UI_THEME_TOKENS.text.secondary}`,
           uiPanelMicroLabelTextSizeClass,
         ].join(' ')}
       >
         {sections.map((section, i) => (
           <span key={i} className="inline-flex items-center gap-2">
-            {i > 0 ? <span className="text-gray-300">|</span> : null}
+            {i > 0 ? <span className={UI_THEME_TOKENS.text.tertiary}>|</span> : null}
             {section}
           </span>
         ))}

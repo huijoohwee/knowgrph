@@ -3,6 +3,10 @@ export type ProgressTicker = {
   stop: (finalPercentage?: number) => void
 }
 
+const DEFAULT_UI_PROGRESS_INTERVAL_MS = 280
+const DEFAULT_UI_PROGRESS_MAX_PERCENTAGE = 92
+const DEFAULT_UI_PROGRESS_MAX_STEP_PERCENTAGE = 12
+
 export type ProgressSession = {
   start: () => void
   finish: (finalPercentage?: number) => void
@@ -78,5 +82,65 @@ export function createProgressSession(args: {
     finish,
     stop,
     cleanup,
+  }
+}
+
+export function createDefaultProgressSession(args: {
+  onProgress: (percentage: number) => void
+}): ProgressSession {
+  return createProgressSession({
+    onProgress: args.onProgress,
+    intervalMs: DEFAULT_UI_PROGRESS_INTERVAL_MS,
+    maxPercentage: DEFAULT_UI_PROGRESS_MAX_PERCENTAGE,
+    maxStepPercentage: DEFAULT_UI_PROGRESS_MAX_STEP_PERCENTAGE,
+  })
+}
+
+export function beginProgressSession(args: {
+  progressSession: ProgressSession | null | undefined
+  beforeStart?: (() => void) | null
+}): void {
+  try {
+    args.beforeStart?.()
+  } catch {
+    void 0
+  }
+  try {
+    args.progressSession?.start()
+  } catch {
+    void 0
+  }
+}
+
+export function finishProgressSession(args: {
+  progressSession: ProgressSession | null | undefined
+  finalPercentage?: number
+  afterFinish?: (() => void) | null
+}): void {
+  try {
+    args.progressSession?.finish(args.finalPercentage)
+  } catch {
+    void 0
+  }
+  try {
+    args.afterFinish?.()
+  } catch {
+    void 0
+  }
+}
+
+export function failProgressSession(args: {
+  progressSession: ProgressSession | null | undefined
+  afterStop?: (() => void) | null
+}): void {
+  try {
+    args.progressSession?.stop()
+  } catch {
+    void 0
+  }
+  try {
+    args.afterStop?.()
+  } catch {
+    void 0
   }
 }

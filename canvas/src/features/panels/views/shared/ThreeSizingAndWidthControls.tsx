@@ -3,6 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { getThreeConfig } from '@/lib/graph/schema'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import Tooltip from '@/features/panels/ui/Tooltip'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type SharedThreeSizingAndWidthControlsProps = {
   schema: GraphSchema
@@ -26,13 +27,14 @@ export default function ThreeSizingAndWidthControls({
   const keywordEdgeWidthScaleRaw = typeof threeCfg.keywordEdgeWidthScale === 'number' ? threeCfg.keywordEdgeWidthScale : 1
   const keywordNodeSizeScale = clampScale(keywordNodeSizeScaleRaw)
   const keywordEdgeWidthScale = clampScale(keywordEdgeWidthScaleRaw)
+  const keyLabelClassName = `${UI_THEME_TOKENS.text.secondary} break-words`
 
   if (variant === 'simple') {
     return (
       <>
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Node Sizing</span>}
+          keyNode={<span className={keyLabelClassName}>Node Sizing</span>}
           valueNode={(
             <select
               className={uiPanelKeyValueInputClass}
@@ -49,7 +51,7 @@ export default function ThreeSizingAndWidthControls({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Edge Width</span>}
+          keyNode={<span className={keyLabelClassName}>Edge Width</span>}
           valueNode={(
             <select
               className={uiPanelKeyValueInputClass}
@@ -66,7 +68,7 @@ export default function ThreeSizingAndWidthControls({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Keyword Node Scale</span>}
+          keyNode={<span className={keyLabelClassName}>Keyword Node Scale</span>}
           valueNode={(
             <input
               type="number"
@@ -84,7 +86,7 @@ export default function ThreeSizingAndWidthControls({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Keyword Edge Scale</span>}
+          keyNode={<span className={keyLabelClassName}>Keyword Edge Scale</span>}
           valueNode={(
             <input
               type="number"
@@ -115,7 +117,7 @@ export default function ThreeSizingAndWidthControls({
             maxWidthPx={260}
             contentClassName="bg-gray-800/90"
           >
-            <span className="text-gray-700 break-words">
+            <span className={keyLabelClassName}>
               schema.three.nodeSizingFormula
             </span>
           </Tooltip>
@@ -154,7 +156,7 @@ export default function ThreeSizingAndWidthControls({
             maxWidthPx={260}
             contentClassName="bg-gray-800/90"
           >
-            <span className="text-gray-700 break-words">
+            <span className={keyLabelClassName}>
               schema.three.edgeWidthFormula
             </span>
           </Tooltip>
@@ -193,7 +195,7 @@ export default function ThreeSizingAndWidthControls({
             maxWidthPx={260}
             contentClassName="bg-gray-800/90"
           >
-            <span className="text-gray-700 break-words">
+            <span className={keyLabelClassName}>
               schema.three.keywordNodeSizeScale
             </span>
           </Tooltip>
@@ -225,7 +227,7 @@ export default function ThreeSizingAndWidthControls({
             maxWidthPx={260}
             contentClassName="bg-gray-800/90"
           >
-            <span className="text-gray-700 break-words">
+            <span className={keyLabelClassName}>
               schema.three.keywordEdgeWidthScale
             </span>
           </Tooltip>
@@ -251,4 +253,3 @@ export default function ThreeSizingAndWidthControls({
     </>
   )
 }
-

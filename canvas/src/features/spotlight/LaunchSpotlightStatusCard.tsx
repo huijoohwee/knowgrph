@@ -28,6 +28,9 @@ type FlowWidgetTraceEntry = {
 
 const FLOW_QE_TRACE_LS_KEY = 'kg:debug:flowEditorWidgetTrace'
 const EMPTY_STRING_ARRAY: string[] = []
+const spotlightCardClassName = `pointer-events-auto rounded-xl border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/95 shadow-lg px-4 py-3 max-w-xs w-80`
+const spotlightGhostButtonClassName = `${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg}`
+const spotlightSecondaryButtonClassName = `border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`
 
 type LaunchSpotlightStatusCardProps = {
   dismissed: boolean
@@ -194,7 +197,7 @@ export function LaunchSpotlightStatusCard({
       : <CheckCircle className={`${iconSizeClass} text-green-500`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
     : null
   const validationTextClass =
-    !hasValidationRun ? 'text-gray-700' : graphValidationStatus === 'invalid' ? 'text-red-700' : 'text-green-700'
+    !hasValidationRun ? UI_THEME_TOKENS.text.primary : graphValidationStatus === 'invalid' ? UI_THEME_TOKENS.status.error : UI_THEME_TOKENS.status.success
 
   const handleClose = () => {
     setEnableLaunchSpotlight(false)
@@ -292,19 +295,17 @@ export function LaunchSpotlightStatusCard({
     <div className="fixed inset-0 z-[2000] pointer-events-none">
       <div
         ref={cardRef}
-        className={`pointer-events-auto rounded-xl border bg-white/95 shadow-lg px-4 py-3 max-w-xs w-80 ${
-          minimized ? 'cursor-default' : 'cursor-move'
-        } border-gray-200 shadow-gray-200/60`}
+        className={`${spotlightCardClassName} ${minimized ? 'cursor-default' : 'cursor-move'}`}
         onPointerDown={minimized ? undefined : handleCardPointerDown}
         style={cardStyle}
       >
         {minimized ? (
           <div className="flex items-center justify-between">
-            <span className={`${uiPanelKeyValueTextSizeClass} text-gray-600`}>Status</span>
+            <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>Status</span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
                 onClick={handleClose}
               >
                 Close
@@ -322,12 +323,12 @@ export function LaunchSpotlightStatusCard({
           <>
             <div className="flex items-start justify-between mb-2">
               <div className="flex flex-col gap-0.5">
-                <span className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide text-gray-500`}>Status Panel</span>
-                <div className="text-sm font-semibold text-gray-900">Status</div>
+                <span className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Status Panel</span>
+                <div className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>Status</div>
               </div>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
                 onClick={handleMinimizeStatus}
               >
                 Minimize
@@ -353,9 +354,9 @@ export function LaunchSpotlightStatusCard({
                   </span>
                 )}
               </div>
-              <div className="text-xs text-gray-700 space-y-2">
+              <div className={`text-xs ${UI_THEME_TOKENS.text.primary} space-y-2`}>
                 <div>
-                  <div className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide text-gray-500 mb-0.5`}>
+                  <div className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} mb-0.5`}>
                     Graph state
                   </div>
                   <div>
@@ -377,14 +378,14 @@ export function LaunchSpotlightStatusCard({
                     <div className="mt-1">
                       <button
                         type="button"
-                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-gray-300 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg} mr-1`}
+                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded ${spotlightSecondaryButtonClassName} mr-1`}
                         onClick={handleResetZoomFloorCache}
                       >
                         Reset Zoom Floor (dev)
                       </button>
                       <button
                         type="button"
-                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-gray-300 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`}
+                        className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded ${spotlightSecondaryButtonClassName}`}
                         onClick={handleSummarizeWidgetTrace}
                       >
                         QE Trace Summary (dev)
@@ -393,7 +394,7 @@ export function LaunchSpotlightStatusCard({
                   ) : null}
 
                   <section className="mt-2" aria-label="Viewport status">
-                    <h3 className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide text-gray-500 mb-0.5`}>
+                    <h3 className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} mb-0.5`}>
                       Viewport
                     </h3>
                     <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
@@ -411,14 +412,14 @@ export function LaunchSpotlightStatusCard({
                   </section>
                 </div>
                 <div>
-                  <div className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide text-gray-500 mb-0.5`}>
+                  <div className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} mb-0.5`}>
                     Validation
                   </div>
                   <div className="flex items-center gap-1 mb-1">
                     {validationIcon}
                     <span className={validationTextClass}>{graphValidationStatusText}</span>
                   </div>
-                  <div className={`${uiPanelKeyValueTextSizeClass} text-gray-600`}>
+                  <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                     <SchemaSummary
                       variant="full"
                       showTitle={false}
@@ -429,7 +430,7 @@ export function LaunchSpotlightStatusCard({
                     />
                   </div>
                   {typeof schemaLintCount === 'number' && schemaLintCount > 0 && (
-                    <div className={`mt-1 ${uiPanelKeyValueTextSizeClass} text-gray-600`}>
+                    <div className={`mt-1 ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                       {schemaLintCount.toLocaleString()} schema lint issue{schemaLintCount === 1 ? '' : 's'} detected
                     </div>
                   )}
@@ -439,7 +440,7 @@ export function LaunchSpotlightStatusCard({
             <div className="mt-3 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-gray-300 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded ${spotlightSecondaryButtonClassName}`}
                 onClick={handleClose}
               >
                 Close

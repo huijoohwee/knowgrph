@@ -21,8 +21,10 @@ import {
   DatasetPathViz,
   DatasetPolygonViz,
 } from '@/features/panels/views/DatasetInspectorMiniViz'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 const EMPTY_STRING_ARRAY: string[] = []
+const datasetToggleShellClassName = `inline-flex rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden`
 
 interface DatasetStats {
   nodeCount: number
@@ -118,13 +120,13 @@ export default function DatasetInspectorSection({
             className={[
               uiPanelKeyValueTextSizeClass,
               uiPanelTextFontClass,
-              'font-semibold text-gray-500',
+              `font-semibold ${UI_THEME_TOKENS.text.tertiary}`,
             ].join(' ')}
           >
             {copy.badge}
           </span>
         )}
-        <span className="text-xs font-semibold text-gray-800">
+        <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>
           {copy.title}
         </span>
       </span>
@@ -133,7 +135,7 @@ export default function DatasetInspectorSection({
           className={[
             uiPanelMicroLabelTextSizeClass,
             uiPanelTextFontClass,
-            'text-gray-600',
+            UI_THEME_TOKENS.text.secondary,
           ].join(' ')}
         >
           {copy.descriptionShort}
@@ -163,7 +165,7 @@ export default function DatasetInspectorSection({
         <div
           className={[
             uiPanelMicroLabelTextSizeClass,
-            'text-gray-600',
+            UI_THEME_TOKENS.text.secondary,
           ].join(' ')}
         >
           {DATASET_EMPTY_TEXT}
@@ -171,21 +173,22 @@ export default function DatasetInspectorSection({
       ) : (
         <div
           className={[
-            'grid grid-cols-3 gap-2 text-gray-700',
+            'grid grid-cols-3 gap-2',
+            UI_THEME_TOKENS.text.primary,
             uiPanelKeyValueTextSizeClass,
             uiPanelTextFontClass,
           ].join(' ')}
         >
           <div className="flex flex-col">
-            <span className="uppercase tracking-wide text-gray-500">Nodes</span>
+            <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Nodes</span>
             <span className="font-semibold">{String(datasetStats.nodeCount)}</span>
           </div>
           <div className="flex flex-col">
-            <span className="uppercase tracking-wide text-gray-500">Edges</span>
+            <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Edges</span>
             <span className="font-semibold">{String(datasetStats.edgeCount)}</span>
           </div>
           <div className="flex flex-col">
-            <span className="uppercase tracking-wide text-gray-500">Distinct relationships</span>
+            <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Distinct relationships</span>
             <span className="font-semibold">{String(datasetStats.distinctTriples)}</span>
           </div>
         </div>
@@ -201,19 +204,19 @@ export default function DatasetInspectorSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'text-gray-600 truncate',
+                    `${UI_THEME_TOKENS.text.secondary} truncate`,
                   ].join(' ')}
                 >
                   {selectionSummary}
                 </div>
-                <div className="inline-flex rounded-md border border-gray-200 bg-white overflow-hidden">
+                <div className={datasetToggleShellClassName}>
                   <button
                     type="button"
                     className={[
                       uiPanelMicroLabelTextSizeClass,
                       uiPanelTextFontClass,
                       'px-2 py-[2px]',
-                      vizSource === 'auto' ? 'bg-gray-200 text-gray-800' : 'text-gray-500',
+                      vizSource === 'auto' ? `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.text.primary}` : UI_THEME_TOKENS.text.tertiary,
                     ].join(' ')}
                     onClick={() => setVizSource('auto')}
                   >
@@ -225,7 +228,7 @@ export default function DatasetInspectorSection({
                       uiPanelMicroLabelTextSizeClass,
                       uiPanelTextFontClass,
                       'px-2 py-[2px]',
-                      vizSource === 'dataset' ? 'bg-gray-200 text-gray-800' : 'text-gray-500',
+                      vizSource === 'dataset' ? `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.text.primary}` : UI_THEME_TOKENS.text.tertiary,
                     ].join(' ')}
                     onClick={() => setVizSource('dataset')}
                   >
@@ -237,7 +240,7 @@ export default function DatasetInspectorSection({
                       uiPanelMicroLabelTextSizeClass,
                       uiPanelTextFontClass,
                       'px-2 py-[2px]',
-                      vizSource === 'selection' ? 'bg-gray-200 text-gray-800' : 'text-gray-500',
+                      vizSource === 'selection' ? `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.text.primary}` : UI_THEME_TOKENS.text.tertiary,
                     ].join(' ')}
                     onClick={() => setVizSource('selection')}
                   >
@@ -252,7 +255,7 @@ export default function DatasetInspectorSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'text-gray-600',
+                    UI_THEME_TOKENS.text.secondary,
                   ].join(' ')}
                 >
                   Node type distribution
@@ -264,7 +267,7 @@ export default function DatasetInspectorSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'text-gray-600',
+                    UI_THEME_TOKENS.text.secondary,
                   ].join(' ')}
                 >
                   Type/label hierarchy
@@ -276,7 +279,7 @@ export default function DatasetInspectorSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'text-gray-600',
+                    UI_THEME_TOKENS.text.secondary,
                   ].join(' ')}
                 >
                   Degree outline (nodes)
@@ -288,7 +291,7 @@ export default function DatasetInspectorSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'text-gray-600',
+                    UI_THEME_TOKENS.text.secondary,
                   ].join(' ')}
                 >
                   Edge length path
@@ -299,13 +302,13 @@ export default function DatasetInspectorSection({
           </>
         )}
       {contextComparison && (
-        <div className={`mt-1 text-gray-500 ${uiPanelKeyValueTextSizeClass}`}>
+        <div className={`mt-1 ${UI_THEME_TOKENS.text.tertiary} ${uiPanelKeyValueTextSizeClass}`}>
           <span
             className={getPillClass('badge', {
               baseClass:
-                'inline-flex items-center px-1 py-[1px] mr-1 rounded border border-gray-300 bg-gray-50',
+                `inline-flex items-center px-1 py-[1px] mr-1 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle}`,
               badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-              textColorClass: 'text-gray-600',
+              textColorClass: UI_THEME_TOKENS.text.secondary,
             })}
           >
             {RENDER_PANEL_SECTION_COPY.presetsAndTuning.badge}

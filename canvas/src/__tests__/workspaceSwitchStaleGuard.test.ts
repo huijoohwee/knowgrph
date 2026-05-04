@@ -147,6 +147,25 @@ export const testMarkdownWorkspaceRuntimeGraphWritebackRefreshesActiveEditorText
   }
 }
 
+export const testMarkdownWorkspaceSelectionClearsStaleEditorTextBeforeSsotDocumentSwitch = () => {
+  const text = readUtf8(markdownWorkspaceSelectionPath())
+  if (!text.includes('const previousActivePathRef = React.useRef<WorkspacePath | null>(args.activePath)')) {
+    throw new Error('Expected markdown workspace selection to track the previous active path before synchronizing the active markdown document')
+  }
+  const clearEffectStart = text.indexOf('  const previousActivePathRef = React.useRef<WorkspacePath | null>(args.activePath)')
+  const ssotSyncStart = text.indexOf('  useMarkdownEditorSsotSync({', clearEffectStart)
+  const clearEffectSection = clearEffectStart >= 0 && ssotSyncStart > clearEffectStart ? text.slice(clearEffectStart, ssotSyncStart) : ''
+  if (!clearEffectSection.includes('if (!nextPath || !prevPath || prevPath === nextPath || activeEntryKind === \'folder\' || !args.activeRef.current) return')) {
+    throw new Error('Expected markdown workspace selection to clear stale text only for real file-to-file transitions')
+  }
+  if (!clearEffectSection.includes("args.setActiveTextProgrammatic('')")) {
+    throw new Error('Expected markdown workspace selection to blank stale editor text before SSOT sync can publish the previous file under the next document key')
+  }
+  if (!clearEffectSection.includes('args.setHighlightedLineRange(null)') || !clearEffectSection.includes('args.clearStatus()')) {
+    throw new Error('Expected markdown workspace selection to clear transient line focus and status when switching files with stale editor text')
+  }
+}
+
 export const testMarkdownWorkspaceDerivedViewsCentralizePersistenceWriteback = () => {
   const derivedViewsPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceDerivedViews.tsx')
   const ioPath = path.resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntime.io.ts')

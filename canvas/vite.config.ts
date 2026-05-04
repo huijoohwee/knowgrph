@@ -17,6 +17,7 @@ import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImp
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
+const workspaceRoot = path.resolve(repoRoot, '..')
 const nodeRequire = createRequire(import.meta.url)
 const resolvedReact = nodeRequire.resolve('react')
 const resolvedReactJsxRuntime = nodeRequire.resolve('react/jsx-runtime')
@@ -940,14 +941,14 @@ function coerceSafeRepoRelPath(raw: unknown): string | null {
 
 function resolveCodebaseRootForDevServer(): string {
   const raw = String(process.env.VITE_CODEBASE_ROOT || '').trim()
-  if (!raw) return repoRoot
+  if (!raw) return workspaceRoot
   try {
     const abs = path.resolve(raw)
     if (existsSync(abs)) return abs
   } catch {
     void 0
   }
-  return repoRoot
+  return workspaceRoot
 }
 
 const codebaseRootForDevServer = resolveCodebaseRootForDevServer()

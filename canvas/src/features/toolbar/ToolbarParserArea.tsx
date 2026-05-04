@@ -1,6 +1,7 @@
 import React from 'react'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { useParserUIState } from '@/features/parsers/uiState'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
@@ -33,7 +34,7 @@ export function ToolbarParserArea({
                   : UI_COPY.toolbarParserExportPythonButtonLabel
             const isActive = parserPreferredLanguage === lang
             const className = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} px-2 ${
-              isActive ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'
+              isActive ? UI_THEME_TOKENS.button.primarySolid : `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
             }`
             return (
               <button

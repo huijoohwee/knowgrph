@@ -41,6 +41,7 @@ import { FieldGraphLayersSection, GraphLayerMetadataPresetsSection } from '@/fea
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MainPanelSettingsPanelShell } from '@/features/panels/ui/MainPanelSettingsPanelShell'
 import { MAIN_PANEL_SETTINGS_DROPDOWN_SELECT_CLASSNAME } from '@/features/panels/ui/mainPanelSettingsSelectClass'
+import { uiToolbarButtonNeutralClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 const MonacoTextEditorLazy = React.lazy(async (): Promise<{ default: React.ComponentType<MonacoTextEditorProps> }> =>
   import('@/features/monaco/MonacoTextEditor').then(mod => ({ default: mod.MonacoTextEditor })),
@@ -88,6 +89,9 @@ export default function FieldSettingsPanel({
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
+  const secondaryActionButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonNeutralClassName}`
+  const fieldLabelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`
+  const fieldHintClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
@@ -285,7 +289,7 @@ export default function FieldSettingsPanel({
                   <span className={UI_THEME_TOKENS.text.primary}>Voxel animation</span>
                   <input
                     type="checkbox"
-                    className="h-3 w-3"
+                    className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
                     checked={schema.three?.voxelAnimationEnabled !== false}
                     onChange={e => {
                       const current = schema as GraphSchema
@@ -339,10 +343,10 @@ export default function FieldSettingsPanel({
               }}
               className="p-3 space-y-3"
             >
-              <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
+                <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="min-w-0">
-                    <label className={`block ${uiPanelKeyValueTextSizeClass} text-gray-700`} htmlFor="graph-fields-display-name">
+                    <label className={`block ${fieldLabelClassName}`} htmlFor="graph-fields-display-name">
                       {UI_LABELS.name}
                     </label>
                     <div className="mt-1">
@@ -350,12 +354,12 @@ export default function FieldSettingsPanel({
                         id="graph-fields-display-name"
                         value={selectedSettings.displayName}
                         onChange={e => updateSelectedSettings({ displayName: e.target.value })}
-                        className="h-9 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-800"
+                        className={`h-9 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
                       />
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <label className={`block ${uiPanelKeyValueTextSizeClass} text-gray-700`} htmlFor="graph-fields-type">
+                    <label className={`block ${fieldLabelClassName}`} htmlFor="graph-fields-type">
                       {UI_LABELS.type}
                     </label>
                     <div className="mt-1">
@@ -372,7 +376,7 @@ export default function FieldSettingsPanel({
                         ))}
                       </select>
                       {suggestedFieldType ? (
-                        <div className={`${uiPanelKeyValueTextSizeClass} mt-1 text-gray-500`}>
+                        <div className={`${fieldHintClassName} mt-1`}>
                           Suggested: {suggestedFieldType}
                         </div>
                       ) : null}
@@ -380,7 +384,7 @@ export default function FieldSettingsPanel({
                   </div>
                 </div>
                 <div>
-                  <label className={`block ${uiPanelKeyValueTextSizeClass} text-gray-700`} htmlFor="graph-fields-description">
+                  <label className={`block ${fieldLabelClassName}`} htmlFor="graph-fields-description">
                     <Tooltip
                       content={GRAPH_FIELDS_DESCRIPTION_TOOLTIP_TEXT}
                       maxWidthPx={260}
@@ -392,7 +396,7 @@ export default function FieldSettingsPanel({
                     </Tooltip>
                   </label>
                   <div className="mt-1">
-                    <div className="h-[84px] w-full rounded border border-gray-300 overflow-hidden bg-white">
+                    <div className={`h-[84px] w-full rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.input.bg}`}>
                       <React.Suspense fallback={null}>
                         <MonacoTextEditorLazy
                           value={selectedSettings.description}
@@ -457,7 +461,7 @@ export default function FieldSettingsPanel({
                   stickyHeader={false}
                   className="mt-0 border-t-0 pt-0"
                 >
-                  <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
+                  <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
                     <FieldGraphLayersSection
                       schema={schema as GraphSchema}
                       scope={selectedField.scope}
@@ -500,14 +504,14 @@ export default function FieldSettingsPanel({
                 <button
                   type="button"
                   onClick={resetSelectedSettings}
-                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border border-gray-300 bg-gray-50 text-gray-700`}
+                  className={secondaryActionButtonClassName}
                 >
                   {UI_LABELS.reset}
                 </button>
                 <button
                   type="button"
                   onClick={onResync}
-                  className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} border border-gray-300 bg-gray-50 text-gray-700`}
+                  className={secondaryActionButtonClassName}
                   disabled={!graphData}
                 >
                   {UI_COPY.graphFieldsResyncButtonLabel}

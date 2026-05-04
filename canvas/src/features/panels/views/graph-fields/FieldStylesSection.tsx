@@ -3,6 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { KeyTypeValueRow, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type FieldStylesSectionProps = {
   schema: GraphSchema
@@ -37,7 +38,7 @@ export default function FieldStylesSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
   )
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
@@ -55,32 +56,39 @@ export default function FieldStylesSection({
 
   const labelColorRaw = String(schema.labelStyles?.color ?? '')
   const labelColorNormalized = labelColorRaw.trim() || '#111111'
+  const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`
+  const keyLabelClassName = `${UI_THEME_TOKENS.text.secondary} break-words`
+  const ownerValueClassName = `${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.text.secondary} break-all`
+  const colorPickerClassName = `w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:opacity-50`
+  const colorInputClassName = `min-w-0 flex-1 h-6 px-2 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} rounded ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing} ${uiPanelMonospaceTextClass} disabled:opacity-50`
+  const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
+  const selectionControlClassName = `h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
   return (
-    <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
+    <div className={panelClassName}>
       {scope === 'node' ? (
         <div className="space-y-2">
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
-            keyNode={<span className="text-gray-700 break-words">Node type</span>}
-            valueNode={<span className={`${uiPanelMonospaceTextClass} text-gray-700 break-all`}>{ownerKey || '—'}</span>}
+            keyNode={<span className={keyLabelClassName}>Node type</span>}
+            valueNode={<span className={ownerValueClassName}>{ownerKey || '—'}</span>}
           />
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
-            keyNode={<span className="text-gray-700 break-words">Fill</span>}
+            keyNode={<span className={keyLabelClassName}>Fill</span>}
             valueNode={(
               <RightAlignedValueCell className="gap-2">
                 <input
                   type="color"
-                  className="w-8 h-6 p-0 border border-gray-300 rounded cursor-pointer bg-transparent disabled:opacity-50"
+                  className={colorPickerClassName}
                   disabled={!hasOwner}
                   value={isHexColor(nodeFillNormalized) ? nodeFillNormalized : '#000000'}
                   onChange={e => updateNodeStyle(ownerKey, { color: e.target.value })}
                 />
                 <PlainTextInputEditor
-                  className={`min-w-0 flex-1 h-6 px-2 text-xs border border-gray-300 rounded ${uiPanelMonospaceTextClass} disabled:opacity-50`}
+                  className={colorInputClassName}
                   disabled={!hasOwner}
                   value={nodeFillRaw}
                   onChange={next => updateNodeStyle(ownerKey, { color: next })}
@@ -92,7 +100,7 @@ export default function FieldStylesSection({
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
-            keyNode={<span className="text-gray-700 break-words">Radius</span>}
+            keyNode={<span className={keyLabelClassName}>Radius</span>}
             valueNode={(
               <RightAlignedValueCell>
                 <input
@@ -111,18 +119,18 @@ export default function FieldStylesSection({
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
-            keyNode={<span className="text-gray-700 break-words">Stroke</span>}
+            keyNode={<span className={keyLabelClassName}>Stroke</span>}
             valueNode={(
               <RightAlignedValueCell className="gap-2">
                 <input
                   type="color"
-                  className="w-8 h-6 p-0 border border-gray-300 rounded cursor-pointer bg-transparent disabled:opacity-50"
+                  className={colorPickerClassName}
                   disabled={!hasOwner}
                   value={isHexColor(nodeStrokeNormalized) ? nodeStrokeNormalized : '#000000'}
                   onChange={e => updateNodeStroke(ownerKey, { color: e.target.value })}
                 />
                 <PlainTextInputEditor
-                  className={`min-w-0 flex-1 h-6 px-2 text-xs border border-gray-300 rounded ${uiPanelMonospaceTextClass} disabled:opacity-50`}
+                  className={colorInputClassName}
                   disabled={!hasOwner}
                   value={nodeStrokeRaw}
                   onChange={next => updateNodeStroke(ownerKey, { color: next })}
@@ -134,7 +142,7 @@ export default function FieldStylesSection({
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
-            keyNode={<span className="text-gray-700 break-words">Stroke width</span>}
+            keyNode={<span className={keyLabelClassName}>Stroke width</span>}
             valueNode={(
               <RightAlignedValueCell>
                 <input
@@ -156,24 +164,24 @@ export default function FieldStylesSection({
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
-            keyNode={<span className="text-gray-700 break-words">Edge label</span>}
-            valueNode={<span className={`${uiPanelMonospaceTextClass} text-gray-700 break-all`}>{ownerKey || '—'}</span>}
+            keyNode={<span className={keyLabelClassName}>Edge label</span>}
+            valueNode={<span className={ownerValueClassName}>{ownerKey || '—'}</span>}
           />
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
-            keyNode={<span className="text-gray-700 break-words">Color</span>}
+            keyNode={<span className={keyLabelClassName}>Color</span>}
             valueNode={(
               <RightAlignedValueCell className="gap-2">
                 <input
                   type="color"
-                  className="w-8 h-6 p-0 border border-gray-300 rounded cursor-pointer bg-transparent disabled:opacity-50"
+                  className={colorPickerClassName}
                   disabled={!hasOwner}
                   value={isHexColor(edgeColorNormalized) ? edgeColorNormalized : '#000000'}
                   onChange={e => updateEdgeStyle(ownerKey, { color: e.target.value })}
                 />
                 <PlainTextInputEditor
-                  className={`min-w-0 flex-1 h-6 px-2 text-xs border border-gray-300 rounded ${uiPanelMonospaceTextClass} disabled:opacity-50`}
+                  className={colorInputClassName}
                   disabled={!hasOwner}
                   value={edgeColorRaw}
                   onChange={next => updateEdgeStyle(ownerKey, { color: next })}
@@ -185,7 +193,7 @@ export default function FieldStylesSection({
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
-            keyNode={<span className="text-gray-700 break-words">Width</span>}
+            keyNode={<span className={keyLabelClassName}>Width</span>}
             valueNode={(
               <RightAlignedValueCell>
                 <input
@@ -204,12 +212,12 @@ export default function FieldStylesSection({
           <KeyTypeValueRow
             layout="keyValue"
             align="start"
-            keyNode={<span className="text-gray-700 break-words">Arrow</span>}
+            keyNode={<span className={keyLabelClassName}>Arrow</span>}
             valueNode={(
               <RightAlignedValueCell>
                 <input
                   type="checkbox"
-                  className="h-3 w-3"
+                  className={selectionControlClassName}
                   checked={!!schema.edgeStyles[ownerKey]?.arrow}
                   disabled={!hasOwner}
                   onChange={e => setEdgeArrow(ownerKey, e.target.checked)}
@@ -221,11 +229,11 @@ export default function FieldStylesSection({
       )}
 
       <div className="space-y-2">
-        <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>Labels</div>
+        <div className={sectionHeadingClassName}>Labels</div>
         <KeyTypeValueRow
           layout="keyValue"
           align="start"
-          keyNode={<span className="text-gray-700 break-words">Font size</span>}
+          keyNode={<span className={keyLabelClassName}>Font size</span>}
           valueNode={(
             <RightAlignedValueCell>
               <input
@@ -243,19 +251,19 @@ export default function FieldStylesSection({
         <KeyTypeValueRow
           layout="keyValue"
           align="start"
-          keyNode={<span className="text-gray-700 break-words">Color</span>}
+          keyNode={<span className={keyLabelClassName}>Color</span>}
           valueNode={(
             <RightAlignedValueCell className="gap-2">
               <input
                 type="color"
-                className="w-8 h-6 p-0 border border-gray-300 rounded cursor-pointer bg-transparent"
+                className={colorPickerClassName.replace(' disabled:opacity-50', '')}
                 value={isHexColor(labelColorNormalized) ? labelColorNormalized : '#000000'}
                 onChange={e => setLabelStyles({ color: e.target.value })}
               />
-                <PlainTextInputEditor
-                className={`min-w-0 flex-1 h-6 px-2 text-xs border border-gray-300 rounded ${uiPanelMonospaceTextClass}`}
+              <PlainTextInputEditor
+                className={colorInputClassName.replace(' disabled:opacity-50', '')}
                 value={labelColorRaw}
-                  onChange={next => setLabelStyles({ color: next })}
+                onChange={next => setLabelStyles({ color: next })}
                 placeholder="#111111"
               />
             </RightAlignedValueCell>
@@ -264,7 +272,7 @@ export default function FieldStylesSection({
         <KeyTypeValueRow
           layout="keyValue"
           align="start"
-          keyNode={<span className="text-gray-700 break-words">Offset dx</span>}
+          keyNode={<span className={keyLabelClassName}>Offset dx</span>}
           valueNode={(
             <RightAlignedValueCell>
               <input
@@ -280,7 +288,7 @@ export default function FieldStylesSection({
         <KeyTypeValueRow
           layout="keyValue"
           align="start"
-          keyNode={<span className="text-gray-700 break-words">Offset dy</span>}
+          keyNode={<span className={keyLabelClassName}>Offset dy</span>}
           valueNode={(
             <RightAlignedValueCell>
               <input

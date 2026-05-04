@@ -15,6 +15,8 @@ import {
 } from '@/lib/config';
 import { useGraphStore } from '@/hooks/useGraphStore';
 import { getPillClass } from '@/lib/ui';
+import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles';
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens';
 
 interface HelpWorkflowLinksSectionProps {
   collapsed: boolean;
@@ -34,6 +36,8 @@ export function HelpWorkflowLinksSection({
   const uiPanelTextFontClass = useGraphStore(
     s => s.uiPanelTextFontClass || 'font-sans',
   );
+  const helpPanelClassName = `mt-1 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1 ${UI_THEME_TOKENS.button.neutralSubtle} ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary}`;
+  const helpBadgeBaseClassName = `inline-flex items-center px-1 py-[1px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`;
 
   return (
     <CollapsibleSection
@@ -50,22 +54,22 @@ export function HelpWorkflowLinksSection({
       onToggle={onToggle}
     >
       {HELP_STEP_COPY.workflowLinks.descriptionShort && (
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
           {HELP_STEP_COPY.workflowLinks.descriptionShort}
         </div>
       )}
       <div className="flex flex-wrap gap-2 mb-2">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} bg-gray-100 text-gray-700`}
+          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${uiToolbarButtonMutedClassName}`}
           onClick={onOpenFlowEditorManagerTab}
           data-kg-anchor={UI_ANCHORS.graphFields}
         >
           Open Workflow Manager (includes {UI_LABELS.graphFields})
         </button>
       </div>
-      <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 space-y-1`}>
-        <div className={`mt-1 border border-gray-100 rounded px-2 py-1 bg-gray-50 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+      <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} space-y-1`}>
+        <div className={helpPanelClassName}>
           <div className="font-semibold mb-0.5">
             Pipeline stage legend
           </div>
@@ -73,10 +77,9 @@ export function HelpWorkflowLinksSection({
             <div className="flex items-baseline gap-2">
               <span
                 className={getPillClass('badge', {
-                  baseClass:
-                    'inline-flex items-center px-1 py-[1px] rounded border border-gray-300 bg-white',
+                  baseClass: helpBadgeBaseClassName,
                   badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: 'text-gray-600',
+                  textColorClass: UI_THEME_TOKENS.text.secondary,
                 })}
               >
                 {PIPELINE_STAGE_COPY.ingestValidate.badge}
@@ -92,10 +95,9 @@ export function HelpWorkflowLinksSection({
             <div className="flex items-baseline gap-2">
               <span
                 className={getPillClass('badge', {
-                  baseClass:
-                    'inline-flex items-center px-1 py-[1px] rounded border border-gray-300 bg-white',
+                  baseClass: helpBadgeBaseClassName,
                   badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: 'text-gray-600',
+                  textColorClass: UI_THEME_TOKENS.text.secondary,
                 })}
               >
                 {RENDER_PANEL_SECTION_COPY.presetsAndTuning.badge}
@@ -111,10 +113,9 @@ export function HelpWorkflowLinksSection({
             <div className="flex items-baseline gap-2">
               <span
                 className={getPillClass('badge', {
-                  baseClass:
-                    'inline-flex items-center px-1 py-[1px] rounded border border-gray-300 bg-white',
+                  baseClass: helpBadgeBaseClassName,
                   badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: 'text-gray-600',
+                  textColorClass: UI_THEME_TOKENS.text.secondary,
                 })}
               >
                 {PIPELINE_STAGE_COPY.agenticReasoning.badge}
@@ -148,7 +149,7 @@ export function HelpWorkflowLinksSection({
               work as long as they point at other nodes in the graph. Cluster layer appearance comes from `schema.metadata["canvas:graphLayers"]`, which the Main Panel Workflow Manager exposes as editable Graph Fields presets so teams can tune cluster colors and opacity without changing renderer code.
             </div>
           </div>
-          <div className={`mt-0.5 flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+          <div className={`mt-0.5 flex items-center gap-1 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary}`}>
             <Tooltip
               content={AGENTIC_REASONING_LABELS_TOOLTIP}
               maxWidthPx={260}
@@ -160,7 +161,7 @@ export function HelpWorkflowLinksSection({
             </Tooltip>
           </div>
         </div>
-        <div className={`mt-1 border border-gray-100 rounded px-2 py-1 bg-gray-50 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+        <div className={helpPanelClassName}>
           <div className="flex items-center gap-1 mb-0.5">
             <Tooltip
               content={HELP_CODEBASE_INDEX_ENTRY_POINTS_TOOLTIP}
@@ -176,10 +177,9 @@ export function HelpWorkflowLinksSection({
             <div className="flex items-baseline gap-2">
               <span
                 className={getPillClass('badge', {
-                  baseClass:
-                    'inline-flex items-center px-1 py-[1px] rounded border border-gray-300 bg-white',
+                  baseClass: helpBadgeBaseClassName,
                   badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: 'text-gray-600',
+                  textColorClass: UI_THEME_TOKENS.text.secondary,
                 })}
               >
                 Main panel
@@ -191,10 +191,9 @@ export function HelpWorkflowLinksSection({
             <div className="flex items-baseline gap-2">
               <span
                 className={getPillClass('badge', {
-                  baseClass:
-                    'inline-flex items-center px-1 py-[1px] rounded border border-gray-300 bg-white',
+                  baseClass: helpBadgeBaseClassName,
                   badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: 'text-gray-600',
+                  textColorClass: UI_THEME_TOKENS.text.secondary,
                 })}
               >
                 Bottom panel
@@ -206,10 +205,9 @@ export function HelpWorkflowLinksSection({
             <div className="flex items-baseline gap-2">
               <span
                 className={getPillClass('badge', {
-                  baseClass:
-                    'inline-flex items-center px-1 py-[1px] rounded border border-gray-300 bg-white',
+                  baseClass: helpBadgeBaseClassName,
                   badgeTextSizeClass: uiIconPillBadgeTextSizeClass,
-                  textColorClass: 'text-gray-600',
+                  textColorClass: UI_THEME_TOKENS.text.secondary,
                 })}
               >
                 Workspace

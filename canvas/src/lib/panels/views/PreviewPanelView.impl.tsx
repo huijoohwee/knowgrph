@@ -45,6 +45,11 @@ import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetR
 import { buildStaticRichMediaPanelOverlayState, commitRichMediaPanelChange } from '@/lib/render/richMediaSsot'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
+const previewPlaceholderClassName = `flex-1 w-full flex items-center justify-center rounded ${UI_THEME_TOKENS.button.neutralMuted} text-[10px] ${UI_THEME_TOKENS.text.secondary} px-2 text-center`
+const previewEmptyStateClassName = `w-full h-full flex items-center justify-center text-xs ${UI_THEME_TOKENS.text.tertiary}`
+const previewActionButtonClassName = `text-xs px-3 py-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
+const previewPanelHeaderClassName = `shrink-0 border-b ${UI_THEME_TOKENS.panel.divider} bg-[color:var(--kg-panel-bg)]/60`
+const previewMetaBadgeClassName = `absolute right-1 top-1 rounded bg-[color:var(--kg-panel-bg)]/80 dark:bg-black/80 ${UI_THEME_TOKENS.text.primary} px-1 py-0.5 text-[9px] border ${UI_THEME_TOKENS.panel.border}`
 
 const MermaidDiagramLazy = React.lazy(() =>
   import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
@@ -600,7 +605,7 @@ export default function PreviewPanelView() {
     }
 
     return (
-      <div className="flex-1 w-full flex items-center justify-center rounded bg-gray-100 text-[10px] text-gray-600 px-2 text-center">
+      <div className={previewPlaceholderClassName}>
         <span className="truncate w-full">{item.label}</span>
       </div>
     )
@@ -609,7 +614,7 @@ export default function PreviewPanelView() {
   const renderActiveMedia = () => {
     if (!activeMedia) {
       return (
-        <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+        <div className={previewEmptyStateClassName}>
           Select a Mermaid diagram or rich media item.
         </div>
       )
@@ -617,7 +622,7 @@ export default function PreviewPanelView() {
 
     if (!activeMedia.src && !activeMedia.srcDoc && activeMedia.kind !== 'mermaid') {
       return (
-        <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+        <div className={previewEmptyStateClassName}>
           Selected media has no preview source.
         </div>
       )
@@ -672,7 +677,7 @@ export default function PreviewPanelView() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className={`text-xs px-3 py-2 rounded border ${UI_THEME_TOKENS.panel.border} bg-white hover:bg-black/5`}
+                    className={previewActionButtonClassName}
                     onClick={() => setLoadedEmbedKey(activeMedia.key)}
                   >
                     {UI_COPY.markdownMediaLoadEmbedLabel}
@@ -695,17 +700,17 @@ export default function PreviewPanelView() {
     <MainPanelBody header={<header />} scrollable={false}>
       <section ref={setOverlayPortalRef} className="h-full min-h-0 flex flex-col overflow-hidden relative">
         {!hasMarkdown && mediaItems.length === 0 ? (
-          <div className={['px-2 py-2 text-sm text-gray-600', uiPanelTextFontClass].join(' ')}>
+          <div className={['px-2 py-2 text-sm', UI_THEME_TOKENS.text.secondary, uiPanelTextFontClass].join(' ')}>
             No markdown loaded.
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-            <header className="shrink-0 border-b border-gray-200 bg-white/60">
+            <header className={previewPanelHeaderClassName}>
               <div className="px-3 py-2 flex items-center justify-between">
-                <div className={['text-xs font-medium text-gray-700', uiPanelTextFontClass].join(' ')}>
+                <div className={['text-xs font-medium', UI_THEME_TOKENS.text.primary, uiPanelTextFontClass].join(' ')}>
                   Preview: Mermaid diagrams and rich media
                 </div>
-                <div className="text-[11px] text-gray-500">
+                <div className={`text-[11px] ${UI_THEME_TOKENS.text.tertiary}`}>
                   {mediaItems.length ? `${mediaItems.length} item${mediaItems.length === 1 ? '' : 's'}` : 'No media items'}
                 </div>
               </div>
@@ -737,7 +742,7 @@ export default function PreviewPanelView() {
                           <div className="absolute left-1 top-1 rounded bg-black/60 text-white px-1 py-0.5 text-[10px]">
                             {item.kind}
                           </div>
-                          <div className={`absolute right-1 top-1 rounded bg-white/80 dark:bg-black/80 text-gray-800 dark:text-gray-200 px-1 py-0.5 text-[9px] border ${UI_THEME_TOKENS.panel.border}`}>
+                          <div className={previewMetaBadgeClassName}>
                             {item.source === 'markdown' ? 'Markdown' : 'Graph'}
                           </div>
                           <div className="flex-1 w-full mb-1">

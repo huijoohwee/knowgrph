@@ -3,7 +3,10 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection';
 import { HELP_STEP_COPY } from '@/features/panels/config';
 import { UI_COPY } from '@/lib/config';
 import { useGraphStore } from '@/hooks/useGraphStore';
-import { uiPrimaryPillActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
+import {
+  uiPrimaryPillActiveClassName,
+  uiToolbarButtonMutedClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
 import {
   CANVAS_PRECEDENCE_RULES,
   CANVAS_SHORTCUTS,
@@ -13,6 +16,7 @@ import {
   getCanvasShortcutSearchText,
 } from '@/lib/canvas/interaction-ssot'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface HelpShortcutsSectionProps {
   collapsed: boolean;
@@ -41,6 +45,7 @@ export function HelpShortcutsSection({
   const shortcutsText = React.useMemo(() => shortcuts.join('\n'), [shortcuts]);
   const normalizedQuery = React.useMemo(() => normalizeText(searchQuery).trim(), [searchQuery])
   const [category, setCategory] = React.useState<CanvasShortcutCategory | 'All'>('All')
+  const shortcutsTableClassName = `overflow-auto rounded border ${UI_THEME_TOKENS.table.cellBorder}`
 
   React.useEffect(() => {
     setCategory('All')
@@ -64,20 +69,20 @@ export function HelpShortcutsSection({
       onToggle={onToggle}
     >
       {HELP_STEP_COPY.shortcuts.descriptionShort && (
-        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
+        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
           {HELP_STEP_COPY.shortcuts.descriptionShort}
         </p>
       )}
 
       <section className="mb-3" aria-label="Shortcut precedence rules">
-        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-1`}>
+        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
           Precedence rules
         </p>
-        <ul className={`list-disc pl-5 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-700 space-y-1`}>
+        <ul className={`list-disc pl-5 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary} space-y-1`}>
           {CANVAS_PRECEDENCE_RULES.map(r => (
             <li key={r.id}>
               <span className="font-semibold">{r.rule}</span>{' '}
-              <span className="text-gray-600">{r.detail}</span>
+              <span className={UI_THEME_TOKENS.text.secondary}>{r.detail}</span>
             </li>
           ))}
         </ul>
@@ -85,7 +90,7 @@ export function HelpShortcutsSection({
 
       <section aria-label="Canvas shortcuts" className="mb-3">
         <header className="flex items-center justify-between gap-2 mb-2">
-          <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600`}>
+          <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary}`}>
             Canvas shortcuts
           </p>
           <nav aria-label="Shortcut categories" className="flex flex-wrap gap-1">
@@ -93,7 +98,7 @@ export function HelpShortcutsSection({
               type="button"
               className={[
                 'App-toolbar__btn text-xs',
-                category === 'All' ? uiPrimaryPillActiveClassName : 'bg-gray-100 text-gray-700',
+                category === 'All' ? uiPrimaryPillActiveClassName : uiToolbarButtonMutedClassName,
               ].join(' ')}
               onClick={() => setCategory('All')}
               aria-pressed={category === 'All'}
@@ -106,7 +111,7 @@ export function HelpShortcutsSection({
                 type="button"
                 className={[
                   'App-toolbar__btn text-xs',
-                  category === c ? uiPrimaryPillActiveClassName : 'bg-gray-100 text-gray-700',
+                  category === c ? uiPrimaryPillActiveClassName : uiToolbarButtonMutedClassName,
                 ].join(' ')}
                 onClick={() => setCategory(c)}
                 aria-pressed={category === c}
@@ -117,28 +122,28 @@ export function HelpShortcutsSection({
           </nav>
         </header>
 
-        <section className="overflow-auto rounded border border-gray-200" aria-label="Canvas shortcut table">
+        <section className={shortcutsTableClassName} aria-label="Canvas shortcut table">
           <table className={`w-full border-collapse ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass}`}>
             <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-3 py-2 font-semibold text-gray-700">Action</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-700">Input</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-700">Mode(s)</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-700">Notes</th>
+              <tr className={UI_THEME_TOKENS.table.headerBg}>
+                <th className={`text-left px-3 py-2 font-semibold ${UI_THEME_TOKENS.text.primary}`}>Action</th>
+                <th className={`text-left px-3 py-2 font-semibold ${UI_THEME_TOKENS.text.primary}`}>Input</th>
+                <th className={`text-left px-3 py-2 font-semibold ${UI_THEME_TOKENS.text.primary}`}>Mode(s)</th>
+                <th className={`text-left px-3 py-2 font-semibold ${UI_THEME_TOKENS.text.primary}`}>Notes</th>
               </tr>
             </thead>
             <tbody>
               {filteredCanvasShortcuts.map(s => (
-                <tr key={s.id} className="border-t border-gray-200">
-                  <td className="px-3 py-2 text-gray-800">{s.action}</td>
-                  <td className="px-3 py-2 text-gray-800 font-mono">{s.input}</td>
-                  <td className="px-3 py-2 text-gray-700">{s.modes.join(', ')}</td>
-                  <td className="px-3 py-2 text-gray-600">{s.notes || ''}</td>
+                <tr key={s.id} className={`border-t ${UI_THEME_TOKENS.table.cellBorder}`}>
+                  <td className={`px-3 py-2 ${UI_THEME_TOKENS.text.primary}`}>{s.action}</td>
+                  <td className={`px-3 py-2 ${UI_THEME_TOKENS.text.primary} font-mono`}>{s.input}</td>
+                  <td className={`px-3 py-2 ${UI_THEME_TOKENS.text.primary}`}>{s.modes.join(', ')}</td>
+                  <td className={`px-3 py-2 ${UI_THEME_TOKENS.text.secondary}`}>{s.notes || ''}</td>
                 </tr>
               ))}
               {filteredCanvasShortcuts.length === 0 && (
-                <tr className="border-t border-gray-200">
-                  <td className="px-3 py-3 text-gray-600" colSpan={4}>
+                <tr className={`border-t ${UI_THEME_TOKENS.table.cellBorder}`}>
+                  <td className={`px-3 py-3 ${UI_THEME_TOKENS.text.secondary}`} colSpan={4}>
                     {UI_COPY.helpNoShortcutsMatched}
                   </td>
                 </tr>
@@ -150,10 +155,10 @@ export function HelpShortcutsSection({
 
       {otherShortcuts.length > 0 && (
         <section aria-label="Other shortcuts" className="mb-3">
-          <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-1`}>
+          <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-1`}>
             Other shortcuts
           </p>
-          <ul className={`list-disc pl-5 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-700 space-y-1`}>
+          <ul className={`list-disc pl-5 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary} space-y-1`}>
             {otherShortcuts.map(shortcut => (
               <li key={shortcut}>{shortcut}</li>
             ))}
@@ -165,7 +170,7 @@ export function HelpShortcutsSection({
         <button
           type="button"
           onClick={onCopyAllShortcuts}
-          className="App-toolbar__btn text-xs bg-gray-100 text-gray-700"
+          className={`App-toolbar__btn text-xs ${uiToolbarButtonMutedClassName}`}
         >
           Copy All
         </button>
@@ -176,7 +181,7 @@ export function HelpShortcutsSection({
         >
           Launch
         </button>
-        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-500`}>
+        <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`}>
           {shortcutsText.length > 0 ? UI_COPY.helpShortcutsCountStatus(shortcuts.length) : UI_COPY.helpNoShortcutsMatched}
         </p>
       </section>

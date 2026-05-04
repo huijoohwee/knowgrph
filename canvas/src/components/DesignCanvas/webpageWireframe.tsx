@@ -13,7 +13,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { parseWebpageFrontmatterMeta, upsertWebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
 import type { WebpageFidelityLevel, WebpageFrontmatterMeta } from '@/lib/markdown/frontmatter'
-import { createProgressSession } from '@/lib/progress/progressTicker'
+import { createDefaultProgressSession } from '@/lib/progress/progressTicker'
 import { tryExtractDesignDocumentUrl } from '@/lib/render/designDocumentUrl'
 import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
 import { buildWebpageLayoutCacheKey, getDesignWebpageWireframePreset } from '@/lib/websites/webpageLayoutPresets'
@@ -239,11 +239,8 @@ export function useDesignCanvasWebpageWireframe(args: UseDesignCanvasWebpageWire
     if (prevUrl && prevUrl !== url) setWebpageLayout(null)
     setWebpageLayoutStatus('loading')
     setWebpageStatusUi({ progress: 0, message: formatWebpageLayoutExportStatus({ consumer: 'wireframe', phase: 'loading' }) })
-    const progressSession = createProgressSession({
+    const progressSession = createDefaultProgressSession({
       onProgress: progress => setWebpageStatusUi({ progress }),
-      intervalMs: 280,
-      maxPercentage: 92,
-      maxStepPercentage: 12,
     })
     const pushWebpageLayoutWarningToast = (message: string) => {
       emitWebpageLayoutExportWarningToast({

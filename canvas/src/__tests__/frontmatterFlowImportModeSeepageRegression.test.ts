@@ -36,6 +36,28 @@ export function testFrontmatterFlowImportModeDoesNotForceFlowEditorRenderer() {
   }
 }
 
+export function testFrontmatterFlowImportModeReportsHandledWhenPresetAlreadyAligned() {
+  useGraphStore.getState().resetAll()
+  useGraphStore.getState().setDocumentStructureBaselineLock(false)
+  useGraphStore.getState().setCanvasRenderMode('2d')
+  useGraphStore.getState().setCanvas2dRenderer('flowEditor')
+  useGraphStore.getState().setDocumentSemanticMode('document')
+  useGraphStore.getState().setFrontmatterModeEnabled(true)
+  useGraphStore.getState().setMultiDimTableModeEnabled(false)
+
+  const handled = applyFrontmatterFlowImportModes({
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    metadata: { kind: 'frontmatter-flow' },
+    nodes: [{ id: 'w1', type: 'TextGeneration', label: 'w1', properties: { 'flow:widgetFormId': 'textGeneration.openai' } }],
+    edges: [],
+  } as never)
+
+  if (handled !== true) {
+    throw new Error('expected frontmatter-flow import mode to report handled even when no fallback state mutation is needed')
+  }
+}
+
 export function testWorkspaceImportModesPreferFrontmatterFlowLandingContract() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setDocumentStructureBaselineLock(false)

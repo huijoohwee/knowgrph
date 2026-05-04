@@ -12,11 +12,15 @@ import {
   resolveComposedApplyDeferralReason,
   shouldClearComposedGraphForEmptyState,
 } from '@/features/source-files/composedApplyGuards'
-import { resolvePreferredComposedSourceRawTextFromState } from '@/features/source-files/composedSourceSelection'
+import { resolvePreferredEnabledComposedSourceFileFromState } from '@/features/source-files/composedSourceSelection'
+import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { hashSignatureParts } from '@/lib/hash/signature'
+import { getSourceFileTextHash } from '@/features/source-files/sourceFilesSignatures'
 
 let pendingComposeRaf: number | null = null
 let pendingComposeAfterWorkspaceOverlayClose = false
 let workspaceOverlayComposeRetryUnsubscribe: (() => void) | null = null
+let lastAppliedComposedImportModesSignature = ''
 
 function ensureWorkspaceOverlayComposeRetrySubscription() {
   if (workspaceOverlayComposeRetryUnsubscribe) return
@@ -34,20 +38,51 @@ function ensureWorkspaceOverlayComposeRetrySubscription() {
   )
 }
 
+function buildComposedImportModesSignature(args: {
+  state: ReturnType<typeof useGraphStore.getState>
+  graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']
+  explorerActivePath: string | null
+}): {
+  signature: string
+  rawText: string
+} {
+  const preferredSourceFile = resolvePreferredEnabledComposedSourceFileFromState({
+    state: args.state,
+    explorerActivePath: args.explorerActivePath,
+  })
+  const preferredSourcePath = String(preferredSourceFile?.source?.path || preferredSourceFile?.name || '').trim()
+  const preferredSourceText = String(preferredSourceFile?.text || '')
+  const preferredSourceTextHash = String(preferredSourceFile?.parsedTextHash || '').trim()
+    || (preferredSourceFile ? getSourceFileTextHash(preferredSourceFile) : '')
+  const graphSemanticKey = buildScopedGraphSemanticKey('composed-import-modes', {
+    graphData: args.graphData,
+  })
+  return {
+    signature: hashSignatureParts([
+      'composed-import-modes',
+      graphSemanticKey,
+      preferredSourcePath,
+      preferredSourceTextHash,
+    ]),
+    rawText: preferredSourceText,
+  }
+}
+
 function applyComposedSourceImportModes(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
   try {
+    const store = useGraphStore.getState()
+    const explorerActivePath = useMarkdownExplorerStore.getState().activePath
+    const { signature, rawText } = buildComposedImportModesSignature({
+      state: store,
+      graphData,
+      explorerActivePath,
+    })
+    if (signature && lastAppliedComposedImportModesSignature === signature) return
     applyFrontmatterFlowImportModes(graphData)
-  } catch {
-    void 0
-  }
-  const store = useGraphStore.getState()
-  const rawText = resolvePreferredComposedSourceRawTextFromState({
-    state: store,
-    explorerActivePath: useMarkdownExplorerStore.getState().activePath,
-  })
-  if (!rawText) return
-  try {
-    applyCanvasFrontmatterPreset({ graphData, rawText })
+    if (rawText) {
+      applyCanvasFrontmatterPreset({ graphData, rawText })
+    }
+    lastAppliedComposedImportModesSignature = signature
   } catch {
     void 0
   }
@@ -72,6 +107,7 @@ export function applyComposedGraphFromSourceFiles() {
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(store)
   const hasEnabledSourceFiles = (store.sourceFiles || []).some(f => Boolean(f?.enabled))
   if (!hasEnabledSourceFiles) {
+    lastAppliedComposedImportModesSignature = ''
     if (
       shouldClearComposedGraphForEmptyState({
         previousGraphData: store.graphData,
@@ -101,6 +137,7 @@ export function applyComposedGraphFromSourceFiles() {
     return Boolean(String(layer.text || '').trim())
   })
   if (!hasEnabledContent) {
+    lastAppliedComposedImportModesSignature = ''
     if (
       shouldClearComposedGraphForEmptyState({
         previousGraphData: store.graphData,
@@ -120,6 +157,9 @@ export function applyComposedGraphFromSourceFiles() {
     orderKey,
   })
   if (change === 'unchanged') return
+  if (String((store.graphData?.metadata as Record<string, unknown> | null)?.sourceLayerComposition || '') !== 'compose') {
+    lastAppliedComposedImportModesSignature = ''
+  }
 
   const { graphData } = composeGraphFromSourceLayers({ layers, precomputedKeys: { contentKey, orderKey } })
   if (

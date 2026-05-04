@@ -13,6 +13,7 @@ import RenderPresetSection from '@/features/panels/views/RenderPresetSection'
 import ThreeViewTuningSection from '@/features/panels/views/ThreeViewTuningSection'
 import MediaNodesSection from '@/features/panels/views/MediaNodesSection'
 import { isVoxelModeApplicable } from '@/lib/canvas/canvas3dMode'
+import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 type GraphSelectMode = NonNullable<GraphBehavior['selectMode']>
 type GraphCreateMode = NonNullable<GraphBehavior['createMode']>
@@ -95,6 +96,7 @@ export default function RenderSettingsSection({
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
+  const neutralToolbarButtonClassName = `App-toolbar__btn ${uiToolbarButtonMutedClassName}`
 
   const layoutMode: NonNullable<NonNullable<GraphSchema['layout']>['mode']> =
     schema.layout?.mode === 'block' ? 'block' : 'radial'
@@ -483,7 +485,7 @@ export default function RenderSettingsSection({
               </select>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-700`}>
+              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Create Mode
               </div>
               <select
@@ -505,13 +507,13 @@ export default function RenderSettingsSection({
               </select>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-700`}>
+              <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary}`}>
                 Preset
               </div>
               <button
                 type="button"
                 className={[
-                  'App-toolbar__btn bg-gray-100 text-gray-700',
+                  neutralToolbarButtonClassName,
                   uiPanelKeyValueTextSizeClass,
                   uiPanelTextFontClass,
                 ].join(' ')}
@@ -522,7 +524,7 @@ export default function RenderSettingsSection({
             </div>
           </div>
           <div className="pt-1">
-            <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-semibold text-gray-700`}>
+            <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-semibold ${UI_THEME_TOKENS.text.primary}`}>
               2D layout
             </div>
             <div className="mt-1 grid grid-cols-1 gap-1">
@@ -758,7 +760,7 @@ export default function RenderSettingsSection({
       >
         <div
           className={[
-            'flex items-center gap-2 text-gray-500',
+            `flex items-center gap-2 ${UI_THEME_TOKENS.text.tertiary}`,
             uiPanelKeyValueTextSizeClass,
             uiPanelTextFontClass,
           ].join(' ')}
@@ -766,7 +768,7 @@ export default function RenderSettingsSection({
           <button
             type="button"
             className={[
-              'App-toolbar__btn bg-gray-100 text-gray-700',
+              neutralToolbarButtonClassName,
               uiPanelKeyValueTextSizeClass,
               uiPanelTextFontClass,
             ].join(' ')}

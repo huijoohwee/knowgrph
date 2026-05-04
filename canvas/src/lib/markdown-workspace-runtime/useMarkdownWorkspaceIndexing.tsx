@@ -30,6 +30,7 @@ import {
   cancelMarkdownWorkspaceIndexStart,
   scheduleMarkdownWorkspaceIndexStart,
 } from './markdownWorkspaceRuntime.stateSync'
+import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
 import {
   findWorkspaceSourceFileByPath,
   resolveWorkspaceDirtyState,
@@ -83,6 +84,26 @@ export type MarkdownWorkspaceIndexingArgs = {
 }
 
 export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs) {
+  const applyIndexedStatus = React.useCallback(() => {
+    applyMarkdownWorkspaceSuccessStatus({
+      setStatusWithAutoClear: args.setStatusWithAutoClear,
+      label: 'Indexed',
+    })
+  }, [args.setStatusWithAutoClear])
+
+  const applyLoadFailedStatus = React.useCallback(
+    (error: unknown, options?: { includeDetail?: boolean; fallbackMessage?: string }) => {
+      applyMarkdownWorkspaceErrorStatus({
+        setStatusError: args.setStatusError,
+        prefix: 'Load failed',
+        error,
+        fallbackMessage: options?.fallbackMessage || 'Request failed',
+        includeDetail: options?.includeDetail,
+      })
+    },
+    [args.setStatusError],
+  )
+
   React.useEffect(() => {
     if (!args.active || args.viewerInlineEditActive) return
     if (args.contentMode === 'widget' && args.widgetAvailable) return
@@ -162,7 +183,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
           })()
           if (cancelled || args.activePathRef.current !== scheduledFor) return
           if (text == null) {
-            args.setStatusError('Load failed: Missing file contents')
+            applyLoadFailedStatus('Missing file contents', { fallbackMessage: 'Missing file contents' })
             return
           }
 
@@ -279,7 +300,7 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
               })()
               if (isCanvasHtmlExport) {
                 rememberIndexedForPath(path, hash)
-                args.setStatusWithAutoClear('Indexed')
+                applyIndexedStatus()
                 return
               }
 
@@ -505,10 +526,10 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             }
           }
 
-          args.setStatusWithAutoClear('Indexed')
+          applyIndexedStatus()
         } catch (e) {
           if (!cancelled && args.activePathRef.current === scheduledFor) {
-            args.setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+            applyLoadFailedStatus(e)
           }
         } finally {
           if (args.indexingInFlightRef.current) args.setIndexingInFlight(false)
@@ -525,6 +546,8 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
       cancelMarkdownWorkspaceIndexStart()
     }
   }, [
+    applyIndexedStatus,
+    applyLoadFailedStatus,
     args,
     args.active,
     args.activeDocumentKey,

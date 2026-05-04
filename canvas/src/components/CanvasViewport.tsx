@@ -44,7 +44,7 @@ type GeospatialViewportOverlayProps = {
 
 const MissingGeospatialOverlayHost = React.memo(function MissingGeospatialOverlayHost(_props: GeospatialOverlayHostProps) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-700 dark:text-gray-200 bg-white/70 dark:bg-black/40">
+    <div className="absolute inset-0 flex items-center justify-center text-xs text-[color:var(--kg-text-primary)] bg-[color:var(--kg-panel-bg)]/70 dark:bg-black/40">
       Geospatial overlay unavailable
     </div>
   )

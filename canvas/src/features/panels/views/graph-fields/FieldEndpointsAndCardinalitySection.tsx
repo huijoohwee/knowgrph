@@ -2,6 +2,7 @@ import React from 'react'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_COPY } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type FieldEndpointsAndCardinalitySectionProps = {
   schema: GraphSchema
@@ -34,7 +35,7 @@ export default function FieldEndpointsAndCardinalitySection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
   )
 
   const hasOwner = Boolean(String(ownerKey || '').trim())
@@ -44,6 +45,13 @@ export default function FieldEndpointsAndCardinalitySection({
   const [minEdgesText, setMinEdgesText] = React.useState('')
   const [maxEdgesText, setMaxEdgesText] = React.useState('')
   const [maxPerNodeText, setMaxPerNodeText] = React.useState('')
+  const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`
+  const headingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
+  const helperTextClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
+  const sectionLabelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
+  const fieldLabelClassName = `block ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
+  const textInputClassName = `h-9 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const ownerValueClassName = `w-40 truncate text-xs ${UI_THEME_TOKENS.text.secondary}`
 
   React.useEffect(() => {
     if (!hasOwner) {
@@ -73,25 +81,25 @@ export default function FieldEndpointsAndCardinalitySection({
   }, [hasOwner, ownerKey, schema, scope])
 
   return (
-    <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
+    <div className={panelClassName}>
+      <div className={headingClassName}>
         {UI_COPY.endpointsAndCardinalityHeader}
       </div>
 
       {!hasOwner ? (
-        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+        <div className={helperTextClassName}>
           {UI_COPY.selectScopeToEditConstraints(scope)}
         </div>
       ) : (
         <div className="space-y-3">
           {scope === 'edge' ? (
             <div className="space-y-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+              <div className={sectionLabelClassName}>
                 {UI_COPY.endpointMatrixHeader}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="min-w-0">
-                  <label className={`block ${uiPanelKeyValueTextSizeClass} text-gray-600`} htmlFor="graph-fields-endpoint-sources">
+                  <label className={fieldLabelClassName} htmlFor="graph-fields-endpoint-sources">
                     {UI_COPY.sourcesPlaceholder}
                   </label>
                   <input
@@ -103,11 +111,11 @@ export default function FieldEndpointsAndCardinalitySection({
                       const curTargets = schema.endpointMatrix?.[ownerKey]?.targets ?? []
                       setEndpointMatrix(ownerKey, srcs, curTargets)
                     }}
-                    className="h-9 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-800"
+                    className={textInputClassName}
                   />
                 </div>
                 <div className="min-w-0">
-                  <label className={`block ${uiPanelKeyValueTextSizeClass} text-gray-600`} htmlFor="graph-fields-endpoint-targets">
+                  <label className={fieldLabelClassName} htmlFor="graph-fields-endpoint-targets">
                     {UI_COPY.targetsPlaceholder}
                   </label>
                   <input
@@ -119,7 +127,7 @@ export default function FieldEndpointsAndCardinalitySection({
                       const curSources = schema.endpointMatrix?.[ownerKey]?.sources ?? []
                       setEndpointMatrix(ownerKey, curSources, tgts)
                     }}
-                    className="h-9 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-800"
+                    className={textInputClassName}
                   />
                 </div>
               </div>
@@ -128,11 +136,11 @@ export default function FieldEndpointsAndCardinalitySection({
 
           {scope === 'node' ? (
             <div className="space-y-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+              <div className={sectionLabelClassName}>
                 {UI_COPY.edgesPerNodeTypeHeader}
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-40 truncate text-xs text-gray-700">{ownerKey}</div>
+                <div className={ownerValueClassName}>{ownerKey}</div>
                 <input
                   type="number"
                   min={0}
@@ -159,11 +167,11 @@ export default function FieldEndpointsAndCardinalitySection({
             </div>
           ) : (
             <div className="space-y-2">
-              <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+              <div className={sectionLabelClassName}>
                 {UI_COPY.edgesPerLabelPerNodeHeader}
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-40 truncate text-xs text-gray-700">{ownerKey}</div>
+                <div className={ownerValueClassName}>{ownerKey}</div>
                 <input
                   type="number"
                   min={0}

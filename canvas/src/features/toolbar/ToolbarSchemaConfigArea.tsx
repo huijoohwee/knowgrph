@@ -3,6 +3,7 @@ import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { UI_LABELS } from '@/lib/config'
 import { applySchemaUiSnapshotIfNeeded } from '@/features/schema-editor/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ToolbarSchemaConfigAreaProps {
   schemaOpOk: boolean | null
@@ -32,6 +33,8 @@ export function ToolbarSchemaConfigArea({
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
+  const neutralToolbarButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
+  const primaryToolbarButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.primarySolid}`
   return (
     <div className="flex flex-col gap-1">
       {isExportMenuOpen && (
@@ -39,7 +42,7 @@ export function ToolbarSchemaConfigArea({
           <div className="flex items-center justify-end gap-1">
             <button
               type="button"
-              className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-blue-600 text-white`}
+              className={primaryToolbarButtonClassName}
               onClick={() => {
                 try {
                   applySchemaUiSnapshotIfNeeded()
@@ -59,7 +62,7 @@ export function ToolbarSchemaConfigArea({
             </button>
             <button
               type="button"
-              className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700`}
+              className={neutralToolbarButtonClassName}
               onClick={() => {
                 try {
                   applySchemaUiSnapshotIfNeeded()
@@ -79,7 +82,7 @@ export function ToolbarSchemaConfigArea({
             </button>
             <button
               type="button"
-              className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700`}
+              className={neutralToolbarButtonClassName}
               onClick={() => {
                 try {
                   applySchemaUiSnapshotIfNeeded()
@@ -102,7 +105,7 @@ export function ToolbarSchemaConfigArea({
             {onCopySchemaJsonLd && (
               <button
                 type="button"
-                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700`}
+                className={neutralToolbarButtonClassName}
                 onClick={() => {
                   try {
                     onCopySchemaJsonLd()
@@ -119,7 +122,7 @@ export function ToolbarSchemaConfigArea({
             {onCopySchemaJson && (
               <button
                 type="button"
-                className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700`}
+                className={neutralToolbarButtonClassName}
                 onClick={() => {
                   try {
                     onCopySchemaJson()

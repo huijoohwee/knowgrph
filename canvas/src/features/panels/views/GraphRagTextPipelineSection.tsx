@@ -20,6 +20,10 @@ type StageView = {
 }
 
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === 'string')
+const tokenChipClassName = `px-2 py-0.5 rounded ${UI_THEME_TOKENS.button.neutralSubtle} border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary} text-xs`
+const analyticsButtonClassName = `px-2 py-0.5 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
+const stagePanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
+const codePanelClassName = `rounded border border-slate-200 bg-slate-50 p-2`
 
 const getStagesFromGraphMeta = (graphData: unknown): StageView[] => {
   if (!graphData || typeof graphData !== 'object' || Array.isArray(graphData)) return []
@@ -78,7 +82,7 @@ export default function GraphRagTextPipelineSection() {
     const rec = isRecord(output) ? output : null
     if (!rec) {
       return (
-        <pre className="text-xs font-mono text-gray-700 whitespace-pre-wrap break-words">
+        <pre className={`text-xs font-mono ${UI_THEME_TOKENS.text.primary} whitespace-pre-wrap break-words`}>
           {JSON.stringify(output, null, 2)}
         </pre>
       )
@@ -96,7 +100,7 @@ export default function GraphRagTextPipelineSection() {
           {list.slice(0, 64).map((t, i) => (
             <span
               key={`${t}-${i}`}
-              className="px-2 py-0.5 rounded bg-gray-100 border border-gray-200 text-gray-700 text-xs font-mono"
+              className={`${tokenChipClassName} font-mono`}
             >
               {t}
             </span>
@@ -113,7 +117,7 @@ export default function GraphRagTextPipelineSection() {
               <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 text-xs">
                 {String((e as { text?: unknown }).text ?? '')}
               </span>
-              <span className="text-[10px] font-mono text-gray-500">
+              <span className={`text-[10px] font-mono ${UI_THEME_TOKENS.text.tertiary}`}>
                 {String((e as { label?: unknown }).label ?? '')}
               </span>
             </div>
@@ -128,7 +132,7 @@ export default function GraphRagTextPipelineSection() {
           {triples.slice(0, 24).map((t, i) => (
             <div
               key={i}
-              className="text-xs font-mono text-gray-700 bg-slate-50 border border-slate-200 rounded px-2 py-1"
+              className={`text-xs font-mono ${UI_THEME_TOKENS.text.primary} bg-slate-50 border border-slate-200 rounded px-2 py-1`}
             >
               {t}
             </div>
@@ -139,12 +143,12 @@ export default function GraphRagTextPipelineSection() {
     if (isStringArray(rec.nodes)) {
       return (
         <div className="space-y-2">
-          <div className="text-xs text-gray-600">
+          <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
             Nodes: {rec.nodes.length} · Edges: {String(rec.edges ?? '')} · Communities: {String(rec.communities ?? '')}
           </div>
           <div className="flex flex-wrap gap-1">
             {rec.nodes.slice(0, 48).map((n, i) => (
-              <span key={`${n}-${i}`} className="px-2 py-0.5 rounded bg-gray-100 border border-gray-200 text-gray-700 text-xs">
+              <span key={`${n}-${i}`} className={tokenChipClassName}>
                 {n}
               </span>
             ))}
@@ -153,7 +157,7 @@ export default function GraphRagTextPipelineSection() {
       )
     }
     return (
-      <pre className="text-xs font-mono text-gray-700 whitespace-pre-wrap break-words">
+      <pre className={`text-xs font-mono ${UI_THEME_TOKENS.text.primary} whitespace-pre-wrap break-words`}>
         {JSON.stringify(output, null, 2)}
       </pre>
     )
@@ -161,11 +165,11 @@ export default function GraphRagTextPipelineSection() {
 
   const header = (
     <div className="flex items-center gap-2">
-      <span className="text-xs font-semibold text-gray-500">
+      <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.tertiary}`}>
         {UI_COPY.graphragTextPipelineBadge}
       </span>
       <Tooltip content={UI_COPY.graphragTextPipelineTooltip} maxWidthPx={320} contentClassName="bg-gray-800/90">
-        <span className="text-xs font-semibold text-gray-800">
+        <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>
           {UI_COPY.graphragTextPipelineTitle}
         </span>
       </Tooltip>
@@ -188,7 +192,7 @@ export default function GraphRagTextPipelineSection() {
                 'px-2 py-1 rounded border text-xs transition-colors',
                 step === i
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : `bg-white border-gray-200 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`,
+                  : `${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`,
               ].join(' ')}
             >
               {i + 1}. {s.name}
@@ -198,26 +202,26 @@ export default function GraphRagTextPipelineSection() {
 
         {isGraphRag && (
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span className="text-gray-500 font-semibold">Context-Aware Analytics</span>
+            <span className={`${UI_THEME_TOKENS.text.tertiary} font-semibold`}>Context-Aware Analytics</span>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={cfg.hits} onChange={e => update({ hits: e.target.checked })} />
+              <input className={`rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`} type="checkbox" checked={cfg.hits} onChange={e => update({ hits: e.target.checked })} />
               <span>HITS</span>
             </label>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={cfg.closeness} onChange={e => update({ closeness: e.target.checked })} />
+              <input className={`rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`} type="checkbox" checked={cfg.closeness} onChange={e => update({ closeness: e.target.checked })} />
               <span>Closeness</span>
             </label>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={cfg.pagerank} onChange={e => update({ pagerank: e.target.checked })} />
+              <input className={`rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`} type="checkbox" checked={cfg.pagerank} onChange={e => update({ pagerank: e.target.checked })} />
               <span>PageRank</span>
             </label>
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={cfg.betweenness} onChange={e => update({ betweenness: e.target.checked })} />
+              <input className={`rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`} type="checkbox" checked={cfg.betweenness} onChange={e => update({ betweenness: e.target.checked })} />
               <span>Betweenness</span>
             </label>
             <button
               type="button"
-              className={`px-2 py-0.5 rounded border border-gray-200 text-gray-700 ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={analyticsButtonClassName}
               onClick={reset}
             >
               Reset
@@ -226,8 +230,8 @@ export default function GraphRagTextPipelineSection() {
               type="button"
               disabled={!canRecompute}
               className={[
-                'px-2 py-0.5 rounded border border-gray-200',
-                canRecompute ? `text-gray-700 ${UI_THEME_TOKENS.button.hoverBg}` : 'text-gray-400',
+                `px-2 py-0.5 rounded border ${UI_THEME_TOKENS.input.border}`,
+                canRecompute ? `${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}` : UI_THEME_TOKENS.text.tertiary,
               ].join(' ')}
               onClick={() => {
                 if (!canRecompute) return
@@ -241,30 +245,30 @@ export default function GraphRagTextPipelineSection() {
         )}
 
         <div className="grid md:grid-cols-2 gap-3">
-          <div className="rounded border border-gray-200 bg-white p-3 space-y-2">
-            <div className="text-xs text-gray-600">
-              <span className="font-semibold text-gray-700">{current.name}</span>
+          <div className={`${stagePanelClassName} space-y-2`}>
+            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+              <span className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>{current.name}</span>
               {current.metrics && typeof current.metrics.latency_ms === 'number' && (
-                <span className="ml-2 text-[10px] font-mono text-gray-500">
+                <span className={`ml-2 text-[10px] font-mono ${UI_THEME_TOKENS.text.tertiary}`}>
                   {Math.round(current.metrics.latency_ms)}ms
                 </span>
               )}
             </div>
-            <div className="rounded border border-slate-200 bg-slate-50 p-2">
+            <div className={codePanelClassName}>
               <pre className="text-xs font-mono text-slate-900 whitespace-pre-wrap break-words">
                 {current.code}
               </pre>
             </div>
-            <div className="text-xs text-gray-600">
-              <div className="font-semibold text-gray-700">Input</div>
-              <div className="mt-1 text-gray-700 whitespace-pre-wrap break-words">
+            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+              <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Input</div>
+              <div className={`mt-1 ${UI_THEME_TOKENS.text.primary} whitespace-pre-wrap break-words`}>
                 {current.input}
               </div>
             </div>
-            <div className="text-xs text-gray-600">
-              <div className="font-semibold text-gray-700">Library</div>
+            <div className={`text-xs ${UI_THEME_TOKENS.text.secondary}`}>
+              <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Library</div>
               <div className="mt-1 flex flex-wrap items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-gray-100 border border-gray-200 text-gray-700 text-xs">
+                <span className={tokenChipClassName}>
                   {String(lib.name || '')}
                 </span>
                 {hasLibLink && (
@@ -273,15 +277,15 @@ export default function GraphRagTextPipelineSection() {
                   </a>
                 )}
                 {lib.license && (
-                  <span className="text-[10px] font-mono text-gray-500">
+                  <span className={`text-[10px] font-mono ${UI_THEME_TOKENS.text.tertiary}`}>
                     {String(lib.license)}
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <div className="rounded border border-gray-200 bg-white p-3">
-            <div className="text-xs font-semibold text-gray-700 mb-2">Output</div>
+          <div className={stagePanelClassName}>
+            <div className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary} mb-2`}>Output</div>
             {renderOutput(current.output)}
           </div>
         </div>

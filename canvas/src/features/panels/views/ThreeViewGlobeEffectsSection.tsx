@@ -18,6 +18,7 @@ import {
   GLOBE_ORBIT_RING_COUNT_TOOLTIP,
   GLOBE_PARTICLE_COUNT_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ThreeViewGlobeEffectsSectionProps {
   schema: GraphSchema
@@ -33,6 +34,9 @@ export default function ThreeViewGlobeEffectsSection({
   onToggle,
 }: ThreeViewGlobeEffectsSectionProps) {
   const globeEffectsEnabled = schema.three?.globeEffectsEnabled !== false
+  const keyLabelClassName = UI_THEME_TOKENS.text.secondary
+  const valueTextClassName = UI_THEME_TOKENS.text.tertiary
+  const selectionControlClassName = `h-3.5 w-3.5 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
   return (
     <CollapsibleSection
       title="Globe effects"
@@ -44,10 +48,11 @@ export default function ThreeViewGlobeEffectsSection({
       <div className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Enable Effects</span>}
+          keyNode={<span className={keyLabelClassName}>Enable Effects</span>}
           valueNode={(
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={globeEffectsEnabled}
               onChange={e => setThreeConfig({ globeEffectsEnabled: e.target.checked })}
             />
@@ -55,10 +60,11 @@ export default function ThreeViewGlobeEffectsSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Label Depth Fade</span>}
+          keyNode={<span className={keyLabelClassName}>Label Depth Fade</span>}
           valueNode={(
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={schema.three?.globeLabelDepthFade !== false}
               onChange={e => setThreeConfig({ globeLabelDepthFade: e.target.checked })}
             />
@@ -66,10 +72,11 @@ export default function ThreeViewGlobeEffectsSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Label Back-face Culling</span>}
+          keyNode={<span className={keyLabelClassName}>Label Back-face Culling</span>}
           valueNode={(
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={schema.three?.globeLabelBackfaceCulling !== false}
               onChange={e => setThreeConfig({ globeLabelBackfaceCulling: e.target.checked })}
             />
@@ -77,7 +84,7 @@ export default function ThreeViewGlobeEffectsSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Auto Rotate Speed</span>}
+          keyNode={<span className={keyLabelClassName}>Auto Rotate Speed</span>}
           valueNode={(
             <>
               <input
@@ -88,16 +95,17 @@ export default function ThreeViewGlobeEffectsSection({
                 value={Number(schema.three?.globeAutoRotateSpeed ?? 0.08)}
                 onChange={e => setThreeConfig({ globeAutoRotateSpeed: Number(e.target.value) })}
               />
-              <span className="text-gray-600">{String(schema.three?.globeAutoRotateSpeed ?? 0.08)}</span>
+              <span className={valueTextClassName}>{String(schema.three?.globeAutoRotateSpeed ?? 0.08)}</span>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Ellipse Camera Path</span>}
+          keyNode={<span className={keyLabelClassName}>Ellipse Camera Path</span>}
           valueNode={(
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={schema.three?.globeCameraEllipseEnabled !== false}
               onChange={e => setThreeConfig({ globeCameraEllipseEnabled: e.target.checked })}
             />
@@ -105,7 +113,7 @@ export default function ThreeViewGlobeEffectsSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Ellipse Speed</span>}
+          keyNode={<span className={keyLabelClassName}>Ellipse Speed</span>}
           valueNode={(
             <>
               <input
@@ -117,14 +125,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeCameraEllipseSpeed: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_CAMERA_ELLIPSE_SPEED_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeCameraEllipseSpeed ?? 0.045)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseSpeed ?? 0.045)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Ellipse Radius X</span>}
+          keyNode={<span className={keyLabelClassName}>Ellipse Radius X</span>}
           valueNode={(
             <>
               <input
@@ -136,14 +144,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeCameraEllipseRadiusXFactor: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeCameraEllipseRadiusXFactor ?? 1.24)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseRadiusXFactor ?? 1.24)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Ellipse Radius Z</span>}
+          keyNode={<span className={keyLabelClassName}>Ellipse Radius Z</span>}
           valueNode={(
             <>
               <input
@@ -155,14 +163,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeCameraEllipseRadiusZFactor: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeCameraEllipseRadiusZFactor ?? 1.02)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseRadiusZFactor ?? 1.02)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Ellipse Height</span>}
+          keyNode={<span className={keyLabelClassName}>Ellipse Height</span>}
           valueNode={(
             <>
               <input
@@ -174,14 +182,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeCameraEllipseHeightFactor: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_CAMERA_ELLIPSE_HEIGHT_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeCameraEllipseHeightFactor ?? 0.26)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseHeightFactor ?? 0.26)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Ellipse Follow</span>}
+          keyNode={<span className={keyLabelClassName}>Ellipse Follow</span>}
           valueNode={(
             <>
               <input
@@ -193,17 +201,18 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeCameraEllipseFollow: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_CAMERA_ELLIPSE_FOLLOW_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeCameraEllipseFollow ?? 0.06)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseFollow ?? 0.06)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Hub Orbit</span>}
+          keyNode={<span className={keyLabelClassName}>Hub Orbit</span>}
           valueNode={(
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={schema.three?.globeHubOrbitEnabled !== false}
               onChange={e => setThreeConfig({ globeHubOrbitEnabled: e.target.checked })}
             />
@@ -211,7 +220,7 @@ export default function ThreeViewGlobeEffectsSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Hub Orbit Strength</span>}
+          keyNode={<span className={keyLabelClassName}>Hub Orbit Strength</span>}
           valueNode={(
             <>
               <input
@@ -223,14 +232,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeHubOrbitStrength: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_HUB_ORBIT_STRENGTH_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeHubOrbitStrength ?? 0.22)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeHubOrbitStrength ?? 0.22)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Hub Orbit Speed</span>}
+          keyNode={<span className={keyLabelClassName}>Hub Orbit Speed</span>}
           valueNode={(
             <>
               <input
@@ -242,14 +251,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeHubOrbitSpeed: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_HUB_ORBIT_SPEED_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeHubOrbitSpeed ?? 0.24)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeHubOrbitSpeed ?? 0.24)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Hub Orbit Radius</span>}
+          keyNode={<span className={keyLabelClassName}>Hub Orbit Radius</span>}
           valueNode={(
             <>
               <input
@@ -261,14 +270,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeHubOrbitRadiusFactor: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_HUB_ORBIT_RADIUS_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeHubOrbitRadiusFactor ?? 0.2)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeHubOrbitRadiusFactor ?? 0.2)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Ellipsoid Axis X</span>}
+          keyNode={<span className={keyLabelClassName}>Ellipsoid Axis X</span>}
           valueNode={(
             <>
               <input
@@ -280,14 +289,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeSphereEllipsoidX: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_ELLIPSOID_AXIS_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeSphereEllipsoidX ?? 1.08)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeSphereEllipsoidX ?? 1.08)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Ellipsoid Axis Y</span>}
+          keyNode={<span className={keyLabelClassName}>Ellipsoid Axis Y</span>}
           valueNode={(
             <>
               <input
@@ -299,14 +308,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeSphereEllipsoidY: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_ELLIPSOID_AXIS_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeSphereEllipsoidY ?? 0.88)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeSphereEllipsoidY ?? 0.88)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Ellipsoid Axis Z</span>}
+          keyNode={<span className={keyLabelClassName}>Ellipsoid Axis Z</span>}
           valueNode={(
             <>
               <input
@@ -318,14 +327,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeSphereEllipsoidZ: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_ELLIPSOID_AXIS_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeSphereEllipsoidZ ?? 1)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeSphereEllipsoidZ ?? 1)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Particle Count</span>}
+          keyNode={<span className={keyLabelClassName}>Particle Count</span>}
           valueNode={(
             <>
               <input
@@ -337,14 +346,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeParticleCount: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_PARTICLE_COUNT_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeParticleCount ?? 720)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeParticleCount ?? 720)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Atmosphere Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Atmosphere Opacity</span>}
           valueNode={(
             <>
               <input
@@ -356,14 +365,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeAtmosphereOpacity: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_ATMOSPHERE_OPACITY_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeAtmosphereOpacity ?? 0.22)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeAtmosphereOpacity ?? 0.22)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Grid Density</span>}
+          keyNode={<span className={keyLabelClassName}>Grid Density</span>}
           valueNode={(
             <>
               <input
@@ -375,14 +384,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeGridDensity: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_GRID_DENSITY_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeGridDensity ?? 12)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeGridDensity ?? 12)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Orbit Rings</span>}
+          keyNode={<span className={keyLabelClassName}>Orbit Rings</span>}
           valueNode={(
             <>
               <input
@@ -394,14 +403,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeOrbitRingCount: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_ORBIT_RING_COUNT_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeOrbitRingCount ?? 4)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeOrbitRingCount ?? 4)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Tool Nodes</span>}
+          keyNode={<span className={keyLabelClassName}>Tool Nodes</span>}
           valueNode={(
             <>
               <input
@@ -412,13 +421,13 @@ export default function ThreeViewGlobeEffectsSection({
                 value={Number(schema.three?.globeToolNodeCount ?? 24)}
                 onChange={e => setThreeConfig({ globeToolNodeCount: Number(e.target.value) })}
               />
-              <span className="text-gray-600">{String(schema.three?.globeToolNodeCount ?? 24)}</span>
+              <span className={valueTextClassName}>{String(schema.three?.globeToolNodeCount ?? 24)}</span>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Great-circle Arcs</span>}
+          keyNode={<span className={keyLabelClassName}>Great-circle Arcs</span>}
           valueNode={(
             <>
               <input
@@ -430,14 +439,14 @@ export default function ThreeViewGlobeEffectsSection({
                 onChange={e => setThreeConfig({ globeArcCount: Number(e.target.value) })}
               />
               <Tooltip content={GLOBE_ARC_COUNT_TOOLTIP} maxWidthPx={260} contentClassName="bg-gray-800/90">
-                <span className="text-gray-600">{String(schema.three?.globeArcCount ?? 12)}</span>
+                <span className={valueTextClassName}>{String(schema.three?.globeArcCount ?? 12)}</span>
               </Tooltip>
             </>
           )}
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Arc Travelers</span>}
+          keyNode={<span className={keyLabelClassName}>Arc Travelers</span>}
           valueNode={(
             <>
               <input
@@ -448,7 +457,7 @@ export default function ThreeViewGlobeEffectsSection({
                 value={Number(schema.three?.globeArcTravelerCount ?? 1)}
                 onChange={e => setThreeConfig({ globeArcTravelerCount: Number(e.target.value) })}
               />
-              <span className="text-gray-600">{String(schema.three?.globeArcTravelerCount ?? 1)}</span>
+              <span className={valueTextClassName}>{String(schema.three?.globeArcTravelerCount ?? 1)}</span>
             </>
           )}
         />

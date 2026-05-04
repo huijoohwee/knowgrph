@@ -1,6 +1,7 @@
 import React from 'react'
 import Subsection from '@/features/schema-editor/ui/Subsection'
 import type { GraphSchema, GraphBehavior } from '@/lib/graph/schema'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type BehaviorSectionProps = {
   schema: GraphSchema
@@ -17,30 +18,39 @@ export default function BehaviorSection({
   uniqueNodeTypes,
   setBehavior,
 }: BehaviorSectionProps) {
+  const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.secondary}`
+  const checkboxLabelClassName = `flex items-center gap-1 ${UI_THEME_TOKENS.text.secondary}`
+  const inlineLabelClassName = UI_THEME_TOKENS.text.secondary
+  const selectClassName = `px-2 py-1 text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+
   return (
     <div className="space-y-3">
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-700`}>Behavior</div>
+      <div className={sectionHeadingClassName}>Behavior</div>
       <Subsection title="Behavior">
         <div className="flex items-center gap-4 text-xs">
-          <label className="flex items-center gap-1">
+          <label className={checkboxLabelClassName}>
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={schema.behavior.allowNodeDrag}
               onChange={e => setBehavior({ allowNodeDrag: e.target.checked })}
             />
             Node Drag
           </label>
-          <label className="flex items-center gap-1">
+          <label className={checkboxLabelClassName}>
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={schema.behavior.allowEdgeCreation}
               onChange={e => setBehavior({ allowEdgeCreation: e.target.checked })}
             />
             Edge Creation
           </label>
-          <label className="flex items-center gap-1">
+          <label className={checkboxLabelClassName}>
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={schema.behavior.hover?.enabled !== false}
               onChange={e =>
                 setBehavior({
@@ -50,9 +60,10 @@ export default function BehaviorSection({
             />
             Hover Tooltips
           </label>
-          <label className="flex items-center gap-1">
+          <label className={checkboxLabelClassName}>
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={schema.behavior.expansion?.enabled !== false}
               onChange={e =>
                 setBehavior({
@@ -64,7 +75,7 @@ export default function BehaviorSection({
           </label>
         </div>
         <div className="mt-2 flex items-center gap-2 text-xs">
-          <span>Drag Constraint</span>
+          <span className={inlineLabelClassName}>Drag Constraint</span>
           <select
             value={schema.behavior.dragConstraint ?? 'free'}
             onChange={e => {
@@ -74,16 +85,17 @@ export default function BehaviorSection({
                   : 'free'
               setBehavior({ dragConstraint: v })
             }}
-            className="px-2 py-1 text-xs border border-gray-300 rounded"
+            className={selectClassName}
           >
             <option value="free">Free</option>
             <option value="axis-x">Axis-X</option>
             <option value="axis-y">Axis-Y</option>
             <option value="none">None</option>
           </select>
-          <label className="flex items-center gap-1 ml-4">
+          <label className={`${checkboxLabelClassName} ml-4`}>
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={!!schema.behavior.snapGrid?.enabled}
               onChange={e =>
                 setBehavior({
@@ -112,17 +124,19 @@ export default function BehaviorSection({
             }
             className={uiPanelKeyValueInputClass}
           />
-          <label className="flex items-center gap-1 ml-4 text-xs">
+          <label className={`${checkboxLabelClassName} ml-4`}>
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={!!schema.behavior.preventDuplicatesGlobal}
               onChange={e => setBehavior({ preventDuplicatesGlobal: e.target.checked })}
             />
             Prevent Duplicates
           </label>
-          <label className="flex items-center gap-1 text-xs">
+          <label className={checkboxLabelClassName}>
             <input
               type="checkbox"
+              className={selectionControlClassName}
               checked={!!schema.behavior.preventSelfLoopsGlobal}
               onChange={e => setBehavior({ preventSelfLoopsGlobal: e.target.checked })}
             />
@@ -131,7 +145,7 @@ export default function BehaviorSection({
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-4 text-xs">
           <div className="flex items-center gap-2">
-            <span>Select Mode</span>
+            <span className={inlineLabelClassName}>Select Mode</span>
             <select
               value={schema.behavior.selectMode ?? 'single'}
               onChange={e => {
@@ -139,7 +153,7 @@ export default function BehaviorSection({
                 const v: GraphBehavior['selectMode'] = raw === 'multi' || raw === 'lasso' ? raw : 'single'
                 setBehavior({ selectMode: v })
               }}
-              className="px-2 py-1 text-xs border border-gray-300 rounded"
+              className={selectClassName}
             >
               <option value="single">Single</option>
               <option value="multi">Multi</option>
@@ -147,7 +161,7 @@ export default function BehaviorSection({
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span>Create Mode</span>
+            <span className={inlineLabelClassName}>Create Mode</span>
             <select
               value={schema.behavior.createMode ?? 'shift-drag'}
               onChange={e => {
@@ -156,7 +170,7 @@ export default function BehaviorSection({
                   raw === 'click-source-target' || raw === 'panel-only' ? raw : 'shift-drag'
                 setBehavior({ createMode: v })
               }}
-              className="px-2 py-1 text-xs border border-gray-300 rounded"
+              className={selectClassName}
             >
               <option value="shift-drag">Shift-drag</option>
               <option value="click-source-target">Click source/target</option>
@@ -165,11 +179,11 @@ export default function BehaviorSection({
           </div>
         </div>
         <div className="mt-2 flex items-center gap-2 text-xs">
-          <span>Default Node Type</span>
+          <span className={inlineLabelClassName}>Default Node Type</span>
           <select
             value={schema.behavior.defaultNodeType ?? ''}
             onChange={e => setBehavior({ defaultNodeType: e.target.value || undefined })}
-            className="px-2 py-1 text-xs border border-gray-300 rounded"
+            className={selectClassName}
           >
             <option value="">(none)</option>
             {uniqueNodeTypes.map(t => (
@@ -183,4 +197,3 @@ export default function BehaviorSection({
     </div>
   )
 }
-

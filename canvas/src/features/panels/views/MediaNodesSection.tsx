@@ -8,6 +8,10 @@ import { RENDER_PANEL_SECTION_COPY } from '@/features/panels/config'
 import { IFRAME_ALLOWED_HOSTS } from '@/lib/config'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { RICH_MEDIA_DISPLAY_COPY, readRichMediaDisplayMode } from '@/lib/render/richMediaSsot'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+const mediaStatsPanelClassName = `mt-2 border ${UI_THEME_TOKENS.table.cellBorder} rounded ${UI_THEME_TOKENS.panel.bg} max-h-40 overflow-auto`
+const mediaToggleShellClassName = `inline-flex rounded border ${UI_THEME_TOKENS.input.border} overflow-hidden ${UI_THEME_TOKENS.button.neutralSubtle}`
 
 export default function MediaNodesSection({
   toolbarAligned = false,
@@ -72,13 +76,13 @@ export default function MediaNodesSection({
             className={[
               uiPanelKeyValueTextSizeClass,
               uiPanelTextFontClass,
-              'font-semibold text-gray-500',
+              `font-semibold ${UI_THEME_TOKENS.text.tertiary}`,
             ].join(' ')}
           >
             {copy.badge}
           </span>
         )}
-        <span className="text-xs font-semibold text-gray-800">
+        <span className={`text-xs font-semibold ${UI_THEME_TOKENS.text.primary}`}>
           {copy.title}
         </span>
       </span>
@@ -87,7 +91,7 @@ export default function MediaNodesSection({
           className={[
             uiPanelMicroLabelTextSizeClass,
             uiPanelTextFontClass,
-            'text-gray-600',
+            UI_THEME_TOKENS.text.secondary,
           ].join(' ')}
         >
           {copy.descriptionShort}
@@ -118,7 +122,7 @@ export default function MediaNodesSection({
           className={[
             uiPanelMicroLabelTextSizeClass,
             uiPanelTextFontClass,
-            'text-gray-600',
+            UI_THEME_TOKENS.text.secondary,
           ].join(' ')}
         >
           No media-capable nodes detected in the current GraphData.
@@ -127,25 +131,26 @@ export default function MediaNodesSection({
         <div className="space-y-2">
           <div
             className={[
-              'grid grid-cols-4 gap-2 text-gray-700',
+              'grid grid-cols-4 gap-2',
+              UI_THEME_TOKENS.text.primary,
               uiPanelKeyValueTextSizeClass,
               uiPanelTextFontClass,
             ].join(' ')}
           >
             <div className="flex flex-col">
-              <span className="uppercase tracking-wide text-gray-500">Media nodes</span>
+              <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Media nodes</span>
               <span className="font-semibold">{String(totalCount)}</span>
             </div>
             <div className="flex flex-col">
-              <span className="uppercase tracking-wide text-gray-500">Images/SVG</span>
+              <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Images/SVG</span>
               <span className="font-semibold">{String(imageCount)}</span>
             </div>
             <div className="flex flex-col">
-              <span className="uppercase tracking-wide text-gray-500">Video</span>
+              <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>Video</span>
               <span className="font-semibold">{String(videoCount)}</span>
             </div>
             <div className="flex flex-col">
-              <span className="uppercase tracking-wide text-gray-500">IFrame</span>
+              <span className={`uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`}>IFrame</span>
               <span className="font-semibold">{String(iframeCount)}</span>
             </div>
           </div>
@@ -161,13 +166,13 @@ export default function MediaNodesSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'text-gray-600 cursor-help',
+                    `${UI_THEME_TOKENS.text.secondary} cursor-help`,
                   ].join(' ')}
                 >
                   {RICH_MEDIA_DISPLAY_COPY.viewLabel}
                 </span>
               </Tooltip>
-              <div className="inline-flex rounded border border-gray-300 overflow-hidden bg-gray-50">
+              <div className={mediaToggleShellClassName}>
                 <button
                   type="button"
                   onClick={() => setRenderMediaAsNodes(false)}
@@ -175,8 +180,8 @@ export default function MediaNodesSection({
                     'px-2 py-1 text-[11px]',
                     uiPanelTextFontClass,
                     richMediaDisplayMode === 'panel-only'
-                      ? 'bg-gray-50 text-gray-600'
-                      : 'bg-blue-600 text-white',
+                      ? `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
+                      : UI_THEME_TOKENS.button.primarySolid,
                   ].join(' ')}
                 >
                   {RICH_MEDIA_DISPLAY_COPY.circleOnly}
@@ -185,11 +190,11 @@ export default function MediaNodesSection({
                   type="button"
                   onClick={() => setRenderMediaAsNodes(true)}
                   className={[
-                    'px-2 py-1 text-[11px] border-l border-gray-300',
+                    `px-2 py-1 text-[11px] border-l ${UI_THEME_TOKENS.input.border}`,
                     uiPanelTextFontClass,
                     richMediaDisplayMode === 'panel-only'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-50 text-gray-600',
+                      ? UI_THEME_TOKENS.button.primarySolid
+                      : `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`,
                   ].join(' ')}
                 >
                   {RICH_MEDIA_DISPLAY_COPY.panelOnly}
@@ -201,7 +206,7 @@ export default function MediaNodesSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  'text-gray-600',
+                  UI_THEME_TOKENS.text.secondary,
                 ].join(' ')}
               >
                 {RICH_MEDIA_DISPLAY_COPY.opacityLabel}
@@ -219,7 +224,7 @@ export default function MediaNodesSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  'text-gray-700 w-10 text-right',
+                  `${UI_THEME_TOKENS.text.primary} w-10 text-right`,
                 ].join(' ')}
               >
                 {Math.round(mediaNodeOpacity * 100)}%
@@ -232,7 +237,7 @@ export default function MediaNodesSection({
               className={[
                 uiPanelMicroLabelTextSizeClass,
                 uiPanelTextFontClass,
-                'text-gray-600',
+                UI_THEME_TOKENS.text.secondary,
               ].join(' ')}
             >
               Iframe allowlist (direct embeds)
@@ -241,7 +246,7 @@ export default function MediaNodesSection({
               className={[
                 uiPanelMicroLabelTextSizeClass,
                 uiPanelTextFontClass,
-                'text-gray-700',
+                UI_THEME_TOKENS.text.primary,
               ].join(' ')}
             >
               {hasIframeHosts
@@ -253,7 +258,7 @@ export default function MediaNodesSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  'text-gray-500',
+                  UI_THEME_TOKENS.text.tertiary,
                 ].join(' ')}
               >
                 Non-direct iframes load via /__webpage_proxy by default.
@@ -261,14 +266,14 @@ export default function MediaNodesSection({
             )}
           </div>
 
-          <div className="mt-2 border border-gray-200 rounded bg-white max-h-40 overflow-auto">
+          <div className={mediaStatsPanelClassName}>
             <table className="min-w-full text-left">
               <thead>
                 <tr
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'text-gray-500 border-b border-gray-200',
+                    `${UI_THEME_TOKENS.text.tertiary} border-b ${UI_THEME_TOKENS.table.cellBorder}`,
                   ].join(' ')}
                 >
                   <th className="px-2 py-1 w-20">Type</th>
@@ -280,16 +285,16 @@ export default function MediaNodesSection({
                 className={[
                   uiPanelKeyValueTextSizeClass,
                   uiPanelTextFontClass,
-                  'text-gray-700',
+                  UI_THEME_TOKENS.text.primary,
                 ].join(' ')}
               >
                 {rows.map(row => (
-                  <tr key={row.id} className="border-b border-gray-100 last:border-b-0">
+                  <tr key={row.id} className={`border-b ${UI_THEME_TOKENS.panel.divider} last:border-b-0`}>
                     <td className="px-2 py-1 truncate">{row.type}</td>
                     <td className="px-2 py-1 truncate">{row.label}</td>
                     <td className="px-2 py-1">
                       <span className="inline-flex items-center gap-1">
-                        <span className="uppercase tracking-wide text-[10px] text-gray-500">
+                        <span className={`uppercase tracking-wide text-[10px] ${UI_THEME_TOKENS.text.tertiary}`}>
                           {row.media.kind}
                         </span>
                         <span className="inline-flex h-2 w-2 rounded-full bg-gray-400" />

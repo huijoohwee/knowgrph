@@ -7,6 +7,7 @@ import {
   RightAlignedValueCell,
 } from '@/features/panels/ui/KeyTypeValueRow'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type FieldLocalSchemaRow = { id: string; key: string; value: string }
 
@@ -41,17 +42,25 @@ export default function FieldLocalSchemaRowsEditor({
   suggestedPropertySampleByKey,
   enumCandidatesByKey,
 }: FieldLocalSchemaRowsEditorProps) {
+  const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
+  const sectionDividerClassName = UI_THEME_TOKENS.panel.divider
+  const headerLabelClassName = `font-semibold ${UI_THEME_TOKENS.text.secondary}`
+  const keyLabelClassName = UI_THEME_TOKENS.text.secondary
+  const inputClassName = `h-7 w-full rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} px-2 text-xs ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+  const actionButtonClassName = `App-toolbar__btn border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg} ${UI_THEME_TOKENS.text.secondary}`
+  const suggestionTextClassName = `${uiPanelKeyValueTextSizeClass} flex flex-wrap items-center gap-1 ${UI_THEME_TOKENS.text.tertiary}`
+
   return (
-    <section className="rounded border border-gray-200 bg-white" aria-label="Schema Rows Editor">
-      <header className="px-2 border-b border-gray-200">
+    <section className={panelClassName} aria-label="Schema Rows Editor">
+      <header className={`px-2 border-b ${sectionDividerClassName}`}>
         <KeyTypeValueRow
           keyNode={
-            <span className="font-semibold text-gray-600">
+            <span className={headerLabelClassName}>
               {localSchemaFacet === 'localRules' ? 'Rule' : 'Key'}
             </span>
           }
           valueNode={
-            <span className="font-semibold text-gray-600">
+            <span className={headerLabelClassName}>
               {localSchemaFacet === 'localRules' ? 'Rule JSON' : 'Value JSON'}
             </span>
           }
@@ -161,7 +170,7 @@ export default function FieldLocalSchemaRowsEditor({
               keyNode={
                 <div className="flex items-center gap-1 min-w-0">
                   {localSchemaFacet === 'localRules' ? (
-                    <span className="text-gray-700">Rule {index + 1}</span>
+                    <span className={keyLabelClassName}>Rule {index + 1}</span>
                   ) : (
                     <PlainTextInputEditor
                       value={row.key}
@@ -233,7 +242,7 @@ export default function FieldLocalSchemaRowsEditor({
                         next[index] = { ...row, key: raw }
                         setLocalSchemaRows(next)
                       }}
-                      className="h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-800"
+                      className={inputClassName}
                       placeholder="key"
                       list={
                         localSchemaFacet === 'properties'
@@ -248,7 +257,7 @@ export default function FieldLocalSchemaRowsEditor({
                       const next = localSchemaRows.filter(r => r.id !== row.id)
                       setLocalSchemaRows(next)
                     }}
-                    className="App-toolbar__btn text-[11px] border border-gray-300 bg-white text-gray-600"
+                    className={`${actionButtonClassName} text-[11px]`}
                   >
                     {UI_LABELS.delete}
                   </button>
@@ -263,7 +272,7 @@ export default function FieldLocalSchemaRowsEditor({
                       next[index] = { ...row, value: nextValue }
                       setLocalSchemaRows(next)
                     }}
-                    className={`h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-800 ${uiPanelMonospaceTextClass}`}
+                    className={`${inputClassName} ${uiPanelMonospaceTextClass}`}
                     placeholder={
                       localSchemaFacet === 'localRules'
                         ? '{"target":"node"}'
@@ -271,14 +280,12 @@ export default function FieldLocalSchemaRowsEditor({
                     }
                   />
                   {hasAnySuggestions ? (
-                    <div
-                      className={`${uiPanelKeyValueTextSizeClass} flex flex-wrap items-center gap-1 text-gray-500`}
-                    >
+                    <div className={suggestionTextClassName}>
                       <span>Suggestions:</span>
                       {hasDefaultSuggestion ? (
                         <button
                           type="button"
-                          className="App-toolbar__btn text-[11px] border border-gray-300 bg-white text-gray-600"
+                          className={`${actionButtonClassName} text-[11px]`}
                           onClick={() => applySuggestedSpec('default')}
                         >
                           Use default
@@ -288,7 +295,7 @@ export default function FieldLocalSchemaRowsEditor({
                         <button
                           key={v}
                           type="button"
-                          className="App-toolbar__btn text-[11px] border border-gray-300 bg-white text-gray-600"
+                          className={`${actionButtonClassName} text-[11px]`}
                           onClick={() => applySuggestedSpec('enum', String(v))}
                         >
                           {v}
@@ -297,7 +304,7 @@ export default function FieldLocalSchemaRowsEditor({
                       {hasSampleSuggestion ? (
                         <button
                           type="button"
-                          className="App-toolbar__btn text-[11px] border border-gray-300 bg-white text-gray-600"
+                          className={`${actionButtonClassName} text-[11px]`}
                           onClick={() => applySuggestedSpec('sample')}
                         >
                           Use sample
@@ -318,7 +325,7 @@ export default function FieldLocalSchemaRowsEditor({
           </datalist>
         ) : null}
       </div>
-      <div className="border-t border-gray-200 px-2 py-1.5 flex justify-between items-center">
+      <div className={`border-t ${sectionDividerClassName} px-2 py-1.5 flex justify-between items-center`}>
         <button
           type="button"
           onClick={() => {
@@ -343,7 +350,7 @@ export default function FieldLocalSchemaRowsEditor({
               ])
             }
           }}
-          className="App-toolbar__btn text-xs border border-gray-300 bg-white text-gray-700"
+          className={`${actionButtonClassName} text-xs`}
         >
           {localSchemaFacet === 'localRules' ? 'Add rule' : 'Add key'}
         </button>

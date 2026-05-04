@@ -33,6 +33,11 @@ import {
   VOXEL_IDLE_ROTATE_SPEED_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
 import ThreeSizingAndWidthControls from '@/features/panels/views/shared/ThreeSizingAndWidthControls'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+const keyLabelClassName = UI_THEME_TOKENS.text.primary
+const valueLabelClassName = UI_THEME_TOKENS.text.secondary
+const selectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
 
 interface ThreeViewLayoutSectionProps {
   schema: GraphSchema
@@ -65,7 +70,7 @@ export default function ThreeViewLayoutSection({
       <div className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Node Motion</span>}
+          keyNode={<span className={keyLabelClassName}>Node Motion</span>}
           valueNode={(
             <>
               <input
@@ -83,7 +88,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.nodeMotionIntensity ?? 1.0)}
                 </span>
               </Tooltip>
@@ -92,7 +97,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Minimap Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Minimap Opacity</span>}
           valueNode={(
             <>
               <input
@@ -108,7 +113,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.minimapOpacity ?? 0.7)}
                 </span>
               </Tooltip>
@@ -117,7 +122,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Sphere Radius</span>}
+          keyNode={<span className={keyLabelClassName}>Sphere Radius</span>}
           valueNode={(
             <>
               <input
@@ -133,7 +138,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.sphereRadius ?? 120)}
                 </span>
               </Tooltip>
@@ -142,7 +147,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Min Spacing</span>}
+          keyNode={<span className={keyLabelClassName}>Min Spacing</span>}
           valueNode={(
             <>
               <input
@@ -158,7 +163,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.minSpacing ?? 0)}
                 </span>
               </Tooltip>
@@ -167,7 +172,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Layout Seed</span>}
+          keyNode={<span className={keyLabelClassName}>Layout Seed</span>}
           valueNode={(
             <Tooltip
               content={LAYOUT_SEED_TOOLTIP}
@@ -189,11 +194,12 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Animation</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Animation</span>}
           valueNode={(
-            <label className="flex items-center gap-2 text-gray-600">
+            <label className={`flex items-center gap-2 ${valueLabelClassName}`}>
               <input
                 type="checkbox"
+                className={selectionControlClassName}
                 checked={schema.three?.voxelAnimationEnabled !== false}
                 onChange={e => setThreeConfig({ voxelAnimationEnabled: e.target.checked })}
               />
@@ -203,7 +209,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Seed Scale</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Seed Scale</span>}
           valueNode={(
             <>
               <input
@@ -219,7 +225,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelSeedScaleFactor ?? 1)}
                 </span>
               </Tooltip>
@@ -228,7 +234,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Grid Scale</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Grid Scale</span>}
           valueNode={(
             <>
               <input
@@ -244,7 +250,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelGridScaleFactor ?? 1)}
                 </span>
               </Tooltip>
@@ -253,7 +259,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Layer Spacing</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Layer Spacing</span>}
           valueNode={(
             <>
               <input
@@ -269,7 +275,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelLayerSpacing ?? 84)}
                 </span>
               </Tooltip>
@@ -278,7 +284,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Plate Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Plate Opacity</span>}
           valueNode={(
             <>
               <input
@@ -294,7 +300,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelLayerPlateOpacity ?? 0.06)}
                 </span>
               </Tooltip>
@@ -303,7 +309,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Plate Rise (ms)</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Plate Rise (ms)</span>}
           valueNode={(
             <Tooltip
               content={VOXEL_LAYER_PLATE_RISE_DURATION_TOOLTIP}
@@ -321,7 +327,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Plate Stagger (ms)</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Plate Stagger (ms)</span>}
           valueNode={(
             <Tooltip
               content={VOXEL_LAYER_PLATE_RISE_STAGGER_TOOLTIP}
@@ -339,7 +345,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Pulse Strength</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Pulse Strength</span>}
           valueNode={(
             <>
               <input
@@ -355,7 +361,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelClusterPulseStrength ?? 0.22)}
                 </span>
               </Tooltip>
@@ -364,7 +370,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Edge Hover</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Edge Hover</span>}
           valueNode={(
             <>
               <input
@@ -380,7 +386,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelEdgeHoverOpacity ?? 0.65)}
                 </span>
               </Tooltip>
@@ -389,7 +395,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Gap Ring Threshold</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Gap Ring Threshold</span>}
           valueNode={(
             <>
               <input
@@ -405,7 +411,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelGapRingThreshold ?? 0.85)}
                 </span>
               </Tooltip>
@@ -414,7 +420,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Intro Delay (ms)</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Intro Delay (ms)</span>}
           valueNode={(
             <>
               <input
@@ -430,7 +436,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelIntroDelayMs ?? 320)}
                 </span>
               </Tooltip>
@@ -439,7 +445,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Intro Duration (ms)</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Intro Duration (ms)</span>}
           valueNode={(
             <>
               <input
@@ -455,7 +461,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelIntroDurationMs ?? 1100)}
                 </span>
               </Tooltip>
@@ -464,7 +470,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Camera Yaw</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Camera Yaw</span>}
           valueNode={(
             <>
               <input
@@ -480,7 +486,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelDefaultYawDeg ?? -36)}
                 </span>
               </Tooltip>
@@ -489,7 +495,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Camera Tilt</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Camera Tilt</span>}
           valueNode={(
             <>
               <input
@@ -505,7 +511,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelDefaultTiltDeg ?? 32)}
                 </span>
               </Tooltip>
@@ -514,7 +520,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Camera Distance</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Camera Distance</span>}
           valueNode={(
             <>
               <input
@@ -530,7 +536,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelDefaultDistanceFactor ?? 2.2)}
                 </span>
               </Tooltip>
@@ -539,7 +545,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Target Lift</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Target Lift</span>}
           valueNode={(
             <>
               <input
@@ -555,7 +561,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelDefaultTargetLift ?? 8)}
                 </span>
               </Tooltip>
@@ -564,7 +570,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Ghost Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Ghost Opacity</span>}
           valueNode={(
             <>
               <input
@@ -580,7 +586,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelGhostOpacity ?? 0.32)}
                 </span>
               </Tooltip>
@@ -589,7 +595,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Top Cap Glow</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Top Cap Glow</span>}
           valueNode={(
             <>
               <input
@@ -605,7 +611,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelTopCapEmissiveIntensity ?? 0.9)}
                 </span>
               </Tooltip>
@@ -614,7 +620,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Cluster Light</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Cluster Light</span>}
           valueNode={(
             <>
               <input
@@ -630,7 +636,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelClusterLightIntensity ?? 0.7)}
                 </span>
               </Tooltip>
@@ -639,7 +645,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Hub Pulse</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Hub Pulse</span>}
           valueNode={(
             <>
               <input
@@ -655,7 +661,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelHubPulseStrength ?? 0.07)}
                 </span>
               </Tooltip>
@@ -664,7 +670,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Concept Float</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Concept Float</span>}
           valueNode={(
             <>
               <input
@@ -680,7 +686,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelConceptFloatStrength ?? 1)}
                 </span>
               </Tooltip>
@@ -689,7 +695,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Idle Rotate Delay</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Idle Rotate Delay</span>}
           valueNode={(
             <>
               <input
@@ -705,7 +711,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelIdleAutoRotateDelayMs ?? 900)}
                 </span>
               </Tooltip>
@@ -714,7 +720,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Voxel Idle Rotate Speed</span>}
+          keyNode={<span className={keyLabelClassName}>Voxel Idle Rotate Speed</span>}
           valueNode={(
             <>
               <input
@@ -730,7 +736,7 @@ export default function ThreeViewLayoutSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueLabelClassName}>
                   {String(schema.three?.voxelIdleAutoRotateSpeed ?? 0.12)}
                 </span>
               </Tooltip>
@@ -745,7 +751,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Layer 1 Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Layer 1 Opacity</span>}
           valueNode={(
             <>
               <input
@@ -759,7 +765,7 @@ export default function ThreeViewLayoutSection({
                   setThreeConfig({ layerOpacityByLayer: { ...layerOpacityByLayer, '1': next } })
                 }}
               />
-              <span className="text-gray-600">
+              <span className={valueLabelClassName}>
                 {String(layer1)}
               </span>
             </>
@@ -767,7 +773,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Layer 2 Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Layer 2 Opacity</span>}
           valueNode={(
             <>
               <input
@@ -781,7 +787,7 @@ export default function ThreeViewLayoutSection({
                   setThreeConfig({ layerOpacityByLayer: { ...layerOpacityByLayer, '2': next } })
                 }}
               />
-              <span className="text-gray-600">
+              <span className={valueLabelClassName}>
                 {String(layer2)}
               </span>
             </>
@@ -789,7 +795,7 @@ export default function ThreeViewLayoutSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Layer 3 Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Layer 3 Opacity</span>}
           valueNode={(
             <>
               <input
@@ -803,7 +809,7 @@ export default function ThreeViewLayoutSection({
                   setThreeConfig({ layerOpacityByLayer: { ...layerOpacityByLayer, '3': next } })
                 }}
               />
-              <span className="text-gray-600">
+              <span className={valueLabelClassName}>
                 {String(layer3)}
               </span>
             </>

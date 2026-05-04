@@ -71,7 +71,7 @@ export function FilterCombobox<T extends string>({ value, options, onChange, cla
 }
 
 export const iconButtonClassName =
-  `inline-flex items-center justify-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 h-7 w-7`
+  `inline-flex items-center justify-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 h-7 w-7`
 
 export const secondaryButtonClassName =
-  `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-1.5 h-7 px-2 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg}`
+  `inline-flex items-center justify-center whitespace-nowrap font-normal transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-1.5 h-7 px-2 rounded-md border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text} shadow-sm ${UI_THEME_TOKENS.button.hoverBg}`

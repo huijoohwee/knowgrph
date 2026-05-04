@@ -11,6 +11,7 @@ import {
   PAN_SPEED_TOOLTIP,
   AUTO_ROTATE_SPEED_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ThreeViewCameraSectionProps {
   schema: GraphSchema
@@ -28,6 +29,9 @@ export default function ThreeViewCameraSection({
   const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
   const canvas3dMode = useGraphStore(s => s.canvas3dMode)
   const voxelModeActive = canvasRenderMode === '3d' && canvas3dMode === 'voxel'
+  const keyLabelClassName = UI_THEME_TOKENS.text.secondary
+  const valueTextClassName = UI_THEME_TOKENS.text.tertiary
+  const selectionControlClassName = `h-3.5 w-3.5 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
   return (
     <CollapsibleSection
       title="Camera and navigation"
@@ -39,7 +43,7 @@ export default function ThreeViewCameraSection({
       <div className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Camera Damping</span>}
+          keyNode={<span className={keyLabelClassName}>Camera Damping</span>}
           valueNode={(
             <>
               <input
@@ -57,7 +61,7 @@ export default function ThreeViewCameraSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.cameraDampingFactor ?? 0.08)}
                 </span>
               </Tooltip>
@@ -66,7 +70,7 @@ export default function ThreeViewCameraSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Rotate Speed</span>}
+          keyNode={<span className={keyLabelClassName}>Rotate Speed</span>}
           valueNode={(
             <>
               <input
@@ -84,7 +88,7 @@ export default function ThreeViewCameraSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.cameraRotateSpeed ?? 0.6)}
                 </span>
               </Tooltip>
@@ -93,7 +97,7 @@ export default function ThreeViewCameraSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Zoom Speed</span>}
+          keyNode={<span className={keyLabelClassName}>Zoom Speed</span>}
           valueNode={(
             <>
               <input
@@ -111,7 +115,7 @@ export default function ThreeViewCameraSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.cameraZoomSpeed ?? 0.8)}
                 </span>
               </Tooltip>
@@ -120,7 +124,7 @@ export default function ThreeViewCameraSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Pan Speed</span>}
+          keyNode={<span className={keyLabelClassName}>Pan Speed</span>}
           valueNode={(
             <>
               <input
@@ -138,7 +142,7 @@ export default function ThreeViewCameraSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.cameraPanSpeed ?? 0.5)}
                 </span>
               </Tooltip>
@@ -147,11 +151,11 @@ export default function ThreeViewCameraSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Auto Rotate</span>}
+          keyNode={<span className={keyLabelClassName}>Auto Rotate</span>}
           valueNode={(
             <input
               type="checkbox"
-              className="h-3 w-3"
+              className={selectionControlClassName}
               checked={Boolean(schema.three?.cameraAutoRotate ?? false)}
               disabled={voxelModeActive}
               onChange={e =>
@@ -162,7 +166,7 @@ export default function ThreeViewCameraSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Auto Rotate Speed</span>}
+          keyNode={<span className={keyLabelClassName}>Auto Rotate Speed</span>}
           valueNode={(
             <>
               <input
@@ -181,7 +185,7 @@ export default function ThreeViewCameraSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.cameraAutoRotateSpeed ?? 0.4)}
                 </span>
               </Tooltip>

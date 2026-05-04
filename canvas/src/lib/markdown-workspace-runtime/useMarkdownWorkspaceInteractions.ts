@@ -29,6 +29,7 @@ import {
   registerMarkdownWorkspaceEmbeddedGeoDatasets,
   resolveMarkdownWorkspaceApplyText,
 } from './markdownWorkspaceApply'
+import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceInfoStatus } from './markdownWorkspaceStatusTransitions'
 
 export function useMarkdownWorkspaceInteractions(args: {
   active: boolean
@@ -294,7 +295,11 @@ export function useMarkdownWorkspaceInteractions(args: {
     const current = argsRef.current
     const name = String(current.activeDocumentKey || '').trim()
     if (!name) {
-      current.setStatusError('No file selected')
+      applyMarkdownWorkspaceErrorStatus({
+        setStatusError: current.setStatusError,
+        error: 'No file selected',
+        fallbackMessage: 'No file selected',
+      })
       return
     }
     const applyText = resolveMarkdownWorkspaceApplyText({
@@ -314,9 +319,17 @@ export function useMarkdownWorkspaceInteractions(args: {
         sourceDocumentPath: name,
         geoDatasetIntegration,
       })
-      current.setStatusInfo(ok ? 'Applied' : 'Skipped')
+      applyMarkdownWorkspaceInfoStatus({
+        setStatusInfo: current.setStatusInfo,
+        label: ok ? 'Applied' : 'Skipped',
+      })
     } catch (e) {
-      current.setStatusError(`Failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      applyMarkdownWorkspaceErrorStatus({
+        setStatusError: current.setStatusError,
+        prefix: 'Failed',
+        error: e,
+        fallbackMessage: 'Request failed',
+      })
     }
   }, [geoDatasetIntegration])
 

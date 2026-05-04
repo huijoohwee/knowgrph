@@ -15,6 +15,10 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 
+const spotlightCardClassName = `pointer-events-auto rounded-xl border bg-[color:var(--kg-panel-bg)]/95 shadow-lg px-4 py-3 max-w-xs w-80`
+const spotlightGhostButtonClassName = `${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg}`
+const spotlightSecondaryButtonClassName = `border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`
+
 type LaunchSpotlightTourCardProps = {
   dismissed: boolean
   setDismissed: (next: boolean) => void
@@ -144,23 +148,23 @@ export function LaunchSpotlightTourCard({
     <div className="fixed inset-0 z-[2000] pointer-events-none">
       <div
         ref={cardRef}
-        className={`pointer-events-auto rounded-xl border bg-white/95 shadow-lg px-4 py-3 max-w-xs w-80 ${
+        className={`${spotlightCardClassName} ${
           minimized ? 'cursor-default' : 'cursor-move'
         } ${
-          current.variant === 'primary' ? 'border-blue-200 shadow-blue-100/70' : 'border-gray-200 shadow-gray-200/60'
+          current.variant === 'primary' ? 'border-blue-200 shadow-blue-100/70' : ''
         }`}
         onPointerDown={minimized ? undefined : handleCardPointerDown}
         style={cardStyle}
       >
         {minimized ? (
           <div className="flex items-center justify-between">
-            <span className={`${uiPanelKeyValueTextSizeClass} text-gray-600`}>
+            <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
               {current.title} ({clampedIndex + 1}/{total})
             </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
                 onClick={handleDismiss}
               >
                 Dismiss
@@ -180,7 +184,7 @@ export function LaunchSpotlightTourCard({
               <div className="flex flex-col gap-0.5">
                 <span
                   className={`${uiPanelKeyValueTextSizeClass} font-medium uppercase tracking-wide ${
-                    current.variant === 'primary' ? 'text-blue-600' : 'text-gray-500'
+                    current.variant === 'primary' ? 'text-blue-600' : UI_THEME_TOKENS.text.tertiary
                   }`}
                 >
                   Launch tour
@@ -191,24 +195,24 @@ export function LaunchSpotlightTourCard({
                   contentClassName="bg-gray-800/90"
                 >
                   <div className="flex items-center gap-1">
-                    <div className="text-sm font-semibold text-gray-900">{current.title}</div>
+                    <div className={`text-sm font-semibold ${UI_THEME_TOKENS.text.primary}`}>{current.title}</div>
                   </div>
                 </Tooltip>
               </div>
               <button
                 type="button"
-                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
+                className={`${uiPanelKeyValueTextSizeClass} px-2 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
                 onClick={handleMinimize}
               >
                 Minimize
               </button>
             </div>
-            <div className="text-xs text-gray-700 mb-2">{current.body}</div>
+            <div className={`text-xs ${UI_THEME_TOKENS.text.primary} mb-2`}>{current.body}</div>
             {current.id === 2 && (
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-gray-300 text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded ${spotlightSecondaryButtonClassName}`}
                   onClick={() => {
                     try {
                       useGraphStore.getState().setWorkspaceViewMode('canvas')
@@ -222,7 +226,7 @@ export function LaunchSpotlightTourCard({
               </div>
             )}
             {!canAdvance && (
-              <div className={`mb-2 flex items-center ${uiPanelKeyValueTextSizeClass} text-gray-600`}>
+              <div className={`mb-2 flex items-center ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <span>
                   {clampedIndex === 1
                     ? 'User loads a dataset via Load Data before continuing.'
@@ -248,7 +252,7 @@ export function LaunchSpotlightTourCard({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent ${spotlightGhostButtonClassName}`}
                   onClick={handleBack}
                   disabled={clampedIndex === 0}
                 >
@@ -256,7 +260,7 @@ export function LaunchSpotlightTourCard({
                 </button>
                 <button
                   type="button"
-                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent text-gray-600 ${UI_THEME_TOKENS.button.hoverBg}`}
+                  className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border border-transparent ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={handleDismiss}
                 >
                   Dismiss
@@ -266,7 +270,7 @@ export function LaunchSpotlightTourCard({
                   className={`${uiPanelKeyValueTextSizeClass} px-3 py-1 rounded border ${
                     canAdvance
                       ? `border-blue-600 text-blue-600 ${UI_THEME_TOKENS.button.hoverBg}`
-                      : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                      : `${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.tertiary} cursor-not-allowed`
                   }`}
                   onClick={handleNext}
                   disabled={!canAdvance}

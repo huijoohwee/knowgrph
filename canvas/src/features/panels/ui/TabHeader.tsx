@@ -7,7 +7,9 @@ import {
   uiPrimaryPillActiveClassName,
   uiToolbarToggleActiveClassName,
   uiPrimaryIconInactiveClassName,
+  uiToolbarButtonMutedClassName,
 } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type Tab = { key: string; label: string }
 
@@ -175,7 +177,7 @@ function TabHeaderImpl({
                   className={`App-toolbar__btn text-xs ${
                     activeTab === t.key
                       ? uiToolbarToggleActiveClassName
-                      : 'bg-gray-100 text-gray-700'
+                      : uiToolbarButtonMutedClassName
                   }`}
                 >
                   {t.label}
@@ -200,7 +202,7 @@ function TabHeaderImpl({
               value={searchQuery || ''}
               onChange={e => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder || 'Search'}
-              className={`h-[var(--kg-control-height)] w-full min-w-0 px-2 text-xs border border-gray-300 rounded-lg bg-white transition-opacity duration-150 select-text ${
+              className={`h-[var(--kg-control-height)] w-full min-w-0 px-2 text-xs border ${UI_THEME_TOKENS.input.border} rounded-lg ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing} transition-opacity duration-150 select-text ${
                 searchVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             />

@@ -47,7 +47,7 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
         <header className={['flex items-center gap-2 px-2 py-2 border-b', UI_THEME_TOKENS.panel.divider].join(' ')}>
           <button
             type="button"
-            className={['flex items-center gap-2 flex-1 min-w-0 rounded', UI_THEME_TOKENS.button.hoverBg].join(' ')}
+            className={['flex items-center gap-2 flex-1 min-w-0 rounded', UI_THEME_TOKENS.button.hoverBg, UI_THEME_TOKENS.focus.primarySoftRing].join(' ')}
             aria-expanded={expanded}
             onClick={toggleExpanded}
             onKeyDown={e => {
@@ -86,7 +86,7 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
                   className={[
                     'kg-panel-action-btn kg-panel-icon-btn',
                     'inline-flex items-center justify-center w-7 h-7 rounded-md',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500/40',
+                    UI_THEME_TOKENS.focus.primarySoftRing,
                   ].join(' ')}
                   aria-label={`New record in ${props.group.key}`}
                   onClick={e => {
@@ -138,8 +138,8 @@ export const KanbanGroup = React.memo(function KanbanGroup(props: KanbanGroupPro
                     'kg-panel-action-btn',
                     'w-full inline-flex items-center gap-2 text-xs px-2 py-2 rounded-md',
                     UI_THEME_TOKENS.text.secondary,
-                    'hover:bg-[var(--kg-panel-action-bg-hover)]',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500/40',
+                    UI_THEME_TOKENS.button.hoverBg,
+                    UI_THEME_TOKENS.focus.primarySoftRing,
                   ].join(' ')}
                   onClick={() => props.onNewRecord({ [groupByColumnId]: props.group.key })}
                 >

@@ -11,6 +11,10 @@ import type {
   OrchestratorTraversalPathEditState,
 } from '@/features/panels/views/OrchestratorTraversalSectionModel'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+
+const inlineActionButtonClassName = `px-1 py-[1px] border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 
 interface TraversalQueryExampleEditorProps {
   lastTraversal: GraphRagTraversalSummary
@@ -62,7 +66,7 @@ export function TraversalQueryExampleEditor({
             />
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() => {
                 const trimmed = editingQueryText.trim()
                 if (!trimmed) return
@@ -82,7 +86,7 @@ export function TraversalQueryExampleEditor({
             </button>
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() => {
                 setEditingQuery(false)
                 setEditingQueryText('')
@@ -98,7 +102,7 @@ export function TraversalQueryExampleEditor({
             </span>
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() => {
                 setEditingQuery(true)
                 setEditingQueryText(lastTraversal.query || '')
@@ -108,7 +112,7 @@ export function TraversalQueryExampleEditor({
             </button>
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() =>
                 setLastTraversal(prev =>
                   prev && prev.mode === 'graphRag'
@@ -134,7 +138,7 @@ export function TraversalQueryExampleEditor({
             />
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() => {
                 const trimmed = editingQueryText.trim()
                 if (!trimmed) return
@@ -166,7 +170,7 @@ export function TraversalQueryExampleEditor({
             />
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() => {
                 const trimmed = editingExampleText.trim()
                 if (!trimmed) return
@@ -186,7 +190,7 @@ export function TraversalQueryExampleEditor({
             </button>
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() => {
                 setEditingExample(false)
                 setEditingExampleText('')
@@ -202,7 +206,7 @@ export function TraversalQueryExampleEditor({
             </span>
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() => {
                 setEditingExample(true)
                 setEditingExampleText(lastTraversal.example || '')
@@ -212,7 +216,7 @@ export function TraversalQueryExampleEditor({
             </button>
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() =>
                 setLastTraversal(prev =>
                   prev && prev.mode === 'graphRag'
@@ -238,7 +242,7 @@ export function TraversalQueryExampleEditor({
             />
             <button
               type="button"
-              className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+              className={inlineActionButtonClassName}
               onClick={() => {
                 const trimmed = editingExampleText.trim()
                 if (!trimmed) return
@@ -303,7 +307,7 @@ export function AddHopInputs({
         />
         <button
           type="button"
-          className="App-toolbar__btn bg-gray-100 text-gray-700"
+          className={`App-toolbar__btn ${uiToolbarButtonMutedClassName}`}
           onClick={() => {
             const trimmed = newHopText.trim()
             if (!trimmed) return
@@ -330,7 +334,7 @@ export function AddHopInputs({
         />
         <button
           type="button"
-          className="App-toolbar__btn bg-gray-100 text-gray-700"
+          className={`App-toolbar__btn ${uiToolbarButtonMutedClassName}`}
           onClick={() => {
             const trimmed = newMultiHopText.trim()
             if (!trimmed) return

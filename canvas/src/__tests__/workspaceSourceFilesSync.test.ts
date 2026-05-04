@@ -7,9 +7,15 @@ import {
   GEOSPATIAL_WORKSPACE_SOURCE_PATH,
   TEST_VALIDATION_SOURCE_PATH,
   WORKSPACE_README_SOURCE_PATH,
+  LEGACY_CANONICAL_GEOSPATIAL_WORKSPACE_SEED_PATH,
+  LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH,
   reconcileDefaultWorkspaceSeedSourceFiles,
   resolveWorkspaceSeedSourcePath,
 } from '@/features/source-files/workspaceSeedSourceFiles'
+import {
+  GEOSPATIAL_WORKSPACE_SEED_PATH,
+  WORKSPACE_README_SEED_PATH,
+} from '@/features/workspace-fs/workspaceFs'
 
 export async function testWorkspaceSourceFilesSyncMergesAndPreservesNonWorkspace() {
   const existing: SourceFile[] = [
@@ -136,7 +142,7 @@ export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFil
   const next = mergeWorkspaceEntriesIntoSourceFiles({
     existing: [],
     workspaceEntries: [
-      { kind: 'file', path: '/README.md', parentPath: '/', name: 'README.md', text: '# Readme', updatedAtMs: 1 },
+      { kind: 'file', path: WORKSPACE_README_SEED_PATH, parentPath: '/', name: 'knowgrph-maps-readme.md', text: '# Readme', updatedAtMs: 1 },
       {
         kind: 'file',
         path: '/sandbox/test-data/test-generate-video/knowgrph-demo-video.md',
@@ -147,9 +153,9 @@ export async function testWorkspaceSourceFilesSyncAlwaysIncludesCanonicalSeedFil
       },
       {
         kind: 'file',
-        path: '/knowgrph-maps-grabmap-multim-demo.md',
+        path: GEOSPATIAL_WORKSPACE_SEED_PATH,
         parentPath: '/',
-        name: 'knowgrph-maps-grabmap-multim-demo.md',
+        name: 'knowgrph-maps-places.md',
         text: '# Maps',
         updatedAtMs: 1,
       },
@@ -175,8 +181,14 @@ export async function testWorkspaceSeedSourceFilesResolveBundledValidationAliasT
   if (resolveWorkspaceSeedSourcePath(BUNDLED_GEOSPATIAL_WORKSPACE_SEED_PATH) !== GEOSPATIAL_WORKSPACE_SOURCE_PATH) {
     throw new Error('expected bundled geospatial workspace seed alias to resolve onto the canonical geospatial source-file path')
   }
-  if (resolveWorkspaceSeedSourcePath('/README.md') !== WORKSPACE_README_SOURCE_PATH) {
+  if (resolveWorkspaceSeedSourcePath(WORKSPACE_README_SEED_PATH) !== WORKSPACE_README_SOURCE_PATH) {
     throw new Error('expected README workspace seed path to resolve onto the canonical README source-file path')
+  }
+  if (resolveWorkspaceSeedSourcePath(LEGACY_CANONICAL_TEST_VALIDATION_WORKSPACE_SEED_PATH) !== TEST_VALIDATION_SOURCE_PATH) {
+    throw new Error('expected legacy video demo workspace seed alias to resolve onto the canonical validation source-file path')
+  }
+  if (resolveWorkspaceSeedSourcePath(LEGACY_CANONICAL_GEOSPATIAL_WORKSPACE_SEED_PATH) !== GEOSPATIAL_WORKSPACE_SOURCE_PATH) {
+    throw new Error('expected legacy geospatial workspace seed alias to resolve onto the canonical geospatial source-file path')
   }
   if (resolveWorkspaceSeedSourcePath('/notes/custom.md') !== null) {
     throw new Error('expected non-seed workspace paths to stay outside canonical seed source-file remapping')

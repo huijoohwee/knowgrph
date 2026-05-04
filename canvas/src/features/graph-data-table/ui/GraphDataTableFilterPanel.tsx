@@ -100,7 +100,7 @@ export function FilterPanel({
                   { value: 'any', label: 'or' },
                 ]}
                 onChange={value => setFilterMatch(value === 'any' ? 'any' : 'all')}
-                className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.microLabelClass}`}
+                className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.microLabelClass}`}
               />
             )
           if (clause.kind === 'condition') {
@@ -117,7 +117,7 @@ export function FilterPanel({
                   onChange={value =>
                     handleFilterColumnChange(condition.id, value as GraphDataTableColumnKey)
                   }
-                  className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent hover:border-blue-500/30 px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50`}
+                  className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`}
                 />
                 <FilterCombobox
                   value={condition.operator}
@@ -125,10 +125,10 @@ export function FilterPanel({
                   onChange={value =>
                     handleFilterOperatorChange(condition.id, value as GraphDataTableFilterOperator)
                   }
-                  className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.textSizeClass}`}
+                  className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.textSizeClass}`}
                 />
                 <input
-                  className={`h-8 w-40 rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
+                  className={`h-8 w-40 rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${
                     isValueDisabled ? 'opacity-50' : ''
                   }`}
                   placeholder={`Enter value for ${columnLabel.toLowerCase()}`}
@@ -161,7 +161,7 @@ export function FilterPanel({
                       { value: 'any', label: 'any' },
                     ]}
                     onChange={value => setFilterGroupMatch(group.id, value)}
-                    className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent hover:border-blue-500/30 px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50`}
+                    className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`}
                   />
                   <span className={UI_THEME_TOKENS.text.tertiary}>of the following conditions:</span>
                 </div>
@@ -188,7 +188,7 @@ export function FilterPanel({
                         onChange={value =>
                           handleFilterColumnChange(condition.id, value as GraphDataTableColumnKey)
                         }
-                        className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent hover:border-blue-500/30 px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50`}
+                        className={`inline-flex items-center whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`}
                       />
                       <FilterCombobox
                         value={condition.operator}
@@ -199,10 +199,10 @@ export function FilterPanel({
                             value as GraphDataTableFilterOperator,
                           )
                         }
-                        className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.textSizeClass}`}
+                        className={`inline-flex items-center whitespace-nowrap rounded-md transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} justify-between px-2 py-1 ${panelTypography.textSizeClass}`}
                       />
                       <input
-                        className={`h-8 w-40 rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${
+                        className={`h-8 w-40 rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${
                           isValueDisabled ? 'opacity-50' : ''
                         }`}
                         placeholder={`Enter value for ${columnLabel.toLowerCase()}`}

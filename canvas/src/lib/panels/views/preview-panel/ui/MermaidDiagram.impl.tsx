@@ -10,6 +10,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitHashChange } from '@/lib/browser/hashChangeEvents'
 import { renderMermaidWithRuntime } from '@/lib/mermaid/mermaidRuntime'
 import { postprocessMermaidSvg } from '@/lib/mermaid/mermaidSvg'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 const MERMAID_TOAST_DEDUPE_MS = 1500
 const mermaidErrorToastSeenAt = new Map<string, number>()
 
@@ -525,7 +526,7 @@ export function MermaidDiagram({
         className={[
           variant === 'codeblock'
             ? 'm-0 p-0 rounded-none border-0 bg-transparent overflow-hidden w-full shrink-0'
-            : 'mt-3 mb-3 p-3 rounded border border-gray-200 bg-white overflow-auto',
+            : `mt-3 mb-3 p-3 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-auto`,
           highlightClass,
         ].filter(Boolean).join(' ')}
         style={

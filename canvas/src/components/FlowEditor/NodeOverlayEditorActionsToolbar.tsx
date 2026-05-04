@@ -349,7 +349,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
             tooltipContent={UI_COPY.flowWidgetRemoveNode}
             showTooltip
             onClick={onRemove}
-            className={cn('App-toolbar__btn', 'text-red-700 dark:text-red-400')}
+            className={cn('App-toolbar__btn', UI_THEME_TOKENS.status.error.split(' ').slice(0, 2).join(' '))}
           >
             <Trash2 className={iconSizeClass} strokeWidth={iconStrokeWidth} aria-hidden={true} />
           </IconButton>
@@ -376,7 +376,7 @@ export const NodeOverlayEditorActionsToolbar = React.memo(function NodeOverlayEd
                     type="button"
                     className={cn(
                       'w-full rounded px-2 py-1.5 text-left text-xs',
-                      selected ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200' : 'hover:bg-black/5 dark:hover:bg-white/5',
+                      selected ? UI_THEME_TOKENS.button.primaryChipActive : UI_THEME_TOKENS.button.hoverBg,
                     )}
                     aria-pressed={selected}
                     onClick={() => {

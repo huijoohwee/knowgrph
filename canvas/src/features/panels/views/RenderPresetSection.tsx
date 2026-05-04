@@ -25,6 +25,8 @@ import {
   type ThreePresetCatalogEntry,
   type GraphSizePresetCatalogEntry,
 } from '@/features/panels/views/renderPresetCatalog'
+import { uiToolbarButtonNeutralClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface RenderPresetSectionProps {
   schema: GraphSchema
@@ -61,6 +63,8 @@ export default function RenderPresetSection({
   updateEdgeStyle,
   setEdgeArrow,
 }: RenderPresetSectionProps) {
+  const presetButtonClassName = `App-toolbar__btn text-xs px-2 py-1 border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonNeutralClassName}`
+
   const applyGraphSizePreset = React.useCallback(
     (preset: GraphSizePresetCatalogEntry) => {
       const current = schema
@@ -174,7 +178,7 @@ export default function RenderPresetSection({
     <div className="mt-2" data-kg-anchor={UI_ANCHORS.ragEmbedding}>
       <div className="flex flex-wrap gap-2">
         <button
-          className="App-toolbar__btn text-xs px-2 py-1 border border-gray-300"
+          className={presetButtonClassName}
           type="button"
           onClick={() => {
             const clean = buildCleanSchema()
@@ -185,7 +189,7 @@ export default function RenderPresetSection({
           Starter 2D
         </button>
         <button
-          className="App-toolbar__btn text-xs px-2 py-1 border border-gray-300"
+          className={presetButtonClassName}
           type="button"
           onClick={() => {
             setCanvasRenderMode('2d')
@@ -200,7 +204,7 @@ export default function RenderPresetSection({
           2D Radial Cluster Tree
         </button>
         <button
-          className="App-toolbar__btn text-xs px-2 py-1 border border-gray-300"
+          className={presetButtonClassName}
           type="button"
           onClick={() => {
             const nodeTypes = schema.catalog?.nodeTypes || []
@@ -231,7 +235,7 @@ export default function RenderPresetSection({
         {threePresetCatalog.map(preset => (
           <button
             key={preset.id}
-            className="App-toolbar__btn text-xs px-2 py-1 border border-gray-300"
+            className={presetButtonClassName}
             type="button"
             onClick={() => applyThreePreset(preset)}
           >
@@ -241,7 +245,7 @@ export default function RenderPresetSection({
         {graphSizePresetCatalog.map(preset => (
           <button
             key={preset.id}
-            className="App-toolbar__btn text-xs px-2 py-1 border border-gray-300"
+            className={presetButtonClassName}
             type="button"
             onClick={() => applyGraphSizePreset(preset)}
           >
@@ -267,10 +271,14 @@ export function TraversalPresetSection({
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
+  const presetButtonClassName = `App-toolbar__btn text-xs px-2 py-1 border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonNeutralClassName}`
+  const panelClassName = `mt-2 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1 ${UI_THEME_TOKENS.panel.bg}`
+  const sectionHeadingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary} mb-1`
+  const keyLabelClassName = `${UI_THEME_TOKENS.text.secondary} break-words`
 
   return (
     <div
-      className="mt-2 border border-gray-200 rounded px-2 py-1"
+      className={panelClassName}
       data-kg-anchor={UI_ANCHORS.ragEmbedding}
     >
       <div className="flex items-center justify-between gap-1 mb-1">
@@ -279,14 +287,14 @@ export function TraversalPresetSection({
           maxWidthPx={260}
           contentClassName="bg-gray-800/90"
         >
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <div className={sectionHeadingClassName}>
             Traversal
           </div>
         </Tooltip>
       </div>
       <div className="flex flex-wrap gap-2">
         <button
-          className="App-toolbar__btn text-xs px-2 py-1 border border-gray-300"
+          className={presetButtonClassName}
           type="button"
           onClick={runGraphRagTraversal}
           data-kg-anchor={UI_ANCHORS.ragGraphRAGWorkflow}
@@ -295,7 +303,7 @@ export function TraversalPresetSection({
           {RENDER_TRAVERSAL_BUTTON_LABEL_GRAPH_RAG}
         </button>
         <button
-          className="App-toolbar__btn text-xs px-2 py-1 border border-gray-300"
+          className={presetButtonClassName}
           type="button"
           onClick={() => {
             if (selectedNodeId) {
@@ -308,7 +316,7 @@ export function TraversalPresetSection({
           Neighborhood preset (2 hops from selected)
         </button>
         <button
-          className="App-toolbar__btn text-xs px-2 py-1 border border-gray-300"
+          className={presetButtonClassName}
           type="button"
           onClick={() => {
             if (selectedNodeId) {
@@ -321,8 +329,8 @@ export function TraversalPresetSection({
           Requires/enables chain preset
         </button>
       </div>
-      <div className="mt-2 border-t border-gray-200 pt-2">
-        <div className={`${uiPanelKeyValueTextSizeClass} font-semibold uppercase tracking-wide text-gray-500 mb-1`}>
+      <div className={`mt-2 border-t ${UI_THEME_TOKENS.panel.divider} pt-2`}>
+        <div className={sectionHeadingClassName}>
           Traversal Query
         </div>
         <div className="space-y-1">
@@ -335,7 +343,7 @@ export function TraversalPresetSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-700 break-words">
+                <span className={keyLabelClassName}>
                   traversalStartNodeId
                 </span>
               </Tooltip>
@@ -363,7 +371,7 @@ export function TraversalPresetSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-700 break-words">
+                <span className={keyLabelClassName}>
                   traversalMaxDepth
                 </span>
               </Tooltip>
@@ -398,7 +406,7 @@ export function TraversalPresetSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-700 break-words">
+                <span className={keyLabelClassName}>
                   traversalLabelFilter
                 </span>
               </Tooltip>
@@ -419,7 +427,7 @@ export function TraversalPresetSection({
           />
           <div className="flex justify-end pt-1">
             <button
-              className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} px-2 py-1 border border-gray-300`}
+              className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} px-2 py-1 border ${UI_THEME_TOKENS.input.border} ${uiToolbarButtonNeutralClassName}`}
               type="button"
               onClick={runTraversalQuery}
             >

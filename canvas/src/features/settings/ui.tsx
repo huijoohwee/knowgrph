@@ -35,7 +35,7 @@ export const renderSettingInput = (
   const uiPanelKeyValueInputClass =
     typeof rawPanelInputClass === 'string' && rawPanelInputClass.trim().length > 0
       ? rawPanelInputClass
-      : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`
+      : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   const uiPanelKeyValueTextareaClass = [
     ...uiPanelKeyValueInputClass.split(/\s+/).filter(token => token && token !== 'h-6' && token !== 'text-right'),
     'py-1',
@@ -58,7 +58,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: e.target.checked }))
         }}
-        className="w-4 h-4"
+        className={`w-4 h-4 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
       />
     )
   }
@@ -166,7 +166,7 @@ export const renderSettingInput = (
         ? getPillClass('legend', {
             baseClass: `${pillBaseClass} inline-flex items-center gap-1 box-border h-6`,
             legendTextSizeClass: appliedClass,
-            textColorClass: 'text-gray-700',
+            textColorClass: UI_THEME_TOKENS.text.primary,
           })
         : ''
     const badgePreviewClass =
@@ -174,7 +174,7 @@ export const renderSettingInput = (
         ? getPillClass('badge', {
             baseClass: `${pillBaseClass} inline-flex items-center gap-1 box-border h-6`,
             badgeTextSizeClass: appliedClass,
-            textColorClass: 'text-gray-700',
+            textColorClass: UI_THEME_TOKENS.text.primary,
           })
         : ''
     return (
@@ -243,7 +243,7 @@ export const renderSettingInput = (
     const appliedClass = str.trim().length > 0 ? str : placeholder
     const previewClass = [
       appliedClass,
-      'inline-flex items-center justify-center gap-1 h-6 box-border bg-white text-[9px]',
+      `inline-flex items-center justify-center gap-1 h-6 box-border ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} text-[9px]`,
     ]
       .filter(Boolean)
       .join(' ')
@@ -272,7 +272,7 @@ export const renderSettingInput = (
     const previewClass = [
       badgeChipBaseClass,
       appliedClass,
-      'inline-flex items-center gap-1 h-6 box-border',
+      `inline-flex items-center gap-1 h-6 box-border ${UI_THEME_TOKENS.text.primary}`,
     ]
       .filter(Boolean)
       .join(' ')
@@ -312,7 +312,7 @@ export const renderSettingInput = (
             dirtyRef.current.add(key)
             setValues(prev => ({ ...prev, [key]: next }))
           }}
-          className="w-8 h-6 p-0 border border-gray-300 rounded cursor-pointer bg-transparent"
+          className={`w-8 h-6 p-0 border ${UI_THEME_TOKENS.input.border} rounded cursor-pointer bg-transparent`}
         />
         <PlainTextInputEditor
           value={str}
@@ -344,7 +344,7 @@ export const renderSettingInput = (
             return next
           })
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded bg-white text-right`}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
       >
         <option value="serverManaged">Server-managed Key</option>
         <option value="byok">BYOK</option>
@@ -369,7 +369,7 @@ export const renderSettingInput = (
             return next
           })
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded bg-white text-right`}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
       >
         <option value="byok">BYOK</option>
         <option value="serverManaged">Server-managed Key</option>
@@ -388,7 +388,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-left`}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-left ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
       />
     )
   }
@@ -404,7 +404,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: selected }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded bg-white text-right`}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
       >
         {options.map(option => (
           <option key={option} value={option}>
@@ -423,7 +423,7 @@ export const renderSettingInput = (
           value=""
           readOnly
           placeholder="Server-managed Key"
-          className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`}
+          className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
         />
       )
     }
@@ -439,7 +439,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
       />
     )
   }
@@ -451,7 +451,7 @@ export const renderSettingInput = (
           value=""
           readOnly
           placeholder="Server-managed Key"
-          className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`}
+          className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
         />
       )
     }
@@ -515,7 +515,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-left`}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-left ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
       />
     )
   }
@@ -531,7 +531,7 @@ export const renderSettingInput = (
           dirtyRef.current.add(key)
           setValues(prev => ({ ...prev, [key]: next }))
         }}
-        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded bg-white text-right`}
+        className={`w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`}
       >
         {options.map(option => (
           <option key={option} value={option}>
@@ -545,7 +545,7 @@ export const renderSettingInput = (
   const baseInputClass =
     type === 'number' || isClassLikeKey
       ? uiPanelKeyValueInputClass
-      : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} rounded text-right`
+      : `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`
   const finalInputClass = baseInputClass
   return (
     <PlainTextInputEditor

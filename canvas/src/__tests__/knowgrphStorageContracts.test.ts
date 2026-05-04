@@ -1,0 +1,87 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import {
+  __resetKnowgrphStorageDbForTests,
+  getKnowgrphStorageDb,
+} from '@/lib/storage/knowgrphStorageRxdb'
+import {
+  KNOWGRPH_STORAGE_API_VERSION,
+  KNOWGRPH_STORAGE_COLLECTION_NAMES,
+  KNOWGRPH_STORAGE_D1_BINDING_NAME,
+  KNOWGRPH_STORAGE_D1_TABLE_NAMES,
+  KNOWGRPH_STORAGE_ROUTE_PATHS,
+  buildKnowgrphStorageCursorId,
+  buildKnowgrphStorageExportPath,
+  buildKnowgrphStoragePullPath,
+  isKnowgrphStorageEntityKind,
+} from '@/lib/storage/knowgrphStorageSyncContract'
+
+export const testKnowgrphStorageContractExposesExpectedRoutesAndBindings = () => {
+  if (KNOWGRPH_STORAGE_API_VERSION !== '2026-05-04') {
+    throw new Error('expected knowgrph storage API version to stay pinned to the documented contract revision')
+  }
+  if (KNOWGRPH_STORAGE_D1_BINDING_NAME !== 'DB') {
+    throw new Error('expected Cloudflare Worker D1 binding to remain DB')
+  }
+  if (KNOWGRPH_STORAGE_ROUTE_PATHS.push !== '/api/storage/push') {
+    throw new Error('expected push route to match the storage document contract')
+  }
+  if (KNOWGRPH_STORAGE_ROUTE_PATHS.pull !== '/api/storage/pull') {
+    throw new Error('expected pull route to match the storage document contract')
+  }
+  const pullPath = buildKnowgrphStoragePullPath({
+    workspaceId: 'wk_123',
+    deviceId: 'dev_macbook',
+    since: 'cursor_1',
+  })
+  if (!pullPath.includes('workspaceId=wk_123') || !pullPath.includes('deviceId=dev_macbook') || !pullPath.includes('since=cursor_1')) {
+    throw new Error('expected pull path helper to serialize workspace, device, and cursor parameters')
+  }
+  if (buildKnowgrphStorageExportPath('wk_123') !== '/api/storage/export/wk_123') {
+    throw new Error('expected export path helper to keep workspace-scoped route structure')
+  }
+  if (buildKnowgrphStorageCursorId('wk_123', 'dev_macbook') !== 'wk_123:dev_macbook') {
+    throw new Error('expected cursor id helper to stay deterministic across client and worker code')
+  }
+  if (!isKnowgrphStorageEntityKind('document') || !isKnowgrphStorageEntityKind('documentChunk') || !isKnowgrphStorageEntityKind('graphSnapshot')) {
+    throw new Error('expected all documented storage entity kinds to validate')
+  }
+  if (isKnowgrphStorageEntityKind('workspace')) {
+    throw new Error('expected entity guard to reject undocumented storage entity kinds')
+  }
+}
+
+export async function testKnowgrphStorageRxdbBootsExpectedCollections() {
+  await __resetKnowgrphStorageDbForTests()
+  const { collections } = await getKnowgrphStorageDb()
+  const names = Object.keys(collections).sort()
+  const expected = [...KNOWGRPH_STORAGE_COLLECTION_NAMES].sort()
+  if (names.length !== expected.length || names.some((name, index) => name !== expected[index])) {
+    throw new Error(`expected knowgrph storage collections ${expected.join(',')} but received ${names.join(',')}`)
+  }
+  await __resetKnowgrphStorageDbForTests()
+}
+
+export const testKnowgrphStorageD1MigrationDefinesExpectedTablesAndIndexes = () => {
+  const filePath = resolve(process.cwd(), '..', 'cloudflare', 'd1', 'migrations', '0001_knowgrph_storage.sql')
+  const text = readFileSync(filePath, 'utf8')
+  for (const tableName of KNOWGRPH_STORAGE_D1_TABLE_NAMES) {
+    if (!text.includes(`CREATE TABLE IF NOT EXISTS ${tableName}`)) {
+      throw new Error(`expected D1 migration to create table ${tableName}`)
+    }
+  }
+  for (const indexName of [
+    'idx_documents_workspace_updated',
+    'idx_document_chunks_doc_order',
+    'idx_document_chunks_doc_key',
+    'idx_graph_snapshots_doc_rev',
+    'idx_sync_events_workspace_created',
+  ]) {
+    if (!text.includes(`CREATE INDEX IF NOT EXISTS ${indexName}`)) {
+      throw new Error(`expected D1 migration to create index ${indexName}`)
+    }
+  }
+  if (!text.includes('FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE')) {
+    throw new Error('expected D1 migration to preserve document to chunk/snapshot cascade rules')
+  }
+}

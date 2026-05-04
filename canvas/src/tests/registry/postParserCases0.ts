@@ -123,6 +123,11 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
     "testFrontmatterFlowImportModeDoesNotForceFlowEditorRenderer",
   ],
   [
+    "frontmatter.flowImportMode.reportsHandledWhenPresetAligned",
+    "@/__tests__/frontmatterFlowImportModeSeepageRegression.test",
+    "testFrontmatterFlowImportModeReportsHandledWhenPresetAlreadyAligned",
+  ],
+  [
     "workspace.import.frontmatterFlow.prefersLandingContract",
     "@/__tests__/frontmatterFlowImportModeSeepageRegression.test",
     "testWorkspaceImportModesPreferFrontmatterFlowLandingContract",

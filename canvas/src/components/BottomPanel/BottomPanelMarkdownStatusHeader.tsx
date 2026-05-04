@@ -75,7 +75,7 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
           <select
             className={[
               `border ${UI_THEME_TOKENS.input.border} rounded px-1 py-0.5 text-xs ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text}`,
-              'focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500',
+              UI_THEME_TOKENS.focus.primaryBorderRing,
             ].join(' ')}
             value={jsonMarkdownMode}
             onChange={e => {
@@ -94,7 +94,7 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
             <option value="hierarchical">{jsonModeHierarchicalLabel}</option>
           </select>
           {jsonMarkdownSuggestedMode !== 'auto' && (
-            <span className="text-[10px] text-gray-400 whitespace-nowrap truncate max-w-[180px]">
+            <span className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap truncate max-w-[180px]`}>
               {jsonModeSuggestedPrefix}{' '}
               {jsonMarkdownSuggestedMode === 'table'
                 ? jsonModeTableLabel
@@ -109,7 +109,7 @@ export function HeaderStatusRow(props: HeaderStatusRowProps) {
         <button
           type="button"
           onClick={onClickFrontmatterHint}
-          className={`text-[10px] text-blue-600 dark:text-blue-400 hover:underline px-1 py-0.5 rounded ${UI_THEME_TOKENS.button.hoverBg} border border-transparent hover:border-blue-200 dark:hover:border-blue-700 transition-colors`}
+          className={`text-[10px] text-blue-600 dark:text-blue-400 hover:underline px-1 py-0.5 rounded border border-transparent ${UI_THEME_TOKENS.button.hintHoverEmphasis} transition-colors`}
           title="Frontmatter Mermaid diagram is available. Click to view."
         >
           Mermaid

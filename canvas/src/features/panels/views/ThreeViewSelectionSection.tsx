@@ -8,6 +8,7 @@ import {
   DIMMED_NODE_OPACITY_TOOLTIP,
   DIMMED_EDGE_OPACITY_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ThreeViewSelectionSectionProps {
   schema: GraphSchema
@@ -22,6 +23,9 @@ export default function ThreeViewSelectionSection({
   collapsed,
   onToggle,
 }: ThreeViewSelectionSectionProps) {
+  const keyLabelClassName = UI_THEME_TOKENS.text.secondary
+  const valueTextClassName = UI_THEME_TOKENS.text.tertiary
+
   return (
     <CollapsibleSection
       title="Selection highlighting"
@@ -33,7 +37,7 @@ export default function ThreeViewSelectionSection({
       <div className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Selected Node Glow</span>}
+          keyNode={<span className={keyLabelClassName}>Selected Node Glow</span>}
           valueNode={(
             <>
               <input
@@ -53,7 +57,7 @@ export default function ThreeViewSelectionSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.selection?.selectedNodeGlowIntensity ?? 0.8)}
                 </span>
               </Tooltip>
@@ -62,7 +66,7 @@ export default function ThreeViewSelectionSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Dimmed Node Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Dimmed Node Opacity</span>}
           valueNode={(
             <>
               <input
@@ -82,7 +86,7 @@ export default function ThreeViewSelectionSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.selection?.dimmedNodeOpacity ?? 0.2)}
                 </span>
               </Tooltip>
@@ -91,7 +95,7 @@ export default function ThreeViewSelectionSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Dimmed Edge Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Dimmed Edge Opacity</span>}
           valueNode={(
             <>
               <input
@@ -111,7 +115,7 @@ export default function ThreeViewSelectionSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.selection?.dimmedEdgeOpacity ?? 0.2)}
                 </span>
               </Tooltip>
@@ -122,4 +126,3 @@ export default function ThreeViewSelectionSection({
     </CollapsibleSection>
   )
 }
-

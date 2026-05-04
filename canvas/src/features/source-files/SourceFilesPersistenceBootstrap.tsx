@@ -12,6 +12,8 @@ import { scheduleApplyComposedGraphFromSourceFiles } from '@/features/source-fil
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
   WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_SCOPE_KNOWGRPH_STORAGE_RUNTIME_PERSISTENCE,
+  WORKSPACE_SYNC_TASK_KNOWGRPH_STORAGE_QUEUE,
   WORKSPACE_SYNC_TASK_SOURCE_FILES_PERSIST,
   WORKSPACE_SYNC_TASK_SOURCE_FILES_WORKSPACE,
 } from '@/lib/async/workspaceSyncKeys'
@@ -39,6 +41,15 @@ import {
   normalizeSourceFilesWorkspaceState,
   type SourceFilesWorkspaceState,
 } from '@/features/source-files/sourceFilesWorkspaceState'
+import {
+  buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState,
+  syncSourceFilesToKnowgrphStorage,
+} from '@/features/source-files/sourceFilesStorageSync'
+import {
+  cancelKnowgrphStorageSync,
+  scheduleKnowgrphStorageSync,
+  startKnowgrphStorageSyncLoop,
+} from '@/lib/storage/knowgrphStorageClientSync'
 
 const SOURCE_FILES_PERSIST_DELAY_MS = 600
 
@@ -100,20 +111,128 @@ function stripPersistedWorkspaceBackedSourceFiles(value: unknown) {
   })
 }
 
+const readCurrentSourceFilesWorkspaceState = (): SourceFilesWorkspaceState =>
+  normalizeSourceFilesWorkspaceState({
+    folderName: useGraphStore.getState().localMarkdownFolderName,
+    accessMode: useGraphStore.getState().localMarkdownFolderAccessMode,
+    folderCacheId: useGraphStore.getState().localMarkdownFolderCacheId,
+    selectedFolderPath: useGraphStore.getState().localMarkdownSelectedFolderPath,
+  })
+
 export function SourceFilesPersistenceBootstrap() {
   const runtimePersistenceScopeKey = WORKSPACE_SYNC_SCOPE_SOURCE_FILES_RUNTIME_PERSISTENCE
+  const knowgrphStorageScopeKey = WORKSPACE_SYNC_SCOPE_KNOWGRPH_STORAGE_RUNTIME_PERSISTENCE
   const hydratedRef = React.useRef(false)
   const lastPersistedRef = React.useRef<unknown>(null)
   const lastComposeSignatureRef = React.useRef('')
   const workspaceHydratedRef = React.useRef(false)
   const lastWorkspacePersistedRef = React.useRef<unknown>(null)
   const lastMaterializedActivePathRef = React.useRef('')
+  const lastQueuedKnowgrphStorageSignatureRef = React.useRef('')
+  const lastQueuedKnowgrphStorageSourceFilesRef = React.useRef<ReturnType<typeof useGraphStore.getState>['sourceFiles']>([])
+  const activeKnowgrphWorkspaceIdRef = React.useRef('')
+  const knowgrphStorageLoopCleanupRef = React.useRef<(() => void) | null>(null)
+
+  const scheduleKnowgrphStorageQueueSync = React.useCallback((sourceFiles?: ReturnType<typeof useGraphStore.getState>['sourceFiles']) => {
+    const workspaceId =
+      activeKnowgrphWorkspaceIdRef.current ||
+      buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState(readCurrentSourceFilesWorkspaceState())
+    if (!workspaceId) return
+    const taskKey = WORKSPACE_SYNC_TASK_KNOWGRPH_STORAGE_QUEUE
+    const nextSourceFiles = Array.isArray(sourceFiles) ? sourceFiles : useGraphStore.getState().sourceFiles
+    const signature = `${workspaceId}:${buildSourceFilesPersistenceSignature(nextSourceFiles)}`
+    scheduleWorkspaceSyncTask(
+      taskKey,
+      () => {
+        const latestWorkspaceId =
+          activeKnowgrphWorkspaceIdRef.current ||
+          buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState(readCurrentSourceFilesWorkspaceState())
+        const latestSourceFiles = useGraphStore.getState().sourceFiles
+        const latestSignature = `${latestWorkspaceId}:${buildSourceFilesPersistenceSignature(latestSourceFiles)}`
+        if (lastQueuedKnowgrphStorageSignatureRef.current === latestSignature) return
+        void syncSourceFilesToKnowgrphStorage({
+          workspaceId: latestWorkspaceId,
+          sourceFiles: latestSourceFiles,
+          previousSourceFiles: lastQueuedKnowgrphStorageSourceFilesRef.current,
+        })
+          .then(result => {
+            lastQueuedKnowgrphStorageSignatureRef.current = latestSignature
+            lastQueuedKnowgrphStorageSourceFilesRef.current = latestSourceFiles
+            if (result.queuedMutationCount > 0) {
+              scheduleKnowgrphStorageSync({
+                workspaceId: latestWorkspaceId,
+                delayMs: 0,
+                signature: `${latestSignature}:${result.queuedMutationCount}`,
+              })
+            }
+          })
+          .catch(() => {
+            if (lastQueuedKnowgrphStorageSignatureRef.current === latestSignature) {
+              lastQueuedKnowgrphStorageSignatureRef.current = ''
+            }
+          })
+      },
+      SOURCE_FILES_PERSIST_DELAY_MS,
+      { signature, scopeKey: knowgrphStorageScopeKey },
+    )
+  }, [knowgrphStorageScopeKey])
   React.useEffect(() => {
     __canvasStartupDebug.sourceBootstrapMounted = true
     return () => {
       __canvasStartupDebug.sourceBootstrapMounted = false
     }
   }, [])
+
+  React.useEffect(() => {
+    const startForWorkspaceState = (workspaceState: SourceFilesWorkspaceState) => {
+      const nextWorkspaceId = buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState(workspaceState)
+      if (!nextWorkspaceId) return
+      if (activeKnowgrphWorkspaceIdRef.current === nextWorkspaceId) return
+      if (activeKnowgrphWorkspaceIdRef.current) {
+        cancelKnowgrphStorageSync(activeKnowgrphWorkspaceIdRef.current)
+      }
+      if (knowgrphStorageLoopCleanupRef.current) {
+        knowgrphStorageLoopCleanupRef.current()
+        knowgrphStorageLoopCleanupRef.current = null
+      }
+      activeKnowgrphWorkspaceIdRef.current = nextWorkspaceId
+      lastQueuedKnowgrphStorageSignatureRef.current = ''
+      lastQueuedKnowgrphStorageSourceFilesRef.current = []
+      knowgrphStorageLoopCleanupRef.current = startKnowgrphStorageSyncLoop({
+        workspaceId: nextWorkspaceId,
+        initialDelayMs: 0,
+      })
+      scheduleKnowgrphStorageQueueSync(useGraphStore.getState().sourceFiles)
+    }
+    startForWorkspaceState(readCurrentSourceFilesWorkspaceState())
+    const unsubscribe = useGraphStore.subscribe(
+      s =>
+        normalizeSourceFilesWorkspaceState({
+          folderName: s.localMarkdownFolderName,
+          accessMode: s.localMarkdownFolderAccessMode,
+          folderCacheId: s.localMarkdownFolderCacheId,
+          selectedFolderPath: s.localMarkdownSelectedFolderPath,
+        }),
+      snapshot => {
+        startForWorkspaceState(snapshot)
+      },
+      { equalityFn: areSourceFilesWorkspaceStatesEqual },
+    )
+    return () => {
+      unsubscribe()
+      cancelWorkspaceSyncTask(WORKSPACE_SYNC_TASK_KNOWGRPH_STORAGE_QUEUE)
+      if (knowgrphStorageLoopCleanupRef.current) {
+        knowgrphStorageLoopCleanupRef.current()
+        knowgrphStorageLoopCleanupRef.current = null
+      }
+      if (activeKnowgrphWorkspaceIdRef.current) {
+        cancelKnowgrphStorageSync(activeKnowgrphWorkspaceIdRef.current)
+      }
+      activeKnowgrphWorkspaceIdRef.current = ''
+      lastQueuedKnowgrphStorageSignatureRef.current = ''
+      lastQueuedKnowgrphStorageSourceFilesRef.current = []
+    }
+  }, [scheduleKnowgrphStorageQueueSync])
 
   React.useEffect(() => {
     let cancelled = false
@@ -194,6 +313,7 @@ export function SourceFilesPersistenceBootstrap() {
       buildSignature: next => buildSourceFilesPersistenceSignature(next),
       persist: next => persistSourceFiles(next as never),
       onSnapshot: next => {
+        scheduleKnowgrphStorageQueueSync(next as never)
         const compositionSignature = buildSourceFilesCompositionSignature(next)
         if (compositionSignature !== lastComposeSignatureRef.current) {
           lastComposeSignatureRef.current = compositionSignature
@@ -209,7 +329,7 @@ export function SourceFilesPersistenceBootstrap() {
       cancelWorkspaceSyncTask(taskKey)
       unsubscribe()
     }
-  }, [runtimePersistenceScopeKey])
+  }, [runtimePersistenceScopeKey, scheduleKnowgrphStorageQueueSync])
 
   React.useEffect(() => {
     const taskKey = WORKSPACE_SYNC_TASK_SOURCE_FILES_WORKSPACE

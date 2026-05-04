@@ -55,6 +55,7 @@ export function WorkspaceDataViewHeader(props: {
   const viewConfig = props.viewConfig
   const setViewConfig = props.setViewConfig
   const onChangeViewerMode = props.onChangeViewerMode
+  const onSelectGeospatialView = props.onSelectGeospatialView
 
   const [searchExpandedRaw, setSearchExpandedRaw] = React.useState(false)
   const searchExpanded = searchExpandedRaw || props.state.searchQuery.trim().length > 0
@@ -92,7 +93,7 @@ export function WorkspaceDataViewHeader(props: {
   }
   const applyLayoutMode = React.useCallback((mode: LayoutMode) => {
     if (mode === 'geospatial') {
-      props.onSelectGeospatialView?.()
+      onSelectGeospatialView?.()
       return
     }
     if (props.viewerMode === mode) return
@@ -101,7 +102,7 @@ export function WorkspaceDataViewHeader(props: {
       setViewConfig({ ...viewConfig, layout: nextLayout, geospatialViewEnabled: false })
     }
     onChangeViewerMode?.(mode)
-  }, [onChangeViewerMode, props.onSelectGeospatialView, props.viewerMode, setViewConfig, viewConfig])
+  }, [onChangeViewerMode, onSelectGeospatialView, props.viewerMode, setViewConfig, viewConfig])
 
   return (
     <WorkspaceHeader ariaLabel="Data view header" border="border" className="relative z-20">
@@ -119,7 +120,7 @@ export function WorkspaceDataViewHeader(props: {
                 type="button"
                 className={[
                   FLOATING_MENU_BUTTON_CLASSNAME,
-                  props.viewerMode === 'table' ? 'bg-blue-600 text-white' : '',
+                  props.viewerMode === 'table' ? UI_THEME_TOKENS.button.primarySolid : '',
                 ].join(' ')}
                 onClick={() => {
                   applyLayoutMode('table')
@@ -139,7 +140,7 @@ export function WorkspaceDataViewHeader(props: {
                   type="button"
                   className={[
                     FLOATING_MENU_BUTTON_CLASSNAME,
-                    props.viewerMode === 'multiDimTable' ? 'bg-blue-600 text-white' : '',
+                    props.viewerMode === 'multiDimTable' ? UI_THEME_TOKENS.button.primarySolid : '',
                   ].join(' ')}
                   onClick={() => {
                     applyLayoutMode('multiDimTable')
@@ -159,7 +160,7 @@ export function WorkspaceDataViewHeader(props: {
                 type="button"
                 className={[
                   FLOATING_MENU_BUTTON_CLASSNAME,
-                  props.viewerMode === 'kanban' ? 'bg-blue-600 text-white' : '',
+                  props.viewerMode === 'kanban' ? UI_THEME_TOKENS.button.primarySolid : '',
                 ].join(' ')}
                 onClick={() => {
                   applyLayoutMode('kanban')
@@ -178,7 +179,7 @@ export function WorkspaceDataViewHeader(props: {
                 type="button"
                 className={[
                   FLOATING_MENU_BUTTON_CLASSNAME,
-                  props.viewConfig?.geospatialViewEnabled === true ? 'bg-blue-600 text-white' : '',
+                  props.viewConfig?.geospatialViewEnabled === true ? UI_THEME_TOKENS.button.primarySolid : '',
                 ].join(' ')}
                 onClick={() => {
                   applyLayoutMode('geospatial')
@@ -288,7 +289,7 @@ export function WorkspaceDataViewHeader(props: {
                         type="button"
                         className={[
                           'text-[10px] px-2 py-1 rounded border',
-                          active ? 'bg-blue-600 text-white border-blue-600' : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg].join(' '),
+                          active ? [UI_THEME_TOKENS.button.primarySolid, UI_THEME_TOKENS.button.activeBorder].join(' ') : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg].join(' '),
                         ].join(' ')}
                         onClick={() => {
                           const nextActive = props.state.visibleGroups ? new Set(props.state.visibleGroups) : new Set(props.groupOptions)

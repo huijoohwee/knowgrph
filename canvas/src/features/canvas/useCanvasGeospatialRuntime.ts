@@ -20,6 +20,7 @@ export function useCanvasGeospatialRuntime(): boolean {
       return false
     }
   })
+  const lastHandledGeospatialModeEnabledRef = React.useRef(geospatialModeEnabled)
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -27,9 +28,12 @@ export function useCanvasGeospatialRuntime(): boolean {
     const handler = (ev: StorageEvent) => {
       if (!ev || ev.key !== storageKey) return
       try {
-        setGeospatialModeEnabled(lsBool(LS_KEYS.geospatialOverlayEnabled, true))
+        const nextEnabled = lsBool(LS_KEYS.geospatialOverlayEnabled, true)
+        lastHandledGeospatialModeEnabledRef.current = nextEnabled
+        setGeospatialModeEnabled(prev => (prev === nextEnabled ? prev : nextEnabled))
       } catch {
-        setGeospatialModeEnabled(false)
+        lastHandledGeospatialModeEnabledRef.current = false
+        setGeospatialModeEnabled(prev => (prev === false ? prev : false))
       }
     }
     window.addEventListener('storage', handler)
@@ -52,12 +56,14 @@ export function useCanvasGeospatialRuntime(): boolean {
             gm.setGeospatialModeEnabled(true)
           } else {
             getLocalStorage()?.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
-            setGeospatialModeEnabled(true)
+            lastHandledGeospatialModeEnabledRef.current = true
+            setGeospatialModeEnabled(prev => (prev === true ? prev : true))
           }
         })
         .catch(() => {
           getLocalStorage()?.setItem(LS_KEYS.geospatialOverlayEnabled, 'true')
-          setGeospatialModeEnabled(true)
+          lastHandledGeospatialModeEnabledRef.current = true
+          setGeospatialModeEnabled(prev => (prev === true ? prev : true))
         })
     } catch {
       void 0
@@ -68,6 +74,11 @@ export function useCanvasGeospatialRuntime(): boolean {
     return onGeospatialModeChanged(detail => {
       const enabled = typeof detail.enabled === 'boolean' ? detail.enabled : null
       if (enabled == null) return
+      if (lastHandledGeospatialModeEnabledRef.current === enabled) {
+        setGeospatialModeEnabled(prev => (prev === enabled ? prev : enabled))
+        return
+      }
+      lastHandledGeospatialModeEnabledRef.current = enabled
       if (enabled) {
         try {
           const s = useGraphStore.getState()
@@ -98,7 +109,7 @@ export function useCanvasGeospatialRuntime(): boolean {
           }
         }
       }
-      setGeospatialModeEnabled(enabled)
+      setGeospatialModeEnabled(prev => (prev === enabled ? prev : enabled))
     })
   }, [])
 

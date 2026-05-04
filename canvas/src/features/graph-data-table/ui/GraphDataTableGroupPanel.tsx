@@ -79,7 +79,7 @@ export function GroupPanel({
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${panelTypography.textSizeClass} ${
+            className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 shadow-sm transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${panelTypography.textSizeClass} ${
               groupKey === '' ? uiDataTableToggleActiveClassName : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text}`
             }`}
             onClick={() => setGroupKey('')}
@@ -90,7 +90,7 @@ export function GroupPanel({
             <button
               key={option.value}
               type="button"
-              className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${panelTypography.textSizeClass} ${
+              className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 shadow-sm transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${panelTypography.textSizeClass} ${
                 groupKey === option.value ? uiDataTableToggleActiveClassName : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text}`
               }`}
               onClick={() => setGroupKey(option.value)}
@@ -108,7 +108,7 @@ export function GroupPanel({
               <label className={`inline-flex items-center gap-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <input
                   type="checkbox"
-                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
+                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
                   checked={includeMixedNumericFields}
                   onChange={event => setIncludeMixedNumericFields(event.target.checked)}
                 />
@@ -117,7 +117,7 @@ export function GroupPanel({
               <label className={`inline-flex items-center gap-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <input
                   type="checkbox"
-                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
+                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
                   checked={includeIdAsNumeric}
                   onChange={event => setIncludeIdAsNumeric(event.target.checked)}
                 />
@@ -126,7 +126,7 @@ export function GroupPanel({
               <label className={`inline-flex items-center gap-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <input
                   type="checkbox"
-                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
+                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
                   checked={includeSourceAsNumeric}
                   onChange={event => setIncludeSourceAsNumeric(event.target.checked)}
                 />
@@ -135,7 +135,7 @@ export function GroupPanel({
               <label className={`inline-flex items-center gap-1 ${panelTypography.textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>
                 <input
                   type="checkbox"
-                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
+                  className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
                   checked={includeTargetAsNumeric}
                   onChange={event => setIncludeTargetAsNumeric(event.target.checked)}
                 />
@@ -151,7 +151,7 @@ export function GroupPanel({
                 <button
                   key={key}
                   type="button"
-                  className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${panelTypography.textSizeClass} ${
+                  className={`inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1 shadow-sm transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${panelTypography.textSizeClass} ${
                     isActive ? uiDataTableToggleActiveClassName : `${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.button.text}`
                   }`}
                   onClick={() => {

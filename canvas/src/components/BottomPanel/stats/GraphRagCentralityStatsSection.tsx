@@ -7,6 +7,9 @@ import { useGraphRagTextCentralityConfig } from '@/components/BottomPanel/hooks/
 import type { StatsUiClasses } from '@/components/BottomPanel/stats/types'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
+const statsSelectionControlClassName = `rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`
+const statsActionButtonClassName = `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
+
 type CentralityRow = {
   id: string
   label: string
@@ -139,19 +142,19 @@ export default function GraphRagCentralityStatsSection({
       <div className={['mt-2 space-y-3', ui.uiPanelKeyValueTextSizeClass, ui.uiPanelTextFontClass].join(' ')}>
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked={cfg.hits} onChange={e => update({ hits: e.target.checked })} />
+            <input className={statsSelectionControlClassName} type="checkbox" checked={cfg.hits} onChange={e => update({ hits: e.target.checked })} />
             <span>HITS (Hubs/Authorities)</span>
           </label>
           <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked={cfg.closeness} onChange={e => update({ closeness: e.target.checked })} />
+            <input className={statsSelectionControlClassName} type="checkbox" checked={cfg.closeness} onChange={e => update({ closeness: e.target.checked })} />
             <span>Closeness</span>
           </label>
           <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked={cfg.pagerank} onChange={e => update({ pagerank: e.target.checked })} />
+            <input className={statsSelectionControlClassName} type="checkbox" checked={cfg.pagerank} onChange={e => update({ pagerank: e.target.checked })} />
             <span>PageRank</span>
           </label>
           <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked={cfg.betweenness} onChange={e => update({ betweenness: e.target.checked })} />
+            <input className={statsSelectionControlClassName} type="checkbox" checked={cfg.betweenness} onChange={e => update({ betweenness: e.target.checked })} />
             <span>Betweenness</span>
           </label>
           <button
@@ -159,9 +162,7 @@ export default function GraphRagCentralityStatsSection({
             className={[
               ui.uiPanelMicroLabelTextSizeClass,
               ui.uiPanelTextFontClass,
-              'px-2 py-[2px] rounded border',
-              UI_THEME_TOKENS.panel.border,
-              UI_THEME_TOKENS.button.text,
+              statsActionButtonClassName,
             ].join(' ')}
             onClick={reset}
           >
@@ -175,7 +176,7 @@ export default function GraphRagCentralityStatsSection({
               ui.uiPanelTextFontClass,
               'px-2 py-[2px] rounded border',
               UI_THEME_TOKENS.panel.border,
-              canRecompute ? UI_THEME_TOKENS.button.text : 'text-gray-400',
+              canRecompute ? `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}` : UI_THEME_TOKENS.text.tertiary,
             ].join(' ')}
             onClick={recompute}
           >
@@ -185,36 +186,36 @@ export default function GraphRagCentralityStatsSection({
 
         {selected && (
           <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-2`}>
-            <div className="font-semibold text-gray-700">Selected Node</div>
+            <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Selected Node</div>
             <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1">
-              <div className="text-gray-500">Label</div>
-              <div className="text-gray-800">{selected.label}</div>
-              <div className="text-gray-500">keyword:frequency</div>
-              <div className="text-gray-800">{selected.freq}</div>
+              <div className={UI_THEME_TOKENS.text.tertiary}>Label</div>
+              <div className={UI_THEME_TOKENS.text.primary}>{selected.label}</div>
+              <div className={UI_THEME_TOKENS.text.tertiary}>keyword:frequency</div>
+              <div className={UI_THEME_TOKENS.text.primary}>{selected.freq}</div>
               {cfg.pagerank && (
                 <>
-                  <div className="text-gray-500">graphrag:pagerank</div>
-                  <div className="text-gray-800">{selected.pagerank.toFixed(3)}</div>
+                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:pagerank</div>
+                  <div className={UI_THEME_TOKENS.text.primary}>{selected.pagerank.toFixed(3)}</div>
                 </>
               )}
               {cfg.hits && (
                 <>
-                  <div className="text-gray-500">graphrag:authorities</div>
-                  <div className="text-gray-800">{selected.authorities.toFixed(3)}</div>
-                  <div className="text-gray-500">graphrag:hubs</div>
-                  <div className="text-gray-800">{selected.hubs.toFixed(3)}</div>
+                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:authorities</div>
+                  <div className={UI_THEME_TOKENS.text.primary}>{selected.authorities.toFixed(3)}</div>
+                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:hubs</div>
+                  <div className={UI_THEME_TOKENS.text.primary}>{selected.hubs.toFixed(3)}</div>
                 </>
               )}
               {cfg.closeness && (
                 <>
-                  <div className="text-gray-500">graphrag:closeness</div>
-                  <div className="text-gray-800">{selected.closeness.toFixed(3)}</div>
+                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:closeness</div>
+                  <div className={UI_THEME_TOKENS.text.primary}>{selected.closeness.toFixed(3)}</div>
                 </>
               )}
               {cfg.betweenness && (
                 <>
-                  <div className="text-gray-500">graphrag:betweenness</div>
-                  <div className="text-gray-800">{selected.betweenness.toFixed(3)}</div>
+                  <div className={UI_THEME_TOKENS.text.tertiary}>graphrag:betweenness</div>
+                  <div className={UI_THEME_TOKENS.text.primary}>{selected.betweenness.toFixed(3)}</div>
                 </>
               )}
             </div>
@@ -223,7 +224,7 @@ export default function GraphRagCentralityStatsSection({
 
         {cfg.pagerank && prTop.length > 0 && (
           <div className="space-y-1">
-            <div className="font-semibold text-gray-700">Top PageRank</div>
+            <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Top PageRank</div>
             <AutoHeightMiniBarChart
               data={makeChart(prTop, 'pagerank')}
               defaultBarColor={neutralBarColor}
@@ -234,7 +235,7 @@ export default function GraphRagCentralityStatsSection({
 
         {cfg.hits && authTop.length > 0 && (
           <div className="space-y-1">
-            <div className="font-semibold text-gray-700">Top Authorities</div>
+            <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Top Authorities</div>
             <AutoHeightMiniBarChart
               data={makeChart(authTop, 'authorities')}
               defaultBarColor={neutralBarColor}
@@ -245,7 +246,7 @@ export default function GraphRagCentralityStatsSection({
 
         {cfg.closeness && closeTop.length > 0 && (
           <div className="space-y-1">
-            <div className="font-semibold text-gray-700">Top Closeness</div>
+            <div className={`font-semibold ${UI_THEME_TOKENS.text.primary}`}>Top Closeness</div>
             <AutoHeightMiniBarChart
               data={makeChart(closeTop, 'closeness')}
               defaultBarColor={neutralBarColor}
@@ -257,4 +258,3 @@ export default function GraphRagCentralityStatsSection({
     </CollapsibleSection>
   )
 }
-

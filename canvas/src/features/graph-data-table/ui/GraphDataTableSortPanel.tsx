@@ -61,7 +61,7 @@ export function SortPanel({
           <input
             id="auto-sort-checkbox"
             type="checkbox"
-            className={`h-3.5 w-3.5 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
+            className={`h-3.5 w-3.5 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
             checked={isAutoSortEnabled}
             onChange={event => setIsAutoSortEnabled(event.target.checked)}
           />
@@ -85,7 +85,7 @@ export function SortPanel({
                 onChange={value =>
                   updateSortRule(rule.id, { key: value as GraphDataTableColumnKey })
                 }
-                className={`justify-center whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} px-2 py-1 ${panelTypography.textSizeClass}`}
+                className={`justify-center whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} disabled:pointer-events-none disabled:opacity-50 gap-2 border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} px-2 py-1 ${panelTypography.textSizeClass}`}
               />
               <FilterCombobox
                 value={rule.dir}
@@ -93,7 +93,7 @@ export function SortPanel({
                 onChange={value =>
                   updateSortRule(rule.id, { dir: value as GraphDataTableSortDir })
                 }
-                className={`flex items-center justify-between whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent hover:border-blue-500/30 px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50`}
+                className={`flex items-center justify-between whitespace-nowrap rounded-md border ${UI_THEME_TOKENS.panel.border} bg-transparent ${UI_THEME_TOKENS.input.hoverBorder} px-2 py-1 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 ${UI_THEME_TOKENS.focus.primaryBorderRing} disabled:cursor-not-allowed disabled:opacity-50`}
               />
               <button
                 type="button"

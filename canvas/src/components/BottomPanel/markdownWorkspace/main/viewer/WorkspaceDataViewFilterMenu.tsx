@@ -125,7 +125,7 @@ export function WorkspaceDataViewFilterMenu(props: {
                     type="button"
                     className={[
                       'text-[10px] px-2 py-1 rounded border',
-                      draftValue === o ? 'bg-blue-600 text-white border-blue-600' : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg].join(' '),
+                      draftValue === o ? [UI_THEME_TOKENS.button.primarySolid, UI_THEME_TOKENS.button.activeBorder].join(' ') : [UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary, UI_THEME_TOKENS.button.hoverBg].join(' '),
                     ].join(' ')}
                     onClick={() => setDraftValue(o)}
                   >
@@ -189,4 +189,3 @@ export function WorkspaceDataViewFilterMenu(props: {
     </section>
   )
 }
-

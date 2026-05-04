@@ -173,13 +173,13 @@ export default function FieldSamplesPanel({
                       if (e.target.checked) onSelectAllDisplayed()
                       else onClearDisplayed()
                     }}
-                    className="h-3 w-3"
+                    className={`h-3 w-3 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
                   />
                   <span>{UI_LABELS.selectAll}</span>
                 </label>
                 <button
                   type="button"
-                  className="App-toolbar__btn text-xs border border-gray-300 bg-gray-50 text-gray-700"
+                  className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={onCopySelected}
                   disabled={selectedCount === 0}
                 >
@@ -187,7 +187,7 @@ export default function FieldSamplesPanel({
                 </button>
                 <button
                   type="button"
-                  className="App-toolbar__btn text-xs border border-gray-300 bg-gray-50 text-gray-700"
+                  className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}
                   onClick={onClearSelection}
                   disabled={selectedCount === 0}
                 >
@@ -210,7 +210,7 @@ export default function FieldSamplesPanel({
                       checked={selected}
                       readOnly
                       tabIndex={-1}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                      className={`h-4 w-4 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
                     />
                     <span className={`min-w-0 flex-1 ${uiPanelKeyValueTextSizeClass} ${selected ? 'text-blue-900 dark:text-blue-100' : UI_THEME_TOKENS.text.primary} truncate`}>
                       {sample.value}

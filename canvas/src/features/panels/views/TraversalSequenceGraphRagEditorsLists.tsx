@@ -9,6 +9,11 @@ import type {
   OrchestratorTraversalPathEditState,
 } from '@/features/panels/views/OrchestratorTraversalSectionModel'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { uiToolbarButtonMutedClassName } from '@/features/toolbar/ui/toolbarStyles'
+
+const inlineActionButtonClassName = `px-1 py-[1px] border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
+const inlineValueButtonClassName = `px-1 py-[1px] border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 
 interface TraverseNodesListEditorProps {
   lastTraversal: GraphRagTraversalSummary
@@ -42,7 +47,7 @@ export function TraverseNodesListEditor({
         <span className="font-semibold">{UI_COPY.orchestratorTraversalTraverseNodesTitle}</span>
         <button
           type="button"
-          className="App-toolbar__btn bg-gray-100 text-gray-700"
+          className={`App-toolbar__btn ${uiToolbarButtonMutedClassName}`}
           onClick={() =>
             setLastTraversal(prev =>
               prev && prev.mode === 'graphRag'
@@ -70,11 +75,11 @@ export function TraverseNodesListEditor({
                   <PlainTextInputEditor
                     value={editingTraverseText}
                     onChange={setEditingTraverseText}
-                    className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
+                    className={`flex-1 ${inlineActionButtonClassName}`}
                   />
                   <button
                     type="button"
-                    className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                    className={inlineActionButtonClassName}
                     onClick={() => {
                       const trimmed = editingTraverseText.trim()
                       if (!trimmed) return
@@ -96,7 +101,7 @@ export function TraverseNodesListEditor({
                   </button>
                   <button
                     type="button"
-                    className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                    className={inlineActionButtonClassName}
                     onClick={() => {
                       setEditingTraverseIndex(null)
                       setEditingTraverseText('')
@@ -109,7 +114,7 @@ export function TraverseNodesListEditor({
                 <>
                   <button
                     type="button"
-                    className="px-1 py-[1px] border border-gray-300 rounded bg-white text-gray-700"
+                    className={inlineValueButtonClassName}
                     onClick={() => selectNode(String(id))}
                   >
                     {label}
@@ -117,7 +122,7 @@ export function TraverseNodesListEditor({
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                      className={inlineActionButtonClassName}
                       onClick={() => {
                         setEditingTraverseIndex(index)
                         setEditingTraverseText(String(id))
@@ -128,7 +133,7 @@ export function TraverseNodesListEditor({
                   {index > 0 && (
                     <button
                       type="button"
-                      className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                      className={inlineActionButtonClassName}
                         onClick={() =>
                           setLastTraversal(prev =>
                             prev && prev.mode === 'graphRag'
@@ -146,7 +151,7 @@ export function TraverseNodesListEditor({
                     {index < lastTraversal.traverseNodeIds.length - 1 && (
                       <button
                         type="button"
-                        className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                        className={inlineActionButtonClassName}
                         onClick={() =>
                           setLastTraversal(prev =>
                             prev && prev.mode === 'graphRag'
@@ -163,7 +168,7 @@ export function TraverseNodesListEditor({
                     )}
                     <button
                       type="button"
-                      className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                      className={inlineActionButtonClassName}
                       onClick={() =>
                         setLastTraversal(prev =>
                           prev && prev.mode === 'graphRag'
@@ -215,7 +220,7 @@ export function HopsListEditor({
         <span className="font-semibold">{UI_COPY.orchestratorTraversalHopsTitle}</span>
         <button
           type="button"
-          className="App-toolbar__btn bg-gray-100 text-gray-700"
+          className={`App-toolbar__btn ${uiToolbarButtonMutedClassName}`}
           onClick={() =>
             setLastTraversal(prev =>
               prev && prev.mode === 'graphRag'
@@ -241,11 +246,11 @@ export function HopsListEditor({
                   <PlainTextInputEditor
                     value={editingHopText}
                     onChange={setEditingHopText}
-                    className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
+                    className={`flex-1 ${inlineActionButtonClassName}`}
                   />
                   <button
                     type="button"
-                    className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                    className={inlineActionButtonClassName}
                     onClick={() => {
                       const trimmed = editingHopText.trim()
                       if (!trimmed) return
@@ -265,7 +270,7 @@ export function HopsListEditor({
                   </button>
                   <button
                     type="button"
-                    className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                    className={inlineActionButtonClassName}
                     onClick={() => {
                       setEditingHopIndex(null)
                       setEditingHopText('')
@@ -280,7 +285,7 @@ export function HopsListEditor({
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                      className={inlineActionButtonClassName}
                       onClick={() => {
                         setEditingHopIndex(index)
                         setEditingHopText(hop)
@@ -291,7 +296,7 @@ export function HopsListEditor({
                     {index > 0 && (
                       <button
                         type="button"
-                        className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                        className={inlineActionButtonClassName}
                         onClick={() =>
                           setLastTraversal(prev =>
                             prev && prev.mode === 'graphRag'
@@ -309,7 +314,7 @@ export function HopsListEditor({
                     {index < lastTraversal.hops.length - 1 && (
                       <button
                         type="button"
-                        className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                        className={inlineActionButtonClassName}
                         onClick={() =>
                           setLastTraversal(prev =>
                             prev && prev.mode === 'graphRag'
@@ -326,7 +331,7 @@ export function HopsListEditor({
                     )}
                     <button
                       type="button"
-                      className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                      className={inlineActionButtonClassName}
                       onClick={() =>
                         setLastTraversal(prev =>
                           prev && prev.mode === 'graphRag'
@@ -383,7 +388,7 @@ export function MultiHopListEditor({
         <span className="font-semibold">{UI_COPY.orchestratorTraversalMultiHopTitle}</span>
         <button
           type="button"
-          className="App-toolbar__btn bg-gray-100 text-gray-700"
+          className={`App-toolbar__btn ${uiToolbarButtonMutedClassName}`}
           onClick={() =>
             setLastTraversal(prev =>
               prev && prev.mode === 'graphRag'
@@ -409,11 +414,11 @@ export function MultiHopListEditor({
                   <PlainTextInputEditor
                     value={editingMultiHopText}
                     onChange={setEditingMultiHopText}
-                    className="flex-1 px-1 py-[1px] border border-gray-300 rounded"
+                    className={`flex-1 ${inlineActionButtonClassName}`}
                   />
                   <button
                     type="button"
-                    className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                    className={inlineActionButtonClassName}
                     onClick={() => {
                       const trimmed = editingMultiHopText.trim()
                       if (!trimmed) return
@@ -433,7 +438,7 @@ export function MultiHopListEditor({
                   </button>
                   <button
                     type="button"
-                    className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                    className={inlineActionButtonClassName}
                     onClick={() => {
                       setEditingMultiHopIndex(null)
                       setEditingMultiHopText('')
@@ -448,7 +453,7 @@ export function MultiHopListEditor({
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                      className={inlineActionButtonClassName}
                       onClick={() => {
                         setEditingMultiHopIndex(index)
                         setEditingMultiHopText(hop)
@@ -459,7 +464,7 @@ export function MultiHopListEditor({
                     {index > 0 && (
                       <button
                         type="button"
-                        className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                        className={inlineActionButtonClassName}
                         onClick={() =>
                           setLastTraversal(prev =>
                             prev && prev.mode === 'graphRag'
@@ -477,7 +482,7 @@ export function MultiHopListEditor({
                     {index < lastTraversal.multiHop.length - 1 && (
                       <button
                         type="button"
-                        className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                        className={inlineActionButtonClassName}
                         onClick={() =>
                           setLastTraversal(prev =>
                             prev && prev.mode === 'graphRag'
@@ -494,7 +499,7 @@ export function MultiHopListEditor({
                     )}
                     <button
                       type="button"
-                      className="px-1 py-[1px] border border-gray-300 rounded text-gray-700"
+                      className={inlineActionButtonClassName}
                       onClick={() =>
                         setLastTraversal(prev =>
                           prev && prev.mode === 'graphRag'

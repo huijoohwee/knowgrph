@@ -1,5 +1,6 @@
 import React from 'react'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_INTENT_TOKENS } from 'grph-shared/ui/intentTokens'
 import {
   uiToolbarToggleActiveClassName,
   uiSecondaryToggleActiveClassName,
@@ -8,6 +9,9 @@ import {
   UI_COLOR_PRIMARY_BLUE_BG,
 } from '@/features/graph-data-table/ui/GraphDataTableToolbarStyles'
 import { reorderList } from '@/lib/reorder'
+
+const previewGalleryMoveButtonClassName = `text-[11px] ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg} rounded px-1`
+const previewGalleryActiveBadgeClassName = `px-1 py-0.5 rounded ${UI_INTENT_TOKENS.primary.bg} text-[9px] font-medium ${UI_INTENT_TOKENS.primary.text} uppercase tracking-wide`
 
 export type PreviewGalleryItem = {
   id: string
@@ -215,7 +219,7 @@ export default function PreviewGallery({
             <li key={it.id} className="relative">
               {showTopDivider ? (
                 <div
-                  className="absolute left-0 right-0 -top-2 h-5 flex items-center justify-center bg-blue-50 border-t-2 cursor-move transition-colors"
+                  className={`absolute left-0 right-0 -top-2 h-5 flex items-center justify-center ${UI_INTENT_TOKENS.primary.bg} border-t-2 cursor-move transition-colors`}
                   style={{ borderTopColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
                   onDragEnter={(e) => {
                     e.preventDefault()
@@ -254,7 +258,7 @@ export default function PreviewGallery({
               ) : null}
               {showBottomDivider ? (
                 <div
-                  className="absolute left-0 right-0 -bottom-2 h-5 flex items-center justify-center bg-blue-50 border-b-2 cursor-move transition-colors"
+                  className={`absolute left-0 right-0 -bottom-2 h-5 flex items-center justify-center ${UI_INTENT_TOKENS.primary.bg} border-b-2 cursor-move transition-colors`}
                   style={{ borderBottomColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
                   onDragEnter={(e) => {
                     e.preventDefault()
@@ -493,7 +497,7 @@ export default function PreviewGallery({
                       {idx > 0 ? (
                         <button
                           type="button"
-                          className="text-[11px] text-gray-500 hover:text-gray-900"
+                          className={previewGalleryMoveButtonClassName}
                           onClick={(e) => {
                             e.stopPropagation()
                             const fromIdxClick = idx
@@ -509,7 +513,7 @@ export default function PreviewGallery({
                       {idx < items.length - 1 ? (
                         <button
                           type="button"
-                          className="text-[11px] text-gray-500 hover:text-gray-900"
+                          className={previewGalleryMoveButtonClassName}
                           onClick={(e) => {
                             e.stopPropagation()
                             const fromIdxClick = idx
@@ -532,7 +536,7 @@ export default function PreviewGallery({
         })}
         {items.length > 0 && draggingId ? (
           <li
-            className="h-6 flex items-center justify-center bg-blue-50 border-y-2 cursor-move transition-colors rounded"
+            className={`h-6 flex items-center justify-center ${UI_INTENT_TOKENS.primary.bg} border-y-2 cursor-move transition-colors rounded`}
             style={{ borderColor: UI_COLOR_PRIMARY_BLUE_INDICATOR }}
             onDragOver={(e) => {
               e.preventDefault()
@@ -601,7 +605,7 @@ export default function PreviewGallery({
               </div>
               <div
                 ref={dragImageActiveBadgeRef}
-                className="px-1 py-0.5 rounded bg-blue-50 text-[9px] font-medium text-blue-700 uppercase tracking-wide"
+                className={previewGalleryActiveBadgeClassName}
               >
                 Active
               </div>

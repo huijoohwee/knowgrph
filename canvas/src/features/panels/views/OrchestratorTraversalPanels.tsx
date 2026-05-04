@@ -16,6 +16,18 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  uiToolbarButtonMutedClassName,
+  uiToolbarButtonPrimarySolidClassName,
+} from '@/features/toolbar/ui/toolbarStyles'
+
+const inlineNodeButtonClassName = `px-1.5 py-[1px] border ${UI_THEME_TOKENS.input.border} rounded ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
+const helperPanelClassName = `mb-2 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1`
+const helperTitleClassName = UI_THEME_TOKENS.text.tertiary
+const helperLabelClassName = `${UI_THEME_TOKENS.text.tertiary} break-words`
+const helperValueTextClassName = UI_THEME_TOKENS.text.primary
+const helperBodyTextClassName = UI_THEME_TOKENS.text.secondary
+const inlineSelectClassName = `border ${UI_THEME_TOKENS.input.border} rounded px-1 py-[1px] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} w-full sm:w-auto`
 
 type DuckDbQueryPresetDirectionMode = {
   id: string
@@ -74,10 +86,10 @@ function GraphRagPathTraverseHelperSection({
   if (!graphRagPathHelper) return null
 
   return (
-    <div className="mb-2 border border-gray-200 rounded px-2 py-1">
+    <div className={helperPanelClassName}>
       <div
         className={[
-          'font-semibold uppercase tracking-wide text-gray-500 mb-1',
+          `font-semibold uppercase tracking-wide ${helperTitleClassName} mb-1`,
           uiPanelKeyValueTextSizeClass,
           uiPanelTextFontClass,
         ].join(' ')}
@@ -88,7 +100,7 @@ function GraphRagPathTraverseHelperSection({
         <KeyTypeValueRow
           layout="keyIconValue"
           keyNode={(
-            <span className="text-gray-500 break-words">{UI_COPY.orchestratorControlsLabel}</span>
+            <span className={helperLabelClassName}>{UI_COPY.orchestratorControlsLabel}</span>
           )}
           typeNode={null}
           valueNode={(
@@ -96,7 +108,7 @@ function GraphRagPathTraverseHelperSection({
               <button
                 type="button"
                 className={[
-                  'App-toolbar__btn bg-gray-100 text-gray-700',
+                  `App-toolbar__btn ${uiToolbarButtonMutedClassName}`,
                   uiPanelKeyValueTextSizeClass,
                   uiPanelTextFontClass,
                 ].join(' ')}
@@ -106,7 +118,7 @@ function GraphRagPathTraverseHelperSection({
                   <span>{UI_COPY.orchestratorPlayPathButtonLabel}</span>
                   {typeof traversalPlaneProgress === 'number' && Number.isFinite(traversalPlaneProgress) && traversalPlaneProgress >= 0 && traversalPlaneProgress <= 1 && (
                     <span className="relative inline-block w-10 h-3 overflow-hidden align-middle" aria-hidden="true">
-                      <span className="absolute left-0 right-0 top-1/2 h-px bg-gray-300" style={{ transform: 'translateY(-50%)' }} />
+                      <span className={`absolute left-0 right-0 top-1/2 h-px ${UI_THEME_TOKENS.panel.divider}`} style={{ transform: 'translateY(-50%)' }} />
                       <span
                         className="absolute top-1/2"
                         style={{
@@ -129,7 +141,7 @@ function GraphRagPathTraverseHelperSection({
                 <button
                   type="button"
                   className={[
-                    'App-toolbar__btn bg-gray-100 text-gray-700',
+                    `App-toolbar__btn ${uiToolbarButtonMutedClassName}`,
                     uiPanelKeyValueTextSizeClass,
                     uiPanelTextFontClass,
                   ].join(' ')}
@@ -155,13 +167,14 @@ function GraphRagPathTraverseHelperSection({
           density="compact"
           layout="keyIconValue"
           keyNode={(
-            <span className="text-gray-500 break-words">{UI_COPY.orchestratorSequenceLabel}</span>
+            <span className={helperLabelClassName}>{UI_COPY.orchestratorSequenceLabel}</span>
           )}
           typeNode={null}
           valueNode={(
             <div
               className={[
-                'flex flex-wrap gap-1 text-gray-700',
+                'flex flex-wrap gap-1',
+                helperValueTextClassName,
                 uiPanelKeyValueTextSizeClass,
                 uiPanelTextFontClass,
               ].join(' ')}
@@ -174,7 +187,7 @@ function GraphRagPathTraverseHelperSection({
                     <button
                       key={`${nodeId}-${index}`}
                       type="button"
-                      className="px-1.5 py-[1px] border border-gray-300 rounded bg-white"
+                      className={inlineNodeButtonClassName}
                       onClick={() => selectNode(String(nodeId))}
                     >
                       {label}
@@ -228,10 +241,10 @@ function DuckDbQueryPresetsSection({
   if (!activePreset) return null
 
   return (
-    <div className="mb-2 border border-gray-200 rounded px-2 py-1">
+    <div className={helperPanelClassName}>
       <div
         className={[
-          'font-semibold uppercase tracking-wide text-gray-500 mb-1',
+          `font-semibold uppercase tracking-wide ${helperTitleClassName} mb-1`,
           uiPanelKeyValueTextSizeClass,
           uiPanelTextFontClass,
         ].join(' ')}
@@ -252,7 +265,7 @@ function DuckDbQueryPresetsSection({
               content={DUCKDB_QUERY_PRESET_ID_TOOLTIP}
               maxWidthPx={260}
               contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-              className="break-words text-gray-500"
+              className={helperLabelClassName}
             >
               duckdbQueries[].id
             </Tooltip>
@@ -269,7 +282,8 @@ function DuckDbQueryPresetsSection({
                 >
                   <select
                     className={[
-                      'border border-gray-300 rounded px-1 py-[1px] w-full sm:w-auto',
+                      inlineSelectClassName,
+                      UI_THEME_TOKENS.focus.primaryBorderRing,
                       uiPanelKeyValueTextSizeClass,
                       uiPanelTextFontClass,
                     ].join(' ')}
@@ -287,7 +301,7 @@ function DuckDbQueryPresetsSection({
                   <button
                     type="button"
                     className={[
-                      'App-toolbar__btn bg-gray-100 text-gray-700',
+                      `App-toolbar__btn ${uiToolbarButtonMutedClassName}`,
                       uiPanelKeyValueTextSizeClass,
                       uiPanelTextFontClass,
                     ].join(' ')}
@@ -305,7 +319,7 @@ function DuckDbQueryPresetsSection({
                 <button
                   type="button"
                   className={[
-                    'App-toolbar__btn bg-gray-100 text-gray-700',
+                    `App-toolbar__btn ${uiToolbarButtonMutedClassName}`,
                     uiPanelKeyValueTextSizeClass,
                     uiPanelTextFontClass,
                   ].join(' ')}
@@ -326,7 +340,7 @@ function DuckDbQueryPresetsSection({
                   <div className="flex flex-wrap items-center gap-1">
                     <span
                       className={[
-                        'text-gray-500',
+                        helperLabelClassName,
                         uiPanelKeyValueTextSizeClass,
                         uiPanelTextFontClass,
                       ].join(' ')}
@@ -345,7 +359,7 @@ function DuckDbQueryPresetsSection({
                           type="button"
                           className={[
                             'App-toolbar__btn',
-                            isActive ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-700',
+                            isActive ? uiToolbarButtonPrimarySolidClassName : uiToolbarButtonMutedClassName,
                             uiPanelKeyValueTextSizeClass,
                             uiPanelTextFontClass,
                           ].join(' ')}
@@ -377,7 +391,7 @@ function DuckDbQueryPresetsSection({
               content={DUCKDB_QUERY_PRESET_DESCRIPTION_TOOLTIP}
               maxWidthPx={260}
               contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-              className="text-gray-500"
+              className={UI_THEME_TOKENS.text.tertiary}
             >
               duckdbQueries[].description
             </Tooltip>
@@ -391,7 +405,7 @@ function DuckDbQueryPresetsSection({
             >
               <div
                 className={[
-                  'text-gray-600',
+                  helperBodyTextClassName,
                   uiPanelKeyValueTextSizeClass,
                   uiPanelTextFontClass,
                 ].join(' ')}
@@ -409,7 +423,7 @@ function DuckDbQueryPresetsSection({
               content={DUCKDB_SQL_FIELD_TOOLTIP}
               maxWidthPx={260}
               contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-              className="text-gray-500"
+              className={UI_THEME_TOKENS.text.tertiary}
             >
               duckdbQueries[].sql
             </Tooltip>

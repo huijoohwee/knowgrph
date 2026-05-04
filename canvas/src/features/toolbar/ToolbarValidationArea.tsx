@@ -1,6 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { EXPORT_UI_LABELS } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ToolbarValidationAreaProps {
   isExportMenuOpen: boolean
@@ -24,6 +25,7 @@ export function ToolbarValidationArea({
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
   )
+  const neutralToolbarButtonClassName = `App-toolbar__btn ${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`
 
   if (!isExportMenuOpen) {
     return null
@@ -34,7 +36,7 @@ export function ToolbarValidationArea({
       <div className="flex flex-wrap items-center justify-end gap-1">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700`}
+          className={neutralToolbarButtonClassName}
           onClick={() => {
             onExportValidationJson()
             setIsExportMenuOpen(false)
@@ -44,7 +46,7 @@ export function ToolbarValidationArea({
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700`}
+          className={neutralToolbarButtonClassName}
           onClick={() => {
             onExportValidationMarkdown()
             setIsExportMenuOpen(false)
@@ -56,7 +58,7 @@ export function ToolbarValidationArea({
       <div className="flex flex-wrap items-center justify-end gap-1">
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed`}
+          className={`${neutralToolbarButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
           onClick={() => {
             if (onExportSelectionValidationJson) {
               onExportSelectionValidationJson()
@@ -69,7 +71,7 @@ export function ToolbarValidationArea({
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn ${uiPanelKeyValueTextSizeClass} bg-gray-50 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed`}
+          className={`${neutralToolbarButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
           onClick={() => {
             if (onExportSelectionValidationMarkdown) {
               onExportSelectionValidationMarkdown()

@@ -3,11 +3,12 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { abortControllerSafely, isAsyncRequestStale } from '@/lib/async/asyncGuards'
 import { runAsyncEffect } from '@/lib/async/asyncEffectRunner'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
-import { createProgressSession } from '@/lib/progress/progressTicker'
+import { beginProgressSession, createDefaultProgressSession, failProgressSession, finishProgressSession } from '@/lib/progress/progressTicker'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { fetchPdfWorkspaceDoc } from '@/lib/pdf/pdfWorkspaceClient'
 import { fetchWebpageMarkdown, fetchYouTubeTranscriptMarkdown } from '@/lib/net/remoteMarkdownConversions'
 import { parsePdfWorkspaceFrontmatter } from '@/lib/pdf/pdfWorkspaceFrontmatter'
+import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
 import {
   isFrontmatterOnlyDoc,
   parseWebpageFrontmatterMeta,
@@ -47,79 +48,148 @@ export type MarkdownWorkspaceDerivedViewsArgs = {
   setStatusWithAutoClear: (label: string, ttlMs?: number) => void
 }
 
+function createDerivedViewStatusAdapter(args: {
+  setStatusError: (label: string) => void
+  setStatusWithAutoClear: (label: string, ttlMs?: number) => void
+}) {
+  const setErrorLabel = (label: string) => {
+    const text = String(label || '').trim()
+    if (!text) return
+    try {
+      args.setStatusError(text)
+    } catch {
+      void 0
+    }
+  }
+
+  return {
+    loaded: () =>
+      applyMarkdownWorkspaceSuccessStatus({
+        setStatusWithAutoClear: args.setStatusWithAutoClear,
+        label: 'Loaded',
+        ttlMs: UI_TOAST_TTL_MS.statusAutoCloseFast,
+      }),
+    updated: () =>
+      applyMarkdownWorkspaceSuccessStatus({
+        setStatusWithAutoClear: args.setStatusWithAutoClear,
+        label: 'Updated',
+        ttlMs: UI_TOAST_TTL_MS.statusAutoCloseFast,
+      }),
+    loadFailed: (error?: unknown, options?: { includeDetail?: boolean; fallbackMessage?: string }) =>
+      applyMarkdownWorkspaceErrorStatus({
+        setStatusError: args.setStatusError,
+        prefix: 'Load failed',
+        error,
+        fallbackMessage: options?.fallbackMessage || 'Request failed',
+        includeDetail: options?.includeDetail,
+      }),
+    updateFailed: (error?: unknown, options?: { fallbackMessage?: string }) =>
+      applyMarkdownWorkspaceErrorStatus({
+        setStatusError: args.setStatusError,
+        prefix: 'Update failed',
+        error,
+        fallbackMessage: options?.fallbackMessage || 'Request failed',
+      }),
+    setErrorLabel,
+  }
+}
+
 export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedViewsArgs) {
+  const {
+    activePath,
+    activeText,
+    layoutMode,
+    getFs,
+    sourcesByPath,
+    lastLoadedRef,
+    activeTextRef,
+    userEditedActiveTextRef,
+    patchWorkspaceEntryInlineText,
+    setActiveTextProgrammatic,
+    setActiveMarkdownDocument,
+    setStatusError,
+    setStatusProgress,
+    setStatusWithAutoClear,
+  } = args
+  const statusAdapter = React.useMemo(
+    () =>
+      createDerivedViewStatusAdapter({
+        setStatusError,
+        setStatusWithAutoClear,
+      }),
+    [setStatusError, setStatusWithAutoClear],
+  )
   const pdfWorkspaceMeta = React.useMemo(() => {
-    if (!args.activePath) return null
-    if (!args.activePath.endsWith('.md') && !args.activePath.endsWith('.markdown')) return null
-    const t = String(args.activeText || '')
+    if (!activePath) return null
+    if (!activePath.endsWith('.md') && !activePath.endsWith('.markdown')) return null
+    const t = String(activeText || '')
     if (!t.startsWith('---')) return null
     return parsePdfWorkspaceFrontmatter(t)
-  }, [args.activePath, args.activeText])
+  }, [activePath, activeText])
 
   const youtubeWorkspaceMeta = React.useMemo(() => {
-    if (!args.activePath) return null
-    const ext = args.activePath.split('.').pop()?.toLowerCase() || ''
+    if (!activePath) return null
+    const ext = activePath.split('.').pop()?.toLowerCase() || ''
     const allowed = ['md', 'markdown', 'txt', 'json']
     if (!allowed.includes(ext)) return null
 
-    const t = String(args.activeText || '')
+    const t = String(activeText || '')
     if (t.startsWith('---')) {
       const parsed = parseYoutubeWorkspaceFrontmatter(t)
       if (parsed) return parsed
     }
-    const inferredId = inferYoutubeVideoIdFromPath(args.activePath)
+    const inferredId = inferYoutubeVideoIdFromPath(activePath)
     if (inferredId) return { videoId: inferredId, format: 'markdown' as const }
     return null
-  }, [args.activePath, args.activeText])
+  }, [activePath, activeText])
 
   const webpageWorkspaceMeta = React.useMemo(() => {
-    if (!args.activePath) return null
-    if (!args.activePath.endsWith('.md') && !args.activePath.endsWith('.markdown')) return null
-    const t = String(args.activeText || '')
+    if (!activePath) return null
+    if (!activePath.endsWith('.md') && !activePath.endsWith('.markdown')) return null
+    const t = String(activeText || '')
     if (!t.startsWith('---')) return null
     return parseWebpageFrontmatterMeta(t)
-  }, [args.activePath, args.activeText])
+  }, [activePath, activeText])
 
   const websiteImportMeta = React.useMemo(() => {
-    if (!args.activePath) return null
-    if (!args.activePath.endsWith('.md') && !args.activePath.endsWith('.markdown')) return null
-    const t = String(args.activeText || '')
+    if (!activePath) return null
+    if (!activePath.endsWith('.md') && !activePath.endsWith('.markdown')) return null
+    const t = String(activeText || '')
     if (!t.startsWith('---')) return null
     return parseWebsiteImportFrontmatterMeta(t)
-  }, [args.activePath, args.activeText])
+  }, [activePath, activeText])
 
   const [pdfWorkspaceViewerTextOverride, setPdfWorkspaceViewerTextOverride] = React.useState<string | null>(null)
   const [webpageWorkspaceEditorTextOverride, setWebpageWorkspaceEditorTextOverride] = React.useState<string | null>(null)
   const [webpageWorkspaceViewerTextOverride, setWebpageWorkspaceViewerTextOverride] = React.useState<string | null>(null)
   const persistDerivedWorkspaceText = React.useCallback(
     async (nextText: string, options?: { refreshActiveDocument?: boolean }) => {
-      const activePath = args.activePath
       if (!activePath) return
       const refreshActiveDocument = options?.refreshActiveDocument === true
       const docKey = refreshActiveDocument ? workspaceDocumentKey(activePath) : ''
-      const source = refreshActiveDocument ? args.sourcesByPath[activePath] : null
+      const source = refreshActiveDocument ? sourcesByPath[activePath] : null
       const sourceUrl = source && source.kind === 'url' ? String(source.url || '').trim() : ''
       await writeWorkspaceFileAndSync({
         path: activePath,
         text: nextText,
-        getFs: args.getFs,
-        lastLoadedRef: args.lastLoadedRef,
-        patchWorkspaceEntryInlineText: args.patchWorkspaceEntryInlineText,
-        setActiveText: args.setActiveTextProgrammatic,
+        getFs,
+        lastLoadedRef,
+        patchWorkspaceEntryInlineText,
+        setActiveText: setActiveTextProgrammatic,
         activeDocumentKey: docKey || undefined,
         activeDocumentSourceUrl: docKey ? (sourceUrl || null) : undefined,
-        setActiveMarkdownDocument: docKey ? args.setActiveMarkdownDocument : undefined,
+        setActiveMarkdownDocument: docKey ? setActiveMarkdownDocument : undefined,
         resetParsedState: true,
       })
     },
     [
-      args.activePath,
-      args.getFs,
-      args.lastLoadedRef,
-      args.patchWorkspaceEntryInlineText,
-      args.setActiveMarkdownDocument,
-      args.setActiveTextProgrammatic,
-      args.sourcesByPath,
+      activePath,
+      getFs,
+      lastLoadedRef,
+      patchWorkspaceEntryInlineText,
+      setActiveMarkdownDocument,
+      setActiveTextProgrammatic,
+      sourcesByPath,
     ],
   )
 
@@ -128,11 +198,11 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
     const outputDirRel = pdfWorkspaceMeta ? String(pdfWorkspaceMeta.outputDirRel || '').trim() : ''
     if (!docId) return null
     return { docId, outputDirRel }
-  }, [pdfWorkspaceMeta?.docId, pdfWorkspaceMeta?.outputDirRel])
+  }, [pdfWorkspaceMeta])
   const pdfWorkspaceFetchKey = pdfWorkspaceFetchArgs ? `${pdfWorkspaceFetchArgs.docId}:${pdfWorkspaceFetchArgs.outputDirRel}` : ''
 
   React.useEffect(() => {
-    if (args.layoutMode !== 'viewer' && args.layoutMode !== 'split') {
+    if (layoutMode !== 'viewer' && layoutMode !== 'split') {
       setPdfWorkspaceViewerTextOverride(null)
       return
     }
@@ -165,7 +235,7 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
       clearTimeout(t)
       abortControllerSafely(controller)
     }
-  }, [args.layoutMode, pdfWorkspaceFetchArgs, pdfWorkspaceFetchKey])
+  }, [layoutMode, pdfWorkspaceFetchArgs, pdfWorkspaceFetchKey])
 
   const webpageUrl = webpageWorkspaceMeta?.url ? String(webpageWorkspaceMeta.url || '').trim() : ''
   const webpageView = webpageWorkspaceMeta?.view
@@ -186,11 +256,8 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
       return
     }
 
-    const progressSession = createProgressSession({
-      onProgress: p => args.setStatusProgress(view === 'json' ? 'Loading JSON' : 'Loading view', p, 100),
-      intervalMs: 280,
-      maxPercentage: 92,
-      maxStepPercentage: 12,
+    const progressSession = createDefaultProgressSession({
+      onProgress: p => setStatusProgress(view === 'json' ? 'Loading JSON' : 'Loading view', p, 100),
     })
     return runAsyncEffect({
       onCleanup: progressSession.cleanup,
@@ -198,11 +265,13 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
         progressSession.stop()
         setWebpageWorkspaceEditorTextOverride(JSON.stringify({ ok: false, error: 'Request failed' }, null, 2))
         setWebpageWorkspaceViewerTextOverride(null)
-        args.setStatusError('Load failed')
+        statusAdapter.loadFailed(undefined, { includeDetail: false })
       },
       run: async ({ signal, isStale }) => {
-        progressSession.start()
-        args.setStatusProgress(view === 'json' ? 'Loading JSON' : 'Loading view')
+        beginProgressSession({
+          progressSession,
+          beforeStart: () => setStatusProgress(view === 'json' ? 'Loading JSON' : 'Loading view'),
+        })
         if (websiteImportKey) {
           const [importId, nodeId, outputDirRelRaw] = websiteImportKey.split(':')
           const outputDirRel = String(outputDirRelRaw || useGraphStore.getState().websiteImportOutputDirRel || '').trim()
@@ -219,8 +288,11 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
             const clipped = effective.length > 200_000 ? `${effective.slice(0, 200_000)}\n\n(clipped)\n` : effective
             setWebpageWorkspaceEditorTextOverride(clipped)
             setWebpageWorkspaceViewerTextOverride(view === 'json' ? `\`\`\`json\n${clipped}\n\`\`\`\n` : null)
-            progressSession.finish(100)
-            args.setStatusWithAutoClear('Loaded', UI_TOAST_TTL_MS.statusAutoCloseFast)
+            finishProgressSession({
+              progressSession,
+              finalPercentage: 100,
+              afterFinish: statusAdapter.loaded,
+            })
           } catch (err) {
             if (isStale()) return
             const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
@@ -230,8 +302,10 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
                 : `Load failed: ${msg || 'Request failed'}\n`
             setWebpageWorkspaceEditorTextOverride(errorText)
             setWebpageWorkspaceViewerTextOverride(view === 'json' ? `\`\`\`json\n${errorText}\n\`\`\`\n` : null)
-            progressSession.stop()
-            args.setStatusError(`Load failed: ${msg || 'Request failed'}`)
+            failProgressSession({
+              progressSession,
+              afterStop: () => statusAdapter.loadFailed(msg, { fallbackMessage: 'Request failed' }),
+            })
           }
           return
         }
@@ -251,16 +325,21 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
             })()
             setWebpageWorkspaceEditorTextOverride(pretty)
             setWebpageWorkspaceViewerTextOverride(`\`\`\`json\n${pretty}\n\`\`\`\n`)
-            progressSession.finish(100)
-            args.setStatusWithAutoClear('Loaded', UI_TOAST_TTL_MS.statusAutoCloseFast)
+            finishProgressSession({
+              progressSession,
+              finalPercentage: 100,
+              afterFinish: statusAdapter.loaded,
+            })
           } catch (err) {
             if (isStale()) return
             const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message || '') : ''
             const errorText = JSON.stringify({ ok: false, error: msg || 'Request failed' }, null, 2)
             setWebpageWorkspaceEditorTextOverride(errorText)
             setWebpageWorkspaceViewerTextOverride(`\`\`\`json\n${errorText}\n\`\`\`\n`)
-            progressSession.stop()
-            args.setStatusError(`Load failed: ${msg || 'Request failed'}`)
+            failProgressSession({
+              progressSession,
+              afterStop: () => statusAdapter.loadFailed(msg, { fallbackMessage: 'Request failed' }),
+            })
           }
           return
         }
@@ -270,21 +349,21 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
         progressSession.finish(100)
       },
     })
-  }, [args.setStatusError, args.setStatusProgress, args.setStatusWithAutoClear, webpageUrl, webpageView, websiteImportKey])
+  }, [setStatusProgress, statusAdapter, webpageUrl, webpageView, websiteImportKey])
 
   const switchActiveYoutubeWorkspaceFormat = React.useCallback(
     async (format: 'markdown' | 'json') => {
-      if (!args.activePath || !youtubeWorkspaceMeta) return
-      args.setStatusProgress('Loading YouTube transcript')
+      if (!activePath || !youtubeWorkspaceMeta) return
+      setStatusProgress('Loading YouTube transcript')
       try {
         setPdfWorkspaceViewerTextOverride(null)
         const res = await fetchYouTubeTranscriptMarkdown(`https://youtu.be/${youtubeWorkspaceMeta.videoId}`)
         if (!res) {
-          args.setStatusError('Request failed')
+          statusAdapter.setErrorLabel('Request failed')
           return
         }
         if (res.ok !== true) {
-          args.setStatusError(res.error)
+          statusAdapter.setErrorLabel(res.error)
           return
         }
 
@@ -295,27 +374,26 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
             : `${frontmatter}${res.markdown}`
 
         await persistDerivedWorkspaceText(nextText, { refreshActiveDocument: true })
-        args.setStatusWithAutoClear('Loaded', UI_TOAST_TTL_MS.statusAutoCloseFast)
+        statusAdapter.loaded()
       } catch (e) {
-        args.setStatusError(`Load failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        statusAdapter.loadFailed(e)
       }
     },
-    [args, persistDerivedWorkspaceText, youtubeWorkspaceMeta],
+    [activePath, persistDerivedWorkspaceText, setStatusProgress, statusAdapter, youtubeWorkspaceMeta],
   )
 
   const switchActiveWebpageWorkspaceView = React.useCallback(
     async (view: WebpageViewMode) => {
-      if (!args.activePath || !webpageWorkspaceMeta) return
+      if (!activePath || !webpageWorkspaceMeta) return
       if (webpageWorkspaceMeta.view === view) return
-      const progressSession = createProgressSession({
-        onProgress: p => args.setStatusProgress('Updating view', p, 100),
-        intervalMs: 280,
-        maxPercentage: 92,
-        maxStepPercentage: 12,
+      const progressSession = createDefaultProgressSession({
+        onProgress: p => setStatusProgress('Updating view', p, 100),
       })
       try {
-        args.setStatusProgress('Updating view')
-        progressSession.start()
+        beginProgressSession({
+          progressSession,
+          beforeStart: () => setStatusProgress('Updating view'),
+        })
 
         if (view === 'markdown') {
           setWebpageWorkspaceEditorTextOverride(prev => (prev == null ? prev : null))
@@ -323,11 +401,11 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
         }
 
         const prevText = await resolveAuthoritativeWorkspaceText({
-          path: args.activePath,
-          getFs: args.getFs,
-          lastLoadedRef: args.lastLoadedRef,
-          activeTextRef: args.activeTextRef,
-          userEditedActiveTextRef: args.userEditedActiveTextRef,
+          path: activePath,
+          getFs,
+          lastLoadedRef,
+          activeTextRef,
+          userEditedActiveTextRef,
         })
 
         const nextText = await (async () => {
@@ -372,27 +450,32 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
         })()
 
         await persistDerivedWorkspaceText(nextText)
-        progressSession.finish(100)
-        args.setStatusWithAutoClear('Updated', UI_TOAST_TTL_MS.statusAutoCloseFast)
+        finishProgressSession({
+          progressSession,
+          finalPercentage: 100,
+          afterFinish: statusAdapter.updated,
+        })
       } catch (e) {
-        progressSession.stop()
-        args.setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        failProgressSession({
+          progressSession,
+          afterStop: () => statusAdapter.updateFailed(e),
+        })
       }
     },
-    [args, persistDerivedWorkspaceText, webpageWorkspaceMeta, websiteImportMeta],
+    [activePath, activeTextRef, getFs, lastLoadedRef, persistDerivedWorkspaceText, setStatusProgress, statusAdapter, userEditedActiveTextRef, webpageWorkspaceMeta, websiteImportMeta],
   )
 
   const updateActiveWebpageWorkspaceMeta = React.useCallback(
     async (patch: { fidelityLevel?: 1 | 2 | 3 | 4 }) => {
-      if (!args.activePath || !webpageWorkspaceMeta) return
+      if (!activePath || !webpageWorkspaceMeta) return
       try {
-        args.setStatusProgress('Updating view')
+        setStatusProgress('Updating view')
         const prevText = await resolveAuthoritativeWorkspaceText({
-          path: args.activePath,
-          getFs: args.getFs,
-          lastLoadedRef: args.lastLoadedRef,
-          activeTextRef: args.activeTextRef,
-          userEditedActiveTextRef: args.userEditedActiveTextRef,
+          path: activePath,
+          getFs,
+          lastLoadedRef,
+          activeTextRef,
+          userEditedActiveTextRef,
         })
         const meta = parseWebpageFrontmatterMeta(prevText) || webpageWorkspaceMeta
         const nextText = upsertWebpageFrontmatterMeta(prevText, {
@@ -402,12 +485,12 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
           fidelityLevel: patch.fidelityLevel,
         })
         await persistDerivedWorkspaceText(nextText)
-        args.setStatusWithAutoClear('Updated', UI_TOAST_TTL_MS.statusAutoCloseFast)
+        statusAdapter.updated()
       } catch (e) {
-        args.setStatusError(`Update failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+        statusAdapter.updateFailed(e)
       }
     },
-    [args, persistDerivedWorkspaceText, webpageWorkspaceMeta],
+    [activePath, activeTextRef, getFs, lastLoadedRef, persistDerivedWorkspaceText, setStatusProgress, statusAdapter, userEditedActiveTextRef, webpageWorkspaceMeta],
   )
 
   return {

@@ -4,6 +4,7 @@ import { SlideFrame } from './SlideFrame'
 import { PresentationNotes } from './PresentationNotes'
 import type { TokenWithLines } from './markdownPreviewLex'
 import { LS_KEYS, type LsStorageKey } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type MarkdownPresentationViewportProps = {
   isOpen: boolean
@@ -95,7 +96,7 @@ export function MarkdownPresentationViewport(props: MarkdownPresentationViewport
           rootThemeMode={rootThemeMode || 'light'}
           previewOverlayScope={previewOverlayScope || 'viewport'}
           previewOverlayPortalTarget={previewOverlayPortalTarget || null}
-          className="w-full max-h-56 overflow-auto border-t border-gray-200 bg-white"
+          className={`w-full max-h-56 overflow-auto border-t ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.panel.bg}`}
         />
       ) : null}
     </>

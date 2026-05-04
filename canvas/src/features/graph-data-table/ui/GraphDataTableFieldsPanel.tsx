@@ -87,7 +87,7 @@ export function FieldsPanel({
             value={fieldsQuery}
             onChange={event => setFieldsQuery(event.target.value)}
             placeholder={UI_COPY.searchFieldsPlaceholder}
-            className={`h-7 w-full rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} pl-7 pr-2 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500`}
+            className={`h-7 w-full rounded-md border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} pl-7 pr-2 ${panelTypography.textSizeClass} shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`}
           />
         </div>
         <button type="button" className={secondaryButtonClassName} onClick={showAllColumns}>
@@ -116,7 +116,7 @@ export function FieldsPanel({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className={`inline-flex h-6 w-6 items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500`}
+                      className={`inline-flex h-6 w-6 items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.tertiary} shadow-sm ${UI_THEME_TOKENS.button.hoverBg} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing}`}
                       draggable
                       onDragStart={event => handleDragStart(event, key)}
                       onDragEnd={handleDragEnd}
@@ -131,7 +131,7 @@ export function FieldsPanel({
                   </div>
                   <input
                     type="checkbox"
-                    className={`h-4 w-4 rounded ${UI_THEME_TOKENS.input.border} text-blue-500 focus:ring-blue-500`}
+                    className={`h-4 w-4 rounded ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.selectionControl}`}
                     checked={isVisible}
                     onChange={event => setColumnVisibility(key, event.target.checked)}
                   />

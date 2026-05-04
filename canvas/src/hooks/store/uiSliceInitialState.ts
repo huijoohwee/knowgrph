@@ -38,6 +38,7 @@ import {
   parseIntegrationConfigsJson,
   stringifyIntegrationConfigs,
 } from './uiSliceChat'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -295,8 +296,8 @@ export const createUiInitialState = (
     uiIconStrokeWidth: lsNum(LS_KEYS.iconStrokeWidth, 2),
     uiIconColorClass: lsJson<string>(
       LS_KEYS.iconColorClass,
-      'text-gray-600',
-      value => (typeof value === 'string' ? value : 'text-gray-600'),
+      UI_THEME_TOKENS.text.secondary,
+      value => (typeof value === 'string' ? value : UI_THEME_TOKENS.text.secondary),
     ),
     uiIconHoverBgClass: lsJson<string>(
       LS_KEYS.iconHoverBgClass,
@@ -315,11 +316,11 @@ export const createUiInitialState = (
     ),
     uiIconPillClass: lsJson<string>(
       LS_KEYS.iconPillClass,
-      'inline-flex items-center justify-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5',
+      `inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} px-1.5 py-0.5`,
       value =>
         typeof value === 'string'
           ? value
-          : 'inline-flex items-center justify-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5',
+          : `inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.button.neutralSubtle} px-1.5 py-0.5`,
     ),
     uiIconBadgeChipClass: lsJson<string>(
       LS_KEYS.iconBadgeChipClass,

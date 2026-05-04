@@ -1,4 +1,5 @@
 import React from 'react'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
 export type VerticalResizeSeparatorHrProps = Omit<
@@ -32,7 +33,7 @@ export const VerticalResizeSeparatorHr = React.forwardRef<HTMLHRElement, Vertica
         aria-orientation="vertical"
         aria-label={ariaLabel}
         className={cn(
-          'w-1 h-full border-0 cursor-col-resize select-none touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400',
+          `w-1 h-full border-0 cursor-col-resize select-none touch-none focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryStrongRing}`,
           visualClassName,
           className,
         )}

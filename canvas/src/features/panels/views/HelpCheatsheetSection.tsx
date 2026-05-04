@@ -4,6 +4,7 @@ import Tooltip from '@/features/panels/ui/Tooltip'
 import { HELP_STEP_COPY } from '@/features/panels/config'
 import { HELP_CHEATSHEET_ALIGNMENT_TOOLTIP, UI_ANCHORS, UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface BehaviorRow {
   mode: string
@@ -107,20 +108,20 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
       onToggle={onToggle}
     >
       {HELP_STEP_COPY.cheatsheet.descriptionShort && (
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
           {HELP_STEP_COPY.cheatsheet.descriptionShort}
         </div>
       )}
       <div className="overflow-x-auto">
         <table
-          className={`min-w-full ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-700 border border-gray-200 rounded-sm`}
+          className={`min-w-full ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary} border ${UI_THEME_TOKENS.table.cellBorder} rounded-sm`}
         >
-          <thead className="bg-gray-50">
+          <thead className={UI_THEME_TOKENS.table.headerBg}>
             <tr>
-              <th className="px-2 py-1 text-left font-medium text-gray-700">Mode</th>
-              <th className="px-2 py-1 text-left font-medium text-gray-700">Canvas gesture</th>
-              <th className="px-2 py-1 text-left font-medium text-gray-700">Zoom / node drag</th>
-              <th className="px-2 py-1 text-left font-medium text-gray-700">Toolbar / panels</th>
+              <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Mode</th>
+              <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Canvas gesture</th>
+              <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Zoom / node drag</th>
+              <th className={`px-2 py-1 text-left font-medium ${UI_THEME_TOKENS.text.primary}`}>Toolbar / panels</th>
             </tr>
           </thead>
           <tbody>
@@ -130,7 +131,7 @@ export function HelpCheatsheetSection({ collapsed, onToggle }: HelpCheatsheetSec
               return (
                 <tr
                   key={row.mode}
-                  className="border-t border-gray-200"
+                  className={`border-t ${UI_THEME_TOKENS.table.cellBorder}`}
                   data-kg-anchor={isGraphLayerRow ? UI_ANCHORS.helpGraphLayers : undefined}
                 >
                   <td className="px-2 py-1 align-top whitespace-nowrap">{row.mode}</td>

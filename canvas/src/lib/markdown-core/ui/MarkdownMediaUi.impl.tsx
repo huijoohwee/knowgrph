@@ -26,6 +26,11 @@ import {
   useMarkdownLineBlockDnD,
 } from '@/features/markdown/ui/MarkdownBlockGutter'
 
+const mediaFrameClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`
+const mediaShellClassName = `w-full h-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} overflow-hidden relative`
+const mediaLoadButtonClassName = `text-xs px-3 py-2 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
+const mediaLinkClassName = `text-xs underline ${UI_THEME_TOKENS.text.primary}`
+
 type MediaWrapperProps = {
   type: string
   srcRaw: string
@@ -248,7 +253,7 @@ export const MediaIframe = React.memo(function MediaIframe({
           iframeSandbox={embed.sandbox}
           iframeReferrerPolicy={embed.direct ? 'strict-origin-when-cross-origin' : 'no-referrer'}
           iframeLoading="lazy"
-          className={['w-full h-full rounded border border-gray-200', className].filter(Boolean).join(' ') || undefined}
+          className={['w-full h-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
           style={style}
           iframeRenderer={frameProps => (
             <iframe
@@ -272,17 +277,17 @@ export const MediaIframe = React.memo(function MediaIframe({
           )}
         />
       ) : (
-        <div className="w-full h-full rounded border border-gray-200 bg-black/5 flex items-center justify-center">
+        <div className={`w-full h-full ${mediaFrameClassName} bg-black/5 flex items-center justify-center`}>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className={`text-xs px-3 py-2 rounded border border-gray-300 bg-white ${UI_THEME_TOKENS.button.hoverBg}`}
+              className={mediaLoadButtonClassName}
               onClick={() => setLoaded(true)}
             >
               {UI_COPY.markdownMediaLoadEmbedLabel}
             </button>
             <a
-              className="text-xs underline text-gray-700"
+              className={mediaLinkClassName}
               href={rawSrc}
               target="_blank"
               rel="noreferrer"
@@ -316,6 +321,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
   const normalizedUrl = String(url || '').trim()
   const fallbackInfo = React.useMemo(() => getWebpageFallbackInfo(normalizedUrl, title), [normalizedUrl, title])
   const [thumb, setThumb] = React.useState<string>('')
+  const snapshotOverlayBadgeClassName = `absolute left-2 bottom-2 rounded border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/90 px-2 py-1`
 
   React.useEffect(() => {
     let cancelled = false
@@ -342,7 +348,7 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
         <div
           className={
             [
-              'w-full h-full rounded border border-gray-200 bg-white overflow-hidden relative',
+              mediaShellClassName,
               className,
             ]
               .filter(Boolean)
@@ -366,9 +372,9 @@ export const MediaVideoSnapshot = React.memo(function MediaVideoSnapshot({
             <div className="absolute inset-0 bg-black/5" />
           )}
           <div aria-hidden={true} className="absolute inset-0 pointer-events-none">
-            <div className="absolute left-2 bottom-2 rounded border border-black/10 bg-white/90 px-2 py-1" style={{ maxWidth: 'min(520px, 92%)' }}>
-              <div className="text-[11px] font-semibold text-black/70 truncate">{fallbackInfo.titleLabel}</div>
-              <div className="text-[10px] text-black/50 truncate">{fallbackInfo.hostLabel}</div>
+            <div className={snapshotOverlayBadgeClassName} style={{ maxWidth: 'min(520px, 92%)' }}>
+              <div className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{fallbackInfo.titleLabel}</div>
+              <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} truncate`}>{fallbackInfo.hostLabel}</div>
             </div>
           </div>
         </div>
@@ -466,7 +472,7 @@ export const MediaWebpageSnapshot = React.memo(function MediaWebpageSnapshot({
         <div
           className={
             [
-              'w-full h-full rounded border border-gray-200 bg-white overflow-hidden relative',
+              mediaShellClassName,
               className,
             ]
               .filter(Boolean)
@@ -513,7 +519,7 @@ export const MediaVideo = ({
   return (
     <video
       controls={showControls}
-      className={['w-full max-w-full rounded border border-gray-200', className].filter(Boolean).join(' ') || undefined}
+      className={['w-full max-w-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
       style={style}
       src={activeSrc}
       poster={poster || undefined}
@@ -560,7 +566,7 @@ export const MediaAudio = ({
   return (
     <audio
       controls={showControls}
-      className={['w-full max-w-full rounded border border-gray-200', className].filter(Boolean).join(' ') || undefined}
+      className={['w-full max-w-full', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
       style={style}
       src={activeSrc}
       autoPlay={autoPlay || undefined}
@@ -622,7 +628,7 @@ export const MediaImage = ({
       loading="lazy"
       decoding="async"
       style={Object.keys(style).length ? style : undefined}
-      className={['block mx-auto max-w-full h-auto rounded border border-gray-200', className].filter(Boolean).join(' ') || undefined}
+      className={['block mx-auto max-w-full h-auto', mediaFrameClassName, className].filter(Boolean).join(' ') || undefined}
       data-kg-media-thumbnail="1"
       onError={() => {
         if (!useFallback && primarySrc !== src) {

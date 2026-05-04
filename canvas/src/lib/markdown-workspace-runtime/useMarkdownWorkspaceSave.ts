@@ -8,6 +8,7 @@ import {
   cancelMarkdownWorkspaceAutosaveSync,
   scheduleMarkdownWorkspaceAutosaveSync,
 } from './markdownWorkspaceRuntime.stateSync'
+import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
 import { syncWorkspaceTextState, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
@@ -47,6 +48,29 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
   const autosavePendingRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
   const autosaveStatusTimerRef = React.useRef<number | null>(null)
 
+  const applySaveSuccessStatus = React.useCallback(
+    (label: string, ttlMs?: number) => {
+      applyMarkdownWorkspaceSuccessStatus({
+        setStatusWithAutoClear: args.setStatusWithAutoClear,
+        label,
+        ttlMs,
+      })
+    },
+    [args.setStatusWithAutoClear],
+  )
+
+  const applySaveErrorStatus = React.useCallback(
+    (error: unknown) => {
+      applyMarkdownWorkspaceErrorStatus({
+        setStatusError: args.setStatusError,
+        prefix: 'Save failed',
+        error,
+        fallbackMessage: 'Request failed',
+      })
+    },
+    [args.setStatusError],
+  )
+
   const saveActiveFileNow = React.useCallback(async () => {
     const path = args.activePath
     if (!path || args.activeEntryKind === 'folder') return
@@ -72,11 +96,11 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
         setGraphRagWorkflowJsonText: args.setGraphRagWorkflowJsonText,
         resetParsedState: true,
       })
-      args.setStatusWithAutoClear('Saved')
+      applySaveSuccessStatus('Saved')
     } catch (e) {
-      args.setStatusError(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      applySaveErrorStatus(e)
     }
-  }, [args])
+  }, [applySaveErrorStatus, applySaveSuccessStatus, args])
 
   const saveAsActiveFileNow = React.useCallback(async () => {
     const currentPath = args.activePath
@@ -93,7 +117,7 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
     const draft = typeof window !== 'undefined' ? window.prompt('Save As', suggested) : suggested
     const raw = String(draft || '').trim()
     if (!raw) {
-      args.setStatusWithAutoClear('Save cancelled', UI_TOAST_TTL_MS.statusAutoCloseFast)
+      applySaveSuccessStatus('Save cancelled', UI_TOAST_TTL_MS.statusAutoCloseFast)
       return
     }
     const safeName = raw
@@ -127,11 +151,11 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
       })
       args.setActivePathSafe(createdPath)
       args.setSelectionPathSafe(createdPath)
-      args.setStatusWithAutoClear('Saved as')
+      applySaveSuccessStatus('Saved as')
     } catch (e) {
-      args.setStatusError(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+      applySaveErrorStatus(e)
     }
-  }, [args])
+  }, [applySaveErrorStatus, applySaveSuccessStatus, args])
 
   React.useEffect(() => {
     if (!args.active || args.viewerInlineEditActive) return
@@ -172,7 +196,7 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
                 setGraphRagWorkflowJsonText: args.setGraphRagWorkflowJsonText,
                 resetParsedState: false,
               })
-              if (savingShown) args.setStatusWithAutoClear('Saved')
+              if (savingShown) applySaveSuccessStatus('Saved')
             } finally {
               const timer = autosaveStatusTimerRef.current
               if (timer != null) window.clearTimeout(timer)
@@ -188,7 +212,7 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
             nextTextToSave = pending.text
           }
         } catch (e) {
-          args.setStatusError(`Save failed: ${String((e as { message?: unknown })?.message ?? e)}`)
+          applySaveErrorStatus(e)
         } finally {
           autosaveInFlightRef.current = false
         }
@@ -197,7 +221,7 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
     return () => {
       cancelMarkdownWorkspaceAutosaveSync(path)
     }
-  }, [args])
+  }, [applySaveErrorStatus, applySaveSuccessStatus, args])
 
   React.useEffect(() => {
     return () => {

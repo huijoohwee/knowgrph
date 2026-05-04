@@ -1,6 +1,7 @@
 import React from 'react'
 import StatusBadge from '@/features/panels/ui/StatusBadge'
 import { EXPORT_UI_LABELS, UI_LABELS } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ToolbarGraphFieldsAreaProps {
   graphFieldsOpOk: boolean | null
@@ -23,7 +24,7 @@ export function ToolbarGraphFieldsArea({
         <div className="flex items-center justify-end gap-1 px-1">
           <button
             type="button"
-            className="App-toolbar__btn text-xs bg-gray-50 text-gray-700"
+            className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}
             onClick={() => {
               onExportGraphFieldSettingsJsonLd()
               setIsExportMenuOpen(false)

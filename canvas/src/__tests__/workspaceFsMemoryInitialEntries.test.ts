@@ -31,14 +31,14 @@ export const testWorkspaceFsMemoryForbidsInitializationFileDelete = async () => 
   const fs = createMemoryWorkspaceFs()
 
   await fs.ensureSeed()
-  await fs.deleteEntry('/README.md')
-  await fs.deleteEntry('/knowgrph-video-demo.md')
-  await fs.deleteEntry('/knowgrph-maps-grabmap-multim-demo.md')
+  await fs.deleteEntry(WORKSPACE_README_SEED_PATH)
+  await fs.deleteEntry(TEST_VALIDATION_WORKSPACE_SEED_PATH)
+  await fs.deleteEntry(GEOSPATIAL_WORKSPACE_SEED_PATH)
 
   const entries = await fs.listEntries()
-  if (!entries.some(e => e.kind === 'file' && e.path === '/README.md')) throw new Error('Expected README initialization file to remain after delete')
-  if (!entries.some(e => e.kind === 'file' && e.path === '/knowgrph-video-demo.md')) throw new Error('Expected video demo initialization file to remain after delete')
-  if (!entries.some(e => e.kind === 'file' && e.path === '/knowgrph-maps-grabmap-multim-demo.md')) throw new Error('Expected geospatial initialization file to remain after delete')
+  if (!entries.some(e => e.kind === 'file' && e.path === WORKSPACE_README_SEED_PATH)) throw new Error('Expected README initialization file to remain after delete')
+  if (!entries.some(e => e.kind === 'file' && e.path === TEST_VALIDATION_WORKSPACE_SEED_PATH)) throw new Error('Expected video demo initialization file to remain after delete')
+  if (!entries.some(e => e.kind === 'file' && e.path === GEOSPATIAL_WORKSPACE_SEED_PATH)) throw new Error('Expected geospatial initialization file to remain after delete')
 }
 
 export const testWorkspaceFsMemoryRefreshesStaleInitializationFileText = async () => {

@@ -5,6 +5,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { parseSchemaLintOwner } from '@/features/schema/validation'
 import { uniqueNodeTypes, uniqueEdgeLabels } from '@/features/schema/derive'
 import { UI_COPY } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { buildMergedValidation, withLayoutNumbers, withLinkDistances, withCollisionByType, resolveSelectedKey, getSchemaBaseForUiApply } from './utils'
 import type { SchemaUiApplyRegistration } from '@/features/schema-editor/useBottomPanelSchema'
 import {
@@ -403,7 +404,7 @@ export default function SchemaUiEditor({
           {!registerApply ? (
             <button
               type="button"
-              className="App-toolbar__btn text-xs bg-blue-600 text-white"
+              className={`App-toolbar__btn text-xs ${UI_THEME_TOKENS.button.primarySolid}`}
               onClick={applyFromUi}
             >
               Apply
@@ -448,14 +449,14 @@ export default function SchemaUiEditor({
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${type === 'node' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                className={`App-toolbar__btn text-xs ${type === 'node' ? UI_THEME_TOKENS.button.primarySolid : `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.button.hoverBg}`}`}
                 onClick={() => setType('node')}
               >
                 Node
               </button>
               <button
                 type="button"
-                className={`App-toolbar__btn text-xs ${type === 'edge' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                className={`App-toolbar__btn text-xs ${type === 'edge' ? UI_THEME_TOKENS.button.primarySolid : `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.button.hoverBg}`}`}
                 onClick={() => setType('edge')}
               >
                 Edge

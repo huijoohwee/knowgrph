@@ -14,6 +14,7 @@ import {
   PARTICLE_SPEED_TOOLTIP,
   SELECTED_EDGE_WIDTH_TOOLTIP,
 } from '@/features/panels/views/ThreeViewTuningTooltips'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ThreeViewLinksSectionProps {
   schema: GraphSchema
@@ -29,6 +30,8 @@ export default function ThreeViewLinksSection({
   onToggle,
 }: ThreeViewLinksSectionProps) {
   const selectionConfig = getThreeSelectionConfig(schema)
+  const keyLabelClassName = UI_THEME_TOKENS.text.secondary
+  const valueTextClassName = UI_THEME_TOKENS.text.tertiary
 
   return (
     <CollapsibleSection
@@ -41,7 +44,7 @@ export default function ThreeViewLinksSection({
       <div className="grid grid-cols-2 gap-3">
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Arrow Length</span>}
+          keyNode={<span className={keyLabelClassName}>Arrow Length</span>}
           valueNode={(
             <>
               <input
@@ -59,7 +62,7 @@ export default function ThreeViewLinksSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.linkDirectionalArrowLength ?? 8)}
                 </span>
               </Tooltip>
@@ -68,7 +71,7 @@ export default function ThreeViewLinksSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Link Opacity</span>}
+          keyNode={<span className={keyLabelClassName}>Link Opacity</span>}
           valueNode={(
             <>
               <input
@@ -84,7 +87,7 @@ export default function ThreeViewLinksSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.linkOpacity ?? 0.6)}
                 </span>
               </Tooltip>
@@ -93,7 +96,7 @@ export default function ThreeViewLinksSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Default Curvature</span>}
+          keyNode={<span className={keyLabelClassName}>Default Curvature</span>}
           valueNode={(
             <>
               <input
@@ -109,7 +112,7 @@ export default function ThreeViewLinksSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.linkCurvature ?? 0.0)}
                 </span>
               </Tooltip>
@@ -118,7 +121,7 @@ export default function ThreeViewLinksSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Curve Rotation</span>}
+          keyNode={<span className={keyLabelClassName}>Curve Rotation</span>}
           valueNode={(
             <>
               <input
@@ -134,7 +137,7 @@ export default function ThreeViewLinksSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.linkCurveRotation ?? 0.0)}
                 </span>
               </Tooltip>
@@ -143,7 +146,7 @@ export default function ThreeViewLinksSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Directional Particles</span>}
+          keyNode={<span className={keyLabelClassName}>Directional Particles</span>}
           valueNode={(
             <>
               <input
@@ -161,7 +164,7 @@ export default function ThreeViewLinksSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.linkDirectionalParticles ?? 0)}
                 </span>
               </Tooltip>
@@ -170,7 +173,7 @@ export default function ThreeViewLinksSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Arrow Position</span>}
+          keyNode={<span className={keyLabelClassName}>Arrow Position</span>}
           valueNode={(
             <>
               <input
@@ -188,7 +191,7 @@ export default function ThreeViewLinksSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.linkDirectionalArrowRelPos ?? 0.85)}
                 </span>
               </Tooltip>
@@ -197,7 +200,7 @@ export default function ThreeViewLinksSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Particle Speed</span>}
+          keyNode={<span className={keyLabelClassName}>Particle Speed</span>}
           valueNode={(
             <>
               <input
@@ -215,7 +218,7 @@ export default function ThreeViewLinksSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(schema.three?.linkDirectionalParticleSpeed ?? 0.6)}
                 </span>
               </Tooltip>
@@ -224,7 +227,7 @@ export default function ThreeViewLinksSection({
         />
         <KeyTypeValueRow
           layout="keyValue"
-          keyNode={<span className="text-gray-700">Selected Edge Width</span>}
+          keyNode={<span className={keyLabelClassName}>Selected Edge Width</span>}
           valueNode={(
             <>
               <input
@@ -242,7 +245,7 @@ export default function ThreeViewLinksSection({
                 maxWidthPx={260}
                 contentClassName="bg-gray-800/90"
               >
-                <span className="text-gray-600">
+                <span className={valueTextClassName}>
                   {String(selectionConfig.selectedEdgeWidth)}
                 </span>
               </Tooltip>

@@ -1,6 +1,7 @@
 import React from 'react'
 import type { GraphFieldSettingsResolved, GraphFieldUrlProtocol } from '@/features/graph-fields/graphFields'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { UpdateSettings } from '@/features/panels/views/graph-fields/FieldSettingsSections.types'
 
 export function UrlProtocolSection({
@@ -18,29 +19,29 @@ export function UrlProtocolSection({
   const setUrlProtocol = (urlProtocol: GraphFieldUrlProtocol) => updateSettings({ urlProtocol })
 
   return (
-    <div className="rounded border border-gray-200 bg-white p-3">
+    <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`}>
       <div className="flex items-center justify-between">
-        <span className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>Protocol</span>
-        <span className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>{selectedSettings.urlProtocol}</span>
+        <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.primary}`}>Protocol</span>
+        <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{selectedSettings.urlProtocol}</span>
       </div>
       <div className="mt-2 flex items-center gap-1">
         <button
           type="button"
-          className={`App-toolbar__btn text-xs border border-gray-300 ${selectedSettings.urlProtocol === 'any' ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}
+          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${selectedSettings.urlProtocol === 'any' ? UI_THEME_TOKENS.button.primarySolid : `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}`}
           onClick={() => setUrlProtocol('any')}
         >
           Any
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn text-xs border border-gray-300 ${selectedSettings.urlProtocol === 'http' ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}
+          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${selectedSettings.urlProtocol === 'http' ? UI_THEME_TOKENS.button.primarySolid : `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}`}
           onClick={() => setUrlProtocol('http')}
         >
           HTTP
         </button>
         <button
           type="button"
-          className={`App-toolbar__btn text-xs border border-gray-300 ${selectedSettings.urlProtocol === 'https' ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}
+          className={`App-toolbar__btn text-xs border ${UI_THEME_TOKENS.input.border} ${selectedSettings.urlProtocol === 'https' ? UI_THEME_TOKENS.button.primarySolid : `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.button.hoverBg}`}`}
           onClick={() => setUrlProtocol('https')}
         >
           HTTPS
@@ -49,4 +50,3 @@ export function UrlProtocolSection({
     </div>
   )
 }
-

@@ -42,9 +42,14 @@ export function AgenticRagNodeInspectorSection({
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
   )
+  const inspectorPanelClassName = `mt-2 border ${UI_THEME_TOKENS.panel.border} rounded px-2 py-1`
+  const inspectorHeadingClassName = `${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} font-semibold uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`
+  const inspectorMutedTextClassName = `${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.tertiary}`
+  const inspectorBodyClassName = `text-xs ${UI_THEME_TOKENS.text.primary} space-y-1`
+  const inspectorLabelClassName = UI_THEME_TOKENS.text.secondary
 
   return (
-    <div className="mt-2 border border-gray-200 rounded px-2 py-1">
+    <div className={inspectorPanelClassName}>
       <div className="flex items-center justify-between mb-1">
         <Tooltip
           content={ORCHESTRATOR_AGENTIC_COPY.nodeInspectorTooltip}
@@ -53,11 +58,7 @@ export function AgenticRagNodeInspectorSection({
         >
           <div className="flex items-center gap-1">
             <div
-              className={[
-                uiPanelKeyValueTextSizeClass,
-                uiPanelTextFontClass,
-                'font-semibold uppercase tracking-wide text-gray-500',
-              ].join(' ')}
+              className={inspectorHeadingClassName}
             >
               {ORCHESTRATOR_AGENTIC_COPY.nodeInspectorTitle}
             </div>
@@ -67,7 +68,9 @@ export function AgenticRagNodeInspectorSection({
           <button
             type="button"
             className={[
-              'App-toolbar__btn bg-gray-100 text-gray-700',
+              'App-toolbar__btn',
+              UI_THEME_TOKENS.button.neutralMuted,
+              UI_THEME_TOKENS.button.hoverBg,
               uiPanelKeyValueTextSizeClass,
               uiPanelTextFontClass,
             ].join(' ')}
@@ -79,17 +82,13 @@ export function AgenticRagNodeInspectorSection({
       </div>
       {agenticCopyStatus && selectedAgenticNode && (
         <div
-          className={[
-            uiPanelKeyValueTextSizeClass,
-            uiPanelTextFontClass,
-            'text-gray-500 mb-1',
-          ].join(' ')}
+          className={`${inspectorMutedTextClassName} mb-1`}
         >
           {agenticCopyStatus}
         </div>
       )}
       {!selectedAgenticNode && (
-        <div className="text-xs text-gray-500 space-y-[2px]">
+        <div className={`text-xs ${UI_THEME_TOKENS.text.tertiary} space-y-[2px]`}>
           <div>
             {ORCHESTRATOR_AGENTIC_COPY.nodeInspectorEmptyIntro}
           </div>
@@ -102,11 +101,11 @@ export function AgenticRagNodeInspectorSection({
         </div>
       )}
       {selectedAgenticNode && (
-        <div className="text-xs text-gray-700 space-y-1">
+        <div className={inspectorBodyClassName}>
           <div className="grid grid-cols-2 gap-1">
             <SimpleKeyValueRow
               density="compact"
-              label={<span className="text-gray-600">Id</span>}
+              label={<span className={inspectorLabelClassName}>Id</span>}
             >
               <span className={`${uiPanelMonospaceTextClass} break-all`}>
                 {selectedAgenticNode.id}
@@ -114,7 +113,7 @@ export function AgenticRagNodeInspectorSection({
             </SimpleKeyValueRow>
             <SimpleKeyValueRow
               density="compact"
-              label={<span className="text-gray-600">Labels</span>}
+              label={<span className={inspectorLabelClassName}>Labels</span>}
             >
               <span className={`${uiPanelMonospaceTextClass} break-words`}>
                 {selectedAgenticNode.labels.join(', ')}
@@ -126,7 +125,7 @@ export function AgenticRagNodeInspectorSection({
               <SimpleKeyValueRow
                 density="compact"
                 align="start"
-                label={<span className="text-gray-600">chunk_text</span>}
+                label={<span className={inspectorLabelClassName}>chunk_text</span>}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   {String(selectedAgenticNode.chunkText).slice(0, 240)}
@@ -137,7 +136,7 @@ export function AgenticRagNodeInspectorSection({
             {selectedAgenticNode.embedding && (
               <SimpleKeyValueRow
                 density="compact"
-                label={<span className="text-gray-600">embedding</span>}
+                label={<span className={inspectorLabelClassName}>embedding</span>}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   [{selectedAgenticNode.embedding.length} values]
@@ -147,7 +146,7 @@ export function AgenticRagNodeInspectorSection({
             {selectedAgenticNode.geo && (
               <SimpleKeyValueRow
                 density="compact"
-                label={<span className="text-gray-600">geo</span>}
+                label={<span className={inspectorLabelClassName}>geo</span>}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   lat={selectedAgenticNode.geo.lat}, lng={selectedAgenticNode.geo.lng}
@@ -157,7 +156,7 @@ export function AgenticRagNodeInspectorSection({
             {selectedAgenticNode.mediaKind && (
               <SimpleKeyValueRow
                 density="compact"
-                label={<span className="text-gray-600">media.kind</span>}
+                label={<span className={inspectorLabelClassName}>media.kind</span>}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   {selectedAgenticNode.mediaKind}
@@ -167,7 +166,7 @@ export function AgenticRagNodeInspectorSection({
             {selectedAgenticNode.mediaUrl && (
               <SimpleKeyValueRow
                 density="compact"
-                label={<span className="text-gray-600">media.url</span>}
+                label={<span className={inspectorLabelClassName}>media.url</span>}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-all`}>
                   {selectedAgenticNode.mediaUrl}
@@ -184,7 +183,7 @@ export function AgenticRagNodeInspectorSection({
                     density="compact"
                     align="start"
                     label={(
-                      <span className="text-gray-600">
+                      <span className={inspectorLabelClassName}>
                         provenance.{key}
                       </span>
                     )}
@@ -202,7 +201,7 @@ export function AgenticRagNodeInspectorSection({
               <SimpleKeyValueRow
                 density="compact"
                 align="start"
-                label={<span className="text-gray-600">graphRAGPath</span>}
+                label={<span className={inspectorLabelClassName}>graphRAGPath</span>}
               >
                 <span className={`${uiPanelMonospaceTextClass} break-words`}>
                   {JSON.stringify(selectedAgenticNode.graphRAGPath)}
@@ -213,12 +212,12 @@ export function AgenticRagNodeInspectorSection({
               <>
                 <SimpleKeyValueRow
                   density="compact"
-                  label={<span className="text-gray-600">graphRAGPath type</span>}
+                  label={<span className={inspectorLabelClassName}>graphRAGPath type</span>}
                 >
                   <span
                     className={getChipClass('selected', {
                       textSizeClass: uiIconPillBadgeTextSizeClass,
-                      textColorClass: 'text-blue-700',
+                      textColorClass: UI_THEME_TOKENS.status.info,
                     })}
                   >
                     {agenticPathInfo.pathType}
@@ -228,7 +227,7 @@ export function AgenticRagNodeInspectorSection({
                   <SimpleKeyValueRow
                     density="compact"
                     align="start"
-                    label={<span className="text-gray-600">query</span>}
+                    label={<span className={inspectorLabelClassName}>query</span>}
                   >
                     <span className={`${uiPanelMonospaceTextClass} break-words`}>
                       {agenticPathInfo.query}
@@ -239,7 +238,7 @@ export function AgenticRagNodeInspectorSection({
                   <SimpleKeyValueRow
                     density="compact"
                     align="start"
-                    label={<span className="text-gray-600">example</span>}
+                    label={<span className={inspectorLabelClassName}>example</span>}
                   >
                     <span className={`${uiPanelMonospaceTextClass} break-words`}>
                       {agenticPathInfo.example}
@@ -250,7 +249,7 @@ export function AgenticRagNodeInspectorSection({
                   <SimpleKeyValueRow
                     density="compact"
                     align="start"
-                    label={<span className="text-gray-600">traverse</span>}
+                    label={<span className={inspectorLabelClassName}>traverse</span>}
                   >
                     <span className="flex flex-wrap gap-1 mt-[1px]">
                       {agenticPathInfo.traverse.map(id => (
@@ -258,7 +257,7 @@ export function AgenticRagNodeInspectorSection({
                           key={`traverse-${String(id)}`}
                           className={getChipClass('default', {
                             textSizeClass: uiIconPillBadgeTextSizeClass,
-                            textColorClass: 'text-gray-700',
+                            textColorClass: UI_THEME_TOKENS.text.primary,
                             extraClassName: uiPanelMonospaceTextClass,
                           })}
                         >
@@ -272,7 +271,7 @@ export function AgenticRagNodeInspectorSection({
                   <SimpleKeyValueRow
                     density="compact"
                     align="start"
-                    label={<span className="text-gray-600">hops</span>}
+                    label={<span className={inspectorLabelClassName}>hops</span>}
                   >
                     <span className="flex flex-wrap gap-1 mt-[1px]">
                       {agenticPathInfo.hops.map((hop, index) => (
@@ -280,7 +279,7 @@ export function AgenticRagNodeInspectorSection({
                           key={`hop-${index}-${hop}`}
                           className={getChipClass('default', {
                             textSizeClass: uiIconPillBadgeTextSizeClass,
-                            textColorClass: 'text-gray-700',
+                            textColorClass: UI_THEME_TOKENS.text.primary,
                             extraClassName: uiPanelMonospaceTextClass,
                           })}
                         >
@@ -294,7 +293,7 @@ export function AgenticRagNodeInspectorSection({
                   <SimpleKeyValueRow
                     density="compact"
                     align="start"
-                    label={<span className="text-gray-600">multiHop</span>}
+                    label={<span className={inspectorLabelClassName}>multiHop</span>}
                   >
                     <span className="flex flex-wrap gap-1 mt-[1px]">
                       {agenticPathInfo.multiHop.map((hop, index) => (
@@ -302,7 +301,7 @@ export function AgenticRagNodeInspectorSection({
                           key={`multiHop-${index}-${hop}`}
                           className={getChipClass('default', {
                             textSizeClass: uiIconPillBadgeTextSizeClass,
-                            textColorClass: 'text-gray-700',
+                            textColorClass: UI_THEME_TOKENS.text.primary,
                             extraClassName: uiPanelMonospaceTextClass,
                           })}
                         >
@@ -320,7 +319,7 @@ export function AgenticRagNodeInspectorSection({
               density="compact"
               align="start"
               label={(
-                <span className="text-gray-600">
+                <span className={inspectorLabelClassName}>
                   {AGENTIC_RAG_SCHEMA_LABEL}
                 </span>
               )}
@@ -333,7 +332,7 @@ export function AgenticRagNodeInspectorSection({
               density="compact"
               align="start"
               label={(
-                <span className="text-gray-600">
+                <span className={inspectorLabelClassName}>
                   {AGENTIC_RAG_CONTEXT_LABEL}
                 </span>
               )}
@@ -346,7 +345,7 @@ export function AgenticRagNodeInspectorSection({
               density="compact"
               align="start"
               label={(
-                <span className="text-gray-600">
+                <span className={inspectorLabelClassName}>
                   {GRAPHRAG_PATH_IRI_LABEL}
                 </span>
               )}

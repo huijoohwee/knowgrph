@@ -1,5 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
+import { extractGrabMapsPoiFeatureCollectionsFromMarkdown } from '@/features/geospatial/grabMapsMarkdownPoi'
 import { parseGraph } from '@/lib/graph/io/adapter'
 
 const readUtf8 = (absPath: string): string => {
@@ -170,6 +172,55 @@ export const testCanvasStartupDefaultsPreferFlowEditorFrontmatterAndUnlockedView
   }
   if (!toolbarToolMenuText.includes('lsBool(LS_KEYS.geospatialOverlayEnabled, true)')) {
     throw new Error('Expected floating toolbar startup state to reuse the shared geospatial-enabled default')
+  }
+}
+
+export const testCanvasGeospatialRuntimeDeduplicatesRepeatedModeEvents = () => {
+  const runtimePath = path.resolve(process.cwd(), 'src', 'features', 'canvas', 'useCanvasGeospatialRuntime.ts')
+  const runtimeText = readUtf8(runtimePath)
+  if (!runtimeText.includes('lastHandledGeospatialModeEnabledRef')) {
+    throw new Error('Expected canvas geospatial runtime to track the last handled geospatial mode state upstream')
+  }
+  if (!runtimeText.includes('if (lastHandledGeospatialModeEnabledRef.current === enabled) {')) {
+    throw new Error('Expected canvas geospatial runtime to ignore repeated identical mode events')
+  }
+  if (!runtimeText.includes('setGeospatialModeEnabled(prev => (prev === enabled ? prev : enabled))')) {
+    throw new Error('Expected canvas geospatial runtime state updates to short-circuit identical geospatial mode values')
+  }
+}
+
+export const testWorkspaceInitializationDocsRenderableThroughYamlFrontmatterPipeline = async () => {
+  const docsRoot = path.resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs')
+  const readmePath = path.resolve(docsRoot, 'knowgrph-maps-readme.md')
+  const placesPath = path.resolve(docsRoot, 'knowgrph-maps-places.md')
+  const readmeText = readUtf8(readmePath)
+  const placesText = readUtf8(placesPath)
+
+  if (!readmeText.includes('kgFrontmatterModeEnabled: true') || !readmeText.includes('index:')) {
+    throw new Error('Expected knowgrph-maps-readme.md to declare a YAML-frontmatter canvas seed')
+  }
+  if (!placesText.includes('kgCanvasSurfaceMode: "geospatial"') || !placesText.includes('Coordinates (`lat, lng`)')) {
+    throw new Error('Expected knowgrph-maps-places.md to declare a geospatial YAML-frontmatter seed with coordinates data')
+  }
+
+  const readmeResult = await loadGraphDataFromTextViaParser('knowgrph-maps-readme.md', readmeText, { applyToStore: false })
+  const placesResult = await loadGraphDataFromTextViaParser('knowgrph-maps-places.md', placesText, { applyToStore: false })
+  const readmeGraph = readmeResult?.graphData
+  const placesGraph = placesResult?.graphData
+
+  if (!readmeGraph || readmeGraph.context !== 'frontmatter-flow' || (readmeGraph.nodes?.length || 0) === 0) {
+    throw new Error('Expected knowgrph-maps-readme.md to materialize into a non-empty frontmatter-flow graph')
+  }
+  if (!placesGraph || (placesGraph.nodes?.length || 0) === 0) {
+    throw new Error('Expected knowgrph-maps-places.md to materialize into a non-empty document graph')
+  }
+
+  const poiExtraction = extractGrabMapsPoiFeatureCollectionsFromMarkdown({
+    markdownText: placesText,
+    sourceDocumentPath: 'workspace:/knowgrph-maps-places.md',
+  })
+  if (!poiExtraction.featureCollections.length || (poiExtraction.featureCollections[0]?.features?.length || 0) === 0) {
+    throw new Error('Expected knowgrph-maps-places.md to expose geospatial POI overlay features from markdown tables')
   }
 }
 

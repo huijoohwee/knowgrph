@@ -46,7 +46,7 @@ export function FieldGraphLayersSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
   )
 
   const hasOwner = Boolean(String(ownerKey || '').trim())
@@ -88,6 +88,10 @@ export function FieldGraphLayersSection({
     : ''
 
   const disabled = !hasOwner || !hasFieldKey || scope !== 'node'
+  const panelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`
+  const headingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
+  const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
+  const helperTextClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`
 
   const updateStyle = (patch: Partial<GraphLayerStyleMeta>) => {
     if (!schema) return
@@ -119,19 +123,19 @@ export function FieldGraphLayersSection({
   }
 
   return (
-    <div className="rounded border border-gray-200 bg-white p-3 space-y-3">
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
+    <div className={panelClassName}>
+      <div className={headingClassName}>
         Cluster layer styling
       </div>
       {disabled ? (
-        <div className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>
+        <div className={helperTextClassName}>
           Select a node property field to configure cluster layer styling.
         </div>
       ) : (
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div className="min-w-0">
-              <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+              <div className={labelClassName}>
                 Fill color
               </div>
               <PlainTextInputEditor
@@ -142,7 +146,7 @@ export function FieldGraphLayersSection({
               />
             </div>
             <div className="min-w-0">
-              <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+              <div className={labelClassName}>
                 Stroke color
               </div>
               <PlainTextInputEditor
@@ -155,7 +159,7 @@ export function FieldGraphLayersSection({
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="min-w-0">
-              <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+              <div className={labelClassName}>
                 Fill opacity
               </div>
               <input
@@ -174,7 +178,7 @@ export function FieldGraphLayersSection({
               />
             </div>
             <div className="min-w-0">
-              <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+              <div className={labelClassName}>
                 Stroke width
               </div>
               <input
@@ -193,7 +197,7 @@ export function FieldGraphLayersSection({
               />
             </div>
             <div className="min-w-0">
-              <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+              <div className={labelClassName}>
                 Dash pattern
               </div>
               <PlainTextInputEditor
@@ -223,7 +227,7 @@ export function GraphLayerMetadataPresetsSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
   )
 
   const metadata = schema && schema.metadata && isRecord(schema.metadata) ? schema.metadata : null
@@ -300,9 +304,12 @@ export function GraphLayerMetadataPresetsSection({
     updateMetadata({ defaultStyle: nextDefault })
   }
 
+  const headingClassName = `${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`
+  const labelClassName = `${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.secondary}`
+
   return (
     <div className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3 space-y-3`}>
-      <div className={`${uiPanelKeyValueTextSizeClass} font-semibold ${UI_THEME_TOKENS.text.primary}`}>
+      <div className={headingClassName}>
         Cluster layer defaults
       </div>
       <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>
@@ -350,7 +357,7 @@ export function GraphLayerMetadataPresetsSection({
           />
         </div>
         <div className="min-w-0">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={labelClassName}>
             Default stroke width
           </div>
           <input
@@ -368,7 +375,7 @@ export function GraphLayerMetadataPresetsSection({
           />
         </div>
         <div className="min-w-0">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={labelClassName}>
             Default dash pattern
           </div>
           <PlainTextInputEditor
@@ -378,13 +385,13 @@ export function GraphLayerMetadataPresetsSection({
           />
         </div>
       </div>
-      <div className="border-t border-gray-100 pt-3 mt-2 space-y-2">
-        <div className={`${uiPanelKeyValueTextSizeClass} font-semibold text-gray-800`}>
+      <div className={`border-t ${UI_THEME_TOKENS.panel.divider} pt-3 mt-2 space-y-2`}>
+        <div className={headingClassName}>
           Metadata
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="min-w-0">
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+            <div className={labelClassName}>
               Grouping logic
             </div>
             <PlainTextInputEditor
@@ -397,7 +404,7 @@ export function GraphLayerMetadataPresetsSection({
             />
           </div>
           <div className="min-w-0">
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+            <div className={labelClassName}>
               Layer
             </div>
             <input
@@ -416,7 +423,7 @@ export function GraphLayerMetadataPresetsSection({
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="min-w-0">
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+            <div className={labelClassName}>
               Label
             </div>
             <PlainTextInputEditor
@@ -429,7 +436,7 @@ export function GraphLayerMetadataPresetsSection({
             />
           </div>
           <div className="min-w-0">
-            <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+            <div className={labelClassName}>
               Tooltip
             </div>
             <PlainTextInputEditor
@@ -443,7 +450,7 @@ export function GraphLayerMetadataPresetsSection({
           </div>
         </div>
         <div className="min-w-0">
-          <div className={`${uiPanelKeyValueTextSizeClass} text-gray-700`}>
+          <div className={labelClassName}>
             Schema styling entrypoint
           </div>
           <PlainTextInputEditor

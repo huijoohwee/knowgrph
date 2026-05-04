@@ -261,7 +261,7 @@ export const GraphDataTable = React.memo(function GraphDataTable({
   const bodyVerticalPaddingClassName = 'py-1'
   const bodyCellBaseClassName = `px-2 ${bodyVerticalPaddingClassName} ${panelTypography.textSizeClass} align-top border-b ${UI_THEME_TOKENS.table.cellBorder} border-r ${UI_THEME_TOKENS.table.cellBorder} last:border-r-0`
   const textInputClassName =
-    `h-7 w-full px-2 border ${UI_THEME_TOKENS.input.border} rounded-md ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${panelTypography.fontClass} ${panelTypography.textSizeClass}`
+    `h-7 w-full px-2 border ${UI_THEME_TOKENS.input.border} rounded-md ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} focus-visible:outline-none ${UI_THEME_TOKENS.focus.primaryRing} ${panelTypography.fontClass} ${panelTypography.textSizeClass}`
   const monoTextInputClassName = `${textInputClassName} ${panelTypography.monospaceTextClass}`
   const indexColumnWidthClassName = 'w-8'
 

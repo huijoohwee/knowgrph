@@ -22,7 +22,7 @@ const syncFrontmatterFlowSchemaEdgeType = (graphData: GraphData): boolean => {
 
 export const applyFrontmatterFlowImportModes = (graphData: GraphData | null | undefined): boolean => {
   if (!graphData || !isFrontmatterFlowGraph(graphData)) return false
-  const presetChanged = applyCanvasFrontmatterPreset({
+  applyCanvasFrontmatterPreset({
     graphData,
     defaultCanvasRenderMode: FRONTMATTER_FLOW_CANVAS_RENDER_MODE,
     defaultCanvas2dRenderer: FRONTMATTER_FLOW_CANVAS_2D_RENDERER,
@@ -30,6 +30,9 @@ export const applyFrontmatterFlowImportModes = (graphData: GraphData | null | un
     defaultFrontmatterModeEnabled: true,
     disableMultiDimTableMode: true,
   })
-  const edgeTypeChanged = syncFrontmatterFlowSchemaEdgeType(graphData)
-  return presetChanged || edgeTypeChanged
+  syncFrontmatterFlowSchemaEdgeType(graphData)
+  // A frontmatter-flow graph always owns the import landing contract. Returning
+  // true here avoids downstream fallback preset replays when the effective
+  // state is already aligned and nothing had to mutate this frame.
+  return true
 }

@@ -9,6 +9,18 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { SelectionSnapshot, StatsUiClasses, TokenCount, TokensByGraphLayerRow } from '@/components/BottomPanel/stats/types'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 
+const statsInputClassName = `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} ${UI_THEME_TOKENS.focus.primaryBorderRing}`
+const statsToggleButtonClassName = `px-2 py-[2px] rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
+const statsFilterActiveClassName = `${UI_THEME_TOKENS.button.neutralMuted} ${UI_THEME_TOKENS.text.primary}`
+const statsFilterInactiveClassName = `${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.text.tertiary} ${UI_THEME_TOKENS.button.hoverBg}`
+const statsTokenChipBaseClassName = `inline-flex items-center gap-1 px-2 py-[2px] rounded border cursor-pointer`
+const statsTokenDefaultClassName = `${UI_THEME_TOKENS.button.neutralSubtle} ${UI_THEME_TOKENS.input.border}`
+const statsTokenIncludedClassName = `bg-blue-50 ${UI_THEME_TOKENS.text.primary} border-blue-200 dark:bg-blue-900/20 dark:text-blue-100 dark:border-blue-800`
+const statsTokenExcludedClassName = `bg-red-50 text-gray-400 border-red-200 line-through dark:bg-red-900/20 dark:text-red-200 dark:border-red-800`
+const statsTokenInactiveIncludedClassName = `bg-gray-50 text-gray-400 ${UI_THEME_TOKENS.input.border}`
+const statsPanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
+const statsSubpanelClassName = `w-full rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} max-h-40 overflow-y-auto`
+
 export default function GraphLayerWordFrequenciesSection({
   ui,
   neutralBarColor,
@@ -100,15 +112,15 @@ export default function GraphLayerWordFrequenciesSection({
   return (
     <CollapsibleSection title="Word frequencies by cluster layer">
       {tokensByGraphLayer.length === 0 ? (
-        <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-600'].join(' ')}>
+        <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.secondary].join(' ')}>
           {UI_COPY.statsNoNodesAvailableLabel}
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="rounded border border-gray-200 bg-white p-3">
+          <div className={statsPanelClassName}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-1">
-                <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold text-gray-800'].join(' ')}>
+                <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
                   Cluster layer
                 </div>
                 <IconButton
@@ -125,7 +137,7 @@ export default function GraphLayerWordFrequenciesSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'px-2 py-[2px] rounded border border-gray-200',
+                    statsInputClassName,
                   ].join(' ')}
                   placeholder={UI_COPY.statsFilterTokensPlaceholder}
                   value={graphLayerTokenFilter}
@@ -135,7 +147,7 @@ export default function GraphLayerWordFrequenciesSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'px-2 py-[2px] rounded border border-gray-200 bg-white',
+                    statsInputClassName,
                   ].join(' ')}
                   value={graphLayerTokenSort}
                   onChange={e => {
@@ -146,7 +158,7 @@ export default function GraphLayerWordFrequenciesSection({
                   <option value="freq">{UI_COPY.statsSortByCountLabel}</option>
                   <option value="alpha">{UI_COPY.statsSortAzLabel}</option>
                 </select>
-                <div className="inline-flex rounded border border-gray-200 overflow-hidden bg-white">
+                <div className={`inline-flex rounded border ${UI_THEME_TOKENS.panel.border} overflow-hidden ${UI_THEME_TOKENS.panel.bg}`}>
                   <button
                     type="button"
                     className={[
@@ -154,8 +166,8 @@ export default function GraphLayerWordFrequenciesSection({
                       uiPanelTextFontClass,
                       'px-2 py-[2px]',
                       statsFilterMode === 'exclude'
-                        ? 'bg-gray-100 text-gray-800'
-                        : `bg-white text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`,
+                        ? statsFilterActiveClassName
+                        : statsFilterInactiveClassName,
                     ].join(' ')}
                     onClick={() => setStatsFilterMode('exclude')}
                   >
@@ -166,10 +178,10 @@ export default function GraphLayerWordFrequenciesSection({
                     className={[
                       uiPanelMicroLabelTextSizeClass,
                       uiPanelTextFontClass,
-                      'px-2 py-[2px] border-l border-gray-200',
+                      `px-2 py-[2px] border-l ${UI_THEME_TOKENS.panel.divider}`,
                       statsFilterMode === 'include'
-                        ? 'bg-gray-100 text-gray-800'
-                        : `bg-white text-gray-500 ${UI_THEME_TOKENS.button.hoverBg}`,
+                        ? statsFilterActiveClassName
+                        : statsFilterInactiveClassName,
                     ].join(' ')}
                     onClick={() => setStatsFilterMode('include')}
                   >
@@ -181,7 +193,7 @@ export default function GraphLayerWordFrequenciesSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'px-2 py-[2px] rounded border border-gray-200 bg-white',
+                    statsToggleButtonClassName,
                   ].join(' ')}
                   onClick={() => setTokensCollapsed(prev => !prev)}
                 >
@@ -192,7 +204,7 @@ export default function GraphLayerWordFrequenciesSection({
                   className={[
                     uiPanelMicroLabelTextSizeClass,
                     uiPanelTextFontClass,
-                    'px-2 py-[2px] rounded border border-gray-200 bg-white',
+                    statsToggleButtonClassName,
                   ].join(' ')}
                   onClick={() => setChartCollapsed(prev => !prev)}
                 >
@@ -206,7 +218,7 @@ export default function GraphLayerWordFrequenciesSection({
                 className={[
                   uiPanelMicroLabelTextSizeClass,
                   uiPanelTextFontClass,
-                  'w-full rounded border border-gray-200 bg-white max-h-40 overflow-y-auto',
+                  statsSubpanelClassName,
                 ].join(' ')}
               >
                 {(() => {
@@ -219,7 +231,7 @@ export default function GraphLayerWordFrequenciesSection({
                       ? all.every(t => statsIncludeTokens.includes(t))
                       : all.every(t => !statsExcludeTokens.includes(t)))
                   return (
-                    <label className="flex items-center justify-between gap-3 px-2 pt-2 pb-1 border-b border-gray-100 sticky top-0 z-10 bg-white">
+                    <label className={`flex items-center justify-between gap-3 px-2 pt-2 pb-1 border-b ${UI_THEME_TOKENS.panel.divider} sticky top-0 z-10 ${UI_THEME_TOKENS.panel.bg}`}>
                       <span className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -254,7 +266,7 @@ export default function GraphLayerWordFrequenciesSection({
                         />
                         <span>{UI_COPY.statsSelectAllLabel}</span>
                       </span>
-                      <span className="text-gray-400">{String(all.length)}</span>
+                      <span className={UI_THEME_TOKENS.text.tertiary}>{String(all.length)}</span>
                     </label>
                   )
                 })()}
@@ -294,7 +306,7 @@ export default function GraphLayerWordFrequenciesSection({
                           />
                           <span className="truncate">{tok}</span>
                         </span>
-                        <span className="text-gray-500 shrink-0">{t.count}</span>
+                        <span className={`${UI_THEME_TOKENS.text.tertiary} shrink-0`}>{t.count}</span>
                       </label>
                     )
                   })}
@@ -345,7 +357,7 @@ export default function GraphLayerWordFrequenciesSection({
                 <div className="mt-2 min-h-[72px]">
                   {!has ? null : (
                     <>
-                      <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-700 font-semibold'].join(' ')}>
+                      <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `${UI_THEME_TOKENS.text.primary} font-semibold`].join(' ')}>
                         Top tokens for {row!.label}
                       </div>
                       <AutoHeightMiniBarChart
@@ -365,22 +377,22 @@ export default function GraphLayerWordFrequenciesSection({
                 </div>
               )
             })()}
-            <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-1 text-gray-500'].join(' ')}>
+            <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-1 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
               {UI_COPY.statsBarHeightTotalTokensHint}
             </div>
           </div>
           {tokensByGraphLayer.slice(0, Math.min(tokensByGraphLayer.length, 6)).map((row) => (
-            <div key={row.graphLayerId} className="rounded border border-gray-200 bg-white p-3">
+            <div key={row.graphLayerId} className={statsPanelClassName}>
               <div className="flex items-center justify_between gap-2">
-                <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, 'font-semibold text-gray-800'].join(' ')}>
+                <div className={[uiPanelKeyValueTextSizeClass, uiPanelTextFontClass, `font-semibold ${UI_THEME_TOKENS.text.primary}`].join(' ')}>
                   Cluster layer {row.label}
                 </div>
-                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'text-gray-500'].join(' ')}>
+                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, UI_THEME_TOKENS.text.tertiary].join(' ')}>
                   {row.nodeCount} nodes, {row.totalTokens} tokens
                 </div>
               </div>
               {row.topTokens.length === 0 ? (
-                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, 'mt-2 text-gray-500'].join(' ')}>
+                <div className={[uiPanelMicroLabelTextSizeClass, uiPanelTextFontClass, `mt-2 ${UI_THEME_TOKENS.text.tertiary}`].join(' ')}>
                   {UI_COPY.statsNoTokensFoundForGraphLayerLabel}
                 </div>
               ) : (
@@ -391,21 +403,21 @@ export default function GraphLayerWordFrequenciesSection({
                       className={[
                         uiPanelMicroLabelTextSizeClass,
                         uiPanelTextFontClass,
-                        'inline-flex items-center gap-1 px-2 py-[2px] rounded border border-gray-200 cursor-pointer',
+                      statsTokenChipBaseClassName,
                         (() => {
                           const tok = String(t.token || '').toLowerCase()
                           const excluded = statsExcludeTokens.includes(tok)
                           const included = statsIncludeTokens.includes(tok)
                           if (statsFilterMode === 'include') {
-                            return included ? 'bg-blue-50 text-gray-700 border-blue-200' : 'bg-gray-50 text-gray-400'
+                          return included ? statsTokenIncludedClassName : statsTokenInactiveIncludedClassName
                           }
-                          return excluded ? 'bg-red-50 text-gray-400 border-red-200 line-through' : 'bg-gray-50 text-gray-700'
+                        return excluded ? statsTokenExcludedClassName : statsTokenDefaultClassName
                         })(),
                       ].join(' ')}
                       onClick={() => toggleStatsToken(t.token)}
                     >
                       <span className={uiPanelMonospaceTextClass}>{t.token}</span>
-                      <span className="text-gray-500">{t.count}</span>
+                      <span className={UI_THEME_TOKENS.text.tertiary}>{t.count}</span>
                     </span>
                   ))}
                 </div>

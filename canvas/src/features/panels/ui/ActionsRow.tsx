@@ -4,7 +4,7 @@ import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import type { Action } from '@/features/panels/ui/ActionsRowModel'
-import { uiPrimaryIconActiveClassName } from '@/features/toolbar/ui/toolbarStyles'
+import { uiPrimaryIconActiveClassName, uiToolbarButtonNeutralClassName, uiToolbarButtonPrimarySolidClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 function ActionsRowImpl({ actions, className }: { actions: Action[]; className?: string }) {
   const uiIconScale = useGraphStore(s => s.uiIconScale)
@@ -49,7 +49,7 @@ function ActionsRowImpl({ actions, className }: { actions: Action[]; className?:
             data-kg-spotlight={a.spotlightId}
             type="button"
             onClick={() => void a.onClick()}
-            className={`App-toolbar__btn text-xs ${a.variant === 'primary' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+            className={`App-toolbar__btn text-xs ${a.variant === 'primary' ? uiToolbarButtonPrimarySolidClassName : uiToolbarButtonNeutralClassName}`}
           >
             {a.label}
           </button>

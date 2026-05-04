@@ -1,6 +1,7 @@
 import React from 'react'
 import type { WebpageLayoutSnapshot } from '@/lib/websites/webpageLayoutExport'
 import { pickWebpageSnapshotRects } from 'grph-shared/rich-media/webpageSnapshot'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type SharedWebpageSnapshotSurfaceProps = {
   url: string
@@ -21,6 +22,7 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
   const viewportW = typeof props.snap?.meta?.viewport?.w === 'number' ? props.snap.meta.viewport.w : 1100
   const viewportH = typeof props.snap?.meta?.viewport?.h === 'number' ? props.snap.meta.viewport.h : 720
   const rects = props.snap ? pickWebpageSnapshotRects(props.snap) : []
+  const overlayBadgeClassName = `rounded border ${UI_THEME_TOKENS.panel.border} bg-[color:var(--kg-panel-bg)]/90 px-2 py-1`
 
   return (
     <div className={props.className} style={props.style} data-kg-webpage-snapshot="1" data-src={props.url}>
@@ -100,13 +102,13 @@ export function SharedWebpageSnapshotSurface(props: SharedWebpageSnapshotSurface
           <div className="absolute inset-0 bg-black/5" />
         )}
         <div aria-hidden={true} className="absolute inset-0 pointer-events-none">
-          <div className="absolute left-2 bottom-2 rounded border border-black/10 bg-white/90 px-2 py-1" style={{ maxWidth: 'min(520px, 92%)' }}>
-            <div className="text-[11px] font-semibold text-black/70 truncate">{props.titleLabel}</div>
-            <div className="text-[10px] text-black/50 truncate">{props.hostLabel}</div>
+          <div className={overlayBadgeClassName} style={{ maxWidth: 'min(520px, 92%)' }}>
+            <div className={`text-[11px] font-semibold ${UI_THEME_TOKENS.text.primary} truncate`}>{props.titleLabel}</div>
+            <div className={`text-[10px] ${UI_THEME_TOKENS.text.tertiary} truncate`}>{props.hostLabel}</div>
           </div>
           {props.blocked ? (
-            <div className="absolute right-2 top-2 rounded border border-black/10 bg-white/90 px-2 py-1">
-              <div className="text-[10px] font-semibold text-black/60">Blocked</div>
+            <div className={`absolute right-2 top-2 ${overlayBadgeClassName}`}>
+              <div className={`text-[10px] font-semibold ${UI_THEME_TOKENS.text.secondary}`}>Blocked</div>
             </div>
           ) : null}
         </div>

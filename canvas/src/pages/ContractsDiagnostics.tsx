@@ -152,7 +152,7 @@ export default function ContractsDiagnostics() {
               <div>Document key: {docKey}</div>
             </div>
             <button
-              className="mt-3 inline-flex items-center justify-center rounded-md bg-black/80 px-3 py-2 text-xs font-medium text-white hover:bg-black/70"
+              className={`mt-3 inline-flex items-center justify-center rounded-md bg-black/80 px-3 py-2 text-xs font-medium text-white ${UI_THEME_TOKENS.button.inverseHoverBg}`}
               onClick={() => downloadJson('knowgrph-contract.json', contract)}
               type="button"
             >
@@ -170,7 +170,7 @@ export default function ContractsDiagnostics() {
               <div>Zoom view key: {zoomViewKey || '(none)'}</div>
             </div>
             <button
-              className="mt-3 inline-flex items-center justify-center rounded-md bg-black/80 px-3 py-2 text-xs font-medium text-white hover:bg-black/70"
+              className={`mt-3 inline-flex items-center justify-center rounded-md bg-black/80 px-3 py-2 text-xs font-medium text-white ${UI_THEME_TOKENS.button.inverseHoverBg}`}
               onClick={() => downloadJson('knowgrph-diagnostics.json', diagnostics)}
               type="button"
             >
