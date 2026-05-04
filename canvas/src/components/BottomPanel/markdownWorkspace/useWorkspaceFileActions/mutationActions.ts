@@ -4,6 +4,7 @@ import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceDocumentKey } fro
 import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 import {
   extractYamlFrontmatterBlock,
+  normalizeWebpageFrontmatterView,
   parseWebpageFrontmatterMeta,
   readYamlFrontmatterValue,
   upsertWebpageFrontmatterMeta,

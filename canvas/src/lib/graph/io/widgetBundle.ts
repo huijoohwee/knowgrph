@@ -182,14 +182,15 @@ export function tryBuildWidgetBundleMarkdownFromJsonText(text: string): string |
   if (!trimmed.startsWith('{')) return null
   try {
     const parsed = JSON.parse(trimmed) as unknown
-    if (!readPlainObject(parsed)) return null
-    if (parsed.kind !== FLOW_WIDGET_BUNDLE_KIND) return null
-    if (parsed.version !== FLOW_WIDGET_BUNDLE_VERSION) return null
+    const bundle = readPlainObject(parsed)
+    if (!bundle) return null
+    if (bundle.kind !== FLOW_WIDGET_BUNDLE_KIND) return null
+    if (bundle.version !== FLOW_WIDGET_BUNDLE_VERSION) return null
 
-    const registry = Array.isArray(parsed.registry)
-      ? parsed.registry.map(readPlainObject).filter((entry): entry is JsonLikeRecord => entry != null)
+    const registry = Array.isArray(bundle.registry)
+      ? bundle.registry.map(readPlainObject).filter((entry): entry is JsonLikeRecord => entry != null)
       : []
-    const graph = readPlainObject(parsed.graph)
+    const graph = readPlainObject(bundle.graph)
     const nodes = Array.isArray(graph?.nodes)
       ? graph.nodes.map(readPlainObject).filter((node): node is JsonLikeRecord => node != null)
       : []

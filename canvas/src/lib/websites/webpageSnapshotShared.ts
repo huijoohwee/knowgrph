@@ -136,6 +136,18 @@ export type WebpageLayoutSnapshotLoadFailure = {
 
 export type WebpageLayoutSnapshotLoadResult = WebpageLayoutSnapshotLoadSuccess | WebpageLayoutSnapshotLoadFailure
 
+function isWebpageLayoutSnapshotLoadFailure(
+  result: WebpageLayoutSnapshotLoadResult,
+): result is WebpageLayoutSnapshotLoadFailure {
+  return result.ok === false
+}
+
+function isWebpageLayoutProbeFailure(
+  result: { ok: true; snapshot: WebpageLayoutSnapshot } | { ok: false; blocked: boolean; stage: string; error: string },
+): result is { ok: false; blocked: boolean; stage: string; error: string } {
+  return result.ok === false
+}
+
 export async function loadWebpageLayoutSnapshotWithCache(args: {
   url: string
   layoutPreset: WebpageLayoutProbePreset
@@ -168,7 +180,7 @@ export async function loadWebpageLayoutSnapshotWithCache(args: {
     waitForNetworkIdle: args.layoutPreset.waitForNetworkIdle,
     signal: args.signal,
   })
-  if (!probe.ok) {
+  if (isWebpageLayoutProbeFailure(probe)) {
     return {
       ok: false,
       blocked: probe.blocked,
@@ -279,7 +291,7 @@ export function resolveWebpageLayoutExportOutcome(args: {
   nodeCount?: number | null
 }): WebpageLayoutExportOutcome {
   if (args.loadResult) {
-    if (!args.loadResult.ok) {
+    if (isWebpageLayoutSnapshotLoadFailure(args.loadResult)) {
       const failure = formatWebpageLayoutExportError({
         consumer: args.consumer,
         stage: args.loadResult.stage,
@@ -483,7 +495,7 @@ export function useWebpageLayoutSnapshotLifecycle(args: {
           signal,
         })
         if (isStale()) return
-        if (!load.ok) {
+        if (isWebpageLayoutSnapshotLoadFailure(load)) {
           if (load.blocked) {
             setBlocked(true)
             attemptRef.current = { url, count: maxAttempts }
