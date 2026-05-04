@@ -79,7 +79,7 @@ type GeospatialPanelHostProps = {
 
 const MissingGeospatialPanelHost = React.memo(function MissingGeospatialPanelHost(_props: GeospatialPanelHostProps) {
   return (
-    <div className="h-full w-full flex items-center justify-center text-xs text-gray-700 dark:text-gray-200">
+    <div className={`h-full w-full flex items-center justify-center text-xs ${UI_THEME_TOKENS.text.secondary}`}>
       Geospatial panel unavailable
     </div>
   )
@@ -174,7 +174,7 @@ const GeoView = React.memo(function GeoView(props: {
         <ErrorBoundary>
           <React.Suspense
             fallback={
-              <div className="p-3 text-xs text-gray-600 dark:text-gray-300">
+              <div className={`p-3 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
                 Loading geospatial panel...
               </div>
             }

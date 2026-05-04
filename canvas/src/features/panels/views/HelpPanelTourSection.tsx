@@ -3,6 +3,7 @@ import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { HELP_STEP_COPY, getOrchestratorSectionListLabel } from '@/features/panels/config'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface HelpPanelTourSectionProps {
   collapsed: boolean
@@ -24,12 +25,12 @@ export function HelpPanelTourSection({ collapsed, onToggle }: HelpPanelTourSecti
       onToggle={onToggle}
     >
       {HELP_STEP_COPY.panelTour.descriptionShort && (
-        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-600 mb-2`}>
+        <div className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary} mb-2`}>
           {HELP_STEP_COPY.panelTour.descriptionShort}
         </div>
       )}
       <ul
-        className={`list-disc pl-4 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} text-gray-700 space-y-1`}
+        className={`list-disc pl-4 ${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.primary} space-y-1`}
       >
         <li>
           {UI_COPY.toolbarPrefix} load data, toggle 2D and 3D modes, open Workflow Manager, and launch the guided workflow.

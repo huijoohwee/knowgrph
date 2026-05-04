@@ -68,8 +68,8 @@ export const testFlowEditorOverlayCollisionRebalancesStoredVerticalClusters = ()
   if (!hookText.includes('height: Math.max(1, snapScreen(typicalSize.height + gapPx))')) {
     throw new Error('expected overlay collision grid cells to reserve full measured overlay height plus gap so dense frontmatter collectives cannot overlap by construction')
   }
-  if (!hookText.includes('width: Math.max(120, Math.min(floatingScaled.width, maxW))') || !hookText.includes('height: Math.max(160, Math.min(floatingScaled.height, maxH))')) {
-    throw new Error('expected overlay collision planner to size seeded cells from the largest measured overlay footprint instead of the average mixed widget size')
+  if (!hookText.includes('width: Math.max(120, floatingScaled.width, maxW)') || !hookText.includes('height: Math.max(160, floatingScaled.height, maxH)')) {
+    throw new Error('expected overlay collision planner to reserve seeded cells from the largest live measured overlay footprint instead of capping back down to the default floating size')
   }
   if (!hookText.includes('const OVERLAY_POSITION_QUANTUM_PX = 1')) {
     throw new Error('expected overlay collision path to quantize persisted floating positions')

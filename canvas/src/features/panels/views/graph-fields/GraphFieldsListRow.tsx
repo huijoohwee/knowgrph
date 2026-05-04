@@ -316,7 +316,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
 
         <div className="flex items-center gap-2">
           {draggingCuratorColumnKey === columnKey ? (
-            <span className={`${uiPanelKeyValueTextSizeClass} text-gray-500`}>{UI_LABELS.moving}</span>
+            <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_LABELS.moving}</span>
           ) : null}
           {originIconNode}
           {!active || !field || !settings ? typeBadgeNode : null}

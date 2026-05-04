@@ -2,6 +2,7 @@ import React from 'react'
 import { CheckCircle, XCircle } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface SelectedBoxProps {
   name: string
@@ -20,7 +21,9 @@ function SelectedBoxImpl({ name, idText, lines = [], statusOk, statusMsg, counts
   const displayName = (name || '').trim() ? name : 'None'
   const failText = `Fail${(statusMsg || '').trim() ? ` — ${statusMsg}` : ''}`
   return (
-    <div className={`text-xs mb-2 px-2 py-1 rounded bg-gray-50 border border-gray-200 ${className || ''}`}>
+    <div
+      className={`mb-2 rounded border px-2 py-1 text-xs ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} ${UI_THEME_TOKENS.text.primary} ${className || ''}`}
+    >
       <div><span className="font-semibold">Selected:</span> {displayName}{(idText || '').trim() ? ` (${idText})` : ''}</div>
       {typeof countsText === 'string' && countsText.trim() && (
         <div className="mt-1">{countsText}</div>

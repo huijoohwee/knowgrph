@@ -1,6 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export default function MainPanelDashboardHeader() {
   const uiSectionHeaderRowHeightClass = useGraphStore(
@@ -19,7 +20,7 @@ export default function MainPanelDashboardHeader() {
   return (
     <header
       className={[
-        'mt-4 border-t border-gray-200 flex items-center justify-between mb-1 text-gray-600',
+        `mt-4 mb-1 flex items-center justify-between border-t ${UI_THEME_TOKENS.panel.divider} ${UI_THEME_TOKENS.text.secondary}`,
         uiSectionHeaderRowHeightClass,
         uiSectionHeaderRowPaddingClass,
         uiPanelMicroLabelTextSizeClass,
@@ -30,4 +31,3 @@ export default function MainPanelDashboardHeader() {
     </header>
   )
 }
-

@@ -2,6 +2,7 @@ import React from 'react'
 import { resolveIframeSandbox } from 'grph-shared/rich-media/iframe'
 import WebpageSnapshotPreview from '@/components/WebpageSnapshotPreview'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function WebpageViewerPane(props: {
   url: string
@@ -31,7 +32,7 @@ export function WebpageViewerPane(props: {
         />
       ) : (
         <iframe
-          className="flex-1 min-h-0 w-full border border-[var(--kg-border)] bg-white"
+          className={`flex-1 min-h-0 w-full border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
           ref={props.onIframeRef}
           title={props.url || 'Webpage'}
           src={props.iframeSrc || undefined}

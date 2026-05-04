@@ -1,5 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import MainPanelContainer from './MainPanelContainer'
 import TabHeader, { type TabIconComponent } from './TabHeader'
 
@@ -76,7 +77,7 @@ export default function MainPanelFrame({
             {footer ? (
               <footer
                 className={[
-                  'FooterBar border-t border-gray-200',
+                  `FooterBar border-t ${UI_THEME_TOKENS.panel.divider}`,
                   uiHeaderRowHeightClass,
                   uiHeaderRowPaddingClass,
                 ].join(' ')}

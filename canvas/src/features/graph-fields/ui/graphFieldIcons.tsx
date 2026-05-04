@@ -142,7 +142,7 @@ export function ScopeIcon({
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={className ?? 'w-4 h-4 text-gray-500'}
+      className={className ?? `w-4 h-4 ${UI_THEME_TOKENS.text.tertiary}`}
     >
       {scope === 'node' ? (
         <>
@@ -397,7 +397,8 @@ export function FieldOriginIcon({
   return (
     <span
       className={
-        className ?? 'inline-flex items-center justify-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5'
+        className ??
+        `inline-flex items-center justify-center rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.headerBg} px-1.5 py-0.5`
       }
       title={label}
       aria-label={label}

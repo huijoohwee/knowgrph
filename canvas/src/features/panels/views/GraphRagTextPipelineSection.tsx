@@ -23,7 +23,7 @@ const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every
 const tokenChipClassName = `px-2 py-0.5 rounded ${UI_THEME_TOKENS.button.neutralSubtle} border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary} text-xs`
 const analyticsButtonClassName = `px-2 py-0.5 rounded border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.button.hoverBg}`
 const stagePanelClassName = `rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} p-3`
-const codePanelClassName = `rounded border border-slate-200 bg-slate-50 p-2`
+const codePanelClassName = `rounded border ${UI_THEME_TOKENS.code.border} ${UI_THEME_TOKENS.code.bg} p-2`
 
 const getStagesFromGraphMeta = (graphData: unknown): StageView[] => {
   if (!graphData || typeof graphData !== 'object' || Array.isArray(graphData)) return []
@@ -132,7 +132,7 @@ export default function GraphRagTextPipelineSection() {
           {triples.slice(0, 24).map((t, i) => (
             <div
               key={i}
-              className={`text-xs font-mono ${UI_THEME_TOKENS.text.primary} bg-slate-50 border border-slate-200 rounded px-2 py-1`}
+              className={`text-xs font-mono ${UI_THEME_TOKENS.code.text} ${UI_THEME_TOKENS.code.bg} border ${UI_THEME_TOKENS.code.border} rounded px-2 py-1`}
             >
               {t}
             </div>
@@ -255,7 +255,7 @@ export default function GraphRagTextPipelineSection() {
               )}
             </div>
             <div className={codePanelClassName}>
-              <pre className="text-xs font-mono text-slate-900 whitespace-pre-wrap break-words">
+              <pre className={`text-xs font-mono whitespace-pre-wrap break-words ${UI_THEME_TOKENS.code.text}`}>
                 {current.code}
               </pre>
             </div>

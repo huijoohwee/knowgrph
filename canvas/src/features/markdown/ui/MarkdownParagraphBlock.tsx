@@ -473,7 +473,7 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
         <audio
           controls
           src={src || undefined}
-          className="w-full max-w-xl rounded border border-gray-200"
+          className={`w-full max-w-xl rounded border ${UI_THEME_TOKENS.panel.border}`}
         />,
       )
     }

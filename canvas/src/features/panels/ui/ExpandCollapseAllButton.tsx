@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import IconButton from '@/components/IconButton'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type ExpandCollapseAllButtonProps = {
   allCollapsed: boolean
@@ -37,7 +38,7 @@ export default function ExpandCollapseAllButton({
       showTooltip
     >
       <ChevronDown
-        className={`${iconSizeClass} text-gray-700 transition-transform ${
+        className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary} transition-transform ${
           allCollapsed ? '' : 'rotate-180'
         }`}
         strokeWidth={uiIconStrokeWidth}
@@ -46,4 +47,3 @@ export default function ExpandCollapseAllButton({
     </IconButton>
   )
 }
-

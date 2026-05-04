@@ -282,6 +282,7 @@ These cross-repo docs must stay aligned:
 - `knowgrph/docs/documents/knowgrph-storage-document-schemas-and-topology.md`
 - `knowgrph/docs/documents/knowgrph-storage-document-runtime-and-conflict-ux.md`
 - `knowgrph/docs/documents/knowgrph-cross-repo-publish-topology.md`
+- `huijoohwee.github.io/docs/documents/hjh-workspace-todo-log.md`
 - `huijoohwee.github.io/schema/AgenticRAG/README.md`
 - `huijoohwee.github.io/schema/AgenticRAG/documentation.jsonld`
 - `huijoohwee.github.io/schema/AgenticRAG/markdown.jsonld`

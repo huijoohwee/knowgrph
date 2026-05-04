@@ -550,8 +550,8 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
           />
         </>
       )}
-      <pre className="p-3 rounded border border-gray-200 bg-gray-50 overflow-auto">
-        <code className={opts.uiPanelMonospaceTextClass}>{html}</code>
+      <pre className={`p-3 rounded border ${UI_THEME_TOKENS.code.border} ${UI_THEME_TOKENS.code.bg} overflow-auto`}>
+        <code className={`${opts.uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.code.text}`}>{html}</code>
       </pre>
     </MarkdownBlockContainer>
   )

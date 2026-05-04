@@ -3,6 +3,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { UI_ANCHORS, UI_LABELS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import AiKgLayersControls from '@/features/panels/views/AiKgLayersSectionControls'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 interface AiKgLayersSectionProps {
   schema: GraphSchema
   setSchema: (schema: GraphSchema) => void
@@ -25,7 +26,7 @@ export default function AiKgLayersSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
   )
   const uiPanelKeyValueTextSizeClass = useGraphStore(
     s => s.uiPanelKeyValueTextSizeClass || 'text-xs',
@@ -36,14 +37,14 @@ export default function AiKgLayersSection({
 
   return (
     <div
-      className="mt-2 border border-gray-200 rounded px-2 py-1"
+      className={`mt-2 rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} px-2 py-1`}
       data-kg-anchor={UI_ANCHORS.aiKgLayers}
     >
       <div
         className={[
           uiPanelKeyValueTextSizeClass,
           uiPanelTextFontClass,
-          'font-semibold uppercase tracking-wide text-gray-500 mb-1',
+          `mb-1 font-semibold uppercase tracking-wide ${UI_THEME_TOKENS.text.tertiary}`,
         ].join(' ')}
       >
         {UI_LABELS.aiKgLayers}

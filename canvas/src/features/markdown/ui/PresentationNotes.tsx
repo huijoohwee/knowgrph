@@ -1,6 +1,7 @@
 import React from 'react'
 import MarkdownTokenRenderer from './MarkdownTokenRenderer'
 import type { TokenWithLines } from './markdownPreviewLex'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type PresentationNotesProps = {
   notesTokens: TokenWithLines[] | null
@@ -26,7 +27,7 @@ export function PresentationNotes(props: PresentationNotesProps) {
   
   return (
     <aside className={className} aria-label="Speaker Notes">
-        <div className={['px-4 py-3 text-xs text-gray-800', props.uiPanelTextFontClass].filter(Boolean).join(' ')}>
+        <div className={['px-4 py-3 text-xs', UI_THEME_TOKENS.text.primary, props.uiPanelTextFontClass].filter(Boolean).join(' ')}>
             <MarkdownTokenRenderer
                 tokens={notesTokens}
                 highlightedLineRange={null}

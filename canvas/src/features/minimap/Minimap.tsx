@@ -37,6 +37,7 @@ import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'
 import { isFlowEditorCanvas2dRenderer } from '@/lib/config.render'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { hashScopedStringArraySignature } from '@/lib/hash/signature'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 type ZoomT = { k: number; x: number; y: number };
 
@@ -636,7 +637,10 @@ function Minimap() {
 
   return (
     <aside className="relative group" aria-label="Minimap">
-      <div className="relative rounded bg-white backdrop-blur-sm shadow border border-gray-200 overflow-hidden" style={{ opacity: minimapOpacity }}>
+      <div
+        className={`relative overflow-hidden rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg} shadow backdrop-blur-sm`}
+        style={{ opacity: minimapOpacity }}
+      >
         <svg width={miniW} height={miniH} onClick={onMinimapClick} onWheel={onMinimapWheel} className="relative block">
           <rect x={0} y={0} width={miniW} height={miniH} fill="#f8fafc" />
           {edgesPathD && (

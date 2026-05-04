@@ -56,7 +56,12 @@ export function Chart({
 
   return (
     <div className="my-3 overflow-auto">
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="rounded border border-gray-200 bg-white">
+      <svg
+        width={w}
+        height={h}
+        viewBox={`0 0 ${w} ${h}`}
+        className={`rounded border ${UI_THEME_TOKENS.panel.border} ${UI_THEME_TOKENS.panel.bg}`}
+      >
         <g transform={`translate(${pad},${pad})`}>
           {safe.map((v, i) => {
             const barH = max > 0 ? (v / max) * innerH : 0

@@ -8,6 +8,7 @@ import ThreeViewStarfieldSection from '@/features/panels/views/ThreeViewStarfiel
 import ThreeViewCameraSection from '@/features/panels/views/ThreeViewCameraSection'
 import ThreeViewSelectionSection from '@/features/panels/views/ThreeViewSelectionSection'
 import ThreeViewGlobeEffectsSection from '@/features/panels/views/ThreeViewGlobeEffectsSection'
+import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 interface ThreeGroupsCollapsed {
   links: boolean
@@ -41,7 +42,7 @@ export default function ThreeViewTuningSection({
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
-      'w-full h-6 px-2 text-sm border border-gray-300 rounded text-right',
+      `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
   )
 
   return (

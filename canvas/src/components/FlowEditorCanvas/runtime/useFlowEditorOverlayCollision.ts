@@ -347,8 +347,10 @@ export function useFlowEditorOverlayCollision(args: {
       }
       const typicalSize = count > 0
         ? {
-            width: Math.max(120, Math.min(floatingScaled.width, maxW)),
-            height: Math.max(160, Math.min(floatingScaled.height, maxH)),
+            // Reserve from the largest live measured overlay footprint so
+            // balanced seed cells cannot start smaller than the actual panels.
+            width: Math.max(120, floatingScaled.width, maxW),
+            height: Math.max(160, floatingScaled.height, maxH),
           }
         : floatingScaled
       const gapBase = typeof schema?.layout?.flow?.overlay?.collisionGapPx === 'number' ? schema.layout.flow.overlay.collisionGapPx : 12
