@@ -1,13 +1,12 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { UI_COPY } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
-export async function testBottomPanelMarkdownFullscreenOpensOverlay() {
+export async function testBottomPanelMarkdownFullscreenUsesBrowserFullscreenApi() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
@@ -32,7 +31,9 @@ export async function testBottomPanelMarkdownFullscreenOpensOverlay() {
     const state = useGraphStore.getState()
     state.setMarkdownDocument('slides.md', markdown)
 
-    root.render(React.createElement(BottomPanelMarkdownSection))
+    await act(async () => {
+      root.render(React.createElement(BottomPanelMarkdownSection))
+    })
 
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
     const tick = () =>
@@ -45,17 +46,30 @@ export async function testBottomPanelMarkdownFullscreenOpensOverlay() {
         setTimeout(() => resolve(), 0)
       })
 
-    await tick()
-    await tick()
+    await act(async () => {
+      await tick()
+      await tick()
+    })
 
-    const fullscreenTitle = UI_COPY.bottomPanelMarkdownFullscreenToggleTitle
     const findFullscreenButton = (): HTMLButtonElement | null => {
       const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
       for (const btn of buttons) {
-        const label = btn.getAttribute('aria-label') || ''
-        if (label === fullscreenTitle) return btn
+        const title = btn.getAttribute('title') || ''
+        if (title === 'Fullscreen') return btn
       }
       return null
+    }
+
+    const workspaceRoot = doc.querySelector('[aria-label="Markdown Workspace"]') as
+      | (HTMLElement & { requestFullscreen?: () => Promise<void> })
+      | null
+    if (!workspaceRoot) {
+      throw new Error('markdown workspace root not found')
+    }
+
+    const requestFullscreenCalls: HTMLElement[] = []
+    workspaceRoot.requestFullscreen = async () => {
+      requestFullscreenCalls.push(workspaceRoot)
     }
 
     const fullscreenBtn = findFullscreenButton()
@@ -63,25 +77,42 @@ export async function testBottomPanelMarkdownFullscreenOpensOverlay() {
       throw new Error('markdown fullscreen toggle button not found')
     }
 
-    fullscreenBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await act(async () => {
+      fullscreenBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick()
+      await tick()
+    })
 
-    await tick()
-    await tick()
-
-    const overlay = doc.querySelector(
-      'div.fixed.inset-0[class*="z-[99999]"], div.absolute.inset-0[class*="z-[99999]"]',
-    ) as HTMLDivElement | null
-    if (!overlay) {
-      throw new Error('expected PreviewOverlay to be open after fullscreen toggle')
+    if (requestFullscreenCalls.length !== 1 || requestFullscreenCalls[0] !== workspaceRoot) {
+      throw new Error('expected fullscreen toggle to request browser fullscreen on markdown workspace root')
     }
 
-    const overlayText = overlay.textContent || ''
-    const hasZoomIndicator = /\d+%/.test(overlayText)
-    if (!hasZoomIndicator) {
-      throw new Error('expected fullscreen overlay to contain zoom indicator')
+    const exitFullscreenCalls: number[] = []
+    const fullscreenDoc = doc as Document & {
+      fullscreenElement?: Element | null
+      exitFullscreen?: () => Promise<void>
+    }
+    Object.defineProperty(fullscreenDoc, 'fullscreenElement', {
+      configurable: true,
+      get: () => workspaceRoot,
+    })
+    fullscreenDoc.exitFullscreen = async () => {
+      exitFullscreenCalls.push(1)
     }
 
-    root.unmount()
+    await act(async () => {
+      fullscreenBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      await tick()
+      await tick()
+    })
+
+    if (exitFullscreenCalls.length !== 1) {
+      throw new Error('expected fullscreen toggle to exit browser fullscreen when workspace root is already fullscreen')
+    }
+
+    await act(async () => {
+      root.unmount()
+    })
   } finally {
     restoreDom()
     restoreWindow()

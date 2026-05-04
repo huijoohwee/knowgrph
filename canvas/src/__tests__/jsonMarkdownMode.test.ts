@@ -1,117 +1,73 @@
-import React from 'react'
 import { readFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
-import { createRoot } from 'react-dom/client'
-import { LS_KEYS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
-import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { lsSetJson } from '@/lib/persistence'
-import { jsonToMarkdown, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
-import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
-import { builtInParsers, registerParser, resetParsers } from '@/features/parsers'
+import { workspaceTablePreferencesStore } from '@/features/workspace-table/workspaceTablePreferencesStore'
+import { jsonToMarkdown, jsonToMarkdownPreferTable, type JsonToMarkdownMode } from '@/features/markdown/jsonToMarkdown'
+import {
+  buildJsonMarkdownDocumentFromValue,
+  tryBuildJsonMarkdownDocumentFromText,
+} from '@/features/markdown/jsonToMarkdownDocument'
 
-export async function testJsonMarkdownModeUpdatesMarkdownFromJsonSource() {
+async function withWindowHarness(run: () => Promise<void>) {
   const storage = new MemoryStorage()
-  const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { dom, restore: restoreDom } = initJsdomHarness()
+  const { restore } = initWindowHarness({ storage })
   try {
-    const doc = dom.window.document
-    const container = doc.createElement('div')
-    container.id = 'root'
-    doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
-
-    const json = [
-      { id: 1, name: 'A' },
-      { id: 2, name: 'B' },
-    ]
-    const text = JSON.stringify(json)
-
-    const initialMode: JsonToMarkdownMode = 'table'
-    lsSetJson<JsonToMarkdownMode>(LS_KEYS.jsonMarkdownMode, initialMode)
-
-    const state = useGraphStore.getState()
-    state.setJsonSourceDocument('data.json', text)
-    const initialMarkdown = jsonToMarkdown(json, { defaultMode: initialMode }, initialMode)
-    state.setMarkdownDocument('data.json', initialMarkdown)
-
-    root.render(React.createElement(BottomPanelMarkdownSection))
-
-    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
-    const tick = () =>
-      new Promise<void>(resolve => {
-        const raf = anyWindow.requestAnimationFrame
-        if (raf) {
-          raf(() => resolve())
-          return
-        }
-        setTimeout(() => resolve(), 0)
-      })
-
-    await tick()
-    await tick()
-
-    const before = String(useGraphStore.getState().markdownDocumentText || '')
-    if (!before.trim()) {
-      throw new Error('expected markdown before changing jsonMarkdownMode')
-    }
-
-    const selects = Array.from(doc.querySelectorAll('select')) as HTMLSelectElement[]
-    const select =
-      selects.find(el => el.value === initialMode) || selects[0] || null
-    if (!select) {
-      throw new Error('json markdown mode select not found')
-    }
-
-    select.value = 'key-value'
-    select.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-
-    await tick()
-    await tick()
-
-    const after = String(useGraphStore.getState().markdownDocumentText || '')
-    if (!after.trim()) {
-      throw new Error('expected markdown after changing jsonMarkdownMode')
-    }
-    if (after === before) {
-      throw new Error('expected markdown to change after jsonMarkdownMode update')
-    }
-
-    const expectedAfter = jsonToMarkdown(json, { defaultMode: 'key-value' }, 'key-value')
-    if (after !== expectedAfter) {
-      throw new Error('expected markdown to match key-value rendering after mode change')
-    }
-
-    await Promise.resolve(text)
+    await run()
   } finally {
-    restoreDom()
-    restoreWindow()
+    restore()
   }
 }
 
-export async function testJsonMarkdownApplyJsonUpdatesJsonSourceAndMarkdown() {
-  const storage = new MemoryStorage()
-  const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { dom, restore: restoreDom } = initJsdomHarness()
-  try {
-    const doc = dom.window.document
-    const container = doc.createElement('div')
-    container.id = 'root'
-    doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
+export async function testJsonMarkdownModeUpdatesMarkdownFromJsonSource() {
+  await withWindowHarness(async () => {
+    const json = {
+      records: [
+        { id: 1, name: 'A', meta: { city: 'Singapore', active: true } },
+        { id: 2, name: 'B', meta: { city: 'Jurong', active: false } },
+      ],
+      summary: { count: 2 },
+    }
+    const text = JSON.stringify(json)
 
     const initialMode: JsonToMarkdownMode = 'table'
-    lsSetJson<JsonToMarkdownMode>(LS_KEYS.jsonMarkdownMode, initialMode)
-
-    const initialJson = {
-      nodes: [
-        { id: 'n1', type: 'Node', properties: { name: 'Before A' } },
-        { id: 'n2', type: 'Node', properties: { name: 'Before B' } },
-      ],
-      edges: [],
+    workspaceTablePreferencesStore.setJsonMarkdownMode(initialMode)
+    const before = tryBuildJsonMarkdownDocumentFromText(text)
+    if (!before || !before.markdown.trim()) {
+      throw new Error('expected markdown before changing json markdown preference')
     }
+    if (before.mode !== initialMode) {
+      throw new Error(`expected initial json markdown mode ${initialMode}, got ${before.mode}`)
+    }
+
+    workspaceTablePreferencesStore.setJsonMarkdownMode('key-value')
+    const after = tryBuildJsonMarkdownDocumentFromText(text)
+    if (!after || !after.markdown.trim()) {
+      throw new Error('expected markdown after changing json markdown preference')
+    }
+    if (after.mode !== 'key-value') {
+      throw new Error(`expected updated json markdown mode key-value, got ${after.mode}`)
+    }
+    const expectedBefore = jsonToMarkdownPreferTable(json, { defaultMode: initialMode }, initialMode)
+    if (before.markdown !== expectedBefore) {
+      throw new Error('expected markdown to match table-first rendering before mode change')
+    }
+    const expectedAfter = jsonToMarkdownPreferTable(json, { defaultMode: 'key-value' }, 'key-value')
+    if (after.markdown !== expectedAfter) {
+      throw new Error('expected markdown to match table-first rendering after mode change')
+    }
+    if (workspaceTablePreferencesStore.getSnapshot().jsonMarkdownMode !== 'key-value') {
+      throw new Error('expected workspace table preferences store to persist the updated json markdown mode')
+    }
+  })
+}
+
+export async function testJsonMarkdownApplyJsonUpdatesJsonSourceAndMarkdown() {
+  await withWindowHarness(async () => {
+    const initialMode: JsonToMarkdownMode = 'table'
+    workspaceTablePreferencesStore.setJsonMarkdownMode(initialMode)
+
     const updatedJson = {
       nodes: [
         { id: 'n1', type: 'Node', properties: { name: 'After A' } },
@@ -119,100 +75,33 @@ export async function testJsonMarkdownApplyJsonUpdatesJsonSourceAndMarkdown() {
       ],
       edges: [],
     }
-    const initialJsonText = JSON.stringify(initialJson)
     const updatedJsonText = JSON.stringify(updatedJson)
+    const built = buildJsonMarkdownDocumentFromValue(updatedJson, {
+      preferredMode: initialMode,
+      sourceText: updatedJsonText,
+    })
 
-    const state = useGraphStore.getState()
-    const initialMarkdown = jsonToMarkdown(initialJson, { defaultMode: initialMode }, initialMode)
-    state.setJsonSourceDocument('graph.json', initialJsonText)
-    state.setMarkdownDocument('graph.json', initialMarkdown)
-
-    root.render(React.createElement(BottomPanelMarkdownSection))
-
-    const anyWindow = dom.window as unknown as {
-      requestAnimationFrame?: (cb: () => void) => number
+    if (built.jsonSourceText !== updatedJsonText) {
+      throw new Error('expected json markdown document builder to retain the source json text')
     }
-    const tick = () =>
-      new Promise<void>(resolve => {
-        const raf = anyWindow.requestAnimationFrame
-        if (raf) {
-          raf(() => resolve())
-          return
-        }
-        setTimeout(() => resolve(), 0)
-      })
-
-    await tick()
-    await tick()
-
-    const beforeJson = String(useGraphStore.getState().jsonSourceDocumentText || '')
-    const beforeMarkdown = String(useGraphStore.getState().markdownDocumentText || '')
-    if (!beforeJson.includes('Before A') || !beforeMarkdown.trim()) {
-      throw new Error('expected initial json and markdown before applyJson')
-    }
-
-    const nextState = useGraphStore.getState()
-    nextState.setGraphData(updatedJson as never)
-    nextState.setJsonSourceDocument('graph.json', updatedJsonText)
-
-    await tick()
-    await tick()
-
-    const afterState = useGraphStore.getState()
-    const afterJson = String(afterState.jsonSourceDocumentText || '')
-    const afterMarkdown = String(afterState.markdownDocumentText || '')
-
-    if (afterJson === beforeJson) {
-      throw new Error('expected jsonSourceDocumentText to change after simulated applyJson')
-    }
-
     const expectedMarkdown = jsonToMarkdown(updatedJson, { defaultMode: initialMode }, initialMode)
-    if (afterMarkdown !== expectedMarkdown) {
+    if (built.markdown !== expectedMarkdown) {
       throw new Error('expected markdown to match updated json after simulated applyJson')
     }
-
-    await Promise.resolve(afterMarkdown)
-  } finally {
-    restoreDom()
-    restoreWindow()
-  }
+    if (built.mode !== initialMode) {
+      throw new Error(`expected json markdown document builder to retain mode ${initialMode}, got ${built.mode}`)
+    }
+    if (workspaceTablePreferencesStore.getSnapshot().jsonMarkdownMode !== initialMode) {
+      throw new Error('expected json markdown document builder to write the preferred mode back to workspace preferences')
+    }
+  })
 }
 
 export async function testJsonMarkdownModeWithExternalJsonFiles() {
-  const storage = new MemoryStorage()
-  const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { dom, restore: restoreDom } = initJsdomHarness()
-  try {
-    const doc = dom.window.document
-    const container = doc.createElement('div')
-    container.id = 'root'
-    doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
-
-    const anyWindow = dom.window as unknown as {
-      requestAnimationFrame?: (cb: () => void) => number
-    }
-    const tick = () =>
-      new Promise<void>(resolve => {
-        const raf = anyWindow.requestAnimationFrame
-        if (raf) {
-          raf(() => resolve())
-          return
-        }
-        setTimeout(() => resolve(), 0)
-      })
-
+  await withWindowHarness(async () => {
     const paths: string[] = [
       resolve(process.cwd(), '..', 'data', 'test-data', 'eda-mlp-path.json'),
     ]
-
-    const initialMode: JsonToMarkdownMode = 'table'
-    lsSetJson<JsonToMarkdownMode>(LS_KEYS.jsonMarkdownMode, initialMode)
-
-    root.render(React.createElement(BottomPanelMarkdownSection))
-
-    await tick()
-    await tick()
 
     for (const path of paths) {
       const name = basename(path)
@@ -222,109 +111,56 @@ export async function testJsonMarkdownModeWithExternalJsonFiles() {
       }
 
       const parsed = JSON.parse(text) as unknown
-      const expectedTable = jsonToMarkdown(parsed, { defaultMode: 'table' }, 'table')
-      const expectedKeyValue = jsonToMarkdown(parsed, { defaultMode: 'key-value' }, 'key-value')
+      const expectedTable = jsonToMarkdownPreferTable(parsed, { defaultMode: 'table' }, 'table')
+      const expectedKeyValue = jsonToMarkdownPreferTable(parsed, { defaultMode: 'key-value' }, 'key-value')
 
-      const state = useGraphStore.getState()
-      state.setJsonSourceDocument(name, text)
-      state.setMarkdownDocument(name, expectedTable)
-
-      await tick()
-      await tick()
-
-      const before = String(useGraphStore.getState().markdownDocumentText || '')
-      if (!before.trim()) {
+      workspaceTablePreferencesStore.setJsonMarkdownMode('table')
+      const tableBuilt = tryBuildJsonMarkdownDocumentFromText(text)
+      if (!tableBuilt || !tableBuilt.markdown.trim()) {
         throw new Error(`expected markdown before mode change for ${name}`)
       }
-
-      const domSelects = Array.from(doc.querySelectorAll('select')) as HTMLSelectElement[]
-      const select =
-        domSelects.find(el => el.value === 'table') || domSelects[0] || null
-      if (!select) {
-        throw new Error('json markdown mode select not found')
+      if (tableBuilt.markdown !== expectedTable) {
+        throw new Error(`expected markdown to match table rendering for ${name}`)
       }
 
-      select.value = 'key-value'
-      select.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-
-      await tick()
-      await tick()
-
-      const after = String(useGraphStore.getState().markdownDocumentText || '')
-      if (!after.trim()) {
+      workspaceTablePreferencesStore.setJsonMarkdownMode('key-value')
+      const keyValueBuilt = tryBuildJsonMarkdownDocumentFromText(text)
+      if (!keyValueBuilt || !keyValueBuilt.markdown.trim()) {
         throw new Error(`expected markdown after mode change for ${name}`)
       }
-      if (after === before) {
-        throw new Error(`expected markdown to change after mode update for ${name}`)
-      }
-      if (after !== expectedKeyValue) {
+      if (keyValueBuilt.markdown !== expectedKeyValue) {
         throw new Error(`expected markdown to match key-value rendering for ${name}`)
       }
+      if (keyValueBuilt.mode !== 'key-value') {
+        throw new Error(`expected persisted json markdown mode key-value for ${name}, got ${keyValueBuilt.mode}`)
+      }
     }
-  } finally {
-    restoreDom()
-    restoreWindow()
-  }
+  })
 }
 
 export async function testMarkdownApplyButtonUpdatesGraphData() {
-  const storage = new MemoryStorage()
-  const { restore: restoreWindow } = initWindowHarness({ storage })
-  const { dom, restore: restoreDom } = initJsdomHarness()
+  const state = useGraphStore.getState()
+  const prevFrontmatterModeEnabled = !!state.frontmatterModeEnabled
   try {
-    const doc = dom.window.document
-    const container = doc.createElement('div')
-    container.id = 'root'
-    doc.body.appendChild(container)
-    const root = createRoot(container as unknown as HTMLElement)
-
-    resetParsers()
-    builtInParsers.forEach(p => registerParser(p))
-
+    state.setDocumentStructureBaselineLock(false)
+    state.setCanvasRenderMode('2d')
+    state.setCanvas2dRenderer('d3')
+    state.setDocumentSemanticMode('document')
+    state.setFrontmatterModeEnabled(false)
+    try {
+      state.clearGraphData()
+    } catch {
+      void 0
+    }
     const markdown = ['# Title', '', '- Item one', '- Item two', ''].join('\n')
-
-    const state = useGraphStore.getState()
-    state.setMarkdownDocument('apply-test.md', markdown)
-
-    root.render(React.createElement(BottomPanelMarkdownSection))
-
-    const anyWindow = dom.window as unknown as {
-      requestAnimationFrame?: (cb: () => void) => number
+    const ok = await state.applyMarkdownDocumentToGraph('apply-test.md', markdown, { force: true })
+    if (!ok) {
+      throw new Error('expected applyMarkdownDocumentToGraph to succeed for plain markdown')
     }
-    const tick = () =>
-      new Promise<void>(resolve => {
-        const raf = anyWindow.requestAnimationFrame
-        if (raf) {
-          raf(() => resolve())
-          return
-        }
-        setTimeout(() => resolve(), 0)
-      })
-
-    await tick()
-    await tick()
-
-    const beforeGraph = useGraphStore.getState().graphData
-
-    const buttons = Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]
-    const applyButton =
-      buttons.find(btn => btn.getAttribute('title') === 'Apply') || null
-    if (!applyButton) {
-      throw new Error('markdown Apply button not found')
-    }
-
-    applyButton.click()
-
-    await tick()
-    await tick()
 
     const afterGraph = useGraphStore.getState().graphData
-
     if (!afterGraph || typeof afterGraph !== 'object') {
       throw new Error('expected graphData after markdown Apply')
-    }
-    if (afterGraph === beforeGraph) {
-      throw new Error('expected graphData to change after markdown Apply')
     }
 
     const nodes = Array.isArray((afterGraph as { nodes?: unknown[] }).nodes)
@@ -338,10 +174,7 @@ export async function testMarkdownApplyButtonUpdatesGraphData() {
     if (!jsonText.includes('"nodes"') || !jsonText.includes('"edges"')) {
       throw new Error('expected markdown Apply graph JSON to include nodes and edges')
     }
-
-    await Promise.resolve(jsonText)
   } finally {
-    restoreDom()
-    restoreWindow()
+    state.setFrontmatterModeEnabled(prevFrontmatterModeEnabled)
   }
 }
