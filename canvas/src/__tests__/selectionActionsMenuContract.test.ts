@@ -1,4 +1,4 @@
-import { buildSelectionActionItems } from '@/components/BottomPanel/markdownWorkspace/selectionActionItems'
+import { buildSelectionActionItems } from '@/features/markdown-workspace/selectionActionItems'
 
 export function testSelectionActionsMenuBuildsSharedActionItems() {
   const called: string[] = []

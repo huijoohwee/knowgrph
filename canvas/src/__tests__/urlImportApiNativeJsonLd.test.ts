@@ -1,5 +1,5 @@
-import { buildJsonLdMarkdown, extractJsonLdFromHtmlText } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/apiNative'
-import { fetchWorkspaceUrlContent } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { buildJsonLdMarkdown, extractJsonLdFromHtmlText } from '@/features/markdown-workspace/workspaceImport/apiNative'
+import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport'
 
 export function testUrlImportApiNativeJsonLdExtractsAndRendersMarkdown() {
   const html = [

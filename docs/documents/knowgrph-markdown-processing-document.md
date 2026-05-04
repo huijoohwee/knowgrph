@@ -7,7 +7,9 @@ The Markdown rendering engine in Knowgrph has been enhanced to support GitHub-st
 Markdown Editor/Viewer/Presentation must share a single SSOT header and a single SSOT Contents sidebar/TOC structure.
 
 - SSOT contract document: `knowgrph/docs/documents/knowgrph-markdown-ssot-ui-contract-document.md`
-- Header SSOT: `singabldr/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx`
+- Header SSOT: `knowgrph/canvas/src/features/markdown-workspace/MarkdownWorkspaceToolbar.tsx`
+- Runtime SSOT: `knowgrph/canvas/src/lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx`
+- Shared workspace UI types: `knowgrph/canvas/src/features/markdown-explorer/workspaceUi.ts` + `knowgrph/canvas/src/features/markdown-workspace/markdownUtils.ts`
 - Sidebar SSOT: `singabldr/src/features/markdown/ui/MarkdownPanelLayout.tsx` (frame + sections)
 - Shared utils SSOT: `knowgrph/grph-shared/src/markdown/*` (wikilinks/backlinks/slugify)
 
@@ -69,7 +71,7 @@ Code blocks now feature a structured layout matching GitHub's design system:
 - **Text Selection Gestures**: Viewer/Presentation preserve native browser selection (single click caret anchor; double click word; triple click paragraph/line). No double-click navigation.
 - **Right Click → “Show on/in …”**: Right click opens the Selection Toolbar at the exact pointer position; Monaco’s built-in context menu is disabled so the same toolbar behavior is used across Editor/Viewer/Presentation.
 - **Apply Shortcut**: In Editor/Viewer layout modes, Cmd/Ctrl+Enter toggles Editor↔Viewer; when in Editor it applies and then switches to Viewer.
-- **Left-Side Contents Panel (Bottom Panel)**: The Markdown “Contents” sidebar is rendered on the left and includes a Source Files tree (folder/file hierarchy derived from `/` in file names) with icon-only create actions.
+- **Left-Side Contents Panel (Markdown Workspace)**: The Markdown “Contents” sidebar is rendered on the left and includes a Source Files tree (folder/file hierarchy derived from `/` in file names) with icon-only create actions.
 
 ### In-Doc Navigation (Anchors, Callouts, Wikilinks)
 - **HTML anchors are preserved**: Empty anchor targets like `<a id="phase-1-input"></a>` remain in the rendered DOM so `#phase-1-input` hash navigation works (including Mermaid `click ... "#phase-*"` directives).
@@ -116,6 +118,8 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **GeoJSON Mode Independence**: GeoJSON previews in the Markdown Viewer/Presentation are available in both Document Mode and Geospatial Mode. Document Mode disables the full-screen geospatial overlay, but Markdown code-block previews can still render fitted MapLibre maps using the same basemap style configuration.
 - **GeoJSON Renderer Wiring**: Viewer-mode render trees must include `geoDatasetIntegration` in memo dependency arrays so injected renderers don’t stay stale and emit “GeoJSON renderer unavailable”.
 - **GeoJSON Error UI**: GeoJSON render failures show a compact error bar (≈50% of the Markdown toolbar nav height) to avoid consuming the code block preview area.
+- **Widget Mode Bundle Gating**: Markdown Workspace widget-mode bundle generation is view-only and must run only while widget mode is actually active; document mode must not prebuild or prewarm the large widget bundle.
+- **Widget Mode Graph Caching**: Widget bundle generation must derive a shared semantic graph key, reuse the upstream graph lookup cache, and reuse a cached node-id subgraph lookup keyed by graph revision plus semantic node-id signatures rather than raw array identity.
 
 ### Media Proxy Handling
 - **Background Sources**: Slide `background` URLs are normalized via [markdownSlideVisuals.ts](../../../singabldr/src/features/markdown/ui/markdownSlideVisuals.ts) before render.
@@ -130,7 +134,7 @@ To avoid redundant processing and ensure consistency across the application (e.g
 - **Import & Parse (Markdown)**: Markdown is ingested via [markdownImportAction.ts](../../canvas/src/features/toolbar/markdownImportAction.ts), which calls [loadGraphDataFromTextViaParser](../../canvas/src/features/parsers/loader.ts). The Markdown parser builds JSON‑LD (`buildMarkdownJsonLd`) and converts it into GraphData ([default.ts](../../canvas/src/features/parsers/default.ts)).
 - **Import & Parse (JSON/JSON-LD)**: JSON and JSON‑LD are ingested via [jsonImportAction.ts](../../canvas/src/features/toolbar/jsonImportAction.ts) and the parser stack (`loader.ts` + `adapter.ts` + `parseJsonLd.ts`). When inputs are JSON‑LD, they are interpreted structurally into GraphData; when inputs are arbitrary JSON, `rawToGraphData` normalizes records/graphs into nodes/edges without changing the underlying schema contract.
 - **HTML/DOM→Markdown SSOT**: Webpage/HTML inputs are converted to Markdown using the unified HTML→Markdown converter and, for JS‑rendered pages, an optional sandboxed iframe DOM export bridge. Markdown remains the SSOT text form; HTML/JSON views are view‑only projections controlled by frontmatter (see `knowgrph-webpage-proxy-and-srcdoc-iframe-document.md`).
-- **YouTube Import**: Workspace Actions → Source Files → YouTube fetches transcripts/subtitles (manual or generated) via `/__youtube_transcript` and converts them into Markdown + a JSON source payload. Markdown is loaded into the Markdown Editor/Preview/Slides, while the JSON payload is stored as `jsonSourceDocumentText` for the Bottom Panel JSON Editor.
+- **YouTube Import**: Workspace Actions → Source Files → YouTube fetches transcripts/subtitles (manual or generated) via `/__youtube_transcript` and converts them into Markdown + a JSON source payload. Markdown is loaded into the Markdown Editor/Preview/Slides, while the JSON payload is stored as `jsonSourceDocumentText` for JSON-backed markdown workspace and UI Editor flows.
 - **GraphData Commit**: Parsed GraphData is stored via the graph store (`setGraphData`), which triggers minimap and layout autosuggest side effects without blocking the UI ([graphDataSlice.ts](../../canvas/src/hooks/store/graphDataSlice.ts)).
 - **Layer Derivation**: The renderer derives a view‑specific graph (document/schema/semantic) with [deriveGraphDataForLayers](../../canvas/src/lib/graph/layerDerivation.ts) and optional frontmatter filtering; this stage clones nodes/edges so D3 can mutate render-only objects without polluting the store.
 - **Canvas + Table Rendering**: [GraphCanvas](../../canvas/src/components/GraphCanvas.tsx) builds the scene via [setupGraphScene](../../canvas/src/components/GraphCanvas/scene.ts), producing SVG layers for nodes, edges, labels, and graph layers. In parallel, the host Multi-dimensional Table workspace materializes the same GraphData into RxDB GraphTableDb (nodes/edges tables + property columns) and renders a canvas fast-grid + Record Inspector over that materialization.

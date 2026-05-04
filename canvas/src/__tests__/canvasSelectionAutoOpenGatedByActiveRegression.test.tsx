@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import { useCanvasMarkdownSync } from '@/components/BottomPanel/markdownWorkspace/useCanvasMarkdownSync'
+import { useCanvasMarkdownSync } from '@/features/markdown-workspace/useCanvasMarkdownSync'
 
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))

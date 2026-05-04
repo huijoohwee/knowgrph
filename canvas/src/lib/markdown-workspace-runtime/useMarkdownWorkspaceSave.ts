@@ -3,16 +3,18 @@ import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { normalizeWorkspacePath, workspaceBasename, workspaceExtLower, workspaceStem, WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
-import { shouldAutosaveWorkspaceFile } from '@/components/BottomPanel/markdownWorkspace/workspaceAutosave'
+import { shouldAutosaveWorkspaceFile } from '@/features/markdown-workspace/workspaceAutosave'
 import {
   cancelMarkdownWorkspaceAutosaveSync,
   scheduleMarkdownWorkspaceAutosaveSync,
 } from './markdownWorkspaceRuntime.stateSync'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
 import { syncWorkspaceTextState, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
+import { clearRuntimeTimeout, scheduleRuntimeTimeout, type RuntimeTimeoutHandle } from './markdownWorkspaceRuntime.shared'
+import type { MarkdownWorkspaceRuntimeProgressStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
-export type MarkdownWorkspaceSaveArgs = {
+export type MarkdownWorkspaceSaveArgs = MarkdownWorkspaceRuntimeProgressStatusBindings & {
   active: boolean
   viewerInlineEditActive: boolean
   activePath: WorkspacePath | null
@@ -26,16 +28,6 @@ export type MarkdownWorkspaceSaveArgs = {
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
   setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   setGraphRagWorkflowJsonText: (text: string) => void
-  setStatusProgress: (
-    label: string,
-    value?: number,
-    max?: number,
-    bytesDone?: number,
-    bytesTotal?: number,
-    opts?: { ttlMs?: number },
-  ) => void
-  setStatusWithAutoClear: (label: string, ttlMs?: number) => void
-  setStatusError: (label: string) => void
   setActiveTextProgrammatic: (next: string) => void
   refresh: () => Promise<unknown>
   setActivePathSafe: (path: WorkspacePath) => void
@@ -46,7 +38,7 @@ export type MarkdownWorkspaceSaveArgs = {
 export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
   const autosaveInFlightRef = React.useRef(false)
   const autosavePendingRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
-  const autosaveStatusTimerRef = React.useRef<number | null>(null)
+  const autosaveStatusTimerRef = React.useRef<RuntimeTimeoutHandle | null>(null)
 
   const applySaveSuccessStatus = React.useCallback(
     (label: string, ttlMs?: number) => {
@@ -177,7 +169,7 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
         try {
           while (true) {
             let savingShown = false
-            autosaveStatusTimerRef.current = window.setTimeout(() => {
+            autosaveStatusTimerRef.current = scheduleRuntimeTimeout(() => {
               args.setStatusProgress('Saving', undefined, undefined, undefined, undefined, {
                 ttlMs: UI_TOAST_TTL_MS.progressExtended,
               })
@@ -199,7 +191,7 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
               if (savingShown) applySaveSuccessStatus('Saved')
             } finally {
               const timer = autosaveStatusTimerRef.current
-              if (timer != null) window.clearTimeout(timer)
+              clearRuntimeTimeout(timer)
               autosaveStatusTimerRef.current = null
             }
 
@@ -226,7 +218,7 @@ export function useMarkdownWorkspaceSave(args: MarkdownWorkspaceSaveArgs) {
   React.useEffect(() => {
     return () => {
       const timer = autosaveStatusTimerRef.current
-      if (timer != null) window.clearTimeout(timer)
+      clearRuntimeTimeout(timer)
       autosaveStatusTimerRef.current = null
       autosaveInFlightRef.current = false
       autosavePendingRef.current = null

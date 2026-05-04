@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceBacklinksList } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceBacklinksList'
+import { MarkdownWorkspaceBacklinksList } from '@/features/markdown-workspace/MarkdownWorkspaceBacklinksList'
 
 export async function testMarkdownWorkspaceBacklinksListOwnsExplorerBacklinksSectionBody() {
   const { dom, restore } = initJsdomHarness()

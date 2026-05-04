@@ -205,7 +205,7 @@ export function testParsedGraphStateOwnershipIsCentralized() {
   const ingestPath = resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesIngestIntegration.ts')
   const importPath = resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'applyWorkspaceImportToCanvas.ts')
   const indexingPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
-  const markdownApplyPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'hooks', 'useMarkdownApply.ts')
+  const markdownApplyPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'hooks', 'useMarkdownApply.ts')
   const runtimeIoPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntime.io.ts')
   const documentActionsPath = resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataDocumentActions.ts')
   const markdownImportPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'markdownImportAction.ts')
@@ -410,7 +410,7 @@ export function testParsedGraphStateOwnershipIsCentralized() {
   }
   if (
     !readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'applyComposedGraphFromSourceFiles.ts'), 'utf8').includes('resolveSourceLayerKeyChange({') ||
-    !readFileSync(resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'hooks', 'useMarkdownApply.ts'), 'utf8').includes('resolveSourceLayerKeyChange({') ||
+    !readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'hooks', 'useMarkdownApply.ts'), 'utf8').includes('resolveSourceLayerKeyChange({') ||
     !readFileSync(resolve(process.cwd(), 'src', 'lib', 'graph', 'sourceLayers.ts'), 'utf8').includes('export function resolveSourceLayerKeyChange(args:')
   ) {
     throw new Error('expected composed apply callers to reuse the shared source-layer key change helper for unchanged vs order-only vs content branching')
@@ -631,7 +631,7 @@ export function testWorkspaceRefreshSetSourceFilesImmediatelySchedulesComposeApp
 }
 
 export function testWorkspaceImportActionsReuseRefreshSnapshotForApply() {
-  const importPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'importActions.ts')
+  const importPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'importActions.ts')
   const text = readFileSync(importPath, 'utf8')
 
   if (!text.includes('const refreshed = await refresh()')) {
@@ -652,7 +652,7 @@ export function testWorkspaceImportActionsReuseRefreshSnapshotForApply() {
 }
 
 export function testWorkspaceImportFocusDoesNotDuplicateGraphApply() {
-  const importPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'importActions.ts')
+  const importPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'importActions.ts')
   const fallbackPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'launchDropdownFallbacks.ts')
   const text = readFileSync(importPath, 'utf8')
   const fallbackText = readFileSync(fallbackPath, 'utf8')
@@ -675,9 +675,9 @@ export function testWorkspaceImportFocusDoesNotDuplicateGraphApply() {
 }
 
 export function testWorkspaceManualRefreshActionsSuppressFollowUpFsEventRefresh() {
-  const corePath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'core.ts')
-  const mutationPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'mutationActions.ts')
-  const websitePath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'websiteImportAction.ts')
+  const corePath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'core.ts')
+  const mutationPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'mutationActions.ts')
+  const websitePath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'websiteImportAction.ts')
   const coreText = readFileSync(corePath, 'utf8')
   const mutationText = readFileSync(mutationPath, 'utf8')
   const websiteText = readFileSync(websitePath, 'utf8')
@@ -728,12 +728,12 @@ export function testWorkspaceInlineTextOwnershipIsCentralized() {
 export function testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized() {
   const runtimeIoPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntime.io.ts')
   const activeDocPath = resolve(process.cwd(), 'src', 'features', 'markdown', 'activeMarkdownDocument.ts')
-  const importActionsPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'importActions.ts')
-  const mutationActionsPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'mutationActions.ts')
+  const importActionsPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'importActions.ts')
+  const mutationActionsPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'mutationActions.ts')
   const selectionPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSelection.ts')
   const indexingPath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx')
   const savePath = resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSave.ts')
-  const corePath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useWorkspaceFileActions', 'core.ts')
+  const corePath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useWorkspaceFileActions', 'core.ts')
   const importEffectsPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'importSideEffects.ts')
 
   const runtimeIoText = readFileSync(runtimeIoPath, 'utf8')

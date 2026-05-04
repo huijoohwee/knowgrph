@@ -1,5 +1,5 @@
 export type {
-  BottomTab,
+  BottomSurfaceTab,
   CanvasSnapshotFns,
   ChatExchangeLogEntry,
   ChatExchangeLogEntryInput,

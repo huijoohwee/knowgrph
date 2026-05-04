@@ -4,7 +4,7 @@ import { computeBacklinks } from '@/features/markdown-explorer/backlinks'
 import { useMarkdownPreviewTokens } from '@/features/markdown/ui/useMarkdownPreviewTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import { reorderMarkdownHeadings } from '@/features/markdown/ui/markdownSectionUtils'
-import { WORKSPACE_TOC_PARSE_MAX_CHARS } from './markdownWorkspaceRuntime.shared'
+import { clearRuntimeTimeout, scheduleRuntimeTimeout, WORKSPACE_TOC_PARSE_MAX_CHARS } from './markdownWorkspaceRuntime.shared'
 
 export type MarkdownWorkspaceExplorerDerivationsArgs = {
   active: boolean
@@ -118,8 +118,8 @@ export function useMarkdownWorkspaceExplorerDerivations(args: MarkdownWorkspaceE
         }
       }
     }
-    const t = window.setTimeout(run, 0)
-    return () => window.clearTimeout(t)
+    const t = scheduleRuntimeTimeout(run, 0)
+    return () => clearRuntimeTimeout(t)
   }, [active, activePath, backlinksCollapsed, entries, explorerOpen])
 
   return {

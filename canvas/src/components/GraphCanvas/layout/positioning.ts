@@ -492,6 +492,7 @@ export const determineLayoutPositions = ({
       baseKey,
       expectedKey: cacheKey,
       expectedLayoutVariant: layoutVariant,
+      allowVariantFallback: renderMode !== '2d',
     })
   })()
   const coverageFromCache = (() => {

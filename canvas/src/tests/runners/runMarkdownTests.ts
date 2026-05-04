@@ -106,6 +106,38 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownGeoIntegrationTripDemo()
     await mod.testGeospatialDatasetLoaderParsesEmbeddedGeoJsonFromMarkdownUrl()
   })
+  await execTest(results, 'markdown.geospatial.tripDemoMmdOverlayCacheInvalidatesBySemanticSourceContent', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testTripDemoMmdOverlayGraphDataInvalidatesSourceFileCacheBySemanticContent()
+  })
+  await execTest(results, 'markdown.geospatial.tripDemoMmdOverlayCacheInvalidatesDirectModeByParsedSourceGraph', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testTripDemoMmdOverlayGraphDataInvalidatesDirectModeCacheByParsedSourceGraph()
+  })
+  await execTest(results, 'markdown.geospatial.tripDemoMmdOverlaySkipsDisabledSourceFiles', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testTripDemoMmdOverlayGraphDataSkipsDisabledSourceFiles()
+  })
+  await execTest(results, 'markdown.geospatial.tripDemoMmdOverlaySkipsGeoLayerDisabledSourceFiles', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testTripDemoMmdOverlayGraphDataSkipsGeoLayerDisabledSourceFiles()
+  })
+  await execTest(results, 'markdown.geospatial.overlayDedupesDuplicateEmbeddedGeoJsonBlocks', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testGeospatialOverlayGraphDataDedupesDuplicateEmbeddedGeoJsonBlocks()
+  })
+  await execTest(results, 'markdown.geospatial.overlayDedupesDuplicateMarkdownTablePoints', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testGeospatialOverlayGraphDataDedupesDuplicateMarkdownTablePoints()
+  })
+  await execTest(results, 'markdown.geospatial.prefersExactSourcePathMatch', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testGeospatialOverlayGraphDataPrefersExactSourcePathMatch()
+  })
+  await execTest(results, 'markdown.geospatial.resolvesSourceFileFromGraphIdPath', async () => {
+    const mod = await modMarkdownGeoIntegrationTripDemo()
+    await mod.testGeospatialOverlayGraphDataResolvesSourceFileFromGraphIdPath()
+  })
   await execTest(results, 'markdown.mediaRegistry.poiImagesEnrichMatchingNodes', async () => {
     const mod = await modMarkdownPoiImagesRegistry()
     await mod.testMarkdownPoiImagesRegistryEnrichesMatchingNodes()

@@ -1,6 +1,6 @@
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { hashText } from '@/features/parsers/hash'
-import { tokenizeForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
+import { tokenizeForStats } from '@/lib/graph/statsUtils'
 import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords'
 import { nowMs, tokenizePreserveCase, lemmatizeNaive, hfToySubwordsFromText } from '@/lib/graph/graphragTextToyStages'
 import { applyGraphRagTextAnalytics, type GraphRagTextGraphMetrics } from '@/lib/graph/graphragTextAnalytics'

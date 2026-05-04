@@ -1,7 +1,7 @@
 import React from 'react'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
-import { isMarkdownPath, languageForPath } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
+import { isMarkdownPath, languageForPath } from '@/features/markdown-workspace/markdownWorkspaceUtils'
 
 type WebpageWorkspaceMeta = {
   url?: unknown

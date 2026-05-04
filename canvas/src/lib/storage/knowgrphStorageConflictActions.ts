@@ -104,12 +104,12 @@ const readConflictSummary = async (
 const openConflictLogSurface = (): void => {
   const store = useGraphStore.getState()
   try {
-    store.setBottomPanelCollapsed(false)
+    store.setBottomSurfaceCollapsed(false)
   } catch {
     void 0
   }
   try {
-    store.setBottomPanelTab('history')
+    store.setBottomSurfaceTab('history')
   } catch {
     void 0
   }

@@ -1,34 +1,32 @@
+import type { FeatureCollection, Geometry } from 'geojson'
 import { extractFencedCodeBlocks } from './extractFencedCodeBlocks'
-import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 import { hashText } from '@/features/parsers/hash'
 import { SimpleTtlLruCache } from '@/lib/cache/SimpleTtlLruCache'
+import { cloneMarkdownGeoEmbeddedBlocks } from '@/features/geospatial/markdownGeoClone'
+import type { MarkdownGeoEmbeddedBlock, MarkdownGeoEmbeddedRequest } from '@/features/geospatial/markdownGeoSnapshotContract'
+import { normalizeMarkdownGeoSourceDocumentPath } from '@/features/geospatial/markdownGeoDocumentPath'
+import {
+  buildMarkdownGeoCodeBlockContentHash,
+} from '@/features/geospatial/markdownGeoContentSignature'
+import { resolveMarkdownGeoTextParseResult } from '@/features/geospatial/markdownGeoParse'
+import {
+  buildMarkdownGeoDocumentLineRangePath,
+  normalizeMarkdownGeoLineRange,
+} from '@/features/geospatial/markdownGeoLineRange'
+import { buildMarkdownGeoCodeBlockGraphSourceDescriptor } from '@/features/geospatial/markdownGeoSourcePath'
 
-export type EmbeddedGeoJsonBlock = {
-  geojsonText: string
-  startLine: number
-  endLine: number
-}
+export type EmbeddedGeoJsonBlock = MarkdownGeoEmbeddedBlock<Geometry>
 
-export type EmbeddedGeoJsonGraphDataRequest = {
-  sourceDocumentPath: string
-  codeBlock: {
-    lang: 'geojson'
-    text: string
-    startLine: number
-    endLine: number
-  }
-}
+export type EmbeddedGeoJsonGraphDataRequest = MarkdownGeoEmbeddedRequest<Geometry>
 
 const embeddedGeoExtractionCache = new SimpleTtlLruCache<string, EmbeddedGeoJsonBlock[]>(120, 20 * 60 * 1000)
-
-const cloneBlocks = (blocks: EmbeddedGeoJsonBlock[]): EmbeddedGeoJsonBlock[] => blocks.map(b => ({ ...b }))
 
 export function extractEmbeddedGeoJsonFeatureCollections(markdownText: string): EmbeddedGeoJsonBlock[] {
   const normalizedMarkdown = String(markdownText || '')
   if (!normalizedMarkdown.trim()) return []
   const cacheKey = hashText(normalizedMarkdown)
   const cached = embeddedGeoExtractionCache.get(cacheKey)
-  if (cached) return cloneBlocks(cached)
+  if (cached) return cloneMarkdownGeoEmbeddedBlocks(cached)
 
   const blocks = extractFencedCodeBlocks(normalizedMarkdown)
   const out: EmbeddedGeoJsonBlock[] = []
@@ -36,22 +34,26 @@ export function extractEmbeddedGeoJsonFeatureCollections(markdownText: string): 
   for (const b of blocks) {
     const lang = b.lang
     if (lang !== 'geojson' && lang !== 'json') continue
-    const trimmed = String(b.content || '').trim()
-    if (!trimmed) continue
+    const parsed = resolveMarkdownGeoTextParseResult({ geojsonText: b.content })
+    if (!parsed.normalizedText) continue
 
     if (lang === 'json') {
-      const lc = trimmed.toLowerCase()
+      const lc = parsed.normalizedText.toLowerCase()
       if (!lc.includes('"type"')) continue
       if (!lc.includes('featurecollection') && !lc.includes('"feature"')) continue
     }
 
-    const fc = parseGeoJsonFeatureCollectionFromText(trimmed)
-    if (!fc) continue
-    out.push({ geojsonText: JSON.stringify(fc), startLine: b.startLine, endLine: b.endLine })
+    if (!parsed.featureCollection) continue
+    out.push({
+      featureCollection: parsed.featureCollection as FeatureCollection<Geometry>,
+      geojsonText: parsed.normalizedText,
+      startLine: b.startLine,
+      endLine: b.endLine,
+    })
   }
 
   embeddedGeoExtractionCache.set(cacheKey, out)
-  return cloneBlocks(out)
+  return cloneMarkdownGeoEmbeddedBlocks(out)
 }
 
 export function extractEmbeddedGeoJsonGraphDataRequests(args: {
@@ -59,7 +61,7 @@ export function extractEmbeddedGeoJsonGraphDataRequests(args: {
   sourceDocumentPath: string
   limit?: number
 }): EmbeddedGeoJsonGraphDataRequest[] {
-  const sourceDocumentPath = String(args.sourceDocumentPath || '').trim()
+  const sourceDocumentPath = normalizeMarkdownGeoSourceDocumentPath(args.sourceDocumentPath)
   if (!sourceDocumentPath) return []
 
   const blocks = extractEmbeddedGeoJsonFeatureCollections(args.markdownText)
@@ -74,25 +76,38 @@ export function extractEmbeddedGeoJsonGraphDataRequests(args: {
     if (out.length >= limit) break
     const text = String(block.geojsonText || '').trim()
     if (!text) continue
-    const signature = `geojson:${block.startLine}:${block.endLine}:${hashText(text)}`
+    const lineRange = normalizeMarkdownGeoLineRange({
+      startLine: block.startLine,
+      endLine: block.endLine,
+    })
+    const sourceLineRangePath = buildMarkdownGeoDocumentLineRangePath({
+      sourceDocumentPath,
+      startLine: lineRange.startLine,
+      endLine: lineRange.endLine,
+    })
+    const signature = `geojson:${sourceLineRangePath}:${buildMarkdownGeoCodeBlockContentHash(text)}`
     if (seen.has(signature)) continue
     seen.add(signature)
-    out.push({
+    const sourceDescriptor = buildMarkdownGeoCodeBlockGraphSourceDescriptor({
       sourceDocumentPath,
       codeBlock: {
         lang: 'geojson',
         text,
-        startLine: block.startLine,
-        endLine: block.endLine,
+        startLine: lineRange.startLine,
+        endLine: lineRange.endLine,
+      },
+    })
+    out.push({
+      sourceDocumentPath,
+      sourceDescriptor,
+      featureCollection: block.featureCollection,
+      codeBlock: {
+        lang: 'geojson',
+        text,
+        startLine: lineRange.startLine,
+        endLine: lineRange.endLine,
       },
     })
   }
   return out
-}
-
-export function buildEmbeddedGeoJsonUploadName(sourceName: string, index: number): string {
-  const base = String(sourceName || 'document').trim() || 'document'
-  const stem = base.replace(/\.(md|markdown)$/i, '')
-  const n = Number.isFinite(index) ? Math.max(0, Math.floor(index)) : 0
-  return `${stem}-embedded-geojson-${n + 1}.geojson`
 }

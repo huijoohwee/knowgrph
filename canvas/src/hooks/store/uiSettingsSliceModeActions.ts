@@ -1,6 +1,6 @@
 
 import type { StoreApi } from 'zustand'
-import type { BottomTab, DocumentSemanticMode, GraphState } from './types'
+import type { BottomSurfaceTab, DocumentSemanticMode, GraphState } from './types'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { UI_COPY } from '@/lib/config-copy/uiCopy'
 import { lsSetInt } from '@/lib/persistence'
@@ -48,11 +48,11 @@ export const createUiSettingsModeActions = (
   get: GetGraph,
   keywordDefaults: KeywordDefaults,
 )=> ({
-  setBottomPanelHeightRatio: (v: number) => set({ bottomPanelHeightRatio: v }),
+  setBottomSurfaceHeightRatio: (v: number) => set({ bottomSurfaceHeightRatio: v }),
   setFloatingPanelWidthRatio: (v: number) => set({ floatingPanelWidthRatio: v }),
   setFloatingPanelHeightRatio: (v: number) => set({ floatingPanelHeightRatio: v }),
   setFloatingPanelZIndex: (v: number) => set({ floatingPanelZIndex: v }),
-  setBottomPanelTab: (tab: BottomTab) => set({ bottomPanelTab: tab }),
+  setBottomSurfaceTab: (tab: BottomSurfaceTab) => set({ bottomSurfaceTab: tab }),
   setFrontmatterModeEnabled: (v: boolean) => {
     const stateNow = get()
     if (v !== true && isFrontmatterOnlyPolicyActive({ canvasRenderMode: stateNow.canvasRenderMode, canvas2dRenderer: stateNow.canvas2dRenderer })) {

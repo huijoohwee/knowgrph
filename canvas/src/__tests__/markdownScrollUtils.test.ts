@@ -1,4 +1,4 @@
-import { computeViewerScrollTopForElement } from '@/components/BottomPanel/markdownScrollUtils'
+import { computeViewerScrollTopForElement } from '@/features/markdown-workspace/markdownScrollUtils'
 
 export const testMarkdownScrollUtilsRespectsScrollPaddingTop = () => {
   const top = computeViewerScrollTopForElement({

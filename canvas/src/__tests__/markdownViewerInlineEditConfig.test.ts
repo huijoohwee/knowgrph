@@ -240,9 +240,8 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   const derivedViewerPath = path.resolve(
     root,
     'src',
-    'components',
-    'BottomPanel',
-    'markdownWorkspace',
+    'features',
+    'markdown-workspace',
     'main',
     'viewer',
     'MarkdownWorkspaceDerivedViewer.tsx',
@@ -257,7 +256,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!derivedViewerText.includes('forbidCopy={false}')) {
     throw new Error('expected derived markdown read viewer code-fence copy action to stay enabled in read mode')
   }
-  const workspaceMainPath = path.resolve(root, 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'MarkdownWorkspaceMain.tsx')
+  const workspaceMainPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx')
   const workspaceMainText = readUtf8(workspaceMainPath)
   if (!workspaceMainText.includes('onInsertLineAfter={disableViewerMutations ? undefined : onInsertLineAfter}')) {
     throw new Error('expected markdown workspace read viewer to keep insert-line controls enabled unless mutations are disabled')
@@ -313,7 +312,7 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!codeText.includes('MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS')) {
     throw new Error('expected code-fence line-by-line read/edit typography spacing parity to reuse centralized line-spacing SSOT class')
   }
-  if (!codeText.includes('WrapText') || !codeText.includes('bottomPanelMarkdownWordWrapToggleTitle')) {
+  if (!codeText.includes('WrapText') || !codeText.includes('markdownWorkspaceWordWrapToggleTitle')) {
     throw new Error('expected code-fence header to reuse existing word-wrap toggle copy and icon contract')
   }
   if (!codeText.includes('effectiveWrapClass') || !codeText.includes('setLocalWordWrapEnabled')) {
@@ -651,9 +650,8 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   const dataViewSettingsPropsPath = path.resolve(
     root,
     'src',
-    'components',
-    'BottomPanel',
-    'markdownWorkspace',
+    'features',
+    'markdown-workspace',
     'main',
     'viewer',
     'WorkspaceDataViewSettingsPropertiesSection.tsx',

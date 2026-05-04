@@ -1,9 +1,9 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { useCanvasMarkdownSync } from '@/components/BottomPanel/markdownWorkspace/useCanvasMarkdownSync'
+import { useCanvasMarkdownSync } from '@/features/markdown-workspace/useCanvasMarkdownSync'
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import type { HighlightedLineRange } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
+import type { HighlightedLineRange } from '@/features/markdown-workspace/markdownWorkspaceTypes'
 import { buildDocLocationIndex } from '@/features/markdown-explorer/docLocationIndex'
 import { matchesMarkdownDocumentPath } from 'grph-shared/markdown/documentPath'
 import { applyMarkdownFormatAction, type MarkdownFormatAction } from 'grph-shared/markdown/formatting'
@@ -12,6 +12,8 @@ import { emitSidePanelOpen } from '@/features/canvas/utils'
 import { setGeospatialModeEnabled } from '@/lib/gympgrph/api'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import {
+  clearRuntimeTimeout,
+  scheduleRuntimeTimeout,
   subscribeMarkdownLayoutRequest,
   WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS,
 } from './markdownWorkspaceRuntime.shared'
@@ -29,9 +31,10 @@ import {
   registerMarkdownWorkspaceEmbeddedGeoDatasets,
   resolveMarkdownWorkspaceApplyText,
 } from './markdownWorkspaceApply'
+import type { MarkdownWorkspaceRuntimeInteractionStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceInfoStatus } from './markdownWorkspaceStatusTransitions'
 
-export function useMarkdownWorkspaceInteractions(args: {
+export function useMarkdownWorkspaceInteractions(args: MarkdownWorkspaceRuntimeInteractionStatusBindings & {
   active: boolean
   entries: WorkspaceEntry[]
   explorerOpen: boolean
@@ -72,9 +75,6 @@ export function useMarkdownWorkspaceInteractions(args: {
   contentMode: 'document' | 'widget'
   widgetEditorText: string
   applyMarkdownDocumentToGraph: (name: string, text: string, opts: { force: boolean }) => Promise<boolean>
-  setStatusError: (label: string) => void
-  setStatusInfo: (label: string) => void
-  setStatusProgress: (label: string) => void
 }) {
   const {
     active,
@@ -358,11 +358,11 @@ export function useMarkdownWorkspaceInteractions(args: {
     if (graphText === text) return
     const sig = `${name}:${hashStringToHex(text)}`
     if (lastRealtimeApplySigRef.current === sig) return
-    const timer = window.setTimeout(() => {
+    const timer = scheduleRuntimeTimeout(() => {
       lastRealtimeApplySigRef.current = sig
       void handleApply()
     }, WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS)
-    return () => window.clearTimeout(timer)
+    return () => clearRuntimeTimeout(timer)
   }, [activeDocumentKey, activeText, canvasWorkspaceSyncMode, contentMode, handleApply, markdownDocumentName, markdownDocumentText, workspaceApplyEffectsEnabled])
 
   const handleFormatAction = React.useCallback(

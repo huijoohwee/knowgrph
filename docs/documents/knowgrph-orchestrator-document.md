@@ -4,7 +4,7 @@
 ## SSOT UI Surface
 
 - The Orchestrator UI lives only in the Canvas Floating Panel **Graph Traversal** view.
-- The legacy BottomPanel Orchestrator UI/Text editors are removed and must not be reintroduced.
+- Legacy bottom-surface Orchestrator UI/Text editors are removed and must not be reintroduced.
 
 ## Configuration Editing
 

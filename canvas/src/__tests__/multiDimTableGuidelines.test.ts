@@ -1,7 +1,7 @@
 import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { deriveMarkdownTableGraphForFrontmatterMode } from '@/features/markdown/tableGraph/deriveMarkdownTableGraph'
-import { writeWorkspaceDataViewState } from '@/components/BottomPanel/markdownWorkspace/main/viewer/workspaceDataViewConfig'
+import { writeWorkspaceDataViewState } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 import { existsSync, readFileSync } from 'node:fs'
 import { parseBacktickJsonStringArray } from '@/lib/markdown/tableCellConventions'
 

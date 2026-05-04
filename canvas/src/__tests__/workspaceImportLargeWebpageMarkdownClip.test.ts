@@ -1,4 +1,4 @@
-import { fetchWorkspaceUrlContent } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport'
 
 export async function testWorkspaceImportLargeWebpageMarkdownIsClipped() {
   const manyParas = Array.from({ length: 30_000 }, () => '<p>hello world</p>').join('')

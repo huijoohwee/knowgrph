@@ -7,7 +7,7 @@ export function testD3FrontmatterModeDoesNotForceDocumentStructureGroups() {
     ['sceneDerivation', resolve(process.cwd(), 'src', 'lib', 'scene', 'sceneDerivation.ts')],
     ['graphScene', resolve(process.cwd(), 'src', 'components', 'GraphCanvas', 'scene.ts')],
     ['groupsLayer', resolve(process.cwd(), 'src', 'components', 'GraphCanvas', 'layers', 'groups.ts')],
-    ['exportHtmlCanvas', resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'exports', 'exportHtmlCanvas.ts')],
+    ['exportHtmlCanvas', resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'exports', 'exportHtmlCanvas.ts')],
     ['htmlCanvasSvgExport', resolve(process.cwd(), 'src', 'lib', 'graph', 'htmlCanvasSvgExport.ts')],
   ] as const
 

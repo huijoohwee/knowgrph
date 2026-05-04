@@ -2,7 +2,7 @@ import { buildMarkdownJsonLd } from '@/features/parsers/markdownJsonLd'
 import { parseJsonLd } from '@/lib/graph/jsonld'
 import { deriveGraphDataForActiveView } from '@/hooks/useActiveGraphData'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
-import { writeWorkspaceDataViewState } from '@/components/BottomPanel/markdownWorkspace/main/viewer/workspaceDataViewConfig'
+import { writeWorkspaceDataViewState } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 
 class MemoryStorage implements Storage {
   private readonly map = new Map<string, string>()

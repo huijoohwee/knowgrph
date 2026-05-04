@@ -5,10 +5,9 @@ export function testMarkdownWorkspaceCanvasHtmlIndexGuardSkipsExports() {
   const filePath = path.resolve(
     process.cwd(),
     'src',
-    'components',
-    'BottomPanel',
-    'markdownWorkspace',
-    'MarkdownWorkspace.tsx',
+    'lib',
+    'markdown-workspace-runtime',
+    'useMarkdownWorkspaceIndexing.tsx',
   )
   let text = ''
   try {
@@ -17,12 +16,12 @@ export function testMarkdownWorkspaceCanvasHtmlIndexGuardSkipsExports() {
     throw new Error(`Expected to read ${filePath}`)
   }
   if (!text.includes('workspaceExtLower(path)')) {
-    throw new Error('expected MarkdownWorkspace to use workspaceExtLower(path) when deciding indexing behavior')
+    throw new Error('expected markdown workspace indexing to use workspaceExtLower(path) when deciding indexing behavior')
   }
   if (!text.includes('id=\\"kg-root\\"') && !text.includes("id='kg-root'")) {
-    throw new Error('expected MarkdownWorkspace indexing guard to look for kg-root canvas container')
+    throw new Error('expected markdown workspace indexing guard to look for kg-root canvas container')
   }
   if (!text.includes('#kg-stage') || !text.includes('#kg-svgwrap')) {
-    throw new Error('expected MarkdownWorkspace indexing guard to match canvas HTML exports by #kg-stage and #kg-svgwrap markers')
+    throw new Error('expected markdown workspace indexing guard to match canvas HTML exports by #kg-stage and #kg-svgwrap markers')
   }
 }

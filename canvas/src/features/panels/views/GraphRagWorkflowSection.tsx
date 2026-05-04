@@ -11,8 +11,7 @@ import {
 } from '@/lib/config'
 import type { GraphRagWorkflowJsonLd } from '@/features/panels/utils/graphragConfig'
 import type { TraversalSummary } from '@/features/panels/utils/orchestratorTraversal'
-import { type AgenticRagContextComparison, type AgenticRagIgnoreFiltersSummary } from '@/lib/graph/jsonld/index'
-import { applyIgnoreCodebasePathsUpdate, computeInvalidIgnorePrefixes } from '@/features/panels/utils/agenticRagIgnoreFilters'
+import type { AgenticRagContextComparison } from '@/lib/graph/jsonld/index'
 import { GraphRagWorkflowIndexingSection } from '@/features/panels/views/GraphRagWorkflowIndexingSection'
 import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -112,9 +111,7 @@ interface GraphRagWorkflowSectionProps {
   tracingCollapsed: boolean
   onToggleTracingCollapsed: (next: boolean) => void
   agenticContext: AgenticRagContextComparison | null
-  ignoreFilters: AgenticRagIgnoreFiltersSummary | null
   onChangeAgenticContextUrl: (value: string) => void
-  onChangeIgnoreCodebasePaths: (value: string) => void
 }
 
 export function GraphRagWorkflowSection({
@@ -131,32 +128,15 @@ export function GraphRagWorkflowSection({
   tracingCollapsed,
   onToggleTracingCollapsed,
   agenticContext,
-  ignoreFilters,
   onChangeAgenticContextUrl,
-  onChangeIgnoreCodebasePaths,
 }: GraphRagWorkflowSectionProps) {
   const uiPanelMonospaceTextClass = useGraphStore(
     s => s.uiPanelMonospaceTextClass || 'font-mono text-xs',
-  )
-  const invalidIgnorePrefixes = React.useMemo(
-    () => computeInvalidIgnorePrefixes(ignoreFilters),
-    [ignoreFilters],
   )
   const uiPanelKeyValueInputClass = useGraphStore(
     s =>
       s.uiPanelKeyValueInputClass ||
       `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
-  )
-
-  const handleChangeIgnoreCodebasePaths = React.useCallback(
-    (value: string) => {
-      onChangeIgnoreCodebasePaths(value)
-      onUpdateWorkflow(current => {
-        const next: GraphRagWorkflowJsonLd = applyIgnoreCodebasePathsUpdate(current, value)
-        return next
-      })
-    },
-    [onChangeIgnoreCodebasePaths, onUpdateWorkflow],
   )
 
   return (
@@ -232,13 +212,9 @@ export function GraphRagWorkflowSection({
         </div>
       )}
       <GraphRagWorkflowIndexingSection
-        mode="floatingPanel"
         workflowDoc={workflowDoc}
         indexingCollapsed={indexingCollapsed}
         onToggleIndexingCollapsed={onToggleIndexingCollapsed}
-        ignoreFilters={ignoreFilters}
-        invalidIgnorePrefixes={invalidIgnorePrefixes}
-        onChangeIgnoreCodebasePathsInput={handleChangeIgnoreCodebasePaths}
         onUpdateWorkflow={onUpdateWorkflow}
       />
       <CollapsibleSection

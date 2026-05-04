@@ -142,26 +142,7 @@ export function testSelectionNormalizationReuseAdoptsSharedHookAcrossPanelConsum
     'utf8',
   )
   const statsSelectionText = readFileSync(
-    resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'hooks', 'useStatsSelection.ts'),
-    'utf8',
-  )
-  const fieldAggregatesText = readFileSync(
-    resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'hooks', 'useBottomPanelCuratorFieldAggregates.ts'),
-    'utf8',
-  )
-  const visibleRowsText = readFileSync(
-    resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'hooks', 'useBottomPanelCuratorVisibleRows.ts'),
-    'utf8',
-  )
-  const selectionNeighborhoodText = readFileSync(
-    resolve(
-      process.cwd(),
-      'src',
-      'components',
-      'BottomPanel',
-      'hooks',
-      'useBottomPanelCuratorSelectionNeighborhood.ts',
-    ),
+    resolve(process.cwd(), 'src', 'features', 'graph-stats', 'hooks', 'useStatsSelection.ts'),
     'utf8',
   )
   const selectionTargetsText = readFileSync(
@@ -389,26 +370,6 @@ export function testSelectionNormalizationReuseAdoptsSharedHookAcrossPanelConsum
     || statsSelectionText.includes('normalizeSelectionIds({')
   ) {
     throw new Error('expected useStatsSelection to reuse the shared selection anchor hook instead of local normalization memo blocks')
-  }
-
-  if (
-    !selectionNeighborhoodText.includes('const selectionAnchorIds = useSelectionAnchorIds({')
-    || !selectionNeighborhoodText.includes('readSelectionSubgraphMembershipForAnchorIds(graphData, selectionAnchorIds)')
-    || selectionNeighborhoodText.includes('normalizeSelectionIds({')
-  ) {
-    throw new Error('expected useBottomPanelCuratorSelectionNeighborhood to own shared selection anchor normalization and neighborhood reuse')
-  }
-
-  if (
-    !fieldAggregatesText.includes('} = useBottomPanelCuratorSelectionNeighborhood({')
-  ) {
-    throw new Error('expected useBottomPanelCuratorFieldAggregates to reuse the shared bottom-panel selection neighborhood helper')
-  }
-
-  if (
-    !visibleRowsText.includes('} = useBottomPanelCuratorSelectionNeighborhood({')
-  ) {
-    throw new Error('expected useBottomPanelCuratorVisibleRows to reuse the shared bottom-panel selection neighborhood helper')
   }
 
   if (

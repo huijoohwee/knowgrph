@@ -555,7 +555,7 @@ metadata.corpusSizePresets:
 ```
 **Canvas UI Integration**:
 - Floating Panel exposes `topKEdgesPerNode` and `minSimilarity` sliders.
-- Curators can adapt thresholds interactively; schema-config acts as preset source.
+- Operators can adapt thresholds interactively; schema-config acts as preset source.
 - LLMs and tools can read/update `corpusSizePresets` in schema-config JSON-LD.
 **Design Compliance**:
 | Context               | Intent                        | Directive                                                                                   | Module/Component          | Function/Method      | Input                     | Output                | Decision Logic                          |

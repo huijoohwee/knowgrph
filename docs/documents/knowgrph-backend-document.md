@@ -28,7 +28,7 @@ Implementation:
 ### YouTube transcript → Markdown (+ JSON source)
 
 - Path: `/__youtube_transcript?url=<encoded>[&lang=<code>]` (POST)
-- Purpose: fetch YouTube transcripts/subtitles/captions (manual or generated) and convert into Markdown for the Markdown Editor/Preview/Slides, while also returning a JSON source payload suitable for the Bottom Panel JSON Editor.
+- Purpose: fetch YouTube transcripts/subtitles/captions (manual or generated) and convert into Markdown for the Markdown Editor/Preview/Slides, while also returning a JSON source payload suitable for JSON-backed markdown workspace and UI Editor flows.
 - Runtime constraints: bounded Python subprocess execution (timeout) to forbid hanging imports.
 
 Implementation:

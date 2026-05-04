@@ -1,6 +1,6 @@
 import React from 'react'
 import { useDebouncedValue } from '@/features/hooks/useDebouncedValue'
-import type { HighlightedLineRange, MarkdownPresentationApi } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
+import type { HighlightedLineRange, MarkdownPresentationApi } from '@/features/markdown-workspace/markdownWorkspaceTypes'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -12,14 +12,14 @@ import { readPersistedMarkdownSourceFolderPaths } from '@/features/markdown/ui/m
 import { readMarkdownExplorerViewPreferences } from '@/features/markdown/ui/markdownExplorerViewPreferencesPersistence'
 import { readMarkdownExplorerSectionCollapseState } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
 import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
-import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
+import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX } from '@/features/markdown-workspace/markdownWorkspaceUtils'
 import { upsertWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
 import type { FolderModeContract } from './markdownWorkspaceRuntime.shared'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 
 export function useMarkdownWorkspaceBootstrapState(args: {
   activePath: WorkspacePath | null
-  effectiveBottomPanelCollapsed: boolean
+  effectiveBottomSurfaceCollapsed: boolean
 }) {
   const setMarkdownWorkspaceIndexingInFlight = useGraphStore(s => s.setMarkdownWorkspaceIndexingInFlight)
   const [entries, setEntries] = React.useState<WorkspaceEntry[]>([])
@@ -109,7 +109,7 @@ export function useMarkdownWorkspaceBootstrapState(args: {
     }
   }, [setMarkdownWorkspaceIndexingInFlight])
   const collapsedSnapshotRef = React.useRef<{ path: WorkspacePath; text: string } | null>(null)
-  const prevCollapsedRef = React.useRef<boolean>(args.effectiveBottomPanelCollapsed)
+  const prevCollapsedRef = React.useRef<boolean>(args.effectiveBottomSurfaceCollapsed)
   const lastRequestedActivePathRef = React.useRef<{ path: WorkspacePath; atMs: number } | null>(null)
   const activePathRef = React.useRef<WorkspacePath | null>(null)
   activePathRef.current = args.activePath

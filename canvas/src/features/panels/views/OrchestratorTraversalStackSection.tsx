@@ -23,7 +23,6 @@ import type { GraphRagPathHelper } from '@/features/panels/views/OrchestratorTra
 import type { OrchestratorTraversalSectionViewModel } from '@/features/panels/views/OrchestratorTraversalSectionModel'
 import type {
   AgenticRagContextComparison,
-  AgenticRagIgnoreFiltersSummary,
 } from '@/lib/graph/jsonld/index'
 
 interface OrchestratorTraversalWorkflowProps {
@@ -40,9 +39,7 @@ interface OrchestratorTraversalWorkflowProps {
   tracingCollapsed: boolean
   onToggleTracingCollapsed: (next: boolean) => void
   agenticContext: AgenticRagContextComparison | null
-  ignoreFilters: AgenticRagIgnoreFiltersSummary | null
   onChangeAgenticContextUrl: (value: string) => void
-  onChangeIgnoreCodebasePaths: (value: string) => void
 }
 
 interface OrchestratorTraversalPresetsProps {
@@ -142,9 +139,7 @@ export function OrchestratorTraversalSection({
           tracingCollapsed={workflowProps.tracingCollapsed}
           onToggleTracingCollapsed={workflowProps.onToggleTracingCollapsed}
           agenticContext={workflowProps.agenticContext}
-          ignoreFilters={workflowProps.ignoreFilters}
           onChangeAgenticContextUrl={workflowProps.onChangeAgenticContextUrl}
-          onChangeIgnoreCodebasePaths={workflowProps.onChangeIgnoreCodebasePaths}
         />
       </CollapsibleSection>
       <CollapsibleSection

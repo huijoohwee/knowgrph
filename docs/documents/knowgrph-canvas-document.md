@@ -73,7 +73,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 ### Mode Model
 
-- **Canvas mode** is the default full-screen graph workspace with Toolbar, BottomPanel, and the optional right side panel.
+- **Canvas mode** is the default full-screen graph workspace with the Toolbar, the quick-review bottom surface, and the optional right side panel.
 - **Editor mode** is a VS Code-like embedded workspace that reuses the existing Markdown Workspace SSOT (files + editor/viewer/split/presentation + import + apply-to-graph) and shares the same Canvas pane.
 - **Graph Data Table mode** is a table-first workspace for Nodes/Edges inspection that also shares the same Canvas pane.
 
@@ -106,7 +106,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 ### Preview Contract (SSOT)
 
 - **Editor/Table split view**: the Canvas is mounted once (single `CanvasViewport`) and resized into the right-side Canvas pane. The Editor workspace and Graph Data Table must not mount a second “Canvas Preview” instance.
-- **Embedded preview mode (external embed)**: if an `iframe` is used for embedding outside the workspace (marked with `data-kg-preview="1"` or `?kgPreview=1`), preview-only rendering must apply (no Toolbar, no BottomPanel, no side panels) so it cannot recursively enter Editor mode and cannot consume unnecessary UI resources.
+- **Embedded preview mode (external embed)**: if an `iframe` is used for embedding outside the workspace (marked with `data-kg-preview="1"` or `?kgPreview=1`), preview-only rendering must apply (no Toolbar, no bottom surface, no side panels) so it cannot recursively enter Editor mode and cannot consume unnecessary UI resources.
 - For embedded preview mode, the host may sync preview state via same-origin messaging (`kind: 'kg-preview-sync'` for graph/schema/render/selection) and via persisted geospatial state (`kg:ui:geospatial:overlayEnabled` via `storage` events).
 - Preview sync handlers must ignore identical schema/graph payloads (hash/signature compare) to prevent rerender loops and React update-depth errors.
 - Preview sync graph hashing must ignore store-injected `metadata.graphDataRevision` and `metadata.hash` fields so preview ↔ host echoes do not trigger infinite sync loops.

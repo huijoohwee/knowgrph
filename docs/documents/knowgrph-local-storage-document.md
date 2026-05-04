@@ -41,16 +41,16 @@
 
 ---
 
-## Markdown UI (Bottom Panel)
+## Markdown Workspace UI
 
-- Explorer Workspace
+- Explorer workspace keys
   - `LS_KEYS.markdownSidebarWidthPx`
   - `LS_KEYS.markdownExplorerSourceFilesCollapsed`
   - `LS_KEYS.markdownExplorerSourceFilesExpandedPaths`
   - `LS_KEYS.markdownExplorerOutlineCollapsed`
   - `LS_KEYS.markdownExplorerBacklinksCollapsed`
 
-- Legacy keys (not used by the current Explorer workspace UI)
+- Legacy markdown-view preference keys retained for compatibility with older workspace/viewer state
   - `LS_KEYS.markdownLayoutMode`
   - `LS_KEYS.markdownWordWrap`
   - `LS_KEYS.markdownViewerWidthMode`

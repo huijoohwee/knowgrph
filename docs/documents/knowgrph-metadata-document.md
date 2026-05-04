@@ -494,7 +494,7 @@ python -m knowgrph_parser markdown --input <path/to/doc.md> --print-schema-layer
 | Context              | Intent                          | Directive                                                                                   |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|
 | Schema Derivation    | Read graph hints, don't override | - [ ] Copy `metadata.layers` from graph to `layersFromGraph`; forbid parser logic in schema-config generation |
-| Curator Freedom      | Allow manual overrides          | - [ ] Curators can modify `layers`, `corpusSizePresets` in schema-config; forbid automated reverts |
+| Manual Override Freedom | Allow manual overrides       | - [ ] Operators can modify `layers`, `corpusSizePresets` in schema-config; forbid automated reverts |
 | Tool Compatibility   | Enable LLM/tool updates         | - [ ] Tools read schema-config metadata as source of truth; update via JSON-LD; forbid hardcoded logic |
 
 ### Domain-Agnostic Contracts
@@ -561,7 +561,7 @@ metadata.codebasePath:
 
 **Portability Rule**: Producers preserve relative `documentPath` segments when provided (e.g., `docs/example.md`) and strip absolute filesystem paths down to the basename (e.g., `example.md`) to forbid environment-coupled provenance.
 
-**Centralized Implementation**: `lib/graph/documentMetadata.ts` provides `resolveDocumentPath(node)` and `resolveLineRange(node)` functions shared by Bottom Panel, Data Table, and selection/highlight logic.
+**Centralized Implementation**: `lib/graph/documentMetadata.ts` provides `resolveDocumentPath(node)` and `resolveLineRange(node)` functions shared by the markdown workspace, Graph Data Table, and selection/highlight logic.
 
 **Design Compliance**:
 

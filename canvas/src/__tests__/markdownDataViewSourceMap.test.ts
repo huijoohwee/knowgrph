@@ -1,4 +1,4 @@
-import { parseDataViewRowIndex, rowIdToMarkdownLineInTable } from '@/components/BottomPanel/markdownWorkspace/main/viewer/markdownDataViewSourceMap'
+import { parseDataViewRowIndex, rowIdToMarkdownLineInTable } from '@/features/markdown-workspace/main/viewer/markdownDataViewSourceMap'
 
 export function testMarkdownDataViewRowIndexParsing() {
   if (parseDataViewRowIndex('row_0') !== 0) throw new Error('expected row_0 -> 0')

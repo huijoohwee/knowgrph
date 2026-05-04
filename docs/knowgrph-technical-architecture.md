@@ -114,8 +114,8 @@ This root document exists as the auto-generated settings registry table surface 
 | `canvasGridVariant` | string | store |  |  |
 | `canvasGridMajorEvery` | number | store |  |  |
 | `canvasGridDotRadiusPx` | number | store |  |  |
-| `markdownWordWrap` | boolean | localStorage | `kg:ui:markdown:wordWrap` | `ui.bottomPanel` |
-| `markdownTextHighlight` | boolean | localStorage | `kg:ui:markdown:textHighlight` | `ui.bottomPanel` |
+| `markdownWordWrap` | boolean | localStorage | `kg:ui:markdown:wordWrap` | `ui.markdownWorkspace` |
+| `markdownTextHighlight` | boolean | localStorage | `kg:ui:markdown:textHighlight` | `ui.markdownWorkspace` |
 | `autoEnableGeospatialOnGeoImport` | boolean | store |  |  |
 | `maps.grabmaps.authMode` | string | store |  |  |
 | `maps.grabmaps.apiKey` | string | store |  |  |

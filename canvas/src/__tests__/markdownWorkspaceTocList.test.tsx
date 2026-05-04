@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceTocList } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceTocList'
+import { MarkdownWorkspaceTocList } from '@/features/markdown-workspace/MarkdownWorkspaceTocList'
 import type { TocItem } from '@/features/markdown/ui/markdownSectionUtils'
 
 export async function testMarkdownWorkspaceTocListOwnsExplorerTocSectionBody() {

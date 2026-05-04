@@ -322,7 +322,7 @@ export const TEST_CASES_POST_PARSER_0: TestCaseTuple[] = [
   ["edgeType.ssot.sharedAcross2dRenderersAndToolbarWriters","@/__tests__/edgeTypeSsot2dRenderers.test","testEdgeTypeSsotSharedAcross2dRenderersAndToolbarWriters"],
   ["infiniteCanvas.edgeType.pathLayer.alwaysPathForReflection","@/__tests__/edgeTypeReflectionInfiniteCanvas.test","testInfiniteCanvasEdgesAlwaysUsePathLayerForEdgeTypeReflection"],
   ["ui.flowWidget.defaultFloatingPos.dependsOnViewport","@/__tests__/widgetDefaultFloatingPos.test","testWidgetDefaultFloatingPosDependsOnViewport"],
-  ["layout.positioning.crossRendererSeed","@/__tests__/layoutPositioning.test","testLayoutPositioningReusesCacheAcross2dRenderers"],
+  ["layout.positioning.rejectsCrossRendererSeed","@/__tests__/layoutPositioning.test","testLayoutPositioningRejectsCacheReuseAcross2dRenderers"],
   ["three.positions.seedFrom2d","@/__tests__/threePositionsSeedFrom2dRegression.test","testThreePositionsSeedFrom2dUsesStableXy"],
   ["zoom.crossRenderer.seed","@/__tests__/zoomCrossRendererSeed.test","testZoomCrossRendererSeedFallsBackToOther2dRenderer"],
   ["zoom.crossRenderer.seed.designWebpageSuffix","@/__tests__/zoomCrossRendererSeed.test","testZoomCrossRendererSeedIgnoresDesignWebpageSuffix"],

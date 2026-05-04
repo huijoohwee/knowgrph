@@ -7,7 +7,7 @@ import { uniqueNodeTypes, uniqueEdgeLabels } from '@/features/schema/derive'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { buildMergedValidation, withLayoutNumbers, withLinkDistances, withCollisionByType, resolveSelectedKey, getSchemaBaseForUiApply } from './utils'
-import type { SchemaUiApplyRegistration } from '@/features/schema-editor/useBottomPanelSchema'
+import type { SchemaUiApplyRegistration } from '@/features/schema-editor/useWorkflowManagerSchema'
 import {
   SchemaUiHeaderRow,
   SchemaUiLayoutSection,

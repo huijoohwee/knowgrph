@@ -1,4 +1,4 @@
-import { convertRedditListingJsonToMarkdown } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/apiNative'
+import { convertRedditListingJsonToMarkdown } from '@/features/markdown-workspace/workspaceImport/apiNative'
 
 export function testUrlImportApiNativeRedditConvertsListingJsonToMarkdown() {
   const json = JSON.stringify([

@@ -1,6 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { BottomPanelMarkdownSection } from '@/components/BottomPanel/BottomPanelMarkdownSection'
+import { MarkdownWorkspace } from '@/lib/markdown-workspace-runtime'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
@@ -32,7 +32,7 @@ export async function testMarkdownWorkspaceExplorerCrudActionsCreateAndDeleteFil
     const beforeEntries = await fs.listEntries()
     const beforePaths = new Set(beforeEntries.map(e => e.path))
 
-    root.render(React.createElement(BottomPanelMarkdownSection))
+    root.render(React.createElement(MarkdownWorkspace))
 
     let newFileBtn: HTMLButtonElement | null = null
     for (let i = 0; i < 60; i += 1) {

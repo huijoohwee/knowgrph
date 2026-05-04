@@ -219,8 +219,29 @@ export const testWorkspaceInitializationDocsRenderableThroughYamlFrontmatterPipe
     markdownText: placesText,
     sourceDocumentPath: 'workspace:/knowgrph-maps-places.md',
   })
-  if (!poiExtraction.featureCollections.length || (poiExtraction.featureCollections[0]?.features?.length || 0) === 0) {
+  if (!poiExtraction.featureCollections.length || (poiExtraction.featureCollections[0]?.featureCollection.features?.length || 0) === 0) {
     throw new Error('Expected knowgrph-maps-places.md to expose geospatial POI overlay features from markdown tables')
+  }
+  if (poiExtraction.featureCollections[0]?.sourceDescriptor.kind !== 'table') {
+    throw new Error('Expected markdown POI extraction to attach canonical table source descriptors upstream')
+  }
+  const candidateCollection = poiExtraction.featureCollections.find(entry => {
+    const features = entry.featureCollection.features || []
+    return features.some(feature => String(feature.properties?.name || '') === 'Punggol')
+  })
+  const punggol = candidateCollection?.featureCollection.features.find(feature => String(feature.properties?.name || '') === 'Punggol')
+  if (!punggol) {
+    throw new Error('Expected knowgrph-maps-places.md to expose canonical candidate location features upstream')
+  }
+  const punggolScore = Number.parseFloat(String(punggol.properties?.['C*'] || '').replace(/[^\d.]+/g, ''))
+  if (!Number.isFinite(punggolScore) || punggolScore <= 0 || punggolScore >= 1) {
+    throw new Error('Expected knowgrph-maps-places.md to merge a canonical numeric C* score into candidate geo features upstream')
+  }
+  if (!String(punggol.properties?.Rank || '').trim()) {
+    throw new Error('Expected knowgrph-maps-places.md to merge candidate ranking metadata into canonical geo features upstream')
+  }
+  if (String(punggol.properties?.['Best residential catchment'] || '') !== '' && String(punggol.properties?.['Best residential catchment'] || '') !== 'Punggol') {
+    throw new Error('Expected merged markdown geo metadata to preserve canonical candidate labels without doc-specific remapping')
   }
 }
 

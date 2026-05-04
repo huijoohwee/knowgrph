@@ -46,17 +46,17 @@ export type GraphFieldsListPanelBodyProps = {
   createNewField: () => void
 
   visibleGraphFieldColumnCount: number
-  orderedAllCuratorColumnKeys: GraphDataTableColumnKey[]
+  orderedAllDataTableColumnKeys: GraphDataTableColumnKey[]
   filteredGraphFieldColumnKeys: GraphDataTableColumnKey[]
-  curatorColumnLabelByKey: Map<GraphDataTableColumnKey, string>
-  isCuratorColumnVisible: (key: GraphDataTableColumnKey) => boolean
-  setCuratorColumnVisibility: (key: GraphDataTableColumnKey, visible: boolean) => void
-  moveCuratorColumn: (from: GraphDataTableColumnKey, to: GraphDataTableColumnKey) => void
+  dataTableColumnLabelByKey: Map<GraphDataTableColumnKey, string>
+  isDataTableColumnVisible: (key: GraphDataTableColumnKey) => boolean
+  setDataTableColumnVisibility: (key: GraphDataTableColumnKey, visible: boolean) => void
+  moveDataTableColumn: (from: GraphDataTableColumnKey, to: GraphDataTableColumnKey) => void
 
-  draggingCuratorColumnKey: GraphDataTableColumnKey | null
-  setDraggingCuratorColumnKey: React.Dispatch<React.SetStateAction<GraphDataTableColumnKey | null>>
-  dragOverCuratorColumnKey: GraphDataTableColumnKey | null
-  setDragOverCuratorColumnKey: React.Dispatch<React.SetStateAction<GraphDataTableColumnKey | null>>
+  draggingDataTableColumnKey: GraphDataTableColumnKey | null
+  setDraggingDataTableColumnKey: React.Dispatch<React.SetStateAction<GraphDataTableColumnKey | null>>
+  dragOverDataTableColumnKey: GraphDataTableColumnKey | null
+  setDragOverDataTableColumnKey: React.Dispatch<React.SetStateAction<GraphDataTableColumnKey | null>>
 
   selectedFieldId: GraphFieldId | null
   selectedGlobalView: GraphFieldsSelectedView
@@ -107,16 +107,16 @@ export function GraphFieldsListPanelBody({
   setNewFieldType,
   createNewField,
   visibleGraphFieldColumnCount,
-  orderedAllCuratorColumnKeys,
+  orderedAllDataTableColumnKeys,
   filteredGraphFieldColumnKeys,
-  curatorColumnLabelByKey,
-  isCuratorColumnVisible,
-  setCuratorColumnVisibility,
-  moveCuratorColumn,
-  draggingCuratorColumnKey,
-  setDraggingCuratorColumnKey,
-  dragOverCuratorColumnKey,
-  setDragOverCuratorColumnKey,
+  dataTableColumnLabelByKey,
+  isDataTableColumnVisible,
+  setDataTableColumnVisibility,
+  moveDataTableColumn,
+  draggingDataTableColumnKey,
+  setDraggingDataTableColumnKey,
+  dragOverDataTableColumnKey,
+  setDragOverDataTableColumnKey,
   selectedFieldId,
   selectedGlobalView,
   setSelectedGlobalView,
@@ -192,7 +192,7 @@ export function GraphFieldsListPanelBody({
           <div className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} whitespace-nowrap`}>
             {UI_COPY.graphFieldsVisibleTotalStatus(
               visibleGraphFieldColumnCount,
-              orderedAllCuratorColumnKeys.length,
+              orderedAllDataTableColumnKeys.length,
             )}
           </div>
           {graphDataPresent ? (
@@ -263,8 +263,8 @@ export function GraphFieldsListPanelBody({
             })
 
           const renderColumnRow = (key: GraphDataTableColumnKey) => {
-            const label = curatorColumnLabelByKey.get(key) ?? key
-            const visibleFromTableState = isCuratorColumnVisible(key)
+            const label = dataTableColumnLabelByKey.get(key) ?? key
+            const visibleFromTableState = isDataTableColumnVisible(key)
             const parsedProp = isGraphDataTablePropertyColumnKey(key)
               ? parseGraphDataTablePropertyColumnKey(key)
               : null
@@ -277,7 +277,7 @@ export function GraphFieldsListPanelBody({
               field && settings && isGraphDataTablePropertyColumnKey(key)
                 ? !settings.isHidden
                 : visibleFromTableState
-            const isDragOver = dragOverCuratorColumnKey === key
+            const isDragOver = dragOverDataTableColumnKey === key
             const active =
               !!graphFieldId && graphFieldId === selectedFieldId && selectedGlobalView === null
 
@@ -304,15 +304,15 @@ export function GraphFieldsListPanelBody({
                 isOnlyVisibleColumn={isOnlyVisibleColumn}
                 active={active}
                 isDragOver={isDragOver}
-                draggingCuratorColumnKey={draggingCuratorColumnKey}
+                draggingDataTableColumnKey={draggingDataTableColumnKey}
                 setSelectedFieldId={selectGraphField}
-                setCuratorColumnVisibility={setCuratorColumnVisibility}
-                moveCuratorColumn={moveCuratorColumn}
+                setDataTableColumnVisibility={setDataTableColumnVisibility}
+                moveDataTableColumn={moveDataTableColumn}
                 updateGraphFieldSettings={updateGraphFieldSettings}
                 updateNodeStyle={updateNodeStyle}
                 updateEdgeStyle={updateEdgeStyle}
-                setDraggingCuratorColumnKey={setDraggingCuratorColumnKey}
-                setDragOverCuratorColumnKey={setDragOverCuratorColumnKey}
+                setDraggingDataTableColumnKey={setDraggingDataTableColumnKey}
+                setDragOverDataTableColumnKey={setDragOverDataTableColumnKey}
               />
             )
           }

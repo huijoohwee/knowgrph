@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { ExplorerToolbarIconButton } from '@/components/BottomPanel/markdownWorkspace/ExplorerToolbarIconButton'
+import { ExplorerToolbarIconButton } from '@/features/markdown-workspace/ExplorerToolbarIconButton'
 
 export async function testExplorerToolbarIconButtonUsesSharedButtonShell() {
   const { dom, restore } = initJsdomHarness()

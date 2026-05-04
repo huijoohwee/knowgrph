@@ -97,17 +97,17 @@ export const testMarkdownWorkspaceRuntimeWidgetBundleIncludesOpenWidgetSet = () 
   if (!text.includes('const resolvedWidgetNodeIds = React.useMemo(() => {')) {
     throw new Error('Expected markdown workspace runtime to derive widget content from a widget node id set')
   }
-  if (!text.includes('const widgetNodeIdSet = new Set(widgetNodeIds)')) {
-    throw new Error('Expected markdown workspace runtime to track widget bundle node ids as a set')
+  if (!text.includes('const widgetBundleGraph = React.useMemo(() => {')) {
+    throw new Error('Expected markdown workspace runtime to resolve widget bundle graph state through a dedicated memo')
   }
   if (!text.includes('nodes: widgetNodes,')) {
     throw new Error('Expected widget bundle graph to include all open widget nodes')
   }
-  if (!text.includes('const incidentEdges = graphLookupEdgesByNodeId.get(nodeId) || []')) {
-    throw new Error('Expected widget bundle edges to reuse cached graph edge lookups per graph revision')
+  if (!text.includes('getCachedGraphSubsetByNodeIds({')) {
+    throw new Error('Expected widget bundle edges to reuse the shared cached graph subset helper per graph revision')
   }
-  if (!text.includes('if (!widgetNodeIdSet.has(sourceId) && !widgetNodeIdSet.has(targetId)) continue')) {
-    throw new Error('Expected widget bundle edges to be collected from the open widget set')
+  if (!text.includes("cacheScope: 'markdown-workspace-widget-bundle'")) {
+    throw new Error('Expected widget bundle edges to be collected through the dedicated widget-bundle subset cache scope')
   }
 }
 
@@ -238,12 +238,12 @@ export const testMarkdownWorkspaceSkipsMissingActiveEntryLoadsUntilPathRecovery 
 }
 
 export const testMarkdownWorkspaceMainDefersHiddenPaneHeavyDerivations = () => {
-  const mainPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'MarkdownWorkspaceMain.tsx')
-  const editorPanePath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'editor', 'MarkdownEditorPane.tsx')
-  const layoutPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'layout', 'MarkdownWorkspaceLayout.tsx')
-  const toolbarPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')
+  const mainPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx')
+  const editorPanePath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'editor', 'MarkdownEditorPane.tsx')
+  const layoutPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'layout', 'MarkdownWorkspaceLayout.tsx')
+  const toolbarPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceToolbar.tsx')
   const dropdownPath = path.resolve(process.cwd(), 'src', 'components', 'toolbar', 'ToolbarDropdownSelect.tsx')
-  const typesPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'types.ts')
+  const typesPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'types.ts')
   const mainText = readUtf8(mainPath)
   const editorPaneText = readUtf8(editorPanePath)
   const layoutText = readUtf8(layoutPath)

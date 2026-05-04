@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { ExplorerSearchControl } from '@/components/BottomPanel/markdownWorkspace/ExplorerSearchControl'
+import { ExplorerSearchControl } from '@/features/markdown-workspace/ExplorerSearchControl'
 
 export async function testExplorerSearchControlTogglesAndClearsSearch() {
   const { dom, restore } = initJsdomHarness()

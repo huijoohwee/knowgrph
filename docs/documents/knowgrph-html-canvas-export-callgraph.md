@@ -67,7 +67,7 @@ flowchart TD
 
 ## Code References
 
-- Workspace export entrypoint: [exportHtmlCanvasFromWorkspace](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/BottomPanel/markdownWorkspace/main/exports/exportHtmlCanvas.ts)
+- Workspace export entrypoint: [exportHtmlCanvasFromWorkspace](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/features/markdown-workspace/main/exports/exportHtmlCanvas.ts)
 - SVG snapshot + DOM overlay capture: [svgSnapshot.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/svgSnapshot.ts)
 - Offscreen 2D SVG renderer: [renderGraphCanvasSvgForHtmlExport](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/lib/graph/htmlCanvasSvgExport.ts)
 - 2D style parity applicator: [useGraphCanvasStyles.ts](file:///Users/huijoohwee/Documents/GitHub/knowgrph/canvas/src/components/GraphCanvas/useGraphCanvasStyles.ts)

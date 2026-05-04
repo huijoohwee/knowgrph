@@ -20,7 +20,7 @@ import {
 import { serializeMarkdownDataViewToTableLines } from './markdownDataViewSerialize'
 import { MarkdownDataViewKanbanView } from './MarkdownDataViewKanbanView'
 import { MarkdownDataViewTableView } from './MarkdownDataViewTableView'
-import { WorkspaceDataViewHeader } from '@/components/BottomPanel/markdownWorkspace/main/viewer/WorkspaceDataViewHeader'
+import { WorkspaceDataViewHeader } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewHeader'
 import {
   applyWorkspaceDataViewQuery,
   computeWorkspaceDataViewGroupOptions,
@@ -29,7 +29,7 @@ import {
   type WorkspaceDataViewConfig,
   type WorkspaceDataViewFilterOp,
   writeWorkspaceDataViewConfig,
-} from '@/components/BottomPanel/markdownWorkspace/main/viewer/workspaceDataViewConfig'
+} from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 import { setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
 
 type MarkdownDataViewBlockProps = {

@@ -30,6 +30,7 @@ const DEFAULT_PUSH_BATCH_SIZE = 50
 const DEFAULT_MAX_RETRY_COUNT = 3
 const DEFAULT_POLL_INTERVAL_MS = 30_000
 const DEFAULT_SCHEDULE_DELAY_MS = 250
+const KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS = 60_000
 
 type KnowgrphStorageFetchLike = typeof fetch
 
@@ -115,6 +116,17 @@ type SyncPushOutcome = {
 
 const inFlightSyncByWorkspace = new Map<string, Promise<KnowgrphStorageSyncRunResult>>()
 const pollTimerByWorkspace = new Map<string, number>()
+const routeUnavailableUntilByApiOrigin = new Map<string, number>()
+
+class KnowgrphStorageRouteUnavailableError extends Error {
+  apiOrigin: string
+
+  constructor(message: string, apiOrigin: string) {
+    super(message)
+    this.name = 'KnowgrphStorageRouteUnavailableError'
+    this.apiOrigin = apiOrigin
+  }
+}
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 const normalizePositiveInt = (value: unknown, fallback: number): number => {
@@ -127,6 +139,89 @@ const getClientFetch = (value?: KnowgrphStorageFetchLike): KnowgrphStorageFetchL
   if (typeof fetch !== 'function') throw new Error('fetch is not available for knowgrph storage sync')
   return fetch
 }
+
+const buildApiOriginKey = (baseUrl?: string | null): string => {
+  try {
+    return new URL(resolveApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.push, baseUrl)).origin
+  } catch {
+    return normalizeString(baseUrl) || 'window-origin'
+  }
+}
+
+const markRouteUnavailableForApiOrigin = (apiOrigin: string, nowMs = Date.now()): void => {
+  if (!apiOrigin) return
+  routeUnavailableUntilByApiOrigin.set(apiOrigin, nowMs + KNOWGRPH_STORAGE_ROUTE_UNAVAILABLE_RETRY_MS)
+}
+
+const isRouteUnavailableForApiOrigin = (apiOrigin: string, nowMs = Date.now()): boolean => {
+  if (!apiOrigin) return false
+  const untilMs = Number(routeUnavailableUntilByApiOrigin.get(apiOrigin) || 0)
+  if (!Number.isFinite(untilMs) || untilMs <= nowMs) {
+    routeUnavailableUntilByApiOrigin.delete(apiOrigin)
+    return false
+  }
+  return true
+}
+
+const isLikelyHtmlDocument = (value: string): boolean => {
+  const text = String(value || '').trim().toLowerCase()
+  return text.startsWith('<!doctype html') || text.startsWith('<html')
+}
+
+const parseStorageResponseJson = async <T>(
+  response: Response,
+  args: { requestLabel: string; apiOrigin: string },
+): Promise<T> => {
+  const contentType = normalizeString(response.headers.get('content-type')).toLowerCase()
+  const text = await response.text()
+  const trimmed = String(text || '').trim()
+  const isJsonLikeContentType = contentType.includes('application/json') || contentType.endsWith('+json')
+  const routeUnavailable =
+    response.status === 404
+    || (!trimmed && !response.ok)
+    || isLikelyHtmlDocument(trimmed)
+  if (routeUnavailable) {
+    markRouteUnavailableForApiOrigin(args.apiOrigin)
+    throw new KnowgrphStorageRouteUnavailableError(
+      `${args.requestLabel} is unavailable for ${args.apiOrigin}`,
+      args.apiOrigin,
+    )
+  }
+  if (!trimmed) {
+    throw new Error(`${args.requestLabel} returned an empty response body`)
+  }
+  try {
+    return JSON.parse(trimmed) as T
+  } catch (error) {
+    if (!isJsonLikeContentType) {
+      throw new Error(`${args.requestLabel} returned a non-JSON response (${contentType || 'unknown content type'})`)
+    }
+    const message = error instanceof Error ? error.message : 'invalid JSON'
+    throw new Error(`${args.requestLabel} returned invalid JSON: ${message}`)
+  }
+}
+
+const buildSkippedSyncResult = (args: {
+  workspaceId: string
+  deviceId: string
+  currentCursor: Awaited<ReturnType<typeof readCursorRow>>
+  unresolvedConflictCount: number
+}): KnowgrphStorageSyncRunResult => ({
+  workspaceId: args.workspaceId,
+  deviceId: args.deviceId,
+  pushedCount: 0,
+  pulledDocumentCount: 0,
+  pulledChunkCount: 0,
+  pulledGraphSnapshotCount: 0,
+  appliedCount: 0,
+  conflictCount: 0,
+  rejectedCount: 0,
+  deferredCount: 0,
+  unresolvedConflictCount: args.unresolvedConflictCount,
+  conflictEntries: [],
+  lastPushCursor: normalizeString(args.currentCursor?.get('lastPushCursor')) || null,
+  lastPullCursor: normalizeString(args.currentCursor?.get('lastPullCursor')) || null,
+})
 
 const resolveApiUrl = (path: string, baseUrl?: string | null): string => {
   const safePath = normalizeString(path)
@@ -316,6 +411,7 @@ const pushKnowgrphStorageOutbox = async (
     }
   }
   const fetchImpl = getClientFetch(args.fetchImpl)
+  const apiOrigin = buildApiOriginKey(args.baseUrl)
   const mutations = outboxDocs.map(doc => doc.get('payload') as unknown as KnowgrphStorageMutation)
   const response = await fetchImpl(resolveApiUrl(KNOWGRPH_STORAGE_ROUTE_PATHS.push, args.baseUrl), {
     method: 'POST',
@@ -327,7 +423,10 @@ const pushKnowgrphStorageOutbox = async (
       mutations,
     }),
   })
-  const json = (await response.json()) as KnowgrphStoragePushResponse | { ok?: false; error?: string }
+  const json = await parseStorageResponseJson<KnowgrphStoragePushResponse | { ok?: false; error?: string }>(response, {
+    requestLabel: 'knowgrph storage push',
+    apiOrigin,
+  })
   if (!response.ok || !('ok' in json) || json.ok !== true) {
     throw new Error(`knowgrph storage push failed: ${'error' in json ? String(json.error || 'request failed') : 'request failed'}`)
   }
@@ -406,6 +505,7 @@ const pullKnowgrphStorageChanges = async (
     },
 ) => {
   const fetchImpl = getClientFetch(args.fetchImpl)
+  const apiOrigin = buildApiOriginKey(args.baseUrl)
   const response = await fetchImpl(
     resolveApiUrl(
       buildKnowgrphStoragePullPath({
@@ -417,7 +517,10 @@ const pullKnowgrphStorageChanges = async (
     ),
     { method: 'GET' },
   )
-  const json = (await response.json()) as KnowgrphStoragePullResponse | { ok?: false; error?: string }
+  const json = await parseStorageResponseJson<KnowgrphStoragePullResponse | { ok?: false; error?: string }>(response, {
+    requestLabel: 'knowgrph storage pull',
+    apiOrigin,
+  })
   if (!response.ok || !('ok' in json) || json.ok !== true) {
     throw new Error(`knowgrph storage pull failed: ${'error' in json ? String(json.error || 'request failed') : 'request failed'}`)
   }
@@ -433,15 +536,26 @@ export const syncKnowgrphStorageNow = async (
   const workspaceId = normalizeString(args.workspaceId)
   if (!workspaceId) throw new Error('workspaceId is required for knowgrph storage sync')
   const deviceId = normalizeString(args.deviceId) || getKnowgrphStorageDeviceId()
+  const apiOrigin = buildApiOriginKey(args.baseUrl)
   const inFlightKey = `${workspaceId}::${deviceId}`
   const existingInFlight = inFlightSyncByWorkspace.get(inFlightKey)
   if (existingInFlight) return existingInFlight
   const run = (async (): Promise<KnowgrphStorageSyncRunResult> => {
     const dbState = await getDbState(args.dbState)
     const { collections } = dbState
+    const currentCursor = await readCursorRow(collections, workspaceId, deviceId)
+    const unresolvedConflictCount = await readUnresolvedConflictCount(collections, workspaceId)
+    if (isRouteUnavailableForApiOrigin(apiOrigin)) {
+      return buildSkippedSyncResult({
+        workspaceId,
+        deviceId,
+        currentCursor,
+        unresolvedConflictCount,
+      })
+    }
     const pushBatchSize = normalizePositiveInt(args.pushBatchSize, DEFAULT_PUSH_BATCH_SIZE)
     const maxRetryCount = normalizePositiveInt(args.maxRetryCount, DEFAULT_MAX_RETRY_COUNT)
-    const currentCursor = await readCursorRow(collections, workspaceId, deviceId)
+    try {
     const pushOutcome = await pushKnowgrphStorageOutbox({
       workspaceId,
       deviceId,
@@ -496,6 +610,18 @@ export const syncKnowgrphStorageNow = async (
       await args.onSyncCompleted(result)
     }
     return result
+    } catch (error) {
+      if (error instanceof KnowgrphStorageRouteUnavailableError) {
+        markRouteUnavailableForApiOrigin(error.apiOrigin)
+        return buildSkippedSyncResult({
+          workspaceId,
+          deviceId,
+          currentCursor,
+          unresolvedConflictCount,
+        })
+      }
+      throw error
+    }
   })()
   inFlightSyncByWorkspace.set(inFlightKey, run)
   return run.finally(() => {
@@ -512,7 +638,9 @@ export const scheduleKnowgrphStorageSync = (args: KnowgrphStorageSyncNowArgs & {
   scheduleWorkspaceSyncTask(
     taskKey,
     () => {
-      void syncKnowgrphStorageNow({ ...args, workspaceId, deviceId })
+      void syncKnowgrphStorageNow({ ...args, workspaceId, deviceId }).catch(error => {
+        console.error('[knowgrph-storage-sync]', error)
+      })
     },
     delayMs,
     {
@@ -580,8 +708,12 @@ export const exportKnowgrphStorageWorkspace = async (
   const workspaceId = normalizeString(args.workspaceId)
   if (!workspaceId) throw new Error('workspaceId is required for storage export')
   const fetchImpl = getClientFetch(args.fetchImpl)
+  const apiOrigin = buildApiOriginKey(args.baseUrl)
   const response = await fetchImpl(resolveApiUrl(buildKnowgrphStorageExportPath(workspaceId), args.baseUrl), { method: 'GET' })
-  const json = await response.json()
+  const json = await parseStorageResponseJson<Record<string, unknown>>(response, {
+    requestLabel: 'knowgrph storage export',
+    apiOrigin,
+  })
   if (!response.ok || !json || json.ok !== true) {
     throw new Error(`knowgrph storage export failed: ${String((json as { error?: unknown })?.error || 'request failed')}`)
   }

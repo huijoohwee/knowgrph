@@ -470,4 +470,4 @@ This PRD/TAD is implemented in the `knowgrph/canvas` pipeline as a domain-agnost
 
 - The Canvas demo remains extraction-only (no LLM API integration) and runs without server dependencies.
 - Library references and code snippets are shown for transparency; the demo pipeline itself uses heuristic implementations (bounded summarization + sentence-level evidence spans) to stay portable.
-- Context-Aware Analytics (PageRank / HITS / Betweenness / Closeness) can be toggled from BottomPanel (Parser/Stats); the effective settings are captured in `GraphData.metadata.graphragTextPipeline.config`.
+- Context-Aware Analytics (PageRank / HITS / Betweenness / Closeness) can be toggled from the shared stats and workflow surfaces; the effective settings are captured in `GraphData.metadata.graphragTextPipeline.config`.

@@ -86,7 +86,7 @@ cache_invalidation:
 | Token Generation     | Lex markdown text               | - [ ] Parse with markdown-it; forbid redundant lexing                                      | useMarkdownTokens    | TokenGenerator     | generateTokens          | markdown-it       | Markdown text                | Token AST              | markdown-it.parse(text)          |
 | Cache Storage        | Store tokens with metadata      | - [ ] Set tokens, key, path; forbid partial cache updates                                 | graphDataSlice       | CacheWriter        | setMarkdownTokens       | zustand           | Tokens, key, path            | Updated store          | Batch set all cache fields       |
 | Cache Invalidation   | Clear stale cache               | - [ ] Reset tokens/key/path; forbid leaving dirty state                                    | graphDataSlice       | CacheInvalidator   | clearMarkdownTokens     | —                 | —                            | Cleared cache state    | Set all to null/undefined        |
-| Token Distribution   | Pass tokens to consumers        | - [ ] Share via props; forbid duplicate computation                                        | BottomPanelMarkdown  | TokenDistributor   | distributeTokens        | React             | Tokens                       | Props to children      | Prop passing                     |
+| Token Distribution   | Pass tokens to consumers        | - [ ] Share via props; forbid duplicate computation                                        | MarkdownWorkspace    | TokenDistributor   | distributeTokens        | React             | Tokens                       | Props to children      | Prop passing                     |
 
 ---
 
@@ -154,7 +154,7 @@ budget_ranges:
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------|--------------------|-------------------------|-------------------|------------------------------|------------------------|----------------------------------|
 | Toggle State         | Track highlight preference      | - [ ] Store boolean in localStorage; forbid session-only state                             | highlightToggle      | ToggleState        | getHighlightEnabled     | localStorage      | —                            | Boolean (enabled)      | JSON.parse(LS.get(key)) ?? false |
 | State Update         | Save user preference            | - [ ] Write to localStorage; trigger re-render; forbid losing preference                   | highlightToggle      | ToggleUpdater      | setHighlightEnabled     | localStorage      | Boolean value                | Persisted state        | LS.set(key, value)               |
-| UI Control           | Render toggle button            | - [ ] Show in Bottom Panel; bind to state; forbid uncontrolled toggle                      | BottomPanelMarkdown  | ToggleUI           | renderToggle            | React             | Enabled state                | Toggle button          | Controlled checkbox/switch       |
+| UI Control           | Render toggle button            | - [ ] Show in the markdown workspace; bind to state; forbid uncontrolled toggle            | MarkdownWorkspace    | ToggleUI           | renderToggle            | React             | Enabled state                | Toggle button          | Controlled checkbox/switch       |
 | Conditional Rendering| Apply highlights if enabled     | - [ ] Check toggle AND budget; forbid ignoring toggle                                      | MarkdownPreview      | ConditionalHighlight| shouldHighlight        | —                 | Toggle state, budget check   | Boolean (render)       | toggle && budgetCheck            |
 
 ---
@@ -168,7 +168,7 @@ budget_ranges:
 | Complexity       | MarkdownPreview           | ComplexityGuard        | `checkComplexityBudget`          | Guard calculates T×E → compares to budget → gates feature                     | —                                    | Token count, entity count, budget → Boolean   | ~30    |
 | Budget Settings  | settingsRegistry          | BudgetConfig           | `getBudgetSetting`               | Config retrieves setting → validates → returns budget value                   | localStorage, settingsRegistry       | Setting key → Budget number                   | ~50    |
 | Toggle           | highlightToggle           | HighlightToggle        | `setHighlightEnabled`            | Toggle reads/writes localStorage → controls highlight rendering               | localStorage                         | —  → Boolean state                            | ~20    |
-| Distribution     | BottomPanelMarkdown       | TokenDistributor       | `distributeTokens`               | Distributor passes tokens → Viewer/Editor/Presentation via props              | React                                | Tokens → Props                                | ~30    |
+| Distribution     | MarkdownWorkspace        | TokenDistributor       | `distributeTokens`               | Distributor passes tokens → Viewer/Editor/Presentation via props              | React                                | Tokens → Props                                | ~30    |
 
 ---
 
@@ -331,7 +331,7 @@ canvas/
 | Cache Invalidation| Update signal                  | Cleared cache state            | graphDataSlice clears tokens/key/path                       | O(1) state update                            |
 | Token Generation  | Markdown text                  | Token AST                      | markdown-it lexes text                                      | O(n) in text length, one-time cost           |
 | Cache Storage     | Tokens, key, path              | Updated store                  | useMarkdownPreviewTokens stores in Zustand                  | O(1) state update                            |
-| Token Distribution| Cached tokens                  | Props to components            | BottomPanelMarkdown passes via props                        | O(1) prop passing                            |
+| Token Distribution| Cached tokens                  | Props to components            | MarkdownWorkspace passes via props                          | O(1) prop passing                            |
 | Complexity Check  | Token count, entity count      | Allow/deny flag                | MarkdownPreview calculates T×E vs budget                    | O(1) arithmetic                              |
 | Conditional Render| Allow flag, tokens             | Highlighted or plain render    | MarkdownTokenRenderer applies highlights if allowed         | O(T×E) when allowed, O(0) when denied        |
 

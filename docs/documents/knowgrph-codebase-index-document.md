@@ -276,7 +276,7 @@ Key behaviors:
 - `performMarkdownImport(args)` → prompts for URL or local file, uses `fetchRemoteMarkdownText` for URL, then calls `applyImportedMarkdownToStore`.
 - `performJsonImport(args)` / `performCsvImport(args)` → normalize names via `normalizeImportName` and delegate to graph parsers.
 
-**Markdown Apply (Singabldr BottomPanel)**:
+**Markdown Apply (Markdown Workspace)**:
 - `useMarkdownApply()` → calls `loadGraphDataFromTextViaParser(text, { applyToStore: false })` for each source, composes graphs, then applies via `setGraphData` / `setGraphDataPreservingLayout`.
 
 **Geospatial datasets (Gympgrph)**:
@@ -290,7 +290,7 @@ Key behaviors:
 
 **Canvas (Knowgrph)**:
 - `GraphCanvas` React entry (`canvas/src/components/GraphCanvas.tsx`) uses `setupGraphScene(...)` to build the 2D scene and subscribes to `GraphData` store updates.
-- Selection and layout are derived from the same `GraphData` used by the BottomPanel and Code Editor; no separate “geo graph” copy exists.
+- Selection and layout are derived from the same `GraphData` used by the Graph Data Table, stats surfaces, and editor workspace; no separate “geo graph” copy exists.
 
 **Geospatial overlay (Gympgrph + MapLibre GL JS)**:
 - `GeospatialOverlayHost` (exported by `gympgrph`) mirrors the host `GraphData`, zoom state, and selection via `applyHostSnapshot(snapshot)`.

@@ -1,5 +1,5 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { extractEmbeddedGeoJsonGraphDataRequests } from '@/lib/markdown/embeddedGeoJson'
+import { analyzeMarkdownGeodataSources } from '@/lib/markdown/markdownGeodataAnalysis'
 import type { MarkdownGeoDatasetIntegration } from '@/features/markdown/ui/MarkdownRendererTypes'
 
 export function resolveMarkdownWorkspaceApplyText(args: {
@@ -34,16 +34,15 @@ export async function registerMarkdownWorkspaceEmbeddedGeoDatasets(args: {
   geoDatasetIntegration: MarkdownGeoDatasetIntegration
 }): Promise<void> {
   const text = String(args.markdownText || '')
-  if (!text.includes('```')) return
-  const extracted = extractEmbeddedGeoJsonGraphDataRequests({
+  const extracted = analyzeMarkdownGeodataSources({
     markdownText: text,
     sourceDocumentPath: args.sourceDocumentPath,
-    limit: 40,
+    embeddedGeoLimit: 40,
   })
   const geoReqs =
     typeof args.geoDatasetIntegration.isGeoJsonCodeBlock !== 'function'
-      ? extracted
-      : extracted.filter(req => {
+      ? extracted.embeddedGeoJsonGraphDataRequests
+      : extracted.embeddedGeoJsonGraphDataRequests.filter(req => {
           try {
             return !!args.geoDatasetIntegration.isGeoJsonCodeBlock?.(req)
           } catch {

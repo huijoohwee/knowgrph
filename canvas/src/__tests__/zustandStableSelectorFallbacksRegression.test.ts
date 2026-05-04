@@ -84,13 +84,13 @@ const CHECKS: SelectorFallbackCheck[] = [
     ],
   },
   {
-    path: 'src/components/BottomPanel/hooks/useStatsDerivedData.ts',
+    path: 'src/features/graph-stats/hooks/useStatsDerivedData.ts',
     forbiddenSnippets: [
       'const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])',
     ],
   },
   {
-    path: 'src/components/BottomPanel/hooks/useStatsSelection.ts',
+    path: 'src/features/graph-stats/hooks/useStatsSelection.ts',
     forbiddenSnippets: [
       'const selectedNodeIds = useGraphStore(s => s.selectedNodeIds || [])',
       'const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds || [])',

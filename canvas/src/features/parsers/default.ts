@@ -80,7 +80,7 @@ function mergeGraphDataPreferOverlay(args: { base: GraphData; overlay: GraphData
 
 export { buildMarkdownJsonLd } from './markdownJsonLd'
 
-const hasMarkdownStructure = (raw: string): boolean =>
+export const hasMarkdownStructure = (raw: string): boolean =>
   /^\s*#{1,6}\s+/m.test(raw) ||
   /^\s*```/m.test(raw) ||
   /^\s*[-*+]\s+/m.test(raw) ||
@@ -91,7 +91,7 @@ const hasMarkdownStructure = (raw: string): boolean =>
   /^\s*---\s*$/m.test(raw) ||
   /```mermaid/i.test(raw)
 
-const isLikelyPlainTextMarkdown = (text: string): boolean => {
+export const isLikelyPlainTextMarkdown = (text: string): boolean => {
   const raw = String(text || '').trim()
   if (!raw) return false
   if (raw.length > 20_000) return false
@@ -101,6 +101,26 @@ const isLikelyPlainTextMarkdown = (text: string): boolean => {
   if (hasMarkdownStructure(raw)) return false
   const alphaCount = raw.slice(0, 1024).replace(/[^a-zA-Z]/g, '').length
   return alphaCount >= 40
+}
+
+export const shouldPreferMarkdownParserInput = (name: string, text: string): boolean => {
+  const lower = String(name || '').toLowerCase()
+  const raw = String(text || '')
+  if (!raw.trim()) return false
+  if (containsFrontmatterMermaid(raw)) return true
+  if (isMarkdownLikeFileName(lower)) {
+    return !isLikelyPlainTextMarkdown(raw)
+  }
+  if (/^https?:\/\//i.test(lower)) {
+    return hasMarkdownStructure(raw)
+  }
+  if (/^\s*---\s*$/m.test(raw) && /\bkgCanvas(?:SurfaceMode|RenderMode|2dRenderer|3dMode)\b/.test(raw)) {
+    return true
+  }
+  if (/^\s*\|.*\|\s*$/m.test(raw) && /(?:\blat\b|\blng\b|\blatitude\b|\blongitude\b|FeatureCollection|```geojson|```json)/i.test(raw)) {
+    return true
+  }
+  return hasMarkdownStructure(raw)
 }
 
 const markdownSpec: ParserSpec = {

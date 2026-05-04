@@ -9,6 +9,7 @@ type SourceFileLike = {
   name?: unknown
   text?: unknown
   enabled?: unknown
+  geoLayerEnabled?: unknown
   status?: unknown
   parsedTextHash?: unknown
   parsedGraphRevision?: unknown
@@ -123,5 +124,21 @@ export const buildSourceFilesCompositionSignature = (value: unknown): string => 
     orderKey,
     metadataKey,
     readinessKey,
+  ])
+}
+
+export const buildSourceFilesGeospatialSelectionSignature = (value: unknown): string => {
+  const items = Array.isArray(value) ? value : []
+  return hashSignatureParts([
+    'source-files-geospatial-selection',
+    buildSourceFilesCompositionSignature(items),
+    ...items.flatMap(entry => {
+      const item = entry as SourceFileLike
+      return [
+        String(item?.id || '').trim(),
+        item?.enabled === true ? '1' : '0',
+        typeof item?.geoLayerEnabled === 'boolean' ? (item.geoLayerEnabled ? '1' : '0') : 'unset',
+      ]
+    }),
   ])
 }

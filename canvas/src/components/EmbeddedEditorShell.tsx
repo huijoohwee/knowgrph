@@ -2,7 +2,7 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 const MarkdownWorkspaceLazy = React.lazy(() =>
-  import('./BottomPanel/markdownWorkspace/MarkdownWorkspace').then(mod => ({ default: mod.MarkdownWorkspace })),
+  import('@/lib/markdown-workspace-runtime').then(mod => ({ default: mod.MarkdownWorkspace })),
 )
 const GraphTableWorkspaceLazy = React.lazy(() => import('@/features/graph-table/ui/GraphTableWorkspace'))
 

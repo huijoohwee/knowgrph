@@ -73,7 +73,7 @@
    - For local Markdown Source Files, embedded fenced `geojson` code blocks (GeoJSON `FeatureCollection`) can also be registered as overlay datasets by extracting and uploading the blocks to the bounded local dataset cache.
    - For local JSON Source Files, record-style datasets (array-of-records or object-map records) can be converted into a derived GeoJSON Point FeatureCollection and registered as an overlay dataset.
    - For local Markdown itinerary documents (no embedded GeoJSON), implementations may derive POIs from headings + tokens (e.g. airport codes) and resolve coordinates using a bounded, in-memory index built from already-registered point datasets.
-   - In the Bottom Panel Markdown Viewer, fenced `geojson` blocks can render an inline MapLibre preview (Render mode) using the same basemap/style loading behavior as Geospatial Mode.
+   - In the markdown workspace viewer, fenced `geojson` blocks can render an inline MapLibre preview (Render mode) using the same basemap/style loading behavior as Geospatial Mode.
 6. User clicks **Fit to data** to move the basemap camera to the combined bounds of the active geo layers.
 
 ---

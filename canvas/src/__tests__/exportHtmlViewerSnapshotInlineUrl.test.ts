@@ -1,4 +1,4 @@
-import { resolveSnapshotInlineFetchUrl } from '@/components/BottomPanel/markdownWorkspace/main/exports/exportHtmlViewer'
+import { resolveSnapshotInlineFetchUrl } from '@/features/markdown-workspace/main/exports/exportHtmlViewer'
 
 export async function testResolveSnapshotInlineFetchUrlUsesFetchRemoteOnLocalhost() {
   const g = globalThis as unknown as { window?: unknown }

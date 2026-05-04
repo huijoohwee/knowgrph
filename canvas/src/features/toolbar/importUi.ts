@@ -37,7 +37,7 @@ export function applyLoaderResultToParserUi(
       if (options?.collapsePanelsOnSuccess) {
         const store = useGraphStore.getState()
         try {
-          if (store.setBottomPanelCollapsed) store.setBottomPanelCollapsed(true)
+          if (store.setBottomSurfaceCollapsed) store.setBottomSurfaceCollapsed(true)
         } catch {
           void 0
         }

@@ -1,4 +1,4 @@
-import { pickFirstCreatedFilePathForImportFocus } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions'
+import { pickFirstCreatedFilePathForImportFocus } from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
 
 export async function testWorkspaceImportFocusPrefersFileOverFolder() {
   const fs = {

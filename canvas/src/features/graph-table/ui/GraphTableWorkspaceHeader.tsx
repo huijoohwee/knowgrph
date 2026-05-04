@@ -14,7 +14,7 @@ import type {
 import { WorkspaceHeader, WorkspaceHeaderRow } from '@/components/ui/WorkspaceHeader'
 import { GraphTableToolbar } from '@/features/graph-table/ui/GraphTableToolbar'
 import type { GraphTableViewMode } from '@/features/graph-table/ui/graphTableViewMode'
-import { WorkspaceModeSelect } from '@/components/BottomPanel/markdownWorkspace/WorkspaceModeSelect'
+import { WorkspaceModeSelect } from '@/features/markdown-workspace/WorkspaceModeSelect'
 import { UI_COPY } from '@/lib/config'
 import { MARKDOWN_DATA_VIEW_COPY } from '@/lib/config-copy/markdownDataViewCopy'
 

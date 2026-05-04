@@ -1,15 +1,13 @@
 import React from 'react'
 import {
   colorForDataset,
-  computeBoundsFromCollections,
   useMapLibreBasemap,
 } from 'gympgrph/map-preview'
-import type { FeatureCollection } from 'geojson'
 import { geoGraticule10, geoMercator, geoPath } from 'd3'
 import { shouldSuppressBasemapErrorMessage } from './basemapErrorSuppression'
-import { hashText } from '@/features/parsers/hash'
-import { parseGeoJsonFeatureCollectionFromText } from '@/features/geospatial/geojsonParseCache'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import type { MarkdownGeoParsedFeatureCollection } from './markdownGeoParseContract'
+import { resolveMarkdownGeoTextParseResult } from './markdownGeoParse'
 
 const sanitizeId = (raw: string): string => {
   const s = String(raw || '').trim()
@@ -21,7 +19,7 @@ const SAFE_SVG_FALLBACK_STYLE_SENTINEL = 'kg:style:svg-fallback'
 const geoJsonOverlayBadgeClassName = `absolute bottom-2 right-2 z-20 pointer-events-none px-2 py-1 rounded-md text-[11px] ${UI_THEME_TOKENS.text.secondary} ${UI_THEME_TOKENS.panel.overlayBg} border ${UI_THEME_TOKENS.panel.border}`
 
 function GeoJsonSvgPreview(args: {
-  fc: FeatureCollection
+  fc: MarkdownGeoParsedFeatureCollection
   color: string
   height: number | string
   className?: string
@@ -141,11 +139,12 @@ function GeoGraticuleSvg(args: { height: number | string; className?: string }) 
 export function InlineMarkdownGeoJsonLayerMap(args: {
   geojsonText: string
   datasetId: string
+  featureCollection?: MarkdownGeoParsedFeatureCollection | null
   className?: string
   heightPx?: number
   useContainerHeight?: boolean
 }) {
-  const { geojsonText, datasetId, className, heightPx = 320, useContainerHeight = false } = args
+  const { geojsonText, datasetId, featureCollection = null, className, heightPx = 320, useContainerHeight = false } = args
   const rootRef = React.useRef<HTMLDivElement | null>(null)
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [shouldLoadMap, setShouldLoadMap] = React.useState(false)
@@ -155,17 +154,9 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   const [basemapWarning, setBasemapWarning] = React.useState<string | null>(null)
 
   const targetStyleUrl = SAFE_SVG_FALLBACK_STYLE_SENTINEL
-  const normalizedGeoJsonText = React.useMemo(() => String(geojsonText || '').trim(), [geojsonText])
-  const parsedGeoJsonHash = React.useMemo(() => (normalizedGeoJsonText ? hashText(normalizedGeoJsonText) : ''), [normalizedGeoJsonText])
-
   const parsed = React.useMemo(() => {
-    if (!normalizedGeoJsonText) {
-      return { fc: null as FeatureCollection | null, bounds: null as ReturnType<typeof computeBoundsFromCollections> }
-    }
-    const fc = parseGeoJsonFeatureCollectionFromText(normalizedGeoJsonText)
-    const bounds = fc ? computeBoundsFromCollections([fc]) : null
-    return { fc, bounds }
-  }, [normalizedGeoJsonText])
+    return resolveMarkdownGeoTextParseResult({ geojsonText, featureCollection })
+  }, [featureCollection, geojsonText])
 
   const isJsdom = React.useMemo(() => {
     const ua = typeof window !== 'undefined' ? String(window.navigator?.userAgent || '') : ''
@@ -175,7 +166,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   React.useEffect(() => {
     if (shouldLoadMap) return
     if (isJsdom) return
-    if (!parsed.fc) return
+    if (!parsed.featureCollection) return
     const isPositiveSize = (el: HTMLElement | null): boolean => {
       if (!el) return false
       try {
@@ -232,7 +223,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
         void 0
       }
     }
-  }, [isJsdom, parsed.fc, shouldLoadMap])
+  }, [isJsdom, parsed.featureCollection, shouldLoadMap])
 
   React.useEffect(() => {
     if (isJsdom) return
@@ -272,13 +263,13 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   React.useEffect(() => {
     if (mapEverEnabled) return
     if (!shouldLoadMap || !isInView) return
-    if (!parsed.fc) return
+    if (!parsed.featureCollection) return
     setMapEverEnabled(true)
-  }, [isInView, mapEverEnabled, parsed.fc, shouldLoadMap])
+  }, [isInView, mapEverEnabled, parsed.featureCollection, shouldLoadMap])
 
   React.useEffect(() => {
-    if (!parsed.fc && mapEverEnabled) setMapEverEnabled(false)
-  }, [mapEverEnabled, parsed.fc])
+    if (!parsed.featureCollection && mapEverEnabled) setMapEverEnabled(false)
+  }, [mapEverEnabled, parsed.featureCollection])
 
   const mapEnabled = mapEverEnabled
 
@@ -322,12 +313,12 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     const map = basemap.map
     if (!map) return
     if (basemap.styleRevision <= 0) return
-    if (!parsed.fc) {
+    if (!parsed.featureCollection) {
       setError('GeoJSON render: invalid or unsupported shape')
       return
     }
     const safeDatasetId = sanitizeId(datasetId)
-    const dataKey = `${basemap.styleRevision}:${safeDatasetId}:${parsedGeoJsonHash}`
+    const dataKey = `${basemap.styleRevision}:${safeDatasetId}:${parsed.textHash}`
     if (lastFitDataKeyRef.current === dataKey) return
     if (parsed.bounds) {
       try {
@@ -341,7 +332,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     }
     lastFitDataKeyRef.current = dataKey
     setError(null)
-  }, [basemap.map, basemap.styleRevision, datasetId, parsed.bounds, parsed.fc, parsedGeoJsonHash])
+  }, [basemap.map, basemap.styleRevision, datasetId, parsed.bounds, parsed.featureCollection, parsed.textHash])
 
   React.useEffect(() => {
     const map = basemap.map
@@ -356,12 +347,12 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
   const overlayMessage = React.useMemo(() => {
     if (error && String(error).trim()) return String(error).trim()
     if (basemapWarning && String(basemapWarning).trim()) return String(basemapWarning).trim()
-    if (!parsed.fc) return null
+    if (!parsed.featureCollection) return null
     if (basemap.map) return null
     if (!shouldLoadMap) return 'Preparing map preview…'
     if (!isInView) return null
     return 'Loading map preview…'
-  }, [error, basemapWarning, basemap.map, isInView, parsed.fc, shouldLoadMap])
+  }, [error, basemapWarning, basemap.map, isInView, parsed.featureCollection, shouldLoadMap])
 
   const svgColor = React.useMemo(() => {
     const safeDatasetId = sanitizeId(datasetId)
@@ -370,7 +361,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
 
   const rootHeight = useContainerHeight ? '100%' : heightPx
   const rootMinHeight = useContainerHeight ? heightPx : undefined
-  const hasInputText = React.useMemo(() => Boolean(normalizedGeoJsonText), [normalizedGeoJsonText])
+  const hasInputText = React.useMemo(() => Boolean(parsed.normalizedText), [parsed.normalizedText])
 
   return (
     <div ref={el => {
@@ -378,7 +369,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
     }} className={`relative ${className || ''}`} style={{ height: rootHeight, minHeight: rootMinHeight }}>
       <div className="absolute inset-0 z-0 pointer-events-none">
         <GeoGraticuleSvg height={rootHeight} className="w-full" />
-        {parsed.fc ? <GeoJsonSvgPreview fc={parsed.fc} color={svgColor} height={rootHeight} className="w-full" /> : null}
+        {parsed.featureCollection ? <GeoJsonSvgPreview fc={parsed.featureCollection} color={svgColor} height={rootHeight} className="w-full" /> : null}
       </div>
       <div ref={el => {
         containerRef.current = el
@@ -391,7 +382,7 @@ export function InlineMarkdownGeoJsonLayerMap(args: {
           {overlayMessage}
         </div>
       )}
-      {!overlayMessage && hasInputText && !parsed.fc ? (
+      {!overlayMessage && hasInputText && !parsed.featureCollection ? (
         <div className={geoJsonOverlayBadgeClassName}>
           Invalid GeoJSON
         </div>

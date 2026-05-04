@@ -51,7 +51,7 @@ export type LsKeyOwner =
   | 'ui.panelOpacity'
   | 'ui.toolbarOpacity'
   | 'ui.icons'
-  | 'ui.bottomPanel'
+  | 'ui.bottomSurface'
   | 'ui.mainPanel'
   | 'ui.floatingPanel'
   | 'ui.sidebar'
@@ -78,7 +78,7 @@ export type LsKeyOwner =
   | 'parsers.editor'
   | 'ui.theme'
   | 'export.prefs'
-  | 'bottomPanel.collapsed'
+  | 'bottomSurface.collapsed'
   | 'parsers.custom'
   | 'ui.launchSpotlightDismissed'
   | 'workflow.presets'
@@ -118,13 +118,13 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   headerRowPaddingClass: 'ui.icons',
   sectionHeaderRowHeightClass: 'ui.icons',
   sectionHeaderRowPaddingClass: 'ui.icons',
-  bottomPanelHeight: 'ui.bottomPanel',
-  minimapCollapsed: 'ui.bottomPanel',
-  markdownWordWrap: 'ui.bottomPanel',
-  markdownPresentationMode: 'ui.bottomPanel',
-  markdownLayoutMode: 'ui.bottomPanel',
-  markdownViewerWidthMode: 'ui.bottomPanel',
-  markdownDerivedViewerKind: 'ui.bottomPanel',
+  bottomSurfaceHeight: 'ui.bottomSurface',
+  minimapCollapsed: 'ui.bottomSurface',
+  markdownWordWrap: 'ui.bottomSurface',
+  markdownPresentationMode: 'ui.bottomSurface',
+  markdownLayoutMode: 'ui.bottomSurface',
+  markdownViewerWidthMode: 'ui.bottomSurface',
+  markdownDerivedViewerKind: 'ui.bottomSurface',
   flowchartApiRunId: 'render.prefs',
   workspaceEditorMode: 'ui.workspace',
   monacoLanguageJsonEnabled: 'ui.monaco',
@@ -209,26 +209,26 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   monacoHorizontalScrollbarSizeEnabled: 'ui.monaco',
   monacoVerticalScrollbarSizeEnabled: 'ui.monaco',
   monacoMouseWheelScrollSensitivityEnabled: 'ui.monaco',
-  markdownDataViewConfigPrefix: 'ui.bottomPanel',
-  markdownTextHighlight: 'ui.bottomPanel',
-  markdownSelectionFlashMode: 'ui.bottomPanel',
-  markdownAnnotateDisplay: 'ui.bottomPanel',
-  markdownSyncScroll: 'ui.bottomPanel',
-  markdownSidebarOpen: 'ui.bottomPanel',
-  markdownSidebarWidthPx: 'ui.bottomPanel',
+  markdownDataViewConfigPrefix: 'ui.bottomSurface',
+  markdownTextHighlight: 'ui.bottomSurface',
+  markdownSelectionFlashMode: 'ui.bottomSurface',
+  markdownAnnotateDisplay: 'ui.bottomSurface',
+  markdownSyncScroll: 'ui.bottomSurface',
+  markdownSidebarOpen: 'ui.bottomSurface',
+  markdownSidebarWidthPx: 'ui.bottomSurface',
   markdownExplorerSourceFilesCollapsed: 'ui.sidebar',
   markdownExplorerSourceFilesExpandedPaths: 'ui.sidebar',
   markdownExplorerOutlineCollapsed: 'ui.sidebar',
   markdownExplorerBacklinksCollapsed: 'ui.sidebar',
   markdownExplorerFolderModeContract: 'ui.sidebar',
   markdownExplorerActivePath: 'ui.sidebar',
-  markdownWorkspaceSourcesByPath: 'ui.bottomPanel',
-  markdownWorkspaceSeeded: 'ui.bottomPanel',
-  markdownWorkspaceUserClearedAllFiles: 'ui.bottomPanel',
-  markdownCollapsedHeadingIds: 'ui.bottomPanel',
-  jsonMarkdownMode: 'ui.bottomPanel',
-  jsonMarkdownTableMaxRows: 'ui.bottomPanel',
-  jsonMarkdownTableMaxColumns: 'ui.bottomPanel',
+  markdownWorkspaceSourcesByPath: 'ui.bottomSurface',
+  markdownWorkspaceSeeded: 'ui.bottomSurface',
+  markdownWorkspaceUserClearedAllFiles: 'ui.bottomSurface',
+  markdownCollapsedHeadingIds: 'ui.bottomSurface',
+  jsonMarkdownMode: 'ui.bottomSurface',
+  jsonMarkdownTableMaxRows: 'ui.bottomSurface',
+  jsonMarkdownTableMaxColumns: 'ui.bottomSurface',
   jsonImportWorkspaceTarget: 'ui.workspace',
   pdfWorkspaceOutputDirRel: 'import.pdf',
   previewZoomPanMermaid: 'ui.preview',
@@ -375,10 +375,10 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   graphDataTableNumericSampleMinRatio: 'curation.spreadsheet',
   graphDataTableFrozenDragStepNoneLabelPx: 'curation.spreadsheet',
   graphDataTableFrozenDragStepLabelIdPx: 'curation.spreadsheet',
-  graphDataTableVirtualOverscanRows: 'ui.bottomPanel',
-  graphDataTableOverscanMultiplier: 'ui.bottomPanel',
-  graphDataTableVirtualMinRows: 'ui.bottomPanel',
-  graphDataTableVirtualDebugLogRanges: 'ui.bottomPanel',
+  graphDataTableVirtualOverscanRows: 'ui.bottomSurface',
+  graphDataTableOverscanMultiplier: 'ui.bottomSurface',
+  graphDataTableVirtualMinRows: 'ui.bottomSurface',
+  graphDataTableVirtualDebugLogRanges: 'ui.bottomSurface',
   schemaDeriveCacheCapacity: 'schema.deriveCache',
   launchSpotlightEnabled: 'ui.launchSpotlight',
   statusPanelPinned: 'ui.statusPanelPinned',
@@ -449,7 +449,7 @@ export const LS_KEY_OWNERS: Partial<Record<LsKeyId, LsKeyOwner>> = {
   themeMode: 'ui.theme',
   exportPrefs: 'export.prefs',
   exportHtmlCanvasPublishPath: 'export.prefs',
-  bottomPanelCollapsed: 'bottomPanel.collapsed',
+  bottomSurfaceCollapsed: 'bottomSurface.collapsed',
   customParsers: 'parsers.custom',
   launchSpotlightDismissed: 'ui.launchSpotlightDismissed',
   workflowPresetCatalog: 'workflow.presets',

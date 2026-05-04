@@ -8,8 +8,14 @@ export const testMarkdownFrontmatterReusesSharedPlainObjectGuard = () => {
   if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
     throw new Error('expected markdown frontmatter parsing to reuse the shared plain-object guard upstream')
   }
-  if (!text.includes('if (isPlainObject(parsed.meta)) return coerceCanvasWorkspaceFrontmatterPreset(parsed.meta)')) {
-    throw new Error('expected markdown frontmatter preset parsing to reuse the shared plain-object guard for parsed metadata')
+  if (!text.includes('if (isPlainObject(parsed.meta)) {')) {
+    throw new Error('expected markdown frontmatter preset parsing to branch on the shared plain-object guard for parsed metadata')
+  }
+  if (!text.includes('const preset = coerceCanvasWorkspaceFrontmatterPreset(parsed.meta)')) {
+    throw new Error('expected markdown frontmatter preset parsing to normalize parsed metadata exactly once before caching')
+  }
+  if (!text.includes("const cacheKey = hashStringToHexCached('markdown-frontmatter:preset', block.rawBlock)")) {
+    throw new Error('expected markdown frontmatter preset parsing to reuse a shared text hash cache for identical frontmatter blocks')
   }
   if (text.includes('function isRecord(value: unknown): value is Record<string, unknown> {')) {
     throw new Error('expected markdown frontmatter parsing to stop defining a local record guard')
@@ -32,5 +38,38 @@ kgDocumentSemanticMode: keyword
   }
   if (preset.frontmatterModeEnabled !== true || preset.documentSemanticMode !== 'keyword') {
     throw new Error(`expected boolean frontmatter preset flags to persist, got ${JSON.stringify(preset)}`)
+  }
+}
+
+export const testMarkdownFrontmatterNormalizesCanvasRenderModeAliases = () => {
+  const preset = parseCanvasWorkspaceFrontmatterPreset(`---
+kgCanvasRenderMode: "Surface 2D"
+kgCanvas2dRenderer: "Flow Editor"
+---`)
+  if (!preset) throw new Error('expected canvas render mode alias preset to parse')
+  if (preset.canvasRenderMode !== '2d') {
+    throw new Error(`expected Surface 2D alias to normalize to 2d, got ${String(preset.canvasRenderMode)}`)
+  }
+  if (preset.canvas2dRenderer !== 'flowEditor') {
+    throw new Error(`expected Flow Editor alias to normalize to flowEditor, got ${String(preset.canvas2dRenderer)}`)
+  }
+}
+
+export const testMarkdownFrontmatterCachesPresetByFrontmatterBlock = () => {
+  const presetA = parseCanvasWorkspaceFrontmatterPreset(`---
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: flowEditor
+---
+
+# A`)
+  const presetB = parseCanvasWorkspaceFrontmatterPreset(`---
+kgCanvasRenderMode: "2d"
+kgCanvas2dRenderer: flowEditor
+---
+
+# B`)
+  if (!presetA || !presetB) throw new Error('expected cached canvas workspace presets to parse')
+  if (presetA !== presetB) {
+    throw new Error('expected identical frontmatter blocks to reuse the cached preset instance')
   }
 }

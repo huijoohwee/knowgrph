@@ -45,7 +45,6 @@ export interface AgenticRagNodeProvenance {
   source?: string;
   confidence?: number;
   timestamp?: string;
-  curator?: string;
   [key: string]: JSONValue | undefined;
 }
 

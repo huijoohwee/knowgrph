@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceTocTreeItem } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceTocTreeItem'
+import { MarkdownWorkspaceTocTreeItem } from '@/features/markdown-workspace/MarkdownWorkspaceTocTreeItem'
 import type { TocItem } from '@/features/markdown/ui/markdownSectionUtils'
 
 export async function testMarkdownWorkspaceTocTreeItemOwnsExplorerTocItemWrapper() {

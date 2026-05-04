@@ -67,7 +67,7 @@
 - **Graph Visualization**:
   - `canvas/src/components/GraphCanvas.tsx` implements node/edge rendering, selection handling, and layout modes (semantic, document, schema-centric).
 - **Panel System**:
-  - `canvas/src/features/panels/` organizes main panel (workflow, schema, settings), floating panels (props, orchestrator), and hosts Graph Data surfaces implemented in `singabldr/src` (BottomPanel markdown/parsers/tables + preview gallery + JSON editor) via `node_modules/singabldr/src` aliasing and dependency dedupe.
+  - `canvas/src/features/panels/` organizes main panel (workflow, schema, settings), floating panels (props, Graph Traversal), quick bottom-surface tabs (stats, history), and shared Graph Data / editor workspace surfaces implemented in canonical `canvas/src/features/*` and `canvas/src/lib/*` modules.
 - **State Management**:
   - `canvas/src/hooks/store/useGraphStore.ts` coordinates graph data, schema, workflows, UI settings, and panel layout via Zustand slices.
 - **Parsers & Loaders**:
@@ -86,14 +86,14 @@
 |---------------------------------|------------------------------------------|-----------------------------------------------------------|
 | Graph IDE "code editor"         | GraphCanvas component + selection state  | layoutMode, zoom, selection context                       |
 | Debuggers & inspectors          | MainPanel tabs (workflow, schema, help)  | activeMainPanelTab, panel visibility toggles              |
-| Consoles & tools                | BottomPanel (markdown, parsers, tables)  | activeBottomPanelTab, markdown sync settings              |
+| Consoles & tools                | Graph Data Table, Editor workspace, and quick bottom-surface tabs | panel surface state, workspace sync settings |
 | Runnable pipelines              | Orchestrator workflows + GraphRAG config | workflow presets, orchestrator context                    |
 
-### BottomPanel Orchestrator (SSOT)
+### Graph Traversal Orchestrator (SSOT)
 
-- Canonical surface: Bottom Panel → Orchestrator (UI/Text editor toggle).
-- Orchestrator UI hosts GraphRAG workflow editing, traversal presets, traversal sequence, and AgenticRAG context/ignore filters.
-- Graph Traversal floating panel reuses the same orchestrator controls; avoid duplicated controls with divergent copy/tooltips.
+- Canonical surface: Floating Panel → Graph Traversal.
+- Orchestrator UI hosts traversal presets, traversal sequence, and AgenticRAG context/ignore filters.
+- Workflow editing is shared through the Editor workspace and Workflow Manager; avoid duplicated controls with divergent copy/tooltips.
 - Tooltip semantics are standardized:
   - Key tooltips follow Role → Actions → Outcome (≤ 50 words).
   - Value tooltips follow Default/Min/Max/Interval (when applicable) + impact (≤ 15 words).
@@ -149,11 +149,13 @@ selection_state:
 
 **From panel activation to content display**: User clicks toolbar button → Store updates activeMainPanelTab → MainPanel switch renders appropriate component → Component reads from store via selectors → UI updates.
 
-**Panel Organization**: Main panel (workflow, schema, settings), Bottom panel (markdown, parsers, tables), Floating panels (props, orchestrator) with independent state slices.
+**Panel Organization**: Main panel (workflow, schema, settings), bottom surface (quick stats/history), Floating panels (props, orchestrator, renderer), and shared workspace surfaces (markdown workspace, Graph Data Table, editor workspace) with independent state slices.
 
 - Floating Panel (tool menu) hosts the Props/Inspector/etc views.
 - Interaction controls for infinite-canvas workflows live in a dedicated **Interaction** floating panel that is positioned adjacent to the Floating Panel when the Props view is active.
 - Forbid any legacy “Arrange” panels (canvas overlays, editor tabs, or side panels) that duplicate Interaction/Arrange actions.
+- Shared panel activation events, default panel sizing, and panel-role ownership must live under `canvas/src/features/panels/*`; forbid a parallel `features/bottom-panel/*` helper namespace or duplicate bottom-surface ownership labels in shared config.
+- Bottom-surface tabs stay thin surfaces over the shared panel contract: lightweight tabs render local quick-review content only, without duplicating workspace or renderer ownership.
 
 #### Floating Panel Lightweight View Pattern (Props Panel Contract)
 
@@ -181,14 +183,14 @@ panel_layout:
   scope: system_global
   type: object
   mutability: runtime_configurable
-  validation: activeMainPanelTab, activeBottomPanelTab must be valid tab keys
+  validation: activeMainPanelTab, activeBottomSurfaceTab must be valid tab keys
   impact: controls which panel is visible and active
 
 panel_visibility:
   scope: deployment_configurable
   type: object (boolean flags per panel)
   mutability: runtime_configurable
-  validation: mainPanelOpen, bottomPanelOpen, floatingPanelOpen
+  validation: mainPanelOpen, bottomSurfaceOpen, floatingPanelOpen
   impact: controls panel collapse/expand state
 
 ui_density:
@@ -479,7 +481,7 @@ UI_THEME_TOKENS:
 | Component            | Semantic Elements                                                                                   |
 |----------------------|-----------------------------------------------------------------------------------------------------|
 | Toolbar              | `<nav role="navigation">`                                                                          |
-| Bottom Panel         | `<section>` (container), `<header>` (tab bar, supports double-click fullscreen), `<article>` (content) |
+| Bottom Surface       | `<section>` (container), `<header>` (tab bar, supports double-click fullscreen), `<article>` (content) |
 | Main Panel           | `<section>` (container), `<header>` (tab bar), `<article>` (content)                               |
 | Status Bar           | `<footer>`                                                                                         |
 | Markdown Viewer      | `<article>` (content), `<nav>` (TOC), `<figure>` (code blocks, Mermaid diagrams)                  |

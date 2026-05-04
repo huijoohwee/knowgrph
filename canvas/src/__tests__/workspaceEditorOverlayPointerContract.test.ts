@@ -92,7 +92,7 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   const workspaceSsotText = readFileSync(workspaceSsotPath, 'utf8')
   const uiInitialStatePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
   const uiInitialStateText = readFileSync(uiInitialStatePath, 'utf8')
-  const workspaceToolbarPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')
+  const workspaceToolbarPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceToolbar.tsx')
   const workspaceToolbarText = readFileSync(workspaceToolbarPath, 'utf8')
   if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
     throw new Error('expected Canvas page to derive overlay-open state from canonical store state only')

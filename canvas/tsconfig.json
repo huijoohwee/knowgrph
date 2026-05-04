@@ -30,9 +30,6 @@
       "@sandbox/*": [
         "../../sandbox/*"
       ],
-      "@/components/BottomPanel/*": [
-        "./src/components/BottomPanel/*"
-      ],
       "@/features/graph-data-table/*": ["./src/features/graph-data-table/*"],
       "@/features/markdown/*": ["./src/features/markdown/*"],
       "@/features/panels/views/preview-panel/ui/*": ["./src/features/panels/views/preview-panel/ui/*"]

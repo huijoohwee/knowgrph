@@ -20,8 +20,8 @@ export async function testToastHostRendersSharedActionsAndDispatchesUiRuntime() 
   let root: ReturnType<typeof createRoot> | null = null
   try {
     store.resetAll()
-    store.setBottomPanelCollapsed(true)
-    store.setBottomPanelTab('settings')
+    store.setBottomSurfaceCollapsed(true)
+    store.setBottomSurfaceTab('stats')
     store.pushUiToast({
       id: 'toast:action',
       kind: 'warning',
@@ -57,10 +57,10 @@ export async function testToastHostRendersSharedActionsAndDispatchesUiRuntime() 
     })
 
     const nextState = useGraphStore.getState()
-    if (nextState.bottomPanelCollapsed !== false) {
-      throw new Error('expected toast action to open the bottom panel through the shared ui runtime')
+    if (nextState.bottomSurfaceCollapsed !== false) {
+      throw new Error('expected toast action to open the bottom surface through the shared ui runtime')
     }
-    if (nextState.bottomPanelTab !== 'history') {
+    if (nextState.bottomSurfaceTab !== 'history') {
       throw new Error('expected toast action to route to History via the shared ui runtime')
     }
   } finally {
@@ -85,8 +85,8 @@ export async function testHistoryViewRendersSharedLogActionsAndDispatchesUiRunti
   let root: ReturnType<typeof createRoot> | null = null
   try {
     store.resetAll()
-    store.setBottomPanelCollapsed(true)
-    store.setBottomPanelTab('settings')
+    store.setBottomSurfaceCollapsed(true)
+    store.setBottomSurfaceTab('stats')
     store.pushUiLog({
       kind: 'warning',
       source: 'storage:conflict',
@@ -130,10 +130,10 @@ export async function testHistoryViewRendersSharedLogActionsAndDispatchesUiRunti
     })
 
     const nextState = useGraphStore.getState()
-    if (nextState.bottomPanelCollapsed !== false) {
-      throw new Error('expected history log action to open the bottom panel through the shared ui runtime')
+    if (nextState.bottomSurfaceCollapsed !== false) {
+      throw new Error('expected history log action to open the bottom surface through the shared ui runtime')
     }
-    if (nextState.bottomPanelTab !== 'history') {
+    if (nextState.bottomSurfaceTab !== 'history') {
       throw new Error('expected history log action to keep the shared runtime routed to History')
     }
   } finally {

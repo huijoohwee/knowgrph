@@ -179,7 +179,7 @@ export const UI_LABELS = {
   threeDModeOff: '3D Mode',
   launch: 'Launch',
   theme: 'Theme',
-  resizeBottomPanel: 'Resize bottom panel',
+  resizeBottomSurface: 'Resize bottom surface',
   layerModeDescriptorSchema: 'Schema (entities)',
   layerModeDescriptorDocument: 'Layered structure (document)',
   layerModeDescriptorSemantic: 'Similarity clusters (semantic)',

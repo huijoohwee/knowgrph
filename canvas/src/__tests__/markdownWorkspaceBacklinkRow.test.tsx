@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceBacklinkRow } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceBacklinkRow'
+import { MarkdownWorkspaceBacklinkRow } from '@/features/markdown-workspace/MarkdownWorkspaceBacklinkRow'
 
 export async function testMarkdownWorkspaceBacklinkRowUsesSharedExplorerBacklinkShell() {
   const { dom, restore } = initJsdomHarness()

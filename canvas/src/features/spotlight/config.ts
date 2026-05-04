@@ -1,4 +1,4 @@
-import { getBottomTabLabel, type WorkflowStepId } from '@/features/panels/config'
+import { getPanelSurfaceLabel, type WorkflowStepId } from '@/features/panels/config'
 import { ORCHESTRATOR_TRAVERSAL_TOOLTIP, GRAPH_FIELDS_ICON_LEGEND_TOOLTIP } from '@/lib/config'
 
 export type SpotlightStepVariant = 'primary' | 'secondary'
@@ -19,8 +19,8 @@ export interface SpotlightStepConfig {
   requires?: SpotlightRequirementKey[]
 }
 
-const graphJsonTabLabel = getBottomTabLabel('data')
-const validateTabLabel = getBottomTabLabel('table')
+const graphJsonTabLabel = getPanelSurfaceLabel('data')
+const validateTabLabel = getPanelSurfaceLabel('table')
 const graphTableLabel = 'Graph Data Table'
 
 export const SPOTLIGHT_STEPS: SpotlightStepConfig[] = [

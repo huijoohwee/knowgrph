@@ -16,7 +16,7 @@
 - Knowgrph Local Storage Document (`knowgrph-local-storage-document`)
   - Source of Truth (`source-of-truth`)
   - Graph Data (SSOT) (`graph-data-ssot`)
-  - Markdown UI (Bottom Panel) (`markdown-ui-bottom-panel`)
+  - Markdown Workspace UI (`markdown-workspace-ui`)
   - Workspace UI (Canvas vs Editor vs Table) (`workspace-ui-canvas-vs-editor-vs-table`)
   - Canvas Zoom & Viewport (2D) (`canvas-zoom-viewport-2d`)
   - Canvas Interaction & Workspace Sync Modes (`canvas-interaction-workspace-sync-modes`)

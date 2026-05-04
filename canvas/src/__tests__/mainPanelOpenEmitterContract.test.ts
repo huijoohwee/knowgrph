@@ -52,12 +52,11 @@ export const testMainPanelOpenCallsitesUseSharedEmitter = () => {
     'src/features/panels/hooks/useHelpViewLogic.ts',
     'src/features/spotlight/LaunchSpotlightTourCard.tsx',
     'src/lib/markdown-core/ui/MarkdownMediaUi.impl.tsx',
-    'src/components/BottomPanel/BottomPanelCuratorToolbar.tsx',
     'src/components/FlowEditor/NodeOverlayEditorActionsToolbar.tsx',
     'src/features/panels/ui/MainPanelFlowEditorManagerHeader.tsx',
     'src/features/panels/ui/SchemaSummary.tsx',
     'src/lib/panels/views/preview-panel/ui/MermaidDiagram.impl.tsx',
-    'src/components/BottomPanel/hooks/useMarkdownSectionLogic.ts',
+    'src/features/markdown-workspace/hooks/useMarkdownSectionLogic.ts',
   ]
 
   for (const relativePath of files) {

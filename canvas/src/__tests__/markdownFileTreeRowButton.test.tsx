@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownFileTreeRowButton } from '@/components/BottomPanel/MarkdownFileTreeRowButton'
+import { MarkdownFileTreeRowButton } from '@/features/markdown-workspace/MarkdownFileTreeRowButton'
 
 export async function testMarkdownFileTreeRowButtonReusesSharedRowShell() {
   const { dom, restore } = initJsdomHarness()

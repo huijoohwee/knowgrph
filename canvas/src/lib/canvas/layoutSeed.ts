@@ -22,6 +22,7 @@ export function pickSeedFromOtherRendererCache(args: {
   baseKey: string
   expectedKey?: string
   expectedLayoutVariant?: string
+  allowVariantFallback?: boolean
 }): Record<string, { x: number; y: number }> | null {
   const cache = args.cache
   if (!cache) return null
@@ -36,6 +37,8 @@ export function pickSeedFromOtherRendererCache(args: {
 
   const exact = cache[baseKey]
   if (exact && typeof exact === 'object') return exact
+
+  if (args.allowVariantFallback === false) return null
 
   const prefix = `${baseKey}:`
   const keys = Object.keys(cache)

@@ -1,12 +1,12 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
-import { useMarkdownAutoPosition } from '@/components/BottomPanel/hooks/useMarkdownAutoPosition'
+import { useMarkdownAutoPosition } from '@/features/markdown-workspace/hooks/useMarkdownAutoPosition'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import type { GraphData } from '@/lib/graph/types'
-import type { MarkdownLayoutMode } from '@/components/BottomPanel/BottomPanelMarkdownSection'
+import type { MarkdownWorkspaceLayoutMode as MarkdownLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 
 const tick = async (dom: { window: Window }) => {
   await new Promise<void>(resolve => {

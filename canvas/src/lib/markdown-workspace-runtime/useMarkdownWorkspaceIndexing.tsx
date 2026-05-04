@@ -17,7 +17,7 @@ import {
   hydrateWorkspaceFileFromPendingLocalImport,
   isPendingLocalImportStubText,
   peekPendingWorkspaceLocalImport,
-} from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+} from '@/features/markdown-workspace/workspaceImport'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
 import { buildSourceFileLifecycleState, buildSourceFileRecord } from '@/features/source-files/sourceFileParsedState'
 import { hashStringToHex } from '@/lib/hash/stringHash'
@@ -32,20 +32,24 @@ import {
 } from './markdownWorkspaceRuntime.stateSync'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceSuccessStatus } from './markdownWorkspaceStatusTransitions'
 import {
+  clearRuntimeTimeout,
   findWorkspaceSourceFileByPath,
   resolveWorkspaceDirtyState,
+  scheduleRuntimeTimeout,
+  type RuntimeTimeoutHandle,
 } from './markdownWorkspaceRuntime.shared'
 import {
   pushWorkspaceTextToActiveMarkdownDocument,
   writeWorkspaceFileAndSync,
 } from './markdownWorkspaceRuntime.io'
+import type { MarkdownWorkspaceRuntimeProgressStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 import {
   resolveWorkspaceSourceFileInlineText,
   upsertWorkspaceEntryInlineText,
 } from '@/features/workspace-fs/workspaceInlineText'
 
-export type MarkdownWorkspaceIndexingArgs = {
+export type MarkdownWorkspaceIndexingArgs = MarkdownWorkspaceRuntimeProgressStatusBindings & {
   active: boolean
   viewerInlineEditActive: boolean
   contentMode: 'document' | 'widget'
@@ -71,16 +75,6 @@ export type MarkdownWorkspaceIndexingArgs = {
   setActiveTextProgrammatic: (text: string) => void
   setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
   setEntries: React.Dispatch<React.SetStateAction<WorkspaceEntry[]>>
-  setStatusError: (label: string) => void
-  setStatusProgress: (
-    label: string,
-    value?: number,
-    max?: number,
-    bytesDone?: number,
-    bytesTotal?: number,
-    opts?: { ttlMs?: number },
-  ) => void
-  setStatusWithAutoClear: (label: string, ttlMs?: number) => void
 }
 
 export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs) {
@@ -140,11 +134,11 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
     scheduleMarkdownWorkspaceIndexStart(() => {
       if (cancelled || args.activePathRef.current !== scheduledFor) return
       void (async () => {
-        let loadingLabelTimer: number | null = null
+        let loadingLabelTimer: RuntimeTimeoutHandle | null = null
         try {
-          if (!args.indexingInFlightRef.current) args.setIndexingInFlight(true)
+          if (!cancelled && !args.indexingInFlightRef.current) args.setIndexingInFlight(true)
           try {
-            loadingLabelTimer = window.setTimeout(() => {
+            loadingLabelTimer = scheduleRuntimeTimeout(() => {
               if (bytesTotalHint && bytesTotalHint > 0) {
                 args.setStatusProgress(indexLabel, 1, 1, 0, bytesTotalHint)
               } else {
@@ -532,8 +526,8 @@ export function useMarkdownWorkspaceIndexing(args: MarkdownWorkspaceIndexingArgs
             applyLoadFailedStatus(e)
           }
         } finally {
-          if (args.indexingInFlightRef.current) args.setIndexingInFlight(false)
-          if (loadingLabelTimer != null) window.clearTimeout(loadingLabelTimer)
+          if (!cancelled && args.indexingInFlightRef.current) args.setIndexingInFlight(false)
+          clearRuntimeTimeout(loadingLabelTimer)
         }
       })()
     }, {

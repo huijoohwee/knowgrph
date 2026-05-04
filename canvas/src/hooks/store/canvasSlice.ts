@@ -525,11 +525,13 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
             semanticMode,
             renderMode: '2d',
             viewKey,
+            renderVariant: String(st.canvas2dRenderer || ''),
           })
           const seed = pickSeedFromOtherRendererCache({
             nodes: nodes as any,
             cache: (st.layoutPositionCacheByMode as any) || null,
             baseKey,
+            allowVariantFallback: false,
           })
           const merged = { ...(seed || {}) }
           for (const [id, p] of Object.entries(posPatch)) {

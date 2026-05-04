@@ -45,7 +45,7 @@ Docs: see `docs/conflict-resolution.md` for the repo conflict-resolution and syn
 ### 3.3 前端核心组件 (Frontend Components)
 位于 `canvas/src/components/` 和 `canvas/src/features/`：
 - **`GraphCanvas` / `FlowCanvas` / `DesignCanvas`**: 负责将 `GraphData` 数据进行 SVG 或 WebGL 的渲染，处理物理力导向图（Force-directed graph）的迭代与用户拖拽交互。
-- **`BottomPanel`**: 底部核心面板，提供数据的表格视图（DataTable）、代码源码视图及渲染/解析的控制接口。
+- **底部表面 + 编辑器工作区**: 当前底部表面主要承载轻量统计/历史等底部标签；Markdown 编辑/预览、图表数据表格及较重的工作区交互已收敛到独立的编辑器工作区、Main Panel 与 Floating Panel 等规范化表面。
 - **`Toolbar`**: 顶部工具栏，处理数据导入（Import）、导出（Export）以及全局视图模式切换。
 
 ### 3.4 后端解析引擎 (Python Parser Backend)

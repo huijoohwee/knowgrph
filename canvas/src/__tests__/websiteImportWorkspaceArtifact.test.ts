@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import {
   buildWebpageWorkspaceEntryTextFromUpstreamMarkdown,
   buildWebsiteImportWebpageDocFromUpstreamMarkdown,
-} from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+} from '@/features/markdown-workspace/workspaceImport'
 
 export const testWebsiteImportWorkspaceWritesArtifactDoc = () => {
   const self = fileURLToPath(import.meta.url)

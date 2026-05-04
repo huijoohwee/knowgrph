@@ -26,7 +26,7 @@ import {
   getSchemaUiApplyRegistrationSnapshot,
   isSchemaUiEditorOpenSnapshot,
   type SchemaUiApplyRegistration,
-} from '@/features/schema-editor/useBottomPanelSchema'
+} from '@/features/schema-editor/useWorkflowManagerSchema'
 import { uniqueNodeTypes as deriveUniqueNodeTypes, uniqueEdgeLabels as deriveUniqueEdgeLabels } from '@/features/schema/derive'
 
 export const normalizeQuery = (q?: string): string => normalizeText(q || '').trim()

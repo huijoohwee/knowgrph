@@ -39,9 +39,13 @@ export function HelpPanelTourSection({ collapsed, onToggle }: HelpPanelTourSecti
           {UI_COPY.mainPanelPrefix} use Workflow Manager and Help tabs to guide schema and graph setup; Graph Fields now lives inside Workflow Manager.
         </li>
         <li>
-          {UI_COPY.bottomPanelPrefix} use Graph Data Table, Parser, Schema Configurator, Orchestrator (
+          {UI_COPY.floatingPanelPrefix} use Renderer and Graph Traversal (
           {getOrchestratorSectionListLabel()}
-          ), and Renderer tabs together with the Workflow exports section to refine and export GraphData artifacts.
+          ) while the Graph Data Table workspace and Editor Workspace handle curation and text inspection.
+        </li>
+        <li>
+          {UI_COPY.bottomSurfacePrefix} use Stats and History for quick review while Renderer
+          and Graph Traversal stay in the canonical Floating Panel.
         </li>
       </ul>
     </CollapsibleSection>

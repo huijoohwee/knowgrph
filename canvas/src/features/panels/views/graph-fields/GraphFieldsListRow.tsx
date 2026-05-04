@@ -41,15 +41,15 @@ export type GraphFieldsListRowProps = {
   isOnlyVisibleColumn: boolean
   active: boolean
   isDragOver: boolean
-  draggingCuratorColumnKey: GraphDataTableColumnKey | null
+  draggingDataTableColumnKey: GraphDataTableColumnKey | null
   setSelectedFieldId: (id: GraphFieldId | null) => void
-  setCuratorColumnVisibility: (key: GraphDataTableColumnKey, visible: boolean) => void
-  moveCuratorColumn: (from: GraphDataTableColumnKey, to: GraphDataTableColumnKey) => void
+  setDataTableColumnVisibility: (key: GraphDataTableColumnKey, visible: boolean) => void
+  moveDataTableColumn: (from: GraphDataTableColumnKey, to: GraphDataTableColumnKey) => void
   updateGraphFieldSettings: (fieldId: GraphFieldId, patch: Partial<GraphFieldSettingsResolved>) => void
   updateNodeStyle: (type: string, style: Partial<{ color: string }>) => void
   updateEdgeStyle: (label: string, style: Partial<{ color: string; width: number }>) => void
-  setDraggingCuratorColumnKey: (key: GraphDataTableColumnKey | null) => void
-  setDragOverCuratorColumnKey: (key: GraphDataTableColumnKey | null) => void
+  setDraggingDataTableColumnKey: (key: GraphDataTableColumnKey | null) => void
+  setDragOverDataTableColumnKey: (key: GraphDataTableColumnKey | null) => void
 }
 
 export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
@@ -73,15 +73,15 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
   isOnlyVisibleColumn,
   active,
   isDragOver,
-  draggingCuratorColumnKey,
+  draggingDataTableColumnKey,
   setSelectedFieldId,
-  setCuratorColumnVisibility,
-  moveCuratorColumn,
+  setDataTableColumnVisibility,
+  moveDataTableColumn,
   updateGraphFieldSettings,
   updateNodeStyle,
   updateEdgeStyle,
-  setDraggingCuratorColumnKey,
-  setDragOverCuratorColumnKey,
+  setDraggingDataTableColumnKey,
+  setDragOverDataTableColumnKey,
 }: GraphFieldsListRowProps) {
   const isPropertyColumn = isGraphDataTablePropertyColumnKey(columnKey)
   const isCustomField = settings?.isCustom === true
@@ -245,30 +245,30 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
             e.preventDefault()
             return
           }
-          setDraggingCuratorColumnKey(columnKey)
-          setDragOverCuratorColumnKey(columnKey)
+          setDraggingDataTableColumnKey(columnKey)
+          setDragOverDataTableColumnKey(columnKey)
           e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData('text/plain', String(columnKey))
         }}
         onDragOver={e => {
           e.preventDefault()
           e.dataTransfer.dropEffect = 'move'
-          setDragOverCuratorColumnKey(columnKey)
+          setDragOverDataTableColumnKey(columnKey)
         }}
         onDrop={e => {
           e.preventDefault()
           const from = (e.dataTransfer.getData('text/plain') || '') as GraphDataTableColumnKey
-          if (from) moveCuratorColumn(from, columnKey)
-          setDraggingCuratorColumnKey(null)
-          setDragOverCuratorColumnKey(null)
+          if (from) moveDataTableColumn(from, columnKey)
+          setDraggingDataTableColumnKey(null)
+          setDragOverDataTableColumnKey(null)
         }}
         onDragEnd={() => {
-          setDraggingCuratorColumnKey(null)
-          setDragOverCuratorColumnKey(null)
+          setDraggingDataTableColumnKey(null)
+          setDragOverDataTableColumnKey(null)
         }}
         onDragLeave={e => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-            setDragOverCuratorColumnKey(null)
+            setDragOverDataTableColumnKey(null)
           }
         }}
       >
@@ -315,7 +315,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
         </div>
 
         <div className="flex items-center gap-2">
-          {draggingCuratorColumnKey === columnKey ? (
+          {draggingDataTableColumnKey === columnKey ? (
             <span className={`${uiPanelKeyValueTextSizeClass} ${UI_THEME_TOKENS.text.tertiary}`}>{UI_LABELS.moving}</span>
           ) : null}
           {originIconNode}
@@ -327,7 +327,7 @@ export const GraphFieldsListRow = React.memo(function GraphFieldsListRow({
             disabled={visible && isOnlyVisibleColumn}
             onClick={() => {
               const nextVisible = !visible
-              setCuratorColumnVisibility(columnKey, nextVisible)
+              setDataTableColumnVisibility(columnKey, nextVisible)
               if (graphFieldId) setSelectedFieldId(graphFieldId)
             }}
             aria-pressed={visible}

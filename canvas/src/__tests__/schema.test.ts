@@ -8,7 +8,7 @@ import { computeSchemaTabEnterText } from '@/features/schema-editor/useSchemaTab
 import { LS_KEYS } from '@/lib/config'
 import { readSchemaFromStorage, writeSchemaToStorage } from '@/hooks/store/schemaSlice'
 import { getSchemaBaseForUiApply } from '@/features/schema/ui/utils'
-import { canUseSchemaUiApplyRegistration, type SchemaUiApplyRegistration } from '@/features/schema-editor/useBottomPanelSchema'
+import { canUseSchemaUiApplyRegistration, type SchemaUiApplyRegistration } from '@/features/schema-editor/useWorkflowManagerSchema'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { clampCollisionRadius } from '@/features/panels/utils/orchestratorTraversal'

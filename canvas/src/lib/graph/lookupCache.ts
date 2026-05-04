@@ -1,7 +1,13 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import {
+  hashScopedStringArraySignature,
+  hashSignatureParts,
+  normalizeStringArrayForSignature,
+} from '@/lib/hash/signature'
 
 const GRAPH_LOOKUP_CACHE_LIMIT = 16
+const GRAPH_SUBSET_CACHE_LIMIT = 48
 
 export type CachedGraphLookup = {
   cacheKey: string
@@ -11,6 +17,14 @@ export type CachedGraphLookup = {
   nodeById: Map<string, GraphNode>
   edgeById: Map<string, GraphEdge>
   incidentEdgesByNodeId: Map<string, GraphEdge[]>
+}
+
+export type CachedGraphSubset = {
+  cacheKey: string
+  nodeIds: string[]
+  nodeIdSet: Set<string>
+  nodes: GraphNode[]
+  edges: GraphEdge[]
 }
 
 type GetCachedGraphLookupArgs = {
@@ -24,6 +38,7 @@ type GetCachedGraphLookupArgs = {
 }
 
 const graphLookupCache = new Map<string, CachedGraphLookup>()
+const graphSubsetCache = new Map<string, CachedGraphSubset>()
 
 function readGraphCollections(graphData: GraphData): { nodes: GraphNode[]; edges: GraphEdge[] } {
   return {
@@ -45,6 +60,23 @@ function writeCachedGraphLookup(cacheKey: string, value: CachedGraphLookup): Cac
   if (graphLookupCache.size > GRAPH_LOOKUP_CACHE_LIMIT) {
     const oldestKey = graphLookupCache.keys().next().value
     if (typeof oldestKey === 'string') graphLookupCache.delete(oldestKey)
+  }
+  return value
+}
+
+function readCachedGraphSubset(cacheKey: string): CachedGraphSubset | null {
+  const cached = graphSubsetCache.get(cacheKey) || null
+  if (!cached) return null
+  graphSubsetCache.delete(cacheKey)
+  graphSubsetCache.set(cacheKey, cached)
+  return cached
+}
+
+function writeCachedGraphSubset(cacheKey: string, value: CachedGraphSubset): CachedGraphSubset {
+  graphSubsetCache.set(cacheKey, value)
+  if (graphSubsetCache.size > GRAPH_SUBSET_CACHE_LIMIT) {
+    const oldestKey = graphSubsetCache.keys().next().value
+    if (typeof oldestKey === 'string') graphSubsetCache.delete(oldestKey)
   }
   return value
 }
@@ -123,4 +155,63 @@ export function getCachedGraphLookup(args: GetCachedGraphLookupArgs): CachedGrap
   }
 
   return writeCachedGraphLookup(cacheKey, buildGraphLookup(cacheKey, graphData))
+}
+
+export function getCachedGraphSubsetByNodeIds(args: {
+  graphLookup?: CachedGraphLookup | null
+  nodeIds: string[]
+  cacheScope?: string
+}): CachedGraphSubset | null {
+  const graphLookup = args.graphLookup || null
+  if (!graphLookup) return null
+
+  const normalizedNodeIds = normalizeStringArrayForSignature(args.nodeIds, {
+    unique: true,
+    sort: true,
+  })
+  if (normalizedNodeIds.length === 0) return null
+
+  const nodeIdsSignature = hashScopedStringArraySignature(
+    args.cacheScope || 'graph-subset-node-ids',
+    normalizedNodeIds,
+  )
+  const cacheKey = hashSignatureParts([
+    args.cacheScope || 'graph-subset',
+    graphLookup.cacheKey,
+    nodeIdsSignature,
+  ])
+  const cached = readCachedGraphSubset(cacheKey)
+  if (cached) return cached
+
+  const nodeIdSet = new Set(normalizedNodeIds)
+  const nodes = normalizedNodeIds
+    .map(id => graphLookup.nodeById.get(id) || null)
+    .filter((node): node is GraphNode => !!node)
+  if (nodes.length === 0) return null
+
+  const edges: GraphEdge[] = []
+  const seenEdgeIds = new Set<string>()
+  for (let i = 0; i < normalizedNodeIds.length; i += 1) {
+    const nodeId = normalizedNodeIds[i]
+    const incidentEdges = graphLookup.incidentEdgesByNodeId.get(nodeId) || []
+    for (let edgeIndex = 0; edgeIndex < incidentEdges.length; edgeIndex += 1) {
+      const edge = incidentEdges[edgeIndex]
+      const edgeId = String(edge?.id || '').trim()
+      const sourceId = String(edge?.source || '').trim()
+      const targetId = String(edge?.target || '').trim()
+      if (!nodeIdSet.has(sourceId) && !nodeIdSet.has(targetId)) continue
+      const dedupeKey = edgeId || `${sourceId}->${targetId}:${edgeIndex}`
+      if (seenEdgeIds.has(dedupeKey)) continue
+      seenEdgeIds.add(dedupeKey)
+      edges.push(edge)
+    }
+  }
+
+  return writeCachedGraphSubset(cacheKey, {
+    cacheKey,
+    nodeIds: normalizedNodeIds,
+    nodeIdSet,
+    nodes,
+    edges,
+  })
 }

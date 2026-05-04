@@ -7,15 +7,15 @@ const readUtf8 = (absPath: string): string => {
 
 export const testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses = () => {
   const root = process.cwd()
-  const toolbarPath = path.resolve(root, 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')
-  const explorerPath = path.resolve(root, 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'MarkdownWorkspaceExplorer.tsx')
+  const toolbarPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceToolbar.tsx')
+  const explorerPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceExplorer.tsx')
   const files = [
     toolbarPath,
     explorerPath,
-    path.resolve(root, 'src', 'components', 'BottomPanel', 'MarkdownExplorerSection.tsx'),
-    path.resolve(root, 'src', 'components', 'BottomPanel', 'MarkdownFileTree.tsx'),
-    path.resolve(root, 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'MarkdownWorkspace.tsx'),
-    path.resolve(root, 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'MarkdownWorkspaceMain.tsx'),
+    path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownExplorerSection.tsx'),
+    path.resolve(root, 'src', 'features', 'markdown-workspace', 'MarkdownFileTree.tsx'),
+    path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'layout', 'MarkdownWorkspaceLayout.tsx'),
+    path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'MarkdownWorkspaceMain.tsx'),
   ]
   const offenders = ['bg-white', 'bg-zinc-', 'border-zinc-', 'text-zinc-']
   for (const f of files) {
@@ -35,7 +35,7 @@ export const testMarkdownWorkspaceAvoidsHardcodedLightThemeClasses = () => {
 
 export const testMarkdownPreviewViewerForcesPrimaryTextColor = () => {
   const root = process.cwd()
-  const viewerPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownPreviewViewer.tsx')
+  const viewerPath = path.resolve(root, 'src', 'lib', 'markdown-core', 'ui', 'MarkdownPreviewViewer.impl.tsx')
   const layoutPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownPanelLayout.tsx')
   const viewer = readUtf8(viewerPath)
   const layout = readUtf8(layoutPath)
@@ -48,7 +48,7 @@ export const testMarkdownPreviewViewerForcesPrimaryTextColor = () => {
 }
 
 export const testMarkdownWorkspaceToolbarAutoRoutesImageModeWithoutManualSelector = () => {
-  const toolbarPath = path.resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'MarkdownWorkspaceToolbar.tsx')
+  const toolbarPath = path.resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceToolbar.tsx')
   const toolbar = readUtf8(toolbarPath)
   if (toolbar.includes('Imgs: Auto') || toolbar.includes('Imgs: On') || toolbar.includes('Imgs: Off')) {
     throw new Error('Workspace toolbar should not expose manual image mode selector labels')

@@ -80,7 +80,7 @@ Canonical GraphData (Zustand store)
   - PDF → Markdown: [pdfImportAction.ts](../../canvas/src/features/toolbar/pdfImportAction.ts)
   - YouTube → Markdown (+ transcript JSON): [youtubeImportAction.ts](../../canvas/src/features/toolbar/youtubeImportAction.ts) (Source Files → YouTube)
   - JSON/JSON-LD/CSV: [jsonImportAction.ts](../../canvas/src/features/toolbar/jsonImportAction.ts)
-- Local/URL loader bridge (Bottom Panel): [useMarkdownLoader.ts](../../canvas/src/components/BottomPanel/useMarkdownLoader.ts)
+- Local/URL loader bridge (markdown workspace): [useMarkdownLoader.ts](../../canvas/src/features/markdown-workspace/useMarkdownLoader.ts)
 - Parser loader (text → GraphData): [loader.ts](../../canvas/src/features/parsers/loader.ts)
 - Import side-effects (SSOT sync into Markdown Editor + Recents): [importSideEffects.ts](../../canvas/src/features/toolbar/importSideEffects.ts) (`applyImportedMarkdownToStore`)
 - Dev/Preview in-repo artifact fetching (no absolute `/@fs` paths in client): [markdownPipelineActions.ts](../../canvas/src/features/panels/hooks/markdownPipelineActions.ts) via `GET /__codebase_file?path=<repoRel>`
@@ -89,7 +89,7 @@ Canonical GraphData (Zustand store)
 **YouTube import**:
 - Status: Active. The import action calls `/__youtube_transcript` (Vite middleware) which runs `python3 -m knowgrph_parser youtube --emit json` to produce:
   - Markdown for Markdown Editor/Preview/Slides
-  - Transcript JSON for Bottom Panel JSON Editor (`jsonSourceDocumentText`)
+  - Transcript JSON for JSON-backed markdown workspace / UI Editor flows (`jsonSourceDocumentText`)
 
 ### Stage 2: Parse
 

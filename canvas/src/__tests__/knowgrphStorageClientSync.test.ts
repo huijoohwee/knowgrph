@@ -361,3 +361,47 @@ export async function testKnowgrphStorageClientSyncCanApplyPulledRemoteChangesIn
 
   await __resetKnowgrphStorageDbForTests()
 }
+
+export async function testKnowgrphStorageClientSyncSkipsUnavailableRoutesWithoutThrowing() {
+  await __resetKnowgrphStorageDbForTests()
+  const dbState = await getKnowgrphStorageDb()
+  let requestCount = 0
+  const fetchImpl = async (input: RequestInfo | URL): Promise<Response> => {
+    requestCount += 1
+    const url = String(input instanceof Request ? input.url : input)
+    if (url.includes('/api/storage/pull')) {
+      return new Response('<!doctype html><html><body>vite fallback</body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      })
+    }
+    return new Response('', { status: 404 })
+  }
+
+  const first = await syncKnowgrphStorageNow({
+    workspaceId: 'wk_client_unavailable',
+    deviceId: 'dev_unavailable',
+    baseUrl: 'http://127.0.0.1:5173',
+    fetchImpl,
+    dbState,
+  })
+  const second = await syncKnowgrphStorageNow({
+    workspaceId: 'wk_client_unavailable',
+    deviceId: 'dev_unavailable',
+    baseUrl: 'http://127.0.0.1:5173',
+    fetchImpl,
+    dbState,
+  })
+
+  if (first.pushedCount !== 0 || first.pulledDocumentCount !== 0 || first.pulledChunkCount !== 0 || first.pulledGraphSnapshotCount !== 0) {
+    throw new Error('expected unavailable storage routes to skip sync cleanly without reporting pushed or pulled records')
+  }
+  if (second.pushedCount !== 0 || second.pulledDocumentCount !== 0 || second.pulledChunkCount !== 0 || second.pulledGraphSnapshotCount !== 0) {
+    throw new Error('expected repeated sync attempts against unavailable storage routes to stay in the shared skipped state')
+  }
+  if (requestCount !== 1) {
+    throw new Error(`expected unavailable route backoff to suppress repeated fetch attempts, got ${requestCount}`)
+  }
+
+  await __resetKnowgrphStorageDbForTests()
+}

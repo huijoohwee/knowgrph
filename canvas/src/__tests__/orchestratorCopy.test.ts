@@ -132,10 +132,21 @@ export async function testAgenticRagContextTooltipUsesCopyHelper() {
   await Promise.resolve()
 }
 
-export async function testGraphDataTableToolMenuUsesCurationCopyHelper() {
-  const curatorArea = TOOL_MENU_AREAS.find(area => area.key === ('curator' as never))
-  if (curatorArea) {
-    throw new Error('Tool menu must not expose Curator area; Source Files provides imports')
+export async function testGraphDataTableToolMenuAvoidsLegacyArea() {
+  const areaKeys = TOOL_MENU_AREAS.map(area => area.key)
+  const expectedAreaKeys = [
+    'sourceFiles',
+    'validation',
+    'parser',
+    'schemaConfig',
+    'graphFields',
+    'orchestrator',
+    'render',
+    'settings',
+    'history',
+  ]
+  if (expectedAreaKeys.some((key, index) => areaKeys[index] !== key)) {
+    throw new Error('Tool menu must stay aligned with the canonical import and review surfaces')
   }
   await Promise.resolve()
 }

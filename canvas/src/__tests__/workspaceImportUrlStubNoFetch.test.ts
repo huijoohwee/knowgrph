@@ -1,4 +1,4 @@
-import { fetchWorkspaceUrlContent } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport'
 
 type GlobalWithFetch = typeof globalThis & { fetch?: typeof fetch }
 

@@ -1,5 +1,7 @@
 import type { MermaidInitConfig } from '@/features/panels/views/preview-panel/ui/mermaidConfig'
-import type { ReactNode } from 'react'
+import type {
+  MarkdownGeoDatasetIntegration,
+} from '@/features/geospatial/markdownGeoDatasetContract'
 
 export type HighlightedLineRange = { start: number; end: number } | null
 
@@ -16,33 +18,11 @@ export type InlineRenderOpts = {
   } | null
 }
 
-export type MarkdownGeoDatasetRegistrationRequest = {
-  sourceDocumentPath: string
-  codeBlock: {
-    lang: 'geojson' | 'json'
-    text: string
-    startLine: number
-    endLine: number
-  }
-}
-
-export type MarkdownGeoDatasetRegistrationResult = {
-  ok: boolean
-  error?: string
-}
-
-export type MarkdownGeoDatasetIntegration = {
-  isGeospatialModeEnabled?: () => boolean
-  isGeoJsonCodeBlock?: (req: MarkdownGeoDatasetRegistrationRequest) => boolean
-  registerGeoJsonFeatureCollection?: (
-    req: MarkdownGeoDatasetRegistrationRequest,
-  ) => Promise<MarkdownGeoDatasetRegistrationResult> | MarkdownGeoDatasetRegistrationResult
-  loadGeoJsonAsGraphData?: (
-    req: MarkdownGeoDatasetRegistrationRequest,
-  ) => Promise<MarkdownGeoDatasetRegistrationResult> | MarkdownGeoDatasetRegistrationResult
-  renderGeoJsonFeatureCollection?: (req: MarkdownGeoDatasetRegistrationRequest) => ReactNode | null
-  requestOpenGeoPanel?: () => void
-}
+export type {
+  MarkdownGeoDatasetIntegration,
+  MarkdownGeoDatasetRegistrationRequest,
+  MarkdownGeoDatasetRegistrationResult,
+} from '@/features/geospatial/markdownGeoDatasetContract'
 
 export type RenderOpts = InlineRenderOpts & {
   highlightedLineRange: HighlightedLineRange

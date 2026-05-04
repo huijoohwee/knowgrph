@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { MarkdownViewerPane } from '@/components/BottomPanel/MarkdownViewerPane'
-import type { MarkdownSelectionInfo } from '@/components/BottomPanel/BottomPanelMarkdownSectionModel'
+import { MarkdownViewerPane } from '@/features/markdown-workspace/MarkdownViewerPane'
+import type { MarkdownSelectionInfo } from '@/features/markdown-workspace/markdownUtils'
 import { UI_COPY } from '@/lib/config'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -110,10 +110,10 @@ export async function testMarkdownViewerShowsMissingDocumentPathMessage() {
       if (text.trim()) break
       await tick(`settle:${i}`)
     }
-    if (!text.includes(UI_COPY.bottomPanelMarkdownMissingDocumentPathLabel)) {
+    if (!text.includes(UI_COPY.markdownWorkspaceMissingDocumentPathLabel)) {
       throw new Error(
         `expected markdown viewer to show missing documentPath message, got ${JSON.stringify(
-          UI_COPY.bottomPanelMarkdownMissingDocumentPathLabel,
+          UI_COPY.markdownWorkspaceMissingDocumentPathLabel,
         )} not found in ${JSON.stringify(text)}`,
       )
     }

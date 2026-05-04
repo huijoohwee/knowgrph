@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceExplorer } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceExplorer'
+import { MarkdownWorkspaceExplorer } from '@/features/markdown-workspace/MarkdownWorkspaceExplorer'
 import {
   buildMarkdownTocMetadata,
   buildTocHeadingNumberById,

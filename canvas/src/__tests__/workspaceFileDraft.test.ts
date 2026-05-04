@@ -1,7 +1,7 @@
 import {
   getDefaultNewWorkspaceFileName,
   resolveNewWorkspaceFileDraft,
-} from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/fileDraft'
+} from '@/features/markdown-workspace/useWorkspaceFileActions/fileDraft'
 
 export function testResolveNewWorkspaceFileDraftSupportsMarkdownAndJsonLd() {
   if (getDefaultNewWorkspaceFileName() !== 'note.md') {

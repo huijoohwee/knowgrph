@@ -1,4 +1,4 @@
-import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from '@/features/markdown-workspace/workspaceImport'
 
 export async function testWorkspaceImportNormalizesLocalProxyUrlsAndAutolinks() {
   const upstream = [

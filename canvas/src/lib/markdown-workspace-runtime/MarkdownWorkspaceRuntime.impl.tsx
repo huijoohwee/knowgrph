@@ -5,15 +5,15 @@ import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { VerticalResizeSeparatorHr } from '@/components/ui/VerticalResizeSeparatorHr'
-import { MarkdownWorkspaceExplorer } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceExplorer'
-import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
+import { MarkdownWorkspaceExplorer } from '@/features/markdown-workspace/MarkdownWorkspaceExplorer'
+import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
 import {
   isMarkdownPath,
   SIDEBAR_MAX_PX,
   SIDEBAR_MIN_PX,
-} from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
-import { useWorkspaceFileActions } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions'
-import { useWorkspaceStatusHelpers } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions'
+} from '@/features/markdown-workspace/markdownWorkspaceUtils'
+import { useWorkspaceFileActions } from '@/features/markdown-workspace/useWorkspaceFileActions'
+import { useWorkspaceStatusHelpers } from '@/features/markdown-workspace/useWorkspaceFileActions'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { EMPTY_GRAPH_EDGES, EMPTY_GRAPH_NODES, EMPTY_WIDGET_REGISTRY } from './markdownWorkspaceRuntime.shared'
 import { useMarkdownWorkspaceDerivedViews } from './useMarkdownWorkspaceDerivedViews'
@@ -25,6 +25,7 @@ import { useMarkdownWorkspaceSave } from './useMarkdownWorkspaceSave'
 import { useMarkdownWorkspaceSelection } from './useMarkdownWorkspaceSelection'
 import { useMarkdownWorkspaceViewShell } from './useMarkdownWorkspaceViewShell'
 import { useMarkdownWorkspaceWidgetMode } from './useMarkdownWorkspaceWidgetMode'
+import { buildMarkdownWorkspaceRuntimeStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import { useMarkdownWorkspaceShell } from './useMarkdownWorkspaceShell'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
@@ -49,7 +50,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   }, [active])
 
   const themeMode = useGraphStore(s => (s.resolvedThemeMode || 'light') as 'light' | 'dark')
-  const bottomPanelCollapsed = useGraphStore(s => s.bottomPanelCollapsed)
+  const bottomSurfaceCollapsed = useGraphStore(s => s.bottomSurfaceCollapsed)
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
   const uiPanelMonospaceTextClass = useGraphStore(s => s.uiPanelMonospaceTextClass || 'font-mono text-xs')
@@ -93,7 +94,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const lastSetActivePath = useMarkdownExplorerStore(s => s.lastSetActivePath)
 
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
-  const effectiveBottomPanelCollapsed = workspaceEditorOverlayOpen ? false : bottomPanelCollapsed
+  const effectiveBottomSurfaceCollapsed = workspaceEditorOverlayOpen ? false : bottomSurfaceCollapsed
   const graphSemanticKey = React.useMemo(() => {
     return buildScopedGraphSemanticKey('workspace-graph', {
       graphRevision: graphContentRevision,
@@ -111,7 +112,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   // if (shouldUseDirectGraphDataFor(cachedGraph))
   const bootstrapState = useMarkdownWorkspaceBootstrapState({
     activePath,
-    effectiveBottomPanelCollapsed,
+    effectiveBottomSurfaceCollapsed,
   })
   const {
     entries,
@@ -258,7 +259,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       userEditedActiveTextRef,
       collapsedSnapshotRef,
       prevCollapsedRef,
-      effectiveBottomPanelCollapsed,
+      effectiveBottomSurfaceCollapsed,
       canvas2dRenderer,
       lastSetActivePath,
       lastRequestedActivePathRef,
@@ -266,6 +267,32 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       clearStatus: status.clearStatus,
       setHighlightedLineRange: () => setHighlightedLineRange(null),
     }),
+  )
+  const runtimeStatusBindings = React.useMemo(
+    () =>
+      buildMarkdownWorkspaceRuntimeStatusBindings({
+        setStatusInfo,
+        setStatusError,
+        setStatusProgress,
+        setStatusWithAutoClear,
+      }),
+    [setStatusError, setStatusInfo, setStatusProgress, setStatusWithAutoClear],
+  )
+  const runtimeProgressStatusBindings = React.useMemo(
+    () => ({
+      setStatusError: runtimeStatusBindings.setStatusError,
+      setStatusProgress: runtimeStatusBindings.setStatusProgress,
+      setStatusWithAutoClear: runtimeStatusBindings.setStatusWithAutoClear,
+    }),
+    [runtimeStatusBindings],
+  )
+  const runtimeInteractionStatusBindings = React.useMemo(
+    () => ({
+      setStatusError: runtimeStatusBindings.setStatusError,
+      setStatusInfo: runtimeStatusBindings.setStatusInfo,
+      setStatusProgress: (label: string) => runtimeStatusBindings.setStatusProgress(label),
+    }),
+    [runtimeStatusBindings],
   )
   const derivedViews = useMarkdownWorkspaceDerivedViews(
     buildMarkdownWorkspaceDerivedViewsArgs({
@@ -280,9 +307,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       patchWorkspaceEntryInlineText,
       setActiveTextProgrammatic,
       setActiveMarkdownDocument,
-      setStatusError,
-      setStatusProgress,
-      setStatusWithAutoClear,
+      ...runtimeProgressStatusBindings,
     }),
   )
   useMarkdownWorkspaceIndexing(
@@ -312,9 +337,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       setActiveTextProgrammatic,
       setActiveMarkdownDocument,
       setEntries,
-      setStatusError,
-      setStatusProgress,
-      setStatusWithAutoClear,
+      ...runtimeProgressStatusBindings,
     }),
   )
   const saveState = useMarkdownWorkspaceSave(
@@ -332,9 +355,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
       patchWorkspaceEntryInlineText,
       setActiveMarkdownDocument,
       setGraphRagWorkflowJsonText,
-      setStatusProgress,
-      setStatusWithAutoClear,
-      setStatusError,
+      ...runtimeProgressStatusBindings,
       setActiveTextProgrammatic,
       refresh: explorerState.refresh,
       setActivePathSafe: selectionState.setActivePathSafe,
@@ -378,9 +399,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     contentMode: widgetState.contentMode,
     widgetEditorText: widgetState.widgetEditorText,
     applyMarkdownDocumentToGraph,
-    setStatusError,
-    setStatusInfo,
-    setStatusProgress: label => setStatusProgress(label),
+    ...runtimeInteractionStatusBindings,
   })
 
   const fileActions = useWorkspaceFileActions(
@@ -442,6 +461,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     selectionEntryKind: selectionState.selectionEntry?.kind ?? null,
     setActivePathSafe: selectionState.setActivePathSafe,
     setSelectionPathSafe: selectionState.setSelectionPathSafe,
+    setSelectionSource,
     setExpandedPaths,
     resolveFolderContractDocPath: explorerState.resolveFolderContractDocPath,
     pickFolderContractTargetPath: explorerState.pickFolderContractTargetPath,

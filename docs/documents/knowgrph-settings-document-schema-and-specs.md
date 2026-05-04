@@ -183,7 +183,7 @@ selectionFlashDurationMs:
   impact: controls flash duration for canvas → panel synchronization
 
 flashTargets:
-  - Markdown gutter highlights in Bottom Panel
+  - Markdown gutter highlights in the markdown workspace
   - Markdown Preview selection flashes
   - Graph Data Table row flashes
 ```

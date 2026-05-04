@@ -23,7 +23,7 @@ Knowgrph Canvas is primarily a client-side app. Local “API” surfaces used by
 ### YouTube transcript conversion
 
 - Path: `/__youtube_transcript?url=<encoded>[&lang=<code>]` (POST)
-- Purpose: convert YouTube transcripts/subtitles/captions into Markdown for the Markdown Editor/Preview/Slides and return a transcript JSON payload for the Bottom Panel JSON Editor.
+- Purpose: convert YouTube transcripts/subtitles/captions into Markdown for the Markdown Editor/Preview/Slides and return a transcript JSON payload for JSON-backed markdown workspace and UI Editor flows.
 - Implementation: [vite.config.ts](../../canvas/vite.config.ts)
 
 ## Production note

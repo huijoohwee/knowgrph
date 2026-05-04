@@ -7,7 +7,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { isRecord } from '@/lib/graph/jsonld/utils'
 import type { JSONValue } from '@/lib/graph/types'
 import { runGraphRagTextPipeline } from '@/lib/graph/graphragTextPipeline'
-import { useGraphRagTextCentralityConfig } from '@/components/BottomPanel/hooks/useGraphRagTextCentralityConfig'
+import { useGraphRagTextCentralityConfig } from '@/features/graphrag/hooks/useGraphRagTextCentralityConfig'
 
 type StageView = {
   id: string

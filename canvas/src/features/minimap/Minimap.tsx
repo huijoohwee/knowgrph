@@ -194,6 +194,7 @@ function Minimap() {
       nodes: baseNodes,
       cache: (layoutPositionCacheByMode as unknown as Record<string, Record<string, { x: number; y: number }>>) || null,
       baseKey,
+      allowVariantFallback: false,
     })
     if (!positionSeed) return baseNodes
     let changed = false

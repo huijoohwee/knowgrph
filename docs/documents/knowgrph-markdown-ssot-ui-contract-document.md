@@ -4,7 +4,7 @@
 This document defines the Single Source of Truth (SSOT) contract for Markdown UI surfaces so Markdown Editor, Viewer, and Presentation share the same header, sidebar, TOC structure, typography, and shared utility behavior, and so secondary surfaces (Slides Gallery, Graph Data, Canvas) never drift from the active document’s text identity.
 
 ## Scope
-- **In scope**: Bottom Panel Markdown header, Explorer sidebar (Source Files + Outline + Backlinks), typography ladder, shared markdown utilities used by UI and parsers.
+- **In scope**: Markdown workspace header, Explorer sidebar (Source Files + Outline + Backlinks), typography ladder, shared markdown utilities used by UI and parsers.
 - **Out of scope**: Canvas graph rendering, parser schema details (covered in the Markdown processing and schema documents).
 
 ## SSOT Rule (Non-Negotiable)
@@ -81,7 +81,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 - Webpage-backed documents must expose per-document webpage controls only in the header `nav` (no duplicates in Source Files rows): `View` (`markdown/html/dom/raw/json`), `Script`, `Imgs`, `Fid`, plus an explicit `Sync` (DOM→Markdown) action.
 - Sync output must remain Markdown-only (no duplicate artifact-doc wrappers, no HTML/YAML snapshot blocks, no synthetic HTML Head sections). If the page HTML contains an embedded Markdown payload (e.g. `data-page` JSON `props.article.content`), the importer should prefer and write that Markdown directly.
 
-- **Canonical implementation**: `singabldr/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` (`ViewerHeaderRow`).
+- **Canonical implementation**: `knowgrph/canvas/src/features/markdown-workspace/MarkdownWorkspaceToolbar.tsx` (`MarkdownWorkspaceToolbar`).
 - **Required behavior**:
   - Same header structure across Editor/Viewer/Presentation; only state changes (enabled/disabled) are allowed.
   - `Apply changes`, `Save`, `Save As...` are always present but disabled when not in editing mode.
@@ -106,7 +106,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
 
 ### Explorer Persistence (SSOT)
 - **Shared state hook**: `singabldr/src/features/markdown/ui/useMarkdownExplorerControls.ts`
-  - Centralizes sidebar-open + collapsed-heading persistence across Viewer and BottomPanel (no duplicated local fallbacks).
+  - Centralizes sidebar-open + collapsed-heading persistence across Viewer and the markdown workspace (no duplicated local fallbacks).
 - **LocalStorage (UI state)**: keys are SSOT in `knowgrph/canvas/src/lib/config.ls.ts`.
   - Sidebar: `LS_KEYS.markdownSidebarOpen`, `LS_KEYS.markdownSidebarWidthPx`
   - Explorer sections: `LS_KEYS.markdownExplorerSourceFilesCollapsed`, `LS_KEYS.markdownExplorerOutlineCollapsed`, `LS_KEYS.markdownExplorerBacklinksCollapsed`

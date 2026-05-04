@@ -11,8 +11,6 @@ import type {
 import {
   agenticRagNodeFromGraphNode,
   getAgenticRagContextComparison,
-  getAgenticRagIgnoreFiltersSummary,
-  buildAgenticRagIgnoreFiltersFromRawPatterns,
 } from '@/lib/graph/jsonld/index'
 import {
   findGraphRagTraversalEdgeIds,
@@ -188,11 +186,6 @@ export default function OrchestratorSettingsSection({
     [graph],
   )
 
-  const ignoreFilters = React.useMemo(
-    () => getAgenticRagIgnoreFiltersSummary(graph),
-    [graph],
-  )
-
   const handleUpdateWorkflow = React.useCallback(
     (updater: (current: GraphRagWorkflowJsonLd) => GraphRagWorkflowJsonLd) => {
       const next = updater(workflowDoc)
@@ -232,33 +225,6 @@ export default function OrchestratorSettingsSection({
       const next: GraphData = {
         ...graph,
         context: ctx as JSONValue,
-      }
-      setGraphData(next)
-    },
-    [graph, setGraphData],
-  )
-
-  const handleSetIgnoreCodebasePaths = React.useCallback(
-    (value: string) => {
-      if (!graph) return
-      const parts = value
-        .split(',')
-        .map(part => part.trim())
-        .filter(part => part.length > 0)
-      const filters = buildAgenticRagIgnoreFiltersFromRawPatterns(parts)
-      const metaRaw = graph.metadata as unknown
-      const currentMeta =
-        metaRaw && typeof metaRaw === 'object' && !Array.isArray(metaRaw)
-          ? (metaRaw as Record<string, JSONValue>)
-          : {}
-      const nextMeta: Record<string, JSONValue> = {
-        ...currentMeta,
-        ignoreCodebasePaths: filters.rawPatterns as JSONValue,
-        ignoreCodebasePathsResolved: filters.resolvedPatterns as JSONValue,
-      }
-      const next: GraphData = {
-        ...graph,
-        metadata: nextMeta,
       }
       setGraphData(next)
     },
@@ -552,9 +518,7 @@ export default function OrchestratorSettingsSection({
           tracingCollapsed,
           onToggleTracingCollapsed: setTracingCollapsed,
           agenticContext,
-          ignoreFilters,
           onChangeAgenticContextUrl: handleSetAgenticContextUrl,
-          onChangeIgnoreCodebasePaths: handleSetIgnoreCodebasePaths,
         }}
         presetsProps={{
           runGraphRagTraversal,

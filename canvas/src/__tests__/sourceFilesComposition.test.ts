@@ -4,6 +4,7 @@ import { buildSourceLayerKeys, composeGraphFromSourceLayers, resolveSourceLayerK
 import {
   areSourceFilesEqualByIdAndHash,
   buildSourceFilesCompositionSignature,
+  buildSourceFilesGeospatialSelectionSignature,
   buildSourceFilesPersistenceSignature,
 } from '@/features/source-files/sourceFilesSignatures'
 import {
@@ -40,6 +41,11 @@ import {
   resolvePreferredComposedSourceRawText,
   resolvePreferredComposedSourceRawTextFromState,
 } from '@/features/source-files/composedSourceSelection'
+import {
+  isGeospatialSourceFileEligible,
+  resolveGeospatialSourceContext,
+  resolvePreferredGeospatialSourceFile,
+} from '@/features/source-files/geospatialSourceContext'
 
 export function testSourceFilesCompositionOrderAndVisibility() {
   const g1: GraphData = {
@@ -201,6 +207,38 @@ export function testSourceFilesCompositionSignatureIgnoresStatusOnlyChurn() {
   }
   if (buildSourceFilesCompositionSignature(textPresenceChanged) === baseSignature) {
     throw new Error('expected composition signature to change when text presence changes')
+  }
+}
+
+export function testSourceFilesGeospatialSelectionSignatureTracksGeoLayerEligibility() {
+  const base = [
+    {
+      id: 'source:a',
+      name: 'a.md',
+      text: '# A',
+      enabled: true,
+      status: 'parsed',
+      source: { kind: 'local', path: 'a.md' },
+    },
+  ]
+  const geoLayerDisabled = [
+    {
+      ...base[0],
+      geoLayerEnabled: false,
+    },
+  ]
+  const disabled = [
+    {
+      ...base[0],
+      enabled: false,
+    },
+  ]
+  const baseSignature = buildSourceFilesGeospatialSelectionSignature(base)
+  if (buildSourceFilesGeospatialSelectionSignature(geoLayerDisabled) === baseSignature) {
+    throw new Error('expected geospatial selection signature to change when geoLayerEnabled changes')
+  }
+  if (buildSourceFilesGeospatialSelectionSignature(disabled) === baseSignature) {
+    throw new Error('expected geospatial selection signature to change when enabled changes')
   }
 }
 
@@ -564,6 +602,103 @@ export function testComposedSourceSelectionHelperCentralizesActiveFileAndRawText
   })
   if (rawTextFromState !== '# Demo') {
     throw new Error('expected state-driven composed source raw-text helper to reuse the centralized active document precedence')
+  }
+}
+
+export function testGeospatialSourceContextHelperCentralizesGeoEligibleSourceResolution() {
+  const sourceFiles = [
+    {
+      id: 'sf-wrong',
+      name: 'target.md.backup',
+      text: '| name | location (lat,lng) |\n| --- | --- |\n| Wrong File | 1.1, 103.1 |\n',
+      enabled: true,
+      status: 'parsed',
+      source: { kind: 'local', path: 'workspace:/sandbox/target.md.backup' },
+    },
+    {
+      id: 'sf-target',
+      name: 'target.md',
+      text: '| name | location (lat,lng) |\n| --- | --- |\n| Exact Match | 1.2, 103.2 |\n',
+      enabled: true,
+      status: 'parsed',
+      source: { kind: 'local', path: 'workspace:/sandbox/target.md' },
+    },
+    {
+      id: 'sf-disabled-geo',
+      name: 'graph-id-target.md',
+      text: '| name | location (lat,lng) |\n| --- | --- |\n| Disabled | 1.3, 103.3 |\n',
+      enabled: true,
+      geoLayerEnabled: false,
+      status: 'parsed',
+      source: { kind: 'local', path: 'workspace:/sandbox/graph-id-target.md' },
+    },
+  ] as unknown as import('@/hooks/store/types').GraphState['sourceFiles']
+
+  if (!isGeospatialSourceFileEligible(sourceFiles[1])) {
+    throw new Error('expected shared geospatial source helper to treat enabled markdown files as eligible by default')
+  }
+  if (isGeospatialSourceFileEligible(sourceFiles[2])) {
+    throw new Error('expected shared geospatial source helper to reject files with geoLayerEnabled=false')
+  }
+
+  const exactPathMatch = resolvePreferredGeospatialSourceFile({
+    sourceFiles,
+    sourceDocumentPath: 'workspace:/sandbox/target.md',
+  })
+  if (exactPathMatch?.id !== 'sf-target') {
+    throw new Error('expected shared geospatial source resolver to prefer exact normalized sourceDocumentPath matches')
+  }
+
+  const graphIdFallback = resolvePreferredGeospatialSourceFile({
+    sourceFiles: [
+      {
+        id: 'sf-graph-id-target',
+        name: 'graph-id-target.md',
+        text: '| name | location (lat,lng) |\n| --- | --- |\n| Graph Id Match | 1.4, 103.4 |\n',
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: 'workspace:/sandbox/graph-id-target.md' },
+      },
+    ] as unknown as import('@/hooks/store/types').GraphState['sourceFiles'],
+    graphId: 'workspace:/sandbox/graph-id-target.md',
+  })
+  if (graphIdFallback?.id !== 'sf-graph-id-target') {
+    throw new Error('expected shared geospatial source resolver to reuse graphId path fallback when editor source path is absent')
+  }
+
+  const directContext = resolveGeospatialSourceContext({
+    graphData: {
+      type: 'Graph',
+      context: 'markdown',
+      nodes: [],
+      edges: [],
+      metadata: { graphId: 'workspace:/sandbox/target.md' },
+    },
+    markdownText: '# Direct',
+    sourceDocumentPath: 'workspace:/sandbox/target.md',
+    sourceFiles,
+  })
+  if (directContext.resolvedFrom !== 'direct' || directContext.markdownContext?.sourceDocumentPath !== 'workspace:/sandbox/target.md') {
+    throw new Error('expected shared geospatial source context helper to preserve direct editor markdown context when present')
+  }
+
+  const sourceFilesContext = resolveGeospatialSourceContext({
+    graphData: {
+      type: 'Graph',
+      context: 'markdown',
+      nodes: [],
+      edges: [],
+      metadata: { graphId: 'workspace:/sandbox/target.md' },
+    },
+    markdownText: '',
+    sourceDocumentPath: '',
+    sourceFiles,
+  })
+  if (sourceFilesContext.resolvedFrom !== 'sourceFiles' || sourceFilesContext.bestSourceFile?.id !== 'sf-target') {
+    throw new Error('expected shared geospatial source context helper to fall back to the matched source file outside editor mode')
+  }
+  if (sourceFilesContext.markdownContext?.sourceDocumentPath !== '/sandbox/target.md') {
+    throw new Error('expected shared geospatial source context helper to normalize fallback source paths through the shared composed path reader')
   }
 }
 

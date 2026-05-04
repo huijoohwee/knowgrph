@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fetchRemoteTextDetailed } from '@/lib/net/fetchRemoteText'
-import { buildGitHubRawFileUrl, fetchGitHubRepoMeta, listGitHubRepoTreeFiles, parseGitHubRepoUrl, resolveGitHubDefaultBranch } from '@/components/BottomPanel/markdownWorkspace/githubRepoApi'
-import { buildGitHubRepoSitemapMarkdown, buildGitHubRepoUserJourneyMarkdown } from '@/components/BottomPanel/markdownWorkspace/githubRepoDocs'
+import { buildGitHubRawFileUrl, fetchGitHubRepoMeta, listGitHubRepoTreeFiles, parseGitHubRepoUrl, resolveGitHubDefaultBranch } from '@/features/markdown-workspace/githubRepoApi'
+import { buildGitHubRepoSitemapMarkdown, buildGitHubRepoUserJourneyMarkdown } from '@/features/markdown-workspace/githubRepoDocs'
 
 const argValue = (name: string): string | null => {
   const idx = process.argv.indexOf(name)

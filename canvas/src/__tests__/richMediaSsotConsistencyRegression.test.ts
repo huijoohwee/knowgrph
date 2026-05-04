@@ -170,14 +170,16 @@ export function testRichMediaSsotConsistencyRegression() {
   const asyncEffectRunnerText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'async', 'asyncEffectRunner.ts'), 'utf8')
   const progressTickerText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'progress', 'progressTicker.ts'), 'utf8')
   const markdownWorkspaceStatusTransitionsText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceStatusTransitions.ts'), 'utf8')
+  const markdownWorkspaceRuntimeStatusText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'markdownWorkspaceRuntimeStatus.ts'), 'utf8')
+  const markdownWorkspaceRuntimeImplText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'MarkdownWorkspaceRuntime.impl.tsx'), 'utf8')
   const markdownWorkspaceDerivedViewsText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceDerivedViews.tsx'), 'utf8')
   const markdownWorkspaceSaveText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceSave.ts'), 'utf8')
   const markdownWorkspaceIndexingText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceIndexing.tsx'), 'utf8')
   const markdownWorkspaceInteractionsText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceInteractions.ts'), 'utf8')
   const markdownWorkspaceExplorerStateText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceExplorerState.tsx'), 'utf8')
   const markdownWorkspaceViewShellText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceViewShell.tsx'), 'utf8')
-  const workspaceUrlContentText = readFileSync(resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'workspaceImport', 'urlContent.ts'), 'utf8')
-  const markdownWorkspaceWebpageSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'presentation', 'MarkdownWorkspaceWebpageSurface.tsx'), 'utf8')
+  const workspaceUrlContentText = readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'workspaceImport', 'urlContent.ts'), 'utf8')
+  const markdownWorkspaceWebpageSurfaceText = readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'presentation', 'MarkdownWorkspaceWebpageSurface.tsx'), 'utf8')
   const richMediaPanelText = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx'), 'utf8')
   const markdownMediaUiText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-core', 'ui', 'MarkdownMediaUi.impl.tsx'), 'utf8')
   const markdownDesignOverlayText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-edgeless', 'MarkdownDesignOverlay.impl.tsx'), 'utf8')
@@ -323,6 +325,14 @@ export function testRichMediaSsotConsistencyRegression() {
     throw new Error('expected progress-session finish and failure transitions to be centralized in shared upstream helpers')
   }
   if (
+    !markdownWorkspaceRuntimeStatusText.includes('export type MarkdownWorkspaceRuntimeStatusBindings =')
+    || !markdownWorkspaceRuntimeStatusText.includes('export type MarkdownWorkspaceRuntimeProgressStatusBindings =')
+    || !markdownWorkspaceRuntimeStatusText.includes('export type MarkdownWorkspaceRuntimeInteractionStatusBindings =')
+    || !markdownWorkspaceRuntimeStatusText.includes('export function buildMarkdownWorkspaceRuntimeStatusBindings(')
+  ) {
+    throw new Error('expected markdown workspace runtime status binding types and builder to be centralized in a shared upstream helper')
+  }
+  if (
     !markdownWorkspaceStatusTransitionsText.includes('export function applyMarkdownWorkspaceSuccessStatus(')
     || !markdownWorkspaceStatusTransitionsText.includes('export function applyMarkdownWorkspaceErrorStatus(')
     || !markdownWorkspaceStatusTransitionsText.includes('export function applyMarkdownWorkspaceInfoStatus(')
@@ -345,8 +355,16 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!markdownWorkspaceDerivedViewsText.includes('finishProgressSession') || !markdownWorkspaceDerivedViewsText.includes('failProgressSession')) {
     throw new Error('expected markdown workspace derived-view loaders to reuse the shared progress-session finish and failure helpers')
   }
-  if (!markdownWorkspaceDerivedViewsText.includes('createDerivedViewStatusAdapter(') || !markdownWorkspaceDerivedViewsText.includes('applyMarkdownWorkspaceSuccessStatus') || !markdownWorkspaceDerivedViewsText.includes('applyMarkdownWorkspaceErrorStatus')) {
+  if (
+    !markdownWorkspaceDerivedViewsText.includes('createDerivedViewStatusAdapter(')
+    || !markdownWorkspaceDerivedViewsText.includes('applyMarkdownWorkspaceSuccessStatus')
+    || !markdownWorkspaceDerivedViewsText.includes('applyMarkdownWorkspaceErrorStatus')
+    || !markdownWorkspaceDerivedViewsText.includes('reportError:')
+  ) {
     throw new Error('expected markdown workspace derived-view loaders to bind shared status-transition helpers through a file-local adapter')
+  }
+  if (markdownWorkspaceDerivedViewsText.includes('setErrorLabel')) {
+    throw new Error('expected markdown workspace derived-view status adapter to stop keeping a local raw error passthrough after shared status-transition widening')
   }
   if (!markdownWorkspaceSaveText.includes('applyMarkdownWorkspaceSuccessStatus') || !markdownWorkspaceSaveText.includes('applyMarkdownWorkspaceErrorStatus')) {
     throw new Error('expected markdown workspace save flows to reuse the shared markdown workspace status-transition helpers')
@@ -362,6 +380,13 @@ export function testRichMediaSsotConsistencyRegression() {
   }
   if (!markdownWorkspaceViewShellText.includes('applyMarkdownWorkspaceSuccessStatus')) {
     throw new Error('expected markdown workspace view-shell success flows to reuse the shared markdown workspace success-transition helper')
+  }
+  if (
+    !markdownWorkspaceRuntimeImplText.includes('buildMarkdownWorkspaceRuntimeStatusBindings(')
+    || !markdownWorkspaceRuntimeImplText.includes('runtimeProgressStatusBindings')
+    || !markdownWorkspaceRuntimeImplText.includes('runtimeInteractionStatusBindings')
+  ) {
+    throw new Error('expected markdown workspace runtime impl to bind shared status setters once and reuse those bindings across downstream hooks')
   }
   if (!workspaceUrlContentText.includes('createProgressSession')) {
     throw new Error('expected markdown workspace URL import loaders to reuse the shared progress session helper')

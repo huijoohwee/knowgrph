@@ -1,6 +1,6 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { useMarkdownEditorSsotSync } from '@/components/BottomPanel/markdownWorkspace/useMarkdownEditorSsotSync'
+import { useMarkdownEditorSsotSync } from '@/features/markdown-workspace/useMarkdownEditorSsotSync'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { applyActiveMarkdownDocumentPayload } from '@/features/markdown/activeMarkdownDocument'
@@ -39,7 +39,7 @@ export type MarkdownWorkspaceSelectionArgs = {
   userEditedActiveTextRef: React.MutableRefObject<boolean>
   collapsedSnapshotRef: React.MutableRefObject<{ path: WorkspacePath; text: string } | null>
   prevCollapsedRef: React.MutableRefObject<boolean>
-  effectiveBottomPanelCollapsed: boolean
+  effectiveBottomSurfaceCollapsed: boolean
   canvas2dRenderer: string
   lastSetActivePath: { path: WorkspacePath; atMs: number } | null
   lastRequestedActivePathRef: React.MutableRefObject<{ path: WorkspacePath; atMs: number } | null>
@@ -189,13 +189,13 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     const transition = resolveMarkdownWorkspaceSelectionCollapseTransition({
       path,
       prevCollapsed: prev,
-      collapsed: args.effectiveBottomPanelCollapsed,
+      collapsed: args.effectiveBottomSurfaceCollapsed,
       activeText: args.activeText,
       collapsedSnapshot: args.collapsedSnapshotRef.current,
       lastLoaded: args.lastLoadedRef.current,
     })
-    if (prev !== args.effectiveBottomPanelCollapsed) {
-      args.prevCollapsedRef.current = args.effectiveBottomPanelCollapsed
+    if (prev !== args.effectiveBottomSurfaceCollapsed) {
+      args.prevCollapsedRef.current = args.effectiveBottomSurfaceCollapsed
     }
 
     if (transition.kind === 'capture-transition' || transition.kind === 'capture-collapsed') {
@@ -222,7 +222,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     args.activePath,
     args.activeText,
     args.collapsedSnapshotRef,
-    args.effectiveBottomPanelCollapsed,
+    args.effectiveBottomSurfaceCollapsed,
     args.lastLoadedRef,
     args.prevCollapsedRef,
     args.setActiveMarkdownDocument,
@@ -230,7 +230,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
   ])
 
   React.useEffect(() => {
-    if (args.effectiveBottomPanelCollapsed) return
+    if (args.effectiveBottomSurfaceCollapsed) return
     const path = args.activePath
     if (!path || String(args.activeText || '').trim()) return
 
@@ -255,7 +255,7 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     activeDocumentSourceUrl,
     args.activePath,
     args.activeText,
-    args.effectiveBottomPanelCollapsed,
+    args.effectiveBottomSurfaceCollapsed,
     args.lastLoadedRef,
     args.setActiveMarkdownDocument,
     args.setActiveText,

@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceSourceFilesList } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceSourceFilesList'
+import { MarkdownWorkspaceSourceFilesList } from '@/features/markdown-workspace/MarkdownWorkspaceSourceFilesList'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 
 export async function testMarkdownWorkspaceSourceFilesListOwnsExplorerSourceFilesSectionBody() {

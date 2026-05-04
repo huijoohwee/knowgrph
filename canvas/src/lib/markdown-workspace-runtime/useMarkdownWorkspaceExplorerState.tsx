@@ -16,9 +16,9 @@ import { persistMarkdownSourceFolderPaths } from '@/features/markdown/ui/markdow
 import { persistMarkdownExplorerViewPreferences } from '@/features/markdown/ui/markdownExplorerViewPreferencesPersistence'
 import { persistMarkdownExplorerSectionCollapseState } from '@/features/markdown/ui/useMarkdownExplorerSectionCollapseState'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceUtils'
+import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX } from '@/features/markdown-workspace/markdownWorkspaceUtils'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
-import type { WorkspaceRefreshSnapshot } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/types'
+import type { WorkspaceRefreshSnapshot } from '@/features/markdown-workspace/useWorkspaceFileActions/types'
 import {
   cancelMarkdownWorkspacePrefsSync,
   cancelMarkdownWorkspaceRefreshSync,
@@ -33,9 +33,10 @@ import {
   pruneWorkspaceEntriesForInlineSnapshot,
   type FolderModeContract,
 } from './markdownWorkspaceRuntime.shared'
+import type { MarkdownWorkspaceRuntimeInteractionStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import { applyMarkdownWorkspaceErrorStatus, applyMarkdownWorkspaceInfoStatus } from './markdownWorkspaceStatusTransitions'
 
-export function useMarkdownWorkspaceExplorerState(args: {
+export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntimeInteractionStatusBindings & {
   active: boolean
   activePathRef: React.MutableRefObject<WorkspacePath | null>
   activeTextRef: React.MutableRefObject<string>
@@ -46,16 +47,6 @@ export function useMarkdownWorkspaceExplorerState(args: {
   setSourcesByPath: React.Dispatch<React.SetStateAction<WorkspaceSourceIndex>>
   setLoading: React.Dispatch<React.SetStateAction<boolean>>
   setLoadError: React.Dispatch<React.SetStateAction<string>>
-  setStatusInfo: (label: string, opts?: { ttlMs?: number }) => void
-  setStatusError: (label: string) => void
-  setStatusProgress: (
-    label: string,
-    value?: number,
-    max?: number,
-    bytesDone?: number,
-    bytesTotal?: number,
-    opts?: { ttlMs?: number },
-  ) => void
   sidebarWidthPx: number
   explorerOpen: boolean
   sourceFilesCollapsed: boolean

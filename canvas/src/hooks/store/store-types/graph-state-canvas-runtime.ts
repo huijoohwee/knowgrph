@@ -16,7 +16,7 @@ import type { DesignLayerNode, DesignLayerState } from '@/features/design/design
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
 import type {
-  BottomTab,
+  BottomSurfaceTab,
   CanvasSnapshotFns,
   ChatExchangeLogEntry,
   ChatExchangeLogEntryInput,

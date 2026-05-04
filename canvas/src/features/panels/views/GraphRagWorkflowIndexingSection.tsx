@@ -1,10 +1,8 @@
 import React from 'react'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import Tooltip from '@/features/panels/ui/Tooltip'
-import { KeyTypeValueRow, RightAlignedTooltipInput, RightAlignedValueCell } from '@/features/panels/ui/KeyTypeValueRow'
+import { KeyTypeValueRow, RightAlignedTooltipInput } from '@/features/panels/ui/KeyTypeValueRow'
 import type { GraphRagWorkflowJsonLd } from '@/features/panels/utils/graphragConfig'
-import type { AgenticRagIgnoreFiltersSummary } from '@/lib/graph/jsonld/index'
-import { AgenticRagIgnoreFiltersSummaryView } from '@/features/panels/views/AgenticRagContextSection'
 import {
   IGNORE_CODEBASE_PATHS_LABEL,
   IGNORE_CODEBASE_PATHS_TOOLTIP,
@@ -16,14 +14,12 @@ import {
   GRAPHRAG_MAX_HOPS_KEY_TOOLTIP,
   GRAPHRAG_EMBEDDING_PROVIDER_KEY_TOOLTIP,
   GRAPHRAG_EMBEDDING_MODEL_NAME_KEY_TOOLTIP,
-  GRAPHRAG_IGNORE_PATTERNS_VALUE_TOOLTIP,
   buildNumericTooltip,
   buildDefaultTooltip,
   UI_COPY,
 } from '@/lib/config'
 import { emitGraphTraversalFloatingPanelOpen } from '@/features/panels/utils/graphTraversalFloatingPanel'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { MonacoTextEditor } from '@/features/monaco/MonacoTextEditor'
 import { uiToolbarButtonNeutralClassName } from '@/features/toolbar/ui/toolbarStyles'
 
 const DATASET_INPUT_DIR_TOOLTIP = buildDefaultTooltip({
@@ -58,26 +54,18 @@ const MAX_HOPS_TOOLTIP = buildNumericTooltip({
 });
 
 interface GraphRagWorkflowIndexingSectionProps {
-  mode: 'floatingPanel' | 'bottomPanel'
   workflowDoc: GraphRagWorkflowJsonLd
   indexingCollapsed: boolean
   onToggleIndexingCollapsed: (next: boolean) => void
-  ignoreFilters: AgenticRagIgnoreFiltersSummary | null
-  invalidIgnorePrefixes: string[]
-  onChangeIgnoreCodebasePathsInput: (value: string) => void
   onUpdateWorkflow: (updater: (current: GraphRagWorkflowJsonLd) => GraphRagWorkflowJsonLd) => void
 }
 
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export function GraphRagWorkflowIndexingSection({
-  mode,
   workflowDoc,
   indexingCollapsed,
   onToggleIndexingCollapsed,
-  ignoreFilters,
-  invalidIgnorePrefixes,
-  onChangeIgnoreCodebasePathsInput,
   onUpdateWorkflow,
 }: GraphRagWorkflowIndexingSectionProps) {
   const updateChunkSize = React.useCallback(
@@ -464,77 +452,25 @@ export function GraphRagWorkflowIndexingSection({
             typeNode={null}
             valueNode={(
               <div className="space-y-1 w-full">
-                {mode === 'bottomPanel' && (
-                  <>
-                    {ignoreFilters ? (
-                      <AgenticRagIgnoreFiltersSummaryView
-                        ignoreFilters={ignoreFilters}
-                        variant="summary"
-                        className="mt-0.5"
-                      />
-                    ) : (
-                      <div
-                        className={[
-                          `mt-0.5 ${UI_THEME_TOKENS.text.tertiary} text-left`,
-                          uiPanelMicroLabelTextSizeClass,
-                        ].join(' ')}
-                      >
-                        {UI_COPY.graphRagIgnoreFiltersEmpty}
-                      </div>
-                    )}
-                    <RightAlignedValueCell className="mt-0.5">
-                      <Tooltip
-                        content={GRAPHRAG_IGNORE_PATTERNS_VALUE_TOOLTIP}
-                        maxWidthPx={260}
-                        contentClassName={`${UI_THEME_TOKENS.tooltip.bg} ${UI_THEME_TOKENS.tooltip.text}`}
-                        className="w-full h-full"
-                      >
-                        <div className={`w-full border ${UI_THEME_TOKENS.input.border} rounded overflow-hidden bg-transparent min-h-[96px]`}>
-                          <MonacoTextEditor
-                            value={ignoreFilters ? ignoreFilters.rawPatterns.join(', ') : ''}
-                            onChange={(val) => onChangeIgnoreCodebasePathsInput(val)}
-                            language="text"
-                            uri="inmemory://graphrag/ignore-patterns"
-                            themeMode="light"
-                            wordWrap
-                            className={`w-full h-full ${uiPanelMonospaceTextClass} ${UI_THEME_TOKENS.input.text}`}
-                          />
-                        </div>
-                      </Tooltip>
-                    </RightAlignedValueCell>
-                    {invalidIgnorePrefixes.length > 0 && (
-                      <div className="mt-0.5 text-amber-700 text-left">
-                        {UI_COPY.graphRagUnrecognizedIgnorePrefixesLabel}{' '}
-                        <span className={uiPanelMonospaceTextClass}>
-                          {invalidIgnorePrefixes.join(', ')}
-                        </span>
-                        {' '}
-                        {UI_COPY.graphRagUnrecognizedIgnorePrefixesSupportedSuffix}
-                      </div>
-                    )}
-                  </>
-                )}
-                {mode === 'floatingPanel' && (
-                  <div className="flex items-center justify-start">
-                    <button
-                      type="button"
-                      className={[
-                        `App-toolbar__btn ${uiToolbarButtonNeutralClassName}`,
-                        uiPanelKeyValueTextSizeClass,
-                        uiPanelTextFontClass,
-                      ].join(' ')}
-                      onClick={() => {
-                        try {
-                          emitGraphTraversalFloatingPanelOpen()
-                        } catch {
-                          void 0
-                        }
-                      }}
-                    >
-                      {UI_COPY.graphRagOpenOrchestratorIgnorePathsButtonLabel}
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center justify-start">
+                  <button
+                    type="button"
+                    className={[
+                      `App-toolbar__btn ${uiToolbarButtonNeutralClassName}`,
+                      uiPanelKeyValueTextSizeClass,
+                      uiPanelTextFontClass,
+                    ].join(' ')}
+                    onClick={() => {
+                      try {
+                        emitGraphTraversalFloatingPanelOpen()
+                      } catch {
+                        void 0
+                      }
+                    }}
+                  >
+                    {UI_COPY.graphRagOpenOrchestratorIgnorePathsButtonLabel}
+                  </button>
+                </div>
               </div>
             )}
             align="start"

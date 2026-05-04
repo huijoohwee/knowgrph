@@ -232,7 +232,7 @@ export function LaunchSpotlightTourCard({
                   {clampedIndex === 1
                     ? 'User loads a dataset via Load Data before continuing.'
                     : clampedIndex === 2
-                    ? 'User opens Schema Configurator tab in bottom panel to apply schema presets.'
+                    ? 'User opens Workflow Manager in the main panel to apply schema presets.'
                     : clampedIndex === 3
                     ? 'User runs a traversal preset in the Renderer panel to complete this tour.'
                     : ''}

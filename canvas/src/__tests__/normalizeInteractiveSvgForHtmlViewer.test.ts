@@ -1,4 +1,4 @@
-import { normalizeInteractiveSvgForHtmlViewer } from '@/components/BottomPanel/markdownWorkspace/main/exports/normalizeInteractiveSvg'
+import { normalizeInteractiveSvgForHtmlViewer } from '@/features/markdown-workspace/main/exports/normalizeInteractiveSvg'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export function testNormalizeInteractiveSvgExtractsInitialViewAndStripsTransform() {

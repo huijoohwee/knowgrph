@@ -52,8 +52,7 @@ export const testMarkdownPanelMetricHelpersCentralizeEventDispatchAndSubscriptio
 export const testMarkdownPanelMetricCallsitesUseSharedContract = () => {
   const metricsText = readUtf8('src/features/metrics/uiMetrics.ts')
   const canvasViewportText = readUtf8('src/components/CanvasViewport.tsx')
-  const viewerHeaderText = readUtf8('src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx')
-  const markdownApplyText = readUtf8('src/components/BottomPanel/hooks/useMarkdownApply.ts')
+  const markdownApplyText = readUtf8('src/features/markdown-workspace/hooks/useMarkdownApply.ts')
   const overlaysText = readUtf8('src/components/GraphCanvasRoot/hooks/useRichMediaOverlays2d.ts')
 
   if (!metricsText.includes('export const MARKDOWN_PANEL_METRIC_EVENT')) {
@@ -70,9 +69,6 @@ export const testMarkdownPanelMetricCallsitesUseSharedContract = () => {
   }
   if (canvasViewportText.includes("addEventListener('kg:markdownPanelMetric'")) {
     throw new Error('expected CanvasViewport to avoid raw markdown metric event listener strings')
-  }
-  if (!viewerHeaderText.includes('emitMarkdownPanelMetric(')) {
-    throw new Error('expected markdown viewer header to emit through the shared metric helper')
   }
   if (!markdownApplyText.includes('emitMarkdownPanelMetric(')) {
     throw new Error('expected markdown apply flow to emit through the shared metric helper')

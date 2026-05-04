@@ -22,9 +22,10 @@ import { workspaceDocumentKey } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { inferYoutubeVideoIdFromPath, parseYoutubeWorkspaceFrontmatter } from './markdownWorkspaceRuntime.shared'
 import { resolveAuthoritativeWorkspaceText, writeWorkspaceFileAndSync } from './markdownWorkspaceRuntime.io'
+import type { MarkdownWorkspaceRuntimeProgressStatusBindings } from './markdownWorkspaceRuntimeStatus'
 import type { MarkdownWorkspaceRuntimeGetFs, MarkdownWorkspaceRuntimeSetActiveDocument } from './markdownWorkspaceRuntime.types'
 
-export type MarkdownWorkspaceDerivedViewsArgs = {
+export type MarkdownWorkspaceDerivedViewsArgs = MarkdownWorkspaceRuntimeProgressStatusBindings & {
   activePath: WorkspacePath | null
   activeText: string
   layoutMode: string
@@ -36,32 +37,12 @@ export type MarkdownWorkspaceDerivedViewsArgs = {
   patchWorkspaceEntryInlineText: (path: WorkspacePath, text: string) => void
   setActiveTextProgrammatic: (next: string) => void
   setActiveMarkdownDocument: MarkdownWorkspaceRuntimeSetActiveDocument
-  setStatusError: (label: string) => void
-  setStatusProgress: (
-    label: string,
-    value?: number,
-    max?: number,
-    bytesDone?: number,
-    bytesTotal?: number,
-    opts?: { ttlMs?: number },
-  ) => void
-  setStatusWithAutoClear: (label: string, ttlMs?: number) => void
 }
 
 function createDerivedViewStatusAdapter(args: {
   setStatusError: (label: string) => void
   setStatusWithAutoClear: (label: string, ttlMs?: number) => void
 }) {
-  const setErrorLabel = (label: string) => {
-    const text = String(label || '').trim()
-    if (!text) return
-    try {
-      args.setStatusError(text)
-    } catch {
-      void 0
-    }
-  }
-
   return {
     loaded: () =>
       applyMarkdownWorkspaceSuccessStatus({
@@ -90,7 +71,12 @@ function createDerivedViewStatusAdapter(args: {
         error,
         fallbackMessage: options?.fallbackMessage || 'Request failed',
       }),
-    setErrorLabel,
+    reportError: (error?: unknown, options?: { fallbackMessage?: string }) =>
+      applyMarkdownWorkspaceErrorStatus({
+        setStatusError: args.setStatusError,
+        error,
+        fallbackMessage: options?.fallbackMessage || 'Request failed',
+      }),
   }
 }
 
@@ -359,11 +345,11 @@ export function useMarkdownWorkspaceDerivedViews(args: MarkdownWorkspaceDerivedV
         setPdfWorkspaceViewerTextOverride(null)
         const res = await fetchYouTubeTranscriptMarkdown(`https://youtu.be/${youtubeWorkspaceMeta.videoId}`)
         if (!res) {
-          statusAdapter.setErrorLabel('Request failed')
+          statusAdapter.reportError(undefined, { fallbackMessage: 'Request failed' })
           return
         }
         if (res.ok !== true) {
-          statusAdapter.setErrorLabel(res.error)
+          statusAdapter.reportError(res.error, { fallbackMessage: 'Request failed' })
           return
         }
 

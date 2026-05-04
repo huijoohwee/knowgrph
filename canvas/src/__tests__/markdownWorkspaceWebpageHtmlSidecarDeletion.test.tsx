@@ -1,6 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { MarkdownWorkspace } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspace'
+import { MarkdownWorkspace } from '@/lib/markdown-workspace-runtime'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'

@@ -2,6 +2,7 @@ import type { FeatureCollection } from 'geojson'
 import { SimpleTtlLruCache } from '@/lib/cache/SimpleTtlLruCache'
 import { hashText } from '@/features/parsers/hash'
 import { coerceGeoJsonToFeatureCollection, parseGeoJsonFromText } from '@/lib/gympgrph/api'
+import { cloneMarkdownGeoFeatureCollection } from './markdownGeoClone'
 
 type CacheValue =
   | { ok: true; featureCollection: FeatureCollection }
@@ -14,12 +15,12 @@ export function parseGeoJsonFeatureCollectionFromText(text: string): FeatureColl
   if (!trimmed) return null
   const key = hashText(trimmed)
   const cached = parseCache.get(key)
-  if (cached) return cached.ok ? cached.featureCollection : null
+  if (cached) return cached.ok ? cloneMarkdownGeoFeatureCollection(cached.featureCollection) : null
   try {
     const parsed = parseGeoJsonFromText(trimmed)
-    const normalized = coerceGeoJsonToFeatureCollection(parsed)
+    const normalized = cloneMarkdownGeoFeatureCollection(coerceGeoJsonToFeatureCollection(parsed))
     parseCache.set(key, { ok: true, featureCollection: normalized })
-    return normalized
+    return cloneMarkdownGeoFeatureCollection(normalized)
   } catch {
     parseCache.set(key, { ok: false })
     return null

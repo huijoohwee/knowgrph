@@ -29,6 +29,7 @@ import { HtmlCodeBlockRenderer } from './codeblock/HtmlCodeBlockRenderer'
 import { encodeUtf8ToBase64 } from '@/features/markdown/markdownRoundTrip'
 import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { MermaidVisibilityGate } from './MermaidVisibilityGate'
+import { buildMarkdownGeoDatasetRegistrationRequest } from '@/features/geospatial/markdownGeoDatasetRequest'
 import {
   MARKDOWN_CODE_FENCE_ASCII_TEXT_COMPACT_CLASS,
   MARKDOWN_CODE_BLOCK_READ_SPACING_CLASS,
@@ -75,19 +76,6 @@ const CODE_FENCE_LANGUAGE_OPTIONS = [
   { value: 'css', label: 'css' },
   { value: 'xml', label: 'xml' },
 ]
-
-const buildGeoReq = (args: {
-  activeDocumentPath: string
-  lang: 'geojson' | 'json'
-  text: string
-  startLine: number
-  endLine: number
-}) => {
-  return {
-    sourceDocumentPath: args.activeDocumentPath,
-    codeBlock: { lang: args.lang, text: args.text, startLine: args.startLine, endLine: args.endLine },
-  }
-}
 
 export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   token: t,
@@ -145,17 +133,22 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
     return lines
   }, [c.info])
 
-  const isGeoJsonRenderable = React.useMemo(() => {
-    const integration = opts.geoDatasetIntegration
-    const normalizedLang: 'geojson' | 'json' | null =
-      lang === 'geojson' ? 'geojson' : lang === 'json' ? 'json' : null
-    const req = buildGeoReq({
+  const markdownGeoReq = React.useMemo(() => {
+    const normalizedLang: 'geojson' | 'json' = lang === 'geojson' ? 'geojson' : 'json'
+    return buildMarkdownGeoDatasetRegistrationRequest({
       activeDocumentPath: opts.activeDocumentPath,
-      lang: normalizedLang || 'json',
+      lang: normalizedLang,
       text: codeText,
       startLine: t.startLine,
       endLine: t.endLine || t.startLine,
     })
+  }, [codeText, lang, opts.activeDocumentPath, t.endLine, t.startLine])
+  const isGeoJsonRenderable = React.useMemo(() => {
+    const integration = opts.geoDatasetIntegration
+    const normalizedLang: 'geojson' | 'json' | null =
+      lang === 'geojson' ? 'geojson' : lang === 'json' ? 'json' : null
+
+    const req = markdownGeoReq
 
     if (normalizedLang) {
       if (normalizedLang === 'geojson') return true
@@ -177,7 +170,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
       }
     }
     return false
-  }, [codeText, lang, opts.activeDocumentPath, opts.geoDatasetIntegration, t.endLine, t.startLine])
+  }, [lang, markdownGeoReq, opts.geoDatasetIntegration])
 
   const mermaidBlock = React.useMemo(() => {
     if (!isMermaidLang) return null
@@ -383,8 +376,8 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
       <menu className="flex items-center gap-2" aria-label={UI_COPY.markdownCodeBlockActionsLabel}>
         <button
           type="button"
-          aria-label={UI_COPY.bottomPanelMarkdownWordWrapToggleTitle}
-          title={effectiveWordWrap ? UI_COPY.bottomPanelMarkdownWordWrapOnTooltip : UI_COPY.bottomPanelMarkdownWordWrapOffTooltip}
+          aria-label={UI_COPY.markdownWorkspaceWordWrapToggleTitle}
+          title={effectiveWordWrap ? UI_COPY.markdownWorkspaceWordWrapOnTooltip : UI_COPY.markdownWorkspaceWordWrapOffTooltip}
           className={`p-1.5 rounded-md transition-colors ${canToggleWordWrap
             ? `${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg}`
             : `opacity-50 cursor-not-allowed ${UI_THEME_TOKENS.text.secondary}`}`}
@@ -478,8 +471,7 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
             <GeoJsonGeoPanelRenderer
               lang={lang === 'geojson' ? 'geojson' : 'json'}
               text={codeText}
-              startLine={t.startLine}
-              endLine={t.endLine || t.startLine}
+              req={markdownGeoReq}
               opts={opts}
               monospaceCodeClass={monospaceCodeClass}
             />

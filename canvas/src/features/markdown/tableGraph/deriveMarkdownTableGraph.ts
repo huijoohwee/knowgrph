@@ -6,7 +6,7 @@ import { DESIGN_WIREFRAME_META_KEY } from '@/lib/render/designWireframeSettings'
 import {
   readWorkspaceDataViewStateWithMeta,
   type WorkspaceDataViewGraphColumnRole,
-} from '@/components/BottomPanel/markdownWorkspace/main/viewer/workspaceDataViewConfig'
+} from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 import { normalizeTableCellText, toTableCellStringArray } from '@/lib/markdown/tableCellConventions'
 
 type TableNodeLike = {

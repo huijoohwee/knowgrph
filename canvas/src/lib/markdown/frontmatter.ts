@@ -1,6 +1,7 @@
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '../markdown'
 import type { Canvas2dRendererId, Canvas3dModeId } from '@/lib/config.render'
 import { isPlainObject } from '@/lib/graph/value'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
 export type YamlFrontmatterBlock = {
   rawBlock: string
@@ -18,6 +19,9 @@ export type CanvasWorkspaceFrontmatterPreset = {
   multiDimTableModeEnabled?: boolean
   documentStructureBaselineLock?: boolean
 }
+
+const FRONTMATTER_PRESET_CACHE_LIMIT = 48
+const frontmatterPresetCache = new Map<string, CanvasWorkspaceFrontmatterPreset | null>()
 
 export function extractYamlFrontmatterBlock(rawText: string): YamlFrontmatterBlock | null {
   const text = String(rawText || '')
@@ -62,6 +66,16 @@ function readCanvasSurfaceModePreset(value: unknown): '2d' | '3d' | 'geospatial'
   if (normalized === '2d' || normalized === 'mode2d' || normalized === 'surface2d') return '2d'
   if (normalized === '3d' || normalized === 'mode3d' || normalized === 'surface3d') return '3d'
   if (normalized === 'geospatial' || normalized === 'geomode' || normalized === 'geospatialmode' || normalized === 'surfacegeospatial') return 'geospatial'
+  return undefined
+}
+
+function readCanvasRenderModePreset(value: unknown): '2d' | '3d' | undefined {
+  const raw = String(value || '').trim()
+  if (!raw) return undefined
+  if (raw === '2d' || raw === '3d') return raw
+  const normalized = normalizePresetToken(raw)
+  if (normalized === '2d' || normalized === 'mode2d' || normalized === 'surface2d') return '2d'
+  if (normalized === '3d' || normalized === 'mode3d' || normalized === 'surface3d') return '3d'
   return undefined
 }
 
@@ -121,8 +135,7 @@ function coerceCanvasWorkspaceFrontmatterPreset(meta: Record<string, unknown> | 
   if (!meta) return null
 
   const canvasSurfaceMode = readCanvasSurfaceModePreset(meta.kgCanvasSurfaceMode)
-  const canvasRenderMode =
-    meta.kgCanvasRenderMode === '3d' ? '3d' : meta.kgCanvasRenderMode === '2d' ? '2d' : undefined
+  const canvasRenderMode = readCanvasRenderModePreset(meta.kgCanvasRenderMode)
   const canvas3dMode = readCanvas3dModePreset(meta.kgCanvas3dMode)
   const canvas2dRenderer = readCanvas2dRendererPreset(meta.kgCanvas2dRenderer)
   const documentSemanticMode = readDocumentSemanticModePreset(meta.kgDocumentSemanticMode)
@@ -164,8 +177,20 @@ export function readCanvasWorkspaceFrontmatterPresetFromMeta(
 export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWorkspaceFrontmatterPreset | null {
   const block = extractYamlFrontmatterBlock(rawText)
   if (!block) return null
+  const cacheKey = hashStringToHexCached('markdown-frontmatter:preset', block.rawBlock)
+  if (frontmatterPresetCache.has(cacheKey)) {
+    return frontmatterPresetCache.get(cacheKey) || null
+  }
   const parsed = parseMarkdownFrontmatter(splitMarkdownLines(rawText))
-  if (isPlainObject(parsed.meta)) return coerceCanvasWorkspaceFrontmatterPreset(parsed.meta)
+  if (isPlainObject(parsed.meta)) {
+    const preset = coerceCanvasWorkspaceFrontmatterPreset(parsed.meta)
+    frontmatterPresetCache.set(cacheKey, preset)
+    if (frontmatterPresetCache.size > FRONTMATTER_PRESET_CACHE_LIMIT) {
+      const oldestKey = frontmatterPresetCache.keys().next().value
+      if (typeof oldestKey === 'string') frontmatterPresetCache.delete(oldestKey)
+    }
+    return preset
+  }
   const canvasSurfaceModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvasSurfaceMode')
   const canvasRenderModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvasRenderMode')
   const canvas3dModeRaw = readYamlFrontmatterValue(block.rawBlock, 'kgCanvas3dMode')
@@ -174,7 +199,7 @@ export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWo
   const frontmatterModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgFrontmatterModeEnabled')
   const multiDimTableModeEnabledRaw = readYamlFrontmatterValue(block.rawBlock, 'kgMultiDimTableModeEnabled')
   const documentStructureBaselineLockRaw = readYamlFrontmatterValue(block.rawBlock, 'kgDocumentStructureBaselineLock')
-  return coerceCanvasWorkspaceFrontmatterPreset({
+  const preset = coerceCanvasWorkspaceFrontmatterPreset({
     kgCanvasSurfaceMode: canvasSurfaceModeRaw || undefined,
     kgCanvasRenderMode: canvasRenderModeRaw || undefined,
     kgCanvas3dMode: canvas3dModeRaw || undefined,
@@ -184,6 +209,12 @@ export function parseCanvasWorkspaceFrontmatterPreset(rawText: string): CanvasWo
     kgMultiDimTableModeEnabled: readBooleanPreset(multiDimTableModeEnabledRaw),
     kgDocumentStructureBaselineLock: readBooleanPreset(documentStructureBaselineLockRaw),
   })
+  frontmatterPresetCache.set(cacheKey, preset)
+  if (frontmatterPresetCache.size > FRONTMATTER_PRESET_CACHE_LIMIT) {
+    const oldestKey = frontmatterPresetCache.keys().next().value
+    if (typeof oldestKey === 'string') frontmatterPresetCache.delete(oldestKey)
+  }
+  return preset
 }
 
 export type WebpageViewMode = 'markdown' | 'json' | 'html'

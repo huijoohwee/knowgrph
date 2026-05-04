@@ -1,6 +1,6 @@
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
-import { importWorkspaceLocalFiles } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/localImport'
-import { buildPendingLocalImportStub } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/pendingLocalImport'
+import { importWorkspaceLocalFiles } from '@/features/markdown-workspace/workspaceImport/localImport'
+import { buildPendingLocalImportStub } from '@/features/markdown-workspace/workspaceImport/pendingLocalImport'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 
 export async function testWorkspaceLocalImportOverwritesPendingStubInsteadOfRenaming() {

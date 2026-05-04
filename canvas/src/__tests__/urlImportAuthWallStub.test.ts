@@ -1,4 +1,4 @@
-import { fetchWorkspaceUrlContent } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport'
 
 export async function testUrlImportAuthWallStubSkipsHydrationForXHome() {
   const url = 'https://x.com/home'

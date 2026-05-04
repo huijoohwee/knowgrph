@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MarkdownWorkspace } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspace'
+import { MarkdownWorkspace } from '@/lib/markdown-workspace-runtime'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
@@ -56,7 +56,9 @@ export async function testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAn
     state.setMarkdownDocument(null, null)
     state.setMarkdownDocumentSourceUrl(null)
 
-    root.render(React.createElement(MarkdownWorkspace))
+    await act(async () => {
+      root.render(React.createElement(MarkdownWorkspace))
+    })
 
     const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: () => void) => number }
     const tick = () =>
@@ -80,7 +82,9 @@ export async function testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAn
 
     let refreshBtn: HTMLButtonElement | null = null
     for (let i = 0; i < 60; i += 1) {
-      await tick()
+      await act(async () => {
+        await tick()
+      })
       const btn = findRefreshButton()
       if (btn) {
         refreshBtn = btn
@@ -90,9 +94,10 @@ export async function testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAn
 
     if (!refreshBtn) throw new Error('refresh button not found')
 
-    refreshBtn.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
-
-    for (let i = 0; i < 24; i += 1) await tick()
+    await act(async () => {
+      refreshBtn!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+      for (let i = 0; i < 24; i += 1) await tick()
+    })
 
     const nextState = useGraphStore.getState()
     if (String(nextState.markdownDocumentText || '').trim() !== updatedText.trim()) {
@@ -107,7 +112,9 @@ export async function testMarkdownWorkspaceRefreshFromUrlUpdatesActiveDocumentAn
       throw new Error('expected workspace file text to update after URL refresh')
     }
 
-    root.unmount()
+    await act(async () => {
+      root.unmount()
+    })
   } finally {
     g.fetch = prevFetch
     restoreDom()

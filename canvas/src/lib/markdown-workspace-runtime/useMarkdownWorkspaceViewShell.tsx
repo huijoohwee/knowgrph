@@ -3,7 +3,7 @@ import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/type
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
-import { WorkspaceModeSelect } from '@/components/BottomPanel/markdownWorkspace/WorkspaceModeSelect'
+import { WorkspaceModeSelect } from '@/features/markdown-workspace/WorkspaceModeSelect'
 import {
   cancelMarkdownWorkspaceInlineEditStateSync,
   scheduleMarkdownWorkspaceInlineEditStateSync,
@@ -20,6 +20,7 @@ export function useMarkdownWorkspaceViewShell(args: {
   selectionEntryKind: WorkspaceEntry['kind'] | null
   setActivePathSafe: (path: WorkspacePath) => void
   setSelectionPathSafe: (path: WorkspacePath) => void
+  setSelectionSource: (source: null | 'canvas' | 'menu' | 'toolbar' | 'editor' | 'unknown') => void
   setExpandedPaths: React.Dispatch<React.SetStateAction<Set<string>>>
   resolveFolderContractDocPath: (folderPath: WorkspacePath, mode: FolderModeContract) => WorkspacePath
   pickFolderContractTargetPath: (folderPath: WorkspacePath, preferredMode: FolderModeContract) => WorkspacePath | null
@@ -37,6 +38,7 @@ export function useMarkdownWorkspaceViewShell(args: {
     selectionEntryKind,
     setActivePathSafe,
     setSelectionPathSafe,
+    setSelectionSource,
     setExpandedPaths,
     resolveFolderContractDocPath,
     pickFolderContractTargetPath,
@@ -69,19 +71,21 @@ export function useMarkdownWorkspaceViewShell(args: {
 
   const onSelectFile = React.useCallback(
     (path: WorkspacePath) => {
+      setSelectionSource('editor')
       setActivePathSafe(path)
       setSelectionPathSafe(path)
     },
-    [setActivePathSafe, setSelectionPathSafe],
+    [setActivePathSafe, setSelectionPathSafe, setSelectionSource],
   )
 
   const onSelectFolder = React.useCallback(
     (path: WorkspacePath) => {
+      setSelectionSource('editor')
       setSelectionPathSafe(path)
       const target = pickFolderContractTargetPath(path, folderModeContract)
       if (target) setActivePathSafe(target)
     },
-    [folderModeContract, pickFolderContractTargetPath, setActivePathSafe, setSelectionPathSafe],
+    [folderModeContract, pickFolderContractTargetPath, setActivePathSafe, setSelectionPathSafe, setSelectionSource],
   )
 
   const renderSourceFileRight = React.useCallback(
@@ -103,6 +107,7 @@ export function useMarkdownWorkspaceViewShell(args: {
               { value: 'user-journey', label: 'User Journey' },
             ]}
             onChange={next => {
+              setSelectionSource('editor')
               setFolderModeContract(next)
               const target = pickFolderContractTargetPath(renderArgs.entry.path, next)
               if (target) setActivePathSafe(target)
@@ -133,6 +138,7 @@ export function useMarkdownWorkspaceViewShell(args: {
       resolveFolderContractDocPath,
       setActivePathSafe,
       setFolderModeContract,
+      setSelectionSource,
       switchActiveYoutubeWorkspaceFormat,
       youtubeWorkspaceMeta,
     ],
@@ -170,20 +176,22 @@ export function useMarkdownWorkspaceViewShell(args: {
           void 0
         }
       }
+      setSelectionSource('editor')
       setSelectionPathSafe(normalized)
       setActivePathSafe(normalized)
       applyShellStatus('Revealed in Source Files explorer', UI_TOAST_TTL_MS.statusAutoCloseSlow)
     },
-    [applyShellStatus, setActivePathSafe, setSelectionPathSafe, sourcesByPath],
+    [applyShellStatus, setActivePathSafe, setSelectionPathSafe, setSelectionSource, sourcesByPath],
   )
 
   const openBacklink = React.useCallback(
     (backlink: { path: WorkspacePath; line: number }) => {
+      setSelectionSource('editor')
       setActivePathSafe(backlink.path)
       setSelectionPathSafe(backlink.path)
       revealLineInEditor(backlink.line)
     },
-    [revealLineInEditor, setActivePathSafe, setSelectionPathSafe],
+    [revealLineInEditor, setActivePathSafe, setSelectionPathSafe, setSelectionSource],
   )
 
   const lastViewerInlineEditSignalRef = React.useRef<boolean | null>(null)

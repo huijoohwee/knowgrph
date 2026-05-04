@@ -9,7 +9,7 @@ import {
   FLOATING_POPOVER_PANEL_CLASSNAME,
   FLOATING_POPOVER_INPUT_CLASSNAME,
   FLOATING_MENU_LEFT_W220_CLASSNAME,
-} from '@/components/BottomPanel/markdownWorkspace/main/viewer/floatingMenuStyles'
+} from '@/features/markdown-workspace/main/viewer/floatingMenuStyles'
 import { MARKDOWN_INLINE_CODE_EDIT_DESCENDANT_CLASSES } from '@/features/markdown/ui/markdownInlineCodeParity'
 import {
   MARKDOWN_HTML_EDIT_BLOCK_FLOW_CLASS,

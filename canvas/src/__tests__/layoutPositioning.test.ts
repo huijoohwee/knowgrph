@@ -246,7 +246,7 @@ export const testLayoutPositioningDoesNotReuseCacheAcrossDatasets = () => {
   }
 }
 
-export const testLayoutPositioningReusesCacheAcross2dRenderers = () => {
+export const testLayoutPositioningRejectsCacheReuseAcross2dRenderers = () => {
   const datasetKey = 'graphId:test'
   const nodes: GraphNode[] = [
     { id: 'a', label: 'a', type: 'T', properties: {} },
@@ -280,11 +280,8 @@ export const testLayoutPositioningReusesCacheAcross2dRenderers = () => {
     layoutPositionCacheByMode: cache,
   })
 
-  if (!d3.layoutPositionsForMode) {
-    throw new Error('expected D3 to reuse cached positions from other 2D renderer')
-  }
-  if (d3.layoutPositionsForMode.a.x !== 10 || d3.layoutPositionsForMode.b.y !== 40) {
-    throw new Error('expected D3 to pick flow cached positions')
+  if (d3.layoutPositionsForMode) {
+    throw new Error('expected 2D layout positioning to reject cached positions from other 2D renderers')
   }
 }
 

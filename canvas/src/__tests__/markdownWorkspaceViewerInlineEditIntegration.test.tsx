@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
+import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
 import { useMarkdownWorkspaceWidgetMode } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceWidgetMode'
 
 const tick = async (n: number = 1) => {
@@ -138,8 +138,8 @@ export function testMarkdownWorkspaceWidgetModeUsesSemanticCacheAndLazyBundleBui
   if (!bundleSection.includes('buildWidgetBundleJsonText({')) {
     throw new Error('expected widget mode to reuse the shared widget bundle JSON helper instead of rebuilding text inline')
   }
-  if (bundleSection.includes('nodes.find(')) {
-    throw new Error('expected widget bundle generation to reuse graphLookup.byId instead of rescanning nodes per widget')
+  if (!text.includes('getCachedGraphSubsetByNodeIds({')) {
+    throw new Error('expected widget bundle generation to reuse the shared cached graph subset helper instead of rebuilding nodes and edges inline')
   }
 }
 

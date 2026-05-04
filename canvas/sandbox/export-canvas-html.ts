@@ -21,7 +21,7 @@ import {
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { fitAllTransform } from '@/components/GraphCanvas/fit'
 import { readFitAllOptions, readLayoutMode } from '@/components/GraphCanvas/layout/fitConfig'
-import { normalizeInteractiveSvgForHtmlViewer } from '@/components/BottomPanel/markdownWorkspace/main/exports/normalizeInteractiveSvg'
+import { normalizeInteractiveSvgForHtmlViewer } from '@/features/markdown-workspace/main/exports/normalizeInteractiveSvg'
 
 type Point = { x: number; y: number }
 

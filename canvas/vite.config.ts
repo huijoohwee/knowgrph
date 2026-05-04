@@ -5367,9 +5367,9 @@ export default defineConfig(({ command }) => ({
                 if (moduleId.includes('/src/features/source-files/')) return 'workspace-source-files'
                 if (moduleId.includes('/src/features/workspace-fs/') || moduleId.includes('/src/features/workspace-table/')) return 'workspace-fs'
                 if (moduleId.includes('/src/lib/markdown-workspace-runtime/')) return 'workspace-runtime'
-                if (moduleId.includes('/src/components/BottomPanel/markdownWorkspace/main/')) return 'workspace-main'
-                if (moduleId.includes('/src/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/')) return 'workspace-actions'
-                if (moduleId.includes('/src/components/BottomPanel/markdownWorkspace/')) return 'workspace-ui'
+                if (moduleId.includes('/src/features/markdown-workspace/main/')) return 'workspace-main'
+                if (moduleId.includes('/src/features/markdown-workspace/useWorkspaceFileActions/')) return 'workspace-actions'
+                if (moduleId.includes('/src/features/markdown-workspace/')) return 'workspace-ui'
                 if (moduleId.includes('/src/features/markdown/ui/codeblock/')) return 'markdown-code'
                 if (
                   moduleId.includes('/src/features/markdown/ui/MarkdownPreview') ||
@@ -5386,7 +5386,7 @@ export default defineConfig(({ command }) => ({
                 }
                 if (moduleId.includes('/src/lib/markdown-core/') || moduleId.includes('/src/features/markdown/')) return 'markdown'
                 if (
-                  moduleId.includes('/src/components/BottomPanel/') ||
+                  moduleId.includes('/src/features/panels/bottom-surface/') ||
                   moduleId.includes('/src/features/workspace-')
                 ) {
                   return 'workspace'
@@ -5463,10 +5463,6 @@ export default defineConfig(({ command }) => ({
       {
         find: /^grph-shared\/collision\/boxCollision$/,
         replacement: path.resolve(__dirname, '../grph-shared/dist/collision/boxCollision.js'),
-      },
-      {
-        find: /^@\/components\/BottomPanel\/BottomPanelMarkdownSection$/,
-        replacement: path.resolve(__dirname, './src/components/BottomPanel/BottomPanelMarkdownSection.tsx'),
       },
       { find: '@', replacement: path.resolve(__dirname, './src') },
     ]

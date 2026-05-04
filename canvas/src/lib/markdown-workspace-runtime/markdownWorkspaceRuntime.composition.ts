@@ -1,6 +1,6 @@
 import type React from 'react'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
-import type { UseWorkspaceFileActionsArgs, WorkspaceFileActions } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/types'
+import type { UseWorkspaceFileActionsArgs, WorkspaceFileActions } from '@/features/markdown-workspace/useWorkspaceFileActions/types'
 import type { MarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
 import type { MarkdownWorkspaceSelectionArgs } from './useMarkdownWorkspaceSelection'
 import type { MarkdownWorkspaceDerivedViewsArgs } from './useMarkdownWorkspaceDerivedViews'

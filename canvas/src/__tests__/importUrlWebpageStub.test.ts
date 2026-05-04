@@ -1,7 +1,7 @@
-import { fetchWorkspaceUrlContent } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { fetchWorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport'
 import { isFrontmatterOnlyDoc } from '@/lib/markdown/frontmatter'
-import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
-import { resetWorkspaceUrlContentCacheForTests } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/urlContentCache'
+import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from '@/features/markdown-workspace/workspaceImport'
+import { resetWorkspaceUrlContentCacheForTests } from '@/features/markdown-workspace/workspaceImport/urlContentCache'
 
 export const testImportUrlWebpageCreatesHtmlFrontmatterStub = async () => {
   resetWorkspaceUrlContentCacheForTests()

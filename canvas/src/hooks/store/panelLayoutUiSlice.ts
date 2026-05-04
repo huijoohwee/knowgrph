@@ -1,6 +1,6 @@
 import { lsNum, lsSetNum, lsInt, lsSetInt, lsBool, lsSetBool, getLocalStorage } from '@/lib/persistence';
 import { LS_KEYS } from '@/lib/config';
-import type { BottomTab, GraphState } from '@/hooks/store/types';
+import type { BottomSurfaceTab, GraphState } from '@/hooks/store/types';
 import type { StoreApi } from 'zustand';
 import type { GraphFieldId, GraphFieldSettingsById, GraphFieldSettings } from '@/features/graph-fields/graphFields';
 import { Z_INDEX_FLOATING_PANEL_DEFAULT } from '@/lib/ui/zIndex'
@@ -17,20 +17,20 @@ type SetGraph = StoreApi<GraphState>['setState'];
 export const createPanelLayoutUiSlice = (set: SetGraph) => {
   const storage = getLocalStorage()
   return {
-    bottomPanelHeightRatio: lsNum(LS_KEYS.bottomPanelHeight, 0.35),
-    bottomPanelCollapsed: lsBool(LS_KEYS.bottomPanelCollapsed, true),
+    bottomSurfaceHeightRatio: lsNum(LS_KEYS.bottomSurfaceHeight, 0.35),
+    bottomSurfaceCollapsed: lsBool(LS_KEYS.bottomSurfaceCollapsed, true),
     floatingPanelWidthRatio: lsNum(LS_KEYS.floatingPanelWidthRatio, 0.25),
     floatingPanelHeightRatio: lsNum(LS_KEYS.floatingPanelHeightRatio, 0.5),
     floatingPanelZIndex: lsInt(LS_KEYS.floatingPanelZIndex, Z_INDEX_FLOATING_PANEL_DEFAULT),
-    bottomPanelTab: 'stats' as BottomTab,
+    bottomSurfaceTab: 'stats' as BottomSurfaceTab,
     schemaDeriveCacheCapacity: lsInt(LS_KEYS.schemaDeriveCacheCapacity, 16),
     graphFieldSettingsById: readGraphFieldSettingsById(storage),
     selectedGraphFieldId: null as GraphFieldId | null,
 
-    setBottomPanelHeightRatio: (v: number) =>
-      set({ bottomPanelHeightRatio: lsSetNum(LS_KEYS.bottomPanelHeight, v) }),
-    setBottomPanelCollapsed: (v: boolean) =>
-      set({ bottomPanelCollapsed: lsSetBool(LS_KEYS.bottomPanelCollapsed, !!v) }),
+    setBottomSurfaceHeightRatio: (v: number) =>
+      set({ bottomSurfaceHeightRatio: lsSetNum(LS_KEYS.bottomSurfaceHeight, v) }),
+    setBottomSurfaceCollapsed: (v: boolean) =>
+      set({ bottomSurfaceCollapsed: lsSetBool(LS_KEYS.bottomSurfaceCollapsed, !!v) }),
     setFloatingPanelWidthRatio: (v: number) =>
       set({
         floatingPanelWidthRatio: lsSetNum(LS_KEYS.floatingPanelWidthRatio, v),
@@ -43,9 +43,9 @@ export const createPanelLayoutUiSlice = (set: SetGraph) => {
       set({
         floatingPanelZIndex: lsSetInt(LS_KEYS.floatingPanelZIndex, v, { min: 1, max: 100000 }),
       }),
-    setBottomPanelTab: (tab: BottomTab) =>
+    setBottomSurfaceTab: (tab: BottomSurfaceTab) =>
       set(() => ({
-        bottomPanelTab: tab,
+        bottomSurfaceTab: tab,
       })),
     setSchemaDeriveCacheCapacity: (n: number) => set({ schemaDeriveCacheCapacity: lsSetInt(LS_KEYS.schemaDeriveCacheCapacity, n, { min: 1, max: 1024 }) }),
     setGraphFieldSettingsById: (next: GraphFieldSettingsById) =>

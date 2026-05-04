@@ -14,7 +14,7 @@
 
 ## Architecture
 
-**UI Surface Stack**: MainPanel Workflow → Step 3 (Ingest) → collapsible subsections (**Sample Dataset**, **Dataset fetch limits**, **Source Files**) → Source Files header "New Source File" (icon) → creates empty `.md` + selects it → opens Bottom Panel Curation → Markdown Viewer/Editor → left-side **Explorer** sidebar with sections (**Source Files**, **Outline**, **Backlinks**).
+**UI Surface Stack**: MainPanel Workflow → Step 3 (Ingest) → collapsible subsections (**Sample Dataset**, **Dataset fetch limits**, **Source Files**) → Source Files header "New Source File" (icon) → creates empty `.md` + selects it → opens the markdown workspace / Editor Workspace → left-side **Explorer** sidebar with sections (**Source Files**, **Outline**, **Backlinks**).
 
 **Workspace Persistence**: The `sourceFiles` workspace is persisted locally via IndexedDB (Dexie) so Source Files survive reloads and act as a lightweight file-system abstraction; the persisted payload is intentionally minimal (no heavy parsed graph blobs) and includes workspace metadata (folder name/access mode/selected folder path). Local-folder-backed entries fall back to cached text when folder handles are unavailable.
 
@@ -22,7 +22,7 @@
 
 **Imported-Document Activation Rule**: During the exact UI import path, the first imported workspace file chosen for focus becomes the active raw-frontmatter authority before any composed source-file replay runs. This prevents a previously selected document from reapplying stale renderer/surface frontmatter over the newly imported preset document.
 
-**Composition Invariant**: Any change to `sourceFiles` (add/remove/clear/toggle/parsed hash updates) must trigger a recomposition via `applyComposedGraphFromSourceFiles()` so the active `graphData` and all graph-tied touchpoints (canvas, curation tables) stay consistent. When Source Files becomes empty, the composed `graphData` must become empty as well (no stale rows).
+**Composition Invariant**: Any change to `sourceFiles` (add/remove/clear/toggle/parsed hash updates) must trigger a recomposition via `applyComposedGraphFromSourceFiles()` so the active `graphData` and all graph-tied touchpoints (canvas, Graph Data Table) stay consistent. When Source Files becomes empty, the composed `graphData` must become empty as well (no stale rows).
 
 **Supported Formats**: Local import/export supports `.md .markdown .txt .json .jsonld .csv .html .htm .yaml .yml`, URL sources via `https://…`, and YouTube imports via the YouTube importer.
 
@@ -44,7 +44,7 @@
 
 **Search Rule**: Workspace Actions filtering reuses the MainPanel header Graph Search toggle (no duplicate per-section search input).
 
-**GraphRAG Workflow Editing Rule**: Workflow Step 6 links to Bottom Panel → Orchestrator for GraphRAG workflow JSON-LD editing (no duplicate editor in MainPanel Workflow).
+**GraphRAG Workflow Editing Rule**: Workflow Step 6 links to Floating Panel → Graph Traversal / Orchestrator for GraphRAG workflow JSON-LD editing (no duplicate editor in MainPanel Workflow).
 
 **Toolbar Entry Point**: Toolbar "Open Data" opens MainPanel Workflow so ingest actions remain discoverable in the canonical step flow.
 
@@ -64,16 +64,16 @@ sequenceDiagram
   participant GH as normalizeGitHubBlobLikeUrl
   participant NET as fetchRemoteTextDetailed
   participant S as useGraphStore.updateSourceFile
-  participant BP as BottomPanelMarkdownSection
+  participant MW as MarkdownWorkspace
   participant MD as setMarkdownDocument
-  participant OPEN as openBottomPanel
+  participant OPEN as setEditorWorkspacePane
 
   U->>UI: click "Open Markdown Viewer" (row)
   UI->>GH: normalizeGitHubBlobLikeUrl(url)
   UI->>NET: fetchRemoteTextDetailed(url)
   UI->>S: updateSourceFile(id,{ text,status })
   UI->>MD: setMarkdownDocument(name,text)
-  UI->>OPEN: openBottomPanel('curation')
+  UI->>OPEN: set editor workspace to markdown
 ```
 
 ### Initialization-File Bootstrap → Frontmatter View Landing (Knowgrph)
@@ -119,7 +119,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant UI as BottomPanel Markdown Toolbar
+  participant UI as Markdown Workspace Toolbar
   participant FLOW as runImportFlow
   participant PAR as loadGraphDataFromTextViaParser
   participant G as useActiveGraphData
@@ -135,7 +135,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant UI as BottomPanel Markdown (Geo integration)
+  participant UI as Markdown Workspace (Geo integration)
   participant M as gympgrph.addGeospatialDatasetUrls
   participant H as GeospatialOverlayHost
   participant O as GeospatialOverlay
@@ -154,14 +154,14 @@ sequenceDiagram
 - **Workspace Actions (Knowgrph)**:
   - `knowgrph/canvas/src/features/workspace-actions/WorkspaceActionsPanel.tsx` renders Step 3 subsections (Dataset fetch limits + Source Files).
 - **Source Files Ingest (Knowgrph)**:
-  - `knowgrph/canvas/src/features/source-files/sourceFilesIngestIntegration.ts` implements Source Files import/export/clear + parse/apply helpers used by the BottomPanel Markdown toolbar.
+  - `knowgrph/canvas/src/features/source-files/sourceFilesIngestIntegration.ts` implements Source Files import/export/clear + parse/apply helpers used by the markdown workspace toolbar.
   - `knowgrph/canvas/src/features/source-files/workspaceSeedSourceFiles.ts` keeps the canonical source-file aliases for the 3-file initialization family aligned with the root-level workspace paths.
 - **Workspace Seed Bootstrap (Knowgrph)**:
   - `knowgrph/canvas/src/features/workspace-fs/workspaceFs.ts` loads initialization-file source text from `huijoohwee/docs`, materializes the canonical files into the workspace root, and keeps seed ordering deterministic.
 - **Curation UI (Singabldr)**:
   - `singabldr/src/features/markdown/ui/MarkdownPanelLayout.tsx` renders an Explorer-like sidebar (Source Files + Outline + Backlinks).
-  - `singabldr/src/components/BottomPanel/BottomPanelMarkdownSection.tsx` wires selection to `setMarkdownDocument(...)`.
-  - `singabldr/src/components/BottomPanel/BottomPanelMarkdownViewerHeader.tsx` renders the Source Files ingest controls in the Markdown toolbar.
+  - `knowgrph/canvas/src/lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx` wires selection and active workspace path to `setMarkdownDocument(...)`.
+  - `knowgrph/canvas/src/features/markdown-workspace/MarkdownWorkspaceToolbar.tsx` renders the Source Files ingest controls in the markdown workspace toolbar.
 - **Geospatial Mode (Gympgrph)**:
   - `gympgrph/src/geospatialDatasets.ts` exposes a lightweight dataset-add API for hosts.
   - `gympgrph/src/hooks/store/geospatialSlice.ts` persists `mapOverlayDatasets` under `kg:ui:geospatial:*` keys.

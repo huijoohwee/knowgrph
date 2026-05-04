@@ -10,7 +10,7 @@ import { resolveWorkspaceEntryInlineText } from '@/features/workspace-fs/workspa
 import type { GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
-import type { WorkspaceRefreshSnapshot } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/types'
+import type { WorkspaceRefreshSnapshot } from '@/features/markdown-workspace/useWorkspaceFileActions/types'
 
 export type FolderModeContract = 'sitemap' | 'user-journey'
 
@@ -18,6 +18,7 @@ export const MARKDOWN_LAYOUT_REQUEST_EVENT = 'kg:markdown-workspace-layout-reque
 export type MarkdownLayoutRequestMode = 'split' | 'editor'
 export const WORKSPACE_REALTIME_APPLY_DEBOUNCE_MS = 180
 export const WORKSPACE_TOC_PARSE_MAX_CHARS = 320_000
+export type RuntimeTimeoutHandle = ReturnType<typeof setTimeout>
 
 export const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 export const EMPTY_GRAPH_NODES: GraphNode[] = []
@@ -28,6 +29,14 @@ export const parseStringArray = (raw: unknown): string[] | null => {
   if (!Array.isArray(raw)) return null
   const out = raw.map(v => String(v || '').trim()).filter(Boolean)
   return out
+}
+
+export function scheduleRuntimeTimeout(callback: () => void, delayMs: number): RuntimeTimeoutHandle {
+  return setTimeout(callback, delayMs)
+}
+
+export function clearRuntimeTimeout(timer: RuntimeTimeoutHandle | null | undefined): void {
+  if (timer != null) clearTimeout(timer)
 }
 
 export function emitMarkdownLayoutRequest(mode: MarkdownLayoutRequestMode): void {

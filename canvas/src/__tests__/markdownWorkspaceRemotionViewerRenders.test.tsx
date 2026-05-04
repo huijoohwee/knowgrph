@@ -3,8 +3,8 @@ import path from 'node:path'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
-import type { MarkdownPresentationApi } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
+import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
+import type { MarkdownPresentationApi } from '@/features/markdown-workspace/markdownWorkspaceTypes'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 
 export async function testMarkdownWorkspaceViewerRendersRemotionArtifactRichMedia() {

@@ -1,6 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { MarkdownWorkspace } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspace'
+import { MarkdownWorkspace } from '@/lib/markdown-workspace-runtime'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'

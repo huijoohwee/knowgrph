@@ -1,6 +1,6 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
 import Tooltip from '@/features/panels/ui/Tooltip'
-import { getBottomTabLabel } from '@/features/panels/config'
+import { getPanelSurfaceLabel } from '@/features/panels/config'
 import { toSchemaImportFileName } from '@/features/schema-editor/utils'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { emitHelpScrollToAnchor } from '@/features/panels/utils/helpPanelEvents'
@@ -193,7 +193,7 @@ export default function SchemaSummary({
         content={
           hasData
             ? 'Counts of nodes and edges in the loaded graph data.'
-            : `No graph data is currently loaded. Use Load Data or the bottom panel ${getBottomTabLabel('data')} tab to load a dataset.`
+            : `No graph data is currently loaded. Use Load Data or the ${getPanelSurfaceLabel('data')} surface to load a dataset.`
         }
         maxWidthPx={260}
 

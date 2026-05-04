@@ -47,7 +47,7 @@ export type LayoutPositionCacheKey = string;
 
 export type DocumentSemanticMode = 'document' | 'keyword'
 
-export type BottomTab = 'stats' | 'render' | 'settings' | 'history'
+export type BottomSurfaceTab = 'stats' | 'history'
 
 export type SchemaBySemanticMode = Record<DocumentSemanticMode, GraphSchema>
 

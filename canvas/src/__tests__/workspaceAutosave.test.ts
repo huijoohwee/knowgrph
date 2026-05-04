@@ -1,7 +1,7 @@
-import { shouldAutosaveWorkspaceFile } from '@/components/BottomPanel/markdownWorkspace/workspaceAutosave'
+import { shouldAutosaveWorkspaceFile } from '@/features/markdown-workspace/workspaceAutosave'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MarkdownWorkspaceMain } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceMain'
+import { MarkdownWorkspaceMain } from '@/features/markdown-workspace/main/MarkdownWorkspaceMain'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 

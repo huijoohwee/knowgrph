@@ -1,4 +1,4 @@
-import { normalizeMarkdownDocumentKey, shouldPreferImportedMarkdown } from '@/components/BottomPanel/markdownLoaderUtils'
+import { normalizeMarkdownDocumentKey, shouldPreferImportedMarkdown } from '@/features/markdown-workspace/markdownLoaderUtils'
 
 export const testMarkdownLoaderPrefersImportedForBasenameMatch = () => {
   const ok = shouldPreferImportedMarkdown({

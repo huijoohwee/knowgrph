@@ -1,4 +1,4 @@
-import { tokenizeForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
+import { tokenizeForStats } from '@/lib/graph/statsUtils'
 import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords'
 import type { TextEntity, TextTriple } from './types'
 import { listEntitiesInSentence } from './entities'

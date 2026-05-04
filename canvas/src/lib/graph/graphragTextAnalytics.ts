@@ -1,6 +1,6 @@
 import type { GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import type { TextEntity, TextTriple } from '@/lib/graph/textAnalysis'
-import { tokenizeForStats } from '@/components/BottomPanel/BottomPanelStatsUtils'
+import { tokenizeForStats } from '@/lib/graph/statsUtils'
 import { NLTK_STOPWORDS_EN_SET } from '@/features/semantic-mode/keywordStopwords'
 import { computeConnectedComponents, computePageRank, computeHITS } from '@/features/semantic-mode/graphAlgorithms'
 import { computePpmi, deriveEdgeWidthFromStrength } from '@/features/semantic-mode/association'

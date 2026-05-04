@@ -119,8 +119,8 @@ const deriveExportBaseName = async (): Promise<string> => {
 export async function exportHtmlCanvasFallback(args: { pushUiToast: (toast: UiToastInput) => void }): Promise<void> {
   const exportBaseName = await deriveExportBaseName()
   const { exportHtmlCanvasFromWorkspace } = (await import(
-    '@/components/BottomPanel/markdownWorkspace/main/exports/exportHtmlCanvas'
-  )) as typeof import('@/components/BottomPanel/markdownWorkspace/main/exports/exportHtmlCanvas')
+    '@/features/markdown-workspace/main/exports/exportHtmlCanvas'
+  )) as typeof import('@/features/markdown-workspace/main/exports/exportHtmlCanvas')
   await exportHtmlCanvasFromWorkspace({ exportBaseName, pushUiToast: args.pushUiToast })
 }
 

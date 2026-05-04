@@ -1,6 +1,6 @@
 import { pickTextFileWithExtensions } from '@/lib/graph/file'
 import { bestMatch, applyParserAsync, getParserRegistryRevision } from '@/features/parsers/registry'
-import { getCachedParse, setCachedParse } from '@/features/parsers/cache'
+import { getCachedParse, getCachedPreferredParser, setCachedParse, setCachedPreferredParser } from '@/features/parsers/cache'
 import { toParserId } from '@/features/parsers'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { deriveFilenameFromUrl } from '@/lib/url'
@@ -224,12 +224,18 @@ export async function loadGraphDataFromTextViaParser(
     }
   }
   notifyLoaderProgress(options, 'Selecting parser')
-  const bm = pipelinePerfMeasureSync({
-    name: 'import',
-    stage: 'parser:select',
-    run: () => bestMatch({ name, text: normalizedText })
-  })
-  if (!bm) {
+  const cfgKey = `reg:${getParserRegistryRevision()}`
+  const preferredParserId = getCachedPreferredParser(name, normalizedText, cfgKey)
+  const bm = preferredParserId
+    ? null
+    : pipelinePerfMeasureSync({
+        name: 'import',
+        stage: 'parser:select',
+        run: () => bestMatch({ name, text: normalizedText })
+      })
+  const selectedParserId = preferredParserId || (bm ? toParserId(bm.id) : null)
+  const selectedParserLabel = preferredParserId ? String(preferredParserId) : String(bm?.id || '')
+  if (!selectedParserId) {
     return finalizeLoaderResult({
       t0: tAll,
       sourceName: name,
@@ -238,48 +244,50 @@ export async function loadGraphDataFromTextViaParser(
       outcome: 'no-match',
     })
   }
-  const parserId = toParserId(bm.id)
-  const cfgKey = `reg:${getParserRegistryRevision()}`
-  const cached = getCachedParse(parserId, name, normalizedText, cfgKey)
+  const cached = getCachedParse(selectedParserId, name, normalizedText, cfgKey)
   if (cached) {
     notifyLoaderProgress(options, 'Using cached parse')
   } else {
-    notifyLoaderProgress(options, `Parsing (${bm.id})`)
+    notifyLoaderProgress(options, `Parsing (${selectedParserLabel})`)
   }
   const res = cached || await pipelinePerfMeasureAsync({
     name: 'import',
     stage: 'parser:apply',
-    detail: { parserId: bm.id, name, textChars: normalizedText.length },
-    run: () => applyParserAsync(parserId, { name, text: normalizedText }),
+    detail: { parserId: selectedParserLabel, name, textChars: normalizedText.length },
+    run: () => applyParserAsync(selectedParserId, { name, text: normalizedText }),
   })
   if (!res) {
     return finalizeLoaderResult({
       t0: tAll,
-      parserId: bm.id,
+      parserId: selectedParserLabel,
       sourceName: name,
       sourceText: normalizedText,
-      result: { parserId: bm.id, name, input: { name, text: normalizedText }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } },
+      result: { parserId: selectedParserLabel, name, input: { name, text: normalizedText }, warnings: ["Parser returned no result"], counts: { n: 0, e: 0 } },
       usedCache: !!cached,
       outcome: 'empty-result',
     })
   }
 
-  if (!cached) setCachedParse(parserId, name, normalizedText, res, cfgKey)
+  if (!cached) setCachedParse(selectedParserId, name, normalizedText, res, cfgKey)
   let { graphData } = res
   const maybeEmpty = !((graphData.nodes?.length || 0) > 0) && !((graphData.edges?.length || 0) > 0)
   const lower = String(name || '').trim().toLowerCase()
-  if (maybeEmpty && bm.id !== 'markdown' && (lower.endsWith('.md') || lower.endsWith('.markdown'))) {
+  if (!maybeEmpty) {
+    setCachedPreferredParser(name, normalizedText, selectedParserId, cfgKey)
+  }
+  if (maybeEmpty && selectedParserLabel !== 'markdown' && (lower.endsWith('.md') || lower.endsWith('.markdown'))) {
     notifyLoaderProgress(options, 'Fallback: markdown parser')
     const markdownParserId = toParserId('markdown')
     const fallbackCached = getCachedParse(markdownParserId, name, normalizedText, cfgKey)
     const fallback = fallbackCached || await pipelinePerfMeasureAsync({
       name: 'import',
       stage: 'parser:fallback:markdown',
-      detail: { parserId: bm.id, fallbackParserId: 'markdown', name, textChars: normalizedText.length },
+      detail: { parserId: selectedParserLabel, fallbackParserId: 'markdown', name, textChars: normalizedText.length },
       run: () => applyParserAsync(markdownParserId, { name, text: normalizedText }),
     })
     if (fallback?.graphData) {
       if (!fallbackCached) setCachedParse(markdownParserId, name, normalizedText, fallback, cfgKey)
+      setCachedPreferredParser(name, normalizedText, markdownParserId, cfgKey)
       graphData = fallback.graphData
 
       if (options?.applyToStore !== false) {
@@ -310,12 +318,12 @@ export async function loadGraphDataFromTextViaParser(
           counts: { n: graphData.nodes.length, e: graphData.edges.length },
           warnings: [
             ...(fallback.warnings || []),
-            `Parser fallback: ${bm.id} yielded empty graph; used markdown parser instead.`,
+            `Parser fallback: ${selectedParserLabel} yielded empty graph; used markdown parser instead.`,
           ],
           input: { name, text: normalizedText },
         },
         usedCache: !!fallbackCached,
-        fallbackFromParserId: bm.id,
+        fallbackFromParserId: selectedParserLabel,
         outcome: 'fallback',
       })
     }
@@ -338,11 +346,11 @@ export async function loadGraphDataFromTextViaParser(
   notifyLoaderProgress(options, 'Done')
   return finalizeLoaderResult({
     t0: tAll,
-    parserId: bm.id,
+    parserId: selectedParserLabel,
     sourceName: name,
     sourceText: normalizedText,
     result: {
-      parserId: bm.id,
+      parserId: selectedParserLabel,
       name,
       graphData,
       counts: { n: graphData.nodes.length, e: graphData.edges.length },

@@ -17,7 +17,7 @@ export function testMarkdownWorkspaceAvoidsGraphDataIdentityChurnSubscriptions()
     throw new Error('expected markdown workspace doc index to be keyed off nodes+edges in the runtime SSOT')
   }
 
-  const pSync = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'useCanvasMarkdownSync.ts')
+  const pSync = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'useCanvasMarkdownSync.ts')
   const textSync = readFileSync(pSync, 'utf8')
   if (textSync.includes('useGraphStore(s => s.graphData)')) {
     throw new Error('expected useCanvasMarkdownSync to avoid subscribing to whole graphData object')

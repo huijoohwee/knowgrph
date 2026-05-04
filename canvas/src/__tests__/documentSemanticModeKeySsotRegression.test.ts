@@ -12,7 +12,7 @@ export function testRendererModeCachesUseDocumentSemanticModeKeySsot() {
     ['sceneDerivation', resolve(process.cwd(), 'src', 'lib', 'scene', 'sceneDerivation.ts')],
     ['minimap', resolve(process.cwd(), 'src', 'features', 'minimap', 'Minimap.tsx')],
     ['threeLayout', resolve(process.cwd(), 'src', 'features', 'three', 'layout.ts')],
-    ['exportHtmlCanvas', resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'exports', 'exportHtmlCanvas.ts')],
+    ['exportHtmlCanvas', resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'exports', 'exportHtmlCanvas.ts')],
     ['exportHtmlFallback', resolve(process.cwd(), 'src', 'features', 'toolbar', 'exportHtmlFallback.ts')],
     ['snapshotExportHandlers', resolve(process.cwd(), 'src', 'lib', 'panels', 'hooks', 'export-handlers', 'useSnapshotExportHandlers.impl.ts')],
   ] as const

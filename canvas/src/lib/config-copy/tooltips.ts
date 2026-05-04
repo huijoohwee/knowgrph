@@ -228,7 +228,7 @@ export const ORCHESTRATOR_TRAVERSAL_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Orchestrator',
   actions: [
     'execute AgenticRAG traversal presets and edit GraphRAG paths',
-    'adjust traversal delay and view mode via bottom panel and Settings \u2192 Orchestrator',
+    'adjust traversal delay and view mode via the Graph Traversal floating panel and Settings \u2192 Orchestrator',
   ],
   outcome: 'deliver controlled, customizable graph navigation for consistent analysis and sharing',
 });
@@ -309,7 +309,7 @@ export const WORKFLOW_INDEXING_PARAMETERS_TOOLTIP = buildRoleActionOutcomeToolti
   role: 'GraphRAG workflow indexing',
   actions: [
     'configure dataset paths, chunking, embedding model, and maxHops for a run',
-    'mirror offline GraphRAG workflow JSON-LD fields in the Orchestrator bottom panel',
+    'mirror offline GraphRAG workflow JSON-LD fields in Workflow Manager and the Graph Traversal floating panel',
   ],
   outcome: 'keep indexing configuration consistent across AgenticRAG workflows, traversals, and exports',
 });
@@ -646,7 +646,7 @@ export const TRAVERSAL_PRESET_UI_TOOLTIP = buildRoleActionOutcomeTooltip({
 export const HELP_CHEATSHEET_ALIGNMENT_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Canvas cheatsheet',
   actions: [
-    'pair selection and creation modes with bottom panel behavior',
+    'pair selection and creation modes with the active panel surfaces',
   ],
   outcome:
     'keep Orchestrator traversal and AgenticRAG node inspector aligned with current Canvas focus.',
@@ -671,14 +671,14 @@ export const LAUNCH_SPOTLIGHT_TOUR_TOOLTIP = buildRoleActionOutcomeTooltip({
     'track prerequisites like dataset load, schema apply, and traversal run',
   ],
   outcome:
-    'keep onboarding aligned with AgenticRAG GraphRAG workflow stages in the bottom panel.',
+    'keep onboarding aligned with AgenticRAG GraphRAG workflow stages across the main and floating panels.',
 });
 
 export const WORKFLOW_TAB_HEADER_TOOLTIP = buildRoleActionOutcomeTooltip({
   role: 'Workflow Manager tab',
   actions: [
     'organize the 8-step AgenticRAG graph pipeline across parser, schema, curation, orchestrator, and render stages',
-    'anchor bottom panel tabs and exports to the same rag:GraphRAGWorkflow JSON-LD document',
+    'anchor the workflow surfaces and exports to the same rag:GraphRAGWorkflow JSON-LD document',
   ],
   outcome:
     'keep step ordering and workflow JSON-LD exports reproducible across AgenticRAG runs.',
@@ -705,7 +705,7 @@ export const SETTINGS_TAB_HEADER_TOOLTIP = buildRoleActionOutcomeTooltip({
 });
 
 export const PANEL_TOUR_GRAPH_DATA_TABLE_LOCATION =
-  'The canvas UI is organized into the toolbar, main panel, and bottom panel so that data curation, schema design, and workflow exports stay in sync. The Graph Data Table lives in the bottom panel Curation tab as the spreadsheet-like view of nodes and edges.';
+  'The canvas UI is organized into the toolbar, main panel, floating panel, and bottom surface so that data curation, schema design, and workflow exports stay in sync. The Graph Data Table is the spreadsheet-like view of nodes and edges used alongside Workflow Manager and the markdown workspace.';
 
 export const GRAPH_FIELDS_ICON_LEGEND_REUSE_TEXT =
   'Node/edge tooltip field-type icons reuse this legend: hover badges in the canvas show the same type glyphs based on schema property types and follow the same UI Density: Icons setting.';

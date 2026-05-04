@@ -1,6 +1,6 @@
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { importWorkspaceUrl } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { importWorkspaceUrl } from '@/features/markdown-workspace/workspaceImport'
 
 type MockRoute = { test: (url: string) => boolean; handler: (url: string, init?: RequestInit) => Response | Promise<Response> }
 

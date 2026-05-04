@@ -13,6 +13,11 @@ import {
 import { UI_COPY } from '@/lib/config'
 import { HighlightedCode } from './HighlightedCode'
 import { ensureMapLibreStyles } from '@/lib/ui/lazyStyles'
+import {
+  buildMarkdownGeoDatasetRequestFingerprint,
+} from '@/features/geospatial/markdownGeoDatasetRequest'
+import type { MarkdownGeoCodeBlockLanguage } from '@/features/geospatial/markdownGeoCodeBlockContract'
+import type { MarkdownGeoDatasetRegistrationRequest } from '@/features/geospatial/markdownGeoDatasetContract'
 
 const AUTO_REGISTER_TTL_MS = 20 * 60 * 1000
 const AUTO_REGISTER_MAX_KEYS = 800
@@ -33,22 +38,9 @@ const markAutoRegisterKey = (key: string): boolean => {
   return true
 }
 
-const buildGeoReq = (args: {
-  activeDocumentPath: string
-  lang: 'geojson' | 'json'
-  text: string
-  startLine: number
-  endLine: number
-}) => {
-  return {
-    sourceDocumentPath: args.activeDocumentPath,
-    codeBlock: { lang: args.lang, text: args.text, startLine: args.startLine, endLine: args.endLine },
-  }
-}
-
 const isRenderableGeoJsonCodeBlock = (args: {
-  lang: 'geojson' | 'json'
-  req: { sourceDocumentPath: string; codeBlock: { lang: 'geojson' | 'json'; text: string; startLine: number; endLine: number } }
+  lang: MarkdownGeoCodeBlockLanguage
+  req: MarkdownGeoDatasetRegistrationRequest
   isGeoJsonCodeBlock?: ((req: any) => boolean) | undefined
 }): boolean => {
   if (args.lang === 'geojson') return true
@@ -62,14 +54,13 @@ const isRenderableGeoJsonCodeBlock = (args: {
 }
 
 export function GeoJsonGeoPanelRenderer(props: {
-  lang: 'geojson' | 'json'
+  lang: MarkdownGeoCodeBlockLanguage
   text: string
-  startLine: number
-  endLine: number
+  req: MarkdownGeoDatasetRegistrationRequest
   opts: RenderOpts
   monospaceCodeClass: string
 }) {
-  const { lang, text, startLine, endLine, opts, monospaceCodeClass } = props
+  const { lang, text, req, opts, monospaceCodeClass } = props
   const integration = opts.geoDatasetIntegration
   const isGeoJsonCodeBlock = integration?.isGeoJsonCodeBlock
   const register = integration?.registerGeoJsonFeatureCollection
@@ -84,10 +75,6 @@ export function GeoJsonGeoPanelRenderer(props: {
   const [graphError, setGraphError] = React.useState<string | null>(null)
 
   const trimmed = String(text || '').trim()
-  const req = React.useMemo(
-    () => buildGeoReq({ activeDocumentPath: opts.activeDocumentPath, lang, text, startLine, endLine }),
-    [endLine, lang, opts.activeDocumentPath, startLine, text],
-  )
 
   const shouldTreatAsGeoJson = isRenderableGeoJsonCodeBlock({ lang, req, isGeoJsonCodeBlock })
   const canAttemptRegister = shouldTreatAsGeoJson && !!trimmed && typeof register === 'function'
@@ -110,9 +97,8 @@ export function GeoJsonGeoPanelRenderer(props: {
   }, [integration])
 
   const autoRegisterKey = React.useMemo(() => {
-    const head = trimmed.slice(0, 128)
-    return `${opts.activeDocumentPath}|${lang}|${startLine}|${endLine}|${trimmed.length}|${head}`
-  }, [endLine, lang, opts.activeDocumentPath, startLine, trimmed])
+    return buildMarkdownGeoDatasetRequestFingerprint(req)
+  }, [req])
 
   React.useEffect(() => {
     if (!geospatialModeOn) return

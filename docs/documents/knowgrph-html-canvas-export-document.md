@@ -176,11 +176,10 @@ graph TD
   - [knowgrph-renderer-document.md](./knowgrph-renderer-document.md)
 - Export builder and viewer:
   - Export entrypoint wiring and HTML generation lives in the Canvas app under:
-    - `canvas/src/components/BottomPanel/markdownWorkspace/main/exports/`
+    - `canvas/src/features/markdown-workspace/main/exports/`
     - `canvas/src/lib/graph/htmlCanvasSvgExport.ts`
     - `canvas/src/lib/graph/htmlViewer/buildGraphHtmlViewerMarkup.ts`
     - `canvas/src/lib/graph/htmlViewer/runtimeScript.ts`
 - Schema and cross-repo contract:
   - AgenticRAG Canvas directives for renderer matrix, Rich Media overlays, and HTML Canvas export:
     - `huijoohwee.github.io/schema/AgenticRAG/canvas.jsonld`
-

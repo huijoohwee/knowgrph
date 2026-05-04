@@ -1,8 +1,9 @@
 import React from 'react'
 import { registerMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/workspaceActionBridge'
-import type { WorkspaceFileActions } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/types'
+import type { WorkspaceFileActions } from '@/features/markdown-workspace/useWorkspaceFileActions/types'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { buildMarkdownWorkspaceActionBridge } from './markdownWorkspaceRuntime.composition'
+import { clearRuntimeTimeout, scheduleRuntimeTimeout } from './markdownWorkspaceRuntime.shared'
 
 export function useMarkdownWorkspaceShell(args: {
   active: boolean
@@ -35,8 +36,8 @@ export function useMarkdownWorkspaceShell(args: {
 
   React.useEffect(() => {
     if (!highlightedLineRange) return
-    const id = window.setTimeout(() => setHighlightedLineRange(null), 1500)
-    return () => window.clearTimeout(id)
+    const id = scheduleRuntimeTimeout(() => setHighlightedLineRange(null), 1500)
+    return () => clearRuntimeTimeout(id)
   }, [highlightedLineRange, setHighlightedLineRange])
 
   const toggleFullscreen = React.useCallback(() => {

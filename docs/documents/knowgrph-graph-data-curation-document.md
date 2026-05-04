@@ -33,7 +33,7 @@ This host workspace tool must not be duplicated inside `singabldr` (keep one own
 ### singabldr (Graph Data surfaces)
 
 - Owns Graph Data curation/presentation UI and supporting modules:
-  - BottomPanel curator + markdown section + JSON-backed markdown helpers
+  - Historical note: older panel-owned import/markdown wrappers have been removed; the active host now uses canonical markdown workspace runtime surfaces and shared JSON-backed markdown helpers
   - Graph Data Table (filter/sort/group + frozen areas + column reorder + cell editors)
   - Markdown viewer/editor/presentation/gallery
   - Preview panel UI primitives used by markdown/presentation (e.g. gallery + overlays)
@@ -46,7 +46,7 @@ This boundary mirrors the earlier pattern used for Geospatial Mode extraction (i
 ## Module Map
 
 **singabldr**
-- `singabldr/src/components/BottomPanel/*`: BottomPanel submodules that implement curation and document views.
+- `singabldr/src/features/*`: shared curation and document-view surfaces consumed by the host without reintroducing legacy panel-owned wrappers.
 - `singabldr/src/features/graph-data-table/*`: Graph Data Table model and UI.
 - `singabldr/src/features/markdown/*`: Markdown lexing/rendering/presentation surfaces.
 - `singabldr/src/features/markdown/ui/MarkdownStructuredTextEditor.tsx`: Monaco-backed structured editor (JSON/YAML) consolidated under Markdown.
@@ -83,4 +83,4 @@ Knowgrph integrates the extracted Graph Data code via:
 Graph Data extraction is verified using bounded execution:
 
 - TypeScript no-emit checks (host + extracted module).
-- Filtered CI runner cases only for impacted surfaces (BottomPanel/Markdown/structured editor/Preview gallery), avoiding full-suite runs.
+- Filtered CI runner cases only for impacted surfaces (bottom surface shell, markdown workspace, structured editor, preview gallery), avoiding full-suite runs.

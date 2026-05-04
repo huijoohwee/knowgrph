@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownTocTreeRow } from '@/components/BottomPanel/markdownWorkspace/MarkdownTocTreeRow'
+import { MarkdownTocTreeRow } from '@/features/markdown-workspace/MarkdownTocTreeRow'
 
 export async function testMarkdownTocTreeRowUsesSharedExplorerTocShell() {
   const { dom, restore } = initJsdomHarness()

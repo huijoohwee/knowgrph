@@ -37,12 +37,12 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 **When Disabled**: Markdown remains unadorned, scrolling and auto-alignment still active
 
-### Bottom Panel Auto-Open
+### Workflow Surface Auto-Open
 
 **Trigger**: Selecting media card in Slides Gallery
 
 **Behavior**:
-- Automatically opens Bottom Panel to Curation tab in Markdown mode
+- Automatically opens the Graph Data Table / workspace surface in Markdown mode
 - Maintains alignment between media selection, canvas selection, and source text
 - Applies brief, subtle highlight to panel chrome for visual feedback
 
@@ -56,7 +56,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 - Show in Editor: Switches to Markdown Editor
 - Show in Presentation: Enters Presentation mode
 - Show in Slides Gallery: Switches to Slides Gallery view
-- Show in Graph Data Table: Opens BottomPanel → Curation (Graph Data) table view
+- Show in Graph Data Table: Opens the Graph Data Table surface for the selected node or edge
 
 **Conditional Availability**: Irrelevant options disabled based on current view
 
@@ -102,11 +102,11 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 **View Logic**: `useMarkdownSectionLogic` (scroll sync, auto-positioning, flash effects, TOC)
 
-**Data Logic**: `useBottomPanelMarkdownModel` (markdown state management)
+**Data Logic**: `MarkdownWorkspaceRuntime.impl.tsx` + `useMarkdownWorkspaceBootstrapState` (workspace markdown state management)
 
 **Parsing Logic**: `useMarkdownApply` (markdown parsing and graph updates)
 
-**JSON Conversion**: `useJsonMarkdown` (JSON ↔ Markdown transformation)
+**JSON Conversion**: JSON-backed markdown workspace utilities and runtime preferences (JSON ↔ Markdown transformation)
 
 **File Size Constraint**: <600 lines per file enforced
 
@@ -306,7 +306,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 - "Slides Gallery" sidebar uses same semantic structure (`aside`, `header`, `nav`) as Viewer sidebar
 - UI components: `IconButton`, `UI_THEME_TOKENS` for consistent appearance
 - State: `showSidebar` prop synchronized with Viewer sidebar
-- Persistence: `LS_KEYS.bottomPanelMarkdownShowSidebar`
+- Persistence: shared Markdown workspace sidebar preference (`LS_KEYS.markdownShowSidebar`)
 
 **Fixed Footer**: Matches header positioning strategy (`fixed bottom-0`, `h-8`), uses semantic `<footer>`, matching z-index/border styles
 
@@ -326,7 +326,7 @@ Continuation of knowgrph-frontend-document.md covering canvas-markdown interacti
 
 **Viewer/Presentation/Slides Gallery**: Native selection gestures only (single click caret anchor; double click word; triple click paragraph/line). No implicit navigation on double-click.
 
-**Bottom Panel Tab Bar**: Double-click → toggle fullscreen expansion
+**Bottom Surface Tab Bar**: Double-click → toggle fullscreen expansion
 
 **Fullscreen Impact**: When expanded to 100% height, graph canvas rendering and simulation paused (frozen) for performance optimization
 
@@ -396,7 +396,7 @@ canvas/
 │   ├── features/
 │   │   ├── panels/
 │   │   │   ├── MainPanel.tsx
-│   │   │   ├── BottomPanel.tsx
+│   │   │   ├── BottomSurface.tsx
 │   │   │   └── views/
 │   │   │       ├── WorkflowPanel.tsx
 │   │   │       ├── SchemaPanel.tsx
@@ -552,7 +552,7 @@ canvas/
 | Context              | Intent                          | Directive                                                                                   | Enforcement Mechanism                        |
 |----------------------|---------------------------------|---------------------------------------------------------------------------------------------|----------------------------------------------|
 | Main Panel Tabs      | Organize by workflow concern    | - [ ] Group workflow/schema/settings; use clear labels; forbid ambiguous tab names        | Design review, user testing                  |
-| Bottom Panel Tabs    | Organize by data concern        | - [ ] Group markdown/parsers/tables; use clear labels; forbid cross-concern mixing        | Component organization, code review          |
+| Bottom Surface Tabs  | Organize quick-review concerns  | - [ ] Keep tabs limited to lightweight stats/history review; forbid workspace, parser, or renderer ownership drift | Component organization, code review          |
 | Floating Panels      | Context-sensitive tools         | - [ ] Show on selection/action; hide when irrelevant; forbid always-visible floaters      | UI state rules, user preference toggles      |
 
 ---

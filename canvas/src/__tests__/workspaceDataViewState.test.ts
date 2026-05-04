@@ -5,7 +5,7 @@ import {
   deleteWorkspaceDataViewFromState,
   getWorkspaceDataViewActiveView,
   type WorkspaceDataViewState,
-} from '@/components/BottomPanel/markdownWorkspace/main/viewer/workspaceDataViewConfig'
+} from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 
 export function testWorkspaceDataViewStateDuplicateDelete() {
   const rawV1 = {

@@ -1,4 +1,4 @@
-import { shouldForceDocumentSemanticModeForImport } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions'
+import { shouldForceDocumentSemanticModeForImport } from '@/features/markdown-workspace/useWorkspaceFileActions'
 
 export const testEditorWorkspaceImportForcesDocumentModeForGraphFiles = () => {
   if (shouldForceDocumentSemanticModeForImport('note.md') !== false) throw new Error('expected markdown not to force document semantic mode')

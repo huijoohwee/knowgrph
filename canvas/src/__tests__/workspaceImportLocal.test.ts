@@ -12,10 +12,10 @@ import {
   importWorkspaceLocalFolder,
   isPendingLocalImportStubText,
   peekPendingWorkspaceLocalImport,
-} from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
-import { activateFirstImportedWorkspaceFile } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions'
-import { shouldApplyImportedCanvasDocumentToGraph } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions'
-import { resolveWorkspaceFileJsonLdExport } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/workspaceFileJsonLd'
+} from '@/features/markdown-workspace/workspaceImport'
+import { activateFirstImportedWorkspaceFile } from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
+import { shouldApplyImportedCanvasDocumentToGraph } from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
+import { resolveWorkspaceFileJsonLdExport } from '@/features/markdown-workspace/workspaceImport/workspaceFileJsonLd'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { WORKSPACE_IMPORT_DEFER_LOCAL_FILE_BYTES } from '@/lib/config'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'

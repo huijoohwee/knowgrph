@@ -1,4 +1,4 @@
-import { buildMarkdownFileTreeContextMenuItems } from '@/components/BottomPanel/markdownWorkspace/markdownFileTreeContextMenuItems'
+import { buildMarkdownFileTreeContextMenuItems } from '@/features/markdown-workspace/markdownFileTreeContextMenuItems'
 
 export async function testMarkdownFileTreeContextMenuItemsReuseSharedDefinitions() {
   const calls: string[] = []

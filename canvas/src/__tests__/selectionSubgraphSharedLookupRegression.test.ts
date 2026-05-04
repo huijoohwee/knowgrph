@@ -56,7 +56,7 @@ export function testSelectionSubgraphSsotReusesSharedLookupAndSemanticCache() {
     'utf8',
   )
   const statsSelectionText = readFileSync(
-    resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'hooks', 'useStatsSelection.ts'),
+    resolve(process.cwd(), 'src', 'features', 'graph-stats', 'hooks', 'useStatsSelection.ts'),
     'utf8',
   )
 

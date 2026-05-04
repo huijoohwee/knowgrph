@@ -287,7 +287,7 @@ export async function testMarkdownTripDemoMmdJsonFenceRegistersAsGeoDataset() {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, url: '/__geo_local/test.geojson', name: 'trip-demo-mmd-L1.geojson' }),
+        json: async () => ({ ok: true, url: '/__geo_local/test.geojson', name: 'trip-demo-mmd-L1-L1.geojson' }),
       } as unknown as Response
     }
 
@@ -436,6 +436,413 @@ export function testTripDemoMmdOverlayGraphDataFallsBackToSourceFilesText() {
   const nextNodes = Array.isArray(next.nodes) ? next.nodes : []
   if (nextNodes.length <= baseGraph.nodes.length) {
     throw new Error('Expected overlay graph data to fall back to sourceFiles markdown text for embedded GeoJSON supplement')
+  }
+}
+
+export function testTripDemoMmdOverlayGraphDataInvalidatesSourceFileCacheBySemanticContent() {
+  const markdownA = [
+    '# Geo',
+    '',
+    '```geojson',
+    '{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"A"},"geometry":{"type":"Point","coordinates":[103.8501,1.2801]}}]}',
+    '```',
+    '',
+  ].join('\n')
+  const markdownB = [
+    '# Geo',
+    '',
+    '```geojson',
+    '{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"A"},"geometry":{"type":"Point","coordinates":[103.8502,1.2802]}}]}',
+    '```',
+    '',
+  ].join('\n')
+  if (markdownA.length !== markdownB.length) {
+    throw new Error('Expected semantic cache regression fixture markdown to preserve text length')
+  }
+
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: 'workspace:geo-cache.md' },
+    nodes: [],
+    edges: [],
+  }
+
+  const overlayA = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: '',
+    sourceDocumentPath: '',
+    sourceFiles: [
+      {
+        id: 'sf:geo-cache',
+        name: 'geo-cache.md',
+        text: markdownA,
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: 'workspace:/sandbox/geo-cache.md' },
+      },
+    ],
+  })
+  const overlayB = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: '',
+    sourceDocumentPath: '',
+    sourceFiles: [
+      {
+        id: 'sf:geo-cache',
+        name: 'geo-cache.md',
+        text: markdownB,
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: 'workspace:/sandbox/geo-cache.md' },
+      },
+    ],
+  })
+
+  const readFirstPoint = (graph: GraphData): string => {
+    const node = (Array.isArray(graph.nodes) ? graph.nodes : []).find(candidate => {
+      const props = (candidate?.properties || {}) as Record<string, unknown>
+      const geo = props.geo as Record<string, unknown> | null
+      return !!geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lng))
+    })
+    const props = (node?.properties || {}) as Record<string, unknown>
+    const geo = props.geo as Record<string, unknown> | null
+    return `${Number(geo?.lat)}:${Number(geo?.lng)}`
+  }
+
+  if (readFirstPoint(overlayA) === readFirstPoint(overlayB)) {
+    throw new Error('Expected geospatial overlay cache to invalidate when sourceFiles content changes without changing text length')
+  }
+}
+
+export function testTripDemoMmdOverlayGraphDataInvalidatesDirectModeCacheByParsedSourceGraph() {
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: 'workspace:direct-mode-cache.md' },
+    nodes: [],
+    edges: [],
+  }
+  const directMarkdown = '# Direct mode\n\nNo embedded geo blocks here.\n'
+  const directPath = '/sandbox/direct-mode-cache.md'
+
+  const overlayBeforeParsedGraph = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: directMarkdown,
+    sourceDocumentPath: directPath,
+    sourceFiles: [
+      {
+        id: 'sf:direct-mode-cache',
+        name: 'direct-mode-cache.md',
+        text: directMarkdown,
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: `workspace:${directPath}` },
+      },
+    ],
+  })
+  const overlayAfterParsedGraph = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: directMarkdown,
+    sourceDocumentPath: directPath,
+    sourceFiles: [
+      {
+        id: 'sf:direct-mode-cache',
+        name: 'direct-mode-cache.md',
+        text: directMarkdown,
+        enabled: true,
+        status: 'parsed',
+        parsedGraphData: {
+          type: 'Graph',
+          context: 'geojson',
+          nodes: [
+            {
+              id: 'geo:direct-mode-cache',
+              type: 'GeoFeature',
+              label: 'Direct Mode Cache',
+              properties: { geo: { lng: 103.851959, lat: 1.29027 } },
+            },
+          ],
+          edges: [],
+        },
+        source: { kind: 'local', path: `workspace:${directPath}` },
+      },
+    ],
+  })
+
+  const countGeoNodes = (graph: GraphData): number =>
+    (Array.isArray(graph.nodes) ? graph.nodes : []).filter(candidate => {
+      const props = (candidate?.properties || {}) as Record<string, unknown>
+      const geo = props.geo as Record<string, unknown> | null
+      return !!geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lng))
+    }).length
+
+  if (countGeoNodes(overlayBeforeParsedGraph) !== 0) {
+    throw new Error('Expected direct-mode cache baseline to start without parsed source graph geo nodes')
+  }
+  if (countGeoNodes(overlayAfterParsedGraph) === 0) {
+    throw new Error('Expected direct-mode geospatial overlay cache to invalidate when parsed source graph becomes available')
+  }
+}
+
+export function testTripDemoMmdOverlayGraphDataSkipsDisabledSourceFiles() {
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: 'workspace:disabled-source-file.md' },
+    nodes: [],
+    edges: [],
+  }
+  const directMarkdown = '# Disabled source file\n\nNo embedded geo blocks here.\n'
+  const directPath = '/sandbox/disabled-source-file.md'
+  const overlay = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: directMarkdown,
+    sourceDocumentPath: directPath,
+    sourceFiles: [
+      {
+        id: 'sf:disabled-source-file',
+        name: 'disabled-source-file.md',
+        text: directMarkdown,
+        enabled: false,
+        status: 'parsed',
+        parsedGraphData: {
+          type: 'Graph',
+          context: 'geojson',
+          nodes: [
+            {
+              id: 'geo:disabled-source-file',
+              type: 'GeoFeature',
+              label: 'Disabled Source File',
+              properties: { geo: { lng: 103.851959, lat: 1.29027 } },
+            },
+          ],
+          edges: [],
+        },
+        source: { kind: 'local', path: `workspace:${directPath}` },
+      },
+    ],
+  })
+  const hasGeo = (Array.isArray(overlay.nodes) ? overlay.nodes : []).some(candidate => {
+    const props = (candidate?.properties || {}) as Record<string, unknown>
+    const geo = props.geo as Record<string, unknown> | null
+    return !!geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lng))
+  })
+  if (hasGeo) {
+    throw new Error('Expected geospatial overlay to ignore disabled source files')
+  }
+}
+
+export function testTripDemoMmdOverlayGraphDataSkipsGeoLayerDisabledSourceFiles() {
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: 'workspace:geo-layer-disabled-source-file.md' },
+    nodes: [],
+    edges: [],
+  }
+  const directMarkdown = '# Geo layer disabled source file\n\nNo embedded geo blocks here.\n'
+  const directPath = '/sandbox/geo-layer-disabled-source-file.md'
+  const overlay = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: directMarkdown,
+    sourceDocumentPath: directPath,
+    sourceFiles: [
+      {
+        id: 'sf:geo-layer-disabled-source-file',
+        name: 'geo-layer-disabled-source-file.md',
+        text: directMarkdown,
+        enabled: true,
+        geoLayerEnabled: false,
+        status: 'parsed',
+        parsedGraphData: {
+          type: 'Graph',
+          context: 'geojson',
+          nodes: [
+            {
+              id: 'geo:geo-layer-disabled-source-file',
+              type: 'GeoFeature',
+              label: 'Geo Layer Disabled Source File',
+              properties: { geo: { lng: 103.851959, lat: 1.29027 } },
+            },
+          ],
+          edges: [],
+        },
+        source: { kind: 'local', path: `workspace:${directPath}` },
+      },
+    ],
+  })
+  const hasGeo = (Array.isArray(overlay.nodes) ? overlay.nodes : []).some(candidate => {
+    const props = (candidate?.properties || {}) as Record<string, unknown>
+    const geo = props.geo as Record<string, unknown> | null
+    return !!geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lng))
+  })
+  if (hasGeo) {
+    throw new Error('Expected geospatial overlay to ignore source files with geoLayerEnabled=false')
+  }
+}
+
+export function testGeospatialOverlayGraphDataDedupesDuplicateEmbeddedGeoJsonBlocks() {
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: 'workspace:dedupe-embedded-geojson.md' },
+    nodes: [],
+    edges: [],
+  }
+  const featureCollectionText = '{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"Shared Point"},"geometry":{"type":"Point","coordinates":[103.851959,1.29027]}}]}'
+  const markdownText = [
+    '# Duplicate Embedded GeoJSON',
+    '',
+    '```geojson',
+    featureCollectionText,
+    '```',
+    '',
+    '```geojson',
+    featureCollectionText,
+    '```',
+    '',
+  ].join('\n')
+
+  const overlay = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText,
+    sourceDocumentPath: '/sandbox/dedupe-embedded-geojson.md',
+    sourceFiles: [],
+  })
+  const geoNodes = (Array.isArray(overlay.nodes) ? overlay.nodes : []).filter(candidate => {
+    const props = (candidate?.properties || {}) as Record<string, unknown>
+    const geo = props.geo as Record<string, unknown> | null
+    return !!geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lng))
+  })
+  if (geoNodes.length !== 1) {
+    throw new Error(`Expected duplicate embedded GeoJSON blocks to dedupe to one overlay node, got ${geoNodes.length}`)
+  }
+}
+
+export function testGeospatialOverlayGraphDataDedupesDuplicateMarkdownTablePoints() {
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: 'workspace:dedupe-markdown-table-points.md' },
+    nodes: [],
+    edges: [],
+  }
+  const markdownText = [
+    '# Duplicate Markdown Table Points',
+    '',
+    '| # | name | poi_id | location (lat,lng) |',
+    '| --- | --- | --- | --- |',
+    '| 1 | Shared Point | poi-1 | 1.2801, 103.8502 |',
+    '',
+    '| # | name | poi_id | location (lat,lng) |',
+    '| --- | --- | --- | --- |',
+    '| 1 | Shared Point | poi-1 | 1.2801, 103.8502 |',
+    '',
+  ].join('\n')
+
+  const overlay = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText,
+    sourceDocumentPath: '/sandbox/dedupe-markdown-table-points.md',
+    sourceFiles: [],
+  })
+  const geoNodes = (Array.isArray(overlay.nodes) ? overlay.nodes : []).filter(candidate => {
+    const props = (candidate?.properties || {}) as Record<string, unknown>
+    const geo = props.geo as Record<string, unknown> | null
+    return !!geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lng))
+  })
+  if (geoNodes.length !== 1) {
+    throw new Error(`Expected duplicate markdown table geodata rows to dedupe to one overlay node, got ${geoNodes.length}`)
+  }
+}
+
+export function testGeospatialOverlayGraphDataPrefersExactSourcePathMatch() {
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: 'workspace:/sandbox/target.md' },
+    nodes: [],
+    edges: [],
+  }
+  const matchingMarkdown = [
+    '| name | location (lat,lng) |',
+    '| --- | --- |',
+    '| Exact Match | 1.3000, 103.8000 |',
+    '',
+  ].join('\n')
+  const nonMatchingMarkdown = [
+    '| name | location (lat,lng) |',
+    '| --- | --- |',
+    '| Wrong File | 1.3100, 103.8100 |',
+    '',
+  ].join('\n')
+
+  const overlay = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: '',
+    sourceDocumentPath: '',
+    sourceFiles: [
+      {
+        id: 'sf:wrong',
+        name: 'target.md.backup',
+        text: nonMatchingMarkdown,
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: 'workspace:/sandbox/target.md.backup' },
+      },
+      {
+        id: 'sf:exact',
+        name: 'target.md',
+        text: matchingMarkdown,
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: 'workspace:/sandbox/target.md' },
+      },
+    ],
+  })
+
+  const labels = (Array.isArray(overlay.nodes) ? overlay.nodes : []).map(node => String(node?.label || ''))
+  if (!labels.includes('Exact Match')) {
+    throw new Error(`Expected exact source-path match to drive geospatial overlay, got labels=${JSON.stringify(labels)}`)
+  }
+  if (labels.includes('Wrong File')) {
+    throw new Error('Expected source-path matcher to avoid substring/basename drift into non-exact files')
+  }
+}
+
+export function testGeospatialOverlayGraphDataResolvesSourceFileFromGraphIdPath() {
+  const baseGraph: GraphData = {
+    type: 'Graph',
+    context: 'markdown',
+    metadata: { graphId: 'workspace:/sandbox/graph-id-target.md' },
+    nodes: [],
+    edges: [],
+  }
+  const overlay = buildGeospatialOverlayGraphData({
+    graphData: baseGraph,
+    markdownText: '',
+    sourceDocumentPath: '',
+    sourceFiles: [
+      {
+        id: 'sf:graph-id-target',
+        name: 'graph-id-target.md',
+        text: [
+          '| name | location (lat,lng) |',
+          '| --- | --- |',
+          '| Graph Id Match | 1.3200, 103.8200 |',
+          '',
+        ].join('\n'),
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: 'workspace:/sandbox/graph-id-target.md' },
+      },
+    ],
+  })
+
+  const labels = (Array.isArray(overlay.nodes) ? overlay.nodes : []).map(node => String(node?.label || ''))
+  if (!labels.includes('Graph Id Match')) {
+    throw new Error(`Expected graphId path to resolve matching source file for geospatial overlay, got labels=${JSON.stringify(labels)}`)
   }
 }
 

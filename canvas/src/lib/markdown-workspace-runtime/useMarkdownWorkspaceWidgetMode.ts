@@ -12,7 +12,7 @@ import {
   normalizeStringArrayForSignature,
 } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
+import { getCachedGraphLookup, getCachedGraphSubsetByNodeIds } from '@/lib/graph/lookupCache'
 
 export function useMarkdownWorkspaceWidgetMode(args: {
   active?: boolean
@@ -137,7 +137,6 @@ export function useMarkdownWorkspaceWidgetMode(args: {
     [args.graphContentRevision, widgetGraphData, widgetGraphSemanticKey],
   )
   const graphLookupById = widgetNodeLookup?.nodeById || null
-  const graphLookupEdgesByNodeId = widgetNodeLookup?.incidentEdgesByNodeId || null
 
   const resolvedWidgetNodeIds = React.useMemo(() => {
     if (!widgetLookupActive || !graphLookupById) return []
@@ -164,6 +163,14 @@ export function useMarkdownWorkspaceWidgetMode(args: {
     () => hashSignatureParts(['widget-bundle-subset', widgetGraphSemanticKey, widgetNodeIdsKey]),
     [widgetGraphSemanticKey, widgetNodeIdsKey],
   )
+  const widgetBundleGraph = React.useMemo(() => {
+    if (!widgetBundleBuildActive || widgetNodeIds.length === 0 || !widgetNodeLookup) return null
+    return getCachedGraphSubsetByNodeIds({
+      graphLookup: widgetNodeLookup,
+      nodeIds: widgetNodeIds,
+      cacheScope: 'markdown-workspace-widget-bundle',
+    })
+  }, [widgetBundleBuildActive, widgetNodeIds, widgetNodeLookup])
 
   React.useEffect(() => {
     if (contentMode === 'widget' && !widgetAvailable) setContentModeAuto('document')
@@ -181,11 +188,7 @@ export function useMarkdownWorkspaceWidgetMode(args: {
 
   const widgetBundleJsonText = React.useMemo(() => {
     if (!widgetBundleBuildActive || widgetNodeIds.length === 0 || !graphLookupById) return ''
-    if (!graphLookupEdgesByNodeId) return ''
-    const widgetNodeIdSet = new Set(widgetNodeIds)
-    const widgetNodes = widgetNodeIds
-      .map(id => graphLookupById.get(id) || null)
-      .filter((node): node is GraphNode => !!node)
+    const widgetNodes = widgetBundleGraph?.nodes || []
     if (widgetNodes.length === 0) return ''
 
     const registryNodeTypeIds = new Set(widgetNodes.map(node => String(node.type || '').trim()).filter(Boolean))
@@ -195,27 +198,10 @@ export function useMarkdownWorkspaceWidgetMode(args: {
       if (rec.isEnabled !== true) return false
       return registryNodeTypeIds.has(String(rec.nodeTypeId || '').trim())
     })
-    const connectedEdges: GraphEdge[] = []
-    const seenEdgeIds = new Set<string>()
-    for (let i = 0; i < widgetNodeIds.length; i += 1) {
-      const nodeId = widgetNodeIds[i]
-      const incidentEdges = graphLookupEdgesByNodeId.get(nodeId) || []
-      for (let edgeIndex = 0; edgeIndex < incidentEdges.length; edgeIndex += 1) {
-        const edge = incidentEdges[edgeIndex]
-        const edgeId = String(edge?.id || '').trim()
-        const sourceId = String(edge?.source || '').trim()
-        const targetId = String(edge?.target || '').trim()
-        const dedupeKey = edgeId || `${sourceId}->${targetId}:${edgeIndex}`
-        if (!widgetNodeIdSet.has(sourceId) && !widgetNodeIdSet.has(targetId)) continue
-        if (seenEdgeIds.has(dedupeKey)) continue
-        seenEdgeIds.add(dedupeKey)
-        connectedEdges.push(edge)
-      }
-    }
     const graph: GraphData = {
       type: 'application/json',
       nodes: widgetNodes,
-      edges: connectedEdges,
+      edges: widgetBundleGraph?.edges || [],
     }
     return buildWidgetBundleJsonText({
       registryEntries: registryForType,
@@ -223,7 +209,7 @@ export function useMarkdownWorkspaceWidgetMode(args: {
       graphRevision: args.graphContentRevision,
       graphSemanticKey: widgetBundleSemanticKey,
     })
-  }, [args.graphContentRevision, graphLookupById, graphLookupEdgesByNodeId, widgetBundleBuildActive, widgetBundleSemanticKey, widgetNodeIds, widgetRegistrySnapshot])
+  }, [args.graphContentRevision, graphLookupById, widgetBundleBuildActive, widgetBundleGraph, widgetBundleSemanticKey, widgetNodeIds.length, widgetRegistrySnapshot])
 
   const widgetEditorText = React.useMemo(() => {
     if (!widgetAvailable || !widgetBundleJsonText) return ''

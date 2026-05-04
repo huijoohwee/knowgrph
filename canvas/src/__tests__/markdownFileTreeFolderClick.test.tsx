@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownFileTree } from '@/components/BottomPanel/MarkdownFileTree'
+import { MarkdownFileTree } from '@/features/markdown-workspace/MarkdownFileTree'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 
 const tick = async () => {

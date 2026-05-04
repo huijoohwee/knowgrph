@@ -67,8 +67,8 @@ export const testDismissEventHelpersCentralizeEscapeAndPointerDownDismiss = asyn
 
 export const testDismissEventCallsitesUseSharedHelperBoundary = () => {
   const helperText = readUtf8('src/lib/browser/dismissEvents.ts')
-  const fileTreeText = readUtf8('src/components/BottomPanel/MarkdownFileTree.tsx')
-  const selectionMenuText = readUtf8('src/components/BottomPanel/markdownWorkspace/SelectionActionsMenu.tsx')
+  const fileTreeText = readUtf8('src/features/markdown-workspace/MarkdownFileTree.tsx')
+  const selectionMenuText = readUtf8('src/features/markdown-workspace/SelectionActionsMenu.tsx')
 
   if (!helperText.includes('export function subscribeWindowEscapeDismiss')) {
     throw new Error('expected shared dismiss helper module to expose Escape dismissal subscription')

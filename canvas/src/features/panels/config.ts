@@ -31,6 +31,7 @@ import { CANVAS_SHORTCUT_COPY_LINES } from '@/lib/canvas/interaction-ssot'
 export const PANEL_MIN_PX = 120
 export const PANEL_MAX_RATIO = 1.0
 export const PANEL_MIN_RATIO = 0.35
+export const DEFAULT_BOTTOM_PANEL_HEIGHT_RATIO = PANEL_MIN_RATIO
 export const MINIMAP_TINY_GAP_PX = 8
 
 export type WorkflowStepId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
@@ -120,7 +121,7 @@ export const WORKFLOW_STEP_COPY: Record<WorkflowStepId, WorkflowStepCopy> = {
   },
 }
 
-export type BottomTabRoleKey =
+export type PanelSurfaceRoleKey =
   | 'stats'
   | 'parser'
   | 'schema'
@@ -129,25 +130,28 @@ export type BottomTabRoleKey =
   | 'table'
   | 'history'
 
-export type BottomTabOwner =
-  | 'bottomPanel.curation'
-  | 'bottomPanel.stats'
-  | 'bottomPanel.data'
-  | 'bottomPanel.nodes'
-  | 'bottomPanel.edges'
-  | 'bottomPanel.parser'
-  | 'bottomPanel.schema'
-  | 'bottomPanel.render'
-  | 'bottomPanel.history'
+export type PanelSurfaceOwner =
+  | 'bottomSurface.history'
+  | 'bottomSurface.stats'
+  | 'floatingPanel.graphTraversal'
+  | 'floatingPanel.renderer'
+  | 'mainPanel.workflow'
+  | 'workspace.editor'
+  | 'workspace.graphTable'
 
-export function getBottomTabLabel(key: BottomTabRoleKey): string {
+export function getPanelSurfaceLabel(key: PanelSurfaceRoleKey): string {
   if (key === 'stats') return 'Stats'
-  if (key === 'parser') return 'Parser'
-  if (key === 'schema') return 'Schema Configurator'
-  if (key === 'data') return 'Text Editor'
-  if (key === 'render') return 'Renderer'
+  if (key === 'parser') return 'Workflow Manager Parser'
+  if (key === 'schema') return 'Workflow Manager Schema Configurator'
+  if (key === 'data') return 'Editor Workspace'
+  if (key === 'render') return 'Floating Panel Renderer'
   if (key === 'history') return 'History'
-  return WORKFLOW_STEP_COPY[2].label
+  return 'Graph Data Table'
+}
+
+export function getBottomSurfaceTabLabel(key: 'stats' | 'history'): string {
+  if (key === 'stats') return 'Stats'
+  return 'History'
 }
 
 export function getOrchestratorSectionListLabel(): string {
@@ -174,7 +178,7 @@ export const HELP_SHORTCUT_ITEMS: readonly string[] = [
   'Canvas: Cmd/Ctrl + Shift + G replays the launch spotlight.',
   'Settings: uiIconScale under “UI Density: Icons” controls compact vs default icon size across toolbars and panels.',
   'Canvas: Stratify layout renders an uncluttered parent→child tree using configured edge labels; non-hierarchy edges are omitted so label LOD stays readable on large graphs.',
-  'Markdown: Toolbar → Floating Panel → Markdown → Import loads a Markdown document into the Bottom Panel Markdown editor/viewer.',
+  'Markdown: Toolbar → Floating Panel → Markdown → Import loads a Markdown document into the markdown workspace / Editor Workspace surfaces.',
   'Markdown: Presentation Mode renders slides split by standalone --- separators. Shortcuts: Space/Right (Next), Shift+Space/Left (Prev), F (Fullscreen), O (Overview), N (Notes).',
   'Markdown: Presentation Mode applies slide `transition` frontmatter and renders $...$/$$...$$ and \\(...\\)/\\[...\\] math via KaTeX.',
   'Mermaid: Double-click a rendered diagram to open a full-screen viewer with Fit and zoom controls (wheel zoom, drag pan).',
@@ -219,7 +223,7 @@ export const ORCHESTRATOR_AGENTIC_COPY: OrchestratorAgenticCopy = {
   nodeInspectorEmptyExample:
     'Start with nodes such as src/main.py or src/optimization.py::class:Optimizer and use Orchestrator traversal presets to play their graphRAGPath chains.',
   nodeInspectorEmptyProvenance:
-    'When provenance includes a codebasePath value, click it to open the referenced file in the Bottom Panel code editor and keep AgenticRAG inspection grounded in the source.',
+    'When provenance includes a codebasePath value, click it to open the referenced file in the Editor Workspace and keep AgenticRAG inspection grounded in the source.',
   contextSectionTooltip:
     'AgenticRAG context and ignore filters → compare dataset @context and ignore patterns against canonical AgenticRAG context IRI → keep Floating Panel Graph Traversal runs aligned with RACI catalog, schema, and markdown pipeline filters.',
   schemaLabel: AGENTIC_RAG_SCHEMA_LABEL,
@@ -245,14 +249,14 @@ export const ORCHESTRATOR_AGENTIC_COPY: OrchestratorAgenticCopy = {
   orchestratorSectionListLabel: getOrchestratorSectionListLabel(),
 }
 
-export const BOTTOM_TAB_ROLE_OWNERS: Record<BottomTabRoleKey, BottomTabOwner> = {
-  stats: 'bottomPanel.stats',
-  parser: 'bottomPanel.parser',
-  schema: 'bottomPanel.schema',
-  data: 'bottomPanel.data',
-  render: 'bottomPanel.render',
-  table: 'bottomPanel.nodes',
-  history: 'bottomPanel.history',
+export const PANEL_SURFACE_ROLE_OWNERS: Record<PanelSurfaceRoleKey, PanelSurfaceOwner> = {
+  stats: 'bottomSurface.stats',
+  parser: 'mainPanel.workflow',
+  schema: 'mainPanel.workflow',
+  data: 'workspace.editor',
+  render: 'floatingPanel.renderer',
+  table: 'workspace.graphTable',
+  history: 'bottomSurface.history',
 }
 
 export type HelpStepKey = 'shortcuts' | 'cheatsheet' | 'panelTour' | 'workflowLinks' | 'icons'
@@ -279,14 +283,14 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     descriptionShort:
       'Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-based D3 visualizations work together.',
     descriptionLong:
-      'Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-driven D3 visualizations work together. The cheatsheet pairs canvas gestures with bottom panel behavior and selection-aware mini‑charts (Graph Data Table aggregates, dataset inspector distributions, hierarchy, cluster layers, and path visualizations) so selections and creation flows stay predictable as you switch between modes.',
+      'Selection and creation modes shape how zoom, node drag, toolbar edge tools, and selection-driven D3 visualizations work together. The cheatsheet pairs canvas gestures with panel and workspace behavior plus selection-aware mini‑charts (Graph Data Table aggregates, dataset inspector distributions, hierarchy, cluster layers, and path visualizations) so selections and creation flows stay predictable as you switch between modes.',
   },
   panelTour: {
     id: 'panelTour',
     title: 'Panel tour',
     descriptionShort:
       PANEL_TOUR_GRAPH_DATA_TABLE_LOCATION,
-    descriptionLong: `The panel tour explains how the toolbar, main panel, and bottom panel work together. Toolbar actions load data and toggle views, the main panel anchors Workflow Manager and Help (with Graph Fields inside Workflow Manager), and the bottom panel hosts Stats, Parser, Schema Configurator, Orchestrator (${getOrchestratorSectionListLabel()}), Renderer, History, and Export so schema design, curation, and exports stay aligned. Use the Graph Data Table workspace to edit, group, and aggregate node and edge rows.`,
+    descriptionLong: `The panel tour explains how the toolbar, main panel, floating panel, bottom surface, and workspace surfaces work together. Toolbar actions load data and toggle views, the main panel anchors Workflow Manager and Help (with Graph Fields inside Workflow Manager), the floating panel hosts Renderer and Graph Traversal (${getOrchestratorSectionListLabel()}), the bottom surface focuses quick Stats and History review, and the Graph Data Table plus Editor Workspace handle structured curation and text inspection so schema design, curation, and exports stay aligned.`,
   },
   workflowLinks: {
     id: 'workflowLinks',
@@ -294,7 +298,7 @@ export const HELP_STEP_COPY: Record<HelpStepKey, HelpStepCopy> = {
     descriptionShort:
       'Jump into the guided workflow or related panels that align with the 8-step GraphRAG pipeline.',
     descriptionLong:
-      `Workflow links provide jump targets into guided Workflow Manager sections (including Graph Fields) so you can follow the Schema → Curation → Ingest → Enrich → Index → Reason → Produce → Reuse sequence from the RACI catalog without manually hunting for tabs. The Reason stage maps to the Orchestrator bottom-panel tab (${getOrchestratorSectionListLabel()}) anchored to AgenticRAG JSON-LD graphRAGPath and context IRIs.`,
+      `Workflow links provide jump targets into guided Workflow Manager sections (including Graph Fields) so you can follow the Schema → Curation → Ingest → Enrich → Index → Reason → Produce → Reuse sequence from the RACI catalog without manually hunting for tabs. The Reason stage maps to the Floating Panel Graph Traversal surface (${getOrchestratorSectionListLabel()}) anchored to AgenticRAG JSON-LD graphRAGPath and context IRIs.`,
   },
   icons: {
     id: 'icons',
@@ -560,9 +564,9 @@ export const RENDER_PANEL_SECTION_COPY: Record<RenderPanelSectionKey, RenderPane
     descriptionShort:
       'Copy the markdown→graph pipeline command for terminal execution.',
     descriptionLong:
-      'Use the Markdown pipeline section to copy the end-to-end markdown→JSON-LD graph and schema command so documentation GraphData, AgenticRAG schema bindings, and orchestrator configs stay in sync between offline runs and the canvas Renderer tab.',
+      'Use the Markdown pipeline section to copy the end-to-end markdown→JSON-LD graph and schema command so documentation GraphData, AgenticRAG schema bindings, and orchestrator configs stay in sync between offline runs and the canvas Floating Panel renderer surface.',
     tooltip:
-      'Markdown pipeline → copy the markdown→graph pipeline → keep documentation GraphData, schema configs, and Renderer/Orchestrator views synchronized between offline runs and the canvas.',
+      'Markdown pipeline → copy the markdown→graph pipeline → keep documentation GraphData, schema configs, and Floating Panel renderer/Orchestrator views synchronized between offline runs and the canvas.',
   },
   mediaNodes: {
     id: 'mediaNodes',

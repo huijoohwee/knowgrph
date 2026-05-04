@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceTocTree } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceTocTree'
+import { MarkdownWorkspaceTocTree } from '@/features/markdown-workspace/MarkdownWorkspaceTocTree'
 import type { TocItem } from '@/features/markdown/ui/markdownSectionUtils'
 
 export async function testMarkdownWorkspaceTocTreeOwnsExplorerTocRecursion() {

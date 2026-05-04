@@ -7,9 +7,8 @@ export const testMarkdownWorkspaceGeospatialViewerModeStaysSingleActiveLayout = 
   const mainPath = path.resolve(
     process.cwd(),
     'src',
-    'components',
-    'BottomPanel',
-    'markdownWorkspace',
+    'features',
+    'markdown-workspace',
     'main',
     'MarkdownWorkspaceMain.tsx',
   )

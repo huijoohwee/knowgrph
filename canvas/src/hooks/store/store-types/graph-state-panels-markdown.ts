@@ -21,7 +21,7 @@ import type { DesignLayerNode, DesignLayerState } from '@/features/design/design
 import type { DesignFramePos, DesignFrameSize } from '@/hooks/store/designRendererSlice'
 import type { SaveFilePickerHandle } from '@/lib/graph/save'
 import type {
-  BottomTab,
+  BottomSurfaceTab,
   CanvasSnapshotFns,
   ChatExchangeLogEntry,
   ChatExchangeLogEntryInput,
@@ -88,12 +88,12 @@ export interface GraphStatePanelsMarkdown {
   pdfImportProviderFallbackToNative: boolean;
   pdfImportOcrEnabled: boolean;
   pdfImportOcrMode: PdfImportOcrMode;
-  bottomPanelHeightRatio: number;
-  bottomPanelCollapsed: boolean;
+  bottomSurfaceHeightRatio: number;
+  bottomSurfaceCollapsed: boolean;
   floatingPanelWidthRatio: number;
   floatingPanelHeightRatio: number;
   floatingPanelZIndex: number;
-  bottomPanelTab: BottomTab;
+  bottomSurfaceTab: BottomSurfaceTab;
   launchSpotlightMode: 'tour' | 'stats';
   enableLaunchSpotlight: boolean;
   statusPanelPinned: boolean;
@@ -199,12 +199,12 @@ export interface GraphStatePanelsMarkdown {
   setPdfImportProviderFallbackToNative: (v: boolean) => void;
   setPdfImportOcrEnabled: (v: boolean) => void;
   setPdfImportOcrMode: (v: PdfImportOcrMode) => void;
-  setBottomPanelHeightRatio: (v: number) => void;
-  setBottomPanelCollapsed: (v: boolean) => void;
+  setBottomSurfaceHeightRatio: (v: number) => void;
+  setBottomSurfaceCollapsed: (v: boolean) => void;
   setFloatingPanelWidthRatio: (v: number) => void;
   setFloatingPanelHeightRatio: (v: number) => void;
   setFloatingPanelZIndex: (v: number) => void;
-  setBottomPanelTab: (tab: BottomTab) => void;
+  setBottomSurfaceTab: (tab: BottomSurfaceTab) => void;
   setLaunchSpotlightMode: (mode: 'tour' | 'stats') => void;
   setEnableLaunchSpotlight: (v: boolean) => void;
   setStatusPanelPinned: (v: boolean) => void;

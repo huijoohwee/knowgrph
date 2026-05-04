@@ -1,8 +1,8 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MarkdownWorkspaceExplorerHeaderActions } from '@/components/BottomPanel/markdownWorkspace/MarkdownWorkspaceExplorerHeaderActions'
-import type { SelectionActionItem } from '@/components/BottomPanel/markdownWorkspace/selectionActionItems'
+import { MarkdownWorkspaceExplorerHeaderActions } from '@/features/markdown-workspace/MarkdownWorkspaceExplorerHeaderActions'
+import type { SelectionActionItem } from '@/features/markdown-workspace/selectionActionItems'
 
 export async function testMarkdownWorkspaceExplorerHeaderActionsComposeSharedToolbarActions() {
   const { dom, restore } = initJsdomHarness()

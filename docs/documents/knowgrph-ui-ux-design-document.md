@@ -94,7 +94,7 @@
 | Context menu | Right click canvas | Open props/actions | Must cleanup listeners on close/unmount |
 | Markdown text selection | Click / double click / triple click in Viewer/Presentation | Native selection only (caret anchor / word / paragraph) | Must not hijack native selection gestures |
 | Markdown “Show on/in …” | Right click in Editor/Viewer/Presentation | Open Selection Toolbar at exact pointer position | Must not “fly out”; must not use Monaco default context menu |
-| Markdown apply + toggle | Cmd/Ctrl+Enter in Markdown section | Apply (when in Editor) and toggle Editor↔Viewer | Must be scoped to BottomPanel Markdown root (no global hijack) |
+| Markdown apply + toggle | Cmd/Ctrl+Enter in Markdown section | Apply (when in Editor) and toggle Editor↔Viewer | Must be scoped to the markdown workspace root (no global hijack) |
 | Pan/zoom | Drag/scroll | Update viewport transform | Must keep updates throttled and stable |
 | 2D zoom parity | Wheel / trackpad pinch | D3 / Flow / Flow Editor must share one SSOT wheel normalization + sensitivity | Forbid per-renderer ad-hoc wheel scaling or passive wheel handlers that allow page scroll |
 | Flow drag safety | Pointer drag on Flow/Flow Editor | Disable text selection and browser dragstart during canvas interactions | Forbid selection/copy cursors or panel text selection while pointer is captured |

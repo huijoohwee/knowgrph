@@ -1,4 +1,4 @@
-import { htmlFallbackToMarkdownAllText } from '@/components/BottomPanel/markdownWorkspace/workspaceImport/htmlTextFallback'
+import { htmlFallbackToMarkdownAllText } from '@/features/markdown-workspace/workspaceImport/htmlTextFallback'
 
 export function testHtmlFallbackStripsInlineSvgAndKeepsHeadingText() {
   const html = [

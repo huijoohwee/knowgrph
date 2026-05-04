@@ -11,8 +11,8 @@ async function focusFirstImportedWorkspaceFile(args: {
 }): Promise<void> {
   try {
     const { activateFirstImportedWorkspaceFile } = (await import(
-      '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions'
-    )) as typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
+      '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
+    )) as typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')
     await activateFirstImportedWorkspaceFile(args)
   } catch {
     void 0
@@ -46,11 +46,11 @@ export async function importLocalFilesFallback(args: {
         import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
         import('@/features/workspace-fs/workspaceFsEvents') as Promise<typeof import('@/features/workspace-fs/workspaceFsEvents')>,
         import('@/features/workspace-fs/sourceIndex') as Promise<typeof import('@/features/workspace-fs/sourceIndex')>,
-        import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<
-          typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')
+        import('@/features/markdown-workspace/workspaceImport') as Promise<
+          typeof import('@/features/markdown-workspace/workspaceImport')
         >,
-        import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions') as Promise<
-          typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
+        import('@/features/markdown-workspace/useWorkspaceFileActions/importActions') as Promise<
+          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')
         >,
       ])
     const fs = await getWorkspaceFs()
@@ -107,11 +107,11 @@ export async function importLocalFolderFallback(args: {
         import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
         import('@/features/workspace-fs/workspaceFsEvents') as Promise<typeof import('@/features/workspace-fs/workspaceFsEvents')>,
         import('@/features/workspace-fs/sourceIndex') as Promise<typeof import('@/features/workspace-fs/sourceIndex')>,
-        import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<
-          typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')
+        import('@/features/markdown-workspace/workspaceImport') as Promise<
+          typeof import('@/features/markdown-workspace/workspaceImport')
         >,
-        import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions') as Promise<
-          typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
+        import('@/features/markdown-workspace/useWorkspaceFileActions/importActions') as Promise<
+          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')
         >,
       ])
     const fs = await getWorkspaceFs()
@@ -165,11 +165,11 @@ export async function importUrlFallback(args: {
         import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
         import('@/features/workspace-fs/workspaceFsEvents') as Promise<typeof import('@/features/workspace-fs/workspaceFsEvents')>,
         import('@/features/workspace-fs/sourceIndex') as Promise<typeof import('@/features/workspace-fs/sourceIndex')>,
-        import('@/components/BottomPanel/markdownWorkspace/workspaceImport') as Promise<
-          typeof import('@/components/BottomPanel/markdownWorkspace/workspaceImport')
+        import('@/features/markdown-workspace/workspaceImport') as Promise<
+          typeof import('@/features/markdown-workspace/workspaceImport')
         >,
-        import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions') as Promise<
-          typeof import('@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions')
+        import('@/features/markdown-workspace/useWorkspaceFileActions/importActions') as Promise<
+          typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importActions')
         >,
       ])
     const fs = await getWorkspaceFs()

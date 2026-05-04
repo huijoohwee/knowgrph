@@ -1,4 +1,4 @@
-import type { HighlightedLineRange } from '@/components/BottomPanel/markdownWorkspace/markdownWorkspaceTypes'
+import type { HighlightedLineRange } from '@/features/markdown-workspace/markdownWorkspaceTypes'
 
 type ResolvedLineRange = {
   start: number

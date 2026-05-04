@@ -4,7 +4,7 @@
 ## SSOT UI Surfaces
 
 - Parser and Schema Configurator UI live only in **MainPanel → Workflow**.
-- BottomPanel does not contain Parser/Schema tabs and must not embed any Monaco text editors for these concerns.
+- The bottom surface does not own Parser/Schema tabs and must not embed any Monaco text editors for these concerns.
 
 ## File-Based Editing (Editor Workspace)
 
@@ -20,4 +20,3 @@
 ## Spotlight / Discoverability
 
 - Workflow tool buttons retain `data-kg-spotlight-tab="parser"` and `data-kg-spotlight-tab="schema"` anchors.
-

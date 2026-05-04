@@ -1,11 +1,11 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import FlowEditorCanvas from '@/components/FlowEditorCanvas'
-import { activateFirstImportedWorkspaceFile } from '@/components/BottomPanel/markdownWorkspace/useWorkspaceFileActions/importActions'
-import { importWorkspaceLocalFiles } from '@/components/BottomPanel/markdownWorkspace/workspaceImport'
+import { activateFirstImportedWorkspaceFile } from '@/features/markdown-workspace/useWorkspaceFileActions/importActions'
+import { importWorkspaceLocalFiles } from '@/features/markdown-workspace/workspaceImport'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
@@ -148,6 +148,12 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
       flowEditorWidgetIds: (afterImport.openWidgetNodeIdsByRenderer || {}).flowEditor,
       context: 'imported',
     })
+    const importedLayoutCache = afterImport.layoutPositionCacheByMode || {}
+    const importedLayoutKeys = Object.keys(importedLayoutCache)
+    const foreignRendererLayoutKeys = importedLayoutKeys.filter(key => /:2d:(d3|flowchart|flow|design)(:|$)/.test(key))
+    if (foreignRendererLayoutKeys.length > 0) {
+      throw new Error(`expected imported Flow Editor landing to avoid seeding foreign 2D renderer layout cache keys, got ${JSON.stringify(foreignRendererLayoutKeys)}`)
+    }
 
     const importedNodes = Array.isArray(afterImport.graphData?.nodes) ? afterImport.graphData.nodes : []
     const eligibleWidgetIds = Array.from(buildFlowWidgetEligibleNodeIdSet(importedNodes as never)).map(id => String(id || '').trim()).filter(Boolean)
@@ -159,8 +165,11 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
     const container = doc.createElement('div')
     container.id = 'runtime-root'
     doc.body.appendChild(container)
-    root = createRoot(container as unknown as HTMLElement)
-    root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+    await act(async () => {
+      root = createRoot(container as unknown as HTMLElement)
+      root.render(React.createElement(FlowEditorCanvas, { active: true } as never))
+      await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+    })
 
     const waitForFlowEditorOverlaySeed = async () => {
       const deadline = Date.now() + 1500
@@ -197,7 +206,10 @@ async function runVideoDemoRuntimeLandingRendererIsolation(args?: {
     }
   } finally {
     try {
-      root?.unmount()
+      await act(async () => {
+        root?.unmount()
+        await new Promise<void>(resolveWait => setTimeout(resolveWait, 0))
+      })
     } catch {
       void 0
     }

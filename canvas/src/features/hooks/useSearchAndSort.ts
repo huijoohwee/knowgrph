@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react'
 import { searchNodes, searchEdges } from '@/features/search'
-import { sortBy, nextToggleNodeSort, nextToggleEdgeSort, type NodeSort, type EdgeSort } from '@/components/BottomPanel/sort'
+import { sortBy, nextToggleNodeSort, nextToggleEdgeSort, type NodeSort, type EdgeSort } from '@/features/graph-data/sort'
 import { normalized, safeStringify as jsonStr } from '@/features/panels/utils/json'
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
 

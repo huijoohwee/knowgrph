@@ -57,7 +57,7 @@ export function computeSchemaDefinedFieldIds(args: {
   return out
 }
 
-export function buildCuratorColumnLabelByKey(args: {
+export function buildDataTableColumnLabelByKey(args: {
   fields: ReadonlyArray<GraphField>
   resolvedSettingsById: Map<GraphFieldId, GraphFieldSettingsResolved>
 }): Map<GraphDataTableColumnKey, string> {
@@ -79,7 +79,7 @@ export function buildCuratorColumnLabelByKey(args: {
   return map
 }
 
-export function computeOrderedAllCuratorColumnKeys(args: {
+export function computeOrderedAllDataTableColumnKeys(args: {
   fields: ReadonlyArray<GraphField>
   graphDataTableColumnOrder: GraphDataTableColumnKey[]
   graphDataTableVisibleColumns: GraphDataTableColumnVisibilityByKey
@@ -106,18 +106,18 @@ export function computeOrderedAllCuratorColumnKeys(args: {
 
 export function computeFilteredGraphFieldColumnKeys(args: {
   search: string
-  orderedAllCuratorColumnKeys: GraphDataTableColumnKey[]
-  curatorColumnLabelByKey: Map<GraphDataTableColumnKey, string>
+  orderedAllDataTableColumnKeys: GraphDataTableColumnKey[]
+  dataTableColumnLabelByKey: Map<GraphDataTableColumnKey, string>
   visibleFieldIds?: ReadonlySet<GraphFieldId> | null
 }): GraphDataTableColumnKey[] {
-  const { search, orderedAllCuratorColumnKeys, curatorColumnLabelByKey, visibleFieldIds } =
+  const { search, orderedAllDataTableColumnKeys, dataTableColumnLabelByKey, visibleFieldIds } =
     args
 
   const q = normalizeText(search).trim()
   let next = !q
-    ? orderedAllCuratorColumnKeys
-    : orderedAllCuratorColumnKeys.filter(k => {
-        const label = curatorColumnLabelByKey.get(k) ?? String(k)
+    ? orderedAllDataTableColumnKeys
+    : orderedAllDataTableColumnKeys.filter(k => {
+        const label = dataTableColumnLabelByKey.get(k) ?? String(k)
         return normalizeText(label).includes(q) || normalizeText(String(k)).includes(q)
       })
 

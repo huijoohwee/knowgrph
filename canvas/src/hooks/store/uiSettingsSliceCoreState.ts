@@ -1,6 +1,6 @@
 
 import type { StoreApi } from 'zustand'
-import type { BottomTab, DocumentSemanticMode, GraphDataTableFreezeMode, GraphDataTableScope, GraphHoverPreviewConfig, GraphState } from './types'
+import type { BottomSurfaceTab, DocumentSemanticMode, GraphDataTableFreezeMode, GraphDataTableScope, GraphHoverPreviewConfig, GraphState } from './types'
 import type { GraphFieldId, GraphFieldSettingsById } from '@/features/graph-fields/graphFields'
 import type {
   GraphDataTableColumnKey,
@@ -52,11 +52,11 @@ export const createUiSettingsCoreState = (
   selectionFlashDurationMs: 500,
   selectionFlashOpacity: 0.18,
   markdownSelectionFlashMode: 'auto' as const,
-  bottomPanelHeightRatio: 0.35,
+  bottomSurfaceHeightRatio: 0.35,
   floatingPanelWidthRatio: 0.25,
   floatingPanelHeightRatio: 0.5,
   floatingPanelZIndex: 40,
-  bottomPanelTab: 'stats' as BottomTab,
+  bottomSurfaceTab: 'stats' as BottomSurfaceTab,
   frontmatterModeEnabled: true,
   multiDimTableModeEnabled: false,
   documentSemanticMode: 'document' as DocumentSemanticMode,

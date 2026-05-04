@@ -5,7 +5,7 @@ export function testHtmlExportPathsReuseSharedOverlaySizingContract() {
   const exportPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'htmlCanvasSvgExport.ts')
   const viewerPath = resolve(process.cwd(), 'src', 'lib', 'graph', 'htmlViewer', 'buildGraphHtmlViewerMarkup.ts')
   const flowSnapshotsPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasSnapshots.ts')
-  const htmlCanvasExportPath = resolve(process.cwd(), 'src', 'components', 'BottomPanel', 'markdownWorkspace', 'main', 'exports', 'exportHtmlCanvas.ts')
+  const htmlCanvasExportPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'main', 'exports', 'exportHtmlCanvas.ts')
   const snapshotHandlersPath = resolve(process.cwd(), 'src', 'lib', 'panels', 'hooks', 'export-handlers', 'useSnapshotExportHandlers.impl.ts')
   const fallbackExportPath = resolve(process.cwd(), 'src', 'features', 'toolbar', 'exportHtmlFallback.ts')
   const overlaySizingHelperPath = resolve(process.cwd(), 'src', 'lib', 'render', 'overlaySizing2d.ts')

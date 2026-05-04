@@ -20,7 +20,7 @@ import { UI_COPY } from '@/lib/config'
 import { getIconSizeClass } from '@/lib/ui'
 import { computeFilteredLists } from '@/features/schema-editor/utils'
 import {
-  buildCuratorColumnLabelByKey,
+  buildDataTableColumnLabelByKey,
   buildFieldByIdMap,
   buildResolvedSettingsByIdMap,
   computeEdgeScopeBorderColor,
@@ -28,7 +28,7 @@ import {
   computeFilteredGraphFieldColumnKeys,
   computeNodeScopeBorderColor,
   computeNodeStyleOwnerKey,
-  computeOrderedAllCuratorColumnKeys,
+  computeOrderedAllDataTableColumnKeys,
   computeSchemaDefinedFieldIds,
   computeStyleOwnerByFieldId,
 } from '@/features/panels/views/graph-fields/graphFieldsListUtils'
@@ -80,8 +80,8 @@ export default function GraphFieldsListPanel({
   const updateEdgeStyle = useGraphStore(s => s.updateEdgeStyle)
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
-  const [draggingCuratorColumnKey, setDraggingCuratorColumnKey] = React.useState<GraphDataTableColumnKey | null>(null)
-  const [dragOverCuratorColumnKey, setDragOverCuratorColumnKey] = React.useState<GraphDataTableColumnKey | null>(null)
+  const [draggingDataTableColumnKey, setDraggingDataTableColumnKey] = React.useState<GraphDataTableColumnKey | null>(null)
+  const [dragOverDataTableColumnKey, setDragOverDataTableColumnKey] = React.useState<GraphDataTableColumnKey | null>(null)
   const [newFieldOpen, setNewFieldOpen] = React.useState(false)
   const [newFieldScope, setNewFieldScope] = React.useState<'node' | 'edge'>('node')
   const [newFieldKey, setNewFieldKey] = React.useState('')
@@ -90,7 +90,7 @@ export default function GraphFieldsListPanel({
   React.useEffect(() => {
     setSearchOpen(false)
     setSearch('')
-    setDraggingCuratorColumnKey(null)
+    setDraggingDataTableColumnKey(null)
     setNewFieldOpen(false)
     setNewFieldScope('node')
     setNewFieldKey('')
@@ -142,12 +142,12 @@ export default function GraphFieldsListPanel({
     [fields, schema],
   )
 
-  const curatorColumnLabelByKey = React.useMemo(
-    () => buildCuratorColumnLabelByKey({ fields, resolvedSettingsById }),
+  const dataTableColumnLabelByKey = React.useMemo(
+    () => buildDataTableColumnLabelByKey({ fields, resolvedSettingsById }),
     [fields, resolvedSettingsById],
   )
 
-  const isCuratorColumnVisible = React.useCallback(
+  const isDataTableColumnVisible = React.useCallback(
     (key: GraphDataTableColumnKey) =>
       isGraphDataTablePropertyColumnKey(key)
         ? graphDataTableVisibleColumns[key] === true
@@ -155,7 +155,7 @@ export default function GraphFieldsListPanel({
     [graphDataTableVisibleColumns],
   )
 
-  const setCuratorColumnVisibility = React.useCallback(
+  const setDataTableColumnVisibility = React.useCallback(
     (key: GraphDataTableColumnKey, visible: boolean) => {
       const current = useGraphStore.getState().graphDataTableVisibleColumns
       setGraphDataTableVisibleColumns({ ...current, [key]: visible })
@@ -170,9 +170,9 @@ export default function GraphFieldsListPanel({
     [setGraphDataTableVisibleColumns, updateGraphFieldSettings],
   )
 
-  const orderedAllCuratorColumnKeys = React.useMemo(
+  const orderedAllDataTableColumnKeys = React.useMemo(
     () =>
-      computeOrderedAllCuratorColumnKeys({
+      computeOrderedAllDataTableColumnKeys({
         fields,
         graphDataTableColumnOrder,
         graphDataTableVisibleColumns,
@@ -181,19 +181,19 @@ export default function GraphFieldsListPanel({
   )
 
   const visibleGraphFieldColumnCount = React.useMemo(
-    () => orderedAllCuratorColumnKeys.filter(isCuratorColumnVisible).length,
-    [isCuratorColumnVisible, orderedAllCuratorColumnKeys],
+    () => orderedAllDataTableColumnKeys.filter(isDataTableColumnVisible).length,
+    [isDataTableColumnVisible, orderedAllDataTableColumnKeys],
   )
 
-  const moveCuratorColumn = React.useCallback(
+  const moveDataTableColumn = React.useCallback(
     (from: GraphDataTableColumnKey, to: GraphDataTableColumnKey) => {
       if (from === to) return
-      const filtered = orderedAllCuratorColumnKeys.filter(k => k !== from)
+      const filtered = orderedAllDataTableColumnKeys.filter(k => k !== from)
       const idx = filtered.indexOf(to)
       const next = idx < 0 ? [from, ...filtered] : [...filtered.slice(0, idx), from, ...filtered.slice(idx)]
       setGraphDataTableColumnOrder(next)
     },
-    [orderedAllCuratorColumnKeys, setGraphDataTableColumnOrder],
+    [orderedAllDataTableColumnKeys, setGraphDataTableColumnOrder],
   )
 
   const createNewField = React.useCallback(() => {
@@ -214,7 +214,7 @@ export default function GraphFieldsListPanel({
     }
     patchGraphFieldSetting(id, { displayName: cleaned, isHidden: false, fieldType: newFieldType, isCustom: true })
     const colKey = `prop:${newFieldScope}:${cleaned}` as GraphDataTableColumnKey
-    setCuratorColumnVisibility(colKey, true)
+    setDataTableColumnVisibility(colKey, true)
     const currentOrder = useGraphStore.getState().graphDataTableColumnOrder
     if (!currentOrder.includes(colKey)) {
       setGraphDataTableColumnOrder([...currentOrder, colKey])
@@ -231,7 +231,7 @@ export default function GraphFieldsListPanel({
     newFieldType,
     onStatusChange,
     setGraphDataTableColumnOrder,
-    setCuratorColumnVisibility,
+    setDataTableColumnVisibility,
     patchGraphFieldSetting,
     setSelectedFieldId,
     settingsById,
@@ -241,11 +241,11 @@ export default function GraphFieldsListPanel({
     () =>
       computeFilteredGraphFieldColumnKeys({
         search,
-        orderedAllCuratorColumnKeys,
-        curatorColumnLabelByKey,
+        orderedAllDataTableColumnKeys,
+        dataTableColumnLabelByKey,
         visibleFieldIds,
       }),
-    [curatorColumnLabelByKey, orderedAllCuratorColumnKeys, search, visibleFieldIds],
+    [dataTableColumnLabelByKey, orderedAllDataTableColumnKeys, search, visibleFieldIds],
   )
 
   const styleOwnerByFieldId = React.useMemo(
@@ -293,16 +293,16 @@ export default function GraphFieldsListPanel({
       setNewFieldType={setNewFieldType}
       createNewField={createNewField}
       visibleGraphFieldColumnCount={visibleGraphFieldColumnCount}
-      orderedAllCuratorColumnKeys={orderedAllCuratorColumnKeys}
+      orderedAllDataTableColumnKeys={orderedAllDataTableColumnKeys}
       filteredGraphFieldColumnKeys={filteredGraphFieldColumnKeys}
-      curatorColumnLabelByKey={curatorColumnLabelByKey}
-      isCuratorColumnVisible={isCuratorColumnVisible}
-      setCuratorColumnVisibility={setCuratorColumnVisibility}
-      moveCuratorColumn={moveCuratorColumn}
-      draggingCuratorColumnKey={draggingCuratorColumnKey}
-      setDraggingCuratorColumnKey={setDraggingCuratorColumnKey}
-      dragOverCuratorColumnKey={dragOverCuratorColumnKey}
-      setDragOverCuratorColumnKey={setDragOverCuratorColumnKey}
+      dataTableColumnLabelByKey={dataTableColumnLabelByKey}
+      isDataTableColumnVisible={isDataTableColumnVisible}
+      setDataTableColumnVisibility={setDataTableColumnVisibility}
+      moveDataTableColumn={moveDataTableColumn}
+      draggingDataTableColumnKey={draggingDataTableColumnKey}
+      setDraggingDataTableColumnKey={setDraggingDataTableColumnKey}
+      dragOverDataTableColumnKey={dragOverDataTableColumnKey}
+      setDragOverDataTableColumnKey={setDragOverDataTableColumnKey}
       selectedFieldId={selectedFieldId}
       selectedGlobalView={selectedGlobalView}
       setSelectedGlobalView={setSelectedGlobalView}

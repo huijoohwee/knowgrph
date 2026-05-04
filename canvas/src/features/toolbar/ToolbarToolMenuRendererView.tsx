@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { useRenderBottomPanelState } from '@/features/panels/hooks/useRenderBottomPanelState'
+import { useRendererPanelState } from '@/features/panels/hooks/useRendererPanelState'
 import RenderSettingsSection from '@/features/panels/views/RenderSettingsSection'
 import { UI_LABELS } from '@/lib/config'
 import { RendererPaletteSettings } from '@/features/toolbar/ui/RendererPaletteSettings'
@@ -43,7 +43,7 @@ export function ToolbarToolMenuRendererView(props: {
     allSectionsCollapsed: allRenderSectionsCollapsed,
     collapseAllSections: collapseRenderSections,
     expandAllSections: expandRenderSections,
-  } = useRenderBottomPanelState({ source: 'floatingPanel' })
+  } = useRendererPanelState({ source: 'floatingPanel' })
   const renderSectionsCollapsed = renderSections.byKey
   const renderSectionSetters = renderSections.setters
 

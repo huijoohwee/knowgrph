@@ -128,7 +128,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 - Floating panel renderer composes:
   - Quick controls for `renderer:palette` and hover tooltip content.
   - The full Render Settings section (collapsible) for layout, camera, selection, and presets.
-- Bottom Panel “Renderer” tab is treated as navigation and opens the Floating Panel renderer view (no duplicate renderer controls).
+- Renderer ownership stays in the Floating Panel renderer view; no secondary bottom-surface tab or duplicate renderer controls are allowed.
 - Tooltip semantics are standardized:
   - Key tooltips follow Role → Actions → Outcome.
   - Value tooltips follow Default/Min/Max/Interval (when applicable) + short impact (≤ 15 words).
@@ -214,7 +214,7 @@ Export HTML Canvas specifics: `knowgrph/docs/documents/knowgrph-html-canvas-expo
 
 - **Cluster (SSOT)**: umbrella term for “a set of nodes treated as a unit” across derivation, layout, and rendering.
 - **Cluster Layer (Canvas)**: renderer outline surfaces configured by `schema.metadata["canvas:graphLayers"]` and driven by GraphData metadata or frontmatter (aka “graph layers” in schema/config keys).
-- **Community (Semantic)**: similarity-based cluster id (`visual:community`) derived from connected components over `coOccursWith` (used by BottomPanel stats + layered layouts).
+- **Community (Semantic)**: similarity-based cluster id (`visual:community`) derived from connected components over `coOccursWith` (used by the shared stats surfaces + layered layouts).
 - **Subgraph (Mermaid)**: Mermaid `subgraph` blocks that materialize as cluster layers during frontmatter/document derivation.
 - **Cluster Shape (UI)**: the outline shape toggle (Rect/Polygon) for cluster layers; it does not change the underlying clustering rule.
 - **Renderer Parity**: Cluster Shape and Port Handles toggles must affect both 2D renderers (D3 and Flow) so switching renderVariant does not change semantics (only implementation).
