@@ -20,9 +20,10 @@ const sourceFileFixture: SourceFile = {
   parsedTextHash: 'sha256:text',
   parsedGraphRevision: 3,
   parsedGraphData: {
-    type: 'application/json',
-    nodes: [{ id: 'n1', label: 'Demo' }],
+    type: 'Graph',
+    nodes: [{ id: 'n1', label: 'Demo', type: 'Thing', properties: {} }],
     edges: [],
+    metadata: {},
   },
   source: {
     kind: 'local',

@@ -1,6 +1,5 @@
 import { coerceCodebaseRelPath } from '@/lib/codebase/relPath'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
-import { getDocumentPathFromMetadata } from '@/lib/graph/documentMetadata'
 import { getDocumentPathFromMetadata, readGraphDataRevision } from '@/lib/graph/documentMetadata'
 
 export const testCodebaseRelPathCoercionFromAbsoluteUnderRoot = () => {

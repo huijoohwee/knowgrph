@@ -26,8 +26,8 @@ export async function testMarkdownWorkspaceTocListOwnsExplorerTocSectionBody() {
     }
 
     const items: TocItem[] = [
-      { id: 'doc', text: 'Doc', depth: 1, line: 1, children: [] },
-      { id: 'child', text: 'Child', depth: 2, line: 3, children: [] },
+      { id: 'doc', text: 'Doc', depth: 1, index: 0, startLine: 1, children: [] },
+      { id: 'child', text: 'Child', depth: 2, index: 1, startLine: 3, children: [] },
     ]
 
     await act(async () => {

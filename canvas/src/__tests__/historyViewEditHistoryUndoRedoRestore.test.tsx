@@ -22,7 +22,7 @@ export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
   try {
     store.resetAll()
 
-    const baseGraph: GraphData = { type: 'application/json', nodes: [], edges: [] }
+    const baseGraph: GraphData = { type: 'Graph', nodes: [], edges: [], metadata: {} }
     store.replaceHistoryState(
       [
         { id: 'h-0', label: 'A', timestamp: Date.now() - 2000, graphData: baseGraph },
@@ -40,8 +40,8 @@ export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
     })
     await tick()
 
-    const historyTab = Array.from(dom.window.document.querySelectorAll('button[role="tab"]'))
-      .find(button => button.textContent?.trim() === 'History') as HTMLButtonElement | undefined
+    const historyTab = (Array.from(dom.window.document.querySelectorAll('button[role="tab"]')) as HTMLButtonElement[])
+      .find(button => button.textContent?.trim() === 'History')
     if (!historyTab) throw new Error('expected History tab')
     await act(async () => {
       historyTab.click()

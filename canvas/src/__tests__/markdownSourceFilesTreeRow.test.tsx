@@ -90,7 +90,9 @@ export async function testMarkdownSourceFilesTreeRowCentralizesSourcePanelRowUi(
       await new Promise(resolve => setTimeout(resolve, 0))
     })
 
-    const docsButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('docs')) || null
+    const docsButton = (Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]).find(
+      button => button.textContent?.includes('docs'),
+    ) || null
     if (!(docsButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected source row folder button')
     await act(async () => {
       docsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
@@ -98,7 +100,9 @@ export async function testMarkdownSourceFilesTreeRowCentralizesSourcePanelRowUi(
     })
     if (selectedFolders[0] !== 'docs') throw new Error(`expected folder row selection callback for docs, got ${JSON.stringify(selectedFolders)}`)
 
-    const introButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('intro.md')) || null
+    const introButton = (Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]).find(
+      button => button.textContent?.includes('intro.md'),
+    ) || null
     if (!(introButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected source row file button')
     await act(async () => {
       introButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
@@ -106,7 +110,9 @@ export async function testMarkdownSourceFilesTreeRowCentralizesSourcePanelRowUi(
     })
     if (selectedFiles[0]?.fileId !== 'intro') throw new Error(`expected file row selection callback for intro, got ${JSON.stringify(selectedFiles)}`)
 
-    const deleteButton = Array.from(container.querySelectorAll('button')).find(button => button.getAttribute('aria-label') === 'Delete file') || null
+    const deleteButton = (Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]).find(
+      button => button.getAttribute('aria-label') === 'Delete file',
+    ) || null
     if (!(deleteButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected shared source row delete button')
     await act(async () => {
       deleteButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))

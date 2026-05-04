@@ -3,15 +3,16 @@ import type { TocItem } from '@/features/markdown/ui/markdownSectionUtils'
 
 export async function testApplyMarkdownTocReorderByIdsCentralizesTocReorderBridge() {
   const root: TocItem[] = [
-    { id: 'a', text: 'A', depth: 1, line: 1, children: [] },
+    { id: 'a', text: 'A', depth: 1, index: 0, startLine: 1, children: [] },
     {
       id: 'b',
       text: 'B',
       depth: 1,
-      line: 2,
-      children: [{ id: 'b-1', text: 'B.1', depth: 2, line: 3, children: [] }],
+      index: 1,
+      startLine: 2,
+      children: [{ id: 'b-1', text: 'B.1', depth: 2, index: 2, startLine: 3, children: [] }],
     },
-    { id: 'c', text: 'C', depth: 1, line: 4, children: [] },
+    { id: 'c', text: 'C', depth: 1, index: 3, startLine: 4, children: [] },
   ]
 
   const moves: Array<{ parentId: string | null; fromIndex: number; toIndex: number }> = []

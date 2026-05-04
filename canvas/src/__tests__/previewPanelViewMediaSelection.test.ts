@@ -355,7 +355,7 @@ export async function testPreviewPanelGraphRichMediaPanelTextPreviewUsesCanonica
     if (!mediaPanel) throw new Error('expected PreviewPanelView to mount the canonical RichMediaPanel markdown preview surface for graph text previews')
     const markdownPreview = doc.querySelector('[data-kg-rich-media-markdown-preview="1"]')
     if (!markdownPreview) throw new Error('expected graph-backed RichMediaPanel text preview to render through the shared markdown preview surface')
-    const loadEmbedButton = Array.from(doc.querySelectorAll('button')).find(btn =>
+    const loadEmbedButton = (Array.from(doc.querySelectorAll('button')) as HTMLButtonElement[]).find(btn =>
       String(btn.textContent || '').toLowerCase().includes('load embed'),
     )
     if (loadEmbedButton) {

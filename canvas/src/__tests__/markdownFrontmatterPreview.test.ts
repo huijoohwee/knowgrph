@@ -78,7 +78,8 @@ export async function testMarkdownFrontmatterPreviewHelpersCentralizeReadViewDer
     text: 'flowchart TB\nA-->B',
     startLine: 1,
   })
-  if (mermaidToken.type !== 'code' || mermaidToken.lang !== 'mermaid' || mermaidToken.endLine !== 2) {
+  const mermaidTokenLang = 'lang' in mermaidToken ? mermaidToken.lang : undefined
+  if (mermaidToken.type !== 'code' || mermaidTokenLang !== 'mermaid' || mermaidToken.endLine !== 2) {
     throw new Error(`expected shared frontmatter mermaid code token contract, got ${JSON.stringify(mermaidToken)}`)
   }
 

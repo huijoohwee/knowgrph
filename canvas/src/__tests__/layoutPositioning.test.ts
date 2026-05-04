@@ -729,11 +729,7 @@ export const testReadBaselineDocumentLayoutRuntimeContextPrefersPreviousBaseline
   const runtime = readBaselineDocumentLayoutRuntimeContext({
     documentSemanticMode: 'keyword',
     graphData: {
-      type: 'Graph',
-      context: 't',
       metadata: { baselineGraphMetaKey: 'baseline:doc:1' },
-      nodes: [],
-      edges: [],
     },
     fallbackGraphMetaKey: 'current:keyword:1',
     schemaLayoutEngineJson: '{"layout":{"mode":"force"}}',
@@ -792,11 +788,7 @@ export const testReadBaselineDocumentLayoutRuntimeContextReturnsPositionsAndSkip
   const runtime = readBaselineDocumentLayoutRuntimeContext({
     documentSemanticMode: 'keyword',
     graphData: {
-      type: 'Graph',
-      context: 't',
       metadata: { baselineGraphMetaKey: 'baseline:doc:1' },
-      nodes: [],
-      edges: [],
     },
     fallbackGraphMetaKey: 'current:keyword:1',
     schemaLayoutEngineJson: '{"layout":{"mode":"force"}}',

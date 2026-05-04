@@ -174,16 +174,17 @@ export function testFlowEditorCanvasResolvesCanonicalSelectionIdsAcrossDraftAndO
 }
 
 export function testDeriveOpenWidgetOverlayNodeIdsNormalizesCanonicalIdsAndFiltersExcludedNodes() {
-  const graphData = {
-    type: 'application/json',
+  const graphData: import('@/lib/graph/types').GraphData = {
+    type: 'Graph',
     nodes: [
-      { id: 'group-a::node-a', type: 'TextGeneration', properties: {} },
-      { id: 'node-b', type: 'ImageGeneration', properties: {} },
-      { id: 'section-1', type: 'Section', properties: {} },
-      { id: 'node-c', type: 'VideoGeneration', properties: {} },
+      { id: 'group-a::node-a', label: 'Node A', type: 'TextGeneration', properties: {} },
+      { id: 'node-b', label: 'Node B', type: 'ImageGeneration', properties: {} },
+      { id: 'section-1', label: 'Section 1', type: 'Section', properties: {} },
+      { id: 'node-c', label: 'Node C', type: 'VideoGeneration', properties: {} },
     ],
     edges: [],
-  } as const
+    metadata: {},
+  }
   const nodeById = new Map(graphData.nodes.map(node => [String(node.id || '').trim(), node]))
   const ids = deriveOpenWidgetOverlayNodeIds({
     graphData,
@@ -591,7 +592,7 @@ export function testBuildDataflowWidgetRegistryPrefersRicherEntryForSameShapeAcr
 }
 
 export function testBuildDataflowWidgetRegistryReusesSemanticCacheForEquivalentInputs() {
-  const buildArgs = () => ({
+  const buildArgs = (): Parameters<typeof buildDataflowWidgetRegistry>[0] => ({
     documentWidgetRegistry: [
       {
         id: 'doc-openai',

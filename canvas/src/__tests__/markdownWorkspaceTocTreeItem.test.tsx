@@ -16,8 +16,9 @@ export async function testMarkdownWorkspaceTocTreeItemOwnsExplorerTocItemWrapper
       id: 'intro',
       text: 'Introduction',
       depth: 2,
-      line: 3,
-      children: [{ id: 'child', text: 'Child', depth: 3, line: 5, children: [] }],
+      index: 0,
+      startLine: 3,
+      children: [{ id: 'child', text: 'Child', depth: 3, index: 1, startLine: 5, children: [] }],
     }
 
     await act(async () => {

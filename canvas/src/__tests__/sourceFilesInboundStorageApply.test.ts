@@ -71,7 +71,12 @@ export function testPulledKnowgrphStorageDeletesRemoveVisibleSourceFiles() {
       parsedParserId: 'markdown-frontmatter',
       parsedTextHash: 'sha256:remote-demo',
       parsedGraphRevision: 1,
-      parsedGraphData: { type: 'Graph', nodes: [{ id: 'remote-node' }], edges: [], metadata: {} },
+      parsedGraphData: {
+        type: 'Graph',
+        nodes: [{ id: 'remote-node', label: 'Remote Node', type: 'Thing', properties: {} }],
+        edges: [],
+        metadata: {},
+      },
       source: { kind: 'local', path: 'workspace:/remote-demo.md' },
     },
   ])

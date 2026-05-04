@@ -45,7 +45,7 @@ export async function testMarkdownOutlineSidebarSectionCentralizesLayoutOutlineA
       throw new Error(`expected outline rows, got ${initialText}`)
     }
 
-    const docRow = Array.from(container.querySelectorAll('[role="button"]')).find(
+    const docRow = (Array.from(container.querySelectorAll('[role="button"]')) as HTMLElement[]).find(
       element => (element.textContent || '').includes('Doc'),
     )
     if (!(docRow instanceof dom.window.HTMLElement)) throw new Error('expected Doc outline row')

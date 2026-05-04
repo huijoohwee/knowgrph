@@ -28,8 +28,8 @@ export async function testMarkdownFileTreeRowButtonReusesSharedRowShell() {
               event.preventDefault()
               contextMenus += 1
             },
+            children: React.createElement('span', null, 'note.md'),
           },
-          React.createElement('span', null, 'note.md'),
         ),
       )
       await new Promise(resolve => setTimeout(resolve, 0))

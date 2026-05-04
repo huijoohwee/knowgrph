@@ -349,7 +349,7 @@ export function testComposedApplyDeferralHelperCentralizesRaceSuppression() {
   const previousNodeBearingGraph: GraphData = {
     type: 'Graph',
     nodes: [{ id: 'stable', label: 'Stable', type: 'Thing', properties: {} }],
-    edges: [{ id: 'stable-edge', source: 'stable', target: 'stable', properties: {} }],
+    edges: [{ id: 'stable-edge', source: 'stable', target: 'stable', label: 'stable', properties: {} }],
     metadata: {},
   }
   const emptyGraph: GraphData = {
@@ -361,7 +361,7 @@ export function testComposedApplyDeferralHelperCentralizesRaceSuppression() {
   const edgeOnlyGraph: GraphData = {
     type: 'Graph',
     nodes: [],
-    edges: [{ id: 'e1', source: 'a', target: 'b', properties: {} }],
+    edges: [{ id: 'e1', source: 'a', target: 'b', label: 'edge', properties: {} }],
     metadata: {},
   }
 

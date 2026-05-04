@@ -42,7 +42,9 @@ export async function testMarkdownSourceFilesPanelUsesSharedTreeModel() {
     if (!initialText.includes('docs')) throw new Error('expected source files panel to render root folder node')
     if (initialText.includes('intro.md')) throw new Error('expected nested intro file to stay collapsed until folder expansion')
 
-    const docsButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('docs')) || null
+    const docsButton = (Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]).find(
+      button => button.textContent?.includes('docs'),
+    ) || null
     if (!(docsButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected docs folder button')
     await act(async () => {
       docsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
@@ -55,7 +57,9 @@ export async function testMarkdownSourceFilesPanelUsesSharedTreeModel() {
     }
     if (selectedFolderPaths[0] !== 'docs') throw new Error(`expected docs folder selection callback, got ${JSON.stringify(selectedFolderPaths)}`)
 
-    const guidesButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('guides')) || null
+    const guidesButton = (Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]).find(
+      button => button.textContent?.includes('guides'),
+    ) || null
     if (!(guidesButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected guides folder button')
     await act(async () => {
       guidesButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
@@ -65,7 +69,9 @@ export async function testMarkdownSourceFilesPanelUsesSharedTreeModel() {
     const afterGuidesExpand = container.textContent || ''
     if (!afterGuidesExpand.includes('intro.md')) throw new Error('expected guides expansion to reveal intro.md')
 
-    const introButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('intro.md')) || null
+    const introButton = (Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]).find(
+      button => button.textContent?.includes('intro.md'),
+    ) || null
     if (!(introButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected intro file button')
     await act(async () => {
       introButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))

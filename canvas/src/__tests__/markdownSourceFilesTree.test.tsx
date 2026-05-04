@@ -66,7 +66,9 @@ export async function testMarkdownSourceFilesTreeCentralizesSourcePanelTreeShell
     const tree = container.querySelector('ul[role="tree"]')
     if (!(tree instanceof dom.window.HTMLUListElement)) throw new Error('expected source files tree list')
 
-    const docsButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('docs')) || null
+    const docsButton = (Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]).find(
+      button => button.textContent?.includes('docs'),
+    ) || null
     if (!(docsButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected docs folder button')
     await act(async () => {
       docsButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
@@ -74,7 +76,9 @@ export async function testMarkdownSourceFilesTreeCentralizesSourcePanelTreeShell
     })
     if (selectedFolders[0] !== 'docs') throw new Error(`expected docs folder selection, got ${JSON.stringify(selectedFolders)}`)
 
-    const introButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('intro.md')) || null
+    const introButton = (Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]).find(
+      button => button.textContent?.includes('intro.md'),
+    ) || null
     if (!(introButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected intro file button')
     await act(async () => {
       introButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))

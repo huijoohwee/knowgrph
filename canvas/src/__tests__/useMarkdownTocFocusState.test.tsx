@@ -14,14 +14,14 @@ export async function testUseMarkdownTocFocusStateCentralizesExplorerTocFocusSta
     ['child', 'doc'],
   ])
   const globalRecord = globalThis as typeof globalThis & { HTMLElement?: typeof HTMLElement }
-  const cssRecord = globalThis as typeof globalThis & { CSS?: { escape?: (value: string) => string } }
+  const cssRecord = globalThis as typeof globalThis & { CSS?: typeof CSS & { escape?: (value: string) => string } }
   const previousHTMLElement = globalRecord.HTMLElement
   const previousCss = cssRecord.CSS
   const originalScrollIntoView = dom.window.HTMLElement.prototype.scrollIntoView
   let scrollCalls = 0
 
   globalRecord.HTMLElement = dom.window.HTMLElement
-  cssRecord.CSS = { escape: value => String(value) }
+  cssRecord.CSS = { escape: value => String(value) } as typeof CSS & { escape?: (value: string) => string }
   dom.window.HTMLElement.prototype.scrollIntoView = function scrollIntoView() {
     scrollCalls += 1
   }

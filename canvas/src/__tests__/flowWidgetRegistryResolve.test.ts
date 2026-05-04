@@ -9,9 +9,11 @@ import {
   resolveNodeWidgetIdentity,
   resolveWidgetRegistryEntry,
 } from '@/features/flow-editor-manager/resolveWidgetRegistry'
+import type { GraphNode } from '@/lib/graph/types'
+import type { WidgetRegistryEntry } from '@/features/flow-editor-manager/widgetRegistryTypes'
 
 export const testFlowWidgetRegistryResolvePrefersDefault = () => {
-  const registry = [
+  const registry: WidgetRegistryEntry[] = [
     {
       id: 'a',
       isEnabled: true,
@@ -188,7 +190,7 @@ export const testDeriveWidgetCandidateNodeIdsKeepsOpenWidgetsAndAppendsSelectedW
       updatedAt: '2026-02-01T00:00:00.000Z',
     },
   ]
-  const nodeById = new Map<string, { id: string; type: string; properties: Record<string, unknown> }>([
+  const nodeById = new Map<string, Pick<GraphNode, 'id' | 'type' | 'properties'>>([
     ['open-a', { id: 'open-a', type: 'TextGeneration', properties: {} }],
     ['heading-1', { id: 'heading-1', type: 'Section', properties: { level: 1 } }],
     ['sel-a', { id: 'sel-a', type: 'Unknown', properties: { 'flow:widgetTypeId': 'custom' } }],
@@ -210,8 +212,6 @@ export const testDeriveWidgetCandidateNodeIdsKeepsOpenWidgetsAndAppendsSelectedW
 export const testResolveNodeWidgetIdentityPrefersRegistryThenFallsBackToProps = () => {
   const fromRegistry = resolveNodeWidgetIdentity({
     node: {
-      id: 'n1',
-      type: 'TextGeneration',
       properties: {
         'flow:widgetTypeId': 'stale-type',
         'flow:widgetFormId': 'stale-form',
@@ -228,8 +228,6 @@ export const testResolveNodeWidgetIdentityPrefersRegistryThenFallsBackToProps = 
 
   const fromProps = resolveNodeWidgetIdentity({
     node: {
-      id: 'n2',
-      type: 'TextGeneration',
       properties: {
         'flow:widgetTypeId': 'custom',
         'flow:widgetFormId': 'textGeneration.custom',

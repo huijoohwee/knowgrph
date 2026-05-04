@@ -18,11 +18,14 @@ export async function testFilterVisibleMarkdownTokensByCollapsedHeadingsCentrali
   })
   if (unchanged !== tokens) throw new Error('expected empty collapsed set to reuse the original token array')
 
+  const describeToken = (token: (typeof tokens)[number]) =>
+    `${token.type}:${'text' in token ? String(token.text || '') : ''}`
+
   const collapsedChildA = filterVisibleMarkdownTokensByCollapsedHeadings({
     tokens,
     collapsedHeadingIds: new Set(['child-a']),
   })
-  const collapsedChildAText = collapsedChildA.map(token => `${token.type}:${String(token.text || '')}`)
+  const collapsedChildAText = collapsedChildA.map(describeToken)
   if (collapsedChildAText.includes('paragraph:child-a body')) {
     throw new Error(`expected collapsed child-a body to be hidden, got ${collapsedChildAText.join(' | ')}`)
   }
@@ -34,7 +37,7 @@ export async function testFilterVisibleMarkdownTokensByCollapsedHeadingsCentrali
     tokens,
     collapsedHeadingIds: new Set(['child-b']),
   })
-  const collapsedChildBText = collapsedChildBBySlug.map(token => `${token.type}:${String(token.text || '')}`)
+  const collapsedChildBText = collapsedChildBBySlug.map(describeToken)
   if (collapsedChildBText.includes('paragraph:child-b body')) {
     throw new Error(`expected slug-based collapsed Child B body to be hidden, got ${collapsedChildBText.join(' | ')}`)
   }
@@ -46,7 +49,7 @@ export async function testFilterVisibleMarkdownTokensByCollapsedHeadingsCentrali
     tokens,
     collapsedHeadingIds: new Set(['doc']),
   })
-  const collapsedDocText = collapsedDoc.map(token => `${token.type}:${String(token.text || '')}`)
+  const collapsedDocText = collapsedDoc.map(describeToken)
   if (collapsedDocText.includes('paragraph:intro') || collapsedDocText.includes('heading:Child A') || collapsedDocText.includes('heading:Child B')) {
     throw new Error(`expected doc descendants to be hidden, got ${collapsedDocText.join(' | ')}`)
   }

@@ -21,8 +21,8 @@ export async function testExplorerToolbarIconButtonUsesSharedButtonShell() {
             onClick: () => {
               clicks += 1
             },
+            children: React.createElement('span', null, 'X'),
           },
-          React.createElement('span', null, 'X'),
         ),
       )
       await new Promise(resolve => setTimeout(resolve, 0))

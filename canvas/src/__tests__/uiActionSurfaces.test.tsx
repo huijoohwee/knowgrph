@@ -46,9 +46,9 @@ export async function testToastHostRendersSharedActionsAndDispatchesUiRuntime() 
     })
     await tick()
 
-    const reviewButton = Array.from(dom.window.document.querySelectorAll('button')).find(
+    const reviewButton = (Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[]).find(
       button => button.textContent?.trim() === 'Review Log',
-    ) as HTMLButtonElement | undefined
+    )
     if (!reviewButton) throw new Error('expected toast host to render shared action button')
 
     await act(async () => {
@@ -109,9 +109,9 @@ export async function testHistoryViewRendersSharedLogActionsAndDispatchesUiRunti
     })
     await tick()
 
-    const logTab = Array.from(dom.window.document.querySelectorAll('button[role="tab"]')).find(
+    const logTab = (Array.from(dom.window.document.querySelectorAll('button[role="tab"]')) as HTMLButtonElement[]).find(
       button => button.textContent?.trim() === 'Log',
-    ) as HTMLButtonElement | undefined
+    )
     if (!logTab) throw new Error('expected Log tab')
 
     await act(async () => {
@@ -119,9 +119,9 @@ export async function testHistoryViewRendersSharedLogActionsAndDispatchesUiRunti
       await tick()
     })
 
-    const reviewButton = Array.from(dom.window.document.querySelectorAll('button')).find(
+    const reviewButton = (Array.from(dom.window.document.querySelectorAll('button')) as HTMLButtonElement[]).find(
       button => button.textContent?.trim() === 'Review Log',
-    ) as HTMLButtonElement | undefined
+    )
     if (!reviewButton) throw new Error('expected history view log row to render shared action button')
 
     await act(async () => {
