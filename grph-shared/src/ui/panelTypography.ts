@@ -1,3 +1,5 @@
+import { UI_THEME_TOKENS } from './themeTokens.js'
+
 export type PanelTypography = {
   fontClass: string
   textSizeClass: string
@@ -14,7 +16,7 @@ export const PANEL_TYPOGRAPHY_DEFAULTS = {
   textSizeClass: 'text-sm',
   microLabelTextSizeClass: 'text-[9px]',
   monospaceTextClass: 'font-mono text-xs',
-  keyValueInputClass: 'w-full h-6 px-2 border border-gray-300 rounded text-right',
+  keyValueInputClass: `w-full h-6 px-2 text-sm border ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.text} rounded text-right ${UI_THEME_TOKENS.focus.primaryBorderRing}`,
 } as const
 
 export function coercePanelTypography(input: Partial<PanelTypography> | null | undefined): PanelTypography {
